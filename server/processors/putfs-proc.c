@@ -1,0 +1,186 @@
+/* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+
+#include "common.h"
+#include <fcntl.h>
+#include <sys/stat.h>
+
+#include <ccnet.h>
+#include "utils.h"
+
+#include "seafile-session.h"
+#include "commit-mgr.h"
+#include "fs-mgr.h"
+#include "processors/objecttx-common.h"
+#include "putfs-proc.h"
+
+typedef struct  {
+    guint32     reader_id;
+    gboolean    registered;
+} PutfsProcPriv;
+
+#define GET_PRIV(o)  \
+   (G_TYPE_INSTANCE_GET_PRIVATE ((o), SEAFILE_TYPE_PUTFS_PROC, PutfsProcPriv))
+
+#define USE_PRIV \
+    PutfsProcPriv *priv = GET_PRIV(processor);
+
+G_DEFINE_TYPE (SeafilePutfsProc, seafile_putfs_proc, CCNET_TYPE_PROCESSOR)
+
+static int start (CcnetProcessor *processor, int argc, char **argv);
+static void handle_update (CcnetProcessor *processor,
+                           char *code, char *code_msg,
+                           char *content, int clen);
+static void
+read_done_cb (OSAsyncResult *res, void *cb_data);
+
+static void
+release_resource(CcnetProcessor *processor)
+{
+    USE_PRIV;
+
+    if (priv->registered)
+        seaf_obj_store_unregister_async_read (seaf->fs_mgr->obj_store,
+                                              priv->reader_id);
+
+    CCNET_PROCESSOR_CLASS (seafile_putfs_proc_parent_class)->release_resource (processor);
+}
+
+
+static void
+seafile_putfs_proc_class_init (SeafilePutfsProcClass *klass)
+{
+    CcnetProcessorClass *proc_class = CCNET_PROCESSOR_CLASS (klass);
+
+    proc_class->name = "putfs-proc";
+    proc_class->start = start;
+    proc_class->handle_update = handle_update;
+    proc_class->release_resource = release_resource;
+
+    g_type_class_add_private (klass, sizeof (PutfsProcPriv));
+}
+
+static void
+seafile_putfs_proc_init (SeafilePutfsProc *processor)
+{
+}
+
+
+static int
+start (CcnetProcessor *processor, int argc, char **argv)
+{
+    char *session_token;
+    USE_PRIV;
+
+    if (argc != 1) {
+        ccnet_processor_send_response (processor, SC_BAD_ARGS, SS_BAD_ARGS, NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+        return -1;
+    }
+
+    session_token = argv[0];
+    if (seaf_token_manager_verify_token (seaf->token_mgr,
+                                         processor->peer_id,
+                                         session_token, NULL) < 0) {
+        ccnet_processor_send_response (processor, 
+                                       SC_ACCESS_DENIED, SS_ACCESS_DENIED,
+                                       NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+        return -1;
+    }
+
+    priv->registered = TRUE;
+    priv->reader_id =
+        seaf_obj_store_register_async_read (seaf->fs_mgr->obj_store,
+                                            read_done_cb,
+                                            processor);
+
+    ccnet_processor_send_response (processor, SC_OK, SS_OK, NULL, 0);
+
+    return 0;
+}
+
+static void
+read_done_cb (OSAsyncResult *res, void *cb_data)
+{
+    CcnetProcessor *processor = cb_data;
+    ObjectPack *pack = NULL;
+    int pack_size;
+
+    if (!res->success) {
+        g_warning ("[putfs] Failed to read %s.\n", res->obj_id);
+        ccnet_processor_send_response (processor, SC_NOT_FOUND, SS_NOT_FOUND,
+                                       NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+        return;
+    }
+
+    pack_size = sizeof(ObjectPack) + res->len;
+    pack = malloc (pack_size);
+    memcpy (pack->id, res->obj_id, 41);
+    memcpy (pack->object, res->data, res->len);
+
+    ccnet_processor_send_response (processor, SC_OBJECT, SS_OBJECT,
+                                   (char *)pack, pack_size);
+    free (pack);
+}
+
+static gboolean
+send_fs_object (CcnetProcessor *processor, char *object_id)
+{
+    USE_PRIV;
+
+    if (seaf_obj_store_async_read (seaf->fs_mgr->obj_store,
+                                   priv->reader_id,
+                                   object_id) < 0) {
+        g_warning ("[putfs] Failed to start async read of %s.\n", object_id);
+        ccnet_processor_send_response (processor, SC_BAD_OBJECT, SS_BAD_OBJECT,
+                                       NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static void
+send_fs_objects (CcnetProcessor *processor, char *content, int clen)
+{
+    char *object_id;
+    int n_objects;
+    int i;
+
+    if (clen % 41 != 1 || content[clen-1] != '\0') {
+        g_warning ("[putfs] Bad fs object list.\n");
+        ccnet_processor_send_response (processor, SC_BAD_OL, SS_BAD_OL, NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+        return;
+    }
+
+    n_objects = clen/41;
+
+    object_id = content;
+    for (i = 0; i < n_objects; ++i) {
+        object_id[40] = '\0';
+        if (send_fs_object (processor, object_id) == FALSE)
+            return;
+        object_id += 41;
+    }
+}
+
+static void
+handle_update (CcnetProcessor *processor,
+               char *code, char *code_msg,
+               char *content, int clen)
+{
+    if (strncmp(code, SC_GET_OBJECT, 3) == 0) {
+        send_fs_objects (processor, content, clen);
+    } else if (strncmp(code, SC_END, 3) == 0) {
+        ccnet_processor_done (processor, TRUE);     
+    } else {
+        g_warning ("[putfs] Bad update: %s %s\n", code, code_msg);
+        ccnet_processor_send_response (processor,
+                                       SC_BAD_UPDATE_CODE, SS_BAD_UPDATE_CODE,
+                                       NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+    }
+}
