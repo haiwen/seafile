@@ -4,7 +4,7 @@
 #define CCNET_RPCSERVER_PROC_H
 
 #include <glib-object.h>
-#include "processor.h"
+#include <ccnet/processor.h>
 
 #define CCNET_TYPE_RPCSERVER_PROC                  (ccnet_rpcserver_proc_get_type ())
 #define CCNET_RPCSERVER_PROC(obj)                  (G_TYPE_CHECK_INSTANCE_CAST ((obj), CCNET_TYPE_RPCSERVER_PROC, CcnetRpcserverProc))

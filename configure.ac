@@ -455,13 +455,11 @@ AC_CONFIG_FILES(
     common/index/Makefile
     daemon/Makefile
     server/Makefile
+    app/Makefile
 )
     #controller/Makefile
     #httpserver/Makefile
     #monitor/Makefile
-    #app/Makefile
-    #lib/Makefile
-    #include/Makefile
     #tools/Makefile
     #python/Makefile
     #python/Makefile

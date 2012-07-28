@@ -374,7 +374,6 @@ start (CcnetProcessor *processor, int argc, char **argv)
 
     priv->token = g_strdup(token);
 
-/*
     CcnetPeer *peer = ccnet_get_peer (seaf->ccnetrpc_client, processor->peer_id);
     if (!peer || !peer->session_key) {
         seaf_warning ("[check tx slave v2] session key of peer %.10s is null\n",
@@ -388,7 +387,6 @@ start (CcnetProcessor *processor, int argc, char **argv)
 
     priv->session_key = g_strdup(peer->session_key);
     g_object_unref (peer);
-*/
 
     ccnet_job_manager_schedule_job (seaf->job_mgr, check_tx,
                                     thread_done, processor);

@@ -81,7 +81,6 @@ encrypt_token (CcnetProcessor *processor, const char *token)
     if (!token)
         goto out;
 
-/*
     peer = ccnet_get_peer(seaf->ccnetrpc_client, processor->peer_id);
     if (!peer || !peer->session_key) {
         seaf_warning ("[check tx v2] peer or peer session key not exist\n");
@@ -91,7 +90,6 @@ encrypt_token (CcnetProcessor *processor, const char *token)
     seafile_generate_enc_key (peer->session_key,
                               strlen(peer->session_key),
                               CURRENT_ENC_VERSION, key, iv);
-*/
                               
     crypt = seafile_crypt_new (CURRENT_ENC_VERSION, key, iv);
     

@@ -13,4 +13,4 @@ endif
 
 #SUBDIRS = include lib common daemon $(MAKE_CLINET) $(MAKE_SERVER) \
 #	app python tests
-SUBDIRS = include lib common daemon server
+SUBDIRS = include lib common daemon server app
