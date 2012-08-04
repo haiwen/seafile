@@ -23,7 +23,6 @@ proc_headers = $(addprefix processors/, \
 	recvblock-proc.h \
 	recvblock-v2-proc.h \
 	putcs-proc.h \
-	repostat-proc.h \
 	sync-repo-slave-proc.h \
 	check-tx-slave-proc.h \
 	check-tx-slave-v2-proc.h \
@@ -83,7 +82,6 @@ seaf_server_SOURCES = \
 	processors/recvblock-v2-proc.c \
 	processors/recvbranch-proc.c \
 	processors/putcs-proc.c \
-	processors/repostat-proc.c \
 	processors/sync-repo-slave-proc.c \
 	processors/check-tx-slave-proc.c \
 	processors/check-tx-slave-v2-proc.c \

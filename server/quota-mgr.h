@@ -3,8 +3,12 @@
 #ifndef QUOTA_MGR_H
 #define QUOTA_MGR_H
 
+#define INFINITE_QUOTA (gint64)-2
+
 struct _SeafQuotaManager {
     struct _SeafileSession *session;
+
+    gint64 default_quota;
 };
 typedef struct _SeafQuotaManager SeafQuotaManager;
 

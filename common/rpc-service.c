@@ -2234,7 +2234,42 @@ seafile_create_repo (const char *repo_name,
                                                  error);
     return repo_id;
 }
-                                
+
+char *
+seafile_create_org_repo (const char *repo_name,
+                         const char *repo_desc,
+                         const char *user,
+                         const char *passwd,
+                         int org_id,
+                         GError **error)
+{
+    if (!repo_name || !repo_desc || !user || org_id <= 0) {
+        g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Bad arguments");
+        return NULL;
+    }
+    
+    char *repo_id;
+
+    repo_id = seaf_repo_manager_create_org_repo (seaf->repo_mgr,
+                                                 repo_name, repo_desc,
+                                                 user, passwd,
+                                                 org_id, error);
+    return repo_id;
+    
+}
+
+int
+seafile_get_org_id_by_repo_id (const char *repo_id, GError **error)
+{
+    if (!repo_id) {
+        g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Bad arguments");
+        return -1;
+    }
+
+    return seaf_repo_manager_get_org_id_by_repo_id (seaf->repo_mgr, repo_id,
+                                                    error);
+}
+
 int
 seafile_set_user_quota (const char *user, gint64 quota, GError **error)
 {

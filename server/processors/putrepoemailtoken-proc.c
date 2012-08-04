@@ -105,10 +105,10 @@ get_email_cb (void *result, void *data, GError *error)
         ccnet_processor_done (processor, FALSE);
     } else {
         priv->email = g_strdup(email);
-        ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                        get_repo_token,
-                                        get_repo_token_done,
-                                        processor);
+        ccnet_processor_thread_create (processor,
+                                       get_repo_token,
+                                       get_repo_token_done,
+                                       processor);
     }
 }
 
@@ -138,6 +138,11 @@ get_repo_token_done (void *result)
 {
     CcnetProcessor *processor = result;
     USE_PRIV;
+
+    if (processor->delay_shutdown) {
+        ccnet_processor_done (processor, FALSE);
+        return;
+    }
 
     if (strcmp (priv->rsp_code, SC_NO_REPO) == 0) {
         ccnet_processor_send_response (processor, SC_NO_REPO,

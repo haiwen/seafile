@@ -47,7 +47,9 @@ SearpcClient *ccnetrpc_client_t;
 SearpcClient *async_ccnetrpc_client;
 SearpcClient *async_ccnetrpc_client_t;
 
-static const char *short_options = "hvc:d:l:fg:G:m";
+char *pidfile = NULL;
+
+static const char *short_options = "hvc:d:l:fg:G:P:m";
 static struct option long_options[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -58,6 +60,7 @@ static struct option long_options[] = {
     { "ccnet-debug-level", required_argument, NULL, 'g' },
     { "seafile-debug-level", required_argument, NULL, 'G' },
     { "master", no_argument, NULL, 'm'},
+    { "pidfile", required_argument, NULL, 'P' },
     { NULL, 0, NULL, 0, },
 };
 
@@ -223,6 +226,16 @@ static void start_rpc_service (CcnetClient *client)
                                      seafile_create_repo,
                                      "seafile_create_repo",
                                      searpc_signature_string__string_string_string_string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_create_org_repo,
+                                     "seafile_create_org_repo",
+                                     searpc_signature_string__string_string_string_string_int());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_org_id_by_repo_id,
+                                     "seafile_get_org_id_by_repo_id",
+                                     searpc_signature_int__string());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_commit,
@@ -453,6 +466,49 @@ create_async_rpc_clients (CcnetClient *client)
         client, NULL, "ccnet-threaded-rpcserver");
 }
 
+static void
+remove_pidfile (const char *pidfile)
+{
+    if (pidfile) {
+        g_unlink (pidfile);
+    }
+}
+
+static int
+write_pidfile (const char *pidfile_path)
+{
+    if (!pidfile_path)
+        return -1;
+
+    pid_t pid = getpid();
+
+    FILE *pidfile = fopen(pidfile_path, "w");
+    if (!pidfile) {
+        seaf_warning ("Failed to fopen() pidfile %s: %s\n",
+                      pidfile_path, strerror(errno));
+        return -1;
+    }
+
+    char buf[32];
+    snprintf (buf, sizeof(buf), "%d\n", pid);
+    if (fputs(buf, pidfile) < 0) {
+        seaf_warning ("Failed to write pidfile %s: %s\n",
+                      pidfile_path, strerror(errno));
+        return -1;
+    }
+
+    fflush (pidfile);
+    fclose (pidfile);
+    return 0;
+}
+
+static void
+on_seaf_server_exit(void)
+{
+    if (pidfile)
+        remove_pidfile (pidfile);
+}
+
 int
 main (int argc, char **argv)
 {
@@ -496,6 +552,9 @@ main (int argc, char **argv)
             break;
         case 'm':
             is_master = 1;
+        case 'P':
+            pidfile = optarg;
+            break;
         default:
             usage ();
             exit (1);
@@ -556,6 +615,14 @@ main (int argc, char **argv)
     seafile_session_init (seaf);
 
     seafile_session_start (seaf);
+
+    if (pidfile) {
+        if (write_pidfile (pidfile) < 0) {
+            ccnet_message ("Failed to write pidfile\n");
+            return -1;
+        }
+    }
+    atexit (on_seaf_server_exit);
 
     ccnet_main (client);
 

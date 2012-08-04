@@ -116,24 +116,14 @@ write_all (rados_ioctx_t io,
     return in_len;
 }
 
-int
-block_backend_ceph_write_block (BlockBackend *bend,
-                                BHandle *handle,
-                                const void *buf, int len)
+static int
+flush_buffer (rados_ioctx_t io, BlockHandle *handle)
 {
-    CephPriv *priv = bend->be_priv;
-    size_t buf_len;
     char *tmp_buf;
+    size_t buf_len;
     int ret;
 
-    if (evbuffer_add (handle->buffer, buf, len) < 0) {
-        seaf_warning ("[block bend] Failed to add to buffer.\n");
-        return -1;
-    }
-
     buf_len = evbuffer_get_length (handle->buffer);
-    if (buf_len < MAX_BUFFER_SIZE)
-        return len;
 
     tmp_buf = g_new (char, buf_len);
     if (!tmp_buf) {
@@ -142,9 +132,9 @@ block_backend_ceph_write_block (BlockBackend *bend,
     }
     evbuffer_remove (handle->buffer, tmp_buf, buf_len);
 
-    ret = write_all (priv->io, handle->block_id, tmp_buf, buf_len, handle->off);
+    ret = write_all (io, handle->block_id, tmp_buf, buf_len, handle->off);
     if (ret < 0) {
-        ccnet_warning ("[block bend] Failed to read block %s.\n",
+        seaf_warning ("[block bend] Failed to read block %s.\n",
                        handle->block_id);
         g_free (tmp_buf);
         return ret;
@@ -155,10 +145,33 @@ block_backend_ceph_write_block (BlockBackend *bend,
     return ret;
 }
 
-/* nothing to do */
+int
+block_backend_ceph_write_block (BlockBackend *bend,
+                                BHandle *handle,
+                                const void *buf, int len)
+{
+    CephPriv *priv = bend->be_priv;
+
+    if (evbuffer_add (handle->buffer, buf, len) < 0) {
+        seaf_warning ("[block bend] Failed to add to buffer.\n");
+        return -1;
+    }
+
+    if (evbuffer_get_length (handle->buffer) < MAX_BUFFER_SIZE)
+        return len;
+
+    return flush_buffer (priv->io, handle);
+}
+
 int
 block_backend_ceph_close_block (BlockBackend *bend, BHandle *handle)
 {
+    CephPriv *priv = bend->be_priv;
+
+    if (handle->rw_type == BLOCK_WRITE &&
+        evbuffer_get_length (handle->buffer) != 0)
+        return flush_buffer (priv->io, handle);
+
     return 0;
 }
 
@@ -203,7 +216,7 @@ block_backend_ceph_block_exists (BlockBackend *bend, const char *block_sha1)
     char buf[2];
     int err;
 
-    err = rados_getxattr (priv->io, block_sha1, CEPH_COMMIT_EA_NAME, buf, strlen(buf));
+    err = rados_getxattr (priv->io, block_sha1, CEPH_COMMIT_EA_NAME, buf, sizeof(buf));
     if (err < 0) {
         return FALSE;
     }

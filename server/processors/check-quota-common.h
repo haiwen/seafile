@@ -1,43 +1,6 @@
 #ifndef CHECK_QUOTA_COMMON_H
 #define CHECK_QUOTA_COMMON_H
 
-#define DEFAULT_USER_QUOTA ((gint64)1 << 31) /* 2 GB. */
-#define DEFAULT_ORG_QUOTA 5 * ((gint64)1 << 30) /* 5 GB. */
-
-static gint64
-get_quota (SearpcClient *rpc_client, const char *user)
-{
-    CcnetOrganization *org;
-    int org_id;
-    gint64 quota;
-
-    org = (CcnetOrganization *)ccnet_get_org_by_user (rpc_client, user);
-    if (org) {
-        g_object_get (org, "org_id", &org_id, NULL);
-
-        /* First try to get per user quota in the organization. */
-        quota = seaf_quota_manager_get_org_user_quota (seaf->quota_mgr,
-                                                       org_id, user);
-        if (quota > 0)
-            goto out;
-
-        /* If per user quota is not set, return the total quota for this org. */
-        quota = seaf_quota_manager_get_org_quota (seaf->quota_mgr, org_id);
-        if (quota <= 0)
-            quota = DEFAULT_ORG_QUOTA;
-    } else {
-        /* If this user doesn't belong to an org, return personal quota. */
-        quota = seaf_quota_manager_get_user_quota (seaf->quota_mgr, user);
-        if (quota <= 0)
-            quota = DEFAULT_USER_QUOTA;
-    }
-
-out:
-    if (org)
-        g_object_unref (org);
-    return quota;
-}
-
 #include <ccnet.h>
 #include <searpc-client.h>
 #include <ccnetrpc-transport.h>
@@ -85,21 +48,35 @@ check_repo_owner_quota (CcnetProcessor *processor,
                         const char *repo_id)
 {
     USE_PRIV;
-    char *email = NULL;
+    char *user = NULL;
+    int org_id;
     gint64 quota, usage;
     int ret = 0;
 
     /* repo is guranteed to exist before check_repo_owner_quota */
-    email = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
-    if (!email) {
-        priv->rsp_code = g_strdup (SC_QUOTA_ERROR);
-        priv->rsp_msg = g_strdup (SS_QUOTA_ERROR);
-        ret = -1;
-        goto out;
+    user = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
+    if (user != NULL) {
+        quota = seaf_quota_manager_get_user_quota (seaf->quota_mgr, user);
+        if (quota <= 0)
+            quota = seaf->quota_mgr->default_quota;
+    } else {
+        org_id = seaf_repo_manager_get_repo_org (seaf->repo_mgr, repo_id);
+        if (org_id < 0) {
+            priv->rsp_code = g_strdup (SC_QUOTA_ERROR);
+            priv->rsp_msg = g_strdup (SS_QUOTA_ERROR);
+            ret = -1;
+            goto out;
+        }
+
+        quota = seaf_quota_manager_get_org_quota (seaf->quota_mgr, org_id);
+        if (quota <= 0)
+            quota = seaf->quota_mgr->default_quota;
     }
 
-    quota = get_quota (rpc_client, email);
-    usage = get_user_quota_usage (seaf, email);
+    if (quota == INFINITE_QUOTA)
+        return ret;
+
+    usage = get_user_quota_usage (seaf, user);
 
     g_debug ("quota is %"G_GINT64_FORMAT", usage is %"G_GINT64_FORMAT"\n",
              quota, usage);
@@ -118,7 +95,7 @@ check_repo_owner_quota (CcnetProcessor *processor,
     }
 
 out:
-    g_free (email);
+    g_free (user);
     
     return ret;
 }

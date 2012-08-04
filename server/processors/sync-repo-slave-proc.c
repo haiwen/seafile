@@ -33,7 +33,7 @@ sync_repo_slave_start (CcnetProcessor *processor, int argc, char **argv);
 static void *
 send_repo_branch_info (void *vprocessor);
 static void 
-thread_done (CcnetProcessor *processor, int status, char *message);
+thread_done (void *vprocessor);
 
 static void
 release_resource(CcnetProcessor *processor)
@@ -56,7 +56,6 @@ seafile_sync_repo_slave_proc_class_init (SeafileSynRepoSlaveProcClass *klass)
     proc_class->name = "seafile-sync-repo-slave-proc";
     proc_class->start = sync_repo_slave_start;
     proc_class->release_resource = release_resource;
-    proc_class->handle_thread_done = thread_done;
 
     g_type_class_add_private (klass, sizeof (SeafileSyncRepoSlaveProcPriv));
 }
@@ -83,7 +82,9 @@ sync_repo_slave_start (CcnetProcessor *processor, int argc, char **argv)
 
     /* send the head commit of the branch */
     if (ccnet_processor_thread_create (processor, 
-                                       send_repo_branch_info, NULL) < 0) {
+                                       send_repo_branch_info,
+                                       thread_done,
+                                       processor) < 0) {
         g_warning ("[sync repo] failed to start thread.\n");
         ccnet_processor_send_response (processor, 
                                        SC_SERVER_ERROR, SS_SERVER_ERROR,
@@ -107,8 +108,7 @@ send_repo_branch_info (void *vprocessor)
     if (!repo) {
         priv->rsp_code = g_strdup (SC_NO_REPO);
         priv->rsp_msg = g_strdup (SS_NO_REPO);
-        ccnet_processor_thread_done (processor, 0, NULL);
-        return NULL;
+        return vprocessor;
     }
 
     seaf_branch = seaf_branch_manager_get_branch (seaf->branch_mgr,
@@ -118,25 +118,29 @@ send_repo_branch_info (void *vprocessor)
         seaf_repo_unref (repo);
         priv->rsp_code = g_strdup (SC_NO_BRANCH);
         priv->rsp_msg = g_strdup (SS_NO_BRANCH);
-        ccnet_processor_thread_done (processor, 0, NULL);
-        return NULL;
+        return vprocessor;
     }
 
     priv->rsp_code = g_strdup (SC_COMMIT_ID);
     priv->rsp_msg = g_strdup (SS_COMMIT_ID);
     memcpy (priv->commit_id, seaf_branch->commit_id, 41);
-    ccnet_processor_thread_done (processor, 0, NULL);
 
     seaf_repo_unref (repo);
     seaf_branch_unref (seaf_branch);
 
-    return NULL;
+    return vprocessor;
 }
 
 static void 
-thread_done (CcnetProcessor *processor, int status, char *message)
+thread_done (void *vprocessor)
 {
+    CcnetProcessor *processor = vprocessor;
     USE_PRIV;
+
+    if (processor->delay_shutdown) {
+        ccnet_processor_done (processor, FALSE);
+        return;
+    }
 
     if (strcmp (priv->rsp_code, SC_COMMIT_ID) == 0) {
         ccnet_processor_send_response (processor, 

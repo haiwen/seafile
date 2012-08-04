@@ -113,8 +113,8 @@ start (CcnetProcessor *processor, int argc, char **argv)
         return -1;
     }
 
-    ccnet_job_manager_schedule_job (seaf->job_mgr, update_repo,
-                                    thread_done, processor);
+    ccnet_processor_thread_create (processor, update_repo,
+                                   thread_done, processor);
 
     return 0;
 }
@@ -234,6 +234,11 @@ thread_done (void *result)
 {
     CcnetProcessor *processor = result;
     USE_PRIV;
+
+    if (processor->delay_shutdown) {
+        ccnet_processor_done (processor, FALSE);
+        return;
+    }
 
     if (strcmp (priv->rsp_code, SC_OK) == 0) {
         /* Repo is updated, trigger repo size computation. */

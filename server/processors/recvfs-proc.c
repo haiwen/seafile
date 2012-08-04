@@ -24,6 +24,7 @@ enum {
 };
 
 typedef struct  {
+    GList *fs_roots;
     int inspect_objects;
     int pending_objects;
     char buf[4096];
@@ -55,7 +56,11 @@ static void
 release_resource(CcnetProcessor *processor)
 {
     USE_PRIV;
+
     g_hash_table_destroy (priv->fs_objects);
+
+    string_list_free (priv->fs_roots);
+    
     if (priv->registered) {
         seaf_obj_store_unregister_async_read (seaf->fs_mgr->obj_store,
                                               priv->reader_id);
@@ -372,27 +377,16 @@ bad:
 }
 
 static void
-process_fsroot_list (CcnetProcessor *processor, char *content, int clen)
+process_fsroot_list (CcnetProcessor *processor)
 {
-    USE_PRIV;
+    GList *ptr;
     char *object_id;
-    int n_objects;
-    int i;
-
-    if (clen % 41 != 0) {
-        g_warning ("Bad fs root list.\n");
-        ccnet_processor_send_response (processor, SC_BAD_OL, SS_BAD_OL, NULL, 0);
-        ccnet_processor_done (processor, FALSE);
-        return;
-    }
-
-    n_objects = clen/41;
+    USE_PRIV;
 
     request_object_batch_begin (priv);
 
-    object_id = content;
-    for (i = 0; i < n_objects; ++i) {
-        object_id[40] = '\0';
+    for (ptr = priv->fs_roots; ptr != NULL; ptr = ptr->next) {
+        object_id = ptr->data;
 
         /* Empty dir or file alwasys exists. */
         if (strcmp (object_id, EMPTY_SHA1) == 0) {
@@ -415,6 +409,33 @@ process_fsroot_list (CcnetProcessor *processor, char *content, int clen)
         }
         ++(priv->inspect_objects);
 
+        g_free (object_id);
+    }
+
+    g_list_free (priv->fs_roots);
+    priv->fs_roots = NULL;
+}
+
+static void
+queue_fs_roots (CcnetProcessor *processor, char *content, int clen)
+{
+    USE_PRIV;
+    char *object_id;
+    int n_objects;
+    int i;
+
+    if (clen % 41 != 0) {
+        g_warning ("Bad fs root list.\n");
+        ccnet_processor_send_response (processor, SC_BAD_OL, SS_BAD_OL, NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+        return;
+    }
+
+    n_objects = clen/41;
+    object_id = content;
+    for (i = 0; i < n_objects; ++i) {
+        object_id[40] = '\0';
+        priv->fs_roots = g_list_prepend (priv->fs_roots, g_strdup(object_id));
         object_id += 41;
     }
 
@@ -429,9 +450,10 @@ handle_update (CcnetProcessor *processor,
    switch (processor->state) {
    case RECV_ROOT:
         if (strncmp(code, SC_ROOT, 3) == 0) {
-            process_fsroot_list (processor, content, clen);
+            queue_fs_roots (processor, content, clen);
         } else if (strncmp(code, SC_ROOT_END, 3) == 0) {
             /* change state to FETCH_OBJECT */
+            process_fsroot_list (processor);
             processor->timer = ccnet_timer_new (
                 (TimerCB)check_end_condition, processor, CHECK_INTERVAL);
             processor->state = FETCH_OBJECT;

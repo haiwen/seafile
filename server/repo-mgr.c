@@ -271,75 +271,6 @@ should_ignore(const char *filename, void *data)
     return FALSE;
 }
 
-int
-seaf_repo_manager_revert_on_server (SeafRepoManager *mgr,
-                                    const char *repo_id,
-                                    const char *commit_id,
-                                    const char *user_name,
-                                    GError **error)
-{
-    SeafRepo *repo;
-    SeafCommit *commit, *new_commit;
-    char desc[512];
-    int ret = 0;
-
-retry:
-    repo = seaf_repo_manager_get_repo (mgr, repo_id);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "No such repo");
-        return -1;
-    }
-
-    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
-    if (!commit) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "Commit doesn't exist");
-        ret = -1;
-        goto out;
-    }
-
-    strftime (desc, sizeof(desc), "Reverted repo to status at %F %T.", 
-              localtime((time_t *)(&commit->ctime)));
-
-    new_commit = seaf_commit_new (NULL, repo->id, commit->root_id,
-                                  user_name, EMPTY_SHA1,
-                                  desc, 0);
-
-    new_commit->parent_id = g_strdup (repo->head->commit_id);
-
-    seaf_repo_to_commit (repo, new_commit);
-
-    if (seaf_commit_manager_add_commit (seaf->commit_mgr, new_commit) < 0) {
-        ret = -1;
-        goto out;
-    }
-
-    seaf_branch_set_commit (repo->head, new_commit->commit_id);
-    if (seaf_branch_manager_test_and_update_branch (seaf->branch_mgr,
-                                                    repo->head,
-                                                    new_commit->parent_id) < 0)
-    {
-        seaf_warning ("[revert] Concurrent branch update, retry.\n");
-        seaf_repo_unref (repo);
-        seaf_commit_unref (commit);
-        seaf_commit_unref (new_commit);
-        repo = NULL;
-        commit = new_commit = NULL;
-        goto retry;
-    }
-
-out:
-    if (new_commit)
-        seaf_commit_unref (new_commit);
-    if (commit)
-        seaf_commit_unref (commit);
-    if (repo)
-        seaf_repo_unref (repo);
-
-    return ret;
-}
-
 static SeafCommit *
 get_commit(SeafRepo *repo, const char *branch_or_commit)
 {
@@ -782,10 +713,10 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
         if (seaf_db_query (db, sql) < 0)
             return -1;
 
-        sql = "CREATE TABLE IF NOT EXISTS RepoOrg (repo_id CHAR(37), "
-            "org_id INTEGER, "
-            "user_name VARCHAR(255), "
-            "UNIQUE INDEX (org_id, repo_id))";
+        sql = "CREATE TABLE IF NOT EXISTS OrgRepo (org_id INTEGER, "
+            "repo_id CHAR(37), "
+            "user VARCHAR(255), "
+            "INDEX (org_id, repo_id), UNIQUE INDEX (repo_id))";
         if (seaf_db_query (db, sql) < 0)
             return -1;
 
@@ -818,13 +749,18 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
         if (seaf_db_query (db, sql) < 0)
             return -1;
 
-        sql = "CREATE TABLE IF NOT EXISTS RepoOrg (repo_id CHAR(37), "
-            "org_id INTEGER, user_name TEXT)";
+        sql = "CREATE TABLE IF NOT EXISTS OrgRepo (org_id INTEGER, "
+            "repo_id CHAR(37), user VARCHAR(255))";
         if (seaf_db_query (db, sql) < 0)
             return -1;
 
-        sql = "CREATE UNIQUE INDEX IF NOT EXISTS orgid_repoid_indx on "
-            "RepoOrg (org_id, repo_id)";
+        sql = "CREATE UNIQUE INDEX IF NOT EXISTS repoid_indx on "
+            "OrgRepo (repo_id)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        sql = "CREATE INDEX IF NOT EXISTS orgid_repoid_indx on "
+            "OrgRepo (org_id, repo_id)";
         if (seaf_db_query (db, sql) < 0)
             return -1;
 
@@ -858,6 +794,186 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
     return 0;
 }
 
+/*
+ * Repo properties functions.
+ */
+
+static inline char *
+generate_repo_token ()
+{
+    char *uuid = gen_uuid ();
+    unsigned char sha1[20];
+    char token[41];
+    SHA_CTX s;
+
+    SHA1_Init (&s);
+    SHA1_Update (&s, uuid, strlen(uuid));
+    SHA1_Final (sha1, &s);
+
+    rawdata_to_hex (sha1, token, 20);
+
+    g_free (uuid);
+
+    return g_strdup (token);
+}
+
+int
+seaf_repo_manager_set_repo_token (SeafRepoManager *mgr,
+                                  const char *repo_id,
+                                  const char *email,
+                                  const char *token)
+{
+    char sql[512];
+
+    snprintf (sql, sizeof(sql),
+              "REPLACE INTO RepoUserToken VALUES ('%s', '%s', '%s')",
+              repo_id, email, token);
+
+    if (seaf_db_query (mgr->seaf->db, sql) < 0) {
+        seaf_warning ("failed to set repo token. repo = %s, email = %s\n",
+                      repo_id, email);
+        return -1;
+    }
+
+    return 0;
+}
+
+static gboolean
+get_token (SeafDBRow *row, void *data)
+{
+    char **token = data;
+
+    *token = g_strdup(seaf_db_row_get_column_text (row, 0));
+    /* There should be only one result. */
+    return FALSE;
+}
+
+
+char *
+seaf_repo_manager_get_repo_token_nonnull (SeafRepoManager *mgr,
+                                          const char *repo_id,
+                                          const char *email)
+{
+    char sql[256];
+    char *token = NULL;
+
+    if (!repo_exists_in_db (mgr->seaf->db, repo_id))
+        return NULL;
+    
+    snprintf (sql, sizeof(sql), 
+              "SELECT token FROM RepoUserToken WHERE repo_id='%s' and email='%s'",
+              repo_id, email);
+
+    int n_row = seaf_db_foreach_selected_row (mgr->seaf->db, sql,
+                                              get_token, &token);
+    if (n_row < 0) {
+        seaf_warning ("DB error when get token for repo %s, email %s.\n",
+                      repo_id, email);
+        return NULL;
+
+    } else if (n_row == 0) {
+        /* token for this (repo, user) does not exist yet */
+        token = generate_repo_token ();
+        if (seaf_repo_manager_set_repo_token(mgr, repo_id, email, token) < 0) {
+            g_free (token);
+            return NULL;
+        }
+    }
+
+    return token;
+}
+
+char *
+seaf_repo_manager_get_repo_token (SeafRepoManager *mgr,
+                                  const char *repo_id,
+                                  const char *email)
+{
+    char sql[256];
+    char *token = NULL;
+
+    if (!repo_exists_in_db (mgr->seaf->db, repo_id))
+        return NULL;
+
+    snprintf (sql, sizeof(sql), 
+              "SELECT token FROM RepoUserToken WHERE repo_id='%s' and email='%s'",
+              repo_id, email);
+
+    int n_row = seaf_db_foreach_selected_row (mgr->seaf->db, sql,
+                                              get_token, &token);
+    if (n_row < 0) {
+        seaf_warning ("DB error when get token for repo %s, email %s.\n",
+                      repo_id, email);
+    }
+
+    return token;
+}
+
+static gboolean
+get_email_by_token_cb (SeafDBRow *row, void *data)
+{
+    char **email_ptr = data;
+
+    *email_ptr = g_strdup(seaf_db_row_get_column_text (row, 0));
+    /* There should be only one result. */
+    return FALSE;
+}
+
+char *
+seaf_repo_manager_get_email_by_token (SeafRepoManager *manager,
+                                      const char *repo_id,
+                                      const char *token)
+{
+    if (!repo_id || !token)
+        return NULL;
+    
+    char *email = NULL;
+    GString *buf = g_string_new(NULL);
+
+    g_string_append_printf (
+        buf, "SELECT email FROM RepoUserToken "
+        "WHERE repo_id = '%s' AND token = '%s'",
+        repo_id, token);
+
+    seaf_db_foreach_selected_row (seaf->db, buf->str,
+                                  get_email_by_token_cb, &email);
+
+    g_string_free (buf, TRUE);
+    
+    return email;
+}
+
+static gboolean
+get_repo_size (SeafDBRow *row, void *vsize)
+{
+    gint64 *psize = vsize;
+
+    *psize = seaf_db_row_get_column_int64 (row, 0);
+
+    return FALSE;
+}
+
+gint64
+seaf_repo_manager_get_repo_size (SeafRepoManager *mgr, const char *repo_id)
+{
+    gint64 size = 0;
+    char sql[256];
+
+    snprintf (sql, sizeof(sql), "SELECT size FROM RepoSize WHERE repo_id='%s'",
+              repo_id);
+
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
+                                      get_repo_size, &size) < 0)
+        return -1;
+
+    return size;
+}
+
+/*
+ * Permission related functions.
+ */
+
+/* Owner functions. */
+
 int
 seaf_repo_manager_set_repo_owner (SeafRepoManager *mgr,
                                   const char *repo_id,
@@ -867,6 +983,22 @@ seaf_repo_manager_set_repo_owner (SeafRepoManager *mgr,
 
     snprintf (sql, sizeof(sql), "REPLACE INTO RepoOwner VALUES ('%s', '%s')",
               repo_id, email);
+    if (seaf_db_query (mgr->seaf->db, sql) < 0)
+        return -1;
+
+    return 0;
+}
+
+int
+seaf_repo_manager_set_org_repo (SeafRepoManager *mgr,
+                                int org_id,
+                                const char *repo_id,
+                                const char *user)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql), "INSERT INTO OrgRepo VALUES (%d, '%s', '%s')",
+              org_id, repo_id, user);
     if (seaf_db_query (mgr->seaf->db, sql) < 0)
         return -1;
 
@@ -900,6 +1032,18 @@ seaf_repo_manager_get_repo_owner (SeafRepoManager *mgr,
     }
 
     return ret;
+}
+
+int
+seaf_repo_manager_get_repo_org (SeafRepoManager *mgr,
+                                const char *repo_id)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "SELECT org_id FROM OrgRepo WHERE repo_id = '%s'",
+              repo_id);
+    return seaf_db_get_int (mgr->seaf->db, sql);
 }
 
 static gboolean
@@ -982,31 +1126,7 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
     return g_list_reverse (ret);
 }
 
-static gboolean
-get_repo_size (SeafDBRow *row, void *vsize)
-{
-    gint64 *psize = vsize;
-
-    *psize = seaf_db_row_get_column_int64 (row, 0);
-
-    return FALSE;
-}
-
-gint64
-seaf_repo_manager_get_repo_size (SeafRepoManager *mgr, const char *repo_id)
-{
-    gint64 size = 0;
-    char sql[256];
-
-    snprintf (sql, sizeof(sql), "SELECT size FROM RepoSize WHERE repo_id='%s'",
-              repo_id);
-
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      get_repo_size, &size) < 0)
-        return -1;
-
-    return size;
-}
+/* Web access permission. */
 
 int
 seaf_repo_manager_set_access_property (SeafRepoManager *mgr, const char *repo_id,
@@ -1056,6 +1176,8 @@ seaf_repo_manager_query_access_property (SeafRepoManager *mgr, const char *repo_
 
     return ret;
 }
+
+/* Group related. */
 
 int
 seaf_repo_manager_share_repo (SeafRepoManager *mgr,
@@ -1208,18 +1330,7 @@ seaf_repo_manager_remove_repo_group (SeafRepoManager *mgr,
     return seaf_db_query (mgr->seaf->db, sql);
 }
 
-static gboolean
-get_org_repo_list (SeafDBRow *row, void *data)
-{
-    GList **p_list = data;
-    char *repo_id = NULL;
-
-    repo_id = g_strdup (seaf_db_row_get_column_text (row, 0));
-    
-    *p_list = g_list_prepend(*p_list, repo_id);
-
-    return TRUE;
-}
+/* Org related. */
 
 GList *
 seaf_repo_manager_get_org_repo_list (SeafRepoManager *mgr,
@@ -1230,10 +1341,10 @@ seaf_repo_manager_get_org_repo_list (SeafRepoManager *mgr,
     char sql[512];
     GList *ret = NULL;
     
-    snprintf (sql, sizeof(sql), "SELECT repo_id FROM RepoOrg "
+    snprintf (sql, sizeof(sql), "SELECT repo_id FROM OrgRepo "
               "WHERE org_id = %d LIMIT %d, %d", org_id, start, limit);
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      get_org_repo_list, &ret) < 0) {
+                                      collect_repos, &ret) < 0) {
         return NULL;
     }
 
@@ -1246,11 +1357,15 @@ seaf_repo_manager_remove_org_repo_by_org_id (SeafRepoManager *mgr,
 {
     char sql[512];
 
-    snprintf (sql, sizeof(sql), "DELETE FROM RepoOrg WHERE org_id = %d",
+    snprintf (sql, sizeof(sql), "DELETE FROM OrgRepo WHERE org_id = %d",
               org_id);
 
     return seaf_db_query (mgr->seaf->db, sql);
 }
+
+/*
+ * Repo operations.
+ */
 
 static gint
 compare_dirents (gconstpointer a, gconstpointer b)
@@ -2479,20 +2594,20 @@ seaf_repo_generate_magic (SeafRepo *repo, const char *passwd)
     rawdata_to_hex (key, repo->magic, 16);
 }
 
-char *
-seaf_repo_manager_create_new_repo (SeafRepoManager *mgr,
-                                   const char *repo_name,
-                                   const char *repo_desc,
-                                   const char *owner_email,
-                                   const char *passwd,
-                                   GError **error)
+static char *
+create_repo_common (SeafRepoManager *mgr,
+                    const char *repo_name,
+                    const char *repo_desc,
+                    const char *user,
+                    const char *passwd,
+                    GError **error)
 {
     SeafRepo *repo = NULL;
     SeafCommit *commit = NULL;
     SeafBranch *master = NULL;
     char *repo_id = NULL;
     char *ret = NULL;
-    
+
     repo_id = gen_uuid ();
     repo = seaf_repo_new (repo_id, repo_name, repo_desc);
     g_free (repo_id);
@@ -2506,7 +2621,7 @@ seaf_repo_manager_create_new_repo (SeafRepoManager *mgr,
 
     commit = seaf_commit_new (NULL, repo->id,
                               EMPTY_SHA1, /* root id */
-                              owner_email, /* creator */
+                              user, /* creator */
                               EMPTY_SHA1, /* creator id */
                               repo_desc,  /* description */
                               0);         /* ctime */
@@ -2534,13 +2649,6 @@ seaf_repo_manager_create_new_repo (SeafRepoManager *mgr,
         goto out;
     }
 
-    if (seaf_repo_manager_set_repo_owner (mgr, repo->id, owner_email) < 0) {
-        seaf_warning ("Failed to add repo.\n");
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "Failed to set repo owner.");
-        goto out;
-    }
-
     if (seaf_repo_manager_add_repo (mgr, repo) < 0) {
         seaf_warning ("Failed to add repo.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
@@ -2557,7 +2665,77 @@ out:
     if (master)
         seaf_branch_unref (master);
     
-    return ret;
+    return ret;    
+}
+
+char *
+seaf_repo_manager_create_new_repo (SeafRepoManager *mgr,
+                                   const char *repo_name,
+                                   const char *repo_desc,
+                                   const char *owner_email,
+                                   const char *passwd,
+                                   GError **error)
+{
+    char *repo_id = NULL;
+
+    repo_id = create_repo_common (mgr, repo_name, repo_desc, owner_email,
+                                  passwd, error);
+
+    if (seaf_repo_manager_set_repo_owner (mgr, repo_id, owner_email) < 0) {
+        seaf_warning ("Failed to set repo owner.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to set repo owner.");
+        goto out;
+    }
+
+    return repo_id;
+    
+out:
+    if (repo_id)
+        g_free (repo_id);
+    return NULL;
+}
+
+char *
+seaf_repo_manager_create_org_repo (SeafRepoManager *mgr,
+                                   const char *repo_name,
+                                   const char *repo_desc,
+                                   const char *user,
+                                   const char *passwd,
+                                   int org_id,
+                                   GError **error)
+{
+    char *repo_id = NULL;
+
+    repo_id = create_repo_common (mgr, repo_name, repo_desc, user, passwd,
+                                  error);
+
+    if (seaf_repo_manager_set_org_repo (mgr, org_id, repo_id, user) < 0) {
+        seaf_warning ("Failed to set org repo.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to set org repo.");
+        goto out;
+    }
+
+    return repo_id;
+
+out:
+    if (repo_id)
+        g_free (repo_id);
+    return NULL;
+}
+
+int
+seaf_repo_manager_get_org_id_by_repo_id (SeafRepoManager *mgr,
+                                         const char *repo_id,
+                                         GError **error)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql), "SELECT org_id FROM OrgRepo "
+              "WHERE repo_id = '%s'", repo_id);
+
+    return seaf_db_get_int (mgr->seaf->db, sql);
 }
 
 static char *
@@ -3036,147 +3214,71 @@ out:
     return commit_list;
 }
 
-static inline char *
-generate_repo_token ()
-{
-    char *uuid = gen_uuid ();
-    unsigned char sha1[20];
-    char token[41];
-    SHA_CTX s;
-
-    SHA1_Init (&s);
-    SHA1_Update (&s, uuid, strlen(uuid));
-    SHA1_Final (sha1, &s);
-
-    rawdata_to_hex (sha1, token, 20);
-
-    g_free (uuid);
-
-    return g_strdup (token);
-}
-
 int
-seaf_repo_manager_set_repo_token (SeafRepoManager *mgr,
-                                  const char *repo_id,
-                                  const char *email,
-                                  const char *token)
+seaf_repo_manager_revert_on_server (SeafRepoManager *mgr,
+                                    const char *repo_id,
+                                    const char *commit_id,
+                                    const char *user_name,
+                                    GError **error)
 {
-    char sql[512];
+    SeafRepo *repo;
+    SeafCommit *commit, *new_commit;
+    char desc[512];
+    int ret = 0;
 
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO RepoUserToken VALUES ('%s', '%s', '%s')",
-              repo_id, email, token);
-
-    if (seaf_db_query (mgr->seaf->db, sql) < 0) {
-        seaf_warning ("failed to set repo token. repo = %s, email = %s\n",
-                      repo_id, email);
+retry:
+    repo = seaf_repo_manager_get_repo (mgr, repo_id);
+    if (!repo) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "No such repo");
         return -1;
     }
 
-    return 0;
-}
-
-static gboolean
-get_token (SeafDBRow *row, void *data)
-{
-    char **token = data;
-
-    *token = g_strdup(seaf_db_row_get_column_text (row, 0));
-    /* There should be only one result. */
-    return FALSE;
-}
-
-
-char *
-seaf_repo_manager_get_repo_token_nonnull (SeafRepoManager *mgr,
-                                          const char *repo_id,
-                                          const char *email)
-{
-    char sql[256];
-    char *token = NULL;
-
-    if (!repo_exists_in_db (mgr->seaf->db, repo_id))
-        return NULL;
-    
-    snprintf (sql, sizeof(sql), 
-              "SELECT token FROM RepoUserToken WHERE repo_id='%s' and email='%s'",
-              repo_id, email);
-
-    int n_row = seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                              get_token, &token);
-    if (n_row < 0) {
-        seaf_warning ("DB error when get token for repo %s, email %s.\n",
-                      repo_id, email);
-        return NULL;
-
-    } else if (n_row == 0) {
-        /* token for this (repo, user) does not exist yet */
-        token = generate_repo_token ();
-        if (seaf_repo_manager_set_repo_token(mgr, repo_id, email, token) < 0) {
-            g_free (token);
-            return NULL;
-        }
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
+    if (!commit) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Commit doesn't exist");
+        ret = -1;
+        goto out;
     }
 
-    return token;
-}
+    strftime (desc, sizeof(desc), "Reverted repo to status at %F %T.", 
+              localtime((time_t *)(&commit->ctime)));
 
-char *
-seaf_repo_manager_get_repo_token (SeafRepoManager *mgr,
-                                  const char *repo_id,
-                                  const char *email)
-{
-    char sql[256];
-    char *token = NULL;
+    new_commit = seaf_commit_new (NULL, repo->id, commit->root_id,
+                                  user_name, EMPTY_SHA1,
+                                  desc, 0);
 
-    if (!repo_exists_in_db (mgr->seaf->db, repo_id))
-        return NULL;
+    new_commit->parent_id = g_strdup (repo->head->commit_id);
 
-    snprintf (sql, sizeof(sql), 
-              "SELECT token FROM RepoUserToken WHERE repo_id='%s' and email='%s'",
-              repo_id, email);
+    seaf_repo_to_commit (repo, new_commit);
 
-    int n_row = seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                              get_token, &token);
-    if (n_row < 0) {
-        seaf_warning ("DB error when get token for repo %s, email %s.\n",
-                      repo_id, email);
+    if (seaf_commit_manager_add_commit (seaf->commit_mgr, new_commit) < 0) {
+        ret = -1;
+        goto out;
     }
 
-    return token;
+    seaf_branch_set_commit (repo->head, new_commit->commit_id);
+    if (seaf_branch_manager_test_and_update_branch (seaf->branch_mgr,
+                                                    repo->head,
+                                                    new_commit->parent_id) < 0)
+    {
+        seaf_warning ("[revert] Concurrent branch update, retry.\n");
+        seaf_repo_unref (repo);
+        seaf_commit_unref (commit);
+        seaf_commit_unref (new_commit);
+        repo = NULL;
+        commit = new_commit = NULL;
+        goto retry;
+    }
+
+out:
+    if (new_commit)
+        seaf_commit_unref (new_commit);
+    if (commit)
+        seaf_commit_unref (commit);
+    if (repo)
+        seaf_repo_unref (repo);
+
+    return ret;
 }
-
-static gboolean
-get_email_by_token_cb (SeafDBRow *row, void *data)
-{
-    char **email_ptr = data;
-
-    *email_ptr = g_strdup(seaf_db_row_get_column_text (row, 0));
-    /* There should be only one result. */
-    return FALSE;
-}
-
-char *
-seaf_repo_manager_get_email_by_token (SeafRepoManager *manager,
-                                      const char *repo_id,
-                                      const char *token)
-{
-    if (!repo_id || !token)
-        return NULL;
-    
-    char *email = NULL;
-    GString *buf = g_string_new(NULL);
-
-    g_string_append_printf (
-        buf, "SELECT email FROM RepoUserToken "
-        "WHERE repo_id = '%s' AND token = '%s'",
-        repo_id, token);
-
-    seaf_db_foreach_selected_row (seaf->db, buf->str,
-                                  get_email_by_token_cb, &email);
-
-    g_string_free (buf, TRUE);
-    
-    return email;
-}
-

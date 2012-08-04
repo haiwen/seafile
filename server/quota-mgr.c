@@ -6,6 +6,19 @@
 #include "seaf-db.h"
 #include "quota-mgr.h"
 
+static gint64
+get_default_quota (GKeyFile *config)
+{
+    gint quota_gb;
+
+    /* Get default quota configuration in GB. */
+    quota_gb = g_key_file_get_integer (config, "quota", "default", NULL);
+    if (quota_gb <= 0)
+        return INFINITE_QUOTA;
+
+    return quota_gb * ((gint64)1 << 30);
+}
+
 SeafQuotaManager *
 seaf_quota_manager_new (struct _SeafileSession *session)
 {
@@ -13,6 +26,8 @@ seaf_quota_manager_new (struct _SeafileSession *session)
     if (!mgr)
         return NULL;
     mgr->session = session;
+
+    mgr->default_quota = get_default_quota (session->config);
 
     return mgr;
 }

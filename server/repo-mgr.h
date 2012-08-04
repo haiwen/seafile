@@ -100,6 +100,10 @@ seaf_repo_manager_init (SeafRepoManager *mgr);
 int
 seaf_repo_manager_start (SeafRepoManager *mgr);
 
+/*
+ * Repo Management functions. 
+ */
+
 int
 seaf_repo_manager_add_repo (SeafRepoManager *mgr, SeafRepo *repo);
 
@@ -120,6 +124,16 @@ seaf_repo_manager_repo_exists_prefix (SeafRepoManager *manager, const gchar *id)
 
 GList* 
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit);
+
+GList *
+seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr);
+
+int
+seaf_repo_manager_branch_repo_unmap (SeafRepoManager *manager, SeafBranch *branch);
+
+/*
+ * Repo properties functions.
+ */
 
 #define MAX_REPO_TOKEN 64
 #define DEFAULT_REPO_TOKEN "default"
@@ -145,9 +159,13 @@ seaf_repo_manager_get_email_by_token (SeafRepoManager *manager,
                                       const char *repo_id,
                                       const char *token);
 
+gint64
+seaf_repo_manager_get_repo_size (SeafRepoManager *mgr, const char *repo_id);
 
-int
-seaf_repo_manager_branch_repo_unmap (SeafRepoManager *manager, SeafBranch *branch);
+
+/*
+ * Repo Operations.
+ */
 
 int
 seaf_repo_manager_revert_on_server (SeafRepoManager *mgr,
@@ -240,86 +258,21 @@ seaf_repo_manager_is_valid_filename (SeafRepoManager *mgr,
                                      const char *filename,
                                      GError **error);
 
-int
-seaf_repo_manager_set_repo_owner (SeafRepoManager *mgr,
-                                  const char *repo_id,
-                                  const char *email);
-
-char *
-seaf_repo_manager_get_repo_owner (SeafRepoManager *mgr,
-                                  const char *repo_id);
-
-/* TODO: add start and limit. */
-/* Get repos owned by this user.
- */
-GList *
-seaf_repo_manager_get_repos_by_owner (SeafRepoManager *mgr,
-                                      const char *email);
-
-GList *
-seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr);
-
-gint64
-seaf_repo_manager_get_repo_size (SeafRepoManager *mgr, const char *repo_id);
-
-int
-seaf_repo_manager_set_access_property (SeafRepoManager *mgr, const char *repo_id,
-                                       const char *ap);
-
-char *
-seaf_repo_manager_query_access_property (SeafRepoManager *mgr, const char *repo_id);
-
-int
-seaf_repo_manager_share_repo (SeafRepoManager *mgr,
-                              const char *repo_id,
-                              int group_id,
-                              const char *user_name,
-                              const char *permission,
-                              GError **error);
-int
-seaf_repo_manager_unshare_repo (SeafRepoManager *mgr,
-                                const char *repo_id,
-                                int group_id,
-                                const char *user_name,
-                                GError **error);
-
-GList *
-seaf_repo_manager_get_group_repoids (SeafRepoManager *mgr,
-                                     int group_id,
-                                     GError **error);
-
-GList *
-seaf_repo_manager_get_group_my_share_repos (SeafRepoManager *mgr,
-                                            const char *username,
-                                            GError **error);
-
-char *
-seaf_repo_manager_get_repo_share_from (SeafRepoManager *mgr,
-                                       const char *repo_id,
-                                       GError **error);
-
-int
-seaf_repo_manager_remove_repo_group (SeafRepoManager *mgr,
-                                     int group_id,
-                                     const char *user_name,
-                                     GError **error);
-
-GList *
-seaf_repo_manager_get_org_repo_list (SeafRepoManager *mgr,
-                                     int org_id,
-                                     int start,
-                                     int limit);
-
-int
-seaf_repo_manager_remove_org_repo_by_org_id (SeafRepoManager *mgr,
-                                             int org_id);
-
 char *
 seaf_repo_manager_create_new_repo (SeafRepoManager *mgr,
                                    const char *repo_name,
                                    const char *repo_desc,
                                    const char *owner_email,
                                    const char *passwd,
+                                   GError **error);
+
+char *
+seaf_repo_manager_create_org_repo (SeafRepoManager *mgr,
+                                   const char *repo_name,
+                                   const char *repo_desc,
+                                   const char *user,
+                                   const char *passwd,
+                                   int org_id,
                                    GError **error);
 
 /* Give a repo and a path in this repo, returns a list of commits, where every
@@ -338,5 +291,94 @@ seaf_repo_manager_revert_file (SeafRepoManager *mgr,
                                const char *path,
                                const char *user,
                                GError **error);
+
+/*
+ * Permission related functions.
+ */
+
+/* Owner functions. */
+
+int
+seaf_repo_manager_set_repo_owner (SeafRepoManager *mgr,
+                                  const char *repo_id,
+                                  const char *email);
+
+char *
+seaf_repo_manager_get_repo_owner (SeafRepoManager *mgr,
+                                  const char *repo_id);
+
+/* TODO: add start and limit. */
+/* Get repos owned by this user.
+ */
+GList *
+seaf_repo_manager_get_repos_by_owner (SeafRepoManager *mgr,
+                                      const char *email);
+
+/* Group related. */
+
+int
+seaf_repo_manager_share_repo (SeafRepoManager *mgr,
+                              const char *repo_id,
+                              int group_id,
+                              const char *user_name,
+                              const char *permission,
+                              GError **error);
+int
+seaf_repo_manager_unshare_repo (SeafRepoManager *mgr,
+                                const char *repo_id,
+                                int group_id,
+                                const char *user_name,
+                                GError **error);
+
+char *
+seaf_repo_manager_get_repo_share_from (SeafRepoManager *mgr,
+                                       const char *repo_id,
+                                       GError **error);
+
+GList *
+seaf_repo_manager_get_group_repoids (SeafRepoManager *mgr,
+                                     int group_id,
+                                     GError **error);
+
+GList *
+seaf_repo_manager_get_group_my_share_repos (SeafRepoManager *mgr,
+                                            const char *username,
+                                            GError **error);
+
+int
+seaf_repo_manager_remove_repo_group (SeafRepoManager *mgr,
+                                     int group_id,
+                                     const char *user_name,
+                                     GError **error);
+
+/* Org related. */
+
+int
+seaf_repo_manager_get_repo_org (SeafRepoManager *mgr,
+                                const char *repo_id);
+
+GList *
+seaf_repo_manager_get_org_repo_list (SeafRepoManager *mgr,
+                                     int org_id,
+                                     int start,
+                                     int limit);
+
+int
+seaf_repo_manager_remove_org_repo_by_org_id (SeafRepoManager *mgr,
+                                             int org_id);
+
+int
+seaf_repo_manager_get_org_id_by_repo_id (SeafRepoManager *mgr,
+                                         const char *repo_id,
+                                         GError **error);
+
+/* Web access permission. */
+
+int
+seaf_repo_manager_set_access_property (SeafRepoManager *mgr, const char *repo_id,
+                                       const char *ap);
+
+char *
+seaf_repo_manager_query_access_property (SeafRepoManager *mgr, const char *repo_id);
 
 #endif

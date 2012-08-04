@@ -55,3 +55,5 @@ ${searpc_gen}: rpc_table.py
 
 clean-local:
 	-rm ${searpc_gen} 
+
+CLEANFILES = ccnetobj.c ccnet-object.h ${searpc_gen}

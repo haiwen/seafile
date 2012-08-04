@@ -18,7 +18,7 @@
 
 #include "seafile-session.h"
 #include "seafile-rpc.h"
-#include "processors/rpcserver-proc.h"
+#include "rpcserver-proc.h"
 /* #include "threaded-rpcserver-proc.h" */
 #include "log.h"
 #include "utils.h"

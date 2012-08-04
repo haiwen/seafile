@@ -58,7 +58,6 @@ typedef struct {
 
     char repo_id[37];
     char *branch_name;
-    char *email;
     char *token;
     char *session_key;
 
@@ -89,7 +88,6 @@ release_resource(CcnetProcessor *processor)
 
     /* g_free works fine even if ptr is NULL. */
     g_free (priv->token);
-    g_free (priv->email);
     g_free (priv->session_key);
     g_free (priv->branch_name);
     g_free (priv->rsp_code);
@@ -139,7 +137,7 @@ get_branch_head (CcnetProcessor *processor)
         priv->rsp_msg = g_strdup(SS_OK);
     } else {
         priv->rsp_code = g_strdup(SC_NO_BRANCH);
-        priv->rsp_code = g_strdup(SS_NO_BRANCH);
+        priv->rsp_msg = g_strdup(SS_NO_BRANCH);
     }
 }
 
@@ -243,12 +241,14 @@ check_tx (void *vprocessor)
     USE_PRIV;
 
     char *owner = NULL;
+    char *user = NULL;
+    int org_id;
     SearpcClient *rpc_client = NULL;
     char *repo_id = priv->repo_id;
 
     if (!seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id)) {
         priv->rsp_code = g_strdup(SC_BAD_REPO);
-        priv->rsp_code = g_strdup(SS_BAD_REPO);
+        priv->rsp_msg = g_strdup(SS_BAD_REPO);
         goto out;
     }
 
@@ -258,10 +258,10 @@ check_tx (void *vprocessor)
         goto out;
     }
 
-    priv->email = seaf_repo_manager_get_email_by_token (
+    user = seaf_repo_manager_get_email_by_token (
         seaf->repo_mgr, repo_id, priv->token);
     
-    if (!priv->email) {
+    if (!user) {
         priv->rsp_code = g_strdup(SC_ACCESS_DENIED);
         priv->rsp_msg = g_strdup(SS_ACCESS_DENIED);
         goto out;
@@ -283,15 +283,20 @@ check_tx (void *vprocessor)
     }
     
     owner = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
-    if (!owner) {
-        priv->rsp_code = g_strdup(SC_BAD_REPO);
-        priv->rsp_code = g_strdup(SS_BAD_REPO);
-        goto out;
-    }
-
-    /* If the user is not owner, check share permission */
-    if (strcmp (owner, priv->email) != 0) {
-        if(!check_repo_share_permission (rpc_client, repo_id, priv->email)) {
+    if (owner != NULL) {
+        /* If the user is not owner, check share permission */
+        if (strcmp (owner, user) != 0) {
+            if(!check_repo_share_permission (rpc_client, repo_id, user)) {
+                priv->rsp_code = g_strdup(SC_ACCESS_DENIED);
+                priv->rsp_msg = g_strdup(SS_ACCESS_DENIED);
+                goto out;
+            }
+        }
+    } else {
+        /* This should be a repo created in an org. */
+        org_id = seaf_repo_manager_get_repo_org (seaf->repo_mgr, repo_id);
+        if (org_id < 0 ||
+            !ccnet_org_user_exists (rpc_client, org_id, user)) {
             priv->rsp_code = g_strdup(SC_ACCESS_DENIED);
             priv->rsp_msg = g_strdup(SS_ACCESS_DENIED);
             goto out;
@@ -302,6 +307,7 @@ check_tx (void *vprocessor)
 
 out:
     g_free (owner);
+    g_free (user);
     if (rpc_client)
         free_sync_rpc_client (rpc_client);
     return vprocessor;
@@ -313,6 +319,11 @@ thread_done (void *result)
 {
     CcnetProcessor *processor = result;
     USE_PRIV;
+
+    if (processor->delay_shutdown) {
+        ccnet_processor_done (processor, FALSE);
+        return;
+    }
 
     if (strcmp (priv->rsp_code, SC_OK) == 0) {
         if (priv->has_branch) {
@@ -388,8 +399,7 @@ start (CcnetProcessor *processor, int argc, char **argv)
     priv->session_key = g_strdup(peer->session_key);
     g_object_unref (peer);
 
-    ccnet_job_manager_schedule_job (seaf->job_mgr, check_tx,
-                                    thread_done, processor);
+    ccnet_processor_thread_create (processor, check_tx, thread_done, processor);
 
     return 0;
 }

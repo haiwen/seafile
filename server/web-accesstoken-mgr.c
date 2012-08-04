@@ -10,7 +10,7 @@
 
 #define CLEANING_INTERVAL_MSEC 1000*300	/* 5 minutes */
 #define TOKEN_EXPIRE_TIME 300	/* 5 minutes */
-#define DEBUG 1
+/* #define DEBUG 1 */
 
 SeafWebAccessTokenManager*
 seaf_web_at_manager_new (SeafileSession *seaf)

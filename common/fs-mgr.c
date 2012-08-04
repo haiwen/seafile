@@ -42,19 +42,19 @@ typedef struct SeafileOndisk {
     guint32          type;
     guint64          file_size;
     unsigned char    block_ids[0];
-} __attribute__((__packed__)) SeafileOndisk;
+} __attribute__((gcc_struct, __packed__)) SeafileOndisk;
 
 typedef struct DirentOndisk {
     guint32 mode;
     char    id[40];
     guint32 name_len;
     char    name[0];
-} __attribute__((__packed__)) DirentOndisk;
+} __attribute__((gcc_struct, __packed__)) DirentOndisk;
 
 typedef struct SeafdirOndisk {
     guint32 type;
     char    dirents[0];
-} __attribute__((__packed__)) SeafdirOndisk;
+} __attribute__((gcc_struct, __packed__)) SeafdirOndisk;
 
 #ifndef SEAFILE_SERVER
 uint32_t

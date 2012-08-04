@@ -372,7 +372,12 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
 
         fsm->remain -= n;
         if (fsm->remain == 0) {
-            seaf_block_manager_close_block (block_mgr, handle);
+            if (seaf_block_manager_close_block (block_mgr, handle) < 0) {
+                g_warning ("Failed to close block %s.\n", fsm->hdr.block_id);
+                seaf_block_manager_block_handle_free (seaf->block_mgr, handle);
+                return -1;
+            }
+
             if (seaf_block_manager_commit_block (block_mgr, handle) < 0) {
                 g_warning ("Failed to commit block %s.\n", fsm->hdr.block_id);
                 seaf_block_manager_block_handle_free (seaf->block_mgr, handle);

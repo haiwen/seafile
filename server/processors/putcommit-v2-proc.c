@@ -172,6 +172,11 @@ collect_commit_id_done (void *vprocessor)
     CcnetProcessor *processor = vprocessor;
     USE_PRIV;
 
+    if (processor->delay_shutdown) {
+        ccnet_processor_done (processor, FALSE);
+        return;
+    }
+
     if (!priv->id_list) {
         ccnet_processor_send_response (processor, SC_NOT_FOUND, SS_NOT_FOUND,
                                        NULL, 0);
@@ -231,10 +236,10 @@ put_commit_start (CcnetProcessor *processor, int argc, char **argv)
                                             processor);
     priv->registered = TRUE;
 
-    ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                    collect_commit_id_thread,
-                                    collect_commit_id_done,
-                                    processor);
+    ccnet_processor_thread_create (processor,
+                                   collect_commit_id_thread,
+                                   collect_commit_id_done,
+                                   processor);
 
     return 0;
 }

@@ -132,7 +132,7 @@ get_branch_head (CcnetProcessor *processor)
         priv->rsp_msg = g_strdup(SS_OK);
     } else {
         priv->rsp_code = g_strdup(SC_NO_BRANCH);
-        priv->rsp_code = g_strdup(SS_NO_BRANCH);
+        priv->rsp_msg = g_strdup(SS_NO_BRANCH);
     }
 }
 
@@ -187,6 +187,7 @@ check_tx (void *vprocessor)
     USE_PRIV;
 
     char *owner = NULL;
+    int org_id;
     SearpcClient *rpc_client = NULL;
 
     char *repo_id = priv->repo_id;
@@ -202,7 +203,7 @@ check_tx (void *vprocessor)
 
     if (!seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id)) {
         priv->rsp_code = g_strdup(SC_BAD_REPO);
-        priv->rsp_code = g_strdup(SS_BAD_REPO);
+        priv->rsp_msg = g_strdup(SS_BAD_REPO);
         goto out;
     }
 
@@ -211,15 +212,20 @@ check_tx (void *vprocessor)
         goto out;
     
     owner = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
-    if (!owner) {
-        priv->rsp_code = g_strdup(SC_BAD_REPO);
-        priv->rsp_code = g_strdup(SS_BAD_REPO);
-        goto out;
-    }
-
-    /* If the user is not owner, check share permission */
-    if (strcmp (owner, priv->email) != 0) {
-        if(!check_repo_share_permission (rpc_client, repo_id, priv->email)) {
+    if (owner != NULL) {
+        /* If the user is not owner, check share permission */
+        if (strcmp (owner, priv->email) != 0) {
+            if(!check_repo_share_permission (rpc_client, repo_id, priv->email)) {
+                priv->rsp_code = g_strdup(SC_ACCESS_DENIED);
+                priv->rsp_msg = g_strdup(SS_ACCESS_DENIED);
+                goto out;
+            }
+        }
+    } else {
+        /* This should be a repo created in an org. */
+        org_id = seaf_repo_manager_get_repo_org (seaf->repo_mgr, repo_id);
+        if (org_id < 0 ||
+            !ccnet_org_user_exists (rpc_client, org_id, priv->email)) {
             priv->rsp_code = g_strdup(SC_ACCESS_DENIED);
             priv->rsp_msg = g_strdup(SS_ACCESS_DENIED);
             goto out;
@@ -240,6 +246,11 @@ thread_done (void *result)
 {
     CcnetProcessor *processor = result;
     USE_PRIV;
+
+    if (processor->delay_shutdown) {
+        ccnet_processor_done (processor, FALSE);
+        return;
+    }
 
     if (strcmp (priv->rsp_code, SC_OK) == 0) {
         if (priv->has_branch) {
@@ -275,8 +286,7 @@ get_email_cb (void *result, void *data, GError *error)
     }
     priv->email = g_strdup(email);
 
-    ccnet_job_manager_schedule_job (seaf->job_mgr, check_tx,
-                                    thread_done, processor);
+    ccnet_processor_thread_create (processor, check_tx, thread_done, processor);
 }
 
 static int

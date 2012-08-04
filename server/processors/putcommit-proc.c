@@ -161,7 +161,7 @@ send_commit (CcnetProcessor *processor, char *object_id)
     int pack_size;
 
     if (seaf_obj_store_read_obj (seaf->commit_mgr->obj_store,
-                                 object_id, &data, &len) < 0) {
+                                 object_id, (void**)&data, &len) < 0) {
         g_warning ("Failed to read commit %s.\n", object_id);
         goto fail;
     }

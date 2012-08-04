@@ -97,12 +97,14 @@ release_thread (CcnetProcessor *processor)
 {
     USE_PRIV;
 
-    /* The read end will be closed by worker thread. */
-    if (priv->tdata->task_pipe[1] >= 0)
-        pipeclose (priv->tdata->task_pipe[1]);
+    if (priv->tdata) {
+        /* The read end will be closed by worker thread. */
+        if (priv->tdata->task_pipe[1] >= 0)
+            pipeclose (priv->tdata->task_pipe[1]);
 
-    priv->tdata->processor_done = TRUE;
-    cevent_manager_unregister (seaf->ev_mgr, priv->tdata->cevent_id);
+        priv->tdata->processor_done = TRUE;
+        cevent_manager_unregister (seaf->ev_mgr, priv->tdata->cevent_id);
+    }
 }
 
 static void
@@ -178,8 +180,10 @@ send_block_packet (ThreadData *tdata,
     BlockPacket pkt;
     char buf[1024];
     int n;
+#if defined SENDBLOCK_PROC
     guint64 t_start, t_end;
     int delta = 0;
+#endif
 
     md = seaf_block_manager_stat_block_by_handle (block_mgr, handle);
     if (!md) {
@@ -198,7 +202,9 @@ send_block_packet (ThreadData *tdata,
         return -1;
     }
 
+#if defined SENDBLOCK_PROC
     t_start = get_time_microseconds ();
+#endif
     while (1) {
         n = seaf_block_manager_read_block (block_mgr, handle, buf, 1024);
         if (n <= 0)
@@ -209,6 +215,7 @@ send_block_packet (ThreadData *tdata,
             return -1;
         }
 
+#if defined SENDBLOCK_PROC
         delta += n;
         t_end = get_time_microseconds ();
         if (t_end - t_start >= 1000000) {
@@ -216,7 +223,7 @@ send_block_packet (ThreadData *tdata,
             t_start = t_end;
             delta = 0;
         }
-
+#endif
     }
     if (n < 0) {
         g_warning ("Failed to write block %s: %s.\n", block_id, 
@@ -224,7 +231,9 @@ send_block_packet (ThreadData *tdata,
         return -1;
     }
 
+#if defined SENDBLOCK_PROC
     send_block_rsp (tdata->cevent_id, -1, delta, (int)(t_end - t_start));
+#endif
 
     return size;
 }
@@ -343,8 +352,10 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
         fsm->delta += n;
         t_end = get_time_microseconds ();
         if (t_end - fsm->t_start >= 1000000) {
+#if defined GETBLOCK_PROC
             send_block_rsp (fsm->cevent_id, -1, fsm->delta,
                             (int)(t_end - fsm->t_start));
+#endif
             fsm->t_start = t_end;
             fsm->delta = 0;
         }
@@ -356,7 +367,12 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
 
         fsm->remain -= n;
         if (fsm->remain == 0) {
-            seaf_block_manager_close_block (block_mgr, handle);
+            if (seaf_block_manager_close_block (block_mgr, handle) < 0) {
+                g_warning ("Failed to close block %s.\n", fsm->hdr.block_id);
+                seaf_block_manager_block_handle_free (seaf->block_mgr, handle);
+                return -1;
+            }
+
             if (seaf_block_manager_commit_block (block_mgr, handle) < 0) {
                 g_warning ("Failed to commit block %s.\n", fsm->hdr.block_id);
                 seaf_block_manager_block_handle_free (seaf->block_mgr, handle);
@@ -692,14 +708,12 @@ static void* do_passive_transfer(void *vtdata)
 static void
 accept_connection (evutil_socket_t connfd, void *vdata)
 {
-    CcnetProcessor *processor;
     ThreadData *tdata = vdata;
+    CcnetProcessor *processor = tdata->processor;
 
-    if (tdata->processor_done) {
-        g_free (tdata);
-        return;
-    }
-    processor = tdata->processor;
+    /* client error or timeout */
+    if (connfd < 0)
+        goto fail;
 
     tdata->data_fd = connfd;
 
@@ -731,8 +745,13 @@ send_port (CcnetProcessor *processor)
     int len;
 
     token = seaf_listen_manager_generate_token (seaf->listen_mgr);
-    seaf_listen_manager_register_token (seaf->listen_mgr, token,
-        (ConnAcceptedCB)accept_connection, priv->tdata);
+    if (seaf_listen_manager_register_token (seaf->listen_mgr, token,
+                        (ConnAcceptedCB)accept_connection,
+                        priv->tdata, 10) < 0) {
+        seaf_warning ("failed to register token\n");
+        g_free (token);
+        ccnet_processor_done (processor, FALSE);
+    }
 
     len = snprintf (buf, sizeof(buf), "%d\t%s", seaf->listen_mgr->port, token);
     ccnet_processor_send_response (processor,

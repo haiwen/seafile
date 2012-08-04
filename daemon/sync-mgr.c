@@ -29,7 +29,6 @@
 #define DEFAULT_SYNC_INTERVAL 30 /* 30s */
 #define CHECK_SYNC_INTERVAL  1000 /* 1s */
 #define MAX_RUNNING_SYNC_TASKS 5
-#define MAX_PENDING_SYNC_TASKS 20
 
 #define DEFAULT_WORKTREE_INTERVAL 600 /* 10 minutes */
 
@@ -47,12 +46,6 @@ static int
 try_get_repo_email_token (SeafSyncManager *mgr,
                           SyncTask *task);
 
-static void add_sync_task (SeafSyncManager *manager,
-                           SyncInfo *info,
-                           SeafRepo *repo,
-                           gboolean is_sync_lan,
-                           gboolean force_upload,
-                           gboolean need_commit);
 static int
 perform_sync_task (SeafSyncManager *manager, SyncTask *task);
 static int check_sync_pulse (void *vmanager);
@@ -1054,13 +1047,13 @@ perform_sync_task (SeafSyncManager *manager, SyncTask *task)
     return -1;
 }
 
-static void
-add_sync_task (SeafSyncManager *manager,
-               SyncInfo *info,
-               SeafRepo *repo,
-               gboolean is_sync_lan,
-               gboolean force_upload,
-               gboolean need_commit)
+static SyncTask *
+create_sync_task (SeafSyncManager *manager,
+                  SyncInfo *info,
+                  SeafRepo *repo,
+                  gboolean is_sync_lan,
+                  gboolean force_upload,
+                  gboolean need_commit)
 {
     SyncTask *task = g_new0 (SyncTask, 1);
 
@@ -1073,9 +1066,7 @@ add_sync_task (SeafSyncManager *manager,
     task->need_commit = need_commit;
     task->token = g_strdup(repo->token);
 
-    g_queue_push_tail (manager->sync_tasks, task);
-
-    /* g_debug ("[sync-mgr] Add sync task for %s\n", info->repo_id); */
+    return task;
 }
 
 gint
@@ -1105,8 +1096,11 @@ add_auto_sync_tasks (SeafSyncManager *manager)
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
 
-        if (manager->sync_tasks->length >= MAX_PENDING_SYNC_TASKS)
+        if (manager->n_running_tasks >= MAX_RUNNING_SYNC_TASKS)
             break;
+
+        if (repo->last_sync_time > timeline)
+            continue;
 
         if (repo->delete_pending)
             continue;
@@ -1131,19 +1125,15 @@ add_auto_sync_tasks (SeafSyncManager *manager)
         if (!dest_id)
             continue;
 
-/*
         CcnetPeer *peer = ccnet_get_peer (seaf->ccnetrpc_client, dest_id);
         if (!peer->session_key) {
             g_object_unref (peer);
             continue;
         }
         g_object_unref (peer);
-*/
-
-        if (repo->last_sync_time > timeline)
-            continue;
         
-        add_sync_task (manager, info, repo, FALSE, FALSE, FALSE);
+        SyncTask *task = create_sync_task (manager, info, repo, FALSE, FALSE, FALSE);
+        perform_sync_task (manager, task);
     }
 
     g_list_free (repos);
@@ -1161,11 +1151,11 @@ check_sync_pulse (void *vmanager)
     /* g_debug ("running sync tasks: %d, tasks in queue: %d\n", */
     /*          manager->n_running_tasks, manager->sync_tasks->length); */
 
+    /* Here we perform tasks queued by auto-commit.
+     * These tasks should be performed as soon as possible.
+     */
     while (1) {
         SyncTask *task;
-
-        if (manager->n_running_tasks >= MAX_RUNNING_SYNC_TASKS)
-            break;
 
         task = (SyncTask *)g_queue_pop_head (manager->sync_tasks);
         if (!task)
@@ -1215,6 +1205,7 @@ auto_commit_pulse (void *vmanager)
     gint now = (gint)time(NULL);
     gint last_changed;
     SyncInfo *info;
+    SyncTask *task;
 
     repos = seaf_repo_manager_get_repo_list (manager->seaf->repo_mgr, -1, -1);
 
@@ -1250,15 +1241,17 @@ auto_commit_pulse (void *vmanager)
                     /* repo->wt_changed = TRUE; */
                     if (now - last_changed >= 2) {
                         info = get_sync_info (manager, repo->id);
-                        add_sync_task (manager, info, repo,
-                                       FALSE, FALSE, TRUE);
+                        task = create_sync_task (manager, info, repo,
+                                                 FALSE, FALSE, TRUE);
+                        g_queue_push_tail (manager->sync_tasks, task);
                         status->last_check = now;
                     }
                 } else if (now - status->last_check >= manager->wt_interval) {
                     /* Try to commit if no change has been detected in 10 mins. */
                     info = get_sync_info (manager, repo->id);
-                    add_sync_task (manager, info, repo,
-                                   FALSE, FALSE, TRUE);
+                    task = create_sync_task (manager, info, repo,
+                                             FALSE, FALSE, TRUE);
+                    g_queue_push_tail (manager->sync_tasks, task);
                     status->last_check = now;
                 }
             }

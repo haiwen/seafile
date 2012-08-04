@@ -685,6 +685,16 @@ seafile_create_repo (const char *repo_name,
                      const char *passwd,
                      GError **error);
 
+char *
+seafile_create_org_repo (const char *repo_name,
+                         const char *repo_desc,
+                         const char *user,
+                         const char *passwd,
+                         int org_id,
+                         GError **error);
+
+int
+seafile_get_org_id_by_repo_id (const char *repo_id, GError **error);
 
 /* ------------------ Public RPC calls. ------------ */
 
