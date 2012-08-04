@@ -1,0 +1,1366 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		5715F1D8158C233900CA822C /* seafile-release-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5715F1D7158C233900CA822C /* seafile-release-Info.plist */; };
+		5743817F159B0399003DECFB /* seafilefolder.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5743817E159B0399003DECFB /* seafilefolder.icns */; };
+		57438180159B0399003DECFB /* seafilefolder.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5743817E159B0399003DECFB /* seafilefolder.icns */; };
+		57438182159B249D003DECFB /* seafilerepo.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57438181159B249D003DECFB /* seafilerepo.icns */; };
+		57438183159B249D003DECFB /* seafilerepo.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57438181159B249D003DECFB /* seafilerepo.icns */; };
+		57438185159B2CF3003DECFB /* warning.png in Resources */ = {isa = PBXBuildFile; fileRef = 57438184159B2CF3003DECFB /* warning.png */; };
+		57438186159B2CF3003DECFB /* warning.png in Resources */ = {isa = PBXBuildFile; fileRef = 57438184159B2CF3003DECFB /* warning.png */; };
+		575BD525158D021400F6C6A7 /* network-down.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD51F158D021400F6C6A7 /* network-down.png */; };
+		575BD526158D021400F6C6A7 /* network-down.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD51F158D021400F6C6A7 /* network-down.png */; };
+		575BD527158D021400F6C6A7 /* network-rotate1.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD520158D021400F6C6A7 /* network-rotate1.png */; };
+		575BD528158D021400F6C6A7 /* network-rotate1.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD520158D021400F6C6A7 /* network-rotate1.png */; };
+		575BD529158D021400F6C6A7 /* network-rotate2.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD521158D021400F6C6A7 /* network-rotate2.png */; };
+		575BD52A158D021400F6C6A7 /* network-rotate2.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD521158D021400F6C6A7 /* network-rotate2.png */; };
+		575BD52B158D021400F6C6A7 /* network-rotate3.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD522158D021400F6C6A7 /* network-rotate3.png */; };
+		575BD52C158D021400F6C6A7 /* network-rotate3.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD522158D021400F6C6A7 /* network-rotate3.png */; };
+		575BD52D158D021400F6C6A7 /* network-rotate4.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD523158D021400F6C6A7 /* network-rotate4.png */; };
+		575BD52E158D021400F6C6A7 /* network-rotate4.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD523158D021400F6C6A7 /* network-rotate4.png */; };
+		575BD52F158D021400F6C6A7 /* network-up.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD524158D021400F6C6A7 /* network-up.png */; };
+		575BD530158D021400F6C6A7 /* network-up.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD524158D021400F6C6A7 /* network-up.png */; };
+		5763F3E5158B0B34003CCFE7 /* ccnetweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E3158B0B34003CCFE7 /* ccnetweb.app */; };
+		5763F3E6158B0B34003CCFE7 /* libccnet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
+		5763F3F8158B0B48003CCFE7 /* libcrypto.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
+		5763F3F9158B0B48003CCFE7 /* libevent-2.0.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
+		5763F3FA158B0B48003CCFE7 /* libffi.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
+		5763F3FB158B0B48003CCFE7 /* libgio-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
+		5763F3FC158B0B48003CCFE7 /* libglib-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
+		5763F3FD158B0B48003CCFE7 /* libgmodule-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
+		5763F3FE158B0B48003CCFE7 /* libgobject-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
+		5763F3FF158B0B48003CCFE7 /* libgthread-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
+		5763F400158B0B48003CCFE7 /* libiconv.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
+		5763F401158B0B48003CCFE7 /* libintl.8.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
+		5763F402158B0B48003CCFE7 /* libseafile.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
+		5763F403158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
+		5763F404158B0B48003CCFE7 /* libsearpc.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
+		5763F406158B0B48003CCFE7 /* libssl.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
+		5763F407158B0B48003CCFE7 /* libuuid.16.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
+		5763F409158B0F50003CCFE7 /* libccnet.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
+		5763F40A158B0F50003CCFE7 /* libcrypto.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
+		5763F40B158B0F50003CCFE7 /* libevent-2.0.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
+		5763F40C158B0F50003CCFE7 /* libffi.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
+		5763F40D158B0F50003CCFE7 /* libgio-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
+		5763F40E158B0F50003CCFE7 /* libglib-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
+		5763F40F158B0F50003CCFE7 /* libgmodule-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
+		5763F410158B0F50003CCFE7 /* libgobject-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
+		5763F411158B0F50003CCFE7 /* libgthread-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
+		5763F412158B0F50003CCFE7 /* libiconv.2.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
+		5763F413158B0F50003CCFE7 /* libintl.8.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
+		5763F414158B0F50003CCFE7 /* libseafile.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
+		5763F415158B0F50003CCFE7 /* libsearpc-json-glib.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
+		5763F416158B0F50003CCFE7 /* libsearpc.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
+		5763F418158B0F50003CCFE7 /* libssl.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
+		5763F419158B0F50003CCFE7 /* libuuid.16.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
+		5763F41B158B11BF003CCFE7 /* libccnet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
+		5763F41C158B11BF003CCFE7 /* libcrypto.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
+		5763F41D158B11BF003CCFE7 /* libevent-2.0.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
+		5763F41E158B11BF003CCFE7 /* libffi.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
+		5763F41F158B11BF003CCFE7 /* libgio-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
+		5763F420158B11BF003CCFE7 /* libglib-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
+		5763F421158B11BF003CCFE7 /* libgmodule-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
+		5763F422158B11BF003CCFE7 /* libgobject-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
+		5763F423158B11BF003CCFE7 /* libgthread-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
+		5763F424158B11BF003CCFE7 /* libiconv.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
+		5763F425158B11BF003CCFE7 /* libintl.8.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
+		5763F426158B11BF003CCFE7 /* libseafile.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
+		5763F427158B11BF003CCFE7 /* libsearpc-json-glib.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
+		5763F428158B11BF003CCFE7 /* libsearpc.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
+		5763F42A158B11BF003CCFE7 /* libssl.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
+		5763F42B158B11BF003CCFE7 /* libuuid.16.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
+		5763F42D158B11D3003CCFE7 /* libccnet.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
+		5763F42E158B11D3003CCFE7 /* libcrypto.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
+		5763F42F158B11D3003CCFE7 /* libevent-2.0.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
+		5763F430158B11D3003CCFE7 /* libffi.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
+		5763F431158B11D3003CCFE7 /* libgio-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
+		5763F432158B11D3003CCFE7 /* libglib-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
+		5763F433158B11D3003CCFE7 /* libgmodule-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
+		5763F434158B11D3003CCFE7 /* libgobject-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
+		5763F435158B11D3003CCFE7 /* libgthread-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
+		5763F436158B11D3003CCFE7 /* libiconv.2.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
+		5763F437158B11D3003CCFE7 /* libintl.8.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
+		5763F438158B11D3003CCFE7 /* libseafile.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
+		5763F439158B11D3003CCFE7 /* libsearpc-json-glib.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
+		5763F43A158B11D3003CCFE7 /* libsearpc.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
+		5763F43C158B11D3003CCFE7 /* libssl.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
+		5763F43D158B11D3003CCFE7 /* libuuid.16.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
+		5763F43F158B2994003CCFE7 /* ccnetweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E3158B0B34003CCFE7 /* ccnetweb.app */; };
+		577BBD3D1562815F00FD577C /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 577BBD3C1562815F00FD577C /* Cocoa.framework */; };
+		577BBD471562815F00FD577C /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD451562815F00FD577C /* InfoPlist.strings */; };
+		577BBD491562815F00FD577C /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD481562815F00FD577C /* main.m */; };
+		577BBD4D1562815F00FD577C /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD4B1562815F00FD577C /* Credits.rtf */; };
+		577BBD501562815F00FD577C /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD4F1562815F00FD577C /* AppDelegate.m */; };
+		577BBD531562815F00FD577C /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD511562815F00FD577C /* MainMenu.xib */; };
+		577BBD6B15638D8B00FD577C /* platform.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD6A15638D8B00FD577C /* platform.m */; };
+		577BBD741563A79A00FD577C /* opendir-proc.c in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD721563A79A00FD577C /* opendir-proc.c */; };
+		577F89CA1563B30D0059F53D /* ccnet-init.c in Sources */ = {isa = PBXBuildFile; fileRef = 577F89C91563B30D0059F53D /* ccnet-init.c */; };
+		5789630D159EA0A70013ED13 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5789630C159EA0A70013ED13 /* CoreServices.framework */; };
+		5789630F159EFC590013ED13 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5789630C159EA0A70013ED13 /* CoreServices.framework */; };
+		578FA5CD15674C1800EAAC19 /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5C415674C1800EAAC19 /* seaf-daemon */; };
+		578FA5CF15674C3300EAAC19 /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5CE15674C3300EAAC19 /* ccnet */; };
+		578FA5DB156781FC00EAAC19 /* MAAttachedWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = 578FA5DA156781FC00EAAC19 /* MAAttachedWindow.m */; };
+		57972D721573C70900915E2E /* PreferencePanes.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 57972D711573C70900915E2E /* PreferencePanes.framework */; };
+		579F9BFC1588F92500570010 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD481562815F00FD577C /* main.m */; };
+		579F9BFD1588F92500570010 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD4F1562815F00FD577C /* AppDelegate.m */; };
+		579F9BFE1588F92500570010 /* platform.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD6A15638D8B00FD577C /* platform.m */; };
+		579F9BFF1588F92500570010 /* opendir-proc.c in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD721563A79A00FD577C /* opendir-proc.c */; };
+		579F9C001588F92500570010 /* ccnet-init.c in Sources */ = {isa = PBXBuildFile; fileRef = 577F89C91563B30D0059F53D /* ccnet-init.c */; };
+		579F9C011588F92500570010 /* MAAttachedWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = 578FA5DA156781FC00EAAC19 /* MAAttachedWindow.m */; };
+		579F9C021588F92500570010 /* applet-common.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F739F91570A10C00C06653 /* applet-common.c */; };
+		579F9C031588F92500570010 /* applet-log.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F739FB1570A10C00C06653 /* applet-log.c */; };
+		579F9C041588F92500570010 /* rpc-wrapper.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F73A021570A11800C06653 /* rpc-wrapper.c */; };
+		579F9C051588F92500570010 /* applet-rpc-service.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F73A0F1570B37600C06653 /* applet-rpc-service.c */; };
+		579F9C071588F92500570010 /* PreferencePanes.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 57972D711573C70900915E2E /* PreferencePanes.framework */; };
+		579F9C081588F92500570010 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 577BBD3C1562815F00FD577C /* Cocoa.framework */; };
+		579F9C121588F92500570010 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD451562815F00FD577C /* InfoPlist.strings */; };
+		579F9C131588F92500570010 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD4B1562815F00FD577C /* Credits.rtf */; };
+		579F9C141588F92500570010 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD511562815F00FD577C /* MainMenu.xib */; };
+		579F9C151588F92500570010 /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5C415674C1800EAAC19 /* seaf-daemon */; };
+		579F9C161588F92500570010 /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5CE15674C3300EAAC19 /* ccnet */; };
+		57BE9FD11599E33B008B639C /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */; };
+		57BE9FD21599E33B008B639C /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */; };
+		57BE9FD31599E33B008B639C /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FD01599E33B008B639C /* libz.1.dylib */; };
+		57BE9FD41599E33B008B639C /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FD01599E33B008B639C /* libz.1.dylib */; };
+		57BE9FDC1599F6A4008B639C /* ccnet.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57BE9FDB1599F6A4008B639C /* ccnet.icns */; };
+		57BE9FDD1599F6A4008B639C /* ccnet.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57BE9FDB1599F6A4008B639C /* ccnet.icns */; };
+		57DE0A7E15A98E0E006C0152 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD481562815F00FD577C /* main.m */; };
+		57DE0A7F15A98E0E006C0152 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD4F1562815F00FD577C /* AppDelegate.m */; };
+		57DE0A8015A98E0E006C0152 /* platform.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD6A15638D8B00FD577C /* platform.m */; };
+		57DE0A8115A98E0E006C0152 /* opendir-proc.c in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD721563A79A00FD577C /* opendir-proc.c */; };
+		57DE0A8215A98E0E006C0152 /* ccnet-init.c in Sources */ = {isa = PBXBuildFile; fileRef = 577F89C91563B30D0059F53D /* ccnet-init.c */; };
+		57DE0A8315A98E0E006C0152 /* MAAttachedWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = 578FA5DA156781FC00EAAC19 /* MAAttachedWindow.m */; };
+		57DE0A8415A98E0E006C0152 /* applet-common.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F739F91570A10C00C06653 /* applet-common.c */; };
+		57DE0A8515A98E0E006C0152 /* applet-log.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F739FB1570A10C00C06653 /* applet-log.c */; };
+		57DE0A8615A98E0E006C0152 /* rpc-wrapper.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F73A021570A11800C06653 /* rpc-wrapper.c */; };
+		57DE0A8715A98E0E006C0152 /* applet-rpc-service.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F73A0F1570B37600C06653 /* applet-rpc-service.c */; };
+		57DE0A8915A98E0E006C0152 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5789630C159EA0A70013ED13 /* CoreServices.framework */; };
+		57DE0A8A15A98E0E006C0152 /* libccnet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
+		57DE0A8B15A98E0E006C0152 /* libcrypto.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
+		57DE0A8C15A98E0E006C0152 /* libevent-2.0.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
+		57DE0A8D15A98E0E006C0152 /* libffi.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
+		57DE0A8E15A98E0E006C0152 /* libgio-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
+		57DE0A8F15A98E0E006C0152 /* libglib-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
+		57DE0A9015A98E0E006C0152 /* libgmodule-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
+		57DE0A9115A98E0E006C0152 /* libgobject-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
+		57DE0A9215A98E0E006C0152 /* libgthread-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
+		57DE0A9315A98E0E006C0152 /* libiconv.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
+		57DE0A9415A98E0E006C0152 /* libintl.8.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
+		57DE0A9515A98E0E006C0152 /* libseafile.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
+		57DE0A9615A98E0E006C0152 /* libsearpc-json-glib.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
+		57DE0A9715A98E0E006C0152 /* libsearpc.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
+		57DE0A9815A98E0E006C0152 /* libssl.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
+		57DE0A9915A98E0E006C0152 /* libuuid.16.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
+		57DE0A9A15A98E0E006C0152 /* PreferencePanes.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 57972D711573C70900915E2E /* PreferencePanes.framework */; };
+		57DE0A9B15A98E0E006C0152 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 577BBD3C1562815F00FD577C /* Cocoa.framework */; };
+		57DE0A9C15A98E0E006C0152 /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */; };
+		57DE0A9D15A98E0E006C0152 /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FD01599E33B008B639C /* libz.1.dylib */; };
+		57DE0A9F15A98E0E006C0152 /* libccnet.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
+		57DE0AA015A98E0E006C0152 /* libcrypto.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
+		57DE0AA115A98E0E006C0152 /* libevent-2.0.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
+		57DE0AA215A98E0E006C0152 /* libffi.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
+		57DE0AA315A98E0E006C0152 /* libgio-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
+		57DE0AA415A98E0E006C0152 /* libglib-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
+		57DE0AA515A98E0E006C0152 /* libgmodule-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
+		57DE0AA615A98E0E006C0152 /* libgobject-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
+		57DE0AA715A98E0E006C0152 /* libgthread-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
+		57DE0AA815A98E0E006C0152 /* libiconv.2.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
+		57DE0AA915A98E0E006C0152 /* libintl.8.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
+		57DE0AAA15A98E0E006C0152 /* libseafile.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
+		57DE0AAB15A98E0E006C0152 /* libsearpc-json-glib.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
+		57DE0AAC15A98E0E006C0152 /* libsearpc.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
+		57DE0AAD15A98E0E006C0152 /* libssl.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
+		57DE0AAE15A98E0E006C0152 /* libuuid.16.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
+		57DE0AAF15A98E0E006C0152 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD451562815F00FD577C /* InfoPlist.strings */; };
+		57DE0AB015A98E0E006C0152 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD4B1562815F00FD577C /* Credits.rtf */; };
+		57DE0AB115A98E0E006C0152 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD511562815F00FD577C /* MainMenu.xib */; };
+		57DE0AB215A98E0E006C0152 /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5C415674C1800EAAC19 /* seaf-daemon */; };
+		57DE0AB315A98E0E006C0152 /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5CE15674C3300EAAC19 /* ccnet */; };
+		57DE0AB415A98E0E006C0152 /* ccnetweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E3158B0B34003CCFE7 /* ccnetweb.app */; };
+		57DE0AB515A98E0E006C0152 /* network-down.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD51F158D021400F6C6A7 /* network-down.png */; };
+		57DE0AB615A98E0E006C0152 /* network-rotate1.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD520158D021400F6C6A7 /* network-rotate1.png */; };
+		57DE0AB715A98E0E006C0152 /* network-rotate2.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD521158D021400F6C6A7 /* network-rotate2.png */; };
+		57DE0AB815A98E0E006C0152 /* network-rotate3.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD522158D021400F6C6A7 /* network-rotate3.png */; };
+		57DE0AB915A98E0E006C0152 /* network-rotate4.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD523158D021400F6C6A7 /* network-rotate4.png */; };
+		57DE0ABA15A98E0E006C0152 /* network-up.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD524158D021400F6C6A7 /* network-up.png */; };
+		57DE0ABB15A98E0E006C0152 /* ccnet.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57BE9FDB1599F6A4008B639C /* ccnet.icns */; };
+		57DE0ABC15A98E0E006C0152 /* seafilefolder.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5743817E159B0399003DECFB /* seafilefolder.icns */; };
+		57DE0ABD15A98E0E006C0152 /* seafilerepo.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57438181159B249D003DECFB /* seafilerepo.icns */; };
+		57DE0ABE15A98E0E006C0152 /* warning.png in Resources */ = {isa = PBXBuildFile; fileRef = 57438184159B2CF3003DECFB /* warning.png */; };
+		57DE0AC715A9AA89006C0152 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD481562815F00FD577C /* main.m */; };
+		57DE0AC815A9AA89006C0152 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD4F1562815F00FD577C /* AppDelegate.m */; };
+		57DE0AC915A9AA89006C0152 /* platform.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD6A15638D8B00FD577C /* platform.m */; };
+		57DE0ACA15A9AA89006C0152 /* opendir-proc.c in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD721563A79A00FD577C /* opendir-proc.c */; };
+		57DE0ACB15A9AA89006C0152 /* ccnet-init.c in Sources */ = {isa = PBXBuildFile; fileRef = 577F89C91563B30D0059F53D /* ccnet-init.c */; };
+		57DE0ACC15A9AA89006C0152 /* MAAttachedWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = 578FA5DA156781FC00EAAC19 /* MAAttachedWindow.m */; };
+		57DE0ACD15A9AA89006C0152 /* applet-common.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F739F91570A10C00C06653 /* applet-common.c */; };
+		57DE0ACE15A9AA89006C0152 /* applet-log.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F739FB1570A10C00C06653 /* applet-log.c */; };
+		57DE0ACF15A9AA89006C0152 /* rpc-wrapper.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F73A021570A11800C06653 /* rpc-wrapper.c */; };
+		57DE0AD015A9AA89006C0152 /* applet-rpc-service.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F73A0F1570B37600C06653 /* applet-rpc-service.c */; };
+		57DE0AD215A9AA89006C0152 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5789630C159EA0A70013ED13 /* CoreServices.framework */; };
+		57DE0AD315A9AA89006C0152 /* libccnet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
+		57DE0AD415A9AA89006C0152 /* libcrypto.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
+		57DE0AD515A9AA89006C0152 /* libevent-2.0.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
+		57DE0AD615A9AA89006C0152 /* libffi.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
+		57DE0AD715A9AA89006C0152 /* libgio-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
+		57DE0AD815A9AA89006C0152 /* libglib-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
+		57DE0AD915A9AA89006C0152 /* libgmodule-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
+		57DE0ADA15A9AA89006C0152 /* libgobject-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
+		57DE0ADB15A9AA89006C0152 /* libgthread-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
+		57DE0ADC15A9AA89006C0152 /* libiconv.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
+		57DE0ADD15A9AA89006C0152 /* libintl.8.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
+		57DE0ADE15A9AA89006C0152 /* libseafile.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
+		57DE0ADF15A9AA89006C0152 /* libsearpc-json-glib.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
+		57DE0AE015A9AA89006C0152 /* libsearpc.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
+		57DE0AE115A9AA89006C0152 /* libssl.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
+		57DE0AE215A9AA89006C0152 /* libuuid.16.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
+		57DE0AE315A9AA89006C0152 /* PreferencePanes.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 57972D711573C70900915E2E /* PreferencePanes.framework */; };
+		57DE0AE415A9AA89006C0152 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 577BBD3C1562815F00FD577C /* Cocoa.framework */; };
+		57DE0AE515A9AA89006C0152 /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */; };
+		57DE0AE615A9AA89006C0152 /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FD01599E33B008B639C /* libz.1.dylib */; };
+		57DE0AE815A9AA89006C0152 /* libccnet.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
+		57DE0AE915A9AA89006C0152 /* libcrypto.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
+		57DE0AEA15A9AA89006C0152 /* libevent-2.0.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
+		57DE0AEB15A9AA89006C0152 /* libffi.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
+		57DE0AEC15A9AA89006C0152 /* libgio-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
+		57DE0AED15A9AA89006C0152 /* libglib-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
+		57DE0AEE15A9AA89006C0152 /* libgmodule-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
+		57DE0AEF15A9AA89006C0152 /* libgobject-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
+		57DE0AF015A9AA89006C0152 /* libgthread-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
+		57DE0AF115A9AA89006C0152 /* libiconv.2.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
+		57DE0AF215A9AA89006C0152 /* libintl.8.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
+		57DE0AF315A9AA89006C0152 /* libseafile.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
+		57DE0AF415A9AA89006C0152 /* libsearpc-json-glib.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
+		57DE0AF515A9AA89006C0152 /* libsearpc.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
+		57DE0AF615A9AA89006C0152 /* libssl.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
+		57DE0AF715A9AA89006C0152 /* libuuid.16.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
+		57DE0AF815A9AA89006C0152 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD451562815F00FD577C /* InfoPlist.strings */; };
+		57DE0AF915A9AA89006C0152 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD4B1562815F00FD577C /* Credits.rtf */; };
+		57DE0AFA15A9AA89006C0152 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD511562815F00FD577C /* MainMenu.xib */; };
+		57DE0AFB15A9AA89006C0152 /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5C415674C1800EAAC19 /* seaf-daemon */; };
+		57DE0AFC15A9AA89006C0152 /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5CE15674C3300EAAC19 /* ccnet */; };
+		57DE0AFD15A9AA89006C0152 /* ccnetweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E3158B0B34003CCFE7 /* ccnetweb.app */; };
+		57DE0AFE15A9AA89006C0152 /* network-down.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD51F158D021400F6C6A7 /* network-down.png */; };
+		57DE0AFF15A9AA89006C0152 /* network-rotate1.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD520158D021400F6C6A7 /* network-rotate1.png */; };
+		57DE0B0015A9AA89006C0152 /* network-rotate2.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD521158D021400F6C6A7 /* network-rotate2.png */; };
+		57DE0B0115A9AA89006C0152 /* network-rotate3.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD522158D021400F6C6A7 /* network-rotate3.png */; };
+		57DE0B0215A9AA89006C0152 /* network-rotate4.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD523158D021400F6C6A7 /* network-rotate4.png */; };
+		57DE0B0315A9AA89006C0152 /* network-up.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD524158D021400F6C6A7 /* network-up.png */; };
+		57DE0B0415A9AA89006C0152 /* ccnet.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57BE9FDB1599F6A4008B639C /* ccnet.icns */; };
+		57DE0B0515A9AA89006C0152 /* seafilefolder.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5743817E159B0399003DECFB /* seafilefolder.icns */; };
+		57DE0B0615A9AA89006C0152 /* seafilerepo.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57438181159B249D003DECFB /* seafilerepo.icns */; };
+		57DE0B0715A9AA89006C0152 /* warning.png in Resources */ = {isa = PBXBuildFile; fileRef = 57438184159B2CF3003DECFB /* warning.png */; };
+		57F739FF1570A10C00C06653 /* applet-common.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F739F91570A10C00C06653 /* applet-common.c */; };
+		57F73A001570A10C00C06653 /* applet-log.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F739FB1570A10C00C06653 /* applet-log.c */; };
+		57F73A041570A11800C06653 /* rpc-wrapper.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F73A021570A11800C06653 /* rpc-wrapper.c */; };
+		57F73A101570B37600C06653 /* applet-rpc-service.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F73A0F1570B37600C06653 /* applet-rpc-service.c */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		5715F1D7158C233900CA822C /* seafile-release-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "seafile-release-Info.plist"; sourceTree = "<group>"; };
+		5743817E159B0399003DECFB /* seafilefolder.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = seafilefolder.icns; sourceTree = "<group>"; };
+		57438181159B249D003DECFB /* seafilerepo.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = seafilerepo.icns; sourceTree = "<group>"; };
+		57438184159B2CF3003DECFB /* warning.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = warning.png; sourceTree = "<group>"; };
+		575BD51F158D021400F6C6A7 /* network-down.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-down.png"; sourceTree = "<group>"; };
+		575BD520158D021400F6C6A7 /* network-rotate1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-rotate1.png"; sourceTree = "<group>"; };
+		575BD521158D021400F6C6A7 /* network-rotate2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-rotate2.png"; sourceTree = "<group>"; };
+		575BD522158D021400F6C6A7 /* network-rotate3.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-rotate3.png"; sourceTree = "<group>"; };
+		575BD523158D021400F6C6A7 /* network-rotate4.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-rotate4.png"; sourceTree = "<group>"; };
+		575BD524158D021400F6C6A7 /* network-up.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-up.png"; sourceTree = "<group>"; };
+		5763F3E3158B0B34003CCFE7 /* ccnetweb.app */ = {isa = PBXFileReference; lastKnownFileType = wrapper.application; path = ccnetweb.app; sourceTree = "<group>"; };
+		5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libccnet.0.dylib; sourceTree = "<group>"; };
+		5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libcrypto.1.0.0.dylib; sourceTree = "<group>"; };
+		5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libevent-2.0.5.dylib"; sourceTree = "<group>"; };
+		5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libffi.5.dylib; sourceTree = "<group>"; };
+		5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libgio-2.0.0.dylib"; sourceTree = "<group>"; };
+		5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libglib-2.0.0.dylib"; sourceTree = "<group>"; };
+		5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libgmodule-2.0.0.dylib"; sourceTree = "<group>"; };
+		5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libgobject-2.0.0.dylib"; sourceTree = "<group>"; };
+		5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libgthread-2.0.0.dylib"; sourceTree = "<group>"; };
+		5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libiconv.2.dylib; sourceTree = "<group>"; };
+		5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libintl.8.dylib; sourceTree = "<group>"; };
+		5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libseafile.0.dylib; sourceTree = "<group>"; };
+		5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libsearpc-json-glib.0.dylib"; sourceTree = "<group>"; };
+		5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libsearpc.1.dylib; sourceTree = "<group>"; };
+		5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libssl.1.0.0.dylib; sourceTree = "<group>"; };
+		5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libuuid.16.dylib; sourceTree = "<group>"; };
+		577BBD381562815F00FD577C /* seafile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = seafile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		577BBD3C1562815F00FD577C /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
+		577BBD3F1562815F00FD577C /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
+		577BBD401562815F00FD577C /* CoreData.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreData.framework; path = System/Library/Frameworks/CoreData.framework; sourceTree = SDKROOT; };
+		577BBD411562815F00FD577C /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		577BBD441562815F00FD577C /* seafile-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "seafile-Info.plist"; sourceTree = "<group>"; };
+		577BBD461562815F00FD577C /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		577BBD481562815F00FD577C /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
+		577BBD4A1562815F00FD577C /* seafile-Prefix.pch */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "seafile-Prefix.pch"; sourceTree = "<group>"; };
+		577BBD4C1562815F00FD577C /* en */ = {isa = PBXFileReference; lastKnownFileType = text.rtf; name = en; path = en.lproj/Credits.rtf; sourceTree = "<group>"; };
+		577BBD4E1562815F00FD577C /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = AppDelegate.h; path = seafile/AppDelegate.h; sourceTree = SOURCE_ROOT; };
+		577BBD4F1562815F00FD577C /* AppDelegate.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = AppDelegate.m; path = seafile/AppDelegate.m; sourceTree = SOURCE_ROOT; };
+		577BBD521562815F00FD577C /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/MainMenu.xib; sourceTree = "<group>"; };
+		577BBD6A15638D8B00FD577C /* platform.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = platform.m; path = seafile/platform.m; sourceTree = SOURCE_ROOT; };
+		577BBD721563A79A00FD577C /* opendir-proc.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "opendir-proc.c"; path = "../../common/opendir-proc.c"; sourceTree = "<group>"; };
+		577BBD731563A79A00FD577C /* opendir-proc.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "opendir-proc.h"; path = "../../common/opendir-proc.h"; sourceTree = "<group>"; };
+		577F89C91563B30D0059F53D /* ccnet-init.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ccnet-init.c"; path = "../../common/ccnet-init.c"; sourceTree = "<group>"; };
+		577F89CB1563B3200059F53D /* ccnet-init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ccnet-init.h"; path = "../../common/ccnet-init.h"; sourceTree = "<group>"; };
+		5789630C159EA0A70013ED13 /* CoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreServices.framework; path = System/Library/Frameworks/CoreServices.framework; sourceTree = SDKROOT; };
+		578FA5C415674C1800EAAC19 /* seaf-daemon */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "seaf-daemon"; sourceTree = "<group>"; };
+		578FA5CE15674C3300EAAC19 /* ccnet */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ccnet; sourceTree = "<group>"; };
+		578FA5D9156781FC00EAAC19 /* MAAttachedWindow.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MAAttachedWindow.h; sourceTree = "<group>"; };
+		578FA5DA156781FC00EAAC19 /* MAAttachedWindow.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MAAttachedWindow.m; sourceTree = "<group>"; };
+		57972D711573C70900915E2E /* PreferencePanes.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PreferencePanes.framework; path = System/Library/Frameworks/PreferencePanes.framework; sourceTree = SDKROOT; };
+		579F9C221588F92500570010 /* seafile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = seafile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libsqlite3.0.dylib; sourceTree = "<group>"; };
+		57BE9FD01599E33B008B639C /* libz.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libz.1.dylib; sourceTree = "<group>"; };
+		57BE9FDB1599F6A4008B639C /* ccnet.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = ccnet.icns; sourceTree = "<group>"; };
+		57DE0AC215A98E0E006C0152 /* seafile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = seafile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		57DE0B0B15A9AA89006C0152 /* seafile-10.6-debug.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "seafile-10.6-debug.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		57F70506158321D100C65071 /* platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
+		57F739F91570A10C00C06653 /* applet-common.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "applet-common.c"; path = "../../common/applet-common.c"; sourceTree = "<group>"; };
+		57F739FA1570A10C00C06653 /* applet-common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "applet-common.h"; path = "../../common/applet-common.h"; sourceTree = "<group>"; };
+		57F739FB1570A10C00C06653 /* applet-log.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "applet-log.c"; path = "../../common/applet-log.c"; sourceTree = "<group>"; };
+		57F739FC1570A10C00C06653 /* applet-log.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "applet-log.h"; path = "../../common/applet-log.h"; sourceTree = "<group>"; };
+		57F739FD1570A10C00C06653 /* applet-po.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "applet-po.h"; path = "../../common/applet-po.h"; sourceTree = "<group>"; };
+		57F739FE1570A10C00C06653 /* applet-rpc-service.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "applet-rpc-service.h"; path = "../../common/applet-rpc-service.h"; sourceTree = "<group>"; };
+		57F73A021570A11800C06653 /* rpc-wrapper.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "rpc-wrapper.c"; path = "../../common/rpc-wrapper.c"; sourceTree = "<group>"; };
+		57F73A031570A11800C06653 /* rpc-wrapper.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "rpc-wrapper.h"; path = "../../common/rpc-wrapper.h"; sourceTree = "<group>"; };
+		57F73A051570A38000C06653 /* seafile-applet.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "seafile-applet.h"; path = "../../common/seafile-applet.h"; sourceTree = "<group>"; };
+		57F73A0F1570B37600C06653 /* applet-rpc-service.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "applet-rpc-service.c"; path = "../../common/applet-rpc-service.c"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		577BBD351562815F00FD577C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5789630D159EA0A70013ED13 /* CoreServices.framework in Frameworks */,
+				57972D721573C70900915E2E /* PreferencePanes.framework in Frameworks */,
+				577BBD3D1562815F00FD577C /* Cocoa.framework in Frameworks */,
+				5763F3E6158B0B34003CCFE7 /* libccnet.0.dylib in Frameworks */,
+				5763F3F8158B0B48003CCFE7 /* libcrypto.1.0.0.dylib in Frameworks */,
+				5763F3F9158B0B48003CCFE7 /* libevent-2.0.5.dylib in Frameworks */,
+				5763F3FA158B0B48003CCFE7 /* libffi.5.dylib in Frameworks */,
+				5763F3FB158B0B48003CCFE7 /* libgio-2.0.0.dylib in Frameworks */,
+				5763F3FC158B0B48003CCFE7 /* libglib-2.0.0.dylib in Frameworks */,
+				5763F3FD158B0B48003CCFE7 /* libgmodule-2.0.0.dylib in Frameworks */,
+				5763F3FE158B0B48003CCFE7 /* libgobject-2.0.0.dylib in Frameworks */,
+				5763F3FF158B0B48003CCFE7 /* libgthread-2.0.0.dylib in Frameworks */,
+				5763F400158B0B48003CCFE7 /* libiconv.2.dylib in Frameworks */,
+				5763F401158B0B48003CCFE7 /* libintl.8.dylib in Frameworks */,
+				5763F402158B0B48003CCFE7 /* libseafile.0.dylib in Frameworks */,
+				5763F403158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib in Frameworks */,
+				5763F404158B0B48003CCFE7 /* libsearpc.1.dylib in Frameworks */,
+				5763F406158B0B48003CCFE7 /* libssl.1.0.0.dylib in Frameworks */,
+				5763F407158B0B48003CCFE7 /* libuuid.16.dylib in Frameworks */,
+				57BE9FD11599E33B008B639C /* libsqlite3.0.dylib in Frameworks */,
+				57BE9FD31599E33B008B639C /* libz.1.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		579F9C061588F92500570010 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5789630F159EFC590013ED13 /* CoreServices.framework in Frameworks */,
+				5763F41B158B11BF003CCFE7 /* libccnet.0.dylib in Frameworks */,
+				5763F41C158B11BF003CCFE7 /* libcrypto.1.0.0.dylib in Frameworks */,
+				5763F41D158B11BF003CCFE7 /* libevent-2.0.5.dylib in Frameworks */,
+				5763F41E158B11BF003CCFE7 /* libffi.5.dylib in Frameworks */,
+				5763F41F158B11BF003CCFE7 /* libgio-2.0.0.dylib in Frameworks */,
+				5763F420158B11BF003CCFE7 /* libglib-2.0.0.dylib in Frameworks */,
+				5763F421158B11BF003CCFE7 /* libgmodule-2.0.0.dylib in Frameworks */,
+				5763F422158B11BF003CCFE7 /* libgobject-2.0.0.dylib in Frameworks */,
+				5763F423158B11BF003CCFE7 /* libgthread-2.0.0.dylib in Frameworks */,
+				5763F424158B11BF003CCFE7 /* libiconv.2.dylib in Frameworks */,
+				5763F425158B11BF003CCFE7 /* libintl.8.dylib in Frameworks */,
+				5763F426158B11BF003CCFE7 /* libseafile.0.dylib in Frameworks */,
+				5763F427158B11BF003CCFE7 /* libsearpc-json-glib.0.dylib in Frameworks */,
+				5763F428158B11BF003CCFE7 /* libsearpc.1.dylib in Frameworks */,
+				5763F42A158B11BF003CCFE7 /* libssl.1.0.0.dylib in Frameworks */,
+				5763F42B158B11BF003CCFE7 /* libuuid.16.dylib in Frameworks */,
+				579F9C071588F92500570010 /* PreferencePanes.framework in Frameworks */,
+				579F9C081588F92500570010 /* Cocoa.framework in Frameworks */,
+				57BE9FD21599E33B008B639C /* libsqlite3.0.dylib in Frameworks */,
+				57BE9FD41599E33B008B639C /* libz.1.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		57DE0A8815A98E0E006C0152 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				57DE0A8915A98E0E006C0152 /* CoreServices.framework in Frameworks */,
+				57DE0A8A15A98E0E006C0152 /* libccnet.0.dylib in Frameworks */,
+				57DE0A8B15A98E0E006C0152 /* libcrypto.1.0.0.dylib in Frameworks */,
+				57DE0A8C15A98E0E006C0152 /* libevent-2.0.5.dylib in Frameworks */,
+				57DE0A8D15A98E0E006C0152 /* libffi.5.dylib in Frameworks */,
+				57DE0A8E15A98E0E006C0152 /* libgio-2.0.0.dylib in Frameworks */,
+				57DE0A8F15A98E0E006C0152 /* libglib-2.0.0.dylib in Frameworks */,
+				57DE0A9015A98E0E006C0152 /* libgmodule-2.0.0.dylib in Frameworks */,
+				57DE0A9115A98E0E006C0152 /* libgobject-2.0.0.dylib in Frameworks */,
+				57DE0A9215A98E0E006C0152 /* libgthread-2.0.0.dylib in Frameworks */,
+				57DE0A9315A98E0E006C0152 /* libiconv.2.dylib in Frameworks */,
+				57DE0A9415A98E0E006C0152 /* libintl.8.dylib in Frameworks */,
+				57DE0A9515A98E0E006C0152 /* libseafile.0.dylib in Frameworks */,
+				57DE0A9615A98E0E006C0152 /* libsearpc-json-glib.0.dylib in Frameworks */,
+				57DE0A9715A98E0E006C0152 /* libsearpc.1.dylib in Frameworks */,
+				57DE0A9815A98E0E006C0152 /* libssl.1.0.0.dylib in Frameworks */,
+				57DE0A9915A98E0E006C0152 /* libuuid.16.dylib in Frameworks */,
+				57DE0A9A15A98E0E006C0152 /* PreferencePanes.framework in Frameworks */,
+				57DE0A9B15A98E0E006C0152 /* Cocoa.framework in Frameworks */,
+				57DE0A9C15A98E0E006C0152 /* libsqlite3.0.dylib in Frameworks */,
+				57DE0A9D15A98E0E006C0152 /* libz.1.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		57DE0AD115A9AA89006C0152 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				57DE0AD215A9AA89006C0152 /* CoreServices.framework in Frameworks */,
+				57DE0AD315A9AA89006C0152 /* libccnet.0.dylib in Frameworks */,
+				57DE0AD415A9AA89006C0152 /* libcrypto.1.0.0.dylib in Frameworks */,
+				57DE0AD515A9AA89006C0152 /* libevent-2.0.5.dylib in Frameworks */,
+				57DE0AD615A9AA89006C0152 /* libffi.5.dylib in Frameworks */,
+				57DE0AD715A9AA89006C0152 /* libgio-2.0.0.dylib in Frameworks */,
+				57DE0AD815A9AA89006C0152 /* libglib-2.0.0.dylib in Frameworks */,
+				57DE0AD915A9AA89006C0152 /* libgmodule-2.0.0.dylib in Frameworks */,
+				57DE0ADA15A9AA89006C0152 /* libgobject-2.0.0.dylib in Frameworks */,
+				57DE0ADB15A9AA89006C0152 /* libgthread-2.0.0.dylib in Frameworks */,
+				57DE0ADC15A9AA89006C0152 /* libiconv.2.dylib in Frameworks */,
+				57DE0ADD15A9AA89006C0152 /* libintl.8.dylib in Frameworks */,
+				57DE0ADE15A9AA89006C0152 /* libseafile.0.dylib in Frameworks */,
+				57DE0ADF15A9AA89006C0152 /* libsearpc-json-glib.0.dylib in Frameworks */,
+				57DE0AE015A9AA89006C0152 /* libsearpc.1.dylib in Frameworks */,
+				57DE0AE115A9AA89006C0152 /* libssl.1.0.0.dylib in Frameworks */,
+				57DE0AE215A9AA89006C0152 /* libuuid.16.dylib in Frameworks */,
+				57DE0AE315A9AA89006C0152 /* PreferencePanes.framework in Frameworks */,
+				57DE0AE415A9AA89006C0152 /* Cocoa.framework in Frameworks */,
+				57DE0AE515A9AA89006C0152 /* libsqlite3.0.dylib in Frameworks */,
+				57DE0AE615A9AA89006C0152 /* libz.1.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		577BBD2D1562815E00FD577C = {
+			isa = PBXGroup;
+			children = (
+				577BBD731563A79A00FD577C /* opendir-proc.h */,
+				577BBD721563A79A00FD577C /* opendir-proc.c */,
+				577F89C91563B30D0059F53D /* ccnet-init.c */,
+				577F89CB1563B3200059F53D /* ccnet-init.h */,
+				57F73A021570A11800C06653 /* rpc-wrapper.c */,
+				57F73A031570A11800C06653 /* rpc-wrapper.h */,
+				57F739F91570A10C00C06653 /* applet-common.c */,
+				57F739FE1570A10C00C06653 /* applet-rpc-service.h */,
+				57F73A0F1570B37600C06653 /* applet-rpc-service.c */,
+				57F739FA1570A10C00C06653 /* applet-common.h */,
+				57F739FB1570A10C00C06653 /* applet-log.c */,
+				57F739FC1570A10C00C06653 /* applet-log.h */,
+				57F739FD1570A10C00C06653 /* applet-po.h */,
+				57F73A051570A38000C06653 /* seafile-applet.h */,
+				577BBD421562815F00FD577C /* seafile */,
+				578FA5CE15674C3300EAAC19 /* ccnet */,
+				578FA5C415674C1800EAAC19 /* seaf-daemon */,
+				5763F3E3158B0B34003CCFE7 /* ccnetweb.app */,
+				5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */,
+				5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */,
+				57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */,
+				57BE9FD01599E33B008B639C /* libz.1.dylib */,
+				5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */,
+				5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */,
+				5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */,
+				5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */,
+				5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */,
+				5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */,
+				5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */,
+				5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */,
+				5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */,
+				5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */,
+				5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */,
+				5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */,
+				5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */,
+				5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */,
+				575BD51F158D021400F6C6A7 /* network-down.png */,
+				575BD520158D021400F6C6A7 /* network-rotate1.png */,
+				575BD521158D021400F6C6A7 /* network-rotate2.png */,
+				575BD522158D021400F6C6A7 /* network-rotate3.png */,
+				575BD523158D021400F6C6A7 /* network-rotate4.png */,
+				575BD524158D021400F6C6A7 /* network-up.png */,
+				57BE9FDB1599F6A4008B639C /* ccnet.icns */,
+				5743817E159B0399003DECFB /* seafilefolder.icns */,
+				57438181159B249D003DECFB /* seafilerepo.icns */,
+				57438184159B2CF3003DECFB /* warning.png */,
+				577BBD3B1562815F00FD577C /* Frameworks */,
+				577BBD391562815F00FD577C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		577BBD391562815F00FD577C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				577BBD381562815F00FD577C /* seafile.app */,
+				579F9C221588F92500570010 /* seafile.app */,
+				57DE0AC215A98E0E006C0152 /* seafile.app */,
+				57DE0B0B15A9AA89006C0152 /* seafile-10.6-debug.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		577BBD3B1562815F00FD577C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				5789630C159EA0A70013ED13 /* CoreServices.framework */,
+				577BBD3C1562815F00FD577C /* Cocoa.framework */,
+				577BBD3E1562815F00FD577C /* Other Frameworks */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		577BBD3E1562815F00FD577C /* Other Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				57972D711573C70900915E2E /* PreferencePanes.framework */,
+				577BBD3F1562815F00FD577C /* AppKit.framework */,
+				577BBD401562815F00FD577C /* CoreData.framework */,
+				577BBD411562815F00FD577C /* Foundation.framework */,
+			);
+			name = "Other Frameworks";
+			sourceTree = "<group>";
+		};
+		577BBD421562815F00FD577C /* seafile */ = {
+			isa = PBXGroup;
+			children = (
+				578FA5D9156781FC00EAAC19 /* MAAttachedWindow.h */,
+				578FA5DA156781FC00EAAC19 /* MAAttachedWindow.m */,
+				577BBD4E1562815F00FD577C /* AppDelegate.h */,
+				577BBD4F1562815F00FD577C /* AppDelegate.m */,
+				57F70506158321D100C65071 /* platform.h */,
+				577BBD6A15638D8B00FD577C /* platform.m */,
+				577BBD511562815F00FD577C /* MainMenu.xib */,
+				577BBD431562815F00FD577C /* Supporting Files */,
+			);
+			path = seafile;
+			sourceTree = "<group>";
+		};
+		577BBD431562815F00FD577C /* Supporting Files */ = {
+			isa = PBXGroup;
+			children = (
+				5715F1D7158C233900CA822C /* seafile-release-Info.plist */,
+				577BBD441562815F00FD577C /* seafile-Info.plist */,
+				577BBD451562815F00FD577C /* InfoPlist.strings */,
+				577BBD481562815F00FD577C /* main.m */,
+				577BBD4A1562815F00FD577C /* seafile-Prefix.pch */,
+				577BBD4B1562815F00FD577C /* Credits.rtf */,
+			);
+			name = "Supporting Files";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		577BBD371562815F00FD577C /* seafile */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 577BBD561562815F00FD577C /* Build configuration list for PBXNativeTarget "seafile" */;
+			buildPhases = (
+				577BBD341562815F00FD577C /* Sources */,
+				577BBD351562815F00FD577C /* Frameworks */,
+				577BBD361562815F00FD577C /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = seafile;
+			productName = seafile;
+			productReference = 577BBD381562815F00FD577C /* seafile.app */;
+			productType = "com.apple.product-type.application";
+		};
+		579F9BFA1588F92500570010 /* seafile-release */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 579F9C1F1588F92500570010 /* Build configuration list for PBXNativeTarget "seafile-release" */;
+			buildPhases = (
+				579F9BFB1588F92500570010 /* Sources */,
+				579F9C061588F92500570010 /* Frameworks */,
+				579F9C111588F92500570010 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "seafile-release";
+			productName = seafile;
+			productReference = 579F9C221588F92500570010 /* seafile.app */;
+			productType = "com.apple.product-type.application";
+		};
+		57DE0A7C15A98E0E006C0152 /* seafile-10.6 */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 57DE0ABF15A98E0E006C0152 /* Build configuration list for PBXNativeTarget "seafile-10.6" */;
+			buildPhases = (
+				57DE0A7D15A98E0E006C0152 /* Sources */,
+				57DE0A8815A98E0E006C0152 /* Frameworks */,
+				57DE0A9E15A98E0E006C0152 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "seafile-10.6";
+			productName = seafile;
+			productReference = 57DE0AC215A98E0E006C0152 /* seafile.app */;
+			productType = "com.apple.product-type.application";
+		};
+		57DE0AC515A9AA89006C0152 /* seafile-10.6-debug */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 57DE0B0815A9AA89006C0152 /* Build configuration list for PBXNativeTarget "seafile-10.6-debug" */;
+			buildPhases = (
+				57DE0AC615A9AA89006C0152 /* Sources */,
+				57DE0AD115A9AA89006C0152 /* Frameworks */,
+				57DE0AE715A9AA89006C0152 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "seafile-10.6-debug";
+			productName = seafile;
+			productReference = 57DE0B0B15A9AA89006C0152 /* seafile-10.6-debug.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		577BBD2F1562815E00FD577C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0430;
+				ORGANIZATIONNAME = tsinghua;
+			};
+			buildConfigurationList = 577BBD321562815E00FD577C /* Build configuration list for PBXProject "seafile" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = 577BBD2D1562815E00FD577C;
+			productRefGroup = 577BBD391562815F00FD577C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				577BBD371562815F00FD577C /* seafile */,
+				579F9BFA1588F92500570010 /* seafile-release */,
+				57DE0A7C15A98E0E006C0152 /* seafile-10.6 */,
+				57DE0AC515A9AA89006C0152 /* seafile-10.6-debug */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		577BBD361562815F00FD577C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5763F409158B0F50003CCFE7 /* libccnet.0.dylib in Resources */,
+				5763F40A158B0F50003CCFE7 /* libcrypto.1.0.0.dylib in Resources */,
+				5763F40B158B0F50003CCFE7 /* libevent-2.0.5.dylib in Resources */,
+				5763F40C158B0F50003CCFE7 /* libffi.5.dylib in Resources */,
+				5763F40D158B0F50003CCFE7 /* libgio-2.0.0.dylib in Resources */,
+				5763F40E158B0F50003CCFE7 /* libglib-2.0.0.dylib in Resources */,
+				5763F40F158B0F50003CCFE7 /* libgmodule-2.0.0.dylib in Resources */,
+				5763F410158B0F50003CCFE7 /* libgobject-2.0.0.dylib in Resources */,
+				5763F411158B0F50003CCFE7 /* libgthread-2.0.0.dylib in Resources */,
+				5763F412158B0F50003CCFE7 /* libiconv.2.dylib in Resources */,
+				5763F413158B0F50003CCFE7 /* libintl.8.dylib in Resources */,
+				5763F414158B0F50003CCFE7 /* libseafile.0.dylib in Resources */,
+				5763F415158B0F50003CCFE7 /* libsearpc-json-glib.0.dylib in Resources */,
+				5763F416158B0F50003CCFE7 /* libsearpc.1.dylib in Resources */,
+				5763F418158B0F50003CCFE7 /* libssl.1.0.0.dylib in Resources */,
+				5763F419158B0F50003CCFE7 /* libuuid.16.dylib in Resources */,
+				577BBD471562815F00FD577C /* InfoPlist.strings in Resources */,
+				577BBD4D1562815F00FD577C /* Credits.rtf in Resources */,
+				577BBD531562815F00FD577C /* MainMenu.xib in Resources */,
+				578FA5CD15674C1800EAAC19 /* seaf-daemon in Resources */,
+				578FA5CF15674C3300EAAC19 /* ccnet in Resources */,
+				5763F3E5158B0B34003CCFE7 /* ccnetweb.app in Resources */,
+				5715F1D8158C233900CA822C /* seafile-release-Info.plist in Resources */,
+				575BD525158D021400F6C6A7 /* network-down.png in Resources */,
+				575BD527158D021400F6C6A7 /* network-rotate1.png in Resources */,
+				575BD529158D021400F6C6A7 /* network-rotate2.png in Resources */,
+				575BD52B158D021400F6C6A7 /* network-rotate3.png in Resources */,
+				575BD52D158D021400F6C6A7 /* network-rotate4.png in Resources */,
+				575BD52F158D021400F6C6A7 /* network-up.png in Resources */,
+				57BE9FDC1599F6A4008B639C /* ccnet.icns in Resources */,
+				5743817F159B0399003DECFB /* seafilefolder.icns in Resources */,
+				57438182159B249D003DECFB /* seafilerepo.icns in Resources */,
+				57438185159B2CF3003DECFB /* warning.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		579F9C111588F92500570010 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5763F42D158B11D3003CCFE7 /* libccnet.0.dylib in Resources */,
+				5763F42E158B11D3003CCFE7 /* libcrypto.1.0.0.dylib in Resources */,
+				5763F42F158B11D3003CCFE7 /* libevent-2.0.5.dylib in Resources */,
+				5763F430158B11D3003CCFE7 /* libffi.5.dylib in Resources */,
+				5763F431158B11D3003CCFE7 /* libgio-2.0.0.dylib in Resources */,
+				5763F432158B11D3003CCFE7 /* libglib-2.0.0.dylib in Resources */,
+				5763F433158B11D3003CCFE7 /* libgmodule-2.0.0.dylib in Resources */,
+				5763F434158B11D3003CCFE7 /* libgobject-2.0.0.dylib in Resources */,
+				5763F435158B11D3003CCFE7 /* libgthread-2.0.0.dylib in Resources */,
+				5763F436158B11D3003CCFE7 /* libiconv.2.dylib in Resources */,
+				5763F437158B11D3003CCFE7 /* libintl.8.dylib in Resources */,
+				5763F438158B11D3003CCFE7 /* libseafile.0.dylib in Resources */,
+				5763F439158B11D3003CCFE7 /* libsearpc-json-glib.0.dylib in Resources */,
+				5763F43A158B11D3003CCFE7 /* libsearpc.1.dylib in Resources */,
+				5763F43C158B11D3003CCFE7 /* libssl.1.0.0.dylib in Resources */,
+				5763F43D158B11D3003CCFE7 /* libuuid.16.dylib in Resources */,
+				579F9C121588F92500570010 /* InfoPlist.strings in Resources */,
+				579F9C131588F92500570010 /* Credits.rtf in Resources */,
+				579F9C141588F92500570010 /* MainMenu.xib in Resources */,
+				579F9C151588F92500570010 /* seaf-daemon in Resources */,
+				579F9C161588F92500570010 /* ccnet in Resources */,
+				5763F43F158B2994003CCFE7 /* ccnetweb.app in Resources */,
+				575BD526158D021400F6C6A7 /* network-down.png in Resources */,
+				575BD528158D021400F6C6A7 /* network-rotate1.png in Resources */,
+				575BD52A158D021400F6C6A7 /* network-rotate2.png in Resources */,
+				575BD52C158D021400F6C6A7 /* network-rotate3.png in Resources */,
+				575BD52E158D021400F6C6A7 /* network-rotate4.png in Resources */,
+				575BD530158D021400F6C6A7 /* network-up.png in Resources */,
+				57BE9FDD1599F6A4008B639C /* ccnet.icns in Resources */,
+				57438180159B0399003DECFB /* seafilefolder.icns in Resources */,
+				57438183159B249D003DECFB /* seafilerepo.icns in Resources */,
+				57438186159B2CF3003DECFB /* warning.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		57DE0A9E15A98E0E006C0152 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				57DE0A9F15A98E0E006C0152 /* libccnet.0.dylib in Resources */,
+				57DE0AA015A98E0E006C0152 /* libcrypto.1.0.0.dylib in Resources */,
+				57DE0AA115A98E0E006C0152 /* libevent-2.0.5.dylib in Resources */,
+				57DE0AA215A98E0E006C0152 /* libffi.5.dylib in Resources */,
+				57DE0AA315A98E0E006C0152 /* libgio-2.0.0.dylib in Resources */,
+				57DE0AA415A98E0E006C0152 /* libglib-2.0.0.dylib in Resources */,
+				57DE0AA515A98E0E006C0152 /* libgmodule-2.0.0.dylib in Resources */,
+				57DE0AA615A98E0E006C0152 /* libgobject-2.0.0.dylib in Resources */,
+				57DE0AA715A98E0E006C0152 /* libgthread-2.0.0.dylib in Resources */,
+				57DE0AA815A98E0E006C0152 /* libiconv.2.dylib in Resources */,
+				57DE0AA915A98E0E006C0152 /* libintl.8.dylib in Resources */,
+				57DE0AAA15A98E0E006C0152 /* libseafile.0.dylib in Resources */,
+				57DE0AAB15A98E0E006C0152 /* libsearpc-json-glib.0.dylib in Resources */,
+				57DE0AAC15A98E0E006C0152 /* libsearpc.1.dylib in Resources */,
+				57DE0AAD15A98E0E006C0152 /* libssl.1.0.0.dylib in Resources */,
+				57DE0AAE15A98E0E006C0152 /* libuuid.16.dylib in Resources */,
+				57DE0AAF15A98E0E006C0152 /* InfoPlist.strings in Resources */,
+				57DE0AB015A98E0E006C0152 /* Credits.rtf in Resources */,
+				57DE0AB115A98E0E006C0152 /* MainMenu.xib in Resources */,
+				57DE0AB215A98E0E006C0152 /* seaf-daemon in Resources */,
+				57DE0AB315A98E0E006C0152 /* ccnet in Resources */,
+				57DE0AB415A98E0E006C0152 /* ccnetweb.app in Resources */,
+				57DE0AB515A98E0E006C0152 /* network-down.png in Resources */,
+				57DE0AB615A98E0E006C0152 /* network-rotate1.png in Resources */,
+				57DE0AB715A98E0E006C0152 /* network-rotate2.png in Resources */,
+				57DE0AB815A98E0E006C0152 /* network-rotate3.png in Resources */,
+				57DE0AB915A98E0E006C0152 /* network-rotate4.png in Resources */,
+				57DE0ABA15A98E0E006C0152 /* network-up.png in Resources */,
+				57DE0ABB15A98E0E006C0152 /* ccnet.icns in Resources */,
+				57DE0ABC15A98E0E006C0152 /* seafilefolder.icns in Resources */,
+				57DE0ABD15A98E0E006C0152 /* seafilerepo.icns in Resources */,
+				57DE0ABE15A98E0E006C0152 /* warning.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		57DE0AE715A9AA89006C0152 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				57DE0AE815A9AA89006C0152 /* libccnet.0.dylib in Resources */,
+				57DE0AE915A9AA89006C0152 /* libcrypto.1.0.0.dylib in Resources */,
+				57DE0AEA15A9AA89006C0152 /* libevent-2.0.5.dylib in Resources */,
+				57DE0AEB15A9AA89006C0152 /* libffi.5.dylib in Resources */,
+				57DE0AEC15A9AA89006C0152 /* libgio-2.0.0.dylib in Resources */,
+				57DE0AED15A9AA89006C0152 /* libglib-2.0.0.dylib in Resources */,
+				57DE0AEE15A9AA89006C0152 /* libgmodule-2.0.0.dylib in Resources */,
+				57DE0AEF15A9AA89006C0152 /* libgobject-2.0.0.dylib in Resources */,
+				57DE0AF015A9AA89006C0152 /* libgthread-2.0.0.dylib in Resources */,
+				57DE0AF115A9AA89006C0152 /* libiconv.2.dylib in Resources */,
+				57DE0AF215A9AA89006C0152 /* libintl.8.dylib in Resources */,
+				57DE0AF315A9AA89006C0152 /* libseafile.0.dylib in Resources */,
+				57DE0AF415A9AA89006C0152 /* libsearpc-json-glib.0.dylib in Resources */,
+				57DE0AF515A9AA89006C0152 /* libsearpc.1.dylib in Resources */,
+				57DE0AF615A9AA89006C0152 /* libssl.1.0.0.dylib in Resources */,
+				57DE0AF715A9AA89006C0152 /* libuuid.16.dylib in Resources */,
+				57DE0AF815A9AA89006C0152 /* InfoPlist.strings in Resources */,
+				57DE0AF915A9AA89006C0152 /* Credits.rtf in Resources */,
+				57DE0AFA15A9AA89006C0152 /* MainMenu.xib in Resources */,
+				57DE0AFB15A9AA89006C0152 /* seaf-daemon in Resources */,
+				57DE0AFC15A9AA89006C0152 /* ccnet in Resources */,
+				57DE0AFD15A9AA89006C0152 /* ccnetweb.app in Resources */,
+				57DE0AFE15A9AA89006C0152 /* network-down.png in Resources */,
+				57DE0AFF15A9AA89006C0152 /* network-rotate1.png in Resources */,
+				57DE0B0015A9AA89006C0152 /* network-rotate2.png in Resources */,
+				57DE0B0115A9AA89006C0152 /* network-rotate3.png in Resources */,
+				57DE0B0215A9AA89006C0152 /* network-rotate4.png in Resources */,
+				57DE0B0315A9AA89006C0152 /* network-up.png in Resources */,
+				57DE0B0415A9AA89006C0152 /* ccnet.icns in Resources */,
+				57DE0B0515A9AA89006C0152 /* seafilefolder.icns in Resources */,
+				57DE0B0615A9AA89006C0152 /* seafilerepo.icns in Resources */,
+				57DE0B0715A9AA89006C0152 /* warning.png in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		577BBD341562815F00FD577C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				577BBD491562815F00FD577C /* main.m in Sources */,
+				577BBD501562815F00FD577C /* AppDelegate.m in Sources */,
+				577BBD6B15638D8B00FD577C /* platform.m in Sources */,
+				577BBD741563A79A00FD577C /* opendir-proc.c in Sources */,
+				577F89CA1563B30D0059F53D /* ccnet-init.c in Sources */,
+				578FA5DB156781FC00EAAC19 /* MAAttachedWindow.m in Sources */,
+				57F739FF1570A10C00C06653 /* applet-common.c in Sources */,
+				57F73A001570A10C00C06653 /* applet-log.c in Sources */,
+				57F73A041570A11800C06653 /* rpc-wrapper.c in Sources */,
+				57F73A101570B37600C06653 /* applet-rpc-service.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		579F9BFB1588F92500570010 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				579F9BFC1588F92500570010 /* main.m in Sources */,
+				579F9BFD1588F92500570010 /* AppDelegate.m in Sources */,
+				579F9BFE1588F92500570010 /* platform.m in Sources */,
+				579F9BFF1588F92500570010 /* opendir-proc.c in Sources */,
+				579F9C001588F92500570010 /* ccnet-init.c in Sources */,
+				579F9C011588F92500570010 /* MAAttachedWindow.m in Sources */,
+				579F9C021588F92500570010 /* applet-common.c in Sources */,
+				579F9C031588F92500570010 /* applet-log.c in Sources */,
+				579F9C041588F92500570010 /* rpc-wrapper.c in Sources */,
+				579F9C051588F92500570010 /* applet-rpc-service.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		57DE0A7D15A98E0E006C0152 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				57DE0A7E15A98E0E006C0152 /* main.m in Sources */,
+				57DE0A7F15A98E0E006C0152 /* AppDelegate.m in Sources */,
+				57DE0A8015A98E0E006C0152 /* platform.m in Sources */,
+				57DE0A8115A98E0E006C0152 /* opendir-proc.c in Sources */,
+				57DE0A8215A98E0E006C0152 /* ccnet-init.c in Sources */,
+				57DE0A8315A98E0E006C0152 /* MAAttachedWindow.m in Sources */,
+				57DE0A8415A98E0E006C0152 /* applet-common.c in Sources */,
+				57DE0A8515A98E0E006C0152 /* applet-log.c in Sources */,
+				57DE0A8615A98E0E006C0152 /* rpc-wrapper.c in Sources */,
+				57DE0A8715A98E0E006C0152 /* applet-rpc-service.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		57DE0AC615A9AA89006C0152 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				57DE0AC715A9AA89006C0152 /* main.m in Sources */,
+				57DE0AC815A9AA89006C0152 /* AppDelegate.m in Sources */,
+				57DE0AC915A9AA89006C0152 /* platform.m in Sources */,
+				57DE0ACA15A9AA89006C0152 /* opendir-proc.c in Sources */,
+				57DE0ACB15A9AA89006C0152 /* ccnet-init.c in Sources */,
+				57DE0ACC15A9AA89006C0152 /* MAAttachedWindow.m in Sources */,
+				57DE0ACD15A9AA89006C0152 /* applet-common.c in Sources */,
+				57DE0ACE15A9AA89006C0152 /* applet-log.c in Sources */,
+				57DE0ACF15A9AA89006C0152 /* rpc-wrapper.c in Sources */,
+				57DE0AD015A9AA89006C0152 /* applet-rpc-service.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXVariantGroup section */
+		577BBD451562815F00FD577C /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				577BBD461562815F00FD577C /* en */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
+		577BBD4B1562815F00FD577C /* Credits.rtf */ = {
+			isa = PBXVariantGroup;
+			children = (
+				577BBD4C1562815F00FD577C /* en */,
+			);
+			name = Credits.rtf;
+			sourceTree = "<group>";
+		};
+		577BBD511562815F00FD577C /* MainMenu.xib */ = {
+			isa = PBXVariantGroup;
+			children = (
+				577BBD521562815F00FD577C /* en */,
+			);
+			name = MainMenu.xib;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		577BBD541562815F00FD577C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				CLANG_ENABLE_OBJC_ARC = NO;
+				COPY_PHASE_STRIP = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_LABEL = YES;
+				GCC_WARN_UNUSED_PARAMETER = NO;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					../../../include,
+					../../../gui/common,
+					../../../include/ccnet,
+					../../../lib,
+					"/opt/local/include/glib-2.0",
+					"/opt/local/lib/glib-2.0/include",
+					/opt/local/include,
+					../../../seafile/include,
+					../../../seafile/lib,
+				);
+				LIBRARY_SEARCH_PATHS = "";
+				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				New_Setting = "";
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = "";
+			};
+			name = Debug;
+		};
+		577BBD551562815F00FD577C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				CLANG_ENABLE_OBJC_ARC = NO;
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = NO;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_LABEL = YES;
+				GCC_WARN_UNUSED_PARAMETER = NO;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				HEADER_SEARCH_PATHS = (
+					../../../include,
+					../../../gui/common,
+					../../../include/ccnet,
+					../../../lib,
+					"/opt/local/include/glib-2.0",
+					"/opt/local/lib/glib-2.0/include",
+					/opt/local/include,
+					../../../seafile/include,
+					../../../seafile/lib,
+				);
+				LIBRARY_SEARCH_PATHS = "";
+				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				New_Setting = "";
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = "";
+			};
+			name = Release;
+		};
+		577BBD571562815F00FD577C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					DEBUG,
+				);
+				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
+				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = NO;
+				GCC_WARN_MULTIPLE_DEFINITION_TYPES_FOR_SELECTOR = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_LABEL = YES;
+				HEADER_SEARCH_PATHS = (
+					../../../include,
+					../../../gui/common,
+					../../../include/ccnet,
+					../../../lib,
+					"/opt/local/include/glib-2.0",
+					"/opt/local/lib/glib-2.0/include",
+					/opt/local/include,
+					../../../seafile/include,
+					../../../seafile/lib,
+					/usr/local/include,
+					/usr/local/include/searpc,
+				);
+				INFOPLIST_FILE = "seafile/seafile-Info.plist";
+				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = .;
+				WARNING_CFLAGS = "-Wall";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Debug;
+		};
+		577BBD581562815F00FD577C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
+				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
+				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = NO;
+				GCC_WARN_MULTIPLE_DEFINITION_TYPES_FOR_SELECTOR = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_LABEL = YES;
+				HEADER_SEARCH_PATHS = (
+					../../../include,
+					../../../gui/common,
+					../../../include/ccnet,
+					../../../lib,
+					"/opt/local/include/glib-2.0",
+					"/opt/local/lib/glib-2.0/include",
+					/opt/local/include,
+					../../../seafile/include,
+					../../../seafile/lib,
+					/usr/local/include,
+					/usr/local/include/searpc,
+				);
+				INFOPLIST_FILE = "seafile/seafile-Info.plist";
+				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = .;
+				WARNING_CFLAGS = "-Wall";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+		579F9C201588F92500570010 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
+				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
+				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = NO;
+				GCC_WARN_MULTIPLE_DEFINITION_TYPES_FOR_SELECTOR = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_LABEL = YES;
+				HEADER_SEARCH_PATHS = (
+					../../../include,
+					../../../gui/common,
+					../../../include/ccnet,
+					../../../lib,
+					"/opt/local/include/glib-2.0",
+					"/opt/local/lib/glib-2.0/include",
+					/opt/local/include,
+					../../../seafile/include,
+					../../../seafile/lib,
+					/usr/local/include,
+					/usr/local/include/searpc,
+				);
+				INFOPLIST_FILE = "seafile/seafile-release-Info.plist";
+				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				PRODUCT_NAME = seafile;
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = .;
+				WARNING_CFLAGS = "-Wall";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Debug;
+		};
+		579F9C211588F92500570010 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
+				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
+				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = NO;
+				GCC_WARN_MULTIPLE_DEFINITION_TYPES_FOR_SELECTOR = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_LABEL = YES;
+				HEADER_SEARCH_PATHS = (
+					../../../include,
+					../../../gui/common,
+					../../../include/ccnet,
+					../../../lib,
+					"/opt/local/include/glib-2.0",
+					"/opt/local/lib/glib-2.0/include",
+					/opt/local/include,
+					../../../seafile/include,
+					../../../seafile/lib,
+					/usr/local/include,
+					/usr/local/include/searpc,
+				);
+				INFOPLIST_FILE = "seafile/seafile-release-Info.plist";
+				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				PRODUCT_NAME = seafile;
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = .;
+				WARNING_CFLAGS = "-Wall";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+		57DE0AC015A98E0E006C0152 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
+				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
+				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
+				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = NO;
+				GCC_WARN_MULTIPLE_DEFINITION_TYPES_FOR_SELECTOR = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_LABEL = YES;
+				HEADER_SEARCH_PATHS = (
+					../../../include,
+					../../../gui/common,
+					../../../include/ccnet,
+					../../../lib,
+					"/opt/local/include/glib-2.0",
+					"/opt/local/lib/glib-2.0/include",
+					/opt/local/include,
+					../../../seafile/include,
+					../../../seafile/lib,
+					/usr/local/include,
+					/usr/local/include/searpc,
+				);
+				INFOPLIST_FILE = "seafile/seafile-release-10.6-Info.plist";
+				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				ONLY_ACTIVE_ARCH = NO;
+				PRODUCT_NAME = seafile;
+				PUBLIC_HEADERS_FOLDER_PATH = "seafile-release-10.6-Info.plist";
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = .;
+				WARNING_CFLAGS = "-Wall";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Debug;
+		};
+		57DE0AC115A98E0E006C0152 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
+				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
+				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = NO;
+				GCC_WARN_MULTIPLE_DEFINITION_TYPES_FOR_SELECTOR = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_LABEL = YES;
+				HEADER_SEARCH_PATHS = (
+					../../../include,
+					../../../gui/common,
+					../../../include/ccnet,
+					../../../lib,
+					"/opt/local/include/glib-2.0",
+					"/opt/local/lib/glib-2.0/include",
+					/opt/local/include,
+					../../../seafile/include,
+					../../../seafile/lib,
+					/usr/local/include,
+					/usr/local/include/searpc,
+				);
+				INFOPLIST_FILE = "seafile/seafile-release-10.6-Info.plist";
+				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = seafile;
+				PUBLIC_HEADERS_FOLDER_PATH = "seafile-release-10.6-Info.plist";
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = .;
+				WARNING_CFLAGS = "-Wall";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+		57DE0B0915A9AA89006C0152 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					DEBUG,
+				);
+				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
+				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = NO;
+				GCC_WARN_MULTIPLE_DEFINITION_TYPES_FOR_SELECTOR = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_LABEL = YES;
+				HEADER_SEARCH_PATHS = (
+					../../../include,
+					../../../gui/common,
+					../../../include/ccnet,
+					../../../lib,
+					"/opt/local/include/glib-2.0",
+					"/opt/local/lib/glib-2.0/include",
+					/opt/local/include,
+					../../../seafile/include,
+					../../../seafile/lib,
+					/usr/local/include,
+					/usr/local/include/searpc,
+				);
+				INFOPLIST_FILE = "seafile/seafile-10.6-debug-Info.plist";
+				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				ONLY_ACTIVE_ARCH = NO;
+				PRODUCT_NAME = "seafile-10.6-debug";
+				PUBLIC_HEADERS_FOLDER_PATH = "seafile-release-10.6-Info.plist";
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = .;
+				WARNING_CFLAGS = "-Wall";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Debug;
+		};
+		57DE0B0A15A9AA89006C0152 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = YES;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
+				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
+				GCC_WARN_ABOUT_MISSING_NEWLINE = YES;
+				GCC_WARN_ABOUT_MISSING_PROTOTYPES = YES;
+				GCC_WARN_INHIBIT_ALL_WARNINGS = NO;
+				GCC_WARN_MULTIPLE_DEFINITION_TYPES_FOR_SELECTOR = YES;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_LABEL = YES;
+				HEADER_SEARCH_PATHS = (
+					../../../include,
+					../../../gui/common,
+					../../../include/ccnet,
+					../../../lib,
+					"/opt/local/include/glib-2.0",
+					"/opt/local/lib/glib-2.0/include",
+					/opt/local/include,
+					../../../seafile/include,
+					../../../seafile/lib,
+					/usr/local/include,
+					/usr/local/include/searpc,
+				);
+				INFOPLIST_FILE = "seafile/seafile-10.6-debug-Info.plist";
+				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "seafile-10.6-debug";
+				PUBLIC_HEADERS_FOLDER_PATH = "seafile-release-10.6-Info.plist";
+				SDKROOT = macosx;
+				USER_HEADER_SEARCH_PATHS = .;
+				WARNING_CFLAGS = "-Wall";
+				WRAPPER_EXTENSION = app;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		577BBD321562815E00FD577C /* Build configuration list for PBXProject "seafile" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				577BBD541562815F00FD577C /* Debug */,
+				577BBD551562815F00FD577C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		577BBD561562815F00FD577C /* Build configuration list for PBXNativeTarget "seafile" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				577BBD571562815F00FD577C /* Debug */,
+				577BBD581562815F00FD577C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		579F9C1F1588F92500570010 /* Build configuration list for PBXNativeTarget "seafile-release" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				579F9C201588F92500570010 /* Debug */,
+				579F9C211588F92500570010 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		57DE0ABF15A98E0E006C0152 /* Build configuration list for PBXNativeTarget "seafile-10.6" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				57DE0AC015A98E0E006C0152 /* Debug */,
+				57DE0AC115A98E0E006C0152 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		57DE0B0815A9AA89006C0152 /* Build configuration list for PBXNativeTarget "seafile-10.6-debug" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				57DE0B0915A9AA89006C0152 /* Debug */,
+				57DE0B0A15A9AA89006C0152 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 577BBD2F1562815E00FD577C /* Project object */;
+}

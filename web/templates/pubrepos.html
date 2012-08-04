@@ -1,0 +1,165 @@
+<%inherit file="base.html"/>
+
+<%!
+    from seaserv import translate_peerid
+    from utils import translate_time_sec
+    from utils import format_file_size
+%>
+
+<%def name="left_panel()">
+<ul>
+    <li><a href="/synclan/">${_("Back")}</a></li>
+</ul>
+</%def>
+
+<%def name="center_panel()">
+<h2>${lan_peer_id | translate_peerid}${_("'s repos")}</h2>
+
+% if error_msg:
+    <p class="error">${_("Error:")} ${error_msg}</p>
+% endif
+
+% if not error_msg and len(repos) == 0:
+    <p class="notification">${_("There are no public repos on that peer .")}</p>
+% endif
+
+% if len(repos) > 0:
+<ul class="repo-list">
+    % for repo in repos:
+    <li class="repo-item" id="id-${repo.props.id}">
+        <img src="/static/img/sea-folder-icon-64.png" width="48" height="48" class="fleft" />
+        <div class="item-body fright">
+            <h3 class="repo-name">${repo.props.name}</h3>
+            <div class="item-content">
+                % if repo.is_broken:
+                <p class="repo-status tip">${_("Broken")}</p>
+                % else:
+                <p class="last-modify">
+                    % if repo.props.last_modify and repo.props.last_modify > 0:
+                    ${_("Changed at: ")} ${repo.props.last_modify | translate_time_sec}
+                    % endif
+                </p>
+                <div class="operation">
+                    % if not repo.exists:
+                    <!-- not exist on this machine -->
+                    <button class="fetch-btn" data="${repo.props.id}">${_("Fetch")}</button>
+                    % elif repo.just_fetched:
+                    <p class="tip">${_("Just fetched, you can")} <a href="/repo/?repo=${repo.props.id}">${_("go to")}</a> ${_("check it out")}</p>
+                    % elif repo.can_sync:
+                    <button class="sync-btn" data="${repo.props.id}">${_("Sync")}</button>
+                    % else:
+                    <!-- repo exits, but has no working tree -->
+                    <p class="tip">${_("Local directory does not exist")}</p>
+                    % endif
+                </div>
+                % endif
+            </div>
+        </div>
+    </li>
+    % endfor
+</ul>
+<div id="op-form" class="hide">
+    <label>${_("Token:")}</label><br />
+    <input id="id_token" type="password" name="token" value="" maxlength="40" /><br/>
+    <input type="hidden" name="repo" value="" maxlength="40" />
+    <input type="hidden" name="op" value="" maxlength="10" />
+    <input type="button" id="submit" class="simplemodal-close" value="${_("Submit")}" />
+</div>
+% endif
+</%def>
+
+<%def name="js()">
+<script type="text/javascript">
+var op = '',
+    repo_id = '';     
+$('.fetch-btn').each(function() {
+    $(this).click(function() {
+        repo_id = $(this).attr('data');
+        op = 'fetch';
+        $('#op-form').modal({appendTo: "#main", containerCss:{padding:18}});
+    });
+});
+  
+$('.sync-btn').each(function() {
+    $(this).click(function() {
+        repo_id = $(this).attr('data');
+        op = 'sync';
+        $('#op-form').modal({appendTo: "#main", containerCss:{padding:18}});
+    });
+});
+
+if ($('#id_token')[0]) {
+    $('#id_token')[0].type = 'text';
+    $('#id_token').attr('value', 'default');
+    //todo: remove focus which inputs in 'modal form' have in default
+    $('#id_token').click(function() {
+        $(this).attr('value', '');
+        $(this)[0].type = 'password';
+    });
+}
+
+$('#submit').click(function () {
+    $.ajax({
+        url: '/pubrepos/?peer=${lan_peer_id}',
+        type: 'POST',
+        data: {token:$('#id_token').val(), repo:repo_id, op:op},
+        //dataType: 'json',
+        //contentType: 'application/json; charset=utf-8',
+        cache: false,
+        success: function (data) {
+        }
+    });
+    if (op == 'fetch') {
+        $('#id-' + repo_id + ' .operation').html('<p class="notification">${_("fetching...")}</p>');
+        setTimeout(fetch_status, 1000);
+    } else {
+        $('#id-' + repo_id + ' .operation').html('<p class="notification">${_("syncing...")}</p>');
+        setTimeout(sync_status, 1000);
+    }
+});
+
+function fetch_status() {
+    $.ajax({
+        url: '/pubrepo/op_status/?peer_id=${lan_peer_id}&repo_id=' + repo_id + '&op=fetch', 
+        dataType: 'json',
+        cache: false,
+        contentType: 'application/json; charset=utf-8',
+        success: function(data) {
+            if (data['fetch_done']) {
+                $('#id-' + repo_id + ' .operation').html('<p class="tip">${_("Just fetched, you can")} <a href="/repo/?repo=' + repo_id + '">${_("go to")}</a> ${_("check it out.")}</p>');
+            } else {
+                if (data['state'] == 'normal') {
+                    $('#id-' + repo_id + ' .operation').html('<p class="notification">${_("fetching...blocks transfered")} ' + data['block_done'] + '/' + data['block_total'] + '${_(", rate")} ' + (data['rate']/1024).toFixed(2) + 'KB/${_("s")} <img src="/static/img/icon_loading.gif" width="16" height="16" /></p>');
+                }
+                if (data['state'] == 'error') {
+                    $('#id-' + repo_id + ' .operation').html('<p class="error">${_("error:")}' + data['error_str'] + '</p>');
+                }
+                setTimeout(fetch_status, 500); 
+            }   
+        }   
+    }); 
+}
+
+function sync_status() {
+    $.ajax({
+        url: '/pubrepo/op_status/?peer_id=${lan_peer_id}&repo_id=' + repo_id + '&op=sync', 
+        dataType: 'json',
+        cache: false,
+        contentType: 'application/json; charset=utf-8',
+        success: function(data) {
+            if (data['sync_done']) {
+                $('#id-' + repo_id + ' .operation').html('<p class="tip">${_("sync done.")} <a href="/repo/?repo=' + repo_id + '">${_("back to the repo.")}</a></p>');
+            } else {
+                if (data['state']) {
+                    $('#id-' + repo_id + ' .operation').html('<p class="notification">' + data['state'] + '</p>');
+                } else {
+                    $('#id-' + repo_id + ' .operation').html('<p class="error">' +data['error'] + '</p>');
+                }
+                setTimeout(sync_status, 500); 
+            }   
+        }   
+    }); 
+}
+</script>
+</%def>
+

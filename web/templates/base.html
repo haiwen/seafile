@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+    <title>${_("Seafile@Local")}</title>
+    <link rel="stylesheet" type="text/css" href="/static/css/ui-lightness/jquery-ui-1.8.16.custom.css" />
+    <link rel="stylesheet" type="text/css" href="/static/css/ccnet.css" />
+    <link rel="icon" type="image/png" href="/static/img/favicon.png" />
+    <script type="text/javascript" src="/static/js/jquery-1.6.2.min.js"></script>
+    <script type="text/javascript" src="/static/js/jquery-ui-1.8.16.custom.min.js"></script>
+    <script type="text/javascript" src="/static/js/jquery.simplemodal.1.4.1.min.js"></script>
+    <script type="text/javascript" src="/static/js/jquery-jtemplates.js"></script>
+</head>
+
+<%
+     from seaserv import ccnet_rpc
+     sinfo = ccnet_rpc.get_session_info()
+%>
+
+<body>
+<div id="wrapper">
+    <div id="top-bar">
+        <div class="top-bar">
+            <div class="top-bar-in">
+                <span>${_("Welcome, ")} ${sinfo.props.user_name}.</span>
+                % if settings.SHOW_SYSTEM:
+                <a href="/procs/">${_("System")}</a>
+                % endif
+                <a href=${"/i18n/?prev=" + web_ctx.fullpath} >
+                % if lang == 'zh_CN':
+                    English
+                % else:
+                    中文
+                % endif
+                </a>
+            </div>
+        </div>
+    </div>
+    <div id="header" class="ovhd">
+        <img src="/static/img/logo.jpg" title="Seafile" alt="Seafile logo" id="logo" class="fleft" />
+        <ul id="nav" class="fleft">
+            <li>
+            <a href="/repos/">${_("Files")}</a>
+            </li>
+            <!-- <li>
+            <a href="/synclan/">${_("SyncLan")}</a>
+            </li> -->
+            <!-- <li>
+            <a href="/peers/">${_("Network")}</a>
+            </li>  -->
+            <li>
+            <a href="/settings/">${_("Settings")}</a>
+            </li>
+            <li>
+            <a href=${settings.DEFAULT_HELP_WEB}>${_("Help")}</a>
+            </li>
+        </ul>
+        <div id="other-info" class="fright">
+            <p>${_("Seafile@LocalComputer")}</p>
+        </div>
+    </div>
+    <div id="main" class="ovhd">
+        <div id="left-panel" class="fleft">
+            ${self.left_panel()}
+        </div>        
+        <div id="center-panel" class="fleft">
+            ${self.center_panel()}
+        </div>
+        <div id="right-panel" class="fright">
+            ${self.right_panel()}
+        </div>
+        <div id="wide-center-panel" class="fright">
+            ${self.wide_center_panel()}
+        </div>
+        <div id="main-panel" class="clear">
+            ${self.main_panel()}
+        </div>
+        <%def name="left_panel()"></%def>
+        <%def name="center_panel()"></%def>
+        <%def name="right_panel()"></%def>
+        <%def name="wide_center_panel()"></%def>
+        <%def name="main_panel()"></%def>
+    </div>
+    <div id="footer">
+        <p class="fleft">Copyright © 2012 海文互知. ${_("Seafile Version:")} ${seafile_version}</p>
+        <p class="fright">${_("Contact")} | ${_("About")}</p>
+    </div>
+</div><!-- wrapper -->
+<script type="text/javascript" src="/static/js/jquery.tools.min.js"></script>
+<script type="text/javascript" src="/static/js/jquery.slides.js"></script>
+<script type="text/javascript" src="/static/js/utils.js"></script>
+
+<%def name="js()"></%def>
+${self.js()}
+<script type="text/javascript">
+//for compatibility with ie7
+function hideIfEmpty(e) {//e: an element or elements
+    if (!$.trim(e.html())) {
+            e.addClass('hide');
+    }
+}
+
+hideIfEmpty($('#center-panel'));
+hideIfEmpty($('#right-panel'));
+
+</script>
+</body>
+</html>

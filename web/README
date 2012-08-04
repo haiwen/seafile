@@ -1,0 +1,36 @@
+To launch the web application
+
+1. fetch web.py
+2. fetch mako
+3. generate messages.mo
+
+    cd i18n
+    msgfmt -o zh_CN/LC_MESSAGES/messages.mo zh_CN/LC_MESSAGES/messages.po
+    msgfmt -o en_US/LC_MESSAGES/messages.mo en_US/LC_MESSAGES/messages.po
+
+4. set environment
+
+    export CCNET_CONF_DIR=/home/plt/dev/ccnet2/seafile/tests/basic/conf1
+
+5. install ccnet and set PYTHONPATH, for example
+
+    export PYTHONPATH=/opt/lib/python2.6/site-packages
+
+6. launch
+
+        python main.py
+
+   or use port 8081
+
+        python main.py 8081
+
+
+TEST SEAFILE
+============
+
+1. Start seafile 
+   cd seafile/tests/basic
+   ./seafile.sh 1 2 3 4
+
+   
+   

@@ -1,0 +1,400 @@
+<%inherit file="base.html"/>
+<%!
+    from utils import translate_time_sec, format_file_size, translate_commit_desc, format_creator
+%>
+
+<%def name="left_panel()">
+<h3>${_("Operations")}</h3>
+<ul>
+    % if relay and relay.props.service_url:
+     <li><a href="${relay.props.service_url}/repo/${repo.props.id}">${_("View at relay")}</a></li>
+    % endif
+    % if relay and repo.local_branch and repo.props.head_branch and not repo.props.worktree_invalid:
+    <li><a id="do-sync-link" href="/repos/operation/?repo=${repo.props.id}&op=sync">${_("Sync Now")}</a></li>
+    % endif
+    <!--li><a href="/repo/setting/?repo=${repo.props.id}">${_("Settings")}</a></li-->
+    <li><a href="#" id="delete">${_("Unsync")}</a></li>
+</ul>
+</%def>
+
+<%def name="wide_center_panel()">
+
+<!-- notification area -->
+% if repo.is_broken:
+<div class="notification">
+    <p>${_("SyncFolder is broken!")}</p>
+</div>
+% endif
+
+<div id="transfer-area"></div><!-- transfer area -->
+
+<h2 id="repo-name">
+    ${repo.props.name}
+    % if repo.props.encrypted:
+    <span class="encrypt-note">[${_("Encrypted")}]</span>
+    % endif
+    <span class="sync-note"></span>
+</h2>
+
+<div class="basic-info">
+    <p class="repo-desc">${repo.props.desc}</p>
+    % if not repo.props.worktree_invalid:
+    <a href="/repos/operation/?repo=${repo.props.id}&op=open">${repo.props.worktree}</a>
+    % endif
+    <ul>
+        % if relay:
+        <li>
+        <span class="item-name">${_("Server: ")}</span>${relay.props.name}
+        </li>
+        % endif
+
+        % if repo.props.passwd:
+        <li>
+        <span class="item-name">${_("Password: ")}</span><span id="repo-passwd">*****</span>
+        <input type="checkbox" id="show-passwd-value" name="show-passwd-value" /><label for="show-passwd-value">${_("Show")}</label>
+        </li>
+        % endif
+
+        <li>
+        % if repo.props.auto_sync:
+        <span class="item-name">${_("Auto Sync: ")}</span><input type="checkbox" checked="checked" data="set-manual-sync" id="set-sync-btn" />
+        % else:
+        <span class="item-name">${_("Auto Sync: ")}</span><input type="checkbox" data="set-auto-sync" id="set-sync-btn" />
+        % endif
+        <label>${_("Start")}</label>
+        <span id="sync-set-feedback" class="notification hide"></span>
+        </li>
+    </ul>
+</div>
+
+<h3>${_("Recent Changes")}</h3>
+<table class="commit-list">
+    <tr>
+        <th class="time">${_("Time")}</th>
+        <th class="author">${_("Author")}</th>
+        <th class="repo-home-desc">${_("Description")}</th>
+    </tr>
+    % for commit in recent_commits:
+    <tr>
+        <td class="time">${commit.props.ctime | translate_time_sec}</td>
+        % if commit.props.creator_name:
+        <td class="author">${commit.props.creator_name|format_creator}</td>
+        % else:
+        <td class="author">${_("unknown")}</td>
+        % endif
+        <td class="repo-home-desc">
+            % if lang == 'zh_CN':
+            ${commit.props.desc | translate_commit_desc} 
+            % else:
+            ${commit.props.desc} 
+            % endif
+
+            % if commit.props.parent_id:
+            <a class="lsch" href="/repos/operation/?repo=${repo.props.id}&new=${commit.props.id}&op=lsch">${_("details")}</a>
+            % endif
+        </td>
+    </tr>
+    % endfor
+</table>
+<a href="/repo/history/?repo=${repo.props.id}">${_("All changes history")}</a>
+
+<!-- hidden content -->
+<div id="ls-ch" class="hide"></div><!--list modification details of a commit-->
+
+<textarea id="transfer-template" class="hide"> 
+    <div class="notification">
+        {#if $T.state == "normal"}
+        ${_("Repo")} {#if $T.ttype == "upload"} ${_("Uploading,")} {#else} ${_("Downloading,")} {#/if}
+        ${_("blocks transfered")} <span id="transfered">{$T.block_done}/{$T.block_total}</span>, ${_("rate")} <span id="tranfer-rate">{($T.rate/1024).toFixed(2)}</span>KB/${_("s")}
+        <img src="/static/img/icon_loading.gif" width="16" height="16" />
+        {#/if}
+
+        {#if $T.state == "error"}
+        ${_("Repo transfer error:")} {$T.error_str}.<br/>
+        {#/if}
+    </div>
+</textarea>
+
+<div id="dialog-delete-confirm" class="hide">
+    <p><span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>${_("Really want to unsync the folder? (The original folder will become a normal folder.)")}</p>
+    <button class="remove-repo-btn" data="/repos/operation/?repo=${repo.props.id}&op=remove">${_("Unsync")}</button>
+    <button class="simplemodal-close">${_("Cancel")}</button>
+</div>
+
+<div id="dialog-revert-confirm" class="hide">
+    <p><span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>${_("Really want to restore the local directory contents to this state?")}</p>
+    <button id="revert-repo-btn" data="/repos/operation/?repo=${repo.props.id}&op=revert&commit">${_("Restore")}</button>
+    <button class="simplemodal-close">${_("Cancel")}</button>
+</div>
+</%def>
+
+<%def name="js()">
+<script type="text/javascript">
+$("#open-dir-btn").click(function() {
+        location.href = $(this).attr('data');
+    });
+
+//delete dialog
+$("#delete").click(function() {
+        $("#dialog-delete-confirm").modal({appendTo: "#main"}); 
+        return false;
+    });
+
+$("button.remove-repo-btn").click(function() {
+        location.href = $(this).attr('data');
+    });
+
+// revert dialog
+var revert_commit = "";
+$("a.revert-link").bind('click', function() {
+        revert_commit = $(this).attr("data");
+        $("#dialog-revert-confirm").modal({appendTo: "#main"}); 
+    }
+);
+$("#revert-repo-btn").click(function() {
+        location.href = "/repos/operation/?repo=${repo.props.id}&op=revert&commit=" + revert_commit;
+    });
+
+% if relay and repo.local_branch and repo.props.head_branch and not repo.props.worktree_invalid:
+var empty_count = 0;
+var has_transfer = false;
+var last_sync_status = '';
+  
+function set_sync_status(status) {
+    if (status == last_sync_status) {
+        return false;
+    }
+    last_sync_status = status;
+    var str = '';
+    switch (status) {
+        case 'synchronized':
+            str = "${_('synchronized')}";
+            break;
+        case 'commiting':
+            str = "${_('commiting')}";
+            break;
+        case 'initializing': 
+            str = "${_('sync initializing')}";
+            break;
+        case 'downloading': 
+            str = "${_('downloading')}";
+            break;
+        case 'uploading': 
+            str = "${_('uploading')}";
+            break;
+        case 'merging': 
+            str = "${_('sync merging')}";
+            break;
+        case 'waiting for sync':
+            str = "${_('waiting for sync')}";
+            break;
+        case 'relay not connected':
+            str = "${_('relay not connected')}";
+            break;
+        case 'auto sync is turned off':
+            str = "${_('auto sync is turned off')}";
+        default: 
+            str = status;
+    }
+    $(".sync-note").html('(${_("sync status:")} ' + str + ')');
+}
+  
+function set_sync_error(error) {
+    if (error == last_sync_status) {
+        return false;
+    }
+    last_sync_status = error;
+    var str = '';
+    switch (error) {
+        case "relay not connected":
+            str = "${_('relay not connected')}";
+            break;
+        case "Server has been removed":
+            str = "${_('Server has been removed')}";
+            break;
+        case "You have not login to the server":
+            str = "${_('You have not login to the server')}";
+            str = str + ' ${relay.name}. ' + '${_("Go to")} ' + '<a href="/peers/">${_("Network")}</a>' + \
+                ' ${_("page to login")}';
+            break;
+        case "You do not have permission to access this repo":
+            str = "${_('You do not have permission to access this repo')}";
+            break;
+        case "The storage space of the repo owner has been used up":
+            str = "${_('The storage space of the repo owner has been used up')}";
+            break;
+        case "Remote service is not available":
+            str = "${_('Remote service is not available')}";
+            break;
+        case "Access denied to service. Please check your registration on relay.":
+            str = "${_('Access denied to service. Please login to the server on \'Network\' page.')}";
+            break;
+        case "Internal data corrupted.":
+            str = "${_('Internal data corrupted.')}";
+            break;
+        case "Failed to start upload.":
+            str = "${_('Failed to start upload.')}";
+            break;
+        case "Error occured in upload.":
+            str = "${_('Error occured in upload.')}";
+            break;
+        case "Failed to start download.":
+            str = "${_('Failed to start download.')}";
+            break;
+        case "Error occured in download.":
+            str = "${_('Error occured in download.')}";
+            break;
+        case "No such repo on relay.":
+            str = "${_('Repo is deleted on server. Click \'Unsync\' button, then you can create a new repo.')}";
+            break;
+        case "Unknown error.":
+            str = "${_('Unknown error.')}";
+            break;
+        default:
+            str = error;
+    }    
+    $(".sync-note").html('(${_("sync error:")} ' + '<span class="error">' + str + '</span>)');
+}
+      
+function show_sync_status() {
+    $.ajax({
+        url: '/repo/sync-status/?repo=${repo.props.id}', 
+        dataType: 'json',
+        cache: false,
+        contentType: 'application/json; charset=utf-8',
+        success: function(data) {
+            if (data["state"]) {
+                if (data["state"] == "error") {
+                    set_sync_error(data["error"]);
+                } else {
+                    set_sync_status(data["state"]);
+                    if (data["state"] == "uploading" || data["state"] == "downloading") {
+                        show_repo_transfer();
+                        has_transfer = true;
+                    } else {
+                        if (has_transfer) {
+                            $("#transfer-area").empty();
+                            location.reload();
+                            has_transfer = false;
+                        }
+                    }
+                }
+            }
+            if (data['state'] == 'synchronized') {
+		        empty_count++;
+            }
+            if (empty_count < 4) {
+		        setTimeout(show_sync_status, 2000);
+	        }
+        }
+    });
+}
+  
+function show_repo_transfer() {
+    $.ajax({
+        url: '/repo/transfer/?repo=${repo.props.id}',
+        dataType: 'json',
+        cache: false,
+        contentType: 'application/json; charset=utf-8',
+        success: function(data) {
+            if (data["ttype"]) {
+                $("#transfer-area").setTemplateElement("transfer-template");
+                $("#transfer-area").processTemplate(data);
+            } else {
+                $("#transfer-area").empty();
+            }
+        }
+    });
+}
+
+show_sync_status();
+
+$('#do-sync-link').click(function() {
+    set_sync_status('initializing');
+});
+% endif
+
+//list modification made by a commit;for repo,repo_history
+$('.lsch').each(function() {
+        $(this).click(function() {
+            $.ajax({
+                url: $(this).attr('href'),
+                dataType: 'json',
+                cache: false,
+                contentType: 'application/json; charset=utf-8',
+                success: function(data) {
+                    var str_title =  '<h3>${_("Modification Detail")}</h3>';
+                    var str_con = ''; 
+                    var show = function(data_) {
+                            str_con += '<ul>';
+                            for (var i = 0, len = data_.length; i < len; i++) {
+                                str_con += '<li>' + data_[i] + '</li>';
+                            }   
+                            str_con += '</ul>';
+                    };  
+                    if (data['new'].length > 0) {
+                        str_con += '<h4 id="ls-ch-new">${_("New files:")}</h4>';
+                        show(data['new']);
+                    }   
+                    if (data['removed'].length > 0) {
+                        str_con += '<h4 id="ls-ch-rm">${_("Removed files:")}</h4>';
+                        show(data['removed']);
+                    }   
+                    if (data['renamed'].length > 0) {
+                        str_con += '<h4 id="ls-ch-rn">${_("Renamed files:")}</h4>';
+                        show(data['renamed']);
+                    }
+                    if (data['modified'].length > 0) {
+                        str_con += '<h4 id="ls-ch-modi">${_("Modified files:")}</h4>';
+                        show(data['modified']);
+                    }
+                    if (data['newdir'].length > 0) {
+                        str_con += '<h4 id="ls-ch-newdir">${_("New directories:")}</h4>';
+                        show(data['newdir']);
+                    }
+                    if (data['deldir'].length > 0) {
+                        str_con += '<h4 id="ls-ch-deldir">${_("Removed directories:")}</h4>';
+                        show(data['deldir']);
+                    }
+                    if (!str_con) {
+                        str_con = '<p>${_("No file content modified, perhaps file permission was changed.")}</p>';
+                    }
+                    $('#ls-ch').html(str_title + str_con);
+                    $('#ls-ch').modal({appendTo:'#main'});
+                }
+            });
+            return false;
+        });
+    });
+
+// for passwd display
+$('#show-passwd-value').click(function() {
+        if ($(this).attr('checked')) {
+            $('#repo-passwd').html('${repo.props.passwd}');
+        } else {
+            $('#repo-passwd').html('*****');
+        }
+});
+
+//for auto-sync setting
+$("#set-sync-btn").click(function() { 
+        $.ajax({
+            url: '/repos/operation/?repo=${repo.props.id}&op=' + $(this).attr('data'),
+            dataType: 'json',
+            cache: false,
+            contentType: 'application/json; charset=utf-8',
+            success: function(data) {
+                if (data['start']) {
+                    $('#set-sync-btn').attr('data','set-manual-sync');
+                    $('#sync-set-feedback').html('${_("Started")}');
+                } else {
+                    $('#set-sync-btn').attr('data','set-auto-sync');
+                    $('#sync-set-feedback').html('${_("Stopped")}');
+                }
+                $('#sync-set-feedback').removeClass('hide');
+                setTimeout(function() { $('#sync-set-feedback').addClass('hide'); }, 1500);
+            }
+       }); 
+   });
+</script>
+</%def>

@@ -413,6 +413,7 @@ transition_sync_state (SyncTask *task, int new_state)
 static const char *sync_error_str[] = {
     "Success",
     "relay not connected",
+    "failed to upgrade old repo",
     "Server has been removed",
     "You have not login to the server",
     "Remote service is not available",
@@ -923,6 +924,7 @@ get_email_token_done (CcnetProcessor *processor, gboolean success, void *data)
         seaf_warning ("[sync mgr] failed to get email and token "
                       "for repo %s\n", repo_id);
         g_hash_table_replace (htbl, repo_id, (gpointer)GET_EMAIL_TOKEN_FAILED);
+        seaf_sync_manager_set_task_error (task, SYNC_ERROR_UPGRADE_REPO);
     } else {
         task->token = g_strdup(task->repo->token);
         start_sync_repo_proc (task->mgr, task);
@@ -962,8 +964,14 @@ try_get_repo_email_token (SeafSyncManager *mgr,
     char *repo_id = task->info->repo_id;
     long status = (long)g_hash_table_lookup (htbl, repo_id);
 
-    if (status) 
+    if (status == GET_EMAIL_TOKEN_FAILED) {
+        seaf_sync_manager_set_task_error (task, SYNC_ERROR_UPGRADE_REPO);
+        return -1;
+        
+    } else if (status == GET_EMAIL_TOKEN_IN_PROGRESS) {
+        transition_sync_state (task, SYNC_STATE_CANCELED);
         return 0;
+    }
 
     CcnetProcessor *processor;
     processor = ccnet_proc_factory_create_remote_master_processor (
@@ -971,12 +979,14 @@ try_get_repo_email_token (SeafSyncManager *mgr,
         task->dest_id);
 
     if (!processor) {
+        seaf_sync_manager_set_task_error (task, SYNC_ERROR_UPGRADE_REPO);
         seaf_warning ("[sync-mgr] failed to create "
                       "get seafile-get-repo-email-token proc.\n");
         return -1;
     }
 
     if (ccnet_processor_startl (processor, repo_id, NULL) < 0) {
+        seaf_sync_manager_set_task_error (task, SYNC_ERROR_UPGRADE_REPO);
         seaf_warning ("[sync-mgr] failed to start "
                       "get seafile-get-repo-email-token proc.\n");
     }

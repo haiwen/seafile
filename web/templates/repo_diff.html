@@ -1,0 +1,109 @@
+<%inherit file="base.html"/>
+
+<%!
+    from utils import translate_time_sec, translate_commit_desc
+%>
+
+
+<%def name="left_panel()">
+<h3>${_("Navigation")}</h3>
+<ul>
+    <li><a href="/repo/?repo=${repo.props.id}">${_("back to repo")}</a></li>
+</ul>
+</%def>
+
+<%def name="wide_center_panel()">
+<h2>${repo.props.name} ${_("Modification Info")}</h2>
+<h3>${_("Modification Info")}</h3>
+<table class="repo-desc">
+    <tr>
+        <th width="20%">${_("Time")}</th>
+        <th width="80%">${_("Description")}</th>
+    </tr>
+    <tr>
+        <td>${new_commit.props.ctime | translate_time_sec}</td>
+        % if lang == 'zh_CN':
+        <td>${new_commit.props.desc | translate_commit_desc}</td>
+        % else:
+        <td>${new_commit.props.desc}</td>
+        % endif
+    </tr>
+    <tr>
+        <td>${old_commit.props.ctime | translate_time_sec}</td>
+        % if lang == 'zh_CN':
+        <td>${old_commit.props.desc | translate_commit_desc}</td>
+        % else:
+        <td>${old_commit.props.desc}</td>
+        % endif
+    </tr>
+</table>
+
+<h3>${_("Diff result")}</h3>
+% if (new, removed, renamed, modified) == ([], [], [], []):
+    <p>${_("none")}</p>
+% else:
+    % if new: 
+    <h4>${_("New files:")}</h4>
+    <ul>
+    % for l in new:
+        <li>${l}</li>
+    % endfor
+    </ul>
+    % endif
+
+    % if removed:
+    <h4>${_("Removed files:")}</h4>
+    <ul>
+    % for l in removed:
+        <li>${l}</li>
+    % endfor
+    </ul>
+    % endif
+
+    % if renamed:
+    <h4>${_("Renamed files:")}</h4>
+    <ul>
+    % for l in renamed:
+        <li>${l}</li>
+    % endfor
+    </ul>
+    % endif
+
+    % if modified:
+    <h4>${_("Modified files:")}</h4>
+    <ul>
+    % for l in modified:
+        <li>${l}</li>
+    % endfor
+    </ul>
+    % endif
+
+    % if newdir:
+    <h4>${_("New directories:")}</h4>
+    <ul>
+    % for l in newdir:
+        <li>${l}</li>
+    % endfor
+    </ul>
+    % endif
+
+    % if deldir:
+    <h4>${_("Removed directories:")}</h4>
+    <ul>
+    % for l in deldir:
+        <li>${l}</li>
+    % endfor
+    </ul>
+    % endif
+% endif
+
+</%def>
+
+<%def name="right_panel()">
+</%def>
+
+<%def name="main_panel()">
+</%def>
+
+<%def name="js()">
+</%def>

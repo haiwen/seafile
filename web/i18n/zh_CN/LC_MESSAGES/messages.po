@@ -1,0 +1,1340 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR ORGANIZATION
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"POT-Creation-Date: 2012-08-02 16:07+CST\n"
+"PO-Revision-Date: 2012-05-23 16:19+0800\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: UTF-8\n"
+"Generated-By: pygettext.py 1.5\n"
+
+#: main.py:562
+msgid "You must choose a local directory"
+msgstr "你必须指定一个本地目录"
+
+#: main.py:564
+msgid "Password can not be empty"
+msgstr "密码不能为空"
+
+#: main.py:566
+msgid "Invalid Repo ID"
+msgstr "同步目录ID格式不正确"
+
+#: main.py:595
+msgid "Invalid local directory"
+msgstr "不是合法的本地目录"
+
+#: main.py:597
+msgid ""
+"The local directory you chose is in sync with another repo. Please choose "
+"another one."
+msgstr "你所指定的本地目录已经与其他同步目录同步，请指定其他本地目录"
+
+#: main.py:599
+msgid "Invalid local directory name."
+msgstr "不是合法的本地目录名。"
+
+#: main.py:601 templates/clone_tasks.html:65
+msgid "Internal error."
+msgstr "内部错误"
+
+#: templates/base.html:5
+msgid "Seafile@Local"
+msgstr "Seafile 本地管理"
+
+#: templates/base.html:25
+msgid "Welcome, "
+msgstr "欢迎，"
+
+#: templates/base.html:27
+msgid "System"
+msgstr "系统"
+
+#: templates/base.html:43
+msgid "Files"
+msgstr "文件"
+
+#: templates/base.html:46
+msgid "SyncLan"
+msgstr "局域网同步"
+
+#: templates/base.html:49
+msgid "Network"
+msgstr "网络"
+
+#: templates/base.html:52 templates/repo.html:15
+msgid "Settings"
+msgstr "设置"
+
+#: templates/base.html:55
+msgid "Help"
+msgstr "帮助"
+
+#: templates/base.html:59
+msgid "Seafile@LocalComputer"
+msgstr "这里是 Seafile 本地管理界面"
+
+#: templates/base.html:85
+msgid "Seafile Version:"
+msgstr "Seafile 版本："
+
+#: templates/base.html:86
+msgid "About"
+msgstr "关于"
+
+#: templates/base.html:86
+msgid "Contact"
+msgstr "联系我们"
+
+#: templates/clone_tasks.html:4 templates/repo_create.html:4
+#: templates/repo_diff.html:9
+msgid "Navigation"
+msgstr "导航"
+
+#: templates/clone_tasks.html:6 templates/repo_create.html:6
+#: templates/repos.html:39
+msgid "All Repos"
+msgstr "所有同步目录"
+
+#: templates/clone_tasks.html:11
+msgid "Download Tasks"
+msgstr "下载任务"
+
+#: templates/clone_tasks.html:20
+msgid "initializing..."
+msgstr "初始化中..."
+
+#: templates/clone_tasks.html:24
+msgid "connecting server..."
+msgstr "正在连接服务器..."
+
+#: templates/clone_tasks.html:28
+msgid "indexing files..."
+msgstr "正在索引文件..."
+
+#: templates/clone_tasks.html:32
+msgid "Downloading..."
+msgstr "下载中..."
+
+#: templates/clone_tasks.html:36
+msgid "Creating Folder"
+msgstr "创建目录中"
+
+#: templates/clone_tasks.html:40
+msgid "merging files changes..."
+msgstr "正在合并更改"
+
+#: templates/clone_tasks.html:44
+msgid "Done"
+msgstr "完成"
+
+#: templates/clone_tasks.html:45
+msgid "View Details"
+msgstr "查看详情"
+
+#: templates/clone_tasks.html:48
+msgid "Canceling..."
+msgstr "取消中..."
+
+#: templates/clone_tasks.html:51
+msgid "Canceled"
+msgstr "已取消"
+
+#: templates/clone_tasks.html:57
+msgid "Failed to index local files."
+msgstr "创建索引失败。"
+
+#: templates/clone_tasks.html:59
+msgid "Failed to create local files."
+msgstr "创建本地文件失败。"
+
+#: templates/clone_tasks.html:61
+msgid "Failed to merge local file changes."
+msgstr "合并更改失败"
+
+#: templates/clone_tasks.html:63
+msgid "Incorrect password. Failed to decrypt files."
+msgstr "密码错误。文件解密失败。"
+
+#: templates/clone_tasks.html:72 templates/peers.html:29
+#: templates/peers.html:149 templates/repo.html:121 templates/repo.html:127
+#: templates/repo_create.html:54 templates/repo_history.html:85
+msgid "Cancel"
+msgstr "取消"
+
+#: templates/clone_tasks.html:82
+msgid "Please reenter the password:"
+msgstr "请重新输入密码："
+
+#: templates/download_error.html:4
+msgid "Failed to start synchronization:"
+msgstr "启动同步失败："
+
+#: templates/download_error.html:8
+msgid "Unknown error"
+msgstr "未知错误"
+
+#: templates/peers.html:4 templates/repo.html:7 templates/repo_dir.html:10
+#: templates/repo_history.html:7
+msgid "Operations"
+msgstr "操作"
+
+#: templates/peers.html:6
+msgid "Add Relay"
+msgstr "添加服务器"
+
+#: templates/peers.html:16
+msgid "Connecting Computers"
+msgstr "正在连接的计算机"
+
+#: templates/peers.html:19 templates/peers.html:57
+msgid "Address"
+msgstr "地址"
+
+#: templates/peers.html:20
+msgid "Port"
+msgstr "端口号"
+
+#: templates/peers.html:21 templates/peers.html:58 templates/synclan.html:15
+msgid "Net State"
+msgstr "网络状态"
+
+#: templates/peers.html:22 templates/peers.html:59 templates/repo_dir.html:38
+#: templates/repos.html:43 templates/synclan.html:16
+msgid "Action"
+msgstr "操作"
+
+#: templates/peers.html:28 templates/po.html:19
+msgid "Connecting"
+msgstr "连接中"
+
+#: templates/peers.html:35
+msgid "Relays"
+msgstr "服务器"
+
+#: templates/peers.html:37
+msgid "Default relay"
+msgstr "默认服务器"
+
+#: templates/peers.html:42
+msgid "Not set."
+msgstr "没有设置。"
+
+#: templates/peers.html:44
+msgid "Add default relay"
+msgstr "添加默认服务器"
+
+#: templates/peers.html:49
+msgid "Please select one as your default relay from the following list."
+msgstr "请从下面的列表中选择一个作为您的默认服务器。"
+
+#: templates/peers.html:56 templates/synclan.html:14
+msgid "Computer Name"
+msgstr "计算机名"
+
+#: templates/peers.html:67 templates/repos.html:15 templates/synclan.html:30
+msgid "connected"
+msgstr "已连接"
+
+#: templates/peers.html:69 templates/synclan.html:22
+msgid "disconnected"
+msgstr "未连接"
+
+#: templates/peers.html:74
+msgid "Set as Default"
+msgstr "设为默认"
+
+#: templates/peers.html:82
+msgid "wrong password"
+msgstr "用户名或密码错误"
+
+#: templates/peers.html:94
+msgid "Register"
+msgstr "去注册"
+
+#: templates/peers.html:99
+msgid "Logging in, please wait"
+msgstr "登录中，请稍侯"
+
+#: templates/peers.html:102
+msgid "Login"
+msgstr "登录"
+
+#: templates/peers.html:108
+msgid "Logging out, please wait"
+msgstr "退出登录中，请稍侯"
+
+#: templates/peers.html:110
+msgid "Logout"
+msgstr "退出登录"
+
+#: templates/peers.html:115 templates/peers.html:117 templates/peers.html:148
+msgid "Delete"
+msgstr "删除"
+
+#: templates/peers.html:126
+msgid "Relay Address:"
+msgstr "服务器地址："
+
+#: templates/peers.html:128
+msgid "Relay Port:"
+msgstr "服务器端口号："
+
+#: templates/peers.html:130
+msgid "set as default relay"
+msgstr "同时设为默认服务器"
+
+#: templates/peers.html:135
+msgid "Email:"
+msgstr "邮箱："
+
+#: templates/peers.html:137 templates/repo_create.html:36
+msgid "Password:"
+msgstr "密码："
+
+#: templates/peers.html:146
+msgid ""
+"All repos on this relay would get unsync-ed, do you really want to delete "
+"this relay?"
+msgstr "删除服务器之后，该服务器上的所有同步目录都将解除同步，确认删除？"
+
+#: templates/peers_left_panel.html:2
+msgid "My Peers"
+msgstr "我的 Peer"
+
+#: templates/peers_left_panel.html:3
+msgid "All Peers"
+msgstr "所有 Peer"
+
+#: templates/po.html:10
+msgid "List direcotry contents"
+msgstr "列出内容"
+
+#: templates/po.html:11
+msgid "Restore contents to this state"
+msgstr "把本地目录的内容恢复到这个历史状态"
+
+#: templates/po.html:12
+msgid "Modification Detail"
+msgstr "修改详情"
+
+#: templates/po.html:13
+msgid "No file content modified, perhaps file permission was changed."
+msgstr "没有文件内容的修改，可能文件权限被修改了。"
+
+#: templates/po.html:16
+msgid "Submit"
+msgstr "提交"
+
+#: templates/po.html:22
+msgid "connection failed"
+msgstr "连接失败"
+
+#: templates/po.html:25
+msgid "Start download"
+msgstr "开始下载"
+
+#: templates/po.html:28
+msgid "Decrypt again"
+msgstr "重新解密"
+
+#: templates/po.html:31
+msgid ""
+"For better user experience, please use Chrome, Firefox, or IE with a version "
+"8.0 or above."
+msgstr ""
+"为使您能有更好的体验，请使用Chrome, Firefox, 8.0或更高版本的IE 等浏览器。"
+
+#: templates/po.html:33
+msgid "synchronized"
+msgstr "已同步"
+
+#: templates/po.html:34
+msgid "sync initializing"
+msgstr "正在获取同步信息"
+
+#: templates/po.html:35
+msgid "downloading"
+msgstr "下载中"
+
+#: templates/po.html:36
+msgid "uploading"
+msgstr "上传中"
+
+#: templates/po.html:37
+msgid "sync merging"
+msgstr "正在合并更改"
+
+#: templates/po.html:38
+msgid "waiting for sync"
+msgstr "等待同步"
+
+#: templates/po.html:39
+msgid "relay not connected"
+msgstr "服务器未连接"
+
+#: templates/po.html:40
+msgid "auto sync is turned off"
+msgstr "自动同步已停止。"
+
+#: templates/po.html:41
+msgid "sync status:"
+msgstr "同步状态："
+
+#: templates/po.html:42
+msgid "Server has been removed"
+msgstr "服务器已经被删除"
+
+#: templates/po.html:43
+msgid "You have not login to the server"
+msgstr "您还没有登录到服务器"
+
+#: templates/po.html:44
+msgid "You do not have permission to access this repo"
+msgstr "您没有权限访问该同步目录"
+
+#: templates/po.html:45
+msgid "The storage space of the repo owner has been used up"
+msgstr "目录所有者的空间限额已用完"
+
+#: templates/po.html:46
+msgid "Remote service is not available"
+msgstr "与服务器通信失败"
+
+#: templates/po.html:47
+msgid "Access denied to service. Please login to the server on 'Network' page."
+msgstr "访问被拒绝。请先到“网络”页面登录服务器"
+
+#: templates/po.html:48
+msgid "Internal data corrupted."
+msgstr "内部文件损坏"
+
+#: templates/po.html:49
+msgid "Failed to start upload."
+msgstr "启动上传失败。"
+
+#: templates/po.html:50
+msgid "Error occured in upload."
+msgstr "上传过程中出错。"
+
+#: templates/po.html:51
+msgid "Failed to start download."
+msgstr "启动下载失败。"
+
+#: templates/po.html:52
+msgid "Error occured in download."
+msgstr "下载过程中出错。"
+
+#: templates/po.html:53
+msgid ""
+"Repo is deleted on server. Click 'Unsync' button, then you can create a new "
+"repo."
+msgstr ""
+"同步目录已经在服务器上删除，请点击“解除同步”，随后你可以把目录重新变成同步目"
+"录并上传。"
+
+#: templates/po.html:54
+msgid "Unknown error."
+msgstr "未知错误。"
+
+#: templates/po.html:55
+msgid "sync error:"
+msgstr "同步出错："
+
+#: templates/po.html:57
+msgid "I've registered"
+msgstr "已经注册"
+
+#: templates/po.html:59
+msgid "fetching..."
+msgstr "获取中..."
+
+#: templates/po.html:60
+msgid "syncing..."
+msgstr "同步中..."
+
+#: templates/po.html:61
+msgid "fetching...blocks transfered"
+msgstr "获取中...已传输块数"
+
+#: templates/po.html:62
+msgid "sync done."
+msgstr "同步已完成。"
+
+#: templates/po.html:63
+msgid "back to the repo."
+msgstr "返回该同步目录主页"
+
+#: templates/po.html:65
+msgid "Started"
+msgstr "已开启"
+
+#: templates/po.html:66
+msgid "Stopped"
+msgstr "已停止"
+
+#: templates/po.html:68
+msgid "is larger than 1GB, continue?"
+msgstr "大于 1 GB, 继续？"
+
+#: templates/po.html:69
+msgid "Please input Original Directory Path."
+msgstr "请输入原始目录路径。"
+
+#: templates/po.html:70
+msgid "Please input Description."
+msgstr "请输入描述。"
+
+#: templates/po.html:71
+msgid "Go to"
+msgstr "去"
+
+#: templates/po.html:72
+msgid "page to login"
+msgstr "页面登录"
+
+#: templates/procs.html:13
+msgid "Processors alive:"
+msgstr "活动 Processor："
+
+#: templates/procs.html:14
+msgid "Processors dead:"
+msgstr "销毁 Processor："
+
+#: templates/procs.html:19 templates/procs.html:34
+msgid "Proc Name"
+msgstr "Proc 名"
+
+#: templates/procs.html:20
+msgid "Peer"
+msgstr "Peer"
+
+#: templates/procs.html:21 templates/procs.html:36
+msgid "Create Time"
+msgstr "创建时间"
+
+#: templates/procs.html:35
+msgid "Peer ID"
+msgstr "Peer ID"
+
+#: templates/procs.html:37
+msgid "Dead time"
+msgstr "结束时间"
+
+#: templates/pubrepos.html:11
+msgid "Back"
+msgstr "返回上一页"
+
+#: templates/pubrepos.html:16
+msgid "'s repos"
+msgstr "的同步目录"
+
+#: templates/pubrepos.html:19
+msgid "Error:"
+msgstr "错误："
+
+#: templates/pubrepos.html:23
+msgid "There are no public repos on that peer ."
+msgstr "该计算机上无共享同步目录。"
+
+#: templates/pubrepos.html:35
+msgid "Broken"
+msgstr "已损坏："
+
+#: templates/pubrepos.html:39
+msgid "Changed at: "
+msgstr "修改于："
+
+#: templates/pubrepos.html:45
+msgid "Fetch"
+msgstr "获取"
+
+#: templates/pubrepos.html:47
+msgid "Just fetched, you can"
+msgstr "该同步目录刚下载，你可以"
+
+#: templates/pubrepos.html:47
+msgid "check it out"
+msgstr "把它检出。"
+
+#: templates/pubrepos.html:47
+msgid "go to"
+msgstr "去"
+
+#: templates/pubrepos.html:49
+msgid "Sync"
+msgstr "同步"
+
+#: templates/pubrepos.html:52
+msgid "Local directory does not exist"
+msgstr "本地目录不存在"
+
+#: templates/pubrepos.html:62
+msgid "Token:"
+msgstr "口令："
+
+#: templates/repo.html:10
+msgid "View at relay"
+msgstr "在服务器上查看"
+
+#: templates/repo.html:13
+msgid "Sync Now"
+msgstr "立即同步"
+
+#: templates/repo.html:16 templates/repo.html:120
+msgid "Unsync"
+msgstr "解除同步"
+
+#: templates/repo.html:25
+msgid "SyncFolder is broken!"
+msgstr "内部数据损坏！"
+
+#: templates/repo.html:34
+msgid "Encrypted"
+msgstr "已加密"
+
+#: templates/repo.html:47
+msgid "Server: "
+msgstr "服务器："
+
+#: templates/repo.html:53
+msgid "Password: "
+msgstr "密码："
+
+#: templates/repo.html:54
+msgid "Show"
+msgstr "显示"
+
+#: templates/repo.html:60 templates/repo.html:62
+msgid "Auto Sync: "
+msgstr "自动同步："
+
+#: templates/repo.html:64
+msgid "Start"
+msgstr "开启"
+
+#: templates/repo.html:70
+msgid "Recent Changes"
+msgstr "最近修改"
+
+#: templates/repo.html:73 templates/repo_diff.html:20
+#: templates/repo_history.html:27
+msgid "Time"
+msgstr "时间"
+
+#: templates/repo.html:74 templates/repo_history.html:28
+msgid "Author"
+msgstr "修改者"
+
+#: templates/repo.html:75 templates/repo_diff.html:21
+#: templates/repo_history.html:29 templates/repos.html:44
+msgid "Description"
+msgstr "描述"
+
+#: templates/repo.html:83 templates/repo_dir.html:24
+#: templates/repo_history.html:39
+msgid "unknown"
+msgstr "未知"
+
+#: templates/repo.html:93 templates/repo_history.html:49
+msgid "details"
+msgstr "详情"
+
+#: templates/repo.html:99
+msgid "All changes history"
+msgstr "所有修改历史"
+
+#: templates/repo.html:107
+msgid "Repo"
+msgstr "同步目录"
+
+#: templates/repo.html:108
+msgid "blocks transfered"
+msgstr "已传输块数"
+
+#: templates/repo.html:108
+msgid "rate"
+msgstr "速率"
+
+#: templates/repo.html:108
+msgid "s"
+msgstr "秒"
+
+#: templates/repo.html:113
+msgid "Repo transfer error:"
+msgstr "同步目录传输出错："
+
+#: templates/repo.html:119
+msgid ""
+"Really want to unsync the folder? (The original folder will become a normal "
+"folder.)"
+msgstr "确实要撤销目录的同步吗？(原始目录会变成一个普通的目录)"
+
+#: templates/repo.html:125 templates/repo_history.html:83
+msgid "Really want to restore the local directory contents to this state?"
+msgstr "确实要把本地目录的内容恢复到这个历史状态？"
+
+#: templates/repo.html:126
+msgid "Restore"
+msgstr "恢复"
+
+#: templates/repo_create.html:11
+msgid "Turn a Directory to Synchronized Directory"
+msgstr "把一个目录变为同步目录"
+
+#: templates/repo_create.html:14
+msgid "Original Directory Path:"
+msgstr "原始目录路径："
+
+#: templates/repo_create.html:16
+msgid "Description:"
+msgstr "描述："
+
+#: templates/repo_create.html:19
+msgid "Server:"
+msgstr "服务器："
+
+#: templates/repo_create.html:35
+msgid "Encryption"
+msgstr "加密"
+
+#: templates/repo_create.html:38
+msgid "Password again:"
+msgstr "密码确认："
+
+#: templates/repo_create.html:48
+msgid "Caculating repo base size, please wait"
+msgstr "正在计算目录大小，请稍侯"
+
+#: templates/repo_create.html:53
+msgid "OK"
+msgstr "确定"
+
+#: templates/repo_diff.html:11 templates/repo_dir.html:12
+#: templates/repo_history.html:9
+msgid "back to repo"
+msgstr "回到同步目录页面"
+
+#: templates/repo_diff.html:16 templates/repo_diff.html:17
+msgid "Modification Info"
+msgstr "修改信息"
+
+#: templates/repo_diff.html:41
+msgid "Diff result"
+msgstr "比较结果"
+
+#: templates/repo_diff.html:43
+msgid "none"
+msgstr "无"
+
+#: templates/repo_diff.html:46
+msgid "New files:"
+msgstr "新文件："
+
+#: templates/repo_diff.html:55
+msgid "Removed files:"
+msgstr "删除的文件："
+
+#: templates/repo_diff.html:64
+msgid "Renamed files:"
+msgstr "移动的文件："
+
+#: templates/repo_diff.html:73
+msgid "Modified files:"
+msgstr "修改的文件："
+
+#: templates/repo_diff.html:82
+msgid "New directories:"
+msgstr "新目录："
+
+#: templates/repo_diff.html:91
+msgid "Removed directories:"
+msgstr "删除的目录："
+
+#: templates/repo_dir.html:18
+msgid "history browse"
+msgstr "历史浏览"
+
+#: templates/repo_dir.html:37 templates/repos.html:42
+msgid "Name"
+msgstr "名字"
+
+#: templates/repo_dir.html:62
+msgid "Checkout"
+msgstr "导出"
+
+#: templates/repo_dir.html:62
+msgid "Checkouted"
+msgstr "已导出"
+
+#: templates/repo_download.html:6
+msgid "Repo already exists."
+msgstr "该同步目录已存在。"
+
+#: templates/repo_download.html:8
+msgid "You are going to synchronize"
+msgstr "你将同步"
+
+#: templates/repo_download.html:19
+msgid "Please input a local directory to sync with this repo:"
+msgstr "请输入与之同步的本地目录："
+
+#: templates/repo_download.html:21
+msgid ""
+"Its name must begin with this repo's name. E.g., if the repo name is "
+"'example', the local directory name must be 'example' or 'example-1', and "
+"etc."
+msgstr ""
+"本地目录名字必须以同步目录的名字开头。比如，同步目录名字为“例子”，那么与之同"
+"步的本地目录的名字应该是“例子”或者“例子-1”。"
+
+#: templates/repo_download.html:23
+msgid "This repo is encrypted. Please enter the password for decrypting:"
+msgstr "该同步目录已加密。 请输入解密密码："
+
+#: templates/repo_history.html:14
+msgid "Modification History"
+msgstr "修改历史"
+
+#: templates/repo_history.html:17 templates/repo_history.html:58
+msgid "Prev"
+msgstr "前一页"
+
+#: templates/repo_history.html:20 templates/repo_history.html:61
+msgid "Next"
+msgstr "后一页"
+
+#: templates/repo_history.html:56
+msgid "view the difference"
+msgstr "查看差异"
+
+#: templates/repo_history.html:63
+msgid "per page:"
+msgstr "每页："
+
+#: templates/repo_history.html:84
+msgid "Revert"
+msgstr "恢复"
+
+#: templates/repo_missing.html:4
+msgid "Back to repo list."
+msgstr "回到同步目录列表"
+
+#: templates/repo_missing.html:4
+msgid "Sorry, the repo with id"
+msgstr "抱歉，ID为 "
+
+#: templates/repo_missing.html:4
+msgid "does not exists."
+msgstr "的同步目录不存在。"
+
+#: templates/repos.html:11
+msgid "Servers"
+msgstr "服务器"
+
+#: templates/repos.html:17
+msgid "not connected"
+msgstr "未连接"
+
+#: templates/repos.html:24
+msgid "Create New Repo"
+msgstr "创建新同步目录"
+
+#: templates/repos.html:25
+msgid "View Download Tasks"
+msgstr "查看下载任务"
+
+#: templates/repos.html:45
+msgid "Modify Time"
+msgstr "修改时间"
+
+#: templates/repos.html:46
+msgid "State"
+msgstr "状态"
+
+#: templates/repos.html:52
+msgid "Open"
+msgstr "打开"
+
+#: templates/repos.html:60 templates/repos.html:63
+msgid "Unknown"
+msgstr "未知"
+
+#: templates/repos.html:68
+msgid "Synchronized"
+msgstr "已同步"
+
+#: templates/settings.html:11
+msgid "Notify when repos get sync"
+msgstr "当某个目录被同步后用气泡通知"
+
+#: templates/settings.html:19
+msgid "Auto start Seafile at startup"
+msgstr "开机自动启动 Seafile"
+
+#: templates/synclan.html:11
+msgid "Computers in Local Network"
+msgstr "局域网计算机"
+
+#: templates/synclan.html:24 templates/synclan.html:32
+msgid "Connect"
+msgstr "连接"
+
+#: templates/synclan.html:26 templates/synclan.html:34
+msgid "Disconnect"
+msgstr "断开连接"
+
+#~ msgid "Description and Path are all required, please check each of them."
+#~ msgstr "描述和路径都是必填项，请检查。"
+
+#~ msgid "Invalid relay."
+#~ msgstr "请选择服务器"
+
+#~ msgid "please input your password."
+#~ msgstr "请输入密码"
+
+#~ msgid "please input your password again."
+#~ msgstr "请输入确认密码"
+
+#~ msgid "passwords are different."
+#~ msgstr "两次输入的密码不相同"
+
+#~ msgid "is not a valid directory"
+#~ msgstr "不是合法的本地目录"
+
+#~ msgid "Invalid Relay"
+#~ msgstr "不正确的服务器"
+
+#~ msgid "invalid relay address: spaces are not allowed"
+#~ msgstr "服务器地址不正确：不允许有空格"
+
+#~ msgid "invalid relay port: not a valid port number"
+#~ msgstr "服务器端口不正确：不是一个有效的端口号"
+
+#~ msgid "relay_address can not be empty"
+#~ msgstr "服务器地址不能为空"
+
+#~ msgid "email and password can not be empty"
+#~ msgstr "邮箱地址和密码不能为空"
+
+#~ msgid "ToRelay"
+#~ msgstr "到服务器"
+
+#~ msgid "It seems you have not set any relay yet. Go to"
+#~ msgstr "您还未设置默认服务器, 请到"
+
+#~ msgid "page to set your default relay."
+#~ msgstr "页面添加或设置您的默认服务器。"
+
+#~ msgid "peer not connected"
+#~ msgstr "该计算机未连接"
+
+#~ msgid "Repo checkout failed"
+#~ msgstr "同步目录导出失败 "
+
+#~ msgid "Tip:"
+#~ msgstr "提示："
+
+#~ msgid "Checkout File"
+#~ msgstr "导出文件"
+
+#~ msgid "The file is checkouted successfully at:"
+#~ msgstr "文件已成功导出到以下路径："
+
+#~ msgid "Name:"
+#~ msgstr "用户名："
+
+#~ msgid "ID:"
+#~ msgstr "ID："
+
+#~ msgid "Modified Time:"
+#~ msgstr "修改时间："
+
+#~ msgid "User:"
+#~ msgstr "用户："
+
+#~ msgid "Basic Settings"
+#~ msgstr "基本设置"
+
+#~ msgid "Property"
+#~ msgstr "属性"
+
+#~ msgid "Current Value"
+#~ msgstr "当前值"
+
+#~ msgid "Relay"
+#~ msgstr "服务器"
+
+#~ msgid "Modify"
+#~ msgstr "更改"
+
+#~ msgid "Auto Sync"
+#~ msgstr "自动同步"
+
+#~ msgid "Local Network Settings"
+#~ msgstr "本地网络设置"
+
+#~ msgid "Browsable"
+#~ msgstr "可浏览"
+
+#~ msgid "Change to Yes"
+#~ msgstr "设为 Yes"
+
+#~ msgid "Access Token For Lan"
+#~ msgstr "局域网访问口令"
+
+#~ msgid "New Relay:"
+#~ msgstr "设置服务器："
+
+#~ msgid "New Token:"
+#~ msgstr "新口令："
+
+#~ msgid "show token"
+#~ msgstr "显示口令"
+
+#~ msgid "Upload Tasks"
+#~ msgstr "上传任务"
+
+#~ msgid "remove"
+#~ msgstr "删除"
+
+#~ msgid "cancel"
+#~ msgstr "取消"
+
+#~ msgid "blocks uploaded"
+#~ msgstr "已上传块数"
+
+#~ msgid "blocks downloaded"
+#~ msgstr "已下载块数"
+
+#~ msgid "Its name must begin with this repo's name."
+#~ msgstr "该目录名必须以同步目录的名字开头。"
+
+#~ msgid "Really want to log out?"
+#~ msgstr "确定要退出登录？"
+
+#~ msgid "Failed to caculate repo base size for"
+#~ msgstr "无法计算原始目录大小"
+
+#~ msgid "Sorry, the repo can't be created because repo base size is too large"
+#~ msgstr "对不起，同步目录无法创建，因为原始目录过大"
+
+#~ msgid "Max allowed base size is"
+#~ msgstr "最大原始目录"
+
+#~ msgid "Invalid repo max base size: Must be a number"
+#~ msgstr "最大原始目录大小必须是一个数字"
+
+#~ msgid "Repo max base size too large"
+#~ msgstr "您设定的最大原始目录大小超过了允许值"
+
+#~ msgid "Remove Task"
+#~ msgstr "删除任务"
+
+#~ msgid "Logout-ing, please wait"
+#~ msgstr "退出登录中，请稍侯"
+
+#~ msgid "Diff Info"
+#~ msgstr "Diff 信息"
+
+#~ msgid "Fetch New Repo"
+#~ msgstr "获取新同步目录"
+
+#~ msgid "Welcome to Seafile."
+#~ msgstr "欢迎使用 Seafile。"
+
+#~ msgid ""
+#~ "You can create a new repo by click the link or go to any directory and "
+#~ "use menu 'Seafile->Init Repo'."
+#~ msgstr ""
+#~ "你可以通过下面的链接来创建同步目录或者通过文件管理器到任何一个目录下右键选"
+#~ "择 'Seafile->把当前目录变为同步目录'"
+
+#~ msgid "Max allowed repo base size"
+#~ msgstr "最大原始目录大小"
+
+#~ msgid "No such repo on relay. Click 'sync now' button to upload it"
+#~ msgstr "该同步目录在服务器上不存在。请点击“立即同步”上传它"
+
+#~ msgid "Size: "
+#~ msgstr "大小："
+
+#~ msgid "Total size:"
+#~ msgstr "总大小:"
+
+#~ msgid "calculating"
+#~ msgstr "计算中"
+
+#~ msgid "Auto Sync is Stopped."
+#~ msgstr "自动同步已停止。"
+
+#~ msgid "Create a repo"
+#~ msgstr "创建新同步目录"
+
+#~ msgid "Can be same as original directory name or be a different one"
+#~ msgstr "可以和原始目录名一样也可以不一样"
+
+#~ msgid "Repo Name"
+#~ msgstr "同步目录名字"
+
+#~ msgid "Use Relay"
+#~ msgstr "使用服务器"
+
+#~ msgid "You must specify the directory to checkout the repo"
+#~ msgstr "请指定一个父目录用于放置同步目录："
+
+#~ msgid "Computers"
+#~ msgstr "计算机"
+
+#~ msgid "ID"
+#~ msgstr "ID"
+
+#~ msgid "Password"
+#~ msgstr "密码"
+
+#~ msgid "Index file Corrupted."
+#~ msgstr "索引文件损坏"
+
+#~ msgid "Versions"
+#~ msgstr "版本"
+
+#~ msgid "Versions on local computer:"
+#~ msgstr "本机上的版本"
+
+#~ msgid "Version Name"
+#~ msgstr "版本名"
+
+#~ msgid "Head Commit"
+#~ msgstr "最新提交记录"
+
+#~ msgid "Local"
+#~ msgstr "Local"
+
+#~ msgid "Version on relay"
+#~ msgstr "服务器上的版本"
+
+#~ msgid "checked at"
+#~ msgstr "上次检查于"
+
+#~ msgid "master"
+#~ msgstr "master"
+
+#~ msgid "The repo does not exists on relay."
+#~ msgstr "这个同步目录在服务器上被删除了。"
+
+#~ msgid "Really want to delete the repo?"
+#~ msgstr "确认要删除这个同步目录（原始目录的不会被删除）？"
+
+#~ msgid "Reset"
+#~ msgstr "重置"
+
+#~ msgid "Fetch a repo"
+#~ msgstr "获取一个同步目录"
+
+#~ msgid "relay connected"
+#~ msgstr "服务器已连接"
+
+#~ msgid "Error: Unknown error"
+#~ msgstr "错误：未知错误"
+
+#~ msgid "Author:"
+#~ msgstr "提交者"
+
+#~ msgid "Modification Time:"
+#~ msgstr "修改时间："
+
+#~ msgid "Content:"
+#~ msgstr "内容："
+
+#~ msgid "Welcome"
+#~ msgstr "欢迎"
+
+#~ msgid "Click"
+#~ msgstr "点击"
+
+#~ msgid "You have not set relay yet."
+#~ msgstr "你还未设置服务器."
+
+#~ msgid "to fetch relay info."
+#~ msgstr "来获取服务器信息."
+
+#~ msgid "Steps"
+#~ msgstr "步骤"
+
+#~ msgid "Set Relay"
+#~ msgstr "设置服务器："
+
+#~ msgid "Set Default Relay"
+#~ msgstr "设置默认服务器"
+
+#~ msgid "Relay Address"
+#~ msgstr "服务器地址"
+
+#~ msgid "seahub"
+#~ msgstr "Seahub"
+
+#~ msgid "Relay is set to"
+#~ msgstr "服务器已经被设为"
+
+#~ msgid "Failed to fetch and set relay."
+#~ msgstr "获取/设置服务器失败。"
+
+#~ msgid "Error: "
+#~ msgstr "错误："
+
+#~ msgid "ID: "
+#~ msgstr "ID："
+
+#~ msgid "Access Token"
+#~ msgstr "访问口令"
+
+#~ msgid "Change Password"
+#~ msgstr "更改密码"
+
+#~ msgid "System Status"
+#~ msgstr "系统状态"
+
+#~ msgid "Repos Setting"
+#~ msgstr "同步目录"
+
+#~ msgid "Misc Setting"
+#~ msgstr "其他"
+
+#~ msgid "export"
+#~ msgstr "导出"
+
+#~ msgid "upload"
+#~ msgstr "上传"
+
+#~ msgid "Open Directory"
+#~ msgstr "打开目录"
+
+#~ msgid "Sync Repo"
+#~ msgstr "立即同步"
+
+#~ msgid "Fetch Repo"
+#~ msgstr "获取新同步目录"
+
+#~ msgid "Repos"
+#~ msgstr "所有同步目录"
+
+#~ msgid "Basic Info"
+#~ msgstr "基本信息"
+
+#~ msgid "History"
+#~ msgstr "历史"
+
+#~ msgid "Size"
+#~ msgstr "大小"
+
+#~ msgid "Diff result:"
+#~ msgstr "比较结果："
+
+#~ msgid "Browser"
+#~ msgstr "浏览"
+
+#~ msgid "submit"
+#~ msgstr "确认"
+
+#~ msgid "Please select a relay"
+#~ msgstr "请选择服务器"
+
+#~ msgid "relay not set"
+#~ msgstr "未设置服务器"
+
+#~ msgid "property"
+#~ msgstr "属性"
+
+#~ msgid "value"
+#~ msgstr "值"
+
+#~ msgid "Seafile Data Directory"
+#~ msgstr "Seafile 数据目录"
+
+#~ msgid "View changes made by this modification"
+#~ msgstr "查看本次修改"
+
+#~ msgid "not synchronized"
+#~ msgstr "等待同步"
+
+#~ msgid "Transfer Tasks"
+#~ msgstr "传输任务"
+
+#~ msgid "All"
+#~ msgstr "所有"
+
+#~ msgid "Internal"
+#~ msgstr "内部细节"
+
+#~ msgid "Set"
+#~ msgstr "设置"
+
+#~ msgid "refresh"
+#~ msgstr "刷新"
+
+#~ msgid "Stop"
+#~ msgstr "停止"
+
+#~ msgid "Uploading,"
+#~ msgstr "正在上传，"
+
+#~ msgid "None"
+#~ msgstr "无"
+
+#~ msgid "Account"
+#~ msgstr "帐号"
+
+#~ msgid "Password is required"
+#~ msgstr "您还没有填写密码"
+
+#~ msgid "sync error"
+#~ msgstr "同步出错"
+
+#~ msgid "Access denied. Maybe you have not registered on the relay."
+#~ msgstr "访问被拒绝。请确认您在服务器上的权限"
+
+#~ msgid "Config Info"
+#~ msgstr "配置信息"
+
+#~ msgid "Checkout Directory"
+#~ msgstr "导出目录"
+
+#~ msgid "Cache"
+#~ msgstr "Cache"
+
+#~ msgid "Seahub"
+#~ msgstr "Seahub"
+
+#~ msgid "IP"
+#~ msgstr "IP 地址"
+
+#~ msgid "State:"
+#~ msgstr "状态："
+
+#~ msgid "Node ID:"
+#~ msgstr "计算机 ID"
+
+#~ msgid "Net Status"
+#~ msgstr "网络状态"
+
+#~ msgid "Tasks"
+#~ msgstr "任务"
+
+#~ msgid "Create Repo"
+#~ msgstr "创建同步目录"
+
+#~ msgid "Set Password"
+#~ msgstr "设置密码"
+
+#~ msgid "Discription"
+#~ msgstr "描述"
+
+#~ msgid "Status"
+#~ msgstr "状态"

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+
+export PYTHONPATH=@pythondir@
+
+if [ $1 == "start" ]; then
+    cd @libdir@/@PACKAGE@/web
+    if [ -f /tmp/ccnet-web.pid ]; then
+        kill -9 `cat /tmp/ccnet-web.pid`
+    fi
+    python main.py 127.0.0.1:13420 &
+    echo $! > /tmp/ccnet-web.pid
+elif [ $1 == "stop" ]; then
+    kill -9 `cat /tmp/ccnet-web.pid`
+    rm -f /tmp/ccnet-web.pid
+fi

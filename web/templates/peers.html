@@ -1,0 +1,261 @@
+<%inherit file="base.html" />
+
+<%def name="left_panel()">
+<h3>${_("Operations")}</h3>
+<ul>
+    <li><a id="add-relay-link" href="#">${_("Add Relay")}</a></li>
+</ul>
+</%def>
+
+<%def name="wide_center_panel()">
+% if error_msg:
+<p class="error">${error_msg}</p>
+% endif
+
+% if rpeers:
+<h3 id="connecting">${_("Connecting Computers")}</h3>
+<table class="peer-list">
+    <tr>
+        <th>${_("Address")}</th>
+        <th>${_("Port")}</th>
+        <th>${_("Net State")}</th>
+        <th>${_("Action")}</th>
+    </tr>
+    % for peer in rpeers:
+    <tr>
+        <td>${peer.props.public_addr}</td>
+        <td>${peer.props.public_port}</td>
+        <td class="connecting"><span>${_("Connecting")}</span> <img src="/static/img/icon_loading.gif" alt="${_("Connecting")}" /></td>
+        <td><button data="/peers/operation/?op=conn-cancel&addr=${peer.props.public_addr}&port=${peer.props.public_port}">${_("Cancel")}</button></td>
+    </tr>
+    % endfor
+</table>
+% endif
+
+<h3>${_("Relays")}
+<span>(
+${_("Default relay")}: 
+
+% if default_relay:
+${default_relay.props.name}
+% else:
+${_("Not set.")}
+    % if not relays:
+    <button id="add-default-relay-btn">${_("Add default relay")}</button>
+    % endif
+% endif
+
+% if relays and not default_relay:
+    ${_("Please select one as your default relay from the following list.")}
+% endif    
+)</span>
+</h3>
+
+<table class="peer-list">
+    <tr>
+        <th width="15%">${_("Computer Name")}</th>
+        <th width="35%">${_("Address")}</th>
+        <th width="10%">${_("Net State")}</th>
+        <th width="40%">${_("Action")}</th>
+    </tr>
+    % for relay in relays:
+    <tr>
+        <td>${relay.props.name}</td>
+        <td>${relay.props.public_addr}:${relay.props.public_port}</td>
+        <td>
+            % if relay.props.net_state == 1:
+            ${_("connected")}
+            % else:
+            ${_("disconnected")}
+            % endif
+        </td>
+        <td>
+            % if not default_relay or relay.props.id != default_relay.props.id:
+            <button data="/peers/operation/?op=set-default-relay&peer_id=${relay.props.id}">${_("Set as Default")}</button>
+            % endif
+
+            % if relay.bind_status == 2:
+                % if relay.props.login_error: 
+                <!-- error happens during login  -->
+                <span class="error">
+                    % if relay.props.login_error == 'wrong password':
+                        ${_("wrong password")}
+                    % endif
+                </span><br />
+                % endif
+
+                % if relay.props.service_url and relay.props.net_state == 1:
+                    <%
+                         service_url = relay.props.service_url.rstrip('/')
+                         if not service_url.startswith('http'):
+                            service_url = 'http://' + service_url
+                         service_url += '/accounts/register/'
+                    %>
+                    <button class="register-relay-btn" data="${service_url}"> ${_("Register")}</button>
+                % endif
+
+                % if relay.props.login_started: 
+                <!-- login has started, but has not received response from relay yet  -->
+                <span class="notification">${_("Logging in, please wait")} ...</span>
+                % elif relay.props.net_state == 1:
+                <!-- relay online, but has not tried login  -->
+                <button data="${relay.props.id}" class="login-relay-link">${_("Login")}</button>
+                % endif
+            % endif
+
+            % if relay.bind_status == 1:
+                % if relay.props.logout_started:
+                <span class="notification">${_("Logging out, please wait")} ...</span>
+                % elif relay.props.net_state == 1:
+                <button class="logout-relay-btn" data="/peers/operation/?op=logout-relay&peer_id=${relay.props.id}">${_("Logout")}[${relay.props.bind_email}]</button>
+                % endif
+            % endif
+
+            % if relay.has_repo:
+            <button class="delete-relay" data="${relay.props.id}" has_repo="yes">${_("Delete")}</button>
+            % else:
+            <button class="delete-relay" data="${relay.props.id}" has_repo="no">${_("Delete")}</button>
+            %endif
+        </td>
+    </tr>
+    % endfor
+</table>
+
+<!-- forms -->
+<form id="add-relay-form" action="/peers/operation/?op=add-relay" method="post" name="add_relay_form" class="hide">
+    <label>${_("Relay Address:")}</label><br />
+    <input id="id_relay_address" type="text" name="relay_address" value="" maxlength="40" /><br/>
+    <label>${_("Relay Port:")}</label><br />
+    <input id="id_relay_port" type="text" name="relay_port" value="10001" maxlength="6" /><br/>
+    <input id="id_set_default_relay" type="checkbox" name="set_default_relay" /> <label>${_("set as default relay")}</label><br />
+    <input type="submit" value="${_("Submit")}" />
+</form>
+
+<form id="login-relay-form" action="/peers/operation/?op=login-relay" method="post" name="login-relay-form" class="hide">
+    <label>${_("Email:")}</label><br />
+    <input id="id_email_login" type="text" name="email" value="" maxlength="40" /><br/>
+    <label>${_("Password:")}</label><br />
+    <input id="id_passwd_login" type="password" name="passwd" value="" maxlength="40" /><br/>
+    <input id="id_peerid_login" type="hidden" name="peerid" value="" />
+    <input id="id_sumbit_login" type="submit" value="${_("Login")}" />
+</form>
+
+<div id="confirm-del-relay-form" class="hide">
+    <p>
+        <span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>
+        ${_("All repos on this relay would get unsync-ed, do you really want to delete this relay?")}
+    </p>
+    <button id="delete-relay-btn" data="">${_("Delete")}</button>
+    <button class="simplemodal-close">${_("Cancel")}</button>
+</div>
+</%def>
+
+<%def name="js()">
+<script type="text/javascript">
+$("#add-relay-link").click(function() {
+    $('#id_set_default_relay').attr('checked', false);
+    $("#add-relay-form").modal({appendTo: "#main"});
+    return false;
+});
+  
+$("#add-default-relay-btn").click(function() {
+    $('#id_set_default_relay').attr('checked', true);
+    $("#add-relay-form").modal({appendTo: "#main"});
+});
+  
+$('.peer-list button').each(function() {
+    var class_name = $(this).attr('class');
+    $(this).click(function() {
+        if (class_name == 'login-relay-link') {
+            $("#id_peerid_login").val($(this).attr('data'));
+            $("#login-relay-form").modal({appendTo: "#main"});
+            
+        } else if (class_name == 'register-relay-btn') {
+            window.open($(this).attr('data'));
+            
+        } else if (class_name == 'delete-relay') {
+            var relay_id = $(this).attr('data');
+            var url = "/peers/operation/?op=delpeer&peer_id=" + relay_id;
+            if ($(this).attr('has_repo') === 'no') {
+                location.href = url;
+            } else {
+                $('#delete-relay-btn').attr('url', url);
+                $('#confirm-del-relay-form').modal({appendTo:'#main'});
+            }
+
+        } else {
+            location.href = $(this).attr('data');
+        }
+    });
+});
+
+$('#delete-relay-btn').click(function () {
+    url = $(this).attr('url');
+    location.href = url;
+});
+  
+% if rpeers:
+//check connectiong computers
+function checkRpeers() {
+    $.ajax({
+        url: '/peers/check-rpeers/', 
+        dataType: 'json',
+        cache: false,
+        contentType: 'application/json; charset=utf-8',
+        success: function(data) {
+            if (data['len'] < ${len(rpeers)}) {
+                //reload after 2 sec, so that there is time to get relay.bind_status, and show 'register'/'login' btn
+                setTimeout(function() { location.reload(true); }, 2000);
+            } else {
+                setTimeout(checkRpeers, 500);
+            }
+        }
+    });
+}
+checkRpeers();
+% endif
+
+% if login_relay_id or logout_relay_id or bind_query_id:
+function updateLoginStatus() {
+    var url = '/peers/login-status/';
+    function add_get_param (param) {
+        if (url.indexOf('?') != -1) {
+            url += '&';
+        } else {
+            url += '?';
+        }
+
+        url += param;
+    }
+
+    % if login_relay_id:
+        add_get_param ('login_relay_id=${login_relay_id}');
+    % endif
+
+    % if logout_relay_id:
+        add_get_param ('logout_relay_id=${logout_relay_id}');
+    % endif
+
+    % if bind_query_id:
+        add_get_param ('bind_query_id=${bind_query_id}');
+    % endif
+
+    $.ajax({
+        url: url,
+        dataType: 'json',
+        cache: false,
+        contentType: 'application/json; charset=utf-8',
+        success: function(data) {
+            if (data['reload']) {
+                location.reload(true);
+            } else {
+                setTimeout(updateLoginStatus, 2000);
+            }
+        }
+    });
+}
+  
+updateLoginStatus();
+% endif
+</script>
+</%def>

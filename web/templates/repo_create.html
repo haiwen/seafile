@@ -1,0 +1,104 @@
+<%inherit file="base.html"/>
+
+<%def name="left_panel()">
+<h3>${_("Navigation")}</h3>
+<ul>
+    <li><a href="/repos/">${_("All Repos")}</a></li>
+</ul>
+</%def>
+
+<%def name="center_panel()">
+<h2>${_("Turn a Directory to Synchronized Directory")}</h2>
+
+<form id="repo-create-form" method="post" action="">
+    <label>${_("Original Directory Path:")}</label><br />
+    <input id="repo-base" type="text" name="repo_base" value="${repo_base}" /><br />
+    <label>${_("Description:")}</label><br />
+    <textarea id="repo-desc" name="repo_desc">${repo_desc}</textarea>
+    <div class="use-relay">
+        <label>${_("Server:")}</label>
+        <select name="relay">
+        % for peer in relays:
+            % if relay:
+                % if peer.props.id != relay.props.id:
+            <option value="${peer.props.id}" >${ peer.props.name }</option>
+                % else:
+            <option value="${peer.props.id}" selected="selected">${ peer.props.name }</option>
+                % endif
+            % else:
+            <option value="${peer.props.id}" >${ peer.props.name }</option>
+            % endif
+        % endfor
+        </select>
+    </div>
+    <div class="repo-create-encryption">
+        <input type="checkbox" name="encryption" id="encrypt-switch" /><label>${_("Encryption")}</label><br />
+        <label>${_("Password:")}</label><br />
+        <input type="password" name="encrypt_passwd" disabled="disabled" id="repo-encryp-passwd" class="input-disabled" /><br />
+        <label>${_("Password again:")}</label><br />
+        <input type="password" name="encrypt_passwd_again" disabled="disabled" id="repo-encryp-passwd-again" class="input-disabled" />
+    </div>
+
+    % if error_msg:
+    <p class="error">${ error_msg }</p>
+    % endif
+    <p class="error" id="error"></p>
+
+    <input type="submit" id="repo-create-submit" value="${_("Submit")}" class="submit" />
+    <span class="notification hide" id="calc-notification">${_("Caculating repo base size, please wait")}... </span>
+</form>
+
+<div id="creation-confirm" class="hide">
+    <p id="creation-confirm-msg"></p>
+    <button id="really-create-btn">${_("OK")}</button>
+    <button class="simplemodal-close">${_("Cancel")}</button>
+</div>
+
+</%def>
+
+<%def name="js()">
+<script type="text/javascript">
+$('#encrypt-switch').click(function () {
+    if ($(this).attr('checked')) {
+        $('[type="password"]').attr('disabled', false);
+        $('[type="password"]').removeClass('input-disabled');
+    } else {
+        $('[type="password"]').attr('disabled', true);
+        $('[type="password"]').addClass('input-disabled');
+    }
+});
+
+$('#repo-create-submit').click(function() {
+    if (!$.trim($('#repo-base').attr('value'))) {
+        $('#error').html('${_("Please input Original Directory Path.")}');
+        return false;
+    }
+    if (!$.trim($('#repo-desc').attr('value'))) {
+        $('#error').html('${_("Please input Description.")}');
+        return false;
+    }
+
+    $('#calc-notification').removeClass('hide');
+    $.ajax({
+        url: '/repo/calc-base-size/?path=' + $('#repo-base').val(),
+        dataType: 'json',
+        cache: false,
+        contentType: 'application/json; charset=utf-8',
+        success: function(data) {
+            $('#calc-notification').addClass('hide');
+            if (data['ret']) {
+                $('#repo-create-form')[0].submit();
+            } else {// repo base size is larger than 1GB
+                $('#creation-confirm-msg').html('"' + $('#repo-base').val() + '" ${_("is larger than 1GB, continue?")}');
+                $('#creation-confirm').modal({appendTo: "#main"});
+            }
+        }
+    });
+    return false;
+});
+
+$('#really-create-btn').click(function() {
+    $('#repo-create-form')[0].submit();
+});
+</script>
+</%def>

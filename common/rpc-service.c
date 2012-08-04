@@ -1428,7 +1428,7 @@ seafile_is_repo_owner (const char *email,
 {
     char *owner = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
     if (!owner) {
-        g_warning ("Failed to get owner info for repo %s.\n", repo_id);
+        /* g_warning ("Failed to get owner info for repo %s.\n", repo_id); */
         return 0;
     }
 

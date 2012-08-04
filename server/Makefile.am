@@ -5,7 +5,6 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/lib \
 	-I$(top_srcdir)/common \
-	-I/usr/local/include/zdb \
 	@CCNET_CFLAGS@ \
 	@SEARPC_CFLAGS@ \
 	@GLIB2_CFLAGS@ \

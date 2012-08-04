@@ -98,7 +98,7 @@ fi
 # test which sub-component to compile
 
 if test "$bwin32" = true; then
-#   compile_gui=yes
+   compile_gui=yes
    compile_client=yes
    compile_cli=no
    compile_tools=no
@@ -107,7 +107,7 @@ if test "$bwin32" = true; then
 fi
 
 if test "$bmac" = true; then
-#   compile_gui=yes
+   compile_gui=yes
    compile_client=yes
    compile_cli=no
    compile_tools=no
@@ -123,7 +123,7 @@ if test "$bmac" = true; then
 fi
 
 if test "$blinux" = true; then
-#   compile_gui=no
+   compile_gui=no
    compile_cli=yes
    compile_tools=yes
 
@@ -189,7 +189,7 @@ AC_SUBST(STATIC_COMPILE)
 # Read "man ld.so" for description of $ORIGIN.
 # Refer to http://blog.linuxgamepublishing.com/2009/02/08/our-new-way-to-meet-the-lgpl/
 if test x${server_pkg} = xyes; then
-#  compile_gui=no
+  compile_gui=no
   compile_client=no
   compile_cli=yes
   compile_tools=yes
@@ -201,7 +201,7 @@ fi
 AC_SUBST(SERVER_PKG_RPATH)
 AC_SUBST(SERVER_PKG_PY_RPATH)
 
-#AM_CONDITIONAL([COMPILE_GUI], [test "${compile_gui}" = "yes"])
+AM_CONDITIONAL([COMPILE_GUI], [test "${compile_gui}" = "yes"])
 AM_CONDITIONAL([COMPILE_CLI], [test "${compile_cli}" = "yes"])
 AM_CONDITIONAL([COMPILE_TOOLS], [test "${compile_tools}" = "yes"])
 AM_CONDITIONAL([COMPILE_PYTHON], [test "${compile_python}" = "yes"])
@@ -447,22 +447,25 @@ fi
 ac_configure_args="$ac_configure_args -q"
 
 AC_CONFIG_FILES(
+    ccnet-web.sh
     Makefile
     include/Makefile
     lib/Makefile
+    gui/Makefile
+    gui/gtk/Makefile
     common/Makefile
     common/cdc/Makefile
     common/index/Makefile
     daemon/Makefile
     server/Makefile
     app/Makefile
+    python/Makefile
+    python/seafile/Makefile
 )
     #controller/Makefile
     #httpserver/Makefile
     #monitor/Makefile
     #tools/Makefile
-    #python/Makefile
-    #python/Makefile
     #tests/Makefile
     #tests/common-conf.sh
 
@@ -472,6 +475,9 @@ AC_OUTPUT
 echo
 echo "The following modules will be built:"
 echo
+if test x${compile_gui} = xyes; then
+    echo "seafile-applet"
+fi
 if test x${compile_client} = xyes; then
    echo    "seaf-daemon"
 fi

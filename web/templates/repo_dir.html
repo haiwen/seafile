@@ -1,0 +1,80 @@
+<%inherit file="base.html"/>
+
+<%!
+    from utils import format_file_mode
+    from utils import translate_time_sec
+    import stat
+    import urllib
+%>
+<%def name="left_panel()">
+<h3>${_("Operations")}</h3>
+<ul>
+    <li><a href="/repo/?repo=${repo.props.id}">${_("back to repo")}</a></li>
+</ul>
+</%def>
+
+<%def name="wide_center_panel()">
+
+<h3>${repo.props.name} ${_("history browse")}</h3>
+<p class="history-author">
+${commit.props.ctime | translate_time_sec} by 
+% if commit.props.creator_name:
+   ${commit.props.creator_name}
+% else:
+  ${_("unknown")}
+% endif
+</p>
+
+<div>
+    % for name,link in navs[:-1]:
+    <a href="${link}"> ${name} </a> /
+    % endfor
+    ${navs[-1][0]}
+</div>
+
+<table class="dir-list">
+    <tr>
+        <th width="80%">${_("Name")}</th>
+        <th width="8%">${_("Action")}</th>
+    </tr>
+    % for dirent in dirs:
+    <tr>
+        % if stat.S_ISDIR(dirent.props.mode):
+        <td>
+            <%
+                if path.endswith(u'/'):
+                    dir_path = path + dirent.props.obj_name
+                else:
+                    dir_path = path + u'/' + dirent.props.obj_name
+                 
+                dir_path = urllib.quote(dir_path.encode('utf-8'))
+            %>
+            <a href="/repos/operation/?repo=${repo.props.id}&commit_id=${commit.props.id}&path=${dir_path}&op=dir">${dirent.props.obj_name}</a>
+        </td>
+        <td></td>
+        % else:
+        <td>
+            ${dirent.props.obj_name}
+        </td>
+        <%
+             file_name = urllib.quote(dirent.props.obj_name.encode('utf-8'))
+        %>
+        <td><a class="file-checkout" href="/repos/operation/?repo=${repo.props.id}&file_id=${dirent.props.obj_id}&file_name=${file_name}&file_mode=${dirent.props.mode}&op=checkout_file" class="file-checkout">${_("Checkout")}</a><span class="hide">${_("Checkouted")}</span></td>
+        % endif
+    </tr>
+    % endfor
+</table>
+</%def>
+
+<%def name="js()">
+<script type="text/javascript">
+    $('.file-checkout').each(function (index, item) {
+            item.onclick = function () {
+                window.open(this.href);
+                this.className = 'hide';
+                this.parentNode.getElementsByTagName('span')[0].removeAttribute('class');
+                return false;
+            }
+    });
+</script>
+</%def>

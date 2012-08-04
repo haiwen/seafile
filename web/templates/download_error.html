@@ -1,0 +1,11 @@
+<%inherit file="base.html"/>
+
+<%def name="center_panel()"> 
+<p>${_("Failed to start synchronization:")}
+% if error_msg:
+<span class="error">${ error_msg }</span>
+% else:
+<span class="error">${_("Unknown error")}</span>
+% endif
+</p>
+</%def>

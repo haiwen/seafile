@@ -1,0 +1,103 @@
+<%inherit file="base.html"/>
+
+<%!
+    from utils import translate_time_sec
+    from utils import format_file_size
+%>
+
+<%def name="left_panel()">
+
+
+<h3>${_("Servers")}</h3>
+% for relay in relays:
+    <p><a class="relay-link" href="${relay.props.service_url}">${relay.props.name}</a>
+    % if relay.props.net_state == 1:
+    ${_("connected")}
+    % else:
+    ${_("not connected")}
+    % endif
+    </p>
+% endfor
+
+
+<ul class="home-op-list">
+    <!-- <li><a href="/repos/create/">${_("Create New Repo")}</a></li> -->
+    <li><a href="/repos/download-tasks/">${_("View Download Tasks")}</a></li>
+</ul>
+
+</%def>
+
+<%def name="wide_center_panel()">
+
+% if len(repos) == 0:
+<div id="slides">
+    <a href="#" class="prev fleft"><img src="/static/img/arrow-prev.jpg" alt="${_("prev")}" /></a>
+    <div class="slides-container fleft"></div>
+    <a href="#" class="next fleft"><img src="/static/img/arrow-next.jpg" alt="${_("next")}" /></a>
+</div>
+% else:
+<h3>${_("All Repos")}</h3>
+<table class="repo-list">
+    <tr>
+        <th width="20%">${_("Name")}</th>
+        <th width="7%">${_("Action")}</th>
+        <th width="44%">${_("Description")}</th>
+        <th width="17%">${_("Modify Time")}</th>
+        <th width="12%">${_("State")}</th>
+    </tr>
+    % for repo in repos:
+    <tr>
+        <td><a href="/repo/?repo=${repo.props.id}" class="repo-link">${ repo.props.name }</a></td>
+        <td>
+            <a class="opendir-link" href="/repos/operation/?repo=${repo.props.id}&op=open">${_("Open")}</a>
+        </td>
+        <td>${ repo.props.desc }</td>
+        <td>
+            % if repo.props.last_modify:
+                % if repo.props.last_modify > 0:
+                    ${repo.props.last_modify | translate_time_sec}
+                % else:
+                    ${_("Unknown")}
+                % endif
+            % else:
+                ${_("Unknown")}
+            % endif
+        <td>
+            % if repo.sync_info and repo.local_branch:
+                % if repo.sync_info.props.head_commit == repo.local_branch.props.commit_id:
+                ${_("Synchronized")}
+                % endif
+            % endif
+        </td>
+    </tr>
+    % endfor
+</table>
+% endif
+</%def>
+
+<%def name="js()">
+<script type="text/javascript">
+% if len(repos) == 0:
+var slides = '',
+    slide_name = '';
+for (var i = 1; i <= 4; i++) { 
+    if (i < 10) {
+        slide_name = '0' + i;
+    } else {
+        slide_name = i;
+    }
+    slides += '<img src="http://www.seafile.com/media/img/tutorial/client/' + slide_name + '.png" alt="" class="slide" />';
+}
+$('.slides-container').html(slides);
+
+$('#slides').slides({
+    preload: true,
+    container: 'slides-container',
+    preloadImage: '/static/img/icon_loading.gif',
+    play: 0,//stop auto play
+    pause: 2500,
+    hoverPause: true
+});
+% endif
+</script>
+</%def>

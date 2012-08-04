@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<interface>
+  <requires lib="gtk+" version="2.16"/>
+  <!-- interface-naming-policy toplevel-contextual -->
+  <object class="GtkMenu" id="popup_menu">
+    <property name="visible">True</property>
+    <child>
+      <object class="GtkImageMenuItem" id="start_item">
+        <property name="visible">True</property>
+        <property name="related_action">start_action</property>
+        <property name="use_action_appearance">True</property>
+        <property name="use_underline">True</property>
+        <property name="use_stock">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkImageMenuItem" id="restart_network">
+        <property name="visible">True</property>
+        <property name="related_action">restart_network_action</property>
+        <property name="use_action_appearance">True</property>
+        <property name="use_underline">True</property>
+        <property name="use_stock">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkImageMenuItem" id="quit_item">
+        <property name="label" translatable="yes">_Quit</property>
+        <property name="visible">True</property>
+        <property name="related_action">quit_action</property>
+        <property name="use_underline">True</property>
+        <property name="image">image1</property>
+        <property name="use_stock">False</property>
+      </object>
+    </child>
+  </object>
+  <object class="GtkAction" id="start_action">
+    <property name="label">_Open browser</property>
+    <property name="stock_id">gtk-index</property>
+  </object>
+  <object class="GtkAction" id="quit_action">
+    <property name="label">_Quit</property>
+    <property name="stock_id">gtk-quit</property>
+  </object>
+  <object class="GtkImage" id="image1">
+    <property name="visible">True</property>
+    <property name="stock">gtk-quit</property>
+  </object>
+  <object class="GtkAction" id="restart_network_action">
+    <property name="label">Restart Daemon</property>
+    <property name="tooltip">Restart Daemon</property>
+    <property name="stock_id">gtk-refresh</property>
+  </object>
+</interface>

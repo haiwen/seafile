@@ -1,0 +1,941 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR ORGANIZATION
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"POT-Creation-Date: 2011-11-04 20:29+CST\n"
+"PO-Revision-Date: 2011-11-30 17:40+0800\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: UTF-8\n"
+"Generated-By: pygettext.py 1.5\n"
+
+#: templates/base.html:16
+msgid "Welcome, "
+msgstr "欢迎，"
+
+#: templates/base.html:17
+msgid "System"
+msgstr "系统"
+
+#: templates/base.html:25
+msgid "Node ID:"
+msgstr "节点 ID"
+
+#: templates/base.html:26
+msgid "User ID:"
+msgstr "用户 ID"
+
+#: templates/base.html:43
+msgid "Files"
+msgstr "文件"
+
+#: templates/base.html:46 templates/followers.html:14
+#: templates/followers.html:34 templates/peers.html:13
+msgid "Peers"
+msgstr "伙伴"
+
+#: templates/base.html:49
+msgid "Settings"
+msgstr "设置"
+
+#: templates/base.html:52
+msgid "Seahub"
+msgstr "Seahub"
+
+#: templates/base.html:79
+msgid "About"
+msgstr "关于"
+
+#: templates/base.html:79
+msgid "Contact"
+msgstr "联系我们"
+
+#: templates/checkout_error.html:14
+msgid "error:"
+msgstr "错误："
+
+#: templates/checkout_error.html:14 templates/repos_share.html:10
+msgid "Checkout"
+msgstr "签出"
+
+#: templates/del_user.html:14
+msgid "userid"
+msgstr "用户 ID"
+
+#: templates/followers.html:17 templates/followers.html:37
+#: templates/groups.html:30 templates/groups.html:78
+#: templates/groups_rmfollower.html:23 templates/groups_rmmember.html:23
+#: templates/peers.html:16 templates/peers.html:53 templates/procs.html:21
+#: templates/procs.html:36 templates/procs.html:53 templates/repo.html:205
+#: templates/repo.html:228
+msgid "Name"
+msgstr "用户名"
+
+#: templates/followers.html:18 templates/followers.html:38
+#: templates/groups.html:34 templates/groups.html:79
+#: templates/groups_rmfollower.html:27 templates/groups_rmmember.html:27
+#: templates/peers.html:17 templates/peers.html:54 templates/repo.html:112
+#: templates/settings.html:15
+msgid "ID"
+msgstr "ID"
+
+#: templates/followers.html:19 templates/followers.html:39
+#: templates/peers.html:18 templates/peers.html:55
+msgid "Roles"
+msgstr "角色"
+
+#: templates/followers.html:20 templates/followers.html:40
+#: templates/peers.html:19 templates/peers.html:56
+msgid "My Roles On Peer"
+msgstr "伙伴中的角色"
+
+#: templates/followers.html:21 templates/followers.html:41
+#: templates/peers.html:20 templates/peers.html:57 templates/repo.html:248
+#: templates/transfer_tasks.html:20 templates/transfer_tasks.html:65
+msgid "Action"
+msgstr "动作"
+
+#: templates/group.html:11 templates/repo.html:13
+msgid "View at seahub"
+msgstr "Seahub 中的视图"
+
+#: templates/group.html:13 templates/groups.html:58
+#: templates/groups_rmfollower.html:51 templates/groups_rmmember.html:51
+msgid "Members"
+msgstr "成员"
+
+#: templates/group.html:60
+msgid "Repos Shared"
+msgstr "共享仓库"
+
+#: templates/groups.html:8 templates/groups_rmfollower.html:8
+#: templates/groups_rmmember.html:8 templates/home.html:25
+#: templates/msgs.html:19
+msgid "Groups"
+msgstr "下组"
+
+#: templates/groups.html:10 templates/groups_rmfollower.html:10
+#: templates/groups_rmmember.html:10
+msgid "All"
+msgstr "所有"
+
+#: templates/groups.html:16 templates/groups_rmfollower.html:13
+#: templates/groups_rmmember.html:13 templates/home.html:114
+#: templates/repo.html:16 templates/repo_status.html:9 templates/repos.html:11
+#: templates/repos_diff.html:9 templates/repos_share.html:8
+msgid "Operations"
+msgstr "操作"
+
+#: templates/groups.html:38 templates/groups_rmfollower.html:31
+#: templates/groups_rmmember.html:31
+msgid "Timestamp"
+msgstr "时间戳"
+
+#: templates/groups.html:42 templates/groups_rmfollower.html:35
+#: templates/groups_rmmember.html:35
+msgid "Rendezvous"
+msgstr "汇聚点"
+
+#: templates/groups.html:46 templates/groups_rmfollower.html:39
+#: templates/groups_rmmember.html:39
+msgid "Creator"
+msgstr "创建者"
+
+#: templates/groups.html:50 templates/groups_rmfollower.html:43
+#: templates/groups_rmmember.html:43
+msgid "Maintainer"
+msgstr "维护者"
+
+#: templates/groups.html:66 templates/groups_rmfollower.html:59
+#: templates/groups_rmmember.html:59 templates/peers_left_panel.html:7
+msgid "Followers"
+msgstr "关注"
+
+#: templates/groups.html:77
+msgid "Group"
+msgstr "小组"
+
+#: templates/groups_rmfollower.html:68 templates/groups_rmmember.html:16
+msgid "Remove Follower"
+msgstr "移除关注"
+
+#: templates/groups_rmmember.html:15 templates/groups_rmmember.html:68
+msgid "Remove Member"
+msgstr "移除成员"
+
+#: templates/home.html:13
+msgid "Welcome"
+msgstr "欢迎"
+
+#: templates/home.html:32 templates/msgs.html:11 templates/peers.html:49
+msgid "Users"
+msgstr "用户"
+
+#: templates/home.html:54
+msgid "Recent Events"
+msgstr "最新事件"
+
+#: templates/home.html:107 templates/repo.html:22
+msgid "Repos"
+msgstr "仓库"
+
+#: templates/home.html:116 templates/repos.html:13
+msgid "Create New Repo"
+msgstr "创建新仓库"
+
+#: templates/home.html:117 templates/repos.html:14
+msgid "Fetch New Repo"
+msgstr "获取新仓库"
+
+#: templates/home.html:120
+msgid "Current Task"
+msgstr "当前任务"
+
+#: templates/home.html:125 templates/repos.html:29
+msgid "Detail"
+msgstr "详情"
+
+#: templates/msgs.html:60
+msgid "reply"
+msgstr "中继"
+
+#: templates/msgs.html:62
+msgid "acks"
+msgstr "确认"
+
+#: templates/peer.html:9 templates/peers_left_panel.html:2
+#: templates/user.html:9
+msgid "My Peers"
+msgstr "我的伙伴"
+
+#: templates/peer.html:10 templates/peers_left_panel.html:3
+#: templates/user.html:10
+msgid "All Peers"
+msgstr "所有伙伴"
+
+#: templates/peer.html:17 templates/repos_create.html:19
+#: templates/user.html:17
+msgid "Name:"
+msgstr "用户名："
+
+#: templates/peer.html:21 templates/user.html:21
+msgid "ID:"
+msgstr "ID："
+
+#: templates/peer.html:25 templates/user.html:25
+msgid "Modified Time:"
+msgstr "修改时间："
+
+#: templates/peer.html:30
+msgid "User:"
+msgstr "用户："
+
+#: templates/peer.html:35 templates/user.html:33
+msgid "Roles:"
+msgstr "角色："
+
+#: templates/peer.html:39
+msgid "My Role on the peer:"
+msgstr "伙伴中的角色"
+
+#: templates/peers.html:34
+msgid "Peer Ident"
+msgstr "伙伴标识"
+
+#: templates/peers.html:37
+msgid "Peer"
+msgstr "伙伴"
+
+#: templates/peers.html:38 templates/user_follow.html:14
+#: templates/user_unfollow.html:14
+msgid "User ID"
+msgstr "用户 ID"
+
+#: templates/peers_left_panel.html:4
+msgid "Follow a User"
+msgstr "添加关注"
+
+#: templates/peers_left_panel.html:5
+msgid "Unfollow a User"
+msgstr "取消关注"
+
+#: templates/peers_left_panel.html:6
+msgid "Delete a user"
+msgstr "删除用户"
+
+#: templates/procs.html:14
+msgid "Processors alive:"
+msgstr "活动 Processor："
+
+#: templates/procs.html:15
+msgid "Processors dead:"
+msgstr "销毁 Processor："
+
+#: templates/procs.html:16
+msgid "Requirements:"
+msgstr "需求："
+
+#: templates/procs.html:22 templates/procs.html:37
+msgid "Peer ID"
+msgstr "伙伴 ID"
+
+#: templates/procs.html:23 templates/procs.html:38 templates/procs.html:59
+msgid "Create Time"
+msgstr "创建时间"
+
+#: templates/procs.html:39
+msgid "Dead time"
+msgstr "结束时间"
+
+#: templates/procs.html:54
+msgid "Src ID"
+msgstr "源 ID"
+
+#: templates/procs.html:55
+msgid "Dst ID"
+msgstr "目的 ID"
+
+#: templates/procs.html:56
+msgid "Role"
+msgstr "角色"
+
+#: templates/procs.html:57 templates/transfer_tasks.html:19
+#: templates/transfer_tasks.html:64
+msgid "State"
+msgstr "状态"
+
+#: templates/procs.html:58
+msgid "Body"
+msgstr "内容"
+
+#: templates/reply.html:29
+msgid "replies:"
+msgstr "回复"
+
+#: templates/repo.html:10 templates/repo_fetch.html:5
+#: templates/repos_create.html:5 templates/transfer_tasks.html:4
+msgid "Navigation"
+msgstr "导航"
+
+#: templates/repo.html:12 templates/repo_fetch.html:10
+#: templates/repos_create.html:9 templates/transfer_tasks.html:7
+msgid "Tasks"
+msgstr "任务"
+
+#: templates/repo.html:18
+msgid "Fetch"
+msgstr "获取"
+
+#: templates/repo.html:19 templates/repo_status.html:14
+#: templates/repos_diff.html:14 templates/repos_share.html:14
+msgid "Upload"
+msgstr "上传"
+
+#: templates/repo.html:28 templates/repo_fetch.html:9 templates/repos.html:80
+#: templates/repos_create.html:8 templates/transfer_tasks.html:6
+msgid "All Repos"
+msgstr "所有仓库"
+
+#: templates/repo.html:34
+msgid "New Token:"
+msgstr "新令牌："
+
+#: templates/repo.html:40 templates/repos_create.html:23
+msgid "Password:"
+msgstr "密码："
+
+#: templates/repo.html:55
+msgid "Set Password"
+msgstr "设置密码"
+
+#: templates/repo.html:108
+msgid "Description"
+msgstr "描述"
+
+#: templates/repo.html:116
+msgid "Encrypted"
+msgstr "加密"
+
+#: templates/repo.html:120
+msgid "Current Branch"
+msgstr "当前分支"
+
+#: templates/repo.html:124
+msgid "Work Directory"
+msgstr "工作目录"
+
+#: templates/repo.html:128
+msgid "Seahub Token"
+msgstr "Seahub 令牌"
+
+#: templates/repo.html:132
+msgid "Properties"
+msgstr "属性"
+
+#: templates/repo.html:144
+msgid "Work Directory Status"
+msgstr "工作目录状态"
+
+#: templates/repo.html:150
+msgid "Nothing changed"
+msgstr "没有修改的文件"
+
+#: templates/repo.html:154 templates/repo_status.html:27
+msgid "To be commited:"
+msgstr "将被提交的文件："
+
+#: templates/repo.html:163
+msgid "Changed:"
+msgstr "修改的文件："
+
+#: templates/repo.html:172
+msgid "Unmerged:"
+msgstr "冲突的文件："
+
+#: templates/repo.html:181 templates/repos_diff.html:27
+msgid "New files:"
+msgstr "新文件："
+
+#: templates/repo.html:194 templates/repos_create.html:21
+msgid "Description:"
+msgstr "描述："
+
+#: templates/repo.html:201
+msgid "Branches"
+msgstr "分支"
+
+#: templates/repo.html:202
+msgid "All Branches:"
+msgstr "所有分支："
+
+#: templates/repo.html:206 templates/repo.html:229
+msgid "Head Commit"
+msgstr "当前提交"
+
+#: templates/repo.html:207
+msgid "Block Number"
+msgstr "块号"
+
+#: templates/repo.html:232
+msgid "master"
+msgstr "master 分支"
+
+#: templates/repo.html:242
+msgid "History of Current Branch"
+msgstr "当前分支历史"
+
+#: templates/repo.html:245
+msgid "Commit ID"
+msgstr "提交 ID"
+
+#: templates/repo.html:246
+msgid "Time"
+msgstr "时间"
+
+#: templates/repo.html:247
+msgid "Discription"
+msgstr "描述"
+
+#: templates/repo_fetch.html:7
+msgid "Create Repo"
+msgstr "创建仓库"
+
+#: templates/repo_fetch.html:25
+msgid "Repo ID:"
+msgstr "仓库 ID："
+
+#: templates/repo_fetch.html:27
+msgid "Token:"
+msgstr "令牌："
+
+#: templates/repo_status.html:11 templates/repos_diff.html:11
+#: templates/repos_share.html:11
+msgid "Commit Update"
+msgstr "提交更新"
+
+#: templates/repo_status.html:12 templates/repos_diff.html:12
+#: templates/repos_share.html:12
+msgid "Merge"
+msgstr "合并"
+
+#: templates/repo_status.html:13 templates/repos_diff.html:13
+#: templates/repos_share.html:13 templates/repos_share.html:24
+msgid "Share"
+msgstr "共享"
+
+#: templates/repo_status.html:15 templates/repos_diff.html:15
+#: templates/settings.html:35
+msgid "Open"
+msgstr "打开"
+
+#: templates/repo_status.html:16 templates/repo_status.html:26
+#: templates/repos_diff.html:16
+msgid "Status"
+msgstr "状态"
+
+#: templates/repo_status.html:21 templates/repos_diff.html:21
+#: templates/repos_share.html:19
+msgid "Basic Info"
+msgstr "基本信息"
+
+#: templates/repo_status.html:33
+msgid "Not commit:"
+msgstr "没有提交"
+
+#: templates/repo_status.html:39
+msgid "Unmerged path:"
+msgstr "冲突文件"
+
+#: templates/repo_status.html:45
+msgid "Untracked:"
+msgstr "未跟踪文件"
+
+#: templates/repos.html:18
+msgid "Current Tasks"
+msgstr "当前任务"
+
+#: templates/repos.html:22 templates/repos.html:26
+msgid "Rate:"
+msgstr "速率"
+
+#: templates/repos.html:51
+msgid "Repos Need Fetch"
+msgstr "需要获取的仓库"
+
+#: templates/repos.html:61
+msgid "Repos Need Merge"
+msgstr "需要合并的仓库"
+
+#: templates/repos.html:71
+msgid "Repos Need Upload"
+msgstr "需要上传的仓库"
+
+#: templates/repos.html:114
+msgid "System Status"
+msgstr "系统状态"
+
+#: templates/repos_create.html:7
+msgid "Create a repo"
+msgstr "创建新仓库"
+
+#: templates/repos_create.html:23
+msgid "encryption"
+msgstr "加密"
+
+#: templates/repos_diff.html:26
+msgid "Diff result:"
+msgstr "比较结果："
+
+#: templates/repos_diff.html:33
+msgid "Delete files:"
+msgstr "删除文件："
+
+#: templates/repos_diff.html:39
+msgid "Modify files:"
+msgstr "修改文件："
+
+#: templates/settings.html:5
+msgid "Export Profile"
+msgstr "导出配置"
+
+#: templates/settings.html:12
+msgid "Default relay"
+msgstr "默认中继"
+
+#: templates/settings.html:19
+msgid "Net State"
+msgstr "网络状态"
+
+#: templates/settings.html:31
+msgid "Config Info"
+msgstr "配置信息"
+
+#: templates/settings.html:34
+msgid "Config Directory"
+msgstr "配置目录"
+
+#: templates/settings.html:38
+msgid "IP"
+msgstr "IP 地址"
+
+#: templates/settings.html:42
+msgid "Port"
+msgstr "端口号"
+
+#: templates/settings.html:46
+msgid "Net Status"
+msgstr "网络状态"
+
+#: templates/settings.html:50
+msgid "Avatar URL"
+msgstr "Avatar URL"
+
+#: templates/status.html:31
+msgid "Destination"
+msgstr "目的地址"
+
+#: templates/status.html:32
+msgid "Receive Time"
+msgstr "接收时间"
+
+#: templates/status.html:39
+msgid "Not received"
+msgstr "没有接收"
+
+#: templates/status.html:48
+msgid "The message is not received yet."
+msgstr "消息尚未接收。"
+
+#: templates/transfer_tasks.html:13
+msgid "Upload Tasks"
+msgstr "上传任务"
+
+#: templates/transfer_tasks.html:17 templates/transfer_tasks.html:62
+msgid "Task ID"
+msgstr "任务 ID"
+
+#: templates/transfer_tasks.html:18 templates/transfer_tasks.html:63
+msgid "Repo ID"
+msgstr "仓库 ID"
+
+#: templates/transfer_tasks.html:41 templates/transfer_tasks.html:86
+msgid "Remove"
+msgstr "删除"
+
+#: templates/transfer_tasks.html:44 templates/transfer_tasks.html:89
+msgid "Stop"
+msgstr "停止"
+
+#: templates/transfer_tasks.html:47 templates/transfer_tasks.html:92
+msgid "Resume"
+msgstr "恢复"
+
+#: templates/transfer_tasks.html:50
+msgid "Cancer"
+msgstr "取消"
+
+#: templates/transfer_tasks.html:58
+msgid "Download Tasks"
+msgstr "下载任务"
+
+#: templates/transfer_tasks.html:95
+msgid "Cancel"
+msgstr "取消"
+
+#: templates/user.html:29
+msgid "Relay:"
+msgstr "中继："
+
+#: templates/user.html:37
+msgid "My Role on the user:"
+msgstr "用户中的角色："
+
+#: templates/base.html:18
+msgid "Switch Language"
+msgstr "切换语言"
+
+#: templates/home.html:17 templates/repos.html:118
+msgid "relay connected"
+msgstr "中继已连接"
+
+#: templates/home.html:19 templates/repos.html:120
+msgid "relay not connected"
+msgstr "中继未连续"
+
+#: templates/home.html:47 templates/repos.html:39
+msgid "Click"
+msgstr "点击"
+
+#: templates/home.html:47 templates/repos.html:39
+msgid "You have not set relay yet."
+msgstr "你还未设置中继"
+
+#: templates/home.html:47 templates/repos.html:39
+msgid "to fetch relay info."
+msgstr "来获取中继信息"
+
+#: templates/home.html:49 templates/repos.html:43
+msgid ""
+"You should register an account on relay to use the storage space in relay."
+msgstr "你应该在中继上注册一个帐户来使用中继上的存储空间"
+
+#: templates/home.html:50 templates/repos.html:44
+msgid "Go to"
+msgstr "到"
+
+#: templates/home.html:50 templates/repos.html:44
+msgid "to register."
+msgstr "去注册"
+
+#: templates/home.html:121
+msgid "ongoing upload task"
+msgstr "正在进行的上传任务"
+
+#: templates/home.html:123
+msgid "ongoing download task"
+msgstr "正在进行的下载任务"
+
+#: templates/repos.html:21
+msgid "ongoing upload"
+msgstr "上传任务"
+
+#: templates/repos.html:25
+msgid "ongoing download"
+msgstr "下载任务"
+
+#: templates/repos.html:26
+msgid "s"
+msgstr "秒"
+
+#: templates/repos.html:41
+msgid ""
+"Relay is used for uploading your repos to and fetching from, so you can "
+"synchronize your repos among computers and sharing repos to friends."
+msgstr "中继是用来上传你的文件仓库，或者下载你已经上传的仓库的地方。这样你能就能在多台电脑间同步你的文件仓库，或者和朋友一起共享文件。"
+
+#: templates/repos.html:44
+msgid "seahub"
+msgstr "Seahub"
+
+#: templates/repos.html:51
+msgid ""
+"The following repos are updated on seahub. Fetch the new verson and merge "
+"into your local branch."
+msgstr "下面这些仓库在Seahub上有更新。你可以下载更新并且合并。"
+
+#: templates/repos.html:61
+msgid "The following repos have change not merged into local branch."
+msgstr "这些仓库在本地有改动，但并没有提交这些改动。"
+
+#: templates/repos.html:71
+msgid "The following repos are updated locally and need upload to seahub."
+msgstr "这些仓库在本地有更新，需要上传到Seahub去。"
+
+#: templates/repos.html:88
+msgid "This is the global unique ID of the repo."
+msgstr "\"这是这个仓库的全局统一标识符\""
+
+#: templates/repos.html:97
+msgid "Working directory is changed"
+msgstr "工作目录有改动"
+
+#: templates/repos.html:124
+msgid "Total size:"
+msgstr "总大小:"
+
+#: templates/repos.html:126
+msgid "calculating"
+msgstr "计算中"
+
+#: templates/repos.html:131
+msgid "Clean Disk"
+msgstr "清理硬盘"
+
+#: templates/repo.html:20 templates/repo.html:49
+msgid "Delete"
+msgstr "删除"
+
+#: templates/repo.html:48
+msgid "Really want to delete the repo?"
+msgstr "确认要删除这个仓库？"
+
+#: templates/repo.html:54
+msgid "Really want to reset?"
+msgstr "确认要重置这个仓库？"
+
+#: templates/repo.html:55
+msgid "Reset"
+msgstr "重置"
+
+#: templates/repo.html:62
+msgid "Password"
+msgstr "密码"
+
+#: templates/repo.html:62
+msgid "The repo is encrypted, and you need the password to get access to it."
+msgstr "这个仓库被加密了。在使用之前请先设置密码。"
+
+#: templates/repo.html:62
+msgid "now"
+msgstr "现在"
+
+#: templates/repo.html:68
+msgid "The newest version have been fetched."
+msgstr "最新版本已经下载完成。"
+
+#: templates/repo.html:69
+msgid "changes"
+msgstr "改动"
+
+#: templates/repo.html:69
+msgid ""
+"into your local branch (then you can view the result by open the work "
+"directory)."
+msgstr "到你的本地分支（然后你可以打开工作目录来查看结果）。"
+
+#: templates/repo.html:69
+msgid "the"
+msgstr "这些"
+
+#: templates/repo.html:73
+msgid ""
+"The newest version have been fetched, but you have also local changes. "
+"Commit these changes first, then you can perform merge."
+msgstr "最新版本已下载，但是您在本地也有更改。请先提交这些更改，然后再合并。"
+
+#: templates/repo.html:79
+msgid "It seems that you just downloaded the repo."
+msgstr "您刚刚已经下载了这个仓库。"
+
+#: templates/repo.html:80
+msgid "The content of local branch is not checkout to the work directory yet."
+msgstr "本地分支的内容还没有checkout到工作目录。"
+
+#: templates/repo.html:82
+msgid "the content, then open the work directory to see the files of the repo."
+msgstr "它的内容，然后打开工作目录来查看仓库的文件"
+
+#: templates/repo.html:87
+msgid "Repo is updated on seahub,"
+msgstr "仓库在Seahub上有更新，"
+
+#: templates/repo.html:87
+msgid "the newest version."
+msgstr "最新版本。"
+
+#: templates/repo.html:92
+msgid "You have updated your local branch,"
+msgstr "你更新了本地分支，"
+
+#: templates/repo.html:92
+msgid "to seahub."
+msgstr "到Seahub"
+
+#: templates/repo.html:103
+msgid "Repo"
+msgstr "仓库"
+
+#: templates/repo.html:104
+msgid "blocks transfered"
+msgstr "已传输块数"
+
+#: templates/repo.html:104
+msgid "rate"
+msgstr "速率"
+
+#: templates/repo.html:109
+msgid "Repo transfer error:"
+msgstr "传输仓库时出错："
+
+#: templates/repo.html:131
+msgid "Change Password"
+msgstr "更改密码"
+
+#: templates/repo.html:140
+msgid "Access Token"
+msgstr "口令"
+
+#: templates/repo.html:141
+msgid "Modify"
+msgstr "更改"
+
+#: templates/repo.html:147
+msgid "auto-upload"
+msgstr "自动上传"
+
+#: templates/repo.html:150
+msgid "auto-fetch"
+msgstr "自动下载"
+
+#: templates/repo.html:155
+msgid "Size"
+msgstr "大小"
+
+#: templates/repo.html:163
+msgid ""
+"The token is used to upload and download repo from the relay. If someone "
+"changed the access token in the relay, you have to modify it too."
+msgstr "口令是用来从中继上上传和下载仓库时使用的。如果仓库创建人更改了中继上的口令，那么您也需要更改口令。"
+
+#: templates/repo.html:168
+msgid "Tip: if you have your work directory changed,"
+msgstr "如果你的工作目录有改动，"
+
+#: templates/repo.html:168
+msgid "refresh"
+msgstr "刷新"
+
+#: templates/repo.html:168
+msgid "to view the details."
+msgstr "以查看详情。"
+
+#: templates/repo.html:169
+msgid ""
+"Tip: To recover all deleted files and revert all the modified files to the "
+"original state of the current version, click"
+msgstr "提示：如果您想恢复删除了的文件并且把有改动的文件恢复到当前版本的初始状态，点击"
+
+#: templates/repo.html:169
+msgid "reset"
+msgstr "重置"
+
+#: templates/repo.html:171
+msgid "The content of local version is not checkout to the work directory yet."
+msgstr "当前版本的内容还没有checkout到工作目录"
+
+#: templates/repo.html:213
+msgid "Commit"
+msgstr "提交"
+
+#: templates/repo.html:223
+msgid "Versions"
+msgstr "版本"
+
+#: templates/repo.html:224
+msgid "Versions on local computer:"
+msgstr "本地版本"
+
+#: templates/repo.html:233
+msgid "Local"
+msgstr "本地"
+
+#: templates/repo.html:245
+msgid "Cache"
+msgstr "缓存"
+
+#: templates/repo.html:259
+msgid "Version on relay"
+msgstr "中继上的版本"
+
+#: templates/repo.html:259
+msgid "checked at"
+msgstr "上次查询于"
+
+#: templates/repo.html:272
+msgid "The repo is deleted on relay."
+msgstr "这个仓库在中继上被删除了。"
+
+#: templates/repo.html:282
+msgid "Author"
+msgstr "所有者"
+
+#: templates/repo.html:293
+msgid "unknown"
+msgstr "未知"
+
+#: templates/repo.html:298
+msgid "Diff"
+msgstr "Diff"
+
+#: templates/repo.html:303
+msgid "Browser"
+msgstr "浏览"
+
+#: templates/repos.html:94
+msgid "Repo is updated on seahub"
+msgstr "仓库在Seahub上有更新"

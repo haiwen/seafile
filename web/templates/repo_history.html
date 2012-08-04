@@ -1,0 +1,184 @@
+<%inherit file="base.html"/>
+<%!
+    from utils import translate_time_sec, format_file_size, translate_commit_desc, format_creator
+%>
+
+<%def name="left_panel()">
+<h3>${_("Operations")}</h3>
+<ul>
+    <li><a href="/repo/?repo=${repo.props.id}">${_("back to repo")}</a></li>
+</ul>
+</%def>
+
+<%def name="wide_center_panel()">
+<h2>${repo.props.name} ${_("Modification History")}</h2>
+<div id="commit-page">
+    % if current_page != 1:
+    <a href="?repo=${repo.props.id}&page=${current_page - 1}&per_page=${per_page}">${_("Prev")}</a>
+    % endif
+    % if page_next:
+    <a href="?repo=${repo.props.id}&page=${current_page + 1}&per_page=${per_page}">${_("Next")}</a>
+    % endif
+</div>
+<table class="commit-list">
+    <tr>
+        <th class="radio">#</th>
+        <th class="radio">#</th>
+        <th class="time">${_("Time")}</th>
+        <th class="author">${_("Author")}</th>
+        <th class="desc">${_("Description")}</th>
+    </tr>
+    % for commit in commits:
+    <tr>
+        <td class="radio"><input type="radio" value="${commit.props.id}" class="version" /></td>
+        <td class="radio"><input type="radio" value="${commit.props.id}" class="version-from" /></td>
+        <td class="time">${commit.props.ctime | translate_time_sec}</td>
+        % if commit.props.creator_name:
+        <td class="author">${commit.props.creator_name | format_creator}</td>
+        % else:
+        <td class="author">${_("unknown")}</td>
+        % endif
+        <td class="desc">
+            % if lang == 'zh_CN':
+            ${commit.props.desc | translate_commit_desc} 
+            % else:
+            ${commit.props.desc} 
+            % endif
+
+            % if commit.props.parent_id:
+            <a class="lsch" href="/repos/operation/?repo=${repo.props.id}&new=${commit.props.id}&op=lsch">${_("details")}</a>
+            % endif
+        </td>
+    </tr>
+    % endfor
+</table>
+<div id="commit-page">
+    <button id="view-diff">${_("view the difference")}</button>
+    % if current_page != 1:
+    <a href="?repo=${repo.props.id}&page=${current_page - 1}&per_page=${per_page}">${_("Prev")}</a>
+    % endif
+    % if page_next:
+    <a href="?repo=${repo.props.id}&page=${current_page + 1}&per_page=${per_page}">${_("Next")}</a>
+    % endif
+    <span>${_("per page:")}</span>
+    % if per_page == 25:
+    <span> 25 </span>
+    % else:
+    <a href="?repo=${repo.props.id}&per_page=25" class="per-page">25</a>
+    % endif
+    % if per_page == 50:
+    <span> 50 </span>
+    % else:
+    <a href="?repo=${repo.props.id}&per_page=50" class="per-page">50</a>
+    % endif
+    % if per_page == 100:
+    <span> 100 </span>
+    % else:
+    <a href="?repo=${repo.props.id}&per_page=100" class="per-page">100</a>
+    % endif
+</div>
+
+<div id="ls-ch" class="hide"></div><!--list modification details of a commit-->
+<div id="dialog-revert-confirm" class="hide">
+    <p><span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>${_("Really want to restore the local directory contents to this state?")}</p>
+    <button id="revert-repo-btn" data="/repos/operation/?repo=${repo.props.id}&op=revert&commit">${_("Revert")}</button>
+    <button class="simplemodal-close">${_("Cancel")}</button>
+</div>
+</%def>
+
+<%def name="js()">
+<script type="text/javascript">
+//view repo diff: enable diff when there are at least two commits
+if ($('.version-from')[1]) {
+    // initialization
+    $('.version')[0].checked = true;
+    $('.version-from')[1].checked = true;
+    var new_commit_id = $('.version')[0].value; 
+    var old_commit_id = $('.version-from')[1].value;
+
+    //choose two commits
+    $('.version').each(function() {
+            $(this).click(function() {
+                $('.version').attr('checked', false);
+                $(this).attr('checked', true);
+                new_commit_id = $(this).attr('value');
+            });
+        });
+    $('.version-from').each(function() {
+            $(this).click(function() {
+                $('.version-from').attr('checked', false);
+                $(this).attr('checked', true);
+                old_commit_id = $(this).attr('value');
+            });
+        });
+
+    $('#view-diff').click(function() {
+            location.href = '/repos/operation/?repo=${repo.props.id}&new=' + new_commit_id + '&old=' + old_commit_id + '&op=diff';   
+        });
+}
+
+//list modification made by a commit;for repo,repo_history
+$('.lsch').each(function() {
+        $(this).click(function() {
+            $.ajax({
+                url: $(this).attr('href'),
+                dataType: 'json',
+                cache: false,
+                contentType: 'application/json; charset=utf-8',
+                success: function(data) {
+                    var str_title =  '<h3>${_("Modification Detail")}</h3>';
+                    var str_con = ''; 
+                    var show = function(data_) {
+                            str_con += '<ul>';
+                            for (var i = 0, len = data_.length; i < len; i++) {
+                                str_con += '<li>' + data_[i] + '</li>';
+                            }   
+                            str_con += '</ul>';
+                    };  
+                    if (data['new'].length > 0) {
+                        str_con += '<h4 id="ls-ch-new">${_("New files:")}</h4>';
+                        show(data['new']);
+                    }   
+                    if (data['removed'].length > 0) {
+                        str_con += '<h4 id="ls-ch-rm">${_("Removed files:")}</h4>';
+                        show(data['removed']);
+                    }   
+                    if (data['renamed'].length > 0) {
+                        str_con += '<h4 id="ls-ch-rn">${_("Renamed files:")}</h4>';
+                        show(data['renamed']);
+                    }   
+                    if (data['modified'].length > 0) {
+                        str_con += '<h4 id="ls-ch-modi">${_("Modified files:")}</h4>';
+                        show(data['modified']);
+                    }
+                    if (data['newdir'].length > 0) {
+                        str_con += '<h4 id="ls-ch-newdir">${_("New directories:")}</h4>';
+                        show(data['newdir']);
+                    }
+                    if (data['deldir'].length > 0) {
+                        str_con += '<h4 id="ls-ch-deldir">${_("Removed directories:")}</h4>';
+                        show(data['deldir']);
+                    }
+                    if (!str_con) {
+                        str_con = '<p>${_("No file content modified, perhaps file permission was changed.")}</p>';
+                    }
+                    $('#ls-ch').html(str_title + str_con);
+                    $('#ls-ch').modal({appendTo:'#main'});
+                }
+            });
+            return false;
+        });
+    });
+
+// revert dialog
+var revert_commit = "";
+$("a.revert-link").bind('click', function(event) {
+        revert_commit = $(this).attr("data");
+        $("#dialog-revert-confirm").modal({appendTo: "#main"}); 
+    }
+);
+$("#revert-repo-btn").click(function() {
+        location.href = "/repos/operation/?repo=${repo.props.id}&op=revert&commit=" + revert_commit;
+    });
+</script>
+</%def>

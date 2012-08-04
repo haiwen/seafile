@@ -1,0 +1,27 @@
+<%inherit file="base.html"/>
+
+<%def name="main_panel()">
+<form id="prefs-form" action="/settings/" method="post">
+<ul>
+    % if prefs['notify_sync'] == 'on':
+    <input type="checkbox" name="notify_sync" checked="checked" />
+    % else:
+    <input type="checkbox" name="notify_sync" />
+    % endif
+    ${_("Notify when repos get sync")}
+    </li>
+    <li>
+    % if prefs['auto_start'] == 'on':
+    <input type="checkbox" name="auto_start" checked="checked" /> 
+    % else:
+    <input type="checkbox" name="auto_start" /> 
+    % endif
+    ${_("Auto start Seafile at startup")}
+    </li>
+</ul>
+% if error_msg:
+    <p class="error">${error_msg}</p>
+% endif
+<input type="submit" value="${_("Submit")}" />
+</form>
+</%def>

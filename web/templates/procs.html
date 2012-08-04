@@ -1,0 +1,76 @@
+<%inherit file="base.html"/>
+
+<%!
+    from utils import translate_time_sec
+%>
+
+
+<%def name="left_panel()">
+</%def>
+
+<%def name="center_panel()">
+<ul class="subnav" id="subnav">
+    <li class="cur">${_("Processors alive:")} ${acnt}</li>
+    <li>${_("Processors dead:")} ${dcnt}</li>
+</ul>
+<div class="state-con">
+<table class="show">
+    <tr>
+        <th>${_("Proc Name")}</th>
+        <th>${_("Peer")}</th>
+        <th>${_("Create Time")}</th>
+    </tr>
+    % for proc in aprocs:
+    <tr>
+        <td>${proc.props.name}</td>
+        <td>${proc.props.peer_name}</td>
+        <td>${proc.props.ctime | translate_time_sec}</td>
+    </tr>
+    % endfor
+</table>
+
+<table class="hide">
+    <tr>
+        <th>${_("Proc Name")}</th>
+        <th>${_("Peer ID")}</th>
+        <th>${_("Create Time")}</th>
+        <th>${_("Dead time")}</th>
+    </tr>
+    % for proc in dprocs:
+    <tr>
+        <td>${proc.props.name}</td>
+        <td>${proc.props.peer_name}</td>
+        <td>${proc.props.ctime | translate_time_sec}</td>
+        <td>${proc.props.dtime | translate_time_sec}</td>
+    </tr>
+    % endfor
+</table>
+
+</div>
+</%def>
+
+<%def name="right_panel()">
+</%def>
+<%def name="main_panel()">
+</%def>
+<%def name="js()">
+<script type="text/javascript">
+switchTab('subnav','li','center-panel','table');
+var proc_nav = g('subnav').getElementsByTagName('li');
+for (var i = 0; i < proc_nav.length; i++) {
+    onmouse(i);
+}
+function onmouse(e) {
+    proc_nav[e].onmouseover = function () {
+        if (this.className != 'cur') {
+            this.className = 'over';
+        }
+    }
+    proc_nav[e].onmouseout = function () {
+        if (this.className != 'cur') {
+            this.className = 'out';
+        }
+    }
+}
+</script>
+</%def>
