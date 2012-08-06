@@ -2,9 +2,9 @@
 
 #include "common.h"
 
+#include <ccnet/job-mgr.h>
 #include "db.h"
 #include "seafile-session.h"
-#include "job-mgr.h"
 
 #define INFO_DB "info.db"
 

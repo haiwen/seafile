@@ -5,11 +5,11 @@
 #include <stdlib.h>
 
 #include <ccnet.h>
-#include "ccnet-object.h"
+#include <ccnet/job-mgr.h>
+#include <ccnet/ccnet-object.h>
 
 #include "common.h"
 #include "seafile-session.h"
-#include "job-mgr.h"
 #include "log.h"
 #include "utils.h"
 

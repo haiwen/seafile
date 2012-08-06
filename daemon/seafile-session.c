@@ -18,11 +18,11 @@
 
 #include <ccnet.h>
 #include <ccnet/cevent.h>
+#include <ccnet/ccnet-object.h>
 #include <utils.h>
 
 #include "seafile-session.h"
 #include "seafile-config.h"
-#include "ccnet-object.h"
 #include "vc-utils.h"
 #include "seaf-utils.h"
 #include "gc.h"

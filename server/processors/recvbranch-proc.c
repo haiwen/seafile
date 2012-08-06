@@ -2,7 +2,7 @@
 
 #include <ccnet.h>
 #include <string.h>
-#include "ccnet-object.h"
+#include <ccnet/ccnet-object.h>
 
 #include "seafile-session.h"
 #include "recvbranch-proc.h"

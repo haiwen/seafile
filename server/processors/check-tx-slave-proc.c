@@ -5,12 +5,12 @@
 #include <stdlib.h>
 
 #include <ccnet.h>
-#include "ccnet-object.h"
+#include <ccnet/job-mgr.h>
+#include <ccnet/ccnet-object.h>
 
 #include "common.h"
 #include "seafile-session.h"
 #include "check-tx-slave-proc.h"
-#include "job-mgr.h"
 
 #define SC_GET_TOKEN        "301"
 #define SS_GET_TOKEN        "Get token"

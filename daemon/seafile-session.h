@@ -6,7 +6,7 @@
 #include <glib-object.h>
 #include <ccnet/cevent.h>
 #include <ccnet/mqclient-proc.h>
-#include <job-mgr.h>
+#include <ccnet/job-mgr.h>
 
 #include "block-mgr.h"
 #include "fs-mgr.h"

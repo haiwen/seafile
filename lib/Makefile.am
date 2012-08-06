@@ -16,7 +16,12 @@ seafile_object_gen = $(seafile_object_define:.vala=.c)
 
 EXTRA_DIST = ${seafile_object_define}
 
-noinst_HEADERS = seafile-object.h
+utils_headers = async-rpc-proc.h net.h rsa.h threaded-rpcserver-proc.h \
+	bloom-filter.h rpcserver-proc.h utils.h db.h ccnetrpc-transport.h
+
+utils_srcs = $(utils_headers:.h=.c)
+
+noinst_HEADERS = seafile-object.h ${utils_headers} rpc-common.h include.h
 
 seafile-rpc-wrapper.c: seafile-object.h
 
@@ -28,7 +33,7 @@ seafile-object.h: ${seafile_object_define}
 	rm -f $@
 	valac --pkg posix ${seafile_object_define} -C -H seafile-object.h
 
-CLEANFILES = seafile-object.h ${seafile_object_gen} ccnetobj.c ccnet-object.h ${searpc_gen}
+CLEANFILES = seafile-object.h ${seafile_object_gen} ${searpc_gen}
 
 ## library rules
 lib_LTLIBRARIES = libseafile.la
@@ -40,9 +45,11 @@ libseafile_la_LIBADD = @GLIB2_LIBS@  @GOBJECT_LIBS@ @SEARPC_LIBS@
 
 noinst_LTLIBRARIES = libseafile_common.la
 
-libseafile_common_la_SOURCES = ${seafile_object_gen}
+libseafile_common_la_SOURCES = ${seafile_object_gen} ${utils_srcs}
 libseafile_common_la_LDFLAGS = -no-undefined
-libseafile_common_la_LIBADD = @GLIB2_LIBS@  @GOBJECT_LIBS@ 
+libseafile_common_la_LIBADD = @GLIB2_LIBS@  @GOBJECT_LIBS@ -lssl -lcrypto @LIB_GDI32@ \
+				     @LIB_UUID@ @LIB_WS32@ @LIB_PSAPI@ -lsqlite3 \
+					 -levent @SEARPC_LIBS@ @LIB_SHELL32@
 
 searpc_gen = searpc-signature.h searpc-marshal.h
 
