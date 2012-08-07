@@ -1,0 +1,20 @@
+Objectives
+===
+
+Test the repo-encryption functionality. One should be able to upload
+an encrypt repo, and fetch it elsewhere, and can checkout this repo
+correctly as long as the right passwd is set.
+
+
+Test
+===
+
+The test flow is 90% the same as the basic test. Only two steps are
+different:
+
+1. Use `seafile create --encrypt` to create an encrypted repo, rather
+   than using a plain `seafile create`. You need to input the passwd
+   manually.
+
+2. After fetching is finished, use `seafile set-passwd` to set the
+   passwd for the encrypted repo, and then checkout it.

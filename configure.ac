@@ -103,7 +103,7 @@ if test "$bwin32" = true; then
    compile_cli=no
    compile_tools=no
    compile_server=no
-#   compile_httpserver=no
+   compile_httpserver=no
 fi
 
 if test "$bmac" = true; then
@@ -112,13 +112,13 @@ if test "$bmac" = true; then
    compile_cli=no
    compile_tools=no
    compile_server=no
-#   compile_httpserver=no
+   compile_httpserver=no
 
    AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
       [compile_server=$enableval],[compile_server="no"])
    
-#   AC_ARG_ENABLE(httpserver, AC_HELP_STRING([--enable-httpserver], [enable httpserver]),
-#      [compile_httpserver=$enableval],[compile_httpserver="no"])
+  AC_ARG_ENABLE(httpserver, AC_HELP_STRING([--enable-httpserver], [enable httpserver]),
+     [compile_httpserver=$enableval],[compile_httpserver="no"])
 
 fi
 
@@ -128,7 +128,7 @@ if test "$blinux" = true; then
    compile_tools=yes
 
    compile_server=no
-#   compile_httpserver=no
+   compile_httpserver=no
    
 
    AC_ARG_ENABLE(client, AC_HELP_STRING([--enable-client], [enable server]),
@@ -143,16 +143,12 @@ if test "$blinux" = true; then
       [compile_server=$enableval],[compile_server="no"])
 
    
-#   AC_ARG_ENABLE(httpserver, AC_HELP_STRING([--enable-httpserver], [enable httpserver]),
-#      [compile_httpserver=$enableval],[compile_httpserver="no"])
+  AC_ARG_ENABLE(httpserver, AC_HELP_STRING([--enable-httpserver], [enable httpserver]),
+     [compile_httpserver=$enableval],[compile_httpserver="no"])
 
 #   AC_ARG_ENABLE(seablock, AC_HELP_STRING([--enable-seablock],
 #      [enable seablock]), [compile_seablock=$enableval],
 #      [compile_seablock="no"])
-
-#   AC_ARG_ENABLE(cluster, AC_HELP_STRING([--enable-cluster],
-#      [enable cluster]), [compile_cluster=$enableval],
-#      [compile_cluster="no"])
 
    AC_ARG_ENABLE(riak, AC_HELP_STRING([--enable-riak], [enable riak backend]),
       [compile_riak=$enableval],[compile_riak="no"])
@@ -194,7 +190,7 @@ if test x${server_pkg} = xyes; then
   compile_cli=yes
   compile_tools=yes
   compile_server=yes
-#  compile_httpserver=yes
+  compile_httpserver=yes
   SERVER_PKG_RPATH=-Wl,-R,\'\$\$ORIGIN/../lib\'
   SERVER_PKG_PY_RPATH=-Wl,-R,\'\$\$ORIGIN/../../..\'
 fi
@@ -207,9 +203,8 @@ AM_CONDITIONAL([COMPILE_TOOLS], [test "${compile_tools}" = "yes"])
 AM_CONDITIONAL([COMPILE_PYTHON], [test "${compile_python}" = "yes"])
 AM_CONDITIONAL([COMPILE_CLIENT], [test "${compile_client}" = "yes"])
 AM_CONDITIONAL([COMPILE_SERVER], [test "${compile_server}" = "yes"])
-#AM_CONDITIONAL([COMPILE_HTTPSERVER], [test "${compile_httpserver}" = "yes"])
+AM_CONDITIONAL([COMPILE_HTTPSERVER], [test "${compile_httpserver}" = "yes"])
 #AM_CONDITIONAL([COMPILE_SEABLOCK], [test "${compile_seablock}" = "yes"])
-#AM_CONDITIONAL([COMPILE_CLUSTER], [test "${compile_cluster}" = "yes"])
 AM_CONDITIONAL([COMPILE_RIAK], [test "${compile_riak}" = "yes"])
 AM_CONDITIONAL([COMPILE_CEPH], [test "${compile_ceph}" = "yes"])
 
@@ -461,13 +456,13 @@ AC_CONFIG_FILES(
     app/Makefile
     python/Makefile
     python/seafile/Makefile
+    controller/Makefile
+    httpserver/Makefile
+    monitor/Makefile
+    tools/Makefile
+    tests/Makefile
+    tests/common-conf.sh
 )
-    #controller/Makefile
-    #httpserver/Makefile
-    #monitor/Makefile
-    #tools/Makefile
-    #tests/Makefile
-    #tests/common-conf.sh
 
 AC_OUTPUT
 
@@ -485,9 +480,9 @@ if test x${compile_server} = xyes; then
    echo    "seaf-server"
 fi
 
-#if test x${compile_httpserver} = xyes; then
-#   echo    "httpserver"
-#fi
+if test x${compile_httpserver} = xyes; then
+   echo    "httpserver"
+fi
 #if test x${compile_seablock} = xyes; then
 #   echo    "seablock"
 #fi

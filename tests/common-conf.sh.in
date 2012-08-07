@@ -1,0 +1,13 @@
+
+top_srcdir=@abs_top_srcdir@
+
+ccnet=${top_srcdir}/net/daemon/ccnet
+ccnet_server=${top_srcdir}/net/server/ccnet-server
+ccnet_applet=${top_srcdir}/gtk/ccnet-applet
+ccnet_servtool=${top_srcdir}/cli/ccnet-servtool
+ccnet_tool=${top_srcdir}/cli/ccnet-tool
+
+seafile_dir=${top_srcdir}/seafile
+seaf_daemon=${seafile_dir}/daemon/seaf-daemon
+seaf_server=${seafile_dir}/server/seaf-server
+seaf_monitor=${seafile_dir}/monitor/seaf-mon

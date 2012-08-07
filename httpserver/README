@@ -1,0 +1,7 @@
+== Compile ==
+
+1. compile and install libevhtp library first
+cd libevhtp
+cmake . # you need to install cmake program to compile it
+make
+make install 
