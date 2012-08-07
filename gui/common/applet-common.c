@@ -350,24 +350,6 @@ test_web_server (void)
     return (ret == 0) ;
 }
 
-static void
-set_default_relay ()
-{
-    static char *cmd = "set-relay --default --addr " SEAFILE_OFFICIAL_ADDR;
-    send_command(cmd);
-}
-
-static void
-set_relay_if_necessary ()
-{
-    if (need_set_relay ()) {
-        /* No relay is set: means it's the first time use of seafile. We first
-         * connect to the relay, and then ask the user to login */
-        applet_message ("Now set default relay\n");
-        set_default_relay ();
-    }
-}
-
 int
 connect_to_daemon (void)
 {
@@ -405,8 +387,6 @@ connect_to_daemon (void)
 
     applet_start_rpc_service(client);
     start_mq_client ();
-
-    set_relay_if_necessary();
 
     return 0;
 }

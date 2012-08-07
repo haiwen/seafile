@@ -103,47 +103,46 @@ seaf_sync_manager_init (SeafSyncManager *mgr)
     return 0;
 }
 
+/* In case ccnet relay info is lost(e.g. ~/ccnet is removed), we need to
+ * re-add the relay by supplying addr:port
+ */
 static void
-conn_relay_if_needed (SeafRepo *repo)
+add_relay_if_needed (SeafRepo *repo)
 {
     CcnetPeer *relay = NULL;
     char *relay_port = NULL, *relay_addr = NULL;
     GString *buf = NULL; 
 
-    relay = ccnet_get_peer (seaf->ccnetrpc_client, repo->relay_id);
-    if (relay) {
-        if (relay->net_state == PEER_CONNECTED || relay->in_connection) {
-            goto out;
-        }
-    }
-
-    buf = g_string_new(NULL);
-
     seaf_repo_manager_get_repo_relay_info (seaf->repo_mgr, repo->id,
                                            &relay_addr, &relay_port);
 
+    relay = ccnet_get_peer (seaf->ccnetrpc_client, repo->relay_id);
+    if (relay) {
+        /* no relay addr/port info in seafile db. This means we are
+         * updating from an old version. */
+        if (!relay_addr || !relay_port) {
+            if (relay->public_addr && relay->public_port) {
+                char port[16];
+                snprintf (port, sizeof(port), "%d", relay->public_port);
+                seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, repo->id,
+                                                       relay->public_addr, port);
+            }
+        }
+        goto out;
+    }
+
+    /* relay info is lost in ccnet, but we have its addr:port in seafile.db */
     if (relay_addr && relay_port) {
-        /* New version, addr and port are stored in seafile db */
-        g_string_append_printf (buf, "set-relay --addr %s:%s",
-                                relay_addr, relay_port);
-
-    } else if (relay && relay->public_addr && relay->public_port) {
-        /* Old version, addr and port are stored in ccnet db. We need to store
-           them in seafile db. */
-        char port[16];
-        snprintf (port, sizeof(port), "%d", relay->public_port);
-        seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, repo->id,
-                                               relay->public_addr, port);
-
-        g_string_append_printf (buf, "set-relay --addr %s:%d",
-                                relay->public_addr, relay->public_port);
+        buf = g_string_new(NULL);
+        g_string_append_printf (buf, "add-relay --id %s --addr %s:%s",
+                                repo->relay_id, relay_addr, relay_port);
                                                
     } else {
         seaf_warning ("[sync mgr] relay addr/port info"
                       " of repo %.10s is unknown\n", repo->id);
     }
 
-    if (buf->len > 0) {
+    if (buf) {
         ccnet_send_command (seaf->session, buf->str, NULL, NULL);
     }
 
@@ -157,7 +156,7 @@ out:
 }
 
 static void
-conn_repo_relays ()
+add_repo_relays ()
 {
     GList *ptr, *repo_list;
 
@@ -166,7 +165,7 @@ conn_repo_relays ()
     for (ptr = repo_list; ptr; ptr = ptr->next) {
         SeafRepo *repo = ptr->data;
         if (repo->relay_id) {
-            conn_relay_if_needed (repo);
+            add_relay_if_needed (repo);
         }
     }
 
@@ -176,7 +175,7 @@ conn_repo_relays ()
 int
 seaf_sync_manager_start (SeafSyncManager *mgr)
 {
-    conn_repo_relays ();
+    add_repo_relays ();
     mgr->priv->check_sync_timer = ccnet_timer_new (
         check_sync_pulse, mgr, CHECK_SYNC_INTERVAL);
 
