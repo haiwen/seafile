@@ -2406,20 +2406,28 @@ rename_file_recursive(const char *dir_id,
 
     /* we reach the target dir. */
     if (*to_path == '\0') {
-        SeafDirent *old, *new;
+        SeafDirent *old, *newdent = NULL;
         GList *newentries = NULL, *p;
 
+        /* When renameing, there is a pitfall: we can't simply rename the
+         * dirent, since the dirents are required to be sorted in descending
+         * order. We need to copy all old dirents except the target dirent,
+         * and then rename the target dirent, and then insert the new
+         * dirent, so that we can maintain the descending order of dirents. */
         for (p = olddir->entries; p != NULL; p = p->next) {
             old = p->data;
-            if (strcmp(old->name, oldname) == 0) {
-                new = seaf_dirent_new (old->id, old->mode, newname);
+            if (strcmp(old->name, oldname) != 0) {
+                newentries = g_list_prepend (newentries, dup_seaf_dirent(old));
             } else {
-                new = seaf_dirent_new (old->id, old->mode, old->name);
+                newdent = seaf_dirent_new (old->id, old->mode, newname);
             }
-            newentries = g_list_prepend (newentries, new);
         }
 
         newentries = g_list_reverse (newentries);
+
+        if (newdent) {
+            newentries = g_list_insert_sorted(newentries, newdent, compare_dirents);
+        }
 
         newdir = seaf_dir_new (NULL, newentries, 0);
         seaf_dir_save (seaf->fs_mgr, newdir);
@@ -2976,7 +2984,7 @@ seaf_repo_manager_revert_file (SeafRepoManager *mgr,
     SeafRepo *repo = NULL;
     SeafCommit *head_commit = NULL, *commit = NULL, *new_commit = NULL;
     SeafDirent *revert_to_dent = NULL;
-    char *dirname, *filename;
+    char *dirname = NULL, *filename = NULL;
     char *current_file_id = NULL, *revert_to_file_id = NULL;
     char *canon_path = NULL, *root_id = NULL;
     char buf[PATH_MAX];
