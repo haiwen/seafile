@@ -1,0 +1,9 @@
+LIBRARY seafile_shell_ext
+EXPORTS
+DllMain
+DllRegisterServer PRIVATE
+DllUnregisterServer PRIVATE
+DllCanUnloadNow PRIVATE
+DllGetClassObject PRIVATE
+DllInstall PRIVATE
+TerminateSeafile

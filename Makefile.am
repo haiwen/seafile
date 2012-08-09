@@ -15,8 +15,12 @@ if COMPILE_CLIENT
   MAKE_CLIENT = daemon
 endif
 
-SUBDIRS = include lib common daemon $(MAKE_CLINET) $(MAKE_SERVER) \
-	app python tests
+if WIN32
+  SHELL_EXT = desktop/explorer
+endif
+
+SUBDIRS = include data lib common daemon $(MAKE_GUI) $(MAKE_CLINET) $(MAKE_SERVER) \
+	app python tests web
 
 INTLTOOL = \
 	intltool-extract.in \
@@ -42,8 +46,8 @@ install-web:
 endif
 
 install-data-local:
-#	$(INSTALL) -d $(DESTDIR)$(datarootdir)/applications
-#	$(INSTALL_PROGRAM) debian/seafile.desktop $(DESTDIR)$(datarootdir)/applications/seafile.desktop
+	$(INSTALL) -d $(DESTDIR)$(datarootdir)/applications
+	$(INSTALL_PROGRAM) debian/seafile.desktop $(DESTDIR)$(datarootdir)/applications/seafile.desktop
 	$(INSTALL) -d $(DESTDIR)${bindir}
 	$(INSTALL_PROGRAM) ccnet-web.sh $(DESTDIR)${bindir}
 	$(INSTALL) -d $(DESTDIR)${pkglibdir}
