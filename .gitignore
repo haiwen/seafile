@@ -96,3 +96,4 @@ tests/basic/conf4/93ae3e01eea6667cbdd03c4afde413ccd9f1eb43.peer
 tests/basic/conf4/93ae3e01eea6667cbdd03c4afde413ccd9f1eb43.user
 tests/basic/conf4/peer-db/
 tests/basic/conf4/user-db/
+web/local_settings.py

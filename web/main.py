@@ -8,6 +8,7 @@ import os
 import simplejson as json
 import subprocess
 import sys
+import platform
 import urllib
 import web
 from web.contrib.template import render_mako
@@ -46,6 +47,8 @@ urls = (
     '/settings/', 'settings_page',
     '/i18n/', 'i18n',
     '/seafile_access_check/', 'seafile_access_check',
+    '/repo-query/', 'seafile_repo_query',
+    '/open-local-file/', 'open_local_file',
     )
 
 # See http://www.py2exe.org/index.cgi/WhereAmI
@@ -669,6 +672,53 @@ class seafile_access_check:
 
     def GET(self):
         return 'xx(2)'
+
+class seafile_repo_query:
+    """
+    handle jsonp ajax cross domain request from seahub
+    """
+    def GET(self):
+        inputs = web.webapi.input(repo_id='', callback='callback')
+        repo_id = inputs.repo_id
+        exists = False
+        try:
+            repo = get_repo(repo_id)
+            if repo:
+                exists =True
+        except:
+            pass
+        d = {'exists':exists}
+        return '%s(%s)' % (inputs.callback, json.dumps(d))
+
+class open_local_file:
+    """
+    handle jsonp ajax cross domain request from seahub
+    """
+    def GET(self):
+        inputs = web.webapi.input(repo_id='', path='', callback='callback')
+        repo_id, path = inputs.repo_id, inputs.path.lstrip('/')
+        repo = get_repo(repo_id)
+        file_path = os.path.join(repo.worktree, path)
+
+        uname = platform.platform()
+        if 'Windows' in uname:
+            file_path = file_path.encode('gbk')
+            print file_path
+            # see http://superuser.com/questions/239565/can-i-use-the-start-command-with-spaces-in-the-path
+            os.system('start "" "%s"' % file_path)
+            
+        elif 'Linux' in uname:
+            file_path = file_path.encode('utf-8')
+            os.system('xdg-open \"%s\"' % file_path)
+            
+        elif 'Darwin' in uname:
+            # what to do in mac?
+            file_path = file_path.encode('utf-8')
+            os.system('open \"%s\"' % file_path)
+            pass
+
+        d = {'result':'ok'}
+        return '%s(%s)' % (inputs.callback, json.dumps(d))
         
 if __name__ == "__main__":
     app.run()

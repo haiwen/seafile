@@ -4,6 +4,7 @@ AM_CPPFLAGS = @GLIB2_CFLAGS@ -I$(top_srcdir)/include \
 	-DG_LOG_DOMAIN=\"Seafile\" \
 	@CCNET_CFLAGS@ \
 	@SEARPC_CFLAGS@ \
+	@MSVC_CFLAGS@ \
 	-Wall
 
 BUILT_SOURCES = gensource
