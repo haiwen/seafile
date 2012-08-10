@@ -1,0 +1,13 @@
+Source: seafile
+Section: net
+Priority: extra
+Maintainer: Lingtao Pan <freeplant@gmail.com>
+Build-Depends: debhelper (>= 7), autotools-dev, libssl-dev, libsqlite3-dev, intltool, python-gobject-2-dev, libglib2.0-dev, libevent-dev, libnautilus-extension-dev, libjson-glib-dev, valac, uuid-dev, libgtk2.0-dev, libjson-glib-dev
+Standards-Version: 3.8.0
+Homepage: http://www.gonggeng.org/seasite/
+
+Package: seafile
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, libglib2.0-0, libgtk2.0-0 (>= 2.16.0), libsqlite3-0, libuuid1, libssl0.9.8 | libssl1.0.0, libevent-2.0-5, python-gobject-2, python-webpy, python-mako, python-markdown, python-simplejson, libnautilus-extension1a,
+Description: Seafile
+ Seafile is a distributed file synchronization tool.

@@ -1,0 +1,137 @@
+#+ -*- mode: org; fill-column: 70; -*-
+#+title: Shell Extension for Seafile using COM
+#+startup: showall
+
+
+* Useful Links
+
+  Introduction to COM - What It Is and How to Use It.
+
+  http://www.codeproject.com/KB/COM/comintro.aspx
+
+  COM in plain C
+
+  http://www.codeproject.com/KB/COM/com_in_c1.aspx
+
+  Creating shell extension handlers
+
+  http://msdn.microsoft.com/en-us/library/bb776797.aspx
+
+  Creating context menu handlers
+
+  http://msdn.microsoft.com/en-us/library/bb776881.aspx
+  
+  git-cheetah project 
+  
+  (git-cheetah contains shell extension for Git-windows/Nautilus/MacOS Finder)
+
+  http://repo.or.cz/w/git-cheetah.git
+  
+
+* What is Shell
+
+  Windows Shell is just the Windows Explorer, i.e. *explorer.exe*.
+
+* What is COM
+
+  + COM is short for "Component Object Model"
+  + COM is always in the form of a DLL with several specific rules.
+  + A DLL is called a *COM Server*, while the one using the dll is
+    called a *COM client*.
+  
+  In shell extension, we are writing a COM Server, and the Windows
+  Shell is our client. For example, for a menu handler, which is used
+  to add a customized menu item, the Winodws Explorer calls some
+  function in our COM with a param descrbing the current file for whom
+  the menu is being displayed. In our COM implementation, we decide
+  what menu items to add by analysing this param, and use shell API
+  like =InsertMenuItem= to add menu items.
+  
+* How to implement a COM
+  
+  COM can be implented in any programming language which has a concept
+  of *function pointer*. In practice, people mainly use C++, but C is
+  also applicable. We use C.
+  
+
+* How do Shell know which function in the interface to call
+
+  Our menu items are to be added in two steps:
+
+  1) Shell queries you where is the handler function, and you give a
+     pointer to it;
+  2) Shell calls this function using that pointer and corresponding
+     args.
+
+
+  To be concrete, you provide a =QueryInterface()= function, and
+  accept a GUID as one of the params. In the implementation of this
+  function, if the guid param is =IID_IContextMenu=, you just return
+  the func pointer to the context menu hanlder, and the shell will use
+  that pointer to call your menu hanlder, which is your main routine
+  to add your customized menu items, later on.
+
+  
+* Control flow of the display a customized menu
+  
+  1) users right click
+
+  2) shell finds the registration info in system registry and gets to
+     know we are intereseted to add customized menu items
+  
+  3) shell loads the dll, and calls Dll's GetClassObject function,
+     which return a pointer to dll's *factory class*.
+  
+  4) shell calls factory's CreateInstance method to create a object of
+     the extension, i.e. seaf_shell_ext.
+
+  5) shell calls seaf_shell_ext->vtable->initialize with args to tell
+     the extension about the calling enviroment: whether the click is
+     a background click, or a click on a file; and supply the file
+     object or a folder object as well.
+     
+  6) shell asks the extension object for the IContextMenu Interface,
+     i.e. calls its QueryInterface method with IID_IContextMenu as a
+     param. The object returns a pointer to the seaf_menu structure.
+  
+  7) shell calls the seaf_menu->vtable->QueryContextMenu, and we
+     decide *what to add to the menu.*
+     
+
+  
+* Module Organization
+
+  |-----------------------+-----------------------------------------------------|
+  | file (.[ch])          | content                                             |
+  |-----------------------+-----------------------------------------------------|
+  | seaf-dll              | standard COM dll routines, registry operation       |
+  |-----------------------+-----------------------------------------------------|
+  | seaf-ext              | standard shell extension routines                   |
+  |-----------------------+-----------------------------------------------------|
+  | seaf-factory          | implemented IClassFactory interface                 |
+  |-----------------------+-----------------------------------------------------|
+  | seaf-menu             | implemented IContextMenu interface                  |
+  |-----------------------+-----------------------------------------------------|
+  | ../common/menu-engine | context menu handler backend                        |
+  |-----------------------+-----------------------------------------------------|
+  | seaf-icon             | Icon handler                                        |
+  |-----------------------+-----------------------------------------------------|
+  | ../common/seaf-utils  | helper functions                                    |
+  |-----------------------+-----------------------------------------------------|
+  | seaf-exec             | exec a child process and get its stdout/stderr      |
+  |-----------------------+-----------------------------------------------------|
+  | platform              | os dependent functions                              |
+  |-----------------------+-----------------------------------------------------|
+  | ../common/strbuf      | a string manipulating module,  like GString         |
+  |-----------------------+-----------------------------------------------------|
+  | registry              | create/delete registry entries, for (un)registering |
+  |-----------------------+-----------------------------------------------------|
+  | seaf_ext_rc           | dialogs, icons, created using MS visual studio 2008 |
+  |-----------------------+-----------------------------------------------------|
+  | (un)register.bat      | scripts for (un)registering the shell extension     |
+  |-----------------------+-----------------------------------------------------|
+
+  
+* Others
+
+  For compiling and testing, see desktop/README
