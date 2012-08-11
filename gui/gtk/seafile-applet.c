@@ -146,6 +146,11 @@ seafile_applet_init (SeafileApplet *applet)
 int
 main (int argc, char **argv)
 {
+    if (process_is_running("ccnet")) {
+        fprintf(stderr, "Seafile applet already running. I will quit.\n");
+        exit(1);
+    }
+
 #ifdef ENABLE_NLS                               
     setlocale (LC_ALL, "");
 

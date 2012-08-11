@@ -424,6 +424,11 @@ seafile_applet_init (HINSTANCE hInstance)
 int
 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+    if (process_is_running("ccnet")) {
+        MessageBox(NULL, S_SEAFILE_APPLET_ALREAD_RUNNING, "Seafile", MB_OK);
+        exit(1);
+    }
+    
     int argc;
     char **argv;
     char  cmdbuf[1024];

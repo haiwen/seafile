@@ -15,16 +15,6 @@
 #include "rpcserver-proc.h"
 
 
-
-static void
-applet_register_service_cb (gboolean success)
-{
-    if (!success) {
-        fprintf (stderr, "Seafile-applet failed to register service\n");
-        on_quit();
-    }
-}
-
 static int
 applet_get_auto_start (GError **error)
 {
@@ -65,7 +55,7 @@ applet_start_rpc_service (CcnetClient *client)
     searpc_create_service ("applet-rpcserver");
     ccnet_register_service (client, "applet-rpcserver", "rpc-inner",
                             CCNET_TYPE_RPCSERVER_PROC,
-                            applet_register_service_cb);
+                            NULL);
 
     searpc_server_register_function ("applet-rpcserver",
                                      applet_get_auto_start,

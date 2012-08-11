@@ -91,4 +91,6 @@
 #define S_YOU_HAVE_NOT_LOGGED_IN "您尚未登录服务器"
 #define S_NOT_ALLOWED_PATH "\"%s\" 是 Seafile 的工作目录，因此不能把 \"%s\" 变为同步目录。\n你可以在该目录下创建一个子目录，再将这个子目录变为同步目录"
 
+#define S_SEAFILE_APPLET_ALREAD_RUNNING "Seafile 已经在运行中"
+
 #endif
