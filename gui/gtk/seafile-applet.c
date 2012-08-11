@@ -106,7 +106,7 @@ client_io_cb (GIOChannel *source, GIOCondition condition, gpointer data)
 int
 open_web_browser(const char *url)
 {
-    GString *buf = g_string_new("x-www-browser ");
+    GString *buf = g_string_new("xdg-open ");
     g_string_append (buf, url);
     spawn_process (buf->str);
     g_string_free (buf, TRUE);
