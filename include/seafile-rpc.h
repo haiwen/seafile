@@ -213,6 +213,14 @@ GList * seafile_list_dir (const char *dir_id, GError **error);
 GList * seafile_list_dir_by_path (const char *commit_id, const char *path, GError **error);
 
 /**
+ * seafile_get_dirid_by_path:
+ * Get the dir_id of the path
+ *
+ * Returns: the dir_id of the path
+ */
+char * seafile_get_dirid_by_path (const char *commit_id, const char *path, GError **error);
+
+/**
  * seafile_reset:
  * Reset the repo head to a commit.
  */

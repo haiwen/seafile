@@ -1,5 +1,5 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
- 
+
 #include "common.h"
 #include <glib/gstdio.h>
 #include <ctype.h>
@@ -65,7 +65,7 @@ convert_repo_list (GList *inner_repos)
 #endif
 
         SeafileRepo *repo = seafile_repo_new ();
-        g_object_set (repo, "id", r->id, "name", r->name, 
+        g_object_set (repo, "id", r->id, "name", r->name,
                       "desc", r->desc, "encrypted", r->encrypted,
                       NULL);
 
@@ -108,7 +108,7 @@ seafile_list_dir_by_path(const char *commit_id, const char *path, GError **error
                      "Args can't be NULL");
         return NULL;
     }
-        
+
     SeafCommit *commit;
     commit = seaf_commit_manager_get_commit(seaf->commit_mgr, commit_id);
 
@@ -119,7 +119,7 @@ seafile_list_dir_by_path(const char *commit_id, const char *path, GError **error
 
     char *p = g_strdup(path);
     int len = strlen(p);
-    
+
     /* strip trailing backslash */
     while (len > 0 && p[len-1] == '/') {
         p[len-1] = '\0';
@@ -132,7 +132,7 @@ seafile_list_dir_by_path(const char *commit_id, const char *path, GError **error
 
     GList *ptr;
     GList *res = NULL;
-    
+
     dir = seaf_fs_manager_get_seafdir_by_path (seaf->fs_mgr, commit->root_id,
                                                p, error);
     if (!dir) {
@@ -154,12 +154,56 @@ seafile_list_dir_by_path(const char *commit_id, const char *path, GError **error
     res = g_list_reverse (res);
 
  out:
-    
+
     g_free (p);
     seaf_commit_unref (commit);
     return res;
 }
 
+char *
+seafile_get_dirid_by_path(const char *commit_id, const char *path, GError **error)
+{
+    char *res = NULL;
+    if (!commit_id || !path) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Args can't be NULL");
+        return NULL;
+    }
+
+    SeafCommit *commit;
+    commit = seaf_commit_manager_get_commit(seaf->commit_mgr, commit_id);
+
+    if (!commit) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_COMMIT, "No such commit");
+        return NULL;
+    }
+
+    char *p = g_strdup(path);
+    int len = strlen(p);
+
+    /* strip trailing backslash */
+    while (len > 0 && p[len-1] == '/') {
+        p[len-1] = '\0';
+        len--;
+    }
+
+    SeafDir *dir;
+    dir = seaf_fs_manager_get_seafdir_by_path (seaf->fs_mgr, commit->root_id,
+                                               p, error);
+    if (!dir) {
+        seaf_warning ("Can't find seaf dir for %s\n", path);
+        goto out;
+    }
+
+    res = g_strdup (dir->dir_id);
+    seaf_dir_free (dir);
+
+ out:
+
+    g_free (p);
+    seaf_commit_unref (commit);
+    return res;
+}
 
 /*
  * RPC functions only available for clients.
@@ -192,7 +236,7 @@ seafile_get_config (const char *key, GError **error)
 }
 
 #if 0
-const gchar* 
+const gchar*
 seafile_create_repo (const char *name,
                      const char *description,
                      const char *worktree,
@@ -274,7 +318,7 @@ seafile_create_repo (const char *name,
     /* Publish a message, for applet to notify in the system tray */
     GString *buf = g_string_new (NULL);
     g_string_append_printf (buf, "%s\t%s", (char *)worktree, repo->id);
-        
+
     seaf_mq_manager_publish_notification (seaf->mq_mgr,
                                           "repo.created",
                                           buf->str);
@@ -285,8 +329,8 @@ seafile_create_repo (const char *name,
 #endif
 
 int
-seafile_edit_repo (const char *repo_id, 
-                   const char *name, 
+seafile_edit_repo (const char *repo_id,
+                   const char *name,
                    const char *description,
                    GError **error)
 {
@@ -339,7 +383,7 @@ seafile_edit_repo (const char *repo_id,
 
     repo->name = g_strdup (name);
     repo->desc = g_strdup (description);
-    
+
     g_free (orig_name);
     g_free (orig_desc);
     seaf_commit_unref (commit);
@@ -591,7 +635,7 @@ seafile_checkout (const char *repo_id,
     }
 
     if (repo->encrypted) {
-        if (repo->enc_version >= 1 && 
+        if (repo->enc_version >= 1 &&
             seaf_repo_verify_passwd (repo, passwd) < 0) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Incorrect password");
             return -1;
@@ -683,7 +727,7 @@ seafile_gen_default_worktree (const char *worktree_parent,
 }
 
 char *
-seafile_clone (const char *repo_id, 
+seafile_clone (const char *repo_id,
                const char *relay_id,
                const char *repo_name,
                const char *worktree,
@@ -853,7 +897,7 @@ GObject *
 seafile_get_repo_sync_info (const char *repo_id, GError **error)
 {
     SyncInfo *info;
-    
+
     info = seaf_sync_manager_get_sync_info (seaf->sync_mgr, repo_id);
     if (!info)
         return NULL;
@@ -868,7 +912,7 @@ seafile_get_repo_sync_info (const char *repo_id, GError **error)
                           "need_merge", info->need_merge,
                           /* "last_sync_time", info->last_sync_time,  */
                           NULL);
-    
+
     return (GObject *)sinfo;
 }
 
@@ -881,7 +925,7 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
         return NULL;
 
     SyncTask *task = info->current_task;
-    
+
     SeafileSyncTask *s_task;
     s_task = g_object_new (SEAFILE_TYPE_SYNC_TASK,
                            "is_sync_lan", task->is_sync_lan,
@@ -892,7 +936,7 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
                            "dest_id", task->dest_id,
                            "repo_id", info->repo_id,
                            NULL);
-    
+
     return (GObject *)s_task;
 }
 
@@ -924,7 +968,7 @@ seafile_get_sync_task_list (GError **error)
                                NULL);
         task_list = g_list_prepend (task_list, s_task);
     }
-        
+
     return task_list;
 }
 
@@ -942,7 +986,7 @@ seafile_set_repo_property (const char *repo_id,
         return -1;
     }
 
-    SeafRepo *repo;    
+    SeafRepo *repo;
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_REPO, "Can't find Repo %s", repo_id);
@@ -952,7 +996,7 @@ seafile_set_repo_property (const char *repo_id,
     ret = seaf_repo_manager_set_repo_property (seaf->repo_mgr,
                                                repo->id, key, value);
     if (ret < 0) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, 
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
                      "Failed to set key for repo %s", repo_id);
         return -1;
     }
@@ -972,7 +1016,7 @@ seafile_get_repo_property (const char *repo_id,
         return NULL;
     }
 
-    SeafRepo *repo;    
+    SeafRepo *repo;
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_REPO, "Can't find Repo %s", repo_id);
@@ -1061,7 +1105,7 @@ seafile_diff (const char *repo_id, const char *arg1, const char *arg2, GError **
 #ifdef SEAFILE_SERVER
     seaf_repo_unref (repo);
 #endif
-    
+
     for (p = diff_entries; p != NULL; p = p->next) {
         DiffEntry *de = p->data;
         SeafileDiffEntry *entry = g_object_new (
@@ -1123,7 +1167,7 @@ seafile_branch_gets (const char *repo_id, GError **error)
     for (ptr = blist; ptr; ptr=ptr->next) {
         SeafBranch *b = ptr->data;
         SeafileBranch *branch = seafile_branch_new ();
-        g_object_set (branch, "repo_id", b->repo_id, "name", b->name, 
+        g_object_set (branch, "repo_id", b->repo_id, "name", b->name,
                       "commit_id", b->commit_id, NULL);
         ret = g_list_prepend (ret, branch);
         seaf_branch_unref (b);
@@ -1171,8 +1215,8 @@ seafile_get_repo (const char *repo_id, GError **error)
 #endif
 
     SeafileRepo *repo = seafile_repo_new ();
-    g_object_set (repo, "id", r->id, "name", r->name, 
-                  "desc", r->desc, "encrypted", r->encrypted, 
+    g_object_set (repo, "id", r->id, "name", r->name,
+                  "desc", r->desc, "encrypted", r->encrypted,
                   "head_branch", r->head ? r->head->name : NULL,
                   "head_cmmt_id", r->head ? r->head->commit_id : NULL,
                   NULL);
@@ -1232,7 +1276,7 @@ seafile_get_commit (const gchar *id, GError **error)
     c = seaf_commit_manager_get_commit (seaf->commit_mgr, id);
     if (!c)
         return NULL;
-    
+
     commit = convert_to_seafile_commit (c);
     seaf_commit_unref (c);
     return (GObject *)commit;
@@ -1280,7 +1324,7 @@ get_commit (SeafCommit *c, void *data, gboolean *stop)
 
 
 GList*
-seafile_get_commit_list (const char *repo_id, 
+seafile_get_commit_list (const char *repo_id,
                          int offset,
                          int limit,
                          GError **error)
@@ -1456,7 +1500,7 @@ seafile_get_repo_owner (const char *repo_id, GError **error)
 
     return owner;
 }
-                        
+
 
 GList *
 seafile_list_owned_repos (const char *email, GError **error)
@@ -1471,7 +1515,7 @@ seafile_list_owned_repos (const char *email, GError **error)
     while (ptr) {
         r = ptr->data;
         repo = seafile_repo_new ();
-        g_object_set (repo, "id", r->id, "name", r->name, 
+        g_object_set (repo, "id", r->id, "name", r->name,
                       "desc", r->desc, "encrypted", r->encrypted, NULL);
         ret = g_list_prepend (ret, repo);
         seaf_repo_unref (r);
@@ -1568,7 +1612,7 @@ seafile_set_monitor (const char *monitor_id, GError **error)
         return -1;
     }
     g_object_unref (peer);
-    
+
     if (seafile_session_set_monitor (seaf, monitor_id) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Failed to set monitor to %s",
                      monitor_id);
@@ -1624,7 +1668,7 @@ seafile_server_repo_size(const char *repo_id, GError **error)
 
 int
 seafile_repo_set_access_property (const char *repo_id, const char *ap, GError **error)
-{    
+{
     int ret;
 
     if (!repo_id) {
@@ -1655,7 +1699,7 @@ char *
 seafile_repo_query_access_property (const char *repo_id, GError **error)
 {
     char *ret;
-    
+
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
         return NULL;
@@ -1701,9 +1745,9 @@ seafile_web_query_access_token (const char *token, GError **error)
 
     webaccess = seaf_web_at_manager_query_access_token (seaf->web_at_mgr,
                                                         token);
-    if (webaccess) 
+    if (webaccess)
         return (GObject *)webaccess;
-    
+
     return NULL;
 }
 
@@ -1723,7 +1767,7 @@ seafile_add_share (const char *repo_id, const char *from_email,
                      "Can not share repo to myself");
         return -1;
     }
-    
+
     ret = seaf_share_manager_add_share (seaf->share_mgr, repo_id, from_email,
                                         to_email, permission);
 
@@ -1738,7 +1782,7 @@ seafile_list_share_repos (const char *email, const char *type,
     GList *shareRepoInfos, *ptr;
     ShareRepoInfo *repoInfo;
     SeafileRepo *repo;
-    
+
     if (g_strcmp0 (type, "from_email") != 0 &&
         g_strcmp0 (type, "to_email") != 0 ) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
@@ -1755,7 +1799,7 @@ seafile_list_share_repos (const char *email, const char *type,
         repoInfo = ptr->data;
         repo = seafile_repo_new ();
         g_object_set (repo, "id", repoInfo->repo->id,
-                      "name", repoInfo->repo->name, 
+                      "name", repoInfo->repo->name,
                       "desc", repoInfo->repo->desc,
                       "encrypted", repoInfo->repo->encrypted,
                       "shared_email", repoInfo->email, NULL);
@@ -1767,7 +1811,7 @@ seafile_list_share_repos (const char *email, const char *type,
     }
     g_list_free (shareRepoInfos);
     ret = g_list_reverse (ret);
-    
+
     return ret;
 }
 
@@ -1781,7 +1825,7 @@ seafile_remove_share (const char *repo_id, const char *from_email,
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Missing args");
         return -1;
     }
-    
+
     ret = seaf_share_manager_remove_share (seaf->share_mgr, repo_id, from_email,
                                            to_email);
 
@@ -1825,7 +1869,7 @@ seafile_group_unshare_repo (const char *repo_id, int group_id,
                                           error);
 
     return ret;
-    
+
 }
 
 char *
@@ -1864,7 +1908,7 @@ seafile_get_group_my_share_repos (char *username, GError **error)
                      "user name can not be NULL");
         return NULL;
     }
-    
+
     ret = seaf_repo_manager_get_group_my_share_repos (mgr, username,
                                                       error);
     if (!ret) {
@@ -1908,7 +1952,7 @@ seafile_get_org_repo_list (int org_id, int start, int limit, GError **error)
 {
     GList *repos = NULL;
     GList *ret = NULL;
-    
+
     if (org_id < 0 || start < 0 || limit < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
         return NULL;
@@ -1949,7 +1993,7 @@ seafile_get_file_size (const char *file_id, GError **error)
                      "File id can not be NULL");
         return -1;
     }
-    
+
     file = seaf_fs_manager_get_seafile (seaf->fs_mgr, file_id);
     if (!file) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
@@ -1957,7 +2001,7 @@ seafile_get_file_size (const char *file_id, GError **error)
         seafile_unref (file);
         return -1;
     }
-    
+
     file_size = file->file_size;
 
     seafile_unref (file);
@@ -2225,7 +2269,7 @@ seafile_create_repo (const char *repo_name,
         g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Argument should not be null");
         return NULL;
     }
-    
+
     char *repo_id;
 
     repo_id = seaf_repo_manager_create_new_repo (seaf->repo_mgr,
@@ -2247,7 +2291,7 @@ seafile_create_org_repo (const char *repo_name,
         g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Bad arguments");
         return NULL;
     }
-    
+
     char *repo_id;
 
     repo_id = seaf_repo_manager_create_org_repo (seaf->repo_mgr,
@@ -2255,7 +2299,7 @@ seafile_create_org_repo (const char *repo_name,
                                                  user, passwd,
                                                  org_id, error);
     return repo_id;
-    
+
 }
 
 int
@@ -2338,7 +2382,7 @@ seafile_get_file_by_path (const char *repo_id, const char *path,
     SeafRepo *repo = NULL;
     SeafCommit *commit = NULL;
     char *file_id = NULL;
-    
+
     if (!repo_id || !path) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Bad arguments");
@@ -2362,7 +2406,7 @@ seafile_get_file_by_path (const char *repo_id, const char *path,
 
     file_id = seaf_fs_manager_path_to_file_id (seaf->fs_mgr, commit->root_id,
                                               path, error);
-    
+
 out:
     if (repo)
         seaf_repo_unref (repo);
@@ -2441,7 +2485,7 @@ seafile_set_repo_token (const char *repo_id,
     ret = seaf_repo_manager_set_repo_token (seaf->repo_mgr,
                                             repo_id, email, token);
     if (ret < 0) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, 
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
                      "Failed to set token for repo %s", repo_id);
         return -1;
     }
@@ -2450,7 +2494,7 @@ seafile_set_repo_token (const char *repo_id,
 }
 
 char *
-seafile_get_repo_token_nonnull (const char *repo_id, 
+seafile_get_repo_token_nonnull (const char *repo_id,
                                 const char *email,
                                 GError **error)
 {

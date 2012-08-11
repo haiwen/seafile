@@ -79,6 +79,11 @@ class SeafileRpcClient(ccnet.RpcClientBase):
         pass
     list_dir_by_path = seafile_list_dir_by_path
 
+    @searpc_func("string", ["string", "string"])
+    def seafile_get_dirid_by_path(commit_id, path):
+        pass
+    get_dirid_by_path = seafile_get_dirid_by_path
+
     @searpc_func("objlist", ["string"])
     def seafile_branch_gets(repo_id):
         pass
@@ -389,6 +394,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_list_dir_by_path(commit_id, path):
         pass
     list_dir_by_path = seafile_list_dir_by_path
+
+    @searpc_func("string", ["string", "string"])
+    def seafile_get_dirid_by_path(commit_id, path):
+        pass
+    get_dirid_by_path = seafile_get_dirid_by_path
 
     @searpc_func("string", ["string", "string"])
     def seafile_get_file_by_path(repo_id, path):
