@@ -17,6 +17,9 @@ void show_warning(const char *title, const char *fmt, ...);
 
 void shutdown_process(const char *name);
 
+int is_process_already_running(const char *name);
+
+
 int msgbox_yes_or_no (char *format, ...);
 
 gboolean trayicon_do_rotate (void);

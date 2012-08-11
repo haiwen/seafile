@@ -36,7 +36,7 @@ void show_warning(const char *title, const char *fmt, ...)
 
     NSString *t = [[NSString alloc] initWithUTF8String:title?title:APP_NAME];
     NSString *msg = [[NSString alloc] initWithUTF8String:buf];
-    NSAlert *alert= [NSAlert alertWithMessageText:t defaultButton:@"OK" alternateButton:nil otherButton:nil informativeTextWithFormat:msg];
+    NSAlert *alert= [NSAlert alertWithMessageText:t defaultButton:@"OK" alternateButton:nil otherButton:nil informativeTextWithFormat:@"%@", msg];
     [alert runModal];
     [t release];
     [msg release];
@@ -44,7 +44,7 @@ void show_warning(const char *title, const char *fmt, ...)
 
 int msgbox_yes_or_no (char *format, ...)
 {
-    int ret;
+    NSInteger ret;
     va_list params;
     char buf[2048];
 
@@ -53,7 +53,7 @@ int msgbox_yes_or_no (char *format, ...)
     va_end(params);
     NSString *msg = [[NSString alloc] initWithUTF8String:buf];
 
-    NSAlert *alert= [NSAlert alertWithMessageText:@"Seafile" defaultButton:@"YES" alternateButton:@"NO" otherButton:nil informativeTextWithFormat:msg];
+    NSAlert *alert= [NSAlert alertWithMessageText:@"Seafile" defaultButton:@"YES" alternateButton:@"NO" otherButton:nil informativeTextWithFormat:@"%@", msg];
 
     ret = [alert runModal];
     if (ret == NSAlertDefaultReturn) {
@@ -164,6 +164,7 @@ int start_web_server(void)
     [delegate setWebtask:task];
 
 #else
+    NSLog (@" start web server ...\n");
     NSString *path = [[NSBundle mainBundle] pathForResource:@"ccnetweb.app" ofType:nil];
     if ([[NSWorkspace sharedWorkspace] respondsToSelector:@selector(launchApplicationAtURL:options:configuration:error:)]) {
         // As recommended for OS X >= 10.6.
@@ -316,7 +317,7 @@ static int GetBSDProcessList(kinfo_proc **procList, size_t *procCount) {
     return err;
 }
 
-static int getBSDProcessPid(const char *name)
+static int getBSDProcessPid(const char *name, int except_pid)
 {
     int pid = 0;
     struct kinfo_proc *mylist = NULL;
@@ -324,7 +325,8 @@ static int getBSDProcessPid(const char *name)
     GetBSDProcessList(&mylist, &mycount);
     for(int k = 0; k < mycount; k++) {
         kinfo_proc *proc =  &mylist[k];
-        if (strcmp(proc->kp_proc.p_comm, name) == 0){
+        if (proc->kp_proc.p_pid != except_pid
+            && strcmp(proc->kp_proc.p_comm, name) == 0){
             pid = proc->kp_proc.p_pid;
             break;
         }
@@ -334,9 +336,16 @@ static int getBSDProcessPid(const char *name)
 }
 
 void shutdown_process(const char *name) {
-    int pid = getBSDProcessPid(name);
+    int pid = getBSDProcessPid(name, 0);
     if (pid)
         kill(pid, SIGINT);
+}
+
+int is_process_already_running(const char *name) {
+    int pid = getBSDProcessPid(name, getpid());
+    if (pid)
+        return YES;
+    return NO;
 }
 
 int stop_web_server(void)
@@ -472,16 +481,20 @@ void add_client_fd_to_mainloop (void) {
                                                  readCB,
                                                  NULL);
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    [delegate setSock:child];
+
     CFRunLoopSourceRef childSource = CFSocketCreateRunLoopSource(NULL, child, 0);
-    CFRunLoopRef loop = CFRunLoopGetCurrent();
-    CFRunLoopAddSource(loop, childSource, kCFRunLoopDefaultMode);
-    CFRelease(childSource);
+    delegate->loop = CFRunLoopGetCurrent();
+    CFRunLoopAddSource(delegate->loop, childSource, kCFRunLoopDefaultMode);
+    [delegate setSock:childSource];
 }
 
 void rm_client_fd_from_mainloop (void) {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    CFRelease([delegate sock]);
+    if (delegate.sock) {
+        CFRunLoopRemoveSource (delegate->loop, delegate.sock, kCFRunLoopDefaultMode);
+        CFRelease([delegate sock]);
+        delegate.sock = nil;
+    }
 }
 
 void on_quit (void) {

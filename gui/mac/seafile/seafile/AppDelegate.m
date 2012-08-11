@@ -486,6 +486,8 @@ create_repo_cb (void *vresult, void *vdata, GError *error) {
 }
 
 -(IBAction)restart:(id)sender {
+    [openBrowerItem setEnabled:NO];
+    [restartItem setEnabled:NO];
     restart_all();
 }
 
@@ -542,6 +544,9 @@ create_repo_cb (void *vresult, void *vdata, GError *error) {
         return;
     }
     inited = 1;
+    if (is_process_already_running("seafile"))
+        [[NSApplication sharedApplication] terminate:[[NSApplication sharedApplication] delegate]];
+
     statusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:NSSquareStatusItemLength] retain];
 
     NSBundle *bundle = [NSBundle mainBundle];
@@ -562,7 +567,6 @@ create_repo_cb (void *vresult, void *vdata, GError *error) {
     [statusItem setHighlightMode:YES];
 
     [openBrowerItem setEnabled:NO];
-    [restartItem setEnabled:NO];
     [createRepItem setEnabled:NO];
 }
 
@@ -604,8 +608,8 @@ create_repo_cb (void *vresult, void *vdata, GError *error) {
     int more = connect_to_server(NULL);
     if (!more) {
         [timer invalidate];
-        [restartItem setEnabled:YES];
     }
+    [restartItem setEnabled:YES];
 }
 
 - (void) add_conn_server_timer:(int) timeout_ms {

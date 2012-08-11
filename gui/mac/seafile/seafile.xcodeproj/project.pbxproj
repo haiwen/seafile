@@ -319,7 +319,7 @@
 		57BE9FD01599E33B008B639C /* libz.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libz.1.dylib; sourceTree = "<group>"; };
 		57BE9FDB1599F6A4008B639C /* ccnet.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = ccnet.icns; sourceTree = "<group>"; };
 		57DE0AC215A98E0E006C0152 /* seafile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = seafile.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		57DE0B0B15A9AA89006C0152 /* seafile-10.6-debug.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "seafile-10.6-debug.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		57DE0B0B15A9AA89006C0152 /* seafile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = seafile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		57F70506158321D100C65071 /* platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
 		57F739F91570A10C00C06653 /* applet-common.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "applet-common.c"; path = "../../common/applet-common.c"; sourceTree = "<group>"; };
 		57F739FA1570A10C00C06653 /* applet-common.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "applet-common.h"; path = "../../common/applet-common.h"; sourceTree = "<group>"; };
@@ -509,7 +509,7 @@
 				577BBD381562815F00FD577C /* seafile.app */,
 				579F9C221588F92500570010 /* seafile.app */,
 				57DE0AC215A98E0E006C0152 /* seafile.app */,
-				57DE0B0B15A9AA89006C0152 /* seafile-10.6-debug.app */,
+				57DE0B0B15A9AA89006C0152 /* seafile.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -631,7 +631,7 @@
 			);
 			name = "seafile-10.6-debug";
 			productName = seafile;
-			productReference = 57DE0B0B15A9AA89006C0152 /* seafile-10.6-debug.app */;
+			productReference = 57DE0B0B15A9AA89006C0152 /* seafile.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -640,7 +640,7 @@
 		577BBD2F1562815E00FD577C /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0430;
+				LastUpgradeCheck = 0440;
 				ORGANIZATIONNAME = tsinghua;
 			};
 			buildConfigurationList = 577BBD321562815E00FD577C /* Build configuration list for PBXProject "seafile" */;
@@ -1006,6 +1006,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -1046,6 +1047,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
 				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
@@ -1082,6 +1084,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
@@ -1119,6 +1122,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
 				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
@@ -1155,6 +1159,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
@@ -1195,6 +1200,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
 				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
@@ -1234,6 +1240,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
 				GCC_PREPROCESSOR_DEFINITIONS = (
@@ -1264,7 +1271,7 @@
 				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				ONLY_ACTIVE_ARCH = NO;
-				PRODUCT_NAME = "seafile-10.6-debug";
+				PRODUCT_NAME = seafile;
 				PUBLIC_HEADERS_FOLDER_PATH = "seafile-release-10.6-Info.plist";
 				SDKROOT = macosx;
 				USER_HEADER_SEARCH_PATHS = .;
@@ -1277,6 +1284,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				COMBINE_HIDPI_IMAGES = YES;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "seafile/seafile-Prefix.pch";
 				GCC_WARN_ABOUT_MISSING_FIELD_INITIALIZERS = YES;
@@ -1303,7 +1311,7 @@
 				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_NAME = "seafile-10.6-debug";
+				PRODUCT_NAME = seafile;
 				PUBLIC_HEADERS_FOLDER_PATH = "seafile-release-10.6-Info.plist";
 				SDKROOT = macosx;
 				USER_HEADER_SEARCH_PATHS = .;

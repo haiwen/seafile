@@ -12,6 +12,7 @@
     IBOutlet NSMenu *statusMenu;
     
     @public
+    CFRunLoopRef loop;
     NSImage *statusImage[2];
     NSImage *transferImage[4];
     NSImage *warningImage;
@@ -21,7 +22,7 @@
 
 @property (retain) NSTask *task;
 @property (retain) NSTask *webtask;
-@property CFSocketRef sock;
+@property CFRunLoopSourceRef sock;
 @property (retain) NSStatusItem *statusItem;
 
 @property (assign) IBOutlet NSTextFieldCell *bubbleTitle;
