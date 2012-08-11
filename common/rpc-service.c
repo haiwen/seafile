@@ -2149,6 +2149,25 @@ seafile_post_dir (const char *repo_id, const char *parent_dir,
 }
 
 int
+seafile_post_empty_file (const char *repo_id, const char *parent_dir,
+                         const char *new_file_name, const char *user,
+                         GError **error)
+{
+    if (!repo_id || !parent_dir || !new_file_name || !user) {
+        g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+
+    if (seaf_repo_manager_post_empty_file (seaf->repo_mgr, repo_id,
+                                           parent_dir, new_file_name,
+                                           user, error) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int
 seafile_del_file (const char *repo_id, const char *parent_dir,
                   const char *file_name, const char *user,
                   GError **error)

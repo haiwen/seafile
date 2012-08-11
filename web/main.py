@@ -696,7 +696,7 @@ class open_local_file:
             return '%s(%s)' % (inputs.callback, json.dumps(d))
         else:
             if not repo:
-                d['exists'] = false
+                d['exists'] = False
                 return '%s(%s)' % (inputs.callback, json.dumps(d))
             
         # ok, repo exists

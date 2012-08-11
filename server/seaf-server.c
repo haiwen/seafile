@@ -193,6 +193,11 @@ static void start_rpc_service (CcnetClient *client)
                     searpc_signature_int__string_string_string_string_string());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_post_empty_file,
+                                     "seafile_post_empty_file",
+                        searpc_signature_int__string_string_string_string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_post_dir,
                                      "seafile_post_dir",
                         searpc_signature_int__string_string_string_string());

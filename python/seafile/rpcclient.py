@@ -345,6 +345,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     post_dir = seafile_post_dir 
 
+    @searpc_func("int", ["string", "string", "string", "string"])
+    def seafile_post_empty_file(repo_id, parent_dir, new_dir_name, user):
+        pass
+    post_empty_file = seafile_post_empty_file
+
     @searpc_func("int", ["string", "string", "string", "string", "string"])
     def seafile_put_file(repo_id, tmp_file_path, parent_dir, filename, user):
         pass

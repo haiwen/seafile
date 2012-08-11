@@ -2387,6 +2387,80 @@ out:
     return ret;
 }
 
+int
+seaf_repo_manager_post_empty_file (SeafRepoManager *mgr,
+                                   const char *repo_id,
+                                   const char *parent_dir,
+                                   const char *new_file_name,
+                                   const char *user,
+                                   GError **error)
+{
+    SeafRepo *repo = NULL;
+    SeafCommit *new_commit = NULL, *head_commit = NULL;
+    char *canon_path = NULL;
+    char buf[PATH_MAX];
+    char *root_id = NULL;
+    SeafDirent *new_dent = NULL;
+    int ret = 0;
+
+retry:
+    GET_REPO_OR_FAIL(repo, repo_id);
+    GET_COMMIT_OR_FAIL(head_commit, repo->head->commit_id);
+
+    if (!canon_path)
+        /* no need to call get_canonical_path again when retry */
+        canon_path = get_canonical_path (parent_dir);
+
+    FAIL_IF_FILE_EXISTS(head_commit->root_id, canon_path, new_file_name, NULL);
+
+    if (!new_dent) {
+        new_dent = seaf_dirent_new (EMPTY_SHA1, S_IFREG, new_file_name);
+    }
+
+    root_id = do_post_file (head_commit->root_id, canon_path, new_dent);
+    if (!root_id) {
+        seaf_warning ("[put dir] Failed to put dir.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to put dir");
+        ret = -1;
+        goto out;
+    }
+
+    /* Commit. */
+    snprintf(buf, PATH_MAX, "Added \"%s\"", new_file_name);
+    GEN_NEW_COMMIT(repo, root_id, user, buf);
+
+    if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
+                                                   repo->head,
+                                                   head_commit->commit_id) < 0)
+    {
+        seaf_warning ("[post dir] Concurrent branch update, retry.\n");
+        seaf_repo_unref (repo);
+        seaf_commit_unref (head_commit);
+        seaf_commit_unref (new_commit);
+        g_free (root_id);
+        g_free (canon_path);
+        repo = NULL;
+        head_commit = new_commit = NULL;
+        root_id = canon_path = NULL;
+        goto retry;
+    }
+
+out:
+    if (repo)
+        seaf_repo_unref (repo);
+    if (head_commit)
+        seaf_commit_unref(head_commit);
+    if (new_commit)
+        seaf_commit_unref(new_commit);
+    if (new_dent)
+        g_free (new_dent);
+    g_free (root_id);
+    g_free (canon_path);
+
+    return ret;
+}
+
 static char *
 rename_file_recursive(const char *dir_id,
                       const char *to_path,

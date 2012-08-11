@@ -562,6 +562,10 @@ seafile_post_file (const char *repo_id, const char *temp_file_path,
                   const char *user,
                   GError **error);
 
+int
+seafile_post_empty_file (const char *repo_id, const char *parent_dir,
+                         const char *new_file_name, const char *user,
+                         GError **error);
 
 /**
  * Update an existing file in a repo
