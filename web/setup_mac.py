@@ -13,7 +13,7 @@ import shutil
 
 from setuptools import setup
 
-targetfile = "ccnetweb.py"
+targetfile = "seafileweb.py"
 
 APP = [targetfile]
 DATA_FILES = []
@@ -21,14 +21,14 @@ PACKAGES = []
 INCLUDES = ["utils"]
 EXCLUDES = ["local_settings"]
 PLIST = {"LSBackgroundOnly":True,
-         "CFBundleIdentifier":"seafile.ccnetweb",
+         "CFBundleIdentifier":"seafile.seafileweb",
          "NSHumanReadableCopyright":u"Copyright © 2012 海文互知. All rights reserved.",
          "CFBundleVersion":"0.9.4"}
 OPTIONS = {"argv_emulation": True, "packages":PACKAGES, "includes":INCLUDES,
            "excludes":EXCLUDES, "plist":PLIST }
 
 
-destdir = "dist/ccnetweb.app/Contents/Resources/"
+destdir = "dist/seafileweb.app/Contents/Resources/"
 
 try:
     shutil.rmtree("dist")

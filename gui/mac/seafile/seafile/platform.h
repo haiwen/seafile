@@ -9,7 +9,7 @@
 #ifndef seafile_platform_h
 #define seafile_platform_h
 
-#define CCNETWEBBUNDLE @"seafile.ccnetweb"
+#define SEAFILEWEBBUNDLE @"seafile.seafileweb"
 #define NS_SEAF_HTTP_ADDR @"127.0.0.1:13420"
 
 

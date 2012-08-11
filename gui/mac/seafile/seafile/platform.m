@@ -165,7 +165,7 @@ int start_web_server(void)
 
 #else
     NSLog (@" start web server ...\n");
-    NSString *path = [[NSBundle mainBundle] pathForResource:@"ccnetweb.app" ofType:nil];
+    NSString *path = [[NSBundle mainBundle] pathForResource:@"seafileweb.app" ofType:nil];
     if ([[NSWorkspace sharedWorkspace] respondsToSelector:@selector(launchApplicationAtURL:options:configuration:error:)]) {
         // As recommended for OS X >= 10.6.
         NSURL *url = [NSURL fileURLWithPath:path isDirectory:NO];
@@ -217,7 +217,7 @@ static NSDictionary *getInfoWithBundleId(NSString *bundleId) {
         err = GetNextProcess(&psn);
         if (!err) {
             info = (NSDictionary *)ProcessInformationCopyDictionary(&psn, kProcessDictionaryIncludeAllInformationMask);
-            foundApp = [CCNETWEBBUNDLE isEqual:[info objectForKey:(NSString *)kCFBundleIdentifierKey]];
+            foundApp = [SEAFILEWEBBUNDLE isEqual:[info objectForKey:(NSString *)kCFBundleIdentifierKey]];
             if (foundApp) {
                 return info;
             }
@@ -358,7 +358,7 @@ int stop_web_server(void)
         [task terminate];
     [delegate setWebtask:NULL];
 #else
-    shutdown_process("ccnetweb");
+    shutdown_process("seafileweb");
     applet->web_status = WEB_NOT_STARTED;
 #endif
 

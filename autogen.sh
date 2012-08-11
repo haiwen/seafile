@@ -5,7 +5,11 @@
 : ${AUTOHEADER=autoheader}
 : ${AUTOMAKE=automake}
 : ${ACLOCAL=aclocal}
-: ${LIBTOOLIZE=libtoolize}
+if test "${TERM_PROGRAM}" != "Apple_Terminal" ; then
+    : ${LIBTOOLIZE=libtoolize}
+else
+    : ${LIBTOOLIZE=glibtoolize}
+fi
 : ${INTLTOOLIZE=intltoolize}
 : ${LIBTOOL=libtool}
 
@@ -109,10 +113,8 @@ test -r $dr/aclocal.m4 && chmod u+w $dr/aclocal.m4
 echo "Running intltoolize..."
 intltoolize --copy --force --automake
 
-if test "${TERM_PROGRAM}" != "Apple_Terminal" ; then
-  echo "Running $LIBTOOLIZE..."
-  $LIBTOOLIZE --force --copy
-fi
+echo "Running $LIBTOOLIZE..."
+$LIBTOOLIZE --force --copy
 
 echo "Running $ACLOCAL $aclocalinclude ..."
 $ACLOCAL $aclocalinclude

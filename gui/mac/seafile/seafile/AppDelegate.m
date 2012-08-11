@@ -87,7 +87,7 @@ create_repo_cb (void *vresult, void *vdata, GError *error) {
 
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
-    shutdown_process ("ccnetweb");
+    shutdown_process ("seafileweb");
     shutdown_process ("ccnet");
 
     g_type_init();

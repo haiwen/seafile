@@ -8,6 +8,10 @@
 
 /* Begin PBXBuildFile section */
 		5715F1D8158C233900CA822C /* seafile-release-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5715F1D7158C233900CA822C /* seafile-release-Info.plist */; };
+		57266B8F15D6A0B6000AD014 /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 57266B8E15D6A0B6000AD014 /* seafileweb.app */; };
+		57266B9015D6A0B6000AD014 /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 57266B8E15D6A0B6000AD014 /* seafileweb.app */; };
+		57266B9115D6A0B6000AD014 /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 57266B8E15D6A0B6000AD014 /* seafileweb.app */; };
+		57266B9215D6A0B6000AD014 /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 57266B8E15D6A0B6000AD014 /* seafileweb.app */; };
 		5743817F159B0399003DECFB /* seafilefolder.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5743817E159B0399003DECFB /* seafilefolder.icns */; };
 		57438180159B0399003DECFB /* seafilefolder.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5743817E159B0399003DECFB /* seafilefolder.icns */; };
 		57438182159B249D003DECFB /* seafilerepo.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57438181159B249D003DECFB /* seafilerepo.icns */; };
@@ -26,7 +30,6 @@
 		575BD52E158D021400F6C6A7 /* network-rotate4.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD523158D021400F6C6A7 /* network-rotate4.png */; };
 		575BD52F158D021400F6C6A7 /* network-up.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD524158D021400F6C6A7 /* network-up.png */; };
 		575BD530158D021400F6C6A7 /* network-up.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD524158D021400F6C6A7 /* network-up.png */; };
-		5763F3E5158B0B34003CCFE7 /* ccnetweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E3158B0B34003CCFE7 /* ccnetweb.app */; };
 		5763F3E6158B0B34003CCFE7 /* libccnet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
 		5763F3F8158B0B48003CCFE7 /* libcrypto.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
 		5763F3F9158B0B48003CCFE7 /* libevent-2.0.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
@@ -91,7 +94,6 @@
 		5763F43A158B11D3003CCFE7 /* libsearpc.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
 		5763F43C158B11D3003CCFE7 /* libssl.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
 		5763F43D158B11D3003CCFE7 /* libuuid.16.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
-		5763F43F158B2994003CCFE7 /* ccnetweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E3158B0B34003CCFE7 /* ccnetweb.app */; };
 		577BBD3D1562815F00FD577C /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 577BBD3C1562815F00FD577C /* Cocoa.framework */; };
 		577BBD471562815F00FD577C /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD451562815F00FD577C /* InfoPlist.strings */; };
 		577BBD491562815F00FD577C /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD481562815F00FD577C /* main.m */; };
@@ -182,7 +184,6 @@
 		57DE0AB115A98E0E006C0152 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD511562815F00FD577C /* MainMenu.xib */; };
 		57DE0AB215A98E0E006C0152 /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5C415674C1800EAAC19 /* seaf-daemon */; };
 		57DE0AB315A98E0E006C0152 /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5CE15674C3300EAAC19 /* ccnet */; };
-		57DE0AB415A98E0E006C0152 /* ccnetweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E3158B0B34003CCFE7 /* ccnetweb.app */; };
 		57DE0AB515A98E0E006C0152 /* network-down.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD51F158D021400F6C6A7 /* network-down.png */; };
 		57DE0AB615A98E0E006C0152 /* network-rotate1.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD520158D021400F6C6A7 /* network-rotate1.png */; };
 		57DE0AB715A98E0E006C0152 /* network-rotate2.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD521158D021400F6C6A7 /* network-rotate2.png */; };
@@ -245,7 +246,6 @@
 		57DE0AFA15A9AA89006C0152 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD511562815F00FD577C /* MainMenu.xib */; };
 		57DE0AFB15A9AA89006C0152 /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5C415674C1800EAAC19 /* seaf-daemon */; };
 		57DE0AFC15A9AA89006C0152 /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5CE15674C3300EAAC19 /* ccnet */; };
-		57DE0AFD15A9AA89006C0152 /* ccnetweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E3158B0B34003CCFE7 /* ccnetweb.app */; };
 		57DE0AFE15A9AA89006C0152 /* network-down.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD51F158D021400F6C6A7 /* network-down.png */; };
 		57DE0AFF15A9AA89006C0152 /* network-rotate1.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD520158D021400F6C6A7 /* network-rotate1.png */; };
 		57DE0B0015A9AA89006C0152 /* network-rotate2.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD521158D021400F6C6A7 /* network-rotate2.png */; };
@@ -264,6 +264,7 @@
 
 /* Begin PBXFileReference section */
 		5715F1D7158C233900CA822C /* seafile-release-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "seafile-release-Info.plist"; sourceTree = "<group>"; };
+		57266B8E15D6A0B6000AD014 /* seafileweb.app */ = {isa = PBXFileReference; lastKnownFileType = wrapper.application; path = seafileweb.app; sourceTree = "<group>"; };
 		5743817E159B0399003DECFB /* seafilefolder.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = seafilefolder.icns; sourceTree = "<group>"; };
 		57438181159B249D003DECFB /* seafilerepo.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = seafilerepo.icns; sourceTree = "<group>"; };
 		57438184159B2CF3003DECFB /* warning.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = warning.png; sourceTree = "<group>"; };
@@ -273,7 +274,6 @@
 		575BD522158D021400F6C6A7 /* network-rotate3.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-rotate3.png"; sourceTree = "<group>"; };
 		575BD523158D021400F6C6A7 /* network-rotate4.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-rotate4.png"; sourceTree = "<group>"; };
 		575BD524158D021400F6C6A7 /* network-up.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-up.png"; sourceTree = "<group>"; };
-		5763F3E3158B0B34003CCFE7 /* ccnetweb.app */ = {isa = PBXFileReference; lastKnownFileType = wrapper.application; path = ccnetweb.app; sourceTree = "<group>"; };
 		5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libccnet.0.dylib; sourceTree = "<group>"; };
 		5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libcrypto.1.0.0.dylib; sourceTree = "<group>"; };
 		5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libevent-2.0.5.dylib"; sourceTree = "<group>"; };
@@ -469,8 +469,8 @@
 				577BBD421562815F00FD577C /* seafile */,
 				578FA5CE15674C3300EAAC19 /* ccnet */,
 				578FA5C415674C1800EAAC19 /* seaf-daemon */,
-				5763F3E3158B0B34003CCFE7 /* ccnetweb.app */,
 				5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */,
+				57266B8E15D6A0B6000AD014 /* seafileweb.app */,
 				5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */,
 				57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */,
 				57BE9FD01599E33B008B639C /* libz.1.dylib */,
@@ -689,7 +689,6 @@
 				577BBD531562815F00FD577C /* MainMenu.xib in Resources */,
 				578FA5CD15674C1800EAAC19 /* seaf-daemon in Resources */,
 				578FA5CF15674C3300EAAC19 /* ccnet in Resources */,
-				5763F3E5158B0B34003CCFE7 /* ccnetweb.app in Resources */,
 				5715F1D8158C233900CA822C /* seafile-release-Info.plist in Resources */,
 				575BD525158D021400F6C6A7 /* network-down.png in Resources */,
 				575BD527158D021400F6C6A7 /* network-rotate1.png in Resources */,
@@ -701,6 +700,7 @@
 				5743817F159B0399003DECFB /* seafilefolder.icns in Resources */,
 				57438182159B249D003DECFB /* seafilerepo.icns in Resources */,
 				57438185159B2CF3003DECFB /* warning.png in Resources */,
+				57266B8F15D6A0B6000AD014 /* seafileweb.app in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -729,7 +729,6 @@
 				579F9C141588F92500570010 /* MainMenu.xib in Resources */,
 				579F9C151588F92500570010 /* seaf-daemon in Resources */,
 				579F9C161588F92500570010 /* ccnet in Resources */,
-				5763F43F158B2994003CCFE7 /* ccnetweb.app in Resources */,
 				575BD526158D021400F6C6A7 /* network-down.png in Resources */,
 				575BD528158D021400F6C6A7 /* network-rotate1.png in Resources */,
 				575BD52A158D021400F6C6A7 /* network-rotate2.png in Resources */,
@@ -740,6 +739,7 @@
 				57438180159B0399003DECFB /* seafilefolder.icns in Resources */,
 				57438183159B249D003DECFB /* seafilerepo.icns in Resources */,
 				57438186159B2CF3003DECFB /* warning.png in Resources */,
+				57266B9015D6A0B6000AD014 /* seafileweb.app in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -768,7 +768,6 @@
 				57DE0AB115A98E0E006C0152 /* MainMenu.xib in Resources */,
 				57DE0AB215A98E0E006C0152 /* seaf-daemon in Resources */,
 				57DE0AB315A98E0E006C0152 /* ccnet in Resources */,
-				57DE0AB415A98E0E006C0152 /* ccnetweb.app in Resources */,
 				57DE0AB515A98E0E006C0152 /* network-down.png in Resources */,
 				57DE0AB615A98E0E006C0152 /* network-rotate1.png in Resources */,
 				57DE0AB715A98E0E006C0152 /* network-rotate2.png in Resources */,
@@ -779,6 +778,7 @@
 				57DE0ABC15A98E0E006C0152 /* seafilefolder.icns in Resources */,
 				57DE0ABD15A98E0E006C0152 /* seafilerepo.icns in Resources */,
 				57DE0ABE15A98E0E006C0152 /* warning.png in Resources */,
+				57266B9115D6A0B6000AD014 /* seafileweb.app in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -807,7 +807,6 @@
 				57DE0AFA15A9AA89006C0152 /* MainMenu.xib in Resources */,
 				57DE0AFB15A9AA89006C0152 /* seaf-daemon in Resources */,
 				57DE0AFC15A9AA89006C0152 /* ccnet in Resources */,
-				57DE0AFD15A9AA89006C0152 /* ccnetweb.app in Resources */,
 				57DE0AFE15A9AA89006C0152 /* network-down.png in Resources */,
 				57DE0AFF15A9AA89006C0152 /* network-rotate1.png in Resources */,
 				57DE0B0015A9AA89006C0152 /* network-rotate2.png in Resources */,
@@ -818,6 +817,7 @@
 				57DE0B0515A9AA89006C0152 /* seafilefolder.icns in Resources */,
 				57DE0B0615A9AA89006C0152 /* seafilerepo.icns in Resources */,
 				57DE0B0715A9AA89006C0152 /* warning.png in Resources */,
+				57266B9215D6A0B6000AD014 /* seafileweb.app in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

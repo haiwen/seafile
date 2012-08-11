@@ -117,7 +117,7 @@ if test "$bmac" = true; then
    AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
       [compile_server=$enableval],[compile_server="no"])
    
-  AC_ARG_ENABLE(httpserver, AC_HELP_STRING([--enable-httpserver], [enable httpserver]),
+   AC_ARG_ENABLE(httpserver, AC_HELP_STRING([--enable-httpserver], [enable httpserver]),
      [compile_httpserver=$enableval],[compile_httpserver="no"])
 
 fi

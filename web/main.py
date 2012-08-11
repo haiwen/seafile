@@ -86,7 +86,7 @@ default_options = { "confdir": CCNET_CONF_PATH,
 if not settings.DEBUG:
     # if not debug, print logs to file
     logdir = CCNET_CONF_PATH + os.sep + "logs" + os.sep
-    sys.stdout = open(logdir + "ccnetweb.log", "a")
+    sys.stdout = open(logdir + "seafileweb.log", "a")
     sys.stderr = sys.stdout
 
 
