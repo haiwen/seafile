@@ -47,7 +47,6 @@ urls = (
     '/settings/', 'settings_page',
     '/i18n/', 'i18n',
     '/seafile_access_check/', 'seafile_access_check',
-    '/repo-query/', 'seafile_repo_query',
     '/open-local-file/', 'open_local_file',
     )
 
@@ -671,53 +670,72 @@ class seafile_access_check:
     """
 
     def GET(self):
-        return 'xx(2)'
-
-class seafile_repo_query:
-    """
-    handle jsonp ajax cross domain request from seahub
-    """
-    def GET(self):
-        inputs = web.webapi.input(repo_id='', callback='callback')
-        repo_id = inputs.repo_id
-        exists = False
-        try:
-            repo = get_repo(repo_id)
-            if repo:
-                exists =True
-        except:
-            pass
-        d = {'exists':exists}
-        return '%s(%s)' % (inputs.callback, json.dumps(d))
+        # Changelog
+        # xx(1): before 0.9.5
+        # xx(2): redesign repo-download in 0.9.5
+        # xx(3): add open-local-file support
+        return 'xx(3)'
 
 class open_local_file:
     """
-    handle jsonp ajax cross domain request from seahub
+    handle jsonp ajax cross domain 'open-local-file' request from seahub
     """
     def GET(self):
-        inputs = web.webapi.input(repo_id='', path='', callback='callback')
-        repo_id, path = inputs.repo_id, inputs.path.lstrip('/')
-        repo = get_repo(repo_id)
+        inputs = web.webapi.input(repo_id='', path='', callback='')
+        repo_id, path, callback = inputs.repo_id, inputs.path.lstrip('/'), inputs.callback
+        
+        d = {}
+        if not (repo_id and path and callback):
+            d['error'] =  'invalid request'
+            return '%s(%s)' % (inputs.callback, json.dumps(d))
+    
+        try:
+            repo = get_repo(repo_id)
+        except Exception, e:
+            d['error'] = str(e)
+            return '%s(%s)' % (inputs.callback, json.dumps(d))
+        else:
+            if not repo:
+                d['exists'] = false
+                return '%s(%s)' % (inputs.callback, json.dumps(d))
+            
+        # ok, repo exists
         file_path = os.path.join(repo.worktree, path)
-
         uname = platform.platform()
+
+        err_msg = ''
         if 'Windows' in uname:
-            file_path = file_path.encode('gbk')
-            print file_path
-            # see http://superuser.com/questions/239565/can-i-use-the-start-command-with-spaces-in-the-path
-            os.system('start "" "%s"' % file_path)
+            try:
+                os.startfile(file_path)
+            except WindowsError, e:
+                if e.winerror == 1155:
+                    # windows error 1155: no default application for this file type
+                    d['no_assoc'] = True
+                    try:
+                        # try to open the folder instead
+                        os.startfile(os.path.dirname(file_path))
+                    except:
+                        pass
+                else:
+                    err_msg = str(e)
             
         elif 'Linux' in uname:
             file_path = file_path.encode('utf-8')
-            os.system('xdg-open \"%s\"' % file_path)
+            try:
+                os.system('xdg-open "%s"' % file_path)
+            except Exception, e:
+                err_msg = str(e)
             
         elif 'Darwin' in uname:
             # what to do in mac?
             file_path = file_path.encode('utf-8')
-            os.system('open \"%s\"' % file_path)
-            pass
+            try:
+                os.system('open "%s"' % file_path)
+            except Exception, e:
+                err_msg = str(e)
 
-        d = {'result':'ok'}
+        if err_msg:
+            d['error'] = err_msg
         return '%s(%s)' % (inputs.callback, json.dumps(d))
         
 if __name__ == "__main__":
