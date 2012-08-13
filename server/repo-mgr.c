@@ -2935,6 +2935,7 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
     gboolean write_blocks = TRUE;
     SeafDirent *new_dent = NULL;
     char hex[41];
+    char *old_file_id = NULL, *fullpath = NULL;
     int ret = 0;
 
     if (access (temp_file_path, R_OK) != 0) {
@@ -3000,6 +3001,18 @@ retry:
         new_dent = seaf_dirent_new (hex, S_IFREG, file_name);
     }
 
+    if (!fullpath)
+        fullpath = g_build_filename(parent_dir, file_name, NULL);
+
+    old_file_id = seaf_fs_manager_path_to_file_id (seaf->fs_mgr,
+                            head_commit->root_id, fullpath, NULL);
+
+    if (g_strcmp0(old_file_id, new_dent->id) == 0) {
+        seaf_message("[put file] new file is the same as new: %s\n", fullpath);
+        ret = 0;
+        goto out;
+    }
+
     root_id = do_put_file (head_commit->root_id, canon_path, new_dent);
     if (!root_id) {
         seaf_warning ("[put file] Failed to put file.\n");
@@ -3018,15 +3031,15 @@ retry:
                                                    head_commit->commit_id) < 0)
     {
         seaf_warning ("[put file] Concurrent branch update, retry.\n");
-        seaf_repo_unref (repo);
+        seaf_repo_unref (repo); repo = NULL;
         seaf_commit_unref (head_commit);
         seaf_commit_unref (new_commit);
-        g_free (root_id);
-        g_free (crypt);
-        repo = NULL;
         head_commit = new_commit = NULL;
-        root_id = NULL;
-        crypt = NULL;
+
+        g_free (root_id); root_id = NULL;
+        g_free (crypt); crypt = NULL;
+        g_free (old_file_id); old_file_id = NULL;
+
         write_blocks = FALSE;
         goto retry;
     }
@@ -3043,6 +3056,8 @@ out:
     g_free (root_id);
     g_free (canon_path);
     g_free (crypt);
+    g_free (old_file_id);
+    g_free (fullpath);
 
     return ret;
 }
