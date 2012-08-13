@@ -5,8 +5,8 @@
 #include "stdafx.h"
 #include <shellapi.h>
 
-#define WM_TRAYNOTIFY   WM_APP + 0xFF01
-#define WM_SOCKET       WM_APP + 0xFF02
+#define WM_TRAYNOTIFY   WM_APP + 1
+#define WM_SOCKET       WM_APP + 2
 
 #ifndef NIN_BALLOONSHOW
     #define NIN_BALLOONSHOW     (WM_USER + 2)
