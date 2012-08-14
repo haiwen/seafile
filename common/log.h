@@ -23,7 +23,8 @@ typedef enum
     SEAFILE_DEBUG_TRANSFER = 1 << 1,
     SEAFILE_DEBUG_SYNC = 1 << 2,
     SEAFILE_DEBUG_WATCH = 1 << 3, /* wt-monitor */
-    SEAFILE_DEBUG_OTHER = 1 << 4,
+    SEAFILE_DEBUG_HTTP = 1 << 4,  /* http server */
+    SEAFILE_DEBUG_OTHER = 1 << 5,
 } SeafileDebugFlags;
 
 void seafile_debug_impl (SeafileDebugFlags flag, const gchar *format, ...);

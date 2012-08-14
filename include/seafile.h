@@ -80,9 +80,9 @@ seafile_repo_query_access_property (SearpcClient *client,
                                     const char *repo_id,
                                     GError **error);
 
-char *
+GObject *
 seafile_web_query_access_token (SearpcClient *client,
-                                const char *repo_id,
+                                const char *token,
                                 GError **error);
 
 GObject *
@@ -99,6 +99,15 @@ seafile_put_file (SearpcClient *client,
                   const char *file_name,
                   const char *user,
                   GError **error);
+
+int
+seafile_post_file (SearpcClient *client,
+                   const char *repo_id,
+                   const char *file_path,
+                   const char *parent_dir,
+                   const char *file_name,
+                   const char *user,
+                   GError **error);
 
 int
 seafile_set_user_quota (SearpcClient *client,

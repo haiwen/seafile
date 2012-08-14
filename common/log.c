@@ -99,6 +99,7 @@ static GDebugKey debug_keys[] = {
   { "Transfer", SEAFILE_DEBUG_TRANSFER },
   { "Sync", SEAFILE_DEBUG_SYNC },
   { "Watch", SEAFILE_DEBUG_WATCH },
+  { "Http", SEAFILE_DEBUG_HTTP },
   { "Other", SEAFILE_DEBUG_OTHER },
 };
 

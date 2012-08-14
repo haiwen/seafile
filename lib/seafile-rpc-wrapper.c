@@ -254,14 +254,14 @@ seafile_repo_query_access_property (SearpcClient *client,
         1, "string", repo_id);
 }
 
-char *
+GObject *
 seafile_web_query_access_token (SearpcClient *client,
-                                const char *repo_id,
+                                const char *token,
                                 GError **error)
 {
-    return searpc_client_call__string (
-        client, "seafile_web_query_access_token", error,
-        1, "string", repo_id);
+    return searpc_client_call__object (
+        client, "seafile_web_query_access_token", SEAFILE_TYPE_WEB_ACCESS, error,
+        1, "string", token);
 }
 
 GObject *
@@ -285,6 +285,23 @@ seafile_put_file (SearpcClient *client,
                   GError **error)
 {
     return searpc_client_call__int (client, "seafile_put_file", error,
+                                    5, "string", repo_id,
+                                    "string", file_path,
+                                    "string", parent_dir,
+                                    "string", file_name,
+                                    "string", user);
+}
+
+int
+seafile_post_file (SearpcClient *client,
+                   const char *repo_id,
+                   const char *file_path,
+                   const char *parent_dir,
+                   const char *file_name,
+                   const char *user,
+                   GError **error)
+{
+    return searpc_client_call__int (client, "seafile_post_file", error,
                                     5, "string", repo_id,
                                     "string", file_path,
                                     "string", parent_dir,

@@ -2,12 +2,10 @@
 
 . ../common-conf.sh
 
-testdir=${seafile_dir}/tests/basic
-
-conf1=${testdir}/conf1
-conf2=${testdir}/conf2
-conf3=${testdir}/conf3
-conf4=${testdir}/conf4
+conf1=conf1
+conf2=conf2
+conf3=conf3
+conf4=conf4
 
 debug=Message,Other,Peer
 

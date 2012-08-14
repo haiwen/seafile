@@ -1,9 +1,14 @@
 #ifndef HTTPSERVER_H
 #define HTTPSERVER_H
 
-struct file_type_map {
-    char *suffix;
-    char *type;
-};
+extern SeafileSession *seaf;
+
+typedef struct HttpThreadData {
+    SearpcClient *rpc_client;
+    SearpcClient *threaded_rpc_client;
+} HttpThreadData;
+
+HttpThreadData *
+http_request_thread_data (evhtp_request_t * request);
 
 #endif /* HTTPSERVER_H */

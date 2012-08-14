@@ -17,10 +17,13 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 
 bin_PROGRAMS = httpserver
 
-noinst_HEADERS = seafile-session.h repo-mgr.h
+noinst_HEADERS = seafile-session.h repo-mgr.h \
+	httpserver.h access-file.h upload-file.h
 
 httpserver_SOURCES = \
 	httpserver.c \
+	access-file.c \
+	upload-file.c \
 	seafile-session.c \
 	repo-mgr.c \
 	../common/seaf-db.c \

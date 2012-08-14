@@ -22,7 +22,10 @@ utils_headers = async-rpc-proc.h net.h rsa.h threaded-rpcserver-proc.h \
 
 utils_srcs = $(utils_headers:.h=.c)
 
-noinst_HEADERS = seafile-object.h ${utils_headers} rpc-common.h include.h
+noinst_HEADERS = ${utils_headers} rpc-common.h include.h
+
+seafiledir = $(includedir)/seafile
+seafile_HEADERS = seafile-object.h
 
 seafile-rpc-wrapper.c: seafile-object.h
 
