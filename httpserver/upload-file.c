@@ -8,6 +8,8 @@
 #include <event.h>
 #include <evhtp.h>
 
+#include <pthread.h>
+
 #include <ccnet.h>
 
 #include "seafile-object.h"
@@ -25,14 +27,13 @@ enum RecvState {
     RECV_CONTENT,
 };
 
-enum RecvType {
-    RECV_TYPE_UPLOAD,
-    RECV_TYPE_UPDATE,
-};
+typedef struct Progress {
+    gint64 uploaded;
+    gint64 size;
+} Progress;
 
 typedef struct RecvFSM {
     int state;
-    int type;
 
     char *repo_id;
     char *user;
@@ -46,11 +47,18 @@ typedef struct RecvFSM {
     char *file_name;
     char *tmp_file;
     int fd;
+
+    /* For upload progress. */
+    char *progress_id;
+    Progress *progress;
 } RecvFSM;
 
 #define MAX_CONTENT_LINE 10240
 #define TEMP_FILE_DIR "/tmp/seafhttp"
 #define MAX_UPLOAD_FILE_SIZE 100 * ((gint64)1 << 20) /* 100MB */
+
+static GHashTable *upload_progress;
+static pthread_mutex_t pg_lock;
 
 static gboolean
 filename_exists (SeafDir *dir, const char *filename)
@@ -328,6 +336,13 @@ upload_finish_cb (evhtp_request_t *req, void *arg)
 
     evbuffer_free (fsm->line);
 
+    pthread_mutex_lock (&pg_lock);
+    g_hash_table_remove (upload_progress, fsm->progress_id);
+    pthread_mutex_unlock (&pg_lock);
+
+    /* fsm->progress has been free'd by g_hash_table_remove(). */
+    g_free (fsm->progress_id);
+
     g_free (fsm);
 
     return EVHTP_RES_OK;
@@ -544,6 +559,12 @@ upload_read_cb (evhtp_request_t *req, evbuf_t *buf, void *arg)
     gboolean no_line = FALSE;
     int res = EVHTP_RES_OK;
 
+    /* Update upload progress. */
+    fsm->progress->uploaded += (gint64)evbuffer_get_length(buf);
+
+    seaf_debug ("progress: %lld/%lld\n",
+                fsm->progress->uploaded, fsm->progress->size);
+
     evbuffer_add_buffer (fsm->line, buf);
     /* Drain the buffer so that evhtp don't copy it to another buffer
      * after this callback returns. 
@@ -708,14 +729,43 @@ check_access_token (SearpcClient *rpc,
     return 0;
 }
 
+static int
+get_progress_info (evhtp_request_t *req,
+                   evhtp_headers_t *hdr,
+                   gint64 *content_len,
+                   char **progress_id)
+{
+    const char *content_len_str;
+    const char *uuid;
+
+    content_len_str = evhtp_kv_find (hdr, "Content-Length");
+    if (!content_len_str) {
+        seaf_warning ("[upload] Content-Length not found.\n");
+        return -1;
+    }
+    *content_len = strtoll (content_len_str, NULL, 10);
+
+    uuid = evhtp_kv_find (req->uri->query, "X-Progress-ID");
+    if (!uuid) {
+        seaf_warning ("[upload] Progress id not found.\n");
+        return -1;
+    }
+    *progress_id = g_strdup(uuid);
+
+    return 0;
+}
+
 static evhtp_res
 upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
 {
     HttpThreadData *aux;
     char *token, *repo_id = NULL, *user = NULL;
     char *boundary = NULL;
+    gint64 content_len;
+    char *progress_id = NULL;
     char *err_msg = NULL;
     RecvFSM *fsm = NULL;
+    Progress *progress = NULL;
 
     /* URL format: http://host:port/[upload|update]/<token>?progress_id=<uuid> */
     token = req->uri->path->file;
@@ -738,6 +788,12 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
         goto err;
     }
 
+    if (get_progress_info (req, hdr, &content_len, &progress_id) < 0)
+        goto err;
+
+    progress = g_new0 (Progress, 1);
+    progress->size = content_len;
+
     fsm = g_new0 (RecvFSM, 1);
     fsm->boundary = boundary;
     fsm->repo_id = repo_id;
@@ -745,6 +801,12 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
     fsm->line = evbuffer_new ();
     fsm->form_kvs = g_hash_table_new_full (g_str_hash, g_str_equal,
                                            g_free, g_free);
+    fsm->progress_id = progress_id;
+    fsm->progress = progress;
+
+    pthread_mutex_lock (&pg_lock);
+    g_hash_table_insert (upload_progress, g_strdup(progress_id), progress);
+    pthread_mutex_unlock (&pg_lock);
 
     /* Set up per-request hooks, so that we can read file data piece by piece. */
     evhtp_set_hook (&req->hooks, evhtp_hook_on_read, upload_read_cb, fsm);
@@ -772,6 +834,51 @@ err:
     return EVHTP_RES_OK;
 }
 
+static void
+upload_progress_cb(evhtp_request_t *req, void *arg)
+{
+    const char *progress_id;
+    const char *callback;
+    Progress *progress;
+    GString *buf;
+
+    progress_id = evhtp_kv_find (req->uri->query, "X-Progress-ID");
+    if (!progress_id) {
+        seaf_warning ("[get pg] Progress id not found in url.\n");
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
+
+    callback = evhtp_kv_find (req->uri->query, "callback");
+    if (!callback) {
+        seaf_warning ("[get pg] callback not found in url.\n");
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
+
+    pthread_mutex_lock (&pg_lock);
+    progress = g_hash_table_lookup (upload_progress, progress_id);
+    pthread_mutex_unlock (&pg_lock);
+
+    if (!progress) {
+        seaf_warning ("[get pg] No progress found for %s.\n", progress_id);
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
+
+    /* Return JSONP formated data. */
+    buf = g_string_new (NULL);
+    g_string_append_printf (buf,
+                            "%s({\"uploaded\": %lld, \"length\": %lld});",
+                            callback, progress->uploaded, progress->size);
+    evbuffer_add (req->buffer_out, buf->str, buf->len);
+
+    seaf_debug ("JSONP: %s\n", buf->str);
+
+    evhtp_send_reply (req, EVHTP_RES_OK);
+    g_string_free (buf, TRUE);
+}
+
 int
 upload_file_init (evhtp_t *htp)
 {
@@ -788,6 +895,12 @@ upload_file_init (evhtp_t *htp)
 
     cb = evhtp_set_regex_cb (htp, "^/update/.*", update_cb, NULL);
     evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
+
+    evhtp_set_regex_cb (htp, "^/upload_progress.*", upload_progress_cb, NULL);
+
+    upload_progress = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                             g_free, g_free);
+    pthread_mutex_init (&pg_lock, NULL);
 
     return 0;
 }
