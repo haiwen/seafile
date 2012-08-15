@@ -128,4 +128,9 @@ seafile_set_org_user_quota (SearpcClient *client,
                             gint64 quota,
                             GError **error);
 
+int
+seafile_check_quota (SearpcClient *client,
+                     const char *repo_id,
+                     GError **error);
+
 #endif

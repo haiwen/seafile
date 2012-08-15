@@ -76,7 +76,10 @@ check_repo_owner_quota (CcnetProcessor *processor,
     if (quota == INFINITE_QUOTA)
         return ret;
 
-    usage = get_user_quota_usage (seaf, user);
+    if (user)
+        usage = get_user_quota_usage (seaf, user);
+    else
+        usage = get_org_quota_usage (seaf, org_id);
 
     g_debug ("quota is %"G_GINT64_FORMAT", usage is %"G_GINT64_FORMAT"\n",
              quota, usage);

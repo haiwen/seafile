@@ -1648,6 +1648,20 @@ seafile_get_user_quota_usage (const char *email, GError **error)
 }
 
 gint64
+seafile_get_org_quota_usage (int org_id, GError **error)
+{
+    gint64 ret;
+
+    ret = get_org_quota_usage (seaf, org_id);
+    if (ret < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal server error");
+        return -1;
+    }
+
+    return ret;
+}
+
+gint64
 seafile_server_repo_size(const char *repo_id, GError **error)
 {
     gint64 ret;
@@ -2422,6 +2436,49 @@ seafile_get_org_user_quota (int org_id, const char *user, GError **error)
     }
 
     return seaf_quota_manager_get_org_user_quota (seaf->quota_mgr, org_id, user);
+}
+
+int
+seafile_check_quota (const char *repo_id, GError **error)
+{
+    char *user = NULL;
+    int org_id;
+    gint64 quota, usage;
+
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad arguments");
+        return -1;
+    }
+
+    user = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
+    if (user != NULL) {
+        quota = seaf_quota_manager_get_user_quota (seaf->quota_mgr, user);
+        if (quota <= 0)
+            quota = seaf->quota_mgr->default_quota;
+    } else {
+        org_id = seaf_repo_manager_get_repo_org (seaf->repo_mgr, repo_id);
+        if (org_id < 0) {
+            seaf_warning ("[upload] Repo %s has no owner.\n", repo_id);
+            return -1;
+        }
+
+        quota = seaf_quota_manager_get_org_quota (seaf->quota_mgr, org_id);
+        if (quota <= 0)
+            quota = seaf->quota_mgr->default_quota;
+    }
+
+    if (quota == INFINITE_QUOTA)
+        return 0;
+
+    if (user)
+        usage = get_user_quota_usage (seaf, user);
+    else
+        usage = get_org_quota_usage (seaf, org_id);
+
+    if (usage < 0 || usage >= quota)
+        return -1;
+
+    return 0;
 }
 
 char *

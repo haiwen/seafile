@@ -25,6 +25,7 @@ enum RecvState {
     RECV_INIT,
     RECV_HEADERS,
     RECV_CONTENT,
+    RECV_ERROR,
 };
 
 typedef struct Progress {
@@ -158,6 +159,13 @@ upload_cb(evhtp_request_t *req, void *arg)
     GError *error = NULL;
     char *err_msg = NULL;
 
+    /* After upload_headers_cb() returns an error, libevhtp may still
+     * receive data from the web browser and call into this cb.
+     * In this case fsm will be NULL.
+     */
+    if (!fsm || fsm->state == RECV_ERROR)
+        return;
+
     if (stat (fsm->tmp_file, &st) < 0) {
         seaf_warning ("[upload] Failed to stat temp file %s.\n", fsm->tmp_file);
         err_msg = "Failed to receive file";
@@ -170,13 +178,13 @@ upload_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-#if 0
-    if (check_quota (aux->threaded_rpc_client, repo_id) < 0) {
+    aux = http_request_thread_data (req);
+
+    if (seafile_check_quota (aux->threaded_rpc_client, fsm->repo_id, NULL) < 0) {
         seaf_warning ("[upload] Out of quota.\n");
         err_msg = "Not enough storage space";
         goto error;
     }
-#endif
 
     parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
     if (!parent_dir) {
@@ -191,8 +199,6 @@ upload_cb(evhtp_request_t *req, void *arg)
         err_msg = "Internal server error";
         goto error;
     }
-
-    aux = http_request_thread_data (req);
 
     seafile_post_file (aux->threaded_rpc_client,
                        fsm->repo_id,
@@ -248,6 +254,9 @@ update_cb(evhtp_request_t *req, void *arg)
     GError *error = NULL;
     char *err_msg = NULL;
 
+    if (!fsm || fsm->state == RECV_ERROR)
+        return;
+
     if (stat (fsm->tmp_file, &st) < 0) {
         seaf_warning ("[upload] Failed to stat temp file %s.\n", fsm->tmp_file);
         err_msg = "Failed to receive file";
@@ -260,13 +269,13 @@ update_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-#if 0
-    if (check_quota (aux->threaded_rpc_client, repo_id) < 0) {
+    aux = http_request_thread_data (req);
+
+    if (seafile_check_quota (aux->threaded_rpc_client, fsm->repo_id, NULL) < 0) {
         seaf_warning ("[upload] Out of quota.\n");
         err_msg = "Not enough storage space";
         goto error;
     }
-#endif
 
     target_file = g_hash_table_lookup (fsm->form_kvs, "target_file");
     if (!target_file) {
@@ -276,8 +285,6 @@ update_cb(evhtp_request_t *req, void *arg)
 
     parent_dir = g_path_get_dirname (target_file);
     filename = g_path_get_basename (target_file);
-
-    aux = http_request_thread_data (req);
 
     seafile_put_file (aux->threaded_rpc_client,
                       fsm->repo_id,
@@ -317,6 +324,9 @@ static evhtp_res
 upload_finish_cb (evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
+
+    if (!fsm)
+        return EVHTP_RES_OK;
 
     /* Clean up FSM struct no matter upload succeed or not. */
 
@@ -559,6 +569,9 @@ upload_read_cb (evhtp_request_t *req, evbuf_t *buf, void *arg)
     gboolean no_line = FALSE;
     int res = EVHTP_RES_OK;
 
+    if (fsm->state == RECV_ERROR)
+        return EVHTP_RES_OK;
+
     /* Update upload progress. */
     fsm->progress->uploaded += (gint64)evbuffer_get_length(buf);
 
@@ -639,6 +652,8 @@ out:
          * connection after sending the reply.
          */
         req->keepalive = 0;
+
+        fsm->state = RECV_ERROR;
     }
 
     if (res == EVHTP_RES_BADREQ) {
@@ -767,7 +782,7 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
     RecvFSM *fsm = NULL;
     Progress *progress = NULL;
 
-    /* URL format: http://host:port/[upload|update]/<token>?progress_id=<uuid> */
+    /* URL format: http://host:port/[upload|update]/<token>?X-Progress-ID=<uuid> */
     token = req->uri->path->file;
     if (!token) {
         seaf_warning ("[upload] No token in url.\n");

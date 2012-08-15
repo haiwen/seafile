@@ -463,6 +463,8 @@ char *seafile_get_monitor (GError **error);
 
 gint64 seafile_get_user_quota_usage (const char *email, GError **error);
 
+gint64 seafile_get_org_quota_usage (int org_id, GError **error);
+
 gint64
 seafile_server_repo_size(const char *repo_id, GError **error);
 
@@ -657,6 +659,9 @@ seafile_set_org_user_quota (int org_id, const char *user, gint64 quota, GError *
 
 gint64
 seafile_get_org_user_quota (int org_id, const char *user, GError **error);
+
+int
+seafile_check_quota (const char *repo_id, GError **error);
 
 char *
 seafile_get_file_by_path (const char *repo_id, const char *path,

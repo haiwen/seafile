@@ -266,3 +266,20 @@ get_user_quota_usage (SeafileSession *seaf, const char *email)
 
     return ret;
 }
+
+gint64
+get_org_quota_usage (SeafileSession *seaf, int org_id)
+{
+    char sql[256];
+    gint64 ret = 0;
+
+    snprintf (sql, sizeof(sql), 
+              "SELECT size FROM OrgRepo, RepoSize WHERE "
+              "org_id=%d AND OrgRepo.repo_id=RepoSize.repo_id",
+              org_id);
+    if (seaf_db_foreach_selected_row (seaf->db, sql,
+                                      get_total_size, &ret) < 0)
+        return -1;
+
+    return ret;
+}

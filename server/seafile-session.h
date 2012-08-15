@@ -94,4 +94,7 @@ seafile_session_set_monitor (SeafileSession *session, const char *peer_id);
 gint64
 get_user_quota_usage (SeafileSession *seaf, const char *user_id);
 
+gint64
+get_org_quota_usage (SeafileSession *seaf, int org_id);
+
 #endif /* SEAFILE_H */

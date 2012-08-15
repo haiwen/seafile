@@ -347,11 +347,15 @@ static void start_rpc_service (CcnetClient *client)
                                      "seafile_get_repo_token_nonnull",
                                      searpc_signature_string__string_string());
 
-    /* quote */
+    /* quota */
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_user_quota_usage,
                                      "seafile_get_user_quota_usage",
                                      searpc_signature_int64__string());
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_org_quota_usage,
+                                     "seafile_get_org_quota_usage",
+                                     searpc_signature_int64__int());
 
 
     /* -------- rpc services -------- */
@@ -438,6 +442,10 @@ static void start_rpc_service (CcnetClient *client)
                                      seafile_get_org_user_quota,
                                      "get_org_user_quota",
                                      searpc_signature_int64__int_string());
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_check_quota,
+                                     "check_quota",
+                                     searpc_signature_int__string());
 }
 
 static void
