@@ -1873,6 +1873,36 @@ seafile_group_unshare_repo (const char *repo_id, int group_id,
 }
 
 char *
+seafile_get_shared_groups_by_repo(const char *repo_id, GError **error)
+{
+    SeafRepoManager *mgr = seaf->repo_mgr;
+    GList *group_ids = NULL, *ptr;
+    GString *result;
+    
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Bad arguments");
+        return NULL;
+    }
+
+    group_ids = seaf_repo_manager_get_shared_groups_by_repo (mgr, repo_id,
+                                                             error);
+    if (!group_ids) {
+        return NULL;
+    }
+
+    result = g_string_new("");
+    ptr = group_ids;
+    while (ptr) {
+        g_string_append_printf (result, "%d\n", (int)(long)ptr->data);
+        ptr = ptr->next;
+    }
+    g_list_free (group_ids);
+
+    return g_string_free (result, FALSE);
+}
+
+char *
 seafile_get_group_repoids (int group_id, GError **error)
 {
     SeafRepoManager *mgr = seaf->repo_mgr;

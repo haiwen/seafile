@@ -707,9 +707,9 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
             return -1;
 
         sql = "CREATE TABLE IF NOT EXISTS RepoGroup (repo_id CHAR(37), "
-            "group_id INTEGER, "
-            "user_name VARCHAR(255), permission CHAR(15), "
-            "UNIQUE INDEX (group_id, repo_id))";
+            "group_id INTEGER, user_name VARCHAR(255), permission CHAR(15), "
+            "UNIQUE INDEX (group_id, repo_id), "
+            "INDEX (repo_id), INDEX (user_name))";
         if (seaf_db_query (db, sql) < 0)
             return -1;
 
@@ -749,6 +749,16 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
         if (seaf_db_query (db, sql) < 0)
             return -1;
 
+        sql = "CREATE INDEX IF NOT EXISTS repoid_index on "
+            "RepoGroup (repo_id)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        sql = "CREATE INDEX IF NOT EXISTS username_indx on "
+            "RepoGroup (user_name)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+        
         sql = "CREATE TABLE IF NOT EXISTS OrgRepo (org_id INTEGER, "
             "repo_id CHAR(37), user VARCHAR(255))";
         if (seaf_db_query (db, sql) < 0)
@@ -1207,10 +1217,42 @@ seaf_repo_manager_unshare_repo (SeafRepoManager *mgr,
 {
     char sql[512];
     
-    snprintf (sql, sizeof(sql), "DELETE FROM RepoGroup WHERE repo_id='%s' "
-              "AND group_id=%d", repo_id, group_id);
+    snprintf (sql, sizeof(sql), "DELETE FROM RepoGroup WHERE group_id=%d "
+              "AND repo_id='%s'", group_id, repo_id);
 
     return seaf_db_query (mgr->seaf->db, sql);
+}
+
+static gboolean
+get_group_ids_cb (SeafDBRow *row, void *data)
+{
+    GList **plist = data;
+
+    int group_id = seaf_db_row_get_column_int (row, 0);
+
+    *plist = g_list_prepend (*plist, (gpointer)(long)group_id);
+
+    return TRUE;
+}
+
+GList *
+seaf_repo_manager_get_shared_groups_by_repo (SeafRepoManager *mgr,
+                                             const char *repo_id,
+                                             GError **error)
+{
+    char sql[512];
+    GList *group_ids = NULL;
+    
+    snprintf (sql, sizeof(sql), "SELECT group_id FROM RepoGroup "
+              "WHERE repo_id = '%s'", repo_id);
+    
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_ids_cb,
+                                       &group_ids) < 0) {
+        g_list_free (group_ids);
+        return NULL;
+    }
+
+    return g_list_reverse (group_ids);
 }
 
 static gboolean

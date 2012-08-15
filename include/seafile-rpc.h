@@ -508,6 +508,10 @@ int
 seafile_group_unshare_repo (const char *repo_id, int group_id,
                             const char *user_name, GError **error);
 
+/* Get groups that a repo is shared to */
+char *
+seafile_get_shared_groups_by_repo(const char *repo_id, GError **error);
+
 char *
 seafile_get_group_repoids (int group_id, GError **error);
 

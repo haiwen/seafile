@@ -306,6 +306,11 @@ static void start_rpc_service (CcnetClient *client)
                                      "seafile_group_unshare_repo",
                                      searpc_signature_int__string_int_string());
     searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_shared_groups_by_repo,
+                                     "seafile_get_shared_groups_by_repo",
+                                     searpc_signature_string__string());
+    
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_group_repoids,
                                      "seafile_get_group_repoids",
                                      searpc_signature_string__int());

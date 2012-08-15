@@ -338,6 +338,11 @@ seaf_repo_manager_unshare_repo (SeafRepoManager *mgr,
                                 const char *user_name,
                                 GError **error);
 
+GList *
+seaf_repo_manager_get_shared_groups_by_repo (SeafRepoManager *mgr,
+                                             const char *repo_id,
+                                             GError **error);
+
 char *
 seaf_repo_manager_get_repo_share_from (SeafRepoManager *mgr,
                                        const char *repo_id,
