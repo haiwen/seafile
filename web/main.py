@@ -48,6 +48,7 @@ urls = (
     '/i18n/', 'i18n',
     '/seafile_access_check/', 'seafile_access_check',
     '/open-local-file/', 'open_local_file',
+    '/seafile_rpc_version/', 'seafile_rpc_version',
     )
 
 # See http://www.py2exe.org/index.cgi/WhereAmI
@@ -658,23 +659,21 @@ class i18n:
 
 # for seahub repo download
 class seafile_access_check:
-    """For seahub to check whether local seafile is started.
-
-    A web page from seahub can use ajax to check whether local seafile is
-    started. Because this is cross site ajax access, we have to return a
-    string in jsonp, and the web page should use ajax with result data type
-    `jsonp`. The returned value is the version of current repo download
-    protocol, which can be used by seahub to judge the version of the
-    client.
+    """For seahub to check whether local seafile is started when downloading a
+    repo. For a bug in the released server 0.9.5, here we need always return
+    2.
 
     """
 
     def GET(self):
-        # Changelog
-        # xx(1): before 0.9.5
-        # xx(2): redesign repo-download in 0.9.5
-        # xx(3): add open-local-file support
-        return 'xx(3)'
+        return 'xx(2)'
+
+class seafile_rpc_version:
+    """For the server to query current seafile client rpc version"""
+    def GET(self):
+        version = 1
+        return 'xx(%s)' % json.dumps(version)
+
 
 class open_local_file:
     """
