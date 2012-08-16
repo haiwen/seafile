@@ -28,6 +28,16 @@ enum RecvState {
     RECV_ERROR,
 };
 
+enum UploadError {
+    ERROR_FILENAME,
+    ERROR_EXISTS,
+    ERROR_NOT_EXIST,
+    ERROR_SIZE,
+    ERROR_QUOTA,
+    ERROR_RECV,
+    ERROR_INTERNAL,
+};
+
 typedef struct Progress {
     gint64 uploaded;
     gint64 size;
@@ -147,6 +157,70 @@ out:
 }
 
 static void
+redirect_to_upload_error (evhtp_request_t *req,
+                          const char *repo_id,
+                          const char *parent_dir,
+                          const char *filename,
+                          int error_code)
+{
+    char *seahub_url, *escaped_path, *escaped_fn;
+    char url[1024];
+
+    seahub_url = seaf->session->base.service_url;
+    escaped_path = g_uri_escape_string (parent_dir, NULL, FALSE);
+    escaped_fn = g_uri_escape_string (filename, NULL, FALSE);
+    snprintf(url, 1024, "%s/repo/upload_error/%s?p=%s&fn=%s&err=%d",
+             seahub_url, repo_id, escaped_path, escaped_fn, error_code);
+    g_free (escaped_path);
+    g_free (escaped_fn);
+
+    evhtp_headers_add_header(req->headers_out,
+                             evhtp_header_new("Location",
+                                              url, 0, 0));
+    evhtp_send_reply(req, EVHTP_RES_FOUND);
+}
+
+static void
+redirect_to_update_error (evhtp_request_t *req,
+                          const char *repo_id,
+                          const char *target_file,
+                          int error_code)
+{
+    char *seahub_url, *escaped_path;
+    char url[1024];
+
+    seahub_url = seaf->session->base.service_url;
+    escaped_path = g_uri_escape_string (target_file, NULL, FALSE);
+    snprintf(url, 1024, "%s/repo/update_error/%s?p=%s&err=%d",
+             seahub_url, repo_id, escaped_path, error_code);
+    g_free (escaped_path);
+
+    evhtp_headers_add_header(req->headers_out,
+                             evhtp_header_new("Location",
+                                              url, 0, 0));
+    evhtp_send_reply(req, EVHTP_RES_FOUND);
+}
+
+static void
+redirect_to_success_page (evhtp_request_t *req,
+                          const char *repo_id,
+                          const char *parent_dir)
+{
+    char *seahub_url, *escaped_path;
+    char url[1024];
+
+    seahub_url = seaf->session->base.service_url;
+    escaped_path = g_uri_escape_string (parent_dir, NULL, FALSE);
+    snprintf(url, 1024, "%s/repo/%s?p=%s", seahub_url, repo_id, escaped_path);
+    g_free (escaped_path);
+
+    evhtp_headers_add_header(req->headers_out,
+                             evhtp_header_new("Location",
+                                              url, 0, 0));
+    evhtp_send_reply(req, EVHTP_RES_FOUND);
+}
+
+static void
 upload_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
@@ -154,10 +228,8 @@ upload_cb(evhtp_request_t *req, void *arg)
     struct stat st;
     char *parent_dir;
     char *unique_name;
-    char *seahub_url, *escaped_path;
-    char url[1024];
     GError *error = NULL;
-    char *err_msg = NULL;
+    int error_code = ERROR_INTERNAL;
 
     /* After upload_headers_cb() returns an error, libevhtp may still
      * receive data from the web browser and call into this cb.
@@ -166,15 +238,23 @@ upload_cb(evhtp_request_t *req, void *arg)
     if (!fsm || fsm->state == RECV_ERROR)
         return;
 
+    parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
+    if (!parent_dir) {
+        seaf_warning ("[upload] No parent dir given.\n");
+        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
+
     if (stat (fsm->tmp_file, &st) < 0) {
         seaf_warning ("[upload] Failed to stat temp file %s.\n", fsm->tmp_file);
-        err_msg = "Failed to receive file";
+        error_code = ERROR_RECV;
         goto error;
     }
 
     if ((gint64)st.st_size > MAX_UPLOAD_FILE_SIZE) {
         seaf_warning ("[upload] File size is too large.\n");
-        err_msg = "File size is too large";
+        error_code = ERROR_SIZE;
         goto error;
     }
 
@@ -182,13 +262,7 @@ upload_cb(evhtp_request_t *req, void *arg)
 
     if (seafile_check_quota (aux->threaded_rpc_client, fsm->repo_id, NULL) < 0) {
         seaf_warning ("[upload] Out of quota.\n");
-        err_msg = "Not enough storage space";
-        goto error;
-    }
-
-    parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
-    if (!parent_dir) {
-        seaf_warning ("[upload] No parent dir given.\n");
+        error_code = ERROR_QUOTA;
         goto error;
     }
 
@@ -196,7 +270,6 @@ upload_cb(evhtp_request_t *req, void *arg)
                                        parent_dir,
                                        fsm->file_name);
     if (!unique_name) {
-        err_msg = "Internal server error";
         goto error;
     }
 
@@ -209,37 +282,22 @@ upload_cb(evhtp_request_t *req, void *arg)
                        &error);
     g_free (unique_name);
     if (error) {
-        /* TODO: redirect to a more friendly error page for "invalid filename".
-         */
-        if (g_strcmp0 (error->message, "Invalid filename") == 0)
-            err_msg = "Filename contains invalid charaters";
-        else if (g_strcmp0 (error->message, "file already exists") == 0)
-            err_msg = "A file with the same name exists";
-        else
-            err_msg = "Internal server error";
-
+        if (g_strcmp0 (error->message, "Invalid filename") == 0) {
+            error_code = ERROR_FILENAME;
+        } else if (g_strcmp0 (error->message, "file already exists") == 0) {
+            error_code = ERROR_EXISTS;
+        }
         g_clear_error (&error);
         goto error;
     }
 
     /* Redirect to repo dir page after upload finishes. */
-    seahub_url = seaf->session->base.service_url;
-    escaped_path = g_uri_escape_string (parent_dir, NULL, FALSE);
-    snprintf(url, 1024, "%s/repo/%s?p=%s", seahub_url, fsm->repo_id, escaped_path);
-    g_free (escaped_path);
-
-    evhtp_headers_add_header(req->headers_out,
-                             evhtp_header_new("Location",
-                                              url, 0, 0));
-    evhtp_send_reply(req, EVHTP_RES_FOUND);
+    redirect_to_success_page (req, fsm->repo_id, parent_dir);
     return;
 
 error:
-    if (err_msg)
-        evbuffer_add_printf(req->buffer_out, "%s\n", err_msg);
-    evhtp_send_reply(req, EVHTP_RES_BADREQ);
-
-    return;
+    redirect_to_upload_error (req, fsm->repo_id, parent_dir,
+                              fsm->file_name, error_code);
 }
 
 static void
@@ -249,23 +307,32 @@ update_cb(evhtp_request_t *req, void *arg)
     HttpThreadData *aux;
     struct stat st;
     char *target_file, *parent_dir = NULL, *filename = NULL;
-    char *seahub_url, *escaped_path;
-    char url[1024];
     GError *error = NULL;
-    char *err_msg = NULL;
+    int error_code = ERROR_INTERNAL;
 
     if (!fsm || fsm->state == RECV_ERROR)
         return;
 
+    target_file = g_hash_table_lookup (fsm->form_kvs, "target_file");
+    if (!target_file) {
+        seaf_warning ("[Update] No target file given.\n");
+        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
+
+    parent_dir = g_path_get_dirname (target_file);
+    filename = g_path_get_basename (target_file);
+
     if (stat (fsm->tmp_file, &st) < 0) {
         seaf_warning ("[upload] Failed to stat temp file %s.\n", fsm->tmp_file);
-        err_msg = "Failed to receive file";
+        error_code = ERROR_RECV;
         goto error;
     }
 
     if ((gint64)st.st_size > MAX_UPLOAD_FILE_SIZE) {
         seaf_warning ("[upload] File size is too large.\n");
-        err_msg = "File size is too large";
+        error_code = ERROR_SIZE;
         goto error;
     }
 
@@ -273,18 +340,9 @@ update_cb(evhtp_request_t *req, void *arg)
 
     if (seafile_check_quota (aux->threaded_rpc_client, fsm->repo_id, NULL) < 0) {
         seaf_warning ("[upload] Out of quota.\n");
-        err_msg = "Not enough storage space";
+        error_code = ERROR_QUOTA;
         goto error;
     }
-
-    target_file = g_hash_table_lookup (fsm->form_kvs, "target_file");
-    if (!target_file) {
-        seaf_warning ("[Update] No target file given.\n");
-        goto error;
-    }
-
-    parent_dir = g_path_get_dirname (target_file);
-    filename = g_path_get_basename (target_file);
 
     seafile_put_file (aux->threaded_rpc_client,
                       fsm->repo_id,
@@ -294,28 +352,21 @@ update_cb(evhtp_request_t *req, void *arg)
                       fsm->user,
                       &error);
     if (error) {
+        if (g_strcmp0 (error->message, "file does not exist") == 0) {
+            error_code = ERROR_NOT_EXIST;
+        }
         g_clear_error (&error);
         goto error;
     }
 
     /* Redirect to repo dir page after upload finishes. */
-    seahub_url = seaf->session->base.service_url;
-    escaped_path = g_uri_escape_string (parent_dir, NULL, FALSE);
-    snprintf(url, 1024, "%s/repo/%s?p=%s", seahub_url, fsm->repo_id, escaped_path);
-    g_free (escaped_path);
-
-    evhtp_headers_add_header(req->headers_out,
-                             evhtp_header_new("Location",
-                                              url, 0, 0));
-    evhtp_send_reply(req, EVHTP_RES_FOUND);
+    redirect_to_success_page (req, fsm->repo_id, parent_dir);
     g_free (parent_dir);
     g_free (filename);
     return;
 
 error:
-    if (err_msg)
-        evbuffer_add_printf(req->buffer_out, "%s\n", err_msg);
-    evhtp_send_reply (req, EVHTP_RES_BADREQ);
+    redirect_to_update_error (req, fsm->repo_id, target_file, error_code);
     g_free (parent_dir);
     g_free (filename);
 }
