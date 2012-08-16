@@ -2511,7 +2511,7 @@ seafile_get_file_by_path (const char *repo_id, const char *path,
     }
 
     file_id = seaf_fs_manager_path_to_file_id (seaf->fs_mgr, commit->root_id,
-                                              path, error);
+                                               path, NULL, error);
 
 out:
     if (repo)

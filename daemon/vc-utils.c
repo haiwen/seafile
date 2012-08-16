@@ -506,6 +506,7 @@ diff_parents_with_path (SeafCommit *commit,
     if (!p2) {
         file_id_p1 = seaf_fs_manager_path_to_file_id (seaf->fs_mgr,
                                                       p1->root_id, path,
+                                                      NULL,
                                                       error);
         if (*error)
             goto out;
@@ -515,11 +516,13 @@ diff_parents_with_path (SeafCommit *commit,
             memcpy (parent, p1->commit_id, 41);
     } else {
         file_id_p1 = seaf_fs_manager_path_to_file_id (seaf->fs_mgr,
-                                                      p1->root_id, path, error);
+                                                      p1->root_id, path,
+                                                      NULL, error);
         if (*error)
             goto out;
         file_id_p2 = seaf_fs_manager_path_to_file_id (seaf->fs_mgr,
-                                                      p2->root_id, path, error);
+                                                      p2->root_id, path,
+                                                      NULL, error);
         if (*error)
             goto out;
 
@@ -587,6 +590,7 @@ get_last_changer_of_file (const char *head, const char *path)
         file_id = seaf_fs_manager_path_to_file_id (seaf->fs_mgr,
                                                    commit->root_id,
                                                    path,
+                                                   NULL,
                                                    &error);
         if (error) {
             g_clear_error (&error);

@@ -1176,6 +1176,7 @@ char *
 seaf_fs_manager_path_to_file_id (SeafFSManager *mgr,
                                  const char *root_id,
                                  const char *path,
+                                 guint32 *mode,
                                  GError **error)
 {
     char *copy = g_strdup (path);
@@ -1227,6 +1228,9 @@ seaf_fs_manager_path_to_file_id (SeafFSManager *mgr,
         dent = p->data;
         if (strcmp (dent->name, name) == 0) {
             file_id = g_strdup (dent->id);
+            if (mode) {
+                *mode = dent->mode;
+            }
             break;
         }
     }
@@ -1237,4 +1241,29 @@ out:
     g_free (copy);
     return file_id;
 }
+
+char *
+seaf_fs_manager_get_seafile_id_by_path (SeafFSManager *mgr,
+                                        const char *root_id,
+                                        const char *path,
+                                        GError **error)
+{
+    guint32 mode;
+    char *file_id;
+
+    file_id = seaf_fs_manager_path_to_file_id (mgr, root_id, path, &mode, error);
+
+    if (*error)
+        return NULL;
+
+    if (!S_ISREG(mode)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "%s is a dir, not a file", path);
+        g_free (file_id);
+        return NULL;
+    }
+
+    return file_id;
+}
+                                        
 
