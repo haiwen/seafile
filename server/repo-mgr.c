@@ -23,6 +23,7 @@
 #include "index/cache-tree.h"
 #include "unpack-trees.h"
 #include "diff-simple.h"
+#include "monitor-rpc-wrappers.h"
 
 #include "seaf-db.h"
 
@@ -1684,6 +1685,23 @@ check_file_exists (const char *root_id,
         seaf_branch_set_commit(repo->head, new_commit->commit_id);  \
     } while (0);
 
+#define UPDATE_REPO_SIZE_ON_SUCCESS(repo_id)                            \
+    do {                                                                \
+        if (ret == 0) {                                                 \
+            if (seaf->monitor_id != NULL &&                             \
+                (strcmp (seaf->monitor_id, seaf->session->base.id) == 0 || \
+                 ccnet_get_peer_net_state (seaf->ccnetrpc_client,       \
+                                           seaf->monitor_id) == PEER_CONNECTED)) \
+                monitor_compute_repo_size_async_wrapper(seaf->monitor_id, \
+                                                        (repo_id), compute_callback, NULL); \
+        }                                                               \
+    } while(0);
+
+static void
+compute_callback (void *result, void *data, GError *error)
+{
+    /* nothing to do */
+}
 
 int
 seaf_repo_manager_post_file (SeafRepoManager *mgr,
@@ -1812,6 +1830,8 @@ out:
     g_free (root_id);
     g_free (canon_path);
     g_free (crypt);
+
+    UPDATE_REPO_SIZE_ON_SUCCESS(repo_id);
 
     return ret;
 }
@@ -2187,6 +2207,8 @@ out:
     if (dst_dent)
         g_free(dst_dent);
 
+    UPDATE_REPO_SIZE_ON_SUCCESS(dst_repo_id);
+
     return ret;
 }
 
@@ -2353,6 +2375,8 @@ out:
     
     if (src_dent) g_free(src_dent);
     if (dst_dent) g_free(dst_dent);
+
+    UPDATE_REPO_SIZE_ON_SUCCESS(dst_repo_id);
 
     return ret;
 }
@@ -3100,6 +3124,8 @@ out:
     g_free (crypt);
     g_free (old_file_id);
     g_free (fullpath);
+
+    UPDATE_REPO_SIZE_ON_SUCCESS(repo_id);
 
     return ret;
 }
