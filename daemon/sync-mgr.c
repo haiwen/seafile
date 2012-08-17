@@ -731,6 +731,9 @@ get_dest_id (SeafRepo *repo)
 }
 
 static int
+check_net_state (void *data);
+
+static int
 start_sync_repo_proc (SeafSyncManager *manager, SyncTask *task)
 {
     CcnetProcessor *processor;
@@ -739,19 +742,20 @@ start_sync_repo_proc (SeafSyncManager *manager, SyncTask *task)
      * If it's a manual sync, it should have been set.
      */
     if (!task->dest_id) {
-        const char *dest_id = get_dest_id (task->repo);
-        if (!dest_id) {
+        if (!task->repo->relay_id) {
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_RELAY_OFFLINE);
             return -1;
         }
-        task->dest_id = g_strdup(dest_id);
-    } else {
-        /* We also check relay net status in manual sync. */
-        if (ccnet_get_peer_net_state (seaf->ccnetrpc_client,
-                                      task->dest_id) != PEER_CONNECTED) {
-            seaf_sync_manager_set_task_error (task, SYNC_ERROR_RELAY_OFFLINE);
-            return -1;
-        }
+        task->dest_id = g_strdup(task->repo->relay_id);
+    }
+
+    /* If relay is not connected, wait until it is. */
+    if (ccnet_get_peer_net_state (seaf->ccnetrpc_client,
+                                  task->dest_id) != PEER_CONNECTED) {
+        seaf_message ("[sync-mgr] Relay for %s is not connected, wait.\n",
+                      task->repo->name);
+        task->conn_timer = ccnet_timer_new (check_net_state, task, 1000);
+        return 0;
     }
 
     processor = ccnet_proc_factory_create_remote_master_processor (
@@ -774,6 +778,21 @@ start_sync_repo_proc (SeafSyncManager *manager, SyncTask *task)
     transition_sync_state (task, SYNC_STATE_INIT);
 
     return 0;
+}
+
+static int
+check_net_state (void *data)
+{
+    SyncTask *task = data;
+
+    if (ccnet_get_peer_net_state (seaf->ccnetrpc_client,
+                                  task->dest_id) == PEER_CONNECTED) {
+        ccnet_timer_free (&task->conn_timer);
+        start_sync_repo_proc (task->mgr, task);
+        return 0;
+    }
+
+    return 1;
 }
 
 struct CommitResult {
@@ -1204,6 +1223,35 @@ auto_delete_repo (SeafSyncManager *manager, SeafRepo *repo)
     g_free (name);
 }
 
+static gint
+compare_sync_task (gconstpointer a, gconstpointer b)
+{
+    const SyncTask *task = a;
+    const char *repo_id = b;
+
+    return strcmp (task->info->repo_id, repo_id);
+}
+
+static void
+enqueue_sync_task (SeafSyncManager *manager, SeafRepo *repo)
+{
+    SyncInfo *info;
+    SyncTask *task;
+
+    if (g_queue_find_custom (manager->sync_tasks,
+                             repo->id,
+                             compare_sync_task) != NULL) {
+        seaf_debug ("[sync-mgr] Task for '%s' is in queue, don't add again.\n",
+                    repo->name);
+        return;
+    }
+
+    info = get_sync_info (manager, repo->id);
+    task = create_sync_task (manager, info, repo,
+                             FALSE, FALSE, TRUE);
+    g_queue_push_tail (manager->sync_tasks, task);
+}
+
 static int
 auto_commit_pulse (void *vmanager)
 {
@@ -1213,8 +1261,6 @@ auto_commit_pulse (void *vmanager)
     WTStatus *status;
     gint now = (gint)time(NULL);
     gint last_changed;
-    SyncInfo *info;
-    SyncTask *task;
 
     repos = seaf_repo_manager_get_repo_list (manager->seaf->repo_mgr, -1, -1);
 
@@ -1249,18 +1295,12 @@ auto_commit_pulse (void *vmanager)
                        commit it soon. */
                     /* repo->wt_changed = TRUE; */
                     if (now - last_changed >= 2) {
-                        info = get_sync_info (manager, repo->id);
-                        task = create_sync_task (manager, info, repo,
-                                                 FALSE, FALSE, TRUE);
-                        g_queue_push_tail (manager->sync_tasks, task);
+                        enqueue_sync_task (manager, repo);
                         status->last_check = now;
                     }
                 } else if (now - status->last_check >= manager->wt_interval) {
                     /* Try to commit if no change has been detected in 10 mins. */
-                    info = get_sync_info (manager, repo->id);
-                    task = create_sync_task (manager, info, repo,
-                                             FALSE, FALSE, TRUE);
-                    g_queue_push_tail (manager->sync_tasks, task);
+                    enqueue_sync_task (manager, repo);
                     status->last_check = now;
                 }
             }

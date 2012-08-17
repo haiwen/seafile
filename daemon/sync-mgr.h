@@ -9,6 +9,7 @@ typedef struct _SyncTask SyncTask;
 typedef struct _SeafSyncManager SeafSyncManager;
 typedef struct _SeafSyncManagerPriv SeafSyncManagerPriv;
 
+struct CcnetTimer;
 
 struct _SyncInfo {
     char       repo_id[41];     /* the repo */
@@ -70,6 +71,7 @@ struct _SyncTask {
     int              error;
     char            *tx_id;
     char            *token;
+    struct CcnetTimer *conn_timer;
 
     SeafRepo        *repo;  /* for convenience, only valid when in_sync. */
     gboolean         canceled;  /* marking a task on the queue to be canceled. */
