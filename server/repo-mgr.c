@@ -1443,16 +1443,17 @@ dup_seafdir_entries (const GList *entries)
  * need to be updated.
  */
 static char *
-post_file_recursive(const char *dir_id,
-                   const char *to_path,
-                   SeafDirent *newdent)
+post_file_recursive (const char *dir_id,
+                     const char *to_path,
+                     SeafDirent *newdent)
 {
     SeafDir *olddir, *newdir;
     SeafDirent *dent;
     GList *ptr;
-    const char *slash;
+    char *slash;
+    char *to_path_dup = NULL;
+    char *remain = NULL;
     char *id = NULL;
-    int len;
 
     olddir = seaf_fs_manager_get_seafdir(seaf->fs_mgr, dir_id);
     if (!olddir)
@@ -1477,23 +1478,23 @@ post_file_recursive(const char *dir_id,
         goto out;
     }
 
-    /* to_path is a relative path */
-    slash = strchr(to_path, '/');
+    to_path_dup = g_strdup (to_path);
+    slash = strchr (to_path_dup, '/');
+
     if (!slash) {
-        len = strlen (to_path);
-        slash = to_path + len;
+        remain = to_path_dup + strlen(to_path_dup);
     } else {
-        len = slash - to_path;
-        slash = slash + 1;
+        *slash = '\0';
+        remain = slash + 1;
     }
 
     for (ptr = olddir->entries; ptr; ptr = ptr->next) {
         dent = (SeafDirent *)ptr->data;
 
-        if (strncmp(dent->name, to_path, len) != 0)
+        if (strcmp(dent->name, to_path_dup) != 0)
             continue;
 
-        id = post_file_recursive (dent->id, slash, newdent);
+        id = post_file_recursive (dent->id, remain, newdent);
         if (id != NULL) {
             memcpy(dent->id, id, 40);
             dent->id[40] = '\0';
@@ -1517,14 +1518,15 @@ post_file_recursive(const char *dir_id,
     }
 
 out:
+    g_free (to_path_dup);
     seaf_dir_free(olddir);
     return id;
 }
 
 static char *
 do_post_file (const char *root_id,
-             const char *parent_dir,
-             SeafDirent *dent)
+              const char *parent_dir,
+              SeafDirent *dent)
 {
     /* if parent_dir is a absolutely path, we will remove the first '/' */
     if (*parent_dir == '/')
@@ -1844,9 +1846,10 @@ del_file_recursive(const char *dir_id,
     SeafDir *olddir, *newdir;
     SeafDirent *dent;
     GList *ptr;
-    const char *slash;
+    char *to_path_dup = NULL;
+    char *remain = NULL;
+    char *slash;
     char *id = NULL;
-    int len;
 
     olddir = seaf_fs_manager_get_seafdir(seaf->fs_mgr, dir_id);
     if (!olddir)
@@ -1876,23 +1879,23 @@ del_file_recursive(const char *dir_id,
         goto out;
     }
 
-    /* to_path is a relative path */
-    slash = strchr(to_path, '/');
+    to_path_dup = g_strdup (to_path);
+    slash = strchr (to_path_dup, '/');
+
     if (!slash) {
-        len = strlen (to_path);
-        slash = to_path + len;
+        remain = to_path_dup + strlen(to_path_dup);
     } else {
-        len = slash - to_path;
-        slash = slash + 1;
+        *slash = '\0';
+        remain = slash + 1;
     }
 
     for (ptr = olddir->entries; ptr; ptr = ptr->next) {
         dent = (SeafDirent *)ptr->data;
 
-        if (strncmp(dent->name, to_path, len) != 0)
+        if (strcmp(dent->name, to_path_dup) != 0)
             continue;
 
-        id = del_file_recursive(dent->id, slash, filename);
+        id = del_file_recursive(dent->id, remain, filename);
         if (id != NULL) {
             memcpy(dent->id, id, 40);
             dent->id[40] = '\0';
@@ -1915,6 +1918,7 @@ del_file_recursive(const char *dir_id,
     }
 
 out:
+    g_free (to_path_dup);
     seaf_dir_free(olddir);
     return id;
 }
@@ -2536,9 +2540,10 @@ rename_file_recursive(const char *dir_id,
     SeafDir *olddir, *newdir;
     SeafDirent *dent;
     GList *ptr;
-    const char *slash;
+    char *to_path_dup = NULL;
+    char *remain = NULL;
+    char *slash;
     char *id = NULL;
-    int len;
 
     olddir = seaf_fs_manager_get_seafdir(seaf->fs_mgr, dir_id);
     if (!olddir)
@@ -2578,23 +2583,23 @@ rename_file_recursive(const char *dir_id,
         goto out;
     }
 
-    /* to_path is a relative path */
-    slash = strchr(to_path, '/');
+    to_path_dup = g_strdup (to_path);
+    slash = strchr (to_path_dup, '/');
+
     if (!slash) {
-        len = strlen (to_path);
-        slash = to_path + len;
+        remain = to_path_dup + strlen(to_path_dup);
     } else {
-        len = slash - to_path;
-        slash = slash + 1;
+        *slash = '\0';
+        remain = slash + 1;
     }
 
     for (ptr = olddir->entries; ptr; ptr = ptr->next) {
         dent = (SeafDirent *)ptr->data;
 
-        if (strncmp(dent->name, to_path, len) != 0)
+        if (strcmp(dent->name, to_path_dup) != 0)
             continue;
 
-        id = rename_file_recursive (dent->id, slash, oldname, newname);
+        id = rename_file_recursive (dent->id, remain, oldname, newname);
         if (id != NULL) {
             memcpy(dent->id, id, 40);
             dent->id[40] = '\0';
@@ -2618,6 +2623,7 @@ rename_file_recursive(const char *dir_id,
     }
 
 out:
+    g_free (to_path_dup);
     seaf_dir_free(olddir);
     return id;
 }
@@ -2894,9 +2900,10 @@ put_file_recursive(const char *dir_id,
     SeafDir *olddir, *newdir;
     SeafDirent *dent;
     GList *ptr;
-    const char *slash;
+    char *to_path_dup = NULL;
+    char *remain = NULL;
+    char *slash;
     char *id = NULL;
-    int len;
 
     olddir = seaf_fs_manager_get_seafdir(seaf->fs_mgr, dir_id);
     if (!olddir)
@@ -2926,23 +2933,23 @@ put_file_recursive(const char *dir_id,
         goto out;
     }
 
-    /* to_path is a relative path */
-    slash = strchr(to_path, '/');
+    to_path_dup = g_strdup (to_path);
+    slash = strchr (to_path_dup, '/');
+
     if (!slash) {
-        len = strlen (to_path);
-        slash = to_path + len;
+        remain = to_path_dup + strlen(to_path_dup);
     } else {
-        len = slash - to_path;
-        slash = slash + 1;
+        *slash = '\0';
+        remain = slash + 1;
     }
 
     for (ptr = olddir->entries; ptr; ptr = ptr->next) {
         dent = (SeafDirent *)ptr->data;
 
-        if (strncmp(dent->name, to_path, len) != 0)
+        if (strcmp(dent->name, to_path_dup) != 0)
             continue;
 
-        id = put_file_recursive (dent->id, slash, newdent);
+        id = put_file_recursive (dent->id, remain, newdent);
         if (id != NULL) {
             memcpy(dent->id, id, 40);
             dent->id[40] = '\0';
@@ -2966,6 +2973,7 @@ put_file_recursive(const char *dir_id,
     }
 
 out:
+    g_free (to_path_dup);
     seaf_dir_free(olddir);
     return id;
 }
