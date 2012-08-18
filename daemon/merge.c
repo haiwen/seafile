@@ -110,7 +110,8 @@ out:
 }
 
 int
-merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error)
+merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
+                gboolean *real_merge)
 {
     SeafCommit *common = NULL;
     SeafCommit *head, *remote;
@@ -118,6 +119,8 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error)
     SeafRepoMergeInfo minfo;
 
     g_assert (repo && remote_branch && error);
+
+    *real_merge = FALSE;
 
     if (seaf_repo_manager_get_merge_info (repo->manager, repo->id, &minfo) < 0) {
         g_warning ("Failed to get merge status of repo %s.\n", repo->id);
@@ -182,6 +185,7 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error)
         g_debug ("Fast forward.\n");
     } else {
         /* Not up-to-date and ff, we need a real merge. */
+        *real_merge = TRUE;
         ret = do_real_merge (repo, 
                              repo->head, head, 
                              remote_branch, remote, common, 

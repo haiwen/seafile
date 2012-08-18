@@ -143,7 +143,8 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
                            char **error);
 
 int
-seaf_repo_merge (SeafRepo *repo, const char *branch, char **error);
+seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
+                 gboolean *real_merge);
 
 void
 seaf_repo_generate_magic (SeafRepo *repo, const char *passwd);

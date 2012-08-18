@@ -184,8 +184,7 @@ handle_seafile_notification (char *type, char *content)
         snprintf (buf, sizeof(buf), "\"%s\" " S_REPO_DELETED_ON_RELAY, content);
         trayicon_notify ("Seafile", buf);
         
-    } else if (strcmp(type, "sync.fetched") == 0
-               || strcmp(type, "sync.uploaded") == 0) {
+    } else if (strcmp(type, "sync.done") == 0) {
         /* format: <repo_name\trepo_id> */
         char *p = strchr(content, '\t');
         if (!p) {

@@ -1500,7 +1500,8 @@ out:
 }
 
 int
-seaf_repo_merge (SeafRepo *repo, const char *branch, char **error)
+seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
+                 gboolean *real_merge)
 {
     SeafBranch *remote_branch;
     int ret = 0;
@@ -1522,7 +1523,7 @@ seaf_repo_merge (SeafRepo *repo, const char *branch, char **error)
         goto error;
     }
 
-    ret = merge_branches (repo, remote_branch, error);
+    ret = merge_branches (repo, remote_branch, error, real_merge);
     seaf_branch_unref (remote_branch);
 
     return ret;
@@ -1767,10 +1768,11 @@ recover_merge_job (void *vrepo)
 {
     SeafRepo *repo = vrepo;
     char *err_msg = NULL;
+    gboolean unused;
 
     /* No one else is holding the lock. */
     pthread_mutex_lock (&repo->lock);
-    if (seaf_repo_merge (repo, "master", &err_msg) < 0) {
+    if (seaf_repo_merge (repo, "master", &err_msg, &unused) < 0) {
         g_free (err_msg);
     }
     pthread_mutex_unlock (&repo->lock);

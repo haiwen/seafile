@@ -373,6 +373,16 @@ seaf_sync_manager_notify_peer_sync (SeafSyncManager *mgr,
 }
 #endif
 
+/* Check the notify setting by user.  */
+static gboolean
+need_notify_sync (SeafRepo *repo)
+{
+    char *notify_setting = seafile_session_config_get_string(seaf, "misc_notify_sync");
+    gboolean result = (g_strcmp0(notify_setting, "on") == 0);
+    g_free (notify_setting);
+    return result;
+}
+
 static const char *sync_state_str[] = {
     "synchronized",
     "commiting",
@@ -395,6 +405,19 @@ transition_sync_state (SyncTask *task, int new_state)
         /*          task->info->repo_id, */
         /*          sync_state_str[task->state], */
         /*          sync_state_str[new_state]); */
+        if ((task->state == SYNC_STATE_MERGE || task->state == SYNC_STATE_UPLOAD) &&
+            new_state == SYNC_STATE_DONE &&
+            need_notify_sync(task->repo))
+        {
+            GString *buf = g_string_new (NULL);
+            g_string_append_printf (buf, "%s\t%s",
+                                    task->repo->name, task->repo->id);
+            seaf_mq_manager_publish_notification (seaf->mq_mgr,
+                                                  "sync.done",
+                                                  buf->str);
+            g_string_free (buf, TRUE);
+        }
+
         task->state = new_state;
         if (new_state == SYNC_STATE_DONE || 
             new_state == SYNC_STATE_CANCELED ||
@@ -518,6 +541,7 @@ start_fetch_if_necessary (SyncTask *task)
 struct MergeResult {
     SyncTask *task;
     gboolean success;
+    gboolean real_merge;
 };
 
 static void *
@@ -547,7 +571,7 @@ merge_job (void *vtask)
 
     /* If there are merge conflicts, the next commit operation will fix that.
      */
-    if (seaf_repo_merge (repo, "master", &err_msg) < 0) {
+    if (seaf_repo_merge (repo, "master", &err_msg, &res->real_merge) < 0) {
         g_message ("[Sync mgr] Merge of repo %s(%.8s) is not clean.\n",
                    repo->name, repo->id);
         res->success = FALSE;
@@ -591,7 +615,7 @@ merge_job_done (void *vresult)
         }
     }
 
-    if (res->success)
+    if (res->success && res->real_merge)
         start_upload_if_necessary (info->current_task);
     else
         transition_sync_state (info->current_task, SYNC_STATE_DONE);
@@ -1311,16 +1335,6 @@ auto_commit_pulse (void *vmanager)
     return TRUE;
 }
 
-/* Check the notify setting by user.  */
-static gboolean
-need_notify_sync (SeafRepo *repo)
-{
-    char *notify_setting = seafile_session_config_get_string(seaf, "misc_notify_sync");
-    gboolean result = (g_strcmp0(notify_setting, "on") == 0);
-    g_free (notify_setting);
-    return result;
-}
-
 inline static void
 send_sync_error_notification (SeafRepo *repo, const char *type)
 {
@@ -1353,16 +1367,6 @@ on_repo_fetched (SeafileSession *seaf,
     if (tx_task->state == TASK_STATE_FINISHED) {
         memcpy (info->head_commit, tx_task->head, 41);
         merge_branches_if_necessary (task);
-
-        if (need_notify_sync(task->repo)) {
-            GString *buf = g_string_new (NULL);
-            g_string_append_printf (buf, "%s\t%s",
-                                    task->repo->name, task->repo->id);
-            seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                                  "sync.fetched",
-                                                  buf->str);
-            g_string_free (buf, TRUE);
-        }
     } else if (tx_task->state == TASK_STATE_CANCELED) {
         transition_sync_state (task, SYNC_STATE_CANCELED);
     } else if (tx_task->state == TASK_STATE_ERROR) {
@@ -1396,16 +1400,6 @@ on_repo_uploaded (SeafileSession *seaf,
     if (tx_task->state == TASK_STATE_FINISHED) {
         memcpy (info->head_commit, tx_task->head, 41);
         transition_sync_state (task, SYNC_STATE_DONE);
-
-        if (need_notify_sync(task->repo)) {
-            GString *buf = g_string_new (NULL);
-            g_string_append_printf (buf, "%s\t%s",
-                                    task->repo->name, task->repo->id);
-            seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                                  "sync.uploaded",
-                                                  buf->str);
-            g_string_free (buf, TRUE);
-        }
 
     } else if (tx_task->state == TASK_STATE_CANCELED) {
         transition_sync_state (task, SYNC_STATE_CANCELED);

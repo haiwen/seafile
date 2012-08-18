@@ -9,7 +9,8 @@
 #include "fs-mgr.h"
 
 int
-merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error);
+merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
+                gboolean *real_merge);
 
 int
 merge_get_new_block_list (SeafRepo *repo, SeafCommit *remote, BlockList **bl);

@@ -684,6 +684,7 @@ seafile_merge (const char *repo_id, const char *branch, GError **error)
 {
     SeafRepo *repo;
     char *err_msgs = NULL;
+    gboolean unused;
 
     if (!repo_id || !branch) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
@@ -698,7 +699,7 @@ seafile_merge (const char *repo_id, const char *branch, GError **error)
 
     pthread_mutex_lock (&repo->lock);
 
-    if (seaf_repo_merge (repo, branch, &err_msgs) < 0) {
+    if (seaf_repo_merge (repo, branch, &err_msgs, &unused) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, -1, "%s", err_msgs);
         g_free (err_msgs);
         pthread_mutex_unlock (&repo->lock);
