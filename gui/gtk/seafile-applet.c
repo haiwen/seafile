@@ -294,6 +294,14 @@ trayicon_rotate (gboolean start)
     }
 }
 
+void trayicon_set_tip (char *tip)
+{
+    if (!tip)
+        return;
+
+    /* TODO: Add trayicon tooltip */
+}
+
 gboolean
 is_seafile_daemon_running ()
 {

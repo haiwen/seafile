@@ -166,18 +166,17 @@ handle_seafile_notification (char *type, char *content)
 
     if (strcmp(type, "transfer") == 0) {
         trayicon_rotate (TRUE);
-        
-#if defined WIN32 || defined __APPLE__
-        GString *str = g_string_new (NULL);
+
         if (content == NULL) {
             applet_debug ("handle empty notification\n");
             return;
         }
+        GString *str = g_string_new (NULL);
         parse_key_value_pairs (content,
                                (KeyValueFunc)collect_transfer_info, str);
         trayicon_set_tip (str->str);
         g_string_free (str, TRUE);
-#endif
+
         return;
         
     } else if (strcmp(type, "repo.deleted_on_relay") == 0) {
