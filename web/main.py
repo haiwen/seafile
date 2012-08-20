@@ -165,14 +165,9 @@ class repos:
 
     def show_repos(self):
         # relay info
-        sinfo = ccnet_rpc.get_session_info()
         relays = get_peers_by_role ("MyRelay")
-        drelay = None
-        if sinfo.props.default_relay:
-            for relay in relays:
-                if relay.props.id == sinfo.props.default_relay:
-                    drelay = relay
-                    break
+        # remove name unresolved relay
+        relays = [relay for relay in relays if relay.name]
 
         # get repos info
         repos = get_repos()
@@ -194,7 +189,6 @@ class repos:
         repos.sort(key=lambda x: x.props.last_modify, reverse=True)
 
         return render.repos(repos=repos,
-                            drelay=drelay,
                             relays=relays,
                             **default_options)
 
