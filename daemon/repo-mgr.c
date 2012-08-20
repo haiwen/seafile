@@ -346,6 +346,17 @@ index_cb (const char *path,
     return 0;
 }
 
+static inline gboolean
+has_trailing_space (const char *path)
+{
+    int len = strlen(path);
+    if (path[len - 1] == ' ') {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 static int
 add_recursive (struct index_state *istate, 
                const char *worktree,
@@ -357,6 +368,13 @@ add_recursive (struct index_state *istate,
     const char *dname;
     char *subpath;
     struct stat st;
+
+    if (has_trailing_space (path)) {
+        /* Ignore files/dir whose path has trailing spaces. It would cause
+         * problem on windows. */
+        /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */
+        return 0;
+    }
 
     full_path = g_build_path (PATH_SEPERATOR, worktree, path, NULL);
     if (g_lstat (full_path, &st) < 0) {
