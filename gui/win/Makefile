@@ -11,18 +11,15 @@ top_srcdir=../..
 GLIB_CFLAGS=$(shell pkg-config --cflags libsearpc)
 GLIB_LDFLAGS=$(shell pkg-config --libs libsearpc)
 
-CFLAGS += -I$(top_srcdir)/include -I$(top_srcdir)/include/ccnet \
-        -I$(top_srcdir)/seafile/include \
+CFLAGS += -I$(top_srcdir)/include \
 		-I$(top_srcdir)/lib \
-        -I$(top_srcdir)/seafile/lib \
 		-I. -I../common \
         $(GLIB_CFLAGS) -g -O0 -Wall
 
 LDFLAGS += -L${top_srcdir}/lib/.libs/   \
-	-L$(top_srcdir)/seafile/lib/.libs/  \
-	-lccnet -lseafile \
+	-lseafile -lseafile_common -lccnet\
 	-lcrypto -lgdi32 -levent  \
-	-lRpcrt4 -lpthread -lws2_32 \
+	-lRpcrt4 -lpthread -lws2_32 -lpsapi \
 	$(GLIB_LDFLAGS)
 
 CC = gcc
@@ -84,7 +81,7 @@ resource.o : ${RCFILE} resource.h ${ICONS} Application.manifest
 	${RC}  -i $< -o $@
 
 $(TARGET) : applet-po-gbk.h $(OBJECTS) resource.o .deps
-	${CC} -o "$@" ${OBJECTS} resource.o ${LDFLAGS}
+	${CC} -o "$@" ${OBJECTS} resource.o ${LDFLAGS} 
 
 debug:all
 distclean:clean

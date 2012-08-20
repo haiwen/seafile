@@ -1425,6 +1425,53 @@ get_process_handle (const char *process_name_in)
     return NULL;
 }
 
+int count_process (const char *process_name_in)
+{
+    char name[MAX_PATH];
+    char process_name[MAX_PATH];
+    DWORD aProcesses[1024], cbNeeded, cProcesses;
+    HANDLE hProcess;
+    HMODULE hMods[1024];
+    int count = 0;
+    int i, j;
+    
+    if (strstr(process_name_in, ".exe")) {
+        snprintf (name, sizeof(name), "%s", process_name_in);
+    } else {
+        snprintf (name, sizeof(name), "%s.exe", process_name_in);
+    }
+
+    if (!EnumProcesses(aProcesses, sizeof(aProcesses), &cbNeeded)) {
+        return 0;
+    }
+
+    /* Calculate how many process identifiers were returned. */
+    cProcesses = cbNeeded / sizeof(DWORD);
+
+    for (i = 0; i < cProcesses; i++) {
+        if(aProcesses[i] == 0)
+            continue;
+        hProcess = OpenProcess (PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, aProcesses[i]);
+        if (!hProcess) {
+            continue;
+        }
+            
+        if (EnumProcessModules(hProcess, hMods, sizeof(hMods), &cbNeeded)) {
+            for (j = 0; j < cbNeeded / sizeof(HMODULE); j++) {
+                if (GetModuleBaseName(hProcess, hMods[j], process_name,
+                                      sizeof(process_name))) {
+                    if (strcasecmp(process_name, name) == 0)
+                        count++;
+                }
+            } 
+        }
+
+        CloseHandle(hProcess);
+    }
+    
+    return count;
+}
+
 gboolean
 process_is_running (const char *process_name)
 {
@@ -1548,6 +1595,31 @@ gboolean process_is_running (const char *process_name)
     closedir(proc_dir);
     return FALSE;
 }
+
+int count_process(const char *process_name)
+{
+    int count = 0;
+    DIR *proc_dir = opendir("/proc");
+    if (!proc_dir) {
+        g_warning ("failed to open /proc/ :%s\n", strerror(errno));
+        return FALSE;
+    }
+
+    struct dirent *subdir = NULL;
+    while ((subdir = readdir(proc_dir))) {
+        char first = subdir->d_name[0];
+        /* /proc/[1-9][0-9]* */
+        if (first > '9' || first < '1')
+            continue;
+        if (find_process_in_dirent(subdir, process_name) > 0) {
+            count++;
+        }
+    }
+
+    closedir (proc_dir);
+    return count;
+}
+
 #endif
 
 #ifdef __APPLE__

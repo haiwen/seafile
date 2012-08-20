@@ -10,11 +10,11 @@
 #include <string.h>
 
 #include <ccnet.h>
-#include <utils.h>
 
 #include "stdafx.h"
 #include "resource.h"
 
+#include "utils.h"
 #include "applet-common.h"
 #include "trayicon.h"
 #include "applet-log.h"
@@ -424,7 +424,7 @@ seafile_applet_init (HINSTANCE hInstance)
 int
 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-    if (process_is_running("ccnet")) {
+    if (count_process("seafile-applet") > 1) {
         MessageBox(NULL, S_SEAFILE_APPLET_ALREAD_RUNNING, "Seafile", MB_OK);
         exit(1);
     }

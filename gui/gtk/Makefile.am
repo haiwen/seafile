@@ -24,6 +24,7 @@ seafile_applet_SOURCES = seafile-applet.c trayicon.c \
 
 seafile_applet_LDADD  = @CCNET_LIBS@  \
 	$(top_builddir)/lib/libseafile.la \
+	$(top_builddir)/lib/libseafile_common.la \
 	@GTK_LIBS@ -lssl -lcrypto @LIB_RT@ @LIB_UUID@ \
 	-lsqlite3 -levent \
 	$(LIBNOTIFY_LIBS) $(APP_INDICATOR_LIBS) @SEARPC_LIBS@

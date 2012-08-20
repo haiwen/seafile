@@ -619,8 +619,9 @@ void prompt_win7_tip_if_necessary ()
     if (!is_windows_seven () || !first_use)
         return;
 
+    first_use = FALSE;
+
     DialogBox (applet->hInstance,
                MAKEINTRESOURCE(IDD_WIN7_TIP),
                applet->hWnd, Win7TipProc);
-    
 }

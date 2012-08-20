@@ -77,7 +77,7 @@ start_seafile_daemon ()
 int ccnet_open_dir(const char *path)
 {
     char buf[4096];
-    snprintf (buf, 4096, "nautilus %s &", path);
+    snprintf (buf, 4096, "nautilus '%s' &", path);
     system (buf);
     return 0;
 }
@@ -146,7 +146,7 @@ seafile_applet_init (SeafileApplet *applet)
 int
 main (int argc, char **argv)
 {
-    if (process_is_running("ccnet")) {
+    if (count_process("seafile-applet") > 1) {
         fprintf(stderr, "Seafile applet already running. I will quit.\n");
         exit(1);
     }

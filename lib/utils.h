@@ -315,6 +315,9 @@ char *ccnet_locale_to_utf8 (const gchar *src);
 /* Detect whether a process with the given name is running right now. */
 gboolean process_is_running(const char *name);
 
+/* count how much instance of a program is running  */
+int count_process (const char *process_name_in);
+
 #ifdef WIN32
 int win32_kill_process (const char *process_name_in);
 int win32_spawn_process (char *cmd, char *wd);
