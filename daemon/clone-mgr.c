@@ -463,26 +463,18 @@ start_connect_task_relay (CloneTask *task, GError **error)
         seaf_message ("add relay before clone, %s:%s\n",
                       task->peer_addr, task->peer_port);
         buf = g_string_new(NULL);
-        g_string_append_printf (buf, "set-relay --addr %s:%s",
-                                task->peer_addr, task->peer_port);
+        g_string_append_printf (buf, "add-relay --id %s --addr %s:%s",
+                                task->peer_id, task->peer_addr, task->peer_port);
         ccnet_send_command (seaf->session, buf->str, NULL, NULL);
         transition_state (task, CLONE_STATE_CONNECT);
         g_string_free (buf, TRUE);
-        goto out;
-        
-    } else if (peer->net_state != PEER_CONNECTED) {
-        /* clone from an existing but un-connected relay */
-        ccnet_connect_peer (seaf->session, peer->id);
-        transition_state (task, CLONE_STATE_CONNECT);
-        goto out;
-
     } else {
-        /* a previous un-connected relay is now connected */
-        start_index_or_transfer (task->manager, task, error);
-        goto out;
+        /* The peer is added to ccnet already and will be connected,
+         * only need to transition the state
+         */
+        transition_state (task, CLONE_STATE_CONNECT);
     }
 
-out:
     if (peer)
         g_object_unref (peer);
 }
