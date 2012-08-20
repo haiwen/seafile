@@ -36,8 +36,10 @@ enum {
 };
 
 typedef struct  {
-    char        end_commit_id[41];
+    char        remote_id[41];
     GList       *id_list;
+    GHashTable  *commit_hash;
+    gboolean    fast_forward;
 } SeafileSendcommitProcPriv;
 
 #define GET_PRIV(o)  \
@@ -61,6 +63,8 @@ release_resource (CcnetProcessor *processor)
 
     if (priv->id_list != NULL)
         string_list_free (priv->id_list);
+    if (priv->commit_hash)
+        g_hash_table_destroy (priv->commit_hash);
 }
 
 static void
@@ -88,7 +92,7 @@ send_commit_start (CcnetProcessor *processor, int argc, char **argv)
     GString *buf;
     TransferTask *task = ((SeafileSendcommitV3Proc *)processor)->tx_task;
 
-    memcpy (priv->end_commit_id, task->remote_head, 41);
+    memcpy (priv->remote_id, task->remote_head, 41);
 
     /* fs_roots can be non-NULL if transfer is resumed from NET_DOWN. */
     if (task->fs_roots != NULL)
@@ -156,35 +160,133 @@ send_one_commit (CcnetProcessor *processor)
     g_free (commit_id);
 }
 
+/* Traverse the commit graph until remote_id is met or a merged commit
+ * (commit with two parents) is met.
+ *
+ * If a merged commit is met before remote_id, that implies that
+ * we did a real merge when merged with the branch headed by remote_id.
+ * In this case we'll need more computation to find out the "delta" commits
+ * between these two branches. Otherwise, if the merge was a fast-forward
+ * one, it's enough to just send all the commits between our head commit
+ * and remote_id.
+ */
 static gboolean
-traverse_commit (SeafCommit *commit, void *data, gboolean *stop)
+traverse_commit_fast_forward (SeafCommit *commit, void *data, gboolean *stop)
 {
     CcnetProcessor *processor = data;
     TransferTask *task = ((SeafileSendcommitV3Proc *)processor)->tx_task;
     USE_PRIV;
 
-    if (priv->end_commit_id[0] != 0 &&
-        strcmp (priv->end_commit_id, commit->commit_id) == 0) {
+    if (priv->remote_id[0] != 0 &&
+        strcmp (priv->remote_id, commit->commit_id) == 0) {
         *stop = TRUE;
+        return TRUE;
+    }
+
+    if (commit->second_parent_id != NULL) {
+        *stop = TRUE;
+        priv->fast_forward = FALSE;
         return TRUE;
     }
 
     priv->id_list = g_list_prepend (priv->id_list, g_strdup(commit->commit_id));
 
+    /* We don't need to send the contents under an empty dir. */
     if (strcmp (commit->root_id, EMPTY_SHA1) != 0)
         object_list_insert (task->fs_roots, commit->root_id);
 
     return TRUE;
 }
 
+static gboolean
+traverse_commit_remote (SeafCommit *commit, void *data, gboolean *stop)
+{
+    CcnetProcessor *processor = data;
+    USE_PRIV;
+    char *key;
+
+    if (g_hash_table_lookup (priv->commit_hash, commit->commit_id))
+        return TRUE;
+
+    key = g_strdup(commit->commit_id);
+    g_hash_table_insert (priv->commit_hash, key, key);
+    return TRUE;
+}
+
+static gboolean
+compute_delta (SeafCommit *commit, void *data, gboolean *stop)
+{
+    CcnetProcessor *processor = data;
+    TransferTask *task = ((SeafileSendcommitV3Proc *)processor)->tx_task;
+    USE_PRIV;
+
+    if (!g_hash_table_lookup (priv->commit_hash, commit->commit_id)) {
+        priv->id_list = g_list_prepend (priv->id_list,
+                                        g_strdup(commit->commit_id));
+
+        if (strcmp (commit->root_id, EMPTY_SHA1) != 0)
+            object_list_insert (task->fs_roots, commit->root_id);
+    } else {
+        /* Stop traversing down from this commit if it already exists
+         * in the remote branch.
+         */
+        *stop = TRUE;
+    }
+
+    return TRUE;
+}
+
+static int
+compute_delta_commits (CcnetProcessor *processor, const char *head)
+{
+    gboolean ret;
+    TransferTask *task = ((SeafileSendcommitV3Proc *)processor)->tx_task;
+    USE_PRIV;
+
+    string_list_free (priv->id_list);
+    priv->id_list = NULL;
+
+    object_list_free (task->fs_roots);
+    task->fs_roots = object_list_new ();
+
+    priv->commit_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                               g_free, NULL);
+
+    ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                    priv->remote_id,
+                                                    traverse_commit_remote,
+                                                    processor);
+    if (!ret) {
+        ccnet_processor_send_update (processor, SC_NOT_FOUND, SS_NOT_FOUND,
+                                     NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+        return -1;
+    }
+
+    ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                    head,
+                                                    compute_delta,
+                                                    processor);
+    if (!ret) {
+        ccnet_processor_send_update (processor, SC_NOT_FOUND, SS_NOT_FOUND,
+                                     NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+        return -1;
+    }
+
+    return 0;
+}
+
 static void
 send_commits (CcnetProcessor *processor, const char *head)
 {
     gboolean ret;
+    USE_PRIV;
 
+    priv->fast_forward = TRUE;
     ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                     head,
-                                                    traverse_commit,
+                                                    traverse_commit_fast_forward,
                                                     processor);
     if (!ret) {
         ccnet_processor_send_update (processor, SC_NOT_FOUND, SS_NOT_FOUND,
@@ -192,6 +294,16 @@ send_commits (CcnetProcessor *processor, const char *head)
         ccnet_processor_done (processor, FALSE);
         return;
     }
+
+    if (priv->fast_forward) {
+        g_debug ("[sendcommt] Send commit after a fast forward merge.\n");
+        send_one_commit (processor);
+        return;
+    }
+
+    g_debug ("[sendcommit] Send commit after a real merge.\n");
+    if (compute_delta_commits (processor, head) < 0)
+        return;
 
     send_one_commit (processor);
 }

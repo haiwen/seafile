@@ -577,25 +577,25 @@ seaf_fs_manager_get_seafile (SeafFSManager *mgr, const char *file_id)
     return seafile;
 }
 
-static void compute_dir_id (SeafDir *dir, GList *entries, gint64 ctime)
+static void compute_dir_id (SeafDir *dir, GList *entries)
 {
     SHA_CTX ctx;
     GList *p;
     uint8_t sha1[20];
     SeafDirent *dent;
-    uint64_t ctime_n;
+
+    /* ID for empty dirs is EMPTY_SHA1. */
+    if (entries == NULL) {
+        memset (dir->dir_id, '0', 40);
+        return;
+    }
 
     SHA1_Init (&ctx);
-    if (entries == NULL) {
-        ctime_n = hton64 (ctime);
-        SHA1_Update (&ctx, &ctime_n, sizeof(ctime));
-    } else {
-        for (p = entries; p; p = p->next) {
-            dent = (SeafDirent *)p->data;
-            SHA1_Update (&ctx, dent->id, 40);
-            SHA1_Update (&ctx, dent->name, dent->name_len);
-            SHA1_Update (&ctx, &dent->mode, sizeof(dent->mode));
-        }
+    for (p = entries; p; p = p->next) {
+        dent = (SeafDirent *)p->data;
+        SHA1_Update (&ctx, dent->id, 40);
+        SHA1_Update (&ctx, dent->name, dent->name_len);
+        SHA1_Update (&ctx, &dent->mode, sizeof(dent->mode));
     }
     SHA1_Final (sha1, &ctx);
 
@@ -609,11 +609,8 @@ seaf_dir_new (const char *id, GList *entries, gint64 ctime)
 
     dir = g_new0(SeafDir, 1);
 
-    if (ctime == 0)
-        ctime = (gint64)time(NULL);
-
     if (id == NULL)
-        compute_dir_id (dir, entries, ctime);
+        compute_dir_id (dir, entries);
     else {
         memcpy(dir->dir_id, id, 40);
         dir->dir_id[40] = '\0';
