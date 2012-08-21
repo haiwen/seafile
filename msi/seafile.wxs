@@ -1,0 +1,117 @@
+<?xml version='1.0'?>
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+  <?include Includes.wxi?>
+  <Product Id="$(var.ProductGuid)"
+           Name='Seafile $(var.CurrentSeafileVersion)'
+           Language='1033'
+           Version='$(var.CurrentSeafileVersion)'
+           Manufacturer='$(var.Manufacturer)'
+           UpgradeCode="$(var.CurrentUpdateGuid)" >
+    
+    <!-- We set InstallScope to perMachine to install for all users -->
+    <Package Description='Seafile 安装包' Comments='Seafile 安装包'
+             Manufacturer='$(var.Manufacturer)'
+             InstallerVersion='200'
+             InstallPrivileges='elevated' InstallScope='perMachine'
+             Compressed='yes' />
+    
+    <!-- Don't allow downgrade. -->
+    <MajorUpgrade
+        DowngradeErrorMessage="检测到您已经安装了更新版本的 Seafile 。安装程序将自动退出。" />
+
+    <Media Id='1' Cabinet='seafile.cab' EmbedCab='yes' />
+
+    <Directory Id='TARGETDIR' Name='SourceDir'>
+      <Directory Id="DesktopFolder" Name="DesktopFolder" />
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="SeafileStartMenuFolder" Name="Seafile" />
+      </Directory>
+      
+      <Directory Id='ProgramFilesFolder' Name='PFiles'>
+        <Directory Id='INSTALLDIR' Name='Seafile'>
+
+          <Directory Id='bin_Dir' Name='bin'>
+            <Component Id='comp_custom' Guid='A8CD54F6-9BFB-11E1-9B0E-001CBFC5CA1D'>
+              
+              <RegistryKey Root="HKCU" Key="Software\[Manufacturer]\[ProductName]" Action="createAndRemoveOnUninstall">
+                <RegistryValue Name="CustomComponent" Value="1" Type="integer" KeyPath='yes' />
+              </RegistryKey>
+              
+              <File Id='seafileapplet.exe' Source='bin\seafile-applet.exe' />
+              
+              <!-- seafile shortcut on desktop -->
+              <Shortcut Id="ApplicationDesktopShortCut" Directory="DesktopFolder"
+                        Name="Seafile" Target="[#seafileapplet.exe]"
+                        Hotkey="0" IconIndex="0" Show="normal"
+                        WorkingDirectory="bin_Dir" />
+
+              <Shortcut Id="ApplicationStartMenuShortCut" Directory="SeafileStartMenuFolder"
+                        Name="启动 Seafile" Target="[#seafileapplet.exe]"
+                        Hotkey="0" IconIndex="0" Show="normal"
+                        WorkingDirectory="bin_Dir" />
+
+            </Component>
+          </Directory>
+        </Directory>
+      </Directory>
+
+    </Directory>
+
+    <DirectoryRef Id="SeafileStartMenuFolder" >
+      <Component Id="Seafile_StartMenuShortCut" Guid="F1662C95-6C0A-4CDD-B009-C5E66A4F8C80" >
+
+        <!-- shortcut to 'Uninstall' -->
+        <Shortcut Id="UninstallProduct" Name="删除 Seafile"
+                  Target="[SystemFolder]msiexec.exe" IconIndex="0"
+                  Arguments="/x [ProductCode]" Description="删除 Seafile" />
+        
+        <RemoveFolder Id="SeafileStartMenuFolder" On="uninstall" />
+        
+        <RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]"
+                       Name="installed" Type="integer" Value="1" KeyPath='yes' />
+      </Component>
+    </DirectoryRef>
+
+    <Binary Id='seafile_custom_dll32' SourceFile='custom\seafile_custom32.dll' />
+    <Binary Id='seafile_custom_dll64' SourceFile='custom\seafile_custom64.dll' />
+
+    <CustomAction Id="KillSeafile" BinaryKey="seafile_custom_dll32" DllEntry="TerminateSeafile" Execute="immediate" />
+    <CustomAction Id="KillSeafile64" BinaryKey="seafile_custom_dll64" DllEntry="TerminateSeafile" Execute="immediate" />
+    
+    <InstallExecuteSequence>
+      <!-- Ask seafile-applet to quit before uninstall -->
+      <Custom Action="KillSeafile" Before="InstallValidate">
+        Installed AND (NOT VersionNT64)
+      </Custom>
+      <Custom Action="KillSeafile64" Before="InstallValidate">
+        Installed AND VersionNT64
+      </Custom>
+    </InstallExecuteSequence>
+
+    <!-- UI related -->
+    <Property Id='WIXUI_INSTALLDIR' Value="INSTALLDIR" />
+    <UI>
+      <UIRef Id='WixUI_InstallDir_NoLicense' />
+      <UIRef Id='WixUI_ErrorProgressText' />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication">
+        <!-- Launch Seafile after setup. -->
+        NOT Installed
+      </Publish>
+    </UI>
+    
+    <Property Id="WixShellExecTarget" Value="[#seafileapplet.exe]" />
+    <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
+
+    <Feature Id='Main' Level='1'>
+      <ComponentRef Id='Seafile_StartMenuShortCut' />
+      <ComponentRef Id='comp_custom' />
+      <!-- defined in fragment.wxs -->
+      <ComponentGroupRef Id='group_bin' />
+    </Feature>
+
+    <Property Id="CHECKBOX_DEL_SEAFILE_DATA" Secure="yes" />
+
+    <WixVariable Id="WixUIBannerBmp" Value="seafile-top-banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="seafile-background.bmp" />
+  </Product>
+</Wix>

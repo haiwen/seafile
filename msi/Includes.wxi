@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Include Id="SeafileInclude">
+  <?define CurrentSeafileVersion="1.0.0" ?> <!-- beta -->
+  <?define Manufacturer="海文互知" ?>
+  
+  <!-- Update Guid 不能变 -->
+  <?define CurrentUpdateGuid="65DED1C8-A5F1-4C49-8E7E-B0A8A5A6535C" ?>
+  
+  <!-- 每个新版本必须重新生成 Product Guid  -->
+  <!-- <?define ProductGuid="5D46888B-A960-4E37-9468-54EFB323610F" ?> (0.9.3) -->
+  <!-- <?define ProductGuid="9ADCC6CF-41E8-4CB7-B48B-5CC87867DF20" ?> (0.9.4) -->
+  <!-- <?define ProductGuid="137667A1-02F1-4BE3-9B1A-EC0B3DB23ED2" ?> (0.9.5) -->
+  <?define ProductGuid="DB1C9EB4-F629-43AE-8B46-F5596AC8B8F1" ?>
+
+  
+
+</Include>
