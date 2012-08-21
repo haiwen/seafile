@@ -226,6 +226,8 @@ set_seafile_auto_start(int on)
     return result;
 }
 
+static UINT_PTR open_browser_timer_id = 0;
+
 /*
  *  After spawning the ccnet.exe process;
  *  
@@ -251,7 +253,8 @@ ConnDaemonProc (HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
 
     prompt_win7_tip_if_necessary ();
 
-    SetTimer (NULL, OPEN_BROWSER_TIMER_ID, 1000, TestWebServer);
+    open_browser_timer_id = SetTimer (NULL, OPEN_BROWSER_TIMER_ID,
+                                      1000, TestWebServer);
 }
 
 int
@@ -624,5 +627,15 @@ gboolean is_seafile_daemon_running ()
 void
 start_open_browser_timer (int timeout_ms, void *data)
 {
-    SetTimer (NULL, OPEN_BROWSER_TIMER_ID, timeout_ms, TestWebServer);
+    open_browser_timer_id = SetTimer (NULL, OPEN_BROWSER_TIMER_ID,
+                                      timeout_ms, TestWebServer);
+}
+
+void
+stop_open_browser_timer()
+{
+    if (open_browser_timer_id != 0) {
+        KillTimer(NULL, open_browser_timer_id);
+        open_browser_timer_id = 0;
+    }
 }

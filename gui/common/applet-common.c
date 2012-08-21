@@ -445,6 +445,7 @@ start_ccnet ()
 void restart_all (void)
 {
     applet_message ("Restarting ccnet ...\n");
+    stop_open_browser_timer();
     stop_web_server();
     
     if (applet->client->connected) {

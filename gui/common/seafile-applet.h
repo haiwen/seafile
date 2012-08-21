@@ -75,6 +75,7 @@ void rm_client_fd_from_mainloop (void);
 void start_conn_daemon_timer (int timeout_ms, void *data);
 void start_heartbeat_monitor_timer (int timeout_ms, void *data);
 void start_open_browser_timer (int timeout_ms, void *data);
+void stop_open_browser_timer (void);
 
 void trayicon_set_ccnet_state (int state);
 void trayicon_notify (char *title, char *buf);

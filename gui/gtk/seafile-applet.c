@@ -316,8 +316,20 @@ start_heartbeat_monitor_timer (int timeout_ms, void *data)
     g_timeout_add (timeout_ms, heartbeat_monitor, NULL);
 }
 
+static int open_browser_timer_id = 0;
+
 void
 start_open_browser_timer (int timeout_ms, void *data)
 {
-    g_timeout_add (timeout_ms, (GSourceFunc)on_open_browser_timeout, data);
+    open_browser_timer_id = g_timeout_add (timeout_ms,
+                (GSourceFunc)on_open_browser_timeout, data);
+}
+
+void
+stop_open_browser_timer()
+{
+    if (open_browser_timer_id) {
+        g_source_remove (open_browser_timer_id);
+        open_browser_timer_id = 0;
+    }
 }
