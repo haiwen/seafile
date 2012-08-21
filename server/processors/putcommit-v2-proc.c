@@ -1,6 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
 #include "common.h"
+#include "log.h"
 
 #include <fcntl.h>
 
@@ -17,6 +18,9 @@ typedef struct  {
     char        head_commit_id[41];
     char        remote_commit_id[41];
     GList       *id_list;
+    GHashTable  *commit_hash;
+    gboolean    fast_forward;
+
     guint32     reader_id;
     gboolean    registered;
 } SeafilePutcommitProcPriv;
@@ -38,6 +42,8 @@ release_resource (CcnetProcessor *processor)
 
     if (priv->id_list)
         string_list_free (priv->id_list);
+    if (priv->commit_hash)
+        g_hash_table_destroy (priv->commit_hash);
     if (priv->registered)
         seaf_obj_store_unregister_async_read (seaf->commit_mgr->obj_store,
                                               priv->reader_id);
@@ -132,7 +138,7 @@ bad:
 }
 
 static gboolean
-collect_id (SeafCommit *commit, void *data, gboolean *stop)
+collect_id_fast_forward (SeafCommit *commit, void *data, gboolean *stop)
 {
     CcnetProcessor *processor = data;
     USE_PRIV;
@@ -142,8 +148,88 @@ collect_id (SeafCommit *commit, void *data, gboolean *stop)
         return TRUE;
     }
 
+    /* In clone remote head is not set but we're alwasy fast-forward. */
+    if (priv->remote_commit_id[0] != '\0' &&
+        commit->second_parent_id != NULL) {
+        *stop = TRUE;
+        priv->fast_forward = FALSE;
+        return TRUE;
+    }
+
     priv->id_list = g_list_prepend (priv->id_list, g_strdup(commit->commit_id));
     return TRUE;
+}
+
+static gboolean
+collect_id_remote (SeafCommit *commit, void *data, gboolean *stop)
+{
+    CcnetProcessor *processor = data;
+    USE_PRIV;
+    char *key;
+
+    if (g_hash_table_lookup (priv->commit_hash, commit->commit_id))
+        return TRUE;
+
+    key = g_strdup(commit->commit_id);
+    g_hash_table_insert (priv->commit_hash, key, key);
+    return TRUE;
+}
+
+static gboolean
+compute_delta (SeafCommit *commit, void *data, gboolean *stop)
+{
+    CcnetProcessor *processor = data;
+    USE_PRIV;
+
+    if (!g_hash_table_lookup (priv->commit_hash, commit->commit_id)) {
+        priv->id_list = g_list_prepend (priv->id_list,
+                                        g_strdup(commit->commit_id));
+    } else {
+        /* Stop traversing down from this commit if it already exists
+         * in the remote branch.
+         */
+        *stop = TRUE;
+    }
+
+    return TRUE;
+}
+
+static int
+compute_delta_commits (CcnetProcessor *processor, const char *head)
+{
+    gboolean ret;
+    USE_PRIV;
+
+    string_list_free (priv->id_list);
+    priv->id_list = NULL;
+
+    priv->commit_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                               g_free, NULL);
+
+    /* When putting commits, the remote head commit must exists. */
+    ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                    priv->remote_commit_id,
+                                                    collect_id_remote,
+                                                    processor);
+    if (!ret) {
+        seaf_warning ("[putcommit] Failed to traverse remote branch.\n");
+        string_list_free (priv->id_list);
+        priv->id_list = NULL;
+        return -1;
+    }
+
+    ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                    head,
+                                                    compute_delta,
+                                                    processor);
+    if (!ret) {
+        seaf_warning ("[putcommit] Failed to compute delta commits.\n");
+        string_list_free (priv->id_list);
+        priv->id_list = NULL;
+        return -1;
+    }
+
+    return 0;
 }
 
 static void *
@@ -152,9 +238,10 @@ collect_commit_id_thread (void *vprocessor)
     CcnetProcessor *processor = vprocessor;
     USE_PRIV;
 
+    priv->fast_forward = TRUE;
     if (seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                   priv->head_commit_id,
-                                                  collect_id,
+                                                  collect_id_fast_forward,
                                                   processor) < 0) {
         g_warning ("[putcommit] Failed to collect commit id.\n");
         string_list_free (priv->id_list);
@@ -162,7 +249,11 @@ collect_commit_id_thread (void *vprocessor)
         return vprocessor;
     }
 
-    priv->id_list = g_list_reverse (priv->id_list);
+    if (priv->fast_forward)
+        return vprocessor;
+
+    compute_delta_commits (processor, priv->head_commit_id);
+
     return vprocessor;
 }
 
