@@ -488,8 +488,7 @@ spawn_ccnet_daemon ()
     char *locale_config_dir = ccnet_locale_from_utf8(applet->config_dir);
 
     g_string_append_printf (buf,
-            "ccnet.exe -c \"%s\" --no-multicast -D Peer,Group,"
-            "Requirement,Message,Connection,Other",
+            "ccnet.exe -c \"%s\" -D Peer,Message,Connection,Other",
             locale_config_dir);
 
     g_free (locale_config_dir);

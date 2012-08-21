@@ -77,7 +77,7 @@ start_seafile_daemon ()
 int ccnet_open_dir(const char *path)
 {
     char buf[4096];
-    snprintf (buf, 4096, "nautilus '%s' &", path);
+    snprintf (buf, 4096, "xdg-open '%s' &", path);
     system (buf);
     return 0;
 }
@@ -190,8 +190,8 @@ spawn_ccnet_daemon ()
     int ret;
     char buf[1024];
 
-    ret = snprintf (buf, sizeof(buf), "ccnet -c \"%s\" -D Peer,Group,"
-                    "Requirement,Message,Connection,Other",
+    ret = snprintf (buf, sizeof(buf), "ccnet -c \"%s\" -D Peer,"
+                    "Message,Connection,Other",
                     applet->config_dir);
     if (ret > 0) {
         if (spawn_process (buf) < 0) {
