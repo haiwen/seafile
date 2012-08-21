@@ -46,7 +46,7 @@
 #define SCHEDULE_INTERVAL   1   /* 1s */
 #define BLOCKS_PER_ROUND    10
 
-#define DEFAULT_BLOCK_SIZE  (1024*1024)
+#define DEFAULT_BLOCK_SIZE  (1 << 20)
 
 static int schedule_task_pulse (void *vmanager);
 static void free_task_resources (TransferTask *task);
@@ -1162,14 +1162,16 @@ download_dispatch_blocks_to_processor (TransferTask *task, SeafileGetblockV2Proc
         return FALSE;
     }
 
-    n_blocks = MIN (n_blocks, BLOCKS_PER_ROUND);
-
     for (i = 0; i < proc->block_bitmap.bitCount; ++i) {
         /* TODO: we have a performance problem here. */
 
-        if (n_scheduled == n_blocks) {
+        /* Bandwidth saturated. */
+        if (n_scheduled == n_blocks)
+            return FALSE;
+
+        /* Wait for next round... */
+        if (n_scheduled == BLOCKS_PER_ROUND)
             return TRUE;
-        }
 
         if (BitfieldHasFast (&proc->block_bitmap, i) &&
             !BitfieldHasFast (&task->block_list->block_map, i) &&
@@ -1864,12 +1866,14 @@ upload_dispatch_blocks_to_processor (TransferTask *task, SeafileSendblockV2Proc 
         return FALSE;
     }
 
-    n_blocks = MIN (n_blocks, BLOCKS_PER_ROUND);
-
     for (i = 0; i < task->uploaded.bitCount; ++i) {
-        if (n_scheduled == n_blocks) {
+        /* Bandwidth saturated. */
+        if (n_scheduled == n_blocks)
+            return FALSE;
+
+        /* Wait for next round... */
+        if (n_scheduled == BLOCKS_PER_ROUND)
             return TRUE;
-        }
 
         if (!BitfieldHasFast (&task->uploaded, i) &&
             BitfieldHasFast (&task->block_list->block_map, i) &&

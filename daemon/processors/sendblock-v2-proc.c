@@ -168,7 +168,8 @@ sent_block_cb (CEvent *event, void *vprocessor)
     if (proc->tx_time != 0)
         proc->avg_tx_rate = ((double)proc->tx_bytes) * 1000000 / proc->tx_time;
 
-    --(proc->pending_blocks);
+    if (blk_rsp->block_idx >= 0)
+        --(proc->pending_blocks);
 
     g_free (blk_rsp);
 }

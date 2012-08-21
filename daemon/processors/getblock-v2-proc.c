@@ -149,6 +149,7 @@ got_block_cb (CEvent *event, void *vprocessor)
         BitfieldRem (&proc->active, blk_rsp->block_idx);
         BitfieldRem (&proc->tx_task->active, blk_rsp->block_idx);
         ++(proc->tx_task->block_list->n_valid_blocks);
+        --(proc->pending_blocks);
     }
 
     /* g_debug ("[get block] rx_rate = %.6f\n", blk_rsp->rx_rate); */
@@ -169,8 +170,6 @@ got_block_cb (CEvent *event, void *vprocessor)
         proc->avg_tx_rate = ((double)proc->tx_bytes) * 1000000 / proc->tx_time;
 
     /* g_debug ("[get block] avg_rx_rate = %.6f\n", proc->avg_rx_rate); */
-
-    --(proc->pending_blocks);
 
     g_free (blk_rsp);
 }

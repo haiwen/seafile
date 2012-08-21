@@ -232,7 +232,7 @@ send_block_packet (ThreadData *tdata,
     }
 
 #if defined SENDBLOCK_PROC
-    send_block_rsp (tdata->cevent_id, -1, delta, (int)(t_end - t_start));
+    send_block_rsp (tdata->cevent_id, block_idx, delta, (int)(t_end - t_start));
 #endif
 
     return size;
@@ -369,17 +369,17 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
         if (fsm->remain == 0) {
             if (seaf_block_manager_close_block (block_mgr, handle) < 0) {
                 g_warning ("Failed to close block %s.\n", fsm->hdr.block_id);
-                seaf_block_manager_block_handle_free (seaf->block_mgr, handle);
                 return -1;
             }
 
             if (seaf_block_manager_commit_block (block_mgr, handle) < 0) {
                 g_warning ("Failed to commit block %s.\n", fsm->hdr.block_id);
-                seaf_block_manager_block_handle_free (seaf->block_mgr, handle);
                 return -1;
             }
 
             seaf_block_manager_block_handle_free (block_mgr, handle);
+            /* Set this handle to invalid. */
+            fsm->handle = NULL;
 
             /* Notify finish receiving this block. */
             send_block_rsp (fsm->cevent_id,
@@ -417,14 +417,12 @@ recv_blocks (ThreadData *tdata)
             continue;
         } else if (rc < 0) {
             g_warning ("select error: %s.\n", strerror(errno));
-            g_free (fsm);
-            return -1;
+            goto error;
         }
 
         if (FD_ISSET (tdata->data_fd, &fds)) {
             if (recv_tick (fsm, tdata->data_fd) < 0) {
-                g_free (fsm);
-                return -1;
+                goto error;
             }
         }
 
@@ -437,13 +435,20 @@ recv_blocks (ThreadData *tdata)
             int n = piperead (tdata->task_pipe[0], buf, sizeof(buf));
             g_assert (n == 0);
             g_debug ("task pipe closed. exit now.\n");
-            g_free (fsm);
-            return -1;
+            goto error;
         }
     }
 
     g_free (fsm);
     return 0;
+
+error:
+    if (fsm->handle) {
+        seaf_block_manager_close_block (seaf->block_mgr, fsm->handle);
+        seaf_block_manager_block_handle_free (seaf->block_mgr, fsm->handle);
+    }
+    g_free (fsm);
+    return -1;
 }
 
 #endif  /* defined GETBLOCK_PROC || defined RECVBLOCK_PROC */
