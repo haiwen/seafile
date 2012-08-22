@@ -95,68 +95,7 @@ seaf_repo_manager_repo_exists_prefix (SeafRepoManager *manager, const gchar *id)
 GList* 
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit);
 
-int
-seaf_repo_manager_set_repo_owner (SeafRepoManager *mgr,
-                                  const char *repo_id,
-                                  const char *email);
-
-char *
-seaf_repo_manager_get_repo_owner (SeafRepoManager *mgr,
-                                  const char *repo_id);
-
-/* TODO: add start and limit. */
-/* Get repos owned by this user.
- */
-GList *
-seaf_repo_manager_get_repos_by_owner (SeafRepoManager *mgr,
-                                      const char *email);
-
 GList *
 seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr);
-
-gint64
-seaf_repo_manager_get_repo_size (SeafRepoManager *mgr, const char *repo_id);
-
-int
-seaf_repo_manager_set_access_property (SeafRepoManager *mgr, const char *repo_id,
-                                       const char *ap);
-
-char *
-seaf_repo_manager_query_access_property (SeafRepoManager *mgr, const char *repo_id);
-
-int
-seaf_repo_manager_share_repo (SeafRepoManager *mgr,
-                              const char *repo_id,
-                              int group_id,
-                              const char *user_name,
-                              const char *permission,
-                              GError **error);
-int
-seaf_repo_manager_unshare_repo (SeafRepoManager *mgr,
-                                const char *repo_id,
-                                int group_id,
-                                const char *user_name,
-                                GError **error);
-
-GList *
-seaf_repo_manager_get_group_repoids (SeafRepoManager *mgr,
-                                     int group_id,
-                                     GError **error);
-
-GList *
-seaf_repo_manager_get_group_my_share_repos (SeafRepoManager *mgr,
-                                            const char *username,
-                                            GError **error);
-
-char *
-seaf_repo_manager_get_repo_share_from (SeafRepoManager *mgr,
-                                       const char *repo_id,
-                                       GError **error);
-
-int
-seaf_repo_manager_remove_repo_group (SeafRepoManager *mgr,
-                                     int group_id,
-                                     const char *user_name,
-                                     GError **error);
 
 #endif
