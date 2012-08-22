@@ -75,7 +75,7 @@ render = render_mako(directories=['templates'],
 
 app = web.application(urls, globals())
 
-SEAFILE_VERSION = '0.9.5'
+SEAFILE_VERSION = '1.0.0'
 default_options = { "confdir": CCNET_CONF_PATH,
                     'web_ctx': web.ctx, 
                     'seafile_version': SEAFILE_VERSION,
@@ -185,6 +185,7 @@ class repos:
             for repo in repos:
                 if relay.props.id == repo.props.relay_id:
                     relay.repos.append(repo)
+                    repo.relay = relay
 
         repos.sort(key=lambda x: x.props.last_modify, reverse=True)
 

@@ -5,8 +5,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2012-08-02 16:07+CST\n"
-"PO-Revision-Date: 2012-05-23 16:19+0800\n"
+"POT-Creation-Date: 2012-08-22 14:52+CST\n"
+"PO-Revision-Date: 2012-08-22 14:53+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -15,33 +15,33 @@ msgstr ""
 "Content-Transfer-Encoding: UTF-8\n"
 "Generated-By: pygettext.py 1.5\n"
 
-#: main.py:562
+#: main.py:550
 msgid "You must choose a local directory"
 msgstr "你必须指定一个本地目录"
 
-#: main.py:564
+#: main.py:552
 msgid "Password can not be empty"
 msgstr "密码不能为空"
 
-#: main.py:566
+#: main.py:554
 msgid "Invalid Repo ID"
 msgstr "同步目录ID格式不正确"
 
-#: main.py:595
+#: main.py:583
 msgid "Invalid local directory"
 msgstr "不是合法的本地目录"
 
-#: main.py:597
+#: main.py:585
 msgid ""
 "The local directory you chose is in sync with another repo. Please choose "
 "another one."
 msgstr "你所指定的本地目录已经与其他同步目录同步，请指定其他本地目录"
 
-#: main.py:599
+#: main.py:587
 msgid "Invalid local directory name."
 msgstr "不是合法的本地目录名。"
 
-#: main.py:601 templates/clone_tasks.html:65
+#: main.py:589 templates/clone_tasks.html:65
 msgid "Internal error."
 msgstr "内部错误"
 
@@ -852,22 +852,26 @@ msgid "View Download Tasks"
 msgstr "查看下载任务"
 
 #: templates/repos.html:45
+msgid "Server"
+msgstr "服务器"
+
+#: templates/repos.html:46
 msgid "Modify Time"
 msgstr "修改时间"
 
-#: templates/repos.html:46
+#: templates/repos.html:47
 msgid "State"
 msgstr "状态"
 
-#: templates/repos.html:52
+#: templates/repos.html:53
 msgid "Open"
 msgstr "打开"
 
-#: templates/repos.html:60 templates/repos.html:63
+#: templates/repos.html:65 templates/repos.html:68
 msgid "Unknown"
 msgstr "未知"
 
-#: templates/repos.html:68
+#: templates/repos.html:73
 msgid "Synchronized"
 msgstr "已同步"
 

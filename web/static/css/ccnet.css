@@ -131,7 +131,7 @@ a.button { text-decoration: underline; color:#800; }
 #center-panel { width:545px; }
 #wide-center-panel { width: 770px; }
 #right-panel { width:175px; }
-#footer { color:#999; padding-top:2px; margin:25px auto; border-top:1px solid #DDD; }
+#footer { color:#999; padding-top:2px; margin:75px auto 25px; border-top:1px solid #DDD; }
 /* top-bar */
 #top-bar {
     height:20px;
@@ -224,6 +224,7 @@ a.relay-link {
 .repo-list th { padding: 3px 3px; }
 .repo-list td {
     padding: 5px 3px;
+    color: #333;
 }
 #slides {
     margin-top: 16px;
