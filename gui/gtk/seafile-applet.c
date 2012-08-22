@@ -172,6 +172,8 @@ main (int argc, char **argv)
 
     applet_message ("seafile started\n");
 
+    trayicon_set_tip ("Seafile");
+
     gtk_main ();
 
     return 0;
@@ -261,6 +263,8 @@ do_rotate ()
         trayicon_is_rotating = FALSE;
         seafile_trayicon_set_icon (icon, applet->client->connected ?
                                    ICON_STATUS_UP : ICON_STATUS_DOWN);
+        /* Restore default tooltip when rotatation stops */
+        trayicon_set_tip ("Seafile");
         return FALSE;
     }
         
@@ -299,7 +303,7 @@ void trayicon_set_tip (char *tip)
     if (!tip)
         return;
 
-    /* TODO: Add trayicon tooltip */
+    seafile_trayicon_set_tooltip (applet->icon, tip);
 }
 
 gboolean

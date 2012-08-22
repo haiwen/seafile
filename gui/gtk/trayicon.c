@@ -51,7 +51,8 @@ static void _tray_set_icon (AppIndicator *icon, const char *icon_name)
 
 static void _update_icon_tootip(AppIndicator *icon, const char *tooltip)
 {
-    app_indicator_set_label (icon, tooltip, NULL);
+    /* This is _label_ , not tooltip. */
+    /* app_indicator_set_label (icon, tooltip, NULL); */
 }
 
 static AppIndicator* _create_icon ()
@@ -73,6 +74,12 @@ static void _setup_menu (SeafileTrayIcon *icon, GtkWidget *menu)
 static void _tray_set_icon (GtkStatusIcon *icon, const char *icon_name)
 {
     gtk_status_icon_set_from_icon_name (icon, icon_name);
+}
+
+static void
+_update_icon_tootip (GtkStatusIcon *icon, const char *tooltip)
+{
+    gtk_status_icon_set_tooltip_text (icon, tooltip);
 }
 
 static GtkStatusIcon* _create_icon ()
@@ -243,3 +250,9 @@ void seafile_trayicon_notify (SeafileTrayIcon *icon, char *title, char *buf)
     g_object_unref (n);
 }
 
+void
+seafile_trayicon_set_tooltip (SeafileTrayIcon *icon,
+                              const char *tooltip)
+{
+    _update_icon_tootip (icon->priv->icon, tooltip);
+}

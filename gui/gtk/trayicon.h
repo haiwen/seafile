@@ -42,4 +42,6 @@ void seaf_tray_icon_set_icon (SeafileTrayIcon *icon, const char *name);
 
 void seafile_trayicon_notify (SeafileTrayIcon *icon, char *title, char *buf);
 
+void seafile_trayicon_set_tooltip (SeafileTrayIcon *icon, const char *tooltip);
+
 #endif /* __SEAFILE_TRAY_ICON_H__ */
