@@ -613,7 +613,7 @@ class settings_page:
         
     def POST(self):
         current_prefs = get_current_prefs()
-        inputs = web.webapi.input(auto_start='on', notify_sync='on')
+        inputs = web.webapi.input(auto_start='off', notify_sync='off')
 
         applet_rpc.set_auto_start(inputs.auto_start)
 

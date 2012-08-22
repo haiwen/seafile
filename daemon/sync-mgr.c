@@ -377,7 +377,7 @@ seaf_sync_manager_notify_peer_sync (SeafSyncManager *mgr,
 static gboolean
 need_notify_sync (SeafRepo *repo)
 {
-    char *notify_setting = seafile_session_config_get_string(seaf, "misc_notify_sync");
+    char *notify_setting = seafile_session_config_get_string(seaf, "notify_sync");
     gboolean result = (g_strcmp0(notify_setting, "on") == 0);
     g_free (notify_setting);
     return result;
