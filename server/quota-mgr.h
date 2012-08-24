@@ -52,4 +52,11 @@ seaf_quota_manager_get_org_user_quota (SeafQuotaManager *mgr,
                                        int org_id,
                                        const char *user);
 
+/*
+ * Check if @repo_id still has free space for upload.
+ */
+int
+seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
+                                const char *repo_id);
+
 #endif

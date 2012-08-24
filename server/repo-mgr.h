@@ -322,31 +322,30 @@ GList *
 seaf_repo_manager_get_repos_by_owner (SeafRepoManager *mgr,
                                       const char *email);
 
-/* Group related. */
+/* Group repos. */
 
 int
-seaf_repo_manager_share_repo (SeafRepoManager *mgr,
-                              const char *repo_id,
-                              int group_id,
-                              const char *user_name,
-                              const char *permission,
-                              GError **error);
+seaf_repo_manager_add_group_repo (SeafRepoManager *mgr,
+                                  const char *repo_id,
+                                  int group_id,
+                                  const char *owner,
+                                  const char *permission,
+                                  GError **error);
 int
-seaf_repo_manager_unshare_repo (SeafRepoManager *mgr,
-                                const char *repo_id,
-                                int group_id,
-                                const char *user_name,
-                                GError **error);
+seaf_repo_manager_del_group_repo (SeafRepoManager *mgr,
+                                  const char *repo_id,
+                                  int group_id,
+                                  GError **error);
 
 GList *
-seaf_repo_manager_get_shared_groups_by_repo (SeafRepoManager *mgr,
-                                             const char *repo_id,
-                                             GError **error);
+seaf_repo_manager_get_groups_by_repo (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      GError **error);
 
 char *
-seaf_repo_manager_get_repo_share_from (SeafRepoManager *mgr,
-                                       const char *repo_id,
-                                       GError **error);
+seaf_repo_manager_get_group_repo_owner (SeafRepoManager *mgr,
+                                        const char *repo_id,
+                                        GError **error);
 
 GList *
 seaf_repo_manager_get_group_repoids (SeafRepoManager *mgr,
@@ -354,21 +353,25 @@ seaf_repo_manager_get_group_repoids (SeafRepoManager *mgr,
                                      GError **error);
 
 GList *
-seaf_repo_manager_get_group_my_share_repos (SeafRepoManager *mgr,
-                                            const char *username,
+seaf_repo_manager_get_group_repos_by_owner (SeafRepoManager *mgr,
+                                            const char *owner,
                                             GError **error);
 
 int
-seaf_repo_manager_remove_repo_group (SeafRepoManager *mgr,
-                                     int group_id,
-                                     const char *user_name,
-                                     GError **error);
+seaf_repo_manager_remove_group_repos (SeafRepoManager *mgr,
+                                      int group_id,
+                                      const char *owner,
+                                      GError **error);
 
-/* Org related. */
+/* Org repos */
 
 int
 seaf_repo_manager_get_repo_org (SeafRepoManager *mgr,
                                 const char *repo_id);
+
+char *
+seaf_repo_manager_get_org_repo_owner (SeafRepoManager *mgr,
+                                      const char *repo_id);
 
 GList *
 seaf_repo_manager_get_org_repo_list (SeafRepoManager *mgr,
@@ -384,6 +387,47 @@ int
 seaf_repo_manager_get_org_id_by_repo_id (SeafRepoManager *mgr,
                                          const char *repo_id,
                                          GError **error);
+
+/* Org group repos */
+
+int
+seaf_repo_manager_add_org_group_repo (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      int org_id,
+                                      int group_id,
+                                      const char *owner,
+                                      const char *permission,
+                                      GError **error);
+int
+seaf_repo_manager_del_org_group_repo (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      int org_id,
+                                      int group_id,
+                                      GError **error);
+
+GList *
+seaf_repo_manager_get_org_group_repoids (SeafRepoManager *mgr,
+                                         int org_id,
+                                         int group_id,
+                                         GError **error);
+
+GList *
+seaf_repo_manager_get_org_groups_by_repo (SeafRepoManager *mgr,
+                                          int org_id,
+                                          const char *repo_id,
+                                          GError **error);
+
+/* TODO: add more interfaces for org group reop. */
+
+/*
+ * Comprehensive repo permission checker.
+ * It checks if @user have permission to access @repo_id.
+ */
+int
+seaf_repo_manager_check_permission (SeafRepoManager *mgr,
+                                    const char *repo_id,
+                                    const char *user,
+                                    GError **error);
 
 /* Web access permission. */
 

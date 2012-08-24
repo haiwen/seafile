@@ -1847,6 +1847,8 @@ seafile_remove_share (const char *repo_id, const char *from_email,
     return ret;
 }
 
+/* Group repo RPC. */
+
 int
 seafile_group_share_repo (const char *repo_id, int group_id,
                           const char *user_name, const char *permission,
@@ -1861,8 +1863,8 @@ seafile_group_share_repo (const char *repo_id, int group_id,
         return -1;
     }
 
-    ret = seaf_repo_manager_share_repo (mgr, repo_id, group_id, user_name,
-                                        permission, error);
+    ret = seaf_repo_manager_add_group_repo (mgr, repo_id, group_id, user_name,
+                                            permission, error);
 
     return ret;
 }
@@ -1880,8 +1882,7 @@ seafile_group_unshare_repo (const char *repo_id, int group_id,
         return -1;
     }
 
-    ret = seaf_repo_manager_unshare_repo (mgr, repo_id, group_id, user_name,
-                                          error);
+    ret = seaf_repo_manager_del_group_repo (mgr, repo_id, group_id, error);
 
     return ret;
 
@@ -1900,8 +1901,7 @@ seafile_get_shared_groups_by_repo(const char *repo_id, GError **error)
         return NULL;
     }
 
-    group_ids = seaf_repo_manager_get_shared_groups_by_repo (mgr, repo_id,
-                                                             error);
+    group_ids = seaf_repo_manager_get_groups_by_repo (mgr, repo_id, error);
     if (!group_ids) {
         return NULL;
     }
@@ -1924,8 +1924,7 @@ seafile_get_group_repoids (int group_id, GError **error)
     GList *repo_ids = NULL, *ptr;
     GString *result;
 
-    repo_ids = seaf_repo_manager_get_group_repoids (mgr, group_id,
-                                                    error);
+    repo_ids = seaf_repo_manager_get_group_repoids (mgr, group_id, error);
     if (!repo_ids) {
         return NULL;
     }
@@ -1954,8 +1953,7 @@ seafile_get_group_my_share_repos (char *username, GError **error)
         return NULL;
     }
 
-    ret = seaf_repo_manager_get_group_my_share_repos (mgr, username,
-                                                      error);
+    ret = seaf_repo_manager_get_group_repos_by_owner (mgr, username, error);
     if (!ret) {
         return NULL;
     }
@@ -1969,8 +1967,8 @@ seafile_get_group_repo_share_from (const char *repo_id, GError **error)
     SeafRepoManager *mgr = seaf->repo_mgr;
     GString *result = g_string_new ("");
 
-    char *share_from = seaf_repo_manager_get_repo_share_from (mgr, repo_id,
-                                                              error);
+    char *share_from = seaf_repo_manager_get_group_repo_owner (mgr, repo_id,
+                                                               error);
     if (share_from) {
         g_string_append_printf (result, "%s", share_from);
         g_free (share_from);
@@ -1988,9 +1986,12 @@ seafile_remove_repo_group(int group_id, const char *username, GError **error)
         return -1;
     }
 
-    return seaf_repo_manager_remove_repo_group (seaf->repo_mgr,
-                                                group_id, username, error);
+    return seaf_repo_manager_remove_group_repos (seaf->repo_mgr,
+                                                 group_id, username,
+                                                 error);
 }
+
+/* Org Repo RPC. */
 
 GList *
 seafile_get_org_repo_list (int org_id, int start, int limit, GError **error)
@@ -2025,6 +2026,48 @@ seafile_remove_org_repo_by_org_id (int org_id, GError **error)
     }
 
     return seaf_repo_manager_remove_org_repo_by_org_id (seaf->repo_mgr, org_id);
+}
+
+/* Org Group Repo RPC. */
+
+int
+seafile_add_org_group_repo (const char *repo_id,
+                            int org_id,
+                            int group_id,
+                            const char *owner,
+                            const char *permission,
+                            GError **error)
+{
+    if (!repo_id || !owner || org_id < 0 || group_id < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
+        return -1;
+    }
+
+    return seaf_repo_manager_add_org_group_repo (seaf->repo_mgr,
+                                                 repo_id,
+                                                 org_id,
+                                                 group_id,
+                                                 owner,
+                                                 permission,
+                                                 error);
+}
+
+int
+seafile_del_org_group_repo (const char *repo_id,
+                            int org_id,
+                            int group_id,
+                            GError **error)
+{
+    if (!repo_id || org_id < 0 || group_id < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
+        return -1;
+    }
+
+    return seaf_repo_manager_del_org_group_repo (seaf->repo_mgr,
+                                                 repo_id,
+                                                 org_id,
+                                                 group_id,
+                                                 error);
 }
 
 gint64
@@ -2442,44 +2485,12 @@ seafile_get_org_user_quota (int org_id, const char *user, GError **error)
 int
 seafile_check_quota (const char *repo_id, GError **error)
 {
-    char *user = NULL;
-    int org_id;
-    gint64 quota, usage;
-
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad arguments");
         return -1;
     }
 
-    user = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
-    if (user != NULL) {
-        quota = seaf_quota_manager_get_user_quota (seaf->quota_mgr, user);
-        if (quota <= 0)
-            quota = seaf->quota_mgr->default_quota;
-    } else {
-        org_id = seaf_repo_manager_get_repo_org (seaf->repo_mgr, repo_id);
-        if (org_id < 0) {
-            seaf_warning ("[upload] Repo %s has no owner.\n", repo_id);
-            return -1;
-        }
-
-        quota = seaf_quota_manager_get_org_quota (seaf->quota_mgr, org_id);
-        if (quota <= 0)
-            quota = seaf->quota_mgr->default_quota;
-    }
-
-    if (quota == INFINITE_QUOTA)
-        return 0;
-
-    if (user)
-        usage = get_user_quota_usage (seaf, user);
-    else
-        usage = get_org_quota_usage (seaf, org_id);
-
-    if (usage < 0 || usage >= quota)
-        return -1;
-
-    return 0;
+    return seaf_quota_manager_check_quota (seaf->quota_mgr, repo_id);
 }
 
 char *
@@ -2615,6 +2626,18 @@ seafile_get_repo_token_nonnull (const char *repo_id,
     token = seaf_repo_manager_get_repo_token_nonnull (seaf->repo_mgr, repo_id, email);
 
     return token;
+}
+
+int
+seafile_check_permission (const char *repo_id, const char *user, GError **error)
+{
+    if (!repo_id || !user) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return -1;
+    }
+
+    return seaf_repo_manager_check_permission (seaf->repo_mgr,
+                                               repo_id, user, error);
 }
 
 #endif  /* SEAFILE_SERVER */

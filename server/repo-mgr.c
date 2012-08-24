@@ -1,11 +1,14 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
 #include "common.h"
+#include "log.h"
+
 #include <glib/gstdio.h>
 
 #include <openssl/sha.h>
 
 #include <ccnet.h>
+#include <ccnet/ccnet-object.h>
 #include "utils.h"
 #include "avl/avl.h"
 #include "log.h"
@@ -714,12 +717,35 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
         if (seaf_db_query (db, sql) < 0)
             return -1;
 
-        sql = "CREATE TABLE IF NOT EXISTS OrgRepo (org_id INTEGER, "
-            "repo_id CHAR(37), "
-            "user VARCHAR(255), "
-            "INDEX (org_id, repo_id), UNIQUE INDEX (repo_id))";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
+        if (!mgr->seaf->cloud_mode) {
+            sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
+                "repo_id CHAR(37) PRIMARY KEY)";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+        }
+
+        if (mgr->seaf->cloud_mode) {
+            sql = "CREATE TABLE IF NOT EXISTS OrgRepo (org_id INTEGER, "
+                "repo_id CHAR(37), "
+                "user VARCHAR(255), "
+                "INDEX (org_id, repo_id), UNIQUE INDEX (repo_id))";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+
+            sql = "CREATE TABLE IF NOT EXISTS OrgGroupRepo ("
+                "org_id INTEGER, repo_id CHAR(37), "
+                "group_id INTEGER, owner VARCHAR(255), permission CHAR(15), "
+                "UNIQUE INDEX (org_id, group_id, repo_id), "
+                "INDEX (repo_id), INDEX (owner))";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+
+            sql = "CREATE TABLE IF NOT EXISTS OrgInnerPubRepo ("
+                "org_id INTEGER, repo_id CHAR(37),"
+                "PRIMARY KEY (org_id, repo_id))";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+        }
 
         sql = "CREATE TABLE IF NOT EXISTS RepoUserToken ("
             "repo_id CHAR(37), "
@@ -731,6 +757,8 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
             return -1;
         
     } else if (db_type == SEAF_DB_TYPE_SQLITE) {
+        /* Owner */
+
         sql = "CREATE TABLE IF NOT EXISTS RepoOwner ("
             "repo_id CHAR(37) PRIMARY KEY, "
             "owner_id TEXT)";
@@ -739,6 +767,8 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
         sql = "CREATE INDEX IF NOT EXISTS OwnerIndex ON RepoOwner (owner_id)";
         if (seaf_db_query (db, sql) < 0)
             return -1;
+
+        /* Group repo */
 
         sql = "CREATE TABLE IF NOT EXISTS RepoGroup (repo_id CHAR(37), "
             "group_id INTEGER, user_name TEXT, permission CHAR(15))";
@@ -759,21 +789,65 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
             "RepoGroup (user_name)";
         if (seaf_db_query (db, sql) < 0)
             return -1;
-        
-        sql = "CREATE TABLE IF NOT EXISTS OrgRepo (org_id INTEGER, "
-            "repo_id CHAR(37), user VARCHAR(255))";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
 
-        sql = "CREATE UNIQUE INDEX IF NOT EXISTS repoid_indx on "
-            "OrgRepo (repo_id)";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
+        /* Public repo */
 
-        sql = "CREATE INDEX IF NOT EXISTS orgid_repoid_indx on "
-            "OrgRepo (org_id, repo_id)";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
+        if (!mgr->seaf->cloud_mode) {
+            sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
+                "repo_id CHAR(37) PRIMARY KEY)";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+        }
+
+        if (mgr->seaf->cloud_mode) {
+            /* Org repo */
+
+            sql = "CREATE TABLE IF NOT EXISTS OrgRepo (org_id INTEGER, "
+                "repo_id CHAR(37), user VARCHAR(255))";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+
+            sql = "CREATE UNIQUE INDEX IF NOT EXISTS repoid_indx on "
+                "OrgRepo (repo_id)";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+
+            sql = "CREATE INDEX IF NOT EXISTS orgid_repoid_indx on "
+                "OrgRepo (org_id, repo_id)";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+
+            /* Org group repo */
+
+            sql = "CREATE TABLE IF NOT EXISTS OrgGroupRepo ("
+                "org_id INTEGER, repo_id CHAR(37), "
+                "group_id INTEGER, owner VARCHAR(255), permission CHAR(15))";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+
+            sql = "CREATE UNIQUE INDEX IF NOT EXISTS orgid_groupid_repoid_indx on "
+                "OrgGroupRepo (org_id, group_id, repo_id)";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+
+            sql = "CREATE INDEX IF NOT EXISTS org_repoid_index on "
+                "OrgGroupRepo (repo_id)";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+
+            sql = "CREATE INDEX IF NOT EXISTS org_owner_indx on "
+                "OrgGroupRepo (owner)";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+
+            /* Org public repo */
+
+            sql = "CREATE TABLE IF NOT EXISTS OrgInnerPubRepo ("
+                "org_id INTEGER, repo_id CHAR(37),"
+                "PRIMARY KEY (org_id, repo_id))";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+        }
 
         sql = "CREATE TABLE IF NOT EXISTS RepoUserToken ("
             "repo_id CHAR(37), "
@@ -793,10 +867,6 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
-    sql = "CREATE TABLE IF NOT EXISTS PublicRepo (repo_id CHAR(37) PRIMARY KEY)";
-    if (seaf_db_query (db, sql) < 0)
-        return -1;
-    
     sql = "CREATE TABLE IF NOT EXISTS WebAP (repo_id CHAR(37) PRIMARY KEY, "
         "access_property CHAR(10))";
     if (seaf_db_query (db, sql) < 0)
@@ -1000,22 +1070,6 @@ seaf_repo_manager_set_repo_owner (SeafRepoManager *mgr,
     return 0;
 }
 
-int
-seaf_repo_manager_set_org_repo (SeafRepoManager *mgr,
-                                int org_id,
-                                const char *repo_id,
-                                const char *user)
-{
-    char sql[256];
-
-    snprintf (sql, sizeof(sql), "INSERT INTO OrgRepo VALUES (%d, '%s', '%s')",
-              org_id, repo_id, user);
-    if (seaf_db_query (mgr->seaf->db, sql) < 0)
-        return -1;
-
-    return 0;
-}
-
 static gboolean
 get_owner (SeafDBRow *row, void *data)
 {
@@ -1043,18 +1097,6 @@ seaf_repo_manager_get_repo_owner (SeafRepoManager *mgr,
     }
 
     return ret;
-}
-
-int
-seaf_repo_manager_get_repo_org (SeafRepoManager *mgr,
-                                const char *repo_id)
-{
-    char sql[256];
-
-    snprintf (sql, sizeof(sql),
-              "SELECT org_id FROM OrgRepo WHERE repo_id = '%s'",
-              repo_id);
-    return seaf_db_get_int (mgr->seaf->db, sql);
 }
 
 static gboolean
@@ -1188,20 +1230,20 @@ seaf_repo_manager_query_access_property (SeafRepoManager *mgr, const char *repo_
     return ret;
 }
 
-/* Group related. */
+/* Group repos. */
 
 int
-seaf_repo_manager_share_repo (SeafRepoManager *mgr,
-                              const char *repo_id,
-                              int group_id,
-                              const char *user_name,
-                              const char *permission,
-                              GError **error)
+seaf_repo_manager_add_group_repo (SeafRepoManager *mgr,
+                                  const char *repo_id,
+                                  int group_id,
+                                  const char *owner,
+                                  const char *permission,
+                                  GError **error)
 {
     char sql[512];
     
     snprintf (sql, sizeof(sql), "INSERT INTO RepoGroup VALUES ('%s', %d, '%s', '%s')",
-              repo_id, group_id, user_name, permission);
+              repo_id, group_id, owner, permission);
     
     if (seaf_db_query (mgr->seaf->db, sql) < 0)
         return -1;
@@ -1210,11 +1252,10 @@ seaf_repo_manager_share_repo (SeafRepoManager *mgr,
 }
 
 int
-seaf_repo_manager_unshare_repo (SeafRepoManager *mgr,
-                                const char *repo_id,
-                                int group_id,
-                                const char *user_name,
-                                GError **error)
+seaf_repo_manager_del_group_repo (SeafRepoManager *mgr,
+                                  const char *repo_id,
+                                  int group_id,
+                                  GError **error)
 {
     char sql[512];
     
@@ -1237,9 +1278,9 @@ get_group_ids_cb (SeafDBRow *row, void *data)
 }
 
 GList *
-seaf_repo_manager_get_shared_groups_by_repo (SeafRepoManager *mgr,
-                                             const char *repo_id,
-                                             GError **error)
+seaf_repo_manager_get_groups_by_repo (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      GError **error)
 {
     char sql[512];
     GList *group_ids = NULL;
@@ -1308,15 +1349,15 @@ get_group_repos_cb (SeafDBRow *row, void *data)
 }
 
 GList *
-seaf_repo_manager_get_group_my_share_repos (SeafRepoManager *mgr,
-                                            const char *username,
+seaf_repo_manager_get_group_repos_by_owner (SeafRepoManager *mgr,
+                                            const char *owner,
                                             GError **error)
 {
     char sql[512];
     GList *repos = NULL;
 
     snprintf (sql, sizeof(sql), "SELECT repo_id, group_id, user_name "
-              "FROM RepoGroup WHERE user_name = '%s'", username);
+              "FROM RepoGroup WHERE user_name = '%s'", owner);
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_repos_cb,
                                       &repos) < 0)
         return NULL;
@@ -1335,9 +1376,9 @@ get_repo_share_from (SeafDBRow *row, void *data)
 }
 
 char *
-seaf_repo_manager_get_repo_share_from (SeafRepoManager *mgr,
-                                       const char *repo_id,
-                                       GError **error)
+seaf_repo_manager_get_group_repo_owner (SeafRepoManager *mgr,
+                                        const char *repo_id,
+                                        GError **error)
 {
     char sql[512];
     char *ret = NULL;
@@ -1355,25 +1396,65 @@ seaf_repo_manager_get_repo_share_from (SeafRepoManager *mgr,
 }
 
 int
-seaf_repo_manager_remove_repo_group (SeafRepoManager *mgr,
-                                     int group_id,
-                                     const char *user_name,
-                                     GError **error)
+seaf_repo_manager_remove_group_repos (SeafRepoManager *mgr,
+                                      int group_id,
+                                      const char *owner,
+                                      GError **error)
 {
     char sql[512];
 
-    if (!user_name) {
+    if (!owner) {
         snprintf (sql, sizeof(sql), "DELETE FROM RepoGroup WHERE group_id=%d",
                   group_id);
     } else {
         snprintf (sql, sizeof(sql), "DELETE FROM RepoGroup WHERE group_id=%d AND "
-                  "user_name = '%s'", group_id, user_name);
+                  "user_name = '%s'", group_id, owner);
     }
 
     return seaf_db_query (mgr->seaf->db, sql);
 }
 
-/* Org related. */
+/* Org repos. */
+
+int
+seaf_repo_manager_get_repo_org (SeafRepoManager *mgr,
+                                const char *repo_id)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "SELECT org_id FROM OrgRepo WHERE repo_id = '%s'",
+              repo_id);
+    return seaf_db_get_int (mgr->seaf->db, sql);
+}
+
+char *
+seaf_repo_manager_get_org_repo_owner (SeafRepoManager *mgr,
+                                      const char *repo_id)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "SELECT user FROM OrgRepo WHERE repo_id = '%s'",
+              repo_id);
+    return seaf_db_get_string (mgr->seaf->db, sql);
+}
+
+int
+seaf_repo_manager_set_org_repo (SeafRepoManager *mgr,
+                                int org_id,
+                                const char *repo_id,
+                                const char *user)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql), "INSERT INTO OrgRepo VALUES (%d, '%s', '%s')",
+              org_id, repo_id, user);
+    if (seaf_db_query (mgr->seaf->db, sql) < 0)
+        return -1;
+
+    return 0;
+}
 
 GList *
 seaf_repo_manager_get_org_repo_list (SeafRepoManager *mgr,
@@ -1404,6 +1485,251 @@ seaf_repo_manager_remove_org_repo_by_org_id (SeafRepoManager *mgr,
               org_id);
 
     return seaf_db_query (mgr->seaf->db, sql);
+}
+
+int
+seaf_repo_manager_get_org_id_by_repo_id (SeafRepoManager *mgr,
+                                         const char *repo_id,
+                                         GError **error)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql), "SELECT org_id FROM OrgRepo "
+              "WHERE repo_id = '%s'", repo_id);
+
+    return seaf_db_get_int (mgr->seaf->db, sql);
+}
+
+/* Org group repos. */
+
+int
+seaf_repo_manager_add_org_group_repo (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      int org_id,
+                                      int group_id,
+                                      const char *owner,
+                                      const char *permission,
+                                      GError **error)
+{
+    char sql[512];
+    
+    snprintf (sql, sizeof(sql),
+              "INSERT INTO OrgGroupRepo VALUES (%d, '%s', %d, '%s', '%s')",
+              org_id, repo_id, group_id, owner, permission);
+    
+    if (seaf_db_query (mgr->seaf->db, sql) < 0)
+        return -1;
+
+    return 0;
+}
+
+int
+seaf_repo_manager_del_org_group_repo (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      int org_id,
+                                      int group_id,
+                                      GError **error)
+{
+    char sql[512];
+    
+    snprintf (sql, sizeof(sql),
+              "DELETE FROM OrgGroupRepo WHERE "
+              "org_id=%d AND group_id=%d AND repo_id='%s'",
+              org_id, group_id, repo_id);
+
+    return seaf_db_query (mgr->seaf->db, sql);
+}
+
+GList *
+seaf_repo_manager_get_org_group_repoids (SeafRepoManager *mgr,
+                                         int org_id,
+                                         int group_id,
+                                         GError **error)
+{
+    char sql[512];
+    GList *repo_ids = NULL;
+
+    snprintf (sql, sizeof(sql), "SELECT repo_id FROM OrgGroupRepo "
+              "WHERE org_id = %d AND group_id = %d",
+              org_id, group_id);
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_repoids_cb,
+                                      &repo_ids) < 0)
+        return NULL;
+
+    return g_list_reverse (repo_ids);
+}
+
+GList *
+seaf_repo_manager_get_org_groups_by_repo (SeafRepoManager *mgr,
+                                          int org_id,
+                                          const char *repo_id,
+                                          GError **error)
+{
+    char sql[512];
+    GList *group_ids = NULL;
+    
+    snprintf (sql, sizeof(sql), "SELECT group_id FROM OrgGroupRepo "
+              "WHERE org_id = %d AND repo_id = '%s'",
+              org_id, repo_id);
+    
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_ids_cb,
+                                       &group_ids) < 0) {
+        g_list_free (group_ids);
+        return NULL;
+    }
+
+    return g_list_reverse (group_ids);
+}
+
+static gboolean
+check_repo_share_permission (SeafRepoManager *mgr,
+                             const char *repo_id,
+                             const char *user_name)
+{
+    SearpcClient *rpc_client;
+    GList *groups, *p1;
+    GList *repo_groups, *p2;
+    CcnetGroup *group;
+    int group_id, repo_group_id;
+    gboolean ret = FALSE;
+
+    if (seaf_share_manager_check_permission (seaf->share_mgr,
+                                             repo_id,
+                                             user_name) == 0)
+        return TRUE;
+
+    rpc_client = ccnet_client_pool_create_rpc_client (seaf->client_pool,
+                                                      "ccnet-threaded-rpcserver");
+    if (!rpc_client)
+        return FALSE;
+
+    /* Get the groups this user belongs to. */
+    groups = ccnet_get_groups_by_user (rpc_client, user_name);
+
+    ccnet_client_pool_free_rpc_client (seaf->client_pool, rpc_client);
+
+    /* Get the groups this repo shared to. */
+    repo_groups = seaf_repo_manager_get_groups_by_repo (mgr, repo_id, NULL);
+
+    /* Check if any one group overlaps. */
+    for (p1 = groups; p1 != NULL; p1 = p1->next) {
+        group = p1->data;
+        g_object_get (group, "id", &group_id, NULL);
+
+        for (p2 = repo_groups; p2 != NULL; p2 = p2->next) {
+            repo_group_id = (int)(p2->data);
+            if (group_id == repo_group_id) {
+                ret = TRUE;
+                goto out;
+            }
+        }
+    }
+
+out:
+    for (p1 = groups; p1 != NULL; p1 = p1->next)
+        g_object_unref ((GObject *)p1->data);
+    g_list_free (groups);
+    g_list_free (repo_groups);
+    return ret;
+}
+
+static gboolean
+check_org_repo_share_permission (SeafRepoManager *mgr,
+                                 int org_id,
+                                 const char *repo_id,
+                                 const char *user_name)
+{
+    SearpcClient *rpc_client;
+    GList *groups, *p1;
+    GList *repo_groups, *p2;
+    CcnetGroup *group;
+    int group_id, repo_group_id;
+    gboolean ret = FALSE;
+
+    rpc_client = ccnet_client_pool_create_rpc_client (seaf->client_pool,
+                                                      "ccnet-threaded-rpcserver");
+    if (!rpc_client)
+        return FALSE;
+
+    /* Get the groups this user belongs to. */
+    groups = ccnet_get_groups_by_user (rpc_client, user_name);
+
+    ccnet_client_pool_free_rpc_client (seaf->client_pool, rpc_client);
+
+    /* Get the groups this repo shared to. */
+    repo_groups = seaf_repo_manager_get_org_groups_by_repo (mgr,
+                                                            org_id,
+                                                            repo_id,
+                                                            NULL);
+
+    /* Check if any one group overlaps. */
+    for (p1 = groups; p1 != NULL; p1 = p1->next) {
+        group = p1->data;
+        g_object_get (group, "id", &group_id, NULL);
+
+        for (p2 = repo_groups; p2 != NULL; p2 = p2->next) {
+            repo_group_id = (int)(p2->data);
+            if (group_id == repo_group_id) {
+                ret = TRUE;
+                goto out;
+            }
+        }
+    }
+
+out:
+    for (p1 = groups; p1 != NULL; p1 = p1->next)
+        g_object_unref ((GObject *)p1->data);
+    g_list_free (groups);
+    g_list_free (repo_groups);
+    return ret;
+}
+
+/*
+ * Comprehensive repo access permission checker.
+ */
+int
+seaf_repo_manager_check_permission (SeafRepoManager *mgr,
+                                    const char *repo_id,
+                                    const char *user,
+                                    GError **error)
+{
+    char *owner;
+    int org_id;
+
+    owner = seaf_repo_manager_get_repo_owner (mgr, repo_id);
+    if (owner != NULL) {
+        /* If the user is not owner, check share permission */
+        if (strcmp (owner, user) != 0 &&
+            !check_repo_share_permission (mgr, repo_id, user)) {
+            g_free (owner);
+            return -1;
+        }
+    } else if (mgr->seaf->cloud_mode) {
+        /* Org repo. */
+        owner = seaf_repo_manager_get_org_repo_owner (mgr, repo_id);
+        if (!owner) {
+            seaf_warning ("Failed to get owner of org repo %.10s.\n", repo_id);
+            return -1;
+        }
+
+        org_id = seaf_repo_manager_get_repo_org (mgr, repo_id);
+        if (org_id < 0) {
+            seaf_warning ("Failed to get org of repo %.10s.\n", repo_id);
+            g_free (owner);
+            return -1;
+        }
+
+        if (strcmp (owner, user) != 0 &&
+            !check_org_repo_share_permission (mgr, org_id, repo_id, user)) {
+            g_free (owner);
+            return -1;
+        }
+    } else {
+        return -1;
+    }
+
+    g_free (owner);
+    return 0;
 }
 
 /*
@@ -2877,19 +3203,6 @@ out:
     if (repo_id)
         g_free (repo_id);
     return NULL;
-}
-
-int
-seaf_repo_manager_get_org_id_by_repo_id (SeafRepoManager *mgr,
-                                         const char *repo_id,
-                                         GError **error)
-{
-    char sql[256];
-
-    snprintf (sql, sizeof(sql), "SELECT org_id FROM OrgRepo "
-              "WHERE repo_id = '%s'", repo_id);
-
-    return seaf_db_get_int (mgr->seaf->db, sql);
 }
 
 static char *

@@ -127,8 +127,6 @@ handle_update (CcnetProcessor *processor,
 {
 }
 
-#include "check-quota-common.h"
-
 static void *
 update_repo (void *vprocessor)
 {
@@ -138,7 +136,6 @@ update_repo (void *vprocessor)
     SeafRepo *repo = NULL;
     SeafBranch *branch = NULL;
     SeafCommit *commit = NULL;
-    SearpcClient *rpc_client = NULL;
     char old_commit_id[41];
 
     repo_id = priv->repo_id;
@@ -162,17 +159,10 @@ update_repo (void *vprocessor)
 
     }
 
-    rpc_client = create_sync_ccnetrpc_client
-        (seaf->session->config_dir, "ccnet-threaded-rpcserver");
-
-    if (!rpc_client) {
-        priv->rsp_code = g_strdup(SC_SERVER_ERROR);
-        priv->rsp_msg = g_strdup(SS_SERVER_ERROR);
+    if (seaf_quota_manager_check_quota (seaf->quota_mgr, repo_id) < 0) {
+        priv->rsp_code = g_strdup(SC_QUOTA_FULL);
+        priv->rsp_msg = g_strdup(SS_QUOTA_FULL);
         goto out;
-    }
-
-    if (check_repo_owner_quota (processor, rpc_client, repo_id) < 0) {
-        return vprocessor;
     }
 
     branch = seaf_branch_manager_get_branch (seaf->branch_mgr, repo_id, branch_name);
@@ -213,7 +203,6 @@ out:
     if (repo)   seaf_repo_unref (repo);
     if (commit) seaf_commit_unref (commit);
     if (branch) seaf_branch_unref (branch);
-    if (rpc_client) free_sync_rpc_client (rpc_client);
 
     if (!priv->rsp_code) {
         priv->rsp_code = g_strdup (SC_OK);

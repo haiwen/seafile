@@ -556,4 +556,17 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_get_org_id_by_repo_id(repo_id):
         pass
     get_org_id_by_repo_id = seafile_get_org_id_by_repo_id    
-    
+
+    # repo permission checking
+    @searpc_func("int", ["string", "string"])
+    def check_permission(repo_id, user):
+        pass
+
+    # org group repo
+    @searpc_func("int", ["string", "int", "int", "string", "string"])
+    def add_org_group_repo(repo_id, org_id, group_id, owner, permission):
+        pass
+
+    @searpc_func("int", ["string", "int", "int"])
+    def del_org_group_repo(repo_id, org_id, group_id):
+        pass

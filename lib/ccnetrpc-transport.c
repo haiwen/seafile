@@ -23,6 +23,11 @@ ccnetrpc_transport_send (void *arg, const gchar *fcall_str,
     session = priv->session;
 
     req_id = ccnet_client_get_rpc_request_id (session, priv->peer_id, priv->service);
+    if (req_id == 0) {
+        *ret_len = 0;
+        return NULL;
+    }
+
     ccnet_client_send_update (session, req_id,
                               SC_CLIENT_CALL, SS_CLIENT_CALL,
                               fcall_str, fcall_len);

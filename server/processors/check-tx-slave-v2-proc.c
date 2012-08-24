@@ -115,8 +115,6 @@ seafile_check_tx_slave_v2_proc_init (SeafileCheckTxSlaveV2Proc *processor)
 {
 }
 
-#include "check-quota-common.h"
-
 static void
 get_branch_head (CcnetProcessor *processor)
 {
@@ -139,50 +137,6 @@ get_branch_head (CcnetProcessor *processor)
         priv->rsp_code = g_strdup(SC_NO_BRANCH);
         priv->rsp_msg = g_strdup(SS_NO_BRANCH);
     }
-}
-
-static gboolean
-check_repo_share_permission (SearpcClient *rpc_client,
-                             const char *repo_id,
-                             const char *user_name)
-{
-    GList *groups, *pgroup;
-    GList *repos, *prepo;
-    CcnetGroup *group;
-    int group_id;
-    char *shared_repo_id;
-    gboolean ret = FALSE;
-
-    if (seaf_share_manager_check_permission (seaf->share_mgr,
-                                             repo_id,
-                                             user_name) == 0)
-        return TRUE;
-
-    groups = ccnet_get_groups_by_user (rpc_client, user_name);
-    for (pgroup = groups; pgroup != NULL; pgroup = pgroup->next) {
-        group = pgroup->data;
-        g_object_get (group, "id", &group_id, NULL);
-
-        repos = seaf_repo_manager_get_group_repoids (seaf->repo_mgr,
-                                                     group_id, NULL);
-        for (prepo = repos; prepo != NULL; prepo = prepo->next) {
-            shared_repo_id = prepo->data;
-            if (strcmp (shared_repo_id, repo_id) == 0) {
-                ret = TRUE;
-                break;
-            }
-        }
-        for (prepo = repos; prepo != NULL; prepo = prepo->next)
-            g_free (prepo->data);
-        g_list_free (repos);
-        if (ret)
-            break;
-    }
-
-    for (pgroup = groups; pgroup != NULL; pgroup = pgroup->next)
-        g_object_unref ((GObject *)pgroup->data);
-    g_list_free (groups);
-    return ret;
 }
 
 static int
@@ -240,10 +194,7 @@ check_tx (void *vprocessor)
     CcnetProcessor *processor = vprocessor;
     USE_PRIV;
 
-    char *owner = NULL;
     char *user = NULL;
-    int org_id;
-    SearpcClient *rpc_client = NULL;
     char *repo_id = priv->repo_id;
 
     if (!seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id)) {
@@ -266,52 +217,26 @@ check_tx (void *vprocessor)
         priv->rsp_msg = g_strdup(SS_ACCESS_DENIED);
         goto out;
     }
-    
-    rpc_client = create_sync_ccnetrpc_client
-        (seaf->session->config_dir, "ccnet-threaded-rpcserver");
-
-    if (!rpc_client) {
-        priv->rsp_code = g_strdup(SC_SERVER_ERROR);
-        priv->rsp_msg = g_strdup(SS_SERVER_ERROR);
-        goto out;
-    }
 
     if (priv->type == CHECK_TX_TYPE_UPLOAD &&
-        check_repo_owner_quota (processor, rpc_client, repo_id) < 0) {
-        /* priv->rsp_code has been set by [check_repo_owner_quota] */
+        seaf_quota_manager_check_quota (seaf->quota_mgr, repo_id) < 0) {
+        priv->rsp_code = g_strdup(SC_QUOTA_FULL);
+        priv->rsp_msg = g_strdup(SS_QUOTA_FULL);
         goto out;
     }
     
-    owner = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
-    if (owner != NULL) {
-        /* If the user is not owner, check share permission */
-        if (strcmp (owner, user) != 0) {
-            if(!check_repo_share_permission (rpc_client, repo_id, user)) {
-                priv->rsp_code = g_strdup(SC_ACCESS_DENIED);
-                priv->rsp_msg = g_strdup(SS_ACCESS_DENIED);
-                goto out;
-            }
-        }
-    } else {
-        /* This should be a repo created in an org. */
-        org_id = seaf_repo_manager_get_repo_org (seaf->repo_mgr, repo_id);
-        if (org_id < 0 ||
-            !ccnet_org_user_exists (rpc_client, org_id, user)) {
-            priv->rsp_code = g_strdup(SC_ACCESS_DENIED);
-            priv->rsp_msg = g_strdup(SS_ACCESS_DENIED);
-            goto out;
-        }
+    if (seaf_repo_manager_check_permission (seaf->repo_mgr,
+                                            repo_id, user, NULL) < 0) {
+        priv->rsp_code = g_strdup(SC_ACCESS_DENIED);
+        priv->rsp_msg = g_strdup(SS_ACCESS_DENIED);
+        goto out;
     }
     
     get_branch_head (processor);
 
 out:
-    g_free (owner);
     g_free (user);
-    if (rpc_client)
-        free_sync_rpc_client (rpc_client);
-    return vprocessor;
-    
+    return vprocessor;    
 }
 
 static void 

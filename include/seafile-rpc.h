@@ -717,6 +717,23 @@ seafile_create_org_repo (const char *repo_name,
 int
 seafile_get_org_id_by_repo_id (const char *repo_id, GError **error);
 
+int
+seafile_check_permission (const char *repo_id, const char *user, GError **error);
+
+int
+seafile_add_org_group_repo (const char *repo_id,
+                            int org_id,
+                            int group_id,
+                            const char *owner,
+                            const char *permission,
+                            GError **error);
+
+int
+seafile_del_org_group_repo (const char *repo_id,
+                            int org_id,
+                            int group_id,
+                            GError **error);
+
 /* ------------------ Public RPC calls. ------------ */
 
 GList* seafile_get_repo_list_pub (int start, int limit, GError **error);

@@ -41,6 +41,9 @@ struct _SeafileSession {
     SearpcClient        *async_ccnetrpc_client;
     SearpcClient        *async_ccnetrpc_client_t;
 
+    /* Used in threads. */
+    CcnetClientPool     *client_pool;
+
     char                *seaf_dir;
     char                *tmp_file_dir;
     /* Config that can be changed in run-time. */
@@ -70,6 +73,8 @@ struct _SeafileSession {
 
     int                  is_master;
     const char          *monitor_id;
+
+    int                  cloud_mode;
 };
 
 extern SeafileSession *seaf;

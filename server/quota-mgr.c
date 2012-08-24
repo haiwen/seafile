@@ -1,6 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
 #include "common.h"
+#include "log.h"
 
 #include "seafile-session.h"
 #include "seaf-db.h"
@@ -131,4 +132,46 @@ seaf_quota_manager_get_org_user_quota (SeafQuotaManager *mgr,
               "SELECT quota FROM OrgUserQuota WHERE org_id='%d' AND user='%s'",
               org_id, user);
     return seaf_db_get_int64 (mgr->session->db, sql);
+}
+
+int
+seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
+                                const char *repo_id)
+{
+    char *user = NULL;
+    int org_id;
+    gint64 quota, usage;
+
+    user = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
+    if (user != NULL) {
+        quota = seaf_quota_manager_get_user_quota (mgr, user);
+        if (quota <= 0)
+            quota = mgr->default_quota;
+    } else if (seaf->cloud_mode) {
+        org_id = seaf_repo_manager_get_repo_org (seaf->repo_mgr, repo_id);
+        if (org_id < 0) {
+            seaf_warning ("Repo %s has no owner.\n", repo_id);
+            return -1;
+        }
+
+        quota = seaf_quota_manager_get_org_quota (mgr, org_id);
+        if (quota <= 0)
+            quota = mgr->default_quota;
+    } else {
+        seaf_warning ("Repo %s has no owner.\n", repo_id);
+        return -1;
+    }
+
+    if (quota == INFINITE_QUOTA)
+        return 0;
+
+    if (user)
+        usage = get_user_quota_usage (seaf, user);
+    else
+        usage = get_org_quota_usage (seaf, org_id);
+
+    if (usage < 0 || usage >= quota)
+        return -1;
+
+    return 0;
 }
