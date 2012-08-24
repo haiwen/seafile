@@ -1082,7 +1082,6 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
     if (!unmerged && my_desc[0] == '\0') {
         char *gen_desc = gen_commit_description (repo, &istate);
         if (!gen_desc) {
-            seaf_message ("worktree is clean. Don't need to commit.\n");
             /* error not set. */
             g_free (my_desc);
             discard_index (&istate);
