@@ -31,9 +31,12 @@ How to build seafile Windows MSI installer
 Edit fragment.wxs
 =======
 
-Remove the following items from both <Component> and <ComponentRef>
+Edit the line contains seafile-applet. Modify the Id attribute.
 
-* seafile-applet.exe
+From:
+    <File Id="file_bin_28 Checksum="yes" Source="bin\seafile-applet.exe" />
+To:
+    <File Id="seafileapplet.exe" Checksum="yes" Source="bin\seafile-applet.exe" />
 
 
 Upgrade

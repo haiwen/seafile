@@ -37,8 +37,6 @@
                 <RegistryValue Name="CustomComponent" Value="1" Type="integer" KeyPath='yes' />
               </RegistryKey>
               
-              <File Id='seafileapplet.exe' Source='bin\seafile-applet.exe' />
-              
               <!-- seafile shortcut on desktop -->
               <Shortcut Id="ApplicationDesktopShortCut" Directory="DesktopFolder"
                         Name="Seafile" Target="[#seafileapplet.exe]"
@@ -115,3 +113,4 @@
     <WixVariable Id="WixUIDialogBmp" Value="seafile-background.bmp" />
   </Product>
 </Wix>
+
