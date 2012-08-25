@@ -145,12 +145,16 @@ trayicon_set_tooltip(SeafileTrayIcon *icon, LPCTSTR tooltip,
         icon->nid.uTimeout    = timeout;
         icon->nid.dwInfoFlags = NIIF_INFO;
 
-        memcpy(icon->nid.szInfo, tp, G_N_ELEMENTS(icon->nid.szInfo));
-        memcpy(icon->nid.szInfoTitle, tt, G_N_ELEMENTS(icon->nid.szInfoTitle));
+        memcpy (icon->nid.szInfo, tp,
+                MIN(strlen(tp) + 1, sizeof(icon->nid.szInfo)));
+
+        memcpy (icon->nid.szInfoTitle, tt,
+                MIN(strlen(tt) + 1, sizeof(icon->nid.szInfoTitle)));
         
     } else {
         icon->nid.uFlags = NIF_TIP;
-        memcpy(icon->nid.szTip, tp, G_N_ELEMENTS(icon->nid.szTip));
+        memcpy (icon->nid.szTip, tp,
+                MIN(strlen(tp) + 1, sizeof(icon->nid.szTip)));
     }
     
     Shell_NotifyIcon(NIM_MODIFY, &(icon->nid));

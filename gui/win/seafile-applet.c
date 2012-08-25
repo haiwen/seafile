@@ -69,31 +69,27 @@ start_web_server ()
 int
 start_seafile_daemon ()
 {
-
     applet_message ("Starting seaf-daemon ...\n");
     applet_message ("data dir:      %s\n", applet->seafile_dir);
     applet_message ("worktree dir:  %s\n", applet->seafile_worktree);
 
-    GString *buf = g_string_new (NULL);
+    char buf[4096];
 
     char *locale_config_dir = ccnet_locale_from_utf8(applet->config_dir);
     char *locale_seafile_dir = ccnet_locale_from_utf8(applet->seafile_dir);
     char *locale_seafile_worktree = ccnet_locale_from_utf8(applet->seafile_worktree);
-    
-    g_string_append_printf (buf, 
-            "seaf-daemon.exe -c \"%s\" -d \"%s\" -w \"%s\"",
-            locale_config_dir, locale_seafile_dir, locale_seafile_worktree);
+
+    snprintf (buf, sizeof(buf), "seaf-daemon.exe -c \"%s\" -d \"%s\" -w \"%s\"",
+              locale_config_dir, locale_seafile_dir, locale_seafile_worktree);
 
     g_free (locale_config_dir);
     g_free (locale_seafile_dir);
     g_free (locale_seafile_worktree);
     
-    if (win32_spawn_process (buf->str, NULL) < 0) {
+    if (win32_spawn_process (buf, NULL) < 0) {
         applet_warning ("Failed to start seaf-daemon\n");
         applet_exit(-1);
     }
-
-    g_string_free (buf, TRUE);
 
     return 0;
 }
@@ -210,14 +206,13 @@ set_seafile_auto_start(int on)
             return -1;
         }
         
-        GString *applet_path = g_string_new(NULL);
-        g_string_append_printf(applet_path, "\"%s\\%s\"",
-                               dirname, "seafile-applet.exe");
+        char applet_path[MAX_PATH];
+        snprintf (applet_path, sizeof(applet_path), "\"%s\\%s\"",
+                  dirname, "seafile-applet.exe");
 
-        result = add_to_auto_start("Seafile", applet_path->str);
+        result = add_to_auto_start("Seafile", applet_path);
         
         g_free (dirname);
-        g_string_free(applet_path, TRUE);
         
     } else {
         /* turn off auto start */
@@ -486,32 +481,27 @@ spawn_ccnet_daemon ()
     if (!applet->config_dir)
         return -1;
 
-    GString *buf = g_string_new (NULL);
-
+    char buf[4096];
     char *locale_config_dir = ccnet_locale_from_utf8(applet->config_dir);
 
-    g_string_append_printf (buf,
-            "ccnet.exe -c \"%s\" -D Peer,Message,Connection,Other",
-            locale_config_dir);
+    snprintf (buf, sizeof(buf),
+              "ccnet.exe -c \"%s\" -D Peer,Message,Connection,Other",
+              locale_config_dir);
 
     g_free (locale_config_dir);
 
-    if (win32_spawn_process (buf->str, NULL) < 0) {
+    if (win32_spawn_process (buf, NULL) < 0) {
         applet_warning ("Failed to fork ccnet.exe\n");
         return -1;
     }
 
-    g_string_free (buf, TRUE);
-    
     return 0;
 }
 
 int stop_web_server()
 {
-    if (applet->web_status != WEB_NOT_STARTED) {
-        win32_kill_process (WEB_PROCESS_NAME);
-        applet->web_status = WEB_NOT_STARTED;
-    }
+    win32_kill_process (WEB_PROCESS_NAME);
+    applet->web_status = WEB_NOT_STARTED;
 
     return 0;
 }

@@ -143,7 +143,7 @@ init_seafile ()
 }
 
 static void
-collect_transfer_info (GString *buf, const char *info, char *repo_name)
+collect_transfer_info (GString *msg, const char *info, char *repo_name)
 {
     char *p;
     if (! (p = strchr (info, '\t')))
@@ -153,9 +153,11 @@ collect_transfer_info (GString *buf, const char *info, char *repo_name)
     int rate = atoi(p + 1) / 1024;
     
     gboolean is_upload = (strcmp(info, "upload") == 0);
-    g_string_append_printf (buf, "%s %s, " S_SPEED " %d KB/s\n",
-                            is_upload ? S_UPLOADING : S_DOWNLOADING,
-                            repo_name, rate);
+    char buf[4096];
+    snprintf (buf, sizeof(buf) , "%s %s, " S_SPEED " %d KB/s\n",
+              is_upload ? S_UPLOADING : S_DOWNLOADING,
+              repo_name, rate);
+    g_string_append (msg, buf);
 }
 
 
