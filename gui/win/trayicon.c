@@ -131,6 +131,21 @@ trayicon_init (SeafileTrayIcon *icon)
     Shell_NotifyIcon(NIM_ADD, &(icon->nid));
 }
 
+/* Copy at most n bytes from src to dest. Ensure the content in dest is
+ * null-terminated. */
+static void
+safe_strncpy (char *dest, const char *src, int n)
+{
+    int srclen= strlen(src);
+
+    if (srclen < n) {
+        memcpy (dest, src, srclen + 1);
+    } else if (srclen >= n) {
+        memcpy (dest, src, n - 1);
+        dest[n - 1] = '\0';
+    }
+}
+
 void
 trayicon_set_tooltip(SeafileTrayIcon *icon, LPCTSTR tooltip,
                      int balloon, LPCTSTR title,
@@ -145,16 +160,13 @@ trayicon_set_tooltip(SeafileTrayIcon *icon, LPCTSTR tooltip,
         icon->nid.uTimeout    = timeout;
         icon->nid.dwInfoFlags = NIIF_INFO;
 
-        memcpy (icon->nid.szInfo, tp,
-                MIN(strlen(tp) + 1, sizeof(icon->nid.szInfo)));
+        safe_strncpy (icon->nid.szInfo, tp, sizeof(icon->nid.szInfo));
 
-        memcpy (icon->nid.szInfoTitle, tt,
-                MIN(strlen(tt) + 1, sizeof(icon->nid.szInfoTitle)));
+        safe_strncpy (icon->nid.szInfoTitle, tt, sizeof(icon->nid.szInfoTitle));
         
     } else {
         icon->nid.uFlags = NIF_TIP;
-        memcpy (icon->nid.szTip, tp,
-                MIN(strlen(tp) + 1, sizeof(icon->nid.szTip)));
+        safe_strncpy (icon->nid.szTip, tp, sizeof(icon->nid.szTip));
     }
     
     Shell_NotifyIcon(NIM_MODIFY, &(icon->nid));
