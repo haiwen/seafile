@@ -734,6 +734,18 @@ seafile_del_org_group_repo (const char *repo_id,
                             int group_id,
                             GError **error);
 
+int
+seafile_set_inner_pub_repo (const char *repo_id, GError **error);
+
+int
+seafile_unset_inner_pub_repo (const char *repo_id, GError **error);
+
+int
+seafile_set_org_inner_pub_repo (int org_id, const char *repo_id, GError **error);
+
+int
+seafile_unset_org_inner_pub_repo (int org_id, const char *repo_id, GError **error);
+
 /* ------------------ Public RPC calls. ------------ */
 
 GList* seafile_get_repo_list_pub (int start, int limit, GError **error);

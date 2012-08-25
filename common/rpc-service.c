@@ -1991,6 +1991,40 @@ seafile_remove_repo_group(int group_id, const char *username, GError **error)
                                                  error);
 }
 
+/* Inner public repo RPC */
+
+int
+seafile_set_inner_pub_repo (const char *repo_id, GError **error)
+{
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
+        return -1;
+    }
+
+    if (seaf_repo_manager_set_inner_pub_repo (seaf->repo_mgr, repo_id) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal error");
+        return -1;
+    }
+
+    return 0;
+}
+
+int
+seafile_unset_inner_pub_repo (const char *repo_id, GError **error)
+{
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
+        return -1;
+    }
+
+    if (seaf_repo_manager_unset_inner_pub_repo (seaf->repo_mgr, repo_id) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal error");
+        return -1;
+    }
+
+    return 0;
+}
+
 /* Org Repo RPC. */
 
 GList *
@@ -2068,6 +2102,42 @@ seafile_del_org_group_repo (const char *repo_id,
                                                  org_id,
                                                  group_id,
                                                  error);
+}
+
+/* Org inner public repo RPC */
+
+int
+seafile_set_org_inner_pub_repo (int org_id, const char *repo_id, GError **error)
+{
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
+        return -1;
+    }
+
+    if (seaf_repo_manager_set_org_inner_pub_repo (seaf->repo_mgr,
+                                                  org_id, repo_id) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal error");
+        return -1;
+    }
+
+    return 0;
+}
+
+int
+seafile_unset_org_inner_pub_repo (int org_id, const char *repo_id, GError **error)
+{
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
+        return -1;
+    }
+
+    if (seaf_repo_manager_unset_org_inner_pub_repo (seaf->repo_mgr,
+                                                    org_id, repo_id) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal error");
+        return -1;
+    }
+
+    return 0;
 }
 
 gint64

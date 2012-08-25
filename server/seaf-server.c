@@ -436,6 +436,17 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "check_permission",
                                      searpc_signature_int__string_string());
 
+    if (!cloud_mode) {
+        searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                         seafile_set_inner_pub_repo,
+                                         "set_inner_pub_repo",
+                                         searpc_signature_int__string());
+        searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                         seafile_unset_inner_pub_repo,
+                                         "unset_inner_pub_repo",
+                                         searpc_signature_int__string());
+    }
+
     /* Org repo */
     if (cloud_mode) {
         searpc_server_register_function ("seafserv-threaded-rpcserver",
@@ -467,6 +478,15 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                          seafile_del_org_group_repo,
                                          "del_org_group_repo",
                                          searpc_signature_int__string_int_int());
+
+        searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                         seafile_set_org_inner_pub_repo,
+                                         "set_org_inner_pub_repo",
+                                         searpc_signature_int__int_string());
+        searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                         seafile_unset_org_inner_pub_repo,
+                                         "unset_org_inner_pub_repo",
+                                         searpc_signature_int__int_string());
     }
 }
 

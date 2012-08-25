@@ -1414,6 +1414,50 @@ seaf_repo_manager_remove_group_repos (SeafRepoManager *mgr,
     return seaf_db_query (mgr->seaf->db, sql);
 }
 
+/* Inner public repos */
+
+int
+seaf_repo_manager_set_inner_pub_repo (SeafRepoManager *mgr,
+                                      const char *repo_id)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "REPLACE INTO InnerPubRepo VALUES ('%s')",
+              repo_id);
+    return seaf_db_query (mgr->seaf->db, sql);
+}
+
+int
+seaf_repo_manager_unset_inner_pub_repo (SeafRepoManager *mgr,
+                                        const char *repo_id)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "DELETE FROM InnerPubRepo WHERE repo_id = '%s'",
+              repo_id);
+    return seaf_db_query (mgr->seaf->db, sql);
+}
+
+gboolean
+seaf_repo_manager_is_inner_pub_repo (SeafRepoManager *mgr,
+                                     const char *repo_id)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "SELECT repo_id FROM InnerPubRepo WHERE repo_id='%s'",
+              repo_id);
+    return seaf_db_check_for_existence (mgr->seaf->db, sql);
+}
+
+GList *
+seaf_repo_manager_list_inner_pub_repos (SeafRepoManager *mgr)
+{
+    return NULL;
+}
+
 /* Org repos. */
 
 int
@@ -1581,6 +1625,55 @@ seaf_repo_manager_get_org_groups_by_repo (SeafRepoManager *mgr,
     return g_list_reverse (group_ids);
 }
 
+/* Org inner public repos */
+
+int
+seaf_repo_manager_set_org_inner_pub_repo (SeafRepoManager *mgr,
+                                          int org_id,
+                                          const char *repo_id)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "REPLACE INTO OrgInnerPubRepo VALUES (%d, '%s')",
+              org_id, repo_id);
+    return seaf_db_query (mgr->seaf->db, sql);
+}
+
+int
+seaf_repo_manager_unset_org_inner_pub_repo (SeafRepoManager *mgr,
+                                            int org_id,
+                                            const char *repo_id)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "DELETE FROM OrgInnerPubRepo WHERE org_id = %d AND repo_id = '%s'",
+              org_id, repo_id);
+    return seaf_db_query (mgr->seaf->db, sql);
+}
+
+gboolean
+seaf_repo_manager_is_org_inner_pub_repo (SeafRepoManager *mgr,
+                                         int org_id,
+                                         const char *repo_id)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "SELECT repo_id FROM OrgInnerPubRepo WHERE "
+              "org_id = %d AND repo_id='%s'",
+              org_id, repo_id);
+    return seaf_db_check_for_existence (mgr->seaf->db, sql);
+}
+
+GList *
+seaf_repo_manager_list_org_inner_pub_repos (SeafRepoManager *mgr,
+                                            int org_id)
+{
+    return NULL;
+}
+
 static gboolean
 check_repo_share_permission (SeafRepoManager *mgr,
                              const char *repo_id,
@@ -1592,6 +1685,10 @@ check_repo_share_permission (SeafRepoManager *mgr,
     CcnetGroup *group;
     int group_id, repo_group_id;
     gboolean ret = FALSE;
+
+    if (!mgr->seaf->cloud_mode &&
+        seaf_repo_manager_is_inner_pub_repo (mgr, repo_id))
+        return TRUE;
 
     if (seaf_share_manager_check_permission (seaf->share_mgr,
                                              repo_id,
@@ -1650,6 +1747,16 @@ check_org_repo_share_permission (SeafRepoManager *mgr,
                                                       "ccnet-threaded-rpcserver");
     if (!rpc_client)
         return FALSE;
+
+    if (!ccnet_org_user_exists (rpc_client, org_id, user_name)) {
+        ccnet_client_pool_free_rpc_client (seaf->client_pool, rpc_client);
+        return FALSE;
+    }
+
+    if (seaf_repo_manager_is_org_inner_pub_repo (mgr, org_id, repo_id)) {
+        ccnet_client_pool_free_rpc_client (seaf->client_pool, rpc_client);
+        return TRUE;
+    }
 
     /* Get the groups this user belongs to. */
     groups = ccnet_get_groups_by_user (rpc_client, user_name);

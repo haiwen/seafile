@@ -363,6 +363,23 @@ seaf_repo_manager_remove_group_repos (SeafRepoManager *mgr,
                                       const char *owner,
                                       GError **error);
 
+/* Inner public repos */
+
+int
+seaf_repo_manager_set_inner_pub_repo (SeafRepoManager *mgr,
+                                      const char *repo_id);
+
+int
+seaf_repo_manager_unset_inner_pub_repo (SeafRepoManager *mgr,
+                                        const char *repo_id);
+
+gboolean
+seaf_repo_manager_is_inner_pub_repo (SeafRepoManager *mgr,
+                                     const char *repo_id);
+
+GList *
+seaf_repo_manager_list_inner_pub_repos (SeafRepoManager *mgr);
+
 /* Org repos */
 
 int
@@ -418,6 +435,26 @@ seaf_repo_manager_get_org_groups_by_repo (SeafRepoManager *mgr,
                                           GError **error);
 
 /* TODO: add more interfaces for org group reop. */
+
+/* Org inner public repos */
+
+int
+seaf_repo_manager_set_org_inner_pub_repo (SeafRepoManager *mgr,
+                                          int org_id,
+                                          const char *repo_id);
+
+int
+seaf_repo_manager_unset_org_inner_pub_repo (SeafRepoManager *mgr,
+                                            int org_id,
+                                            const char *repo_id);
+
+gboolean
+seaf_repo_manager_is_org_inner_pub_repo (SeafRepoManager *mgr,
+                                         int org_id,
+                                         const char *repo_id);
+
+GList *
+seaf_repo_manager_list_org_inner_pub_repos (SeafRepoManager *mgr, int org_id);
 
 /*
  * Comprehensive repo permission checker.
