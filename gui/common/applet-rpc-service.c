@@ -12,7 +12,7 @@
 #include "searpc-signature.h"
 #include "searpc-marshal.h"
 
-#include "rpcserver-proc.h"
+#include <ccnet/rpcserver-proc.h>
 
 
 static int

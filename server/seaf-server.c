@@ -15,12 +15,11 @@
 #include <ccnet.h>
 #include <searpc-server.h>
 #include <searpc-client.h>
-#include <ccnetrpc-transport.h>
 
 #include "seafile-session.h"
 #include "seafile-rpc.h"
-#include "rpcserver-proc.h"
-#include "threaded-rpcserver-proc.h"
+#include <ccnet/rpcserver-proc.h>
+#include <ccnet/threaded-rpcserver-proc.h>
 #include "log.h"
 #include "utils.h"
 

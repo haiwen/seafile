@@ -1,5 +1,5 @@
 #include <ccnet.h>
-#include <ccnetrpc-transport.h>
+#include <ccnet/ccnetrpc-transport.h>
 #include <seafile.h>
 
 #include "rpc-wrapper.h"

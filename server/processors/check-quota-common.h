@@ -3,7 +3,7 @@
 
 #include <ccnet.h>
 #include <searpc-client.h>
-#include <ccnetrpc-transport.h>
+#include <ccnet/ccnetrpc-transport.h>
 
 static SearpcClient *
 create_sync_ccnetrpc_client (const char *config_dir, const char *service)

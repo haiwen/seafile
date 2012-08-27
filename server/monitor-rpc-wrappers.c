@@ -1,6 +1,6 @@
 #include "monitor-rpc-wrappers.h"
 
-#include "ccnetrpc-transport.h"
+#include <ccnet/ccnetrpc-transport.h>
 #include "seafile-session.h"
 
 static SearpcClient rpc_client;

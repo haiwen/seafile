@@ -17,12 +17,11 @@ seafile_object_gen = $(seafile_object_define:.vala=.c)
 
 EXTRA_DIST = ${seafile_object_define}
 
-utils_headers = async-rpc-proc.h net.h rsa.h threaded-rpcserver-proc.h \
-	bloom-filter.h rpcserver-proc.h utils.h db.h ccnetrpc-transport.h
+utils_headers = net.h rsa.h bloom-filter.h utils.h db.h
 
 utils_srcs = $(utils_headers:.h=.c)
 
-noinst_HEADERS = ${utils_headers} rpc-common.h include.h
+noinst_HEADERS = ${utils_headers} include.h
 
 seafiledir = $(includedir)/seafile
 seafile_HEADERS = seafile-object.h

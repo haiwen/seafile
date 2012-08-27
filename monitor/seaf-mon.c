@@ -17,7 +17,7 @@
 
 #include "seafile-session.h"
 #include "monitor-rpc.h"
-#include "rpcserver-proc.h"
+#include <ccnet/rpcserver-proc.h>
 #include "log.h"
 #include "utils.h"
 
