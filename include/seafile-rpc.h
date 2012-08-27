@@ -740,6 +740,12 @@ seafile_set_inner_pub_repo (const char *repo_id, GError **error);
 int
 seafile_unset_inner_pub_repo (const char *repo_id, GError **error);
 
+GList *
+seafile_list_inner_pub_repos (GError **error);
+
+int
+seafile_is_inner_pub_repo (const char *repo_id, GError **error);
+
 int
 seafile_set_org_inner_pub_repo (int org_id, const char *repo_id, GError **error);
 

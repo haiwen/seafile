@@ -2025,6 +2025,42 @@ seafile_unset_inner_pub_repo (const char *repo_id, GError **error)
     return 0;
 }
 
+GList *
+seafile_list_inner_pub_repos (GError **error)
+{
+    GList *ret = NULL;
+    GList *repos, *ptr;
+    SeafRepo *r;
+    SeafileRepo *repo;
+
+    repos = seaf_repo_manager_list_inner_pub_repos (seaf->repo_mgr);
+    ptr = repos;
+    while (ptr) {
+        r = ptr->data;
+        repo = seafile_repo_new ();
+        g_object_set (repo, "id", r->id, "name", r->name,
+                      "desc", r->desc, "encrypted", r->encrypted, NULL);
+        ret = g_list_prepend (ret, repo);
+        seaf_repo_unref (r);
+        ptr = ptr->next;
+    }
+    g_list_free (repos);
+    ret = g_list_reverse (ret);
+
+    return ret;
+}
+
+int
+seafile_is_inner_pub_repo (const char *repo_id, GError **error)
+{
+    if (!repo_id) {
+        g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Bad arguments");
+        return -1;
+    }
+
+    return seaf_repo_manager_is_inner_pub_repo (seaf->repo_mgr, repo_id);
+}
+
 /* Org Repo RPC. */
 
 GList *

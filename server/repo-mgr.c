@@ -1455,7 +1455,16 @@ seaf_repo_manager_is_inner_pub_repo (SeafRepoManager *mgr,
 GList *
 seaf_repo_manager_list_inner_pub_repos (SeafRepoManager *mgr)
 {
-    return NULL;
+    GList *ret = NULL;
+    char sql[256];
+
+    snprintf (sql, 256, "SELECT repo_id FROM InnerPubRepo");
+
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
+                                      collect_repos, &ret) < 0)
+        return NULL;
+
+    return g_list_reverse (ret);    
 }
 
 /* Org repos. */

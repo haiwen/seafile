@@ -580,6 +580,14 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def unset_inner_pub_repo(repo_id):
         pass
 
+    @searpc_func("objlist", [])
+    def list_inner_pub_repos():
+        pass
+
+    @searpc_func("int", ["string"])
+    def is_inner_pub_repo():
+        pass
+
     # org inner pub repo
     @searpc_func("int", ["int", "string"])
     def set_org_inner_pub_repo(org_id, repo_id):
