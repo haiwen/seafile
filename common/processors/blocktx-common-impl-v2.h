@@ -2,6 +2,8 @@
 #define BLOCKTX_COMMON_IMPL_V2_H
 
 #include "utils.h"
+
+#define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
 #include "log.h"
 
 #define SC_SEND_PORT    "301"
@@ -124,7 +126,7 @@ thread_done (void *vtdata)
      *    is set.
      */
     if (!tdata->processor_done) {
-        g_debug ("Processor is not released. Release it now.\n");
+        seaf_debug ("Processor is not released. Release it now.\n");
         if (tdata->thread_ret == 0)
             ccnet_processor_done (tdata->processor, TRUE);
         else
@@ -187,7 +189,7 @@ send_block_packet (ThreadData *tdata,
 
     md = seaf_block_manager_stat_block_by_handle (block_mgr, handle);
     if (!md) {
-        g_warning ("Failed to stat block %s.\n", block_id);
+        seaf_warning ("Failed to stat block %s.\n", block_id);
         return -1;
     }
     size = md->size;
@@ -197,7 +199,7 @@ send_block_packet (ThreadData *tdata,
     pkt.block_idx = htonl ((uint32_t) block_idx);
     memcpy (pkt.block_id, block_id, 41);
     if (sendn (sockfd, &pkt, sizeof(pkt)) < 0) {
-        g_warning ("Failed to write socket: %s.\n", 
+        seaf_warning ("Failed to write socket: %s.\n", 
                    evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
         return -1;
     }
@@ -210,7 +212,7 @@ send_block_packet (ThreadData *tdata,
         if (n <= 0)
             break;
         if (sendn (sockfd, buf, n) < 0) {
-            g_warning ("Failed to write block %s: %s.\n", block_id, 
+            seaf_warning ("Failed to write block %s: %s.\n", block_id, 
                        evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
             return -1;
         }
@@ -226,7 +228,7 @@ send_block_packet (ThreadData *tdata,
 #endif
     }
     if (n < 0) {
-        g_warning ("Failed to write block %s: %s.\n", block_id, 
+        seaf_warning ("Failed to write block %s: %s.\n", block_id, 
                    evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
         return -1;
     }
@@ -250,18 +252,18 @@ send_blocks (ThreadData *tdata)
     while (1) {
         n = pipereadn (tdata->task_pipe[0], &blk_req, sizeof(blk_req));
         if (n == 0) {
-            g_debug ("Processor exited. I will exit now.\n");
+            seaf_debug ("Processor exited. Worker thread exits now.\n");
             return -1;
         }
         if (n != sizeof(blk_req)) {
-            g_warning ("read task pipe incorrect.\n");
+            seaf_warning ("read task pipe incorrect.\n");
             return -1;
         }
 
         handle = seaf_block_manager_open_block (block_mgr, 
                                                 blk_req.block_id, BLOCK_READ);
         if (!handle) {
-            g_warning ("[send block] failed to open block %s.\n", 
+            seaf_warning ("[send block] failed to open block %s.\n", 
                        blk_req.block_id);
             return -1;
         }
@@ -312,11 +314,15 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
         n = recv (sockfd, 
                   (char *)&fsm->hdr + sizeof(BlockPacket) - fsm->remain, 
                   fsm->remain, 0);
-        if (n <= 0) {
-            g_warning ("Failed to read block pkt: %s.\n",
+        if (n < 0) {
+            seaf_warning ("Failed to read block pkt: %s.\n",
                        evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
             return -1;
+        } else if (n == 0) {
+            seaf_debug ("data connection closed.\n");
+            return -1;
         }
+
         fsm->remain -= n;
         if (fsm->remain == 0) {
             fsm->remain = (int) ntohl (fsm->hdr.block_size);
@@ -326,7 +332,7 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
             handle = seaf_block_manager_open_block (block_mgr, 
                                                     block_id, BLOCK_WRITE);
             if (!handle) {
-                g_warning ("failed to open block %s.\n", block_id);
+                seaf_warning ("failed to open block %s.\n", block_id);
                 return -1;
             }
             fsm->handle = handle; 
@@ -341,11 +347,11 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
         round = MIN (fsm->remain, 1024);
         n = recv (sockfd, buf, round, 0);
         if (n < 0) {
-            g_warning ("failed to read data: %s.\n",
+            seaf_warning ("failed to read data: %s.\n",
                        evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
             return -1;
         } else if (n == 0) {
-            g_debug ("data connection closed.\n");
+            seaf_debug ("data connection closed.\n");
             return -1;
         }
 
@@ -361,19 +367,19 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
         }
 
         if (seaf_block_manager_write_block (block_mgr, handle, buf, n) < 0) {
-            g_warning ("Failed to write block %s.\n", fsm->hdr.block_id);
+            seaf_warning ("Failed to write block %s.\n", fsm->hdr.block_id);
             return -1;
         }
 
         fsm->remain -= n;
         if (fsm->remain == 0) {
             if (seaf_block_manager_close_block (block_mgr, handle) < 0) {
-                g_warning ("Failed to close block %s.\n", fsm->hdr.block_id);
+                seaf_warning ("Failed to close block %s.\n", fsm->hdr.block_id);
                 return -1;
             }
 
             if (seaf_block_manager_commit_block (block_mgr, handle) < 0) {
-                g_warning ("Failed to commit block %s.\n", fsm->hdr.block_id);
+                seaf_warning ("Failed to commit block %s.\n", fsm->hdr.block_id);
                 return -1;
             }
 
@@ -416,7 +422,7 @@ recv_blocks (ThreadData *tdata)
         if (rc < 0 && errno == EINTR) {
             continue;
         } else if (rc < 0) {
-            g_warning ("select error: %s.\n", strerror(errno));
+            seaf_warning ("select error: %s.\n", strerror(errno));
             goto error;
         }
 
@@ -434,7 +440,7 @@ recv_blocks (ThreadData *tdata)
             char buf[1];
             int n = piperead (tdata->task_pipe[0], buf, sizeof(buf));
             g_assert (n == 0);
-            g_debug ("task pipe closed. exit now.\n");
+            seaf_debug ("Task pipe closed. Worker thread exits now.\n");
             goto error;
         }
     }
@@ -464,7 +470,7 @@ master_block_proc_start (CcnetProcessor *processor,
 {
     GString *buf;
     if (!tx_task || !tx_task->session_token) {
-        g_warning ("transfer task not set.\n");
+        seaf_warning ("transfer task not set.\n");
         return -1;
     }
 
@@ -511,19 +517,19 @@ static void* do_transfer(void *vtdata)
     CcnetPeer *peer = tdata->peer;
 
     if (peer->addr_str == NULL) {
-        g_warning ("peer address is NULL\n");
+        seaf_warning ("peer address is NULL\n");
         tdata->thread_ret = -1;
         goto out;
     }
 
     if (sock_pton(peer->addr_str, tdata->port, &addr) < 0) {
-        g_warning ("wrong address format %s\n", peer->addr_str);
+        seaf_warning ("wrong address format %s\n", peer->addr_str);
         tdata->thread_ret = -1;
         goto out;
     }
 
     if ((data_fd = socket(sa->sa_family, SOCK_STREAM, 0)) < 0) {
-        g_warning ("socket error: %s\n", strerror(errno));
+        seaf_warning ("socket error: %s\n", strerror(errno));
         tdata->thread_ret = -1;
         goto out;
     }
@@ -536,7 +542,7 @@ static void* do_transfer(void *vtdata)
 #endif
 
     if (connect(data_fd, sa, sa_len) < 0) {
-        g_warning ("connect error: %s\n", strerror(errno));
+        seaf_warning ("connect error: %s\n", strerror(errno));
         evutil_closesocket (data_fd);
         tdata->thread_ret = -1;
         goto out;
@@ -544,7 +550,7 @@ static void* do_transfer(void *vtdata)
 
     int token_len = strlen(tdata->token) + 1;
     if (sendn (data_fd, tdata->token, token_len) != token_len) {
-        g_warning ("send connection token error: %s\n", strerror(errno));
+        seaf_warning ("send connection token error: %s\n", strerror(errno));
         evutil_closesocket (data_fd);
         tdata->thread_ret = -1;
         goto out;
@@ -572,14 +578,14 @@ get_port (CcnetProcessor *processor, char *content, int clen)
     char *p, *port_str, *token;
 
     if (content[clen-1] != '\0') {
-        g_warning ("Bad port and token\n");
+        seaf_warning ("Bad port and token\n");
         ccnet_processor_done (processor, FALSE);
         return;
     }
 
     p = strchr (content, '\t');
     if (!p) {
-        g_warning ("Bad port and token\n");
+        seaf_warning ("Bad port and token\n");
         ccnet_processor_done (processor, FALSE);
         return;
     }
@@ -589,7 +595,7 @@ get_port (CcnetProcessor *processor, char *content, int clen)
 
     CcnetPeer *peer = ccnet_get_peer (seaf->ccnetrpc_client, processor->peer_id);
     if (!peer) {
-        g_warning ("Invalid peer %s.\n", processor->peer_id);
+        seaf_warning ("Invalid peer %s.\n", processor->peer_id);
         g_free (tdata);
         ccnet_processor_done (processor, FALSE);
         return;
@@ -598,7 +604,7 @@ get_port (CcnetProcessor *processor, char *content, int clen)
      * in the worker thread later.
      */
     if (ccnet_pipe (tdata->task_pipe) < 0) {
-        g_warning ("failed to create task pipe.\n");
+        seaf_warning ("failed to create task pipe.\n");
         g_free (tdata);
         ccnet_processor_done (processor, FALSE);
         return;
@@ -655,7 +661,7 @@ process_block_bitmap (CcnetProcessor *processor, char *content, int clen)
     USE_PRIV;
 
     if (proc->block_bitmap.byteCount < priv->bm_offset + clen) {
-        g_warning ("Received block bitmap is too large.\n");
+        seaf_warning ("Received block bitmap is too large.\n");
         ccnet_processor_done (processor, FALSE);
         return -1;
     }
@@ -725,7 +731,7 @@ accept_connection (evutil_socket_t connfd, void *vdata)
     processor->state = ESTABLISHED;
 
     if (ccnet_pipe (tdata->task_pipe) < 0) {
-        g_warning ("failed to create task pipe.\n");
+        seaf_warning ("failed to create task pipe.\n");
         evutil_closesocket (tdata->data_fd);
         goto fail;
     }
@@ -776,7 +782,7 @@ process_block_list (CcnetProcessor *processor, char *content, int clen)
     int i;
 
     if (clen % 41 != 0) {
-        g_warning ("Bad block list.\n");
+        seaf_warning ("Bad block list.\n");
         ccnet_processor_send_response (processor, SC_BAD_BL, SS_BAD_BL, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;

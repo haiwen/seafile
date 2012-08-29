@@ -1,6 +1,8 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
 #include "common.h"
+
+#define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
 #include "log.h"
 
 #include <fcntl.h>
@@ -120,6 +122,8 @@ read_done_cb (OSAsyncResult *res, void *cb_data)
     }
 
     send_commit (processor, res->obj_id, res->data, res->len);
+
+    seaf_debug ("Send commit %.8s.\n", res->obj_id);
 
     /* Send next commit. */
     if (priv->id_list != NULL)
@@ -249,8 +253,12 @@ collect_commit_id_thread (void *vprocessor)
         return vprocessor;
     }
 
-    if (priv->fast_forward)
+    if (priv->fast_forward) {
+        seaf_debug ("Send commits after a fast-forward merge.\n");
         return vprocessor;
+    }
+
+    seaf_debug ("Send commits after a real merge.\n");
 
     compute_delta_commits (processor, priv->head_commit_id);
 

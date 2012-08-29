@@ -212,7 +212,7 @@ seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
-        g_warning ("[sync mgr] cannot find repo %s.\n", repo_id);
+        seaf_warning ("[sync mgr] cannot find repo %s.\n", repo_id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_REPO, "Invalid repo");
         return -1;
     }
@@ -401,10 +401,14 @@ transition_sync_state (SyncTask *task, int new_state)
     g_assert (new_state >= 0 && new_state < SYNC_STATE_NUM);
 
     if (task->state != new_state) {
-        /* g_debug ("Repo %s sync state transition from %s to %s.\n", */
-        /*          task->info->repo_id, */
-        /*          sync_state_str[task->state], */
-        /*          sync_state_str[new_state]); */
+        if (!(task->state == SYNC_STATE_DONE && new_state == SYNC_STATE_INIT) &&
+            !(task->state == SYNC_STATE_INIT && new_state == SYNC_STATE_DONE)) {
+            seaf_message ("Repo '%s' sync state transition from '%s' to '%s'.\n",
+                          task->repo->name,
+                          sync_state_str[task->state],
+                          sync_state_str[new_state]);
+        }
+
         if ((task->state == SYNC_STATE_MERGE || task->state == SYNC_STATE_UPLOAD) &&
             new_state == SYNC_STATE_DONE &&
             need_notify_sync(task->repo))
@@ -457,11 +461,11 @@ seaf_sync_manager_set_task_error (SyncTask *task, int error)
     g_assert (error >= 0 && error < SYNC_ERROR_NUM);
 
     if (task->state != SYNC_STATE_ERROR) {
-        /* g_debug ("Repo %s sync state transition from %s to %s: %s.\n", */
-        /*          task->info->repo_id, */
-        /*          sync_state_str[task->state], */
-        /*          sync_state_str[SYNC_STATE_ERROR], */
-        /*          sync_error_str[error]); */
+        seaf_message ("Repo '%s' sync state transition from %s to '%s': '%s'.\n",
+                      task->repo->name,
+                      sync_state_str[task->state],
+                      sync_state_str[SYNC_STATE_ERROR],
+                      sync_error_str[error]);
         task->state = SYNC_STATE_ERROR;
         task->error = error;
         task->info->in_sync = FALSE;
@@ -500,6 +504,7 @@ start_upload_if_necessary (SyncTask *task)
 
     char *tx_id = seaf_transfer_manager_add_upload (seaf->transfer_mgr,
                                                     repo_id,
+                                                    task->dest_id,
                                                     "local",
                                                     "master",
                                                     task->token,
@@ -555,14 +560,14 @@ merge_job (void *vtask)
     res->task = task;
 
     if (repo->delete_pending) {
-        g_message ("Repo %s was deleted, don't need to merge.\n", repo->id);
+        seaf_message ("Repo %s was deleted, don't need to merge.\n", repo->id);
         return res;
     }
 
     pthread_mutex_lock (&repo->lock);
 
     if (seaf_repo_is_worktree_changed (repo)) {
-        g_message ("[sync mgr] Worktree is not clean. Skip merging repo %s(%.8s).\n",
+        seaf_message ("[sync mgr] Worktree is not clean. Skip merging repo %s(%.8s).\n",
                    repo->name, repo->id);
         res->success = FALSE;
         pthread_mutex_unlock (&repo->lock);
@@ -572,7 +577,7 @@ merge_job (void *vtask)
     /* If there are merge conflicts, the next commit operation will fix that.
      */
     if (seaf_repo_merge (repo, "master", &err_msg, &res->real_merge) < 0) {
-        g_message ("[Sync mgr] Merge of repo %s(%.8s) is not clean.\n",
+        seaf_message ("[Sync mgr] Merge of repo %s(%.8s) is not clean.\n",
                    repo->name, repo->id);
         res->success = FALSE;
         g_free (err_msg);
@@ -583,7 +588,7 @@ merge_job (void *vtask)
     res->success = TRUE;
     g_free (err_msg);
     pthread_mutex_unlock (&repo->lock);
-    g_message ("[Sync mgr] Merged repo %s(%.8s).\n", repo->name, repo->id);
+    seaf_message ("[Sync mgr] Merged repo %s(%.8s).\n", repo->name, repo->id);
     return res;
 }
 
@@ -610,7 +615,7 @@ merge_job_done (void *vresult)
     if (res->success && repo->auto_sync) {
         if (seaf_wt_monitor_refresh_repo (seaf->wt_monitor, 
                                           repo->id) < 0) {
-            g_warning ("[sync mgr] failed to refresh worktree watch for repo %s(%.8s).\n",
+            seaf_warning ("[sync mgr] failed to refresh worktree watch for repo %s(%.8s).\n",
                        repo->name, repo->id);
         }
     }
@@ -651,7 +656,7 @@ update_sync_status (SyncTask *task)
     local = seaf_branch_manager_get_branch (
         seaf->branch_mgr, info->repo_id, "local");
     if (!local) {
-        g_warning ("[sync-mgr] Branch local not found for repo %s(%.8s).\n",
+        seaf_warning ("[sync-mgr] Branch local not found for repo %s(%.8s).\n",
                    repo->name, repo->id);
         info->bad_local_branch = TRUE;
         seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
@@ -863,14 +868,16 @@ commit_job (void *vtask)
     }
 
     if (seaf_repo_index_add (repo, "") < 0) {
-        g_warning ("[Sync mgr] Failed to add in repo %s.\n", repo->id);
+        seaf_warning ("[Sync mgr] Failed to add in repo %s(%.8s).\n",
+                      repo->name, repo->id);
         goto out;
     }
 
     char *commit_id = seaf_repo_index_commit (repo, "", 
                                               unmerged, remote_name, &error);
     if (commit_id == NULL && error != NULL) {
-        g_warning ("[Sync mgr] Failed to commit to repo %s.\n", repo->id);
+        seaf_warning ("[Sync mgr] Failed to commit to repo %s(%.8s).\n",
+                      repo->name, repo->id);
     } else if (error == NULL) {
         res->changed = FALSE;
     }
@@ -920,7 +927,7 @@ commit_job_done (void *vres)
     if (repo->auto_sync) {
         if (seaf_wt_monitor_refresh_repo (seaf->wt_monitor, 
                                           repo->id) < 0) {
-            g_warning ("[sync mgr] failed to refresh worktree watch for repo %s(%.8s).\n",
+            seaf_warning ("[sync mgr] failed to refresh worktree watch for repo %s(%.8s).\n",
                        repo->name, repo->id);
         }
     }
@@ -1079,8 +1086,8 @@ perform_sync_task (SeafSyncManager *manager, SyncTask *task)
     SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr,
                                                  task->info->repo_id);
     if (!repo) {
-        g_message ("repo %s was deleted, don't need to sync.\n", 
-                   task->info->repo_id);
+        seaf_message ("repo %s was deleted, don't need to sync.\n", 
+                      task->info->repo_id);
         sync_task_free (task);
         return 0;
     }
@@ -1095,6 +1102,9 @@ perform_sync_task (SeafSyncManager *manager, SyncTask *task)
         start_sync (manager, repo, task);
         return 0;
     }
+
+    seaf_debug ("Sync task for repo '%s' is running, reschedule.\n",
+                repo->name);
 
     return -1;
 }
@@ -1200,9 +1210,6 @@ check_sync_pulse (void *vmanager)
 
     add_auto_sync_tasks (manager);
     
-    /* g_debug ("running sync tasks: %d, tasks in queue: %d\n", */
-    /*          manager->n_running_tasks, manager->sync_tasks->length); */
-
     /* Here we perform tasks queued by auto-commit.
      * These tasks should be performed as soon as possible.
      */
@@ -1240,6 +1247,8 @@ auto_delete_repo (SeafSyncManager *manager, SeafRepo *repo)
         seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
     }
 
+    seaf_message ("Auto deleted repo '%s'.\n", repo->name);
+
     /* Publish a message, for applet to notify in the system tray */
     seaf_mq_manager_publish_notification (seaf->mq_mgr,
                                           "repo.removed",
@@ -1261,6 +1270,8 @@ enqueue_sync_task (SeafSyncManager *manager, SeafRepo *repo)
 {
     SyncInfo *info;
     SyncTask *task;
+
+    seaf_debug ("Enqueue sync task for repo '%s'.\n", repo->name);
 
     if (g_queue_find_custom (manager->sync_tasks,
                              repo->id,

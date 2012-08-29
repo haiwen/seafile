@@ -9,8 +9,11 @@
 #include <ccnet/ccnet-object.h>
 
 #include "common.h"
-#include "seafile-session.h"
+
+#define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
 #include "log.h"
+
+#include "seafile-session.h"
 #include "utils.h"
 
 #include "check-tx-slave-v2-proc.h"
@@ -323,6 +326,8 @@ start (CcnetProcessor *processor, int argc, char **argv)
 
     priv->session_key = g_strdup(peer->session_key);
     g_object_unref (peer);
+
+    seaf_debug ("[check-tx] %s repo %.8s.\n", argv[0], repo_id);
 
     ccnet_processor_thread_create (processor, check_tx, thread_done, processor);
 

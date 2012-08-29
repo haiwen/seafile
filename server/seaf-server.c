@@ -48,13 +48,14 @@ SearpcClient *async_ccnetrpc_client_t;
 
 char *pidfile = NULL;
 
-static const char *short_options = "hvc:d:l:fg:G:P:mC";
+static const char *short_options = "hvc:d:l:fg:G:P:mCD:";
 static struct option long_options[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
     { "config-file", required_argument, NULL, 'c' },
     { "seafdir", required_argument, NULL, 'd' },
     { "log", required_argument, NULL, 'l' },
+    { "debug", required_argument, NULL, 'D' },
     { "foreground", no_argument, NULL, 'f' },
     { "ccnet-debug-level", required_argument, NULL, 'g' },
     { "seafile-debug-level", required_argument, NULL, 'G' },
@@ -580,6 +581,7 @@ main (int argc, char **argv)
     char *config_dir = DEFAULT_CONFIG_DIR;
     char *seafile_dir = NULL;
     char *logfile = NULL;
+    const char *debug_str = NULL;
     int daemon_mode = 1;
     int is_master = 0;
     CcnetClient *client;
@@ -608,6 +610,9 @@ main (int argc, char **argv)
             break;
         case 'l':
             logfile = g_strdup(optarg);
+            break;
+        case 'D':
+            debug_str = optarg;
             break;
         case 'g':
             ccnet_debug_level_str = optarg;
@@ -641,6 +646,11 @@ main (int argc, char **argv)
 #if !GLIB_CHECK_VERSION(2,32,0)
     g_thread_init (NULL);
 #endif
+
+    if (!debug_str)
+        debug_str = g_getenv("SEAFILE_DEBUG");
+    seafile_debug_set_flags_string (debug_str);
+
     client = ccnet_init (config_dir);
     if (!client)
         exit (1);

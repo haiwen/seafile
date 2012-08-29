@@ -1,6 +1,10 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
 #include "common.h"
+
+#define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
+#include "log.h"
+
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -149,7 +153,7 @@ check_seafdir (CcnetProcessor *processor, SeafDir *dir)
             continue;
 
 #ifdef DEBUG
-        g_debug ("[recvfs] Inspect object %s.\n", dent->id);
+        seaf_debug ("[recvfs] Inspect object %s.\n", dent->id);
 #endif
 
         if (S_ISDIR(dent->mode)) {
@@ -197,7 +201,7 @@ on_seafdir_read (OSAsyncResult *res, void *cb_data)
     }
 
 #ifdef DEBUG
-    g_debug ("[recvfs] Read seafdir %s.\n", res->obj_id);
+    seaf_debug ("[recvfs] Read seafdir %s.\n", res->obj_id);
 #endif
 
     dir = seaf_dir_from_data (res->obj_id, res->data, res->len);
@@ -219,7 +223,7 @@ on_seafile_stat (OSAsyncResult *res, void *cb_data)
     --(priv->inspect_objects);
 
 #ifdef DEBUG
-    g_debug ("[recvfs] Stat seafile %s.\n", res->obj_id);
+    seaf_debug ("[recvfs] Stat seafile %s.\n", res->obj_id);
 #endif
 
     if (!res->success)
@@ -239,7 +243,7 @@ on_fs_write (OSAsyncResult *res, void *cb_data)
     }
 
 #ifdef DEBUG
-    g_debug ("[recvfs] Wrote fs object %s.\n", res->obj_id);
+    seaf_debug ("[recvfs] Wrote fs object %s.\n", res->obj_id);
 #endif
 }
 
@@ -252,6 +256,7 @@ check_end_condition (CcnetProcessor *processor)
     request_object_batch_flush (processor, priv);
 
     if (priv->pending_objects == 0 && priv->inspect_objects == 0) {
+        seaf_debug ("Recv fs roots end.\n");
         ccnet_processor_send_response (processor, SC_END, SS_END, NULL, 0);
         ccnet_processor_done (processor, TRUE);
         return FALSE;
@@ -331,9 +336,7 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
         goto bad;
     }
 
-#ifdef DEBUG
-    g_debug ("[recvfs] Recv fs object %s.\n", pack->id);
-#endif
+    seaf_debug ("[recvfs] Recv fs object %.8s.\n", pack->id);
 
     --priv->pending_objects;
 
@@ -395,7 +398,7 @@ process_fsroot_list (CcnetProcessor *processor)
         }
 
 #ifdef DEBUG
-        g_debug ("[recvfs] Inspect object %s.\n", object_id);
+        seaf_debug ("[recvfs] Inspect object %s.\n", object_id);
 #endif
 
         if (seaf_obj_store_async_read (seaf->fs_mgr->obj_store,

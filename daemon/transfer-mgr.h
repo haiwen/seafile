@@ -177,6 +177,7 @@ seaf_transfer_manager_add_download (SeafTransferManager *manager,
 char *
 seaf_transfer_manager_add_upload (SeafTransferManager *manager,
                                   const char *repo_id,
+                                  const char *peer_id,
                                   const char *from_branch,
                                   const char *to_branch,
                                   const char *token,

@@ -2,6 +2,9 @@
 
 #include "common.h"
 
+#define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
+#include "log.h"
+
 #include <unistd.h>
 #include <limits.h>
 #include <string.h>
@@ -23,7 +26,6 @@
 #include "clone-mgr.h"
 #include "vc-utils.h"
 #include "gc.h"
-#include "log.h"
 #include "mq-mgr.h"
 
 #include "processors/check-tx-v2-proc.h"
@@ -323,7 +325,7 @@ seaf_transfer_task_load_blocklist (TransferTask *task)
     if (task->type == TASK_TYPE_UPLOAD) {
         bl = load_blocklist_with_local_history (task);
         if (!bl) {
-            g_warning ("[tr-mgr]Failed to populate blocklist.\n");
+            seaf_warning ("[tr-mgr]Failed to populate blocklist.\n");
             return -1;
         }
     } else {
@@ -332,7 +334,7 @@ seaf_transfer_task_load_blocklist (TransferTask *task)
         remote = seaf_commit_manager_get_commit (seaf->commit_mgr,
                                                  task->head);
         if (!remote) {
-            g_warning ("[tr-mgr] Failed to find commit %s.\n", task->head);
+            seaf_warning ("[tr-mgr] Failed to find commit %s.\n", task->head);
             return -1;
         }
 
@@ -340,7 +342,7 @@ seaf_transfer_task_load_blocklist (TransferTask *task)
             /* If we're merging, only get new blocks that need to be checked out.
              */
             if (merge_get_new_block_list (repo, remote, &bl) < 0) {
-                g_warning ("[tr-mgr] Failed to get new blocks for merge.\n");
+                seaf_warning ("[tr-mgr] Failed to get new blocks for merge.\n");
                 seaf_commit_unref (remote);
                 return -1;
             }
@@ -351,7 +353,7 @@ seaf_transfer_task_load_blocklist (TransferTask *task)
             if (seaf_fs_manager_populate_blocklist (seaf->fs_mgr,
                                                     remote->root_id,
                                                     bl) < 0) {
-                g_warning ("[tr-mgr] Failed to get blocks of commit %s.\n",
+                seaf_warning ("[tr-mgr] Failed to get blocks of commit %s.\n",
                            remote->commit_id);
                 seaf_commit_unref (remote);
                 return -1;
@@ -366,9 +368,6 @@ seaf_transfer_task_load_blocklist (TransferTask *task)
     }
 
     block_list_generate_bitmap (bl);
-
-    g_debug ("[tr-mgr] Block list size is %u, %u blocks exists.\n", 
-             bl->n_blocks, bl->n_valid_blocks);
 
     task->block_list = bl;
     BitfieldConstruct (&task->active, bl->n_blocks);
@@ -449,9 +448,12 @@ emit_transfer_done_signal (TransferTask *task)
 static void
 transition_state (TransferTask *task, int state, int rt_state)
 {
-    g_debug ("task %s: (%s, %s) --> (%s, %s)\n", task->tx_id,
-             task_state_to_str(task->state), task_rt_state_to_str(task->runtime_state),
-             task_state_to_str(state), task_rt_state_to_str(rt_state));
+    seaf_message ("Transfer repo '%.8s': ('%s', '%s') --> ('%s', '%s')\n",
+                  task->repo_id,
+                  task_state_to_str(task->state),
+                  task_rt_state_to_str(task->runtime_state),
+                  task_state_to_str(state),
+                  task_rt_state_to_str(rt_state));
 
     task->last_runtime_state = task->runtime_state;
 
@@ -477,12 +479,13 @@ transition_state (TransferTask *task, int state, int rt_state)
 void
 transition_state_to_error (TransferTask *task, int task_errno)
 {
-    g_debug ("task %s: (%s, %s) --> (%s, %s): %s\n", task->tx_id,
-             task_state_to_str(task->state),
-             task_rt_state_to_str(task->runtime_state),
-             task_state_to_str(TASK_STATE_ERROR),
-             task_rt_state_to_str(TASK_RT_STATE_FINISHED),
-             task_error_str(task_errno));
+    seaf_message ("Transfer repo '%.8s': ('%s', '%s') --> ('%s', '%s'): %s\n",
+                  task->repo_id,
+                  task_state_to_str(task->state),
+                  task_rt_state_to_str(task->runtime_state),
+                  task_state_to_str(TASK_STATE_ERROR),
+                  task_rt_state_to_str(TASK_RT_STATE_FINISHED),
+                  task_error_str(task_errno));
 
     task->last_runtime_state = task->runtime_state;
 
@@ -520,19 +523,17 @@ transfer_task_with_proc_failure (TransferTask *task,
                                  CcnetProcessor *proc,
                                  int defalut_error)
 {
-    g_debug ("Transfer task %s: (%s, %s) to error with proc %s(%d) failure: %d\n",
-             task->tx_id,
-             task_state_to_str(task->state),
-             task_rt_state_to_str(task->runtime_state),
-             GET_PNAME(proc), PRINT_ID(proc->id),
-             proc->failure);
+    seaf_debug ("Transfer repo '%.8s': proc %s(%d) failure: %d\n",
+                task->repo_id,
+                GET_PNAME(proc), PRINT_ID(proc->id),
+                proc->failure);
 
     switch (proc->failure) {
     case PROC_DONE:
         /* It can never happen */
         g_assert(0);
     case PROC_REMOTE_DEAD:
-        g_warning ("[tr-mgr] Shutdown processor with failure %d\n",
+        seaf_warning ("[tr-mgr] Shutdown processor with failure %d\n",
                    proc->failure);
         transfer_task_set_netdown (task);
         break;
@@ -782,7 +783,6 @@ seaf_transfer_manager_add_download (SeafTransferManager *manager,
     if (!seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id))
         task->is_clone = TRUE;
 
-    g_debug ("[tr-mgr] Add download repo %s branch %s\n", repo_id, from_branch);
     g_hash_table_insert (manager->download_tasks,
                          g_strdup(task->tx_id),
                          task);
@@ -793,6 +793,7 @@ seaf_transfer_manager_add_download (SeafTransferManager *manager,
 char *
 seaf_transfer_manager_add_upload (SeafTransferManager *manager,
                                   const char *repo_id,
+                                  const char *peer_id,
                                   const char *from_branch,
                                   const char *to_branch,
                                   const char *token,
@@ -811,7 +812,7 @@ seaf_transfer_manager_add_upload (SeafTransferManager *manager,
     }
     clean_tasks_for_repo (manager, repo_id);
 
-    task = seaf_transfer_task_new (manager, NULL, repo_id, NULL,
+    task = seaf_transfer_task_new (manager, NULL, repo_id, peer_id,
                                    from_branch, to_branch, token,
                                    TASK_TYPE_UPLOAD);
     task->state = TASK_STATE_NORMAL;
@@ -892,7 +893,7 @@ seaf_transfer_manager_remove_task (SeafTransferManager *manager,
         return;
 
     if (task->runtime_state != TASK_RT_STATE_FINISHED) {
-        g_warning ("[tr-mgr] Try to remove running task!\n");
+        seaf_warning ("[tr-mgr] Try to remove running task!\n");
         return;
     }
 
@@ -926,7 +927,7 @@ seaf_transfer_manager_cancel_task (SeafTransferManager *manager,
 
     if (task->state != TASK_STATE_NORMAL && 
         task->state != TASK_STATE_STOPPED) {
-        g_warning ("Task cannot be canceled!\n");
+        seaf_warning ("Task cannot be canceled!\n");
         return;
     }
 
@@ -947,20 +948,6 @@ seaf_transfer_manager_get_download_tasks (SeafTransferManager *manager)
 }
 
 
-inline static char *get_task_dest (TransferTask *task)
-{
-    SeafRepo *repo;
-    if (task->dest_id)
-        return task->dest_id;
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, task->repo_id);
-    if (repo && repo->relay_id)
-        return repo->relay_id;
-
-    return seaf->session->base.relay_id;
-}
-
-
 static int
 start_getcs_proc (TransferTask *task, const char *peer_id)
 {
@@ -969,13 +956,13 @@ start_getcs_proc (TransferTask *task, const char *peer_id)
     processor = ccnet_proc_factory_create_remote_master_processor (
         seaf->session->proc_factory, "seafile-getcs", peer_id);
     if (!processor) {
-        g_warning ("failed to create get chunk server proc.\n");
+        seaf_warning ("failed to create get chunk server proc.\n");
         return -1;
     }
     ((SeafileGetcsProc *)processor)->task = task;
 
     if (ccnet_processor_startl (processor, NULL) < 0) {
-        g_warning ("failed to start get chunk server proc.\n");
+        seaf_warning ("failed to start get chunk server proc.\n");
         return -1;
     }
 
@@ -985,7 +972,7 @@ start_getcs_proc (TransferTask *task, const char *peer_id)
 static int
 get_chunk_server_list (TransferTask *task)
 {
-    const char *dest_id = get_task_dest (task);
+    const char *dest_id = task->dest_id;
 
     if (!dest_id)
         return -1;
@@ -1019,13 +1006,13 @@ start_sendblock_proc (TransferTask *task, const char *peer_id)
     processor = ccnet_proc_factory_create_remote_master_processor (
         seaf->session->proc_factory, "seafile-sendblock-v2", peer_id);
     if (!processor) {
-        g_warning ("failed to create sendblock proc.\n");
+        seaf_warning ("failed to create sendblock proc.\n");
         return NULL;
     }
 
     ((SeafileSendblockV2Proc *)processor)->tx_task = task;
     if (ccnet_processor_start (processor, 0, NULL) < 0) {
-        g_warning ("failed to start sendblock proc.\n");
+        seaf_warning ("failed to start sendblock proc.\n");
         return NULL;
     }
 
@@ -1042,13 +1029,13 @@ start_getblock_proc (TransferTask *task, const char *peer_id)
     processor = ccnet_proc_factory_create_remote_master_processor (
         seaf->session->proc_factory, "seafile-getblock-v2", peer_id);
     if (!processor) {
-        g_warning ("failed to create getblock proc.\n");
+        seaf_warning ("failed to create getblock proc.\n");
         return NULL;
     }
 
     ((SeafileGetblockV2Proc *)processor)->tx_task = task;
     if (ccnet_processor_start (processor, 0, NULL) < 0) {
-        g_warning ("failed to start getblock proc.\n");
+        seaf_warning ("failed to start getblock proc.\n");
         return NULL;
     }
 
@@ -1082,7 +1069,7 @@ start_getcommit_proc (TransferTask *task, const char *peer_id, GCallback done_cb
         processor = ccnet_proc_factory_create_remote_master_processor (
                     seaf->session->proc_factory, "seafile-getcommit-v2", peer_id);
     if (!processor) {
-        g_warning ("failed to create getcommit proc.\n");
+        seaf_warning ("failed to create getcommit proc.\n");
         return -1;
     }
 
@@ -1090,7 +1077,7 @@ start_getcommit_proc (TransferTask *task, const char *peer_id, GCallback done_cb
     g_signal_connect (processor, "done", done_cb, task);
 
     if (ccnet_processor_startl (processor, NULL) < 0) {
-        g_warning ("failed to start getcommit proc.\n");
+        seaf_warning ("failed to start getcommit proc.\n");
         return -1;
     }
 
@@ -1106,7 +1093,7 @@ start_getfs_proc (TransferTask *task, const char *peer_id, GCallback done_cb)
     processor = ccnet_proc_factory_create_remote_master_processor (
         seaf->session->proc_factory, "seafile-getfs", peer_id);
     if (!processor) {
-        g_warning ("failed to create getfs proc.\n");
+        seaf_warning ("failed to create getfs proc.\n");
         return -1;
     }
 
@@ -1114,7 +1101,7 @@ start_getfs_proc (TransferTask *task, const char *peer_id, GCallback done_cb)
     g_signal_connect (processor, "done", done_cb, task);
 
     if (ccnet_processor_startl (processor, NULL) < 0) {
-        g_warning ("failed to start getfs proc.\n");
+        seaf_warning ("failed to start getfs proc.\n");
         return -1;
     }
 
@@ -1158,7 +1145,6 @@ download_dispatch_blocks_to_processor (TransferTask *task, SeafileGetblockV2Proc
 
     n_blocks = expected - proc->pending_blocks;
     if (n_blocks <= 0) {
-        /* g_debug ("[transfer] don't need to schedule more blocks.\n"); */
         return FALSE;
     }
 
@@ -1179,8 +1165,8 @@ download_dispatch_blocks_to_processor (TransferTask *task, SeafileGetblockV2Proc
         {
             const char *block_id;
             block_id = g_ptr_array_index (task->block_list->block_ids, i);
-            g_debug ("[transfer %.8s] schedule block %s to %.8s.\n",
-                     task->tx_id, block_id, processor->peer_id);
+            seaf_debug ("Transfer repo %.8s: schedule block %.8s to %.8s.\n",
+                        task->repo_id, block_id, processor->peer_id);
             seafile_getblock_v2_proc_get_block (proc, i);
             BitfieldAdd (&task->active, i);
             ++n_scheduled;
@@ -1224,10 +1210,6 @@ start_chunk_server_download (TransferTask *task)
     GList *ptr = task->chunk_servers;
     const char *cs_id;
     CcnetProcessor *processor;
-
-    if (!ptr) {
-        g_warning ("[tr-mgr] There is no chunk server\n");
-    }
 
     while (ptr) {
         cs_id = ptr->data;
@@ -1343,13 +1325,7 @@ out:
 static int
 start_commit_download (TransferTask *task)
 {
-    const char *dest_id = get_task_dest (task);
-
-    if (!dest_id)
-        return -1;
-
-    if (ccnet_get_peer_net_state(seaf->ccnetrpc_client, dest_id) != PEER_CONNECTED)
-        return -1;
+    const char *dest_id = task->dest_id;
 
     task->rsize = -1;
     task->dsize = 0;
@@ -1394,15 +1370,13 @@ check_download_cb (CcnetProcessor *processor, gboolean success, void *data)
     /* Errors have been processed in the processor. */
 
 out:
-    g_debug("[Transfer] check download proc %d result %d\n",
-            PRINT_ID(processor->id), success);
     g_signal_handlers_disconnect_by_func (processor, check_download_cb, data);
 }
 
 static int
 start_download (TransferTask *task)
 {
-    const char *dest_id = get_task_dest (task);
+    const char *dest_id = task->dest_id;
     CcnetProcessor *processor;
 
     if (!dest_id)
@@ -1414,7 +1388,7 @@ start_download (TransferTask *task)
     processor = ccnet_proc_factory_create_remote_master_processor (
         seaf->session->proc_factory, "seafile-check-tx-v2", dest_id);
     if (!processor) {
-        g_warning ("failed to create check-tx proc for download.\n");
+        seaf_warning ("failed to create check-tx proc for download.\n");
         transition_state_to_error (task, TASK_ERR_CHECK_DOWNLOAD_START);
         return -1;
     }
@@ -1423,7 +1397,7 @@ start_download (TransferTask *task)
 
     ((SeafileCheckTxV2Proc *)processor)->task = task;
     if (ccnet_processor_startl (processor, "download", NULL) < 0) {
-        g_warning ("failed to start check-tx proc for download.\n");
+        seaf_warning ("failed to start check-tx proc for download.\n");
         transition_state_to_error (task, TASK_ERR_CHECK_DOWNLOAD_START);
         return -1;
     }
@@ -1455,8 +1429,6 @@ update_local_repo (TransferTask *task)
         seaf_repo_from_commit (repo, new_head);
 
         seaf_repo_manager_add_repo (seaf->repo_mgr, repo);
-        /* Set token. */
-        g_debug ("create repo %.8s in download\n", new_head->repo_id);
 
         /* If it's a new repo, create 'local' branch */
         branch = seaf_branch_new ("local", task->repo_id, task->head);
@@ -1464,7 +1436,6 @@ update_local_repo (TransferTask *task)
         seaf_branch_unref (branch);
 
         /* Set relay to where this repo from. */
-
         if (is_peer_relay (task->dest_id)) {
             seaf_repo_manager_set_repo_relay_id (seaf->repo_mgr, repo,
                                                  task->dest_id);
@@ -1485,7 +1456,7 @@ update_local_repo (TransferTask *task)
          * We don't allow fetching to the current branch.
          */
         if (repo->head && strcmp (branch->name, repo->head->name) == 0) {
-            g_warning ("Refuse fetching to current branch %s.\n", repo->head->name);
+            seaf_warning ("Refuse fetching to current branch %s.\n", repo->head->name);
             /* This should not happen in our restricted user model,
              * just set to unknown error.
              */
@@ -1494,17 +1465,6 @@ update_local_repo (TransferTask *task)
             seaf_branch_unref (branch);
             return -1;
         }
-
-        /* If branch exists, check fast forward.
-         * We use "master" branch as a temp branch, so we'll replace
-         * branch head even if not fast-forwared.
-         */
-#if 0
-        if (strcmp (task->head, branch->commit_id) != 0 &&
-            !is_fast_forward (task->head, branch->commit_id)) {
-            g_message ("Fetch is not fast forward. Force replace.\n");
-        }
-#endif
 
         /* Update branch */
         seaf_branch_set_commit (branch, new_head->commit_id);
@@ -1525,7 +1485,7 @@ schedule_download_task (TransferTask *task)
      * after restart.
      */
     if (gc_is_started ()) {
-        /* g_debug ("[tr mgr] GC is running, hold up download.\n"); */
+        seaf_debug ("[tr mgr] GC is running, hold up download.\n");
         return;
     }
 
@@ -1540,10 +1500,7 @@ schedule_download_task (TransferTask *task)
     if (task->is_clone && s_info != NULL && s_info->in_sync)
         return;
 
-    char *dest_id = get_task_dest (task);
-
-    if (!dest_id)
-        return;
+    char *dest_id = task->dest_id;
 
     switch (task->runtime_state) {
     case TASK_RT_STATE_INIT:
@@ -1583,7 +1540,7 @@ start_sendfs_proc (TransferTask *task, const char *peer_id, GCallback done_cb)
     processor = ccnet_proc_factory_create_remote_master_processor (
         seaf->session->proc_factory, "seafile-sendfs", peer_id);
     if (!processor) {
-        g_warning ("failed to create sendfs proc.\n");
+        seaf_warning ("failed to create sendfs proc.\n");
         return -1;
     }
 
@@ -1591,7 +1548,7 @@ start_sendfs_proc (TransferTask *task, const char *peer_id, GCallback done_cb)
     g_signal_connect (processor, "done", done_cb, task);
 
     if (ccnet_processor_startl (processor, NULL) < 0) {
-        g_warning ("failed to start sendfs proc.\n");
+        seaf_warning ("failed to start sendfs proc.\n");
         return -1;
     }
 
@@ -1618,7 +1575,7 @@ start_sendcommit_proc (TransferTask *task, const char *peer_id, GCallback done_c
         break;
     }
     if (!processor) {
-        g_warning ("failed to create sendcommit proc.\n");
+        seaf_warning ("failed to create sendcommit proc.\n");
         return -1;
     }
 
@@ -1626,7 +1583,7 @@ start_sendcommit_proc (TransferTask *task, const char *peer_id, GCallback done_c
     g_signal_connect (processor, "done", done_cb, task);
 
     if (ccnet_processor_startl (processor, NULL) < 0) {
-        g_warning ("failed to start sendcommit proc.\n");
+        seaf_warning ("failed to start sendcommit proc.\n");
         return -1;
     }
 
@@ -1731,7 +1688,7 @@ start_commit_upload (TransferTask *task)
     task->rsize = -1;
     task->dsize = 0;
 
-    if (start_sendcommit_proc (task, get_task_dest(task), (GCallback)on_commit_uploaded) < 0) {
+    if (start_sendcommit_proc (task, task->dest_id, (GCallback)on_commit_uploaded) < 0) {
         transition_state_to_error (task, TASK_ERR_UPLOAD_COMMIT_START);
         return -1;
     }
@@ -1769,7 +1726,7 @@ out:
 static int
 start_upload (TransferTask *task)
 {
-    const char *dest_id = get_task_dest (task);
+    const char *dest_id = task->dest_id;
     CcnetProcessor *processor;
     SeafBranch *branch;
 
@@ -1783,7 +1740,7 @@ start_upload (TransferTask *task)
                                              task->repo_id, 
                                              task->from_branch);
     if (!branch) {
-        g_warning ("[Upload] Bad source branch %s.\n", task->from_branch);
+        seaf_warning ("[Upload] Bad source branch %s.\n", task->from_branch);
         transition_state_to_error (task, TASK_ERR_BAD_LOCAL_BRANCH);
         return -1;
     }
@@ -1793,7 +1750,7 @@ start_upload (TransferTask *task)
     processor = ccnet_proc_factory_create_remote_master_processor (
         seaf->session->proc_factory, "seafile-check-tx-v2", dest_id);
     if (!processor) {
-        g_warning ("failed to create check-tx proc for upload.\n");
+        seaf_warning ("failed to create check-tx proc for upload.\n");
         transition_state_to_error (task, TASK_ERR_CHECK_UPLOAD_START);
         return -1;
     }
@@ -1803,7 +1760,7 @@ start_upload (TransferTask *task)
     ((SeafileCheckTxV2Proc *)processor)->task = task;
     if (ccnet_processor_startl (processor, "upload", NULL) < 0)
     {
-        g_warning ("failed to start check-tx proc for upload.\n");
+        seaf_warning ("failed to start check-tx proc for upload.\n");
         return -1;
     }
 
@@ -1817,10 +1774,6 @@ start_chunk_server_upload (TransferTask *task)
     GList *ptr = task->chunk_servers;
     const char *cs_id;
     CcnetProcessor *processor;
-
-    if (!ptr) {
-        g_warning ("[tr-mgr] There is no chunk server\n");
-    }
 
     while (ptr) {
         cs_id = ptr->data;
@@ -1862,7 +1815,6 @@ upload_dispatch_blocks_to_processor (TransferTask *task, SeafileSendblockV2Proc 
     n_blocks = expected - proc->pending_blocks;
     /* Bandwidth for this processor is saturated if true. */
     if (n_blocks <= 0) {
-        /* g_debug ("[transfer] don't need to schedule more blocks.\n"); */
         return FALSE;
     }
 
@@ -1881,8 +1833,8 @@ upload_dispatch_blocks_to_processor (TransferTask *task, SeafileSendblockV2Proc 
         {
             const char *block_id;
             block_id = g_ptr_array_index (task->block_list->block_ids, i);
-            g_debug ("[transfer %.8s] schedule block %s to %.8s.\n",
-                     task->tx_id, block_id, processor->peer_id);
+            seaf_debug ("Transfer repo %.8s: schedule block %.8s to %.8s.\n",
+                     task->repo_id, block_id, processor->peer_id);
             seafile_sendblock_v2_proc_send_block (proc, i);
             BitfieldAdd (&task->active, i);
             ++n_scheduled;
@@ -1966,9 +1918,9 @@ update_remote_branch (TransferTask *task)
     CcnetProcessor *processor;
 
     processor = ccnet_proc_factory_create_remote_master_processor (
-        seaf->session->proc_factory, "seafile-sendbranch", get_task_dest(task));
+        seaf->session->proc_factory, "seafile-sendbranch", task->dest_id);
     if (!processor) {
-        g_warning ("failed to create sendbranch proc.\n");
+        seaf_warning ("failed to create sendbranch proc.\n");
         goto fail;
     }
 
@@ -1978,7 +1930,7 @@ update_remote_branch (TransferTask *task)
     if (ccnet_processor_startl (processor, task->repo_id, 
                                 task->to_branch, task->head, NULL) < 0)
     {
-        g_warning ("failed to start sendbranch proc.\n");
+        seaf_warning ("failed to start sendbranch proc.\n");
         goto fail;
     }
 
@@ -2111,12 +2063,13 @@ state_machine_tick (TransferTask *task)
 
         /* state #1, #2, #3, #4 */
         if (task->runtime_state == TASK_RT_STATE_NETDOWN) {
-            const char *dest_id = get_task_dest (task);
+            const char *dest_id = task->dest_id;
             if (dest_id && ccnet_get_peer_net_state(
                     seaf->ccnetrpc_client, dest_id) == PEER_CONNECTED)
             {
-                g_debug ("[tr-mgr] Resume task %s when peer %.10s is reconnected\n",
-                         task->tx_id, dest_id);
+                seaf_debug ("[tr-mgr] Resume transfer repo %.8s when "
+                            "peer %.10s is reconnected\n",
+                            task->repo_id, dest_id);
                 g_assert (task->last_runtime_state != TASK_RT_STATE_NETDOWN
                           && task->last_runtime_state != TASK_RT_STATE_FINISHED);
                 resume_task_from_netdown(task, dest_id);
@@ -2139,9 +2092,6 @@ state_machine_tick (TransferTask *task)
         /* state #7 */
         if (task->runtime_state == TASK_RT_STATE_DATA)
             {
-                /* This would not free processor list,
-                 * since we may refer it once leave stopped state.
-                 */
                 free_task_resources (task);
                 /* transition to state #8 */
                 transition_state (task, TASK_STATE_STOPPED, TASK_RT_STATE_FINISHED);
@@ -2151,9 +2101,6 @@ state_machine_tick (TransferTask *task)
         /* state #11 */
         if (task->runtime_state == TASK_RT_STATE_DATA)
             {
-                /* This would not free processor list,
-                 * since we may refer it once leave stopped state.
-                 */
                 free_task_resources (task);
                 /* transition to state #12 */
                 transition_state (task, TASK_STATE_CANCELED, TASK_RT_STATE_FINISHED);

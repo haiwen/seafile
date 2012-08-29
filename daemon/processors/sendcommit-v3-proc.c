@@ -2,6 +2,9 @@
 
 #include "common.h"
 
+#define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
+#include "log.h"
+
 #include <fcntl.h>
 
 #include <ccnet.h>
@@ -129,6 +132,8 @@ send_commit (CcnetProcessor *processor, const char *object_id)
 
     ccnet_processor_send_update (processor, SC_OBJECT, SS_OBJECT,
                                  (char *)pack, pack_size);
+
+    seaf_debug ("Send commit %.8s.\n", object_id);
 
     g_free (data);
     free (pack);
@@ -296,12 +301,12 @@ send_commits (CcnetProcessor *processor, const char *head)
     }
 
     if (priv->fast_forward) {
-        g_debug ("[sendcommt] Send commit after a fast forward merge.\n");
+        seaf_debug ("[sendcommt] Send commit after a fast forward merge.\n");
         send_one_commit (processor);
         return;
     }
 
-    g_debug ("[sendcommit] Send commit after a real merge.\n");
+    seaf_debug ("[sendcommit] Send commit after a real merge.\n");
     if (compute_delta_commits (processor, head) < 0)
         return;
 

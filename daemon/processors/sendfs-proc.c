@@ -29,6 +29,10 @@
  */
 
 #include "common.h"
+
+#define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
+#include "log.h"
+
 #include <fcntl.h>
 #include <sys/stat.h>
 
@@ -121,6 +125,8 @@ send_fs_object (CcnetProcessor *processor, char *object_id)
     ccnet_processor_send_update (processor, SC_OBJECT, SS_OBJECT,
                                  (char *)pack, pack_size);
 
+    seaf_debug ("Send fs object %.8s.\n", object_id);
+
     g_free (data);
     free (pack);
     return TRUE;
@@ -207,6 +213,7 @@ handle_response (CcnetProcessor *processor,
         if (strncmp(code, SC_GET_OBJECT, 3) == 0) {
             send_fs_objects (processor, content, clen);
         } else if (strncmp(code, SC_END, 3) == 0) {
+            seaf_debug ("Send fs objects end.\n");
             ccnet_processor_done (processor, TRUE);
         } else {
             g_warning ("[sendfs] Bad response in state SEND_OBJECT: %s %s\n",

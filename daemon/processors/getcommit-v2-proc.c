@@ -2,6 +2,9 @@
 
 #include "common.h"
 
+#define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
+#include "log.h"
+
 #include <fcntl.h>
 
 #include <ccnet.h>
@@ -117,7 +120,7 @@ receive_commit (CcnetProcessor *processor, char *content, int clen)
         goto bad;
     }
 
-    g_debug ("[getcommit] recv commit object %s\n", pack->id);
+    seaf_debug ("[getcommit] recv commit object %.8s\n", pack->id);
 
     if (save_commit (pack, clen) < 0) {
         goto bad;
@@ -165,7 +168,7 @@ static void handle_response (CcnetProcessor *processor,
         if (strncmp(code, SC_OBJECT, 3) == 0) {
             receive_commit (processor, content, clen);
         } else if (strncmp (code, SC_END, 3) == 0) {
-            g_debug ("[getcommit] Get commit end.\n");
+            seaf_debug ("[getcommit] Get commit end.\n");
             ccnet_processor_done (processor, TRUE);
         } else {
             g_warning ("[getcommit] Bad response: %s %s\n", code, code_msg);

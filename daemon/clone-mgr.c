@@ -2,7 +2,9 @@
 
 #include <ccnet.h>
 
+#define DEBUG_FLAG SEAFILE_DEBUG_SYNC
 #include "log.h"
+
 #include "seafile-error.h"
 #include "seafile-session.h"
 #include "index/index.h"
@@ -304,9 +306,9 @@ remove_task_from_db (SeafCloneManager *mgr, const char *repo_id)
 static void
 transition_state (CloneTask *task, int new_state)
 {
-    g_debug ("Transition clone state for %s from [%s] to [%s].\n",
-             task->repo_id,
-             state_str[task->state], state_str[new_state]);
+    seaf_message ("Transition clone state for %.8s from [%s] to [%s].\n",
+                  task->repo_id,
+                  state_str[task->state], state_str[new_state]);
 
     if (new_state == CLONE_STATE_DONE ||
         new_state == CLONE_STATE_ERROR ||
@@ -321,10 +323,10 @@ transition_state (CloneTask *task, int new_state)
 static void
 transition_to_error (CloneTask *task, int error)
 {
-    g_debug ("Transition clone state for %s from [%s] to [error]: %s.\n",
-             task->repo_id,
-             state_str[task->state], 
-             error_str[error]);
+    seaf_message ("Transition clone state for %.8s from [%s] to [error]: %s.\n",
+                  task->repo_id,
+                  state_str[task->state], 
+                  error_str[error]);
 
     /* Remove from db but leave in memory. */
     remove_task_from_db (task->manager, task->repo_id);
@@ -699,7 +701,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     task->manager = mgr;
 
     if (save_task_to_db (mgr, task) < 0) {
-        g_warning ("[Clone mgr] failed to save task.\n");
+        seaf_warning ("[Clone mgr] failed to save task.\n");
         clone_task_free (task);
         return NULL;
     }
@@ -756,7 +758,7 @@ seaf_clone_manager_cancel_task (SeafCloneManager *mgr,
     case CLONE_STATE_CANCEL_PENDING:
         break;
     default:
-        g_warning ("[Clone mgr] cannot cancel a not-running task.\n");
+        seaf_warning ("[Clone mgr] cannot cancel a not-running task.\n");
         return -1;
     }
 
@@ -776,7 +778,7 @@ seaf_clone_manager_remove_task (SeafCloneManager *mgr,
     if (task->state != CLONE_STATE_DONE &&
         task->state != CLONE_STATE_ERROR &&
         task->state != CLONE_STATE_CANCELED) {
-        g_warning ("[Clone mgr] cannot remove running task.\n");
+        seaf_warning ("[Clone mgr] cannot remove running task.\n");
         return -1;
     }
 
@@ -867,7 +869,7 @@ real_merge (SeafRepo *repo, SeafCommit *head, CloneTask *task)
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
     if (read_index_from (&istate, index_path) < 0) {
-        g_warning ("Failed to load index.\n");
+        seaf_warning ("Failed to load index.\n");
         return -1;
     }
 
@@ -921,7 +923,7 @@ fast_forward_checkout (SeafRepo *repo, SeafCommit *head, CloneTask *task)
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
     if (read_index_from (&istate, index_path) < 0) {
-        g_warning ("Failed to load index.\n");
+        seaf_warning ("Failed to load index.\n");
         return -1;
     }
     repo->index_corrupted = FALSE;
@@ -943,7 +945,7 @@ fast_forward_checkout (SeafRepo *repo, SeafCommit *head, CloneTask *task)
     }
 
     if (unpack_trees (2, trees, &topts) < 0) {
-        g_warning ("Failed to merge commit %s with work tree.\n", head->commit_id);
+        seaf_warning ("Failed to merge commit %s with work tree.\n", head->commit_id);
         ret = -1;
         goto out;
     }
@@ -952,7 +954,7 @@ fast_forward_checkout (SeafRepo *repo, SeafCommit *head, CloneTask *task)
                          head->commit_id,
                          head->creator_name,
                          NULL) < 0) {
-        g_warning ("Failed to update worktree.\n");
+        seaf_warning ("Failed to update worktree.\n");
         ret = -1;
         goto out;
     }
@@ -1002,7 +1004,7 @@ merge_job (void *data)
     }
 
     if (check_fast_forward (head, task->root_id)) {
-        g_debug ("[clone mgr] Fast forward.\n");
+        seaf_debug ("[clone mgr] Fast forward.\n");
         if (fast_forward_checkout (repo, head, task) < 0)
             goto out;
     } else {
@@ -1053,7 +1055,7 @@ start_checkout (SeafRepo *repo, CloneTask *task)
     if (repo->encrypted && task->passwd != NULL) {
         if (repo->enc_version >= 1 && 
             seaf_repo_verify_passwd (repo, task->passwd) < 0) {
-            g_warning ("[Clone mgr] incorrect password.\n");
+            seaf_warning ("[Clone mgr] incorrect password.\n");
             transition_to_error (task, CLONE_ERROR_PASSWD);
             return;
         }
@@ -1061,12 +1063,12 @@ start_checkout (SeafRepo *repo, CloneTask *task)
         if (seaf_repo_manager_set_repo_passwd (seaf->repo_mgr,
                                                repo,
                                                task->passwd) < 0) {
-            g_warning ("[Clone mgr] failed to set passwd for %s.\n", repo->id);
+            seaf_warning ("[Clone mgr] failed to set passwd for %s.\n", repo->id);
             transition_to_error (task, CLONE_ERROR_INTERNAL);
             return;
         }
     } else if (repo->encrypted) {
-        g_warning ("[Clone mgr] Password is empty for encrypted repo %s.\n",
+        seaf_warning ("[Clone mgr] Password is empty for encrypted repo %s.\n",
                    repo->id);
         transition_to_error (task, CLONE_ERROR_PASSWD);
         return;
@@ -1118,7 +1120,7 @@ on_repo_fetched (SeafileSession *seaf,
     SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr,
                                                  tx_task->repo_id);
     if (repo == NULL) {
-        g_warning ("[Clone mgr] cannot find repo %s after fetched.\n", 
+        seaf_warning ("[Clone mgr] cannot find repo %s after fetched.\n", 
                    tx_task->repo_id);
         transition_to_error (task, CLONE_ERROR_INTERNAL);
         return;

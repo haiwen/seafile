@@ -1,6 +1,10 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
 #include "common.h"
+
+#define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
+#include "log.h"
+
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/stat.h>
@@ -177,9 +181,10 @@ check_object (CcnetProcessor *processor)
     request_object_batch_flush (processor, priv);
 
     /* check end condition */
-    /* if (i%10 == 0) */
-    /*     g_debug ("[getfs] pending objects num: %d\n", priv->pending_objects); */
+    if (i%10 == 0)
+        seaf_debug ("[getfs] pending objects num: %d\n", priv->pending_objects);
     ++i;
+
     if (priv->pending_objects == 0 && g_queue_is_empty(priv->inspect_queue)) {
         ccnet_processor_send_update (processor, SC_END, SS_END, NULL, 0);
         ccnet_processor_done (processor, TRUE);

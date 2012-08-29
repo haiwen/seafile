@@ -1,6 +1,10 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
 #include "common.h"
+
+#define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
+#include "log.h"
+
 #include <fcntl.h>
 #include <sys/stat.h>
 
@@ -122,6 +126,8 @@ read_done_cb (OSAsyncResult *res, void *cb_data)
     ccnet_processor_send_response (processor, SC_OBJECT, SS_OBJECT,
                                    (char *)pack, pack_size);
     free (pack);
+
+    seaf_debug ("Send fs object %.8s.\n", res->obj_id);
 }
 
 static gboolean
