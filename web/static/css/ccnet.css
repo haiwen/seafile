@@ -136,31 +136,18 @@ a.button { text-decoration: underline; color:#800; }
 #wide-center-panel { width: 770px; }
 #right-panel { width:175px; }
 #footer { color:#999; padding-top:2px; margin:75px auto 25px; border-top:1px solid #DDD; }
-/* top-bar */
-#top-bar {
-    height:20px;
-    padding-bottom:21px;
-    _background:#fff;/*for ie 6*/
-}
-.top-bar { height:20px; color:#fff; text-align:right; font-weight:bold; background:#000; }
-.top-bar-in { width:950px; margin:0 auto; }
-.top-bar a { color:#ddd; font-weight:normal; margin-left:5px; }
-.top-bar a:hover { background:#A0A; }
 
 /* #header */
 #header {
     font-size: 14px;
     font-weight: bold;
     padding-bottom: 7px;
-    border-bottom: 1px solid #DDD;
     margin-bottom: 15px;
+    background: #f4f4f4;
 }
-#logo {
-    margin-right:40px;
-}
-#lang-info { margin-top: 5px; font-size: 13px; color: #666; font-weight: normal; }
+#lang-info { margin: 8px 2px 0 0; font-size: 13px; color: #666; font-weight: normal; }
 #nav {
-    padding-top:22px;
+    padding: 8px 4px 0px 4px;
 }
 #nav li {
     float: left;
