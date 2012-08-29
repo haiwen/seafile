@@ -1540,6 +1540,24 @@ seaf_repo_manager_remove_org_repo_by_org_id (SeafRepoManager *mgr,
     return seaf_db_query (mgr->seaf->db, sql);
 }
 
+GList *
+seaf_repo_manager_get_org_repos_by_owner (SeafRepoManager *mgr,
+                                          int org_id,
+                                          const char *user)
+{
+    GList *ret = NULL;
+    char sql[512];
+
+    snprintf (sql, sizeof(sql), "SELECT repo_id FROM OrgRepo "
+              "WHERE org_id=%d AND user='%s'", org_id, user);
+
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
+                                      collect_repos, &ret) < 0)
+        return NULL;
+
+    return g_list_reverse (ret);
+}
+
 int
 seaf_repo_manager_get_org_id_by_repo_id (SeafRepoManager *mgr,
                                          const char *repo_id,
@@ -1680,7 +1698,17 @@ GList *
 seaf_repo_manager_list_org_inner_pub_repos (SeafRepoManager *mgr,
                                             int org_id)
 {
-    return NULL;
+    GList *ret = NULL;
+    char sql[256];
+
+    snprintf (sql, 256, "SELECT repo_id FROM OrgInnerPubRepo WHERE "
+              "org_id=%d", org_id);
+
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
+                                      collect_repos, &ret) < 0)
+        return NULL;
+
+    return g_list_reverse (ret);    
 }
 
 static gboolean

@@ -532,6 +532,9 @@ seafile_get_org_repo_list (int org_id, int start, int limit, GError **error);
 int
 seafile_remove_org_repo_by_org_id (int org_id, GError **error);
 
+GList *
+seafile_list_org_repos_by_owner (int org_id, const char *user, GError **error);
+
 gint64
 seafile_get_file_size (const char *file_id, GError **error);
 
@@ -751,6 +754,9 @@ seafile_set_org_inner_pub_repo (int org_id, const char *repo_id, GError **error)
 
 int
 seafile_unset_org_inner_pub_repo (int org_id, const char *repo_id, GError **error);
+
+GList *
+seafile_list_org_inner_pub_repos (int org_id, GError **error);
 
 /* ------------------ Public RPC calls. ------------ */
 

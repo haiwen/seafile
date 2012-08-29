@@ -400,6 +400,11 @@ int
 seaf_repo_manager_remove_org_repo_by_org_id (SeafRepoManager *mgr,
                                              int org_id);
 
+GList *
+seaf_repo_manager_get_org_repos_by_owner (SeafRepoManager *mgr,
+                                          int org_id,
+                                          const char *user);
+
 int
 seaf_repo_manager_get_org_id_by_repo_id (SeafRepoManager *mgr,
                                          const char *repo_id,

@@ -2176,6 +2176,31 @@ seafile_unset_org_inner_pub_repo (int org_id, const char *repo_id, GError **erro
     return 0;
 }
 
+GList *
+seafile_list_org_inner_pub_repos (int org_id, GError **error)
+{
+    GList *ret = NULL;
+    GList *repos, *ptr;
+    SeafRepo *r;
+    SeafileRepo *repo;
+
+    repos = seaf_repo_manager_list_org_inner_pub_repos (seaf->repo_mgr, org_id);
+    ptr = repos;
+    while (ptr) {
+        r = ptr->data;
+        repo = seafile_repo_new ();
+        g_object_set (repo, "id", r->id, "name", r->name,
+                      "desc", r->desc, "encrypted", r->encrypted, NULL);
+        ret = g_list_prepend (ret, repo);
+        seaf_repo_unref (r);
+        ptr = ptr->next;
+    }
+    g_list_free (repos);
+    ret = g_list_reverse (ret);
+
+    return ret;
+}
+
 gint64
 seafile_get_file_size (const char *file_id, GError **error)
 {
@@ -2513,6 +2538,32 @@ seafile_create_org_repo (const char *repo_name,
                                                  org_id, error);
     return repo_id;
 
+}
+
+GList *
+seafile_list_org_repos_by_owner (int org_id, const char *user, GError **error)
+{
+    GList *ret = NULL;
+    GList *repos, *ptr;
+    SeafRepo *r;
+    SeafileRepo *repo;
+
+    repos = seaf_repo_manager_get_org_repos_by_owner (seaf->repo_mgr, org_id,
+                                                      user);
+    ptr = repos;
+    while (ptr) {
+        r = ptr->data;
+        repo = seafile_repo_new ();
+        g_object_set (repo, "id", r->id, "name", r->name,
+                      "desc", r->desc, "encrypted", r->encrypted, NULL);
+        ret = g_list_prepend (ret, repo);
+        seaf_repo_unref (r);
+        ptr = ptr->next;
+    }
+    g_list_free (repos);
+    ret = g_list_reverse (ret);
+
+    return ret;
 }
 
 int
