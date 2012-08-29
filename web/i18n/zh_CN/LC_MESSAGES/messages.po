@@ -5,8 +5,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2012-08-22 14:52+CST\n"
-"PO-Revision-Date: 2012-08-22 14:53+0800\n"
+"POT-Creation-Date: 2012-08-29 14:09+CST\n"
+"PO-Revision-Date: 2012-08-29 14:10+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -15,33 +15,33 @@ msgstr ""
 "Content-Transfer-Encoding: UTF-8\n"
 "Generated-By: pygettext.py 1.5\n"
 
-#: main.py:550
+#: main.py:547
 msgid "You must choose a local directory"
 msgstr "你必须指定一个本地目录"
 
-#: main.py:552
+#: main.py:549
 msgid "Password can not be empty"
 msgstr "密码不能为空"
 
-#: main.py:554
+#: main.py:551
 msgid "Invalid Repo ID"
 msgstr "同步目录ID格式不正确"
 
-#: main.py:583
+#: main.py:580
 msgid "Invalid local directory"
 msgstr "不是合法的本地目录"
 
-#: main.py:585
+#: main.py:582
 msgid ""
 "The local directory you chose is in sync with another repo. Please choose "
 "another one."
 msgstr "你所指定的本地目录已经与其他同步目录同步，请指定其他本地目录"
 
-#: main.py:587
+#: main.py:584
 msgid "Invalid local directory name."
 msgstr "不是合法的本地目录名。"
 
-#: main.py:589 templates/clone_tasks.html:65
+#: main.py:586 templates/clone_tasks.html:65
 msgid "Internal error."
 msgstr "内部错误"
 
@@ -50,46 +50,42 @@ msgid "Seafile@Local"
 msgstr "Seafile 本地管理"
 
 #: templates/base.html:25
-msgid "Welcome, "
-msgstr "欢迎，"
-
-#: templates/base.html:27
 msgid "System"
 msgstr "系统"
 
-#: templates/base.html:43
+#: templates/base.html:37
+msgid "This is Seafile Client"
+msgstr "Seafile 客户端管理"
+
+#: templates/base.html:40
 msgid "Files"
 msgstr "文件"
 
-#: templates/base.html:46
+#: templates/base.html:43
 msgid "SyncLan"
 msgstr "局域网同步"
 
-#: templates/base.html:49
+#: templates/base.html:46
 msgid "Network"
 msgstr "网络"
 
-#: templates/base.html:52 templates/repo.html:15
+#: templates/base.html:49 templates/repo.html:15
 msgid "Settings"
 msgstr "设置"
 
-#: templates/base.html:55
+#: templates/base.html:52
 msgid "Help"
 msgstr "帮助"
 
-#: templates/base.html:59
-msgid "Seafile@LocalComputer"
-msgstr "这里是 Seafile 本地管理界面"
+#: templates/base.html:79
+msgid "Seafile Client Version:"
+msgstr "Seafile 客户端版本："
 
-#: templates/base.html:85
-msgid "Seafile Version:"
-msgstr "Seafile 版本："
-
-#: templates/base.html:86
+#: templates/base.html:80
 msgid "About"
 msgstr "关于"
 
-#: templates/base.html:86
+#: templates/base.html:80
 msgid "Contact"
 msgstr "联系我们"
 
@@ -894,6 +890,12 @@ msgstr "连接"
 #: templates/synclan.html:26 templates/synclan.html:34
 msgid "Disconnect"
 msgstr "断开连接"
+
+#~ msgid "Welcome, "
+#~ msgstr "欢迎，"
+
+#~ msgid "Seafile@LocalComputer"
+#~ msgstr "这里是 Seafile 本地管理界面"
 
 #~ msgid "Description and Path are all required, please check each of them."
 #~ msgstr "描述和路径都是必填项，请检查。"

@@ -450,10 +450,7 @@ class CloneTasks:
                 seafile_rpc.cancel_clone_task(inputs.repo_id)
             raise web.seeother('/repos/download-tasks/')
 
-        tasks = seafile_rpc.get_clone_tasks()
-
-        return render.clone_tasks(tasks=tasks,
-                                  **default_options)
+        return render.clone_tasks(**default_options)
         
 
 class clone_tasks:

@@ -136,10 +136,9 @@ a.button { text-decoration: underline; color:#800; }
 #top-bar {
     height:20px;
     padding-bottom:21px;
-    background:#fff url('/static/img/dropshadow.png') repeat-x center bottom;
     _background:#fff;/*for ie 6*/
 }
-.top-bar { height:20px; color:#fff; text-align:right; font-weight:bold; background:#606; }
+.top-bar { height:20px; color:#fff; text-align:right; font-weight:bold; background:#000; }
 .top-bar-in { width:950px; margin:0 auto; }
 .top-bar a { color:#ddd; font-weight:normal; margin-left:5px; }
 .top-bar a:hover { background:#A0A; }
@@ -155,7 +154,7 @@ a.button { text-decoration: underline; color:#800; }
 #logo {
     margin-right:40px;
 }
-#other-info { font-size: 12px; color: #666; font-weight: normal; }
+#lang-info { margin-top: 5px; font-size: 13px; color: #666; font-weight: normal; }
 #nav {
     padding-top:22px;
 }
@@ -166,10 +165,11 @@ a.button { text-decoration: underline; color:#800; }
 #nav a, #nav a:visited { color:#8A948F; }
 #nav a.cur { color:#000; }
 #nav a:hover { color:#ff9933;}
+#nav li #client-note { color: #808; width: 160px; }
 /* main */
 #main {
-	min-height:400px;
-    _height:400px;/*for ie 6*/
+	min-height:450px;
+    _height:450px;/*for ie 6*/
 }
 /*repo_setting,repo_diff*/
 .repo-desc th,

@@ -91,7 +91,7 @@
 
 <%def name="js()">
 <script type="text/javascript">
-% if len(tasks) > 0:
+
 function taskRealTimeShow() {
     $.ajax({
         url: '/repos/clone-tasks/',
@@ -124,6 +124,6 @@ function taskRealTimeShow() {
     });
 }
 taskRealTimeShow();
-% endif
+
 </script>
 </%def>
