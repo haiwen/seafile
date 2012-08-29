@@ -114,6 +114,10 @@ a.button { text-decoration: underline; color:#800; }
 .narrow-panel h3 {
     margin:0 0 12px;
     border-bottom:1px solid #ddd;
+    font-size: 1.2em;
+}
+.narrow-panel p {
+    margin-bottom: 6px;
 }
 .narrow-panel input {
     width:318px;
