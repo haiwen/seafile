@@ -5,8 +5,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2012-08-29 14:09+CST\n"
-"PO-Revision-Date: 2012-08-29 14:10+0800\n"
+"POT-Creation-Date: 2012-08-29 16:54+CST\n"
+"PO-Revision-Date: 2012-08-29 16:58+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -90,12 +90,12 @@ msgid "Contact"
 msgstr "联系我们"
 
 #: templates/clone_tasks.html:4 templates/repo_create.html:4
-#: templates/repo_diff.html:9
+#: templates/repo_diff.html:9 templates/repos.html:23
 msgid "Navigation"
 msgstr "导航"
 
 #: templates/clone_tasks.html:6 templates/repo_create.html:6
-#: templates/repos.html:39
+#: templates/repos.html:47
 msgid "All Repos"
 msgstr "所有同步目录"
 
@@ -203,7 +203,7 @@ msgid "Net State"
 msgstr "网络状态"
 
 #: templates/peers.html:22 templates/peers.html:59 templates/repo_dir.html:38
-#: templates/repos.html:43 templates/synclan.html:16
+#: templates/repos.html:51 templates/synclan.html:16
 msgid "Action"
 msgstr "操作"
 
@@ -235,7 +235,7 @@ msgstr "请从下面的列表中选择一个作为您的默认服务器。"
 msgid "Computer Name"
 msgstr "计算机名"
 
-#: templates/peers.html:67 templates/repos.html:15 templates/synclan.html:30
+#: templates/peers.html:67 templates/repos.html:16 templates/synclan.html:30
 msgid "connected"
 msgstr "已连接"
 
@@ -630,7 +630,7 @@ msgid "Author"
 msgstr "修改者"
 
 #: templates/repo.html:75 templates/repo_diff.html:21
-#: templates/repo_history.html:29 templates/repos.html:44
+#: templates/repo_history.html:29 templates/repos.html:52
 msgid "Description"
 msgstr "描述"
 
@@ -758,7 +758,7 @@ msgstr "删除的目录："
 msgid "history browse"
 msgstr "历史浏览"
 
-#: templates/repo_dir.html:37 templates/repos.html:42
+#: templates/repo_dir.html:37 templates/repos.html:50
 msgid "Name"
 msgstr "名字"
 
@@ -835,39 +835,65 @@ msgstr "的同步目录不存在。"
 msgid "Servers"
 msgstr "服务器"
 
-#: templates/repos.html:17
+#: templates/repos.html:18
 msgid "not connected"
 msgstr "未连接"
 
-#: templates/repos.html:24
+#: templates/repos.html:26
 msgid "Create New Repo"
 msgstr "创建新同步目录"
 
-#: templates/repos.html:25
+#: templates/repos.html:27
 msgid "View Download Tasks"
 msgstr "查看下载任务"
 
-#: templates/repos.html:45
+#: templates/repos.html:30
+msgid "Official Server"
+msgstr "官方服务器"
+
+#: templates/repos.html:38
+msgid "Four Steps to Use Seafile Client"
+msgstr "Seafile 客户端使用方法"
+
+#: templates/repos.html:40
+msgid ""
+"Login into an seafile server, either our official server (SeaCloud) or your "
+"private server."
+msgstr "登录服务器，可以是我们的官方服务器或者您的私有服务器。"
+
+#: templates/repos.html:41
+msgid "Create a repo on server."
+msgstr "在服务器上创建新同步目录。"
+
+#: templates/repos.html:42
+msgid "Synchronize the repo with a local folder (By click the sync button)."
+msgstr "下载该同步目录(点击同步按钮)。"
+
+#: templates/repos.html:43
+msgid "Add files to the folder and they will be uploaded automatically."
+msgstr "把文件拷贝到下载下来的目录中，它们会自动同步到服务器上。"
+
+#: templates/repos.html:53
 msgid "Server"
 msgstr "服务器"
 
-#: templates/repos.html:46
+#: templates/repos.html:54
 msgid "Modify Time"
 msgstr "修改时间"
 
-#: templates/repos.html:47
+#: templates/repos.html:55
 msgid "State"
 msgstr "状态"
 
-#: templates/repos.html:53
+#: templates/repos.html:61
 msgid "Open"
 msgstr "打开"
 
-#: templates/repos.html:65 templates/repos.html:68
+#: templates/repos.html:73 templates/repos.html:76
 msgid "Unknown"
 msgstr "未知"
 
-#: templates/repos.html:73
+#: templates/repos.html:81
 msgid "Synchronized"
 msgstr "已同步"
 
@@ -1080,9 +1106,6 @@ msgstr "断开连接"
 
 #~ msgid "Auto Sync is Stopped."
 #~ msgstr "自动同步已停止。"
-
-#~ msgid "Create a repo"
-#~ msgstr "创建新同步目录"
 
 #~ msgid "Can be same as original directory name or be a different one"
 #~ msgstr "可以和原始目录名一样也可以不一样"

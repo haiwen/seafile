@@ -7,8 +7,9 @@
 
 <%def name="left_panel()">
 
-
+% if relays:
 <h3>${_("Servers")}</h3>
+% endif
 % for relay in relays:
     <p><a class="relay-link" href="${relay.props.service_url}">${relay.props.name}</a>
     % if relay.props.net_state == 1:
@@ -19,22 +20,29 @@
     </p>
 % endfor
 
+<h3>${_("Navigation")}</h3>
 
 <ul class="home-op-list">
     <!-- <li><a href="/repos/create/">${_("Create New Repo")}</a></li> -->
     <li><a href="/repos/download-tasks/">${_("View Download Tasks")}</a></li>
 </ul>
 
+<h3>${_("Official Server")}</h3>
+<a href="http://cloud.seafile.com.cn" target="_blank">SeaCloud</a>
+
 </%def>
 
 <%def name="wide_center_panel()">
 
 % if len(repos) == 0:
-<div id="slides">
-    <a href="#" class="prev fleft"><img src="/static/img/arrow-prev.jpg" alt="${_("prev")}" /></a>
-    <div class="slides-container fleft"></div>
-    <a href="#" class="next fleft"><img src="/static/img/arrow-next.jpg" alt="${_("next")}" /></a>
-</div>
+<h3>${_("Four Steps to Use Seafile Client")}</h3>
+<ol>
+    <li>${_("Login into an seafile server, either our official server (SeaCloud) or your private server.")}</li>
+    <li>${_("Create a repo on server.")}</li>
+    <li>${_("Synchronize the repo with a local folder (By click the sync button).")}</li>
+    <li>${_("Add files to the folder and they will be uploaded automatically.")}</li>
+</ol>
+
 % else:
 <h3>${_("All Repos")}</h3>
 <table class="repo-list">
