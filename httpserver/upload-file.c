@@ -101,6 +101,26 @@ split_filename (const char *filename, char **name, char **ext)
     }
 }
 
+/* IE8 will set filename to the full path of the uploaded file.
+ * So we need to strip out the basename from it.
+ */
+static char *
+get_basename (const char *path)
+{
+    int i = strlen(path) - 1;
+
+    while (i >= 0) {
+        if (path[i] == '/' || path[i] == '\\')
+            break;
+        --i;
+    }
+
+    if (i < 0)
+        return g_strdup(path);
+
+    return g_strdup(&path[i+1]);
+}
+
 static char *
 gen_unique_filename (const char *repo_id,
                      const char *parent_dir,
@@ -134,7 +154,7 @@ gen_unique_filename (const char *repo_id,
     }
 
     int i = 1;
-    unique_name = g_strdup(filename);
+    unique_name = get_basename (filename);
     split_filename (filename, &name, &ext);
 
     while (filename_exists (dir, unique_name) && i <= 16) {
