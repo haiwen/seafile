@@ -24,10 +24,14 @@ enum {
     RESPONSE_CANCEL,
 };
 
+@interface AppDelegate()
+@property (retain) NSTimer *openBrowserTimer;
+@end
+
 @implementation AppDelegate
 
+@synthesize openBrowserTimer;
 @synthesize task;
-@synthesize webtask;
 @synthesize sock;
 @synthesize statusItem;
 @synthesize bubbleTitle;
@@ -544,9 +548,11 @@ create_repo_cb (void *vresult, void *vdata, GError *error) {
         return;
     }
     inited = 1;
-    if (is_process_already_running("seafile"))
+    if (is_process_already_running("seafile")) {
+        NSLog(@"seafile.app has already been running, just quit\n");
         [[NSApplication sharedApplication] terminate:[[NSApplication sharedApplication] delegate]];
 
+    }
     statusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:NSSquareStatusItemLength] retain];
 
     NSBundle *bundle = [NSBundle mainBundle];
@@ -643,12 +649,19 @@ create_repo_cb (void *vresult, void *vdata, GError *error) {
 }
 
 - (void) add_open_browser_timer:(int) timeout_ms {
-    [NSTimer scheduledTimerWithTimeInterval: timeout_ms/1000.0f
-                                     target: self
-                                   selector: @selector(handle_open_browser_timer:)
-                                   userInfo: nil
-                                    repeats: YES];
+    self.openBrowserTimer = [NSTimer scheduledTimerWithTimeInterval: timeout_ms/1000.0f
+                                                             target: self
+                                                           selector: @selector(handle_open_browser_timer:)
+                                                           userInfo: nil
+                                                            repeats: YES];
 }
+
+- (void) del_open_browser_timer
+{
+    [self.openBrowserTimer invalidate];
+    self.openBrowserTimer = nil;
+}
+
 
 - (void) handle_trayicon_rotate_timer: (NSTimer *) timer {
     int more = trayicon_do_rotate();

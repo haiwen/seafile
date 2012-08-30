@@ -24,7 +24,7 @@ PLIST = {"LSBackgroundOnly":True,
          "CFBundleIdentifier":"seafile.seafileweb",
          "NSHumanReadableCopyright":u"Copyright © 2012 海文互知. All rights reserved.",
          "CFBundleVersion":"0.9.4"}
-OPTIONS = {"argv_emulation": True, "packages":PACKAGES, "includes":INCLUDES,
+OPTIONS = {"packages":PACKAGES, "includes":INCLUDES,
            "excludes":EXCLUDES, "plist":PLIST }
 
 

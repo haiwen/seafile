@@ -21,7 +21,6 @@
 }
 
 @property (retain) NSTask *task;
-@property (retain) NSTask *webtask;
 @property CFRunLoopSourceRef sock;
 @property (retain) NSStatusItem *statusItem;
 
@@ -100,6 +99,7 @@
 
 - (void) add_conn_server_timer:(int) timeout_ms;
 - (void) add_open_browser_timer:(int) timeout_ms;
+- (void) del_open_browser_timer;
 - (void) add_trayicon_rotate_timer:(int) timeout_ms;
 - (void) add_heartbeat_monitor_timer:(int) timeout_ms;
 - (void) add_login_timer:(int) timeout_ms;

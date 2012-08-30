@@ -22,7 +22,7 @@ applet_log (const gchar *log_domain, GLogLevelFlags log_level,
     time_t t;
     struct tm *tm;
     char buf[1024];
-    int len;
+    size_t len;
 
     if (log_level > applet_log_level)
         return;

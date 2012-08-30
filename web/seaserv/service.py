@@ -76,6 +76,7 @@ CCNET_CONF_PATH = os.path.normpath(os.path.expanduser(CCNET_CONF_PATH))
 
 if sys.platform == "darwin" and "LANG" not in os.environ:
     os.environ["LANG"]="it_IT.UTF-8"
+    os.environ["LC_ALL"]="it_IT.UTF-8"
 
 
 lang_code, system_encoding = locale.getdefaultlocale()

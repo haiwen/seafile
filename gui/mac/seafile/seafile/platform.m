@@ -141,28 +141,8 @@ int start_seafile_daemon(void)
 
 int start_web_server(void)
 {
-    /* system("/usr/local/bin/ccnet-web.sh start"); */
 #ifdef DEBUG
-    AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    NSTask *task = [[NSTask alloc] init];
-    NSMutableArray *args = [NSMutableArray array];
-    [task setLaunchPath:@"/opt/local/bin/python" ];
-    [args addObject:@"/usr/local/lib/ccnet/web/main.py" ];
-    [args addObject:NS_SEAF_HTTP_ADDR ];
-    NSMutableDictionary *envs = [NSMutableDictionary dictionary];
-    [envs setObject:@"/usr/local/lib/python2.7/site-packages/" forKey:@"PYTHONPATH"];
-    [task setEnvironment:envs];
-    [task setCurrentDirectoryPath:@"/usr/local/lib/ccnet/web"];
-    [task setArguments:args];
-    [task launch];
-
-    if (![task isRunning] && [task terminationStatus] < 0) {
-        applet_debug("Failed to start web server\n");
-        return -1;
-    }
-    applet->web_status = WEB_STARTED;
-    [delegate setWebtask:task];
-
+    system("/usr/local/bin/ccnet-web.sh start");
 #else
     NSLog (@" start web server ...\n");
     NSString *path = [[NSBundle mainBundle] pathForResource:@"seafileweb.app" ofType:nil];
@@ -184,9 +164,9 @@ int start_web_server(void)
         [task launch];
         [task release];
     }
-    applet->web_status = WEB_STARTED;
 #endif
 
+    applet->web_status = WEB_STARTED;
     return 0;
 }
 
@@ -336,9 +316,16 @@ static int getBSDProcessPid(const char *name, int except_pid)
 }
 
 void shutdown_process(const char *name) {
-    int pid = getBSDProcessPid(name, 0);
-    if (pid)
-        kill(pid, SIGINT);
+    struct kinfo_proc *mylist = NULL;
+    size_t mycount = 0;
+    GetBSDProcessList(&mylist, &mycount);
+    for(int k = 0; k < mycount; k++) {
+        kinfo_proc *proc =  &mylist[k];
+        if (strcmp(proc->kp_proc.p_comm, name) == 0){
+            kill(proc->kp_proc.p_pid, SIGKILL);
+        }
+    }
+    free(mylist);
 }
 
 int is_process_already_running(const char *name) {
@@ -350,13 +337,9 @@ int is_process_already_running(const char *name) {
 
 int stop_web_server(void)
 {
-    /* system("/usr/local/bin/ccnet-web.sh stop"); */
 #ifdef DEBUG
-    AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    NSTask *task = [delegate webtask];
-    if (task != NULL)
-        [task terminate];
-    [delegate setWebtask:NULL];
+    system("/usr/local/bin/ccnet-web.sh stop");
+    applet->web_status = WEB_NOT_STARTED;
 #else
     shutdown_process("seafileweb");
     applet->web_status = WEB_NOT_STARTED;
@@ -445,6 +428,12 @@ void start_open_browser_timer (int timeout_ms, void *data)
 {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
     [delegate add_open_browser_timer:timeout_ms];
+}
+
+void stop_open_browser_timer (void)
+{
+    AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
+    [delegate del_open_browser_timer];
 }
 
 void start_trayicon_rotate_timer (int timeout_ms, void *data)
@@ -555,6 +544,9 @@ int is_seafile_daemon_running(void)
 }
 
 static int set_folder_image(const char *path, NSImage *iconImage) {
+    if (!path) {
+        return 0;
+    }
     NSString *nspath =  [[NSString alloc] initWithUTF8String:path];
     NSURL* directoryURL = [NSURL fileURLWithPath:nspath isDirectory:YES];
     return [[NSWorkspace sharedWorkspace] setIcon:iconImage forFile:[directoryURL path] options:0];
@@ -566,11 +558,15 @@ void seafile_set_seafilefolder_icns(void) {
 }
 
 void seafile_set_repofolder_icns(const char *path) {
+    if (!path)
+        return;
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
     set_folder_image (path, delegate->repoImage);
 }
 
 void seafile_unset_repofolder_icns(const char *path) {
+    if (!path)
+        return;
     set_folder_image (path, [NSImage imageNamed:@"NSFolder"]);
 }
 

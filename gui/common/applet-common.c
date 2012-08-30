@@ -261,17 +261,21 @@ static void mq_cb (CcnetMessage *msg, void *data)
     char *content = NULL;
 
     if (IS_APP_MSG(msg, "seafile.heartbeat")) {
-        
         applet->last_heartbeat = time(NULL);
-        
     } else if (IS_APP_MSG(msg, "seafile.notification")) {
         if (parse_seafile_notification (msg->body, &type, &content) < 0)
             return;
 
         char *local = ccnet_locale_from_utf8 (content);
+
+#ifdef __APPLE__
+        if (!local && content)
+            local = g_strdup(content);
+#endif
+
         handle_seafile_notification (type, local);
         g_free (local);
-        
+
     }
 }
 
@@ -607,7 +611,7 @@ seafile_applet_start (int argc, char **argv)
 int is_repo_path_allowed(const char *path) {
     char buf[4096];
     char buf2[4096];
-    int len = strlen(path);
+    size_t len = strlen(path);
     if (path[len-1] == '/')
         snprintf(buf, 4095, "%s", path);
     else
