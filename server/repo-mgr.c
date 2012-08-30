@@ -1366,7 +1366,7 @@ seaf_repo_manager_get_group_repos_by_owner (SeafRepoManager *mgr,
 }
 
 static gboolean
-get_repo_share_from (SeafDBRow *row, void *data)
+get_group_repo_owner (SeafDBRow *row, void *data)
 {
     char **share_from = data;
 
@@ -1386,7 +1386,7 @@ seaf_repo_manager_get_group_repo_owner (SeafRepoManager *mgr,
     snprintf (sql, sizeof(sql), "SELECT user_name FROM RepoGroup "
               "WHERE repo_id = '%s'", repo_id);
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      get_repo_share_from, &ret) < 0) {
+                                      get_group_repo_owner, &ret) < 0) {
         seaf_warning ("DB error when get repo share from for repo %s.\n",
                    repo_id);
         return NULL;
@@ -1650,6 +1650,29 @@ seaf_repo_manager_get_org_groups_by_repo (SeafRepoManager *mgr,
     }
 
     return g_list_reverse (group_ids);
+}
+
+char *
+seaf_repo_manager_get_org_group_repo_owner (SeafRepoManager *mgr,
+                                            int org_id,
+                                            int group_id,
+                                            const char *repo_id,
+                                            GError **error)
+{
+    char sql[512];
+    char *ret = NULL;
+
+    snprintf (sql, sizeof(sql), "SELECT owner FROM OrgGroupRepo WHERE "
+              "org_id =%d AND group_id = %d AND repo_id = '%s'",
+              org_id, group_id, repo_id);
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
+                                      get_group_repo_owner, &ret) < 0) {
+        seaf_warning ("DB error when get repo owner from for org repo %s.\n",
+                   repo_id);
+        return NULL;
+    }
+
+    return ret;
 }
 
 /* Org inner public repos */

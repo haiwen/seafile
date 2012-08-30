@@ -439,7 +439,12 @@ seaf_repo_manager_get_org_groups_by_repo (SeafRepoManager *mgr,
                                           const char *repo_id,
                                           GError **error);
 
-/* TODO: add more interfaces for org group reop. */
+char *
+seaf_repo_manager_get_org_group_repo_owner (SeafRepoManager *mgr,
+                                            int org_id,
+                                            int group_id,
+                                            const char *repo_id,
+                                            GError **error);
 
 /* Org inner public repos */
 

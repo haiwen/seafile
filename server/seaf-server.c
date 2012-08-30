@@ -485,12 +485,20 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                          seafile_add_org_group_repo,
                                          "add_org_group_repo",
             searpc_signature_int__string_int_int_string_string());
-
         searpc_server_register_function ("seafserv-threaded-rpcserver",
                                          seafile_del_org_group_repo,
                                          "del_org_group_repo",
                                          searpc_signature_int__string_int_int());
+        searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                         seafile_get_org_group_repoids,
+                                         "get_org_group_repoids",
+                                         searpc_signature_string__int_int());
+        searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                         seafile_get_org_group_repo_owner,
+                                         "get_org_group_repo_owner",
+                                searpc_signature_string__int_int_string());
 
+        /* org inner pub repo */
         searpc_server_register_function ("seafserv-threaded-rpcserver",
                                          seafile_set_org_inner_pub_repo,
                                          "set_org_inner_pub_repo",

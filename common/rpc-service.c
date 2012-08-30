@@ -2140,6 +2140,55 @@ seafile_del_org_group_repo (const char *repo_id,
                                                  error);
 }
 
+char *
+seafile_get_org_group_repoids (int org_id, int group_id, GError **error)
+{
+    SeafRepoManager *mgr = seaf->repo_mgr;
+    GList *repo_ids = NULL, *ptr;
+    GString *result;
+
+    if (org_id < 0 || group_id < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
+        return -1;
+    }
+    
+    repo_ids = seaf_repo_manager_get_org_group_repoids (mgr, org_id, group_id,
+                                                        error);
+    if (!repo_ids) {
+        return NULL;
+    }
+
+    result = g_string_new("");
+    ptr = repo_ids;
+    while (ptr) {
+        g_string_append_printf (result, "%s\n", (char *)ptr->data);
+        g_free (ptr->data);
+        ptr = ptr->next;
+    }
+    g_list_free (repo_ids);
+
+    return g_string_free (result, FALSE);
+}
+
+char *
+seafile_get_org_group_repo_owner (int org_id, int group_id,
+                                  const char *repo_id, GError **error)
+{
+    SeafRepoManager *mgr = seaf->repo_mgr;
+    GString *result = g_string_new ("");
+
+    char *owner = seaf_repo_manager_get_org_group_repo_owner (mgr, org_id,
+                                                              group_id,
+                                                              repo_id, error);
+    if (owner) {
+        g_string_append_printf (result, "%s", owner);
+        g_free (owner);
+    }
+
+    return g_string_free (result, FALSE);
+    
+}
+
 /* Org inner public repo RPC */
 
 int

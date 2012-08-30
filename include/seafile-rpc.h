@@ -737,6 +737,13 @@ seafile_del_org_group_repo (const char *repo_id,
                             int group_id,
                             GError **error);
 
+char *
+seafile_get_org_group_repoids (int org_id, int group_id, GError **error);
+
+char *
+seafile_get_org_group_repo_owner (int org_id, int group_id,
+                                  const char *repo_id, GError **error);
+
 int
 seafile_set_inner_pub_repo (const char *repo_id, GError **error);
 
