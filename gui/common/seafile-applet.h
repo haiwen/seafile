@@ -86,9 +86,7 @@ void trayicon_set_tip (char *tip);
 int open_web_browser(const char *url);
 void on_quit(void);
 
-int show_init_ccnet_window (void);
 int show_init_seafile_window (void);
-int show_login_window (void);
 int ccnet_open_dir(const char *path);
 int set_seafile_auto_start(int on);
 

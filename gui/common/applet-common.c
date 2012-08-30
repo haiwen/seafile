@@ -516,11 +516,6 @@ gboolean heartbeat_monitor (void *data)
             start_seafile_daemon();
         }
      }
-#ifdef __APPLE__
-     else {
-         set_create_repo_item_enable (TRUE);
-     }
-#endif
     return TRUE;
 }
 

@@ -376,22 +376,10 @@ void trayicon_set_ccnet_state (int state)
     }
 }
 
-int show_init_ccnet_window(void)
-{
-    AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    return [delegate show_initccnet_window];
-}
-
 int show_init_seafile_window(void)
 {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
     return [delegate show_initseafile_window];
-}
-
-int show_login_window (void)
-{
-    AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    return [delegate show_login_window];
 }
 
 int ccnet_open_dir(const char *path)
@@ -534,12 +522,6 @@ int is_seafile_daemon_running(void)
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
     NSTask *task = [delegate task];
     BOOL is_running = (task != NULL && [task isRunning]);
-
-    if (is_running) {
-        [[delegate createRepItem] setEnabled:YES];
-    } else {
-        [[delegate createRepItem] setEnabled:NO];
-    }
     return is_running;
 }
 
@@ -568,11 +550,6 @@ void seafile_unset_repofolder_icns(const char *path) {
     if (!path)
         return;
     set_folder_image (path, [NSImage imageNamed:@"NSFolder"]);
-}
-
-void set_create_repo_item_enable (int enabled) {
-    AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    [[delegate createRepItem] setEnabled:enabled];
 }
 
 int set_visibility_for_file (const char *cpath, int isDirectory, int visible) {

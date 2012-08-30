@@ -30,8 +30,6 @@ void seafile_set_repofolder_icns(const char *path);
 
 void seafile_unset_repofolder_icns(const char *path);
 
-void set_create_repo_item_enable (int enabled);
-
 int set_visibility_for_file (const char *filename, int isDirectory, int visible);
 
 
