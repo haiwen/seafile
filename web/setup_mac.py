@@ -10,9 +10,9 @@ Usage:
 import os
 import shutil
 
-
 from setuptools import setup
 
+VERSION='1.0.0'
 targetfile = "seafileweb.py"
 
 APP = [targetfile]
@@ -23,7 +23,7 @@ EXCLUDES = ["local_settings"]
 PLIST = {"LSBackgroundOnly":True,
          "CFBundleIdentifier":"seafile.seafileweb",
          "NSHumanReadableCopyright":u"Copyright © 2012 海文互知. All rights reserved.",
-         "CFBundleVersion":"0.9.4"}
+         "CFBundleVersion":VERSION}
 OPTIONS = {"packages":PACKAGES, "includes":INCLUDES,
            "excludes":EXCLUDES, "plist":PLIST }
 

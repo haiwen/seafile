@@ -98,3 +98,5 @@ tests/basic/conf4/peer-db/
 tests/basic/conf4/user-db/
 web/local_settings.py
 gui/win/applet-po-gbk.h
+*.dylib
+.DS_Store
