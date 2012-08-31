@@ -142,6 +142,7 @@ a.button { text-decoration: underline; color:#800; }
     font-size: 14px;
     font-weight: bold;
     padding-bottom: 7px;
+    margin-top: 16px;
     margin-bottom: 30px;
     background: #f4f4f4;
 }
