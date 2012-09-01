@@ -47,28 +47,6 @@ compare_file_content (const char *path, struct stat *st,
                       const unsigned char *ce_sha1,
                       struct SeafileCrypt *crypt);
 
-struct dir_entry {
-    unsigned int len;
-    char name[0]; /* more */
-};
-
-struct dir_struct {
-    int nr, alloc;
-    int ignored_nr, ignored_alloc;
-   enum {
-        DIR_SHOW_IGNORED = 1<<0,
-        DIR_SHOW_OTHER_DIRECTORIES = 1<<1,
-        DIR_HIDE_EMPTY_DIRECTORIES = 1<<2,
-        DIR_NO_GITLINKS = 1<<3,
-        DIR_COLLECT_IGNORED = 1<<4
-    } flags;
-    struct dir_entry **entries;
-    struct dir_entry **ignored;
-};
-
-int 
-read_directory(struct dir_struct *dir, const char *worktree, struct index_state *index);
-
 void
 fill_seafile_blocks (const unsigned char *sha1, BlockList *bl);
 

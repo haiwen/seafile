@@ -14,6 +14,150 @@
 #include "utils.h"
 #include "cdc/cdc.h"
 
+struct dir_entry {
+    unsigned int len;
+    char name[0]; /* more */
+};
+
+struct dir_struct {
+    int nr, alloc;
+    int ignored_nr, ignored_alloc;
+   enum {
+        DIR_SHOW_IGNORED = 1<<0,
+        DIR_SHOW_OTHER_DIRECTORIES = 1<<1,
+        DIR_HIDE_EMPTY_DIRECTORIES = 1<<2,
+        DIR_NO_GITLINKS = 1<<3,
+        DIR_COLLECT_IGNORED = 1<<4
+    } flags;
+    struct dir_entry **entries;
+    struct dir_entry **ignored;
+};
+
+static struct dir_entry *
+dir_entry_new(const char *pathname, int len)
+{
+    struct dir_entry *ent;
+
+    ent = malloc(sizeof(*ent) + len + 1);
+    ent->len = len;
+    memcpy(ent->name, pathname, len);
+    ent->name[len] = 0;
+    return ent;
+}
+
+static struct dir_entry *
+dir_add_name(struct dir_struct *dir, const char *pathname, 
+             int len, struct index_state *index)
+{
+    if (index_name_exists(index, pathname, len, 0))
+        return NULL;
+
+    ALLOC_GROW(dir->entries, dir->nr+1, dir->alloc);
+    return dir->entries[dir->nr++] = dir_entry_new(pathname, len);
+}
+
+static inline int 
+is_dot_or_dotdot(const char *name)
+{
+    return (name[0] == '.' &&
+            (name[1] == '\0' ||
+             (name[1] == '.' && name[2] == '\0')));
+}
+
+static int
+get_dtype(const char *dname, const char *path)
+{
+    struct stat st;
+    int dtype = DT_UNKNOWN;
+    char *realpath = g_build_path (PATH_SEPERATOR, path, dname, NULL);
+
+    if (!g_lstat(realpath, &st)) {
+        if (S_ISREG(st.st_mode))
+            dtype =  DT_REG;
+        if (S_ISDIR(st.st_mode))
+            dtype = DT_DIR;
+    }
+
+    g_free(realpath);
+    return dtype;
+}
+
+static int 
+read_directory_recursive(struct dir_struct *dir,
+                         const char *base, int baselen,
+                         int check_only,
+                         struct index_state *index,
+                         const char *worktree,
+                         IgnoreFunc ignore_func)
+{
+    char *realpath = g_build_path (PATH_SEPERATOR, worktree, base, NULL);
+    GDir *fdir = g_dir_open (realpath, 0, NULL);
+    const char *dname;
+    int contents = 0;
+    int dtype;
+
+    if (fdir) {
+        char path[PATH_MAX + 1];
+        memcpy(path, base, baselen);
+        while ((dname = g_dir_read_name(fdir)) != NULL) {
+            int len = 0;
+
+            if (is_dot_or_dotdot(dname))
+                continue;
+
+            if (ignore_func (dname, NULL))
+                continue;
+
+            dtype = get_dtype(dname, realpath);
+            switch (dtype) {
+            case DT_REG:
+                len = strlen(dname);
+                memcpy(path + baselen, dname, len + 1);
+                len = strlen(path);
+                break;
+            case DT_DIR:
+                len = strlen(dname);
+                memcpy(path + baselen, dname, len + 1);
+                memcpy(path + baselen + len, "/", 2);
+                len = strlen(path);
+                read_directory_recursive(dir, path, len, 0,
+                                         index, worktree, ignore_func);
+                continue;
+            default: /* DT_UNKNOWN */
+                len = 0;
+                break;
+            }
+            if(len > 0)
+                dir_add_name(dir, path, len, index);
+        }
+        g_dir_close(fdir);
+    }
+
+    g_free(realpath);
+    return contents;
+}
+
+static int 
+cmp_name(const void *p1, const void *p2)
+{
+    const struct dir_entry *e1 = *(const struct dir_entry **)p1;
+    const struct dir_entry *e2 = *(const struct dir_entry **)p2;
+
+    return cache_name_compare(e1->name, e1->len,
+                              e2->name, e2->len);
+}
+
+static int 
+read_directory(struct dir_struct *dir,
+               const char *worktree,
+               struct index_state *index,
+               IgnoreFunc ignore_func)
+{
+    read_directory_recursive(dir, "", 0, 0, index, worktree, ignore_func);
+    qsort(dir->entries, dir->nr, sizeof(struct dir_entry *), cmp_name);
+    return dir->nr;
+}
+
 void wt_status_collect_untracked(struct index_state *index,
                                  GList **results,
                                  const char *worktree,
@@ -25,15 +169,14 @@ void wt_status_collect_untracked(struct index_state *index,
 
     memset(&dir, 0, sizeof(dir));
 
-    read_directory(&dir, worktree, index);
+    read_directory(&dir, worktree, index, ignore_func);
     for (i = 0; i < dir.nr; i++) {
         struct dir_entry *ent = dir.entries[i];
+        unsigned char sha1[20] = { 0 };
 
-        if (!ignore_func(ent->name, NULL)) {
-            unsigned char sha1[20] = { 0 };
-            de = diff_entry_new (DIFF_TYPE_WORKTREE, DIFF_STATUS_ADDED, sha1, ent->name);
-            *results = g_list_prepend (*results, de);
-        }
+        de = diff_entry_new (DIFF_TYPE_WORKTREE, DIFF_STATUS_ADDED, sha1, ent->name);
+        *results = g_list_prepend (*results, de);
+
         free(ent);
     }
 
