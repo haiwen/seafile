@@ -3163,6 +3163,7 @@ retry:
         canon_path = get_canonical_path (parent_dir);
 
     FAIL_IF_FILE_NOT_EXISTS(head_commit->root_id, canon_path, oldname, &mode);
+    FAIL_IF_FILE_EXISTS(head_commit->root_id, canon_path, newname, NULL);
 
     root_id = do_rename_file (head_commit->root_id, canon_path,
                               oldname, newname);
