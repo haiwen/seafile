@@ -2211,6 +2211,37 @@ seafile_get_org_group_repos_by_owner (int org_id, const char *user,
     return g_list_reverse (ret);
 }
 
+char *
+seafile_get_org_groups_by_repo (int org_id, const char *repo_id,
+                                GError **error)
+{
+    SeafRepoManager *mgr = seaf->repo_mgr;
+    GList *group_ids = NULL, *ptr;
+    GString *result;
+    
+    if (!repo_id || org_id < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Bad arguments");
+        return NULL;
+    }
+
+    group_ids = seaf_repo_manager_get_org_groups_by_repo (mgr, org_id,
+                                                          repo_id, error);
+    if (!group_ids) {
+        return NULL;
+    }
+
+    result = g_string_new("");
+    ptr = group_ids;
+    while (ptr) {
+        g_string_append_printf (result, "%d\n", (int)(long)ptr->data);
+        ptr = ptr->next;
+    }
+    g_list_free (group_ids);
+
+    return g_string_free (result, FALSE);
+}
+
 /* Org inner public repo RPC */
 
 int

@@ -751,6 +751,10 @@ GList *
 seafile_get_org_group_repos_by_owner (int org_id, const char *user,
                                       GError **error);
 
+char *
+seafile_get_org_groups_by_repo (int org_id, const char *repo_id,
+                                GError **error);
+
 int
 seafile_set_inner_pub_repo (const char *repo_id, GError **error);
 

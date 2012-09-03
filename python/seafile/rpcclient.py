@@ -589,7 +589,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("objlist", ["int", "string"])
     def get_org_group_repos_by_owner(org_id, user):
         pass
-        
+
+    @searpc_func("string", ["int", "string"])
+    def get_org_groups_by_repo(org_id, repo_id):
+        pass
+    
     # inner pub repo
     @searpc_func("int", ["string"])
     def set_inner_pub_repo(repo_id):

@@ -505,6 +505,10 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                          seafile_get_org_group_repos_by_owner,
                                          "get_org_group_repos_by_owner",
                                 searpc_signature_objlist__int_string());
+        searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                         seafile_get_org_groups_by_repo,
+                                         "get_org_groups_by_repo",
+                                searpc_signature_string__int_string());
 
         /* org inner pub repo */
         searpc_server_register_function ("seafserv-threaded-rpcserver",
