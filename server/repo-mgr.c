@@ -1793,7 +1793,7 @@ check_repo_share_permission (SeafRepoManager *mgr,
         g_object_get (group, "id", &group_id, NULL);
 
         for (p2 = repo_groups; p2 != NULL; p2 = p2->next) {
-            repo_group_id = (int)(p2->data);
+            repo_group_id = (int)(long)(p2->data);
             if (group_id == repo_group_id) {
                 ret = TRUE;
                 goto out;
@@ -1854,7 +1854,7 @@ check_org_repo_share_permission (SeafRepoManager *mgr,
         g_object_get (group, "id", &group_id, NULL);
 
         for (p2 = repo_groups; p2 != NULL; p2 = p2->next) {
-            repo_group_id = (int)(p2->data);
+            repo_group_id = (int)(long)(p2->data);
             if (group_id == repo_group_id) {
                 ret = TRUE;
                 goto out;
@@ -2199,22 +2199,51 @@ check_file_exists (const char *root_id,
         seaf_branch_set_commit(repo->head, new_commit->commit_id);  \
     } while (0);
 
-#define UPDATE_REPO_SIZE_ON_SUCCESS(repo_id)                            \
-    do {                                                                \
-        if (ret == 0) {                                                 \
-            if (seaf->monitor_id != NULL &&                             \
-                (strcmp (seaf->monitor_id, seaf->session->base.id) == 0 || \
-                 ccnet_get_peer_net_state (seaf->ccnetrpc_client,       \
-                                           seaf->monitor_id) == PEER_CONNECTED)) \
-                monitor_compute_repo_size_async_wrapper(seaf->monitor_id, \
-                                                        (repo_id), compute_callback, NULL); \
-        }                                                               \
-    } while(0);
-
 static void
-compute_callback (void *result, void *data, GError *error)
+update_repo_size(const char *repo_id)
 {
-    /* nothing to do */
+    if (seaf->monitor_id == NULL)
+        return;
+
+    SearpcClient *ccnet_rpc_client = NULL, *monitor_rpc_client = NULL;
+    GError *error = NULL;
+
+    if (strcmp(seaf->monitor_id, seaf->session->base.id) != 0) {
+        ccnet_rpc_client = ccnet_client_pool_create_rpc_client
+                                                (seaf->client_pool,
+                                                "ccnet-rpcserver");
+        if (!ccnet_rpc_client) {
+            seaf_warning ("failed to create ccnet rpc client\n");
+            goto out;
+        }
+
+        if (ccnet_get_peer_net_state(ccnet_rpc_client,
+                                     seaf->monitor_id) != PEER_CONNECTED) {
+            goto out;
+        }
+    }
+
+    monitor_rpc_client = ccnet_client_pool_create_rpc_client (
+                                                seaf->client_pool,
+                                                "monitor-rpcserver");
+    if (!monitor_rpc_client) {
+        seaf_warning ("failed to create monitor rpc client\n");
+        goto out;
+    }
+
+    searpc_client_call__int (monitor_rpc_client, "compute_repo_size",
+                             &error, 1, "string", repo_id);
+
+    if (error) {
+        seaf_warning ("error when compute_repo_size: %s", error->message);
+        g_error_free (error);
+    }
+
+out:
+    if (ccnet_rpc_client)
+        ccnet_client_pool_free_rpc_client (seaf->client_pool, ccnet_rpc_client);
+    if (monitor_rpc_client)
+        ccnet_client_pool_free_rpc_client (seaf->client_pool, monitor_rpc_client);
 }
 
 int
@@ -2345,7 +2374,8 @@ out:
     g_free (canon_path);
     g_free (crypt);
 
-    UPDATE_REPO_SIZE_ON_SUCCESS(repo_id);
+    if (ret == 0)
+        update_repo_size(repo_id);
 
     return ret;
 }
@@ -2723,7 +2753,9 @@ out:
     if (dst_dent)
         g_free(dst_dent);
 
-    UPDATE_REPO_SIZE_ON_SUCCESS(dst_repo_id);
+    if (ret == 0) {
+        update_repo_size (dst_repo_id);
+    }
 
     return ret;
 }
@@ -2892,7 +2924,9 @@ out:
     if (src_dent) g_free(src_dent);
     if (dst_dent) g_free(dst_dent);
 
-    UPDATE_REPO_SIZE_ON_SUCCESS(dst_repo_id);
+    if (ret == 0) {
+        update_repo_size (dst_repo_id);
+    }
 
     return ret;
 }
@@ -3633,7 +3667,9 @@ out:
     g_free (old_file_id);
     g_free (fullpath);
 
-    UPDATE_REPO_SIZE_ON_SUCCESS(repo_id);
+    if (ret == 0) {
+        update_repo_size (repo_id);
+    }
 
     return ret;
 }
