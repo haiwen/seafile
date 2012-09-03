@@ -1942,18 +1942,18 @@ seafile_get_group_repoids (int group_id, GError **error)
 }
 
 GList *
-seafile_get_group_my_share_repos (char *username, GError **error)
+seafile_get_group_repos_by_owner (char *user, GError **error)
 {
     SeafRepoManager *mgr = seaf->repo_mgr;
     GList *ret = NULL;
 
-    if (!username) {
+    if (!user) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "user name can not be NULL");
         return NULL;
     }
 
-    ret = seaf_repo_manager_get_group_repos_by_owner (mgr, username, error);
+    ret = seaf_repo_manager_get_group_repos_by_owner (mgr, user, error);
     if (!ret) {
         return NULL;
     }
@@ -1962,7 +1962,7 @@ seafile_get_group_my_share_repos (char *username, GError **error)
 }
 
 char *
-seafile_get_group_repo_share_from (const char *repo_id, GError **error)
+seafile_get_group_repo_owner (const char *repo_id, GError **error)
 {
     SeafRepoManager *mgr = seaf->repo_mgr;
     GString *result = g_string_new ("");
@@ -2187,6 +2187,28 @@ seafile_get_org_group_repo_owner (int org_id, int group_id,
 
     return g_string_free (result, FALSE);
     
+}
+
+GList *
+seafile_get_org_group_repos_by_owner (int org_id, const char *user,
+                                      GError **error)
+{
+    SeafRepoManager *mgr = seaf->repo_mgr;
+    GList *ret = NULL;
+
+    if (!user || org_id < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Bad arguments");
+        return NULL;
+    }
+
+    ret = seaf_repo_manager_get_org_group_repos_by_owner (mgr, org_id, user,
+                                                          error);
+    if (!ret) {
+        return NULL;
+    }
+
+    return g_list_reverse (ret);
 }
 
 /* Org inner public repo RPC */

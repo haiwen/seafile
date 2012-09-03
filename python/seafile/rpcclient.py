@@ -448,14 +448,12 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     get_group_repoids = seafile_get_group_repoids
 
     @searpc_func("objlist", ["string"])
-    def seafile_get_group_my_share_repos(user_name):
+    def get_group_repos_by_owner(user_name):
         pass
-    get_group_my_share_repos = seafile_get_group_my_share_repos
 
     @searpc_func("string", ["string"])
-    def seafile_get_group_repo_share_from(repo_id):
+    def get_group_repo_owner(repo_id):
         pass
-    get_group_repo_share_from = seafile_get_group_repo_share_from
 
     @searpc_func("int", ["int", "string"])
     def seafile_remove_repo_group(group_id, user_name):
@@ -583,7 +581,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("string", ["int", "int", "string"])
     def get_org_group_repo_owner(org_id, group_id, repo_id):
         pass
-    
+
+    @searpc_func("objlist", ["int", "string"])
+    def get_org_group_repos_by_owner(org_id, user):
+        pass
+        
     # inner pub repo
     @searpc_func("int", ["string"])
     def set_inner_pub_repo(repo_id):

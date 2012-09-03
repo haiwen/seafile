@@ -446,6 +446,12 @@ seaf_repo_manager_get_org_group_repo_owner (SeafRepoManager *mgr,
                                             const char *repo_id,
                                             GError **error);
 
+GList *
+seaf_repo_manager_get_org_group_repos_by_owner (SeafRepoManager *mgr,
+                                                int org_id,
+                                                const char *owner,
+                                                GError **error);
+
 /* Org inner public repos */
 
 int

@@ -518,10 +518,10 @@ char *
 seafile_get_group_repoids (int group_id, GError **error);
 
 GList *
-seafile_get_group_my_share_repos (char *username, GError **error);
+seafile_get_group_repos_by_owner (char *user, GError **error);
 
 char *
-seafile_get_group_repo_share_from (const char *repo_id, GError **error);
+seafile_get_group_repo_owner (const char *repo_id, GError **error);
 
 int
 seafile_remove_repo_group(int group_id, const char *username, GError **error);
@@ -743,6 +743,10 @@ seafile_get_org_group_repoids (int org_id, int group_id, GError **error);
 char *
 seafile_get_org_group_repo_owner (int org_id, int group_id,
                                   const char *repo_id, GError **error);
+
+GList *
+seafile_get_org_group_repos_by_owner (int org_id, const char *user,
+                                      GError **error);
 
 int
 seafile_set_inner_pub_repo (const char *repo_id, GError **error);

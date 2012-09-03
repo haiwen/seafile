@@ -298,12 +298,12 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "seafile_get_group_repoids",
                                      searpc_signature_string__int());
     searpc_server_register_function ("seafserv-threaded-rpcserver",
-                                     seafile_get_group_my_share_repos,
-                                     "seafile_get_group_my_share_repos",
+                                     seafile_get_group_repos_by_owner,
+                                     "get_group_repos_by_owner",
                                      searpc_signature_objlist__string());
     searpc_server_register_function ("seafserv-threaded-rpcserver",
-                                     seafile_get_group_repo_share_from,
-                                     "seafile_get_group_repo_share_from",
+                                     seafile_get_group_repo_owner,
+                                     "get_group_repo_owner",
                                      searpc_signature_string__string());
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_remove_repo_group,
@@ -497,6 +497,10 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                          seafile_get_org_group_repo_owner,
                                          "get_org_group_repo_owner",
                                 searpc_signature_string__int_int_string());
+        searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                         seafile_get_org_group_repos_by_owner,
+                                         "get_org_group_repos_by_owner",
+                                searpc_signature_objlist__int_string());
 
         /* org inner pub repo */
         searpc_server_register_function ("seafserv-threaded-rpcserver",

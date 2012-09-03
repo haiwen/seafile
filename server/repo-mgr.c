@@ -1675,6 +1675,24 @@ seaf_repo_manager_get_org_group_repo_owner (SeafRepoManager *mgr,
     return ret;
 }
 
+GList *
+seaf_repo_manager_get_org_group_repos_by_owner (SeafRepoManager *mgr,
+                                                int org_id,
+                                                const char *owner,
+                                                GError **error)
+{
+    char sql[512];
+    GList *repos = NULL;
+
+    snprintf (sql, sizeof(sql), "SELECT repo_id, group_id, owner "
+              "FROM OrgGroupRepo WHERE owner = '%s'", owner);
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_repos_cb,
+                                      &repos) < 0)
+        return NULL;
+
+    return g_list_reverse (repos);
+}
+
 /* Org inner public repos */
 
 int
