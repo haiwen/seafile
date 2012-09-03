@@ -535,6 +535,9 @@ seafile_remove_org_repo_by_org_id (int org_id, GError **error);
 GList *
 seafile_list_org_repos_by_owner (int org_id, const char *user, GError **error);
 
+char *
+seafile_get_org_repo_owner (const char *repo_id, GError **error);
+
 gint64
 seafile_get_file_size (const char *file_id, GError **error);
 

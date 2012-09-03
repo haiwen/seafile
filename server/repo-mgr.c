@@ -1571,6 +1571,7 @@ seaf_repo_manager_get_org_id_by_repo_id (SeafRepoManager *mgr,
     return seaf_db_get_int (mgr->seaf->db, sql);
 }
 
+
 /* Org group repos. */
 
 int

@@ -2149,7 +2149,7 @@ seafile_get_org_group_repoids (int org_id, int group_id, GError **error)
 
     if (org_id < 0 || group_id < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
-        return -1;
+        return NULL;
     }
     
     repo_ids = seaf_repo_manager_get_org_group_repoids (mgr, org_id, group_id,
@@ -2635,6 +2635,21 @@ seafile_list_org_repos_by_owner (int org_id, const char *user, GError **error)
     ret = g_list_reverse (ret);
 
     return ret;
+}
+
+char *
+seafile_get_org_repo_owner (const char *repo_id, GError **error)
+{
+    SeafRepoManager *mgr = seaf->repo_mgr;
+    GString *result = g_string_new ("");
+
+    char *owner = seaf_repo_manager_get_org_repo_owner (mgr, repo_id);
+    if (owner) {
+        g_string_append_printf (result, "%s", owner);
+        g_free (owner);
+    }
+
+    return g_string_free (result, FALSE);
 }
 
 int
