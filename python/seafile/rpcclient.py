@@ -565,8 +565,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def list_org_repos_by_owner(org_id, user):
         pass
 
-    @searpc_func("string", ["int", "string"])
-    def get_org_repo_owner(org_id, repo_id):
+    @searpc_func("string", ["string"])
+    def get_org_repo_owner(repo_id):
         pass
     
     # org group repo
