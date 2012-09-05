@@ -160,7 +160,7 @@ $('.lsch').each(function() {
                         show(data['deldir']);
                     }
                     if (!str_con) {
-                        str_con = '<p>${_("No file content modified, perhaps file permission was changed.")}</p>';
+                        str_con = '<p>${_("No file content modified.")}</p>';
                     }
                     $('#ls-ch').html(str_title + str_con);
                     $('#ls-ch').modal({appendTo:'#main'});

@@ -580,8 +580,10 @@ class repo_download:
                 error_msg = _('Invalid local directory')
             elif e.msg == 'Already in sync':
                 error_msg = _('The local directory you chose is in sync with another repo. Please choose another one.')
-            elif e.msg == 'Invalid local directory name':
-                error_msg = _('Invalid local directory name.')
+            elif e.msg == 'Worktree conflicts system path':
+                error_msg = _('The local directory you chose cannot be under or includes an system directory of seafile.')
+            elif e.msg == 'Worktree conflicts existing repo':
+                error_msg = _('The local directory you chose cannot be under or includes another repo.')
             else:
                 error_msg = _('Internal error.') + str(e)
 

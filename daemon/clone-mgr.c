@@ -552,6 +552,14 @@ try_worktree (const char *worktree)
     /* XXX: never reach here */
 }
 
+static inline void
+remove_trail_slash (char *path)
+{
+    int tail = strlen (path) - 1;
+    while (path[tail] == '/' || path[tail] == '\\')
+        path[tail--] = '\0';
+}
+
 static char *
 make_worktree (SeafCloneManager *mgr,
                const char *worktree,
@@ -563,9 +571,7 @@ make_worktree (SeafCloneManager *mgr,
     int rc;
     char *ret;
 
-    int tail = strlen (worktree) - 1;
-    while (wt[tail] == '/' || wt[tail] == '\\')
-        wt[tail--] = '\0';
+    remove_trail_slash (wt);
 
     rc = g_lstat (wt, &st);
     if (rc < 0 && errno == ENOENT) {
@@ -601,6 +607,8 @@ make_worktree (SeafCloneManager *mgr,
 mk_dir:
     if (!dry_run && g_mkdir_with_parents (ret, 0777) < 0) {
         seaf_warning ("[clone mgr] Failed to create dir %s.\n", ret);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to create worktree");
         g_free (ret);
         return NULL;
     }
@@ -628,23 +636,111 @@ seaf_clone_manager_gen_default_worktree (SeafCloneManager *mgr,
     return worktree;
 }
 
-static gboolean
-worktree_repo_name_matches (const char *worktree, const char *repo_name)
+inline static gboolean is_separator (char c)
 {
-    char *base = g_path_get_basename (worktree);
-    gboolean ret = FALSE;
-    int base_len = strlen(base);
-    int name_len = strlen(repo_name);
+    return (c == '/' || c == '\\');
+}
 
-    if (base_len < name_len)
-        goto out;
+/*
+ * Returns < 0 if dira includes dirb or dira == dirb;
+ * Returns 0 if no inclusive relationship;
+ * Returns > 0 if dirb includes dira.
+ */
+static int
+check_dir_inclusiveness (const char *dira, const char *dirb)
+{
+    char *a, *b;
+    char *p1, *p2;
+    int ret = 0;
 
-    if (strncmp (base, repo_name, name_len) == 0)
-        ret = TRUE;
+    a = g_strdup(dira);
+    b = g_strdup(dirb);
+    remove_trail_slash (a);
+    remove_trail_slash (b);
+
+    p1 = a;
+    p2 = b;
+    while (*p1 != 0 && *p2 != 0) {
+        /* Go to the last one in a path separator sequence. */
+        while (is_separator(*p1) && is_separator(p1[1]))
+            ++p1;
+        while (is_separator(*p2) && is_separator(p2[1]))
+            ++p2;
+
+        if (!(is_separator(*p1) && is_separator(*p2)) && *p1 != *p2)
+            goto out;
+
+        ++p1;
+        ++p2;
+    }
+
+    /* Example:
+     *            p1
+     * a: /abc/def/ghi
+     *            p2
+     * b: /abc/def
+     */
+    if (*p1 == 0 && *p2 == 0)
+        ret = -1;
+    else if (*p1 != 0 && is_separator(*p1))
+        ret = 1;
+    else if (*p2 != 0 && is_separator(*p2))
+        ret = -1;
 
 out:
-    g_free (base);
+    g_free (a);
+    g_free (b);
     return ret;
+}
+
+static gboolean
+check_worktree_path (SeafCloneManager *mgr, const char *path, GError **error)
+{
+    GList *repos, *ptr;
+    SeafRepo *repo;
+    GHashTableIter iter;
+    gpointer key, value;
+    CloneTask *task;
+
+    if (check_dir_inclusiveness (path, seaf->seaf_dir) != 0 ||
+        /* It's OK if path is included by the default worktree parent. */
+        check_dir_inclusiveness (path, seaf->worktree_dir) < 0 ||
+        check_dir_inclusiveness (path, seaf->session->config_dir) != 0) {
+        seaf_warning ("Worktree path conflicts with seafile system path.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Worktree conflicts system path");
+        return FALSE;
+    }
+
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
+    for (ptr = repos; ptr != NULL; ptr = ptr->next) {
+        repo = ptr->data;
+        if (check_dir_inclusiveness (path, repo->worktree) != 0) {
+            seaf_warning ("Worktree path conflict with repo %s.\n", repo->name);
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "Worktree conflicts existing repo");
+            g_list_free (repos);
+            return FALSE;
+        }
+    }
+    g_list_free (repos);
+
+    g_hash_table_iter_init (&iter, mgr->tasks);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        task = value;
+        if (task->state == CLONE_STATE_DONE ||
+            task->state == CLONE_STATE_ERROR ||
+            task->state == CLONE_STATE_CANCELED)
+            continue;
+        if (check_dir_inclusiveness (path, task->worktree) != 0) {
+            seaf_warning ("Worktree path conflict with clone %.8s.\n", repo->id);
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "Worktree conflicts existing repo");
+            return FALSE;
+        }
+    }
+
+    return TRUE;
 }
 
 char *
@@ -680,11 +776,8 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         return NULL;
     }
 
-    if (!worktree_repo_name_matches (worktree_in, repo_name)) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "Invalid local directory name");
+    if (!check_worktree_path (mgr, worktree_in, error))
         return NULL;
-    }
 
     /* Return error if worktree_in conflicts with another repo or
      * is not a directory.

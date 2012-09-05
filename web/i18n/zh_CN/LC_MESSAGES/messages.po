@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2012-08-29 16:54+CST\n"
+"POT-Creation-Date: 2012-09-05 13:13+CST\n"
 "PO-Revision-Date: 2012-08-29 16:58+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -38,10 +38,16 @@ msgid ""
 msgstr "你所指定的本地目录已经与其他同步目录同步，请指定其他本地目录"
 
 #: main.py:584
-msgid "Invalid local directory name."
-msgstr "不是合法的本地目录名。"
+msgid ""
+"The local directory you chose cannot be under or includes an system "
+"directory of seafile."
+msgstr "本地目录的路径不能处在 Seafile 系统目录下，或者包含 Seafile 系统目录"
 
-#: main.py:586 templates/clone_tasks.html:65
+#: main.py:586
+msgid "The local directory you chose cannot be under or includes another repo."
+msgstr "本地目录的路径不能处在其他同步目录下，或者包含其他同步目录"
+
+#: main.py:588 templates/clone_tasks.html:65
 msgid "Internal error."
 msgstr "内部错误"
 
@@ -322,8 +328,8 @@ msgid "Modification Detail"
 msgstr "修改详情"
 
 #: templates/po.html:13
-msgid "No file content modified, perhaps file permission was changed."
-msgstr "没有文件内容的修改，可能文件权限被修改了。"
+msgid "No file content modified."
+msgstr "没有改动"
 
 #: templates/po.html:16
 msgid "Submit"
@@ -337,98 +343,106 @@ msgstr "连接失败"
 msgid "Start download"
 msgstr "开始下载"
 
-#: templates/po.html:28
+#: templates/po.html:26
+msgid "modify"
+msgstr "更改"
+
+#: templates/po.html:29
 msgid "Decrypt again"
 msgstr "重新解密"
 
-#: templates/po.html:31
+#: templates/po.html:32
 msgid ""
 "For better user experience, please use Chrome, Firefox, or IE with a version "
 "8.0 or above."
 msgstr ""
 "为使您能有更好的体验，请使用Chrome, Firefox, 8.0或更高版本的IE 等浏览器。"
 
-#: templates/po.html:33
+#: templates/po.html:34
 msgid "synchronized"
 msgstr "已同步"
 
-#: templates/po.html:34
+#: templates/po.html:35
+msgid "indexing files"
+msgstr "正在索引文件"
+
+#: templates/po.html:36
 msgid "sync initializing"
 msgstr "正在获取同步信息"
 
-#: templates/po.html:35
+#: templates/po.html:37
 msgid "downloading"
 msgstr "下载中"
 
-#: templates/po.html:36
+#: templates/po.html:38
 msgid "uploading"
 msgstr "上传中"
 
-#: templates/po.html:37
+#: templates/po.html:39
 msgid "sync merging"
 msgstr "正在合并更改"
 
-#: templates/po.html:38
+#: templates/po.html:40
 msgid "waiting for sync"
 msgstr "等待同步"
 
-#: templates/po.html:39
+#: templates/po.html:41
 msgid "relay not connected"
 msgstr "服务器未连接"
 
-#: templates/po.html:40
+#: templates/po.html:42
 msgid "auto sync is turned off"
 msgstr "自动同步已停止。"
 
-#: templates/po.html:41
+#: templates/po.html:43
 msgid "sync status:"
 msgstr "同步状态："
 
-#: templates/po.html:42
+#: templates/po.html:44
 msgid "Server has been removed"
 msgstr "服务器已经被删除"
 
-#: templates/po.html:43
+#: templates/po.html:45
 msgid "You have not login to the server"
 msgstr "您还没有登录到服务器"
 
-#: templates/po.html:44
+#: templates/po.html:46
 msgid "You do not have permission to access this repo"
 msgstr "您没有权限访问该同步目录"
 
-#: templates/po.html:45
+#: templates/po.html:47
 msgid "The storage space of the repo owner has been used up"
 msgstr "目录所有者的空间限额已用完"
 
-#: templates/po.html:46
+#: templates/po.html:48
 msgid "Remote service is not available"
 msgstr "与服务器通信失败"
 
-#: templates/po.html:47
+#: templates/po.html:49
 msgid "Access denied to service. Please login to the server on 'Network' page."
 msgstr "访问被拒绝。请先到“网络”页面登录服务器"
 
-#: templates/po.html:48
+#: templates/po.html:50
 msgid "Internal data corrupted."
 msgstr "内部文件损坏"
 
-#: templates/po.html:49
+#: templates/po.html:51
 msgid "Failed to start upload."
 msgstr "启动上传失败。"
 
-#: templates/po.html:50
+#: templates/po.html:52
 msgid "Error occured in upload."
 msgstr "上传过程中出错。"
 
-#: templates/po.html:51
+#: templates/po.html:53
 msgid "Failed to start download."
 msgstr "启动下载失败。"
 
-#: templates/po.html:52
+#: templates/po.html:54
 msgid "Error occured in download."
 msgstr "下载过程中出错。"
 
-#: templates/po.html:53
+#: templates/po.html:55
 msgid ""
 "Repo is deleted on server. Click 'Unsync' button, then you can create a new "
 "repo."
@@ -436,63 +450,63 @@ msgstr ""
 "同步目录已经在服务器上删除，请点击“解除同步”，随后你可以把目录重新变成同步目"
 "录并上传。"
 
-#: templates/po.html:54
+#: templates/po.html:56
 msgid "Unknown error."
 msgstr "未知错误。"
 
-#: templates/po.html:55
+#: templates/po.html:57
 msgid "sync error:"
 msgstr "同步出错："
 
-#: templates/po.html:57
+#: templates/po.html:59
 msgid "I've registered"
 msgstr "已经注册"
 
-#: templates/po.html:59
+#: templates/po.html:61
 msgid "fetching..."
 msgstr "获取中..."
 
-#: templates/po.html:60
+#: templates/po.html:62
 msgid "syncing..."
 msgstr "同步中..."
 
-#: templates/po.html:61
+#: templates/po.html:63
 msgid "fetching...blocks transfered"
 msgstr "获取中...已传输块数"
 
-#: templates/po.html:62
+#: templates/po.html:64
 msgid "sync done."
 msgstr "同步已完成。"
 
-#: templates/po.html:63
+#: templates/po.html:65
 msgid "back to the repo."
 msgstr "返回该同步目录主页"
 
-#: templates/po.html:65
+#: templates/po.html:67
 msgid "Started"
 msgstr "已开启"
 
-#: templates/po.html:66
+#: templates/po.html:68
 msgid "Stopped"
 msgstr "已停止"
 
-#: templates/po.html:68
+#: templates/po.html:70
 msgid "is larger than 1GB, continue?"
 msgstr "大于 1 GB, 继续？"
 
-#: templates/po.html:69
+#: templates/po.html:71
 msgid "Please input Original Directory Path."
 msgstr "请输入原始目录路径。"
 
-#: templates/po.html:70
+#: templates/po.html:72
 msgid "Please input Description."
 msgstr "请输入描述。"
 
-#: templates/po.html:71
+#: templates/po.html:73
 msgid "Go to"
 msgstr "去"
 
-#: templates/po.html:72
+#: templates/po.html:74
 msgid "page to login"
 msgstr "页面登录"
 
@@ -779,19 +793,10 @@ msgid "You are going to synchronize"
 msgstr "你将同步"
 
 #: templates/repo_download.html:19
-msgid "Please input a local directory to sync with this repo:"
-msgstr "请输入与之同步的本地目录："
+msgid "will be synced with:"
+msgstr "将与以下的本地目录同步："
 
-#: templates/repo_download.html:21
-msgid ""
-"Its name must begin with this repo's name. E.g., if the repo name is "
-"'example', the local directory name must be 'example' or 'example-1', and "
-"etc."
-msgstr ""
-"本地目录名字必须以同步目录的名字开头。比如，同步目录名字为“例子”，那么与之同"
-"步的本地目录的名字应该是“例子”或者“例子-1”。"
-
-#: templates/repo_download.html:23
+#: templates/repo_download.html:25
 msgid "This repo is encrypted. Please enter the password for decrypting:"
 msgstr "该同步目录已加密。 请输入解密密码："
 
@@ -917,6 +922,29 @@ msgstr "连接"
 msgid "Disconnect"
 msgstr "断开连接"
 
+#~ msgid "Invalid local directory name."
+#~ msgstr "不是合法的本地目录名。"
+
+#~ msgid "No file content modified, perhaps file permission was changed."
+#~ msgstr "没有文件内容的修改，可能文件权限被修改了。"
+
+#~ msgid "Uploading,"
+#~ msgstr "正在上传，"
+
+#~ msgid "Downloading,"
+#~ msgstr "正在下载，"
+
+#~ msgid "Please input a local directory to sync with this repo:"
+#~ msgstr "请输入与之同步的本地目录："
+
+#~ msgid ""
+#~ "Its name must begin with this repo's name. E.g., if the repo name is "
+#~ "'example', the local directory name must be 'example' or 'example-1', and "
+#~ "etc."
+#~ msgstr ""
+#~ "本地目录名字必须以同步目录的名字开头。比如，同步目录名字为“例子”，那么与之"
+#~ "同步的本地目录的名字应该是“例子”或者“例子-1”。"
+
 #~ msgid "Welcome, "
 #~ msgstr "欢迎，"
 
@@ -1003,9 +1031,6 @@ msgstr "断开连接"
 
 #~ msgid "Relay"
 #~ msgstr "服务器"
-
-#~ msgid "Modify"
-#~ msgstr "更改"
 
 #~ msgid "Auto Sync"
 #~ msgstr "自动同步"
@@ -1310,9 +1335,6 @@ msgstr "断开连接"
 
 #~ msgid "Stop"
 #~ msgstr "停止"
-
-#~ msgid "Uploading,"
-#~ msgstr "正在上传，"
 
 #~ msgid "None"
 #~ msgstr "无"

@@ -16,9 +16,11 @@
     <input type="hidden" name="relay_port" value="${relay_port}" />
     <input type="hidden" name="token" value="${token}" />
     <input type="hidden" name="email" value="${email}" />
-    <p>${_("Please input a local directory to sync with this repo:")}</p>
-    <input type="text" name="worktree" value="${worktree}" class="text-input" />
-    <p class="tip">${_("Its name must begin with this repo's name. E.g., if the repo name is 'example', the local directory name must be 'example' or 'example-1', and etc.")}</p>
+    <p><em>${repo_name}</em> ${_("will be synced with:")}</p>
+    <div id="wt">
+      <input type="hidden" name="worktree" value="${worktree}" />
+      <p>${worktree} <img src="/static/img/edit_12.png" alt="${_('modify')}" title="${_('modify')}" class="click" id="change-wt"/></p>
+    </div>
     % if encrypted:
     <p class="encrypted">${_("This repo is encrypted. Please enter the password for decrypting:")}</p>
     <input type="password" name="password" maxlength="64" class="text-input" /><br/>
@@ -31,3 +33,16 @@
 % endif
 </div>
 </%def>
+
+<%def name="js()">
+% if not repo_already_exists:
+<script type="text/javascript">
+
+$('#change-wt').click(function() {
+    $('#wt').html('<input type="text" name="worktree" value="${worktree.replace('\\', '\\\\')}" class="text-input" />');
+});
+
+</script>
+% endif
+</%def>
+

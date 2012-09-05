@@ -104,7 +104,7 @@
 <textarea id="transfer-template" class="hide"> 
     <div class="notification">
         {#if $T.state == "normal"}
-        ${_("Repo")} {#if $T.ttype == "upload"} ${_("Uploading,")} {#else} ${_("Downloading,")} {#/if}
+        ${_("Repo")} {#if $T.ttype == "upload"} ${_("uploading")} {#else} ${_("downloading")} {#/if},
         ${_("blocks transfered")} <span id="transfered">{$T.block_done}/{$T.block_total}</span>, ${_("rate")} <span id="tranfer-rate">{($T.rate/1024).toFixed(2)}</span>KB/${_("s")}
         <img src="/static/img/icon_loading.gif" width="16" height="16" />
         {#/if}
@@ -171,7 +171,7 @@ function set_sync_status(status) {
             str = "${_('synchronized')}";
             break;
         case 'commiting':
-            str = "${_('commiting')}";
+            str = "${_('indexing files')}";
             break;
         case 'initializing': 
             str = "${_('sync initializing')}";
@@ -357,7 +357,7 @@ $('.lsch').each(function() {
                         show(data['deldir']);
                     }
                     if (!str_con) {
-                        str_con = '<p>${_("No file content modified, perhaps file permission was changed.")}</p>';
+                        str_con = '<p>${_("No file content modified.")}</p>';
                     }
                     $('#ls-ch').html(str_title + str_con);
                     $('#ls-ch').modal({appendTo:'#main'});
