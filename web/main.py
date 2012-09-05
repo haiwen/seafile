@@ -672,14 +672,14 @@ class open_local_file:
     handle jsonp ajax cross domain 'open-local-file' request from seahub
     """
     def GET(self):
-        inputs = web.webapi.input(repo_id='', path='', callback='')
+        inputs = web.webapi.input(repo_id='', path='', callback='', commit_id='')
         repo_id, path, callback = inputs.repo_id, inputs.path.lstrip('/'), inputs.callback
         
         d = {}
         if not (repo_id and path and callback):
             d['error'] =  'invalid request'
             return '%s(%s)' % (inputs.callback, json.dumps(d))
-    
+
         try:
             repo = get_repo(repo_id)
         except Exception, e:
@@ -688,6 +688,12 @@ class open_local_file:
         else:
             if not repo:
                 d['exists'] = False
+                return '%s(%s)' % (inputs.callback, json.dumps(d))
+
+        if inputs.commit_id:
+            if repo.head_cmmt_id != inputs.commit_id:
+                d['outdated'] = True
+                d['auto-sync'] = repo.auto_sync
                 return '%s(%s)' % (inputs.callback, json.dumps(d))
             
         # ok, repo exists

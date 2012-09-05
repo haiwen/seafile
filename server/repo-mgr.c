@@ -3203,7 +3203,7 @@ seaf_repo_manager_rename_file (SeafRepoManager *mgr,
     char *canon_path = NULL;
     char buf[PATH_MAX];
     int mode = 0;
-    int ret;
+    int ret = 0;
 
     if (strcmp(oldname, newname) == 0)
         return 0;
