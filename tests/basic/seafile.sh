@@ -32,7 +32,7 @@ while [ $# -ge 1 ]; do
 
       gnome-terminal -e "${ccnet_server} -c ${conf2} -D ${debug} -f -"
       sleep 3
-      gnome-terminal -e "${seaf_server} -c ${conf2}  -d ${conf2}/seafile-data -D all -f -l - -C"
+      gnome-terminal -e "${seaf_server} -c ${conf2}  -d ${conf2}/seafile-data -D all -f -l -"
       sleep 3
       gnome-terminal -e "${seaf_monitor} -c ${conf2} -d ${conf2}/seafile-data -f -l -"
       ;;

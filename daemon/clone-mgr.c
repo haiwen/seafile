@@ -556,7 +556,7 @@ static inline void
 remove_trail_slash (char *path)
 {
     int tail = strlen (path) - 1;
-    while (path[tail] == '/' || path[tail] == '\\')
+    while (tail >= 0 && (path[tail] == '/' || path[tail] == '\\'))
         path[tail--] = '\0';
 }
 
@@ -715,7 +715,8 @@ check_worktree_path (SeafCloneManager *mgr, const char *path, GError **error)
     repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
     for (ptr = repos; ptr != NULL; ptr = ptr->next) {
         repo = ptr->data;
-        if (check_dir_inclusiveness (path, repo->worktree) != 0) {
+        if (repo->worktree != NULL &&
+            check_dir_inclusiveness (path, repo->worktree) != 0) {
             seaf_warning ("Worktree path conflict with repo %s.\n", repo->name);
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                          "Worktree conflicts existing repo");
