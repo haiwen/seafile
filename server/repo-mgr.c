@@ -2263,8 +2263,7 @@ update_repo_size(const char *repo_id)
             goto out;
         }
 
-        if (ccnet_get_peer_net_state(ccnet_rpc_client,
-                                     seaf->monitor_id) != PEER_CONNECTED) {
+        if (!ccnet_peer_is_ready (ccnet_rpc_client, seaf->monitor_id)) {
             goto out;
         }
     }

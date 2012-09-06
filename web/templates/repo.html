@@ -42,9 +42,9 @@
     <a href="/repos/operation/?repo=${repo.props.id}&op=open">${repo.props.worktree}</a>
     % endif
     <ul>
-        % if relay:
+        % if relay and relay.name:
         <li>
-        <span class="item-name">${_("Server: ")}</span>${relay.props.name}
+        <span class="item-name">${_("Server: ")}</span>${relay.name}
         </li>
         % endif
 
@@ -190,6 +190,9 @@ function set_sync_status(status) {
             break;
         case 'relay not connected':
             str = "${_('relay not connected')}";
+            break;
+        case 'relay authenticating':
+            str = "${_('relay authenticating')}";
             break;
         case 'auto sync is turned off':
             str = "${_('auto sync is turned off')}";

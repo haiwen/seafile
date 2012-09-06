@@ -29,9 +29,6 @@ on_checkout_done (CheckoutTask *task, SeafRepo *repo, void *data);
 static int
 start_index_or_transfer (SeafCloneManager *mgr, CloneTask *task, GError **error);
 
-static gboolean
-is_task_relay_connected (CloneTask *task);
-
 static void
 start_connect_task_relay (CloneTask *task, GError **error);
 
@@ -188,8 +185,8 @@ restart_task (sqlite3_stmt *stmt, void *data)
         /* Repo was not created last time. In this case, we just
          * restart from the very beginning.
          */
-        if (!is_task_relay_connected(task)) {
-            /* the relay is not connected yet */
+        if (!ccnet_peer_is_ready (seaf->ccnetrpc_client, task->peer_id)) {
+            /* the relay is not ready yet */
             start_connect_task_relay (task, NULL);
         } else {
             start_index_or_transfer (mgr, task, NULL);
@@ -226,12 +223,9 @@ seaf_clone_manager_init (SeafCloneManager *mgr)
 static void
 continue_task_when_peer_connected (CloneTask *task)
 {
-    CcnetPeer *peer = ccnet_get_peer (seaf->ccnetrpc_client, task->peer_id);
-    if (peer && peer->net_state == PEER_CONNECTED)
+    if (ccnet_peer_is_ready (seaf->ccnetrpc_client, task->peer_id)) {
         start_index_or_transfer (task->manager, task, NULL);
-
-    if (peer)
-        g_object_unref (peer);
+    }
 }
 
 static int check_connect_pulse (void *vmanager)
@@ -437,20 +431,6 @@ start_index_or_transfer (SeafCloneManager *mgr, CloneTask *task, GError **error)
         else
             transition_to_error (task, CLONE_ERROR_FETCH);
     }
-
-    return ret;
-}
-
-static gboolean
-is_task_relay_connected (CloneTask *task)
-{
-    gboolean ret = TRUE;
-    CcnetPeer *peer = ccnet_get_peer (seaf->ccnetrpc_client, task->peer_id);
-    if (!peer || peer->net_state != PEER_CONNECTED)
-        ret = FALSE;
-
-    if (peer)
-        g_object_unref (peer);
 
     return ret;
 }
@@ -806,7 +786,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
          * can then clone the repo again.
          */
         start_checkout (repo, task);
-    } else if (!is_task_relay_connected(task)) {
+    } else if (!ccnet_peer_is_ready(seaf->ccnetrpc_client, task->peer_id)) {
         /* the relay is not connected yet */
         start_connect_task_relay (task, error);
         

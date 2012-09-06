@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2012-09-05 13:13+CST\n"
+"POT-Creation-Date: 2012-09-06 14:43+CST\n"
 "PO-Revision-Date: 2012-08-29 16:58+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,39 +15,39 @@ msgstr ""
 "Content-Transfer-Encoding: UTF-8\n"
 "Generated-By: pygettext.py 1.5\n"
 
-#: main.py:547
+#: main.py:550
 msgid "You must choose a local directory"
 msgstr "你必须指定一个本地目录"
 
-#: main.py:549
+#: main.py:552
 msgid "Password can not be empty"
 msgstr "密码不能为空"
 
-#: main.py:551
+#: main.py:554
 msgid "Invalid Repo ID"
 msgstr "同步目录ID格式不正确"
 
-#: main.py:580
+#: main.py:583
 msgid "Invalid local directory"
 msgstr "不是合法的本地目录"
 
-#: main.py:582
+#: main.py:585
 msgid ""
 "The local directory you chose is in sync with another repo. Please choose "
 "another one."
 msgstr "你所指定的本地目录已经与其他同步目录同步，请指定其他本地目录"
 
-#: main.py:584
+#: main.py:587
 msgid ""
 "The local directory you chose cannot be under or includes an system "
 "directory of seafile."
 msgstr "本地目录的路径不能处在 Seafile 系统目录下，或者包含 Seafile 系统目录"
 
-#: main.py:586
+#: main.py:589
 msgid "The local directory you chose cannot be under or includes another repo."
 msgstr "本地目录的路径不能处在其他同步目录下，或者包含其他同步目录"
 
-#: main.py:588 templates/clone_tasks.html:65
+#: main.py:591 templates/clone_tasks.html:65
 msgid "Internal error."
 msgstr "内部错误"
 
@@ -96,12 +96,12 @@ msgid "Contact"
 msgstr "联系我们"
 
 #: templates/clone_tasks.html:4 templates/repo_create.html:4
-#: templates/repo_diff.html:9 templates/repos.html:23
+#: templates/repo_diff.html:9 templates/repos.html:25
 msgid "Navigation"
 msgstr "导航"
 
 #: templates/clone_tasks.html:6 templates/repo_create.html:6
-#: templates/repos.html:47
+#: templates/repos.html:49
 msgid "All Repos"
 msgstr "所有同步目录"
 
@@ -209,7 +209,7 @@ msgid "Net State"
 msgstr "网络状态"
 
 #: templates/peers.html:22 templates/peers.html:59 templates/repo_dir.html:38
-#: templates/repos.html:51 templates/synclan.html:16
+#: templates/repos.html:53 templates/synclan.html:16
 msgid "Action"
 msgstr "操作"
 
@@ -391,58 +391,62 @@ msgid "relay not connected"
 msgstr "服务器未连接"
 
 #: templates/po.html:42
+msgid "relay authenticating"
+msgstr "服务器验证中"
+
+#: templates/po.html:43
 msgid "auto sync is turned off"
 msgstr "自动同步已停止。"
 
-#: templates/po.html:43
+#: templates/po.html:44
 msgid "sync status:"
 msgstr "同步状态："
 
-#: templates/po.html:44
+#: templates/po.html:45
 msgid "Server has been removed"
 msgstr "服务器已经被删除"
 
-#: templates/po.html:45
+#: templates/po.html:46
 msgid "You have not login to the server"
 msgstr "您还没有登录到服务器"
 
-#: templates/po.html:46
+#: templates/po.html:47
 msgid "You do not have permission to access this repo"
 msgstr "您没有权限访问该同步目录"
 
-#: templates/po.html:47
+#: templates/po.html:48
 msgid "The storage space of the repo owner has been used up"
 msgstr "目录所有者的空间限额已用完"
 
-#: templates/po.html:48
+#: templates/po.html:49
 msgid "Remote service is not available"
 msgstr "与服务器通信失败"
 
-#: templates/po.html:49
+#: templates/po.html:50
 msgid "Access denied to service. Please login to the server on 'Network' page."
 msgstr "访问被拒绝。请先到“网络”页面登录服务器"
 
-#: templates/po.html:50
+#: templates/po.html:51
 msgid "Internal data corrupted."
 msgstr "内部文件损坏"
 
-#: templates/po.html:51
+#: templates/po.html:52
 msgid "Failed to start upload."
 msgstr "启动上传失败。"
 
-#: templates/po.html:52
+#: templates/po.html:53
 msgid "Error occured in upload."
 msgstr "上传过程中出错。"
 
-#: templates/po.html:53
+#: templates/po.html:54
 msgid "Failed to start download."
 msgstr "启动下载失败。"
 
-#: templates/po.html:54
+#: templates/po.html:55
 msgid "Error occured in download."
 msgstr "下载过程中出错。"
 
-#: templates/po.html:55
+#: templates/po.html:56
 msgid ""
 "Repo is deleted on server. Click 'Unsync' button, then you can create a new "
 "repo."
@@ -450,63 +454,63 @@ msgstr ""
 "同步目录已经在服务器上删除，请点击“解除同步”，随后你可以把目录重新变成同步目"
 "录并上传。"
 
-#: templates/po.html:56
+#: templates/po.html:57
 msgid "Unknown error."
 msgstr "未知错误。"
 
-#: templates/po.html:57
+#: templates/po.html:58
 msgid "sync error:"
 msgstr "同步出错："
 
-#: templates/po.html:59
+#: templates/po.html:60
 msgid "I've registered"
 msgstr "已经注册"
 
-#: templates/po.html:61
+#: templates/po.html:62
 msgid "fetching..."
 msgstr "获取中..."
 
-#: templates/po.html:62
+#: templates/po.html:63
 msgid "syncing..."
 msgstr "同步中..."
 
-#: templates/po.html:63
+#: templates/po.html:64
 msgid "fetching...blocks transfered"
 msgstr "获取中...已传输块数"
 
-#: templates/po.html:64
+#: templates/po.html:65
 msgid "sync done."
 msgstr "同步已完成。"
 
-#: templates/po.html:65
+#: templates/po.html:66
 msgid "back to the repo."
 msgstr "返回该同步目录主页"
 
-#: templates/po.html:67
+#: templates/po.html:68
 msgid "Started"
 msgstr "已开启"
 
-#: templates/po.html:68
+#: templates/po.html:69
 msgid "Stopped"
 msgstr "已停止"
 
-#: templates/po.html:70
+#: templates/po.html:71
 msgid "is larger than 1GB, continue?"
 msgstr "大于 1 GB, 继续？"
 
-#: templates/po.html:71
+#: templates/po.html:72
 msgid "Please input Original Directory Path."
 msgstr "请输入原始目录路径。"
 
-#: templates/po.html:72
+#: templates/po.html:73
 msgid "Please input Description."
 msgstr "请输入描述。"
 
-#: templates/po.html:73
+#: templates/po.html:74
 msgid "Go to"
 msgstr "去"
 
-#: templates/po.html:74
+#: templates/po.html:75
 msgid "page to login"
 msgstr "页面登录"
 
@@ -644,7 +648,7 @@ msgid "Author"
 msgstr "修改者"
 
 #: templates/repo.html:75 templates/repo_diff.html:21
-#: templates/repo_history.html:29 templates/repos.html:52
+#: templates/repo_history.html:29 templates/repos.html:54
 msgid "Description"
 msgstr "描述"
 
@@ -772,7 +776,7 @@ msgstr "删除的目录："
 msgid "history browse"
 msgstr "历史浏览"
 
-#: templates/repo_dir.html:37 templates/repos.html:50
+#: templates/repo_dir.html:37 templates/repos.html:52
 msgid "Name"
 msgstr "名字"
 
@@ -841,64 +845,68 @@ msgid "Servers"
 msgstr "服务器"
 
 #: templates/repos.html:18
+msgid "authenticating"
+msgstr "验证中"
+
+#: templates/repos.html:20
 msgid "not connected"
 msgstr "未连接"
 
-#: templates/repos.html:26
+#: templates/repos.html:28
 msgid "Create New Repo"
 msgstr "创建新同步目录"
 
-#: templates/repos.html:27
+#: templates/repos.html:29
 msgid "View Download Tasks"
 msgstr "查看下载任务"
 
-#: templates/repos.html:30
+#: templates/repos.html:32
 msgid "Official Server"
 msgstr "官方服务器"
 
-#: templates/repos.html:38
+#: templates/repos.html:40
 msgid "Four Steps to Use Seafile Client"
 msgstr "Seafile 客户端使用方法"
 
-#: templates/repos.html:40
+#: templates/repos.html:42
 msgid ""
 "Login into an seafile server, either our official server (SeaCloud) or your "
 "private server."
 msgstr "登录服务器，可以是我们的官方服务器或者您的私有服务器。"
 
-#: templates/repos.html:41
+#: templates/repos.html:43
 msgid "Create a repo on server."
 msgstr "在服务器上创建新同步目录。"
 
-#: templates/repos.html:42
+#: templates/repos.html:44
 msgid "Synchronize the repo with a local folder (By click the sync button)."
 msgstr "下载该同步目录(点击同步按钮)。"
 
-#: templates/repos.html:43
+#: templates/repos.html:45
 msgid "Add files to the folder and they will be uploaded automatically."
 msgstr "把文件拷贝到下载下来的目录中，它们会自动同步到服务器上。"
 
-#: templates/repos.html:53
+#: templates/repos.html:55
 msgid "Server"
 msgstr "服务器"
 
-#: templates/repos.html:54
+#: templates/repos.html:56
 msgid "Modify Time"
 msgstr "修改时间"
 
-#: templates/repos.html:55
+#: templates/repos.html:57
 msgid "State"
 msgstr "状态"
 
-#: templates/repos.html:61
+#: templates/repos.html:63
 msgid "Open"
 msgstr "打开"
 
-#: templates/repos.html:73 templates/repos.html:76
+#: templates/repos.html:75 templates/repos.html:78
 msgid "Unknown"
 msgstr "未知"
 
-#: templates/repos.html:81
+#: templates/repos.html:83
 msgid "Synchronized"
 msgstr "已同步"
 

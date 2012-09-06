@@ -752,8 +752,7 @@ get_dest_id (SeafRepo *repo)
     else
         return NULL;
 
-    if (ccnet_get_peer_net_state(seaf->ccnetrpc_client, 
-                                 dest_id) != PEER_CONNECTED)
+    if (!ccnet_peer_is_ready(seaf->ccnetrpc_client, dest_id))
         return NULL;
 
     return dest_id;
@@ -778,10 +777,9 @@ start_sync_repo_proc (SeafSyncManager *manager, SyncTask *task)
         task->dest_id = g_strdup(task->repo->relay_id);
     }
 
-    /* If relay is not connected, wait until it is. */
-    if (ccnet_get_peer_net_state (seaf->ccnetrpc_client,
-                                  task->dest_id) != PEER_CONNECTED) {
-        seaf_message ("[sync-mgr] Relay for %s is not connected, wait.\n",
+    /* If relay is not ready, wait until it is. */
+    if (!ccnet_peer_is_ready (seaf->ccnetrpc_client, task->dest_id)) {
+        seaf_message ("[sync-mgr] Relay for %s is not ready, wait.\n",
                       task->repo->name);
         task->conn_timer = ccnet_timer_new (check_net_state, task, 1000);
         return 0;
@@ -814,8 +812,7 @@ check_net_state (void *data)
 {
     SyncTask *task = data;
 
-    if (ccnet_get_peer_net_state (seaf->ccnetrpc_client,
-                                  task->dest_id) == PEER_CONNECTED) {
+    if (ccnet_peer_is_ready (seaf->ccnetrpc_client, task->dest_id)) {
         ccnet_timer_free (&task->conn_timer);
         start_sync_repo_proc (task->mgr, task);
         return 0;
@@ -1002,8 +999,7 @@ try_get_repo_email_token (SeafSyncManager *mgr,
         task->dest_id = g_strdup(dest_id);
     } else {
         /* We also check relay net status in manual sync. */
-        if (ccnet_get_peer_net_state (seaf->ccnetrpc_client,
-                                      task->dest_id) != PEER_CONNECTED) {
+        if (!ccnet_peer_is_ready (seaf->ccnetrpc_client, task->dest_id)) {
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_RELAY_OFFLINE);
             return -1;
         }

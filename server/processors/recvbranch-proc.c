@@ -233,8 +233,7 @@ thread_done (void *result)
         /* Repo is updated, trigger repo size computation. */
         if (seaf->monitor_id != NULL &&
             (strcmp (seaf->monitor_id, seaf->session->base.id) == 0 ||
-             ccnet_get_peer_net_state (seaf->ccnetrpc_client,
-                                       seaf->monitor_id) == PEER_CONNECTED))
+             ccnet_peer_is_ready (seaf->ccnetrpc_client, seaf->monitor_id)))
         {
             monitor_compute_repo_size_async_wrapper (seaf->monitor_id, 
                                                      priv->repo_id,

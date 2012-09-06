@@ -12,8 +12,10 @@
 % endif
 % for relay in relays:
     <p><a class="relay-link" href="${relay.props.service_url}">${relay.props.name}</a>
-    % if relay.props.net_state == 1:
+    % if relay.props.is_ready:
     ${_("connected")}
+    % elif relay.props.net_state == 1:
+    ${_("authenticating")}
     % else:
     ${_("not connected")}
     % endif

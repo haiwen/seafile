@@ -977,7 +977,7 @@ get_chunk_server_list (TransferTask *task)
     if (!dest_id)
         return -1;
 
-    if (ccnet_get_peer_net_state(seaf->ccnetrpc_client, dest_id) != PEER_CONNECTED)
+    if (!ccnet_peer_is_ready (seaf->ccnetrpc_client, dest_id))
         return -1;
 
     if (start_getcs_proc (task, dest_id) < 0)
@@ -1000,7 +1000,7 @@ start_sendblock_proc (TransferTask *task, const char *peer_id)
 {
     CcnetProcessor *processor;
 
-    if (ccnet_get_peer_net_state (seaf->ccnetrpc_client, peer_id) != PEER_CONNECTED)
+    if (!ccnet_peer_is_ready (seaf->ccnetrpc_client, peer_id))
         return NULL;
 
     processor = ccnet_proc_factory_create_remote_master_processor (
@@ -1382,7 +1382,7 @@ start_download (TransferTask *task)
     if (!dest_id)
         return -1;
 
-    if (ccnet_get_peer_net_state(seaf->ccnetrpc_client, dest_id) != PEER_CONNECTED)
+    if (!ccnet_peer_is_ready (seaf->ccnetrpc_client, dest_id))
         return -1;
 
     processor = ccnet_proc_factory_create_remote_master_processor (
@@ -1733,7 +1733,7 @@ start_upload (TransferTask *task)
     if (!dest_id)
         return -1;
 
-    if (ccnet_get_peer_net_state(seaf->ccnetrpc_client, dest_id) != PEER_CONNECTED)
+    if (!ccnet_peer_is_ready (seaf->ccnetrpc_client, dest_id))
         return -1;
 
     branch = seaf_branch_manager_get_branch (seaf->branch_mgr, 
@@ -2064,8 +2064,7 @@ state_machine_tick (TransferTask *task)
         /* state #1, #2, #3, #4 */
         if (task->runtime_state == TASK_RT_STATE_NETDOWN) {
             const char *dest_id = task->dest_id;
-            if (dest_id && ccnet_get_peer_net_state(
-                    seaf->ccnetrpc_client, dest_id) == PEER_CONNECTED)
+            if (dest_id && ccnet_peer_is_ready (seaf->ccnetrpc_client, dest_id))
             {
                 seaf_debug ("[tr-mgr] Resume transfer repo %.8s when "
                             "peer %.10s is reconnected\n",

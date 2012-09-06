@@ -284,8 +284,11 @@ class repo_sync_status:
 
         relay = get_relay_of_repo(repo)
         if relay:
-            if relay.props.net_state != NET_STATE_CONNECTED:
-                sync_status['state'] = 'relay not connected'
+            if not relay.props.is_ready:
+                if relay.net_state != NET_STATE_CONNECTED:
+                    sync_status['state'] = 'relay not connected'
+                else:
+                    sync_status['state'] = 'relay authenticating'
                 return json.dumps(sync_status)
 
         t = seafile_rpc.get_repo_sync_task(inputs.repo)
