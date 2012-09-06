@@ -358,6 +358,7 @@ static SeafRepo *
 load_repo (SeafRepoManager *manager, const char *repo_id)
 {
     char sql[256];
+    int n;
 
     SeafRepo *repo = seaf_repo_new(repo_id, NULL, NULL);
     if (!repo) {
@@ -369,13 +370,19 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
 
     snprintf(sql, 256, "SELECT branch_name FROM RepoHead WHERE repo_id='%s'",
              repo->id);
-    if (seaf_db_foreach_selected_row (seaf->db, sql, load_branch_cb, repo) < 0) {
+    n = seaf_db_foreach_selected_row (seaf->db, sql, load_branch_cb, repo);
+    if (n < 0) {
         g_warning ("Error read branch for repo %s.\n", repo->id);
-        seaf_repo_unref (repo);
+        seaf_repo_free (repo);
+        return NULL;
+    } else if (n == 0) {
+        g_warning ("Repo %.8s is corrupted.\n");
+        seaf_repo_free (repo);
         return NULL;
     }
 
     if (repo->is_corrupted) {
+        g_warning ("Repo %.8s is corrupted.\n");
         seaf_repo_free (repo);
         return NULL;
     }

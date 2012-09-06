@@ -432,9 +432,8 @@ seaf_repo_manager_add_repo (SeafRepoManager *manager,
     return 0;
 }
 
-int
-seaf_repo_manager_del_repo (SeafRepoManager *mgr,
-                            SeafRepo *repo)
+static int
+remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
 {
     char sql[256];
     SeafDB *db = mgr->seaf->db;
@@ -443,28 +442,65 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
      * Once this is commited, we can gc the other tables later even if
      * we're interrupted.
      */
-    snprintf (sql, sizeof(sql), "DELETE FROM Repo WHERE repo_id = '%s'", repo->id);
+    snprintf (sql, sizeof(sql), "DELETE FROM Repo WHERE repo_id = '%s'", repo_id);
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
     /* remove branch */
     GList *p;
     GList *branch_list = 
-        seaf_branch_manager_get_branch_list (seaf->branch_mgr, repo->id);
+        seaf_branch_manager_get_branch_list (seaf->branch_mgr, repo_id);
     for (p = branch_list; p; p = p->next) {
         SeafBranch *b = (SeafBranch *)p->data;
         seaf_repo_manager_branch_repo_unmap (mgr, b);
-        seaf_branch_manager_del_branch (seaf->branch_mgr, repo->id, b->name);
+        seaf_branch_manager_del_branch (seaf->branch_mgr, repo_id, b->name);
     }
     seaf_branch_list_free (branch_list);
 
     snprintf (sql, sizeof(sql), "DELETE FROM RepoOwner WHERE repo_id = '%s'", 
-              repo->id);
+              repo_id);
     seaf_db_query (db, sql);
 
-    snprintf (sql, sizeof(sql), "DELETE FROM RepoUserToken WHERE repo_id = '%s'", 
-              repo->id);
+    snprintf (sql, sizeof(sql), "DELETE FROM RepoGroup WHERE repo_id = '%s'", 
+              repo_id);
     seaf_db_query (db, sql);
+
+    if (!seaf->cloud_mode) {
+        snprintf (sql, sizeof(sql), "DELETE FROM InnerPubRepo WHERE repo_id = '%s'", 
+                  repo_id);
+        seaf_db_query (db, sql);
+    }
+
+    if (seaf->cloud_mode) {
+        snprintf (sql, sizeof(sql),
+                  "DELETE FROM OrgRepo WHERE repo_id = '%s'", 
+                  repo_id);
+        seaf_db_query (db, sql);
+
+        snprintf (sql, sizeof(sql),
+                  "DELETE FROM OrgGroupRepo WHERE repo_id = '%s'", 
+                  repo_id);
+        seaf_db_query (db, sql);
+
+        snprintf (sql, sizeof(sql),
+                  "DELETE FROM OrgInnerPubRepo WHERE repo_id = '%s'", 
+                  repo_id);
+        seaf_db_query (db, sql);
+    }
+
+    snprintf (sql, sizeof(sql), "DELETE FROM RepoUserToken WHERE repo_id = '%s'", 
+              repo_id);
+    seaf_db_query (db, sql);
+
+    return 0;
+}
+
+int
+seaf_repo_manager_del_repo (SeafRepoManager *mgr,
+                            SeafRepo *repo)
+{
+    if (remove_repo_ondisk (mgr, repo->id) < 0)
+        return -1;
 
 #if 0
     if (pthread_rwlock_wrlock (&mgr->priv->lock) < 0) {
@@ -654,6 +690,7 @@ static SeafRepo *
 load_repo (SeafRepoManager *manager, const char *repo_id)
 {
     char sql[256];
+    int n;
 
     SeafRepo *repo = seaf_repo_new(repo_id, NULL, NULL);
     if (!repo) {
@@ -665,14 +702,23 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
 
     snprintf(sql, 256, "SELECT branch_name FROM RepoHead WHERE repo_id='%s'",
              repo->id);
-    if (seaf_db_foreach_selected_row (seaf->db, sql, load_branch_cb, repo) < 0) {
+    /* Note that it's also an error if repo head is not set.
+     * This means the repo is corrupted.
+     */
+    n = seaf_db_foreach_selected_row (seaf->db, sql, load_branch_cb, repo);
+    if (n < 0) {
         seaf_warning ("Error read branch for repo %s.\n", repo->id);
-        seaf_repo_unref (repo);
+        seaf_repo_free (repo);
+        return NULL;
+    } else if (n == 0) {
+        seaf_repo_free (repo);
+        remove_repo_ondisk (manager, repo_id);
         return NULL;
     }
 
     if (repo->is_corrupted) {
         seaf_repo_free (repo);
+        remove_repo_ondisk (manager, repo_id);
         return NULL;
     }
 

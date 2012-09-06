@@ -1916,9 +1916,21 @@ static void
 remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
 {
     char sql[256];
+
     /* We don't need to care about I/O errors here, since we can
      * GC any unreferenced repo data later.
      */
+
+    /* Once the item in Repo table is deleted, the repo is gone.
+     * This is the "commit point".
+     */
+    snprintf (sql, sizeof(sql), "DELETE FROM Repo WHERE repo_id = '%s'", repo_id);
+    if (sqlite_query_exec (mgr->priv->db, sql) < 0)
+        goto out;
+
+    snprintf (sql, sizeof(sql), 
+              "DELETE FROM DeletedRepo WHERE repo_id = '%s'", repo_id);
+    sqlite_query_exec (mgr->priv->db, sql);
 
     /* remove index */
     char path[PATH_MAX];
@@ -1955,15 +1967,6 @@ remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
 
     snprintf (sql, sizeof(sql), "DELETE FROM MergeInfo WHERE repo_id = '%s'", 
               repo_id);
-    sqlite_query_exec (mgr->priv->db, sql);
-
-    snprintf (sql, sizeof(sql), "DELETE FROM Repo WHERE repo_id = '%s'", repo_id);
-    /* Be careful if can't delete repo don't remove "deleted" marker. */
-    if (sqlite_query_exec (mgr->priv->db, sql) < 0)
-        goto out;
-
-    snprintf (sql, sizeof(sql), 
-              "DELETE FROM DeletedRepo WHERE repo_id = '%s'", repo_id);
     sqlite_query_exec (mgr->priv->db, sql);
 
 out:
@@ -2429,14 +2432,18 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     if (sqlite_foreach_selected_row (manager->priv->db, sql, 
                                      load_branch_cb, repo) < 0) {
         g_warning ("Error read branch for repo %s.\n", repo->id);
-        return NULL;
-    }
-
-    if (repo->is_corrupted) {
         seaf_repo_free (repo);
         return NULL;
     }
 
+    /* If repo head is set but failed to load branch or commit. */
+    if (repo->is_corrupted) {
+        seaf_repo_free (repo);
+        remove_repo_ondisk (manager, repo_id);
+        return NULL;
+    }
+
+    /* Repo head may be not set if it's just cloned but not checked out yet. */
     if (repo->head == NULL) {
         /* the repo do not have a head branch, try to load 'master' branch */
         SeafBranch *branch =
@@ -2453,12 +2460,20 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
              } else {
                  g_warning ("[repo-mgr] Can not find commit %s\n",
                             branch->commit_id);
+                 repo->is_corrupted = TRUE;
              }
 
              seaf_branch_unref (branch);
         } else {
             g_warning ("[repo-mgr] Failed to get branch master");
+            repo->is_corrupted = TRUE;
         }
+    }
+
+    if (repo->is_corrupted) {
+        seaf_repo_free (repo);
+        remove_repo_ondisk (manager, repo_id);
+        return NULL;
     }
 
     load_repo_passwd (manager, repo);
