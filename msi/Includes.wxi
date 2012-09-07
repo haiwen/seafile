@@ -10,7 +10,8 @@
   <!-- <?define ProductGuid="5D46888B-A960-4E37-9468-54EFB323610F" ?> (0.9.3) -->
   <!-- <?define ProductGuid="9ADCC6CF-41E8-4CB7-B48B-5CC87867DF20" ?> (0.9.4) -->
   <!-- <?define ProductGuid="137667A1-02F1-4BE3-9B1A-EC0B3DB23ED2" ?> (0.9.5) -->
-  <?define ProductGuid="DB1C9EB4-F629-43AE-8B46-F5596AC8B8F1" ?>
+  <!-- <?define ProductGuid="DB1C9EB4-F629-43AE-8B46-F5596AC8B8F1" ?> (1.0.0 beta) -->
+  <?define ProductGuid="A00383E1-F8CB-11E1-8F71-000C295059FB" ?>
 
   
 
