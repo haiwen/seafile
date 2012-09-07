@@ -376,13 +376,13 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
         seaf_repo_free (repo);
         return NULL;
     } else if (n == 0) {
-        g_warning ("Repo %.8s is corrupted.\n");
+        g_warning ("Repo %.8s is corrupted.\n", repo->id);
         seaf_repo_free (repo);
         return NULL;
     }
 
     if (repo->is_corrupted) {
-        g_warning ("Repo %.8s is corrupted.\n");
+        g_warning ("Repo %.8s is corrupted.\n", repo->id);
         seaf_repo_free (repo);
         return NULL;
     }

@@ -54,51 +54,6 @@ default_cb(evhtp_request_t *req, void *arg)
     evhtp_send_reply (req, EVHTP_RES_OK);
 }
 
-static void
-http_thread_init (evhtp_t * htp, evthr_t * thread, void * arg)
-{
-    HttpThreadData *aux = g_new0 (HttpThreadData, 1);
-    CcnetClient *client;
-    SearpcClient *rpc_client, *threaded_rpc_client;
-
-    /* Create rpc clients for each thread, so that the requests processed
-     * by each thread can share one rpc channel.
-     */
-
-    client = ccnet_client_new ();
-    if ((ccnet_client_load_confdir(client, config_dir)) < 0 ) {
-        g_warning ("Failed to load ccnet config.\n");
-        exit (1);
-    }
-
-    if (ccnet_client_connect_daemon(client, CCNET_CLIENT_SYNC) < 0) {
-        g_warning ("Connect to server failed\n");
-        exit (1);
-    }
-
-    rpc_client = ccnet_create_rpc_client (client, NULL,
-                                          "seafserv-rpcserver");
-    threaded_rpc_client = ccnet_create_rpc_client (
-         client, NULL, "seafserv-threaded-rpcserver");
-
-    aux->rpc_client = rpc_client;
-    aux->threaded_rpc_client = threaded_rpc_client;
-
-    evthr_set_aux (thread, aux);
-}
-
-HttpThreadData *
-http_request_thread_data (evhtp_request_t * request)
-{
-    evhtp_connection_t * htpconn;
-    evthr_t            * thread;
-
-    htpconn = evhtp_request_get_connection(request);
-    thread  = htpconn->thread;
-
-    return (HttpThreadData *)evthr_get_aux (thread);
-}
-
 int
 main(int argc, char *argv[])
 {
@@ -191,6 +146,8 @@ main(int argc, char *argv[])
     }
     seafile_session_init(seaf);
 
+    seaf->client_pool = ccnet_client_pool_new (config_dir);
+
     if (!debug_str)
         debug_str = g_getenv("SEAFILE_DEBUG");
     seafile_debug_set_flags_string (debug_str);
@@ -212,7 +169,7 @@ main(int argc, char *argv[])
     
     evhtp_set_gencb(htp, default_cb, NULL);
 
-    evhtp_use_threads(htp, http_thread_init, num_threads, NULL);
+    evhtp_use_threads(htp, NULL, num_threads, NULL);
 
     if (evhtp_bind_socket(htp, bind_addr, bind_port, 128) < 0) {
         g_warning ("Could not bind socket: %s\n", strerror(errno));

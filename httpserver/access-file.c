@@ -341,7 +341,7 @@ access_cb(evhtp_request_t *req, void *arg)
     const char *operation = NULL;
     const char *user = NULL;
 
-    HttpThreadData *aux;
+    SearpcClient *rpc_client = NULL;
     GError *err = NULL;
     char *repo_role = NULL;
     SeafileCryptKey *key = NULL;
@@ -353,10 +353,12 @@ access_cb(evhtp_request_t *req, void *arg)
     
     filename = req->uri->path->file;
 
-    aux = http_request_thread_data (req);
+    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                                 NULL,
+                                                 "seafserv-rpcserver");
 
     webaccess = (SeafileWebAccess *) searpc_client_call__object (
-        aux->rpc_client, "seafile_web_query_access_token", SEAFILE_TYPE_WEB_ACCESS,
+        rpc_client, "seafile_web_query_access_token", SEAFILE_TYPE_WEB_ACCESS,
         NULL, 1, "string", token);
     if (!webaccess) {
         error = "Bad access token";
@@ -376,7 +378,7 @@ access_cb(evhtp_request_t *req, void *arg)
 
     if (repo->encrypted) {
         err = NULL;
-        key = (SeafileCryptKey *) seafile_get_decrypt_key (aux->rpc_client,
+        key = (SeafileCryptKey *) seafile_get_decrypt_key (rpc_client,
                                                            repo_id, user, &err);
         if (!key) {
             error = "Repo is encrypted. Please provide password to view it.";
@@ -394,6 +396,8 @@ access_cb(evhtp_request_t *req, void *arg)
         goto bad_req;
     }
 
+    ccnet_rpc_client_free (rpc_client);
+
     seaf_repo_unref (repo);
     g_free (repo_role);
     if (key != NULL)
@@ -410,6 +414,9 @@ bad_req:
         g_object_unref (key);
     if (webaccess != NULL)
         g_object_unref (webaccess);
+
+    if (rpc_client)
+        ccnet_rpc_client_free (rpc_client);
 
     seaf_warning ("fetch failed: %s\n", error);
     evbuffer_add_printf(req->buffer_out, "%s\n", error);

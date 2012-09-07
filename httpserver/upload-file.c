@@ -244,7 +244,7 @@ static void
 upload_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
-    HttpThreadData *aux;
+    SearpcClient *rpc_client = NULL;
     struct stat st;
     char *parent_dir;
     char *unique_name;
@@ -278,9 +278,11 @@ upload_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    aux = http_request_thread_data (req);
+    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                                 NULL,
+                                                 "seafserv-threaded-rpcserver");
 
-    if (seafile_check_quota (aux->threaded_rpc_client, fsm->repo_id, NULL) < 0) {
+    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
         seaf_warning ("[upload] Out of quota.\n");
         error_code = ERROR_QUOTA;
         goto error;
@@ -293,7 +295,7 @@ upload_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    seafile_post_file (aux->threaded_rpc_client,
+    seafile_post_file (rpc_client,
                        fsm->repo_id,
                        fsm->tmp_file,
                        parent_dir,
@@ -311,11 +313,16 @@ upload_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
+    ccnet_rpc_client_free (rpc_client);
+
     /* Redirect to repo dir page after upload finishes. */
     redirect_to_success_page (req, fsm->repo_id, parent_dir);
     return;
 
 error:
+    if (rpc_client)
+        ccnet_rpc_client_free (rpc_client);
+
     redirect_to_upload_error (req, fsm->repo_id, parent_dir,
                               fsm->file_name, error_code);
 }
@@ -324,7 +331,7 @@ static void
 update_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
-    HttpThreadData *aux;
+    SearpcClient *rpc_client = NULL;
     struct stat st;
     char *target_file, *parent_dir = NULL, *filename = NULL;
     GError *error = NULL;
@@ -356,15 +363,17 @@ update_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    aux = http_request_thread_data (req);
+    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                                 NULL,
+                                                 "seafserv-threaded-rpcserver");
 
-    if (seafile_check_quota (aux->threaded_rpc_client, fsm->repo_id, NULL) < 0) {
+    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
         seaf_warning ("[upload] Out of quota.\n");
         error_code = ERROR_QUOTA;
         goto error;
     }
 
-    seafile_put_file (aux->threaded_rpc_client,
+    seafile_put_file (rpc_client,
                       fsm->repo_id,
                       fsm->tmp_file,
                       parent_dir,
@@ -379,6 +388,8 @@ update_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
+    ccnet_rpc_client_free (rpc_client);
+
     /* Redirect to repo dir page after upload finishes. */
     redirect_to_success_page (req, fsm->repo_id, parent_dir);
     g_free (parent_dir);
@@ -386,6 +397,9 @@ update_cb(evhtp_request_t *req, void *arg)
     return;
 
 error:
+    if (rpc_client)
+        ccnet_rpc_client_free (rpc_client);
+
     redirect_to_update_error (req, fsm->repo_id, target_file, error_code);
     g_free (parent_dir);
     g_free (filename);
@@ -844,7 +858,7 @@ get_progress_info (evhtp_request_t *req,
 static evhtp_res
 upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
 {
-    HttpThreadData *aux;
+    SearpcClient *rpc_client = NULL;
     char *token, *repo_id = NULL, *user = NULL;
     char *boundary = NULL;
     gint64 content_len;
@@ -861,9 +875,11 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
         goto err;
     }
 
-    aux = http_request_thread_data (req);
+    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                                 NULL,
+                                                 "seafserv-rpcserver");
 
-    if (check_access_token (aux->rpc_client, token, &repo_id, &user) < 0) {
+    if (check_access_token (rpc_client, token, &repo_id, &user) < 0) {
         seaf_warning ("[upload] Invalid token.\n");
         err_msg = "Access denied";
         goto err;
@@ -900,6 +916,8 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
     /* Set arg for upload_cb or update_cb. */
     req->cbarg = fsm;
 
+    ccnet_rpc_client_free (rpc_client);
+
     return EVHTP_RES_OK;
 
 err:
@@ -913,6 +931,9 @@ err:
     if (err_msg)
         evbuffer_add_printf (req->buffer_out, "%s\n", err_msg);
     evhtp_send_reply (req, EVHTP_RES_BADREQ);
+
+    if (rpc_client)
+        ccnet_rpc_client_free (rpc_client);
 
     g_free (repo_id);
     g_free (user);
@@ -947,7 +968,7 @@ upload_progress_cb(evhtp_request_t *req, void *arg)
     pthread_mutex_unlock (&pg_lock);
 
     if (!progress) {
-        seaf_warning ("[get pg] No progress found for %s.\n", progress_id);
+        /* seaf_warning ("[get pg] No progress found for %s.\n", progress_id); */
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
     }

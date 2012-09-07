@@ -16,6 +16,8 @@ struct _CcnetClient;
 
 typedef struct _SeafileSession SeafileSession;
 
+struct CcnetClientPool;
+
 struct _SeafileSession {
     struct _CcnetClient *session;
 
@@ -24,6 +26,8 @@ struct _SeafileSession {
     /* Config that's only loaded on start */
     GKeyFile            *config;
     SeafDB              *db;
+
+    struct CcnetClientPool     *client_pool;
 
     SeafBlockManager    *block_mgr;
     SeafFSManager       *fs_mgr;

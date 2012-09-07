@@ -1820,15 +1820,16 @@ check_repo_share_permission (SeafRepoManager *mgr,
                                              user_name) == 0)
         return TRUE;
 
-    rpc_client = ccnet_client_pool_create_rpc_client (seaf->client_pool,
-                                                      "ccnet-threaded-rpcserver");
+    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                                 NULL,
+                                                 "ccnet-threaded-rpcserver");
     if (!rpc_client)
         return FALSE;
 
     /* Get the groups this user belongs to. */
     groups = ccnet_get_groups_by_user (rpc_client, user_name);
 
-    ccnet_client_pool_free_rpc_client (seaf->client_pool, rpc_client);
+    ccnet_rpc_client_free (rpc_client);
 
     /* Get the groups this repo shared to. */
     repo_groups = seaf_repo_manager_get_groups_by_repo (mgr, repo_id, NULL);
@@ -1868,25 +1869,26 @@ check_org_repo_share_permission (SeafRepoManager *mgr,
     int group_id, repo_group_id;
     gboolean ret = FALSE;
 
-    rpc_client = ccnet_client_pool_create_rpc_client (seaf->client_pool,
-                                                      "ccnet-threaded-rpcserver");
+    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                                 NULL,
+                                                 "ccnet-threaded-rpcserver");
     if (!rpc_client)
         return FALSE;
 
     if (!ccnet_org_user_exists (rpc_client, org_id, user_name)) {
-        ccnet_client_pool_free_rpc_client (seaf->client_pool, rpc_client);
+        ccnet_rpc_client_free (rpc_client);
         return FALSE;
     }
 
     if (seaf_repo_manager_is_org_inner_pub_repo (mgr, org_id, repo_id)) {
-        ccnet_client_pool_free_rpc_client (seaf->client_pool, rpc_client);
+        ccnet_rpc_client_free (rpc_client);
         return TRUE;
     }
 
     /* Get the groups this user belongs to. */
     groups = ccnet_get_groups_by_user (rpc_client, user_name);
 
-    ccnet_client_pool_free_rpc_client (seaf->client_pool, rpc_client);
+    ccnet_rpc_client_free (rpc_client);
 
     /* Get the groups this repo shared to. */
     repo_groups = seaf_repo_manager_get_org_groups_by_repo (mgr,
@@ -2255,9 +2257,9 @@ update_repo_size(const char *repo_id)
     GError *error = NULL;
 
     if (strcmp(seaf->monitor_id, seaf->session->base.id) != 0) {
-        ccnet_rpc_client = ccnet_client_pool_create_rpc_client
-                                                (seaf->client_pool,
-                                                "ccnet-rpcserver");
+        ccnet_rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                                           NULL,
+                                                           "ccnet-rpcserver");
         if (!ccnet_rpc_client) {
             seaf_warning ("failed to create ccnet rpc client\n");
             goto out;
@@ -2268,9 +2270,9 @@ update_repo_size(const char *repo_id)
         }
     }
 
-    monitor_rpc_client = ccnet_client_pool_create_rpc_client (
-                                                seaf->client_pool,
-                                                "monitor-rpcserver");
+    monitor_rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                                         NULL,
+                                                         "monitor-rpcserver");
     if (!monitor_rpc_client) {
         seaf_warning ("failed to create monitor rpc client\n");
         goto out;
@@ -2286,9 +2288,9 @@ update_repo_size(const char *repo_id)
 
 out:
     if (ccnet_rpc_client)
-        ccnet_client_pool_free_rpc_client (seaf->client_pool, ccnet_rpc_client);
+        ccnet_rpc_client_free (ccnet_rpc_client);
     if (monitor_rpc_client)
-        ccnet_client_pool_free_rpc_client (seaf->client_pool, monitor_rpc_client);
+        ccnet_rpc_client_free (monitor_rpc_client);
 }
 
 int
