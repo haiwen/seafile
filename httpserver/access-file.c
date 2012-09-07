@@ -347,11 +347,16 @@ access_cb(evhtp_request_t *req, void *arg)
     SeafileCryptKey *key = NULL;
     SeafileWebAccess *webaccess = NULL;
 
-    token = req->uri->path->match_start;
-    *(token+strlen(token)-1) = '\0';	    /* cut out last '/' in token */
-    token += 7;                             /* cut out '/files/' at head */
-    
-    filename = req->uri->path->file;
+    /* Skip the first '/'. */
+    char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
+    if (!parts || g_strv_length (parts) < 3 ||
+        strcmp (parts[0], "files") != 0) {
+        error = "Invalid URL";
+        goto bad_req;
+    }
+
+    token = parts[1];
+    filename = parts[2];
 
     rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
                                                  NULL,
@@ -398,6 +403,7 @@ access_cb(evhtp_request_t *req, void *arg)
 
     ccnet_rpc_client_free (rpc_client);
 
+    g_strfreev (parts);
     seaf_repo_unref (repo);
     g_free (repo_role);
     if (key != NULL)
@@ -407,6 +413,7 @@ access_cb(evhtp_request_t *req, void *arg)
     return;
 
 bad_req:
+    g_strfreev (parts);
     if (repo != NULL)
         seaf_repo_unref (repo);
     g_free (repo_role);
