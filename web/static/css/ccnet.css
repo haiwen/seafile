@@ -2,7 +2,7 @@ body,div,h1,h2,h3,h4,h5,h6,p,ul,ol,li,blockquote,form,input,img { margin:0; padd
 ul { list-style:none; }
 ol { padding-left:2em; }
 img { border:none; }
-a { color:#ee8833; text-decoration:none; }
+a { color:#66f; text-decoration:none; }
 a:hover { color: #ff9933; text-decoration: underline; }
 blockquote { font-weight:bold; margin:0 2em; font-style:italic; }
 em {
@@ -10,8 +10,8 @@ em {
     font-weight:bold;
     margin:0 2px;
 }
-h2 { font-size:18px; color:#808; margin:10px 0 8px; }
-h3 { font-size:14px; color:#808; margin:10px 0 3px; font-weight:normal; }
+h2 { font-size:18px; color:#333; margin:10px 0 8px; }
+h3 { font-size:16px; color:#333; margin:10px 0 3px; font-weight:normal; }
 h4 { font-size:14px; color:#000; }
 h3 span { font-size:12px; color:#333; }
 ul { padding:4px 0 0 0; }
@@ -218,53 +218,6 @@ a.relay-link {
     padding: 5px 3px;
     color: #333;
 }
-#slides {
-    margin-top: 16px;
-    width:652px;
-    overflow:hidden;
-}
-.slides-container {
-    width:584px;
-}
-.slide {
-    width:578px;
-    height:432px;
-    border:3px solid #888;
-}
-#slides .prev,
-#slides .next {
-    margin-top:180px;
-}
-#slides .prev {
-    margin-right:10px;
-}
-#slides .next {
-    margin-left:10px;
-}
-#slides .pagination {
-    clear:both;
-    text-align:center;
-    padding-top:7px;
-    overflow:hidden;
-    margin-left:30px;
-}
-#slides .pagination li {
-    float:left;
-    width:12px;
-    margin: 0 2px;
-}
-#slides .pagination li a {
-    display:block;
-    height:0;
-    padding-top:12px;
-    overflow:hidden;
-    background:transparent url('/static/img/dots.jpg') no-repeat scroll left top;
-}
-#slides .pagination .current a {
-    background-position: left -12px;
-}
-a.repo-link { font-weight: bold; }
-a.opendir-link { color: #080; }
 p.table-desc { font-weight:bold; }
 #set-passwd-form { width: 400px; }
 .lsch {
@@ -440,7 +393,7 @@ span.repo-worktree {
 }
 /* history browse page */
 p.history-author { color: #666; margin-bottom: 10px; }
-
+p.history-link { margin-top:6px; }
 /* repo create page */
 #repo-base,
 #repo-desc {
@@ -452,20 +405,3 @@ p.history-author { color: #666; margin-bottom: 10px; }
 #repo-desc {
     height:72px;
 }
-/*pubrepos*/
-#id_token {
-    padding-left:2px;
-    width:240px;
-    margin-bottom:8px;
-}
-.repo-item {
-    width:545px;
-    padding:4px 0;
-    border-bottom:1px dashed #ccc;
-    margin-bottom:10px;
-    overflow:hidden;
-}
-.repo-item .item-body { width:485px; }
-.repo-item .repo-name { font-weight:bold; margin:0; }
-
-p.tip { margin-bottom:10px; }

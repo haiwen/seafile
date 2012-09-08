@@ -4,6 +4,11 @@
 %>
 
 <%def name="left_panel()">
+<h3>${_("Navigation")}</h3>
+<ul>
+    <li><a href="/" id="back">${_("All Repos")}</a></li>
+</ul>
+</h3>
 <h3>${_("Operations")}</h3>
 <ul>
     % if relay and relay.props.service_url:
@@ -96,7 +101,9 @@
     </tr>
     % endfor
 </table>
-<a href="/repo/history/?repo=${repo.props.id}">${_("All changes history")}</a>
+<p class="history-link">
+    <a href="/repo/history/?repo=${repo.props.id}">${_("All changes history")}</a>
+</p>
 
 <!-- hidden content -->
 <div id="ls-ch" class="hide"></div><!--list modification details of a commit-->
