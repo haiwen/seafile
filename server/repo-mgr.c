@@ -774,7 +774,8 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
             sql = "CREATE TABLE IF NOT EXISTS OrgRepo (org_id INTEGER, "
                 "repo_id CHAR(37), "
                 "user VARCHAR(255), "
-                "INDEX (org_id, repo_id), UNIQUE INDEX (repo_id))";
+                "INDEX (org_id, repo_id), UNIQUE INDEX (repo_id), "
+                "INDEX (org_id, user))";
             if (seaf_db_query (db, sql) < 0)
                 return -1;
 
@@ -826,12 +827,12 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
         if (seaf_db_query (db, sql) < 0)
             return -1;
 
-        sql = "CREATE INDEX IF NOT EXISTS repoid_index on "
+        sql = "CREATE INDEX IF NOT EXISTS repogroup_repoid_index on "
             "RepoGroup (repo_id)";
         if (seaf_db_query (db, sql) < 0)
             return -1;
 
-        sql = "CREATE INDEX IF NOT EXISTS username_indx on "
+        sql = "CREATE INDEX IF NOT EXISTS repogroup_username_indx on "
             "RepoGroup (user_name)";
         if (seaf_db_query (db, sql) < 0)
             return -1;
@@ -863,6 +864,11 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
             if (seaf_db_query (db, sql) < 0)
                 return -1;
 
+            sql = "CREATE INDEX IF NOT EXISTS orgrepo_orgid_user_indx on "
+                "OrgRepo (org_id, user)";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+            
             /* Org group repo */
 
             sql = "CREATE TABLE IF NOT EXISTS OrgGroupRepo ("
