@@ -89,30 +89,3 @@
 </table>
 % endif
 </%def>
-
-<%def name="js()">
-<script type="text/javascript">
-% if len(repos) == 0:
-var slides = '',
-    slide_name = '';
-for (var i = 1; i <= 4; i++) { 
-    if (i < 10) {
-        slide_name = '0' + i;
-    } else {
-        slide_name = i;
-    }
-    slides += '<img src="http://www.seafile.com/media/img/tutorial/client/' + slide_name + '.png" alt="" class="slide" />';
-}
-$('.slides-container').html(slides);
-
-$('#slides').slides({
-    preload: true,
-    container: 'slides-container',
-    preloadImage: '/static/img/icon_loading.gif',
-    play: 0,//stop auto play
-    pause: 2500,
-    hoverPause: true
-});
-% endif
-</script>
-</%def>
