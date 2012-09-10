@@ -22,6 +22,10 @@ How to build seafile Windows MSI installer
 
 * ./dll2pyd.sh; ./setupwin.sh /c/pack
 
+* strip files for reduce size:
+
+    cd /c/pack; python strip-files.py
+
 * Compile msi using Wix:
 
     cd /c/pack; make fragment.wxs; <Edit fragment.wxs> ; make ;

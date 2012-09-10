@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Include Id="SeafileInclude">
-  <?define CurrentSeafileVersion="1.0.0" ?> <!-- beta -->
+  <?define CurrentSeafileVersion="1.0.1" ?> <!-- 1.0.0 has used for the beta version -->
   <?define Manufacturer="海文互知" ?>
   
   <!-- Update Guid 不能变 -->

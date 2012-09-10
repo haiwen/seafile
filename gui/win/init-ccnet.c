@@ -13,6 +13,7 @@
 #include "trayicon.h"
 #include <commdlg.h>
 #include <ShlObj.h>
+#include <shlwapi.h>
 
 #include "utils.h"
 #include "ccnet-init.h"
@@ -21,13 +22,9 @@
 #include "seafile-applet.h"
 #include "applet-log.h"
 
-#define SEAHUB_OFFICIAL_REGISTER_ADDR "http://cloud.seafile.com.cn/accounts/register"
-
 #define INIT_CCNET_SUCCESS  0
 #define INIT_CCNET_FAILED   -1
 
-#define ENABLE_CONTROL(name) EnableWindow (GetDlgItem(hDlg, (name)), TRUE)
-#define DISABLE_CONTROL(name) EnableWindow (GetDlgItem(hDlg, (name)), FALSE)
 #define IS_DLG_CONTROL(ID)   ((HWND)(lParam) == GetDlgItem(hDlg, (ID)))
 
 static const char *error_str[] =
@@ -222,8 +219,7 @@ set_seafdir_attributes ()
         goto out;
     }
 
-    icon_path = g_build_filename (seafile_bin_dir, "icons",
-                                  "seafdir.ico", NULL);
+    icon_path = g_build_filename (seafile_bin_dir, "seafdir.ico", NULL);
 
     /* Replace all / with \ */
     char *ptr = icon_path;
@@ -253,6 +249,37 @@ out:
     g_free (icon_path);
     g_free (locale_icon_path);
 
+}
+
+extern char *seafile_bin_dir;
+
+/* Copy manual from install dir to Seafile directory */
+void
+copy_user_manual()
+{
+    char installdir[MAX_PATH];
+    char *seafdir;              /* like C:\\Seafile */
+    char src_path[MAX_PATH];
+    char dst_path[MAX_PATH];
+
+    g_strlcpy(installdir, seafile_bin_dir, sizeof(installdir));
+    PathRemoveBackslash(installdir);
+    PathRemoveFileSpec(installdir);
+
+    seafdir = g_path_get_dirname (applet->seafile_dir);
+    PathRemoveBackslash(seafdir);
+
+    snprintf (src_path, sizeof(src_path),
+              "%s\\%s", installdir, S_USER_MANUAL_FILENAME);
+
+    snprintf (dst_path, sizeof(dst_path),
+              "%s\\%s", seafdir, S_USER_MANUAL_FILENAME);
+    
+    /* Skip if already exist */
+    BOOL failIfExist = TRUE;
+    CopyFile(src_path, dst_path, failIfExist);
+
+    g_free (seafdir);
 }
 
 static BOOL CALLBACK

@@ -107,6 +107,10 @@ init_ccnet ()
     g_free (config_file);
 }
 
+#ifdef WIN32
+extern void copy_user_manual();
+#endif    
+
 static void
 init_seafile ()
 {
@@ -120,6 +124,10 @@ init_seafile ()
         else 
             save_seafile_dir();
     }
+
+#ifdef WIN32
+    copy_user_manual();
+#endif    
 
 #ifndef __APPLE__
     char *parent_dir = g_path_get_dirname (applet->seafile_dir);

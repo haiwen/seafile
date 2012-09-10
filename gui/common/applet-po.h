@@ -93,4 +93,6 @@
 
 #define S_SEAFILE_APPLET_ALREAD_RUNNING "Seafile 已经在运行中"
 
+#define S_USER_MANUAL_FILENAME "Seafile使用帮助.txt"
+
 #endif

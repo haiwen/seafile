@@ -2,7 +2,7 @@
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
   <?include Includes.wxi?>
   <Product Id="$(var.ProductGuid)"
-           Name='Seafile $(var.CurrentSeafileVersion)'
+           Name='Seafile 1.0.0'
            Language='1033'
            Version='$(var.CurrentSeafileVersion)'
            Manufacturer='$(var.Manufacturer)'
@@ -39,6 +39,8 @@
                 <RegistryValue Name="CustomComponent" Value="1" Type="integer" KeyPath='yes' />
               </RegistryKey>
               
+              <File Id="seafdir.ico" Name="seafdir.ico" Source="seafdir.ico" />
+              
               <!-- seafile shortcut on desktop -->
               <Shortcut Id="ApplicationDesktopShortCut" Directory="DesktopFolder"
                         Name="Seafile" Target="[#seafileapplet.exe]"
@@ -67,11 +69,6 @@
         <Shortcut Id="UninstallProduct" Name="删除 Seafile"
                   Target="[SystemFolder]msiexec.exe" IconIndex="0"
                   Arguments="/x [ProductCode]" Description="删除 Seafile" />
-
-        <Shortcut Id="ManualShortCut"
-                  Name="Seafile 使用帮助.txt" Target="[#manual.txt]"
-                  Hotkey="0" IconIndex="0" Show="normal"
-                  WorkingDirectory="bin_Dir" />
       </Component>
     </DirectoryRef>
 
