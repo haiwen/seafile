@@ -158,7 +158,7 @@ a.button { text-decoration: underline; color:#800; }
 #nav a, #nav a:visited { color:#8A948F; }
 #nav a.cur { color:#000; }
 #nav a:hover { color:#ff9933;}
-#nav li #client-note { color: #808; width: 160px; }
+#nav li #client-note { color: #DD4B39; width: 160px; }
 /* main */
 #main {
 	min-height:450px;
