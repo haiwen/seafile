@@ -137,7 +137,7 @@ start_seaf_server ()
         NULL};
 
     if (!ctl->cloud_mode) {
-        argv[6] = NULL;
+        argv[7] = NULL;
     }
     
     int pid = spawn_process (argv);
@@ -247,8 +247,8 @@ read_pid_from_pidfile (const char *pidfile)
 {
     FILE *pf = fopen (pidfile, "r");
     if (!pf) {
-        seaf_warning ("failed to open pidfile %s:%s\n",
-                      pidfile, strerror(errno));
+        g_debug ("failed to open pidfile %s:%s\n",
+                 pidfile, strerror(errno));
         return -1;
     }
 
