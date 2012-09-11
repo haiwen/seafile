@@ -10,11 +10,10 @@ em {
     font-weight:bold;
     margin:0 2px;
 }
-h2 { font-size:18px; color:#333; margin:10px 0 8px; }
-h3 { font-size:16px; color:#333; margin:10px 0 3px; font-weight:normal; }
+h2 { font-size:18px; color:#333; margin:0.95em 0 0.4em; }
+h3 { font-size:16px; color:#333; margin:0.95em 0 0.4em; font-weight:normal; }
 h4 { font-size:14px; color:#000; }
 h3 span { font-size:12px; color:#333; }
-ul { padding:4px 0 0 0; }
 p.info { color:#606 }
 table { 
     border-collapse:collapse;
@@ -237,7 +236,7 @@ p.table-desc { font-weight:bold; }
     padding:0 0 6px 0;
 }
 .basic-info {
-    margin:-3px 0 20px;
+    margin:0px 0 20px;
 }
 .basic-info .repo-desc { 
     color: #222;
@@ -305,7 +304,6 @@ p.table-desc { font-weight:bold; }
     height:18px;
 }
 a.detail-link { color:#666; }
-ul.home-op-list { margin-top: 10px; }
 .dir-list { 
     width: 500px; 
     margin-top:3px;
