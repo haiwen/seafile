@@ -12,10 +12,7 @@ if (!lo) {
         }
     }
 }
-/**
- *display the current user or group on the left-panel of /msgs
- *by lingjun on 2011-6-8
- */
+// display the current user or group on the left-panel of /msgs
 if (g('user-and-group')) {
     var user_and_group = g('user-and-group').getElementsByTagName('a');
     for (var i = 0; i < user_and_group.length; i++) {
@@ -26,11 +23,7 @@ if (g('user-and-group')) {
     }
 }
 
-/**
- *name:location_search
- *result:以{参数名：参数值，参数名：参数值，...}形式返回页面url中的参数信息
- *by lingjun on 2011-7-3
- */
+// result:以{参数名：参数值，参数名：参数值，...}形式返回页面url中的参数信息
 function location_search() {
     var arr = location.search.substring(1).split('&');
     var new_search = {};
@@ -40,9 +33,13 @@ function location_search() {
     }
     return new_search;
 }
-//for tables
-$(function() {
-    $("table tr:nth-child(even)").addClass("even");
-    $("table tr:nth-child(odd)").addClass("odd");
-    $("table tr th").parent().removeClass("odd");
-})
+
+//highlight the tr when mouse hover on it
+$("table tr:gt(0)").hover(
+    function() {
+        $(this).addClass('hl');
+    },  
+    function() {
+        $(this).removeClass('hl');
+    }   
+);

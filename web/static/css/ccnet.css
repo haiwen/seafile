@@ -26,6 +26,7 @@ table {
 th, td { text-align:left; padding: 5px 0px; }
 .state-con th, .state-con td { padding:0 5px; }
 tr { border-bottom: 1px solid #eee; }
+tr.hl { background-color: #f8f8f8; }/*highlight*/
 th { color: #333; }
 td { word-wrap:break-word; }
 /* input button */
