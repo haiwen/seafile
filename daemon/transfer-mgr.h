@@ -31,7 +31,6 @@ enum {
  */
 enum TaskState {
     TASK_STATE_NORMAL = 0,
-    TASK_STATE_STOPPED,         /* deprecated, not used. */
     TASK_STATE_CANCELED,
     TASK_STATE_FINISHED,
     TASK_STATE_ERROR,
@@ -159,12 +158,6 @@ SeafTransferManager *seaf_transfer_manager_new (struct _SeafileSession *seaf);
 
 int seaf_transfer_manager_start (SeafTransferManager *manager);
 
-/*
- * @token: If @token is not NULL, it'll be used for this download.
- *         If @token is NULL, the repo should exists locally and we'll use
- *         the old token for download.
- *         Usually, @token is non-NULL only for the first download.
- */
 char *
 seaf_transfer_manager_add_download (SeafTransferManager *manager,
                                     const char *repo_id,
@@ -188,16 +181,6 @@ seaf_transfer_manager_get_upload_tasks (SeafTransferManager *manager);
 
 GList*
 seaf_transfer_manager_get_download_tasks (SeafTransferManager *manager);
-
-gboolean
-seaf_transfer_manager_is_in_transfer (SeafTransferManager *manager,
-                                      const char *repo_id);
-
-TransferTask*
-seaf_transfer_manager_find_transfer (SeafTransferManager *manager,
-                                     const char *tx_id,
-                                     int task_type);
-
 
 /* find running tranfer of a repo */
 TransferTask*

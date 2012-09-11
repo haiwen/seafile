@@ -123,6 +123,7 @@ start (CcnetProcessor *processor, int argc, char **argv)
     GString *buf;
 
     if (argc != 1) {
+        transition_state_to_error (task, TASK_ERR_CHECK_UPLOAD_START);
         ccnet_processor_done (processor, FALSE);
         return -1;
     }
@@ -135,6 +136,7 @@ start (CcnetProcessor *processor, int argc, char **argv)
 
     enc_token = encrypt_token (processor, task->token);
     if (!enc_token) {
+        transition_state_to_error (task, TASK_ERR_CHECK_UPLOAD_START);
         ccnet_processor_done (processor, FALSE);
         return -1;
     }

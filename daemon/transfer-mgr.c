@@ -57,13 +57,12 @@ static void state_machine_tick (TransferTask *task);
 /**
  * transfer task states:
  *
- *          INIT        COMMIT      FS      DATA        FINISHED
- * -------------------------------------------------------------
- * NORMAL   1           2           3       4           x
- * STOPPED  x           5           6       7           8
- * CANCELED x           9           10      11          12
- * FINISHED x           x           x       x           13
- * ERROR    x           x           x       x           14
+ *          INIT        COMMIT      FS      DATA        FINISHED   NETDOWN
+ * ------------------------------------------------------------------------
+ * NORMAL   1           2           3       4           x          15
+ * CANCELED x           9           10      11          12         x
+ * FINISHED x           x           x       x           13         x
+ * ERROR    x           x           x       x           14         x
  *
  * state transitions:
  * Event                                        Transition
@@ -73,24 +72,26 @@ static void state_machine_tick (TransferTask *task);
  * start block tx                               3 --> 4
  * complete block tx                            4 --> 13
  *
- * user stop task                               2 --> 5, 3 --> 6, 4 --> 7
- * user cancel task                             2 --> 9, 3 --> 10, 4 --> 11
+ * user cancel task                             2 --> 9, 3 --> 10,
+ *                                              4 --> 11, 15 -->12
  * 
- * on_commit_uploaded(),                        5 --> 8, 9 --> 12
+ * on_commit_uploaded(),                        
  * on_commit_downloaded()
- * checks task stopped/canceled
+ * checks task canceled                         9 --> 12
+ * if connection lost                           9 --> 15
  *
- * on_fs_uploaded(),                            6 --> 8, 10 --> 12
+ * on_fs_uploaded(),                            
  * on_fs_downloaded()
- * checks task stopped/canceled
+ * checks task canceled                         10 --> 12
+ * if connection lost                           10 --> 15
  *
  * state_machine_tick()     
- * checks task stopped/canceled in DATA state   7 --> 8, 11 --> 12
+ * checks task canceled in DATA state           11 --> 12
  *
  * error in COMMIT or FS state                  --> 14
  *
- *
  * User can remove a task only when its runtime state is 'FINISHED'.
+ * User can cancel a task only when its state is 'NORMAL'.
  */
 
 /*
@@ -99,7 +100,6 @@ static void state_machine_tick (TransferTask *task);
 
 static const char *transfer_task_state_str[] = {
     "normal",
-    "stopped",
     "canceled",
     "finished",
     "error",
@@ -248,20 +248,6 @@ transfer_task_get_rate (TransferTask *task)
     return rate;
 }
 
-#if 0
-static void
-collect_new_blocks (void *data, const char *block_id)
-{
-    BlockList *bl = data;
-
-    if (g_hash_table_lookup (bl->block_hash, block_id) != NULL)
-        return;
-
-    if (!seaf_block_manager_block_exists (seaf->block_mgr, block_id))
-        block_list_insert (bl, block_id);
-}
-#endif
-
 static BlockList *
 load_blocklist_with_local_history (TransferTask *task)
 {
@@ -392,14 +378,6 @@ static int remove_task_state (TransferTask *task)
     return 0;
 }
 
-/* state can be NORMAL, STOPPED, CANCELED, FINISHED, ERROR */
-static int save_task_state (TransferTask *task, int state)
-{
-    task->state = state;
-
-    return 0;
-}
-
 static void
 save_clone_head (TransferTask *task, const char *head_id)
 {
@@ -457,11 +435,7 @@ transition_state (TransferTask *task, int state, int rt_state)
 
     task->last_runtime_state = task->runtime_state;
 
-    /* if (state == TASK_STATE_FINISHED || state == TASK_STATE_ERROR) */
-    /*     clean_error_tasks_for_repo (task->manager, task->repo_id, task->type); */
-
     if (rt_state == TASK_RT_STATE_FINISHED) {
-        /* remove done task from disk db but leave in memory */
         remove_task_state (task);
         task->state = state;
         task->runtime_state = rt_state;
@@ -472,7 +446,7 @@ transition_state (TransferTask *task, int state, int rt_state)
     }
 
     if (state != task->state)
-        save_task_state (task, state);
+        task->state = state;
     task->runtime_state = rt_state;
 }
 
@@ -489,10 +463,6 @@ transition_state_to_error (TransferTask *task, int task_errno)
 
     task->last_runtime_state = task->runtime_state;
 
-    /* Remove previous error tasks before setting this one to error state. */
-    /* clean_error_tasks_for_repo (task->manager, task->repo_id, task->type); */
-
-    /* remove error task from db but leave in memory */
     remove_task_state (task);
 
     g_assert (task_errno != 0);
@@ -722,34 +692,6 @@ clean_tasks_for_repo (SeafTransferManager *manager,
                                  remove_task_help, (gpointer)repo_id);
 }
 
-gboolean
-seaf_transfer_manager_is_in_transfer (SeafTransferManager *manager,
-                                      const char *repo_id)
-{
-    GHashTableIter iter;
-    gpointer key, value;
-    TransferTask *task;
-
-    g_hash_table_iter_init (&iter, manager->download_tasks);
-    while (g_hash_table_iter_next (&iter, &key, &value)) {
-        task = value;
-        if (strcmp(task->repo_id, repo_id) == 0 &&
-            task->state == TASK_STATE_NORMAL)
-            return TRUE;
-    }
-
-    g_hash_table_iter_init (&iter, manager->upload_tasks);
-    while (g_hash_table_iter_next (&iter, &key, &value)) {
-        task = value;
-        if (strcmp(task->repo_id, repo_id) == 0 &&
-            task->state == TASK_STATE_NORMAL)
-            return TRUE;
-    }
-
-    return FALSE;
-}
-
-
 char *
 seaf_transfer_manager_add_download (SeafTransferManager *manager,
                                     const char *repo_id,
@@ -824,18 +766,6 @@ seaf_transfer_manager_add_upload (SeafTransferManager *manager,
     return g_strdup(task->tx_id);
 }
 
-TransferTask *
-seaf_transfer_manager_find_transfer (SeafTransferManager *manager,
-                                     const char *tx_id,
-                                     int task_type)
-{
-    if (task_type == TASK_TYPE_DOWNLOAD)
-        return g_hash_table_lookup (manager->download_tasks, tx_id);
-    else
-        return g_hash_table_lookup (manager->upload_tasks, tx_id);
-}
-
-
 /* find running tranfer of a repo */
 TransferTask*
 seaf_transfer_manager_find_transfer_by_repo (SeafTransferManager *manager,
@@ -868,8 +798,6 @@ seaf_transfer_manager_find_transfer_by_repo (SeafTransferManager *manager,
 static void
 remove_task(SeafTransferManager *manager, TransferTask *task)
 {
-    /* On-disk state has been removed in transition_state(). */
-
     if (task->type == TASK_TYPE_DOWNLOAD) {
         g_hash_table_remove (manager->download_tasks, task->tx_id);
     } else {
@@ -903,11 +831,15 @@ seaf_transfer_manager_remove_task (SeafTransferManager *manager,
 static void
 cancel_task (TransferTask *task)
 {
-    /*
-     * Only transition state, not runtime state.
-     * Runtime state transition is handled asynchronously.
-     */
-    transition_state (task, TASK_STATE_CANCELED, task->runtime_state);
+    if (task->runtime_state == TASK_RT_STATE_NETDOWN) {
+        transition_state (task, TASK_STATE_CANCELED, TASK_RT_STATE_FINISHED);
+    } else {
+        /*
+         * Only transition state, not runtime state.
+         * Runtime state transition is handled asynchronously.
+         */
+        transition_state (task, TASK_STATE_CANCELED, task->runtime_state);
+    }
 }
 
 void
@@ -925,8 +857,7 @@ seaf_transfer_manager_cancel_task (SeafTransferManager *manager,
     if (!task)
         return;
 
-    if (task->state != TASK_STATE_NORMAL && 
-        task->state != TASK_STATE_STOPPED) {
+    if (task->state != TASK_STATE_NORMAL) {
         seaf_warning ("Task cannot be canceled!\n");
         return;
     }
@@ -1241,8 +1172,7 @@ on_fs_downloaded (CcnetProcessor *processor, gboolean success, void *data)
 
     /* if the user stopped or canceled this task, stop processing. */
     /* state #6, #10 */
-    if (task->state == TASK_STATE_STOPPED ||
-        task->state == TASK_STATE_CANCELED) {
+    if (task->state == TASK_STATE_CANCELED) {
         transition_state (task, task->state, TASK_RT_STATE_FINISHED);
         goto out;
     }
@@ -1300,8 +1230,7 @@ on_commit_downloaded (CcnetProcessor *processor, gboolean success, void *data)
 
     /* if the user stopped or canceled this task, stop processing. */
     /* state #5, #9 */
-    if (task->state == TASK_STATE_STOPPED ||
-        task->state == TASK_STATE_CANCELED) {
+    if (task->state == TASK_STATE_CANCELED) {
         transition_state (task, task->state, TASK_RT_STATE_FINISHED);
         goto out;
     }
@@ -1347,8 +1276,7 @@ check_download_cb (CcnetProcessor *processor, gboolean success, void *data)
 
     /* if the user stopped or canceled this task, stop processing. */
     /* state #5, #9 */
-    if (task->state == TASK_STATE_STOPPED ||
-        task->state == TASK_STATE_CANCELED) {
+    if (task->state == TASK_STATE_CANCELED) {
         transition_state (task, task->state, TASK_RT_STATE_FINISHED);
         goto out;
     }
@@ -1398,7 +1326,6 @@ start_download (TransferTask *task)
     ((SeafileCheckTxV2Proc *)processor)->task = task;
     if (ccnet_processor_startl (processor, "download", NULL) < 0) {
         seaf_warning ("failed to start check-tx proc for download.\n");
-        transition_state_to_error (task, TASK_ERR_CHECK_DOWNLOAD_START);
         return -1;
     }
 
@@ -1608,8 +1535,7 @@ on_fs_uploaded (CcnetProcessor *processor, gboolean success, void *data)
 
     /* if the user stopped or canceled this task, stop processing. */
     /* state #6, #10 */
-    if (task->state == TASK_STATE_STOPPED ||
-        task->state == TASK_STATE_CANCELED) {
+    if (task->state == TASK_STATE_CANCELED) {
         transition_state (task, task->state, TASK_RT_STATE_FINISHED);
         goto out;
     }
@@ -1664,8 +1590,7 @@ on_commit_uploaded (CcnetProcessor *processor, gboolean success, void *data)
 
     /* if the user stopped or canceled this task, stop processing. */
     /* state #5, #9 */
-    if (task->state == TASK_STATE_STOPPED ||
-        task->state == TASK_STATE_CANCELED) {
+    if (task->state == TASK_STATE_CANCELED) {
         transition_state (task, task->state, TASK_RT_STATE_FINISHED);
         goto out;
     }
@@ -1704,8 +1629,7 @@ check_upload_cb (CcnetProcessor *processor, gboolean success, void *data)
 
     /* if the user stopped or canceled this task, stop processing. */
     /* state #5, #9 */
-    if (task->state == TASK_STATE_STOPPED ||
-        task->state == TASK_STATE_CANCELED) {
+    if (task->state == TASK_STATE_CANCELED) {
         transition_state (task, task->state, TASK_RT_STATE_FINISHED);
         goto out;
     }
@@ -2087,23 +2011,13 @@ state_machine_tick (TransferTask *task)
         /* state #13 */
         g_assert (task->runtime_state == TASK_RT_STATE_FINISHED);
         break;
-    case TASK_STATE_STOPPED:
-        /* state #7 */
-        if (task->runtime_state == TASK_RT_STATE_DATA)
-            {
-                free_task_resources (task);
-                /* transition to state #8 */
-                transition_state (task, TASK_STATE_STOPPED, TASK_RT_STATE_FINISHED);
-            }
-        break;
     case TASK_STATE_CANCELED:
         /* state #11 */
-        if (task->runtime_state == TASK_RT_STATE_DATA)
-            {
-                free_task_resources (task);
-                /* transition to state #12 */
-                transition_state (task, TASK_STATE_CANCELED, TASK_RT_STATE_FINISHED);
-            }
+        if (task->runtime_state == TASK_RT_STATE_DATA) {
+            free_task_resources (task);
+            /* transition to state #12 */
+            transition_state (task, TASK_STATE_CANCELED, TASK_RT_STATE_FINISHED);
+        }
         break;
     case TASK_STATE_ERROR:
         /* state #14 */
