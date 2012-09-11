@@ -361,13 +361,15 @@ static int
 add_recursive (struct index_state *istate, 
                const char *worktree,
                const char *path,
-               SeafileCrypt *crypt)
+               SeafileCrypt *crypt,
+               gboolean ignore_empty_dir)
 {
     char *full_path;
     GDir *dir;
     const char *dname;
     char *subpath;
     struct stat st;
+    int n;
 
     if (has_trailing_space (path)) {
         /* Ignore files/dir whose path has trailing spaces. It would cause
@@ -398,12 +400,15 @@ add_recursive (struct index_state *istate,
         }
 
         errno = 0;
+        n = 0;
         while ((dname = g_dir_read_name(dir)) != NULL) {
             if (should_ignore(dname, NULL))
                 continue;
 
+            ++n;
+
             subpath = g_build_path (PATH_SEPERATOR, path, dname, NULL);
-            add_recursive (istate, worktree, subpath, crypt);
+            add_recursive (istate, worktree, subpath, crypt, ignore_empty_dir);
             g_free (subpath);
         }
         g_dir_close (dir);
@@ -412,10 +417,10 @@ add_recursive (struct index_state *istate,
             goto bad;
         }
 
-        /* if (n == 0) { */
-        /*     g_debug ("Adding empty dir %s\n", path); */
-        /*     add_empty_dir_to_index (istate, path); */
-        /* } */
+        if (n == 0 && !ignore_empty_dir) {
+            g_debug ("Adding empty dir %s\n", path);
+            add_empty_dir_to_index (istate, path);
+        }
     }
 
     g_free (full_path);
@@ -521,7 +526,7 @@ seaf_repo_index_add (SeafRepo *repo, const char *path)
         crypt = seafile_crypt_new (repo->enc_version, repo->enc_key, repo->enc_iv);
     }
 
-    if (add_recursive (&istate, repo->worktree, path, crypt) < 0)
+    if (add_recursive (&istate, repo->worktree, path, crypt, TRUE) < 0)
         goto error;
 
     remove_deleted (&istate, repo->worktree, path);
@@ -576,7 +581,10 @@ seaf_repo_index_worktree_files (const char *repo_id,
         crypt = seafile_crypt_new (1, key, iv);
     }
 
-    if (add_recursive (&istate, worktree, "", crypt) < 0)
+    /* Add empty dir to index. Otherwise if the repo on relay contains an empty
+     * dir, we'll fail to detect fast-forward relationship later.
+     */
+    if (add_recursive (&istate, worktree, "", crypt, FALSE) < 0)
         goto error;
 
     remove_deleted (&istate, worktree, "");

@@ -970,7 +970,12 @@ real_merge (SeafRepo *repo, SeafCommit *head, CloneTask *task)
                      &clean, &root_id);
     g_free (root_id);
 
-    /* We only update the worktree, but don't update index and commit.
+    if (update_index (&istate, index_path) < 0) {
+        seaf_warning ("Failed to update index.\n");
+        return -1;
+    }
+
+    /* We only update the worktree and index, but don't commit.
      * The next auto-commit cycle will check and do that for us.
      */
 
@@ -1035,6 +1040,10 @@ fast_forward_checkout (SeafRepo *repo, SeafCommit *head, CloneTask *task)
 
     discard_index (&istate);
     istate = topts.result;
+
+    if (update_index (&istate, index_path) < 0) {
+        seaf_warning ("Failed to update index.\n");
+    }
 
 out:
     tree_desc_free (&trees[0]);
