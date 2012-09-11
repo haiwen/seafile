@@ -104,7 +104,7 @@ if ! mkdir -p "${usermgr_db_dir}" 2>/dev/null 1>&2 ; then
     err_and_quit;
 fi
 
-sql="CREATE TABLE IF NOT EXISTS EmailUser (id INTEGER NOT NULL PRIMARY KEY, email TEXT, passwd TEXT, is_staff bool NOT NULL, is_active bool NOT NULL, ctime INTEGER)";
+sql="CREATE TABLE IF NOT EXISTS EmailUser (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, email TEXT, passwd TEXT, is_staff bool NOT NULL, is_active bool NOT NULL, ctime INTEGER)";
 
 if ! sqlite3 "${usermgr_db}" "${sql}" ; then
     rm -f "${usermgr_db}"

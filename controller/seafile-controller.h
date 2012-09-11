@@ -48,6 +48,8 @@ struct _SeafileController {
 
     guint               hearbeat_timer;
     guint               client_io_id; 
+    /* Decide whether to start seaf-server in cloud mode  */
+    gboolean            cloud_mode;
 
     time_t              last_hb[N_HEARTBEAT];
     int                 pid[N_PID];

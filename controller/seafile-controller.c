@@ -30,6 +30,7 @@ static const struct option long_opts[] = {
     { "config-dir", required_argument, NULL, 'c', },
     { "seafile-dir", required_argument, NULL, 'd', },
     { "logfile", required_argument, NULL, 'l', },
+    { "cloud-mode", no_argument, NULL, 'C', },
     { "ccnet-debug-level", required_argument, NULL, 'g' },
     { "seafile-debug-level", required_argument, NULL, 'G' },
 };
@@ -49,8 +50,6 @@ controller_exit (int code)
 static int
 spawn_process (char *argv[])
 {
-    pid_t pid = fork();
-
     char **ptr = argv;
     GString *buf = g_string_new(argv[0]);
     while (*(++ptr)) {
@@ -58,6 +57,8 @@ spawn_process (char *argv[])
     }
     seaf_message ("spawn_process: %s\n", buf->str);
     g_string_free (buf, TRUE);
+
+    pid_t pid = fork();
 
     if (pid == 0) {
         /* child process */
@@ -132,7 +133,12 @@ start_seaf_server ()
         "-c", ctl->config_dir,
         "-d", ctl->seafile_dir,
         "-P", ctl->pidfile[PID_SERVER],
+        "-C",
         NULL};
+
+    if (!ctl->cloud_mode) {
+        argv[6] = NULL;
+    }
     
     int pid = spawn_process (argv);
     if (pid <= 0) {
@@ -466,7 +472,8 @@ init_pidfile_path (SeafileController *ctl)
 
 static int
 seaf_controller_init (SeafileController *ctl, char *bin_dir,
-                      char *config_dir, char *seafile_dir)
+                      char *config_dir, char *seafile_dir,
+                      gboolean cloud_mode)
 {
     if (bin_dir) {
         if (!g_file_test (bin_dir, G_FILE_TEST_IS_DIR)) {
@@ -501,6 +508,7 @@ seaf_controller_init (SeafileController *ctl, char *bin_dir,
     ctl->config_dir = config_dir;
     ctl->bin_dir = bin_dir;
     ctl->seafile_dir = seafile_dir;
+    ctl->cloud_mode = cloud_mode;
 
     init_pidfile_path(ctl);
 
@@ -569,6 +577,7 @@ int main (int argc, char **argv)
     char *ccnet_debug_level_str = "info";
     char *seafile_debug_level_str = "debug";
     int daemon_mode = 1;
+    gboolean cloud_mode = FALSE;
 
     int c;
     while ((c = getopt_long (argc, argv, short_opts,
@@ -596,6 +605,9 @@ int main (int argc, char **argv)
             break;
         case 'l':
             logfile = g_strdup(optarg);
+            break;
+        case 'C':
+            cloud_mode = TRUE;
             break;
         case 'g':
             ccnet_debug_level_str = optarg;
@@ -629,7 +641,7 @@ int main (int argc, char **argv)
     seafile_dir = ccnet_expand_path(seafile_dir);
 
     ctl = g_new0 (SeafileController, 1);
-    if (seaf_controller_init (ctl, bin_dir, config_dir, seafile_dir) < 0) {
+    if (seaf_controller_init (ctl, bin_dir, config_dir, seafile_dir, cloud_mode) < 0) {
         controller_exit(1);
     }
 
