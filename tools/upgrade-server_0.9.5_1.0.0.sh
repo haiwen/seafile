@@ -5,8 +5,8 @@ INSTALLPATH=$(dirname "${SCRIPT}")
 TOPDIR=$(dirname "${INSTALLPATH}")
 default_seahub_db=${TOPDIR}/seahub.db
 
-prev_version=0.9.3
-current_version=0.9.4
+prev_version=0.9.5
+current_version=1.0.0
 
 echo
 echo "-------------------------------------------------------------"
@@ -16,24 +16,6 @@ echo "-------------------------------------------------------------"
 echo
 
 read dummy
-
-# check for python-imaging and python-simplejson
-
-if ! python -c "import simplejson" 2>/dev/null 1>&2; then
-    echo "python-simplejson needs to be installed."
-    echo "On Debian/Ubntu: apt-get install python-simplejson"
-    echo "On CentOS/RHEL: yum install python-simplejson"
-    echo
-    exit 1
-fi
-
-if ! python -c "import PIL" 2>/dev/null 1>&2; then
-    echo "python-imaging needs to be installed."
-    echo "On Debian/Ubntu: apt-get install python-imaging"
-    echo "On CentOS/RHEL: yum install python-imaging"
-    echo
-    exit 1
-fi
 
 # test whether seafile server has been stopped.
 if pgrep seaf-server 2>/dev/null 1>&2 ; then
@@ -53,13 +35,29 @@ fi
 # run django syncdb command
 echo "------------------------------"
 echo "updating seahub database ... "
+echo
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:${PYTHONPATH}
 manage_py=${INSTALLPATH}/seahub/manage.py
 pushd "${INSTALLPATH}/seahub" 2>/dev/null 1>&2
-python manage.py syncdb 2>/dev/null 1>&2 && echo "Done." || echo "Failed."
+if ! python manage.py syncdb 2>/dev/null 1>&2; then
+    echo "failed"
+    exit -1
+fi
 popd 2>/dev/null 1>&2
-echo "------------------------------"
 
+update_db_py=${INSTALLPATH}/seahub/tools/update-seahub-db_0.9.4_to_0.9.5.py
+if ! python "${update_db_py}" "${default_seahub_db}" ; then
+    echo "failed"
+    exit -1
+fi
+
+echo "DONE"
+echo "------------------------------"
+echo
+
+echo "------------------------------"
+echo "migrating avatars ..."
+echo
 media_dir=${INSTALLPATH}/seahub/media
 orig_avatar_dir=${INSTALLPATH}/seahub/media/avatars
 dest_avatar_dir=${TOPDIR}/seahub-data/avatars
@@ -76,16 +74,24 @@ elif [[ ! -L ${orig_avatar_dir}} ]]; then
     ln -s ../../../seahub-data/avatars ${media_dir}
 fi
 
-seahub_settings=${TOPDIR}/seahub_settings.py
+echo "DONE"
+echo "------------------------------"
+echo
 
-function gen_seahub_secret_key () {
-    seahub_secret_keygen=${INSTALLPATH}/seahub/tools/secret_key_generator.py
-    echo -n -e "\nSECRET_KEY = " >> "${seahub_settings}"
-    key=$(python "${seahub_secret_keygen}")
-    echo "\"${key}\"" >> "${seahub_settings}"
-}
+echo "------------------------------"
+echo "update ccnet/seafile databse ..."
+# update ccnet/seafile database from 0.9.5 to 1.0.0
+ccnet_conf_path=${TOPDIR}/ccnet
+seafile_data_path=${TOPDIR}/seafile-data
 
-if ! grep SECRET_KEY "${seahub_settings}" 2>/dev/null 1>&2 ; then
-    gen_seahub_secret_key;
+alter_db_py=${INSTALLPATH}/alter_ccnet_seafile_db.py
+
+if ! python "${alter_db_py}" "${ccnet_conf_path}" "${seafile_data_path}" ; then
+    echo "failed"
+    exit -1
 fi
-    
+
+
+echo "Done"
+echo "------------------------------"
+echo
