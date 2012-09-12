@@ -66,6 +66,12 @@ enum {
     [path release];
 }
 
+- (void)applicationWillTerminate:(NSNotification *)aNotification
+{
+    stop_ccnet ();
+    stop_web_server();
+}
+
 - (IBAction)initseafile_ok:(id)sender {
     BOOL isDir = NO;
     NSString *path = [chooseDirField stringValue];

@@ -1568,6 +1568,7 @@ seaf_repo_manager_set_repo_worktree (SeafRepoManager *mgr,
     if (repo->worktree)
         g_free (repo->worktree);
     repo->worktree = g_strdup(worktree);
+    send_wktree_notification (repo, TRUE);
 
     if (seaf_repo_manager_set_repo_property (mgr, repo->id,
                                              "worktree",
