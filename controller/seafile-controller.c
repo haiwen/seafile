@@ -21,7 +21,7 @@
 
 SeafileController *ctl;
 
-static const char *short_opts = "hvfb:c:d:r:l:g:G:";
+static const char *short_opts = "hvfbC:c:d:r:l:g:G:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
