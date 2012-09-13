@@ -11,6 +11,8 @@
 #define SS_QUOTA_ERROR  "Failed to get quota"
 #define SC_QUOTA_FULL   "404"
 #define SS_QUOTA_FULL   "storage for the repo's owner is full"
+#define SC_ACCESS_DENIED "410"
+#define SS_ACCESS_DENIED "Access denied"
 
 G_DEFINE_TYPE (SeafileSendbranchProc, seafile_sendbranch_proc, CCNET_TYPE_PROCESSOR)
 
@@ -87,6 +89,8 @@ handle_response (CcnetProcessor *processor,
             transfer_task_set_error (task, TASK_ERR_CHECK_QUOTA);
         else if (strncmp(code, SC_QUOTA_FULL, 3) == 0)
             transfer_task_set_error (task, TASK_ERR_QUOTA_FULL);
+        else if (strncmp(code, SC_ACCESS_DENIED, 3) == 0)
+            transfer_task_set_error (task, TASK_ERR_ACCESS_DENIED);
         else
             transfer_task_set_error (task, TASK_ERR_UNKNOWN);
         ccnet_processor_done (processor, FALSE);

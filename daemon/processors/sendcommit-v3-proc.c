@@ -329,21 +329,21 @@ static void handle_response (CcnetProcessor *processor,
         if (memcmp (code, SC_OK, 3) == 0) {
             processor->state = SEND_OBJECT;
             send_commits (processor, task->head);
-        } else {
-            g_warning ("Bad response: %s %s.\n", code, code_msg);
-            ccnet_processor_done (processor, FALSE);
+            return;
         }
         break;
     case SEND_OBJECT:
         if (memcmp (code, SC_ACK, 3) == 0) {
             send_one_commit (processor);
-        } else {
-            g_warning ("[sendcommit] Bad response in state SEND_OBJECT: %s %s\n",
-                       code, code_msg);
-            ccnet_processor_done (processor, FALSE);
+            return;
         }
         break;
     default:
         g_assert (0);
     }
+
+    g_warning ("Bad response: %s %s.\n", code, code_msg);
+    if (memcmp (code, SC_ACCESS_DENIED, 3) == 0)
+        transfer_task_set_error (task, TASK_ERR_ACCESS_DENIED);
+    ccnet_processor_done (processor, FALSE);
 }

@@ -157,28 +157,25 @@ static void handle_response (CcnetProcessor *processor,
     case INIT:
         if (strncmp(code, SC_OK, 3) == 0) {
             processor->state = RECV_OBJECT;
-        } else {
-            g_warning ("[getcommit] Bad response: %s %s\n", code, code_msg);
-            transfer_task_set_error (proc->tx_task,
-                                     TASK_ERR_DOWNLOAD_COMMIT);
-            ccnet_processor_done (processor, FALSE);
+            return;
         }
         break;
     case RECV_OBJECT:
         if (strncmp(code, SC_OBJECT, 3) == 0) {
             receive_commit (processor, content, clen);
+            return;
         } else if (strncmp (code, SC_END, 3) == 0) {
             seaf_debug ("[getcommit] Get commit end.\n");
             ccnet_processor_done (processor, TRUE);
-        } else {
-            g_warning ("[getcommit] Bad response: %s %s\n", code, code_msg);
-            /* Transfer the task state to error when an error ocurred */
-            transfer_task_set_error (proc->tx_task,
-                                     TASK_ERR_DOWNLOAD_COMMIT);
-            ccnet_processor_done (processor, FALSE);
+            return;
         }
         break;
     default:
         g_assert (0);
     }
+
+    g_warning ("Bad response: %s %s.\n", code, code_msg);
+    if (memcmp (code, SC_ACCESS_DENIED, 3) == 0)
+        transfer_task_set_error (proc->tx_task, TASK_ERR_ACCESS_DENIED);
+    ccnet_processor_done (processor, FALSE);
 }

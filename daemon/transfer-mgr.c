@@ -923,7 +923,17 @@ tx_done_cb (CcnetProcessor *processor, gboolean success, void *data)
 {
     TransferTask *task = data;
 
-    g_hash_table_remove (task->processors, processor->peer_id);
+    if (!success && task->state == TASK_STATE_ERROR) {
+        /* block tx processor encountered non-recoverable error,
+         * such as access denied.
+         */
+        free_task_resources (task);
+    } else {
+        /* Otherwise processs exits successfully, or the error is
+         * recoverable, restart processor later. 
+         */
+        g_hash_table_remove (task->processors, processor->peer_id);
+    }
 }
 
 static CcnetProcessor *

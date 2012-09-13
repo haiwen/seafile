@@ -199,29 +199,32 @@ handle_response (CcnetProcessor *processor,
                  char *code, char *code_msg,
                  char *content, int clen)
 {
+    SeafileSendfsProc *proc = (SeafileSendfsProc *)processor;
+    TransferTask *task = proc->tx_task;
+
     switch (processor->state) {
     case SEND_ROOT:
         if (strncmp(code, SC_OK, 3) == 0) {
             send_fs_roots (processor);
-        } else {
-            g_warning ("[sendfs] Bad response in state SEND_ROOT: %s %s\n",
-                       code, code_msg);
-            ccnet_processor_done (processor, FALSE);
+            return;
         }
         break;
     case SEND_OBJECT:
         if (strncmp(code, SC_GET_OBJECT, 3) == 0) {
             send_fs_objects (processor, content, clen);
+            return;
         } else if (strncmp(code, SC_END, 3) == 0) {
             seaf_debug ("Send fs objects end.\n");
             ccnet_processor_done (processor, TRUE);
-        } else {
-            g_warning ("[sendfs] Bad response in state SEND_OBJECT: %s %s\n",
-                       code, code_msg);
-            ccnet_processor_done (processor, FALSE);
+            return;
         }
         break;
     default:
         g_assert (0);
     }
+
+    g_warning ("Bad response: %s %s.\n", code, code_msg);
+    if (memcmp (code, SC_ACCESS_DENIED, 3) == 0)
+        transfer_task_set_error (task, TASK_ERR_ACCESS_DENIED);
+    ccnet_processor_done (processor, FALSE);
 }

@@ -208,7 +208,7 @@ static void handle_response (CcnetProcessor *processor,
 
     if (proc->tx_task->state != TASK_STATE_NORMAL) {
         g_debug ("Task not running, send-block proc exits.\n");
-        ccnet_processor_done (processor, FALSE);
+        ccnet_processor_done (processor, TRUE);
         return;
     }
 
@@ -240,5 +240,7 @@ static void handle_response (CcnetProcessor *processor,
     }
 
     g_warning ("Bad response: %s %s.\n", code, code_msg);
+    if (memcmp (code, SC_ACCESS_DENIED, 3) == 0)
+        transfer_task_set_error (proc->tx_task, TASK_ERR_ACCESS_DENIED);
     ccnet_processor_done (processor, FALSE);
 }

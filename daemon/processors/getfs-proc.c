@@ -300,6 +300,8 @@ handle_response (CcnetProcessor *processor,
                  char *content, int clen)
 {
     SeafileGetfsProc *proc = (SeafileGetfsProc *)processor;
+    TransferTask *task = proc->tx_task;
+
     switch (processor->state) {
     case REQUEST_SENT:
         if (strncmp(code, SC_OK, 3) == 0) {
@@ -307,23 +309,21 @@ handle_response (CcnetProcessor *processor,
             processor->timer = ccnet_timer_new (
                 (TimerCB)check_object, processor, CHECK_INTERVAL);
             processor->state = FETCH_OBJECT;
-        } else {
-            g_warning ("[getfs] Bad response: %s %s\n", code, code_msg);
-            transfer_task_set_error (proc->tx_task, TASK_ERR_DOWNLOAD_FS);
-            ccnet_processor_done (processor, FALSE);
+            return;
         }
         break;
     case FETCH_OBJECT:
         if (strncmp(code, SC_OBJECT, 3) == 0) {
             recv_fs_object (processor, content, clen);
-        } else {
-            g_warning ("[getfs] Bad response: %s %s\n", code, code_msg);
-            transfer_task_set_error (proc->tx_task, TASK_ERR_DOWNLOAD_FS);
-            ccnet_processor_done (processor, FALSE);
+            return;
         }
         break;
     default:
         g_assert (0);
     }
 
+    g_warning ("Bad response: %s %s.\n", code, code_msg);
+    if (memcmp (code, SC_ACCESS_DENIED, 3) == 0)
+        transfer_task_set_error (task, TASK_ERR_ACCESS_DENIED);
+    ccnet_processor_done (processor, FALSE);
 }
