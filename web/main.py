@@ -63,11 +63,12 @@ if "darwin" == sys.platform and hasattr(sys, 'frozen'):
     
 NET_STATE_CONNECTED = 1
 
-lang_in_use = 'zh_CN'
+DEFAULT_LANG = 'zh_CN'
+lang_in_use = None
 
 gettext.install('messages', localedir, unicode=True)
 gettext.translation('messages', localedir,
-                    languages=[lang_in_use]).install(True)
+                    languages=[DEFAULT_LANG]).install(True)
 
 render = render_mako(directories=['templates'],
                      output_encoding='utf-8', input_encoding='utf-8',
@@ -195,6 +196,16 @@ class repos:
 
 
     def GET(self):
+        # Set language preference on the first load of home page
+        global lang_in_use
+        if not lang_in_use:
+            lang_in_use = seafile_rpc.get_config('lang_in_use')
+            if not lang_in_use:
+                seafile_rpc.set_config('lang_in_use', DEFAULT_LANG)
+                lang_in_use = DEFAULT_LANG
+
+            gettext.translation('messages', localedir,
+                                languages=[lang_in_use]).install(True)
         return self.show_repos()
 
 
@@ -648,8 +659,11 @@ class i18n:
                                 languages=['zh_CN']).install(True)
             lang_in_use = 'zh_CN'
 
+        seafile_rpc.set_config('lang_in_use', lang_in_use)
+
         default_options['lang'] = lang_in_use
         inputs = web.webapi.input(prev='/home/')    
+
 
         raise web.seeother(inputs.prev)
 
