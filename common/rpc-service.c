@@ -1730,21 +1730,23 @@ seafile_repo_query_access_property (const char *repo_id, GError **error)
     return ret;
 }
 
-int
-seafile_web_save_access_token (const char *token, const char *repo_id,
-                               const char *obj_id, const char *op,
-                               const char *username, GError **error)
+char *
+seafile_web_get_access_token (const char *repo_id,
+                              const char *obj_id,
+                              const char *op,
+                              const char *username,
+                              GError **error)
 {
-    int ret;
+    char *token;
 
-    if (!token || !repo_id || !obj_id || !op || !username) {
+    if (!repo_id || !obj_id || !op || !username) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Missing args");
-        return -1;
+        return NULL;
     }
 
-    ret = seaf_web_at_manager_save_access_token (seaf->web_at_mgr, token,
-                                                 repo_id, obj_id, op, username);
-    return ret;
+    token = seaf_web_at_manager_get_access_token (seaf->web_at_mgr,
+                                                  repo_id, obj_id, op, username);
+    return token;
 }
 
 GObject *

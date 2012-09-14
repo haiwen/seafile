@@ -475,10 +475,12 @@ seafile_repo_set_access_property (const char *repo_id, const char *ap,
 char *
 seafile_repo_query_access_property (const char *repo_id, GError **error);
 
-int
-seafile_web_save_access_token (const char *token, const char *repo_id,
-                               const char *obj_id, const char *op,
-                               const char *username, GError **error);
+char *
+seafile_web_get_access_token (const char *repo_id,
+                              const char *obj_id,
+                              const char *op,
+                              const char *username,
+                              GError **error);
 
 GObject *
 seafile_web_query_access_token (const char *token, GError **error);

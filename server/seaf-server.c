@@ -344,9 +344,9 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     /* -------- rpc services -------- */
     /* token for web access to repo */
     searpc_server_register_function ("seafserv-rpcserver",
-                                     seafile_web_save_access_token,
-                                     "seafile_web_save_access_token",
-                                     searpc_signature_int__string_string_string_string_string());
+                                     seafile_web_get_access_token,
+                                     "seafile_web_get_access_token",
+                                     searpc_signature_string__string_string_string_string());
     searpc_server_register_function ("seafserv-rpcserver",
                                      seafile_web_query_access_token,
                                      "seafile_web_query_access_token",

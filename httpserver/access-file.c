@@ -370,6 +370,28 @@ access_cb(evhtp_request_t *req, void *arg)
         goto bad_req;
     }
 
+    if (evhtp_kv_find (req->headers_in, "If-Modified-Since") != NULL) {
+        evhtp_send_reply (req, EVHTP_RES_NOTMOD);
+        goto success;
+    } else {
+        char http_date[256];
+        evhtp_kv_t *kv;
+        time_t now = time(NULL);
+
+        /* Set Last-Modified header if the client gets this file
+         * for the first time. So that the client will set
+         * If-Modified-Since header the next time it gets the same
+         * file.
+         */
+        strftime (http_date, sizeof(http_date), "%a, %d %b %Y %T GMT",
+                  gmtime(&now));
+        kv = evhtp_kv_new ("Last-Modified", http_date, 1, 1);
+        evhtp_kvs_add_kv (req->headers_out, kv);
+
+        kv = evhtp_kv_new ("Cache-Control", "max-age=3600", 1, 1);
+        evhtp_kvs_add_kv (req->headers_out, kv);
+    }
+
     repo_id = seafile_web_access_get_repo_id (webaccess);
     id = seafile_web_access_get_obj_id (webaccess);
     operation = seafile_web_access_get_op (webaccess);
@@ -401,10 +423,12 @@ access_cb(evhtp_request_t *req, void *arg)
         goto bad_req;
     }
 
+success:
     ccnet_rpc_client_free (rpc_client);
 
     g_strfreev (parts);
-    seaf_repo_unref (repo);
+    if (repo != NULL)
+        seaf_repo_unref (repo);
     g_free (repo_role);
     if (key != NULL)
         g_object_unref (key);
