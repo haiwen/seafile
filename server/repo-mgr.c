@@ -4130,6 +4130,7 @@ GList *
 seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
                                        const char *repo_id,
                                        const char *path,
+                                       int limit,
                                        GError **error)
 {
     SeafRepo *repo = NULL;
@@ -4155,10 +4156,10 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
     data.commit_hash = commit_hash;
     data.error = error;
 
-    if (!seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
-                                repo->head->commit_id,
-                                (CommitTraverseFunc)collect_file_revisions,
-                                &data)) {
+    if (!seaf_commit_manager_traverse_commit_tree_with_limit (seaf->commit_mgr,
+                                                        repo->head->commit_id,
+                                                        (CommitTraverseFunc)collect_file_revisions,
+                                                              limit, &data)) {
         g_clear_error (error);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "failed to traverse commit of repo %s", repo_id);

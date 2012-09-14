@@ -2810,6 +2810,7 @@ out:
 GList *
 seafile_list_file_revisions (const char *repo_id,
                              const char *path,
+                             int limit,
                              GError **error)
 {
     if (!repo_id || !path) {
@@ -2821,7 +2822,7 @@ seafile_list_file_revisions (const char *repo_id,
     GList *commit_list;
     commit_list = seaf_repo_manager_list_file_revisions (seaf->repo_mgr,
                                                          repo_id, path,
-                                                         error);
+                                                         limit, error);
     GList *l = NULL;
     if (commit_list) {
         GList *p;
