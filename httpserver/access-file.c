@@ -251,7 +251,7 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
 
     evhtp_headers_add_header(req->headers_out,
                              evhtp_header_new("Access-Control-Allow-Origin",
-                                              "*", 0, 0));
+                                              "*", 1, 1));
 
 
     type = parse_content_type(filename);
@@ -264,13 +264,13 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
 
         evhtp_headers_add_header(req->headers_out,
                                  evhtp_header_new("Content-Type",
-                                                  content_type, 0, 0));
+                                                  content_type, 1, 1));
         g_free (content_type);
     }
 
     snprintf(file_size, sizeof(file_size), "%"G_GINT64_FORMAT"", file->file_size);
     evhtp_headers_add_header (req->headers_out,
-                              evhtp_header_new("Content-Length", file_size, 0, 0));
+                              evhtp_header_new("Content-Length", file_size, 1, 1));
 
     if (strcmp(operation, "download") == 0) {
         if (test_firefox (req)) {
@@ -291,7 +291,7 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     }
     evhtp_headers_add_header(req->headers_out,
                              evhtp_header_new("Content-Disposition", cont_filename,
-                                              0, 0));
+                                              1, 1));
 
     /* If it's an empty file, send an empty reply. */
     if (file->n_blocks == 0) {
