@@ -94,6 +94,24 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
                              const char *email,
                              GError **error);
 
+/*
+ * Similar to seaf_clone_manager_add_task. 
+ * But create a new dir for worktree under @wt_parent.
+ * The semantics is to "download" the repo into @wt_parent.
+ */
+char *
+seaf_clone_manager_add_download_task (SeafCloneManager *mgr, 
+                                      const char *repo_id,
+                                      const char *peer_id,
+                                      const char *repo_name,
+                                      const char *token,
+                                      const char *passwd,
+                                      const char *wt_parent,
+                                      const char *peer_addr,
+                                      const char *peer_port,
+                                      const char *email,
+                                      GError **error);
+
 int
 seaf_clone_manager_cancel_task (SeafCloneManager *mgr,
                                 const char *repo_id);

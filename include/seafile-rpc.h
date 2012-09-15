@@ -264,13 +264,25 @@ char *
 seafile_clone (const char *repo_id, 
                const char *peer_id,
                const char *repo_name,
-               const char *worktree_parent,
+               const char *worktree,
                const char *token,
                const char *passwd,
                const char *peer_addr,
                const char *peer_port,
                const char *email,
                GError **error);
+
+char *
+seafile_download (const char *repo_id, 
+                  const char *peer_id,
+                  const char *repo_name,
+                  const char *wt_parent,
+                  const char *token,
+                  const char *passwd,
+                  const char *peer_addr,
+                  const char *peer_port,
+                  const char *email,
+                  GError **error);
 
 int
 seafile_cancel_clone_task (const char *repo_id, GError **error);

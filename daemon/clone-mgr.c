@@ -512,7 +512,7 @@ try_worktree (const char *worktree)
     char *tmp;
     unsigned int cnt;
 
-    /* There has a repo name conflict, so we try to add a postfix */
+    /* There is a repo name conflict, so we try to add a postfix */
     cnt = 1;
     while (1) {
         tmp = g_strdup_printf("%s-%d", worktree, cnt++);
@@ -724,6 +724,53 @@ check_worktree_path (SeafCloneManager *mgr, const char *path, GError **error)
     return TRUE;
 }
 
+static char *
+add_task_common (SeafCloneManager *mgr, 
+                 SeafRepo *repo,
+                 const char *repo_id,
+                 const char *peer_id,
+                 const char *repo_name,
+                 const char *token,
+                 const char *passwd,
+                 const char *worktree,
+                 const char *peer_addr,
+                 const char *peer_port,
+                 const char *email,
+                 GError **error)
+{
+    CloneTask *task;    
+
+    task = clone_task_new (repo_id, peer_id, repo_name,
+                           token, worktree, passwd,
+                           peer_addr, peer_port, email);
+    task->manager = mgr;
+
+    if (save_task_to_db (mgr, task) < 0) {
+        seaf_warning ("[Clone mgr] failed to save task.\n");
+        clone_task_free (task);
+        return NULL;
+    }
+
+    if (repo != NULL && repo->head == NULL) {
+        /* Repo was downloaded but not checked out.
+         * This can happen when the last checkout failed, the user
+         * can then clone the repo again.
+         */
+        start_checkout (repo, task);
+    } else if (!ccnet_peer_is_ready(seaf->ccnetrpc_client, task->peer_id)) {
+        /* the relay is not connected yet */
+        start_connect_task_relay (task, error);
+        
+    } else {
+        start_index_or_transfer (mgr, task, error);
+    }
+
+    /* The old task for this repo will be freed. */
+    g_hash_table_insert (mgr->tasks, g_strdup(task->repo_id), task);
+
+    return g_strdup(repo_id);
+}
+
 char *
 seaf_clone_manager_add_task (SeafCloneManager *mgr, 
                              const char *repo_id,
@@ -737,9 +784,9 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
                              const char *email,
                              GError **error)
 {
-    CloneTask *task;
     SeafRepo *repo;
     char *worktree;
+    char *ret;
 
     g_assert (strlen(repo_id) == 36);
 
@@ -768,36 +815,88 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         return NULL;
     }
 
-    task = clone_task_new (repo_id, peer_id, repo_name,
-                           token, worktree, passwd,
-                           peer_addr, peer_port, email);
+    ret = add_task_common (mgr, repo, repo_id, peer_id, repo_name, token, passwd,
+                           worktree, peer_addr, peer_port, email, error);
     g_free (worktree);
-    task->manager = mgr;
 
-    if (save_task_to_db (mgr, task) < 0) {
-        seaf_warning ("[Clone mgr] failed to save task.\n");
-        clone_task_free (task);
+    return ret;
+}
+
+static char *
+make_worktree_for_download (const char *wt_tmp,
+                            GError **error)
+{
+    char *worktree;
+
+    if (g_access (wt_tmp, F_OK) == 0) {
+        worktree = try_worktree (wt_tmp);
+    } else {
+        worktree = g_strdup(wt_tmp);
+    }
+
+    if (g_mkdir (worktree, 0777) < 0) {
+        seaf_warning ("[clone mgr] Failed to create dir %s.\n", worktree);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to create worktree");
+        g_free (worktree);
         return NULL;
     }
 
-    if (repo != NULL && repo->head == NULL) {
-        /* Repo was downloaded but not checked out.
-         * This can happen when the last checkout failed, the user
-         * can then clone the repo again.
-         */
-        start_checkout (repo, task);
-    } else if (!ccnet_peer_is_ready(seaf->ccnetrpc_client, task->peer_id)) {
-        /* the relay is not connected yet */
-        start_connect_task_relay (task, error);
-        
-    } else {
-        start_index_or_transfer (mgr, task, error);
+    return worktree;
+}
+
+char *
+seaf_clone_manager_add_download_task (SeafCloneManager *mgr, 
+                                      const char *repo_id,
+                                      const char *peer_id,
+                                      const char *repo_name,
+                                      const char *token,
+                                      const char *passwd,
+                                      const char *wt_parent,
+                                      const char *peer_addr,
+                                      const char *peer_port,
+                                      const char *email,
+                                      GError **error)
+{
+    SeafRepo *repo;
+    char *wt_tmp, *worktree;
+    char *ret;
+
+    g_assert (strlen(repo_id) == 36);
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+
+    if (repo != NULL && repo->head != NULL) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Repo already exists");
+        return NULL;
+    }   
+
+    if (is_duplicate_task (mgr, repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, 
+                     "Task is already in progress");
+        return NULL;
     }
 
-    /* The old task for this repo will be freed. */
-    g_hash_table_insert (mgr->tasks, g_strdup(task->repo_id), task);
+    wt_tmp = g_build_filename (wt_parent, repo_name, NULL);
 
-    return g_strdup(repo_id);
+    if (!check_worktree_path (mgr, wt_tmp, error)) {
+        g_free (wt_tmp);
+        return NULL;
+    }
+
+    worktree = make_worktree_for_download (wt_tmp, error);
+    if (!worktree) {
+        g_free (wt_tmp);
+        return NULL;
+    }
+
+    ret = add_task_common (mgr, repo, repo_id, peer_id, repo_name, token, passwd,
+                           worktree, peer_addr, peer_port, email, error);
+    g_free (worktree);
+    g_free (wt_tmp);
+
+    return ret;
 }
 
 int

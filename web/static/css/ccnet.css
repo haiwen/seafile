@@ -93,6 +93,7 @@ label { display: inline-block; margin: 2px 0px; }
 .mgb10 { margin-bottom:10px; }
 .mgt5 { margin-top:5px; }
 .mgb5 { margin-bottom:5px; }
+.mgt30 { margin-top:30px; }
 .ovhd { overflow:hidden; }
 .italic { font-style:italic; }
 a.button { text-decoration: underline; color:#800; }

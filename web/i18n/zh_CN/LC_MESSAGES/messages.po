@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2012-09-06 14:43+CST\n"
+"POT-Creation-Date: 2012-09-15 20:45+CST\n"
 "PO-Revision-Date: 2012-08-29 16:58+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,41 +15,41 @@ msgstr ""
 "Content-Transfer-Encoding: UTF-8\n"
 "Generated-By: pygettext.py 1.5\n"
 
-#: main.py:550
+#: main.py:569 main.py:679
 msgid "You must choose a local directory"
 msgstr "你必须指定一个本地目录"
 
-#: main.py:552
+#: main.py:571 main.py:681
 msgid "Password can not be empty"
 msgstr "密码不能为空"
 
-#: main.py:554
+#: main.py:573 main.py:683
 msgid "Invalid Repo ID"
 msgstr "同步目录ID格式不正确"
 
-#: main.py:583
+#: main.py:605 main.py:712
 msgid "Invalid local directory"
 msgstr "不是合法的本地目录"
 
-#: main.py:585
+#: main.py:607 main.py:714
 msgid ""
 "The local directory you chose is in sync with another repo. Please choose "
 "another one."
 msgstr "你所指定的本地目录已经与其他同步目录同步，请指定其他本地目录"
 
-#: main.py:587
+#: main.py:609 main.py:720 templates/clone_tasks.html:65
+msgid "Internal error."
+msgstr "内部错误"
+
+#: main.py:716
 msgid ""
 "The local directory you chose cannot be under or includes an system "
 "directory of seafile."
 msgstr "本地目录的路径不能处在 Seafile 系统目录下，或者包含 Seafile 系统目录"
 
-#: main.py:589
+#: main.py:718
 msgid "The local directory you chose cannot be under or includes another repo."
 msgstr "本地目录的路径不能处在其他同步目录下，或者包含其他同步目录"
-
-#: main.py:591 templates/clone_tasks.html:65
-msgid "Internal error."
-msgstr "内部错误"
 
 #: templates/base.html:5
 msgid "Seafile@Local"
@@ -75,7 +75,7 @@ msgstr "局域网同步"
 msgid "Network"
 msgstr "网络"
 
-#: templates/base.html:49 templates/repo.html:15
+#: templates/base.html:49 templates/repo.html:20
 msgid "Settings"
 msgstr "设置"
 
@@ -95,13 +95,14 @@ msgstr "关于"
 msgid "Contact"
 msgstr "联系我们"
 
-#: templates/clone_tasks.html:4 templates/repo_create.html:4
-#: templates/repo_diff.html:9 templates/repos.html:25
+#: templates/clone_tasks.html:4 templates/repo.html:7
+#: templates/repo_create.html:4 templates/repo_diff.html:9
+#: templates/repos.html:25
 msgid "Navigation"
 msgstr "导航"
 
-#: templates/clone_tasks.html:6 templates/repo_create.html:6
-#: templates/repos.html:49
+#: templates/clone_tasks.html:6 templates/repo.html:9
+#: templates/repo_create.html:6 templates/repos.html:49
 msgid "All Repos"
 msgstr "所有同步目录"
 
@@ -166,7 +167,7 @@ msgid "Incorrect password. Failed to decrypt files."
 msgstr "密码错误。文件解密失败。"
 
 #: templates/clone_tasks.html:72 templates/peers.html:29
-#: templates/peers.html:149 templates/repo.html:121 templates/repo.html:127
+#: templates/peers.html:149 templates/repo.html:128 templates/repo.html:134
 #: templates/repo_create.html:54 templates/repo_history.html:85
 msgid "Cancel"
 msgstr "取消"
@@ -183,7 +184,7 @@ msgstr "启动同步失败："
 msgid "Unknown error"
 msgstr "未知错误"
 
-#: templates/peers.html:4 templates/repo.html:7 templates/repo_dir.html:10
+#: templates/peers.html:4 templates/repo.html:12 templates/repo_dir.html:10
 #: templates/repo_history.html:7
 msgid "Operations"
 msgstr "操作"
@@ -594,108 +595,108 @@ msgstr "本地目录不存在"
 msgid "Token:"
 msgstr "口令："
 
-#: templates/repo.html:10
+#: templates/repo.html:15
 msgid "View at relay"
 msgstr "在服务器上查看"
 
-#: templates/repo.html:13
+#: templates/repo.html:18
 msgid "Sync Now"
 msgstr "立即同步"
 
-#: templates/repo.html:16 templates/repo.html:120
+#: templates/repo.html:21 templates/repo.html:127
 msgid "Unsync"
 msgstr "解除同步"
 
-#: templates/repo.html:25
+#: templates/repo.html:30
 msgid "SyncFolder is broken!"
 msgstr "内部数据损坏！"
 
-#: templates/repo.html:34
+#: templates/repo.html:39
 msgid "Encrypted"
 msgstr "已加密"
 
-#: templates/repo.html:47
+#: templates/repo.html:52
 msgid "Server: "
 msgstr "服务器："
 
-#: templates/repo.html:53
+#: templates/repo.html:58
 msgid "Password: "
 msgstr "密码："
 
-#: templates/repo.html:54
+#: templates/repo.html:59
 msgid "Show"
 msgstr "显示"
 
-#: templates/repo.html:60 templates/repo.html:62
+#: templates/repo.html:65 templates/repo.html:67
 msgid "Auto Sync: "
 msgstr "自动同步："
 
-#: templates/repo.html:64
+#: templates/repo.html:69
 msgid "Start"
 msgstr "开启"
 
-#: templates/repo.html:70
+#: templates/repo.html:75
 msgid "Recent Changes"
 msgstr "最近修改"
 
-#: templates/repo.html:73 templates/repo_diff.html:20
+#: templates/repo.html:78 templates/repo_diff.html:20
 #: templates/repo_history.html:27
 msgid "Time"
 msgstr "时间"
 
-#: templates/repo.html:74 templates/repo_history.html:28
+#: templates/repo.html:79 templates/repo_history.html:28
 msgid "Author"
 msgstr "修改者"
 
-#: templates/repo.html:75 templates/repo_diff.html:21
+#: templates/repo.html:80 templates/repo_diff.html:21
 #: templates/repo_history.html:29 templates/repos.html:54
 msgid "Description"
 msgstr "描述"
 
-#: templates/repo.html:83 templates/repo_dir.html:24
+#: templates/repo.html:88 templates/repo_dir.html:24
 #: templates/repo_history.html:39
 msgid "unknown"
 msgstr "未知"
 
-#: templates/repo.html:93 templates/repo_history.html:49
+#: templates/repo.html:98 templates/repo_history.html:49
 msgid "details"
 msgstr "详情"
 
-#: templates/repo.html:99
+#: templates/repo.html:105
 msgid "All changes history"
 msgstr "所有修改历史"
 
-#: templates/repo.html:107
+#: templates/repo.html:114
 msgid "Repo"
 msgstr "同步目录"
 
-#: templates/repo.html:108
+#: templates/repo.html:115
 msgid "blocks transfered"
 msgstr "已传输块数"
 
-#: templates/repo.html:108
+#: templates/repo.html:115
 msgid "rate"
 msgstr "速率"
 
-#: templates/repo.html:108
+#: templates/repo.html:115
 msgid "s"
 msgstr "秒"
 
-#: templates/repo.html:113
+#: templates/repo.html:120
 msgid "Repo transfer error:"
 msgstr "同步目录传输出错："
 
-#: templates/repo.html:119
+#: templates/repo.html:126
 msgid ""
 "Really want to unsync the folder? (The original folder will become a normal "
 "folder.)"
 msgstr "确实要撤销目录的同步吗？(原始目录会变成一个普通的目录)"
 
-#: templates/repo.html:125 templates/repo_history.html:83
+#: templates/repo.html:132 templates/repo_history.html:83
 msgid "Really want to restore the local directory contents to this state?"
 msgstr "确实要把本地目录的内容恢复到这个历史状态？"
 
-#: templates/repo.html:126
+#: templates/repo.html:133
 msgid "Restore"
 msgstr "恢复"
 
@@ -788,21 +789,29 @@ msgstr "导出"
 msgid "Checkouted"
 msgstr "已导出"
 
-#: templates/repo_download.html:6
+#: templates/repo_download.html:6 templates/repo_sync.html:6
 msgid "Repo already exists."
 msgstr "该同步目录已存在。"
 
 #: templates/repo_download.html:8
-msgid "You are going to synchronize"
-msgstr "你将同步"
+msgid "You are going to download"
+msgstr "你将下载"
 
 #: templates/repo_download.html:19
-msgid "will be synced with:"
-msgstr "将与以下的本地目录同步："
+msgid "will be downloaded to:"
+msgstr "将被下载到："
 
-#: templates/repo_download.html:25
+#: templates/repo_download.html:22 templates/repo_sync.html:23
 msgid "This repo is encrypted. Please enter the password for decrypting:"
 msgstr "该同步目录已加密。 请输入解密密码："
+
+#: templates/repo_download.html:30
+msgid "Advanced:"
+msgstr "高级："
+
+#: templates/repo_download.html:30
+msgid "sync with an existing folder"
+msgstr "与已有的本地目录同步"
 
 #: templates/repo_history.html:14
 msgid "Modification History"
@@ -839,6 +848,18 @@ msgstr "抱歉，ID为 "
 #: templates/repo_missing.html:4
 msgid "does not exists."
 msgstr "的同步目录不存在。"
+
+#: templates/repo_sync.html:8
+msgid "You are going to synchronize"
+msgstr "你将同步"
+
+#: templates/repo_sync.html:19
+msgid "Please select a local folder to synced with the repo"
+msgstr "请输入与之同步的本地目录："
+
+#: templates/repo_sync.html:21
+msgid "Files in the local folder will be merged with files in the repo"
+msgstr "本地目录中的文件将与该同步目录中的文件合并"
 
 #: templates/repos.html:11
 msgid "Servers"
@@ -941,9 +962,6 @@ msgstr "断开连接"
 
 #~ msgid "Downloading,"
 #~ msgstr "正在下载，"
-
-#~ msgid "Please input a local directory to sync with this repo:"
-#~ msgstr "请输入与之同步的本地目录："
 
 #~ msgid ""
 #~ "Its name must begin with this repo's name. E.g., if the repo name is "

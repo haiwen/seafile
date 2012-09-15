@@ -144,6 +144,10 @@ start_rpc_service (CcnetClient *client)
                                      "seafile_clone",
         searpc_signature_string__string_string_string_string_string_string_string_string_string());
     searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_download,
+                                     "seafile_download",
+        searpc_signature_string__string_string_string_string_string_string_string_string_string());
+    searpc_server_register_function ("seafile-rpcserver",
                                      seafile_cancel_clone_task,
                                      "seafile_cancel_clone_task",
                                      searpc_signature_int__string());

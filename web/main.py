@@ -42,6 +42,7 @@ urls = (
     '/repos/download-tasks/', 'CloneTasks',
     '/repos/clone-tasks/', 'clone_tasks',
     '/repo/download/', 'repo_download',
+    '/repo/sync/', 'repo_sync',
     '/repos/operation/', 'repo_operation',
     '/procs/', 'procs',
     '/settings/', 'settings_page',
@@ -530,10 +531,12 @@ class repo_download:
                    and task.props.state != 'canceled': 
                     raise web.seeother('/repos/download-tasks/')
 
-        repo_name = urllib.unquote(inputs.repo_name)
+        wt_parent = get_default_seafile_worktree ()
 
-        default_seafile_worktree = get_default_seafile_worktree ()
-        worktree = seafile_rpc.gen_default_worktree(default_seafile_worktree, repo_name)
+        sync_url = "/repo/sync/?relay_id=%s&relay_addr=%s&relay_port=%s&" \
+            "email=%s&token=%s&repo_id=%s&repo_name=%s&encrypted=%s" % \
+            (relay_id, relay_addr, relay_port, urllib.quote(email), token, repo_id,
+             urllib.quote(repo_name.encode('utf-8')), inputs.encrypted)
 
         return render.repo_download(error_msg=None,
                                     repo_already_exists=False,
@@ -543,10 +546,129 @@ class repo_download:
                                     relay_addr=relay_addr,
                                     relay_port=relay_port,
                                     repo_name=repo_name,
-                                    worktree=worktree,
+                                    wt_parent=wt_parent,
                                     encrypted=inputs.encrypted,
                                     email=email,
+                                    sync_url=sync_url,
                                     **default_options)
+
+    def POST(self):
+        inputs = web.webapi.input(relay_id='', token='',
+                                  relay_addr='', relay_port = '',
+                                  repo_id='', repo_name='', encrypted='',
+                                  password='', wt_parent='', email='')
+
+        sync_url = "/repo/sync/?relay_id=%s&relay_addr=%s&relay_port=%s&" \
+            "email=%s&token=%s&repo_id=%s&repo_name=%s&encrypted=%s" % \
+            (inputs.relay_id, inputs.relay_addr, inputs.relay_port,
+             urllib.quote(inputs.email), inputs.token, inputs.repo_id,
+             urllib.quote(inputs.repo_name.encode('utf-8')), inputs.encrypted)
+
+        error_msg = None
+        if not inputs.wt_parent:
+            error_msg = _("You must choose a local directory")
+        elif inputs.encrypted and not inputs.password:
+            error_msg=_("Password can not be empty")
+        elif len(inputs.repo_id) != 36:
+            error_msg=_("Invalid Repo ID")
+
+        if error_msg:
+            return render.repo_download (error_msg=error_msg,
+                                         repo_already_exists=False,
+                                         repo_id=inputs.repo_id,
+                                         relay_id=inputs.relay_id,
+                                         relay_addr=inputs.relay_addr,
+                                         relay_port=inputs.relay_port,
+                                         token=inputs.token,
+                                         repo_name=inputs.repo_name,
+                                         encrypted=inputs.encrypted,
+                                         password=inputs.password,
+                                         wt_parent=inputs.wt_parent,
+                                         email=inputs.email,
+                                         sync_url=sync_url,
+                                         **default_options)
+
+        if not inputs.password:
+            inputs.password = None
+                                         
+        try:
+            seafile_rpc.download (inputs.repo_id, inputs.relay_id,
+                                  inputs.repo_name.encode('utf-8'),
+                                  inputs.wt_parent.encode('utf-8'),
+                                  inputs.token,
+                                  inputs.password,
+                                  inputs.relay_addr,
+                                  inputs.relay_port,
+                                  inputs.email)
+        except SearpcError as e:
+            if e.msg == 'Invalid local directory':
+                error_msg = _('Invalid local directory')
+            elif e.msg == 'Already in sync':
+                error_msg = _('The local directory you chose is in sync with another repo. Please choose another one.')
+            elif e.msg == 'Worktree conflicts system path':
+                error_msg = _('The local directory you chose cannot be under or includes an system directory of seafile.')
+            elif e.msg == 'Worktree conflicts existing repo':
+                error_msg = _('The local directory you chose cannot be under or includes another repo.')
+            else:
+                error_msg = _('Internal error.') + str(e)
+
+        if error_msg:
+            return render.repo_download (error_msg=error_msg,
+                                         repo_already_exists=False,
+                                         repo_id=inputs.repo_id,
+                                         relay_id=inputs.relay_id,
+                                         relay_addr=inputs.relay_addr,
+                                         relay_port=inputs.relay_port,
+                                         token=inputs.token,
+                                         repo_name=inputs.repo_name,
+                                         encrypted=inputs.encrypted,
+                                         password=inputs.password,
+                                         wt_parent=inputs.wt_parent,
+                                         email=inputs.email,
+                                         sync_url=sync_url,
+                                         **default_options)
+
+        raise web.seeother('/repos/download-tasks/')
+
+
+class repo_sync:
+
+    def GET(self):
+        inputs = web.webapi.input(relay_id='', token='',
+                                  relay_addr='', relay_port = '',
+                                  repo_id='', repo_name='',
+                                  encrypted='', email='')
+
+        relay_id   = inputs.relay_id
+        token       = inputs.token
+        relay_addr = inputs.relay_addr
+        relay_port = inputs.relay_port
+        repo_id     = inputs.repo_id
+        repo_name   = inputs.repo_name
+        email       = inputs.email
+
+        if seafile_rpc.get_repo(inputs.repo_id):
+            return render.repo_sync(repo_already_exists=True, **default_options)
+        
+        tasks = seafile_rpc.get_clone_tasks()
+        for task in tasks:
+            if task.props.repo_id == inputs.repo_id:
+                if task.props.state != 'done' and task.props.state != 'error' \
+                   and task.props.state != 'canceled': 
+                    raise web.seeother('/repos/download-tasks/')
+
+        return render.repo_sync(error_msg=None,
+                                repo_already_exists=False,
+                                repo_id=inputs.repo_id,
+                                relay_id=inputs.relay_id,
+                                token=token,
+                                relay_addr=relay_addr,
+                                relay_port=relay_port,
+                                repo_name=repo_name,
+                                worktree='',
+                                encrypted=inputs.encrypted,
+                                email=email,
+                                **default_options)
 
     def POST(self):
         inputs = web.webapi.input(relay_id='', token='',
@@ -565,19 +687,19 @@ class repo_download:
             error_msg=_("Invalid Repo ID")
 
         if error_msg:
-            return render.repo_download (error_msg=error_msg,
-                                         repo_already_exists=False,
-                                         repo_id=repo_id,
-                                         relay_id=inputs.relay_id,
-                                         relay_addr=inputs.relay_addr,
-                                         relay_port=inputs.relay_port,
-                                         token=inputs.token,
-                                         repo_name=inputs.repo_name,
-                                         encrypted=inputs.encrypted,
-                                         password=inputs.password,
-                                         worktree=inputs.worktree,
-                                         email=inputs.email,
-                                         **default_options)
+            return render.repo_sync (error_msg=error_msg,
+                                     repo_already_exists=False,
+                                     repo_id=repo_id,
+                                     relay_id=inputs.relay_id,
+                                     relay_addr=inputs.relay_addr,
+                                     relay_port=inputs.relay_port,
+                                     token=inputs.token,
+                                     repo_name=inputs.repo_name,
+                                     encrypted=inputs.encrypted,
+                                     password=inputs.password,
+                                     worktree=inputs.worktree,
+                                     email=inputs.email,
+                                     **default_options)
 
         if not inputs.password:
             inputs.password = None
@@ -602,22 +724,21 @@ class repo_download:
                 error_msg = _('Internal error.') + str(e)
 
         if error_msg:
-            return render.repo_download (error_msg=error_msg,
-                                         repo_already_exists=False,
-                                         repo_id=repo_id,
-                                         relay_id=inputs.relay_id,
-                                         relay_addr=inputs.relay_addr,
-                                         relay_port=inputs.relay_port,
-                                         token=inputs.token,
-                                         repo_name=inputs.repo_name,
-                                         encrypted=inputs.encrypted,
-                                         password=inputs.password,
-                                         worktree=inputs.worktree,
-                                         email=inputs.email,
-                                         **default_options)
+            return render.repo_sync (error_msg=error_msg,
+                                     repo_already_exists=False,
+                                     repo_id=repo_id,
+                                     relay_id=inputs.relay_id,
+                                     relay_addr=inputs.relay_addr,
+                                     relay_port=inputs.relay_port,
+                                     token=inputs.token,
+                                     repo_name=inputs.repo_name,
+                                     encrypted=inputs.encrypted,
+                                     password=inputs.password,
+                                     worktree=inputs.worktree,
+                                     email=inputs.email,
+                                     **default_options)
 
         raise web.seeother('/repos/download-tasks/')
-
 
 class settings_page:
 
