@@ -342,12 +342,6 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
         return FALSE;
     }
 
-    /* if limit < 0, there is no limit;
-       if limit is zero, set limit
-     */
-    if (limit == 0)
-        limit = 1;
-    
     list = g_list_insert_sorted_with_data (list, commit,
                                            compare_commit_by_time,
                                            NULL);
@@ -367,7 +361,7 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
             goto out;
         }
 
-        /* stop when limit is reached */
+        /* Stop when limit is reached. If limit < 0, there is no limit; */
         if (limit > 0 && ++count == limit) {
             seaf_commit_unref (commit);
             break;

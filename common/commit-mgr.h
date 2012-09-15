@@ -128,7 +128,7 @@ seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
 /**
  * Works the same as seaf_commit_manager_traverse_commit_tree, but stops
  * traversing when a total number of _limit_ commits is reached. If
- * limit < 0, there is no limit; if limit is zero, it's set to 1.
+ * limit <= 0, there is no limit
  */
 gboolean
 seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
