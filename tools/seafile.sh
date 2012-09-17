@@ -9,6 +9,7 @@ default_ccnet_conf_dir=${TOPDIR}/ccnet
 ccnet_pidfile=${INSTALLPATH}/runtime/ccnet.pid
 
 export LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${LD_LIBRARY_PATH}
+export PATH=${INSTALLPATH}/seafile/bin:$PATH
 
 script_name=$0
 function usage () {
@@ -67,8 +68,7 @@ function start_seafile_server () {
     bin_dir="${INSTALLPATH}/seafile/bin"
     htmls_dir="${INSTALLPATH}/runtime/htmls"
 
-    ${seaf_controller} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}" \
-        -b "${bin_dir}"
+    ${seaf_controller} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"
 
     sleep 3
 
