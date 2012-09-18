@@ -6,7 +6,7 @@
 %>
 
 <%def name="left_panel()">
-
+<div class="left-nav">
 % if relays:
 <h3>${_("Servers")}</h3>
 % endif
@@ -32,6 +32,7 @@
 <h3>${_("Official Server")}</h3>
 <a href="http://cloud.seafile.com.cn" target="_blank">SeaCloud</a>
 
+</div>
 </%def>
 
 <%def name="wide_center_panel()">
@@ -41,7 +42,7 @@
 <ol>
     <li>${_("Login into an seafile server, either our official server (SeaCloud) or your private server.")}</li>
     <li>${_("Create a repo on server.")}</li>
-    <li>${_("Synchronize the repo with a local folder (By click the sync button).")}</li>
+    <li>${_("Download the repo.")}</li>
     <li>${_("Add files to the folder and they will be uploaded automatically.")}</li>
 </ol>
 

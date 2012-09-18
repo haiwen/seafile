@@ -4,22 +4,20 @@
 %>
 
 <%def name="left_panel()">
+<div class="left-nav">
 <h3>${_("Navigation")}</h3>
 <ul>
     <li><a href="/" id="back">${_("All Repos")}</a></li>
+    % if relay and relay.props.service_url:
+     <li><a href="${relay.props.service_url}/repo/${repo.props.id}">${_("View at relay")}</a></li>
+    % endif
 </ul>
 </h3>
 <h3>${_("Operations")}</h3>
 <ul>
-    % if relay and relay.props.service_url:
-     <li><a href="${relay.props.service_url}/repo/${repo.props.id}">${_("View at relay")}</a></li>
-    % endif
-    % if relay and repo.local_branch and repo.props.head_branch and not repo.props.worktree_invalid:
     <li><a id="do-sync-link" href="/repos/operation/?repo=${repo.props.id}&op=sync">${_("Sync Now")}</a></li>
-    % endif
-    <!--li><a href="/repo/setting/?repo=${repo.props.id}">${_("Settings")}</a></li-->
-    <li><a href="#" id="delete">${_("Unsync")}</a></li>
 </ul>
+</div>
 </%def>
 
 <%def name="wide_center_panel()">
@@ -72,41 +70,8 @@
     </ul>
 </div>
 
-<h3>${_("Recent Changes")}</h3>
-<table class="commit-list">
-    <tr>
-        <th class="time">${_("Time")}</th>
-        <th class="author">${_("Author")}</th>
-        <th class="repo-home-desc">${_("Description")}</th>
-    </tr>
-    % for commit in recent_commits:
-    <tr>
-        <td class="time">${commit.props.ctime | translate_time_sec}</td>
-        % if commit.props.creator_name:
-        <td class="author">${commit.props.creator_name|format_creator}</td>
-        % else:
-        <td class="author">${_("unknown")}</td>
-        % endif
-        <td class="repo-home-desc">
-            % if lang == 'zh_CN':
-            ${commit.props.desc | translate_commit_desc} 
-            % else:
-            ${commit.props.desc} 
-            % endif
-
-            % if commit.props.parent_id:
-            <a class="lsch" href="/repos/operation/?repo=${repo.props.id}&new=${commit.props.id}&op=lsch">${_("details")}</a>
-            % endif
-        </td>
-    </tr>
-    % endfor
-</table>
-<p class="history-link">
-    <a href="/repo/history/?repo=${repo.props.id}">${_("All changes history")}</a>
-</p>
 
 <!-- hidden content -->
-<div id="ls-ch" class="hide"></div><!--list modification details of a commit-->
 
 <textarea id="transfer-template" class="hide"> 
     <div class="notification">
@@ -324,58 +289,6 @@ $('#do-sync-link').click(function() {
 });
 % endif
 
-//list modification made by a commit;for repo,repo_history
-$('.lsch').each(function() {
-        $(this).click(function() {
-            $.ajax({
-                url: $(this).attr('href'),
-                dataType: 'json',
-                cache: false,
-                contentType: 'application/json; charset=utf-8',
-                success: function(data) {
-                    var str_title =  '<h3>${_("Modification Detail")}</h3>';
-                    var str_con = ''; 
-                    var show = function(data_) {
-                            str_con += '<ul>';
-                            for (var i = 0, len = data_.length; i < len; i++) {
-                                str_con += '<li>' + data_[i] + '</li>';
-                            }   
-                            str_con += '</ul>';
-                    };  
-                    if (data['new'].length > 0) {
-                        str_con += '<h4 id="ls-ch-new">${_("New files:")}</h4>';
-                        show(data['new']);
-                    }   
-                    if (data['removed'].length > 0) {
-                        str_con += '<h4 id="ls-ch-rm">${_("Removed files:")}</h4>';
-                        show(data['removed']);
-                    }   
-                    if (data['renamed'].length > 0) {
-                        str_con += '<h4 id="ls-ch-rn">${_("Renamed files:")}</h4>';
-                        show(data['renamed']);
-                    }
-                    if (data['modified'].length > 0) {
-                        str_con += '<h4 id="ls-ch-modi">${_("Modified files:")}</h4>';
-                        show(data['modified']);
-                    }
-                    if (data['newdir'].length > 0) {
-                        str_con += '<h4 id="ls-ch-newdir">${_("New directories:")}</h4>';
-                        show(data['newdir']);
-                    }
-                    if (data['deldir'].length > 0) {
-                        str_con += '<h4 id="ls-ch-deldir">${_("Removed directories:")}</h4>';
-                        show(data['deldir']);
-                    }
-                    if (!str_con) {
-                        str_con = '<p>${_("No file content modified.")}</p>';
-                    }
-                    $('#ls-ch').html(str_title + str_con);
-                    $('#ls-ch').modal({appendTo:'#main'});
-                }
-            });
-            return false;
-        });
-    });
 
 // for passwd display
 $('#show-passwd-value').click(function() {

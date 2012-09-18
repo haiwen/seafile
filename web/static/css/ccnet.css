@@ -405,3 +405,4 @@ p.history-link { margin-top:6px; }
 #repo-desc {
     height:72px;
 }
+div.left-nav { width:145px; min-height:500px; border-right:1px solid #eee; }
