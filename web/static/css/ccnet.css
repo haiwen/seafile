@@ -146,6 +146,9 @@ a.button { text-decoration: underline; color:#800; }
     margin-top: 16px;
     margin-bottom: 30px;
     background: #f4f4f4;
+    border: 1px solid #eee;
+    -moz-border-radius: 3px;
+    border-radius: 3px;
 }
 #lang-info { margin: 8px 2px 0 0; font-size: 13px; color: #666; font-weight: normal; }
 #nav {
