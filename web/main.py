@@ -81,7 +81,7 @@ SEAFILE_VERSION = '1.0.0'
 default_options = { "confdir": CCNET_CONF_PATH,
                     'web_ctx': web.ctx, 
                     'seafile_version': SEAFILE_VERSION,
-                    'lang': lang_in_use,
+                    'lang': DEFAULT_LANG,
                     'settings': settings,
                     }
 
@@ -207,6 +207,8 @@ class repos:
 
             gettext.translation('messages', localedir,
                                 languages=[lang_in_use]).install(True)
+
+            default_options['lang'] = lang_in_use
         return self.show_repos()
 
 
@@ -772,19 +774,17 @@ class i18n:
     def GET(self):
         global lang_in_use
         if lang_in_use == 'zh_CN':
-            gettext.translation('messages', localedir,
-                                languages=['en_US']).install(True)
             lang_in_use = 'en_US'
         else:
-            gettext.translation('messages', localedir,
-                                languages=['zh_CN']).install(True)
             lang_in_use = 'zh_CN'
+
+        gettext.translation('messages', localedir,
+                            languages=[lang_in_use]).install(True)
 
         seafile_rpc.set_config('lang_in_use', lang_in_use)
 
         default_options['lang'] = lang_in_use
         inputs = web.webapi.input(prev='/home/')    
-
 
         raise web.seeother(inputs.prev)
 
