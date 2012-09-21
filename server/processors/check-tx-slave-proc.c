@@ -150,7 +150,7 @@ check_repo_share_permission (SearpcClient *rpc_client,
 
     if (seaf_share_manager_check_permission (seaf->share_mgr,
                                              repo_id,
-                                             user_name) == 0)
+                                             user_name) != NULL)
         return TRUE;
 
     groups = ccnet_get_groups_by_user (rpc_client, user_name);

@@ -57,6 +57,8 @@ public class Repo : Object {
 
     public string shared_email { get; set; }
 
+    public string share_permission { get; set; }
+
     public bool no_local_history { get; set; }
 }
 
@@ -101,6 +103,7 @@ public class RepoGroup : Object {
     public string repo_id { get; set; }
     public int group_id { get; set; }
     public string user_name { get; set; }
+    public string permission { get; set; }
 }
 
 public class DiffEntry : Object {

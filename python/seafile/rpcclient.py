@@ -431,6 +431,10 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     remove_share = seafile_remove_share
 
+    @searpc_func("int", ["string", "string", "string", "string"])
+    def set_share_permission(repo_id, from_email, to_email, permission):
+        pass
+
     # share repo to group
     @searpc_func("int", ["string", "int", "string", "string"])
     def seafile_group_share_repo(repo_id, group_id, user_name, permisson):
@@ -464,6 +468,10 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_remove_repo_group(group_id, user_name):
         pass
     remove_repo_group = seafile_remove_repo_group
+
+    @searpc_func("int", ["int", "string", "string"])
+    def set_group_repo_permission(group_id, repo_id, permission):
+        pass
     
     # branch and commit
     @searpc_func("objlist", ["string"])
@@ -541,7 +549,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     create_repo = seafile_create_repo
 
     # repo permission checking
-    @searpc_func("int", ["string", "string"])
+    @searpc_func("string", ["string", "string"])
     def check_permission(repo_id, user):
         pass
 
@@ -597,6 +605,10 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
 
     @searpc_func("string", ["int", "string"])
     def get_org_groups_by_repo(org_id, repo_id):
+        pass
+
+    @searpc_func("int", ["int", "int", "string", "string"])
+    def set_org_group_repo_permission(org_id, group_id, repo_id, permission):
         pass
     
     # inner pub repo

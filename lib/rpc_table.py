@@ -11,6 +11,7 @@ func_table = [
     [ "int", ["int", "string", "int"] ],
     [ "int", ["int", "string", "string"] ],
     [ "int", ["int", "string", "int", "int"] ],    
+    [ "int", ["int", "int", "string", "string"] ],
     [ "int", ["string"] ],
     [ "int", ["string", "int"] ],
     [ "int", ["string", "int", "int"] ],

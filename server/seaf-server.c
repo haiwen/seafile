@@ -279,6 +279,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "seafile_remove_share",
                                      searpc_signature_int__string_string_string());
 
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_set_share_permission,
+                                     "set_share_permission",
+                                     searpc_signature_int__string_string_string_string());
+
     /* share repo to group */
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_group_share_repo,
@@ -309,6 +314,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_remove_repo_group,
                                      "seafile_remove_repo_group",
                                      searpc_signature_int__int_string());    
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_set_group_repo_permission,
+                                     "set_group_repo_permission",
+                                     searpc_signature_int__int_string_string());
     
     /* branch and commit */
     searpc_server_register_function ("seafserv-threaded-rpcserver",
@@ -434,7 +444,7 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_check_permission,
                                      "check_permission",
-                                     searpc_signature_int__string_string());
+                                     searpc_signature_string__string_string());
 
     if (!cloud_mode) {
         searpc_server_register_function ("seafserv-threaded-rpcserver",
@@ -508,7 +518,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
         searpc_server_register_function ("seafserv-threaded-rpcserver",
                                          seafile_get_org_groups_by_repo,
                                          "get_org_groups_by_repo",
-                                searpc_signature_string__int_string());
+                                         searpc_signature_string__int_string());
+        searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                         seafile_set_org_group_repo_permission,
+                                         "set_org_group_repo_permission",
+                                         searpc_signature_int__int_int_string_string());
 
         /* org inner pub repo */
         searpc_server_register_function ("seafserv-threaded-rpcserver",

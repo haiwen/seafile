@@ -1350,6 +1350,58 @@ seaf_repo_manager_get_groups_by_repo (SeafRepoManager *mgr,
 }
 
 static gboolean
+get_group_perms_cb (SeafDBRow *row, void *data)
+{
+    GList **plist = data;
+    GroupPerm *perm = g_new0 (GroupPerm, 1);
+
+    perm->group_id = seaf_db_row_get_column_int (row, 0);
+    perm->permission = g_strdup(seaf_db_row_get_column_text(row, 1));
+
+    *plist = g_list_prepend (*plist, perm);
+
+    return TRUE;
+}
+
+GList *
+seaf_repo_manager_get_group_perm_by_repo (SeafRepoManager *mgr,
+                                          const char *repo_id,
+                                          GError **error)
+{
+    char sql[512];
+    GList *group_perms = NULL, *p;
+    
+    snprintf (sql, sizeof(sql), "SELECT group_id, permission FROM RepoGroup "
+              "WHERE repo_id = '%s'", repo_id);
+    
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_perms_cb,
+                                      &group_perms) < 0) {
+        for (p = group_perms; p != NULL; p = p->next)
+            g_free (p->data);
+        g_list_free (group_perms);
+        return NULL;
+    }
+
+    return g_list_reverse (group_perms);
+}
+
+int
+seaf_repo_manager_set_group_repo_perm (SeafRepoManager *mgr,
+                                       const char *repo_id,
+                                       int group_id,
+                                       const char *permission,
+                                       GError **error)
+{
+    char sql[512];
+
+    snprintf (sql, sizeof(sql),
+              "UPDATE RepoGroup SET permission='%s' WHERE "
+              "repo_id='%s' AND group_id=%d",
+              permission, repo_id, group_id);
+    return seaf_db_query (mgr->seaf->db, sql);
+}
+
+static gboolean
 get_group_repoids_cb (SeafDBRow *row, void *data)
 {
     GList **p_list = data;
@@ -1384,13 +1436,16 @@ get_group_repos_cb (SeafDBRow *row, void *data)
     GList **p_list = data;
     SeafileRepoGroup *repo_group = NULL;
     
-    char *repo_id = g_strdup ((const char *)seaf_db_row_get_column_text (row, 0));
+    const char *repo_id = seaf_db_row_get_column_text (row, 0);
     int group_id = seaf_db_row_get_column_int (row, 1);
-    char *user_name = g_strdup ((const char *)seaf_db_row_get_column_text (row, 2));
+    const char *user_name = seaf_db_row_get_column_text (row, 2);
+    const char *permission = seaf_db_row_get_column_text (row, 3);
+    
     repo_group = g_object_new (SEAFILE_TYPE_REPO_GROUP,
                                "repo_id", repo_id,
                                "group_id", group_id,
                                "user_name", user_name,
+                               "permission", permission,
                                NULL);
     if (repo_group != NULL) {
         /* g_object_ref (repo_group); */
@@ -1408,7 +1463,7 @@ seaf_repo_manager_get_group_repos_by_owner (SeafRepoManager *mgr,
     char sql[512];
     GList *repos = NULL;
 
-    snprintf (sql, sizeof(sql), "SELECT repo_id, group_id, user_name "
+    snprintf (sql, sizeof(sql), "SELECT repo_id, group_id, user_name, permission "
               "FROM RepoGroup WHERE user_name = '%s'", owner);
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_repos_cb,
                                       &repos) < 0)
@@ -1705,6 +1760,47 @@ seaf_repo_manager_get_org_groups_by_repo (SeafRepoManager *mgr,
     return g_list_reverse (group_ids);
 }
 
+GList *
+seaf_repo_manager_get_org_group_perm_by_repo (SeafRepoManager *mgr,
+                                              int org_id,
+                                              const char *repo_id,
+                                              GError **error)
+{
+    char sql[512];
+    GList *group_perms = NULL, *p;
+    
+    snprintf (sql, sizeof(sql), "SELECT group_id, permission FROM OrgGroupRepo "
+              "WHERE org_id = %d AND repo_id = '%s'",
+              org_id, repo_id);
+    
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_perms_cb,
+                                      &group_perms) < 0) {
+        for (p = group_perms; p != NULL; p = p->next)
+            g_free (p->data);
+        g_list_free (group_perms);
+        return NULL;
+    }
+
+    return g_list_reverse (group_perms);
+}
+
+int
+seaf_repo_manager_set_org_group_repo_perm (SeafRepoManager *mgr,
+                                           const char *repo_id,
+                                           int org_id,
+                                           int group_id,
+                                           const char *permission,
+                                           GError **error)
+{
+    char sql[512];
+
+    snprintf (sql, sizeof(sql),
+              "UPDATE OrgGroupRepo SET permission='%s' WHERE "
+              "repo_id='%s' AND org_id=%d AND group_id=%d",
+              permission, repo_id, org_id, group_id);
+    return seaf_db_query (mgr->seaf->db, sql);
+}
+
 char *
 seaf_repo_manager_get_org_group_repo_owner (SeafRepoManager *mgr,
                                             int org_id,
@@ -1737,7 +1833,7 @@ seaf_repo_manager_get_org_group_repos_by_owner (SeafRepoManager *mgr,
     char sql[512];
     GList *repos = NULL;
 
-    snprintf (sql, sizeof(sql), "SELECT repo_id, group_id, owner "
+    snprintf (sql, sizeof(sql), "SELECT repo_id, group_id, owner, permission "
               "FROM OrgGroupRepo WHERE owner = '%s'", owner);
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_repos_cb,
                                       &repos) < 0)
@@ -1805,32 +1901,35 @@ seaf_repo_manager_list_org_inner_pub_repos (SeafRepoManager *mgr,
     return g_list_reverse (ret);    
 }
 
-static gboolean
+static char *
 check_repo_share_permission (SeafRepoManager *mgr,
                              const char *repo_id,
                              const char *user_name)
 {
     SearpcClient *rpc_client;
     GList *groups, *p1;
-    GList *repo_groups, *p2;
+    GList *group_perms, *p2;
     CcnetGroup *group;
-    int group_id, repo_group_id;
-    gboolean ret = FALSE;
+    GroupPerm *perm;
+    int group_id;
+    char *permission;
 
     if (!mgr->seaf->cloud_mode &&
         seaf_repo_manager_is_inner_pub_repo (mgr, repo_id))
-        return TRUE;
+        return g_strdup("rw");
 
-    if (seaf_share_manager_check_permission (seaf->share_mgr,
-                                             repo_id,
-                                             user_name) == 0)
-        return TRUE;
+    permission = seaf_share_manager_check_permission (seaf->share_mgr,
+                                                      repo_id,
+                                                      user_name);
+    if (g_strcmp0(permission, "rw") == 0 || g_strcmp0(permission, "r") == 0)
+        return permission;
+    g_free (permission);
 
     rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
                                                  NULL,
                                                  "ccnet-threaded-rpcserver");
     if (!rpc_client)
-        return FALSE;
+        return NULL;
 
     /* Get the groups this user belongs to. */
     groups = ccnet_get_groups_by_user (rpc_client, user_name);
@@ -1838,18 +1937,28 @@ check_repo_share_permission (SeafRepoManager *mgr,
     ccnet_rpc_client_free (rpc_client);
 
     /* Get the groups this repo shared to. */
-    repo_groups = seaf_repo_manager_get_groups_by_repo (mgr, repo_id, NULL);
+    group_perms = seaf_repo_manager_get_group_perm_by_repo (mgr, repo_id, NULL);
 
+    permission = NULL;
     /* Check if any one group overlaps. */
     for (p1 = groups; p1 != NULL; p1 = p1->next) {
         group = p1->data;
         g_object_get (group, "id", &group_id, NULL);
 
-        for (p2 = repo_groups; p2 != NULL; p2 = p2->next) {
-            repo_group_id = (int)(long)(p2->data);
-            if (group_id == repo_group_id) {
-                ret = TRUE;
-                goto out;
+        for (p2 = group_perms; p2 != NULL; p2 = p2->next) {
+            perm = p2->data;
+            if (group_id == perm->group_id) {
+                /* If the repo is shared to more than 1 groups,
+                 * and user is in more than 1 of these groups,
+                 * "rw" permission will overwrite "ro" permission.
+                 */
+                if (g_strcmp0(perm->permission, "rw") == 0) {
+                    permission = perm->permission;
+                    goto out;
+                } else if (g_strcmp0(perm->permission, "r") == 0 &&
+                           !permission) {
+                    permission = perm->permission;
+                }
             }
         }
     }
@@ -1858,11 +1967,14 @@ out:
     for (p1 = groups; p1 != NULL; p1 = p1->next)
         g_object_unref ((GObject *)p1->data);
     g_list_free (groups);
-    g_list_free (repo_groups);
-    return ret;
+    for (p2 = group_perms; p2 != NULL; p2 = p2->next)
+        g_free (p2->data);
+    g_list_free (group_perms);
+
+    return g_strdup(permission);
 }
 
-static gboolean
+static char *
 check_org_repo_share_permission (SeafRepoManager *mgr,
                                  int org_id,
                                  const char *repo_id,
@@ -1870,26 +1982,36 @@ check_org_repo_share_permission (SeafRepoManager *mgr,
 {
     SearpcClient *rpc_client;
     GList *groups, *p1;
-    GList *repo_groups, *p2;
+    GList *group_perms, *p2;
     CcnetGroup *group;
-    int group_id, repo_group_id;
-    gboolean ret = FALSE;
+    GroupPerm *perm;
+    int group_id;
+    char *permission;
 
     rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
                                                  NULL,
                                                  "ccnet-threaded-rpcserver");
     if (!rpc_client)
-        return FALSE;
+        return NULL;
 
     if (!ccnet_org_user_exists (rpc_client, org_id, user_name)) {
         ccnet_rpc_client_free (rpc_client);
-        return FALSE;
+        return NULL;
     }
 
     if (seaf_repo_manager_is_org_inner_pub_repo (mgr, org_id, repo_id)) {
         ccnet_rpc_client_free (rpc_client);
-        return TRUE;
+        return g_strdup("rw");
     }
+
+    permission = seaf_share_manager_check_permission (seaf->share_mgr,
+                                                      repo_id,
+                                                      user_name);
+    if (g_strcmp0(permission, "rw") == 0 || g_strcmp0(permission, "r") == 0) {
+        ccnet_rpc_client_free (rpc_client);
+        return permission;
+    }
+    g_free (permission);
 
     /* Get the groups this user belongs to. */
     groups = ccnet_get_groups_by_user (rpc_client, user_name);
@@ -1897,21 +2019,31 @@ check_org_repo_share_permission (SeafRepoManager *mgr,
     ccnet_rpc_client_free (rpc_client);
 
     /* Get the groups this repo shared to. */
-    repo_groups = seaf_repo_manager_get_org_groups_by_repo (mgr,
-                                                            org_id,
-                                                            repo_id,
-                                                            NULL);
+    group_perms = seaf_repo_manager_get_org_group_perm_by_repo (mgr,
+                                                                org_id,
+                                                                repo_id,
+                                                                NULL);
 
+    permission = NULL;
     /* Check if any one group overlaps. */
     for (p1 = groups; p1 != NULL; p1 = p1->next) {
         group = p1->data;
         g_object_get (group, "id", &group_id, NULL);
 
-        for (p2 = repo_groups; p2 != NULL; p2 = p2->next) {
-            repo_group_id = (int)(long)(p2->data);
-            if (group_id == repo_group_id) {
-                ret = TRUE;
-                goto out;
+        for (p2 = group_perms; p2 != NULL; p2 = p2->next) {
+            perm = p2->data;
+            if (group_id == perm->group_id) {
+                /* If the repo is shared to more than 1 groups,
+                 * and user is in more than 1 of these groups,
+                 * "rw" permission will overwrite "ro" permission.
+                 */
+                if (g_strcmp0(perm->permission, "rw") == 0) {
+                    permission = perm->permission;
+                    goto out;
+                } else if (g_strcmp0(perm->permission, "r") == 0 &&
+                           !permission) {
+                    permission = perm->permission;
+                }
             }
         }
     }
@@ -1920,56 +2052,58 @@ out:
     for (p1 = groups; p1 != NULL; p1 = p1->next)
         g_object_unref ((GObject *)p1->data);
     g_list_free (groups);
-    g_list_free (repo_groups);
-    return ret;
+    for (p2 = group_perms; p2 != NULL; p2 = p2->next)
+        g_free (p2->data);
+    g_list_free (group_perms);
+
+    return g_strdup(permission);
 }
 
 /*
  * Comprehensive repo access permission checker.
+ *
+ * Returns read/write permission.
  */
-int
+char *
 seaf_repo_manager_check_permission (SeafRepoManager *mgr,
                                     const char *repo_id,
                                     const char *user,
                                     GError **error)
 {
-    char *owner;
+    char *owner = NULL;
     int org_id;
+    char *permission = NULL;
 
     owner = seaf_repo_manager_get_repo_owner (mgr, repo_id);
     if (owner != NULL) {
-        /* If the user is not owner, check share permission */
-        if (strcmp (owner, user) != 0 &&
-            !check_repo_share_permission (mgr, repo_id, user)) {
-            g_free (owner);
-            return -1;
-        }
+        if (strcmp (owner, user) == 0)
+            permission = g_strdup("rw");
+        else
+            permission = check_repo_share_permission (mgr, repo_id, user);
     } else if (mgr->seaf->cloud_mode) {
         /* Org repo. */
         owner = seaf_repo_manager_get_org_repo_owner (mgr, repo_id);
         if (!owner) {
             seaf_warning ("Failed to get owner of org repo %.10s.\n", repo_id);
-            return -1;
+            goto out;
         }
 
         org_id = seaf_repo_manager_get_repo_org (mgr, repo_id);
         if (org_id < 0) {
             seaf_warning ("Failed to get org of repo %.10s.\n", repo_id);
-            g_free (owner);
-            return -1;
+            goto out;
         }
 
-        if (strcmp (owner, user) != 0 &&
-            !check_org_repo_share_permission (mgr, org_id, repo_id, user)) {
-            g_free (owner);
-            return -1;
-        }
-    } else {
-        return -1;
+        if (strcmp (owner, user) == 0)
+            permission = g_strdup("rw");
+        else
+            permission = check_org_repo_share_permission (mgr, org_id,
+                                                          repo_id, user);
     }
 
+out:
     g_free (owner);
-    return 0;
+    return permission;
 }
 
 /*

@@ -1861,9 +1861,12 @@ seafile_list_share_repos (const char *email, const char *type,
                       "name", repoInfo->repo->name,
                       "desc", repoInfo->repo->desc,
                       "encrypted", repoInfo->repo->encrypted,
-                      "shared_email", repoInfo->email, NULL);
+                      "shared_email", repoInfo->email,
+                      "share_permission", repoInfo->permission,
+                      NULL);
         seaf_repo_unref (repoInfo->repo);
         g_free (repoInfo->email);
+        g_free (repoInfo->permission);
         g_free (repoInfo);
         ret = g_list_prepend (ret, repo);
         ptr = ptr->next;
@@ -2947,16 +2950,73 @@ seafile_get_repo_token_nonnull (const char *repo_id,
     return token;
 }
 
-int
+char *
 seafile_check_permission (const char *repo_id, const char *user, GError **error)
 {
     if (!repo_id || !user) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
-        return -1;
+        return NULL;
     }
 
     return seaf_repo_manager_check_permission (seaf->repo_mgr,
                                                repo_id, user, error);
+}
+
+int
+seafile_set_share_permission (const char *repo_id,
+                              const char *from_email,
+                              const char *to_email,
+                              const char *permission,
+                              GError **error)
+{
+    if (!repo_id || !from_email || !to_email || !permission) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return -1;
+    }
+
+    return seaf_share_manager_set_permission (seaf->share_mgr,
+                                              repo_id,
+                                              from_email,
+                                              to_email,
+                                              permission);
+}
+
+int
+seafile_set_group_repo_permission (int group_id,
+                                   const char *repo_id,
+                                   const char *permission,
+                                   GError **error)
+{
+    if (!repo_id || !permission) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return -1;
+    }
+
+    return seaf_repo_manager_set_group_repo_perm (seaf->repo_mgr,
+                                                  repo_id,
+                                                  group_id,
+                                                  permission,
+                                                  error);
+}
+
+int
+seafile_set_org_group_repo_permission (int org_id,
+                                       int group_id,
+                                       const char *repo_id,
+                                       const char *permission,
+                                       GError **error)
+{
+    if (!repo_id || !permission) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return -1;
+    }
+
+    return seaf_repo_manager_set_org_group_repo_perm (seaf->repo_mgr,
+                                                      repo_id,
+                                                      org_id,
+                                                      group_id,
+                                                      permission,
+                                                      error);
 }
 
 #endif  /* SEAFILE_SERVER */

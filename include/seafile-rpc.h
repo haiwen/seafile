@@ -738,7 +738,7 @@ seafile_create_org_repo (const char *repo_name,
 int
 seafile_get_org_id_by_repo_id (const char *repo_id, GError **error);
 
-int
+char *
 seafile_check_permission (const char *repo_id, const char *user, GError **error);
 
 int
@@ -790,6 +790,26 @@ seafile_unset_org_inner_pub_repo (int org_id, const char *repo_id, GError **erro
 
 GList *
 seafile_list_org_inner_pub_repos (int org_id, GError **error);
+
+int
+seafile_set_share_permission (const char *repo_id,
+                              const char *from_email,
+                              const char *to_email,
+                              const char *permission,
+                              GError **error);
+
+int
+seafile_set_group_repo_permission (int group_id,
+                                   const char *repo_id,
+                                   const char *permission,
+                                   GError **error);
+
+int
+seafile_set_org_group_repo_permission (int org_id,
+                                       int group_id,
+                                       const char *repo_id,
+                                       const char *permission,
+                                       GError **error);
 
 /* ------------------ Public RPC calls. ------------ */
 

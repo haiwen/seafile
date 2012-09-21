@@ -343,6 +343,23 @@ seaf_repo_manager_get_groups_by_repo (SeafRepoManager *mgr,
                                       const char *repo_id,
                                       GError **error);
 
+typedef struct GroupPerm {
+    int group_id;
+    char *permission;
+} GroupPerm;
+
+GList *
+seaf_repo_manager_get_group_perm_by_repo (SeafRepoManager *mgr,
+                                          const char *repo_id,
+                                          GError **error);
+
+int
+seaf_repo_manager_set_group_repo_perm (SeafRepoManager *mgr,
+                                       const char *repo_id,
+                                       int group_id,
+                                       const char *permission,
+                                       GError **error);
+
 char *
 seaf_repo_manager_get_group_repo_owner (SeafRepoManager *mgr,
                                         const char *repo_id,
@@ -440,6 +457,20 @@ seaf_repo_manager_get_org_groups_by_repo (SeafRepoManager *mgr,
                                           const char *repo_id,
                                           GError **error);
 
+GList *
+seaf_repo_manager_get_org_group_perm_by_repo (SeafRepoManager *mgr,
+                                              int org_id,
+                                              const char *repo_id,
+                                              GError **error);
+
+int
+seaf_repo_manager_set_org_group_repo_perm (SeafRepoManager *mgr,
+                                           const char *repo_id,
+                                           int org_id,
+                                           int group_id,
+                                           const char *permission,
+                                           GError **error);
+
 char *
 seaf_repo_manager_get_org_group_repo_owner (SeafRepoManager *mgr,
                                             int org_id,
@@ -477,7 +508,7 @@ seaf_repo_manager_list_org_inner_pub_repos (SeafRepoManager *mgr, int org_id);
  * Comprehensive repo permission checker.
  * It checks if @user have permission to access @repo_id.
  */
-int
+char *
 seaf_repo_manager_check_permission (SeafRepoManager *mgr,
                                     const char *repo_id,
                                     const char *user,

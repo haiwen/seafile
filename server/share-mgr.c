@@ -68,12 +68,27 @@ seaf_share_manager_add_share (SeafShareManager *mgr, const char *repo_id,
     return 0;
 }
 
+int
+seaf_share_manager_set_permission (SeafShareManager *mgr, const char *repo_id,
+                                   const char *from_email, const char *to_email,
+                                   const char *permission)
+{
+    char sql[512];
+
+    snprintf (sql, sizeof(sql),
+              "UPDATE SharedRepo SET permission='%s' WHERE "
+              "repo_id='%s' AND from_email='%s' AND to_email='%s'",
+              permission, repo_id, from_email, to_email);
+    return seaf_db_query (mgr->seaf->db, sql);
+}
+
 static gboolean
 collect_repos (SeafDBRow *row, void *data)
 {
     GList **p_repos = data;
     const char *repo_id;
     const char *email;
+    const char *permission;
     SeafRepo *repo;
     ShareRepoInfo *shareRepoInfo;
     
@@ -82,11 +97,13 @@ collect_repos (SeafDBRow *row, void *data)
     if (!repo) {
         return TRUE;
     }
-    email = (const char *) seaf_db_row_get_column_text (row, 1);
+    email = seaf_db_row_get_column_text (row, 1);
+    permission = seaf_db_row_get_column_text (row, 2);
 
     shareRepoInfo = g_new0 (ShareRepoInfo, 1);
     shareRepoInfo->email = g_strdup(email);
     shareRepoInfo->repo = repo;
+    shareRepoInfo->permission = g_strdup(permission);
     
     *p_repos = g_list_prepend (*p_repos, shareRepoInfo);
 
@@ -102,10 +119,10 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
 
     if (start == -1 && limit == -1) {
         if (g_strcmp0 (type, "from_email") == 0) {
-            snprintf (sql, sizeof(sql), "SELECT repo_id, to_email FROM "
+            snprintf (sql, sizeof(sql), "SELECT repo_id, to_email, permission FROM "
                       "SharedRepo WHERE from_email='%s'", email);
         } else if (g_strcmp0 (type, "to_email") == 0) {
-            snprintf (sql, sizeof(sql), "SELECT repo_id, from_email FROM "
+            snprintf (sql, sizeof(sql), "SELECT repo_id, from_email, permission FROM "
                       "SharedRepo WHERE to_email='%s'", email);
         } else {
             /* should never reach here */
@@ -115,11 +132,13 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
     }
     else {
         if (g_strcmp0 (type, "from_email") == 0) {
-            snprintf (sql, sizeof(sql), "SELECT repo_id, to_email FROM "
+            snprintf (sql, sizeof(sql),
+                      "SELECT repo_id, to_email, permission FROM "
                       "SharedRepo WHERE from_email='%s' LIMIT %d, %d",
                       email, start, limit);
         } else if (g_strcmp0 (type, "to_email") == 0) {
-            snprintf (sql, sizeof(sql), "SELECT repo_id, from_email FROM "
+            snprintf (sql, sizeof(sql),
+                      "SELECT repo_id, from_email, permission FROM "
                       "SharedRepo WHERE to_email='%s' LIMIT %d, %d",
                       email, start, limit);
         } else {
@@ -170,7 +189,7 @@ seaf_share_manager_remove_repo (SeafShareManager *mgr, const char *repo_id)
     return 0;
 }
 
-int
+char *
 seaf_share_manager_check_permission (SeafShareManager *mgr,
                                      const char *repo_id,
                                      const char *email)
@@ -178,10 +197,7 @@ seaf_share_manager_check_permission (SeafShareManager *mgr,
     char sql[512];
 
     snprintf (sql, sizeof(sql),
-              "SELECT repo_id FROM SharedRepo WHERE repo_id='%s' AND to_email='%s'",
+              "SELECT permission FROM SharedRepo WHERE repo_id='%s' AND to_email='%s'",
               repo_id, email);
-    if (seaf_db_check_for_existence (mgr->seaf->db, sql))
-        return 0;
-
-    return -1;
+    return seaf_db_get_string (mgr->seaf->db, sql);
 }

@@ -228,8 +228,11 @@ check_tx (void *vprocessor)
         goto out;
     }
     
-    if (seaf_repo_manager_check_permission (seaf->repo_mgr,
-                                            repo_id, user, NULL) < 0) {
+    char *perm = seaf_repo_manager_check_permission (seaf->repo_mgr,
+                                                     repo_id, user, NULL);
+    if (!perm ||
+        (strcmp (perm, "r") == 0 && priv->type == CHECK_TX_TYPE_UPLOAD))
+    {
         priv->rsp_code = g_strdup(SC_ACCESS_DENIED);
         priv->rsp_msg = g_strdup(SS_ACCESS_DENIED);
         goto out;
