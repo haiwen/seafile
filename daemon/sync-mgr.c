@@ -62,6 +62,9 @@ static void on_repo_uploaded (SeafileSession *seaf,
 static inline void
 transition_sync_state (SyncTask *task, int new_state);
 
+static gint compare_sync_task (gconstpointer a, gconstpointer b);
+static void sync_task_free (SyncTask *task);
+
 SeafSyncManager*
 seaf_sync_manager_new (SeafileSession *seaf)
 {
@@ -283,25 +286,22 @@ seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
     return 0;
 }
 
-static void
-cancel_queued_task (gpointer data, gpointer user_data)
-{
-    SyncTask *task = data;
-    const char *repo_id = user_data;
-
-    if (strcmp (task->info->repo_id, repo_id) == 0)
-        task->canceled = TRUE;
-}
-
 void
 seaf_sync_manager_cancel_sync_task (SeafSyncManager *mgr,
                                     const char *repo_id)
 {
     SyncInfo *info;
     SyncTask *task;
+    GList *link;
 
     /* Cancel any pending tasks for this repo on the queue. */
-    g_queue_foreach (mgr->sync_tasks, cancel_queued_task, (void*)repo_id);
+    link = g_queue_find_custom (mgr->sync_tasks,
+                                repo_id, compare_sync_task);
+    if (link) {
+        task = link->data;
+        sync_task_free (task);
+        g_queue_delete_link (mgr->sync_tasks, link);
+    }
 
     /* Cancel running task. */
     info = g_hash_table_lookup (mgr->sync_infos, repo_id);
@@ -1223,11 +1223,6 @@ check_sync_pulse (void *vmanager)
         task = (SyncTask *)g_queue_pop_head (manager->sync_tasks);
         if (!task)
             break;
-
-        if (task->canceled) {
-            sync_task_free (task);
-            continue;
-        }
 
         if (perform_sync_task (manager, task) < 0) {
             g_queue_push_tail (manager->sync_tasks, task);

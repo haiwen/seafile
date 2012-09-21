@@ -74,7 +74,6 @@ struct _SyncTask {
     struct CcnetTimer *conn_timer;
 
     SeafRepo        *repo;  /* for convenience, only valid when in_sync. */
-    gboolean         canceled;  /* marking a task on the queue to be canceled. */
 };
 
 struct _SeafileSession;
