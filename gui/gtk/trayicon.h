@@ -32,6 +32,7 @@ SeafileTrayIcon *seafile_trayicon_new ();
 
 #define ICON_STATUS_UP	    "ccnet_daemon_up"
 #define ICON_STATUS_DOWN    "ccnet_daemon_down"
+#define ICON_AUTO_SYNC_DISABLED    "seafile_auto_sync_disabled"
 
 #define SEAFILE_TRANFER_1   "seafile_transfer_1"
 #define SEAFILE_TRANFER_2   "seafile_transfer_2"
@@ -43,5 +44,7 @@ void seaf_tray_icon_set_icon (SeafileTrayIcon *icon, const char *name);
 void seafile_trayicon_notify (SeafileTrayIcon *icon, char *title, char *buf);
 
 void seafile_trayicon_set_tooltip (SeafileTrayIcon *icon, const char *tooltip);
+
+void reset_trayicon_and_tip (SeafileTrayIcon *icon);
 
 #endif /* __SEAFILE_TRAY_ICON_H__ */

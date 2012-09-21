@@ -9,14 +9,6 @@
 #define APP_NAME "Seafile"
 
 enum {
-    LOGIN_INIT,
-    LOGIN_START,
-    LOGIN_SENT,
-    LOGIN_SUCCESSFUL,
-    LOGIN_SKIP,
-};
-
-enum {
     WEB_NOT_STARTED = 0,
     WEB_STARTED,
     WEB_READY
@@ -42,6 +34,8 @@ struct _SeafileApplet {
     int                             login_status;
     guint                           web_status;
     gboolean                        heartbeat_monitor_on;
+
+    gboolean                        auto_sync_disabled;
 
 #ifndef __APPLE__
     struct _SeafileTrayIcon         *icon;

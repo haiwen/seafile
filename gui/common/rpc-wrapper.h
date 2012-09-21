@@ -17,4 +17,7 @@ int
 call_seafile_set_config (char *key, char *value,
                          AsyncCallback callback, void *data);
 
+int call_seafile_disable_auto_sync (AsyncCallback callback, void *data);
+int call_seafile_enable_auto_sync (AsyncCallback callback, void *data);
+
 #endif

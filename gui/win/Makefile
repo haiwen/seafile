@@ -26,7 +26,7 @@ CC = gcc
 RC = windres
 RCFILE = trayicon.rc
 ICONS = serverup.ico serverdown.ico ccnet.ico \
-	window-head.bmp win7-trayicon-tip.bmp
+	window-head.bmp win7-trayicon-tip.bmp sync-paused.ico
 
 CFLAGS += -DWINVER=0x500 -D_WIN32_IE=0x500
 LDFLAGS += -lcomctl32 -lcomdlg32

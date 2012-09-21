@@ -133,4 +133,18 @@ seafile_check_quota (SearpcClient *client,
                      const char *repo_id,
                      GError **error);
 
+int
+seafile_disable_auto_sync_async (SearpcClient *client,
+                                 AsyncCallback callback,
+                                 void *user_data);
+int
+seafile_enable_auto_sync_async (SearpcClient *client,
+                                AsyncCallback callback,
+                                void *user_data);
+
+int
+seafile_is_auto_sync_enabled_async (SearpcClient *client,
+                                    AsyncCallback callback,
+                                    void *user_data);
+
 #endif

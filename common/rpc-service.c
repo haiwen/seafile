@@ -1089,6 +1089,23 @@ seafile_calc_dir_size (const char *path, GError **error)
     return size;
 }
 
+int
+seafile_disable_auto_sync (GError **error)
+{
+    return seaf_sync_manager_disable_auto_sync (seaf->sync_mgr);
+}
+
+int
+seafile_enable_auto_sync (GError **error)
+{
+    return seaf_sync_manager_enable_auto_sync (seaf->sync_mgr);
+}
+
+int seafile_is_auto_sync_enabled (GError **error)
+{
+    return seaf_sync_manager_is_auto_sync_enabled (seaf->sync_mgr);
+}
+
 
 #endif  /* not define SEAFILE_SERVER */
 

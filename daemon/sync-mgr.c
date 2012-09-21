@@ -38,6 +38,9 @@ struct _SeafSyncManagerPriv {
     struct CcnetTimer *check_sync_timer;
     int    pulse_count;
 
+    /* When FALSE, auto sync is globally disabled */
+    gboolean   auto_sync_enabled;
+
     struct CcnetTimer *check_commit_timer;
     GHashTable *get_email_token_hash; /* repo_id -> failed */
 };
@@ -64,6 +67,7 @@ seaf_sync_manager_new (SeafileSession *seaf)
 {
     SeafSyncManager *mgr = g_new0 (SeafSyncManager, 1);
     mgr->priv = g_new0 (SeafSyncManagerPriv, 1);    
+    mgr->priv->auto_sync_enabled = TRUE;
     mgr->seaf = seaf;
 
     mgr->sync_interval = DEFAULT_SYNC_INTERVAL;
@@ -1204,6 +1208,10 @@ check_sync_pulse (void *vmanager)
 {
     SeafSyncManager *manager = vmanager;
 
+    if (!manager->priv->auto_sync_enabled) {
+        return TRUE;
+    }
+
     add_auto_sync_tasks (manager);
     
     /* Here we perform tasks queued by auto-commit.
@@ -1316,7 +1324,7 @@ auto_commit_pulse (void *vmanager)
         }
         repo->worktree_invalid = FALSE;
 
-        if (repo->auto_sync) {
+        if (manager->priv->auto_sync_enabled && repo->auto_sync) {
             status = seaf_wt_monitor_get_worktree_status (manager->seaf->wt_monitor,
                                                           repo->id);
             if (status) {
@@ -1442,8 +1450,6 @@ sync_error_to_str (int error)
     return sync_error_str[error];
 }
 
-
-
 const char *
 sync_state_to_str (int state)
 {
@@ -1453,4 +1459,68 @@ sync_state_to_str (int state)
     }
 
     return sync_state_str[state];
+}
+
+static void
+cancel_all_sync_tasks (SeafSyncManager *mgr)
+{
+    GList *repos;
+    GList *ptr;
+    SeafRepo *repo;
+
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
+    for (ptr = repos; ptr; ptr = ptr->next) {
+        repo = ptr->data;
+        seaf_sync_manager_cancel_sync_task (mgr, repo->id);
+    }
+
+    g_list_free (repos);
+}
+
+int
+seaf_sync_manager_disable_auto_sync (SeafSyncManager *mgr)
+{
+    cancel_all_sync_tasks (mgr);
+    mgr->priv->auto_sync_enabled = FALSE;
+    g_debug ("[sync mgr] auto sync is disabled\n");
+    return 0;
+}
+
+static void
+add_sync_tasks_for_all (SeafSyncManager *mgr)
+{
+    GList *repos, *ptr;
+    SeafRepo *repo;
+
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
+    for (ptr = repos; ptr; ptr = ptr->next) {
+        repo = ptr->data;
+        if (!repo->auto_sync)
+            continue;
+
+        if (repo->worktree_invalid)
+            continue;
+        
+        enqueue_sync_task (mgr, repo);
+    }
+
+    g_list_free (repos);
+}
+
+int
+seaf_sync_manager_enable_auto_sync (SeafSyncManager *mgr)
+{
+    add_sync_tasks_for_all (mgr);
+    mgr->priv->auto_sync_enabled = TRUE;
+    g_debug ("[sync mgr] auto sync is enabled\n");
+    return 0;
+}
+
+int
+seaf_sync_manager_is_auto_sync_enabled (SeafSyncManager *mgr)
+{
+    if (mgr->priv->auto_sync_enabled)
+        return 1;
+    else
+        return 0;
 }

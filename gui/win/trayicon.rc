@@ -37,6 +37,7 @@ IDI_STATUS_TRANSFER_1   ICON                    "100823_network-1.ico"
 IDI_STATUS_TRANSFER_2   ICON                    "100823_network-2.ico"
 IDI_STATUS_TRANSFER_3   ICON                    "100823_network-3.ico"
 IDI_STATUS_TRANSFER_4   ICON                    "100823_network-4.ico"
+IDI_STATUS_AUTO_SYNC_DISABLED  ICON                    "sync-paused.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -48,6 +49,9 @@ BEGIN
     POPUP "文件(&F)"
     BEGIN
         MENUITEM "打开管理页面(&O)",                  IDM_OPEN
+        MENUITEM SEPARATOR
+        MENUITEM "暂停同步",                        IDM_DISABLE_AUTO_SYNC
+        MENUITEM "开启同步",                        IDM_ENABLE_AUTO_SYNC
         MENUITEM SEPARATOR
         MENUITEM "重启 Seafile(&R)",              IDM_RESTART
         MENUITEM SEPARATOR

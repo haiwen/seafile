@@ -52,6 +52,28 @@ TestWebServer (HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
     }
 }
 
+static void
+reset_trayicon_and_tip()
+{
+    UINT id;
+    char *tip = "Seafile";
+
+    if (!applet->client->connected) {
+        id = IDI_STATUS_DOWN;
+    } else {
+        if (applet->auto_sync_disabled) {
+            id = IDI_STATUS_AUTO_SYNC_DISABLED;
+            tip = S_TIP_AUTO_SYNC_DISABLED;
+        } else {
+            id = IDI_STATUS_UP;
+        }
+    }
+
+    trayicon_set_icon_by_id (applet->icon, id);
+    trayicon_set_tip (tip);
+}
+
+
 int
 start_web_server ()
 {
@@ -276,6 +298,14 @@ tray_notify_cb(UINT message, WPARAM uID, LPARAM lEvent)
         else
             EnableMenuItem (hMenu, IDM_OPEN, MF_GRAYED);
 
+        if (applet->auto_sync_disabled) {
+            EnableMenuItem (hMenu, IDM_ENABLE_AUTO_SYNC, MF_ENABLED);
+            EnableMenuItem (hMenu, IDM_DISABLE_AUTO_SYNC, MF_GRAYED);
+        } else {
+            EnableMenuItem (hMenu, IDM_DISABLE_AUTO_SYNC, MF_ENABLED);
+            EnableMenuItem (hMenu, IDM_ENABLE_AUTO_SYNC, MF_GRAYED);
+        }
+
         /* Always allow restarting. */
         EnableMenuItem (hMenu, IDM_RESTART, MF_ENABLED);
 
@@ -323,8 +353,48 @@ tray_notify_cb(UINT message, WPARAM uID, LPARAM lEvent)
     return TRUE;
 }
 
+typedef struct {
+    gboolean disable;
+} SetAutoSyncData;
+
+static void
+set_auto_sync_cb (void *result, void *data, GError *error)
+{
+    SetAutoSyncData *sdata = data;
+    gboolean disable = sdata->disable;
+    
+    if (error) {
+        applet_warning ("failed to %s sync: %s\n",
+                        disable ? "disable" : "enable",
+                        error->message);
+
+        MessageBox(NULL,
+                   disable ? S_FAILED_DISABLE_AUTO_SYNC : S_FAILED_ENABLE_AUTO_SYNC,
+                   "Seafile", MB_OK);
+        
+    } else {
+        HINSTANCE hInstance = applet->hInstance;
+        HMENU hMenu = LoadMenu(hInstance, MAKEINTRESOURCE(IDC_STARTINTRAY));
+        if (disable) {
+            /* auto sync is disabled */
+            EnableMenuItem (hMenu, IDM_ENABLE_AUTO_SYNC, MF_ENABLED);
+            EnableMenuItem (hMenu, IDM_DISABLE_AUTO_SYNC, MF_GRAYED);
+        } else {
+            /* auto sync is enabled */
+            EnableMenuItem (hMenu, IDM_DISABLE_AUTO_SYNC, MF_ENABLED);
+            EnableMenuItem (hMenu, IDM_ENABLE_AUTO_SYNC, MF_GRAYED);
+        }
+
+        applet->auto_sync_disabled = disable;
+
+        reset_trayicon_and_tip(); 
+    }
+
+    g_free (sdata);
+}
+
 int
-tray_command_cb(UINT message, WPARAM wParam, LPARAM lParam)
+tray_command_cb (UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch(wParam) {
     case IDM_OPEN:
@@ -332,6 +402,20 @@ tray_command_cb(UINT message, WPARAM wParam, LPARAM lParam)
             open_web_browser (SEAF_HTTP_ADDR);
         }
         break;
+
+    case IDM_DISABLE_AUTO_SYNC: {
+        SetAutoSyncData *sdata = g_new0(SetAutoSyncData, 1);
+        sdata->disable = TRUE;
+        call_seafile_disable_auto_sync (set_auto_sync_cb, sdata);
+        break;
+    }
+                                      
+    case IDM_ENABLE_AUTO_SYNC: {
+        SetAutoSyncData *sdata = g_new0(SetAutoSyncData, 1);
+        sdata->disable = FALSE;
+        call_seafile_enable_auto_sync (set_auto_sync_cb, sdata);
+        break;
+    }
         
     case IDM_RESTART:
         trayicon_rotate (FALSE);
@@ -351,7 +435,7 @@ tray_command_cb(UINT message, WPARAM wParam, LPARAM lParam)
 }
 
 int
-tray_socket_cb(UINT message, WPARAM wParam, LPARAM lParam)
+tray_socket_cb (UINT message, WPARAM wParam, LPARAM lParam)
 {
     if (WSAGETSELECTERROR(lParam)) {
         closesocket(wParam);
@@ -416,6 +500,7 @@ seafile_applet_init (HINSTANCE hInstance)
     applet->client = ccnet_client_new ();
     applet->sync_client = ccnet_client_new ();
     applet->icon = trayicon_new ();
+
     trayicon_init (applet->icon);
 }
 
@@ -527,9 +612,18 @@ start_conn_daemon_timer (int timeout_ms, void *data)
 void
 trayicon_set_ccnet_state (int state)
 {
-    trayicon_set_icon_by_id (applet->icon, state == CCNET_STATE_UP
-                             ? IDI_STATUS_UP
-                             : IDI_STATUS_DOWN);
+    UINT id;
+    if (state == CCNET_STATE_DOWN) {
+        id = IDI_STATUS_DOWN;
+    } else {
+        if (applet->auto_sync_disabled) {
+            id = IDI_STATUS_AUTO_SYNC_DISABLED;
+        } else {
+            id = IDI_STATUS_UP;
+        }
+    }
+    
+    trayicon_set_icon_by_id (applet->icon, id);
 }
 
 void
@@ -546,14 +640,10 @@ static gboolean trayicon_is_rotating = FALSE;
 static void CALLBACK
 do_rotate (HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
 {
-    if (rotate_counter >= 8 || !trayicon_is_rotating) {
+    if (rotate_counter >= 8 || !trayicon_is_rotating || applet->auto_sync_disabled) {
         trayicon_is_rotating = FALSE;
         KillTimer(hwnd, iTimerID);
-        trayicon_set_icon_by_id (applet->icon,
-                                 applet->client->connected
-                                 ? IDI_STATUS_UP
-                                 : IDI_STATUS_DOWN);
-        trayicon_set_tip ("Seafile");
+        reset_trayicon_and_tip(); 
         return;
     }
     trayicon_set_icon_by_id (applet->icon,

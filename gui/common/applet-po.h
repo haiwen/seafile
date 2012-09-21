@@ -95,4 +95,9 @@
 
 #define S_USER_MANUAL_FILENAME "Seafile使用帮助.txt"
 
+#define S_FAILED_DISABLE_AUTO_SYNC "暂停同步失败"
+#define S_FAILED_ENABLE_AUTO_SYNC "开启同步失败"
+
+#define S_TIP_AUTO_SYNC_DISABLED "Seafile 同步已暂停"
+
 #endif

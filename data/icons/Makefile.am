@@ -2,7 +2,8 @@ SUBDIRS = 16x16 22x22 24x24 32x32 48x48
 
 icons = ccnet_daemon_up.png ccnet_daemon_down.png \
 	seafile_transfer_1.png seafile_transfer_2.png \
-	seafile_transfer_3.png seafile_transfer_4.png
+	seafile_transfer_3.png seafile_transfer_4.png \
+	seafile_auto_sync_disabled.png
 
 pkgdata_DATA = $(icons)
 

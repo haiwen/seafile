@@ -40,3 +40,12 @@ call_seafile_set_config (char *key, char *value,
                                      callback, data);
 }
 
+int call_seafile_disable_auto_sync (AsyncCallback callback, void *data)
+{
+    return seafile_disable_auto_sync_async (applet->seafile_rpc_client, callback, data);
+}
+
+int call_seafile_enable_auto_sync (AsyncCallback callback, void *data)
+{
+    return seafile_enable_auto_sync_async (applet->seafile_rpc_client, callback, data);
+}

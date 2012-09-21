@@ -114,6 +114,15 @@ SyncInfo *
 seaf_sync_manager_get_sync_info (SeafSyncManager *mgr,
                                  const char *repo_id);
 
+int
+seaf_sync_manager_disable_auto_sync (SeafSyncManager *mgr);
+
+int
+seaf_sync_manager_enable_auto_sync (SeafSyncManager *mgr);
+
+int
+seaf_sync_manager_is_auto_sync_enabled (SeafSyncManager *mgr);
+
 const char *
 sync_error_to_str (int error);
 

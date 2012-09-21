@@ -124,6 +124,12 @@ seafile_get_repo_property (const char *repo_id,
                            const char *key,
                            GError **error);
 
+int seafile_disable_auto_sync (GError **error);
+
+int seafile_enable_auto_sync (GError **error);
+
+int seafile_is_auto_sync_enabled (GError **error);
+
 
 /**
  * seafile_add:

@@ -350,3 +350,33 @@ seafile_check_quota (SearpcClient *client,
     return searpc_client_call__int (client, "check_quota", error,
                                     1, "string", repo_id);
 }
+
+int
+seafile_disable_auto_sync_async (SearpcClient *client,
+                                 AsyncCallback callback,
+                                 void *user_data)
+{
+    return searpc_client_async_call__int (client,
+                                          "seafile_disable_auto_sync",
+                                          callback, user_data, 0);
+}
+
+int
+seafile_enable_auto_sync_async (SearpcClient *client,
+                                 AsyncCallback callback,
+                                 void *user_data)
+{
+    return searpc_client_async_call__int (client,
+                                          "seafile_enable_auto_sync",
+                                          callback, user_data, 0);
+}
+
+int
+seafile_is_auto_sync_enabled_async (SearpcClient *client,
+                                    AsyncCallback callback,
+                                    void *user_data)
+{
+    return searpc_client_async_call__int (client,
+                                          "seafile_is_auto_sync_enabled",
+                                          callback, user_data, 0);
+}

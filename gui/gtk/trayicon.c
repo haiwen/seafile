@@ -13,7 +13,11 @@
 
 #include "misc.h"
 #include "trayicon.h"
+#include "seafile-applet.h"
 #include "applet-common.h"
+#include "rpc-wrapper.h"
+#include "applet-log.h"
+#include "applet-po.h"
 
 #ifdef HAVE_APP_INDICATOR
     #include <libappindicator/app-indicator.h>
@@ -30,6 +34,8 @@ struct SeafileTrayIconPriv {
     GtkAction           *start_action;
     GtkAction           *quit_action;
     GtkAction           *restart_action;
+    GtkAction           *disable_auto_sync_action;
+    GtkAction           *enable_auto_sync_action;
 };
 
 #define GET_PRIV(o)  \
@@ -103,10 +109,6 @@ seafile_trayicon_set_icon (SeafileTrayIcon *icon, const char *name)
     _tray_set_icon (priv->icon, name);
 }
 
-void open_web_browser();
-
-extern int on_quit ();
-
 static void
 tray_icon_quit_cb (GtkAction *action, SeafileTrayIcon *icon)
 {
@@ -117,6 +119,7 @@ static void
 restart_menu_cb (GtkAction       *action,
                  SeafileTrayIcon *icon)
 {
+    reset_trayicon_and_tip(icon);
     restart_all();
 }
 
@@ -143,6 +146,74 @@ tray_icon_popup_menu_cb (GtkStatusIcon     *tray_icon,
                     activate_time);
 }
 
+typedef struct {
+    gboolean disable;
+} SetAutoSyncData;
+
+void reset_trayicon_and_tip(SeafileTrayIcon *icon)
+{
+    char *name;
+    char *tip = "Seafile";
+    
+    if (!applet->client->connected) {
+        name = ICON_STATUS_DOWN;
+    } else {
+        if (applet->auto_sync_disabled) {
+            name = ICON_AUTO_SYNC_DISABLED;
+            tip = S_TIP_AUTO_SYNC_DISABLED;
+        } else {
+            name = ICON_STATUS_UP;
+        }
+    }
+
+    seafile_trayicon_set_icon (icon, name);
+    seafile_trayicon_set_tooltip (icon, tip);
+}
+
+static void
+set_auto_sync_cb (void *result, void *data, GError *error)
+{
+    SetAutoSyncData *sdata = data;
+    gboolean disable = sdata->disable;
+    
+    if (error) {
+        applet_warning ("failed to %s sync: %s\n",
+                        disable ? "disable" : "enable",
+                        error->message);
+        
+    } else {
+        if (disable) {
+            /* auto sync is disabled */
+            gtk_action_set_visible(applet->icon->priv->disable_auto_sync_action, FALSE);
+            gtk_action_set_visible(applet->icon->priv->enable_auto_sync_action, TRUE);
+        } else {
+            /* auto sync is enabled */
+            gtk_action_set_visible(applet->icon->priv->disable_auto_sync_action, TRUE);
+            gtk_action_set_visible(applet->icon->priv->enable_auto_sync_action, FALSE);
+        }
+
+        applet->auto_sync_disabled = disable;
+
+        reset_trayicon_and_tip(applet->icon);
+    }
+
+    g_free (sdata);
+}
+
+static disable_auto_sync (GtkAction *action, SeafileTrayIcon *icon)
+{
+    SetAutoSyncData *sdata = g_new0 (SetAutoSyncData, 1);
+    sdata->disable = TRUE;
+    call_seafile_disable_auto_sync (set_auto_sync_cb, sdata);
+}
+
+static enable_auto_sync (GtkAction *action, SeafileTrayIcon *icon)
+{
+    SetAutoSyncData *sdata = g_new0 (SetAutoSyncData, 1);
+    sdata->disable = FALSE;
+    call_seafile_enable_auto_sync (set_auto_sync_cb, sdata);
+}
+
 static void
 tray_icon_create_menu (SeafileTrayIcon *icon)
 {
@@ -152,14 +223,20 @@ tray_icon_create_menu (SeafileTrayIcon *icon)
 
     filename = ccnet_file_lookup ("seafile-trayicon.ui", "gtk");
     builder = gtk_builder_get_all_widgets (filename,
+    /* builder = gtk_builder_get_all_widgets ("seafile-trayicon.ui", */
                        "popup_menu", &priv->popup_menu,
                        "quit_action", &priv->quit_action,
                        "start_action", &priv->start_action,
                        "restart_network_action", &priv->restart_action,
+                       "disable_auto_sync_action", &priv->disable_auto_sync_action,
+                       "enable_auto_sync_action", &priv->enable_auto_sync_action,
                        NULL);
     g_free (filename);
     g_object_ref (priv->popup_menu);
     g_object_unref (builder);
+
+    gtk_action_set_visible (priv->disable_auto_sync_action, TRUE);
+    gtk_action_set_visible (priv->enable_auto_sync_action, FALSE);
     
     g_signal_connect (priv->quit_action, "activate",
                       G_CALLBACK (tray_icon_quit_cb), icon);
@@ -167,6 +244,11 @@ tray_icon_create_menu (SeafileTrayIcon *icon)
                       G_CALLBACK (restart_menu_cb), icon);
     g_signal_connect (priv->start_action, "activate",
                       G_CALLBACK (open_browser_cb), icon);
+
+    g_signal_connect (priv->disable_auto_sync_action, "activate",
+                      G_CALLBACK (disable_auto_sync), icon);
+    g_signal_connect (priv->enable_auto_sync_action, "activate",
+                      G_CALLBACK (enable_auto_sync), icon);
 }
 
 static void

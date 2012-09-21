@@ -14,6 +14,24 @@
       </object>
     </child>
     <child>
+      <object class="GtkImageMenuItem" id="disable_auto_sync">
+        <property name="visible">True</property>
+        <property name="related_action">disable_auto_sync_action</property>
+        <property name="use_action_appearance">True</property>
+        <property name="use_underline">True</property>
+        <property name="use_stock">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkImageMenuItem" id="enable_auto_sync">
+        <property name="visible">True</property>
+        <property name="related_action">enable_auto_sync_action</property>
+        <property name="use_action_appearance">True</property>
+        <property name="use_underline">True</property>
+        <property name="use_stock">True</property>
+      </object>
+    </child>
+    <child>
       <object class="GtkImageMenuItem" id="restart_network">
         <property name="visible">True</property>
         <property name="related_action">restart_network_action</property>
@@ -48,6 +66,16 @@
   <object class="GtkAction" id="restart_network_action">
     <property name="label">Restart Daemon</property>
     <property name="tooltip">Restart Daemon</property>
+    <property name="stock_id">gtk-refresh</property>
+  </object>
+  <object class="GtkAction" id="disable_auto_sync_action">
+    <property name="label">Disable Auto Sync</property>
+    <property name="tooltip">Disable Auto Sync</property>
+    <property name="stock_id">gtk-refresh</property>
+  </object>
+  <object class="GtkAction" id="enable_auto_sync_action">
+    <property name="label">Enable Auto Sync</property>
+    <property name="tooltip">Enable Auto Sync</property>
     <property name="stock_id">gtk-refresh</property>
   </object>
 </interface>

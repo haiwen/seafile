@@ -458,6 +458,9 @@ start_ccnet ()
 /* Kill ccnet/seaf/web, and restart them. */
 void restart_all (void)
 {
+    applet->auto_sync_disabled = FALSE;
+    trayicon_set_tip ("Seafile");
+    
     applet_message ("Restarting ccnet ...\n");
     stop_open_browser_timer();
     stop_web_server();

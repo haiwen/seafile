@@ -239,9 +239,19 @@ void rm_client_fd_from_mainloop ()
 void
 trayicon_set_ccnet_state (int state)
 {
-    seafile_trayicon_set_icon (applet->icon, state == CCNET_STATE_UP
-                               ? ICON_STATUS_UP
-                               : ICON_STATUS_DOWN);
+    char *name;
+
+    if (state == CCNET_STATE_DOWN) {
+        name = ICON_STATUS_DOWN;
+    } else {
+        if (applet->auto_sync_disabled) {
+            name = ICON_AUTO_SYNC_DISABLED;
+        } else {
+            name = ICON_STATUS_UP;
+        }
+    }
+    
+    seafile_trayicon_set_icon (applet->icon, name);
 }
 
 void
@@ -259,12 +269,9 @@ do_rotate ()
 {
     SeafileTrayIcon *icon = applet->icon;
     
-    if (rotate_counter >= 8 || !trayicon_is_rotating) {
+    if (rotate_counter >= 8 || !trayicon_is_rotating || applet->auto_sync_disabled ) {
         trayicon_is_rotating = FALSE;
-        seafile_trayicon_set_icon (icon, applet->client->connected ?
-                                   ICON_STATUS_UP : ICON_STATUS_DOWN);
-        /* Restore default tooltip when rotatation stops */
-        trayicon_set_tip ("Seafile");
+        reset_trayicon_and_tip (icon);
         return FALSE;
     }
         
