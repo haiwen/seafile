@@ -16,18 +16,22 @@ if COMPILE_CLIENT
 endif
 
 if WIN32
-  SHELL_EXT = desktop/explorer
+  SHELL_EXT = desktop desktop/explorer
+else
+  SHELL_EXT = desktop desktop/nautilus
 endif
 
 SUBDIRS = include data lib common daemon $(MAKE_GUI) $(MAKE_CLINET) $(MAKE_SERVER) \
 	app python tests web
+DIST_SUBDIRS = include data lib common daemon gui daemon server tools monitor \
+			   httpserver controller app python tests web
 
 INTLTOOL = \
 	intltool-extract.in \
 	intltool-merge.in \
 	intltool-update.in
 
-EXTRA_DIST = config.rpath install-sh $(INTLTOOL) web
+EXTRA_DIST = install-sh $(INTLTOOL) web debian/seafile.desktop
 
 DISTCLEANFILES = \
 	intltool-extract.in \
@@ -60,4 +64,16 @@ endif
 
 uninstall-hook:
 	chmod u+rw -R $(DESTDIR)${pkglibdir}/web
-	rm -rf $(DESTDIR)${pkglibdir}/web
+	-rm -rf $(DESTDIR)${pkglibdir}/web
+	-rm -rf $(DESTDIR)${bindir}/ccnet-web.sh
+	-rm -rf $(DESTDIR)${datarootdir}/applications
+
+distcheck-hook:
+	chmod u+rwx -R $(distdir)
+	mkdir -p $(distdir)/_build/lib/
+	cp -r $(distdir)/debian $(distdir)/_build/
+	cp -r $(distdir)/web $(distdir)/_build/
+
+distcleancheck:
+	-rm $(distdir)/_build/debian
+	-rm $(distdir)/_build/web

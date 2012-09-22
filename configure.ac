@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 
 
 AC_PREREQ(2.61)
-AC_INIT([ccnet], [0.6.0], [freeplant@gmail.com])
+AC_INIT([seafile], [1.0.2], [freeplant@gmail.com])
 AC_CONFIG_HEADER([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -308,7 +308,7 @@ GTK_REQUIRED=2.16.0
 CCNET_REQUIRED=0.9.3
 SEARPC_REQUIRED=1.0
 ZDB_REQUIRED=2.10
-LIBNAUTILUS_EXTENSION_REQUIRED=2.30.1
+#LIBNAUTILUS_EXTENSION_REQUIRED=2.30.1
 CURL_REQUIRED=7.17
 
 PKG_CHECK_MODULES(GLIB2, [glib-2.0 >= $GLIB_REQUIRED])
@@ -374,9 +374,9 @@ if test "$blinux" = true -a x${compile_client} = xyes; then
                     )
 
    # check libnautilus-extension
-   PKG_CHECK_MODULES(LIBNAUTILUS_EXTENSION, [libnautilus-extension >= $LIBNAUTILUS_EXTENSION_REQUIRED])
-   AC_SUBST(LIBNAUTILUS_EXTENSION_CFLAGS)
-   AC_SUBST(LIBNAUTILUS_EXTENSION_LIBS)
+   #PKG_CHECK_MODULES(LIBNAUTILUS_EXTENSION, [libnautilus-extension >= $LIBNAUTILUS_EXTENSION_REQUIRED])
+   #AC_SUBST(LIBNAUTILUS_EXTENSION_CFLAGS)
+   #AC_SUBST(LIBNAUTILUS_EXTENSION_LIBS)
 
    # For translation
    #GETTEXT_PACKAGE=ccnet
@@ -455,8 +455,6 @@ AC_CONFIG_FILES(
     lib/Makefile
     gui/Makefile
     gui/gtk/Makefile
-    desktop/Makefile
-    desktop/nautilus/Makefile
     common/Makefile
     common/cdc/Makefile
     common/index/Makefile
@@ -472,6 +470,8 @@ AC_CONFIG_FILES(
     tests/Makefile
     tests/common-conf.sh
 )
+#    desktop/Makefile
+#    desktop/nautilus/Makefile
 
 AC_OUTPUT
 

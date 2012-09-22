@@ -65,4 +65,8 @@ clean:
 distclean:
 	rm -f Makefile
 
+dist:
+
+distdir:
+
 .PHONY: all clean distclean install uninstall

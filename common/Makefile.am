@@ -32,12 +32,13 @@ noinst_HEADERS = \
 	block-backend.h \
 	block.h \
 	mq-mgr.h \
+	seaf-db.h \
 	$(proc_headers)
 
-check_PROGRAMS = riak-http-test
+#check_PROGRAMS = riak-http-test
 
-riak_http_test_SOURCES = riak-http-test.c riak-http-client.c
+#riak_http_test_SOURCES = riak-http-test.c riak-http-client.c
 
-riak_http_test_CPPFLAGS = -DRIAK_TEST
-riak_http_test_CFLAGS = @GLIB2_CFLAGS@ -I$(top_srcdir)/lib
-riak_http_test_LDADD = @GLIB2_LIBS@ -lcurl
+#riak_http_test_CPPFLAGS = -DRIAK_TEST
+#riak_http_test_CFLAGS = @GLIB2_CFLAGS@ -I$(top_srcdir)/lib
+#riak_http_test_LDADD = @GLIB2_LIBS@ -lcurl

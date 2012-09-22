@@ -23,7 +23,7 @@ endif
 
 searpc_dir = $(CURDIR)/../deb-libsearpc
 ccnet_dir = $(CURDIR)/../deb-ccnet
-shell_ext_dir = $(CURDIR)/desktop/nautilus
+#shell_ext_dir = $(CURDIR)/desktop/nautilus
 
 config.status: 
 	dh_testdir
@@ -47,7 +47,7 @@ build-stamp:  config.status ${searpc_dir}/config.status ${ccnet_dir}/config.stat
 	#docbook-to-man debian/ccnet.sgml > ccnet.1
 	make -C $(searpc_dir)
 	make -C $(ccnet_dir)
-	make -C $(shell_ext_dir)
+	#make -C $(shell_ext_dir)
 
 	touch $@
 
@@ -72,7 +72,7 @@ install: build
 	$(MAKE) DESTDIR=$(CURDIR)/debian/seafile install
 	make -C $(searpc_dir) DESTDIR=$(CURDIR)/debian/seafile install
 	make -C $(ccnet_dir) DESTDIR=$(CURDIR)/debian/seafile install
-	make -C $(shell_ext_dir) DESTDIR=$(CURDIR)/debian/seafile install
+	#make -C $(shell_ext_dir) DESTDIR=$(CURDIR)/debian/seafile install
 	rm -rf $(CURDIR)/debian/seafile/usr/include
 
 

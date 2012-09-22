@@ -3,6 +3,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	-DPACKAGE_DATA_DIR=\""$(pkgdatadir)"\" \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/lib \
+	-I$(top_builddir)/lib \
 	-I$(top_srcdir)/gui/common \
 	@CCNET_CFLAGS@ \
 	@LIBNOTIFY_CFLAGS@ @GTK_CFLAGS@ @APP_INDICATOR_CFLAGS@ \
@@ -12,7 +13,7 @@ noinst_HEADERS = trayicon.h misc.h \
 	../common/ccnet-init.h \
 	../common/opendir-proc.h ../common/applet-rpc-service.h \
 	../common/applet-log.h ../common/rpc-wrapper.h \
-	../common/applet-po.h ../common/applet-common.h
+	../common/applet-po.h ../common/applet-common.h ../common/seafile-applet.h
 
 bin_PROGRAMS = seafile-applet
 

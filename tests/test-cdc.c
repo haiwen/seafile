@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <limits.h>
 
-#include <cdc.h>
+#include "cdc/cdc.h"
 
 char *dest_dir = NULL;
 

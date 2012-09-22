@@ -17,6 +17,16 @@ distclean: clean
 
 install:
 
+installcheck:
+
 uninstall:
 
 tags:
+
+dist:
+
+distcheck:
+
+distdir:
+
+dvi:

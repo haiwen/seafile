@@ -89,7 +89,8 @@ static SeafRepo* create_repo (const char *repo_name)
     }
 
     /* create a non encrypted repo */
-    repo_id = seafile_create_repo (repo_name, "test", wt_path, NULL, NULL, 0, &error);
+    repo_id = seafile_create_repo (repo_name, "test",
+                "example@abc.com", NULL, &error);
     if (!repo_id) {
         fprintf (stderr, "Failed to create repo: %s.\n", error->message);
         exit (1);

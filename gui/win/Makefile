@@ -86,6 +86,7 @@ $(TARGET) : applet-po-gbk.h $(OBJECTS) resource.o .deps
 debug:all
 distclean:clean
 dist:
+distdir:
 install:
 uninstall:
 

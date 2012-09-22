@@ -30,6 +30,7 @@ proc_headers = $(addprefix processors/, \
 	putcommit-v2-proc.h \
 	recvcommit-v2-proc.h \
 	recvcommit-v3-proc.h \
+	check-quota-common.h \
 	putrepoemailtoken-proc.h )
 
 proc_headers += ../common/processors/putblock-proc.h \

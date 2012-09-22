@@ -46,7 +46,7 @@ int main (int argc, char **argv)
         exit (1);
     }
 
-    fp = g_fopen (file_path, "rb");
+    fp = fopen (file_path, "rb");
     if (!fp) {
         printf ("Failed to open original file.\n");
         exit (1);
@@ -65,7 +65,7 @@ int main (int argc, char **argv)
     n_blocks = (uint32_t) ((file_size + block_size -1) / block_size);
 
     printf ("file size is %lld, block size is %lld, %d blocks.\n",
-            file_size, block_size, n_blocks);
+            (long long int)file_size, (long long int)block_size, n_blocks);
 
     uint8_t *blocks = (uint8_t *) malloc (n_blocks * 20);
     if (readn (fd, blocks, n_blocks * 20) < n_blocks * 20) {
