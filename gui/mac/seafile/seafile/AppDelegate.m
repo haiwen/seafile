@@ -173,8 +173,7 @@ enum {
     NSBundle *bundle = [NSBundle mainBundle];
     statusImage[0] = [[NSImage alloc] initWithContentsOfFile:[bundle pathForResource:@"network-up" ofType:@"png"]];
     statusImage[1] = [[NSImage alloc] initWithContentsOfFile:[bundle pathForResource:@"network-down" ofType:@"png"]];
-
-    statusImage[2] = [[NSImage alloc] initWithContentsOfFile:[bundle pathForResource:@"autosync-disabled" ofType:@"png"]];
+    statusImage[2] = [[NSImage alloc] initWithContentsOfFile:[bundle pathForResource:@"network-stop" ofType:@"png"]];
 
     for (int i = 0; i < 4; ++i) {
         NSString *image_name = [NSString stringWithFormat:@"network-rotate%d",i+1];

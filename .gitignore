@@ -100,3 +100,12 @@ web/local_settings.py
 gui/win/applet-po-gbk.h
 *.dylib
 .DS_Store
+gui/mac/seafile/build/
+gui/mac/seafile/ccnet
+gui/mac/seafile/seaf-daemon
+gui/mac/seafile/seafileweb.app
+web/build/
+web/dist/
+tests/basic/conf2/misc/
+tests/basic/conf2/seafile-data/
+

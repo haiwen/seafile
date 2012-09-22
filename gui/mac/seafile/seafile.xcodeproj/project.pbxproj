@@ -8,14 +8,14 @@
 
 /* Begin PBXBuildFile section */
 		5715F1D8158C233900CA822C /* seafile-release-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5715F1D7158C233900CA822C /* seafile-release-Info.plist */; };
-		5722EA17160D852800BA6C33 /* autosync-disabled.png in Resources */ = {isa = PBXBuildFile; fileRef = 5722EA16160D852800BA6C33 /* autosync-disabled.png */; };
-		5722EA18160D852800BA6C33 /* autosync-disabled.png in Resources */ = {isa = PBXBuildFile; fileRef = 5722EA16160D852800BA6C33 /* autosync-disabled.png */; };
-		5722EA19160D852800BA6C33 /* autosync-disabled.png in Resources */ = {isa = PBXBuildFile; fileRef = 5722EA16160D852800BA6C33 /* autosync-disabled.png */; };
-		5722EA1A160D852800BA6C33 /* autosync-disabled.png in Resources */ = {isa = PBXBuildFile; fileRef = 5722EA16160D852800BA6C33 /* autosync-disabled.png */; };
 		57266B8F15D6A0B6000AD014 /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 57266B8E15D6A0B6000AD014 /* seafileweb.app */; };
 		57266B9015D6A0B6000AD014 /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 57266B8E15D6A0B6000AD014 /* seafileweb.app */; };
 		57266B9115D6A0B6000AD014 /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 57266B8E15D6A0B6000AD014 /* seafileweb.app */; };
 		57266B9215D6A0B6000AD014 /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 57266B8E15D6A0B6000AD014 /* seafileweb.app */; };
+		57335CEC160D8DDE00018AE8 /* network-stop.png in Resources */ = {isa = PBXBuildFile; fileRef = 57335CEB160D8DDE00018AE8 /* network-stop.png */; };
+		57335CED160D8DDE00018AE8 /* network-stop.png in Resources */ = {isa = PBXBuildFile; fileRef = 57335CEB160D8DDE00018AE8 /* network-stop.png */; };
+		57335CEE160D8DDE00018AE8 /* network-stop.png in Resources */ = {isa = PBXBuildFile; fileRef = 57335CEB160D8DDE00018AE8 /* network-stop.png */; };
+		57335CEF160D8DDE00018AE8 /* network-stop.png in Resources */ = {isa = PBXBuildFile; fileRef = 57335CEB160D8DDE00018AE8 /* network-stop.png */; };
 		5743817F159B0399003DECFB /* seafilefolder.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5743817E159B0399003DECFB /* seafilefolder.icns */; };
 		57438180159B0399003DECFB /* seafilefolder.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5743817E159B0399003DECFB /* seafilefolder.icns */; };
 		57438182159B249D003DECFB /* seafilerepo.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57438181159B249D003DECFB /* seafilerepo.icns */; };
@@ -268,8 +268,8 @@
 
 /* Begin PBXFileReference section */
 		5715F1D7158C233900CA822C /* seafile-release-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "seafile-release-Info.plist"; sourceTree = "<group>"; };
-		5722EA16160D852800BA6C33 /* autosync-disabled.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "autosync-disabled.png"; sourceTree = "<group>"; };
 		57266B8E15D6A0B6000AD014 /* seafileweb.app */ = {isa = PBXFileReference; lastKnownFileType = wrapper.application; path = seafileweb.app; sourceTree = "<group>"; };
+		57335CEB160D8DDE00018AE8 /* network-stop.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-stop.png"; sourceTree = "<group>"; };
 		5743817E159B0399003DECFB /* seafilefolder.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = seafilefolder.icns; sourceTree = "<group>"; };
 		57438181159B249D003DECFB /* seafilerepo.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = seafilerepo.icns; sourceTree = "<group>"; };
 		57438184159B2CF3003DECFB /* warning.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = warning.png; sourceTree = "<group>"; };
@@ -494,7 +494,7 @@
 				5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */,
 				5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */,
 				575BD51F158D021400F6C6A7 /* network-down.png */,
-				5722EA16160D852800BA6C33 /* autosync-disabled.png */,
+				57335CEB160D8DDE00018AE8 /* network-stop.png */,
 				575BD520158D021400F6C6A7 /* network-rotate1.png */,
 				575BD521158D021400F6C6A7 /* network-rotate2.png */,
 				575BD522158D021400F6C6A7 /* network-rotate3.png */,
@@ -707,7 +707,7 @@
 				57438182159B249D003DECFB /* seafilerepo.icns in Resources */,
 				57438185159B2CF3003DECFB /* warning.png in Resources */,
 				57266B8F15D6A0B6000AD014 /* seafileweb.app in Resources */,
-				5722EA17160D852800BA6C33 /* autosync-disabled.png in Resources */,
+				57335CEC160D8DDE00018AE8 /* network-stop.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -747,7 +747,7 @@
 				57438183159B249D003DECFB /* seafilerepo.icns in Resources */,
 				57438186159B2CF3003DECFB /* warning.png in Resources */,
 				57266B9015D6A0B6000AD014 /* seafileweb.app in Resources */,
-				5722EA18160D852800BA6C33 /* autosync-disabled.png in Resources */,
+				57335CED160D8DDE00018AE8 /* network-stop.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -787,7 +787,7 @@
 				57DE0ABD15A98E0E006C0152 /* seafilerepo.icns in Resources */,
 				57DE0ABE15A98E0E006C0152 /* warning.png in Resources */,
 				57266B9115D6A0B6000AD014 /* seafileweb.app in Resources */,
-				5722EA19160D852800BA6C33 /* autosync-disabled.png in Resources */,
+				57335CEE160D8DDE00018AE8 /* network-stop.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -827,7 +827,7 @@
 				57DE0B0615A9AA89006C0152 /* seafilerepo.icns in Resources */,
 				57DE0B0715A9AA89006C0152 /* warning.png in Resources */,
 				57266B9215D6A0B6000AD014 /* seafileweb.app in Resources */,
-				5722EA1A160D852800BA6C33 /* autosync-disabled.png in Resources */,
+				57335CEF160D8DDE00018AE8 /* network-stop.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
