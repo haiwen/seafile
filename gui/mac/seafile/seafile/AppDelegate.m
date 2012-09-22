@@ -44,6 +44,8 @@ enum {
 
 @synthesize openBrowerItem;
 @synthesize restartItem;
+@synthesize enableAutoSyncItem;
+@synthesize disableAutoSyncItem;
 
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification {
@@ -124,6 +126,7 @@ enum {
 -(IBAction)restart:(id)sender {
     [openBrowerItem setEnabled:NO];
     [restartItem setEnabled:NO];
+    reset_trayicon_and_tip();
     restart_all();
 }
 
@@ -133,6 +136,17 @@ enum {
 
 - (IBAction) openSeafileSite:(id)sender {
     open_web_browser(SEAFILE_WEBSITE);
+}
+
+
+- (IBAction)enableAutoSync:(id)sender {
+    [enableAutoSyncItem setEnabled:NO];
+    seafile_enable_auto_sync ();
+}
+
+- (IBAction)disableAutoSync:(id)sender {
+    [disableAutoSyncItem setEnabled:NO];
+    seafile_disable_auto_sync ();
 }
 
 - (void) dealloc {
@@ -160,6 +174,8 @@ enum {
     statusImage[0] = [[NSImage alloc] initWithContentsOfFile:[bundle pathForResource:@"network-up" ofType:@"png"]];
     statusImage[1] = [[NSImage alloc] initWithContentsOfFile:[bundle pathForResource:@"network-down" ofType:@"png"]];
 
+    statusImage[2] = [[NSImage alloc] initWithContentsOfFile:[bundle pathForResource:@"autosync-disabled" ofType:@"png"]];
+
     for (int i = 0; i < 4; ++i) {
         NSString *image_name = [NSString stringWithFormat:@"network-rotate%d",i+1];
         transferImage[i] = [[NSImage alloc] initWithContentsOfFile:[bundle pathForResource:image_name ofType:@"png"]];
@@ -174,6 +190,8 @@ enum {
     [statusItem setHighlightMode:YES];
 
     [openBrowerItem setEnabled:NO];
+    [enableAutoSyncItem setHidden:YES];
+    [disableAutoSyncItem setHidden:NO];
 }
 
 - (void) handle_bubble_timeout: (NSTimer *) timer {
@@ -244,6 +262,7 @@ enum {
     int more = on_open_browser_timeout();
     if (!more) {
         [timer invalidate];
+        self.openBrowserTimer = nil;
         [openBrowerItem setEnabled:YES];
     }
 }

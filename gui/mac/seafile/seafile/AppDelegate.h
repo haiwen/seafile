@@ -10,10 +10,10 @@
 
 @interface AppDelegate : NSObject <NSApplicationDelegate> {
     IBOutlet NSMenu *statusMenu;
-    
+
     @public
     CFRunLoopRef loop;
-    NSImage *statusImage[2];
+    NSImage *statusImage[3];
     NSImage *transferImage[4];
     NSImage *warningImage;
     NSImage *wktreeImage;
@@ -34,6 +34,8 @@
 
 @property (assign) IBOutlet NSMenuItem *openBrowerItem;
 @property (assign) IBOutlet NSMenuItem *restartItem;
+@property (assign) IBOutlet NSMenuItem *enableAutoSyncItem;
+@property (assign) IBOutlet NSMenuItem *disableAutoSyncItem;
 
 
 
@@ -41,6 +43,9 @@
 - (IBAction)restart:(id)sender;
 - (IBAction)quit:(id)sender;
 - (IBAction)openSeafileSite:(id)sender;
+- (IBAction)enableAutoSync:(id)sender;
+- (IBAction)disableAutoSync:(id)sender;
+
 
 - (IBAction)initseafile_ok:(id)sender;
 - (IBAction)initseafile_cancel:(id)sender;

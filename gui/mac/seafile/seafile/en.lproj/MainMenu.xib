@@ -116,7 +116,6 @@
 													<string key="NSFrame">{{350, 6}, {82, 32}}</string>
 													<reference key="NSSuperview" ref="375998310"/>
 													<reference key="NSWindow"/>
-													<reference key="NSNextKeyView"/>
 													<string key="NSReuseIdentifierKey">_NS:9</string>
 													<bool key="NSEnabled">YES</bool>
 													<object class="NSButtonCell" key="NSCell" id="166771547">
@@ -354,6 +353,23 @@
 							<string key="NSResourceName">NSMenuMixedState</string>
 						</object>
 					</object>
+					<object class="NSMenuItem" id="87260091">
+						<reference key="NSMenu" ref="670126791"/>
+						<string key="NSTitle">Enable Auto Sync</string>
+						<string key="NSKeyEquiv"/>
+						<int key="NSMnemonicLoc">2147483647</int>
+						<reference key="NSOnImage" ref="366594834"/>
+						<reference key="NSMixedImage" ref="431852405"/>
+					</object>
+					<object class="NSMenuItem" id="1063051671">
+						<reference key="NSMenu" ref="670126791"/>
+						<bool key="NSIsHidden">YES</bool>
+						<string key="NSTitle">Disable Auto Sync</string>
+						<string key="NSKeyEquiv"/>
+						<int key="NSMnemonicLoc">2147483647</int>
+						<reference key="NSOnImage" ref="366594834"/>
+						<reference key="NSMixedImage" ref="431852405"/>
+					</object>
 					<object class="NSMenuItem" id="97578398">
 						<reference key="NSMenu" ref="670126791"/>
 						<bool key="NSIsDisabled">YES</bool>
@@ -366,7 +382,7 @@
 					</object>
 					<object class="NSMenuItem" id="952719727">
 						<reference key="NSMenu" ref="670126791"/>
-						<string key="NSTitle">Restart</string>
+						<string key="NSTitle">Restart Daemon</string>
 						<string key="NSKeyEquiv"/>
 						<int key="NSMnemonicLoc">2147483647</int>
 						<reference key="NSOnImage" ref="366594834"/>
@@ -399,10 +415,9 @@
 						<reference key="NSMixedImage" ref="431852405"/>
 					</object>
 				</array>
-				<bool key="NSNoAutoenable">YES</bool>
 			</object>
 			<object class="NSCustomView" id="1051126277">
-				<reference key="NSNextResponder"/>
+				<nil key="NSNextResponder"/>
 				<int key="NSvFlags">268</int>
 				<array class="NSMutableArray" key="NSSubviews">
 					<object class="NSTextField" id="335808835">
@@ -410,7 +425,6 @@
 						<int key="NSvFlags">268</int>
 						<string key="NSFrame">{{17, 59}, {88, 19}}</string>
 						<reference key="NSSuperview" ref="1051126277"/>
-						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="499484575"/>
 						<bool key="NSViewIsLayerTreeHost">YES</bool>
 						<string key="NSReuseIdentifierKey">_NS:1505</string>
@@ -441,8 +455,6 @@
 						<int key="NSvFlags">274</int>
 						<string key="NSFrame">{{17, 0}, {215, 51}}</string>
 						<reference key="NSSuperview" ref="1051126277"/>
-						<reference key="NSWindow"/>
-						<reference key="NSNextKeyView"/>
 						<bool key="NSViewIsLayerTreeHost">YES</bool>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTextFieldCell" key="NSCell" id="250248631">
@@ -458,8 +470,6 @@
 					</object>
 				</array>
 				<string key="NSFrameSize">{247, 90}</string>
-				<reference key="NSSuperview"/>
-				<reference key="NSWindow"/>
 				<reference key="NSNextKeyView" ref="335808835"/>
 				<string key="NSReuseIdentifierKey">_NS:9</string>
 				<string key="NSClassName">NSView</string>
@@ -602,6 +612,38 @@
 						<reference key="destination" ref="1051126277"/>
 					</object>
 					<int key="connectionID">7764</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">enableAutoSync:</string>
+						<reference key="source" ref="976324537"/>
+						<reference key="destination" ref="87260091"/>
+					</object>
+					<int key="connectionID">7778</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBActionConnection" key="connection">
+						<string key="label">disableAutoSync:</string>
+						<reference key="source" ref="976324537"/>
+						<reference key="destination" ref="1063051671"/>
+					</object>
+					<int key="connectionID">7779</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">enableAutoSyncItem</string>
+						<reference key="source" ref="976324537"/>
+						<reference key="destination" ref="87260091"/>
+					</object>
+					<int key="connectionID">7780</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">disableAutoSyncItem</string>
+						<reference key="source" ref="976324537"/>
+						<reference key="destination" ref="1063051671"/>
+					</object>
+					<int key="connectionID">7781</int>
 				</object>
 				<object class="IBConnectionRecord">
 					<object class="IBBindingConnection" key="connection">
@@ -799,6 +841,8 @@
 							<reference ref="492245556"/>
 							<reference ref="511727025"/>
 							<reference ref="303951487"/>
+							<reference ref="1063051671"/>
+							<reference ref="87260091"/>
 						</array>
 						<reference key="parent" ref="0"/>
 					</object>
@@ -867,6 +911,16 @@
 						<reference key="object" ref="437503179"/>
 						<reference key="parent" ref="335808835"/>
 					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">7774</int>
+						<reference key="object" ref="1063051671"/>
+						<reference key="parent" ref="670126791"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">7777</int>
+						<reference key="object" ref="87260091"/>
+						<reference key="parent" ref="670126791"/>
+					</object>
 				</array>
 			</object>
 			<dictionary class="NSMutableDictionary" key="flattenedProperties">
@@ -896,6 +950,8 @@
 				<string key="7752.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="7754.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="7763.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="7774.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="7777.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="785.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="786.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="789.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
@@ -911,7 +967,7 @@
 			<nil key="activeLocalization"/>
 			<dictionary class="NSMutableDictionary" key="localizations"/>
 			<nil key="sourceID"/>
-			<int key="maxID">7773</int>
+			<int key="maxID">7781</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<array class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -919,6 +975,8 @@
 					<string key="className">AppDelegate</string>
 					<string key="superclassName">NSObject</string>
 					<dictionary class="NSMutableDictionary" key="actions">
+						<string key="disableAutoSync:">id</string>
+						<string key="enableAutoSync:">id</string>
 						<string key="initseafile_cancel:">id</string>
 						<string key="initseafile_choose_dir:">id</string>
 						<string key="initseafile_ok:">id</string>
@@ -928,6 +986,14 @@
 						<string key="restart:">id</string>
 					</dictionary>
 					<dictionary class="NSMutableDictionary" key="actionInfosByName">
+						<object class="IBActionInfo" key="disableAutoSync:">
+							<string key="name">disableAutoSync:</string>
+							<string key="candidateClassName">id</string>
+						</object>
+						<object class="IBActionInfo" key="enableAutoSync:">
+							<string key="name">enableAutoSync:</string>
+							<string key="candidateClassName">id</string>
+						</object>
 						<object class="IBActionInfo" key="initseafile_cancel:">
 							<string key="name">initseafile_cancel:</string>
 							<string key="candidateClassName">id</string>
@@ -963,6 +1029,8 @@
 						<string key="bubbleView">NSView</string>
 						<string key="chooseDirField">NSTextField</string>
 						<string key="chooseDirWarnImg">NSImageView</string>
+						<string key="disableAutoSyncItem">NSMenuItem</string>
+						<string key="enableAutoSyncItem">NSMenuItem</string>
 						<string key="initSeafileWindow">NSWindow</string>
 						<string key="openBrowerItem">NSMenuItem</string>
 						<string key="restartItem">NSMenuItem</string>
@@ -988,6 +1056,14 @@
 						<object class="IBToOneOutletInfo" key="chooseDirWarnImg">
 							<string key="name">chooseDirWarnImg</string>
 							<string key="candidateClassName">NSImageView</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="disableAutoSyncItem">
+							<string key="name">disableAutoSyncItem</string>
+							<string key="candidateClassName">NSMenuItem</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="enableAutoSyncItem">
+							<string key="name">enableAutoSyncItem</string>
+							<string key="candidateClassName">NSMenuItem</string>
 						</object>
 						<object class="IBToOneOutletInfo" key="initSeafileWindow">
 							<string key="name">initSeafileWindow</string>

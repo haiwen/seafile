@@ -458,7 +458,6 @@ start_ccnet ()
 /* Kill ccnet/seaf/web, and restart them. */
 void restart_all (void)
 {
-    applet->auto_sync_disabled = FALSE;
     trayicon_set_tip ("Seafile");
     
     applet_message ("Restarting ccnet ...\n");
@@ -524,6 +523,7 @@ gboolean heartbeat_monitor (void *data)
         } else {
             applet_message ("[heartbeat mon] seaf-daemon is down, "
                             "now bring it up..\n");
+            applet->auto_sync_disabled = FALSE;
             start_seafile_daemon();
         }
      }
@@ -553,6 +553,7 @@ connect_to_server (gpointer data)
     applet_message ("Connected to ccnet.\n");
 
     start_seafile_daemon ();
+    applet->auto_sync_disabled = FALSE;
     start_heartbeat_monitor();
     start_web_server();
 
@@ -633,3 +634,16 @@ int is_repo_path_allowed(const char *path) {
     return 1;
 }
 
+void seafile_disable_auto_sync (void)
+{
+    SetAutoSyncData *sdata = g_new0 (SetAutoSyncData, 1);
+    sdata->disable = TRUE;
+    call_seafile_disable_auto_sync (set_auto_sync_cb, sdata);
+}
+
+void seafile_enable_auto_sync (void)
+{
+    SetAutoSyncData *sdata = g_new0 (SetAutoSyncData, 1);
+    sdata->disable = FALSE;
+    call_seafile_enable_auto_sync (set_auto_sync_cb, sdata);
+}

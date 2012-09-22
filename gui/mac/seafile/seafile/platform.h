@@ -32,6 +32,6 @@ void seafile_unset_repofolder_icns(const char *path);
 
 int set_visibility_for_file (const char *filename, int isDirectory, int visible);
 
-
+void reset_trayicon_and_tip(void);
 
 #endif

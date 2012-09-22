@@ -23,6 +23,9 @@ void start_heartbeat_monitor (void);
 void stop_heartbeat_monitor (void);
 gboolean heartbeat_monitor_running (void);
 
+void set_auto_sync_cb (void *result, void *data, GError *error);
+
+
 gboolean test_web_server (void);
 gboolean on_open_browser_timeout(void);
 gboolean connect_to_server (gpointer data);
@@ -32,10 +35,17 @@ void send_command (const char *command);
 
 int is_repo_path_allowed(const char *path);
 
+typedef struct {
+    gboolean disable;
+} SetAutoSyncData;
+
+void seafile_disable_auto_sync (void);
+void seafile_enable_auto_sync (void);
 
 enum {
     CCNET_STATE_UP = 0,
-    CCNET_STATE_DOWN
+    CCNET_STATE_DOWN,
+    CCNET_STATE_AUTOSYNC_DISABLED
 };
 
 #define SEAF_HTTP_ADDR "http://127.0.0.1:13420"

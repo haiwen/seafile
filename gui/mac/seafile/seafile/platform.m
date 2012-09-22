@@ -19,6 +19,7 @@
 #import "applet-log.h"
 #import "seafile-applet.h"
 #import "platform.h"
+#import "rpc-wrapper.h"
 
 
 SeafileApplet *applet = NULL;
@@ -369,7 +370,8 @@ void trayicon_set_ccnet_state (int state)
 {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
 
-    if ((state == CCNET_STATE_UP) || (state == CCNET_STATE_DOWN)) {
+    if ((state == CCNET_STATE_UP) || (state == CCNET_STATE_DOWN)
+        || (state == CCNET_STATE_AUTOSYNC_DISABLED)) {
         [[delegate statusItem] setImage:delegate->statusImage[state]];
     } else {
         applet_warning("Error set unknown state %d\n", state);
@@ -489,10 +491,9 @@ gboolean trayicon_do_rotate (void)
 {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
 
-    if (rotate_counter > 8 || !trayicon_is_rotating) {
+    if (rotate_counter > 8 || !trayicon_is_rotating || applet->auto_sync_disabled) {
         trayicon_is_rotating = FALSE;
-        trayicon_set_ccnet_state (applet->client->connected?CCNET_STATE_UP:CCNET_STATE_DOWN);
-        trayicon_set_tip ("Seafile");
+        reset_trayicon_and_tip ();
         return FALSE;
     }
 
@@ -552,7 +553,8 @@ void seafile_unset_repofolder_icns(const char *path) {
     set_folder_image (path, [NSImage imageNamed:@"NSFolder"]);
 }
 
-int set_visibility_for_file (const char *cpath, int isDirectory, int visible) {
+int set_visibility_for_file (const char *cpath, int isDirectory, int visible)
+{
     int ret = 0;
     NSString *filename = [[NSString alloc] initWithUTF8String:cpath];
     NSURL *url = [NSURL fileURLWithPath:filename];
@@ -561,7 +563,8 @@ int set_visibility_for_file (const char *cpath, int isDirectory, int visible) {
     return ret;
 }
 
-int set_seafile_auto_start(const int on) {
+int set_seafile_auto_start(const int on)
+{
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
     if (on)
         [delegate add_app_as_login_item:[[NSBundle mainBundle] bundlePath]];
@@ -569,4 +572,55 @@ int set_seafile_auto_start(const int on) {
         [delegate del_app_from_login_item:[[NSBundle mainBundle] bundlePath]];
 
     return YES;
+}
+
+
+void reset_trayicon_and_tip(void)
+{
+    char *tip = "Seafile";
+
+    if (!applet->client->connected) {
+        trayicon_set_ccnet_state (CCNET_STATE_DOWN);
+    } else {
+        if (applet->auto_sync_disabled) {
+            trayicon_set_ccnet_state (CCNET_STATE_AUTOSYNC_DISABLED);
+            tip = "Seafile auto sync paused";
+        } else {
+            trayicon_set_ccnet_state (CCNET_STATE_UP);
+        }
+    }
+    trayicon_set_tip (tip);
+}
+
+void set_auto_sync_cb (void *result, void *data, GError *error)
+{
+    AppDelegate *appdelegate = [[NSApplication sharedApplication] delegate];
+    SetAutoSyncData *sdata = data;
+    gboolean disable = sdata->disable;
+
+    if (error) {
+        applet_warning ("failed to %s sync: %s\n",
+                        disable ? "disable" : "enable",
+                        error->message);
+        [appdelegate.enableAutoSyncItem setEnabled:YES];
+        [appdelegate.disableAutoSyncItem setEnabled:YES];
+    } else {
+        if (disable) {
+            /* auto sync is disabled */
+            [appdelegate.enableAutoSyncItem setHidden:NO];
+            [appdelegate.enableAutoSyncItem setEnabled:YES];
+            [appdelegate.disableAutoSyncItem setHidden:YES];
+        } else {
+            /* auto sync is enabled */
+            [appdelegate.disableAutoSyncItem setHidden:NO];
+            [appdelegate.disableAutoSyncItem setEnabled:YES];
+            [appdelegate.enableAutoSyncItem setHidden:YES];
+        }
+
+        applet->auto_sync_disabled = disable;
+        reset_trayicon_and_tip();
+    }
+
+    g_free (sdata);
+
 }
