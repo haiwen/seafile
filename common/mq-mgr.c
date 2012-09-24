@@ -152,6 +152,17 @@ seaf_mq_manager_publish_notification (SeafMqManager *mgr,
     ccnet_message_free (msg);
 }
 
+void
+seaf_mq_manager_publish_event (SeafMqManager *mgr, const char *content)
+{
+    static const char *app = "seaf_server.event";
+
+    CcnetMessage *msg = create_message (mgr, app, content, 0);
+    _send_message (mgr, msg);
+
+    ccnet_message_free (msg);
+}
+
 static int
 heartbeat_pulse (void *vmanager)
 {

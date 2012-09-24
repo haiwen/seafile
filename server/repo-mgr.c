@@ -502,18 +502,6 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
     if (remove_repo_ondisk (mgr, repo->id) < 0)
         return -1;
 
-#if 0
-    if (pthread_rwlock_wrlock (&mgr->priv->lock) < 0) {
-        seaf_warning ("[repo mgr] failed to lock repo cache.\n");
-        return -1;
-    }
-
-    avl_delete (mgr->priv->repo_tree, repo);
-    seaf_repo_unref (repo);
-
-    pthread_rwlock_unlock (&mgr->priv->lock);
-#endif
-
     return 0;
 }
 

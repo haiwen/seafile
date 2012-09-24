@@ -78,7 +78,19 @@ struct _SeafBranchManagerPriv {
 #ifndef SEAFILE_SERVER
     pthread_mutex_t db_lock;
 #endif
+
+#if defined( SEAFILE_SERVER ) && !defined( HTTP_SERVER ) && !defined( SEAFILE_MONITOR )
+    uint32_t cevent_id;
+#endif    
 };
+
+#if defined( SEAFILE_SERVER ) && !defined( HTTP_SERVER ) && !defined( SEAFILE_MONITOR )
+
+#include "mq-mgr.h"
+#include <ccnet/cevent.h>
+static void publish_repo_update_event (CEvent *event, void *data);
+
+#endif    
 
 static int open_db (SeafBranchManager *mgr);
 
@@ -101,6 +113,12 @@ seaf_branch_manager_new (struct _SeafileSession *seaf)
 int
 seaf_branch_manager_init (SeafBranchManager *mgr)
 {
+#if defined( SEAFILE_SERVER ) && !defined( HTTP_SERVER ) && !defined( SEAFILE_MONITOR )
+    mgr->priv->cevent_id = cevent_manager_register (seaf->ev_mgr,
+                                    (cevent_handler)publish_repo_update_event,
+                                                    NULL);
+#endif    
+
     return open_db (mgr);
 }
 
@@ -228,7 +246,7 @@ seaf_branch_manager_update_branch (SeafBranchManager *mgr, SeafBranch *branch)
 #endif
 }
 
-#ifdef SEAFILE_SERVER
+#if defined( SEAFILE_SERVER ) && !defined( HTTP_SERVER ) && !defined( SEAFILE_MONITOR )
 
 static gboolean
 get_commit_id (SeafDBRow *row, void *data)
@@ -240,6 +258,38 @@ get_commit_id (SeafDBRow *row, void *data)
     memcpy (out_commit_id, commit_id, 41);
 
     return FALSE;
+}
+
+typedef struct {
+    char *repo_id;
+    char *commit_id;
+} RepoUpdateEventData;
+
+static void
+publish_repo_update_event (CEvent *event, void *data)
+{
+    RepoUpdateEventData *rdata = event->data;
+
+    char buf[128];
+    snprintf (buf, sizeof(buf), "repo-update\t%s\t%s",
+              rdata->repo_id, rdata->commit_id);
+
+    seaf_mq_manager_publish_event (seaf->mq_mgr, buf);
+
+    g_free (rdata->repo_id);
+    g_free (rdata->commit_id);
+    g_free (rdata);
+}
+
+static void
+on_branch_updated (SeafBranchManager *mgr, SeafBranch *branch)
+{
+    RepoUpdateEventData *rdata = g_new0 (RepoUpdateEventData, 1);
+
+    rdata->repo_id = g_strdup (branch->repo_id);
+    rdata->commit_id = g_strdup (branch->commit_id);
+    
+    cevent_manager_add_event (seaf->ev_mgr, mgr->priv->cevent_id, rdata);
 }
 
 int
@@ -278,6 +328,8 @@ seaf_branch_manager_test_and_update_branch (SeafBranchManager *mgr,
     }
 
     seaf_db_commit (trans);
+    on_branch_updated (mgr, branch);
+
     return 0;
 }
 
