@@ -16,6 +16,7 @@
 <h3>${_("Operations")}</h3>
 <ul>
     <li><a id="do-sync-link" href="/repos/operation/?repo=${repo.props.id}&op=sync">${_("Sync Now")}</a></li>
+    <li><a href="#" id="delete">${_("Unsync")}</a></li>
 </ul>
 </div>
 </%def>
@@ -88,16 +89,11 @@
 </textarea>
 
 <div id="dialog-delete-confirm" class="hide">
-    <p><span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>${_("Really want to unsync the folder? (The original folder will become a normal folder.)")}</p>
+    <p><span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>${_("Really want to unsync the folder? (The local folder will become a normal folder.)")}</p>
     <button class="remove-repo-btn" data="/repos/operation/?repo=${repo.props.id}&op=remove">${_("Unsync")}</button>
     <button class="simplemodal-close">${_("Cancel")}</button>
 </div>
 
-<div id="dialog-revert-confirm" class="hide">
-    <p><span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>${_("Really want to restore the local directory contents to this state?")}</p>
-    <button id="revert-repo-btn" data="/repos/operation/?repo=${repo.props.id}&op=revert&commit">${_("Restore")}</button>
-    <button class="simplemodal-close">${_("Cancel")}</button>
-</div>
 </%def>
 
 <%def name="js()">

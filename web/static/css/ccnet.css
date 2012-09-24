@@ -127,7 +127,6 @@ a.button { text-decoration: underline; color:#800; }
 }
 .narrow-panel input.submit {
     width:3em;
-    margin:8px 0 0;
 }
 #wrapper { font: 13px/1.5 Arial, Helvetica, sans-serif; }
 #header, #main, #footer { width:950px; }
