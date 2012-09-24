@@ -634,6 +634,8 @@ int is_repo_path_allowed(const char *path) {
     return 1;
 }
 
+extern void set_auto_sync_cb (void *result, void *data, GError *error);
+
 void seafile_disable_auto_sync (void)
 {
     SetAutoSyncData *sdata = g_new0 (SetAutoSyncData, 1);

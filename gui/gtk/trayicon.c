@@ -146,10 +146,6 @@ tray_icon_popup_menu_cb (GtkStatusIcon     *tray_icon,
                     activate_time);
 }
 
-typedef struct {
-    gboolean disable;
-} SetAutoSyncData;
-
 void reset_trayicon_and_tip(SeafileTrayIcon *icon)
 {
     char *name;
@@ -170,7 +166,6 @@ void reset_trayicon_and_tip(SeafileTrayIcon *icon)
     seafile_trayicon_set_tooltip (icon, tip);
 }
 
-static void
 set_auto_sync_cb (void *result, void *data, GError *error)
 {
     SetAutoSyncData *sdata = data;
@@ -202,16 +197,12 @@ set_auto_sync_cb (void *result, void *data, GError *error)
 
 static disable_auto_sync (GtkAction *action, SeafileTrayIcon *icon)
 {
-    SetAutoSyncData *sdata = g_new0 (SetAutoSyncData, 1);
-    sdata->disable = TRUE;
-    call_seafile_disable_auto_sync (set_auto_sync_cb, sdata);
+    seafile_disable_auto_sync();
 }
 
 static enable_auto_sync (GtkAction *action, SeafileTrayIcon *icon)
 {
-    SetAutoSyncData *sdata = g_new0 (SetAutoSyncData, 1);
-    sdata->disable = FALSE;
-    call_seafile_enable_auto_sync (set_auto_sync_cb, sdata);
+    seafile_enable_auto_sync();
 }
 
 static void

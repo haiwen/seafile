@@ -23,9 +23,6 @@ void start_heartbeat_monitor (void);
 void stop_heartbeat_monitor (void);
 gboolean heartbeat_monitor_running (void);
 
-void set_auto_sync_cb (void *result, void *data, GError *error);
-
-
 gboolean test_web_server (void);
 gboolean on_open_browser_timeout(void);
 gboolean connect_to_server (gpointer data);

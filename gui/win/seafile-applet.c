@@ -353,11 +353,7 @@ tray_notify_cb(UINT message, WPARAM uID, LPARAM lEvent)
     return TRUE;
 }
 
-typedef struct {
-    gboolean disable;
-} SetAutoSyncData;
-
-static void
+void
 set_auto_sync_cb (void *result, void *data, GError *error)
 {
     SetAutoSyncData *sdata = data;
@@ -404,16 +400,12 @@ tray_command_cb (UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
     case IDM_DISABLE_AUTO_SYNC: {
-        SetAutoSyncData *sdata = g_new0(SetAutoSyncData, 1);
-        sdata->disable = TRUE;
-        call_seafile_disable_auto_sync (set_auto_sync_cb, sdata);
+        seafile_disable_auto_sync();
         break;
     }
                                       
     case IDM_ENABLE_AUTO_SYNC: {
-        SetAutoSyncData *sdata = g_new0(SetAutoSyncData, 1);
-        sdata->disable = FALSE;
-        call_seafile_enable_auto_sync (set_auto_sync_cb, sdata);
+        seafile_enable_auto_sync();
         break;
     }
         
