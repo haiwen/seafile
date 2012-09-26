@@ -345,7 +345,7 @@ seaf_repo_manager_get_groups_by_repo (SeafRepoManager *mgr,
 
 typedef struct GroupPerm {
     int group_id;
-    char *permission;
+    char permission[16];
 } GroupPerm;
 
 GList *
@@ -385,7 +385,8 @@ seaf_repo_manager_remove_group_repos (SeafRepoManager *mgr,
 
 int
 seaf_repo_manager_set_inner_pub_repo (SeafRepoManager *mgr,
-                                      const char *repo_id);
+                                      const char *repo_id,
+                                      const char *permission);
 
 int
 seaf_repo_manager_unset_inner_pub_repo (SeafRepoManager *mgr,
@@ -397,6 +398,14 @@ seaf_repo_manager_is_inner_pub_repo (SeafRepoManager *mgr,
 
 GList *
 seaf_repo_manager_list_inner_pub_repos (SeafRepoManager *mgr);
+
+GList *
+seaf_repo_manager_list_inner_pub_repos_by_owner (SeafRepoManager *mgr,
+                                                 const char *user);
+
+char *
+seaf_repo_manager_get_inner_pub_repo_perm (SeafRepoManager *mgr,
+                                           const char *repo_id);
 
 /* Org repos */
 
@@ -489,7 +498,8 @@ seaf_repo_manager_get_org_group_repos_by_owner (SeafRepoManager *mgr,
 int
 seaf_repo_manager_set_org_inner_pub_repo (SeafRepoManager *mgr,
                                           int org_id,
-                                          const char *repo_id);
+                                          const char *repo_id,
+                                          const char *permission);
 
 int
 seaf_repo_manager_unset_org_inner_pub_repo (SeafRepoManager *mgr,
@@ -503,6 +513,16 @@ seaf_repo_manager_is_org_inner_pub_repo (SeafRepoManager *mgr,
 
 GList *
 seaf_repo_manager_list_org_inner_pub_repos (SeafRepoManager *mgr, int org_id);
+
+GList *
+seaf_repo_manager_list_org_inner_pub_repos_by_owner (SeafRepoManager *mgr,
+                                                     int org_id,
+                                                     const char *user);
+
+char *
+seaf_repo_manager_get_org_inner_pub_repo_perm (SeafRepoManager *mgr,
+                                               int org_id,
+                                               const char *repo_id);
 
 /*
  * Comprehensive repo permission checker.

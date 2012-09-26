@@ -518,6 +518,10 @@ GList *
 seafile_list_share_repos (const char *email, const char *type,
                           int start, int limit, GError **error);
 
+GList *
+seafile_list_org_share_repos (int org_id, const char *email, const char *type,
+                              int start, int limit, GError **error);
+
 int
 seafile_remove_share (const char *repo_id, const char *from_email,
                       const char *to_email, GError **error);
@@ -777,7 +781,9 @@ seafile_get_org_groups_by_repo (int org_id, const char *repo_id,
                                 GError **error);
 
 int
-seafile_set_inner_pub_repo (const char *repo_id, GError **error);
+seafile_set_inner_pub_repo (const char *repo_id,
+                            const char *permission,
+                            GError **error);
 
 int
 seafile_unset_inner_pub_repo (const char *repo_id, GError **error);
@@ -785,17 +791,28 @@ seafile_unset_inner_pub_repo (const char *repo_id, GError **error);
 GList *
 seafile_list_inner_pub_repos (GError **error);
 
+GList *
+seafile_list_inner_pub_repos_by_owner (const char *user, GError **error);
+
 int
 seafile_is_inner_pub_repo (const char *repo_id, GError **error);
 
 int
-seafile_set_org_inner_pub_repo (int org_id, const char *repo_id, GError **error);
+seafile_set_org_inner_pub_repo (int org_id,
+                                const char *repo_id,
+                                const char *permission,
+                                GError **error);
 
 int
 seafile_unset_org_inner_pub_repo (int org_id, const char *repo_id, GError **error);
 
 GList *
 seafile_list_org_inner_pub_repos (int org_id, GError **error);
+
+GList *
+seafile_list_org_inner_pub_repos_by_owner (int org_id,
+                                           const char *user,
+                                           GError **error);
 
 int
 seafile_set_share_permission (const char *repo_id,

@@ -426,6 +426,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     list_share_repos = seafile_list_share_repos
 
+    @searpc_func("objlist", ["int", "string", "string", "int", "int"])
+    def seafile_list_org_share_repos(org_id, email, query_col, start, limit):
+        pass
+    list_org_share_repos = seafile_list_org_share_repos
+
     @searpc_func("int", ["string", "string", "string"])
     def seafile_remove_share(repo_id, from_email, to_email):
         pass
@@ -612,8 +617,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     
     # inner pub repo
-    @searpc_func("int", ["string"])
-    def set_inner_pub_repo(repo_id):
+    @searpc_func("int", ["string", "string"])
+    def set_inner_pub_repo(repo_id, permission):
         pass
 
     @searpc_func("int", ["string"])
@@ -624,13 +629,17 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def list_inner_pub_repos():
         pass
 
+    @searpc_func("objlist", ["string"])
+    def list_inner_pub_repos_by_owner(user):
+        pass
+
     @searpc_func("int", ["string"])
     def is_inner_pub_repo(repo_id):
         pass
 
     # org inner pub repo
-    @searpc_func("int", ["int", "string"])
-    def set_org_inner_pub_repo(org_id, repo_id):
+    @searpc_func("int", ["int", "string", "string"])
+    def set_org_inner_pub_repo(org_id, repo_id, permission):
         pass
 
     @searpc_func("int", ["int", "string"])
@@ -639,4 +648,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
 
     @searpc_func("objlist", ["int"])
     def list_org_inner_pub_repos(org_id):
+        pass
+
+    @searpc_func("objlist", ["int", "string"])
+    def list_org_inner_pub_repos_by_owner(org_id, user):
         pass

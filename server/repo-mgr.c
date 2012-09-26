@@ -115,6 +115,9 @@ seaf_repo_ref (SeafRepo *repo)
 void
 seaf_repo_unref (SeafRepo *repo)
 {
+    if (!repo)
+        return;
+
     if (g_atomic_int_dec_and_test (&repo->ref_cnt))
         seaf_repo_free (repo);
 }
@@ -753,7 +756,8 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
 
         if (!mgr->seaf->cloud_mode) {
             sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
-                "repo_id CHAR(37) PRIMARY KEY)";
+                "repo_id CHAR(37) PRIMARY KEY,"
+                "permission CHAR(15))";
             if (seaf_db_query (db, sql) < 0)
                 return -1;
         }
@@ -777,7 +781,8 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
 
             sql = "CREATE TABLE IF NOT EXISTS OrgInnerPubRepo ("
                 "org_id INTEGER, repo_id CHAR(37),"
-                "PRIMARY KEY (org_id, repo_id))";
+                "PRIMARY KEY (org_id, repo_id), "
+                "permission CHAR(15))";
             if (seaf_db_query (db, sql) < 0)
                 return -1;
         }
@@ -829,7 +834,8 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
 
         if (!mgr->seaf->cloud_mode) {
             sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
-                "repo_id CHAR(37) PRIMARY KEY)";
+                "repo_id CHAR(37) PRIMARY KEY,"
+                "permission CHAR(15))";
             if (seaf_db_query (db, sql) < 0)
                 return -1;
         }
@@ -884,6 +890,7 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
 
             sql = "CREATE TABLE IF NOT EXISTS OrgInnerPubRepo ("
                 "org_id INTEGER, repo_id CHAR(37),"
+                "permission CHAR(15),"
                 "PRIMARY KEY (org_id, repo_id))";
             if (seaf_db_query (db, sql) < 0)
                 return -1;
@@ -1344,7 +1351,8 @@ get_group_perms_cb (SeafDBRow *row, void *data)
     GroupPerm *perm = g_new0 (GroupPerm, 1);
 
     perm->group_id = seaf_db_row_get_column_int (row, 0);
-    perm->permission = g_strdup(seaf_db_row_get_column_text(row, 1));
+    const char *permission = seaf_db_row_get_column_text(row, 1);
+    g_strlcpy (perm->permission, permission, sizeof(perm->permission));
 
     *plist = g_list_prepend (*plist, perm);
 
@@ -1422,24 +1430,41 @@ static gboolean
 get_group_repos_cb (SeafDBRow *row, void *data)
 {
     GList **p_list = data;
-    SeafileRepoGroup *repo_group = NULL;
+    SeafRepo *repo = NULL;
+    SeafCommit *commit = NULL;
+    SeafileSharedRepo *srepo = NULL;
     
     const char *repo_id = seaf_db_row_get_column_text (row, 0);
     int group_id = seaf_db_row_get_column_int (row, 1);
     const char *user_name = seaf_db_row_get_column_text (row, 2);
     const char *permission = seaf_db_row_get_column_text (row, 3);
-    
-    repo_group = g_object_new (SEAFILE_TYPE_REPO_GROUP,
-                               "repo_id", repo_id,
-                               "group_id", group_id,
-                               "user_name", user_name,
-                               "permission", permission,
-                               NULL);
-    if (repo_group != NULL) {
-        /* g_object_ref (repo_group); */
-        *p_list = g_list_prepend (*p_list, repo_group);        
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo)
+        goto out;
+
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             repo->head->commit_id);
+    if (!commit)
+        goto out;
+
+    srepo = g_object_new (SEAFILE_TYPE_SHARED_REPO,
+                          "share_type", "group",
+                          "repo_id", repo_id,
+                          "repo_name", repo->name,
+                          "repo_desc", repo->desc,
+                          "group_id", group_id,
+                          "user", user_name,
+                          "permission", permission,
+                          "last_modified", commit->ctime,
+                          NULL);
+    if (srepo != NULL) {
+        *p_list = g_list_prepend (*p_list, srepo);
     }
 
+out:
+    seaf_repo_unref (repo);
+    seaf_commit_unref (commit);
     return TRUE;
 }
 
@@ -1513,13 +1538,14 @@ seaf_repo_manager_remove_group_repos (SeafRepoManager *mgr,
 
 int
 seaf_repo_manager_set_inner_pub_repo (SeafRepoManager *mgr,
-                                      const char *repo_id)
+                                      const char *repo_id,
+                                      const char *permission)
 {
     char sql[256];
 
     snprintf (sql, sizeof(sql),
-              "REPLACE INTO InnerPubRepo VALUES ('%s')",
-              repo_id);
+              "REPLACE INTO InnerPubRepo VALUES ('%s', '%s')",
+              repo_id, permission);
     return seaf_db_query (mgr->seaf->db, sql);
 }
 
@@ -1547,19 +1573,102 @@ seaf_repo_manager_is_inner_pub_repo (SeafRepoManager *mgr,
     return seaf_db_check_for_existence (mgr->seaf->db, sql);
 }
 
+static gboolean
+collect_public_repos (SeafDBRow *row, void *data)
+{
+    GList **ret = (GList **)data;
+    SeafileSharedRepo *srepo;
+    SeafRepo *repo = NULL;
+    SeafCommit *commit = NULL;
+    const char *repo_id, *owner, *permission;
+
+    repo_id = seaf_db_row_get_column_text (row, 0);
+    owner = seaf_db_row_get_column_text (row, 1);
+    permission = seaf_db_row_get_column_text (row, 2);
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo)
+        goto out;
+
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             repo->head->commit_id);
+    if (!commit)
+        goto out;
+
+    srepo = g_object_new (SEAFILE_TYPE_SHARED_REPO,
+                          "share_type", "public",
+                          "repo_id", repo_id,
+                          "repo_name", repo->name,
+                          "repo_desc", repo->desc,
+                          "encrypted", repo->encrypted,
+                          "permission", permission,
+                          "user", owner,
+                          "last_modified", commit->ctime,
+                          NULL);
+    *ret = g_list_prepend (*ret, srepo);
+
+out:
+    seaf_repo_unref (repo);
+    seaf_commit_unref (commit);
+    return TRUE;
+}
+
 GList *
 seaf_repo_manager_list_inner_pub_repos (SeafRepoManager *mgr)
 {
-    GList *ret = NULL;
+    GList *ret = NULL, *p;
     char sql[256];
 
-    snprintf (sql, 256, "SELECT repo_id FROM InnerPubRepo");
+    snprintf (sql, 256,
+              "SELECT InnerPubRepo.repo_id, owner_id, permission "
+              "FROM InnerPubRepo, RepoOwner "
+              "WHERE InnerPubRepo.repo_id=RepoOwner.repo_id");
 
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      collect_repos, &ret) < 0)
+                                      collect_public_repos, &ret) < 0) {
+        for (p = ret; p != NULL; p = p->next)
+            g_object_unref (p->data);
+        g_list_free (ret);
         return NULL;
+    }
 
     return g_list_reverse (ret);    
+}
+
+GList *
+seaf_repo_manager_list_inner_pub_repos_by_owner (SeafRepoManager *mgr,
+                                                 const char *user)
+{
+    GList *ret = NULL, *p;
+    char sql[256];
+
+    snprintf (sql, 256,
+              "SELECT InnerPubRepo.repo_id, owner_id, permission "
+              "FROM InnerPubRepo, RepoOwner "
+              "WHERE InnerPubRepo.repo_id=RepoOwner.repo_id AND owner_id='%s'",
+              user);
+
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
+                                      collect_public_repos, &ret) < 0) {
+        for (p = ret; p != NULL; p = p->next)
+            g_object_unref (p->data);
+        g_list_free (ret);
+        return NULL;
+    }
+
+    return g_list_reverse (ret);    
+}
+
+char *
+seaf_repo_manager_get_inner_pub_repo_perm (SeafRepoManager *mgr,
+                                           const char *repo_id)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "SELECT permission FROM InnerPubRepo WHERE repo_id='%s'",
+              repo_id);
+    return seaf_db_get_string(mgr->seaf->db, sql);
 }
 
 /* Org repos. */
@@ -1835,13 +1944,14 @@ seaf_repo_manager_get_org_group_repos_by_owner (SeafRepoManager *mgr,
 int
 seaf_repo_manager_set_org_inner_pub_repo (SeafRepoManager *mgr,
                                           int org_id,
-                                          const char *repo_id)
+                                          const char *repo_id,
+                                          const char *permission)
 {
     char sql[256];
 
     snprintf (sql, sizeof(sql),
-              "REPLACE INTO OrgInnerPubRepo VALUES (%d, '%s')",
-              org_id, repo_id);
+              "REPLACE INTO OrgInnerPubRepo VALUES (%d, '%s', '%s')",
+              org_id, repo_id, permission);
     return seaf_db_query (mgr->seaf->db, sql);
 }
 
@@ -1879,16 +1989,66 @@ seaf_repo_manager_list_org_inner_pub_repos (SeafRepoManager *mgr,
     GList *ret = NULL;
     char sql[256];
 
-    snprintf (sql, 256, "SELECT repo_id FROM OrgInnerPubRepo WHERE "
-              "org_id=%d", org_id);
+    snprintf (sql, 256,
+              "SELECT OrgInnerPubRepo.repo_id, user, permission "
+              "FROM OrgInnerPubRepo, OrgRepo "
+              "WHERE OrgInnerPubRepo.org_id=%d AND "
+              "OrgInnerPubRepo.repo_id=OrgRepo.repo_id AND "
+              "OrgInnerPubRepo.org_id=OrgRepo.org_id",
+              org_id);
 
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      collect_repos, &ret) < 0)
+                                      collect_public_repos, &ret) < 0)
         return NULL;
 
     return g_list_reverse (ret);    
 }
 
+GList *
+seaf_repo_manager_list_org_inner_pub_repos_by_owner (SeafRepoManager *mgr,
+                                                     int org_id,
+                                                     const char *user)
+{
+    GList *ret = NULL, *p;
+    char sql[256];
+
+    snprintf (sql, 256,
+              "SELECT OrgInnerPubRepo.repo_id, user, permission "
+              "FROM OrgInnerPubRepo, OrgRepo "
+              "WHERE OrgInnerPubRepo.org_id=%d AND user='%s' AND "
+              "OrgInnerPubRepo.repo_id=OrgRepo.repo_id AND "
+              "OrgInnerPubRepo.org_id=OrgRepo.org_id",
+              org_id, user);
+
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
+                                      collect_public_repos, &ret) < 0) {
+        for (p = ret; p != NULL; p = p->next)
+            g_object_unref (p->data);
+        g_list_free (ret);
+        return NULL;
+    }
+
+    return g_list_reverse (ret);    
+}
+
+char *
+seaf_repo_manager_get_org_inner_pub_repo_perm (SeafRepoManager *mgr,
+                                               int org_id,
+                                               const char *repo_id)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "SELECT permission FROM OrgInnerPubRepo WHERE "
+              "org_id=%d AND repo_id='%s'",
+              org_id, repo_id);
+    return seaf_db_get_string(mgr->seaf->db, sql);
+}
+
+/*
+ * Permission priority: owner --> personal share --> group share --> public.
+ * Permission with higher priority overwrites those with lower priority.
+ */
 static char *
 check_repo_share_permission (SeafRepoManager *mgr,
                              const char *repo_id,
@@ -1902,14 +2062,10 @@ check_repo_share_permission (SeafRepoManager *mgr,
     int group_id;
     char *permission;
 
-    if (!mgr->seaf->cloud_mode &&
-        seaf_repo_manager_is_inner_pub_repo (mgr, repo_id))
-        return g_strdup("rw");
-
     permission = seaf_share_manager_check_permission (seaf->share_mgr,
                                                       repo_id,
                                                       user_name);
-    if (g_strcmp0(permission, "rw") == 0 || g_strcmp0(permission, "r") == 0)
+    if (permission != NULL)
         return permission;
     g_free (permission);
 
@@ -1942,7 +2098,7 @@ check_repo_share_permission (SeafRepoManager *mgr,
                  */
                 if (g_strcmp0(perm->permission, "rw") == 0) {
                     permission = perm->permission;
-                    goto out;
+                    goto group_out;
                 } else if (g_strcmp0(perm->permission, "r") == 0 &&
                            !permission) {
                     permission = perm->permission;
@@ -1951,7 +2107,10 @@ check_repo_share_permission (SeafRepoManager *mgr,
         }
     }
 
-out:
+group_out:
+    if (permission != NULL)
+        permission = g_strdup(permission);
+
     for (p1 = groups; p1 != NULL; p1 = p1->next)
         g_object_unref ((GObject *)p1->data);
     g_list_free (groups);
@@ -1959,7 +2118,13 @@ out:
         g_free (p2->data);
     g_list_free (group_perms);
 
-    return g_strdup(permission);
+    if (permission != NULL)
+        return permission;
+
+    if (!mgr->seaf->cloud_mode)
+        return seaf_repo_manager_get_inner_pub_repo_perm (mgr, repo_id);
+
+    return NULL;
 }
 
 static char *
@@ -1987,15 +2152,10 @@ check_org_repo_share_permission (SeafRepoManager *mgr,
         return NULL;
     }
 
-    if (seaf_repo_manager_is_org_inner_pub_repo (mgr, org_id, repo_id)) {
-        ccnet_rpc_client_free (rpc_client);
-        return g_strdup("rw");
-    }
-
     permission = seaf_share_manager_check_permission (seaf->share_mgr,
                                                       repo_id,
                                                       user_name);
-    if (g_strcmp0(permission, "rw") == 0 || g_strcmp0(permission, "r") == 0) {
+    if (permission != NULL) {
         ccnet_rpc_client_free (rpc_client);
         return permission;
     }
@@ -2027,7 +2187,7 @@ check_org_repo_share_permission (SeafRepoManager *mgr,
                  */
                 if (g_strcmp0(perm->permission, "rw") == 0) {
                     permission = perm->permission;
-                    goto out;
+                    goto group_out;
                 } else if (g_strcmp0(perm->permission, "r") == 0 &&
                            !permission) {
                     permission = perm->permission;
@@ -2036,7 +2196,10 @@ check_org_repo_share_permission (SeafRepoManager *mgr,
         }
     }
 
-out:
+group_out:
+    if (permission != NULL)
+        permission = g_strdup(permission);
+
     for (p1 = groups; p1 != NULL; p1 = p1->next)
         g_object_unref ((GObject *)p1->data);
     g_list_free (groups);
@@ -2044,7 +2207,10 @@ out:
         g_free (p2->data);
     g_list_free (group_perms);
 
-    return g_strdup(permission);
+    if (permission != NULL)
+        return permission;
+
+    return seaf_repo_manager_get_org_inner_pub_repo_perm (mgr, org_id, repo_id);
 }
 
 /*

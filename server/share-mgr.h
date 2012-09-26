@@ -16,13 +16,6 @@ struct _SeafShareManager {
 
 };
 
-struct _ShareRepoInfo {
-    SeafRepo	*repo;
-    char *email;
-    char *permission;
-//    char	email[100];
-};
-
 SeafShareManager*
 seaf_share_manager_new (struct _SeafileSession *seaf);
 
@@ -42,6 +35,13 @@ seaf_share_manager_set_permission (SeafShareManager *mgr, const char *repo_id,
 GList*
 seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
                                      const char *type, int start, int limit);
+
+GList*
+seaf_share_manager_list_org_share_repos (SeafShareManager *mgr,
+                                         int org_id,
+                                         const char *email,
+                                         const char *type,
+                                         int start, int limit);
 
 int
 seaf_share_manager_remove_share (SeafShareManager *mgr, const char *repo_id,

@@ -1854,11 +1854,6 @@ GList *
 seafile_list_share_repos (const char *email, const char *type,
                           int start, int limit, GError **error)
 {
-    GList *ret = NULL;
-    GList *shareRepoInfos, *ptr;
-    ShareRepoInfo *repoInfo;
-    SeafileRepo *repo;
-
     if (g_strcmp0 (type, "from_email") != 0 &&
         g_strcmp0 (type, "to_email") != 0 ) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
@@ -1866,32 +1861,25 @@ seafile_list_share_repos (const char *email, const char *type,
         return NULL;
     }
 
-    shareRepoInfos = seaf_share_manager_list_share_repos (seaf->share_mgr,
-                                                          email, type,
-                                                          start, limit);
+    return seaf_share_manager_list_share_repos (seaf->share_mgr,
+                                                email, type,
+                                                start, limit);
+}
 
-    ptr = shareRepoInfos;
-    while (ptr) {
-        repoInfo = ptr->data;
-        repo = seafile_repo_new ();
-        g_object_set (repo, "id", repoInfo->repo->id,
-                      "name", repoInfo->repo->name,
-                      "desc", repoInfo->repo->desc,
-                      "encrypted", repoInfo->repo->encrypted,
-                      "shared_email", repoInfo->email,
-                      "share_permission", repoInfo->permission,
-                      NULL);
-        seaf_repo_unref (repoInfo->repo);
-        g_free (repoInfo->email);
-        g_free (repoInfo->permission);
-        g_free (repoInfo);
-        ret = g_list_prepend (ret, repo);
-        ptr = ptr->next;
+GList *
+seafile_list_org_share_repos (int org_id, const char *email, const char *type,
+                              int start, int limit, GError **error)
+{
+    if (g_strcmp0 (type, "from_email") != 0 &&
+        g_strcmp0 (type, "to_email") != 0 ) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Wrong type argument");
+        return NULL;
     }
-    g_list_free (shareRepoInfos);
-    ret = g_list_reverse (ret);
 
-    return ret;
+    return seaf_share_manager_list_org_share_repos (seaf->share_mgr,
+                                                    org_id, email, type,
+                                                    start, limit);
 }
 
 int
@@ -2058,14 +2046,17 @@ seafile_remove_repo_group(int group_id, const char *username, GError **error)
 /* Inner public repo RPC */
 
 int
-seafile_set_inner_pub_repo (const char *repo_id, GError **error)
+seafile_set_inner_pub_repo (const char *repo_id,
+                            const char *permission,
+                            GError **error)
 {
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
         return -1;
     }
 
-    if (seaf_repo_manager_set_inner_pub_repo (seaf->repo_mgr, repo_id) < 0) {
+    if (seaf_repo_manager_set_inner_pub_repo (seaf->repo_mgr,
+                                              repo_id, permission) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal error");
         return -1;
     }
@@ -2092,26 +2083,18 @@ seafile_unset_inner_pub_repo (const char *repo_id, GError **error)
 GList *
 seafile_list_inner_pub_repos (GError **error)
 {
-    GList *ret = NULL;
-    GList *repos, *ptr;
-    SeafRepo *r;
-    SeafileRepo *repo;
+    return seaf_repo_manager_list_inner_pub_repos (seaf->repo_mgr);
+}
 
-    repos = seaf_repo_manager_list_inner_pub_repos (seaf->repo_mgr);
-    ptr = repos;
-    while (ptr) {
-        r = ptr->data;
-        repo = seafile_repo_new ();
-        g_object_set (repo, "id", r->id, "name", r->name,
-                      "desc", r->desc, "encrypted", r->encrypted, NULL);
-        ret = g_list_prepend (ret, repo);
-        seaf_repo_unref (r);
-        ptr = ptr->next;
+GList *
+seafile_list_inner_pub_repos_by_owner (const char *user, GError **error)
+{
+    if (!user) {
+        g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Bad arguments");
+        return NULL;
     }
-    g_list_free (repos);
-    ret = g_list_reverse (ret);
 
-    return ret;
+    return seaf_repo_manager_list_inner_pub_repos_by_owner (seaf->repo_mgr, user);
 }
 
 int
@@ -2309,7 +2292,10 @@ seafile_get_org_groups_by_repo (int org_id, const char *repo_id,
 /* Org inner public repo RPC */
 
 int
-seafile_set_org_inner_pub_repo (int org_id, const char *repo_id, GError **error)
+seafile_set_org_inner_pub_repo (int org_id,
+                                const char *repo_id,
+                                const char *permission,
+                                GError **error)
 {
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
@@ -2317,7 +2303,8 @@ seafile_set_org_inner_pub_repo (int org_id, const char *repo_id, GError **error)
     }
 
     if (seaf_repo_manager_set_org_inner_pub_repo (seaf->repo_mgr,
-                                                  org_id, repo_id) < 0) {
+                                                  org_id, repo_id,
+                                                  permission) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal error");
         return -1;
     }
@@ -2345,26 +2332,21 @@ seafile_unset_org_inner_pub_repo (int org_id, const char *repo_id, GError **erro
 GList *
 seafile_list_org_inner_pub_repos (int org_id, GError **error)
 {
-    GList *ret = NULL;
-    GList *repos, *ptr;
-    SeafRepo *r;
-    SeafileRepo *repo;
+    return seaf_repo_manager_list_org_inner_pub_repos (seaf->repo_mgr, org_id);
+}
 
-    repos = seaf_repo_manager_list_org_inner_pub_repos (seaf->repo_mgr, org_id);
-    ptr = repos;
-    while (ptr) {
-        r = ptr->data;
-        repo = seafile_repo_new ();
-        g_object_set (repo, "id", r->id, "name", r->name,
-                      "desc", r->desc, "encrypted", r->encrypted, NULL);
-        ret = g_list_prepend (ret, repo);
-        seaf_repo_unref (r);
-        ptr = ptr->next;
+GList *
+seafile_list_org_inner_pub_repos_by_owner (int org_id,
+                                           const char *user,
+                                           GError **error)
+{
+    if (!user) {
+        g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Bad arguments");
+        return NULL;
     }
-    g_list_free (repos);
-    ret = g_list_reverse (ret);
 
-    return ret;
+    return seaf_repo_manager_list_org_inner_pub_repos_by_owner (seaf->repo_mgr,
+                                                                org_id, user);
 }
 
 gint64

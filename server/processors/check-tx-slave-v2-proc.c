@@ -235,9 +235,11 @@ check_tx (void *vprocessor)
     {
         priv->rsp_code = g_strdup(SC_ACCESS_DENIED);
         priv->rsp_msg = g_strdup(SS_ACCESS_DENIED);
+        g_free (perm);
         goto out;
     }
-    
+    g_free (perm);
+
     get_branch_head (processor);
 
 out:

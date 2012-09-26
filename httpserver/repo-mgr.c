@@ -82,6 +82,9 @@ seaf_repo_ref (SeafRepo *repo)
 void
 seaf_repo_unref (SeafRepo *repo)
 {
+    if (!repo)
+        return;
+
     if (g_atomic_int_dec_and_test (&repo->ref_cnt))
         seaf_repo_free (repo);
 }

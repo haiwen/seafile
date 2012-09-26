@@ -98,12 +98,22 @@ public class CheckoutTask : Object {
     public int finished_files { get; set; }
 }
 
-public class RepoGroup : Object {
+// Unified container object for shared repo info.
+// Returned by list_share_repos, get_group_repos and get_inner_pub_repos, etc
+public class SharedRepo : Object {
+
+    public string share_type { get; set; } // personal, group or public
 
     public string repo_id { get; set; }
-    public int group_id { get; set; }
-    public string user_name { get; set; }
+    public string repo_name { get; set; }
+    public string repo_desc { get; set; }
+    public bool encrypted { get; set; }
     public string permission { get; set; }
+
+    public string user { get; set; } // share from or share to
+    public int group_id { get; set; } // used when shared to group
+
+    public int last_modified { get; set; }
 }
 
 public class DiffEntry : Object {
