@@ -14,6 +14,11 @@
 #define SC_ACK          "305"
 #define SS_ACK          "Ack"
 
+#define SC_OBJ_SEG      "306"
+#define SS_OBJ_SEG      "Object Segment"
+#define SC_OBJ_SEG_END  "307"
+#define SS_OBJ_SEG_END  "Object Segment End"
+
 #define SC_NOT_FOUND    "401"
 #define SS_NOT_FOUND    "Object not found"
 #define SC_BAD_OL       "402"
@@ -29,6 +34,9 @@
 #define SS_ROOT         "FS Root"
 #define SC_ROOT_END     "305"
 #define SS_ROOT_END     "FS Root End"
+
+/* max fs object segment size */
+#define MAX_OBJ_SEG_SIZE 64000
 
 
 typedef struct {

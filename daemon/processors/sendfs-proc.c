@@ -122,8 +122,32 @@ send_fs_object (CcnetProcessor *processor, char *object_id)
     memcpy (pack->id, object_id, 41);
     memcpy (pack->object, data, len);
 
-    ccnet_processor_send_update (processor, SC_OBJECT, SS_OBJECT,
-                                 (char *)pack, pack_size);
+    if (pack_size <= MAX_OBJ_SEG_SIZE) {
+        ccnet_processor_send_update (processor, SC_OBJECT, SS_OBJECT,
+                                     (char *)pack, pack_size);
+    } else {
+        int offset, n;
+
+        offset = 0;
+        while (offset < pack_size) {
+            n = MIN(pack_size - offset, MAX_OBJ_SEG_SIZE);
+
+            if (offset + n < pack_size) {
+                ccnet_processor_send_update (processor,
+                                             SC_OBJ_SEG, SS_OBJ_SEG,
+                                             (char *)pack + offset, n);
+            } else {
+                ccnet_processor_send_update (processor,
+                                             SC_OBJ_SEG_END, SS_OBJ_SEG_END,
+                                             (char *)pack + offset, n);
+            }
+
+            seaf_debug ("Sent object %s segment<total = %d, offset = %d, n = %d>\n",
+                        object_id, pack_size, offset, n);
+
+            offset += n;
+        }
+    }
 
     seaf_debug ("Send fs object %.8s.\n", object_id);
 

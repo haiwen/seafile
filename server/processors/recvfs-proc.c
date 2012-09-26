@@ -36,6 +36,9 @@ typedef struct  {
     int  n_batch;
     GHashTable  *fs_objects;
 
+    char *obj_seg;
+    int obj_seg_len;
+
     gboolean registered;
     guint32  reader_id;
     guint32  writer_id;
@@ -64,6 +67,8 @@ release_resource(CcnetProcessor *processor)
     g_hash_table_destroy (priv->fs_objects);
 
     string_list_free (priv->fs_roots);
+
+    g_free (priv->obj_seg);
     
     if (priv->registered) {
         seaf_obj_store_unregister_async_read (seaf->fs_mgr->obj_store,
@@ -324,7 +329,7 @@ save_fs_object (CcnetProcessor *processor, ObjectPack *pack, int len)
                                        len - 41);
 }
 
-static void
+static int
 recv_fs_object (CcnetProcessor *processor, char *content, int clen)
 {
     USE_PRIV;
@@ -370,13 +375,42 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
     }
 
     g_hash_table_remove (priv->fs_objects, pack->id);
-    return;
+    return 0;
 
 bad:
     ccnet_processor_send_response (processor, SC_BAD_OBJECT,
                                    SS_BAD_OBJECT, NULL, 0);
     g_warning ("[recvfs] Bad fs object received.\n");
     ccnet_processor_done (processor, FALSE);
+
+    return -1;
+}
+
+static void
+recv_fs_object_seg (CcnetProcessor *processor, char *content, int clen)
+{
+    USE_PRIV;
+
+    /* Append the received object segment to the end */
+    priv->obj_seg = g_realloc (priv->obj_seg, priv->obj_seg_len + clen);
+    memcpy (priv->obj_seg + priv->obj_seg_len, content, clen);
+
+    seaf_debug ("[recvfs] Get obj seg: <id= %40s, offset= %d, lenth= %d>\n",
+                priv->obj_seg, priv->obj_seg_len, clen);
+
+    priv->obj_seg_len += clen;
+}
+
+static void
+process_fs_object_seg (CcnetProcessor *processor)
+{
+    USE_PRIV;
+
+    if (recv_fs_object (processor, priv->obj_seg, priv->obj_seg_len) == 0) {
+        g_free (priv->obj_seg);
+        priv->obj_seg = NULL;
+        priv->obj_seg_len = 0;
+    }
 }
 
 static void
@@ -469,7 +503,13 @@ handle_update (CcnetProcessor *processor,
         }
         break;
     case FETCH_OBJECT:
-        if (strncmp(code, SC_OBJECT, 3) == 0) {
+        if (strncmp(code, SC_OBJ_SEG, 3) == 0) {
+            recv_fs_object_seg (processor, content, clen);
+
+        } else if (strncmp(code, SC_OBJ_SEG_END, 3) == 0) {
+            recv_fs_object_seg (processor, content, clen);
+            process_fs_object_seg (processor);
+        } else if (strncmp(code, SC_OBJECT, 3) == 0) {
             recv_fs_object (processor, content, clen);
         } else {
             g_warning ("Bad response: %s %s\n", code, code_msg);

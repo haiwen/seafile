@@ -37,6 +37,9 @@ typedef struct  {
     char *bufptr;
     int  n_batch;
     GHashTable  *fs_objects;
+
+    char *obj_seg;
+    int  obj_seg_len;
 } SeafileGetfsProcPriv;
 
 #define GET_PRIV(o)  \
@@ -59,6 +62,7 @@ release_resource(CcnetProcessor *processor)
     USE_PRIV;
     g_queue_free (priv->inspect_queue);
     g_hash_table_destroy (priv->fs_objects);
+    g_free (priv->obj_seg);
 
     CCNET_PROCESSOR_CLASS (seafile_getfs_proc_parent_class)->release_resource (processor);
 }
@@ -227,7 +231,7 @@ save_fs_object (ObjectPack *pack, int len)
                                      len - 41);
 }
 
-static void
+static int
 recv_fs_object (CcnetProcessor *processor, char *content, int clen)
 {
     USE_PRIV;
@@ -270,13 +274,41 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
     }
 
     g_hash_table_remove (priv->fs_objects, pack->id);
-    return;
+    return 0;
 
 bad:
     g_warning ("Bad fs object received.\n");
     transfer_task_set_error (((SeafileGetfsProc *)processor)->tx_task,
                              TASK_ERR_DOWNLOAD_FS);
     ccnet_processor_done (processor, FALSE);
+    return -1;
+}
+
+static void
+recv_fs_object_seg (CcnetProcessor *processor, char *content, int clen)
+{
+    USE_PRIV;
+
+    /* Append the received object segment to the end */
+    priv->obj_seg = g_realloc (priv->obj_seg, priv->obj_seg_len + clen);
+    memcpy (priv->obj_seg + priv->obj_seg_len, content, clen);
+
+    seaf_debug ("[recvfs] Get obj seg: <id= %40s, offset= %d, lenth= %d>\n",
+                priv->obj_seg, priv->obj_seg_len, clen);
+
+    priv->obj_seg_len += clen;
+}
+
+static void
+process_fs_object_seg (CcnetProcessor *processor)
+{
+    USE_PRIV;
+
+    if (recv_fs_object (processor, priv->obj_seg, priv->obj_seg_len) == 0) {
+        g_free (priv->obj_seg);
+        priv->obj_seg = NULL;
+        priv->obj_seg_len = 0;
+    }
 }
 
 static void
@@ -313,7 +345,16 @@ handle_response (CcnetProcessor *processor,
         }
         break;
     case FETCH_OBJECT:
-        if (strncmp(code, SC_OBJECT, 3) == 0) {
+        if (strncmp(code, SC_OBJ_SEG, 3) == 0) {
+            recv_fs_object_seg (processor, content, clen);
+            return;
+
+        } else if (strncmp(code, SC_OBJ_SEG_END, 3) == 0) {
+            recv_fs_object_seg (processor, content, clen);
+            process_fs_object_seg (processor);
+            return;
+            
+        } else if (strncmp(code, SC_OBJECT, 3) == 0) {
             recv_fs_object (processor, content, clen);
             return;
         }
