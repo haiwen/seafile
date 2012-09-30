@@ -774,6 +774,8 @@ load_commit (SeafCommitManager *mgr, const char *commit_id)
     root = json_parser_get_root (parser);
 
     commit = commit_from_json_node (commit_id, root);
+    if (commit)
+        commit->manager = mgr;
 
 out:
     g_object_unref (parser);

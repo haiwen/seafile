@@ -1113,7 +1113,7 @@ seaf_fs_manager_get_seafdir_by_path (SeafFSManager *mgr,
     SeafDir *dir;
     SeafDirent *dent;
     const char *dir_id = root_id;
-    char *p, *remain, *name;
+    char *name, *saveptr;
     char *tmp_path = g_strdup(path);
 
     dir = seaf_fs_manager_get_seafdir (mgr, dir_id);
@@ -1122,18 +1122,8 @@ seaf_fs_manager_get_seafdir_by_path (SeafFSManager *mgr,
         return NULL;
     }
 
-    char *end = tmp_path + strlen(tmp_path);
-    /* skip leading '/' */
-    remain = tmp_path + 1;
-    
-    while (remain < end) {
-
-        name = remain; p = remain;
-        while (*p != '/' && *p != '\0') {
-            p++;
-        }
-        *p = '\0';
-            
+    name = strtok_r (tmp_path, "/", &saveptr);
+    while (name != NULL) {
         GList *l;
         for (l = dir->entries; l != NULL; l = l->next) {
             dent = l->data;
@@ -1162,7 +1152,7 @@ seaf_fs_manager_get_seafdir_by_path (SeafFSManager *mgr,
             break;
         }
 
-        remain = p + 1;
+        name = strtok_r (NULL, "/", &saveptr);
     }
 
     g_free (tmp_path);
@@ -1177,18 +1167,15 @@ seaf_fs_manager_path_to_file_id (SeafFSManager *mgr,
                                  GError **error)
 {
     char *copy = g_strdup (path);
+    int off = strlen(copy) - 1;
     char *slash, *name;
     SeafDir *base_dir = NULL;
     SeafDirent *dent;
     GList *p;
     char *file_id = NULL;
 
-    if (path[strlen(path) - 1] == '/') {
-        g_warning ("path cannot be a directory\n");
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
-                     "path cannot be a directory");
-        return NULL;
-    }
+    while (off >= 0 && copy[off] == '/')
+        copy[off--] = 0;
 
     slash = strrchr (copy, '/');
     if (!slash) {

@@ -2903,6 +2903,18 @@ seafile_revert_file (const char *repo_id,
                                           path, user, error);
 }
 
+GList *
+seafile_get_deleted (const char *repo_id, GError **error)
+{
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Bad arguments");
+        return NULL;
+    }
+
+    return seaf_repo_manager_get_deleted_entries (seaf->repo_mgr, repo_id, error);
+}
+
 int
 seafile_set_repo_token (const char *repo_id,
                         const char *email,

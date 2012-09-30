@@ -4543,3 +4543,259 @@ out:
     return ret;
 }
 
+static void
+add_deleted_entry (GHashTable *entries,
+                   SeafDirent *dent,
+                   const char *base,
+                   SeafCommit *child,
+                   SeafCommit *parent)
+{
+    char *path = g_strconcat (base, dent->name, NULL);
+    SeafileDeletedEntry *entry;
+    Seafile *file;
+
+    if (g_hash_table_lookup (entries, path) != NULL) {
+        g_debug ("found dup deleted entry for %s.\n", path);
+        g_free (path);
+        return;
+    }
+
+    g_debug ("Add deleted entry for %s.\n", path);
+
+    entry = g_object_new (SEAFILE_TYPE_DELETED_ENTRY,
+                          "commit_id", parent->commit_id,
+                          "obj_id", dent->id,
+                          "obj_name", dent->name,
+                          "basedir", base,
+                          "mode", dent->mode,
+                          "delete_time", child->ctime,
+                          NULL);
+
+    if (S_ISREG(dent->mode)) {
+        file = seaf_fs_manager_get_seafile (seaf->fs_mgr, dent->id);
+        if (!file) {
+            g_free (path);
+            g_object_unref (entry);
+            return;
+        }
+        g_object_set (entry, "file_size", file->file_size, NULL);
+    }
+
+    g_hash_table_insert (entries, path, entry);
+}
+
+static int
+find_deleted_recursive (const char *root1,
+                        const char *root2,
+                        const char *base,
+                        SeafCommit *child,
+                        SeafCommit *parent,
+                        GHashTable *entries)
+{
+    SeafDir *d1, *d2;
+    GList *p1, *p2;
+    SeafDirent *dent1, *dent2;
+    int res, ret = 0;
+
+    d1 = seaf_fs_manager_get_seafdir (seaf->fs_mgr, root1);
+    if (!d1) {
+        seaf_warning ("Failed to find dir %s.\n", root1);
+        return -1;
+    }
+    d2 = seaf_fs_manager_get_seafdir (seaf->fs_mgr, root2);
+    if (!d2) {
+        seaf_warning ("Failed to find dir %s.\n", root2);
+        seaf_dir_free (d1);
+        return -1;
+    }
+
+    p1 = d1->entries;
+    p2 = d2->entries;
+
+    /* Since dirents are sorted in descending order, we can use merge
+     * algorithm to find out deleted entries.
+     * Deleted entries are those:
+     * 1. exists in d2 but absent in d1.
+     * 2. exists in both d1 and d2 but with different type.
+     */
+
+    while (p1 && p2) {
+        dent1 = p1->data;
+        dent2 = p2->data;
+
+        res = g_strcmp0 (dent1->name, dent2->name);
+        if (res < 0) {
+            /* exists in d2 but absent in d1. */
+            add_deleted_entry (entries, dent2, base, child, parent);
+            p2 = p2->next;
+        } else if (res == 0) {
+            if ((dent1->mode & S_IFMT) != (dent2->mode & S_IFMT)) {
+                /* both exists but with diffent type. */
+                add_deleted_entry (entries, dent2, base, child, parent);
+            } else if (S_ISDIR(dent1->mode)) {
+                char *new_base = g_strconcat (base, dent1->name, "/", NULL);
+                ret = find_deleted_recursive (dent1->id, dent2->id, new_base,
+                                              child, parent, entries);
+                g_free (new_base);
+                if (ret < 0)
+                    goto out;
+            }
+            p1 = p1->next;
+            p2 = p2->next;
+        } else {
+            p1 = p1->next;
+        }
+    }
+
+    for ( ; p2 != NULL; p2 = p2->next) {
+        dent2 = p2->data;
+        add_deleted_entry (entries, dent2, base, child, parent);
+    }
+
+out:
+    seaf_dir_free (d1);
+    seaf_dir_free (d2);
+    return ret;
+}
+
+#define MAX_DELETE_TIME (30 * 24 * 3600) /* 30 days */
+
+static gboolean
+collect_deleted (SeafCommit *commit, void *data, gboolean *stop)
+{
+    GHashTable *entries = data;
+    guint64 now = time(NULL);
+    SeafCommit *p1, *p2;
+
+    if (now - commit->ctime >= MAX_DELETE_TIME) {
+        *stop = TRUE;
+        return TRUE;
+    }
+
+    if (commit->parent_id == NULL)
+        return TRUE;
+
+    p1 = seaf_commit_manager_get_commit (commit->manager, commit->parent_id);
+    if (!p1) {
+        seaf_warning ("Failed to find commit %s.\n", commit->parent_id);
+        return FALSE;
+    }
+    if (find_deleted_recursive (commit->root_id, p1->root_id, "/",
+                                commit, p1, entries) < 0) {
+        seaf_commit_unref (p1);
+        return FALSE;
+    }
+    seaf_commit_unref (p1);
+
+    if (commit->second_parent_id) {
+        p2 = seaf_commit_manager_get_commit (commit->manager,
+                                             commit->second_parent_id);
+        if (!p2) {
+            seaf_warning ("Failed to find commit %s.\n",
+                          commit->second_parent_id);
+            return FALSE;
+        }
+        if (find_deleted_recursive (commit->root_id, p2->root_id, "/",
+                                    commit, p2, entries) < 0) {
+            seaf_commit_unref (p2);
+            return FALSE;
+        }
+        seaf_commit_unref (p2);
+    }
+
+    return TRUE;
+}
+
+static gboolean
+remove_existing (gpointer key, gpointer value, gpointer user_data)
+{
+    SeafileDeletedEntry *e = value;
+    SeafCommit *head = user_data;
+    guint32 mode = seafile_deleted_entry_get_mode(e), mode_out = 0;
+    char *path = key;
+
+    char *obj_id = seaf_fs_manager_path_to_file_id (seaf->fs_mgr, head->root_id,
+                                                    path, &mode_out, NULL);
+    if (obj_id == NULL)
+        return FALSE;
+    g_free (obj_id);
+
+    /* If path exist in head commit and with the same type,
+     * remove it from deleted entries.
+     */
+    if ((mode & S_IFMT) == (mode_out & S_IFMT)) {
+        g_debug ("%s exists in head commit.\n", path);
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static int
+filter_out_existing_entries (GHashTable *entries, const char *head_id)
+{
+    SeafCommit *head;
+
+    head = seaf_commit_manager_get_commit (seaf->commit_mgr, head_id);
+    if (!head) {
+        seaf_warning ("Failed to find head commit %s.\n", head_id);
+        return -1;
+    }
+
+    g_hash_table_foreach_remove (entries, remove_existing, head);
+
+    seaf_commit_unref (head);
+    return 0;
+}
+
+static gboolean
+hash_to_list (gpointer key, gpointer value, gpointer user_data)
+{
+    GList **plist = (GList **)user_data;
+
+    g_free (key);
+    *plist = g_list_prepend (*plist, value);
+
+    return TRUE;
+}
+
+GList *
+seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
+                                       const char *repo_id,
+                                       GError **error)
+{
+    SeafRepo *repo;
+    GHashTable *entries;
+    GList *ret = NULL;
+
+    repo = seaf_repo_manager_get_repo (mgr, repo_id);
+    if (!repo) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Invalid repo id");
+        return NULL;
+    }
+
+    entries = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                     g_free, g_object_unref);
+    if (!seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                   repo->head->commit_id,
+                                                   collect_deleted,
+                                                   entries))
+    {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
+                     "Internal error");
+        g_hash_table_destroy (entries);
+        seaf_repo_unref (repo);
+        return NULL;
+    }
+
+    /* Remove entries exist in the current commit.
+     * This is necessary because some files may be added back after deletion.
+     */
+    filter_out_existing_entries (entries, repo->head->commit_id);
+
+    g_hash_table_foreach_steal (entries, hash_to_list, &ret);
+    g_hash_table_destroy (entries);
+
+    return ret;
+}

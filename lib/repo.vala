@@ -123,5 +123,15 @@ public class DiffEntry : Object {
     public string new_name { get; set; }
 }
 
+public class DeletedEntry : Object {
+
+    public string commit_id { get; set; }
+    public string obj_id { get; set; }
+    public string obj_name { get; set; }
+    public string basedir { get; set; }
+    public int mode { get; set; }
+    public int delete_time { get; set; }
+    public int64 file_size { get; set; }
+}
 
 } // namespace

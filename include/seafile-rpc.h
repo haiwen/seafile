@@ -714,6 +714,9 @@ seafile_revert_file (const char *repo_id,
                      const char *user,
                      GError **error);
 
+GList *
+seafile_get_deleted (const char *repo_id, GError **error);
+
 int seafile_set_repo_token (const char *repo_id,
                             const char *email,
                             const char *token,
