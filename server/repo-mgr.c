@@ -4555,12 +4555,12 @@ add_deleted_entry (GHashTable *entries,
     Seafile *file;
 
     if (g_hash_table_lookup (entries, path) != NULL) {
-        g_debug ("found dup deleted entry for %s.\n", path);
+        /* g_debug ("found dup deleted entry for %s.\n", path); */
         g_free (path);
         return;
     }
 
-    g_debug ("Add deleted entry for %s.\n", path);
+    /* g_debug ("Add deleted entry for %s.\n", path); */
 
     entry = g_object_new (SEAFILE_TYPE_DELETED_ENTRY,
                           "commit_id", parent->commit_id,
@@ -4724,7 +4724,7 @@ remove_existing (gpointer key, gpointer value, gpointer user_data)
      * remove it from deleted entries.
      */
     if ((mode & S_IFMT) == (mode_out & S_IFMT)) {
-        g_debug ("%s exists in head commit.\n", path);
+        /* g_debug ("%s exists in head commit.\n", path); */
         return TRUE;
     }
 
