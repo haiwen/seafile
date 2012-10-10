@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2012-10-09 14:12+CST\n"
+"POT-Creation-Date: 2012-10-10 11:52+CST\n"
 "PO-Revision-Date: 2012-10-09 14:12+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -47,7 +47,7 @@ msgstr "本地目录的路径不能处在 Seafile 系统目录下，或者包含
 msgid "The local directory you chose cannot be under or includes another repo."
 msgstr "本地目录的路径不能处在其他资料库目录下，或者包含其他资料库目录"
 
-#: main.py:615 main.py:726 templates/clone_tasks.html:65
+#: main.py:615 main.py:726 templates/clone_tasks.html:69
 msgid "Internal error."
 msgstr "内部错误"
 
@@ -123,51 +123,51 @@ msgstr "正在索引文件..."
 msgid "Downloading..."
 msgstr "下载中..."
 
-#: templates/clone_tasks.html:36
+#: templates/clone_tasks.html:40
 msgid "Creating Folder"
 msgstr "创建目录中"
 
-#: templates/clone_tasks.html:40
+#: templates/clone_tasks.html:44
 msgid "merging files changes..."
 msgstr "正在合并更改"
 
-#: templates/clone_tasks.html:44
+#: templates/clone_tasks.html:48
 msgid "Done"
 msgstr "完成"
 
-#: templates/clone_tasks.html:45
+#: templates/clone_tasks.html:49
 msgid "View Details"
 msgstr "查看详情"
 
-#: templates/clone_tasks.html:48
+#: templates/clone_tasks.html:52
 msgid "Canceling..."
 msgstr "取消中..."
 
-#: templates/clone_tasks.html:51
+#: templates/clone_tasks.html:55
 msgid "Canceled"
 msgstr "已取消"
 
-#: templates/clone_tasks.html:57
+#: templates/clone_tasks.html:61
 msgid "Failed to index local files."
 msgstr "创建索引失败。"
 
-#: templates/clone_tasks.html:59
+#: templates/clone_tasks.html:63
 msgid "Failed to create local files."
 msgstr "创建本地文件失败。"
 
-#: templates/clone_tasks.html:61
+#: templates/clone_tasks.html:65
 msgid "Failed to merge local file changes."
 msgstr "合并更改失败"
 
-#: templates/clone_tasks.html:63
+#: templates/clone_tasks.html:67
 msgid "Incorrect password. Failed to decrypt files."
 msgstr "密码错误。文件解密失败。"
 
-#: templates/clone_tasks.html:72 templates/repo.html:94
+#: templates/clone_tasks.html:76 templates/repo.html:101
 msgid "Cancel"
 msgstr "取消"
 
-#: templates/clone_tasks.html:82
+#: templates/clone_tasks.html:86
 msgid "Please reenter the password:"
 msgstr "请重新输入密码："
 
@@ -374,7 +374,7 @@ msgstr "操作"
 msgid "Sync Now"
 msgstr "立即同步"
 
-#: templates/repo.html:19 templates/repo.html:93
+#: templates/repo.html:19 templates/repo.html:100
 msgid "Unsync"
 msgstr "解除同步"
 
@@ -410,23 +410,23 @@ msgstr "开启"
 msgid "Repo"
 msgstr "资料库"
 
-#: templates/repo.html:81
-msgid "blocks transfered"
-msgstr "已传输块数"
+#: templates/repo.html:83
+msgid "transfered"
+msgstr "已完成"
 
-#: templates/repo.html:81
+#: templates/repo.html:87
 msgid "rate"
 msgstr "速率"
 
-#: templates/repo.html:81
+#: templates/repo.html:87
 msgid "s"
 msgstr "秒"
 
-#: templates/repo.html:86
+#: templates/repo.html:93
 msgid "Repo transfer error:"
 msgstr "同步目录传输出错："
 
-#: templates/repo.html:92
+#: templates/repo.html:99
 msgid ""
 "Really want to unsync the folder? (The local folder will become a normal "
 "folder.)"

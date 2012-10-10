@@ -77,8 +77,15 @@
 <textarea id="transfer-template" class="hide"> 
     <div class="notification">
         {#if $T.state == "normal"}
-        ${_("Repo")} {#if $T.ttype == "upload"} ${_("uploading")} {#else} ${_("downloading")} {#/if},
-        ${_("blocks transfered")} <span id="transfered">{$T.block_done}/{$T.block_total}</span>, ${_("rate")} <span id="tranfer-rate">{($T.rate/1024).toFixed(2)}</span>KB/${_("s")}
+        {#if $T.ttype == "upload"}${_("uploading")}{#else}${_("downloading")}{#/if}
+        {#if $T.block_done > 0}
+            <span id="transfered">
+                , ${_("transfered")} {parseInt($T.block_done * 100 / $T.block_total)} %
+            </span>
+        {#/if}
+        {#if $T.rate > 0}
+            , ${_("rate")} <span id="tranfer-rate">{parseInt($T.rate/1024)}</span> KB/${_("s")}
+        {#/if}
         <img src="/static/img/icon_loading.gif" width="16" height="16" />
         {#/if}
 

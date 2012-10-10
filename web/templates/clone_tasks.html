@@ -29,7 +29,11 @@
 
     {#elseif $T.task.state == "fetch"}
     <div class="task-progress-bar" data="{parseInt($T.task.tx_block_done * 100 / $T.task.tx_block_total)}"></div>
-    ${_("Downloading...")} {$T.task.tx_block_done}/{$T.task.tx_block_total}
+    ${_("Downloading...")}
+
+        {#if $T.task.tx_block_total > 0 }
+            {parseInt($T.task.tx_block_done * 100 / $T.task.tx_block_total)} %
+        {#/if}
 
     {#elseif $T.task.state == "checkout"}
     <div class="task-progress-bar" data="{parseInt($T.task.checkout_finished_files * 100 / $T.task.checkout_total_files)}"></div>
@@ -68,7 +72,7 @@
     {#/if}
 
 
-    {#if $T.task.state == "init" || $T.task.state == "fetch" || $T.task.state == "index"}
+    {#if $T.task.state == "init" || $T.task.state == "connect" || $T.task.state == "fetch" || $T.task.state == "index"}
     <button data="/repos/download-tasks/?op=cancel&&repo_id={$T.task.repo_id}" class="task-op-btn">${_("Cancel")}</button>
     {#/if}
 
