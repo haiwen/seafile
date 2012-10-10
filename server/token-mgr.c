@@ -14,7 +14,7 @@
  * signature
  */
 
-#define TOKEN_TIME_TO_EXPIRE 3600 /* a token is valid in 1 hour. */
+#define TOKEN_TIME_TO_EXPIRE 24 * 3600 /* a token is valid in 1 day. */
 
 struct TokenManagerPriv {
     /* (master, client, repo) --> timestamp */
