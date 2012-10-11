@@ -714,6 +714,13 @@ seafile_revert_file (const char *repo_id,
                      const char *user,
                      GError **error);
 
+int
+seafile_revert_dir (const char *repo_id,
+                    const char *commit_id,
+                    const char *path,
+                    const char *user,
+                    GError **error);
+
 GList *
 seafile_get_deleted (const char *repo_id, GError **error);
 

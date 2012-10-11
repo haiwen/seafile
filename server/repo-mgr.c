@@ -4253,14 +4253,6 @@ retry:
             goto out;
         }
 
-        char *slash = strchr (canon_path, '/');
-        if (!slash) {
-            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_COMMIT,
-                         "bad target file path");
-            ret = -1;
-            goto out;
-        }
-
         revert_to_file_id = seaf_fs_manager_get_seafile_id_by_path (
                     seaf->fs_mgr, old_commit->root_id, canon_path, error);
         if (*error) {
@@ -4358,6 +4350,219 @@ out:
 
     g_free (canon_path);
     g_free (revert_to_file_id);
+
+#define REVERT_TO_ROOT              0x1
+    if (ret == 0) {
+        if (revert_to_root)
+            ret |= REVERT_TO_ROOT;
+    }
+
+    return ret;
+}
+
+static char *
+revert_dir (const char *root_id,
+            const char *parent_dir,
+            const char *dirname,
+            const char *dir_id,
+            gboolean *skipped,
+            GError **error)
+{
+    SeafDir *dir = NULL;
+    SeafDirent *dent = NULL, *newdent = NULL;
+    char new_dir_name[PATH_MAX];
+    char *new_root_id = NULL;
+    int i = 1;
+    GList *p;
+
+    *skipped = FALSE;
+
+    dir = seaf_fs_manager_get_seafdir_by_path (seaf->fs_mgr,
+                                               root_id,
+                                               parent_dir, error);
+    if (*error) {
+        return NULL;
+    }
+
+    snprintf (new_dir_name, sizeof(new_dir_name), "%s", dirname);
+
+    for (;;) {
+        for (p = dir->entries; p; p = p->next) {
+            dent = p->data;
+            if (strcmp(dent->name, new_dir_name) != 0)
+                continue;
+
+            /* the same dir */
+            if (S_ISDIR(dent->mode) && strcmp(dent->id, dir_id) == 0) {
+                *skipped = TRUE;
+                goto out;
+            } else {
+                /* rename and retry */
+                snprintf (new_dir_name, sizeof(new_dir_name), "%s (%d)",
+                          dirname, i++);
+                break;
+            }
+        }
+
+        if (p == NULL)
+            break;
+    }
+
+    newdent = seaf_dirent_new (dir_id, S_IFDIR, new_dir_name);
+    new_root_id = do_post_file (root_id, parent_dir, newdent);
+
+out:
+    if (dir)
+        seaf_dir_free (dir);
+
+    g_free (newdent);
+
+    return new_root_id;
+}
+
+int
+seaf_repo_manager_revert_dir (SeafRepoManager *mgr,
+                              const char *repo_id,
+                              const char *old_commit_id,
+                              const char *dir_path,
+                              const char *user,
+                              GError **error)
+{
+    SeafRepo *repo = NULL;
+    SeafCommit *head_commit = NULL, *old_commit = NULL, *new_commit = NULL;
+    char *parent_dir = NULL, *dirname = NULL;
+    char *revert_to_dir_id = NULL;
+    char *canon_path = NULL, *root_id = NULL;
+    char buf[PATH_MAX];
+    char time_str[512];
+    gboolean parent_dir_exist = FALSE;
+    gboolean revert_to_root = FALSE;
+    gboolean skipped = FALSE;
+    int ret = 0;
+
+retry:
+    GET_REPO_OR_FAIL(repo, repo_id);
+    GET_COMMIT_OR_FAIL(head_commit, repo->head->commit_id);
+
+    /* If old_commit_id is head commit, do nothing. */
+    if (strcmp(repo->head->commit_id, old_commit_id) == 0) {
+        g_debug ("[revert dir] commit is head, do nothing\n");
+        goto out;
+    }
+
+    if (!old_commit) {
+        GET_COMMIT_OR_FAIL(old_commit, old_commit_id);
+        if (strcmp(old_commit->repo_id, repo_id) != 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_COMMIT,
+                         "bad commit id");
+            ret = -1;
+            goto out;
+        }
+    }
+
+    if (!canon_path) {
+        canon_path = get_canonical_path (dir_path);
+
+        revert_to_dir_id = seaf_fs_manager_get_seafdir_id_by_path (
+                    seaf->fs_mgr, old_commit->root_id, canon_path, error);
+        if (*error) {
+            seaf_warning ("[revert dir] error: %s\n", (*error)->message);
+            g_clear_error (error);
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "internal error");
+            ret = -1;
+            goto out;
+        }
+
+        parent_dir  = g_path_get_dirname(canon_path);
+        dirname = g_path_get_basename(canon_path);
+    }
+
+    parent_dir_exist = detect_path_exist (head_commit->root_id,
+                                          parent_dir, error);
+    if (*error) {
+        seaf_warning ("[revert dir] error: %s\n", (*error)->message);
+        g_clear_error (error);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "internal error");
+        ret = -1;
+        goto out;
+    }
+    
+    if (!parent_dir_exist) {
+        /* When parent dir does not exist, revert this file to root dir. */
+        revert_to_root = TRUE;
+        root_id = revert_dir (head_commit->root_id,
+                              "/",
+                              dirname,
+                              revert_to_dir_id,
+                              &skipped, error);
+    } else {
+        revert_to_root = FALSE;
+        root_id = revert_dir (head_commit->root_id,
+                              parent_dir,
+                              dirname,
+                              revert_to_dir_id,
+                              &skipped, error);
+    }
+
+    if (*error) {
+        seaf_warning ("[revert dir] error: %s\n", (*error)->message);
+        g_clear_error (error);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "internal error");
+        ret = -1;
+        goto out;
+    }
+
+    if (skipped) {
+        goto out;
+    }
+    
+    if (!root_id) {
+        seaf_warning ("[revert dir] Failed to revert dir.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to revert dir");
+        ret = -1;
+        goto out;
+    }
+
+    /* Commit. */
+    strftime (time_str, sizeof(time_str), "%F %T",
+              localtime((time_t *)(&old_commit->ctime)));
+    snprintf(buf, PATH_MAX, "Reverted directory \"%s\" to status at %s", dirname, time_str);
+    GEN_NEW_COMMIT(repo, root_id, user, buf);
+
+    if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
+                                                   repo->head,
+                                                   head_commit->commit_id) < 0)
+    {
+        g_debug ("[revert dir] Concurrent branch update, retry.\n");
+        seaf_repo_unref (repo); repo = NULL;
+        seaf_commit_unref (head_commit); head_commit = NULL;
+        seaf_commit_unref (new_commit); new_commit = NULL;
+
+        g_free (root_id); root_id = NULL;
+
+        goto retry;
+    }
+
+out:
+    if (repo)
+        seaf_repo_unref (repo);
+    if (head_commit)
+        seaf_commit_unref (head_commit);
+    if (old_commit)
+        seaf_commit_unref (old_commit);
+    if (new_commit)
+        seaf_commit_unref (new_commit);
+
+    g_free (root_id);
+    g_free (parent_dir);
+    g_free (dirname);
+
+    g_free (canon_path);
+    g_free (revert_to_dir_id);
 
 #define REVERT_TO_ROOT              0x1
     if (ret == 0) {

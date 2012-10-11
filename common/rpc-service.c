@@ -2903,6 +2903,24 @@ seafile_revert_file (const char *repo_id,
                                           path, user, error);
 }
 
+int
+seafile_revert_dir (const char *repo_id,
+                    const char *commit_id,
+                    const char *path,
+                    const char *user,
+                    GError **error)
+{
+    if (!repo_id || !commit_id || !path || !user) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Bad arguments");
+        return -1;
+    }
+
+    return seaf_repo_manager_revert_dir (seaf->repo_mgr,
+                                         repo_id, commit_id,
+                                         path, user, error);
+}
+
 GList *
 seafile_get_deleted (const char *repo_id, GError **error)
 {

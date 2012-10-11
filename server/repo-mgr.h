@@ -301,6 +301,14 @@ seaf_repo_manager_revert_file (SeafRepoManager *mgr,
                                const char *user,
                                GError **error);
 
+int
+seaf_repo_manager_revert_dir (SeafRepoManager *mgr,
+                              const char *repo_id,
+                              const char *old_commit_id,
+                              const char *dir_path,
+                              const char *user,
+                              GError **error);
+
 /*
  * Return deleted files/dirs during the last 30 days.
  */

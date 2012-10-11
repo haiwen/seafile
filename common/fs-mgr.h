@@ -213,5 +213,10 @@ seaf_fs_manager_path_to_file_id (SeafFSManager *mgr,
                                  guint32 *mode,
                                  GError **error);
 
+char *
+seaf_fs_manager_get_seafdir_id_by_path (SeafFSManager *mgr,
+                                        const char *root_id,
+                                        const char *path,
+                                        GError **error);
 
 #endif

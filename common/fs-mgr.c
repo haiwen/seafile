@@ -1249,5 +1249,29 @@ seaf_fs_manager_get_seafile_id_by_path (SeafFSManager *mgr,
 
     return file_id;
 }
+
+char *
+seaf_fs_manager_get_seafdir_id_by_path (SeafFSManager *mgr,
+                                       const char *root_id,
+                                       const char *path,
+                                       GError **error)
+{
+    guint32 mode;
+    char *dir_id;
+
+    dir_id = seaf_fs_manager_path_to_file_id (mgr, root_id, path, &mode, error);
+
+    if (*error)
+        return NULL;
+
+    if (!S_ISDIR(mode)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "%s is not a dir", path);
+        g_free (dir_id);
+        return NULL;
+    }
+
+    return dir_id;
+}
                                         
 

@@ -266,6 +266,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      searpc_signature_int__string_string_string_string());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_revert_dir,
+                                     "seafile_revert_dir",
+                                     searpc_signature_int__string_string_string_string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_deleted,
                                      "get_deleted",
                                      searpc_signature_objlist__string());
