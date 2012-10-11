@@ -4434,7 +4434,6 @@ seaf_repo_manager_revert_dir (SeafRepoManager *mgr,
     char *revert_to_dir_id = NULL;
     char *canon_path = NULL, *root_id = NULL;
     char buf[PATH_MAX];
-    char time_str[512];
     gboolean parent_dir_exist = FALSE;
     gboolean revert_to_root = FALSE;
     gboolean skipped = FALSE;
@@ -4528,9 +4527,7 @@ retry:
     }
 
     /* Commit. */
-    strftime (time_str, sizeof(time_str), "%F %T",
-              localtime((time_t *)(&old_commit->ctime)));
-    snprintf(buf, PATH_MAX, "Reverted directory \"%s\" to status at %s", dirname, time_str);
+    snprintf(buf, PATH_MAX, "Recovered deleted directory \"%s\"", dirname);
     GEN_NEW_COMMIT(repo, root_id, user, buf);
 
     if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
