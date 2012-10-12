@@ -2309,7 +2309,7 @@ post_file_recursive (const char *dir_id,
     char *remain = NULL;
     char *id = NULL;
 
-    olddir = seaf_fs_manager_get_seafdir(seaf->fs_mgr, dir_id);
+    olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr, dir_id);
     if (!olddir)
         return NULL;
 
@@ -2432,9 +2432,6 @@ check_file_exists (const char *root_id,
             if (mode) {
                 *mode = dent->mode;
             }
-            break;
-        } else if (r < 0) {
-            /* entries are in descending order. */
             break;
         }
     }
@@ -2734,7 +2731,7 @@ del_file_recursive(const char *dir_id,
     char *slash;
     char *id = NULL;
 
-    olddir = seaf_fs_manager_get_seafdir(seaf->fs_mgr, dir_id);
+    olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr, dir_id);
     if (!olddir)
         return NULL;
 
@@ -3432,7 +3429,7 @@ rename_file_recursive(const char *dir_id,
     char *slash;
     char *id = NULL;
 
-    olddir = seaf_fs_manager_get_seafdir(seaf->fs_mgr, dir_id);
+    olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr, dir_id);
     if (!olddir)
         return NULL;
 
@@ -3780,7 +3777,7 @@ put_file_recursive(const char *dir_id,
     char *slash;
     char *id = NULL;
 
-    olddir = seaf_fs_manager_get_seafdir(seaf->fs_mgr, dir_id);
+    olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr, dir_id);
     if (!olddir)
         return NULL;
 
@@ -4799,12 +4796,12 @@ find_deleted_recursive (const char *root1,
     SeafDirent *dent1, *dent2;
     int res, ret = 0;
 
-    d1 = seaf_fs_manager_get_seafdir (seaf->fs_mgr, root1);
+    d1 = seaf_fs_manager_get_seafdir_sorted (seaf->fs_mgr, root1);
     if (!d1) {
         seaf_warning ("Failed to find dir %s.\n", root1);
         return -1;
     }
-    d2 = seaf_fs_manager_get_seafdir (seaf->fs_mgr, root2);
+    d2 = seaf_fs_manager_get_seafdir_sorted (seaf->fs_mgr, root2);
     if (!d2) {
         seaf_warning ("Failed to find dir %s.\n", root2);
         seaf_dir_free (d1);

@@ -792,6 +792,23 @@ seaf_fs_manager_get_seafdir (SeafFSManager *mgr, const char *dir_id)
     return dir;
 }
 
+static gint
+compare_dirents (gconstpointer a, gconstpointer b)
+{
+    const SeafDirent *denta = a, *dentb = b;
+
+    return strcmp (dentb->name, denta->name);
+}
+
+SeafDir *
+seaf_fs_manager_get_seafdir_sorted (SeafFSManager *mgr, const char *dir_id)
+{
+    SeafDir *dir = seaf_fs_manager_get_seafdir(mgr, dir_id);
+    dir->entries = g_list_sort (dir->entries, compare_dirents);
+
+    return dir;
+}
+
 SeafDirent *
 seaf_dirent_new (const char *sha1, int mode, const char *name)
 {

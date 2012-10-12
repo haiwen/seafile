@@ -162,6 +162,11 @@ seaf_fs_manager_get_seafile (SeafFSManager *mgr, const char *file_id);
 SeafDir *
 seaf_fs_manager_get_seafdir (SeafFSManager *mgr, const char *dir_id);
 
+/* Make sure entries in the returned dir is sorted in descending order.
+ */
+SeafDir *
+seaf_fs_manager_get_seafdir_sorted (SeafFSManager *mgr, const char *dir_id);
+
 int
 seaf_fs_manager_populate_blocklist (SeafFSManager *mgr,
                                     const char *root_id,

@@ -22,11 +22,12 @@ fill_tree_descriptor(struct tree_desc *desc, const char *root_id)
         return;
     }
 
-    dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr, root_id);
+    dir = seaf_fs_manager_get_seafdir_sorted (seaf->fs_mgr, root_id);
     if (!dir) {
         g_warning ("Failed to fill tree descriptor with %s.\n", root_id);
         desc->tree = NULL;
     }
+
     desc->tree = dir;
 }
 
