@@ -155,7 +155,7 @@ gen_unique_filename (const char *repo_id,
 
     int i = 1;
     unique_name = get_basename (filename);
-    split_filename (filename, &name, &ext);
+    split_filename (unique_name, &name, &ext);
 
     while (filename_exists (dir, unique_name) && i <= 16) {
         g_free (unique_name);
