@@ -15,6 +15,14 @@
 #include "merge.h"
 #include "vc-utils.h"
 
+static gint
+compare_dirents (gconstpointer a, gconstpointer b)
+{
+    const SeafDirent *denta = a, *dentb = b;
+
+    return strcmp (dentb->name, denta->name);
+}
+
 int
 commit_trees_cb (struct cache_tree *it, struct cache_entry **cache,
                  int entries, const char *base, int baselen)
@@ -77,6 +85,9 @@ commit_trees_cb (struct cache_tree *it, struct cache_entry **cache,
                 mode, entlen, path + baselen);
 #endif
     }
+
+    /* Sort dirents in descending order. */
+    dirents = g_list_sort (dirents, compare_dirents);
 
     seaf_dir = seaf_dir_new (NULL, dirents, 0);
     hex_to_rawdata (seaf_dir->dir_id, it->sha1, 20);
