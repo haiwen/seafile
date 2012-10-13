@@ -2923,9 +2923,6 @@ get_dirent_by_path (SeafRepo *repo,
         if (r == 0) {
             dent = seaf_dirent_new (d->id, d->mode, d->name);
             break;
-        } else if (r < 0) {
-            /* entries are in descending order. */
-            break;
         }
     }
 

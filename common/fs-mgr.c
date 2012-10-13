@@ -800,11 +800,36 @@ compare_dirents (gconstpointer a, gconstpointer b)
     return strcmp (dentb->name, denta->name);
 }
 
+static gboolean
+is_dirents_sorted (GList *dirents)
+{
+    GList *ptr;
+    SeafDirent *dent, *dent_n;
+    gboolean ret = TRUE;
+
+    for (ptr = dirents; ptr != NULL; ptr = ptr->next) {
+        dent = ptr->data;
+        if (!ptr->next)
+            break;
+        dent_n = ptr->next->data;
+
+        /* If dirents are not sorted in descending order, return FALSE. */
+        if (strcmp (dent->name, dent_n->name) < 0) {
+            ret = FALSE;
+            break;
+        }
+    }
+
+    return ret;
+}
+
 SeafDir *
 seaf_fs_manager_get_seafdir_sorted (SeafFSManager *mgr, const char *dir_id)
 {
     SeafDir *dir = seaf_fs_manager_get_seafdir(mgr, dir_id);
-    dir->entries = g_list_sort (dir->entries, compare_dirents);
+
+    if (!is_dirents_sorted (dir->entries))
+        dir->entries = g_list_sort (dir->entries, compare_dirents);
 
     return dir;
 }
