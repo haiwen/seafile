@@ -108,13 +108,12 @@ common_src = \
 
 seaf_daemon_SOURCES = seaf-daemon.c $(common_src)
 
-seaf_daemon_LDADD = @CCNET_LIBS@ \
+seaf_daemon_LDADD = $(top_builddir)/lib/libseafile_common.la \
 	@LIB_INTL@ \
-	$(top_builddir)/lib/libseafile_common.la \
 	@GLIB2_LIBS@  @GOBJECT_LIBS@ -lssl @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent \
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/common/index/libindex.la ${LIB_WS32} \
-	@SEARPC_LIBS@ @LIB_DIRWATCH@
+	@SEARPC_LIBS@ @CCNET_LIBS@ @LIB_DIRWATCH@
 
 seaf_daemon_LDFLAGS = @STATIC_COMPILE@ @CONSOLE@
 

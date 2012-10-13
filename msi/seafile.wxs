@@ -2,7 +2,7 @@
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
   <?include Includes.wxi?>
   <Product Id="$(var.ProductGuid)"
-           Name='Seafile 1.0.0'
+           Name='Seafile 1.1.0'
            Language='1033'
            Version='$(var.CurrentSeafileVersion)'
            Manufacturer='$(var.Manufacturer)'
@@ -53,6 +53,22 @@
       </Directory>
     </Directory>
 
+    <Property Id="SEAFILE_AUTO_START">1</Property>
+
+    <!-- Auto-start via Registry -->
+    <DirectoryRef Id="INSTALLDIR">
+      <Component Id="SeafileAutoStart" Guid="FED41B85-BA5A-4C95-8ABF-4A35852EE04E">
+        <RegistryKey Root="HKCU"
+                     Key="Software\Microsoft\Windows\CurrentVersion\Run"
+                     Action="create">
+          <RegistryValue Name="Seafile" Value="[#seafileapplet.exe]" Type="string" KeyPath="yes" />
+        </RegistryKey>
+
+        <Condition>SEAFILE_AUTO_START</Condition>
+      </Component>
+    </DirectoryRef>
+
+
     <DirectoryRef Id="SeafileStartMenuFolder" >
       <Component Id="Seafile_StartMenuShortCut" Guid="F1662C95-6C0A-4CDD-B009-C5E66A4F8C80" >
         <RemoveFolder Id="SeafileStartMenuFolder" On="uninstall" />
@@ -75,6 +91,9 @@
     <Binary Id='seafile_custom_dll32' SourceFile='custom\seafile_custom32.dll' />
     <Binary Id='seafile_custom_dll64' SourceFile='custom\seafile_custom64.dll' />
 
+    <CustomAction Id="RemoveSeafileAutoStart" BinaryKey="seafile_custom_dll32" DllEntry="RemoveSeafileAutoStart" Execute="immediate" />
+    <CustomAction Id="RemoveSeafileAutoStart64" BinaryKey="seafile_custom_dll64" DllEntry="RemoveSeafileAutoStart" Execute="immediate" />
+
     <CustomAction Id="KillSeafile" BinaryKey="seafile_custom_dll32" DllEntry="TerminateSeafile" Execute="immediate" />
     <CustomAction Id="KillSeafile64" BinaryKey="seafile_custom_dll64" DllEntry="TerminateSeafile" Execute="immediate" />
     
@@ -84,6 +103,13 @@
         Installed AND (NOT VersionNT64)
       </Custom>
       <Custom Action="KillSeafile64" Before="InstallValidate">
+        Installed AND VersionNT64
+      </Custom>
+      <!-- Remove Registry values of auto start -->
+      <Custom Action="RemoveSeafileAutoStart" Before="RemoveRegistryValues">
+        Installed AND (NOT VersionNT64)
+      </Custom>
+      <Custom Action="RemoveSeafileAutoStart64" Before="RemoveRegistryValues">
         Installed AND VersionNT64
       </Custom>
     </InstallExecuteSequence>
@@ -104,6 +130,7 @@
 
     <Feature Id='Main' Level='1'>
       <ComponentRef Id='Seafile_StartMenuShortCut' />
+      <ComponentRef Id="SeafileAutoStart" />
       <ComponentRef Id='comp_custom' />
       <ComponentRef Id='comp_manual' />
       <!-- defined in fragment.wxs -->

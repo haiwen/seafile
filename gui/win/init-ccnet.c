@@ -276,7 +276,8 @@ copy_user_manual()
               "%s\\%s", seafdir, S_USER_MANUAL_FILENAME);
     
     /* Skip if already exist */
-    BOOL failIfExist = TRUE;
+    /* Ver1.1: Manual Changed. We need to overwrite it. */
+    BOOL failIfExist = FALSE;
     CopyFile(src_path, dst_path, failIfExist);
 
     g_free (seafdir);

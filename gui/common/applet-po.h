@@ -46,7 +46,7 @@
 #define S_DESC_TOO_LONG           "描述太长"
 #define S_ENSURE_QUIT             "确认退出?"
 
-#define S_CREATING_REPO           "正在创建同步目录"
+#define S_CREATING_REPO           "正在创建资料库"
 #define S_ERROR_NO_DAEMON         "Seafile 未启动"
 #define S_CREATE_REPO_SUCCESS     "操作成功"
 #define S_CREATE_REPO_FAILED      "操作失败"
@@ -59,9 +59,9 @@
 
 #define S_FAILED_TO_CALC_DIR_SIZE   "统计原始目录 [%s] 大小失败"
 
-#define S_INIT_REPO_DLG_ALREADY_OPENED "请先关闭上一个创建 Seafile 同步目录的对话框！"
+#define S_INIT_REPO_DLG_ALREADY_OPENED "请先关闭上一个创建 Seafile 资料库的对话框！"
 
-#define S_REPO_CREATED "已变为同步目录"
+#define S_REPO_CREATED "已变为资料库"
 #define S_REPO_REMOVED "已解除同步"
 #define S_REPO_SYNC_DONE "已同步"
 
@@ -80,8 +80,8 @@
 
 #define S_REPO_SYNC_ERROR "同步时出错"
 #define S_REPO_DELETED_ON_RELAY "已经被解除同步。\n原因：该目录已经在服务器上被删除"
-#define S_REPO_ACCESS_DENIED "同步出错。\n您没有权限访问该同步目录"
-#define S_REPO_QUOTA_FULL "同步出错。\n该同步目录所有者的空间限额已用完"
+#define S_REPO_ACCESS_DENIED "同步出错。\n您没有权限访问该资料库"
+#define S_REPO_QUOTA_FULL "同步出错。\n该资料库所有者的空间限额已用完"
 
 #define S_UPLOADING "正在上传"
 #define S_DOWNLOADING "正在下载"
@@ -89,7 +89,7 @@
 #define S_SPEED "速度"
 
 #define S_YOU_HAVE_NOT_LOGGED_IN "您尚未登录服务器"
-#define S_NOT_ALLOWED_PATH "\"%s\" 是 Seafile 的工作目录，因此不能把 \"%s\" 变为同步目录。\n你可以在该目录下创建一个子目录，再将这个子目录变为同步目录"
+#define S_NOT_ALLOWED_PATH "\"%s\" 是 Seafile 的工作目录，因此不能把 \"%s\" 变为资料库。\n你可以在该目录下创建一个子目录，再将这个子目录变为资料库"
 
 #define S_SEAFILE_APPLET_ALREAD_RUNNING "Seafile 已经在运行中"
 
