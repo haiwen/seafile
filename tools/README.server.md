@@ -20,7 +20,7 @@
     cd seahub
     git fetch origin
     git checkout release
-    git rebase origin master
+    git rebase origin/master
 
 7. Pack
     ./pack-server.sh 1.0.0

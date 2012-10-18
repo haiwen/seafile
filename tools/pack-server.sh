@@ -34,6 +34,6 @@ serverpath=seafile-server-${version}
 
 mv seafile-server ${serverpath}
 
-tar czvf seafile-server_${version}_x86-64.tar.gz ${serverpath} --exclude-vcs --exclude=${serverpath}/seafile/share* --exclude=${serverpath}/seafile/include*  --exclude=${serverpath}/runtime/*.log --exclude=${serverpath}/runtime/*.pid --exclude=${serverpath}/seahub/seahub.db --exclude=${serverpath}/seahub/avatar/testdata --exclude=${serverpath}/seafile/lib/*.la --exclude=${serverpath}/seafile/lib/*.a --exclude=${serverpath}/seafile/lib/pkgconfig* --exclude=${serverpath}/seafile/bin/ccnet-tool --exclude=${serverpath}/seafile/bin/ccnet-servtool --exclude=${serverpath}/seafile/bin/ccnet-web.sh --exclude=${serverpath}/seafile/bin/ccnet-tool --exclude=${serverpath}/seafile/bin/searpc-codegen.py
+tar czvf seafile-server_${version}_x86-64.tar.gz ${serverpath} --exclude-vcs --exclude=${serverpath}/seafile/share* --exclude=${serverpath}/seafile/include*  --exclude=${serverpath}/runtime/*.log --exclude=${serverpath}/runtime/*.pid --exclude=${serverpath}/seahub/seahub.db --exclude=${serverpath}/seahub/avatar/testdata --exclude=${serverpath}/seafile/lib/*.la --exclude=${serverpath}/seafile/lib/*.a --exclude=${serverpath}/seafile/lib/pkgconfig* --exclude=${serverpath}/seafile/bin/ccnet-tool --exclude=${serverpath}/seafile/bin/ccnet-servtool --exclude=${serverpath}/seafile/bin/ccnet-web.sh --exclude=${serverpath}/seafile/bin/ccnet-tool --exclude=${serverpath}/seafile/bin/searpc-codegen.py --exclude=*.pyc --exclude=${serverpath}/seahub/media/flexpaper*
 
 mv ${serverpath} seafile-server 

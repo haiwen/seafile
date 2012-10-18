@@ -843,6 +843,10 @@ seafile_set_org_group_repo_permission (int org_id,
                                        const char *repo_id,
                                        const char *permission,
                                        GError **error);
+char *
+seafile_get_file_id_by_commit_and_path(const char *commit_id,
+                                       const char *path,
+                                       GError **error);
 
 /* ------------------ Public RPC calls. ------------ */
 

@@ -3048,4 +3048,33 @@ seafile_set_org_group_repo_permission (int org_id,
                                                       error);
 }
 
+char *
+seafile_get_file_id_by_commit_and_path(const char *commit_id,
+                                       const char *path,
+                                       GError **error)
+{
+    SeafCommit *commit;
+    char *file_id;
+
+    if (!commit_id || !path) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Arguments should not be empty");
+        return NULL;
+    }
+
+    commit = seaf_commit_manager_get_commit(seaf->commit_mgr, commit_id);
+    if (!commit) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "bad commit id");
+        return NULL;
+    }
+
+    file_id = seaf_fs_manager_path_to_file_id (seaf->fs_mgr,
+                        commit->root_id, path, NULL, error);
+
+    seaf_commit_unref(commit);
+
+    return file_id;
+}
+
 #endif  /* SEAFILE_SERVER */
