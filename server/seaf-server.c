@@ -459,6 +459,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_check_permission,
                                      "check_permission",
                                      searpc_signature_string__string_string());
+    
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_file_id_by_commit_and_path,
+                                     "seafile_get_file_id_by_commit_and_path",
+                                     searpc_signature_string__string_string());
 
     if (!cloud_mode) {
         searpc_server_register_function ("seafserv-threaded-rpcserver",
@@ -542,11 +547,6 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                          "set_org_group_repo_permission",
                                          searpc_signature_int__int_int_string_string());
                                          
-        searpc_server_register_function ("seafserv-threaded-rpcserver",
-                                         seafile_get_file_id_by_commit_and_path,
-                                         "seafile_get_file_id_by_commit_and_path",
-                                         searpc_signature_string__string_string());
-
         /* org inner pub repo */
         searpc_server_register_function ("seafserv-threaded-rpcserver",
                                          seafile_set_org_inner_pub_repo,
