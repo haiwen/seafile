@@ -64,8 +64,26 @@ Compile
 
 To compile the daemon components, just
 
-    ./autogen.sh; ./configure; make; make install
+    ./configure; make; make install
 
 To also compile the server components, use
 
     ./configure --enable-server
+
+Run
+===
+
+Run Client:
+
+Using following command to run seafile client:
+$ seafile-applet
+
+If you get following error, please use 'sudo ldconfig -v' to update linker runtime:
+'seafile-applet: error while loading shared libraries: libseafile.so.0: cannot open shared object file: No such file or directory'
+
+$ sudo ldconfig -v # update linker rumtime
+
+Run Server:
+
+Please view this page to understand how to configure and run seafile server:
+ https://github.com/haiwen/seafile/wiki/Deploy-seafile-server-on-linux
