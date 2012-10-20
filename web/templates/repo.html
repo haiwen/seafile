@@ -7,7 +7,7 @@
 <div class="left-nav">
 <h3>${_("Navigation")}</h3>
 <ul>
-    <li><a href="/" id="back">${_("All Repos")}</a></li>
+    <li><a href="/" id="back">${_("All Librarys")}</a></li>
     % if relay and relay.props.service_url:
      <li><a href="${relay.props.service_url}/repo/${repo.props.id}">${_("View at relay")}</a></li>
     % endif
@@ -24,11 +24,6 @@
 <%def name="wide_center_panel()">
 
 <!-- notification area -->
-% if repo.is_broken:
-<div class="notification">
-    <p>${_("Repo is broken!")}</p>
-</div>
-% endif
 
 <div id="transfer-area"></div><!-- transfer area -->
 
@@ -90,7 +85,7 @@
         {#/if}
 
         {#if $T.state == "error"}
-        ${_("Repo transfer error:")} {$T.error_str}.<br/>
+        ${_("Library transfer error:")} {$T.error_str}.<br/>
         {#/if}
     </div>
 </textarea>
@@ -196,10 +191,10 @@ function set_sync_error(error) {
                 ' ${_("page to login")}';
             break;
         case "You do not have permission to access this repo":
-            str = "${_('You do not have permission to access this repo')}";
+            str = "${_('You do not have permission to access this library')}";
             break;
         case "The storage space of the repo owner has been used up":
-            str = "${_('The storage space of the repo owner has been used up')}";
+            str = "${_('The storage space of the library owner has been used up')}";
             break;
         case "Remote service is not available":
             str = "${_('Remote service is not available')}";
@@ -223,7 +218,7 @@ function set_sync_error(error) {
             str = "${_('Error occured in download.')}";
             break;
         case "No such repo on relay.":
-            str = "${_('Repo is deleted on server. Click \'Unsync\' button, then you can create a new repo.')}";
+            str = "${_('Library is deleted on server. Click \'Unsync\' button, then you can create a new library.')}";
             break;
         case "Unknown error.":
             str = "${_('Unknown error.')}";

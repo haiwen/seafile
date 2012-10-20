@@ -3,7 +3,7 @@
 <%def name="main_panel()"> 
 <div class="narrow-panel">
 % if repo_already_exists:
-<p>${_("Repo already exists.")}</p>
+<p>${_("Library already exists.")}</p>
 % else:
 <h3>${_("You are going to download")}<em>${repo_name}</em></h3>
 <form action="/repo/download/" method="post">
@@ -19,7 +19,7 @@
     <p><em>${repo_name}</em> ${_("will be downloaded to:")}</p>
     <input type="text" name="wt_parent" value="${wt_parent}" class="text-input" />
     % if encrypted:
-    <p class="encrypted">${_("This repo is encrypted. Please enter the password for decrypting:")}</p>
+    <p class="encrypted">${_("This library is encrypted. Please enter the password for decrypting:")}</p>
     <input type="password" name="password" maxlength="64" class="text-input" /><br/>
     % endif
     % if error_msg:

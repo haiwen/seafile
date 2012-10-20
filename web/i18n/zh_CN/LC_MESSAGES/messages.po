@@ -5,8 +5,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2012-10-10 11:52+CST\n"
-"PO-Revision-Date: 2012-10-09 14:12+0800\n"
+"POT-Creation-Date: 2012-10-20 13:04+CST\n"
+"PO-Revision-Date: 2012-10-20 13:07+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
@@ -99,8 +99,8 @@ msgstr "联系我们"
 msgid "Navigation"
 msgstr "导航"
 
-#: templates/clone_tasks.html:6 templates/repo.html:10 templates/repos.html:50
-msgid "All Repos"
+#: templates/clone_tasks.html:6 templates/repo.html:10 templates/repos.html:49
+msgid "All Librarys"
 msgstr "所有资料库"
 
 #: templates/clone_tasks.html:11
@@ -163,7 +163,7 @@ msgstr "合并更改失败"
 msgid "Incorrect password. Failed to decrypt files."
 msgstr "密码错误。文件解密失败。"
 
-#: templates/clone_tasks.html:76 templates/repo.html:101
+#: templates/clone_tasks.html:76 templates/repo.html:96
 msgid "Cancel"
 msgstr "取消"
 
@@ -271,11 +271,11 @@ msgid "sync status:"
 msgstr "同步状态："
 
 #: templates/po.html:45
-msgid "You do not have permission to access this repo"
+msgid "You do not have permission to access this library"
 msgstr "您没有权限访问该资料库"
 
 #: templates/po.html:46
-msgid "The storage space of the repo owner has been used up"
+msgid "The storage space of the library owner has been used up"
 msgstr "资料库所有者的空间限额已用完"
 
 #: templates/po.html:47
@@ -374,66 +374,58 @@ msgstr "操作"
 msgid "Sync Now"
 msgstr "立即同步"
 
-#: templates/repo.html:19 templates/repo.html:100
+#: templates/repo.html:19 templates/repo.html:95
 msgid "Unsync"
 msgstr "解除同步"
 
-#: templates/repo.html:29
-msgid "Repo is broken!"
-msgstr "内部数据损坏！"
-
-#: templates/repo.html:38
+#: templates/repo.html:33
 msgid "Encrypted"
 msgstr "已加密"
 
-#: templates/repo.html:51
+#: templates/repo.html:46
 msgid "Server: "
 msgstr "服务器："
 
-#: templates/repo.html:57
+#: templates/repo.html:52
 msgid "Password: "
 msgstr "密码："
 
-#: templates/repo.html:58
+#: templates/repo.html:53
 msgid "Show"
 msgstr "显示"
 
-#: templates/repo.html:64 templates/repo.html:66
+#: templates/repo.html:59 templates/repo.html:61
 msgid "Auto Sync: "
 msgstr "自动同步："
 
-#: templates/repo.html:68
+#: templates/repo.html:63
 msgid "Start"
 msgstr "开启"
 
-#: templates/repo.html:80
-msgid "Repo"
-msgstr "资料库"
-
-#: templates/repo.html:83
+#: templates/repo.html:78
 msgid "transfered"
 msgstr "已完成"
 
-#: templates/repo.html:87
+#: templates/repo.html:82
 msgid "rate"
 msgstr "速率"
 
-#: templates/repo.html:87
+#: templates/repo.html:82
 msgid "s"
 msgstr "秒"
 
-#: templates/repo.html:93
-msgid "Repo transfer error:"
-msgstr "同步目录传输出错："
+#: templates/repo.html:88
+msgid "Library transfer error:"
+msgstr "资料库传输出错："
 
-#: templates/repo.html:99
+#: templates/repo.html:94
 msgid ""
 "Really want to unsync the folder? (The local folder will become a normal "
 "folder.)"
 msgstr "确实要撤销目录的同步吗？(本地的目录会变成一个普通的目录)"
 
-#: templates/repo_download.html:6 templates/repo_sync.html:6
-msgid "Repo already exists."
+#: templates/repo_download.html:6
+msgid "Library already exists."
 msgstr "该资料库已存在。"
 
 #: templates/repo_download.html:8
@@ -444,8 +436,8 @@ msgstr "你将下载"
 msgid "will be downloaded to:"
 msgstr "将被下载到："
 
-#: templates/repo_download.html:22 templates/repo_sync.html:23
-msgid "This repo is encrypted. Please enter the password for decrypting:"
+#: templates/repo_download.html:22
+msgid "This library is encrypted. Please enter the password for decrypting:"
 msgstr "该资料库已加密。 请输入解密密码："
 
 #: templates/repo_download.html:28
@@ -461,16 +453,20 @@ msgid "sync with an existing folder"
 msgstr "与已有的本地目录同步"
 
 #: templates/repo_missing.html:4
-msgid "Back to repo list."
+msgid "Back to library list."
 msgstr "回到资料库列表"
 
 #: templates/repo_missing.html:4
-msgid "Sorry, the repo with id"
+msgid "Sorry, the library with id"
 msgstr "抱歉，ID为 "
 
 #: templates/repo_missing.html:4
 msgid "does not exists."
 msgstr "的资料库不存在。"
+
+#: templates/repo_sync.html:6
+msgid "Repo already exists."
+msgstr "该资料库已存在。"
 
 #: templates/repo_sync.html:8
 msgid "You are going to synchronize"
@@ -483,6 +479,10 @@ msgstr "请输入与之同步的本地目录："
 #: templates/repo_sync.html:21
 msgid "Files in the local folder will be merged with files in the repo"
 msgstr "本地目录中的文件将与该资料库中的文件合并"
+
+#: templates/repo_sync.html:23
+msgid "This repo is encrypted. Please enter the password for decrypting:"
+msgstr "该资料库已加密。 请输入解密密码："
 
 #: templates/repos.html:11
 msgid "Servers"
@@ -501,79 +501,87 @@ msgid "not connected"
 msgstr "未连接"
 
 #: templates/repos.html:28
-msgid "Create New Repo"
-msgstr "创建新资料库"
-
-#: templates/repos.html:29
 msgid "View Download Tasks"
 msgstr "查看下载任务"
 
-#: templates/repos.html:32
+#: templates/repos.html:31
 msgid "Official Server"
 msgstr "官方服务器"
 
-#: templates/repos.html:41
+#: templates/repos.html:40
 msgid "Four Steps to Use Seafile Client"
 msgstr "Seafile 客户端使用方法"
 
-#: templates/repos.html:43
+#: templates/repos.html:42
 msgid ""
 "Login into an seafile server, either our official server (SeaCloud) or your "
 "private server."
 msgstr "登录服务器，可以是我们的官方服务器或者您的私有服务器。"
 
-#: templates/repos.html:44
-msgid "Create a repo on server."
+#: templates/repos.html:43
+msgid "Create a library on server."
 msgstr "在服务器上创建新资料库。"
 
-#: templates/repos.html:45
-msgid "Download the repo."
+#: templates/repos.html:44
+msgid "Download the library."
 msgstr "下载该资料库。"
 
-#: templates/repos.html:46
+#: templates/repos.html:45
 msgid "Add files to the folder and they will be uploaded automatically."
 msgstr "把文件拷贝到下载下来的目录中，它们会自动同步到服务器上。"
 
-#: templates/repos.html:53
+#: templates/repos.html:52
 msgid "Name"
 msgstr "名字"
 
-#: templates/repos.html:54
+#: templates/repos.html:53
 msgid "Action"
 msgstr "操作"
 
-#: templates/repos.html:55
+#: templates/repos.html:54
 msgid "Description"
 msgstr "描述"
 
-#: templates/repos.html:56
+#: templates/repos.html:55
 msgid "Server"
 msgstr "服务器"
 
-#: templates/repos.html:57
+#: templates/repos.html:56
 msgid "Modify Time"
 msgstr "修改时间"
 
-#: templates/repos.html:58
+#: templates/repos.html:57
 msgid "State"
 msgstr "状态"
 
-#: templates/repos.html:64
+#: templates/repos.html:63
 msgid "Open"
 msgstr "打开"
 
-#: templates/repos.html:76 templates/repos.html:79
+#: templates/repos.html:75 templates/repos.html:78
 msgid "Unknown"
 msgstr "未知"
 
-#: templates/repos.html:84
+#: templates/repos.html:83
 msgid "Synchronized"
 msgstr "已同步"
 
 #: templates/settings.html:11
-msgid "Notify when repos get sync"
-msgstr "当某个目录被同步后用气泡通知"
+msgid "Notify when librarys get sync"
+msgstr "资料库同步后用气泡通知"
 
 #: templates/settings.html:19
 msgid "Auto start Seafile at startup"
 msgstr "开机自动启动 Seafile"
+
+#~ msgid "All Repos"
+#~ msgstr "所有资料库"
+
+#~ msgid "Repo is broken!"
+#~ msgstr "内部数据损坏！"
+
+#~ msgid "Repo"
+#~ msgstr "资料库"
+
+#~ msgid "Create New Repo"
+#~ msgstr "创建新资料库"
