@@ -70,6 +70,7 @@ enum {
 
 - (void)applicationWillTerminate:(NSNotification *)aNotification
 {
+    NSLog(@"seafile will terminate\n");
     stop_ccnet ();
     stop_web_server();
 }
@@ -164,9 +165,8 @@ enum {
     }
     inited = 1;
     if (is_process_already_running("seafile")) {
-        NSLog(@"seafile.app has already been running, just quit\n");
-        [[NSApplication sharedApplication] terminate:[[NSApplication sharedApplication] delegate]];
-
+        NSLog(@"seafile.app has already been running, just quit %d\n", getpid());
+        exit(1);
     }
     statusItem = [[[NSStatusBar systemStatusBar] statusItemWithLength:NSSquareStatusItemLength] retain];
 
