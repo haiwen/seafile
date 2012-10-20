@@ -31,7 +31,7 @@ INTLTOOL = \
 	intltool-merge.in \
 	intltool-update.in
 
-EXTRA_DIST = install-sh $(INTLTOOL) web debian/seafile.desktop
+EXTRA_DIST = install-sh $(INTLTOOL) web debian/seafile.desktop README.markdown
 
 DISTCLEANFILES = \
 	intltool-extract.in \

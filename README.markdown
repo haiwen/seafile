@@ -39,6 +39,25 @@ The following packages are required to build seafile:
     libccnet >= 0.9.3
     libmysqlclient-dev
     libzdb >= 2.10.2
+    libevhtp >= 0.3.0
+    libevent-dev
+    uuid-dev
+    libsqlite-dev
+    libssl-dev
+
+libsearpc tarball can be downloaded from this link:
+ https://github.com/downloads/haiwen/libsearpc/libsearpc-1.0.1.tar.gz
+
+libccnet tarball can be downloaded from this link:
+ https://github.com/downloads/haiwen/ccnet/ccnet-1.0.0.tar.gz
+
+libzdb tarball can be downloaded from this link:
+ http://www.tildeslash.com/libzdb/dist/libzdb-2.10.5.tar.gz
+
+libevhtp tarball can be downloaded from this link:
+ https://github.com/downloads/ellzey/libevhtp/libevhtp-0.3.0.tar.gz
+
+Other programs can be installed from apt-get or yum tools in linux.
 
 Compile
 =======
