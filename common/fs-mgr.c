@@ -27,6 +27,7 @@
 
 #ifndef SEAFILE_SERVER
 #include "../daemon/vc-utils.h"
+#include "vc-common.h"
 #endif  /* SEAFILE_SERVER */
 
 #include "db.h"
@@ -847,6 +848,12 @@ seaf_dirent_new (const char *sha1, int mode, const char *name)
     strncpy(dent->name, name, dent->name_len);
 
     return dent;
+}
+
+SeafDirent *
+seaf_dirent_dup (SeafDirent *dent)
+{
+    return g_memdup (dent, sizeof(SeafDirent));
 }
 
 BlockList *

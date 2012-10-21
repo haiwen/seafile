@@ -26,6 +26,7 @@
 #include "index/cache-tree.h"
 #include "unpack-trees.h"
 #include "diff-simple.h"
+#include "merge-new.h"
 #include "monitor-rpc-wrappers.h"
 
 #include "seaf-db.h"
@@ -2519,24 +2520,128 @@ check_file_exists (const char *root_id,
         }                                                               \
     } while (0);
 
-#define GEN_NEW_COMMIT(repo,root_id,user,buf)                       \
-    do {                                                            \
-        new_commit = seaf_commit_new(NULL, repo->id, root_id,       \
-                                     user, EMPTY_SHA1,              \
-                                     buf, 0);                       \
-        new_commit->parent_id = g_strdup (repo->head->commit_id);   \
-        seaf_repo_to_commit (repo, new_commit);                     \
-                                                                    \
-        if (seaf_commit_manager_add_commit (seaf->commit_mgr,       \
-                                            new_commit) < 0) {      \
-            seaf_warning ("Failed to add commit.\n");               \
-            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,   \
-                         "Failed to add commit");                   \
-            ret = -1;                                               \
-            goto out;                                               \
-        }                                                           \
-        seaf_branch_set_commit(repo->head, new_commit->commit_id);  \
-    } while (0);
+static int
+gen_new_commit (const char *repo_id,
+                SeafCommit *base,
+                const char *new_root,
+                const char *user,
+                const char *desc,
+                GError **error)
+{
+    SeafRepo *repo = NULL;
+    SeafCommit *new_commit = NULL, *current_head = NULL;
+    int ret = 0;
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        seaf_warning ("Repo %s doesn't exist.\n", repo_id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Invalid repo");
+        ret = -1;
+        goto out;
+    }
+
+    /* Create a new commit pointing to new_root. */
+    new_commit = seaf_commit_new(NULL, repo->id, new_root,
+                                 user, EMPTY_SHA1,
+                                 desc, 0);
+    new_commit->parent_id = g_strdup (base->commit_id);
+    seaf_repo_to_commit (repo, new_commit);
+
+    if (seaf_commit_manager_add_commit (seaf->commit_mgr, new_commit) < 0) {
+        seaf_warning ("Failed to add commit.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to add commit");
+        ret = -1;
+        goto out;
+    }
+
+retry:
+    current_head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                   repo->head->commit_id);
+    if (!current_head) {
+        seaf_warning ("Failed to find head commit of %s.\n", repo_id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Invalid repo");
+        ret = -1;
+        goto out;
+    }
+
+    /* Merge if base and head are not the same. */
+    if (strcmp (base->commit_id, current_head->commit_id) != 0) {
+        MergeOptions opt;
+        const char *roots[3];
+        SeafCommit *merged_commit;
+
+        memset (&opt, 0, sizeof(opt));
+        opt.n_ways = 3;
+        memcpy (opt.remote_head, new_commit->commit_id, 40);
+        opt.do_merge = TRUE;
+
+        roots[0] = base->root_id; /* base */
+        roots[1] = current_head->root_id; /* head */
+        roots[2] = new_root;      /* remote */
+
+        if (seaf_merge_trees (3, roots, &opt) < 0) {
+            seaf_warning ("Failed to merge.\n");
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "Internal error");
+            ret = -1;
+            goto out;
+        }
+
+        GString *merge_desc = g_string_new(NULL);
+        g_string_printf (merge_desc, "Merged %s's changes.", user);
+        merged_commit = seaf_commit_new(NULL, repo->id, opt.merged_tree_root,
+                                        user, EMPTY_SHA1,
+                                        merge_desc->str, 0);
+        g_string_free (merge_desc, TRUE);
+
+        merged_commit->parent_id = g_strdup (current_head->commit_id);
+        merged_commit->second_parent_id = g_strdup (new_commit->commit_id);
+        seaf_repo_to_commit (repo, merged_commit);
+
+        if (seaf_commit_manager_add_commit (seaf->commit_mgr, merged_commit) < 0) {
+            seaf_warning ("Failed to add commit.\n");
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "Failed to add commit");
+            seaf_commit_unref (new_commit);
+            return -1;
+        }
+
+        /* replace new_commit with merged_commit. */
+        seaf_commit_unref (new_commit);
+        new_commit = merged_commit;
+    }
+
+    seaf_branch_set_commit(repo->head, new_commit->commit_id);
+
+    if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
+                                                   repo->head,
+                                                   current_head->commit_id) < 0)
+    {
+        seaf_message ("Concurrent branch update, retry.\n");
+
+        seaf_repo_unref (repo);
+        repo = NULL;
+        seaf_commit_unref (current_head);
+        current_head = NULL;
+
+        repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+        if (!repo) {
+            seaf_warning ("Repo %s doesn't exist.\n", repo_id);
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Invalid repo");
+            ret = -1;
+            goto out;
+        }
+
+        goto retry;
+    }
+
+out:
+    seaf_commit_unref (new_commit);
+    seaf_commit_unref (current_head);
+    seaf_repo_unref (repo);
+    return ret;
+}
 
 static void
 update_repo_size(const char *repo_id)
@@ -2594,13 +2699,12 @@ seaf_repo_manager_post_file (SeafRepoManager *mgr,
                              GError **error)
 {
     SeafRepo *repo = NULL;
-    SeafCommit *new_commit = NULL, *head_commit = NULL;
+    SeafCommit *head_commit = NULL;
     char *canon_path = NULL;
     unsigned char sha1[20];
     char buf[PATH_MAX];
     char *root_id = NULL;
     SeafileCrypt *crypt = NULL;
-    gboolean write_blocks = TRUE;
     SeafDirent *new_dent = NULL;
     char hex[41];
     int ret = 0;
@@ -2613,7 +2717,6 @@ seaf_repo_manager_post_file (SeafRepoManager *mgr,
         return -1;
     }
 
-retry:
     GET_REPO_OR_FAIL(repo, repo_id);
     GET_COMMIT_OR_FAIL(head_commit,repo->head->commit_id);
 
@@ -2638,35 +2741,32 @@ retry:
     
     FAIL_IF_FILE_EXISTS(head_commit->root_id, canon_path, file_name, NULL);
 
-    /* Write blocks. We don't need to write blocks in retry.
-     */
-    if (write_blocks) {
-        if (repo->encrypted) {
-            unsigned char key[16], iv[16];
-            if (seaf_passwd_manager_get_decrypt_key_raw (seaf->passwd_mgr,
-                                                         repo_id, user,
-                                                         key, iv) < 0) {
-                seaf_warning ("Passwd for repo %s is not set.\n", repo_id);
-                g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                             "Passwd is not set");
-                ret = -1;
-                goto out;
-            }
-            crypt = seafile_crypt_new (repo->enc_version, key, iv);
-        }
-
-        if (seaf_fs_manager_index_blocks (seaf->fs_mgr, temp_file_path,
-                                          sha1, crypt) < 0) {
-            seaf_warning ("failed to index blocks");
+    /* Write blocks. */
+    if (repo->encrypted) {
+        unsigned char key[16], iv[16];
+        if (seaf_passwd_manager_get_decrypt_key_raw (seaf->passwd_mgr,
+                                                     repo_id, user,
+                                                     key, iv) < 0) {
+            seaf_warning ("Passwd for repo %s is not set.\n", repo_id);
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                         "Failed to index blocks");
+                         "Passwd is not set");
             ret = -1;
             goto out;
         }
-        
-        rawdata_to_hex(sha1, hex, 20);
-        new_dent = seaf_dirent_new (hex, S_IFREG, file_name);
+        crypt = seafile_crypt_new (repo->enc_version, key, iv);
     }
+
+    if (seaf_fs_manager_index_blocks (seaf->fs_mgr, temp_file_path,
+                                      sha1, crypt) < 0) {
+        seaf_warning ("failed to index blocks");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to index blocks");
+        ret = -1;
+        goto out;
+    }
+        
+    rawdata_to_hex(sha1, hex, 20);
+    new_dent = seaf_dirent_new (hex, S_IFREG, file_name);
 
     root_id = do_post_file (head_commit->root_id, canon_path, new_dent);
     if (!root_id) {
@@ -2677,35 +2777,16 @@ retry:
         goto out;
     }
 
-    /* Commit. */
     snprintf(buf, PATH_MAX, "Added \"%s\"", file_name);
-    GEN_NEW_COMMIT(repo, root_id, user, buf);
-
-    if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
-                                                   repo->head,
-                                                   head_commit->commit_id) < 0)
-    {
-        seaf_warning ("[post file] Concurrent branch update, retry.\n");
-        seaf_repo_unref (repo);
-        seaf_commit_unref (head_commit);
-        seaf_commit_unref (new_commit);
-        g_free (root_id);
-        g_free (crypt);
-        repo = NULL;
-        head_commit = new_commit = NULL;
-        root_id = NULL;
-        crypt = NULL;
-        write_blocks = FALSE;
-        goto retry;
-    }
+    if (gen_new_commit (repo_id, head_commit, root_id,
+                        user, buf, error) < 0)
+        ret = -1;
 
 out:
     if (repo)
         seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref(head_commit);
-    if (new_commit)
-        seaf_commit_unref(new_commit);
     if (new_dent)
         g_free (new_dent);
     g_free (root_id);
@@ -2824,14 +2905,13 @@ seaf_repo_manager_del_file (SeafRepoManager *mgr,
                             GError **error)
 {
     SeafRepo *repo = NULL;
-    SeafCommit *new_commit = NULL, *head_commit = NULL;
+    SeafCommit *head_commit = NULL;
     char *canon_path = NULL;
     char buf[PATH_MAX];
     char *root_id = NULL;
     int mode = 0;
     int ret = 0;
-    
-retry:
+
     GET_REPO_OR_FAIL(repo, repo_id);
     GET_COMMIT_OR_FAIL(head_commit, repo->head->commit_id);
 
@@ -2860,30 +2940,15 @@ retry:
         snprintf(buf, PATH_MAX, "Deleted \"%s\"", file_name);
     }
 
-    GEN_NEW_COMMIT(repo, root_id, user, buf);
-
-    if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
-                                                   repo->head,
-                                                   head_commit->commit_id) < 0)
-    {
-        seaf_warning ("[del file] Concurrent branch update, retry.\n");
-        seaf_repo_unref (repo);
-        seaf_commit_unref (head_commit);
-        seaf_commit_unref (new_commit);
-        g_free (root_id);
-        repo = NULL;
-        head_commit = new_commit = NULL;
-        root_id = NULL;
-        goto retry;
-    }
+    if (gen_new_commit (repo_id, head_commit, root_id,
+                        user, buf, error) < 0)
+        ret = -1;
 
 out:
     if (repo)
         seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref(head_commit);
-    if (new_commit)
-        seaf_commit_unref(new_commit);
     g_free (root_id);
     g_free (canon_path);
 
@@ -2948,12 +3013,11 @@ put_dirent_and_commit (const char *repo_id,
                        GError **error)
 {
     SeafRepo *repo = NULL;
-    SeafCommit *head_commit = NULL, *new_commit = NULL;
+    SeafCommit *head_commit = NULL;
     char *root_id = NULL;
     char buf[PATH_MAX];
     int ret = 0;
 
-retry:
     GET_REPO_OR_FAIL(repo, repo_id);
     GET_COMMIT_OR_FAIL(head_commit, repo->head->commit_id);
 
@@ -2973,27 +3037,15 @@ retry:
         snprintf(buf, sizeof(buf), "Added \"%s\"", dent->name);
     }
 
-    GEN_NEW_COMMIT(repo, root_id, user, buf);
+    if (gen_new_commit (repo_id, head_commit, root_id,
+                        user, buf, error) < 0)
+        ret = -1;
 
-    if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
-                                                   repo->head,
-                                                   head_commit->commit_id) < 0)
-    {
-        seaf_warning ("Concurrent update, retry.\n");
-        seaf_repo_unref (repo);
-        seaf_commit_unref (head_commit);
-        seaf_commit_unref (new_commit);
-        g_free (root_id);
-        goto retry;
-    }
-    
 out:
     if (repo)
         seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref (head_commit);
-    if (new_commit)
-        seaf_commit_unref (new_commit);
     if (root_id)
         g_free (root_id);
     
@@ -3103,12 +3155,11 @@ move_file_same_repo (const char *repo_id,
                      GError **error)
 {
     SeafRepo *repo = NULL;
-    SeafCommit *head_commit = NULL, *new_commit = NULL;
+    SeafCommit *head_commit = NULL;
     char *root_id_after_put = NULL, *root_id = NULL;
     char buf[PATH_MAX];
     int ret = 0;
 
-retry:
     GET_REPO_OR_FAIL(repo, repo_id);
     GET_COMMIT_OR_FAIL(head_commit, repo->head->commit_id);
     
@@ -3133,31 +3184,15 @@ retry:
         snprintf(buf, PATH_MAX, "Moved \"%s\"", src_dent->name);
     }
 
-    GEN_NEW_COMMIT(repo, root_id, user, buf);
-
-    if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
-                                                   repo->head,
-                                                   head_commit->commit_id) < 0)
-    {
-        seaf_warning ("[move file] Concurrent branch update, retry.\n");
-        seaf_repo_unref (repo);
-        seaf_commit_unref (head_commit);
-        seaf_commit_unref (new_commit);
-        g_free (root_id_after_put);
-        g_free (root_id);
-        repo = NULL;
-        head_commit = new_commit = NULL;
-        root_id_after_put = root_id = NULL;
-        goto retry;
-    }
+    if (gen_new_commit (repo_id, head_commit, root_id,
+                        user, buf, error) < 0)
+        ret = -1;
     
 out:
     if (repo)
         seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref (head_commit);
-    if (new_commit)
-        seaf_commit_unref (new_commit);
     g_free (root_id_after_put);
     g_free (root_id);
     
@@ -3275,14 +3310,13 @@ seaf_repo_manager_post_dir (SeafRepoManager *mgr,
                             GError **error)
 {
     SeafRepo *repo = NULL;
-    SeafCommit *new_commit = NULL, *head_commit = NULL;
+    SeafCommit *head_commit = NULL;
     char *canon_path = NULL;
     char buf[PATH_MAX];
     char *root_id = NULL;
     SeafDirent *new_dent = NULL;
     int ret = 0;
 
-retry:
     GET_REPO_OR_FAIL(repo, repo_id);
     GET_COMMIT_OR_FAIL(head_commit, repo->head->commit_id);
 
@@ -3305,31 +3339,15 @@ retry:
 
     /* Commit. */
     snprintf(buf, PATH_MAX, "Added directory \"%s\"", new_dir_name);
-    GEN_NEW_COMMIT(repo, root_id, user, buf);
-
-    if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
-                                                   repo->head,
-                                                   head_commit->commit_id) < 0)
-    {
-        seaf_warning ("[post dir] Concurrent branch update, retry.\n");
-        seaf_repo_unref (repo);
-        seaf_commit_unref (head_commit);
-        seaf_commit_unref (new_commit);
-        g_free (root_id);
-        g_free (canon_path);
-        repo = NULL;
-        head_commit = new_commit = NULL;
-        root_id = canon_path = NULL;
-        goto retry;
-    }
+    if (gen_new_commit (repo_id, head_commit, root_id,
+                        user, buf, error) < 0)
+        ret = -1;
 
 out:
     if (repo)
         seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref(head_commit);
-    if (new_commit)
-        seaf_commit_unref(new_commit);
     if (new_dent)
         g_free (new_dent);
     g_free (root_id);
@@ -3347,14 +3365,13 @@ seaf_repo_manager_post_empty_file (SeafRepoManager *mgr,
                                    GError **error)
 {
     SeafRepo *repo = NULL;
-    SeafCommit *new_commit = NULL, *head_commit = NULL;
+    SeafCommit *head_commit = NULL;
     char *canon_path = NULL;
     char buf[PATH_MAX];
     char *root_id = NULL;
     SeafDirent *new_dent = NULL;
     int ret = 0;
 
-retry:
     GET_REPO_OR_FAIL(repo, repo_id);
     GET_COMMIT_OR_FAIL(head_commit, repo->head->commit_id);
 
@@ -3379,31 +3396,15 @@ retry:
 
     /* Commit. */
     snprintf(buf, PATH_MAX, "Added \"%s\"", new_file_name);
-    GEN_NEW_COMMIT(repo, root_id, user, buf);
-
-    if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
-                                                   repo->head,
-                                                   head_commit->commit_id) < 0)
-    {
-        seaf_warning ("[post dir] Concurrent branch update, retry.\n");
-        seaf_repo_unref (repo);
-        seaf_commit_unref (head_commit);
-        seaf_commit_unref (new_commit);
-        g_free (root_id);
-        g_free (canon_path);
-        repo = NULL;
-        head_commit = new_commit = NULL;
-        root_id = canon_path = NULL;
-        goto retry;
-    }
+    if (gen_new_commit (repo_id, head_commit, root_id,
+                        user, buf, error) < 0)
+        ret = -1;
 
 out:
     if (repo)
         seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref(head_commit);
-    if (new_commit)
-        seaf_commit_unref(new_commit);
     if (new_dent)
         g_free (new_dent);
     g_free (root_id);
@@ -3533,7 +3534,7 @@ seaf_repo_manager_rename_file (SeafRepoManager *mgr,
                                GError **error)
 {
     SeafRepo *repo = NULL;
-    SeafCommit *head_commit = NULL, *new_commit = NULL;
+    SeafCommit *head_commit = NULL;
     char *root_id = NULL;
     char *canon_path = NULL;
     char buf[PATH_MAX];
@@ -3543,7 +3544,6 @@ seaf_repo_manager_rename_file (SeafRepoManager *mgr,
     if (strcmp(oldname, newname) == 0)
         return 0;
     
-retry:
     GET_REPO_OR_FAIL(repo, repo_id);
     GET_COMMIT_OR_FAIL(head_commit, repo->head->commit_id);
     
@@ -3569,30 +3569,15 @@ retry:
         snprintf(buf, PATH_MAX, "Renamed \"%s\"", oldname);
     }
 
-    GEN_NEW_COMMIT(repo, root_id, user, buf);
-
-    if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
-                                                   repo->head,
-                                                   head_commit->commit_id) < 0)
-    {
-        seaf_warning ("[rename file] Concurrent branch update, retry.\n");
-        seaf_repo_unref (repo);
-        seaf_commit_unref (head_commit);
-        seaf_commit_unref (new_commit);
-        g_free (root_id);
-        repo = NULL;
-        head_commit = new_commit = NULL;
-        root_id = NULL;
-        goto retry;
-    }
+    if (gen_new_commit (repo_id, head_commit, root_id,
+                        user, buf, error) < 0)
+        ret = -1;
 
 out:
     if (repo)
         seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref (head_commit);
-    if (new_commit)
-        seaf_commit_unref (new_commit);
     g_free (canon_path);
     g_free (root_id);
 
@@ -3869,13 +3854,12 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
                             GError **error)
 {
     SeafRepo *repo = NULL;
-    SeafCommit *new_commit = NULL, *head_commit = NULL;
+    SeafCommit *head_commit = NULL;
     char *canon_path = NULL;
     unsigned char sha1[20];
     char buf[PATH_MAX];
     char *root_id = NULL;
     SeafileCrypt *crypt = NULL;
-    gboolean write_blocks = TRUE;
     SeafDirent *new_dent = NULL;
     char hex[41];
     char *old_file_id = NULL, *fullpath = NULL;
@@ -3889,7 +3873,6 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
         return -1;
     }
 
-retry:
     GET_REPO_OR_FAIL(repo, repo_id);
     GET_COMMIT_OR_FAIL(head_commit, repo->head->commit_id);
 
@@ -3914,35 +3897,32 @@ retry:
     
     FAIL_IF_FILE_NOT_EXISTS(head_commit->root_id, canon_path, file_name, NULL);
 
-    /* Write blocks. We don't need to write blocks in retry.
-     */
-    if (write_blocks) {
-        if (repo->encrypted) {
-            unsigned char key[16], iv[16];
-            if (seaf_passwd_manager_get_decrypt_key_raw (seaf->passwd_mgr,
-                                                         repo_id, user,
-                                                         key, iv) < 0) {
-                seaf_warning ("Passwd for repo %s is not set.\n", repo_id);
-                g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                             "Passwd is not set");
-                ret = -1;
-                goto out;
-            }
-            crypt = seafile_crypt_new (repo->enc_version, key, iv);
-        }
-
-        if (seaf_fs_manager_index_blocks (seaf->fs_mgr, temp_file_path,
-                                          sha1, crypt) < 0) {
-            seaf_warning ("failed to index blocks");
+    /* Write blocks. */
+    if (repo->encrypted) {
+        unsigned char key[16], iv[16];
+        if (seaf_passwd_manager_get_decrypt_key_raw (seaf->passwd_mgr,
+                                                     repo_id, user,
+                                                     key, iv) < 0) {
+            seaf_warning ("Passwd for repo %s is not set.\n", repo_id);
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                         "Failed to index blocks");
+                         "Passwd is not set");
             ret = -1;
             goto out;
         }
-        
-        rawdata_to_hex(sha1, hex, 20);
-        new_dent = seaf_dirent_new (hex, S_IFREG, file_name);
+        crypt = seafile_crypt_new (repo->enc_version, key, iv);
     }
+
+    if (seaf_fs_manager_index_blocks (seaf->fs_mgr, temp_file_path,
+                                      sha1, crypt) < 0) {
+        seaf_warning ("failed to index blocks");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to index blocks");
+        ret = -1;
+        goto out;
+    }
+        
+    rawdata_to_hex(sha1, hex, 20);
+    new_dent = seaf_dirent_new (hex, S_IFREG, file_name);
 
     if (!fullpath)
         fullpath = g_build_filename(parent_dir, file_name, NULL);
@@ -3967,33 +3947,15 @@ retry:
 
     /* Commit. */
     snprintf(buf, PATH_MAX, "Modified \"%s\"", file_name);
-    GEN_NEW_COMMIT(repo, root_id, user, buf);
-
-    if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
-                                                   repo->head,
-                                                   head_commit->commit_id) < 0)
-    {
-        seaf_warning ("[put file] Concurrent branch update, retry.\n");
-        seaf_repo_unref (repo); repo = NULL;
-        seaf_commit_unref (head_commit);
-        seaf_commit_unref (new_commit);
-        head_commit = new_commit = NULL;
-
-        g_free (root_id); root_id = NULL;
-        g_free (crypt); crypt = NULL;
-        g_free (old_file_id); old_file_id = NULL;
-
-        write_blocks = FALSE;
-        goto retry;
-    }
+    if (gen_new_commit (repo_id, head_commit, root_id,
+                        user, buf, error) < 0)
+        ret = -1;
 
 out:
     if (repo)
         seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref(head_commit);
-    if (new_commit)
-        seaf_commit_unref(new_commit);
     if (new_dent)
         g_free (new_dent);
     g_free (root_id);
@@ -4207,7 +4169,7 @@ seaf_repo_manager_revert_file (SeafRepoManager *mgr,
                                GError **error)
 {
     SeafRepo *repo = NULL;
-    SeafCommit *head_commit = NULL, *old_commit = NULL, *new_commit = NULL;
+    SeafCommit *head_commit = NULL, *old_commit = NULL;
     char *parent_dir = NULL, *filename = NULL;
     char *revert_to_file_id = NULL;
     char *canon_path = NULL, *root_id = NULL;
@@ -4218,7 +4180,6 @@ seaf_repo_manager_revert_file (SeafRepoManager *mgr,
     gboolean skipped = FALSE;
     int ret = 0;
 
-retry:
     GET_REPO_OR_FAIL(repo, repo_id);
     GET_COMMIT_OR_FAIL(head_commit, repo->head->commit_id);
 
@@ -4312,21 +4273,9 @@ retry:
     strftime (time_str, sizeof(time_str), "%F %T",
               localtime((time_t *)(&old_commit->ctime)));
     snprintf(buf, PATH_MAX, "Reverted file \"%s\" to status at %s", filename, time_str);
-    GEN_NEW_COMMIT(repo, root_id, user, buf);
-
-    if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
-                                                   repo->head,
-                                                   head_commit->commit_id) < 0)
-    {
-        g_debug ("[revert file] Concurrent branch update, retry.\n");
-        seaf_repo_unref (repo); repo = NULL;
-        seaf_commit_unref (head_commit); head_commit = NULL;
-        seaf_commit_unref (new_commit); new_commit = NULL;
-
-        g_free (root_id); root_id = NULL;
-
-        goto retry;
-    }
+    if (gen_new_commit (repo_id, head_commit, root_id,
+                        user, buf, error) < 0)
+        ret = -1;
 
 out:
     if (repo)
@@ -4335,8 +4284,6 @@ out:
         seaf_commit_unref (head_commit);
     if (old_commit)
         seaf_commit_unref (old_commit);
-    if (new_commit)
-        seaf_commit_unref (new_commit);
 
     g_free (root_id);
     g_free (parent_dir);
@@ -4423,7 +4370,7 @@ seaf_repo_manager_revert_dir (SeafRepoManager *mgr,
                               GError **error)
 {
     SeafRepo *repo = NULL;
-    SeafCommit *head_commit = NULL, *old_commit = NULL, *new_commit = NULL;
+    SeafCommit *head_commit = NULL, *old_commit = NULL;
     char *parent_dir = NULL, *dirname = NULL;
     char *revert_to_dir_id = NULL;
     char *canon_path = NULL, *root_id = NULL;
@@ -4433,7 +4380,6 @@ seaf_repo_manager_revert_dir (SeafRepoManager *mgr,
     gboolean skipped = FALSE;
     int ret = 0;
 
-retry:
     GET_REPO_OR_FAIL(repo, repo_id);
     GET_COMMIT_OR_FAIL(head_commit, repo->head->commit_id);
 
@@ -4522,21 +4468,9 @@ retry:
 
     /* Commit. */
     snprintf(buf, PATH_MAX, "Recovered deleted directory \"%s\"", dirname);
-    GEN_NEW_COMMIT(repo, root_id, user, buf);
-
-    if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
-                                                   repo->head,
-                                                   head_commit->commit_id) < 0)
-    {
-        g_debug ("[revert dir] Concurrent branch update, retry.\n");
-        seaf_repo_unref (repo); repo = NULL;
-        seaf_commit_unref (head_commit); head_commit = NULL;
-        seaf_commit_unref (new_commit); new_commit = NULL;
-
-        g_free (root_id); root_id = NULL;
-
-        goto retry;
-    }
+    if (gen_new_commit (repo_id, head_commit, root_id,
+                        user, buf, error) < 0)
+        ret = -1;
 
 out:
     if (repo)
@@ -4545,8 +4479,6 @@ out:
         seaf_commit_unref (head_commit);
     if (old_commit)
         seaf_commit_unref (old_commit);
-    if (new_commit)
-        seaf_commit_unref (new_commit);
 
     g_free (root_id);
     g_free (parent_dir);

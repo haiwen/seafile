@@ -33,14 +33,8 @@ update_worktree (struct unpack_trees_options *o,
                  const char *default_conflict_suffix,
                  int *finished_entries);
 
-char *
-gen_conflict_path (const char *origin_path, const char *suffix);
-
 gboolean
 files_locked_on_windows (struct index_state *index, const char *worktree);
-
-char *
-get_last_changer_of_file (const char *head, const char *path);
 
 int
 compare_file_content (const char *path, struct stat *st, 

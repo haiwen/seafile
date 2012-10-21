@@ -72,6 +72,8 @@ seaf_metadata_type_from_data (const uint8_t *data, int len);
 SeafDirent *
 seaf_dirent_new (const char *sha1, int mode, const char *name);
 
+SeafDirent *
+seaf_dirent_dup (SeafDirent *dent);
 
 typedef struct {
     /* TODO: GHashTable may be inefficient when we have large number of IDs. */

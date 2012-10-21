@@ -3,6 +3,9 @@
 #include "seafile-session.h"
 #include "vc-common.h"
 
+#include "log.h"
+#include "seafile-error.h"
+
 static GList *
 merge_bases_many (SeafCommit *one, int n, SeafCommit **twos);
 
@@ -305,4 +308,198 @@ vc_compare_commits (const char *c1, const char *c2)
     seaf_commit_unref (commit1);
     seaf_commit_unref (commit2);
     return ret;
+}
+
+/**
+ * Diff a specific file with parent(s).
+ * If @commit is a merge, both parents will be compared.
+ * @commit must have this file and it's id is given in @file_id.
+ * 
+ * Returns 0 if there is no difference; 1 otherwise.
+ * If returns 0, @parent will point to the next commit to traverse.
+ * If I/O error occurs, @error will be set.
+ */
+static int
+diff_parents_with_path (SeafCommit *commit,
+                        const char *path,
+                        const char *file_id,
+                        char *parent,
+                        GError **error)
+{
+    SeafCommit *p1 = NULL, *p2 = NULL;
+    char *file_id_p1 = NULL, *file_id_p2 = NULL;
+    int ret = 0;
+
+    g_assert (commit->parent_id != NULL);
+
+    p1 = seaf_commit_manager_get_commit (seaf->commit_mgr, commit->parent_id);
+    if (!p1) {
+        g_warning ("Failed to find commit %s.\n", commit->parent_id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, " ");
+        return 0;
+    }
+
+    if (strcmp (p1->root_id, EMPTY_SHA1) == 0) {
+        seaf_commit_unref (p1);
+        return 1;
+    }
+
+    if (commit->second_parent_id) {
+        p2 = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             commit->second_parent_id);
+        if (!p2) {
+            g_warning ("Failed to find commit %s.\n", commit->second_parent_id);
+            seaf_commit_unref (p1);
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, " ");
+            return 0;
+        }
+    }
+
+    if (!p2) {
+        file_id_p1 = seaf_fs_manager_path_to_file_id (seaf->fs_mgr,
+                                                      p1->root_id, path,
+                                                      NULL,
+                                                      error);
+        if (*error)
+            goto out;
+        if (!file_id_p1 || strcmp (file_id, file_id_p1) != 0)
+            ret = 1;
+        else
+            memcpy (parent, p1->commit_id, 41);
+    } else {
+        file_id_p1 = seaf_fs_manager_path_to_file_id (seaf->fs_mgr,
+                                                      p1->root_id, path,
+                                                      NULL, error);
+        if (*error)
+            goto out;
+        file_id_p2 = seaf_fs_manager_path_to_file_id (seaf->fs_mgr,
+                                                      p2->root_id, path,
+                                                      NULL, error);
+        if (*error)
+            goto out;
+
+        if (file_id_p1 && file_id_p2) {
+            if (strcmp(file_id, file_id_p1) != 0 &&
+                strcmp(file_id, file_id_p2) != 0)
+                ret = 1;
+            else if (strcmp(file_id, file_id_p1) == 0)
+                memcpy (parent, p1->commit_id, 41);
+            else
+                memcpy (parent, p2->commit_id, 41);
+        } else if (file_id_p1 && !file_id_p2) {
+            if (strcmp(file_id, file_id_p1) != 0)
+                ret = 1;
+            else
+                memcpy (parent, p1->commit_id, 41);
+        } else if (!file_id_p1 && file_id_p2) {
+            if (strcmp(file_id, file_id_p2) != 0)
+                ret = 1;
+            else
+                memcpy (parent, p2->commit_id, 41);
+        } else {
+            ret = 1;
+        }
+    }
+
+out:
+    g_free (file_id_p1);
+    g_free (file_id_p2);
+
+    if (p1)
+        seaf_commit_unref (p1);
+    if (p2)
+        seaf_commit_unref (p2);
+
+    return ret;
+}
+
+/**
+ * Get the user who last changed a file.
+ * @head: head commit to start the search.
+ * @path: path of the file.
+ */
+char *
+get_last_changer_of_file (const char *head, const char *path)
+{
+    char commit_id[41];
+    SeafCommit *commit = NULL;
+    char *file_id = NULL;
+    int changed;
+    char *ret = NULL;
+    GError *error = NULL;
+
+    memcpy (commit_id, head, 41);
+
+    while (1) {
+        commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
+        if (!commit)
+            break;
+
+        /* We hit the initial commit. */
+        if (!commit->parent_id)
+            break;
+
+        file_id = seaf_fs_manager_path_to_file_id (seaf->fs_mgr,
+                                                   commit->root_id,
+                                                   path,
+                                                   NULL,
+                                                   &error);
+        if (error) {
+            g_clear_error (&error);
+            break;
+        }
+        /* We expect commit to have this file. */
+        if (!file_id)
+            break;
+
+        changed = diff_parents_with_path (commit, path, file_id,
+                                          commit_id, &error);
+        if (error) {
+            g_clear_error (&error);
+            break;
+        }
+
+        if (changed) {
+            ret = g_strdup (commit->creator_name);
+            break;
+        } else {
+            /* If this commit doesn't change the file, commit_id will be set
+             * to the parent commit to traverse.
+             */
+            g_free (file_id);
+            seaf_commit_unref (commit);
+        }
+    }
+
+    g_free (file_id);
+    if (commit)
+        seaf_commit_unref (commit);
+    return ret;
+}
+
+char *
+gen_conflict_path (const char *origin_path, const char *suffix)
+{
+    char time_buf[64];
+    time_t t = time(NULL);
+    char *copy = g_strdup (origin_path);
+    GString *conflict_path = g_string_new (NULL);
+    char *dot, *ext;
+
+    strftime(time_buf, 64, "%Y-%m-%d-%H-%M-%S", localtime(&t));
+
+    dot = strrchr (copy, '.');
+
+    if (dot != NULL) {
+        *dot = '\0';
+        ext = dot + 1;
+        g_string_printf (conflict_path, "%s (%s %s).%s",
+                         copy, suffix, time_buf, ext);
+    } else {
+        g_string_printf (conflict_path, "%s (%s %s)",
+                         copy, suffix, time_buf);
+    }
+
+    g_free (copy);
+    return g_string_free (conflict_path, FALSE);
 }

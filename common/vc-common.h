@@ -36,4 +36,10 @@ typedef enum {
 VCCompareResult
 vc_compare_commits (const char *c1, const char *c2);
 
+char *
+gen_conflict_path (const char *origin_path, const char *suffix);
+
+char *
+get_last_changer_of_file (const char *head, const char *path);
+
 #endif

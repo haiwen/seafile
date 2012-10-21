@@ -19,6 +19,7 @@
 #include "unpack-trees.h"
 #include "merge-recursive.h"
 #include "vc-utils.h"
+#include "vc-common.h"
 #include "utils.h"
 
 /*

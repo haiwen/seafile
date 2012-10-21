@@ -76,6 +76,7 @@ seaf_server_SOURCES = \
 	../common/block-backend.c \
 	../common/block-backend-fs.c \
 	../common/block-backend-ceph.c \
+	../common/merge-new.c \
 	processors/recvcommit-proc.c \
 	processors/recvfs-proc.c \
 	processors/recvblock-proc.c \
