@@ -12,7 +12,7 @@ Copyright:
     Copyright (C) 2012 by plt.
 
 License:
-    This package is not free software.
+    GPLv3
 
 The Debian packaging is copyright 2012, Lingtao Pan <freeplant@gmail.com> and
 is licensed under the GPL, see `/usr/share/common-licenses/GPL'.
