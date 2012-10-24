@@ -2588,12 +2588,10 @@ retry:
             goto out;
         }
 
-        GString *merge_desc = g_string_new(NULL);
-        g_string_printf (merge_desc, "Merged %s's changes.", user);
         merged_commit = seaf_commit_new(NULL, repo->id, opt.merged_tree_root,
                                         user, EMPTY_SHA1,
-                                        merge_desc->str, 0);
-        g_string_free (merge_desc, TRUE);
+                                        "Auto merge by seafile system",
+                                        0);
 
         merged_commit->parent_id = g_strdup (current_head->commit_id);
         merged_commit->second_parent_id = g_strdup (new_commit->commit_id);

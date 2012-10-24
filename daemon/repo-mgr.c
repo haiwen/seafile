@@ -1026,14 +1026,12 @@ commit_tree (SeafRepo *repo, struct cache_tree *it,
                                   seaf->session->base.id,
                                   desc, 0);
     } else {
-        GString *merge_desc = g_string_new (NULL);
-        g_string_printf (merge_desc, "Merged %s's changes.", remote_name);
         commit = seaf_commit_new (NULL, repo->id, root_id,
                                   repo->email ? repo->email
                                   : seaf->session->base.user_name,
                                   seaf->session->base.id,
-                                  merge_desc->str, 0);
-        g_string_free (merge_desc, TRUE);
+                                  "Auto merge by seafile system",
+                                  0);
     }
 
     if (repo->head)

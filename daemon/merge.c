@@ -65,19 +65,14 @@ do_real_merge (SeafRepo *repo,
     }
 
     if (clean) {
-        GString *desc;
-
-        desc = g_string_new (NULL);
-        g_string_printf (desc, "Merged %s's changes.", remote->creator_name);
         merged = seaf_commit_new (NULL,
                                   repo->id,
                                   root_id,
                                   repo->email ? repo->email
                                   : seaf->session->base.user_name,
                                   seaf->session->base.id,
-                                  desc->str,
+                                  "Auto merge by seafile system",
                                   0);
-        g_string_free (desc, TRUE);
 
         merged->parent_id = g_strdup(head->commit_id);
         merged->second_parent_id = g_strdup(remote->commit_id);
