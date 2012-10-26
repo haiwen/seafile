@@ -1722,6 +1722,25 @@ seafile_get_org_quota_usage (int org_id, GError **error)
 }
 
 gint64
+seafile_get_org_user_quota_usage (int org_id, const char *user, GError **error)
+{
+    gint64 ret;
+
+    if (!user) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad user id");
+        return -1;
+    }
+
+    ret = get_org_user_quota_usage (seaf, org_id, user);
+    if (ret < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal server error");
+        return -1;
+    }
+
+    return ret;
+}
+
+gint64
 seafile_server_repo_size(const char *repo_id, GError **error)
 {
     gint64 ret;

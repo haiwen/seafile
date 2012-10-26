@@ -527,6 +527,16 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     get_user_quota_usage = seafile_get_user_quota_usage
 
+    @searpc_func("int64", ["int"])
+    def seafile_get_org_quota_usage(org_id):
+        pass
+    get_org_quota_usage = seafile_get_org_quota_usage
+
+    @searpc_func("int64", ["int", "string"])
+    def seafile_get_org_user_quota_usage(org_id, user):
+        pass
+    get_org_user_quota_usage = seafile_get_org_user_quota_usage
+
     @searpc_func("int", ["string", "int64"])
     def set_user_quota(user, quota):
         pass

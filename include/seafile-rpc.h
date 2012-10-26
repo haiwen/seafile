@@ -484,6 +484,9 @@ gint64 seafile_get_user_quota_usage (const char *email, GError **error);
 gint64 seafile_get_org_quota_usage (int org_id, GError **error);
 
 gint64
+seafile_get_org_user_quota_usage (int org_id, const char *user, GError **error);
+
+gint64
 seafile_server_repo_size(const char *repo_id, GError **error);
 
 int

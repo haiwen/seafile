@@ -75,11 +75,16 @@ seaf_quota_manager_get_user_quota (SeafQuotaManager *mgr,
                                    const char *user)
 {
     char sql[512];
+    gint64 quota;
 
     snprintf (sql, sizeof(sql),
               "SELECT quota FROM UserQuota WHERE user='%s'",
               user);
-    return seaf_db_get_int64 (mgr->session->db, sql);
+    quota = seaf_db_get_int64 (mgr->session->db, sql);
+    if (quota <= 0)
+        quota = mgr->default_quota;
+
+    return quota;
 }
 
 int
@@ -100,11 +105,16 @@ seaf_quota_manager_get_org_quota (SeafQuotaManager *mgr,
                                   int org_id)
 {
     char sql[512];
+    gint64 quota;
 
     snprintf (sql, sizeof(sql),
               "SELECT quota FROM OrgQuota WHERE org_id='%d'",
               org_id);
-    return seaf_db_get_int64 (mgr->session->db, sql);
+    quota = seaf_db_get_int64 (mgr->session->db, sql);
+    if (quota <= 0)
+        quota = mgr->default_quota;
+
+    return quota;
 }
 
 int
@@ -127,11 +137,17 @@ seaf_quota_manager_get_org_user_quota (SeafQuotaManager *mgr,
                                        const char *user)
 {
     char sql[512];
+    gint64 quota;
 
     snprintf (sql, sizeof(sql),
               "SELECT quota FROM OrgUserQuota WHERE org_id='%d' AND user='%s'",
               org_id, user);
-    return seaf_db_get_int64 (mgr->session->db, sql);
+    quota = seaf_db_get_int64 (mgr->session->db, sql);
+    /* return org quota if per user quota is not set. */
+    if (quota <= 0)
+        quota = seaf_quota_manager_get_org_quota (mgr, org_id);
+
+    return quota;
 }
 
 int
@@ -145,8 +161,6 @@ seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
     user = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
     if (user != NULL) {
         quota = seaf_quota_manager_get_user_quota (mgr, user);
-        if (quota <= 0)
-            quota = mgr->default_quota;
     } else if (seaf->cloud_mode) {
         org_id = seaf_repo_manager_get_repo_org (seaf->repo_mgr, repo_id);
         if (org_id < 0) {
@@ -155,8 +169,6 @@ seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
         }
 
         quota = seaf_quota_manager_get_org_quota (mgr, org_id);
-        if (quota <= 0)
-            quota = mgr->default_quota;
     } else {
         seaf_warning ("Repo %s has no owner.\n", repo_id);
         return -1;

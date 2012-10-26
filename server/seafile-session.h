@@ -102,4 +102,9 @@ get_user_quota_usage (SeafileSession *seaf, const char *user_id);
 gint64
 get_org_quota_usage (SeafileSession *seaf, int org_id);
 
+gint64
+get_org_user_quota_usage (SeafileSession *seaf,
+                          int org_id,
+                          const char *user);
+
 #endif /* SEAFILE_H */
