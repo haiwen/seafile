@@ -1,6 +1,7 @@
 
 if COMPILE_GUI
   MAKE_GUI = gui
+  MAKE_PO = po
 endif
 
 if COMPILE_HTTPSERVER
@@ -22,7 +23,7 @@ else
 endif
 
 SUBDIRS = include data lib common daemon $(MAKE_GUI) $(MAKE_CLINET) $(MAKE_SERVER) \
-	app python tests web
+	app python tests web $(MAKE_PO)
 DIST_SUBDIRS = include data lib common daemon gui daemon server tools monitor \
 			   httpserver controller app python tests web
 

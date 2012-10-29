@@ -8,6 +8,7 @@
 #include <signal.h>
 #include <locale.h>
 
+#include <glib/gi18n.h>
 #include <gtk/gtk.h>
 
 #include <ccnet.h>
@@ -17,7 +18,6 @@
 #include "applet-common.h"
 #include "trayicon.h"
 #include "applet-log.h"
-#include "applet-po.h"
 
 #include "misc.h"
 
@@ -78,7 +78,10 @@ int ccnet_open_dir(const char *path)
 {
     char buf[4096];
     snprintf (buf, 4096, "xdg-open '%s' &", path);
-    system (buf);
+    if (system (buf) < 0) {
+        applet_warning ("failed to exec: %s\n", buf);
+        return -1;
+    }
     return 0;
 }
 
@@ -146,18 +149,16 @@ seafile_applet_init (SeafileApplet *applet)
 int
 main (int argc, char **argv)
 {
+    /* init i18n */
+    setlocale (LC_ALL, "");
+    bindtextdomain(GETTEXT_PACKAGE, SEAFILE_LOCALE_DIR);
+    bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
+    textdomain(GETTEXT_PACKAGE);
+
     if (count_process("seafile-applet") > 1) {
-        fprintf(stderr, "Seafile applet already running. I will quit.\n");
+        fprintf(stderr, _("Seafile is already running\n"));
         exit(1);
     }
-
-#ifdef ENABLE_NLS                               
-    setlocale (LC_ALL, "");
-
-    bindtextdomain(PACKAGE, PACKAGE_LOCALE_DIR);
-    bind_textdomain_codeset(PACKAGE, "UTF-8");
-    textdomain(PACKAGE);
-#endif                  
 
     gtk_init (&argc, &argv);
     gtk_icon_theme_append_search_path (gtk_icon_theme_get_default(),

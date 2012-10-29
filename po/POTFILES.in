@@ -1,0 +1,7 @@
+[encoding: UTF-8]
+gui/common/applet-common.c
+gui/gtk/init-ccnet.c
+gui/gtk/seafile-applet.c
+gui/gtk/trayicon.c
+gui/win/init-ccnet.c
+gui/win/trayicon.c

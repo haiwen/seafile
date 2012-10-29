@@ -5,19 +5,18 @@
            Name='Seafile 1.1.0'
            Language='1033'
            Version='$(var.CurrentSeafileVersion)'
-           Manufacturer='$(var.Manufacturer)'
+           Manufacturer='!(loc.Manufacturer)'
            UpgradeCode="$(var.CurrentUpdateGuid)" >
     
     <!-- We set InstallScope to perMachine to install for all users -->
-    <Package Description='Seafile 安装包' Comments='Seafile 安装包'
-             Manufacturer='$(var.Manufacturer)'
+    <Package Description='!(loc.PackageDescription)' Comments='!(loc.PackageComments)'
+             Manufacturer='!(loc.Manufacturer)'
              InstallerVersion='200'
              InstallPrivileges='elevated' InstallScope='perMachine'
              Compressed='yes' />
     
     <!-- Don't allow downgrade. -->
-    <MajorUpgrade
-        DowngradeErrorMessage="检测到您已经安装了更新版本的 Seafile 。安装程序将自动退出。" />
+    <MajorUpgrade DowngradeErrorMessage='!(loc.DowngradeErrorMessage)' />
 
     <Media Id='1' Cabinet='seafile.cab' EmbedCab='yes' />
 
@@ -30,7 +29,7 @@
       <Directory Id='ProgramFilesFolder' Name='PFiles'>
         <Directory Id='INSTALLDIR' Name='Seafile'>
           <Component Id="comp_manual" KeyPath="yes" Guid="F0CC8900-F8B9-11E1-83FD-000C295059FB">
-            <File Id="manual.txt" Name="Seafile使用帮助.txt" Source="manual.txt" />
+            <File Id="manual.txt" Name="!(loc.UserManualName)" Source="!(loc.UserManualSource)" />
           </Component>
           
           <Directory Id='bin_Dir' Name='bin'>
@@ -77,14 +76,14 @@
         
         <!-- shortcut to 'start seafile' -->
         <Shortcut Id="ApplicationStartMenuShortCut" Directory="SeafileStartMenuFolder"
-                  Name="启动 Seafile" Target="[#seafileapplet.exe]"
+                  Name="!(loc.StartSeafile)" Target="[#seafileapplet.exe]"
                   Hotkey="0" IconIndex="0" Show="normal"
                   WorkingDirectory="bin_Dir" />
 
         <!-- shortcut to 'Uninstall' -->
-        <Shortcut Id="UninstallProduct" Name="删除 Seafile"
+        <Shortcut Id="UninstallProduct" Name="!(loc.UninstallSeafile)"
                   Target="[SystemFolder]msiexec.exe" IconIndex="0"
-                  Arguments="/x [ProductCode]" Description="删除 Seafile" />
+                  Arguments="/x [ProductCode]" Description="!(loc.UninstallSeafile)" />
       </Component>
     </DirectoryRef>
 

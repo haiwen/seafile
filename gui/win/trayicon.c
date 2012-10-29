@@ -1,11 +1,15 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include <glib/gi18n.h>
 #include <ccnet.h>
 
-#include "resource.h"
+#ifdef SEAF_LANG_CHINESE
+    #include "resource.h"
+#else
+    #include "resource.en.h"
+#endif
 #include "trayicon.h"
 #include "seafile-applet.h"
-#include "applet-po-gbk.h"
 #include "applet-common.h"
 #include "applet-log.h"
 
@@ -95,14 +99,17 @@ create_applet_window ()
     wcex.cbSize         = sizeof(WNDCLASSEX);
     wcex.lpfnWndProc    = (WNDPROC)WndProc;
     wcex.hInstance      = applet->hInstance;
-    wcex.lpszClassName  = S_WINDOW_NAME;
+    wcex.lpszClassName  = "seafile-applet";
     wcex.hIcon          = LoadIcon(applet->hInstance, MAKEINTRESOURCE(IDI_CCNET_ICON));
 
     RegisterClassEx(&wcex);
-    applet->hWnd = CreateWindow(S_WINDOW_NAME, S_WINDOW_NAME,
+    applet->hWnd = CreateWindow("seafile-applet", "seafile-applet",
                                 WS_OVERLAPPED, 0, 0, 0, 0,
                                 NULL, NULL, applet->hInstance, NULL);
+
     if (!applet->hWnd) {
+        DWORD e = GetLastError();
+        g_warning("create window error: %lu", e);
         applet_exit(1);
     }
 }

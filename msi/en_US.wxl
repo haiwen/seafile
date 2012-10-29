@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization">
+  
+  <String Id="PackageDescription">Seafile Installer</String>
+  <String Id="PackageComments">Seafile Installer</String>
+  <String Id="Manufacturer">HaiWenHuZhi ltd.</String>
+  <String Id="DowngradeErrorMessage">A more up-to-date version of Seafile is detected on your machine. The installer will now quit</String>
+  <String Id="UserManualName">Seafile help.txt</String>
+  <String Id="UserManualSource">manual.en.txt</String>
+  <String Id="UninstallSeafile">Uninstall Seafile</String>
+  <String Id="StartSeafile">Start Seafile</String>
+  <String Id="AutoStartText">Start Seafile on startup</String>
+
+</WixLocalization>

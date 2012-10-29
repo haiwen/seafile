@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <glib/gi18n.h>
 #include <gtk/gtk.h>
 #include <libnotify/notify.h>
 
@@ -17,7 +18,6 @@
 #include "applet-common.h"
 #include "rpc-wrapper.h"
 #include "applet-log.h"
-#include "applet-po.h"
 
 #ifdef HAVE_APP_INDICATOR
     #include <libappindicator/app-indicator.h>
@@ -156,7 +156,7 @@ void reset_trayicon_and_tip(SeafileTrayIcon *icon)
     } else {
         if (applet->auto_sync_disabled) {
             name = ICON_AUTO_SYNC_DISABLED;
-            tip = S_TIP_AUTO_SYNC_DISABLED;
+            tip = _("Auto sync is disabled");
         } else {
             name = ICON_STATUS_UP;
         }

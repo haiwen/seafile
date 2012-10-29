@@ -79,6 +79,7 @@ if sys.platform == "darwin" and "LANG" not in os.environ:
     os.environ["LC_ALL"]="it_IT.UTF-8"
 
 
+# lang code will be used to set default language in main.py
 lang_code, system_encoding = locale.getdefaultlocale()
 
 CCNET_CONF_PATH = CCNET_CONF_PATH.decode(system_encoding)

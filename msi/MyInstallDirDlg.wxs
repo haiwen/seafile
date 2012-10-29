@@ -29,7 +29,7 @@
                 <Control Id="FolderLabel" Type="Text" X="20" Y="60" Width="290" Height="30" NoPrefix="yes" Text="!(loc.InstallDirDlgFolderLabel)" />
                 <Control Id="Folder" Type="PathEdit" X="20" Y="100" Width="320" Height="18" Property="WIXUI_INSTALLDIR" Indirect="yes" />
                 <Control Id="ChangeFolder" Type="PushButton" X="20" Y="120" Width="56" Height="17" Text="!(loc.InstallDirDlgChange)" />
-                <Control Id="AutomaticStartup" Type="CheckBox" X="20" Y="205"  Height="18" Width="295" Text="开机自动启动 Seafile" Property="SEAFILE_AUTO_START" CheckBoxValue="1" />
+                <Control Id="AutomaticStartup" Type="CheckBox" X="20" Y="205"  Height="18" Width="295" Text="!(loc.AutoStartText)" Property="SEAFILE_AUTO_START" CheckBoxValue="1" />
             </Dialog>
         </UI>
     </Fragment>

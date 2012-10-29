@@ -1,3 +1,4 @@
+#include <glib/gi18n.h>
 #include <glib.h>
 #include <glib/gstdio.h>
 #include <getopt.h>
@@ -16,12 +17,6 @@
 #include "applet-common.h"
 #include "seafile-applet.h"
 
-
-#ifdef WIN32
-    #include "applet-po-gbk.h"
-#else 
-    #include "applet-po.h"
-#endif
 
 #ifdef __APPLE__
 #include "../mac/seafile/seafile/platform.h"
@@ -162,9 +157,9 @@ collect_transfer_info (GString *msg, const char *info, char *repo_name)
     
     gboolean is_upload = (strcmp(info, "upload") == 0);
     char buf[4096];
-    snprintf (buf, sizeof(buf) , "%s %s, " S_SPEED " %d KB/s\n",
-              is_upload ? S_UPLOADING : S_DOWNLOADING,
-              repo_name, rate);
+    snprintf (buf, sizeof(buf) , "%s %s, %s %d KB/s\n",
+              is_upload ? _("Uploading") : _("Downloading"),
+              repo_name, _("Speed"), rate);
     g_string_append (msg, buf);
 }
 
@@ -190,7 +185,7 @@ handle_seafile_notification (char *type, char *content)
         return;
         
     } else if (strcmp(type, "repo.deleted_on_relay") == 0) {
-        snprintf (buf, sizeof(buf), "\"%s\" " S_REPO_DELETED_ON_RELAY, content);
+        snprintf (buf, sizeof(buf), "\"%s\" %s", content, _("is unsynced. \nReason: Deleted on server"));
         trayicon_notify ("Seafile", buf);
         
     } else if (strcmp(type, "sync.done") == 0) {
@@ -204,7 +199,7 @@ handle_seafile_notification (char *type, char *content)
         char *repo_id = p + 1;
 
         memcpy (applet->last_synced_repo, repo_id, strlen(repo_id) + 1);
-        snprintf (buf, sizeof(buf), "\"%s\" " S_REPO_SYNC_DONE, repo_name);
+        snprintf (buf, sizeof(buf), "\"%s\" %s", repo_name, _("is in sync"));
         trayicon_notify ("Seafile", buf);
         
     } else if (strcmp(type, "sync.access_denied") == 0) {
@@ -218,7 +213,7 @@ handle_seafile_notification (char *type, char *content)
         char *repo_id = p + 1;
 
         memcpy (applet->last_synced_repo, repo_id, strlen(repo_id) + 1);
-        snprintf (buf, sizeof(buf), "\"%s\" " S_REPO_ACCESS_DENIED, repo_name);
+        snprintf (buf, sizeof(buf), "\"%s\" %s", repo_name, _("failed to sync. \nAccess denied to service"));
         trayicon_notify ("Seafile", buf);
     } else if (strcmp(type, "sync.quota_full") == 0) {
         /* format: <repo_name\trepo_id> */
@@ -231,7 +226,7 @@ handle_seafile_notification (char *type, char *content)
         char *repo_id = p + 1;
 
         memcpy (applet->last_synced_repo, repo_id, strlen(repo_id) + 1);
-        snprintf (buf, sizeof(buf), "\"%s\" " S_REPO_QUOTA_FULL, repo_name);
+        snprintf (buf, sizeof(buf), "\"%s\" %s", repo_name, _("failed to sync. Quota outage."));
         trayicon_notify ("Seafile", buf);
     }
 #ifdef __APPLE__

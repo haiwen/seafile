@@ -1,5 +1,6 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include <glib/gi18n.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,16 +13,20 @@
 #include <ccnet.h>
 
 #include "stdafx.h"
-#include "resource.h"
+#ifdef SEAF_LANG_CHINESE
+    #include "resource.h"
+#else
+    #include "resource.en.h"
+#endif
 
 #include "utils.h"
 #include "applet-common.h"
 #include "trayicon.h"
 #include "applet-log.h"
-#include "applet-po-gbk.h"
 #include "rpc-wrapper.h"
 #include "seafile-applet.h"
 
+#define GETTEXT_PACKAGE "seafile"    
 #define STARTWEBSERVER "seafile-web.exe 127.0.0.1:13420"
 #define WEB_PROCESS_NAME "seafile-web.exe"
 
@@ -48,7 +53,7 @@ TestWebServer (HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
         applet_message ("Web server is up.\n");
 
         applet->web_status = WEB_READY;
-        trayicon_notify (S_SEAFILE_STARTUP, S_SEAFILE_CLICK_HINT);
+        trayicon_notify (_("Seafile is started"), _("Click the icon to open admin console"));
     }
 }
 
@@ -63,7 +68,7 @@ reset_trayicon_and_tip()
     } else {
         if (applet->auto_sync_disabled) {
             id = IDI_STATUS_AUTO_SYNC_DISABLED;
-            tip = S_TIP_AUTO_SYNC_DISABLED;
+            tip = _("Auto sync is disabled");
         } else {
             id = IDI_STATUS_UP;
         }
@@ -365,7 +370,7 @@ set_auto_sync_cb (void *result, void *data, GError *error)
                         error->message);
 
         MessageBox(NULL,
-                   disable ? S_FAILED_DISABLE_AUTO_SYNC : S_FAILED_ENABLE_AUTO_SYNC,
+                   disable ? _("Failed to disable auto sync") : _("Failed to enable auto sync"),
                    "Seafile", MB_OK);
         
     } else {
@@ -499,8 +504,21 @@ seafile_applet_init (HINSTANCE hInstance)
 int
 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
+    if (set_applet_wd() < 0) 
+        return -1;
+
+#ifdef SEAF_LANG_CHINESE
+    char *seafile_locale_dir = g_build_filename (seafile_bin_dir,
+                                                 "i18n", NULL);
+    /* init i18n */
+    setlocale (LC_ALL, "zh_CN");
+    bindtextdomain(GETTEXT_PACKAGE, seafile_locale_dir);
+    bind_textdomain_codeset(GETTEXT_PACKAGE, "GBK");
+    textdomain(GETTEXT_PACKAGE);
+#endif
+    
     if (count_process("seafile-applet") > 1) {
-        MessageBox(NULL, S_SEAFILE_APPLET_ALREAD_RUNNING, "Seafile", MB_OK);
+        MessageBox(NULL, _("Seafile is already running"), "Seafile", MB_OK);
         exit(1);
     }
     
@@ -516,6 +534,11 @@ WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, in
 
     snprintf(cmdbuf, sizeof(cmdbuf), "seafile-applet.exe %s", lpCmdLine);
 
+    char *xxx = _("Seafile Initialization");
+    char tmp[128];
+
+    snprintf(tmp, sizeof(tmp), "%s", xxx);
+
     if (!g_shell_parse_argv (cmdbuf, &argc, &argv, &err)) {
         if (err)
             applet_warning ("parse arguments failed %s\n", err->message);
@@ -524,9 +547,6 @@ WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, in
 
     g_type_init();
 
-    if (set_applet_wd() < 0) 
-        return -1;
-    
     applet = g_new0 (SeafileApplet, 1);
 
     seafile_applet_init (hInstance);

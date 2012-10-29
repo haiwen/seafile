@@ -1,6 +1,6 @@
 //{{NO_DEPENDENCIES}}
 // Microsoft Visual C++ generated include file.
-// Used by trayicon.rc
+// Used by trayicon.en.rc
 //
 #define IDI_STARTINTRAY                 102
 #define IDS_APP_TITLE                   103

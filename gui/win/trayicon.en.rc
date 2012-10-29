@@ -1,6 +1,6 @@
 // Microsoft Visual C++ generated resource script.
 //
-#include "resource.h"
+#include "resource.en.h"
 
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -48,14 +48,14 @@ IDC_STARTINTRAY MENU
 BEGIN
     POPUP "文件(&F)"
     BEGIN
-        MENUITEM "打开管理页面(&O)",                  IDM_OPEN
+        MENUITEM "Open admin page(&O)",                  IDM_OPEN
         MENUITEM SEPARATOR
-        MENUITEM "暂停同步",                        IDM_DISABLE_AUTO_SYNC
-        MENUITEM "开启同步",                        IDM_ENABLE_AUTO_SYNC
+        MENUITEM "Disable auto sync",                        IDM_DISABLE_AUTO_SYNC
+        MENUITEM "Enable auto sync",                        IDM_ENABLE_AUTO_SYNC
         MENUITEM SEPARATOR
-        MENUITEM "重启 Seafile(&R)",              IDM_RESTART
+        MENUITEM "Restart Seafile(&R)",              IDM_RESTART
         MENUITEM SEPARATOR
-        MENUITEM "退出(&X)",                      IDM_EXIT
+        MENUITEM "Quit(&X)",                      IDM_EXIT
     END
 END
 
@@ -87,7 +87,7 @@ END
 
 1 TEXTINCLUDE 
 BEGIN
-    "resource.h\0"
+    "resource.en.h\0"
 END
 
 2 TEXTINCLUDE 
@@ -115,28 +115,28 @@ END
 IDD_WIN7_TIP DIALOGEX 0, 0, 329, 236
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_APPWINDOW
-CAPTION "Seafile 提示"
+CAPTION "Seafile"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "完成",ID_FINISH,260,214,50,14
+    DEFPUSHBUTTON   "Finish",ID_FINISH,260,214,50,14
     CONTROL         142,IDC_STATIC,"Static",SS_BITMAP,0,46,333,151
-    LTEXT           "Seafile 检测到您使用的是 Windows 7， 由于 Windows 7 默认将程序的任务栏图标隐藏，这样将给您使用 Seafile 带来不便。我们建议您设置 Seafile 的图标为    “显示图标和通知”，以方便您使用 Seafile。",IDC_STATIC,15,10,273,27
+    LTEXT           "You are using Windows 7. Tray icons are hidden by system on Windows 7, which makes it inconvinient to use Seafile. We Sugguest you set the icon of Seafile to 'Show icon and notification'.",IDC_STATIC,15,10,273,27
 END
 
 IDD_INIT_SEAFILE DIALOGEX 200, 80, 327, 207
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_TOOLWINDOW | WS_EX_APPWINDOW
-CAPTION "Seafile 初始化"
+CAPTION "Seafile Configuration"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "下一步",IDOK,206,184,50,14
-    PUSHBUTTON      "取消",IDCANCEL,261,184,50,14
+    DEFPUSHBUTTON   "Next",IDOK,206,184,50,14
+    PUSHBUTTON      "Cancel",IDCANCEL,261,184,50,14
     CONTROL         144,-1,"Static",SS_BITMAP,0,0,329,36
     CONTROL         "",-1,"Static",SS_BLACKFRAME | SS_SUNKEN,0,175,327,1
     CONTROL         "",-1,"Static",SS_BLACKFRAME | SS_SUNKEN,0,36,327,1
-    LTEXT           "请选择磁盘:",IDC_STATIC_SEAFILRDIR,53,121,61,9
+    LTEXT           "Choose a disk:",IDC_STATIC_SEAFILRDIR,49,122,50,9
     COMBOBOX        IDC_COMBOX_DISK,99,119,121,16,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "请选择一个磁盘。\n\n我们会在这个磁盘下创建 Seafile 目录，您下载的资料库将默认保存在此处。",IDC_STATIC_SEAFILE,53,66,227,41
+    LTEXT           "Please choose a disk.\n\nWe will create a Seafile folder in this disk. When you download a library, it will be saved in this folder by default.",IDC_STATIC_SEAFILE,53,66,227,41
     LTEXT           "此处显示当前设置",IDC_STATIC_TITLE,23,13,65,14,0,WS_EX_TRANSPARENT
 END
 

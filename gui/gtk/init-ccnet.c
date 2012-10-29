@@ -19,6 +19,7 @@
  * Boston, MA 02111-1307, USA.
  */
 
+#include <glib/gi18n.h>
 #include <gtk/gtk.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,23 +39,6 @@ static GtkEntry        *name_entry;
 static GtkLabel        *error_name_label;
 static GtkLabel        *name_label;
 static GtkBuilder      *builder;
-
-static const char *error_str[] = {
-    "Unknown error",
-    "Permission error",
-    "Create config file failed",
-    "Create seafile config failed",
-};
-
-static const char *
-error_code_to_str (const int code)
-{
-    if (code <= 0 || code >= G_N_ELEMENTS(error_str))
-        return "Unknown error";
-
-    return error_str[code];
-}
-
 
 static void
 show_warning (GtkWindow *window, const char *title, const char *warning_msg)

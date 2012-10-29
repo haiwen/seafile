@@ -21,6 +21,9 @@ configure
 */.deps
 autom4te*
 po/POTFILES
+po/Makefile*
+po/stamp-it
+po/*.gmo
 missing
 mkinstalldirs
 stamp-h1
@@ -108,4 +111,5 @@ web/build/
 web/dist/
 tests/basic/conf2/misc/
 tests/basic/conf2/seafile-data/
+
 

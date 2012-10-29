@@ -1,5 +1,6 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include <glib/gi18n.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
@@ -8,8 +9,12 @@
 #include <ccnet.h>
 
 #include "stdafx.h"
-#include "resource.h"
-#include "applet-po-gbk.h"
+#ifdef SEAF_LANG_CHINESE
+    #include "resource.h"
+#else
+    #include "resource.en.h"
+#endif
+
 #include "trayicon.h"
 #include <commdlg.h>
 #include <ShlObj.h>
@@ -26,23 +31,6 @@
 #define INIT_CCNET_FAILED   -1
 
 #define IS_DLG_CONTROL(ID)   ((HWND)(lParam) == GetDlgItem(hDlg, (ID)))
-
-static const char *error_str[] =
-{
-    S_UNKNOWN_ERR,
-    S_PERMISSION_ERROR,
-    S_CREATE_CONF_FAILED,
-    S_CREATE_SEAFILE_CONF_FAILED,
-};
-
-static const char *
-error_code_to_str (const int code)
-{
-    if (code <= 0 || code >= ERR_MAX_NUM)
-        return S_UNKNOWN_ERR;
-
-    return error_str[code];
-}
 
 BOOL
 msgbox_yes_or_no (HWND hWnd, char *format, ...)
@@ -177,10 +165,10 @@ InitComboxList(HWND hDlg)
 
         if (free_space.QuadPart) {
             double d = ((double)(free_space.QuadPart)) / (1024 * 1024 * 1024);
-            snprintf (buf, sizeof(buf), "%s\t   (%.1f GB " S_AVAILABLE ")",
-                      p, d);
+            snprintf (buf, sizeof(buf), "%s\t   (%.1f GB %s)",
+                      p, d, _("free"));
         } else
-            snprintf (buf, sizeof(buf), "%s\t   (" S_AVAILABLE_UNKNOWN ")", p);
+            snprintf (buf, sizeof(buf), "%s\t   (%s)", p, _("free space unknown"));
 
         i++;
 
@@ -270,10 +258,10 @@ copy_user_manual()
     PathRemoveBackslash(seafdir);
 
     snprintf (src_path, sizeof(src_path),
-              "%s\\%s", installdir, S_USER_MANUAL_FILENAME);
+              "%s\\%s", installdir, _("Seafile help.txt"));
 
     snprintf (dst_path, sizeof(dst_path),
-              "%s\\%s", seafdir, S_USER_MANUAL_FILENAME);
+              "%s\\%s", seafdir, _("Seafile help.txt"));
     
     /* Skip if already exist */
     /* Ver1.1: Manual Changed. We need to overwrite it. */
@@ -298,8 +286,8 @@ InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_INITDIALOG:
         InitComboxList(hDlg);
         set_dlg_icon (hDlg, IDI_STATUS_UP);
-        SetWindowText (GetDlgItem(hDlg, IDC_STATIC_TITLE), S_INIT_DISK);
-        set_control_font (GetDlgItem(hDlg, IDC_STATIC_TITLE), S_BOLD_FONT);
+        SetWindowText (GetDlgItem(hDlg, IDC_STATIC_TITLE), _("Choose a disk"));
+        set_control_font (GetDlgItem(hDlg, IDC_STATIC_TITLE), _("Courier"));
         make_wnd_foreground(hDlg);
         return TRUE;
         break;
@@ -342,7 +330,7 @@ InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         }
 
         case IDCANCEL:
-            if (msgbox_yes_or_no (hDlg, S_ENSURE_QUIT_INIT)) {
+            if (msgbox_yes_or_no (hDlg, _("Initialzation is not finished. Really quit?"))) {
                 EndDialog (hDlg, INIT_CCNET_FAILED);
             }
             return TRUE;
@@ -352,7 +340,7 @@ InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_CLOSE:
-        if (msgbox_yes_or_no (hDlg, S_ENSURE_QUIT_INIT)) {
+        if (msgbox_yes_or_no (hDlg, _("Initialzation is not finished. Really quit?"))) {
             EndDialog (hDlg, INIT_CCNET_FAILED);
         }
         return TRUE;

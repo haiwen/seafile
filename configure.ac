@@ -377,17 +377,21 @@ if test "$blinux" = true -a x${compile_client} = xyes; then
    #PKG_CHECK_MODULES(LIBNAUTILUS_EXTENSION, [libnautilus-extension >= $LIBNAUTILUS_EXTENSION_REQUIRED])
    #AC_SUBST(LIBNAUTILUS_EXTENSION_CFLAGS)
    #AC_SUBST(LIBNAUTILUS_EXTENSION_LIBS)
+fi
 
-   # For translation
-   #GETTEXT_PACKAGE=ccnet
-   #AC_SUBST(GETTEXT_PACKAGE)
-   #AC_DEFINE_UNQUOTED(GETTEXT_PACKAGE,"$GETTEXT_PACKAGE", [Gettext package.])
-   #AC_PROG_INTLTOOL([0.35])
-   #ALL_LINGUAS="en zh_cn"
-   #AM_GLIB_GNU_GETTEXT
-   #GLIB_DEFINE_LOCALEDIR(PACKAGE_LOCALE_DIR)
-   #PO=po
-   #AC_SUBST(PO)
+if test x${compile_client} = xyes; then
+
+   m4_ifdef([IT_PROG_INTLTOOL],
+        [IT_PROG_INTLTOOL([0.35.0],[no-xml])],
+        [AC_MSG_ERROR("--enable-nls requires intltool to be installed.")])
+   AC_CHECK_HEADERS([libintl.h])
+   GETTEXT_PACKAGE=seafile
+   AC_SUBST(GETTEXT_PACKAGE)
+   AC_DEFINE_UNQUOTED([GETTEXT_PACKAGE],["$GETTEXT_PACKAGE"],[Gettext package])
+   AM_GLIB_GNU_GETTEXT
+   seafilelocaledir='${prefix}/${DATADIRNAME}/locale'
+   AC_SUBST(seafilelocaledir)
+   AC_SUBST(INTLLIBS)
 fi
 
 if test x${compile_python} = xyes; then
@@ -469,6 +473,7 @@ AC_CONFIG_FILES(
     tools/Makefile
     tests/Makefile
     tests/common-conf.sh
+    po/Makefile.in
 )
 #    desktop/Makefile
 #    desktop/nautilus/Makefile

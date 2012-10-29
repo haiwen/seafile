@@ -5,6 +5,7 @@ APPNAME = seafile-applet
 TARGET = $(APPNAME).exe
 
 all: $(TARGET)
+en: $(TARGET)
 
 top_srcdir=../..
 
@@ -24,12 +25,21 @@ LDFLAGS += -L${top_srcdir}/lib/.libs/   \
 
 CC = gcc
 RC = windres
-RCFILE = trayicon.rc
 ICONS = serverup.ico serverdown.ico ccnet.ico \
 	window-head.bmp win7-trayicon-tip.bmp sync-paused.ico
 
 CFLAGS += -DWINVER=0x500 -D_WIN32_IE=0x500
 LDFLAGS += -lcomctl32 -lcomdlg32
+
+ifeq (${MAKECMDGOALS}, en)
+	CFLAGS += -DSEAF_LANG_ENGLISH
+	RCFILE = trayicon.en.rc
+	RC_HEADER = resource.en.h
+else
+	CFLAGS += -DSEAF_LANG_CHINESE
+	RCFILE = trayicon.rc
+	RC_HEADER = resource.h
+endif
 
 ifeq (${MAKECMDGOALS}, debug)
 	CFLAGS += -g -O0 -D _DEBUG
@@ -71,16 +81,13 @@ applet-log.o : ../common/applet-log.c
 rpc-wrapper.o : ../common/rpc-wrapper.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-applet-po-gbk.h : ../common/applet-po.h
-	iconv -t GBK -f UTF-8 $< > $@
-
 %.o : %.c
 	${CC} ${CFLAGS} -c $< -o $@
 
-resource.o : ${RCFILE} resource.h ${ICONS} Application.manifest
+resource.o : ${RCFILE} ${RC_HEADER} ${ICONS} Application.manifest
 	${RC}  -i $< -o $@
 
-$(TARGET) : applet-po-gbk.h $(OBJECTS) resource.o .deps
+$(TARGET) : $(OBJECTS) resource.o .deps
 	${CC} -o "$@" ${OBJECTS} resource.o ${LDFLAGS} 
 
 debug:all
@@ -93,4 +100,4 @@ uninstall:
 clean :
 	rm -f *.o *.exe .deps
 
-.PHONY: all debug clean dist distclean install uninstall 
+.PHONY: all en debug clean dist distclean install uninstall 

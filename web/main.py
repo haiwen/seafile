@@ -23,6 +23,7 @@ from seaserv import get_repos, get_repo, get_commits, \
     get_branches, open_dir, get_diff, \
     list_dir, remove_repos_on_relay, get_default_seafile_worktree, \
     get_current_prefs
+from seaserv import lang_code
 
 from seaserv import TaskType
 
@@ -64,7 +65,7 @@ if "darwin" == sys.platform and hasattr(sys, 'frozen'):
     
 NET_STATE_CONNECTED = 1
 
-DEFAULT_LANG = 'zh_CN'
+DEFAULT_LANG = lang_code
 lang_in_use = None
 
 gettext.install('messages', localedir, unicode=True)
