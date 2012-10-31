@@ -4255,7 +4255,7 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
     if (!fullpath)
         fullpath = g_build_filename(parent_dir, file_name, NULL);
 
-    old_file_id = seaf_fs_manager_path_to_file_id (seaf->fs_mgr,
+    old_file_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
                                                    head_commit->root_id,
                                                    fullpath, NULL, NULL);
 
@@ -4828,39 +4828,137 @@ typedef struct CollectRevisionParam CollectRevisionParam;
 
 struct CollectRevisionParam {
     const char *path;
-    GHashTable *commit_hash;
+    GHashTable *wanted_commits;
+    GHashTable *file_id_cache;
     GError **error;
 };
+
+static char *
+get_commit_file_id_with_cache (SeafCommit *commit,
+                               const char *path,
+                               GHashTable *file_id_cache,
+                               GError **error)
+{
+    char *file_id = NULL;
+    guint32 mode;
+
+    file_id = g_hash_table_lookup (file_id_cache, commit->commit_id);
+    if (file_id) {
+        return g_strdup(file_id);
+    }
+
+    file_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
+                    commit->root_id, path, &mode, error);
+
+    if (file_id != NULL) {
+        if (S_ISDIR(mode)) {
+            g_free (file_id);
+            return NULL;
+
+        } else {
+            g_hash_table_insert (file_id_cache,
+                                 g_strdup(commit->commit_id),
+                                 g_strdup(file_id));
+            return file_id;
+        }
+    }
+
+    return NULL;
+}
 
 static gboolean
 collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
 {
     CollectRevisionParam *data = vdata;
+    const char *path = data->path;
     GError **error = data->error;
-    GHashTable *commit_hash = data->commit_hash;
-    char *file_id;
-    file_id = seaf_fs_manager_path_to_file_id (seaf->fs_mgr,
-                                               commit->root_id,
-                                               data->path, NULL, error);
+    GHashTable *wanted_commits = data->wanted_commits;
+    GHashTable *file_id_cache = data->file_id_cache;
+
+    SeafCommit *parent = NULL;
+    SeafCommit *parent2 = NULL;
+    char *file_id = NULL;
+    char *parent_file_id = NULL;
+    char *parent_file_id2 = NULL;
+
+    gboolean ret = TRUE;
+
+    file_id = get_commit_file_id_with_cache (commit, path,
+                                             file_id_cache, error);
     if (*error) {
-        *stop = TRUE;
-        return FALSE;
-    } else if (!file_id) {
-        return TRUE;
+        ret = FALSE;
+        goto out;
     }
 
-    SeafCommit *commit2 = g_hash_table_lookup (commit_hash, file_id);
-    if (!commit2) {
-        seaf_commit_ref (commit);
-        g_hash_table_insert (commit_hash, file_id, commit);
-
-    } else if (commit->ctime < commit2->ctime) {
-        seaf_commit_ref (commit);
-        g_hash_table_replace (commit_hash, file_id, commit);
-        /* no need to unref commit2 since we alreay specified a value destroy function */
+    if (!file_id) {
+        /* Target file is not present in this commit. */
+        goto out;
     }
 
-    return TRUE;
+    if (!commit->parent_id) {
+        /* Initial commit */
+        seaf_commit_ref (commit);
+        g_hash_table_insert (wanted_commits, commit->commit_id, commit);
+        goto out;
+    }
+
+    parent = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             commit->parent_id);
+    if (!parent) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Faild to get commit %s", commit->parent_id);
+        ret = FALSE;
+        goto out;
+    }
+
+    parent_file_id = get_commit_file_id_with_cache (parent,
+                                                    path, file_id_cache, error);
+    if (*error) {
+        ret = FALSE;
+        goto out;
+    }
+
+    if (g_strcmp0 (parent_file_id, file_id) == 0) {
+        /* This commit does not modify the target file */
+        goto out;
+    }
+
+    /* In case of a merge, the second parent also need compare */
+    if (commit->second_parent_id) {
+        parent2 = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                 commit->second_parent_id);
+        if (!parent2) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "Faild to get commit %s", commit->second_parent_id);
+            ret = FALSE;
+            goto out;
+        }
+
+        parent_file_id2 = get_commit_file_id_with_cache (parent2,
+                                        path, file_id_cache, error);
+        if (*error) {
+            ret = FALSE;
+            goto out;
+        }
+
+        if (g_strcmp0 (parent_file_id2, file_id) == 0) {
+            /* This commit does not modify the target file */
+            goto out;
+        }
+    }
+
+    seaf_commit_ref (commit);
+    g_hash_table_insert (wanted_commits, commit->commit_id, commit);
+
+out:
+    g_free (file_id);
+    g_free (parent_file_id);
+    g_free (parent_file_id2);
+
+    if (parent) seaf_commit_unref (parent);
+    if (parent2) seaf_commit_unref (parent2);
+
+    return ret;
 }
 
 static int
@@ -4878,9 +4976,8 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
                                        GError **error)
 {
     SeafRepo *repo = NULL;
-    GHashTable *commit_hash = NULL;
-
     GList *commit_list = NULL;
+    CollectRevisionParam data = {0};
 
     repo = seaf_repo_manager_get_repo (mgr, repo_id);
     if (!repo) {
@@ -4889,16 +4986,18 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
         goto out;
     }
 
-    /* A (seafile id, commit id) hash table. We specify a value destroy
+    data.path = path;
+    data.error = error;
+
+    /* A (commit id, commit) hash table. We specify a value destroy
      * function, so that even if we fail in half way of traversing, we can
      * free all commits in the hashtbl.*/
-    commit_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
-                    g_free, (GDestroyNotify)seaf_commit_unref);
+    data.wanted_commits = g_hash_table_new_full (g_str_hash, g_str_equal,
+                            NULL, (GDestroyNotify)seaf_commit_unref);
 
-    CollectRevisionParam data;
-    data.path = path;
-    data.commit_hash = commit_hash;
-    data.error = error;
+    /* A hash table to cache caculated file id of <path> in <commit> */
+    data.file_id_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                g_free, g_free);
 
     if (!seaf_commit_manager_traverse_commit_tree_with_limit (seaf->commit_mgr,
                                                         repo->head->commit_id,
@@ -4913,7 +5012,7 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
     GHashTableIter iter;
     gpointer key, value;
 
-    g_hash_table_iter_init (&iter, commit_hash);
+    g_hash_table_iter_init (&iter, data.wanted_commits);
     while (g_hash_table_iter_next (&iter, &key, &value)) {
         SeafCommit *commit = value;
         seaf_commit_ref (commit);
@@ -4924,8 +5023,10 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
 out:
     if (repo)
         seaf_repo_unref (repo);
-    if (commit_hash)
-        g_hash_table_destroy (commit_hash);
+    if (data.wanted_commits)
+        g_hash_table_destroy (data.wanted_commits);
+    if (data.file_id_cache)
+        g_hash_table_destroy (data.file_id_cache);
 
     return commit_list;
 }
@@ -5170,7 +5271,7 @@ remove_existing (gpointer key, gpointer value, gpointer user_data)
     guint32 mode = seafile_deleted_entry_get_mode(e), mode_out = 0;
     char *path = key;
 
-    char *obj_id = seaf_fs_manager_path_to_file_id (seaf->fs_mgr, head->root_id,
+    char *obj_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr, head->root_id,
                                                     path, &mode_out, NULL);
     if (obj_id == NULL)
         return FALSE;

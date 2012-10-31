@@ -1209,7 +1209,7 @@ seaf_fs_manager_get_seafdir_by_path (SeafFSManager *mgr,
 }
 
 char *
-seaf_fs_manager_path_to_file_id (SeafFSManager *mgr,
+seaf_fs_manager_path_to_obj_id (SeafFSManager *mgr,
                                  const char *root_id,
                                  const char *path,
                                  guint32 *mode,
@@ -1284,7 +1284,7 @@ seaf_fs_manager_get_seafile_id_by_path (SeafFSManager *mgr,
     guint32 mode;
     char *file_id;
 
-    file_id = seaf_fs_manager_path_to_file_id (mgr, root_id, path, &mode, error);
+    file_id = seaf_fs_manager_path_to_obj_id (mgr, root_id, path, &mode, error);
 
     if (*error)
         return NULL;
@@ -1308,7 +1308,7 @@ seaf_fs_manager_get_seafdir_id_by_path (SeafFSManager *mgr,
     guint32 mode;
     char *dir_id;
 
-    dir_id = seaf_fs_manager_path_to_file_id (mgr, root_id, path, &mode, error);
+    dir_id = seaf_fs_manager_path_to_obj_id (mgr, root_id, path, &mode, error);
 
     if (*error)
         return NULL;
