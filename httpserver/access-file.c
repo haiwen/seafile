@@ -6,6 +6,10 @@
 #include <event.h>
 #include <evhtp.h>
 
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
+
 #include <ccnet.h>
 
 #include "seafile-object.h"
@@ -17,6 +21,7 @@
 #include "seafile-session.h"
 #include "httpserver.h"
 #include "access-file.h"
+#include "pack-dir.h"
 
 #define CONTENT_TYPE_FILENAME "content-type.txt"
 #define FILE_TYPE_MAP_DEFAULT_LEN 1
@@ -41,6 +46,21 @@ typedef struct SendfileData {
     void *saved_cb_arg;
 } SendfileData;
 
+typedef struct SendDirData {
+    evhtp_request_t *req;
+    size_t remain;
+
+    int zipfd;
+    char *zipfile;
+
+    bufferevent_data_cb saved_read_cb;
+    bufferevent_data_cb saved_write_cb;
+    bufferevent_event_cb saved_event_cb;
+    void *saved_cb_arg;
+} SendDirData;
+
+
+
 extern SeafileSession *seaf;
 
 static struct file_type_map ftmap[] = {
@@ -58,6 +78,16 @@ free_sendfile_data (SendfileData *data)
 {
     seafile_unref (data->file);
     g_free (data->crypt);
+    g_free (data);
+}
+
+static void
+free_senddir_data (SendDirData *data)
+{
+    close (data->zipfd);
+    unlink (data->zipfile);
+    
+    g_free (data->zipfile);
     g_free (data);
 }
 
@@ -180,6 +210,43 @@ err:
 }
 
 static void
+write_dir_data_cb (struct bufferevent *bev, void *ctx)
+{
+    SendDirData *data = ctx;
+    char buf[64 * 1024];
+    int n;
+
+    n = readn (data->zipfd, buf, sizeof(buf));
+    if (n <= 0) {
+        seaf_warning ("failed to read zipfile %s\n", data->zipfile);
+        evhtp_connection_free (evhtp_request_get_connection (data->req));
+        free_senddir_data (data);
+        return;
+        
+    } else {
+        bufferevent_write (bev, buf, n);
+        data->remain -= n;
+
+        if (data->remain == 0) {
+            /* Recover evhtp's callbacks */
+            struct bufferevent *bev = evhtp_request_get_bev (data->req);
+            bev->readcb = data->saved_read_cb;
+            bev->writecb = data->saved_write_cb;
+            bev->errorcb = data->saved_event_cb;
+            bev->cbarg = data->saved_cb_arg;
+
+            /* Resume reading incomming requests. */
+            evhtp_request_resume (data->req);
+
+            evhtp_send_reply_end (data->req);
+
+            free_senddir_data (data);
+            return;
+        }
+    }
+}
+
+static void
 my_event_cb (struct bufferevent *bev, short events, void *ctx)
 {
     SendfileData *data = ctx;
@@ -188,6 +255,17 @@ my_event_cb (struct bufferevent *bev, short events, void *ctx)
 
     /* Free aux data. */
     free_sendfile_data (data);
+}
+
+static void
+my_dir_event_cb (struct bufferevent *bev, short events, void *ctx)
+{
+    SendDirData *data = ctx;
+
+    data->saved_event_cb (bev, events, data->saved_cb_arg);
+
+    /* Free aux data. */
+    free_senddir_data (data);
 }
 
 static char *
@@ -206,6 +284,24 @@ parse_content_type(const char *filename)
     }
 
     return NULL;
+}
+
+static gboolean
+test_windows (evhtp_request_t *req)
+{
+    const char *user_agent = evhtp_header_find (req->headers_in, "User-Agent");
+    if (!user_agent)
+        return FALSE;
+
+    GString *s = g_string_new (user_agent);
+    if (g_strrstr (g_string_ascii_down (s)->str, "windows")) {
+        g_string_free (s, TRUE);
+        return TRUE;
+    }
+    else {
+        g_string_free (s, TRUE);
+        return FALSE;
+    }
 }
 
 static gboolean
@@ -337,6 +433,123 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     return 0;
 }
 
+static int
+do_dir (evhtp_request_t *req, SeafRepo *repo, const char *file_id,
+        const char *filename, const char *operation,
+        SeafileCryptKey *crypt_key)
+{
+    char *zipfile = NULL;
+    char *filename_escaped = NULL;
+    char cont_filename[PATH_MAX];
+    char file_size[255];
+    struct stat st;
+    char *key_hex, *iv_hex;
+    unsigned char enc_key[16], enc_iv[16];
+    SeafileCrypt *crypt = NULL;
+    int zipfd = 0;
+    int ret = 0;
+
+    /* Let's zip the directory first */
+    filename_escaped = g_uri_unescape_string (filename, NULL);
+    if (!filename_escaped) {
+        seaf_warning ("failed to unescape string %s\n", filename);
+        ret = -1;
+        goto out;
+    }
+
+    if (crypt_key != NULL) {
+        g_object_get (crypt_key,
+                      "key", &key_hex,
+                      "iv", &iv_hex,
+                      NULL);
+        hex_to_rawdata (key_hex, enc_key, 16);
+        hex_to_rawdata (iv_hex, enc_iv, 16);
+        crypt = seafile_crypt_new (repo->enc_version, enc_key, enc_iv);
+        g_free (key_hex);
+        g_free (iv_hex);
+    }
+
+    zipfile = pack_dir (filename_escaped, file_id, crypt, test_windows(req));
+    if (!zipfile) {
+        ret = -1;
+        goto out;
+    }
+    
+    /* OK, the dir is zipped */
+    evhtp_headers_add_header(req->headers_out,
+                evhtp_header_new("Content-Type", "application/zip", 1, 1));
+    
+    if (stat(zipfile, &st) < 0) {
+        ret = -1;
+        goto out;
+    }
+
+    snprintf (file_size, sizeof(file_size), "%"G_GUINT64_FORMAT"", st.st_size);
+    evhtp_headers_add_header (req->headers_out,
+            evhtp_header_new("Content-Length", file_size, 1, 1));
+
+    if (test_firefox (req)) {
+        snprintf(cont_filename, PATH_MAX,
+                 "attachment;filename*=\"utf8\' \'%s.zip\"", filename);
+    } else {
+        snprintf(cont_filename, PATH_MAX,
+                 "attachment;filename=\"%s.zip\"", filename);
+    }
+
+    evhtp_headers_add_header(req->headers_out,
+            evhtp_header_new("Content-Disposition", cont_filename, 1, 1));
+
+    zipfd = open (zipfile, O_RDONLY);
+    if (zipfd < 0) {
+        seaf_warning ("failed to open zipfile %s\n", zipfile);
+        ret = -1;
+        goto out;
+    }
+
+    SendDirData *data;
+    data = g_new0 (SendDirData, 1);
+    data->req = req;
+    data->zipfd = zipfd;
+    data->zipfile = zipfile;
+    data->remain = st.st_size;
+
+    /* We need to overwrite evhtp's callback functions to
+     * write file data piece by piece.
+     */
+    struct bufferevent *bev = evhtp_request_get_bev (req);
+    data->saved_read_cb = bev->readcb;
+    data->saved_write_cb = bev->writecb;
+    data->saved_event_cb = bev->errorcb;
+    data->saved_cb_arg = bev->cbarg;
+    bufferevent_setcb (bev,
+                       NULL,
+                       write_dir_data_cb,
+                       my_dir_event_cb,
+                       data);
+    /* Block any new request from this connection before finish
+     * handling this request.
+     */
+    evhtp_request_pause (req);
+
+    /* Kick start data transfer by sending out http headers. */
+    evhtp_send_reply_start(req, EVHTP_RES_OK);
+
+out:
+    g_free (filename_escaped);
+    if (ret < 0) {
+        if (zipfile != NULL) {
+            unlink (zipfile);
+            g_free (zipfile);
+        }
+
+        if (zipfd > 0) {
+            close (zipfd);
+        }
+    }
+
+    return ret;
+}
+
 static void
 access_cb(evhtp_request_t *req, void *arg)
 {
@@ -426,7 +639,13 @@ access_cb(evhtp_request_t *req, void *arg)
         goto bad_req;
     }
 
-    if (do_file(req, repo, id, filename, operation, key) < 0) {
+    if (strcmp(operation, "download-dir") == 0) {
+        if (do_dir(req, repo, id, filename, operation, key) < 0) {
+            error = "Internal server error\n";
+            goto bad_req;
+        }
+        
+    } else if (do_file(req, repo, id, filename, operation, key) < 0) {
         error = "Internal server error\n";
         goto bad_req;
     }

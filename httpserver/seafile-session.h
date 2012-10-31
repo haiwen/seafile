@@ -26,6 +26,7 @@ struct _SeafileSession {
     /* Config that's only loaded on start */
     GKeyFile            *config;
     SeafDB              *db;
+    char                *windows_encoding;
 
     struct CcnetClientPool     *client_pool;
 

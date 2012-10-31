@@ -6,10 +6,35 @@
 
 #include <ccnet.h>
 #include <utils.h>
+#include <locale.h>
 
 #include "seafile-session.h"
 #include "seafile-config.h"
 #include "seaf-utils.h"
+
+
+/* Zip filename in windows should be encoded in UTF-8 to be consistent across
+ * all system encodings. However, WinRAR(a much popular compress software)
+ * does not support UTF-8 filename.
+ *
+ * To sovle this problem, set the `windows_encoding` under the [zip] category
+ * in seafile.conf. If set, file name would be converted to the specified
+ * encoding. Otherwise, the UTF-8 way would be used.
+ */
+void
+load_zip_encoding_config (SeafileSession *session)
+{
+    char *encoding;
+    GError *error = NULL;
+
+    encoding = g_key_file_get_string (session->config, "zip", "windows_encoding", &error);
+    if (encoding) {
+        session->windows_encoding = encoding;
+    } else {
+        /* No windows specific encoding is specified. Set the ZIP_UTF8 flag. */
+        setlocale (LC_ALL, "en_US.UTF-8");
+    }
+}
 
 SeafileSession *
 seafile_session_new(const char *seafile_dir,
@@ -60,6 +85,7 @@ seafile_session_new(const char *seafile_dir,
         g_warning ("Failed to load database config.\n");
         goto onerror;
     }
+    load_zip_encoding_config (session);
 
     session->fs_mgr = seaf_fs_manager_new (session, abs_seafile_dir);
     if (!session->fs_mgr)
