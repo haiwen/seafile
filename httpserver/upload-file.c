@@ -8,6 +8,8 @@
 #include <event.h>
 #include <evhtp.h>
 
+#include <json-glib/json-glib.h>
+
 #include <pthread.h>
 
 #include <ccnet.h>
@@ -53,6 +55,8 @@ typedef struct RecvFSM {
     evbuf_t *line;          /* buffer for a line */
 
     GHashTable *form_kvs;       /* key/value of form fields */
+    GList *uploaded_files;      /* uploaded file names */
+    GList *tmp_files;           /* tmp files for each uploaded file */
 
     gboolean recved_crlf; /* Did we recv a CRLF when write out the last line? */
     char *file_name;
@@ -70,36 +74,6 @@ typedef struct RecvFSM {
 
 static GHashTable *upload_progress;
 static pthread_mutex_t pg_lock;
-
-static gboolean
-filename_exists (SeafDir *dir, const char *filename)
-{
-    GList *ptr;
-    SeafDirent *dent;
-
-    for (ptr = dir->entries; ptr != NULL; ptr = ptr->next) {
-        dent = ptr->data;
-        if (strcmp (dent->name, filename) == 0)
-            return TRUE;
-    }
-
-    return FALSE;
-}
-
-static void
-split_filename (const char *filename, char **name, char **ext)
-{
-    char *dot;
-
-    dot = strrchr (filename, '.');
-    if (dot) {
-        *ext = g_strdup (dot + 1);
-        *name = g_strndup (filename, dot - filename);
-    } else {
-        *name = g_strdup (filename);
-        *ext = NULL;
-    }
-}
 
 /* IE8 will set filename to the full path of the uploaded file.
  * So we need to strip out the basename from it.
@@ -121,61 +95,6 @@ get_basename (const char *path)
     return g_strdup(&path[i+1]);
 }
 
-static char *
-gen_unique_filename (const char *repo_id,
-                     const char *parent_dir,
-                     const char *filename)
-{
-    SeafRepo *repo = NULL;
-    SeafCommit *head = NULL;
-    SeafDir *dir = NULL;
-    char *unique_name = NULL, *name = NULL, *ext = NULL;
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        seaf_warning ("[upload] Cannot find repo %s.\n", repo_id);
-        return NULL;
-    }
-
-    head = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                           repo->head->commit_id);
-    if (!head) {
-        seaf_warning ("[upload] Cannot find head commit for repo %s.\n", repo_id);
-        goto out;
-    }
-
-    dir = seaf_fs_manager_get_seafdir_by_path (seaf->fs_mgr,
-                                               head->root_id,
-                                               parent_dir,
-                                               NULL);
-    if (!dir) {
-        seaf_warning ("[upload] Cannot find %s in repo %s.\n", parent_dir, repo_id);
-        goto out;
-    }
-
-    int i = 1;
-    unique_name = get_basename (filename);
-    split_filename (unique_name, &name, &ext);
-
-    while (filename_exists (dir, unique_name) && i <= 16) {
-        g_free (unique_name);
-        if (ext)
-            unique_name = g_strdup_printf ("%s (%d).%s", name, i, ext);
-        else
-            unique_name = g_strdup_printf ("%s (%d)", name, i);
-        i++;
-    }
-
-out:
-    if (repo) seaf_repo_unref (repo);
-    seaf_commit_unref (head);
-    seaf_dir_free (dir);
-    g_free (name);
-    g_free (ext);
-
-    return unique_name;
-}
-
 static void
 redirect_to_upload_error (evhtp_request_t *req,
                           const char *repo_id,
@@ -183,14 +102,19 @@ redirect_to_upload_error (evhtp_request_t *req,
                           const char *filename,
                           int error_code)
 {
-    char *seahub_url, *escaped_path, *escaped_fn;
+    char *seahub_url, *escaped_path, *escaped_fn = NULL;
     char url[1024];
 
     seahub_url = seaf->session->base.service_url;
     escaped_path = g_uri_escape_string (parent_dir, NULL, FALSE);
-    escaped_fn = g_uri_escape_string (filename, NULL, FALSE);
-    snprintf(url, 1024, "%s/repo/upload_error/%s?p=%s&fn=%s&err=%d",
-             seahub_url, repo_id, escaped_path, escaped_fn, error_code);
+    if (filename) {
+        escaped_fn = g_uri_escape_string (filename, NULL, FALSE);
+        snprintf(url, 1024, "%s/repo/upload_error/%s?p=%s&fn=%s&err=%d",
+                 seahub_url, repo_id, escaped_path, escaped_fn, error_code);
+    } else {
+        snprintf(url, 1024, "%s/repo/upload_error/%s?p=%s&err=%d",
+                 seahub_url, repo_id, escaped_path, error_code);
+    }
     g_free (escaped_path);
     g_free (escaped_fn);
 
@@ -240,16 +164,74 @@ redirect_to_success_page (evhtp_request_t *req,
     evhtp_send_reply(req, EVHTP_RES_FOUND);
 }
 
+static gboolean
+check_tmp_file_list (GList *tmp_files, int *error_code)
+{
+    GList *ptr;
+    char *tmp_file;
+    struct stat st;
+    gint64 total_size = 0;
+
+    for (ptr = tmp_files; ptr; ptr = ptr->next) {
+        tmp_file = ptr->data;
+
+        if (stat (tmp_file, &st) < 0) {
+            seaf_warning ("[upload] Failed to stat temp file %s.\n", tmp_file);
+            *error_code = ERROR_RECV;
+            return FALSE;
+        }
+
+        total_size += (gint64)st.st_size;
+    }
+
+    if (total_size > MAX_UPLOAD_FILE_SIZE) {
+        seaf_warning ("[upload] File size is too large.\n");
+        *error_code = ERROR_SIZE;
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static char *
+file_list_to_json (GList *files)
+{
+    JsonNode *root;
+    JsonArray *array;
+    GList *ptr;
+    char *file;
+    JsonGenerator *gen;
+    char *json_data;
+    gsize len;
+
+    root = json_node_new (JSON_NODE_ARRAY);
+    array = json_array_new ();
+
+    for (ptr = files; ptr; ptr = ptr->next) {
+        file = ptr->data;
+        json_array_add_string_element (array, file);
+    }
+    json_node_set_array (root, array);
+
+    gen = json_generator_new ();
+    json_generator_set_root (gen, root);
+    json_data = json_generator_to_data (gen, &len);
+    json_node_free (root);
+    g_object_unref (gen);
+
+    return json_data;
+}
+
 static void
 upload_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
     SearpcClient *rpc_client = NULL;
-    struct stat st;
     char *parent_dir;
-    char *unique_name;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
+    char *err_file = NULL;
+    char *filenames_json, *tmp_files_json;
 
     /* After upload_headers_cb() returns an error, libevhtp may still
      * receive data from the web browser and call into this cb.
@@ -257,6 +239,12 @@ upload_cb(evhtp_request_t *req, void *arg)
      */
     if (!fsm || fsm->state == RECV_ERROR)
         return;
+
+    if (!fsm->tmp_files) {
+        seaf_warning ("[upload] No file uploaded.\n");
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
 
     parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
     if (!parent_dir) {
@@ -266,17 +254,8 @@ upload_cb(evhtp_request_t *req, void *arg)
         return;
     }
 
-    if (stat (fsm->tmp_file, &st) < 0) {
-        seaf_warning ("[upload] Failed to stat temp file %s.\n", fsm->tmp_file);
-        error_code = ERROR_RECV;
+    if (!check_tmp_file_list (fsm->tmp_files, &error_code))
         goto error;
-    }
-
-    if ((gint64)st.st_size > MAX_UPLOAD_FILE_SIZE) {
-        seaf_warning ("[upload] File size is too large.\n");
-        error_code = ERROR_SIZE;
-        goto error;
-    }
 
     rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
                                                  NULL,
@@ -288,26 +267,22 @@ upload_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    unique_name = gen_unique_filename (fsm->repo_id,
-                                       parent_dir,
-                                       fsm->file_name);
-    if (!unique_name) {
-        goto error;
-    }
+    filenames_json = file_list_to_json (fsm->uploaded_files);
+    tmp_files_json = file_list_to_json (fsm->tmp_files);
 
-    seafile_post_file (rpc_client,
-                       fsm->repo_id,
-                       fsm->tmp_file,
-                       parent_dir,
-                       unique_name,
-                       fsm->user,
-                       &error);
-    g_free (unique_name);
+    seafile_post_multi_files (rpc_client,
+                              fsm->repo_id,
+                              parent_dir,
+                              filenames_json,
+                              tmp_files_json,
+                              fsm->user,
+                              &error);
+    g_free (filenames_json);
+    g_free (tmp_files_json);
     if (error) {
-        if (g_strcmp0 (error->message, "Invalid filename") == 0) {
+        if (error->code == POST_FILE_ERR_FILENAME) {
             error_code = ERROR_FILENAME;
-        } else if (g_strcmp0 (error->message, "file already exists") == 0) {
-            error_code = ERROR_EXISTS;
+            err_file = g_strdup(error->message);
         }
         g_clear_error (&error);
         goto error;
@@ -324,7 +299,8 @@ error:
         ccnet_rpc_client_free (rpc_client);
 
     redirect_to_upload_error (req, fsm->repo_id, parent_dir,
-                              fsm->file_name, error_code);
+                              err_file, error_code);
+    g_free (err_file);
 }
 
 static void
@@ -409,6 +385,7 @@ static evhtp_res
 upload_finish_cb (evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
+    GList *ptr;
 
     if (!fsm)
         return EVHTP_RES_OK;
@@ -425,9 +402,13 @@ upload_finish_cb (evhtp_request_t *req, void *arg)
     g_free (fsm->file_name);
     if (fsm->tmp_file) {
         close (fsm->fd);
-        g_unlink (fsm->tmp_file);
     }
     g_free (fsm->tmp_file);
+
+    for (ptr = fsm->tmp_files; ptr; ptr = ptr->next)
+        g_unlink ((char *)(ptr->data));
+    string_list_free (fsm->tmp_files);
+    string_list_free (fsm->uploaded_files);
 
     evbuffer_free (fsm->line);
 
@@ -569,6 +550,20 @@ recv_form_field (RecvFSM *fsm, gboolean *no_line)
     return EVHTP_RES_OK;
 }
 
+static void
+add_uploaded_file (RecvFSM *fsm)
+{
+    fsm->uploaded_files = g_list_prepend (fsm->uploaded_files,
+                                          get_basename(fsm->file_name));
+    fsm->tmp_files = g_list_prepend (fsm->tmp_files, g_strdup(fsm->tmp_file));
+
+    g_free (fsm->file_name);
+    g_free (fsm->tmp_file);
+    close (fsm->fd);
+    fsm->file_name = NULL;
+    fsm->tmp_file = NULL;
+}
+
 static evhtp_res
 recv_file_data (RecvFSM *fsm, gboolean *no_line)
 {
@@ -603,7 +598,9 @@ recv_file_data (RecvFSM *fsm, gboolean *no_line)
         }
         *no_line = TRUE;
     } else if (strstr (line, fsm->boundary) != NULL) {
-        seaf_debug ("[upload] form field ends.\n");
+        seaf_debug ("[upload] file data ends.\n");
+
+        add_uploaded_file (fsm);
 
         g_free (fsm->input_name);
         fsm->input_name = NULL;

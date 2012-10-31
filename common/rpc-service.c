@@ -2494,6 +2494,33 @@ seafile_post_file (const char *repo_id, const char *temp_file_path,
 }
 
 int
+seafile_post_multi_files (const char *repo_id,
+                          const char *parent_dir,
+                          const char *filenames_json,
+                          const char *paths_json,
+                          const char *user,
+                          GError **error)
+{
+    if (!repo_id || !filenames_json || !parent_dir || !paths_json || !user) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Argument should not be null");
+        return -1;
+    }
+
+    if (seaf_repo_manager_post_multi_files (seaf->repo_mgr,
+                                            repo_id,
+                                            parent_dir,
+                                            filenames_json,
+                                            paths_json,
+                                            user,
+                                            error) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int
 seafile_put_file (const char *repo_id, const char *temp_file_path,
                   const char *parent_dir, const char *file_name,
                   const char *user,

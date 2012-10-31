@@ -601,6 +601,20 @@ seafile_post_file (const char *repo_id, const char *temp_file_path,
                   const char *user,
                   GError **error);
 
+/**
+ * Add multiple files at once.
+ *
+ * @filenames_json: json array of filenames
+ * @paths_json: json array of temp file paths
+ */
+int
+seafile_post_multi_files (const char *repo_id,
+                          const char *parent_dir,
+                          const char *filenames_json,
+                          const char *paths_json,
+                          const char *user,
+                          GError **error);
+
 int
 seafile_post_empty_file (const char *repo_id, const char *parent_dir,
                          const char *new_file_name, const char *user,

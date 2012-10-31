@@ -5,6 +5,7 @@
 
 #include <glib/gstdio.h>
 
+#include <json-glib/json-glib.h>
 #include <openssl/sha.h>
 
 #include <ccnet.h>
@@ -12,6 +13,7 @@
 #include "utils.h"
 #include "avl/avl.h"
 #include "log.h"
+#include "seafile.h"
 
 #include "seafile-session.h"
 #include "seafile-config.h"
@@ -2787,6 +2789,334 @@ out:
         seaf_commit_unref(head_commit);
     if (new_dent)
         g_free (new_dent);
+    g_free (root_id);
+    g_free (canon_path);
+    g_free (crypt);
+
+    if (ret == 0)
+        update_repo_size(repo_id);
+
+    return ret;
+}
+
+static gboolean
+filename_exists (GList *entries, const char *filename)
+{
+    GList *ptr;
+    SeafDirent *dent;
+
+    for (ptr = entries; ptr != NULL; ptr = ptr->next) {
+        dent = ptr->data;
+        if (strcmp (dent->name, filename) == 0)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
+static void
+split_filename (const char *filename, char **name, char **ext)
+{
+    char *dot;
+
+    dot = strrchr (filename, '.');
+    if (dot) {
+        *ext = g_strdup (dot + 1);
+        *name = g_strndup (filename, dot - filename);
+    } else {
+        *name = g_strdup (filename);
+        *ext = NULL;
+    }
+}
+
+static int
+add_new_entries (GList **entries, GList *filenames, GList *id_list)
+{
+    GList *ptr1, *ptr2;
+    char *file, *id;
+
+    for (ptr1 = filenames, ptr2 = id_list;
+         ptr1 && ptr2;
+         ptr1 = ptr1->next, ptr2 = ptr2->next)
+    {
+        file = ptr1->data;
+        id = ptr2->data;
+
+        int i = 1;
+        char *name, *ext, *unique_name;
+        SeafDirent *newdent;
+
+        unique_name = g_strdup(file);
+        split_filename (unique_name, &name, &ext);
+        while (filename_exists (*entries, unique_name) && i <= 16) {
+            g_free (unique_name);
+            if (ext)
+                unique_name = g_strdup_printf ("%s (%d).%s", name, i, ext);
+            else
+                unique_name = g_strdup_printf ("%s (%d)", name, i);
+            i++;
+        }
+
+        if (i <= 16) {
+            newdent = seaf_dirent_new (id, S_IFREG, unique_name);
+            *entries = g_list_insert_sorted (*entries, newdent, compare_dirents);
+        }
+
+        g_free (name);
+        g_free (ext);
+        g_free (unique_name);
+
+        if (i > 16)
+            return -1;
+    }
+
+    return 0;
+}
+
+static char *
+post_multi_files_recursive (const char *dir_id,
+                            const char *to_path,
+                            GList *filenames,
+                            GList *id_list)
+{
+    SeafDir *olddir, *newdir;
+    SeafDirent *dent;
+    GList *ptr;
+    char *slash;
+    char *to_path_dup = NULL;
+    char *remain = NULL;
+    char *id = NULL;
+
+    olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr, dir_id);
+    if (!olddir)
+        return NULL;
+
+    /* we reach the target dir.  new dir entry is added */
+    if (*to_path == '\0') {
+        GList *newentries;
+
+        newentries = dup_seafdir_entries (olddir->entries);
+
+        if (add_new_entries (&newentries, filenames, id_list) < 0)
+            goto out;
+
+        newdir = seaf_dir_new (NULL, newentries, 0);
+        seaf_dir_save (seaf->fs_mgr, newdir);
+        id = g_strndup (newdir->dir_id, 41);
+        id[40] = '\0';
+        seaf_dir_free (newdir);
+
+        goto out;
+    }
+
+    to_path_dup = g_strdup (to_path);
+    slash = strchr (to_path_dup, '/');
+
+    if (!slash) {
+        remain = to_path_dup + strlen(to_path_dup);
+    } else {
+        *slash = '\0';
+        remain = slash + 1;
+    }
+
+    for (ptr = olddir->entries; ptr; ptr = ptr->next) {
+        dent = (SeafDirent *)ptr->data;
+
+        if (strcmp(dent->name, to_path_dup) != 0)
+            continue;
+
+        id = post_multi_files_recursive (dent->id, remain, filenames, id_list);
+        if (id != NULL) {
+            memcpy(dent->id, id, 40);
+            dent->id[40] = '\0';
+        }
+        break;
+    }
+    
+    if (id != NULL) {
+        /* Create a new SeafDir. */
+        GList *new_entries;
+        
+        new_entries = dup_seafdir_entries (olddir->entries);
+        newdir = seaf_dir_new (NULL, new_entries, 0);
+        seaf_dir_save (seaf->fs_mgr, newdir);
+        
+        g_free(id);
+        id = g_strndup(newdir->dir_id, 41);
+        id[40] = '\0';
+        
+        seaf_dir_free (newdir);
+    }
+
+out:
+    g_free (to_path_dup);
+    seaf_dir_free(olddir);
+    return id;
+}
+
+static char *
+do_post_multi_files (const char *root_id,
+                     const char *parent_dir,
+                     GList *filenames,
+                     GList *id_list)
+{
+    /* if parent_dir is a absolutely path, we will remove the first '/' */
+    if (*parent_dir == '/')
+        parent_dir = parent_dir + 1;
+
+    return post_multi_files_recursive(root_id, parent_dir, filenames, id_list);
+}
+
+static void
+convert_file_list (JsonArray *array, guint index, JsonNode *element, gpointer data)
+{
+    GList **files = data;
+
+    *files = g_list_prepend (*files, json_node_dup_string (element));
+}
+
+static GList *
+json_to_file_list (const char *files_json)
+{
+    JsonParser *parser = json_parser_new ();
+    JsonNode *root;
+    JsonArray *array;
+    GList *files = NULL;
+    GError *error = NULL;
+
+    json_parser_load_from_data (parser, files_json, strlen(files_json), &error);
+    if (error) {
+        seaf_warning ("Failed to load file list from json.\n");
+        g_error_free (error);
+        return NULL;
+    }
+
+    root = json_parser_get_root (parser);
+    array = json_node_get_array (root);
+
+    json_array_foreach_element (array, convert_file_list, &files);
+
+    g_object_unref (parser);
+    return files;
+}
+
+int
+seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
+                                    const char *repo_id,
+                                    const char *parent_dir,
+                                    const char *filenames_json,
+                                    const char *paths_json,
+                                    const char *user,
+                                    GError **error)
+{
+    SeafRepo *repo = NULL;
+    SeafCommit *head_commit = NULL;
+    char *canon_path = NULL;
+    GList *filenames = NULL, *paths = NULL, *id_list = NULL, *ptr;
+    char *filename, *path;
+    unsigned char sha1[20];
+    GString *buf = g_string_new (NULL);
+    char *root_id = NULL;
+    SeafileCrypt *crypt = NULL;
+    char hex[41];
+    int ret = 0;
+
+    GET_REPO_OR_FAIL(repo, repo_id);
+    GET_COMMIT_OR_FAIL(head_commit,repo->head->commit_id);
+
+    canon_path = get_canonical_path (parent_dir);
+
+    /* Decode file name and tmp file paths from json. */
+    filenames = json_to_file_list (filenames_json);
+    paths = json_to_file_list (paths_json);
+    if (!filenames || !paths) {
+        seaf_warning ("[post files] Invalid filenames or paths.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid files");
+        ret = -1;
+        goto out;
+    }
+
+    /* Check inputs. */
+    for (ptr = filenames; ptr; ptr = ptr->next) {
+        filename = ptr->data;
+        if (should_ignore (filename, NULL)) {
+            seaf_warning ("[post files] Invalid filename %s.\n", filename);
+            g_set_error (error, SEAFILE_DOMAIN, POST_FILE_ERR_FILENAME,
+                         "%s", filename);
+            ret = -1;
+            goto out;
+        }
+    }
+
+    if (strstr (parent_dir, "//") != NULL) {
+        seaf_warning ("[post file] parent_dir cantains // sequence.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid parent dir");
+        ret = -1;
+        goto out;
+    }
+
+    /* Index tmp files and get file id list. */
+    if (repo->encrypted) {
+        unsigned char key[16], iv[16];
+        if (seaf_passwd_manager_get_decrypt_key_raw (seaf->passwd_mgr,
+                                                     repo_id, user,
+                                                     key, iv) < 0) {
+            seaf_warning ("Passwd for repo %s is not set.\n", repo_id);
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "Passwd is not set");
+            ret = -1;
+            goto out;
+        }
+        crypt = seafile_crypt_new (repo->enc_version, key, iv);
+    }
+
+    for (ptr = paths; ptr; ptr = ptr->next) {
+        path = ptr->data;
+        if (seaf_fs_manager_index_blocks (seaf->fs_mgr, path, sha1, crypt) < 0) {
+            seaf_warning ("failed to index blocks");
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "Failed to index blocks");
+            ret = -1;
+            goto out;
+        }
+
+        rawdata_to_hex(sha1, hex, 20);
+        id_list = g_list_prepend (id_list, g_strdup(hex));
+    }
+    id_list = g_list_reverse (id_list);
+
+    /* Add the files to parent dir and commit. */
+    root_id = do_post_multi_files (head_commit->root_id, canon_path,
+                                   filenames, id_list);
+    if (!root_id) {
+        seaf_warning ("[post file] Failed to put file.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
+                     "Failed to put file");
+        ret = -1;
+        goto out;
+    }
+
+    guint len = g_list_length (filenames);
+    if (len > 1)
+        g_string_printf (buf, "Added \"%s\" and %u more files.",
+                         (char *)(filenames->data), len - 1);
+    else
+        g_string_printf (buf, "Added \"%s\".", (char *)(filenames->data));
+
+    if (gen_new_commit (repo_id, head_commit, root_id,
+                        user, buf->str, error) < 0)
+        ret = -1;
+
+out:
+    if (repo)
+        seaf_repo_unref (repo);
+    if (head_commit)
+        seaf_commit_unref(head_commit);
+    string_list_free (filenames);
+    string_list_free (paths);
+    string_list_free (id_list);
+    g_string_free (buf, TRUE);
     g_free (root_id);
     g_free (canon_path);
     g_free (crypt);

@@ -109,6 +109,17 @@ seafile_post_file (SearpcClient *client,
                    const char *user,
                    GError **error);
 
+#define POST_FILE_ERR_FILENAME 401
+
+int
+seafile_post_multi_files (SearpcClient *client,
+                          const char *repo_id,
+                          const char *parent_dir,
+                          const char *filenames_json,
+                          const char *paths_json,
+                          const char *user,
+                          GError **error);
+
 int
 seafile_set_user_quota (SearpcClient *client,
                         const char *user,

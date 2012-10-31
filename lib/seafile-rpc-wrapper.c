@@ -310,6 +310,23 @@ seafile_post_file (SearpcClient *client,
 }
 
 int
+seafile_post_multi_files (SearpcClient *client,
+                          const char *repo_id,
+                          const char *parent_dir,
+                          const char *filenames_json,
+                          const char *paths_json,
+                          const char *user,
+                          GError **error)
+{
+    return searpc_client_call__int (client, "seafile_post_multi_files", error,
+                                    5, "string", repo_id,
+                                    "string", parent_dir,
+                                    "string", filenames_json,
+                                    "string", paths_json,
+                                    "string", user);
+}
+
+int
 seafile_set_user_quota (SearpcClient *client,
                         const char *user,
                         gint64 quota,
