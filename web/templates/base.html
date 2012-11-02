@@ -19,7 +19,8 @@
 
 <body>
 <div id="wrapper">
-    <div id="header" class="ovhd">
+    <div id="header">
+        <div id="header-inner" class="ovhd">
         <div id="lang-info" class="fright">
             % if settings.SHOW_SYSTEM:
             <a href="/procs/">${_("System")}</a>
@@ -32,26 +33,27 @@
             % endif
             </a>
         </div>
-        <ul id="nav" class="fleft">
-            <li>
-            <div id="client-note">${_("This is Seafile Client")}</div>
-            </li>
-            <li id="library-nav-item">
-            <a href="/repos/">${_("Libraries")}</a>
-            </li>
-            <!-- <li>
-            <a href="/synclan/">${_("SyncLan")}</a>
-            </li> -->
-            <!-- <li>
-            <a href="/peers/">${_("Network")}</a>
-            </li>  -->
-            <li id="settings-nav-item">
-            <a href="/settings/">${_("Settings")}</a>
-            </li>
-            <li id="help-nav-item">
-            <a href=${settings.DEFAULT_HELP_WEB}>${_("Help")}</a>
-            </li>
-        </ul>
+        <div class="fleft">
+            <div id="client-note" class="fleft">${_("Seafile Client")}</div>
+            <ul id="nav" class="fleft">
+                <li class="library-item">
+                <a href="/repos/">${_("Libraries")}</a>
+                </li>
+                <!-- <li>
+                <a href="/synclan/">${_("SyncLan")}</a>
+                </li> -->
+                <!-- <li>
+                <a href="/peers/">${_("Network")}</a>
+                </li>  -->
+                <li class="settings-item">
+                <a href="/settings/">${_("Settings")}</a>
+                </li>
+                <li class="help-item">
+                <a href=${settings.DEFAULT_HELP_WEB}>${_("Help")}</a>
+                </li>
+            </ul>
+        </div>
+    </div>
     </div>
     <div id="main" class="ovhd">
         <div id="center-panel" class="fleft">

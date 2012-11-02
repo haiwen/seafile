@@ -5,11 +5,9 @@
 %>
 
 <%def name="main_panel()">
-<div id="left-panel" class="fleft">
-
+<div id="repos-nav" class="fleft block">
 % if relays:
 <h3>${_("Servers")}</h3>
-% endif
 % for relay in relays:
     <p><a class="relay-link" href="${relay.props.service_url}">${relay.props.name}</a>
     % if relay.props.is_ready:
@@ -21,19 +19,16 @@
     % endif
     </p>
 % endfor
+% endif
 
 <h3>${_("Navigation")}</h3>
-
 <a href="/repos/download-tasks/">${_("View Download Tasks")}</a>
 
 <h3>${_("Official Server")}</h3>
 <a href="http://cloud.seafile.com.cn" target="_blank">SeaCloud</a>
-
 </div>
 
-
-<div id="wide-center-panel" class="fright">
-
+<div id="repos-con" class="fright block">
 % if len(repos) == 0:
 <h3>${_("Four Steps to Use Seafile Client")}</h3>
 <ol>
@@ -48,8 +43,8 @@
 <table class="repo-list">
     <tr>
         <th width="20%">${_("Name")}</th>
-        <th width="7%">${_("Action")}</th>
-        <th width="32%">${_("Description")}</th>
+        <th width="9%">${_("Action")}</th>
+        <th width="30%">${_("Description")}</th>
         <th width="12%">${_("Server")}</th>
         <th width="17%">${_("Modify Time")}</th>
         <th width="12%">${_("State")}</th>
