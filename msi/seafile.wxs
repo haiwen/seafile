@@ -2,7 +2,7 @@
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
   <?include Includes.wxi?>
   <Product Id="$(var.ProductGuid)"
-           Name='Seafile 1.1.0'
+           Name='Seafile 1.2.0'
            Language='1033'
            Version='$(var.CurrentSeafileVersion)'
            Manufacturer='!(loc.Manufacturer)'

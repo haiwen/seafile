@@ -25,8 +25,11 @@ LDFLAGS += -L${top_srcdir}/lib/.libs/   \
 
 CC = gcc
 RC = windres
-ICONS = serverup.ico serverdown.ico ccnet.ico \
-	window-head.bmp win7-trayicon-tip.bmp sync-paused.ico
+ICONS = seafile.ico ccnet_daemon_up.ico ccnet_daemon_down.ico \
+	seafile_transfer_1.ico seafile_transfer_2.ico \
+	seafile_transfer_3.ico seafile_transfer_4.ico \
+	seafile_auto_sync_disabled.ico \
+	window-head.bmp win7-trayicon-tip.bmp \
 
 CFLAGS += -DWINVER=0x500 -D_WIN32_IE=0x500
 LDFLAGS += -lcomctl32 -lcomdlg32
