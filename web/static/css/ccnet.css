@@ -18,7 +18,7 @@ p.info { color:#606 }
 table { 
     border-collapse:collapse;
     border-spacing:0;
-    width:770px;
+    width:740px;
     table-layout:fixed;
 }
 .state-con table { width:100%; }
@@ -128,39 +128,48 @@ a.button { text-decoration: underline; color:#800; }
 .narrow-panel input.submit {
     width:3em;
 }
-#wrapper { font: 13px/1.5 Arial, Helvetica, sans-serif; }
-#header, #main, #footer { width:950px; }
+#wrapper { font: 13px/1.5 Arial, Helvetica, sans-serif; background:#f0f0f0; color:#333; }
+#main, #footer { width:950px; }
 #header, #main { margin:0 auto; }
-#left-panel { width:175px; min-height:1px; }
+#left-panel { width:165px; min-height:400px; border:1px solid #ddd; padding:5px 0 0 10px; background:#fff;}
 #center-panel { width:545px; }
-#wide-center-panel { width: 770px; }
+#wide-center-panel { width: 740px; background:#fff; border:1px solid #ddd; padding:5px 0 0 10px; }
 #right-panel { width:175px; }
-#footer { color:#999; padding-top:2px; margin:75px auto 25px; border-top:1px solid #DDD; }
+#footer { color:#999; padding-top:2px; margin:75px auto 0; border-top:1px solid #DDD; padding-bottom:25px;}
 
 /* #header */
 #header {
+    width:100%;
     font-size: 14px;
     font-weight: bold;
+    padding-top: 6px;
     padding-bottom: 7px;
-    margin-top: 16px;
+    height:66px;
     margin-bottom: 30px;
-    background: #f4f4f4;
-    border: 1px solid #eee;
-    -moz-border-radius: 3px;
-    border-radius: 3px;
+    background: #333;
+    border-bottom: 2px solid #888;
+    color: #fff;
 }
-#lang-info { margin: 8px 2px 0 0; font-size: 13px; color: #666; font-weight: normal; }
+#lang-info { margin: 44px 16px 0 0; font-size: 13px; color: #666; font-weight: normal; }
+#lang-info a { color: #eef; }
 #nav {
     padding: 8px 4px 0px 4px;
 }
 #nav li {
     float: left;
-    margin-right:20px;
+    margin-right:40px;
+    padding-top: 36px;
+    height: 44px;
+    min-width: 60px;
+    background: no-repeat scroll 16px 0%;
 }
-#nav a, #nav a:visited { color:#8A948F; }
-#nav a.cur { color:#000; }
+#nav a, #nav a:visited { color:#fff; }
+#nav a.cur { font-weight:bold; }
 #nav a:hover { color:#ff9933;}
-#nav li #client-note { color: #DD4B39; width: 160px; }
+#nav li #client-note { color: #ff6d4b; width: 160px; }
+#nav #library-nav-item { background-image: url('/static/img/suitcase.png'); }
+#nav #settings-nav-item { background-image: url('/static/img/tool.png'); }
+#nav #help-nav-item { background-image: url('/static/img/help.png'); }
 /* main */
 #main {
 	min-height:450px;
@@ -253,6 +262,7 @@ p.table-desc { font-weight:bold; }
 .basic-info .item-name {
     display:inline-block;
     width:74px;
+    color:#888;
 }
 .commit-list .radio {
     width:16px;
@@ -407,4 +417,3 @@ p.history-link { margin-top:6px; }
 #repo-desc {
     height:72px;
 }
-div.left-nav { width:145px; min-height:500px; border-right:1px solid #eee; }

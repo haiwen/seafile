@@ -36,8 +36,8 @@
             <li>
             <div id="client-note">${_("This is Seafile Client")}</div>
             </li>
-            <li>
-            <a href="/repos/">${_("Files")}</a>
+            <li id="library-nav-item">
+            <a href="/repos/">${_("Libraries")}</a>
             </li>
             <!-- <li>
             <a href="/synclan/">${_("SyncLan")}</a>
@@ -45,34 +45,26 @@
             <!-- <li>
             <a href="/peers/">${_("Network")}</a>
             </li>  -->
-            <li>
+            <li id="settings-nav-item">
             <a href="/settings/">${_("Settings")}</a>
             </li>
-            <li>
+            <li id="help-nav-item">
             <a href=${settings.DEFAULT_HELP_WEB}>${_("Help")}</a>
             </li>
         </ul>
     </div>
     <div id="main" class="ovhd">
-        <div id="left-panel" class="fleft">
-            ${self.left_panel()}
-        </div>        
         <div id="center-panel" class="fleft">
             ${self.center_panel()}
         </div>
         <div id="right-panel" class="fright">
             ${self.right_panel()}
         </div>
-        <div id="wide-center-panel" class="fright">
-            ${self.wide_center_panel()}
-        </div>
         <div id="main-panel" class="clear">
             ${self.main_panel()}
         </div>
-        <%def name="left_panel()"></%def>
         <%def name="center_panel()"></%def>
         <%def name="right_panel()"></%def>
-        <%def name="wide_center_panel()"></%def>
         <%def name="main_panel()"></%def>
     </div>
     <div id="footer">

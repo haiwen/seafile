@@ -2,11 +2,11 @@
 
 <%!
     from utils import translate_time_sec
-    from utils import format_file_size
 %>
 
-<%def name="left_panel()">
-<div class="left-nav">
+<%def name="main_panel()">
+<div id="left-panel" class="fleft">
+
 % if relays:
 <h3>${_("Servers")}</h3>
 % endif
@@ -24,17 +24,15 @@
 
 <h3>${_("Navigation")}</h3>
 
-<ul class="home-op-list">
-    <li><a href="/repos/download-tasks/">${_("View Download Tasks")}</a></li>
-</ul>
+<a href="/repos/download-tasks/">${_("View Download Tasks")}</a>
 
 <h3>${_("Official Server")}</h3>
 <a href="http://cloud.seafile.com.cn" target="_blank">SeaCloud</a>
 
 </div>
-</%def>
 
-<%def name="wide_center_panel()">
+
+<div id="wide-center-panel" class="fright">
 
 % if len(repos) == 0:
 <h3>${_("Four Steps to Use Seafile Client")}</h3>
@@ -88,4 +86,6 @@
     % endfor
 </table>
 % endif
+</div>
+
 </%def>

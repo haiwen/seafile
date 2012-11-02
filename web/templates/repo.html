@@ -3,8 +3,10 @@
     from utils import translate_time_sec, format_file_size, translate_commit_desc, format_creator
 %>
 
-<%def name="left_panel()">
-<div class="left-nav">
+<%def name="main_panel()">
+
+<div id="left-panel" class="fleft">
+
 <h3>${_("Navigation")}</h3>
 <ul>
     <li><a href="/" id="back">${_("All Libraries")}</a></li>
@@ -18,10 +20,10 @@
     <li><a id="do-sync-link" href="/repos/operation/?repo=${repo.props.id}&op=sync">${_("Sync Now")}</a></li>
     <li><a href="#" id="delete">${_("Unsync")}</a></li>
 </ul>
-</div>
-</%def>
 
-<%def name="wide_center_panel()">
+</div> <!-- left-panel -->
+
+<div id="wide-center-panel" class="fright">
 
 <!-- notification area -->
 
@@ -38,8 +40,10 @@
 <div class="basic-info">
     <p class="repo-desc">${repo.props.desc}</p>
     % if not repo.props.worktree_invalid:
-    <a href="/repos/operation/?repo=${repo.props.id}&op=open">${repo.props.worktree}</a>
+    <span class="item-name">${_("Local Path:")}</span> <a href="/repos/operation/?repo=${repo.props.id}&op=open">${repo.props.worktree}</a>
     % endif
+
+    <h3>${_("Sync Info")}</h3>
     <ul>
         % if relay and relay.name:
         <li>
@@ -95,6 +99,7 @@
     <button class="simplemodal-close">${_("Cancel")}</button>
 </div>
 
+</div>
 </%def>
 
 <%def name="js()">
