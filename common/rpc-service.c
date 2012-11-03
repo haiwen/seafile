@@ -2888,7 +2888,7 @@ seafile_get_file_by_path (const char *repo_id, const char *path,
         goto out;
     }
 
-    file_id = seaf_fs_manager_path_to_file_id (seaf->fs_mgr, commit->root_id,
+    file_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr, commit->root_id,
                                                path, NULL, error);
 
 out:
@@ -3115,7 +3115,7 @@ seafile_get_file_id_by_commit_and_path(const char *commit_id,
         return NULL;
     }
 
-    file_id = seaf_fs_manager_path_to_file_id (seaf->fs_mgr,
+    file_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
                         commit->root_id, path, NULL, error);
 
     seaf_commit_unref(commit);

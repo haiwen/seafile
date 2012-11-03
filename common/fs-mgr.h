@@ -214,7 +214,7 @@ seaf_fs_manager_get_seafile_id_by_path (SeafFSManager *mgr,
                                         GError **error);
 
 char *
-seaf_fs_manager_path_to_file_id (SeafFSManager *mgr,
+seaf_fs_manager_path_to_obj_id (SeafFSManager *mgr,
                                  const char *root_id,
                                  const char *path,
                                  guint32 *mode,
