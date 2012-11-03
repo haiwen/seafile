@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2012-10-25 20:07+0800\n"
+"POT-Creation-Date: 2012-11-03 14:00+0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -36,7 +36,7 @@ msgid ""
 msgstr ""
 
 #: ../gui/common/applet-common.c:202
-msgid "is in sync"
+msgid "is synchronized"
 msgstr ""
 
 #: ../gui/common/applet-common.c:216
@@ -46,7 +46,9 @@ msgid ""
 msgstr ""
 
 #: ../gui/common/applet-common.c:229
-msgid "failed to sync. Quota outage."
+msgid ""
+"failed to sync.\n"
+"The library owner's storage space is used up."
 msgstr ""
 
 #: ../gui/gtk/seafile-applet.c:159
@@ -56,26 +58,6 @@ msgstr ""
 
 #: ../gui/gtk/trayicon.c:159 ../gui/win/seafile-applet.c:71
 msgid "Auto sync is disabled"
-msgstr ""
-
-#: ../gui/win/seafile-applet.c:56
-msgid "Seafile is started"
-msgstr ""
-
-#: ../gui/win/seafile-applet.c:56
-msgid "Click the icon to open admin console"
-msgstr ""
-
-#: ../gui/win/seafile-applet.c:373
-msgid "Failed to disable auto sync"
-msgstr ""
-
-#: ../gui/win/seafile-applet.c:373
-msgid "Failed to enable auto sync"
-msgstr ""
-
-#: ../gui/win/seafile-applet.c:521
-msgid "Seafile is already running"
 msgstr ""
 
 #: ../gui/win/init-ccnet.c:169
@@ -102,6 +84,26 @@ msgstr ""
 msgid "Initialzation is not finished. Really quit?"
 msgstr ""
 
-#: ../gui/win/trayicon.c:106
+#: ../gui/win/seafile-applet.c:56
+msgid "Seafile is started"
+msgstr ""
+
+#: ../gui/win/seafile-applet.c:56
+msgid "Click the icon to open admin console"
+msgstr ""
+
+#: ../gui/win/seafile-applet.c:373
+msgid "Failed to disable auto sync"
+msgstr ""
+
+#: ../gui/win/seafile-applet.c:373
+msgid "Failed to enable auto sync"
+msgstr ""
+
+#: ../gui/win/seafile-applet.c:521
+msgid "Seafile is already running"
+msgstr ""
+
+#: ../gui/win/seafile-applet.c:537
 msgid "Seafile Initialization"
 msgstr ""

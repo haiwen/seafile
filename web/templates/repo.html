@@ -7,9 +7,9 @@
 <div class="left-nav">
 <h3>${_("Navigation")}</h3>
 <ul>
-    <li><a href="/" id="back">${_("All Librarys")}</a></li>
+    <li><a href="/" id="back">${_("All Libraries")}</a></li>
     % if relay and relay.props.service_url:
-     <li><a href="${relay.props.service_url}/repo/${repo.props.id}">${_("View at relay")}</a></li>
+     <li><a href="${relay.props.service_url}/repo/${repo.props.id}">${_("View on Website")}</a></li>
     % endif
 </ul>
 </h3>
@@ -60,7 +60,6 @@
         % else:
         <span class="item-name">${_("Auto Sync: ")}</span><input type="checkbox" data="set-auto-sync" id="set-sync-btn" />
         % endif
-        <label>${_("Start")}</label>
         <span id="sync-set-feedback" class="notification hide"></span>
         </li>
     </ul>
@@ -91,7 +90,7 @@
 </textarea>
 
 <div id="dialog-delete-confirm" class="hide">
-    <p><span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>${_("Really want to unsync the folder? (The local folder will become a normal folder.)")}</p>
+    <p><span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>${_("Really want to unsync this library?")}</p>
     <button class="remove-repo-btn" data="/repos/operation/?repo=${repo.props.id}&op=remove">${_("Unsync")}</button>
     <button class="simplemodal-close">${_("Cancel")}</button>
 </div>
@@ -159,10 +158,10 @@ function set_sync_status(status) {
             str = "${_('waiting for sync')}";
             break;
         case 'relay not connected':
-            str = "${_('relay not connected')}";
+            str = "${_('server not connected')}";
             break;
         case 'relay authenticating':
-            str = "${_('relay authenticating')}";
+            str = "${_('server authenticating')}";
             break;
         case 'auto sync is turned off':
             str = "${_('auto sync is turned off')}";
@@ -180,7 +179,7 @@ function set_sync_error(error) {
     var str = '';
     switch (error) {
         case "relay not connected":
-            str = "${_('relay not connected')}";
+            str = "${_('server not connected')}";
             break;
         case "Server has been removed":
             str = "${_('Server has been removed')}";
@@ -218,7 +217,7 @@ function set_sync_error(error) {
             str = "${_('Error occured in download.')}";
             break;
         case "No such repo on relay.":
-            str = "${_('Library is deleted on server. Click \'Unsync\' button, then you can create a new library.')}";
+            str = "${_('Library is deleted on server.')}";
             break;
         case "Unknown error.":
             str = "${_('Unknown error.')}";

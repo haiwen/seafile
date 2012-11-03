@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: seafile 1.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2012-10-25 20:07+0800\n"
+"POT-Creation-Date: 2012-11-03 14:00+0800\n"
 "PO-Revision-Date: 2012-10-25 14:18+0800\n"
 "Last-Translator: lin <linshuai2012@gmail.com>\n"
 "Language-Team: Chinese (simplified)\n"
@@ -38,7 +38,7 @@ msgstr ""
 "原因：该目录已经在服务器上被删除"
 
 #: ../gui/common/applet-common.c:202
-msgid "is in sync"
+msgid "is synchronized"
 msgstr "已同步"
 
 #: ../gui/common/applet-common.c:216
@@ -50,10 +50,12 @@ msgstr ""
 "您没有权限访问该资料库"
 
 #: ../gui/common/applet-common.c:229
-msgid "failed to sync. Quota outage."
+msgid ""
+"failed to sync.\n"
+"The library owner's storage space is used up."
 msgstr ""
 "同步出错。\n"
-"该资料库所有者的空间限额已用完"
+"资料库所有者的空间已用完"
 
 #: ../gui/gtk/seafile-applet.c:159
 #, c-format
@@ -63,26 +65,6 @@ msgstr "Seafile 已经运行, 请不要重复启动\n"
 #: ../gui/gtk/trayicon.c:159 ../gui/win/seafile-applet.c:71
 msgid "Auto sync is disabled"
 msgstr "Seafile 同步已暂停"
-
-#: ../gui/win/seafile-applet.c:56
-msgid "Seafile is started"
-msgstr "Seafile 已启动"
-
-#: ../gui/win/seafile-applet.c:56
-msgid "Click the icon to open admin console"
-msgstr "点击图标即可打开管理页面"
-
-#: ../gui/win/seafile-applet.c:373
-msgid "Failed to disable auto sync"
-msgstr "暂停同步失败"
-
-#: ../gui/win/seafile-applet.c:373
-msgid "Failed to enable auto sync"
-msgstr "开启同步失败"
-
-#: ../gui/win/seafile-applet.c:521
-msgid "Seafile is already running"
-msgstr "Seafile 已经运行，请不要重复启动"
 
 #: ../gui/win/init-ccnet.c:169
 msgid "free"
@@ -108,6 +90,26 @@ msgstr "宋体"
 msgid "Initialzation is not finished. Really quit?"
 msgstr "Seafile 初始化仍未完成。确认要退出吗？"
 
-#: ../gui/win/trayicon.c:106
+#: ../gui/win/seafile-applet.c:56
+msgid "Seafile is started"
+msgstr "Seafile 已启动"
+
+#: ../gui/win/seafile-applet.c:56
+msgid "Click the icon to open admin console"
+msgstr "点击图标即可打开管理页面"
+
+#: ../gui/win/seafile-applet.c:373
+msgid "Failed to disable auto sync"
+msgstr "暂停同步失败"
+
+#: ../gui/win/seafile-applet.c:373
+msgid "Failed to enable auto sync"
+msgstr "开启同步失败"
+
+#: ../gui/win/seafile-applet.c:521
+msgid "Seafile is already running"
+msgstr "Seafile 已经运行，请不要重复启动"
+
+#: ../gui/win/seafile-applet.c:537
 msgid "Seafile Initialization"
 msgstr "Seafile 初始化"

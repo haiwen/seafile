@@ -199,7 +199,7 @@ handle_seafile_notification (char *type, char *content)
         char *repo_id = p + 1;
 
         memcpy (applet->last_synced_repo, repo_id, strlen(repo_id) + 1);
-        snprintf (buf, sizeof(buf), "\"%s\" %s", repo_name, _("is in sync"));
+        snprintf (buf, sizeof(buf), "\"%s\" %s", repo_name, _("is synchronized"));
         trayicon_notify ("Seafile", buf);
         
     } else if (strcmp(type, "sync.access_denied") == 0) {
@@ -226,7 +226,7 @@ handle_seafile_notification (char *type, char *content)
         char *repo_id = p + 1;
 
         memcpy (applet->last_synced_repo, repo_id, strlen(repo_id) + 1);
-        snprintf (buf, sizeof(buf), "\"%s\" %s", repo_name, _("failed to sync. Quota outage."));
+        snprintf (buf, sizeof(buf), "\"%s\" %s", repo_name, _("failed to sync.\nThe library owner's storage space is used up."));
         trayicon_notify ("Seafile", buf);
     }
 #ifdef __APPLE__

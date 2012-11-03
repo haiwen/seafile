@@ -3,7 +3,7 @@
 <%def name="main_panel()"> 
 <div class="narrow-panel">
 % if repo_already_exists:
-<p>${_("Repo already exists.")}</p>
+<p>${_("Library already exists.")}</p>
 % else:
 <h3>${_("You are going to synchronize")}<em>${repo_name}</em></h3>
 <form action="/repo/sync/" method="post">
@@ -16,11 +16,11 @@
     <input type="hidden" name="relay_port" value="${relay_port}" />
     <input type="hidden" name="token" value="${token}" />
     <input type="hidden" name="email" value="${email}" />
-    <p>${_("Please select a local folder to synced with the repo")}</p>
+    <p>${_("Please select a local folder to synced with the library")}</p>
     <input type="text" name="worktree" value="${worktree}" class="text-input" />
-    <p>${_("Files in the local folder will be merged with files in the repo")}</p>
+    <p>${_("Files in the local folder will be merged with files in the library")}</p>
     % if encrypted:
-    <p class="encrypted">${_("This repo is encrypted. Please enter the password for decrypting:")}</p>
+    <p class="encrypted">${_("This library is encrypted. Please enter the password for decrypting:")}</p>
     <input type="password" name="password" maxlength="64" class="text-input" /><br/>
     % endif
     % if error_msg:

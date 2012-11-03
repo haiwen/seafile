@@ -8,7 +8,7 @@
     % else:
     <input type="checkbox" name="notify_sync" />
     % endif
-    ${_("Notify when librarys get sync")}
+    ${_("Notify when libraries is synchronized")}
     </li>
     <li>
     % if prefs['auto_start'] == 'on':
@@ -16,7 +16,7 @@
     % else:
     <input type="checkbox" name="auto_start" /> 
     % endif
-    ${_("Auto start Seafile at startup")}
+    ${_("Auto start Seafile when computer turns on")}
     </li>
 </ul>
 % if error_msg:
