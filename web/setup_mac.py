@@ -12,7 +12,7 @@ import shutil
 
 from setuptools import setup
 
-VERSION='1.1'
+VERSION='1.2'
 targetfile = "seafileweb.py"
 
 APP = [targetfile]

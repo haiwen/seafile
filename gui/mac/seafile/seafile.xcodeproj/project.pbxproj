@@ -130,12 +130,14 @@
 		579F9C141588F92500570010 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD511562815F00FD577C /* MainMenu.xib */; };
 		579F9C151588F92500570010 /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5C415674C1800EAAC19 /* seaf-daemon */; };
 		579F9C161588F92500570010 /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5CE15674C3300EAAC19 /* ccnet */; };
+		57A0559E1644BEC0006511AA /* seafile.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57A0559D1644BEC0006511AA /* seafile.icns */; };
+		57A0559F1644BEC0006511AA /* seafile.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57A0559D1644BEC0006511AA /* seafile.icns */; };
+		57A055A01644BEC0006511AA /* seafile.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57A0559D1644BEC0006511AA /* seafile.icns */; };
+		57A055A11644BEC0006511AA /* seafile.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57A0559D1644BEC0006511AA /* seafile.icns */; };
 		57BE9FD11599E33B008B639C /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */; };
 		57BE9FD21599E33B008B639C /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */; };
 		57BE9FD31599E33B008B639C /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FD01599E33B008B639C /* libz.1.dylib */; };
 		57BE9FD41599E33B008B639C /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FD01599E33B008B639C /* libz.1.dylib */; };
-		57BE9FDC1599F6A4008B639C /* ccnet.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57BE9FDB1599F6A4008B639C /* ccnet.icns */; };
-		57BE9FDD1599F6A4008B639C /* ccnet.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57BE9FDB1599F6A4008B639C /* ccnet.icns */; };
 		57DE0A7E15A98E0E006C0152 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD481562815F00FD577C /* main.m */; };
 		57DE0A7F15A98E0E006C0152 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD4F1562815F00FD577C /* AppDelegate.m */; };
 		57DE0A8015A98E0E006C0152 /* platform.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD6A15638D8B00FD577C /* platform.m */; };
@@ -194,7 +196,6 @@
 		57DE0AB815A98E0E006C0152 /* network-rotate3.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD522158D021400F6C6A7 /* network-rotate3.png */; };
 		57DE0AB915A98E0E006C0152 /* network-rotate4.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD523158D021400F6C6A7 /* network-rotate4.png */; };
 		57DE0ABA15A98E0E006C0152 /* network-up.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD524158D021400F6C6A7 /* network-up.png */; };
-		57DE0ABB15A98E0E006C0152 /* ccnet.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57BE9FDB1599F6A4008B639C /* ccnet.icns */; };
 		57DE0ABC15A98E0E006C0152 /* seafilefolder.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5743817E159B0399003DECFB /* seafilefolder.icns */; };
 		57DE0ABD15A98E0E006C0152 /* seafilerepo.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57438181159B249D003DECFB /* seafilerepo.icns */; };
 		57DE0ABE15A98E0E006C0152 /* warning.png in Resources */ = {isa = PBXBuildFile; fileRef = 57438184159B2CF3003DECFB /* warning.png */; };
@@ -256,7 +257,6 @@
 		57DE0B0115A9AA89006C0152 /* network-rotate3.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD522158D021400F6C6A7 /* network-rotate3.png */; };
 		57DE0B0215A9AA89006C0152 /* network-rotate4.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD523158D021400F6C6A7 /* network-rotate4.png */; };
 		57DE0B0315A9AA89006C0152 /* network-up.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD524158D021400F6C6A7 /* network-up.png */; };
-		57DE0B0415A9AA89006C0152 /* ccnet.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57BE9FDB1599F6A4008B639C /* ccnet.icns */; };
 		57DE0B0515A9AA89006C0152 /* seafilefolder.icns in Resources */ = {isa = PBXBuildFile; fileRef = 5743817E159B0399003DECFB /* seafilefolder.icns */; };
 		57DE0B0615A9AA89006C0152 /* seafilerepo.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57438181159B249D003DECFB /* seafilerepo.icns */; };
 		57DE0B0715A9AA89006C0152 /* warning.png in Resources */ = {isa = PBXBuildFile; fileRef = 57438184159B2CF3003DECFB /* warning.png */; };
@@ -320,9 +320,9 @@
 		578FA5DA156781FC00EAAC19 /* MAAttachedWindow.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MAAttachedWindow.m; sourceTree = "<group>"; };
 		57972D711573C70900915E2E /* PreferencePanes.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PreferencePanes.framework; path = System/Library/Frameworks/PreferencePanes.framework; sourceTree = SDKROOT; };
 		579F9C221588F92500570010 /* seafile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = seafile.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		57A0559D1644BEC0006511AA /* seafile.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = seafile.icns; sourceTree = "<group>"; };
 		57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libsqlite3.0.dylib; sourceTree = "<group>"; };
 		57BE9FD01599E33B008B639C /* libz.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libz.1.dylib; sourceTree = "<group>"; };
-		57BE9FDB1599F6A4008B639C /* ccnet.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = ccnet.icns; sourceTree = "<group>"; };
 		57DE0AC215A98E0E006C0152 /* seafile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = seafile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		57DE0B0B15A9AA89006C0152 /* seafile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = seafile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		57F70506158321D100C65071 /* platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
@@ -500,7 +500,7 @@
 				575BD522158D021400F6C6A7 /* network-rotate3.png */,
 				575BD523158D021400F6C6A7 /* network-rotate4.png */,
 				575BD524158D021400F6C6A7 /* network-up.png */,
-				57BE9FDB1599F6A4008B639C /* ccnet.icns */,
+				57A0559D1644BEC0006511AA /* seafile.icns */,
 				5743817E159B0399003DECFB /* seafilefolder.icns */,
 				57438181159B249D003DECFB /* seafilerepo.icns */,
 				57438184159B2CF3003DECFB /* warning.png */,
@@ -702,12 +702,12 @@
 				575BD52B158D021400F6C6A7 /* network-rotate3.png in Resources */,
 				575BD52D158D021400F6C6A7 /* network-rotate4.png in Resources */,
 				575BD52F158D021400F6C6A7 /* network-up.png in Resources */,
-				57BE9FDC1599F6A4008B639C /* ccnet.icns in Resources */,
 				5743817F159B0399003DECFB /* seafilefolder.icns in Resources */,
 				57438182159B249D003DECFB /* seafilerepo.icns in Resources */,
 				57438185159B2CF3003DECFB /* warning.png in Resources */,
 				57266B8F15D6A0B6000AD014 /* seafileweb.app in Resources */,
 				57335CEC160D8DDE00018AE8 /* network-stop.png in Resources */,
+				57A0559E1644BEC0006511AA /* seafile.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -742,12 +742,12 @@
 				575BD52C158D021400F6C6A7 /* network-rotate3.png in Resources */,
 				575BD52E158D021400F6C6A7 /* network-rotate4.png in Resources */,
 				575BD530158D021400F6C6A7 /* network-up.png in Resources */,
-				57BE9FDD1599F6A4008B639C /* ccnet.icns in Resources */,
 				57438180159B0399003DECFB /* seafilefolder.icns in Resources */,
 				57438183159B249D003DECFB /* seafilerepo.icns in Resources */,
 				57438186159B2CF3003DECFB /* warning.png in Resources */,
 				57266B9015D6A0B6000AD014 /* seafileweb.app in Resources */,
 				57335CED160D8DDE00018AE8 /* network-stop.png in Resources */,
+				57A0559F1644BEC0006511AA /* seafile.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -782,12 +782,12 @@
 				57DE0AB815A98E0E006C0152 /* network-rotate3.png in Resources */,
 				57DE0AB915A98E0E006C0152 /* network-rotate4.png in Resources */,
 				57DE0ABA15A98E0E006C0152 /* network-up.png in Resources */,
-				57DE0ABB15A98E0E006C0152 /* ccnet.icns in Resources */,
 				57DE0ABC15A98E0E006C0152 /* seafilefolder.icns in Resources */,
 				57DE0ABD15A98E0E006C0152 /* seafilerepo.icns in Resources */,
 				57DE0ABE15A98E0E006C0152 /* warning.png in Resources */,
 				57266B9115D6A0B6000AD014 /* seafileweb.app in Resources */,
 				57335CEE160D8DDE00018AE8 /* network-stop.png in Resources */,
+				57A055A01644BEC0006511AA /* seafile.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -822,12 +822,12 @@
 				57DE0B0115A9AA89006C0152 /* network-rotate3.png in Resources */,
 				57DE0B0215A9AA89006C0152 /* network-rotate4.png in Resources */,
 				57DE0B0315A9AA89006C0152 /* network-up.png in Resources */,
-				57DE0B0415A9AA89006C0152 /* ccnet.icns in Resources */,
 				57DE0B0515A9AA89006C0152 /* seafilefolder.icns in Resources */,
 				57DE0B0615A9AA89006C0152 /* seafilerepo.icns in Resources */,
 				57DE0B0715A9AA89006C0152 /* warning.png in Resources */,
 				57266B9215D6A0B6000AD014 /* seafileweb.app in Resources */,
 				57335CEF160D8DDE00018AE8 /* network-stop.png in Resources */,
+				57A055A11644BEC0006511AA /* seafile.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
