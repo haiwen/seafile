@@ -1,29 +1,31 @@
 <%inherit file="base.html"/>
 
 <%def name="main_panel()">
-<form id="prefs-form" action="/settings/" method="post">
-<ul>
-    % if prefs['notify_sync'] == 'on':
-    <input type="checkbox" name="notify_sync" checked="checked" />
-    % else:
-    <input type="checkbox" name="notify_sync" />
-    % endif
-    ${_("Notify when libraries is synchronized")}
-    </li>
-    <li>
-    % if prefs['auto_start'] == 'on':
-    <input type="checkbox" name="auto_start" checked="checked" /> 
-    % else:
-    <input type="checkbox" name="auto_start" /> 
-    % endif
-    ${_("Auto start Seafile when computer turns on")}
-    </li>
-</ul>
-% if error_msg:
-    <p class="error">${error_msg}</p>
-% endif
-<input type="submit" value="${_("Submit")}" />
-</form>
+<div id="nav-panel" class="fleft"></div>
+<div id="con-panel" class="fright">
+    <form id="prefs-form" action="/settings/" method="post">
+        <ul>
+            <li>
+            % if prefs['notify_sync'] == 'on':
+            <input type="checkbox" name="notify_sync" checked="checked" />
+            % else:
+            <input type="checkbox" name="notify_sync" />
+            % endif
+            ${_("Notify when libraries are synchronized")}
+            </li>
+            <li>
+            % if prefs['auto_start'] == 'on':
+            <input type="checkbox" name="auto_start" checked="checked" /> 
+            % else:
+            <input type="checkbox" name="auto_start" /> 
+            % endif
+            ${_("Auto start Seafile on system startup")}
+            </li>
+        </ul>
+        % if error_msg:
+        <p class="error">${error_msg}</p>
+        % endif
+        <input type="submit" value="${_("Submit")}" />
+    </form>
+</div>
 </%def>
-
-

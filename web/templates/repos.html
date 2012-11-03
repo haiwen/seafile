@@ -5,82 +5,87 @@
 %>
 
 <%def name="main_panel()">
-<div id="repos-nav" class="fleft block">
-% if relays:
-<h3>${_("Servers")}</h3>
-% for relay in relays:
-    <p><a class="relay-link" href="${relay.props.service_url}">${relay.props.name}</a>
-    % if relay.props.is_ready:
-    ${_("connected")}
-    % elif relay.props.net_state == 1:
-    ${_("authenticating")}
-    % else:
-    ${_("not connected")}
-    % endif
-    </p>
-% endfor
-% endif
+<div id="nav-panel" class="fleft">
+    <div class="block">
+        % if relays:
+        <h3>${_("Servers")}</h3>
+        % for relay in relays:
+        <p><a class="relay-link" href="${relay.props.service_url}">${relay.props.name}</a>
+        % if relay.props.is_ready:
+        ${_("connected")}
+        % elif relay.props.net_state == 1:
+        ${_("authenticating")}
+        % else:
+        ${_("not connected")}
+        % endif
+        </p>
+        % endfor
+        % endif
 
-<h3>${_("Navigation")}</h3>
-<a href="/repos/download-tasks/">${_("View Download Tasks")}</a>
+        <h3>${_("Navigation")}</h3>
+        <a href="/repos/download-tasks/">${_("Download Tasks")}</a>
 
-<h3>${_("Official Server")}</h3>
-<a href="http://cloud.seafile.com.cn" target="_blank">SeaCloud</a>
+        <h3>${_("Official Server")}</h3>
+        <a href="http://cloud.seafile.com.cn" target="_blank">SeaCloud</a>
+    </div>
 </div>
 
-<div id="repos-con" class="fright block">
-% if len(repos) == 0:
-<h3>${_("Four Steps to Use Seafile Client")}</h3>
-<ol>
-    <li>${_("Log in to Seafile website, either our official website or your private website.")}</li>
-    <li>${_("Create a library on Seafile website.")}</li>
-    <li>${_("Download the library to a local folder.")}</li>
-    <li>${_("Add files to the local folder and they will be uploaded automatically.")}</li>
-</ol>
+<div id="con-panel" class="fright">
+    <div class="block">
+        % if len(repos) == 0:
+        <h3>${_("Four Steps to Use Seafile Client")}</h3>
+        <ol>
+            <li>${_("Log in to Seafile website, either our official website or your private website.")}</li>
+            <li>${_("Create a library on Seafile website.")}</li>
+            <li>${_("Download the library to a local folder.")}</li>
+            <li>${_("Add files to the local folder and they will be uploaded automatically.")}</li>
+        </ol>
 
-% else:
-<h3>${_("All Librarys")}</h3>
-<table class="repo-list">
-    <tr>
-        <th width="20%">${_("Name")}</th>
-        <th width="9%">${_("Action")}</th>
-        <th width="30%">${_("Description")}</th>
-        <th width="12%">${_("Server")}</th>
-        <th width="17%">${_("Modify Time")}</th>
-        <th width="12%">${_("State")}</th>
-    </tr>
-    % for repo in repos:
-    <tr>
-        <td><a href="/repo/?repo=${repo.props.id}" class="repo-link">${ repo.props.name }</a></td>
-        <td>
-            <a class="opendir-link" href="/repos/operation/?repo=${repo.props.id}&op=open">${_("Open")}</a>
-        </td>
-        <td>${ repo.props.desc }</td>
-        <td>
-            % if repo.relay:
-            ${ repo.relay.name }
-            % endif
-        <td>
-            % if repo.props.last_modify:
-                % if repo.props.last_modify > 0:
+        % else:
+        <h3>${_("All Libraries")}</h3>
+        <table class="repo-list">
+            <tr>
+                <th width="20%">${_("Name")}</th>
+                <th width="9%">${_("Action")}</th>
+                <th width="30%">${_("Description")}</th>
+                <th width="12%">${_("Server")}</th>
+                <th width="15%">${_("Modify Time")}</th>
+                <th width="14%">${_("State")}</th>
+            </tr>
+            % for repo in repos:
+            <tr>
+                <td><a href="/repo/?repo=${repo.props.id}" class="repo-link">${ repo.props.name }</a></td>
+                <td>
+                    <a class="opendir-link" href="/repos/operation/?repo=${repo.props.id}&op=open">${_("Open")}</a>
+                </td>
+                <td>${ repo.props.desc }</td>
+                <td>
+                    % if repo.relay:
+                    ${ repo.relay.name }
+                    % endif
+                </td>
+                <td>
+                    % if repo.props.last_modify:
+                    % if repo.props.last_modify > 0:
                     ${repo.props.last_modify | translate_time_sec}
-                % else:
+                    % else:
                     ${_("Unknown")}
-                % endif
-            % else:
-                ${_("Unknown")}
-            % endif
-        <td>
-            % if repo.sync_info and repo.local_branch:
-                % if repo.sync_info.props.head_commit == repo.local_branch.props.commit_id:
-                ${_("Synchronized")}
-                % endif
-            % endif
-        </td>
-    </tr>
-    % endfor
-</table>
-% endif
+                    % endif
+                    % else:
+                    ${_("Unknown")}
+                    % endif
+                </td>
+                <td>
+                    % if repo.sync_info and repo.local_branch:
+                    % if repo.sync_info.props.head_commit == repo.local_branch.props.commit_id:
+                    ${_("Synchronized")}
+                    % endif
+                    % endif
+                </td>
+            </tr>
+            % endfor
+        </table>
+        % endif
+    </div>
 </div>
-
 </%def>

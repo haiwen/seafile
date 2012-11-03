@@ -1,33 +1,36 @@
 <%inherit file="base.html"/>
 
 <%def name="main_panel()"> 
-<div class="narrow-panel">
-% if repo_already_exists:
-<p>${_("Library already exists.")}</p>
-% else:
-<h3>${_("You are going to download")}<em>${repo_name}</em></h3>
-<form action="/repo/download/" method="post">
-    <input type="hidden" name="repo_id" value="${repo_id}" />
-    <input type="hidden" name="relay_id" value="${relay_id}" />
-    <input type="hidden" name="repo_name" value="${repo_name}" />
-    <input type="hidden" name="encrypted" value="${encrypted}" />
-    <input type="hidden" name="relay_id" value="${relay_id}" />
-    <input type="hidden" name="relay_addr" value="${relay_addr}" />
-    <input type="hidden" name="relay_port" value="${relay_port}" />
-    <input type="hidden" name="token" value="${token}" />
-    <input type="hidden" name="email" value="${email}" />
-    <p><em>${repo_name}</em> ${_("will be downloaded to:")}</p>
-    <input type="text" name="wt_parent" value="${wt_parent}" class="text-input" />
-    % if encrypted:
-    <p class="encrypted">${_("This library is encrypted. Please enter the password for decrypting:")}</p>
-    <input type="password" name="password" maxlength="64" class="text-input" /><br/>
-    % endif
-    % if error_msg:
-    <p class="error">${ error_msg }</p>
-    % endif
-    <input type="submit" value=${_("\"OK\"")} class="submit" />
-</form>
-<p class="mgt30" id="adv-sync">${_("Advanced:")} <a href="${sync_url}">${_("sync with an existing folder")}</a></p>
-% endif
+<div id="nav-panel" class="fleft"></div>
+<div id="con-panel" class="fright">
+    <div class="narrow-panel">
+        % if repo_already_exists:
+        <p>${_("Library already exists.")}</p>
+        % else:
+        <h3>${_("You are going to download")}<em>${repo_name}</em></h3>
+        <form action="/repo/download/" method="post">
+            <input type="hidden" name="repo_id" value="${repo_id}" />
+            <input type="hidden" name="relay_id" value="${relay_id}" />
+            <input type="hidden" name="repo_name" value="${repo_name}" />
+            <input type="hidden" name="encrypted" value="${encrypted}" />
+            <input type="hidden" name="relay_id" value="${relay_id}" />
+            <input type="hidden" name="relay_addr" value="${relay_addr}" />
+            <input type="hidden" name="relay_port" value="${relay_port}" />
+            <input type="hidden" name="token" value="${token}" />
+            <input type="hidden" name="email" value="${email}" />
+            <p><em>${repo_name}</em> ${_("will be downloaded to:")}</p>
+            <input type="text" name="wt_parent" value="${wt_parent}" class="text-input" />
+            % if encrypted:
+            <p class="encrypted">${_("This library is encrypted. Please enter the password for decrypting:")}</p>
+            <input type="password" name="password" maxlength="64" class="text-input" /><br/>
+            % endif
+            % if error_msg:
+            <p class="error">${ error_msg }</p>
+            % endif
+            <input type="submit" value=${_("\"OK\"")} class="submit" />
+        </form>
+        <p>${_("Advanced:")} <a href="${sync_url}">${_("sync with an existing folder")}</a></p>
+        % endif
+    </div>
 </div>
 </%def>

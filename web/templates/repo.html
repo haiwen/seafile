@@ -4,136 +4,123 @@
 %>
 
 <%def name="main_panel()">
-
-<div id="left-panel" class="fleft">
-
-<h3>${_("Navigation")}</h3>
-<ul>
-    <li><a href="/" id="back">${_("All Libraries")}</a></li>
-    % if relay and relay.props.service_url:
-     <li><a href="${relay.props.service_url}/repo/${repo.props.id}">${_("View on Website")}</a></li>
-    % endif
-</ul>
-</h3>
-<h3>${_("Operations")}</h3>
-<ul>
-    <li><a id="do-sync-link" href="/repos/operation/?repo=${repo.props.id}&op=sync">${_("Sync Now")}</a></li>
-    <li><a href="#" id="delete">${_("Unsync")}</a></li>
-</ul>
-
-</div> <!-- left-panel -->
-
-<div id="wide-center-panel" class="fright">
-
-<!-- notification area -->
-
-<div id="transfer-area"></div><!-- transfer area -->
-
-<h2 id="repo-name">
-    ${repo.props.name}
-    % if repo.props.encrypted:
-    <span class="encrypt-note">[${_("Encrypted")}]</span>
-    % endif
-    <span class="sync-note"></span>
-</h2>
-
-<div class="basic-info">
-    <p class="repo-desc">${repo.props.desc}</p>
-    % if not repo.props.worktree_invalid:
-    <span class="item-name">${_("Local Path:")}</span> <a href="/repos/operation/?repo=${repo.props.id}&op=open">${repo.props.worktree}</a>
-    % endif
-
-    <h3>${_("Sync Info")}</h3>
-    <ul>
-        % if relay and relay.name:
-        <li>
-        <span class="item-name">${_("Server: ")}</span>${relay.name}
-        </li>
-        % endif
-
-        % if repo.props.passwd:
-        <li>
-        <span class="item-name">${_("Password: ")}</span><span id="repo-passwd">*****</span>
-        <input type="checkbox" id="show-passwd-value" name="show-passwd-value" /><label for="show-passwd-value">${_("Show")}</label>
-        </li>
-        % endif
-
-        <li>
-        % if repo.props.auto_sync:
-        <span class="item-name">${_("Auto Sync: ")}</span><input type="checkbox" checked="checked" data="set-manual-sync" id="set-sync-btn" />
-        % else:
-        <span class="item-name">${_("Auto Sync: ")}</span><input type="checkbox" data="set-auto-sync" id="set-sync-btn" />
-        % endif
-        <span id="sync-set-feedback" class="notification hide"></span>
-        </li>
-    </ul>
-</div>
-
-
-<!-- hidden content -->
-
-<textarea id="transfer-template" class="hide"> 
-    <div class="notification">
-        {#if $T.state == "normal"}
-        {#if $T.ttype == "upload"}${_("uploading")}{#else}${_("downloading")}{#/if}
-        {#if $T.block_done > 0}
-            <span id="transfered">
-                , ${_("transfered")} {parseInt($T.block_done * 100 / $T.block_total)} %
-            </span>
-        {#/if}
-        {#if $T.rate > 0}
-            , ${_("rate")} <span id="tranfer-rate">{parseInt($T.rate/1024)}</span> KB/${_("s")}
-        {#/if}
-        <img src="/static/img/icon_loading.gif" width="16" height="16" />
-        {#/if}
-
-        {#if $T.state == "error"}
-        ${_("Library transfer error:")} {$T.error_str}.<br/>
-        {#/if}
+<div id="nav-panel" class="fleft">
+    <div class="block">
+        <h3>${_("Navigation")}</h3>
+        <ul>
+            <li><a href="/" id="back">${_("All Libraries")}</a></li>
+            % if relay and relay.props.service_url:
+            <li><a href="${relay.props.service_url}/repo/${repo.props.id}">${_("View on Website")}</a></li>
+            % endif
+        </ul>
+        <h3>${_("Operations")}</h3>
+        <ul>
+            <li><a id="do-sync-link" href="/repos/operation/?repo=${repo.props.id}&op=sync">${_("Sync Now")}</a></li>
+            <li><a href="#" id="delete">${_("Unsync")}</a></li>
+        </ul>
     </div>
-</textarea>
+</div> <!-- nav-panel -->
 
-<div id="dialog-delete-confirm" class="hide">
-    <p><span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>${_("Really want to unsync this library?")}</p>
-    <button class="remove-repo-btn" data="/repos/operation/?repo=${repo.props.id}&op=remove">${_("Unsync")}</button>
-    <button class="simplemodal-close">${_("Cancel")}</button>
-</div>
+<div id="con-panel" class="fright">
+    <div class="block">
+        <div id="transfer-area"></div><!-- transfer area -->
 
+        <h2 id="repo-name">
+            ${repo.props.name}
+            % if repo.props.encrypted:
+            <span class="encrypt-note">[${_("Encrypted")}]</span>
+            % endif
+            <span class="sync-note"></span>
+        </h2>
+
+        <div class="basic-info">
+            <p class="repo-desc">${repo.props.desc}</p>
+            % if not repo.props.worktree_invalid:
+            <span class="item-name">${_("Local Path:")}</span> <a href="/repos/operation/?repo=${repo.props.id}&op=open">${repo.props.worktree}</a>
+            % endif
+
+            <h3>${_("Sync Info")}</h3>
+            <ul>
+                % if relay and relay.name:
+                <li>
+                <span class="item-name">${_("Server: ")}</span>${relay.name}
+                </li>
+                % endif
+
+                % if repo.props.passwd:
+                <li>
+                <span class="item-name">${_("Password: ")}</span><span id="repo-passwd">*****</span>
+                <input type="checkbox" id="show-passwd-value" name="show-passwd-value" /><label for="show-passwd-value">${_("Show")}</label>
+                </li>
+                % endif
+
+                <li>
+                % if repo.props.auto_sync:
+                <span class="item-name">${_("Auto Sync: ")}</span><input type="checkbox" checked="checked" data="set-manual-sync" id="set-sync-btn" />
+                % else:
+                <span class="item-name">${_("Auto Sync: ")}</span><input type="checkbox" data="set-auto-sync" id="set-sync-btn" />
+                % endif
+                <span id="sync-set-feedback" class="notification hide"></span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- hidden content -->
+        <textarea id="transfer-template" class="hide"> 
+            <div class="notification">
+                {#if $T.state == "normal"}
+                {#if $T.ttype == "upload"}${_("uploading")}{#else}${_("downloading")}{#/if}
+                {#if $T.block_done > 0}
+                <span id="transfered">, ${_("transfered")} {parseInt($T.block_done * 100 / $T.block_total)} %</span>
+                {#/if}
+                {#if $T.rate > 0}
+                , ${_("rate")} <span id="tranfer-rate">{parseInt($T.rate/1024)}</span> KB/${_("s")}
+                {#/if}
+                <img src="/static/img/icon_loading.gif" width="16" height="16" />
+                {#/if}
+
+                {#if $T.state == "error"}
+                ${_("Library transfer error:")} {$T.error_str}.<br/>
+                {#/if}
+            </div>
+        </textarea>
+
+        <div id="dialog-delete-confirm" class="hide">
+            <p><span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>${_("Really want to unsync this library?")}</p>
+            <button id="remove-repo-btn" data="/repos/operation/?repo=${repo.props.id}&op=remove">${_("Unsync")}</button>
+            <button class="simplemodal-close">${_("Cancel")}</button>
+        </div>
+    </div>
 </div>
 </%def>
 
 <%def name="js()">
 <script type="text/javascript">
-$("#open-dir-btn").click(function() {
-        location.href = $(this).attr('data');
-    });
+$("#open-dir-btn, #remove-repo-btn").click(function() {
+    location.href = $(this).attr('data');
+});
 
 //delete dialog
 $("#delete").click(function() {
-        $("#dialog-delete-confirm").modal({appendTo: "#main"}); 
-        return false;
-    });
-
-$("button.remove-repo-btn").click(function() {
-        location.href = $(this).attr('data');
-    });
+    $("#dialog-delete-confirm").modal({appendTo: "#main"}); 
+    return false;
+});
 
 // revert dialog
 var revert_commit = "";
 $("a.revert-link").bind('click', function() {
-        revert_commit = $(this).attr("data");
-        $("#dialog-revert-confirm").modal({appendTo: "#main"}); 
-    }
-);
+    revert_commit = $(this).attr("data");
+    $("#dialog-revert-confirm").modal({appendTo: "#main"}); 
+});
 $("#revert-repo-btn").click(function() {
-        location.href = "/repos/operation/?repo=${repo.props.id}&op=revert&commit=" + revert_commit;
-    });
+    location.href = "/repos/operation/?repo=${repo.props.id}&op=revert&commit=" + revert_commit;
+});
 
 % if relay and repo.local_branch and repo.props.head_branch and not repo.props.worktree_invalid:
 var empty_count = 0;
 var has_transfer = false;
 var last_sync_status = '';
-  
+
 function set_sync_status(status) {
     if (status == last_sync_status) {
         return false;
@@ -175,7 +162,7 @@ function set_sync_status(status) {
     }
     $(".sync-note").html('(${_("sync status:")} ' + str + ')');
 }
-  
+
 function set_sync_error(error) {
     if (error == last_sync_status) {
         return false;
@@ -191,8 +178,7 @@ function set_sync_error(error) {
             break;
         case "You have not login to the server":
             str = "${_('You have not login to the server')}";
-            str = str + ' ${relay.name}. ' + '${_("Go to")} ' + '<a href="/peers/">${_("Network")}</a>' + \
-                ' ${_("page to login")}';
+            str = str + ' ${relay.name}. ' + '${_("Go to")} ' + '<a href="/peers/">${_("Network")}</a>' + ' ${_("page to login")}';
             break;
         case "You do not have permission to access this repo":
             str = "${_('You do not have permission to access this library')}";
@@ -222,7 +208,7 @@ function set_sync_error(error) {
             str = "${_('Error occured in download.')}";
             break;
         case "No such repo on relay.":
-            str = "${_('Library is deleted on server.')}";
+            str = "${_('Library is deleted on server. Click \'Unsync\' button, then you can create a new library.')}";
             break;
         case "Unknown error.":
             str = "${_('Unknown error.')}";
@@ -232,7 +218,7 @@ function set_sync_error(error) {
     }    
     $(".sync-note").html('(${_("sync error:")} ' + '<span class="error">' + str + '</span>)');
 }
-      
+
 function show_sync_status() {
     $.ajax({
         url: '/repo/sync-status/?repo=${repo.props.id}', 
@@ -258,15 +244,15 @@ function show_sync_status() {
                 }
             }
             if (data['state'] == 'synchronized') {
-		        empty_count++;
+                empty_count++;
             }
             if (empty_count < 4) {
-		        setTimeout(show_sync_status, 2000);
-	        }
+                setTimeout(show_sync_status, 2000);
+            }
         }
     });
 }
-  
+
 function show_repo_transfer() {
     $.ajax({
         url: '/repo/transfer/?repo=${repo.props.id}',
@@ -294,32 +280,32 @@ $('#do-sync-link').click(function() {
 
 // for passwd display
 $('#show-passwd-value').click(function() {
-        if ($(this).attr('checked')) {
-            $('#repo-passwd').html('${repo.props.passwd}');
-        } else {
-            $('#repo-passwd').html('*****');
-        }
+    if ($(this).attr('checked')) {
+        $('#repo-passwd').html('${repo.props.passwd}');
+    } else {
+        $('#repo-passwd').html('*****');
+    }
 });
 
 //for auto-sync setting
 $("#set-sync-btn").click(function() { 
-        $.ajax({
-            url: '/repos/operation/?repo=${repo.props.id}&op=' + $(this).attr('data'),
-            dataType: 'json',
-            cache: false,
-            contentType: 'application/json; charset=utf-8',
-            success: function(data) {
-                if (data['start']) {
-                    $('#set-sync-btn').attr('data','set-manual-sync');
-                    $('#sync-set-feedback').html('${_("Started")}');
-                } else {
-                    $('#set-sync-btn').attr('data','set-auto-sync');
-                    $('#sync-set-feedback').html('${_("Stopped")}');
-                }
-                $('#sync-set-feedback').removeClass('hide');
-                setTimeout(function() { $('#sync-set-feedback').addClass('hide'); }, 1500);
+    $.ajax({
+        url: '/repos/operation/?repo=${repo.props.id}&op=' + $(this).attr('data'),
+        dataType: 'json',
+        cache: false,
+        contentType: 'application/json; charset=utf-8',
+        success: function(data) {
+            if (data['start']) {
+                $('#set-sync-btn').attr('data','set-manual-sync');
+                $('#sync-set-feedback').html('${_("Started")}');
+            } else {
+                $('#set-sync-btn').attr('data','set-auto-sync');
+                $('#sync-set-feedback').html('${_("Stopped")}');
             }
-       }); 
-   });
+            $('#sync-set-feedback').removeClass('hide');
+            setTimeout(function() { $('#sync-set-feedback').addClass('hide'); }, 1500);
+        }
+    }); 
+});
 </script>
 </%def>

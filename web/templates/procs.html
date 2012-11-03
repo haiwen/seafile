@@ -4,11 +4,7 @@
     from utils import translate_time_sec
 %>
 
-
-<%def name="left_panel()">
-</%def>
-
-<%def name="center_panel()">
+<%def name="main_panel()">
 <ul class="subnav" id="subnav">
     <li class="cur">${_("Processors alive:")} ${acnt}</li>
     <li>${_("Processors dead:")} ${dcnt}</li>
@@ -49,10 +45,6 @@
 </div>
 </%def>
 
-<%def name="right_panel()">
-</%def>
-<%def name="main_panel()">
-</%def>
 <%def name="js()">
 <script type="text/javascript">
 switchTab('subnav','li','center-panel','table');

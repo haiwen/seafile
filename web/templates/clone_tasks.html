@@ -1,15 +1,15 @@
 <%inherit file="base.html"/>
 
-<%def name="left_panel()">
-<h3>${_("Navigation")}</h3>
-<ul>
-    <li><a href="/repos/">${_("All Libraries")}</a></li>
-</ul>
-</%def>
+<%def name="main_panel()">
+<div id="nav-panel" class="fleft">
+    <h3>${_("Navigation")}</h3>
+    <a href="/repos/">${_("All Libraries")}</a>
+</div>
 
-<%def name="center_panel()">
-<h3>${_("Download Tasks")}</h3>
-<ul id="task-list"></ul>
+<div id="con-panel" class="fright">
+    <h3>${_("Download Tasks")}</h3>
+    <ul id="task-list"></ul>
+</div>
 
 <textarea id="jtemplate" class="hide">
 {#foreach $T.tasks as task}
@@ -95,7 +95,6 @@
 
 <%def name="js()">
 <script type="text/javascript">
-
 function taskRealTimeShow() {
     $.ajax({
         url: '/repos/clone-tasks/',
@@ -128,6 +127,5 @@ function taskRealTimeShow() {
     });
 }
 taskRealTimeShow();
-
 </script>
 </%def>

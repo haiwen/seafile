@@ -8,10 +8,10 @@ blockquote { font-weight:bold; margin:0 2em; font-style:italic; }
 em {
     font-style:normal;
     font-weight:bold;
-    margin:0 2px;
+    margin:0 5px;
 }
 h2 { font-size:18px; color:#333; margin:0.95em 0 0.4em; }
-h3 { font-size:16px; color:#833; margin:0.95em 0 0.4em; font-weight:normal; }
+h3 { font-size:16px; color:#833; margin:0.95em 0 0.3em; font-weight:normal; }
 h4 { font-size:14px; color:#000; }
 h3 span { font-size:12px; color:#333; }
 p.info { color:#606 }
@@ -89,11 +89,6 @@ label { display: inline-block; margin: 2px 0px; }
 .bold { font-weight:bold; }
 .errorlist { color: red; }
 .label { color:#333; font-size:12px; font-style:normal; }
-.mgt10 { margin-top:10px; }
-.mgb10 { margin-bottom:10px; }
-.mgt5 { margin-top:5px; }
-.mgb5 { margin-bottom:5px; }
-.mgt30 { margin-top:30px; }
 .ovhd { overflow:hidden; }
 .italic { font-style:italic; }
 a.button { text-decoration: underline; color:#800; }
@@ -106,10 +101,11 @@ a.button { text-decoration: underline; color:#800; }
     width:320px;
     min-height:10em;
     padding:30px;
+    background:#fff;
     border: 1px solid #ddd;
     border-radius:4px;
     -moz-border-radius:4px;
-    margin:5em auto 0;
+    margin-top:5em;
 }
 .narrow-panel h2,
 .narrow-panel h3 {
@@ -118,7 +114,7 @@ a.button { text-decoration: underline; color:#800; }
     font-size: 1.2em;
 }
 .narrow-panel p {
-    margin-bottom: 6px;
+    margin:12px 0 6px;
 }
 .narrow-panel input {
     width:318px;
@@ -133,25 +129,24 @@ a.button { text-decoration: underline; color:#800; }
     background:#fff;
     border:1px solid #ddd;
     border-radius:3px;
-    box-shadow:0 2px 2px #ccc;
+    box-shadow:1px 2px 2px #ccc;
 }
 #wrapper { font: 13px/1.5 Arial, Helvetica, sans-serif; background:#f0f0f0; color:#333; }
-#header-inner, #main, #footer { width:950px; }
-#header-inner, #main { margin:0 auto; }
-#left-panel { width:165px; min-height:400px; border:1px solid #ddd; padding:5px 0 0 10px; background:#fff;}
-#center-panel { width:545px; }
-#wide-center-panel { width: 740px; background:#fff; border:1px solid #ddd; padding:5px 0 0 10px; }
-#right-panel { width:175px; }
-#footer { color:#999; padding-top:2px; margin:75px auto 0; border-top:1px solid #DDD; padding-bottom:25px;}
-
+#header-inner, #main, #footer {
+    width:950px;
+    margin:0 auto;
+}
+#footer {
+    color:#666;
+    padding:5px 0 25px;
+    border-top:1px solid #DDD;
+}
 /* #header */
 #header {
     font-size: 14px;
     font-weight: bold;
-    padding-top: 6px;
-    padding-bottom: 7px;
+    padding:6px 0 7px;
     height:66px;
-    margin-bottom: 30px;
     background: #333;
     border-bottom: 2px solid #888;
 }
@@ -164,12 +159,14 @@ a.button { text-decoration: underline; color:#800; }
 #lang-info a { color: #eef; }
 #client-note {
     color: #ff6d4b;
+    font-family: Palatino, Georgia, "Times New Roman", serif;
+    font-size: 36px;
     font-size:1.5em;
+    width:258px;
     margin-top: 38px;
-    margin-right:3em;
 }
 #nav {
-    padding: 8px 4px 0px 4px;
+    padding-top: 8px;
 }
 #nav li {
     float: left;
@@ -178,6 +175,7 @@ a.button { text-decoration: underline; color:#800; }
 #nav a,
 #nav a:visited {
     display:block;
+    min-width:57px;
     text-align:center;
     color:#fff;
     padding-top: 36px;
@@ -189,21 +187,24 @@ a.button { text-decoration: underline; color:#800; }
 #nav .library-item a { background-image: url('/static/img/suitcase.png'); }
 #nav .settings-item a { background-image: url('/static/img/tool.png'); }
 #nav .help-item a { background-image: url('/static/img/help.png'); }
-/* main */
 #main {
+    padding:30px 0 45px;
 	min-height:450px;
     _height:450px;/*for ie 6*/
 }
-/*repo_setting,repo_diff*/
-.repo-desc th,
-.repo-desc td {
-    text-align:left;
-    padding-left:3px;
+#nav-panel {
+    width:232px;
+    min-height:1px;/*for empty ones*/
 }
-.repo-desc td.label { font-weight:bold; }
-.repo-desc tr.even td.label  { background-color: #EEE; }
-.repo-desc tr.odd td.label { background-color: #DDD; }
-
+#con-panel {
+    width:690px;
+    padding-right:2px;
+}
+#nav-panel .block,
+#con-panel .block {
+    min-height:400px;
+    padding-top:0;
+}
 /*clone task*/
 .task {
     padding-bottom:10px;
@@ -220,15 +221,7 @@ a.button { text-decoration: underline; color:#800; }
     background:#e83;
     margin:0;
 }
-#left-panel li, .msg-item ul li, #right-panel li { background:white url('/static/img/li.gif') no-repeat scroll left 8px; padding-left:10px; }
-.msg-item ul li { background-image:url('/static/img/li_bg.png'); }
 #main li { line-height:20px; }
-#main img.click { margin-left:2px; cursor:pointer; }
-#repo-encryp-passwd,
-#repo-encryp-passwd-again {
-    height:20px; 
-    line-height:20px;
-}
 .use-relay,
 .repo-create-encryption {
     margin-bottom:8px;
@@ -239,43 +232,18 @@ a.button { text-decoration: underline; color:#800; }
 /* forms */
 #id_content { display:block; width:500px; height:60px; margin-bottom:2px; }
 /* repos */
-#repos-nav {
-    width:190px;
-}
-#repos-con {
-    width:650px;
-}
-#repos-nav,
-#repos-con {
-    padding-top:0;
-    min-height:400px;
-}
+
 a.relay-link {
     color: #666;
     padding-right:13px;
     background:#fff url('/static/img/link-icon.png') no-repeat scroll right 50%;
 }
-.repo-list th { padding: 3px 3px; }
+.repo-list th {
+    padding: 3px;
+}
 .repo-list td {
     padding: 5px 3px;
     color: #333;
-}
-p.table-desc { font-weight:bold; }
-#set-passwd-form { width: 400px; }
-.lsch {
-    font-size:12px;
-    color:#666;
-    text-decoration:underline;
-}
-#ls-ch {/*repo commit details container*/
-    min-width:300px;
-    min-height:300px; 
-    max-width:850px;
-    max-height:550px;
-    overflow:auto;
-}
-#ls-ch ul {
-    padding:0 0 6px 0;
 }
 .basic-info {
     margin:0px 0 20px;
@@ -294,34 +262,10 @@ p.table-desc { font-weight:bold; }
     width:74px;
     color:#888;
 }
-.commit-list .radio {
-    width:16px;
-    text-align:center;
-}
-.commit-list .time {
-    width:130px;
-    text-align:center;
-}
-.commit-list .author  {
-    width:60px;
-    text-align:center;
-}
-.commit-list .desc,
-.commit-list .repo-home-desc {
-    padding:2px 5px;
-    width:493px;
-}
-.commit-list .op {
-    width:45px;
-}
-.commit-list .repo-home-desc {
-    width:525px;
-}
-#commit-page { margin-top: 8px; }
-
 /* footer */
-#footer { overflow:hidden; }
-#footer a { color:#333; text-decoration:none; }
+#footer .version {
+    margin-left:3em;
+}
 
 /* popup dialog */
 #basic-modal-content {display:none;}
@@ -341,66 +285,9 @@ p.table-desc { font-weight:bold; }
     margin-bottom:3px;
 }
 /* repos */
-.last-modify { color:#888; }
 #id_path {
     width:300px;
     height:18px;
-}
-a.detail-link { color:#666; }
-.dir-list { 
-    width: 500px; 
-    margin-top:3px;
-}
-.dir-list th {
-    color:#000;
-    height:28px;
-    background:#ccc;
-}
-.dir-list td {
-    height:22px; padding: 3px;
-}
-.dir-list td a {
-    vertical-align:middle;
-}
-.dir-list a.file-checkout { color: #080; }
-
-.token-tip {
-    visibility:hidden;
-    display:inline-block;
-    padding:3px 5px;
-    cursor:pointer;
-    color:#808;
-    margin-left:3px;
-}
-.tooltip-msg {
-    padding:10px;
-    border:1px solid gray;
-    background:black;
-    color:#fff;
-    z-index: 1;
-    -moz-box-shadow:0 0 8px #000;
-    -webkit-box-shadow:0 0 8px #000;
-}
-.token-tip-msg {
-    width:400px;
-}
-
-/* peers *//*network panel*/
-#connecting {
-    margin:0;
-}
-.peers { margin: 10px 0px; }
-.peer-list { margin: 5px 0px 20px 0px; }
-.peer-list th,
-.peer-list td {
-    padding:3px;
-}
-.connecting img {
-    width:22px;
-}
-.connecting span,
-.connecting img {
-    vertical-align:middle;
 }
 .encrypt-note,
 .sync-note {
@@ -411,39 +298,13 @@ a.detail-link { color:#666; }
 #modify-relay-form select {
     margin:6px 0;
 }
-/* ui-tabs *//*
-.ui-tabs { }
-.ui-tabs .ui-tabs-nav,
-.ui-tabs .ui-tabs-panel { padding: 0; }
-.ui-tabs .ui-tabs-nav {
-    margin-bottom:10px;
-}
-.ui-widget-content {
-    border: none;
-}
-#tabs { margin: 10px 0; } */
 /* settings */
-#prefs-form { margin-left: 189px; }
 #prefs-form li {
     line-height:24px;
 }
-
-span.repo-worktree {
-    color: #666;
-    font-size: 10px;
-    font-weight: normal;
+#transfer-area {
+    margin-top:20px;
 }
-/* history browse page */
-p.history-author { color: #666; margin-bottom: 10px; }
-p.history-link { margin-top:6px; }
-/* repo create page */
-#repo-base,
-#repo-desc {
-    width:300px;
-    height:22px;
-    line-height:22px;
-    margin-bottom:8px;
-}
-#repo-desc {
-    height:72px;
+#set-sync-btn {
+    vertical-align:middle;
 }

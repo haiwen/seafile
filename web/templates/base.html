@@ -21,76 +21,45 @@
 <div id="wrapper">
     <div id="header">
         <div id="header-inner" class="ovhd">
-        <div id="lang-info" class="fright">
-            % if settings.SHOW_SYSTEM:
-            <a href="/procs/">${_("System")}</a>
-            % endif
-            <a href=${"/i18n/?prev=" + web_ctx.fullpath} >
-            % if lang == 'zh_CN':
-            English
-            % else:
-            中文
-            % endif
-            </a>
+            <div id="lang-info" class="fright">
+                % if settings.SHOW_SYSTEM:
+                <a href="/procs/">${_("System")}</a>
+                % endif
+                <a href=${"/i18n/?prev=" + web_ctx.fullpath} >
+                    % if lang == 'zh_CN':
+                    English
+                    % else:
+                    中文
+                    % endif
+                </a>
+            </div>
+            <div class="fleft">
+                <span id="client-note" class="fleft">${_("Seafile Client")}</span>
+                <ul id="nav" class="fleft">
+                    <li class="library-item">
+                    <a href="/repos/">${_("Libraries")}</a>
+                    </li>
+                    <li class="settings-item">
+                    <a href="/settings/">${_("Settings")}</a>
+                    </li>
+                    <li class="help-item">
+                    <a href=${settings.DEFAULT_HELP_WEB}>${_("Help")}</a>
+                    </li>
+                </ul>
+            </div>
         </div>
-        <div class="fleft">
-            <div id="client-note" class="fleft">${_("Seafile Client")}</div>
-            <ul id="nav" class="fleft">
-                <li class="library-item">
-                <a href="/repos/">${_("Libraries")}</a>
-                </li>
-                <!-- <li>
-                <a href="/synclan/">${_("SyncLan")}</a>
-                </li> -->
-                <!-- <li>
-                <a href="/peers/">${_("Network")}</a>
-                </li>  -->
-                <li class="settings-item">
-                <a href="/settings/">${_("Settings")}</a>
-                </li>
-                <li class="help-item">
-                <a href=${settings.DEFAULT_HELP_WEB}>${_("Help")}</a>
-                </li>
-            </ul>
-        </div>
-    </div>
     </div>
     <div id="main" class="ovhd">
-        <div id="center-panel" class="fleft">
-            ${self.center_panel()}
-        </div>
-        <div id="right-panel" class="fright">
-            ${self.right_panel()}
-        </div>
-        <div id="main-panel" class="clear">
-            ${self.main_panel()}
-        </div>
-        <%def name="center_panel()"></%def>
-        <%def name="right_panel()"></%def>
-        <%def name="main_panel()"></%def>
+        ${self.main_panel()}
     </div>
+    <%def name="main_panel()"></%def>
     <div id="footer">
-        <p class="fleft">Copyright © 2012 海文互知. ${_("Seafile Client Version:")} ${seafile_version}</p>
-        <p class="fright">${_("Contact")} | ${_("About")}</p>
+        <p>Copyright © 2012 海文互知. <span class="version">${_("Version:")} ${seafile_version}</span></p>
     </div>
 </div><!-- wrapper -->
 <script type="text/javascript" src="/static/js/jquery.tools.min.js"></script>
-<script type="text/javascript" src="/static/js/jquery.slides.js"></script>
 <script type="text/javascript" src="/static/js/utils.js"></script>
-
 <%def name="js()"></%def>
 ${self.js()}
-<script type="text/javascript">
-//for compatibility with ie7
-function hideIfEmpty(e) {//e: an element or elements
-    if (!$.trim(e.html())) {
-            e.addClass('hide');
-    }
-}
-
-hideIfEmpty($('#center-panel'));
-hideIfEmpty($('#right-panel'));
-
-</script>
 </body>
 </html>
