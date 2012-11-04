@@ -220,6 +220,8 @@ seaf_repo_manager_post_dir (SeafRepoManager *mgr,
 /**
  * Update an existing file in a repo
  * @params: same as seaf_repo_manager_post_file
+ * @head_id: the commit id for the original file version.
+ *           It's optional. If it's NULL, the current repo head will be used.
  */
 int
 seaf_repo_manager_put_file (SeafRepoManager *mgr,
@@ -228,6 +230,7 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
                             const char *parent_dir,
                             const char *file_name,
                             const char *user,
+                            const char *head_id,
                             GError **error);
 
 int

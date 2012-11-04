@@ -282,14 +282,16 @@ seafile_put_file (SearpcClient *client,
                   const char *parent_dir,
                   const char *file_name,
                   const char *user,
+                  const char *head_id,
                   GError **error)
 {
     return searpc_client_call__int (client, "seafile_put_file", error,
-                                    5, "string", repo_id,
+                                    6, "string", repo_id,
                                     "string", file_path,
                                     "string", parent_dir,
                                     "string", file_name,
-                                    "string", user);
+                                    "string", user,
+                                    "string", head_id);
 }
 
 int

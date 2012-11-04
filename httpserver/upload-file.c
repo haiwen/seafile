@@ -308,13 +308,19 @@ update_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
     SearpcClient *rpc_client = NULL;
-    struct stat st;
     char *target_file, *parent_dir = NULL, *filename = NULL;
+    const char *head_id = NULL;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
 
     if (!fsm || fsm->state == RECV_ERROR)
         return;
+
+    if (!fsm->tmp_files) {
+        seaf_warning ("[update] No file uploaded.\n");
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
 
     target_file = g_hash_table_lookup (fsm->form_kvs, "target_file");
     if (!target_file) {
@@ -327,39 +333,35 @@ update_cb(evhtp_request_t *req, void *arg)
     parent_dir = g_path_get_dirname (target_file);
     filename = g_path_get_basename (target_file);
 
-    if (stat (fsm->tmp_file, &st) < 0) {
-        seaf_warning ("[upload] Failed to stat temp file %s.\n", fsm->tmp_file);
-        error_code = ERROR_RECV;
+    if (!check_tmp_file_list (fsm->tmp_files, &error_code))
         goto error;
-    }
 
-    if ((gint64)st.st_size > MAX_UPLOAD_FILE_SIZE) {
-        seaf_warning ("[upload] File size is too large.\n");
-        error_code = ERROR_SIZE;
-        goto error;
-    }
+    head_id = evhtp_kv_find (req->uri->query, "head");
 
     rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
                                                  NULL,
                                                  "seafserv-threaded-rpcserver");
 
     if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
-        seaf_warning ("[upload] Out of quota.\n");
+        seaf_warning ("[update] Out of quota.\n");
         error_code = ERROR_QUOTA;
         goto error;
     }
 
     seafile_put_file (rpc_client,
                       fsm->repo_id,
-                      fsm->tmp_file,
+                      (char *)(fsm->tmp_files->data),
                       parent_dir,
                       filename,
                       fsm->user,
+                      head_id,
                       &error);
     if (error) {
         if (g_strcmp0 (error->message, "file does not exist") == 0) {
             error_code = ERROR_NOT_EXIST;
         }
+        if (error->message)
+            printf ("%s\n", error->message);
         g_clear_error (&error);
         goto error;
     }

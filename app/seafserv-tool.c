@@ -292,7 +292,7 @@ static int put_file (int argc, char **argv)
     user = argv[4];
 
     ret = seafile_put_file(threaded_rpc_client, repo_id, file_path,
-                           parent_dir, file_name, user, &error);
+                           parent_dir, file_name, user, NULL, &error);
     if (ret < 0) {
         fprintf (stderr, "Failed to put a file into server (filepath %s)\n",
                  file_path);

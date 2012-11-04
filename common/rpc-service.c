@@ -2523,7 +2523,7 @@ seafile_post_multi_files (const char *repo_id,
 int
 seafile_put_file (const char *repo_id, const char *temp_file_path,
                   const char *parent_dir, const char *file_name,
-                  const char *user,
+                  const char *user, const char *head_id,
                   GError **error)
 {
     if (!repo_id || !temp_file_path || !parent_dir || !file_name || !user) {
@@ -2534,7 +2534,7 @@ seafile_put_file (const char *repo_id, const char *temp_file_path,
 
     if (seaf_repo_manager_put_file (seaf->repo_mgr, repo_id,
                                     temp_file_path, parent_dir,
-                                    file_name, user,
+                                    file_name, user, head_id,
                                     error) < 0) {
         return -1;
     }

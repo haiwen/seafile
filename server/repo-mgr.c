@@ -4179,6 +4179,7 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
                             const char *parent_dir,
                             const char *file_name,
                             const char *user,
+                            const char *head_id,
                             GError **error)
 {
     SeafRepo *repo = NULL;
@@ -4202,7 +4203,8 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
     }
 
     GET_REPO_OR_FAIL(repo, repo_id);
-    GET_COMMIT_OR_FAIL(head_commit, repo->head->commit_id);
+    const char *base = head_id ? head_id : repo->head->commit_id;
+    GET_COMMIT_OR_FAIL(head_commit, base);
 
     if (!canon_path)
         canon_path = get_canonical_path (parent_dir);

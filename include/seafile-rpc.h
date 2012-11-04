@@ -623,11 +623,13 @@ seafile_post_empty_file (const char *repo_id, const char *parent_dir,
 /**
  * Update an existing file in a repo
  * @params: same as seafile_post_file
+ * @head_id: the commit id for the original file version.
+ *           It's optional. If it's NULL, the current repo head will be used.
  */
 int
 seafile_put_file (const char *repo_id, const char *temp_file_path,
                   const char *parent_dir, const char *file_name,
-                  const char *user,
+                  const char *user, const char *head_id,
                   GError **error);
 
 int

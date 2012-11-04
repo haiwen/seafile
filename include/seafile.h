@@ -98,6 +98,7 @@ seafile_put_file (SearpcClient *client,
                   const char *parent_dir,
                   const char *file_name,
                   const char *user,
+                  const char *head_id,
                   GError **error);
 
 int
