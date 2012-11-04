@@ -129,7 +129,7 @@ a.button { text-decoration: underline; color:#800; }
     background:#fff;
     border:1px solid #ddd;
     border-radius:3px;
-    box-shadow:1px 2px 2px #ccc;
+    box-shadow:0px 1px 1px #ccc;
 }
 #wrapper { font: 13px/1.5 Arial, Helvetica, sans-serif; background:#f0f0f0; color:#333; }
 #header-inner, #main, #footer {
