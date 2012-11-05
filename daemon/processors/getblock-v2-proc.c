@@ -145,31 +145,29 @@ got_block_cb (CEvent *event, void *vprocessor)
     BlockResponse *blk_rsp = event->data;
 
     if (blk_rsp->block_idx >= 0) {
+        /* proc->tx_time may be too short, don't update stat. */
+
         BitfieldAdd (&proc->tx_task->block_list->block_map, blk_rsp->block_idx);
         BitfieldRem (&proc->active, blk_rsp->block_idx);
         BitfieldRem (&proc->tx_task->active, blk_rsp->block_idx);
         ++(proc->tx_task->block_list->n_valid_blocks);
         --(proc->pending_blocks);
+    } else {
+        /* x = x * 7/8 + y/8  */
+        if (proc->tx_bytes != 0)
+            proc->tx_bytes = proc->tx_bytes - (proc->tx_bytes >> 3)
+                + (blk_rsp->tx_bytes >> 3);
+        else
+            proc->tx_bytes = blk_rsp->tx_bytes;
+        if (proc->tx_time != 0)
+            proc->tx_time = proc->tx_time - (proc->tx_time >> 3)
+                + (blk_rsp->tx_time >> 3);
+        else
+            proc->tx_time = blk_rsp->tx_time;
+
+        if (proc->tx_time != 0)
+            proc->avg_tx_rate = ((double)proc->tx_bytes) * 1000000 / proc->tx_time;
     }
-
-    /* g_debug ("[get block] rx_rate = %.6f\n", blk_rsp->rx_rate); */
-
-    /* x = x * 7/8 + y/8  */
-    if (proc->tx_bytes != 0)
-        proc->tx_bytes = proc->tx_bytes - (proc->tx_bytes >> 3)
-            + (blk_rsp->tx_bytes >> 3);
-    else
-        proc->tx_bytes = blk_rsp->tx_bytes;
-    if (proc->tx_time != 0)
-        proc->tx_time = proc->tx_time - (proc->tx_time >> 3)
-            + (blk_rsp->tx_time >> 3);
-    else
-        proc->tx_time = blk_rsp->tx_time;
-
-    if (proc->tx_time != 0)
-        proc->avg_tx_rate = ((double)proc->tx_bytes) * 1000000 / proc->tx_time;
-
-    /* g_debug ("[get block] avg_rx_rate = %.6f\n", proc->avg_rx_rate); */
 
     g_free (blk_rsp);
 }

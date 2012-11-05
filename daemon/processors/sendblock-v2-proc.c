@@ -154,22 +154,29 @@ sent_block_cb (CEvent *event, void *vprocessor)
     SeafileSendblockV2Proc *proc = vprocessor;
     BlockResponse *blk_rsp = event->data;
 
-    if (proc->tx_bytes != 0)
-        proc->tx_bytes = proc->tx_bytes - (proc->tx_bytes >> 3)
-            + (blk_rsp->tx_bytes >> 3);
-    else
-        proc->tx_bytes = blk_rsp->tx_bytes;
-    if (proc->tx_time != 0)
-        proc->tx_time = proc->tx_time - (proc->tx_time >> 3)
-            + (blk_rsp->tx_time >> 3);
-    else
-        proc->tx_time = blk_rsp->tx_time;
-  
-    if (proc->tx_time != 0)
-        proc->avg_tx_rate = ((double)proc->tx_bytes) * 1000000 / proc->tx_time;
+    if (blk_rsp->block_idx < 0) {
+        /* A block has not yet completely sent, just update stat */
 
-    if (blk_rsp->block_idx >= 0)
+        if (proc->tx_bytes != 0)
+            proc->tx_bytes = proc->tx_bytes - (proc->tx_bytes >> 3)
+                + (blk_rsp->tx_bytes >> 3);
+        else
+            proc->tx_bytes = blk_rsp->tx_bytes;
+        if (proc->tx_time != 0)
+            proc->tx_time = proc->tx_time - (proc->tx_time >> 3)
+                + (blk_rsp->tx_time >> 3);
+        else
+            proc->tx_time = blk_rsp->tx_time;
+  
+        if (proc->tx_time != 0)
+            proc->avg_tx_rate = ((double)proc->tx_bytes) * 1000000 / proc->tx_time;
+    } else {
+        /* A block was completely sent.
+         * In this case proc->tx_time may be too short, so don't update stat.
+         */
+
         --(proc->pending_blocks);
+    }
 
     g_free (blk_rsp);
 }
