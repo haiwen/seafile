@@ -43,7 +43,11 @@
                     <a href="/settings/">${_("Settings")}</a>
                     </li>
                     <li class="help-item">
+                    % if lang == 'zh_CN':
                     <a href=${settings.DEFAULT_HELP_WEB}>${_("Help")}</a>
+                    % else:
+                    <a href=${settings.DEFAULT_HELP_WEB_EN}>${_("Help")}</a>
+                    % endif
                     </li>
                 </ul>
             </div>

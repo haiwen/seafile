@@ -285,7 +285,7 @@ InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
     case WM_INITDIALOG:
         InitComboxList(hDlg);
-        set_dlg_icon (hDlg, IDI_STATUS_UP);
+        set_dlg_icon (hDlg, IDI_SEAFILE_ICON);
         SetWindowText (GetDlgItem(hDlg, IDC_STATIC_TITLE), _("Choose a disk"));
         set_control_font (GetDlgItem(hDlg, IDC_STATIC_TITLE), _("Courier"));
         make_wnd_foreground(hDlg);
@@ -379,7 +379,7 @@ Win7TipProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch(message) {
     case WM_INITDIALOG:
-        set_dlg_icon (hDlg, IDI_STATUS_UP);
+        set_dlg_icon (hDlg, IDI_SEAFILE_ICON);
         make_wnd_foreground (hDlg);
         break;
 

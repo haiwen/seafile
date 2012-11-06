@@ -34,7 +34,7 @@ seafile_applet_LDADD  = @CCNET_LIBS@  \
 
 seafile_applet_LDFLAGS = @STATIC_COMPILE@ @CONSOLE@
 
-ui = seafile-trayicon.ui init-ccnet-window.ui init-seafile-window.ui
+ui = seafile-trayicon.ui init-seafile-window.ui
 
 uidir = $(pkgdatadir)
 ui_DATA = $(ui)

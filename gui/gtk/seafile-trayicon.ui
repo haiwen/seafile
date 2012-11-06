@@ -64,8 +64,8 @@
     <property name="stock">gtk-quit</property>
   </object>
   <object class="GtkAction" id="restart_network_action">
-    <property name="label">Restart Daemon</property>
-    <property name="tooltip">Restart Daemon</property>
+    <property name="label">Restart</property>
+    <property name="tooltip">Restart</property>
     <property name="stock_id">gtk-refresh</property>
   </object>
   <object class="GtkAction" id="disable_auto_sync_action">

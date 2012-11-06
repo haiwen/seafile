@@ -5,7 +5,7 @@
 #define IDI_STARTINTRAY                 102
 #define IDS_APP_TITLE                   103
 #define IDM_EXIT                        105
-#define IDI_CCNET_ICON                  107
+#define IDI_SEAFILE_ICON                  107
 #define IDC_STARTINTRAY                 108
 #define IDI_STATUS_UP                   110
 #define IDI_STATUS_DOWN                 111

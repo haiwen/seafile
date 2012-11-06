@@ -100,7 +100,7 @@ create_applet_window ()
     wcex.lpfnWndProc    = (WNDPROC)WndProc;
     wcex.hInstance      = applet->hInstance;
     wcex.lpszClassName  = "seafile-applet";
-    wcex.hIcon          = LoadIcon(applet->hInstance, MAKEINTRESOURCE(IDI_CCNET_ICON));
+    wcex.hIcon          = LoadIcon(applet->hInstance, MAKEINTRESOURCE(IDI_SEAFILE_ICON));
 
     RegisterClassEx(&wcex);
     applet->hWnd = CreateWindow("seafile-applet", "seafile-applet",
