@@ -43,7 +43,15 @@ typedef struct SendfileData {
 
 extern SeafileSession *seaf;
 
-static struct file_type_map *ftmap;
+static struct file_type_map ftmap[] = {
+    { "txt", "text/plain" },
+    { "html", "text/html" },
+    { "doc", "application/word" },
+    { "docx", "application/word" },
+    { "mp3", "audio/mp3" },
+    { "pdf", "application/pdf" },
+    { NULL, NULL },
+};
 
 static void
 free_sendfile_data (SendfileData *data)
@@ -454,56 +462,9 @@ bad_req:
     evhtp_send_reply(req, EVHTP_RES_BADREQ);
 }
 
-static int
-load_content_type_map(struct file_type_map **ftmap, const char *root_dir)
-{
-    FILE *fin;
-    int cnt = 0;
-    int max = FILE_TYPE_MAP_DEFAULT_LEN;
-    char suffix[16], type[16];
-    char path[PATH_MAX];
-
-    *ftmap = (struct file_type_map *)malloc(sizeof(struct file_type_map) *
-                                            FILE_TYPE_MAP_DEFAULT_LEN);
-    if (*ftmap == NULL)
-        return -1;
-
-    snprintf(path, PATH_MAX, "%s/%s", root_dir, CONTENT_TYPE_FILENAME);
-    fin = fopen(path, "r");
-    if (fin == NULL) {
-        seaf_warning ("cann't open content type file\n");
-        return -1;
-    }
-    while (!feof(fin)) {
-        fscanf(fin, "%s %s\n", suffix, type);
-        (*ftmap)[cnt].suffix = strdup(suffix);
-        (*ftmap)[cnt].type = strdup(type);
-        cnt++;
-
-        /* realloc ftmap */
-        if (cnt >= max) {
-            max *= 2;
-            *ftmap = realloc(*ftmap, sizeof(struct file_type_map) * max);
-            if (*ftmap == NULL)
-                return -1;
-        }
-    }
-    (*ftmap)[cnt].suffix = NULL;
-    (*ftmap)[cnt].type = NULL;
-
-    fclose(fin);
-
-    return 0;
-}
-
 int
-access_file_init (evhtp_t *htp, const char *root_dir)
+access_file_init (evhtp_t *htp)
 {
-    if (load_content_type_map(&ftmap, root_dir) < 0) {
-        seaf_warning ("load content type error\n");
-        return -1;
-    }
-
     evhtp_set_regex_cb (htp, "^/files/.*", access_cb, NULL);
 
     return 0;

@@ -116,11 +116,6 @@ main(int argc, char *argv[])
         }
     }
 
-    if (!root_dir) {
-        usage();
-        exit (-1);
-    }
-
 #ifndef WIN32    
     if (daemon_mode)
         daemon(1, 0);
@@ -161,7 +156,7 @@ main(int argc, char *argv[])
     evbase = event_base_new();
     htp = evhtp_new(evbase, NULL);
 
-    if (access_file_init (htp, root_dir) < 0)
+    if (access_file_init (htp) < 0)
         exit (1);
 
     if (upload_file_init (htp) < 0)
