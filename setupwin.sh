@@ -44,3 +44,7 @@ popd
 # copy Wix source files and Makefile
 cp -rf msi/* "${TARGET_DIR}"
 
+# copy seafile.mo to bin/i18n/
+cp -f /mingw/share/locale/zh_CN/LC_MESSAGES/seafile.mo "${BIN_DIR}/i18n/zh_CN/LC_MESSAGES/"
+
+

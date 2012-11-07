@@ -51,3 +51,17 @@ Every time a new version is released, you just need to edit Includes.wxi:
 2) Update <CurrentSeafileVersion>
 
 And go through the compiling process above.
+
+
+English Version
+=========
+
+Just before you run `setupwin.sh` in the `seafile` directory:
+
+    cd seafile/gui/win;
+    make clean; make en;
+
+    cp seafile-applet.exe /c/pack/bin
+    cd /c/pack
+    make en ==> seafile-en.msi
+    
