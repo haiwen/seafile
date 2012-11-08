@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 
 
 AC_PREREQ(2.61)
-AC_INIT([seafile], [1.1.0], [freeplant@gmail.com])
+AC_INIT([seafile], [1.2.0], [freeplant@gmail.com])
 AC_CONFIG_HEADER([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -98,7 +98,6 @@ fi
 # test which sub-component to compile
 
 if test "$bwin32" = true; then
-   compile_gui=yes
    compile_client=yes
    compile_cli=no
    compile_tools=no
@@ -107,7 +106,6 @@ if test "$bwin32" = true; then
 fi
 
 if test "$bmac" = true; then
-   compile_gui=yes
    compile_client=yes
    compile_cli=no
    compile_tools=no
@@ -123,7 +121,6 @@ if test "$bmac" = true; then
 fi
 
 if test "$blinux" = true; then
-   compile_gui=no
    compile_cli=yes
    compile_tools=yes
 
@@ -133,11 +130,6 @@ if test "$blinux" = true; then
 
    AC_ARG_ENABLE(client, AC_HELP_STRING([--enable-client], [enable server]),
       [compile_client=$enableval],[compile_client="yes"])
-
-   if test "$compile_client" = yes; then
-      compile_gui=yes
-   fi
-
 
    AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
       [compile_server=$enableval],[compile_server="no"])
@@ -185,7 +177,6 @@ AC_SUBST(STATIC_COMPILE)
 # Read "man ld.so" for description of $ORIGIN.
 # Refer to http://blog.linuxgamepublishing.com/2009/02/08/our-new-way-to-meet-the-lgpl/
 if test x${server_pkg} = xyes; then
-  compile_gui=no
   compile_client=no
   compile_cli=yes
   compile_tools=yes
@@ -197,7 +188,6 @@ fi
 AC_SUBST(SERVER_PKG_RPATH)
 AC_SUBST(SERVER_PKG_PY_RPATH)
 
-AM_CONDITIONAL([COMPILE_GUI], [test "${compile_gui}" = "yes"])
 AM_CONDITIONAL([COMPILE_CLI], [test "${compile_cli}" = "yes"])
 AM_CONDITIONAL([COMPILE_TOOLS], [test "${compile_tools}" = "yes"])
 AM_CONDITIONAL([COMPILE_PYTHON], [test "${compile_python}" = "yes"])
@@ -332,11 +322,6 @@ AC_ARG_ENABLE(appindicator,
    [enable_appindicator=$enableval],
    [enable_appindicator="auto"])
 
-#if test x$compile_gui = xyes -a x$enable_appindicator = xauto; then
-#  PKG_CHECK_MODULES(APP_INDICATOR, [appindicator-0.1 >= $APPINDICATOR_REQUIRED],
-#                    [enable_appindicator="yes"], )
-#fi
-
 if test x$enable_appindicator = xyes ; then
    PKG_CHECK_EXISTS([appindicator-0.1 >= $APPINDICATOR_REQUIRED],,
                    AC_MSG_ERROR([appindicator-0.1 is not installed]))
@@ -350,7 +335,7 @@ fi
 AM_CONDITIONAL(HAVE_APP_INDICATOR, [test x"$enable_appindicator" = xyes])
 
 if test "$blinux" = true -a x${compile_client} = xyes; then
-   dnl on linux, check GTK if gui is enabled
+   dnl on linux, check GTK if client is enabled
    PKG_CHECK_MODULES(GTK, [gtk+-2.0 >= $GTK_REQUIRED])
    AC_SUBST(GTK_CFLAGS)
    AC_SUBST(GTK_LIBS)
@@ -475,8 +460,6 @@ AC_CONFIG_FILES(
     tests/common-conf.sh
     po/Makefile.in
 )
-#    desktop/Makefile
-#    desktop/nautilus/Makefile
 
 AC_OUTPUT
 
@@ -484,10 +467,8 @@ AC_OUTPUT
 echo
 echo "The following modules will be built:"
 echo
-if test x${compile_gui} = xyes; then
-    echo "seafile-applet"
-fi
 if test x${compile_client} = xyes; then
+    echo "seafile-applet"
    echo    "seaf-daemon"
 fi
 if test x${compile_server} = xyes; then

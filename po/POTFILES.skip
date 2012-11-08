@@ -1,0 +1,4 @@
+web/deprecated.py
+web/main.py
+gui/gtk/init-seafile-window.ui
+gui/gtk/seafile-trayicon.ui

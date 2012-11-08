@@ -1,6 +1,6 @@
-
-if COMPILE_GUI
-  MAKE_GUI = gui
+if COMPILE_CLIENT
+  MAKE_CLIENT = daemon gui
+  MAKE_data = data # Caution: don't use MAKE_DATA
   MAKE_PO = po
 endif
 
@@ -12,69 +12,66 @@ if COMPILE_SERVER
   MAKE_SERVER = server tools monitor $(MAKE_HTTPSERVER) controller
 endif
 
-if COMPILE_CLIENT
-  MAKE_CLIENT = daemon
-endif
-
 if WIN32
-  SHELL_EXT = desktop desktop/explorer
-else
-  SHELL_EXT = desktop desktop/nautilus
+  MAKE_data =
 endif
 
-SUBDIRS = include data lib common daemon $(MAKE_GUI) $(MAKE_CLINET) $(MAKE_SERVER) \
-	app python tests web $(MAKE_PO)
-DIST_SUBDIRS = include data lib common daemon gui daemon server tools monitor \
-			   httpserver controller app python tests web
+SUBDIRS = include lib common app python tests \
+	$(MAKE_CLIENT) $(MAKE_SERVER) $(MAKE_PO) $(MAKE_data)
+
+DIST_SUBDIRS = include lib common app python tests \
+	daemon gui server tools monitor httpserver controller \
+	po data
 
 INTLTOOL = \
 	intltool-extract.in \
 	intltool-merge.in \
 	intltool-update.in
 
-EXTRA_DIST = install-sh $(INTLTOOL) web debian/seafile.desktop README.markdown
+EXTRA_DIST = install-sh $(INTLTOOL) README.markdown web
 
 DISTCLEANFILES = \
 	intltool-extract.in \
 	intltool-merge.in \
 	intltool-update.in
 
+DISTCHECK_CONFIGURE_FLAGS = --enable-server --enable-httpserver
+
 ACLOCAL_AMFLAGS = -I m4
 
-if !SERVER_ONLY
+web_mos = \
+	web/i18n/en_US/LC_MESSAGES/messages.mo \
+	web/i18n/zh_CN/LC_MESSAGES/messages.mo
+
+CLEANFILES = $(web_mos)
+
+web/i18n/en_US/LC_MESSAGES/messages.mo: $(top_srcdir)/web/i18n/en_US/LC_MESSAGES/messages.po
+	mkdir -p `dirname $@`
+	msgfmt -o $@ $<
+
+web/i18n/zh_CN/LC_MESSAGES/messages.mo: $(top_srcdir)/web/i18n/zh_CN/LC_MESSAGES/messages.po
+	mkdir -p `dirname $@`
+	msgfmt -o $@ $<
+
 install-web:
-	$(INSTALL_PROGRAM) ccnet-web.sh $(DESTDIR)${bindir}/ccnet-web.sh
-	if test -d $(DESTDIR)${pkglibdir}/web; then \
-	    rm -rf $(DESTDIR)${pkglibdir}/web; \
+	$(INSTALL) -d $(DESTDIR)$(pkglibdir)
+	if test -d $(DESTDIR)$(pkglibdir)/web; then \
+	    rm -rf $(DESTDIR)$(pkglibdir)/web; \
     fi
-	cp -r ${top_srcdir}/web $(DESTDIR)${pkglibdir}
+	cp -r $(top_srcdir)/web $(DESTDIR)$(pkglibdir)
+
+uninstall-web:
+	chmod u+rw -R $(DESTDIR)$(pkglibdir)/web
+	-rm -rf $(DESTDIR)$(pkglibdir)/web
+
+if COMPILE_CLIENT
+bin_SCRIPTS = ccnet-web.sh
+install_web = install-web
+uninstall_web = uninstall-web
+make_web_mos = $(web_mos)
 endif
 
-install-data-local:
-	$(INSTALL) -d $(DESTDIR)$(datarootdir)/applications
-	$(INSTALL_PROGRAM) debian/seafile.desktop $(DESTDIR)$(datarootdir)/applications/seafile.desktop
-	$(INSTALL) -d $(DESTDIR)${bindir}
-	$(INSTALL_PROGRAM) ccnet-web.sh $(DESTDIR)${bindir}
-	$(INSTALL) -d $(DESTDIR)${pkglibdir}
-if !SERVER_ONLY
-	if test -d $(DESTDIR)${pkglibdir}/web; then \
-	    rm -rf $(DESTDIR)${pkglibdir}/web; \
-    fi
-	cp -r ${top_srcdir}/web $(DESTDIR)${pkglibdir}
-endif
+all-local: $(make_web_mos)
+install-data-local: $(install_web)
+uninstall-local: $(uninstall_web)
 
-uninstall-hook:
-	chmod u+rw -R $(DESTDIR)${pkglibdir}/web
-	-rm -rf $(DESTDIR)${pkglibdir}/web
-	-rm -rf $(DESTDIR)${bindir}/ccnet-web.sh
-	-rm -rf $(DESTDIR)${datarootdir}/applications
-
-distcheck-hook:
-	chmod u+rwx -R $(distdir)
-	mkdir -p $(distdir)/_build/lib/
-	cp -r $(distdir)/debian $(distdir)/_build/
-	cp -r $(distdir)/web $(distdir)/_build/
-
-distcleancheck:
-	-rm $(distdir)/_build/debian
-	-rm $(distdir)/_build/web
