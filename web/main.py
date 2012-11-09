@@ -609,9 +609,9 @@ class repo_download:
             elif e.msg == 'Already in sync':
                 error_msg = _('The local directory you chose is in sync with another repo. Please choose another one.')
             elif e.msg == 'Worktree conflicts system path':
-                error_msg = _('The local directory you chose cannot be under or includes an system directory of seafile.')
+                error_msg = _('The local directory you chose cannot be under or includes a system directory of seafile.')
             elif e.msg == 'Worktree conflicts existing repo':
-                error_msg = _('The local directory you chose cannot be under or includes another repo.')
+                error_msg = _('The local directory you chose cannot be under or includes another library.')
             else:
                 error_msg = _('Internal error.') + str(e)
 
@@ -720,9 +720,9 @@ class repo_sync:
             elif e.msg == 'Already in sync':
                 error_msg = _('The local directory you chose is in sync with another repo. Please choose another one.')
             elif e.msg == 'Worktree conflicts system path':
-                error_msg = _('The local directory you chose cannot be under or includes an system directory of seafile.')
+                error_msg = _('The local directory you chose cannot be under or includes a system directory of seafile.')
             elif e.msg == 'Worktree conflicts existing repo':
-                error_msg = _('The local directory you chose cannot be under or includes another repo.')
+                error_msg = _('The local directory you chose cannot be under or includes another library.')
             else:
                 error_msg = _('Internal error.') + str(e)
 

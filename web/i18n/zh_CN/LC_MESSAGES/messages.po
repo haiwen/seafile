@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2012-11-04 11:04+CST\n"
+"POT-Creation-Date: 2012-11-09 16:45+CST\n"
 "PO-Revision-Date: 2012-11-04 11:07+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -39,12 +39,13 @@ msgstr "你所指定的本地目录已经与其他资料库同步，请指定其
 
 #: main.py:612 main.py:723
 msgid ""
-"The local directory you chose cannot be under or includes an system "
-"directory of seafile."
+"The local directory you chose cannot be under or includes a system directory "
+"of seafile."
 msgstr "本地目录的路径不能处在 Seafile 系统目录下，或者包含 Seafile 系统目录"
 
 #: main.py:614 main.py:725
-msgid "The local directory you chose cannot be under or includes another repo."
+msgid ""
+"The local directory you chose cannot be under or includes another library."
 msgstr "本地目录的路径不能处在其他资料库目录下，或者包含其他资料库目录"
 
 #: main.py:616 main.py:727 templates/clone_tasks.html:69
@@ -67,11 +68,11 @@ msgstr "资料库"
 msgid "Settings"
 msgstr "设置"
 
-#: templates/base.html:46
+#: templates/base.html:47 templates/base.html:49
 msgid "Help"
 msgstr "帮助"
 
-#: templates/base.html:57
+#: templates/base.html:61
 msgid "Version:"
 msgstr "版本:"
 

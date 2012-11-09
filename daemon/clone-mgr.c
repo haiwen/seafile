@@ -823,7 +823,8 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
 }
 
 static char *
-make_worktree_for_download (const char *wt_tmp,
+make_worktree_for_download (SeafCloneManager *mgr,
+                            const char *wt_tmp,
                             GError **error)
 {
     char *worktree;
@@ -832,6 +833,11 @@ make_worktree_for_download (const char *wt_tmp,
         worktree = try_worktree (wt_tmp);
     } else {
         worktree = g_strdup(wt_tmp);
+    }
+
+    if (!check_worktree_path (mgr, worktree, error)) {
+        g_free (worktree);
+        return NULL;
     }
 
     if (g_mkdir (worktree, 0777) < 0) {
@@ -880,12 +886,7 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
 
     wt_tmp = g_build_filename (wt_parent, repo_name, NULL);
 
-    if (!check_worktree_path (mgr, wt_tmp, error)) {
-        g_free (wt_tmp);
-        return NULL;
-    }
-
-    worktree = make_worktree_for_download (wt_tmp, error);
+    worktree = make_worktree_for_download (mgr, wt_tmp, error);
     if (!worktree) {
         g_free (wt_tmp);
         return NULL;
