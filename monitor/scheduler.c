@@ -53,7 +53,8 @@ create_repo_stat_tables (SeafileSession *session)
 
     char *sql = "CREATE TABLE IF NOT EXISTS RepoSize ("
         "repo_id CHAR(37) PRIMARY KEY,"
-        "size BIGINT UNSIGNED)";
+        "size BIGINT UNSIGNED,"
+        "head_id CHAR(41))";
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
@@ -113,27 +114,29 @@ schedule_pulse (void *vscheduler)
     return 1;
 }
 
-static gboolean
-load_blocklist (SeafCommit *commit, void *data, gboolean *stop)
-{
-    BlockList *bl = data;
-
-    if (seaf_fs_manager_populate_blocklist (seaf->fs_mgr, commit->root_id, bl) < 0)
-        return FALSE;
-    return TRUE;
-}
-
 static int
-set_repo_size (SeafDB *db, const char *repo_id, guint64 size)
+set_repo_size (SeafDB *db, const char *repo_id, const char *head_id, guint64 size)
 {
     char sql[256];
 
-    snprintf (sql, sizeof(sql), "REPLACE INTO RepoSize VALUES ('%s', %"G_GUINT64_FORMAT")",
-              repo_id, size);
+    snprintf (sql, sizeof(sql),
+              "REPLACE INTO RepoSize (repo_id, size, head_id) "
+              "VALUES ('%s', %"G_GUINT64_FORMAT", '%s')",
+              repo_id, size, head_id);
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
     return 0;
+}
+
+static char *
+get_cached_head_id (SeafDB *db, const char *repo_id)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql), "SELECT head_id FROM RepoSize WHERE repo_id='%s'",
+              repo_id);
+    return g_strdup(seaf_db_get_string (db, sql));
 }
 
 static void*
@@ -141,7 +144,9 @@ compute_repo_size (void *vjob)
 {
     RepoSizeJob *job = vjob;
     Scheduler *sched = job->sched;
-    SeafRepo *repo;
+    SeafRepo *repo = NULL;
+    SeafCommit *head = NULL;
+    char *cached_head_id = NULL;
     BlockList *bl;
     char *block_id;
     BlockMetadata *bmd;
@@ -153,18 +158,28 @@ compute_repo_size (void *vjob)
         return vjob;
     }
 
+    cached_head_id = get_cached_head_id (sched->seaf->db, job->repo_id);
+    if (g_strcmp0 (cached_head_id, repo->head->commit_id) == 0)
+        goto out;
+
+    head = seaf_commit_manager_get_commit (sched->seaf->commit_mgr,
+                                           repo->head->commit_id);
+    if (!head) {
+        g_warning ("[scheduler] failed to get head commit %s.\n",
+                   repo->head->commit_id);
+        goto out;
+    }
+
     /* Load block list first so that we don't need to count duplicate blocks.
+     * We only calculate the size of the head commit.
      */
     bl = block_list_new ();
-    if (!seaf_commit_manager_traverse_commit_tree (sched->seaf->commit_mgr,
-                                                   repo->head->commit_id,
-                                                   load_blocklist,
-                                                   bl)) {
-        seaf_repo_unref (repo);
+    if (seaf_fs_manager_populate_blocklist (seaf->fs_mgr,
+                                            head->root_id,
+                                            bl) < 0) {
         block_list_free (bl);
-        return vjob;
+        goto out;
     }
-    seaf_repo_unref (repo);
 
     int i;
     for (i = 0; i < bl->n_blocks; ++i) {
@@ -177,10 +192,16 @@ compute_repo_size (void *vjob)
     }
     block_list_free (bl);
 
-    if (set_repo_size (sched->seaf->db, job->repo_id, size) < 0) {
+    if (set_repo_size (sched->seaf->db,
+                       job->repo_id,
+                       repo->head->commit_id,
+                       size) < 0)
         g_warning ("[scheduler] failed to store repo size %s.\n", job->repo_id);
-        return vjob;
-    }
+
+out:
+    seaf_repo_unref (repo);
+    seaf_commit_unref (head);
+    g_free (cached_head_id);
 
     return vjob;
 }
