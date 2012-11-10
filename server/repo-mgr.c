@@ -5103,6 +5103,10 @@ out:
     if (repo)
         seaf_repo_unref (repo);
 
+    if (ret == 0) {
+        update_repo_size (repo_id);
+    }
+
     return ret;
 }
 
