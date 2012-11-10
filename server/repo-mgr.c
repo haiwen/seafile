@@ -3280,6 +3280,10 @@ out:
     g_free (root_id);
     g_free (canon_path);
 
+    if (ret == 0) {
+        update_repo_size (repo_id);
+    }
+
     return ret;
 }
 
