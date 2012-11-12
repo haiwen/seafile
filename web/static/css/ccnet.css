@@ -8,7 +8,6 @@ blockquote { font-weight:bold; margin:0 2em; font-style:italic; }
 em {
     font-style:normal;
     font-weight:bold;
-    margin:0 5px;
 }
 h2 { font-size:18px; color:#333; margin:0.95em 0 0.4em; }
 h3 { font-size:16px; color:#833; margin:0.95em 0 0.3em; font-weight:normal; }

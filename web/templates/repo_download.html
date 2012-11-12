@@ -7,7 +7,7 @@
         % if repo_already_exists:
         <p>${_("Library already exists.")}</p>
         % else:
-        <h3>${_("You are going to download")}<em>${repo_name}</em></h3>
+        <h3>${_("You are going to download")} <em>${repo_name}</em></h3>
         <form action="/repo/download/" method="post">
             <input type="hidden" name="repo_id" value="${repo_id}" />
             <input type="hidden" name="relay_id" value="${relay_id}" />
