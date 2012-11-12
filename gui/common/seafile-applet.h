@@ -95,6 +95,7 @@ int get_seafile_auto_start (void);
 #define QUERY_REPO_CREATE_TIMER_ID  5
 #define WAIT_CALC_DIR_TIMER_ID      6
 #define HEARTBEAT_MONITOR_TIMER_ID  7
+#define TRAYICON_INIT_RETRY_TIMER_ID  8
 
 #endif
 

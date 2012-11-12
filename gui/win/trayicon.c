@@ -40,7 +40,7 @@ trayicon_set_icon (SeafileTrayIcon *icon, HICON hIcon)
     ret = Shell_NotifyIcon (msg, &icon->nid);
     
     if (!ret) {
-        applet_warning ("Shell_NotifyIcon() failed, GLE=%lu\n", GetLastError());
+        applet_warning ("trayicon_set_icon failed, GLE=%lu\n", GetLastError());
         icon->nid.hIcon = prev_icon; 
     }
 }
@@ -81,6 +81,7 @@ WndProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             /* Restore applet trayicon when taskbar is re-created. This normally
              * happens when explorer is restarted.
              */
+            applet_message ("WM_TASKBARCREATED received\n");
             trayicon_init (applet->icon);
         }
         break;
@@ -114,8 +115,8 @@ create_applet_window ()
     }
 }
 
-void
-trayicon_init (SeafileTrayIcon *icon)
+static BOOL
+_trayicon_init (SeafileTrayIcon *icon)
 {
     if (!applet->hWnd)
         create_applet_window ();
@@ -135,8 +136,39 @@ trayicon_init (SeafileTrayIcon *icon)
     memcpy(icon->nid.szTip, "Seafile", 8);
 
     icon->nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
-    Shell_NotifyIcon(NIM_ADD, &(icon->nid));
+
+    return Shell_NotifyIcon(NIM_ADD, &(icon->nid));
 }
+
+static int trayicon_init_retried = 0;
+
+static void CALLBACK
+trayicon_init_retry (HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
+{
+    if (trayicon_init_retried++ >= 3) {
+        applet_exit(1);
+    }
+
+    if (_trayicon_init(applet->icon)) {
+        applet_message ("trayicon inited succesfully in retry\n");
+        KillTimer (hwnd, iTimerID);
+    } else {
+        applet_warning ("trayicon init failed, retry = %d, GLE=%lu\n",
+                        trayicon_init_retried,
+                        GetLastError());
+    }
+}
+
+
+void
+trayicon_init (SeafileTrayIcon *icon)
+{
+    if (!_trayicon_init(icon)) {
+        applet_warning ("trayicon init failed, GLE=%lu\n", GetLastError());
+        SetTimer (NULL, TRAYICON_INIT_RETRY_TIMER_ID, 1000, trayicon_init_retry);
+    }
+}
+
 
 /* Copy at most n bytes from src to dest. Ensure the content in dest is
  * null-terminated. */
