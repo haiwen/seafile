@@ -28,19 +28,21 @@ Internal
 ========
 
 Seafile uses GIT's version control model, but simplified for automatic
-synchronization. Every library is like a GIT repository. It has
+synchronization, and doesn't depend on GIT.
+Every library is like a GIT repository. It has
 its own unique history, which consists of a list of commits.
-A commit points to the root of a file system. A file system consists
+A commit points to the root of a file system snapshot. The snapshot consists
 of directories and files. Files are further divided into blocks
-for easy transferring and storing.
+for more efficient network transfer and storage usage.
 
 Differences from GIT:
 
-1. Clients do not store file history.
-2. Files are further divided into blocks for easy transporting and storing.
-3. File transferring can be resumed.
-4. Support different storage backends in the server side.
-5. Support downloading from multiple block servers for accelerating file transferring.
+1. Automatic syncing.
+2. Clients do not store file history, thus avoids the overhead of storing data twice.
+3. Files are further divided into blocks for more efficient network transfer and storage usage.
+4. File transfer can be resumed.
+5. Support different storage backends on the server side.
+6. Support downloading from multiple block servers for accelerating file transfer.
 
 Build and Run
 =============
