@@ -35,16 +35,25 @@ A commit points to the root of a file system snapshot. The snapshot consists
 of directories and files. Files are further divided into blocks
 for more efficient network transfer and storage usage.
 
-Differences from GIT:
+Differences to GIT:
 
 1. Automatic syncing.
-2. Clients do not store file history, thus avoids the overhead of storing data twice.
+2. Clients do not store file history, thus avoids the overhead of storing data twice. GIT is not efficient for larger files (such as images).
 3. Files are further divided into blocks for more efficient network transfer and storage usage.
 4. File transfer can be resumed.
 5. Support different storage backends on the server side.
 6. Support downloading from multiple block servers for accelerating file transfer.
+7. More user-friendly file conflicts handling similar to Dropbox (Add user's name as suffix to conflicted file).
+8. Gracefully handles corner cases that user modifies files when auto-sync is running. GIT is not designed to work in these cases.
 
 Build and Run
 =============
 
 See <https://github.com/haiwen/seafile/wiki>
+
+Contact
+=======
+
+Twitter: @seafile
+
+Google Group: <https://groups.google.com/forum/?fromgroups#!forum/seafile>
