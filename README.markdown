@@ -24,6 +24,13 @@ has following features:
 5. File comments, event notifications, 
 6. Library encryption with a user chosen password.
 
+Compared to other open-source Dropbox-like projects, such as
+<https://github.com/hbons/SparkleShare>, Seafile has several advantages:
+
+1. Mature, reliable, production-ready file syncing algorithm.
+2. Doesn't depend on Git.
+3. Online collaboration features useful for teamwork.
+
 Internal
 ========
 
