@@ -14,7 +14,7 @@ export LD_LIBRARY_PATH=$new_ld_path
 use_existing_ccnet="false"
 use_existing_seafile="false"
 
-server_manual_http="http://wiki.seafile.com.cn/wiki/Server-manual"
+server_manual_http="https://github.com/haiwen/seafile/wiki"
 
 function welcome () {
     echo "-----------------------------------------------------------------"
@@ -139,6 +139,7 @@ function check_python () {
         check_python_module simplejson python-simplejson "${hint}"
         hint="\nOn Debian/Ubntu: apt-get install python-imaging\nOn CentOS/RHEL: yum install python-imaging"
         check_python_module PIL python-imaging "${hint}"
+        check_python_module sqlite3 python-sqlite3
     fi
     echo
 }
@@ -202,8 +203,8 @@ function get_server_ip_or_domain () {
     echo
 }
 
-function get_server_port () {
-    question="What tcp port do you want to use for seafile server?" 
+function get_ccnet_server_port () {
+    question="What tcp port do you want to use for ccnet server?" 
     hint="10001 is the recommended port."
     default="10001"
     ask_question "${question}\n${hint}" "${default}"
@@ -213,14 +214,30 @@ function get_server_port () {
     fi
     if [[ ! ${server_port} =~ ^[0-9]+$ ]]; then
         echo "\"${server_port}\" is not a valid port number. "
-        get_server_port
+        get_ccnet_server_port
+    fi
+    echo
+}
+
+function get_seafile_server_port () {
+    question="What tcp port do you want to use for seafile server?" 
+    hint="12001 is the recommended port."
+    default="12001"
+    ask_question "${question}\n${hint}" "${default}"
+    read seafile_server_port
+    if [[ "${seafile_server_port}" == "" ]]; then
+        seafile_server_port="${default}"
+    fi
+    if [[ ! ${seafile_server_port} =~ ^[0-9]+$ ]]; then
+        echo "\"${seafile_server_port}\" is not a valid port number. "
+        get_seafile_server_port
     fi
     echo
 }
 
 function get_seafile_data_dir () {
     question="Where do you want to put your seafile data?"
-    note="The size of seafile data diretory would increase very large, please use a volume with enough free space." 
+    note="Please use a volume with enough free space." 
     default=${default_seafile_data_dir}
     ask_question "${question} \n\033[33mNote: \033[m${note}" "${default}"
     read seafile_data_dir
@@ -275,10 +292,14 @@ check_existing_ccnet;
 if [[ ${use_existing_ccnet} != "true" ]]; then
     get_server_name;
     get_server_ip_or_domain;
-    get_server_port;
+    get_ccnet_server_port;
 fi
 
 get_seafile_data_dir;
+if [[ ${use_existing_seafile} != "true" ]]; then
+    get_seafile_server_port
+fi
+
 sleep .5
 
 printf "\nThis is your config information:\n\n"
@@ -292,7 +313,8 @@ else
 fi
 
 if [[ ${use_existing_seafile} != "true" ]]; then
-    printf "seafile data dir:     \033[33m${seafile_data_dir}\033[m\n"
+    printf "seafile data dir:   \033[33m${seafile_data_dir}\033[m\n"
+    printf "seafile port:       \033[33m${seafile_server_port}\033[m\n"
 else
     printf "seafile data dir:   use existing data in    \033[33m${seafile_data_dir}\033[m\n"
 fi
@@ -327,7 +349,9 @@ sleep 0.5
 if [[ "${use_existing_seafile}" != "true" ]]; then
     echo "Generating seafile configuration in ${seafile_data_dir} ..."
     echo
-    if ! ${seaf_server_init} --seafile-dir "${seafile_data_dir}" 2>/dev/null 1>&2; then
+    if ! ${seaf_server_init} --seafile-dir "${seafile_data_dir}" \
+        --port ${seafile_server_port} 2>/dev/null 1>&2; then
+        
         echo "Failed to generate seafile configuration"
         err_and_quit;
     fi

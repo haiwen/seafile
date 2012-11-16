@@ -54,7 +54,6 @@ noinst_HEADERS = \
 	merge.h merge-recursive.h vc-utils.h seafile-session.h \
 	clone-mgr.h \
 	share-mgr.h \
-	seaf-ext.h \
 	wt-monitor-common.h \
 	../common/sync-repo-common.h \
 	$(proc_headers)
@@ -77,7 +76,7 @@ common_src = \
 	merge.c merge-recursive.c vc-utils.c \
 	status.c sync-mgr.c seafile-session.c \
 	../common/seafile-crypt.c ../common/diff-simple.c $(wt_monitor_src) \
-	seaf-ext.c clone-mgr.c \
+	clone-mgr.c \
 	../common/seafile-config.c ../common/bitfield.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \
 	repo-mgr.c ../common/commit-mgr.c \
@@ -142,7 +141,7 @@ seaf_daemon_LDFLAGS = @STATIC_COMPILE@ @CONSOLE@
 #	merge.c merge-recursive.c vc-utils.c \
 #	status.c sync-mgr.c seafile-session.c \
 #	../common/seafile-crypt.c ../common/diff-simple.c ${wt_monitor_src} \
-#	../common/seafile-config.c ../common/bitfield.c seaf-ext.c clone-mgr.c \
+#	../common/seafile-config.c ../common/bitfield.c clone-mgr.c \
 #	../common/branch-mgr.c ../common/fs-mgr.c \
 #	repo-mgr.c ../common/commit-mgr.c \
 #	../common/log.c ../common/avl/avl.c ../common/object-list.c \

@@ -27,7 +27,6 @@
 #include "seaf-utils.h"
 #include "gc.h"
 #include "log.h"
-#include "seaf-ext.h"
 
 enum {
 	REPO_COMMITTED,
@@ -238,11 +237,6 @@ seafile_session_start (SeafileSession *session)
 
     if (seaf_clone_manager_start (session->clone_mgr) < 0) {
         g_error ("Failed to start clone manager.\n");
-        return;
-    }
-
-    if (seaf_extension_pipe_start (session) < 0) {
-        g_error ("Failed to start extension pipe\n");
         return;
     }
 
