@@ -72,7 +72,7 @@ function start_seafile_server () {
 
     sleep 3
 
-    ${httpserver} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}" -r "${htmls_dir}"
+    ${httpserver} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"
 
     echo "Seafile server started"
 }

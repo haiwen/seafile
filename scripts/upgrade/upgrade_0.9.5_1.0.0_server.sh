@@ -45,12 +45,6 @@ if ! python manage.py syncdb 2>/dev/null 1>&2; then
 fi
 popd 2>/dev/null 1>&2
 
-update_db_py=${INSTALLPATH}/seahub/tools/update-seahub-db_0.9.4_to_0.9.5.py
-if ! python "${update_db_py}" "${default_seahub_db}" ; then
-    echo "failed"
-    exit -1
-fi
-
 echo "DONE"
 echo "------------------------------"
 echo

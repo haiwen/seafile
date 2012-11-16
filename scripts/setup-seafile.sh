@@ -256,9 +256,9 @@ function get_seafile_data_dir () {
         else
             use_existing_seafile="true"
         fi
-    elif [[ -d ${seafile_data_dir} ]]; then
+    elif [[ -d ${seafile_data_dir} && $(ls -A ${seafile_data_dir}) != "" ]]; then
         echo 
-        echo "${seafile_data_dir} is an existing directory. Please specify another directory"
+        echo "${seafile_data_dir} is an existing non-empty directory. Please specify another directory"
         echo 
         get_seafile_data_dir
     elif [[ ! ${seafile_data_dir} =~ ^/ ]]; then

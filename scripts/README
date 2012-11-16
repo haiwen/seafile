@@ -6,7 +6,7 @@ Date: 2012-05-07 11:46:53 CST
 
 
 1. Before you run the *setup-seafile.sh* script, MAKE SURE you have read the
-   server manual at [http://220.113.41.165/wiki/Server-manual] .
+   server manual at https://www.github.com/haiwen/seafile/wiki
    
-   *Believe me*: Read the manual would save you much much time in setup and
+   Read the manual would save you much much time in setup and
    configure the seafile server! Everything you need to know is there.

@@ -13,7 +13,7 @@
     CFLAGS="-O2" configure --enable-server-pkg --prefix=$dest
     make install
 4. copy shared libraries
-    ccnet/tools/cp-shared-lib.py $dest/lib
+    scripts/cp-shared-lib.py $dest/lib
 5. strip libs/executables   
     python do-strip.py
 6. Update seahub
