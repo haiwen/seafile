@@ -106,6 +106,7 @@ typedef struct {
     GHashTable  *processors;
     BlockList   *block_list;
     Bitfield     active;
+    gint         tx_bytes;      /* bytes transferred in the last second. */
 
     /* Fields only used by upload task. */
     Bitfield     uploaded;

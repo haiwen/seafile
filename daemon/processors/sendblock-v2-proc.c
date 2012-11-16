@@ -86,6 +86,7 @@ static int
 block_proc_start (CcnetProcessor *processor, int argc, char **argv)
 {
     SeafileSendblockV2Proc *proc = (SeafileSendblockV2Proc *)processor;
+    USE_PRIV;
     
     if (master_block_proc_start(processor, proc->tx_task,
                                 "seafile-recvblock-v2",
@@ -96,6 +97,7 @@ block_proc_start (CcnetProcessor *processor, int argc, char **argv)
     }
 
     prepare_thread_data (processor, send_blocks, sent_block_cb);
+    priv->tdata->task = proc->tx_task;
 
     return 0;
 }
@@ -154,29 +156,8 @@ sent_block_cb (CEvent *event, void *vprocessor)
     SeafileSendblockV2Proc *proc = vprocessor;
     BlockResponse *blk_rsp = event->data;
 
-    if (blk_rsp->block_idx < 0) {
-        /* A block has not yet completely sent, just update stat */
-
-        if (proc->tx_bytes != 0)
-            proc->tx_bytes = proc->tx_bytes - (proc->tx_bytes >> 3)
-                + (blk_rsp->tx_bytes >> 3);
-        else
-            proc->tx_bytes = blk_rsp->tx_bytes;
-        if (proc->tx_time != 0)
-            proc->tx_time = proc->tx_time - (proc->tx_time >> 3)
-                + (blk_rsp->tx_time >> 3);
-        else
-            proc->tx_time = blk_rsp->tx_time;
-  
-        if (proc->tx_time != 0)
-            proc->avg_tx_rate = ((double)proc->tx_bytes) * 1000000 / proc->tx_time;
-    } else {
-        /* A block was completely sent.
-         * In this case proc->tx_time may be too short, so don't update stat.
-         */
-
+    if (blk_rsp->block_idx >= 0)
         --(proc->pending_blocks);
-    }
 
     g_free (blk_rsp);
 }

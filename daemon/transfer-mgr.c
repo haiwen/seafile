@@ -46,7 +46,7 @@
 #define TRANSFER_DB "transfer.db"
 
 #define SCHEDULE_INTERVAL   1   /* 1s */
-#define BLOCKS_PER_ROUND    10
+#define MAX_QUEUED_BLOCKS   50
 
 #define DEFAULT_BLOCK_SIZE  (1 << 20)
 
@@ -226,26 +226,7 @@ seaf_transfer_task_free (TransferTask *task)
 double
 transfer_task_get_rate (TransferTask *task)
 {
-    GHashTableIter iter;
-    gpointer key, value;
-
-    double rate = 0;
-    if (task->type == TASK_TYPE_DOWNLOAD) {
-        SeafileGetblockV2Proc *proc;
-        g_hash_table_iter_init (&iter, task->processors);
-        while (g_hash_table_iter_next (&iter, &key, &value)) {
-            proc = (SeafileGetblockV2Proc *)value;
-            rate += proc->avg_tx_rate; 
-        }
-    } else {
-        SeafileSendblockV2Proc *proc;
-        g_hash_table_iter_init (&iter, task->processors);
-        while (g_hash_table_iter_next (&iter, &key, &value)) {
-            proc = (SeafileSendblockV2Proc *)value;
-            rate += proc->avg_tx_rate; 
-        }
-    }
-    return rate;
+    return (double) g_atomic_int_get (&task->tx_bytes);
 }
 
 static BlockList *
@@ -1063,42 +1044,28 @@ start_getfs_proc (TransferTask *task, const char *peer_id, GCallback done_cb)
  * tolerated. We'll continuously retry.
  */
 
-/*
- * Dispatch a few blocks in each round.
- * If it is still possible to dispatch more blocks to this proc, return TRUE.
- */
-
-static gboolean
-download_dispatch_blocks_to_processor (TransferTask *task, SeafileGetblockV2Proc *proc)
+static void
+download_dispatch_blocks_to_processor (TransferTask *task,
+                                       SeafileGetblockV2Proc *proc,
+                                       guint n_procs)
 {
     CcnetProcessor *processor = (CcnetProcessor *)proc;
     int expected, n_blocks, n_scheduled = 0;
     int i;
 
     if (!seafile_getblock_v2_proc_is_ready (proc))
-        return FALSE;
+        return;
 
-    if (proc->avg_tx_rate != 0)
-        expected = (proc->avg_tx_rate * SCHEDULE_INTERVAL) / DEFAULT_BLOCK_SIZE;
-    else
-        expected = 10;
-    expected = MAX (expected, 1);
-
+    expected = MIN (proc->block_bitmap.bitCount/n_procs, MAX_QUEUED_BLOCKS);
     n_blocks = expected - proc->pending_blocks;
-    if (n_blocks <= 0) {
-        return FALSE;
-    }
+    if (n_blocks <= 0)
+        return;
+
+    seaf_debug ("expected: %d, pending: %d.\n", expected, proc->pending_blocks);
 
     for (i = 0; i < proc->block_bitmap.bitCount; ++i) {
-        /* TODO: we have a performance problem here. */
-
-        /* Bandwidth saturated. */
         if (n_scheduled == n_blocks)
-            return FALSE;
-
-        /* Wait for next round... */
-        if (n_scheduled == BLOCKS_PER_ROUND)
-            return TRUE;
+            break;
 
         if (BitfieldHasFast (&proc->block_bitmap, i) &&
             !BitfieldHasFast (&task->block_list->block_map, i) &&
@@ -1113,36 +1080,21 @@ download_dispatch_blocks_to_processor (TransferTask *task, SeafileGetblockV2Proc
             ++n_scheduled;
         }
     }
-
-    return FALSE;
 }
 
-/*
- * Download algorithm:
- *   Dispatch blocks to the processors until:
- *   . All processors' bandwidth are saturated, or
- *   . All blocks are dispatched or downloaded.
- *
- * To improve fairness between processors, we dispatch blocks in several rounds.
- * In each round we loop every proc, dipatch at most 10 blocks to it.
- */
 static void
 download_dispatch_blocks (TransferTask *task)
 {
     GHashTableIter iter;
     gpointer key, value;
     SeafileGetblockV2Proc *proc;
-    gboolean next_round;
+    guint n_procs = g_hash_table_size (task->processors);
 
-    do {
-        next_round = FALSE;
-        g_hash_table_iter_init (&iter, task->processors);
-        while (g_hash_table_iter_next (&iter, &key, &value)) {
-            proc = value;
-            if (download_dispatch_blocks_to_processor (task, proc) == TRUE)
-                next_round = TRUE;
-        }
-    } while (next_round);
+    g_hash_table_iter_init (&iter, task->processors);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        proc = value;
+        download_dispatch_blocks_to_processor (task, proc, n_procs);
+    }
 }
 
 static void
@@ -1721,45 +1673,28 @@ start_chunk_server_upload (TransferTask *task)
     }
 }
 
-/**
- * Dispatch a few blocks in each round.
- * If it is still possible to dispatch more blocks to this proc, return TRUE.
- */
-static gboolean
-upload_dispatch_blocks_to_processor (TransferTask *task, SeafileSendblockV2Proc *proc)
+static void
+upload_dispatch_blocks_to_processor (TransferTask *task,
+                                     SeafileSendblockV2Proc *proc,
+                                     guint n_procs)
 {
     CcnetProcessor *processor = (CcnetProcessor *)proc;
     int expected, n_blocks, n_scheduled = 0;
     int i;
 
     if (!seafile_sendblock_v2_proc_is_ready (proc))
-        return FALSE;
+        return;
 
-    /*
-     * For now just use a fix average block size.
-     * TODO: schedule based on expected bytes, not expected blocks.
-     */
-    if (proc->avg_tx_rate != 0)
-        expected = (proc->avg_tx_rate * SCHEDULE_INTERVAL) / DEFAULT_BLOCK_SIZE;
-    else
-        expected = 10;
-    /* expected # >= 1 */
-    expected = MAX(expected, 1);
-
+    expected = MIN (task->uploaded.bitCount/n_procs, MAX_QUEUED_BLOCKS);
     n_blocks = expected - proc->pending_blocks;
-    /* Bandwidth for this processor is saturated if true. */
-    if (n_blocks <= 0) {
-        return FALSE;
-    }
+    if (n_blocks <= 0)
+        return;
+
+    seaf_debug ("expected: %d, pending: %d.\n", expected, proc->pending_blocks);
 
     for (i = 0; i < task->uploaded.bitCount; ++i) {
-        /* Bandwidth saturated. */
         if (n_scheduled == n_blocks)
-            return FALSE;
-
-        /* Wait for next round... */
-        if (n_scheduled == BLOCKS_PER_ROUND)
-            return TRUE;
+            break;
 
         if (!BitfieldHasFast (&task->uploaded, i) &&
             BitfieldHasFast (&task->block_list->block_map, i) &&
@@ -1774,38 +1709,21 @@ upload_dispatch_blocks_to_processor (TransferTask *task, SeafileSendblockV2Proc 
             ++n_scheduled;
         }
     }
-
-    return FALSE;
 }
 
-/**
- * Upload algorithm:
- *   Dispatch blocks to the processors until:
- *   . All processors' bandwidth are saturated, or
- *   . All blocks are dispatched or uploaded.
- *
- * To improve fairness between processors, we dispatch blocks in several rounds.
- * Each round we loop every proc, dipatch at most 10 blocks to it.
- * This also ensures that, if the file is small (i.e. with <= 10 blocks),
- * we'll upload all the blocks to one chunk server.
- */
 static void
 upload_dispatch_blocks (TransferTask *task)
 {
     GHashTableIter iter;
     gpointer key, value;
     SeafileSendblockV2Proc *proc;
-    gboolean next_round;
+    guint n_procs = g_hash_table_size (task->processors);
 
-    do {
-        next_round = FALSE;
-        g_hash_table_iter_init (&iter, task->processors);
-        while (g_hash_table_iter_next (&iter, &key, &value)) {
-            proc = value;
-            if (upload_dispatch_blocks_to_processor (task, proc) == TRUE)
-                next_round = TRUE;
-        }
-    } while (next_round);
+    g_hash_table_iter_init (&iter, task->processors);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        proc = value;
+        upload_dispatch_blocks_to_processor (task, proc, n_procs);
+    }
 }
 
 static void
@@ -2126,6 +2044,19 @@ schedule_task_pulse (void *vmanager)
     if (tasks_in_transfer) {
         send_transfer_message (tasks_in_transfer);
         g_list_free (tasks_in_transfer);
+    }
+
+    /* reset tx_bytes to 0 every second */
+    g_hash_table_iter_init (&iter, mgr->download_tasks);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        task = value;
+        g_atomic_int_set (&task->tx_bytes, 0);
+    }
+
+    g_hash_table_iter_init (&iter, mgr->upload_tasks);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        task = value;
+        g_atomic_int_set (&task->tx_bytes, 0);
     }
 
     return TRUE;

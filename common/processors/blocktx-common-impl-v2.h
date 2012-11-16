@@ -54,7 +54,11 @@ typedef int  (*TransferFunc) (ThreadData *tdata);
 
 struct ThreadData {
     CcnetPeer           *peer;
+    /* Never dereference this processor in the worker thread */
     CcnetProcessor      *processor;
+#if defined SENDBLOCK_PROC || defined GETBLOCK_PROC
+    TransferTask        *task;
+#endif
     uint32_t             cevent_id;
     ccnet_pipe_t         task_pipe[2];
     int                  port;
@@ -142,19 +146,6 @@ thread_done (void *vtdata)
  * Common code for block transfer.
  */
 
-inline static uint64_t
-get_time_microseconds ()
-{
-    struct timeval tv;
-    uint64_t ret;
-
-    gettimeofday (&tv, NULL);
-
-    ret = tv.tv_sec*1000000 + tv.tv_usec;
-
-    return ret;
-}
-
 static void
 send_block_rsp (int cevent_id, int block_idx, int tx_bytes, int tx_time)
 {
@@ -182,10 +173,6 @@ send_block_packet (ThreadData *tdata,
     BlockPacket pkt;
     char buf[1024];
     int n;
-#if defined SENDBLOCK_PROC
-    guint64 t_start, t_end;
-    int delta = 0;
-#endif
 
     md = seaf_block_manager_stat_block_by_handle (block_mgr, handle);
     if (!md) {
@@ -204,9 +191,6 @@ send_block_packet (ThreadData *tdata,
         return -1;
     }
 
-#if defined SENDBLOCK_PROC
-    t_start = get_time_microseconds ();
-#endif
     while (1) {
         n = seaf_block_manager_read_block (block_mgr, handle, buf, 1024);
         if (n <= 0)
@@ -216,15 +200,9 @@ send_block_packet (ThreadData *tdata,
                        evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
             return -1;
         }
-
-#if defined SENDBLOCK_PROC
-        delta += n;
-        t_end = get_time_microseconds ();
-        if (t_end - t_start >= 1000000) {
-            send_block_rsp (tdata->cevent_id, -1, delta, (int)(t_end - t_start));
-            t_start = t_end;
-            delta = 0;
-        }
+#ifdef SENDBLOCK_PROC
+        /* Update global transferred bytes. */
+        g_atomic_int_add (&(tdata->task->tx_bytes), n);
 #endif
     }
     if (n < 0) {
@@ -234,7 +212,7 @@ send_block_packet (ThreadData *tdata,
     }
 
 #if defined SENDBLOCK_PROC
-    send_block_rsp (tdata->cevent_id, block_idx, delta, (int)(t_end - t_start));
+    send_block_rsp (tdata->cevent_id, block_idx, 0, 0);
 #endif
 
     return size;
@@ -290,12 +268,11 @@ enum {
 };
 
 typedef struct {
+    ThreadData *tdata;
     int state;
     BlockPacket hdr;
     int remain;
-    int delta;
     BlockHandle *handle;
-    uint64_t t_start;
     uint32_t cevent_id;
 } RecvFSM;
 
@@ -307,7 +284,6 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
     BlockHandle *handle;
     int n, round;
     char buf[1024];
-    uint64_t t_end;
 
     switch (fsm->state) {
     case RECV_STATE_HEADER:
@@ -336,7 +312,6 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
                 return -1;
             }
             fsm->handle = handle; 
-            fsm->t_start = get_time_microseconds ();
             fsm->state = RECV_STATE_BLOCK;
         }
         break;
@@ -355,21 +330,15 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
             return -1;
         }
 
-        fsm->delta += n;
-        t_end = get_time_microseconds ();
-        if (t_end - fsm->t_start >= 1000000) {
-#if defined GETBLOCK_PROC
-            send_block_rsp (fsm->cevent_id, -1, fsm->delta,
-                            (int)(t_end - fsm->t_start));
-#endif
-            fsm->t_start = t_end;
-            fsm->delta = 0;
-        }
-
         if (seaf_block_manager_write_block (block_mgr, handle, buf, n) < 0) {
             seaf_warning ("Failed to write block %s.\n", fsm->hdr.block_id);
             return -1;
         }
+
+#ifdef GETBLOCK_PROC
+        /* Update global transferred bytes. */
+        g_atomic_int_add (&(fsm->tdata->task->tx_bytes), n);
+#endif
 
         fsm->remain -= n;
         if (fsm->remain == 0) {
@@ -387,10 +356,12 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
             /* Set this handle to invalid. */
             fsm->handle = NULL;
 
+#ifdef GETBLOCK_PROC
             /* Notify finish receiving this block. */
             send_block_rsp (fsm->cevent_id,
                             (int)ntohl (fsm->hdr.block_idx),
-                            fsm->delta, (int)(t_end - fsm->t_start));
+                            0, 0);
+#endif
 
             /* Prepare for the next packet. */
             fsm->state = RECV_STATE_HEADER;
@@ -412,6 +383,7 @@ recv_blocks (ThreadData *tdata)
     RecvFSM *fsm = g_new0 (RecvFSM, 1);
     fsm->remain = sizeof (BlockPacket);
     fsm->cevent_id = tdata->cevent_id;
+    fsm->tdata = tdata;
 
     while (1) {
         FD_ZERO (&fds);
