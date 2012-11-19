@@ -56,6 +56,8 @@ seaf_server_SOURCES = \
 	passwd-mgr.c \
 	quota-mgr.c \
 	listen-mgr.c \
+	repo-op.c \
+	repo-perm.c \
 	monitor-rpc-wrappers.c ../common/seaf-db.c \
 	../common/seafile-config.c ../common/bitfield.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \
