@@ -78,6 +78,7 @@ add_file_to_archive (PackDirData *data,
     char *blk_id = NULL;
     uint32_t remain = 0;
     EVP_CIPHER_CTX ctx;
+    gboolean enc_init = FALSE;
     char *dec_out = NULL;
     int dec_out_len = -1;
     int ret = 0;
@@ -141,11 +142,13 @@ add_file_to_archive (PackDirData *data,
         g_free (bmd);
 
         if (crypt) {
-            if (seafile_decrypt_init (&ctx, crypt) < 0) {
+            if (seafile_decrypt_init (&ctx, crypt->version,
+                                      crypt->key, crypt->iv) < 0) {
                 seaf_warning ("Failed to init decrypt.\n");
                 ret = -1;
                 goto out;
             }
+            enc_init = TRUE;
         }
 
         while (remain != 0) {
@@ -177,11 +180,11 @@ add_file_to_archive (PackDirData *data,
                     goto out;
                 }
 
-                int r = seafile_decrypt_update (&ctx,
-                                                dec_out,
-                                                &dec_out_len,
-                                                buf,
-                                                n);
+                int r = EVP_DecryptUpdate (&ctx,
+                                           (unsigned char *)dec_out,
+                                           &dec_out_len,
+                                           (unsigned char *)buf,
+                                           n);
                 if (r != 0) {
                     seaf_warning ("Decrypt block %s failed.\n", blk_id);
                     ret = -1;
@@ -200,7 +203,9 @@ add_file_to_archive (PackDirData *data,
                 /* If it's the last piece of a block, call decrypt_final()
                  * to decrypt the possible partial block. */
                 if (remain == 0) {
-                    r = seafile_decrypt_final (&ctx, dec_out, &dec_out_len);
+                    r = EVP_DecryptFinal (&ctx,
+                                          (unsigned char *)dec_out,
+                                          &dec_out_len);
                     if (r != 0) {
                         seaf_warning ("Decrypt block %s failed.\n", blk_id);
                         ret = -1;
@@ -240,6 +245,8 @@ out:
         seaf_block_manager_close_block (seaf->block_mgr, handle);
         seaf_block_manager_block_handle_free(seaf->block_mgr, handle);
     }
+    if (crypt != NULL && enc_init)
+        EVP_CIPHER_CTX_cleanup (&ctx);
     g_free (dec_out);
 
     return ret;
