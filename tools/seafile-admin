@@ -21,6 +21,7 @@ import time
 import re
 import sha
 import subprocess
+import optparse
 
 try:
     import readline
@@ -47,14 +48,21 @@ conf = {}
 ####################
 ### Common helper functions
 ####################
-def usage():
-    print '''\
+USAGE = '''\
 Usage: %s <operation>
 
     setup       guide you to setup the seafile server
+
     start       start the seafile server
+      --no-web  don't start seahub, so that you can start it with your
+                front end web server, like nginx.
+                See https://github.com/haiwen/seafile/wiki/Deploy-seahub-in-a-production-environment
+
     stop        stop the seafile server
 ''' % SCRIPT_NAME
+
+def usage():
+    print USAGE
 
 def highlight(content):
     '''Add ANSI color to content to get it highlighted on terminal'''
@@ -553,9 +561,9 @@ def init_ccnet_seafile():
 
         print 'done'
 
-####################        
-### <start> command        
-####################        
+####################
+### <start> command
+####################
 def start_controller():
     argv = [
         'seafile-controller',
@@ -661,8 +669,25 @@ def setup_seafile():
     print 'for more information.'
     print
 
+def parse_start_options():
+    parser = optparse.OptionParser()
+    parser.add_option('--no-web',
+                      dest='start_web',
+                      help='''don't start web(This indicates you want to start it yourself''',
+                      action='store_false')
+    parser.set_usage('Usage: %s start [options]' % SCRIPT_NAME)
+
+    options, remain = parser.parse_args(sys.argv[2:])
+    if remain:
+        usage()
+        sys.exit(1)
+
+    return options
+
 def start_seafile():
     '''start ccnet/seafile/seahub/httpserver'''
+    options = parse_start_options()
+
     check_python_dependencies(silent=True)
     if is_running('seafile-controller'):
         print highlight('NOTE: Seafile is already running')
@@ -671,7 +696,9 @@ def start_seafile():
     check_config()
     start_controller()
     start_httpserver()
-    start_seahub()
+
+    if options.start_web:
+        start_seahub()
 
     print 'Done\n'
 
