@@ -2416,6 +2416,26 @@ seafile_set_passwd (const char *repo_id,
 }
 
 int
+seafile_unset_passwd (const char *repo_id,
+                      const char *user,
+                      GError **error)
+{
+    if (!repo_id || strlen(repo_id) != 36 || !user) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Bad arguments");
+        return -1;
+    }
+
+    if (seaf_passwd_manager_unset_passwd (seaf->passwd_mgr,
+                                          repo_id, user,
+                                          error) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int
 seafile_is_passwd_set (const char *repo_id, const char *user, GError **error)
 {
     if (!repo_id || strlen(repo_id) != 36 || !user) {

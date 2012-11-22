@@ -35,6 +35,15 @@ seaf_passwd_manager_set_passwd (SeafPasswdManager *mgr,
                                 GError **error);
 
 /**
+ * Returns 0 if successfully unset user password, -1 otherwise.
+ */
+int
+seaf_passwd_manager_unset_passwd (SeafPasswdManager *mgr,
+                                  const char *repo_id,
+                                  const char *user,
+                                  GError **error);
+
+/**
  * Check whether correct passwd has been set for @user
  * to access @repo_id.
  */
