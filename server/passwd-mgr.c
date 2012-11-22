@@ -105,6 +105,26 @@ seaf_passwd_manager_set_passwd (SeafPasswdManager *mgr,
     return 0;
 }
 
+int
+seaf_passwd_manager_unset_passwd (SeafPasswdManager *mgr,
+                                  const char *repo_id,
+                                  const char *user,
+                                  GError **error)
+{
+    GString *hash_key;
+
+    hash_key = g_string_new (NULL);
+    g_string_printf (hash_key, "%s.%s", repo_id, user);
+    if (!g_hash_table_remove (mgr->priv->decrypt_keys, hash_key->str)) {
+         g_warning ("Key %s was not found. \n", hash_key->str);
+         g_string_free (hash_key, TRUE);
+         return -1;
+    }
+
+    g_string_free (hash_key, TRUE);
+    return 0;
+}     
+
 gboolean
 seaf_passwd_manager_is_passwd_set (SeafPasswdManager *mgr,
                                    const char *repo_id,

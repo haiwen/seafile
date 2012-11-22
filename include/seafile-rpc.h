@@ -575,6 +575,11 @@ seafile_set_passwd (const char *repo_id,
                     GError **error);
 
 int
+seafile_unset_passwd (const char *repo_id,
+                      const char *user,
+                      GError **error);
+
+int
 seafile_is_passwd_set (const char *repo_id, const char *user, GError **error);
 
 GObject *

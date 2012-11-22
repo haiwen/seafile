@@ -424,6 +424,10 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_set_passwd,
                                      "seafile_set_passwd",
                                      searpc_signature_int__string_string_string());
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_unset_passwd,
+                                     "seafile_unset_passwd",
+                                     searpc_signature_int__string_string());
     searpc_server_register_function ("seafserv-rpcserver",
                                      seafile_is_passwd_set,
                                      "seafile_is_passwd_set",

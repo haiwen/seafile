@@ -571,6 +571,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     set_passwd = seafile_set_passwd
 
+    @searpc_func("int", ["string", "string"])
+    def seafile_unset_passwd(repo_id, user, passwd):
+        pass
+    unset_passwd = seafile_unset_passwd
+    
     @searpc_func("string", ["string", "string", "string", "string"])
     def seafile_create_repo(name, desc, owner_email, passwd):
         pass
