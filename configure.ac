@@ -188,6 +188,14 @@ fi
 AC_SUBST(SERVER_PKG_RPATH)
 AC_SUBST(SERVER_PKG_PY_RPATH)
 
+if test x${compile_httpserver} = xyes; then
+   dnl check libarchive
+   LIBARCHIVE_REQUIRED=2.8.4
+   PKG_CHECK_MODULES(LIBARCHIVE, [libarchive >= $LIBARCHIVE_REQUIRED])
+   AC_SUBST(LIBARCHIVE_CFLAGS)
+   AC_SUBST(LIBARCHIVE_LIBS)
+fi
+
 AM_CONDITIONAL([COMPILE_CLI], [test "${compile_cli}" = "yes"])
 AM_CONDITIONAL([COMPILE_TOOLS], [test "${compile_tools}" = "yes"])
 AM_CONDITIONAL([COMPILE_PYTHON], [test "${compile_python}" = "yes"])

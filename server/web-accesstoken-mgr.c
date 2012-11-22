@@ -18,7 +18,7 @@
 typedef struct {
     char repo_id[37];
     char obj_id[41];
-    char op[10];
+    char op[32];
     char username[255];
     long expire_time;
 } AccessInfo;
@@ -141,7 +141,7 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
         info = g_new0 (AccessInfo, 1);
         memcpy (info->repo_id, repo_id, 36);
         memcpy (info->obj_id, obj_id, 40);
-        memcpy (info->op, op, 10);
+        memcpy (info->op, op, 32);
         memcpy (info->username, username, 255);
         info->expire_time = expire;
 

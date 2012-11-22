@@ -14,12 +14,13 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@MYSQL_CFLAGS@ \
 	@ZDB_CFLAGS@ \
 	@CURL_CFLAGS@ \
+	@LIBARCHIVE_CFLAGS@ \
 	-Wall
 
 bin_PROGRAMS = httpserver
 
 noinst_HEADERS = seafile-session.h repo-mgr.h \
-	httpserver.h access-file.h upload-file.h
+	httpserver.h access-file.h upload-file.h pack-dir.h
 
 httpserver_SOURCES = \
 	httpserver.c \
@@ -27,6 +28,7 @@ httpserver_SOURCES = \
 	upload-file.c \
 	seafile-session.c \
 	repo-mgr.c \
+	pack-dir.c \
 	../common/seaf-db.c \
 	../common/bitfield.c \
 	../common/branch-mgr.c \
@@ -52,6 +54,7 @@ httpserver_LDADD = -levent -levhtp -lssl -levent_openssl \
 	@CCNET_LIBS@ \
 	$(top_builddir)/lib/libseafile.la \
 	$(top_builddir)/common/cdc/libcdc.la \
-	@MYSQL_LIBS@ @SEARPC_LIBS@ @ZDB_LIBS@ @RADOS_LIBS@ @CURL_LIBS@
+	@MYSQL_LIBS@ @SEARPC_LIBS@ @ZDB_LIBS@ @RADOS_LIBS@ @CURL_LIBS@ \
+	@LIBARCHIVE_LIBS@
 
 httpserver_LDFLAGS = @STATIC_COMPILE@
