@@ -75,24 +75,10 @@ seafile_decrypt (char **data_out,
                  const int in_len,
                  SeafileCrypt *crypt);
 
-/*
- * Splited decryption APIs for decrypting a file piece by piece.
- * Useful for Http server.
- */
-
 int
-seafile_decrypt_init (EVP_CIPHER_CTX *ctx, SeafileCrypt *crypt);
-
-int
-seafile_decrypt_update (EVP_CIPHER_CTX *ctx,
-                        char *data_out,
-                        int *out_len,
-                        const char *data_in,
-                        const int in_len);
-
-int
-seafile_decrypt_final (EVP_CIPHER_CTX *ctx,
-                       char *data_out,
-                       int *out_len);
+seafile_decrypt_init (EVP_CIPHER_CTX *ctx,
+                      int version,
+                      const unsigned char *key,
+                      const unsigned char *iv);
 
 #endif  /* _SEAFILE_CRYPT_H */

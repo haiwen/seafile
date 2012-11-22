@@ -245,87 +245,33 @@ dec_error:
     return -1;
     
 }
-                               
+
 int
-seafile_decrypt_init (EVP_CIPHER_CTX *ctx, SeafileCrypt *crypt)
+seafile_decrypt_init (EVP_CIPHER_CTX *ctx,
+                      int version,
+                      const unsigned char *key,
+                      const unsigned char *iv)
 {
     int ret;
 
     /* Prepare CTX for decryption. */
     EVP_CIPHER_CTX_init (ctx);
 
-    if (crypt->version >= 1)
+    if (version >= 1)
         ret = EVP_DecryptInit_ex (ctx,
                                   EVP_aes_128_cbc(), /* cipher mode */
                                   NULL, /* engine, NULL for default */
-                                  crypt->key,  /* derived key */
-                                  crypt->iv);  /* initial vector */
+                                  key,  /* derived key */
+                                  iv);  /* initial vector */
     else
         ret = EVP_DecryptInit_ex (ctx,
                                   EVP_aes_128_ecb(), /* cipher mode */
                                   NULL, /* engine, NULL for default */
-                                  crypt->key,  /* derived key */
-                                  crypt->iv);  /* initial vector */
+                                  key,  /* derived key */
+                                  iv);  /* initial vector */
 
     if (ret == DEC_FAILURE)
         return -1;
 
     return 0;
-}
-
-int
-seafile_decrypt_update (EVP_CIPHER_CTX *ctx,
-                        char *data_out,
-                        int *out_len,
-                        const char *data_in,
-                        const int in_len)
-{
-    int ret;
-
-    /* Do the decryption. */
-    ret = EVP_DecryptUpdate (ctx,
-                             (unsigned char*)data_out,
-                             out_len,
-                             (unsigned char*)data_in,
-                             in_len);
-
-    if (ret == DEC_FAILURE)
-        goto dec_error;
-
-    return 0;
-
-dec_error:
-    EVP_CIPHER_CTX_cleanup (ctx);
-
-    *out_len = -1;
-
-    return -1;
-}
-
-int
-seafile_decrypt_final (EVP_CIPHER_CTX *ctx,
-                       char *data_out,
-                       int *out_len)
-{
-    int ret;
-
-    /* Finish the possible partial block. */
-    ret = EVP_DecryptFinal_ex (ctx,
-                               (unsigned char*)data_out,
-                               out_len);
-
-    /* out_len should be smaller than in_len. */
-    if (ret == DEC_FAILURE)
-        goto dec_error;
-
-    EVP_CIPHER_CTX_cleanup (ctx);
-    
-    return 0;
-
-dec_error:
-    EVP_CIPHER_CTX_cleanup (ctx);
-
-    *out_len = -1;
-
-    return -1;
 }

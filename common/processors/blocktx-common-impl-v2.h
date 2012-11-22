@@ -28,6 +28,8 @@
 #define SS_ACCESS_DENIED "Access denied"
 
 #define MAX_BL_LEN 1024
+#define IO_BUF_LEN 1024
+#define ENC_BLOCK_SIZE 16
 
 typedef struct {
     int     block_idx;
@@ -63,6 +65,10 @@ struct ThreadData {
     ccnet_pipe_t         task_pipe[2];
     int                  port;
     evutil_socket_t      data_fd;
+
+    gboolean             encrypt_channel;
+    unsigned char        key[ENC_BLOCK_SIZE];
+    unsigned char        iv[ENC_BLOCK_SIZE];
 
     gboolean             processor_done;
     char                *token;
@@ -158,7 +164,80 @@ send_block_rsp (int cevent_id, int block_idx, int tx_bytes, int tx_time)
                               (void *)blk_rsp);
 }
 
+/* Encryption utilities. */
+
+static void
+generate_encrypt_key (ThreadData *tdata, CcnetPeer *peer)
+{
+    EVP_BytesToKey (EVP_aes_256_cbc(), /* cipher mode */
+                    EVP_sha1(),        /* message digest */
+                    NULL,              /* salt */
+                    (unsigned char*)peer->session_key,
+                    strlen(peer->session_key),
+                    3,   /* iteration times */
+                    tdata->key, /* the derived key */
+                    tdata->iv); /* IV, initial vector */
+
+    tdata->encrypt_channel = TRUE;
+}
+
 #if defined SENDBLOCK_PROC || defined PUTBLOCK_PROC
+
+static int
+encrypt_init (EVP_CIPHER_CTX *ctx,
+              const unsigned char *key,
+              const unsigned char *iv)
+{
+    int ret;
+
+    /* Prepare CTX for encryption. */
+    EVP_CIPHER_CTX_init (ctx);
+
+    ret = EVP_EncryptInit_ex (ctx,
+                              EVP_aes_256_cbc(), /* cipher mode */
+                              NULL, /* engine, NULL for default */
+                              key,  /* derived key */
+                              iv);  /* initial vector */
+    if (ret == 0)
+        return -1;
+
+    return 0;
+}
+
+static int
+send_encrypted_data (EVP_CIPHER_CTX *ctx, int sockfd,
+                     const char *buf, int len, uint32_t remain)
+{
+    char out_buf[IO_BUF_LEN + ENC_BLOCK_SIZE];
+    int out_len;
+
+    if (EVP_EncryptUpdate (ctx,
+                           (unsigned char *)out_buf, &out_len,
+                           (unsigned char *)buf, len) == 0) {
+        seaf_warning ("Failed to encrypt data.\n");
+        return -1;
+    }
+
+    if (sendn (sockfd, out_buf, out_len) < 0) {
+        seaf_warning ("Failed to write data: %s.\n",
+                      evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+        return -1;
+    }
+
+    if (remain == 0) {
+        if (EVP_EncryptFinal (ctx, (unsigned char *)out_buf, &out_len) == 0) {
+            seaf_warning ("Failed to encrypt data.\n");
+            return -1;
+        }
+        if (sendn (sockfd, out_buf, out_len) < 0) {
+            seaf_warning ("Failed to write data: %s.\n",
+                          evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
+            return -1;
+        }
+    }
+
+    return 0;
+}
 
 static int
 send_block_packet (ThreadData *tdata,
@@ -169,10 +248,12 @@ send_block_packet (ThreadData *tdata,
 {
     SeafBlockManager *block_mgr = seaf->block_mgr;
     BlockMetadata *md;
-    uint32_t size;
+    uint32_t size, remain;
     BlockPacket pkt;
-    char buf[1024];
+    char buf[IO_BUF_LEN];
     int n;
+    int ret = 0;
+    EVP_CIPHER_CTX ctx;
 
     md = seaf_block_manager_stat_block_by_handle (block_mgr, handle);
     if (!md) {
@@ -182,23 +263,39 @@ send_block_packet (ThreadData *tdata,
     size = md->size;
     g_free (md);
 
+    remain = size;
+    /* Compute data size after encryption.
+     * Block size is 16 bytes and AES always add one padding block.
+     */
+    if (tdata->encrypt_channel) {
+        size = ((size >> 4) + 1) << 4;
+        encrypt_init (&ctx, tdata->key, tdata->iv);
+    }
+
     pkt.block_size = htonl (size);
     pkt.block_idx = htonl ((uint32_t) block_idx);
     memcpy (pkt.block_id, block_id, 41);
     if (sendn (sockfd, &pkt, sizeof(pkt)) < 0) {
         seaf_warning ("Failed to write socket: %s.\n", 
                    evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-        return -1;
+        ret = -1;
+        goto out;
     }
 
     while (1) {
-        n = seaf_block_manager_read_block (block_mgr, handle, buf, 1024);
+        n = seaf_block_manager_read_block (block_mgr, handle, buf, IO_BUF_LEN);
         if (n <= 0)
             break;
-        if (sendn (sockfd, buf, n) < 0) {
-            seaf_warning ("Failed to write block %s: %s.\n", block_id, 
-                       evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-            return -1;
+        remain -= n;
+
+        if (tdata->encrypt_channel)
+            ret = send_encrypted_data (&ctx, sockfd, buf, n, remain);
+        else
+            ret = sendn (sockfd, buf, n);
+
+        if (ret < 0) {
+            seaf_warning ("Failed to write block %s\n", block_id);
+            goto out;
         }
 #ifdef SENDBLOCK_PROC
         /* Update global transferred bytes. */
@@ -206,16 +303,20 @@ send_block_packet (ThreadData *tdata,
 #endif
     }
     if (n < 0) {
-        seaf_warning ("Failed to write block %s: %s.\n", block_id, 
-                   evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-        return -1;
+        seaf_warning ("Failed to write block %s\n", block_id);
+        ret = -1;
+        goto out;
     }
 
 #if defined SENDBLOCK_PROC
     send_block_rsp (tdata->cevent_id, block_idx, 0, 0);
 #endif
 
-    return size;
+out:
+    if (tdata->encrypt_channel)
+        EVP_CIPHER_CTX_cleanup (&ctx);
+
+    return ret;
 }
 
 static int
@@ -225,7 +326,7 @@ send_blocks (ThreadData *tdata)
     BlockRequest blk_req;
     BlockHandle *handle;
     int         n;
-    int         n_sent;
+    int         ret;
 
     while (1) {
         n = pipereadn (tdata->task_pipe[0], &blk_req, sizeof(blk_req));
@@ -246,9 +347,9 @@ send_blocks (ThreadData *tdata)
             return -1;
         }
 
-        n_sent = send_block_packet (tdata, blk_req.block_idx, blk_req.block_id, 
-                                    handle, tdata->data_fd);
-        if (n_sent < 0)
+        ret = send_block_packet (tdata, blk_req.block_idx, blk_req.block_id, 
+                                 handle, tdata->data_fd);
+        if (ret < 0)
             return -1;
 
         seaf_block_manager_close_block (block_mgr, handle);
@@ -274,7 +375,66 @@ typedef struct {
     int remain;
     BlockHandle *handle;
     uint32_t cevent_id;
+    EVP_CIPHER_CTX ctx;
 } RecvFSM;
+
+static int
+decrypt_init (EVP_CIPHER_CTX *ctx,
+              const unsigned char *key,
+              const unsigned char *iv)
+{
+    int ret;
+
+    /* Prepare CTX for decryption. */
+    EVP_CIPHER_CTX_init (ctx);
+
+    ret = EVP_DecryptInit_ex (ctx,
+                              EVP_aes_256_cbc(), /* cipher mode */
+                              NULL, /* engine, NULL for default */
+                              key,  /* derived key */
+                              iv);  /* initial vector */
+    if (ret == 0)
+        return -1;
+
+    return 0;
+}
+
+static int
+write_decrypted_data (const char *buf, int len,
+                      RecvFSM *fsm)
+{
+    char out_buf[IO_BUF_LEN + ENC_BLOCK_SIZE];
+    int out_len;
+
+    if (EVP_DecryptUpdate (&fsm->ctx,
+                           (unsigned char *)out_buf, &out_len,
+                           (unsigned char *)buf, len) == 0) {
+        seaf_warning ("Failed to decrypt data.\n");
+        return -1;
+    }
+
+    if (seaf_block_manager_write_block (seaf->block_mgr, fsm->handle,
+                                        out_buf, out_len) < 0) {
+        seaf_warning ("Failed to write block %s.\n", fsm->hdr.block_id);
+        return -1;
+    }
+
+    if (fsm->remain == 0) {
+        if (EVP_DecryptFinal (&fsm->ctx, (unsigned char *)out_buf, &out_len) == 0)
+        {
+            seaf_warning ("Failed to encrypt data.\n");
+            return -1;
+        }
+
+        if (seaf_block_manager_write_block (seaf->block_mgr, fsm->handle,
+                                            out_buf, out_len) < 0) {
+            seaf_warning ("Failed to write block %s.\n", fsm->hdr.block_id);
+            return -1;
+        }
+    }
+
+    return 0;
+}
 
 static int
 recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
@@ -283,7 +443,7 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
     char *block_id;
     BlockHandle *handle;
     int n, round;
-    char buf[1024];
+    char buf[IO_BUF_LEN];
 
     switch (fsm->state) {
     case RECV_STATE_HEADER:
@@ -313,26 +473,36 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
             }
             fsm->handle = handle; 
             fsm->state = RECV_STATE_BLOCK;
+
+            if (fsm->tdata->encrypt_channel)
+                decrypt_init (&fsm->ctx, fsm->tdata->key, fsm->tdata->iv);
         }
         break;
     case RECV_STATE_BLOCK:
         handle = fsm->handle;
         block_id = fsm->hdr.block_id;
 
-        round = MIN (fsm->remain, 1024);
+        round = MIN (fsm->remain, IO_BUF_LEN);
         n = recv (sockfd, buf, round, 0);
         if (n < 0) {
             seaf_warning ("failed to read data: %s.\n",
                        evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-            return -1;
+            goto data_error;
         } else if (n == 0) {
             seaf_debug ("data connection closed.\n");
-            return -1;
+            goto data_error;
         }
+        fsm->remain -= n;
 
-        if (seaf_block_manager_write_block (block_mgr, handle, buf, n) < 0) {
+        int ret;
+        if (fsm->tdata->encrypt_channel)
+            ret = write_decrypted_data (buf, n, fsm);
+        else
+            ret = seaf_block_manager_write_block (block_mgr, handle, buf, n);
+
+        if (ret < 0) {
             seaf_warning ("Failed to write block %s.\n", fsm->hdr.block_id);
-            return -1;
+            goto data_error;
         }
 
 #ifdef GETBLOCK_PROC
@@ -340,8 +510,10 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
         g_atomic_int_add (&(fsm->tdata->task->tx_bytes), n);
 #endif
 
-        fsm->remain -= n;
         if (fsm->remain == 0) {
+            if (fsm->tdata->encrypt_channel)
+                EVP_CIPHER_CTX_cleanup (&fsm->ctx);
+
             if (seaf_block_manager_close_block (block_mgr, handle) < 0) {
                 seaf_warning ("Failed to close block %s.\n", fsm->hdr.block_id);
                 return -1;
@@ -356,12 +528,10 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
             /* Set this handle to invalid. */
             fsm->handle = NULL;
 
-#ifdef GETBLOCK_PROC
             /* Notify finish receiving this block. */
             send_block_rsp (fsm->cevent_id,
                             (int)ntohl (fsm->hdr.block_idx),
                             0, 0);
-#endif
 
             /* Prepare for the next packet. */
             fsm->state = RECV_STATE_HEADER;
@@ -371,6 +541,13 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
     }
 
     return 0;
+
+data_error:
+    if (fsm->tdata->encrypt_channel)
+        EVP_CIPHER_CTX_cleanup (&fsm->ctx);
+    seaf_block_manager_close_block (seaf->block_mgr, fsm->handle);
+    seaf_block_manager_block_handle_free (seaf->block_mgr, fsm->handle);
+    return -1;
 }
 
 static int
@@ -421,10 +598,6 @@ recv_blocks (ThreadData *tdata)
     return 0;
 
 error:
-    if (fsm->handle) {
-        seaf_block_manager_close_block (seaf->block_mgr, fsm->handle);
-        seaf_block_manager_block_handle_free (seaf->block_mgr, fsm->handle);
-    }
     g_free (fsm);
     return -1;
 }
@@ -586,6 +759,9 @@ get_port (CcnetProcessor *processor, char *content, int clen)
     tdata->token = g_strdup(token);
     tdata->peer = peer;
 
+    if (peer->encrypt_channel)
+        generate_encrypt_key (tdata, peer);
+
     ccnet_job_manager_schedule_job (seaf->job_mgr,
                                     do_transfer,
                                     thread_done,
@@ -693,10 +869,17 @@ accept_connection (evutil_socket_t connfd, void *vdata)
 {
     ThreadData *tdata = vdata;
     CcnetProcessor *processor = tdata->processor;
+    CcnetPeer *peer = NULL;
 
     /* client error or timeout */
     if (connfd < 0)
         goto fail;
+
+    peer = ccnet_get_peer (seaf->ccnetrpc_client, processor->peer_id);
+    if (!peer) {
+        seaf_warning ("Invalid peer %s.\n", processor->peer_id);
+        goto fail;
+    }
 
     tdata->data_fd = connfd;
 
@@ -708,6 +891,10 @@ accept_connection (evutil_socket_t connfd, void *vdata)
         goto fail;
     }
 
+    if (peer->encrypt_channel)
+        generate_encrypt_key (tdata, peer);
+    g_object_unref (peer);
+
     ccnet_job_manager_schedule_job (seaf->job_mgr,
                                     do_passive_transfer,
                                     thread_done,
@@ -715,6 +902,7 @@ accept_connection (evutil_socket_t connfd, void *vdata)
     return;
 
 fail:
+    g_object_unref (peer);
     ccnet_processor_done (processor, FALSE);
     g_free (tdata);
 }

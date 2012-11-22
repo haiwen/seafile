@@ -35,6 +35,7 @@ typedef struct SendfileData {
     evhtp_request_t *req;
     Seafile *file;
     SeafileCrypt *crypt;
+    gboolean enc_init;
     EVP_CIPHER_CTX ctx;
     BlockHandle *handle;
     size_t remain;
@@ -76,6 +77,14 @@ static struct file_type_map ftmap[] = {
 static void
 free_sendfile_data (SendfileData *data)
 {
+    if (data->handle) {
+        seaf_block_manager_close_block(seaf->block_mgr, data->handle);
+        seaf_block_manager_block_handle_free(seaf->block_mgr, data->handle);
+    }
+
+    if (data->enc_init)
+        EVP_CIPHER_CTX_cleanup (&data->ctx);
+
     seafile_unref (data->file);
     g_free (data->crypt);
     g_free (data);
@@ -118,10 +127,14 @@ next:
         g_free (bmd);
 
         if (data->crypt) {
-            if (seafile_decrypt_init (&data->ctx, data->crypt) < 0) {
+            if (seafile_decrypt_init (&data->ctx,
+                                      data->crypt->version,
+                                      (unsigned char *)data->crypt->key,
+                                      (unsigned char *)data->crypt->iv) < 0) {
                 seaf_warning ("Failed to init decrypt.\n");
                 goto err;
             }
+            data->enc_init = TRUE;
         }
     }
     handle = data->handle;
@@ -130,13 +143,8 @@ next:
     data->remain -= n;
     if (n < 0) {
         seaf_warning ("Error when reading from block %s.\n", blk_id);
-        seaf_block_manager_close_block(seaf->block_mgr, handle);
-        seaf_block_manager_block_handle_free(seaf->block_mgr, handle);
         goto err;
     } else if (n == 0) {
-        seaf_block_manager_close_block (seaf->block_mgr, handle);
-        seaf_block_manager_block_handle_free (seaf->block_mgr, handle);
-
         /* We've read up the data of this block, finish or try next block. */
         if (data->idx == data->file->n_blocks - 1) {
             /* Recover evhtp's callbacks */
@@ -157,6 +165,10 @@ next:
 
         ++(data->idx);
         data->handle = NULL;
+        if (data->crypt != NULL) {
+            EVP_CIPHER_CTX_cleanup (&data->ctx);
+            data->enc_init = FALSE;
+        }
         goto next;
     }
 
@@ -171,12 +183,12 @@ next:
             goto err;
         }
 
-        int ret = seafile_decrypt_update (&data->ctx,
-                                          dec_out,
-                                          &dec_out_len,
-                                          buf,
-                                          n);
-        if (ret != 0) {
+        int ret = EVP_DecryptUpdate (&data->ctx,
+                                     (unsigned char *)dec_out,
+                                     &dec_out_len,
+                                     (unsigned char *)buf,
+                                     n);
+        if (ret == 0) {
             seaf_warning ("Decrypt block %s failed.\n", blk_id);
             g_free (dec_out);
             goto err;
@@ -187,8 +199,10 @@ next:
         /* If it's the last piece of a block, call decrypt_final()
          * to decrypt the possible partial block. */
         if (data->remain == 0) {
-            ret = seafile_decrypt_final (&data->ctx, dec_out, &dec_out_len);
-            if (ret != 0) {
+            ret = EVP_DecryptFinal (&data->ctx,
+                                    (unsigned char *)dec_out,
+                                    &dec_out_len);
+            if (ret == 0) {
                 seaf_warning ("Decrypt block %s failed.\n", blk_id);
                 g_free (dec_out);
                 goto err;
