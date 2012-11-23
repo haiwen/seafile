@@ -21,11 +21,12 @@ static char *bind_addr = "0.0.0.0";
 static uint16_t bind_port = 8082;
 static int num_threads = 10;
 static char *root_dir = NULL;
+static uint16_t https_port = 4433;
 
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvfc:d:p:b:t:r:l:g:G:D:";
+static const char *short_opts = "hvfc:d:p:b:t:r:l:g:G:D:s:k:P:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -40,11 +41,17 @@ static const struct option long_opts[] = {
     { "ccnet-debug-level", required_argument, NULL, 'g' },
     { "http-debug-level", required_argument, NULL, 'G' },
     { "debug", required_argument, NULL, 'D' },
+    { "https", required_argument, NULL, 's' },
+    { "privkey", required_argument, NULL, 'k' },
+    { "https-port", required_argument, NULL, 'P' },
 };
 
 static void usage ()
 {
-    fprintf (stderr, "usage: httpserver [-c config_dir] [-d seafile_dir] -r http_root_dir\n");
+    fprintf (stderr,
+             "usage: httpserver [-c config_dir] [-d seafile_dir] \n"
+             "[-b address] [-p http_port] \n"
+             "[-s pemfile -k privkey] [-P https_port]\n");
 }
 
 static void
@@ -65,6 +72,8 @@ main(int argc, char *argv[])
     char *ccnet_debug_level_str = "info";
     char *http_debug_level_str = "debug";
     const char *debug_str = NULL;
+    char *pemfile = NULL;
+    char *privkey = NULL;
 
     config_dir = DEFAULT_CONFIG_DIR;
 
@@ -95,6 +104,15 @@ main(int argc, char *argv[])
         case 'r':
             root_dir = strdup(optarg);
             break;
+        case 's':
+            pemfile = strdup(optarg);
+            break;
+        case 'k':
+            privkey = strdup(optarg);
+            break;
+        case 'P':
+            https_port = atoi(optarg);
+            break;
         case 'f':
             daemon_mode = 0;
             break;
@@ -114,6 +132,11 @@ main(int argc, char *argv[])
             usage();
             exit(-1);
         }
+    }
+
+    if ((pemfile && !privkey) || (!pemfile && privkey)) {
+        fprintf (stderr, "pemfile and privkey must be provided together.\n");
+        exit (-1);
     }
 
 #ifndef WIN32    
@@ -155,6 +178,21 @@ main(int argc, char *argv[])
 
     evbase = event_base_new();
     htp = evhtp_new(evbase, NULL);
+
+    if (pemfile != NULL) {
+        evhtp_ssl_cfg_t scfg;
+
+        memset (&scfg, 0, sizeof(scfg));
+
+        scfg.pemfile        = pemfile;
+        scfg.privfile       = privkey;
+        scfg.scache_type    = evhtp_ssl_scache_type_internal;
+        scfg.scache_timeout = 5000;
+
+        evhtp_ssl_init (htp, &scfg);
+
+        bind_port = https_port;
+    }
 
     if (access_file_init (htp) < 0)
         exit (1);
