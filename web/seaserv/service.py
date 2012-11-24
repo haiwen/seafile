@@ -120,6 +120,13 @@ def send_command(command):
     pool.return_client(client)
     return ret
 
+def get_ccnet_config(key, default_value):
+    value = ccnet_rpc.get_config(key)
+    if value is None:
+        return default_value
+    else:
+        return value
+
 
 ######## seafile API ####
 
@@ -231,5 +238,5 @@ def get_current_prefs():
     prefs = {}
     prefs['notify_sync'] = get_seafile_config('notify_sync', 'on')
     prefs['auto_start'] = 'on' if applet_rpc.get_auto_start() == 1 else 'off'
+    prefs['encrypt_channel'] = get_ccnet_config('encrypt_channel', 'off')
     return prefs
-    

@@ -751,12 +751,17 @@ class settings_page:
         
     def POST(self):
         current_prefs = get_current_prefs()
-        inputs = web.webapi.input(auto_start='off', notify_sync='off')
+        inputs = web.webapi.input(auto_start='off', notify_sync='off',
+                                  encrypt_channel='off')
 
         applet_rpc.set_auto_start(inputs.auto_start)
 
         if inputs.notify_sync != current_prefs['notify_sync']:
             seafile_rpc.set_config('notify_sync', inputs.notify_sync)
+
+        print inputs.encrypt_channel, current_prefs['encrypt_channel']
+        if inputs.encrypt_channel != current_prefs['encrypt_channel']:
+            ccnet_rpc.set_config('encrypt_channel', inputs.encrypt_channel)
 
         raise web.seeother('/settings/')
 

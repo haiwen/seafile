@@ -19,7 +19,15 @@
             % else:
             <input type="checkbox" name="auto_start" /> 
             % endif
-            ${_("Auto start Seafile on system startup")}
+            ${_("Auto start Seafile on system startup (only for Windows)")}
+            </li>
+            <li>
+            % if prefs['encrypt_channel'] == 'on':
+            <input type="checkbox" name="encrypt_channel" checked="checked" /> 
+            % else:
+            <input type="checkbox" name="encrypt_channel" /> 
+            % endif
+            ${_("Encrypt communication channel (restart Seafile to take effect)")}
             </li>
         </ul>
         % if error_msg:
