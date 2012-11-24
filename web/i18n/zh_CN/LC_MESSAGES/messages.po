@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2012-11-09 16:45+CST\n"
+"POT-Creation-Date: 2012-11-24 11:43+CST\n"
 "PO-Revision-Date: 2012-11-04 11:07+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -542,8 +542,12 @@ msgid "Notify when libraries are synchronized"
 msgstr "资料库同步后用气泡通知"
 
 #: templates/settings.html:22
-msgid "Auto start Seafile on system startup"
-msgstr "开机自动启动 Seafile"
+msgid "Auto start Seafile on system startup (only for Windows)"
+msgstr "开机自动启动 Seafile（仅对 Windows 有效）"
+
+#: templates/settings.html:30
+msgid "Enable encryption for data transfer (restart Seafile to take effect)"
+msgstr "传输数据时加密（需要重启 Seafile 才生效）"
 
 #~ msgid "Seafile@Local"
 #~ msgstr "Seafile 本地管理"
