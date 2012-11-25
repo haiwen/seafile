@@ -959,22 +959,13 @@ traverse_file (SeafFSManager *mgr,
                TraverseFSTreeCallback callback,
                void *user_data)
 {
-    Seafile *seafile;
-    int i;
+    gboolean stop = FALSE;
 
     if (memcmp (id, EMPTY_SHA1, 40) == 0)
         return 0;
 
-    seafile = seaf_fs_manager_get_seafile (mgr, id);
-    if (!seafile) {
-        g_warning ("[fs mgr] Failed to find file %s.\n", id);
+    if (!callback (mgr, id, SEAF_METADATA_TYPE_FILE, user_data, &stop))
         return -1;
-    }
-
-    for (i = 0; i < seafile->n_blocks; ++i)
-        callback (user_data, seafile->blk_sha1s[i]);
-
-    seafile_unref (seafile);
 
     return 0;
 }
@@ -988,6 +979,13 @@ traverse_dir (SeafFSManager *mgr,
     SeafDir *dir;
     GList *p;
     SeafDirent *seaf_dent;
+    gboolean stop = FALSE;
+
+    if (!callback (mgr, id, SEAF_METADATA_TYPE_DIR, user_data, &stop))
+        return -1;
+
+    if (stop)
+        return 0;
 
     dir = seaf_fs_manager_get_seafdir (mgr, id);
     if (!dir) {
@@ -1029,13 +1027,37 @@ seaf_fs_manager_traverse_tree (SeafFSManager *mgr,
     return traverse_dir (mgr, root_id, callback, user_data);
 }
 
+static gboolean
+fill_blocklist (SeafFSManager *mgr, const char *obj_id, int type,
+                void *user_data, gboolean *stop)
+{
+    BlockList *bl = user_data;
+    Seafile *seafile;
+    int i;
+
+    if (type == SEAF_METADATA_TYPE_FILE) {
+        seafile = seaf_fs_manager_get_seafile (mgr, obj_id);
+        if (!seafile) {
+            g_warning ("[fs mgr] Failed to find file %s.\n", obj_id);
+            return FALSE;
+        }
+
+        for (i = 0; i < seafile->n_blocks; ++i)
+            block_list_insert (bl, seafile->blk_sha1s[i]);
+
+        seafile_unref (seafile);
+    }
+
+    return TRUE;
+}
+
 int
 seaf_fs_manager_populate_blocklist (SeafFSManager *mgr,
                                     const char *root_id,
                                     BlockList *bl)
 {
     return seaf_fs_manager_traverse_tree (mgr, root_id, 
-                                          (TraverseFSTreeCallback)block_list_insert, 
+                                          fill_blocklist,
                                           bl);
 }
 

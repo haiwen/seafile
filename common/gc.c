@@ -7,6 +7,9 @@
 #include "gc.h"
 #include "info-mgr.h"
 
+#define DEBUG_FLAG SEAFILE_DEBUG_OTHER
+#include "log.h"
+
 /* Total number of blocks to be scanned. */
 static guint64 total_blocks;
 /* Number of blocks have been scanned. */
@@ -24,7 +27,7 @@ gc_start ()
     int ret;
 
     if (gc_started) {
-        g_warning ("GC is in progress, cannot start.\n");
+        seaf_warning ("GC is in progress, cannot start.\n");
         return -1;
     }
 
@@ -84,17 +87,57 @@ alloc_gc_index ()
 
 typedef struct {
     Bloom *index;
+    GHashTable *visited;
 #ifndef SEAFILE_SERVER
     gboolean no_history;
     char end_commit[41];
 #endif
 } GCData;
 
-static void
-insert_block_to_index (void *vindex, const char *block_id)
+static int
+add_blocks_to_index (SeafFSManager *mgr, Bloom *index, const char *file_id)
 {
-    Bloom *index = vindex;
-    bloom_add (index, block_id);
+    Seafile *seafile;
+    int i;
+
+    seafile = seaf_fs_manager_get_seafile (mgr, file_id);
+    if (!seafile) {
+        seaf_warning ("Failed to find file %s.\n", file_id);
+        return -1;
+    }
+
+    for (i = 0; i < seafile->n_blocks; ++i)
+        bloom_add (index, seafile->blk_sha1s[i]);
+
+    seafile_unref (seafile);
+
+    return 0;
+}
+
+static gboolean
+fs_callback (SeafFSManager *mgr,
+             const char *obj_id,
+             int type,
+             void *user_data,
+             gboolean *stop)
+{
+    GCData *data = user_data;
+
+    if (data->visited != NULL) {
+        if (g_hash_table_lookup (data->visited, obj_id) != NULL) {
+            *stop = TRUE;
+            return TRUE;
+        }
+
+        char *key = g_strdup(obj_id);
+        g_hash_table_insert (data->visited, key, key);
+    }
+
+    if (type == SEAF_METADATA_TYPE_FILE &&
+        add_blocks_to_index (mgr, data->index, obj_id) < 0)
+        return FALSE;
+
+    return TRUE;
 }
 
 static gboolean
@@ -111,12 +154,12 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
     }
 #endif
 
-    /* g_debug ("[GC] traversed commit %s.\n", commit->commit_id); */
+    seaf_debug ("[GC] traversed commit %s.\n", commit->commit_id);
 
     ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
                                          commit->root_id,
-                                         insert_block_to_index,
-                                         data->index);
+                                         fs_callback,
+                                         data);
     if (ret < 0)
         return FALSE;
 
@@ -133,12 +176,13 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index)
 
     branches = seaf_branch_manager_get_branch_list (seaf->branch_mgr, repo->id);
     if (branches == NULL) {
-        g_warning ("[GC] Failed to get branch list of repo %s.\n", repo->id);
+        seaf_warning ("[GC] Failed to get branch list of repo %s.\n", repo->id);
         return -1;
     }
 
     data = g_new0(GCData, 1);
     data->index = index;
+    data->visited = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 #ifndef SEAFILE_SERVER
     data->no_history = TRUE;
     if (data->no_history) {
@@ -165,33 +209,38 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index)
     }
 
     g_list_free (branches);
+    g_hash_table_destroy (data->visited);
     g_free (data);
 
     return ret;
 }
 
 #ifndef SEAFILE_SERVER
-static gboolean
-populate_index (SeafCommit *commit, void *vindex, gboolean *stop)
-{
-    int ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
-                                             commit->root_id,
-                                             insert_block_to_index,
-                                             vindex);
-    if (ret < 0)
-        return FALSE;
-    return TRUE;
-}
-
 static int
 populate_gc_index_for_head (const char *head_id, Bloom *index)
 {
+    SeafCommit *head;
+    GCData *data;
     gboolean ret;
-    ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
-                                                    head_id,
-                                                    populate_index,
-                                                    index);
-    return (ret == TRUE);
+
+    /* We just need to traverse the head for clone tasks. */
+    head = seaf_commit_manager_get_commit (seaf->commit_mgr, head_id);
+    if (!head) {
+        seaf_warning ("Failed to find clone head %s.\n", head_id);
+        return -1;
+    }
+
+    data = g_new0 (GCData, 1);
+    data->index = index;
+
+    ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
+                                         head->root_id,
+                                         fs_callback,
+                                         data);
+
+    g_free (data);
+    seaf_commit_unref (head);
+    return ret;
 }
 #endif
 
@@ -235,7 +284,7 @@ gc_thread_func (void *data)
      */
     index = alloc_gc_index ();
     if (!index) {
-        g_warning ("GC: Failed to allocate index.\n");
+        seaf_warning ("GC: Failed to allocate index.\n");
         return NULL;
     }
 
@@ -270,7 +319,7 @@ gc_thread_func (void *data)
                                             check_block_liveness,
                                             index);
     if (ret < 0) {
-        g_warning ("GC: Failed to clean dead blocks.\n");
+        seaf_warning ("GC: Failed to clean dead blocks.\n");
     }
 
 out:

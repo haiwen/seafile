@@ -174,7 +174,14 @@ seaf_fs_manager_populate_blocklist (SeafFSManager *mgr,
                                     const char *root_id,
                                     BlockList *bl);
 
-typedef void (*TraverseFSTreeCallback) (void *user_data, const char *block_id);
+/*
+ * For dir object, set *stop to TRUE to stop traversing the subtree.
+ */
+typedef gboolean (*TraverseFSTreeCallback) (SeafFSManager *mgr,
+                                            const char *obj_id,
+                                            int type,
+                                            void *user_data,
+                                            gboolean *stop);
 
 int
 seaf_fs_manager_traverse_tree (SeafFSManager *mgr,

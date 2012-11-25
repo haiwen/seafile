@@ -1324,6 +1324,10 @@ update_local_repo (TransferTask *task)
         seaf_branch_manager_add_branch (seaf->branch_mgr, branch);
         seaf_branch_unref (branch);
 
+        /* Save remote head for GC (used when repo doesn't keep local history) */
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr, task->repo_id,
+                                             REPO_REMOTE_HEAD, task->head);
+
         /* Set relay to where this repo from. */
         if (is_peer_relay (task->dest_id)) {
             seaf_repo_manager_set_repo_relay_id (seaf->repo_mgr, repo,
