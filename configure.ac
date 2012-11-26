@@ -188,13 +188,6 @@ fi
 AC_SUBST(SERVER_PKG_RPATH)
 AC_SUBST(SERVER_PKG_PY_RPATH)
 
-if test x${compile_httpserver} = xyes; then
-   dnl check libarchive
-   LIBARCHIVE_REQUIRED=2.8.5
-   PKG_CHECK_MODULES(LIBARCHIVE, [libarchive >= $LIBARCHIVE_REQUIRED])
-   AC_SUBST(LIBARCHIVE_CFLAGS)
-   AC_SUBST(LIBARCHIVE_LIBS)
-fi
 
 AM_CONDITIONAL([COMPILE_CLI], [test "${compile_cli}" = "yes"])
 AM_CONDITIONAL([COMPILE_TOOLS], [test "${compile_tools}" = "yes"])
@@ -417,6 +410,14 @@ if test "${compile_server}" = "yes"; then
    AC_SUBST(MYSQL_LIBS)
    AC_SUBST(MYSQL_CFLAGS)
 
+fi
+
+if test x${compile_httpserver} = xyes; then
+   dnl check libarchive
+   LIBARCHIVE_REQUIRED=2.8.5
+   PKG_CHECK_MODULES(LIBARCHIVE, [libarchive >= $LIBARCHIVE_REQUIRED])
+   AC_SUBST(LIBARCHIVE_CFLAGS)
+   AC_SUBST(LIBARCHIVE_LIBS)
 fi
 
 # We use http to communicate with Riak, check for libcurl.
