@@ -1,3 +1,9 @@
+seafile (1.2.2) stable; urgency=low
+
+  * Fixed bugs of transfer scheduling algorithm
+
+ -- plt <freeplant@gmail.com>  Mon, 26 November 2012 19:00:32 +0800
+
 seafile (1.2.0) stable; urgency=low
 
   * Initial release.
