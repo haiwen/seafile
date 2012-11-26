@@ -368,25 +368,25 @@ update_worktree (struct unpack_trees_options *o,
 static gboolean
 do_check_file_locked (const char *path, const char *worktree)
 {
-    char *real_path, *locale_path;
+    char *real_path;
     HANDLE handle;
+    wchar_t *path_w;
 
     real_path = g_build_path(PATH_SEPERATOR, worktree, path, NULL);
-    locale_path = ccnet_locale_from_utf8(real_path);
+    path_w = wchar_from_utf8 (real_path);
     g_free (real_path);
 
-    handle = CreateFile (locale_path,
-                         GENERIC_WRITE,
-                         0,
-                         NULL,
-                         OPEN_EXISTING,
-                         0,
-                         NULL);
-    g_free (locale_path);
+    handle = CreateFileW (path_w,
+                          GENERIC_WRITE,
+                          0,
+                          NULL,
+                          OPEN_EXISTING,
+                          0,
+                          NULL);
+    g_free (path_w);
     if (handle != INVALID_HANDLE_VALUE) {
         CloseHandle (handle);
     } else if (GetLastError() == ERROR_SHARING_VIOLATION) {
-        g_debug ("%s is locked.\n", locale_path);
         return TRUE;
     }
 

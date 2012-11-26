@@ -37,13 +37,17 @@ msgbox_yes_or_no (HWND hWnd, char *format, ...)
 {
     va_list params;
     char buf[2048];
+    wchar_t *wbuf;
+    int res;
 
     va_start(params, format);
     vsnprintf(buf, sizeof(buf), format, params);
     va_end(params);
 
-    int res = MessageBox(hWnd, buf, "Seafile", MB_ICONQUESTION | MB_YESNO);
+    wbuf = wchar_from_utf8 (buf);
+    res = MessageBoxW (hWnd, wbuf, L"Seafile", MB_ICONQUESTION | MB_YESNO);
 
+    g_free (wbuf);
     return (res == IDYES);
 }
 
@@ -97,7 +101,7 @@ void
 set_control_font (HWND hControl, char *font)
 {
     HFONT hFont;
- 
+
     hFont = CreateFont(12,
                        0,
                        0,
@@ -128,29 +132,29 @@ void set_dlg_icon(HWND hDlg, UINT icon_id)
     SendMessage(hDlg, WM_SETICON, ICON_BIG, (LPARAM)hIcon);
 }
 
-static BOOL first_use = FALSE;
+extern char *seafile_bin_dir;
 
 static void
 InitComboxList(HWND hDlg)
 {
     HWND hwndGroupsBox = GetDlgItem(hDlg, IDC_COMBOX_DISK);
-    char drivers[MAX_PATH];
-    char *p;
+    wchar_t drives[MAX_PATH];
+    wchar_t *p;
     ULARGE_INTEGER free_space;
     ULARGE_INTEGER largest_free_space;
     int i = 0;
     int largest_disk_index = 0;
 
     largest_free_space.QuadPart = 0;
+    SendMessage (hwndGroupsBox, CB_RESETCONTENT, 0, 0);
 
-    GetLogicalDriveStrings (sizeof(drivers), drivers);
-    SendMessage(hwndGroupsBox, CB_RESETCONTENT, 0, 0);
-    for (p = drivers; *p; p+=strlen(p)+1) {
+    GetLogicalDriveStringsW (sizeof(drives), drives);
+    for (p = drives; *p != L'\0'; p += wcslen(p) + 1) {
         /* Skip floppy disk, network drive, etc */
-        if (GetDriveType(p) != DRIVE_FIXED)
+        if (GetDriveTypeW(p) != DRIVE_FIXED)
             continue;
 
-        if (GetDiskFreeSpaceEx (p, &free_space, NULL, NULL)) {
+        if (GetDiskFreeSpaceExW (p, &free_space, NULL, NULL)) {
             if (free_space.QuadPart > largest_free_space.QuadPart) {
                 largest_free_space.QuadPart = free_space.QuadPart;
                 largest_disk_index = i;
@@ -161,25 +165,29 @@ InitComboxList(HWND hDlg)
                             GetLastError());
         }
 
-        char buf[128];
+        wchar_t wbuf[128];
+        wchar_t *trans;
 
         if (free_space.QuadPart) {
-            double d = ((double)(free_space.QuadPart)) / (1024 * 1024 * 1024);
-            snprintf (buf, sizeof(buf), "%s\t   (%.1f GB %s)",
-                      p, d, _("free"));
-        } else
-            snprintf (buf, sizeof(buf), "%s\t   (%s)", p, _("free space unknown"));
+            double space = ((double)(free_space.QuadPart)) / (1024 * 1024 * 1024);
+
+            trans = wchar_from_utf8 (_("free"));
+            _snwprintf (wbuf, sizeof(wbuf) / sizeof(wchar_t),
+                       L"%s\t   (%.1f GB %s)",
+                       p, space, trans);
+        } else {
+            trans = wchar_from_utf8 (_("free space unknown"));
+            _snwprintf (wbuf, sizeof(wbuf), L"%s\t   (%s)", p, trans);
+        }
+        g_free (trans);
 
         i++;
 
-        SendMessage(hwndGroupsBox, CB_ADDSTRING, 0, (LPARAM) buf);
+        SendMessageW (hwndGroupsBox, CB_ADDSTRING, 0, (LPARAM) wbuf);
     }
 
-    SendDlgItemMessage(hDlg, IDC_COMBOX_DISK, CB_SETCURSEL,
-                       largest_disk_index, 0);
+    SendDlgItemMessage (hDlg, IDC_COMBOX_DISK, CB_SETCURSEL, largest_disk_index, 0);
 }
-
-extern char *seafile_bin_dir;
 
 /* 1. set seafile-data directory to hidden
    2. set seafile folder icon (via Desktop.ini)
@@ -189,18 +197,26 @@ set_seafdir_attributes ()
 {
     char *seafdir = g_path_get_dirname (applet->seafile_dir);
     char *icon_path = NULL;
-    char *locale_icon_path = NULL;
     char *ini_file_path = NULL;
+
+    wchar_t *seafile_dir_w = NULL; /* C:\\Seafile\\seafile-data */
+    wchar_t *seafdir_w =  NULL;    /* C:\\Seafile */
+    wchar_t *icon_path_w = NULL; /* C:\\Program Files\\Seafile\\bin\\seafdir.ico */
+    wchar_t * ini_file_path_w = NULL; /* C:\\Seafile\\Desktop.ini */
 
     FILE *ini_file = NULL;
 
+    seafile_dir_w = wchar_from_utf8 (applet->seafile_dir);
+    seafdir_w = wchar_from_utf8 (seafdir);
+
     /* Make seafile-data directory hidden. */
-    SetFileAttributes(applet->seafile_dir,
-                      FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM);
+    SetFileAttributesW (seafile_dir_w,
+                        FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM);
 
     /* Set seafdir folder icon. */
-    SetFileAttributes(seafdir, FILE_ATTRIBUTE_SYSTEM);
+    SetFileAttributesW (seafdir_w, FILE_ATTRIBUTE_SYSTEM);
     ini_file_path = g_build_filename (seafdir, "Desktop.ini", NULL);
+    ini_file_path_w = wchar_from_utf8 (ini_file_path);
 
     if (!(ini_file = g_fopen(ini_file_path, "w"))) {
         applet_warning ("failed to open %s\n", ini_file_path);
@@ -209,66 +225,67 @@ set_seafdir_attributes ()
 
     icon_path = g_build_filename (seafile_bin_dir, "seafdir.ico", NULL);
 
-    /* Replace all / with \ */
     char *ptr = icon_path;
     while (*ptr != '\0') {
+        /* Replace all / with \ */
         if (*ptr == '/')
-            *ptr = '\\'; 
+            *ptr = '\\';
 
         ptr++;
     }
+    icon_path_w = wchar_from_utf8 (icon_path);
 
-    locale_icon_path = ccnet_locale_from_utf8 (icon_path);
-        
-    fputs   ("[.ShellClassInfo]\n", ini_file);
-    fprintf (ini_file, "IconFile=%s\n", locale_icon_path);
-    fputs   ("IconIndex=0\n", ini_file);
+    fwprintf (ini_file, L"[.ShellClassInfo]\n");
+    fwprintf (ini_file, L"IconFile=%s\n", icon_path_w);
+    fwprintf (ini_file, L"IconIndex=0\n");
 
     /* Make the "Desktop.ini" file hidden. */
-    SetFileAttributes(ini_file_path,
-                      FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM);
+    SetFileAttributesW (ini_file_path_w,
+                        FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM);
 
 out:
+    g_free (seafile_dir_w);
     g_free (seafdir);
-
+    g_free (seafdir_w);
     g_free (ini_file_path);
-    if (ini_file)
-        fclose (ini_file);
+    g_free (ini_file_path_w);
     g_free (icon_path);
-    g_free (locale_icon_path);
+    g_free (icon_path_w);
 
+    if (ini_file) fclose (ini_file);
 }
 
 extern char *seafile_bin_dir;
 
 /* Copy manual from install dir to Seafile directory */
 void
-copy_user_manual()
+copy_user_manual ()
 {
-    char installdir[MAX_PATH];
-    char *seafdir;              /* like C:\\Seafile */
-    char src_path[MAX_PATH];
-    char dst_path[MAX_PATH];
+    char *installdir;            /* C:\Program Files\Seafile */
+    char *seafdir;              /* C:\Seafile */
+    char *src_path;             /* C:\Program Files\Seafile\help.txt */
+    char *dst_path;             /* C:\Seafile\help.txt */
 
-    g_strlcpy(installdir, seafile_bin_dir, sizeof(installdir));
-    PathRemoveBackslash(installdir);
-    PathRemoveFileSpec(installdir);
+    wchar_t *src_path_w, *dst_path_w;
 
+    installdir = g_path_get_dirname (seafile_bin_dir);
     seafdir = g_path_get_dirname (applet->seafile_dir);
-    PathRemoveBackslash(seafdir);
 
-    snprintf (src_path, sizeof(src_path),
-              "%s\\%s", installdir, _("Seafile help.txt"));
+    src_path = g_build_filename (installdir, _("Seafile help.txt"), NULL);
+    dst_path = g_build_filename (seafdir, _("Seafile help.txt"), NULL);
 
-    snprintf (dst_path, sizeof(dst_path),
-              "%s\\%s", seafdir, _("Seafile help.txt"));
-    
-    /* Skip if already exist */
-    /* Ver1.1: Manual Changed. We need to overwrite it. */
+    src_path_w = wchar_from_utf8 (src_path);
+    dst_path_w = wchar_from_utf8 (dst_path);
+
     BOOL failIfExist = FALSE;
-    CopyFile(src_path, dst_path, failIfExist);
+    CopyFileW (src_path_w, dst_path_w, failIfExist);
 
+    g_free (installdir);
     g_free (seafdir);
+    g_free (src_path);
+    g_free (dst_path);
+    g_free (src_path_w);
+    g_free (dst_path_w);
 }
 
 static BOOL CALLBACK
@@ -283,16 +300,19 @@ InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
         break;
 
-    case WM_INITDIALOG:
+    case WM_INITDIALOG: {
         InitComboxList(hDlg);
         set_dlg_icon (hDlg, IDI_SEAFILE_ICON);
-        SetWindowText (GetDlgItem(hDlg, IDC_STATIC_TITLE), _("Choose a disk"));
-        set_control_font (GetDlgItem(hDlg, IDC_STATIC_TITLE), _("Courier"));
+        wchar_t *msg =  wchar_from_utf8(_("Choose a disk"));
+        SetWindowTextW (GetDlgItem(hDlg, IDC_STATIC_TITLE), msg);
+        g_free (msg);
+                       
+        set_control_font (GetDlgItem(hDlg, IDC_STATIC_TITLE), "Courier");
         make_wnd_foreground(hDlg);
         return TRUE;
         break;
+    }
 
-        
     case WM_CTLCOLORSTATIC:
         if (IS_DLG_CONTROL (IDC_STATIC_TITLE)) {
 
@@ -350,6 +370,8 @@ InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     }
     return 0;
 }
+
+static BOOL first_use = FALSE;
 
 int
 show_init_seafile_window ()

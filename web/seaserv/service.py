@@ -51,40 +51,50 @@ Task:
 """
 
 
-from datetime import datetime
-import json
 import os
 import sys
-import locale
 
 import ccnet
 import seafile
-from pysearpc import SearpcError
 from appletRpc import AppletRpcClient
 
+if sys.platform == 'darwin' and 'LANG' not in os.environ:
+    os.environ['LANG'] = 'en_US.UTF-8'
+    os.environ['LC_ALL'] = 'en_US.UTF-8'
+
 if 'win32' in sys.platform:
-    DEFAULT_CCNET_CONF_PATH = "~/ccnet"
-else:    
-    DEFAULT_CCNET_CONF_PATH = "~/.ccnet"
+    DEFAULT_CCNET_CONF_PATH = '~/ccnet'
+    
+    import ctypes
+    def _getenv_u(name):
+        '''Return the value of environment variable in unicode. The param
+        'name' must be in unicode
 
-if 'CCNET_CONF_DIR' in os.environ:
-    CCNET_CONF_PATH = os.environ['CCNET_CONF_DIR']
+        '''
+        n= ctypes.windll.kernel32.GetEnvironmentVariableW(name, None, 0)
+        if n == 0:
+            return None
+        buf = ctypes.create_unicode_buffer(u'\0' * n)
+        ctypes.windll.kernel32.GetEnvironmentVariableW(name, buf, n)
+        return buf.value
+        
+    if 'CCNET_CONF_DIR' in os.environ:
+        CCNET_CONF_PATH = _getenv_u(u'CCNET_CONF_DIR').encode('UTF-8')
+    else:
+        CCNET_CONF_PATH = DEFAULT_CCNET_CONF_PATH
 else:
-    CCNET_CONF_PATH = DEFAULT_CCNET_CONF_PATH
+    # Linux and MacOS
+    DEFAULT_CCNET_CONF_PATH = '~/.ccnet'
+    if 'CCNET_CONF_DIR' in os.environ:
+        CCNET_CONF_PATH = os.environ['CCNET_CONF_DIR']
+    else:
+        CCNET_CONF_PATH = DEFAULT_CCNET_CONF_PATH
 
-CCNET_CONF_PATH = os.path.normpath(os.path.expanduser(CCNET_CONF_PATH))
+# Now CCNET_CONF_PATH is in UTF-8
+# We process it and make it unicode
+CCNET_CONF_PATH = os.path.normpath(os.path.expanduser(CCNET_CONF_PATH)).decode('UTF-8')
 
-if sys.platform == "darwin" and "LANG" not in os.environ:
-    os.environ["LANG"]="en_US.UTF-8"
-    os.environ["LC_ALL"]="en_US.UTF-8"
-
-
-# lang code will be used to set default language in main.py
-lang_code, system_encoding = locale.getdefaultlocale()
-
-CCNET_CONF_PATH = CCNET_CONF_PATH.decode(system_encoding)
-
-print "Load config from " + CCNET_CONF_PATH
+print u'Load config from ' + CCNET_CONF_PATH
 
 pool = ccnet.ClientPool(CCNET_CONF_PATH.encode('utf-8'))
 ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
@@ -200,7 +210,7 @@ def open_dir(path):
      req = "applet-opendir " + os.path.normpath(path)
      client.send_request(req_id, req)
      if client.read_response() < 0:
-         raise NetworkError("Read response error")
+         raise CcnetError("Read response error")
      
      rsp = client.response
      pool.return_client(client)

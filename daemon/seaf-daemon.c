@@ -253,6 +253,32 @@ create_sync_rpc_clients (const char *config_dir)
     ccnetrpc_client = ccnet_create_rpc_client (sync_client, NULL, "ccnet-rpcserver");
 }
 
+#ifdef WIN32
+/* Get the commandline arguments in unicode, then convert them to utf8  */
+static char **
+get_argv_utf8 (int *argc)
+{
+    int i = 0;
+    char **argv = NULL;
+    const wchar_t *cmdline = NULL;
+    wchar_t **argv_w = NULL;
+
+    cmdline = GetCommandLineW();
+    argv_w = CommandLineToArgvW (cmdline, argc); 
+    if (!argv_w) {
+        printf("failed to CommandLineToArgvW(), GLE=%u\n", GetLastError());
+        return NULL;
+    }
+
+    argv = (char **)malloc (sizeof(char*) * (*argc));
+    for (i = 0; i < *argc; i++) {
+        argv[i] = wchar_to_utf8 (argv_w[i]);
+    }
+
+    return argv;
+}
+#endif
+
 int
 main (int argc, char **argv)
 {
@@ -268,10 +294,7 @@ main (int argc, char **argv)
     char *seafile_debug_level_str = "debug";
 
 #ifdef WIN32
-    int i;
-    for (i = 1; i < argc; i++) {
-        argv[i] = ccnet_locale_to_utf8(argv[i]);
-    }
+    argv = get_argv_utf8 (&argc);
 #endif
 
     while ((c = getopt_long (argc, argv, short_options, 

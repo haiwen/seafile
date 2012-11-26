@@ -71,10 +71,10 @@ void start_heartbeat_monitor_timer (int timeout_ms, void *data);
 void start_open_browser_timer (int timeout_ms, void *data);
 void stop_open_browser_timer (void);
 
+/* All string parameters to trayicon related functions are UTF-8 encoded */
 void trayicon_set_ccnet_state (int state);
 void trayicon_notify (char *title, char *buf);
 void trayicon_rotate (gboolean start);
-
 void trayicon_set_tip (char *tip);
 
 int open_web_browser(const char *url);

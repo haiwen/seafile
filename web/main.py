@@ -2,11 +2,9 @@
 # encoding: utf-8
 
 import gettext
-import httplib
 import locale
 import os
 import simplejson as json
-import subprocess
 import sys
 import platform
 import urllib
@@ -15,20 +13,15 @@ from web.contrib.template import render_mako
 
 import settings
 
-from seaserv import CCNET_CONF_PATH, get_default_relay
+from seaserv import CCNET_CONF_PATH
 from seaserv import ccnet_rpc, seafile_rpc, applet_rpc
-from seaserv import get_peers_by_role, \
-    send_command, get_peers
+from seaserv import get_peers_by_role
 from seaserv import get_repos, get_repo, get_commits, \
     get_branches, open_dir, get_diff, \
-    list_dir, remove_repos_on_relay, get_default_seafile_worktree, \
+    get_default_seafile_worktree, \
     get_current_prefs
-from seaserv import lang_code
-
-from seaserv import TaskType
 
 from pysearpc import SearpcError
-
 
 urls = (
     '/', 'repos',
@@ -65,7 +58,12 @@ if "darwin" == sys.platform and hasattr(sys, 'frozen'):
     
 NET_STATE_CONNECTED = 1
 
-DEFAULT_LANG = lang_code
+lang_code = locale.getdefaultlocale()[0]
+if lang_code == 'zh_CN':
+    DEFAULT_LANG = 'zh_CN'
+else:
+    DEFAULT_LANG = 'en_US'
+
 lang_in_use = None
 
 gettext.install('messages', localedir, unicode=True)
@@ -78,7 +76,7 @@ render = render_mako(directories=['templates'],
 
 app = web.application(urls, globals())
 
-SEAFILE_VERSION = '1.2.1'
+SEAFILE_VERSION = '1.3.0'
 default_options = { "confdir": CCNET_CONF_PATH,
                     'web_ctx': web.ctx, 
                     'seafile_version': SEAFILE_VERSION,
@@ -396,7 +394,7 @@ class repo_operation:
             navs = get_dir_nav_links(repo, inputs.commit_id, inputs.path)
             try:
                 commit = seafile_rpc.get_commit(inputs.commit_id)
-            except SearpcError,e :
+            except SearpcError:
                 raise web.seeother('/repo/?repo=%s' % repo_id)
                 
             return render.repo_dir(repo=repo, dirs=dirs, commit_id=inputs.commit_id,

@@ -1500,13 +1500,29 @@ win32_kill_process (const char *process_name)
 }
 
 int
-win32_spawn_process (char *cmdline_in, char *working_directory)
+win32_spawn_process (char *cmdline_in, char *working_directory_in)
 {
     if (!cmdline_in)
         return -1;
-    char *cmdline = g_strdup (cmdline_in);
 
-    STARTUPINFO si;
+    wchar_t *cmdline_w = NULL;
+    wchar_t *working_directory_w = NULL;
+
+    cmdline_w = wchar_from_utf8 (cmdline_in);
+    if (!cmdline_in) {
+        g_warning ("failed to convert cmdline_in");
+        return -1;
+    }
+    
+    if (working_directory_in) {
+        working_directory_w = wchar_from_utf8 (working_directory_in);
+        if (!working_directory_w) {
+            g_warning ("failed to convert working_directory_in");
+            return -1;
+        }
+    }
+
+    STARTUPINFOW si;
     PROCESS_INFORMATION pi;
     unsigned flags;
     BOOL success;
@@ -1523,9 +1539,11 @@ win32_spawn_process (char *cmdline_in, char *working_directory)
     
     memset(&pi, 0, sizeof(pi));
 
-    success = CreateProcess(NULL, cmdline, NULL, NULL, TRUE, flags,
-                            NULL, working_directory, &si, &pi);
-    g_free (cmdline);
+    success = CreateProcessW (NULL, cmdline_w, NULL, NULL, TRUE, flags,
+                              NULL, working_directory_w, &si, &pi);
+    free (cmdline_w);
+    if (working_directory_w) free (working_directory_w);
+    
     if (!success) {
         g_warning ("failed to fork_process: GLE=%lu\n", GetLastError());
         return -1;
@@ -1538,6 +1556,93 @@ win32_spawn_process (char *cmdline_in, char *working_directory)
     CloseHandle(pi.hProcess);
     return 0;
 }
+
+char *
+wchar_to_utf8 (const wchar_t *wch)
+{
+    if (wch == NULL) {
+        return NULL;
+    }
+
+    char *utf8 = NULL;
+    int bufsize, len;
+
+    bufsize = WideCharToMultiByte
+        (CP_UTF8,               /* multibyte code page */
+         0,                     /* flags */
+         wch,                   /* src */
+         -1,                    /* src len, -1 for all includes \0 */
+         utf8,                  /* dst */
+         0,                     /* dst buf len */
+         NULL,                  /* default char */
+         NULL);                 /* BOOL flag indicates default char is used */
+
+    if (bufsize <= 0) {
+        g_warning ("failed to convert a string from wchar to utf8 0");
+        return NULL;
+    }
+
+    utf8 = g_malloc(bufsize);
+    len = WideCharToMultiByte
+        (CP_UTF8,               /* multibyte code page */
+         0,                     /* flags */
+         wch,                   /* src */
+         -1,                    /* src len, -1 for all includes \0 */
+         utf8,                  /* dst */
+         bufsize,               /* dst buf len */
+         NULL,                  /* default char */
+         NULL);                 /* BOOL flag indicates default char is used */
+
+    if (len != bufsize) {
+        g_free (utf8);
+        g_warning ("failed to convert a string from wchar to utf8");
+        return NULL;
+    }
+
+    return utf8;
+}
+
+wchar_t *
+wchar_from_utf8 (const char *utf8)
+{
+    if (utf8 == NULL) {
+        return NULL;
+    }
+
+    wchar_t *wch = NULL;
+    int bufsize, len;
+
+    bufsize = MultiByteToWideChar
+        (CP_UTF8,               /* multibyte code page */
+         0,                     /* flags */
+         utf8,                  /* src */
+         -1,                    /* src len, -1 for all includes \0 */
+         wch,                   /* dst */
+         0);                    /* dst buf len */
+
+    if (bufsize <= 0) {
+        g_warning ("failed to convert a string from wchar to utf8 0");
+        return NULL;
+    }
+
+    wch = g_malloc (bufsize * sizeof(wchar_t));
+    len = MultiByteToWideChar
+        (CP_UTF8,               /* multibyte code page */
+         0,                     /* flags */
+         utf8,                  /* src */
+         -1,                    /* src len, -1 for all includes \0 */
+         wch,                   /* dst */
+         bufsize);              /* dst buf len */
+
+    if (len != bufsize) {
+        g_free (wch);
+        g_warning ("failed to convert a string from utf8 to wchar");
+        return NULL;
+    }
+
+    return wch;
+}
+
 #endif  /* ifdef WIN32 */
 
 #ifdef __linux__
@@ -1652,11 +1757,11 @@ ccnet_object_type_from_id (const char *object_id)
     #define STAT_FUNC win_stat64_utf8
 
 static inline int
-win_stat64_utf8 (char *path_u8, STAT_STRUCT *sb)
+win_stat64_utf8 (char *path_utf8, STAT_STRUCT *sb)
 {
-    char *path = ccnet_locale_from_utf8(path_u8);
-    int result = _stat64(path, sb);
-    g_free (path);
+    wchar_t *path_w = wchar_from_utf8 (path_utf8);
+    int result = _wstat64 (path_w, sb);
+    free (path_w);
     return result;
 }
 

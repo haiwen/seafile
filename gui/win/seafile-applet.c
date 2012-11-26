@@ -26,11 +26,13 @@
 #include "rpc-wrapper.h"
 #include "seafile-applet.h"
 
-#define GETTEXT_PACKAGE "seafile"    
+#define GETTEXT_PACKAGE "seafile"
 #define STARTWEBSERVER "seafile-web.exe 127.0.0.1:13420"
 #define WEB_PROCESS_NAME "seafile-web.exe"
 
 SeafileApplet *applet;
+/* In UTF-8 */
+char *seafile_bin_dir = NULL;
 
 extern int show_login_window ();
 extern void prompt_win7_tip_if_necessary ();
@@ -84,7 +86,7 @@ start_web_server ()
 {
     applet_message ("Starting web ...\n");
 
-    if (win32_spawn_process(STARTWEBSERVER, NULL) < 0) {
+    if (win32_spawn_process (STARTWEBSERVER, NULL) < 0) {
         applet_warning ("Failed to start seafile web\n");
         applet_exit(-1);
     }
@@ -102,17 +104,9 @@ start_seafile_daemon ()
 
     char buf[4096];
 
-    char *locale_config_dir = ccnet_locale_from_utf8(applet->config_dir);
-    char *locale_seafile_dir = ccnet_locale_from_utf8(applet->seafile_dir);
-    char *locale_seafile_worktree = ccnet_locale_from_utf8(applet->seafile_worktree);
-
     snprintf (buf, sizeof(buf), "seaf-daemon.exe -c \"%s\" -d \"%s\" -w \"%s\"",
-              locale_config_dir, locale_seafile_dir, locale_seafile_worktree);
+              applet->config_dir, applet->seafile_dir, applet->seafile_worktree);
 
-    g_free (locale_config_dir);
-    g_free (locale_seafile_dir);
-    g_free (locale_seafile_worktree);
-    
     if (win32_spawn_process (buf, NULL) < 0) {
         applet_warning ("Failed to start seaf-daemon\n");
         applet_exit(-1);
@@ -122,11 +116,12 @@ start_seafile_daemon ()
 }
 
 int
-ccnet_open_dir(const char *path)
+ccnet_open_dir (const char *path)
 {
-    char *localpath = ccnet_locale_from_utf8(path);
-    ShellExecute(0, "open", localpath, NULL, NULL, SW_SHOWNORMAL);
-    g_free (localpath);
+    wchar_t *path_w = wchar_from_utf8 (path);
+    ShellExecuteW (0, L"open", path_w, NULL, NULL, SW_SHOWNORMAL);
+
+    g_free (path_w);
     return 0;
 }
 
@@ -149,7 +144,7 @@ get_win_run_key (HKEY *pKey)
 }
 
 static int
-add_to_auto_start(const char *appname, const char *path)
+add_to_auto_start (const wchar_t *appname_w, const wchar_t *path_w)
 {
     HKEY hKey;
     LONG result = get_win_run_key(&hKey);
@@ -157,11 +152,14 @@ add_to_auto_start(const char *appname, const char *path)
         return -1;
     }
 
-    result = RegSetValueEx (hKey, appname,
-                            0, REG_SZ, (const BYTE*)path, strlen(path) + 1);
+    DWORD n = sizeof(wchar_t) * (wcslen(path_w) + 1);
+
+    result = RegSetValueExW (hKey, appname_w,
+                             0, REG_SZ, (const BYTE *)path_w, n);
+
     RegCloseKey(hKey);
     if (result != ERROR_SUCCESS) {
-        applet_warning("Failed to create auto start value for %s\n", appname);
+        applet_warning("Failed to create auto start value\n");
         return -1;
     }
 
@@ -195,7 +193,7 @@ get_seafile_auto_start()
     if (result != ERROR_SUCCESS) {
         return -1;
     }
-    
+
     char buf[MAX_PATH] = {0};
     DWORD len = sizeof(buf);
     result = RegQueryValueEx (hKey,             /* Key */
@@ -204,7 +202,7 @@ get_seafile_auto_start()
                               NULL,             /* output type */
                               (LPBYTE)buf,      /* output data */
                               &len);            /* output length */
-    
+
     RegCloseKey(hKey);
     if (result != ERROR_SUCCESS) {
         /* seafile applet auto start no set  */
@@ -220,27 +218,13 @@ set_seafile_auto_start(int on)
     int result = 0;
     if (on) {
         /* turn on auto start  */
-        char module_name[MAX_PATH] = {0};
-        DWORD len = GetModuleFileName(NULL, module_name, MAX_PATH);
-        if (len == 0) {
-            applet_warning("Failed to get module name\n");
+        wchar_t applet_path[MAX_PATH];
+        if (GetModuleFileNameW (NULL, applet_path, MAX_PATH) == 0) {
             return -1;
         }
-        
-        char *dirname = g_path_get_dirname(module_name);
-        if (!dirname) {
-            applet_warning("Invalid module name\n");
-            return -1;
-        }
-        
-        char applet_path[MAX_PATH];
-        snprintf (applet_path, sizeof(applet_path), "\"%s\\%s\"",
-                  dirname, "seafile-applet.exe");
 
-        result = add_to_auto_start("Seafile", applet_path);
-        
-        g_free (dirname);
-        
+        result = add_to_auto_start (L"Seafile", applet_path);
+
     } else {
         /* turn off auto start */
         result = delete_from_auto_start("Seafile");
@@ -252,7 +236,7 @@ static UINT_PTR open_browser_timer_id = 0;
 
 /*
  *  After spawning the ccnet.exe process;
- *  
+ *
  *  1. Connect to daemon
  *  2. spawn seaf-daemon, sefile-web
  *  3. start rpc server & rpc client
@@ -317,25 +301,25 @@ tray_notify_cb(UINT message, WPARAM uID, LPARAM lEvent)
         hMenu = GetSubMenu(hMenu, 0);
 
         HWND hWnd = applet->hWnd;
-        SetForegroundWindow(hWnd); 
+        SetForegroundWindow(hWnd);
 
         POINT pos;
-        GetCursorPos(&pos); 
+        GetCursorPos(&pos);
         TrackPopupMenu(hMenu, 0, pos.x, pos.y, 0, hWnd, NULL);
-        DestroyMenu(hMenu); 
-        
+        DestroyMenu(hMenu);
+
         break;
     }
-        
+
     case WM_MOUSEMOVE:
         break;
-        
+
     case WM_LBUTTONUP:
         if (applet->web_status == WEB_READY) {
             open_web_browser (SEAF_HTTP_ADDR);
         }
         break;
-    
+
     case NIN_BALLOONUSERCLICK: {
         if (applet->last_synced_repo[0] != '\0') {
             char *repo = applet->last_synced_repo;
@@ -363,16 +347,19 @@ set_auto_sync_cb (void *result, void *data, GError *error)
 {
     SetAutoSyncData *sdata = data;
     gboolean disable = sdata->disable;
-    
+
     if (error) {
         applet_warning ("failed to %s sync: %s\n",
                         disable ? "disable" : "enable",
                         error->message);
 
-        MessageBox(NULL,
-                   disable ? _("Failed to disable auto sync") : _("Failed to enable auto sync"),
-                   "Seafile", MB_OK);
-        
+        wchar_t *msg = wchar_from_utf8 (disable ?
+                                        _("Failed to disable auto sync") :
+                                        _("Failed to enable auto sync"));
+        MessageBoxW (NULL, msg, L"Seafile", MB_OK);
+
+        g_free (msg);
+
     } else {
         HINSTANCE hInstance = applet->hInstance;
         HMENU hMenu = LoadMenu(hInstance, MAKEINTRESOURCE(IDC_STARTINTRAY));
@@ -388,7 +375,7 @@ set_auto_sync_cb (void *result, void *data, GError *error)
 
         applet->auto_sync_disabled = disable;
 
-        reset_trayicon_and_tip(); 
+        reset_trayicon_and_tip();
     }
 
     g_free (sdata);
@@ -408,17 +395,17 @@ tray_command_cb (UINT message, WPARAM wParam, LPARAM lParam)
         seafile_disable_auto_sync();
         break;
     }
-                                      
+
     case IDM_ENABLE_AUTO_SYNC: {
         seafile_enable_auto_sync();
         break;
     }
-        
+
     case IDM_RESTART:
         trayicon_rotate (FALSE);
         restart_all();
         break;
-        
+
     case IDM_EXIT:
         PostQuitMessage(0);
         applet_exit(0);
@@ -439,7 +426,7 @@ tray_socket_cb (UINT message, WPARAM wParam, LPARAM lParam)
         on_ccnet_daemon_down ();
         return FALSE;
     }
-    
+
     switch (WSAGETSELECTEVENT(lParam)) {
     case FD_READ:
         if (ccnet_client_read_input (applet->client) <= 0) {
@@ -447,7 +434,7 @@ tray_socket_cb (UINT message, WPARAM wParam, LPARAM lParam)
             return FALSE;
         }
         return TRUE;
-        
+
     case FD_CLOSE:
         closesocket(wParam);
         on_ccnet_daemon_down ();
@@ -456,35 +443,44 @@ tray_socket_cb (UINT message, WPARAM wParam, LPARAM lParam)
     return TRUE;
 }
 
+
 /**
    Since we'll spawn various child processes, including
    ccnet/seaf-daemon/ccnetweb, we need first setup the current working
    directory. Without this setup, auto start when system boots up would not
    work.
 **/
-char *seafile_bin_dir = NULL;
-
 static int
 set_applet_wd()
 {
-    char module_name[MAX_PATH] = {0};
-    DWORD len = GetModuleFileName(NULL, module_name, MAX_PATH);
-    if (len == 0) {
+    wchar_t module_path[MAX_PATH];
+    wchar_t *bindir_w = NULL;
+    char *module_path_utf8 = NULL;
+
+    if (GetModuleFileNameW (NULL, module_path, MAX_PATH) == 0) {
         applet_warning ("Failed to get module name\n");
         return -1;
     }
-    
-    seafile_bin_dir = g_path_get_dirname(module_name);
+
+    module_path_utf8 = wchar_to_utf8 (module_path);
+    seafile_bin_dir = g_path_get_dirname (module_path_utf8);
     if (!seafile_bin_dir) {
-        applet_warning ("Invalid module name\n");
         return -1;
     }
 
-    if (!SetCurrentDirectory(seafile_bin_dir)) {
-        applet_warning ("Failed to set working directory for ccnet-applet: %lu\n",
-                    GetLastError());
+    bindir_w = wchar_from_utf8 (seafile_bin_dir);
+    if (!bindir_w) {
         return -1;
     }
+
+    if (!SetCurrentDirectoryW (bindir_w)) {
+        applet_warning ("Failed to set working directory for ccnet-applet: %lu\n",
+                        GetLastError());
+        return -1;
+    }
+
+    g_free (module_path_utf8);
+    g_free (bindir_w);
     return 0;
 }
 
@@ -504,27 +500,32 @@ seafile_applet_init (HINSTANCE hInstance)
 int
 WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
 {
-    if (set_applet_wd() < 0) 
+    if (set_applet_wd() < 0)
         return -1;
 
-#ifdef SEAF_LANG_CHINESE
     char *seafile_locale_dir = g_build_filename (seafile_bin_dir,
                                                  "i18n", NULL);
+    char *locale = g_win32_getlocale();
+
     /* init i18n */
-    setlocale (LC_ALL, "zh_CN");
+    setlocale (LC_ALL, locale);
     bindtextdomain(GETTEXT_PACKAGE, seafile_locale_dir);
-    bind_textdomain_codeset(GETTEXT_PACKAGE, "GBK");
+    bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
     textdomain(GETTEXT_PACKAGE);
-#endif
-    
+
+    g_free (seafile_locale_dir);
+    g_free (locale);
+
     if (count_process("seafile-applet") > 1) {
-        MessageBox(NULL, _("Seafile is already running"), "Seafile", MB_OK);
+        char *msg = _("Seafile is already running");
+        wchar_t *msg_w = wchar_from_utf8 (msg);
+        MessageBoxW (NULL, msg_w, L"Seafile", MB_OK);
         exit(1);
     }
-    
+
     int argc;
     char **argv;
-    char  cmdbuf[1024];
+    char cmdbuf[1024];
     GError *err = NULL;
 
     WSADATA     wsadata;
@@ -533,11 +534,6 @@ WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, in
     UNREFERENCED_PARAMETER(hPrevInstance);
 
     snprintf(cmdbuf, sizeof(cmdbuf), "seafile-applet.exe %s", lpCmdLine);
-
-    char *xxx = _("Seafile Initialization");
-    char tmp[128];
-
-    snprintf(tmp, sizeof(tmp), "%s", xxx);
 
     if (!g_shell_parse_argv (cmdbuf, &argc, &argv, &err)) {
         if (err)
@@ -572,20 +568,16 @@ WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, in
  *  subroutines in win/linux/mac
  */
 
-int 
+int
 spawn_ccnet_daemon ()
 {
     if (!applet->config_dir)
         return -1;
 
     char buf[4096];
-    char *locale_config_dir = ccnet_locale_from_utf8(applet->config_dir);
-
     snprintf (buf, sizeof(buf),
               "ccnet.exe -c \"%s\" -D Peer,Message,Connection,Other",
-              locale_config_dir);
-
-    g_free (locale_config_dir);
+              applet->config_dir);
 
     if (win32_spawn_process (buf, NULL) < 0) {
         applet_warning ("Failed to fork ccnet.exe\n");
@@ -634,15 +626,14 @@ trayicon_set_ccnet_state (int state)
             id = IDI_STATUS_UP;
         }
     }
-    
+
     trayicon_set_icon_by_id (applet->icon, id);
 }
 
 void
 trayicon_notify (char *title, char *buf)
 {
-    trayicon_set_tooltip(applet->icon, (LPCTSTR)(LPTSTR)buf,
-                         TRUE, (LPCTSTR)(LPTSTR)title, 3);
+    trayicon_set_tooltip (applet->icon, buf, TRUE, title, 3);
 }
 
 static int nth_trayicon = 0;
@@ -655,7 +646,7 @@ do_rotate (HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
     if (rotate_counter >= 8 || !trayicon_is_rotating || applet->auto_sync_disabled) {
         trayicon_is_rotating = FALSE;
         KillTimer(hwnd, iTimerID);
-        reset_trayicon_and_tip(); 
+        reset_trayicon_and_tip();
         return;
     }
     trayicon_set_icon_by_id (applet->icon,
@@ -666,7 +657,7 @@ do_rotate (HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
 
 /* Once trayicon_rotate(TRUE) is called, the icon begins to rotate, and stops
    when either one of the below happens:
-   
+
    1. trayicon_rotate(TRUE) is not called in two seconds.
    2. trayicon_rotate(FALSE) is called to force stop rotation immediately.
       This happens when restarting ccnet.

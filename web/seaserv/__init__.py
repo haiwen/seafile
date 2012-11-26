@@ -9,6 +9,5 @@ from service import get_repos, get_repo, get_commits, \
 
 from service import get_default_relay
 from service import CCNET_CONF_PATH
-from service import lang_code
 from seafile import TaskType
 

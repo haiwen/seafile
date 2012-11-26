@@ -80,7 +80,6 @@ start_watch_dir_change(SeafWTMonitorPriv *priv, HANDLE dir_handle)
         return FALSE;
 
     BOOL first_alloc = FALSE;
-
     DirWatchAux *aux = g_hash_table_lookup (priv->buf_hash, dir_handle);
 
     /* allocate aux buffer at the first watch, it would be freed if the repo
@@ -108,7 +107,6 @@ start_watch_dir_change(SeafWTMonitorPriv *priv, HANDLE dir_handle)
          NULL);                 /* completion routine */
 
     if (!ret) {
-
         if (first_alloc)
             /* if failed at the first watch, free the aux buffer */
             g_free(aux);
@@ -167,7 +165,7 @@ start_watch_cmd_pipe (SeafWTMonitorPriv *priv, OVERLAPPED *ol_in)
  * ReadDirectoryChangesW() on it.
  */
 static BOOL
-add_handle_to_iocp(SeafWTMonitorPriv *priv, HANDLE hAdd )
+add_handle_to_iocp (SeafWTMonitorPriv *priv, HANDLE hAdd)
 {
     
     if (!priv || !hAdd)
@@ -191,17 +189,17 @@ add_handle_to_iocp(SeafWTMonitorPriv *priv, HANDLE hAdd )
          1);                    /* Num of concurrent threads */
 
     if (!priv->iocp_handle) {
-        seaf_warning("failed to create/add iocp, error code %u",
-                     (uint32_t)GetLastError());
+        seaf_warning ("failed to create/add iocp, error code %u",
+                      (uint32_t)GetLastError());
         return FALSE;
     }
 
     if (hAdd == (HANDLE)priv->cmd_pipe[0]) {
         /* HANDLE is cmd_pipe */
-        return start_watch_cmd_pipe(priv, NULL);
+        return start_watch_cmd_pipe (priv, NULL);
     } else {
         /* HANDLE is a dir handle */
-        return start_watch_dir_change(priv, hAdd);
+        return start_watch_dir_change (priv, hAdd);
     }
 
 }
@@ -219,16 +217,12 @@ add_all_to_iocp (SeafWTMonitorPriv *priv)
     }
 
     GHashTableIter iter;
-
-    g_hash_table_iter_init (&iter, priv->handle_hash);
-
     gpointer value = NULL;
     gpointer key = NULL;
-        
+
+    g_hash_table_iter_init (&iter, priv->handle_hash);
     while (g_hash_table_iter_next (&iter, &key, &value)) {
-
         if (!add_handle_to_iocp(priv, (HANDLE)value)) {
-
             seaf_warning("Failed to add dir handle to iocp, "
                          "repo %s, error code %u", (char *)key,
                          (uint32_t)GetLastError());
@@ -237,7 +231,6 @@ add_all_to_iocp (SeafWTMonitorPriv *priv)
     }
 
     seaf_debug("Done: add_all_to_iocp\n");
-
     return TRUE;
 }
 
@@ -247,11 +240,11 @@ add_all_to_iocp (SeafWTMonitorPriv *priv)
  * unwatched.
  */
 static HANDLE
-get_handle_of_path(const char *path)
+get_handle_of_path(const wchar_t *path)
 {
     HANDLE dir_handle = NULL;
 
-    dir_handle = CreateFile
+    dir_handle = CreateFileW
         (path,                  /* file name */
          FILE_LIST_DIRECTORY,   /* desired access */
          FILE_SHARE_DELETE | FILE_SHARE_READ
@@ -297,7 +290,7 @@ static HANDLE add_watch (const char* repo_id)
 {
     SeafRepo *repo = NULL;
     HANDLE dir_handle = NULL;
-    char *path = NULL;
+    wchar_t *path = NULL;
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
 
@@ -306,12 +299,10 @@ static HANDLE add_watch (const char* repo_id)
         return NULL;
     }
 
-    /* repo->worktree is in utf8, need to convert it in win32 */
-    path = ccnet_locale_from_utf8(repo->worktree);
+    /* repo->worktree is in utf8, need to convert to wchar in win32 */
+    path = wchar_from_utf8 (repo->worktree);
 
-    dir_handle = get_handle_of_path(path);
-
-
+    dir_handle = get_handle_of_path (path);
     if (!dir_handle) {
         seaf_warning ("failed to open handle for worktree "
                       "of repo  %s\n", repo_id);
@@ -319,7 +310,7 @@ static HANDLE add_watch (const char* repo_id)
         seaf_debug ("opened handle for worktree %s\n", path);
     }
 
-    g_free(path);
+    g_free (path);
 
     return dir_handle;
 }

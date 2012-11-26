@@ -269,16 +269,7 @@ static void mq_cb (CcnetMessage *msg, void *data)
         if (parse_seafile_notification (msg->body, &type, &content) < 0)
             return;
 
-        char *local = ccnet_locale_from_utf8 (content);
-
-#ifdef __APPLE__
-        if (!local && content)
-            local = g_strdup(content);
-#endif
-
-        handle_seafile_notification (type, local);
-        g_free (local);
-
+        handle_seafile_notification (type, content);
     }
 }
 

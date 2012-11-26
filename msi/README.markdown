@@ -6,6 +6,8 @@ How to build seafile Windows MSI installer
     http://wix.sourceforge.net/downloadv35.html
 
   And extract downloaded zip file to someplace, such as c:/wix. And add it to system PATH.
+  
+  Wix requires .NET Framework (3.5 SP1 or above) to be installed.
 
 * Download Paraffin.exe:
 
@@ -49,6 +51,7 @@ Upgrade
 Every time a new version is released, you just need to edit Includes.wxi:
 1) Generate a new <ProductGuid>
 2) Update <CurrentSeafileVersion>
+3) update seafile version in web/main.py
 
 And go through the compiling process above.
 

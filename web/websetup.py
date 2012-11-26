@@ -20,7 +20,7 @@ shutil.copytree("i18n", "dist/i18n")
 shutil.copytree("static", "dist/static")
 shutil.copytree("templates", "dist/templates")
 
-packages=["mako.cache", "utils", "markdown"]
+packages=["mako.cache", "utils"]
 ex_files=[]
 option = {"py2exe":
               {"includes" :[targetname],

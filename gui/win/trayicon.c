@@ -1,5 +1,6 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include <wchar.h>
 #include <glib/gi18n.h>
 #include <ccnet.h>
 
@@ -12,12 +13,13 @@
 #include "seafile-applet.h"
 #include "applet-common.h"
 #include "applet-log.h"
+#include "utils.h"
 
 SeafileTrayIcon *
 trayicon_new ()
 {
     SeafileTrayIcon *icon = g_new0 (SeafileTrayIcon, 1);
-    
+
     return icon;
 }
 
@@ -37,11 +39,11 @@ trayicon_set_icon (SeafileTrayIcon *icon, HICON hIcon)
     icon->nid.hIcon = hIcon;
     icon->nid.uFlags = NIF_ICON;
 
-    ret = Shell_NotifyIcon (msg, &icon->nid);
-    
+    ret = Shell_NotifyIconW (msg, &icon->nid);
+
     if (!ret) {
         applet_warning ("trayicon_set_icon failed, GLE=%lu\n", GetLastError());
-        icon->nid.hIcon = prev_icon; 
+        icon->nid.hIcon = prev_icon;
     }
 }
 
@@ -71,11 +73,11 @@ WndProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_COMMAND:
         return tray_command_cb(message, wParam, lParam);
         break;
-        
+
     case WM_SOCKET:
         return tray_socket_cb(message, wParam, lParam);
         break;
-        
+
     default:
         if (message == applet->WM_TASKBARCREATED) {
             /* Restore applet trayicon when taskbar is re-created. This normally
@@ -86,7 +88,7 @@ WndProc (HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     }
-    
+
 
     return DefWindowProc (hWnd, message, wParam, lParam);
 }
@@ -95,7 +97,7 @@ static void
 create_applet_window ()
 {
     WNDCLASSEX wcex;
-    
+
     memset(&wcex, 0, sizeof(WNDCLASSEX));
     wcex.cbSize         = sizeof(WNDCLASSEX);
     wcex.lpfnWndProc    = (WNDPROC)WndProc;
@@ -124,20 +126,22 @@ _trayicon_init (SeafileTrayIcon *icon)
     UINT icon_id;
     if (applet->client && applet->client->connected)
         icon_id = IDI_STATUS_UP;
-    else 
+    else
         icon_id = IDI_STATUS_DOWN;
-    
-    icon->nid.cbSize = sizeof(NOTIFYICONDATA);
+
+    icon->nid.cbSize = sizeof(NOTIFYICONDATAW);
     icon->nid.hWnd = applet->hWnd;
     icon->nid.uID = 0;
     icon->nid.hIcon = LoadIcon(applet->hInstance, MAKEINTRESOURCE(icon_id));
     icon->nid.uCallbackMessage = WM_TRAYNOTIFY;
 
-    memcpy(icon->nid.szTip, "Seafile", 8);
+    wchar_t *tip_w = L"Seafile";
+
+    wmemcpy (icon->nid.szTip, tip_w, wcslen(tip_w));
 
     icon->nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
 
-    return Shell_NotifyIcon(NIM_ADD, &(icon->nid));
+    return Shell_NotifyIconW(NIM_ADD, &(icon->nid));
 }
 
 static int trayicon_init_retried = 0;
@@ -170,45 +174,65 @@ trayicon_init (SeafileTrayIcon *icon)
 }
 
 
-/* Copy at most n bytes from src to dest. Ensure the content in dest is
- * null-terminated. */
+/* Copy at most n wchar from src to dst, also make sure dst is null terminated */
 static void
-safe_strncpy (char *dest, const char *src, int n)
+safe_wcsncpy (wchar_t *dst, const wchar_t *src, int n)
 {
-    int srclen= strlen(src);
+    int srclen= wcslen (src);
 
     if (srclen < n) {
-        memcpy (dest, src, srclen + 1);
+        /* dst has enough space  */
+        wcscpy (dst, src);
     } else if (srclen >= n) {
-        memcpy (dest, src, n - 1);
-        dest[n - 1] = '\0';
+        /* dst is not big enough */
+        wmemcpy (dst, src, n - 1);
+        dst[n - 1] = L'\0';
     }
 }
 
 void
-trayicon_set_tooltip(SeafileTrayIcon *icon, LPCTSTR tooltip,
-                     int balloon, LPCTSTR title,
-                     unsigned int timeout)
+trayicon_set_tooltip (SeafileTrayIcon *icon, char *tooltip,
+                      int balloon, char *title,
+                      unsigned int timeout)
 {
-    const char *tp = tooltip ? tooltip : "";
-    const char *tt = title ? title : "";
+    wchar_t *tip_w = NULL;
+    wchar_t *title_w = NULL;
 
-    icon->nid.cbSize = sizeof(NOTIFYICONDATA);
+    if (tooltip) {
+        tip_w = wchar_from_utf8 (tooltip ? tooltip : "");
+        if (!tip_w) {
+            goto out;
+        }
+    }
+
+    if (title) {
+        title_w = wchar_from_utf8 (title ? title : "");
+        if (!title_w) {
+            goto out;
+        }
+    }
+
+    icon->nid.cbSize = sizeof(NOTIFYICONDATAW);
     if (balloon) {
         icon->nid.uFlags      = NIF_INFO;
         icon->nid.uTimeout    = timeout;
         icon->nid.dwInfoFlags = NIIF_INFO;
 
-        safe_strncpy (icon->nid.szInfo, tp, sizeof(icon->nid.szInfo));
+        safe_wcsncpy (icon->nid.szInfo, tip_w,
+                        sizeof(icon->nid.szInfo) / sizeof(wchar_t));
+        safe_wcsncpy (icon->nid.szInfoTitle, title_w,
+                        sizeof(icon->nid.szInfoTitle) / sizeof(wchar_t));
 
-        safe_strncpy (icon->nid.szInfoTitle, tt, sizeof(icon->nid.szInfoTitle));
-        
     } else {
         icon->nid.uFlags = NIF_TIP;
-        safe_strncpy (icon->nid.szTip, tp, sizeof(icon->nid.szTip));
+        safe_wcsncpy (icon->nid.szInfo, tip_w,
+                        sizeof(icon->nid.szInfo) / sizeof(wchar_t));
     }
-    
-    Shell_NotifyIcon(NIM_MODIFY, &(icon->nid));
+
+    Shell_NotifyIconW(NIM_MODIFY, &(icon->nid));
+out:
+    g_free (tip_w);
+    g_free (title_w);
 }
 
 void
@@ -226,6 +250,6 @@ trayicon_set_icon_by_id(SeafileTrayIcon *icon, UINT icon_id)
 void
 trayicon_delete_icon (SeafileTrayIcon *icon)
 {
-    Shell_NotifyIcon(NIM_DELETE, &(icon->nid));
+    Shell_NotifyIconW(NIM_DELETE, &(icon->nid));
 }
 

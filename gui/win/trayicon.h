@@ -27,17 +27,17 @@
 typedef int (*MSGFunc) (UINT,WPARAM, LPARAM);
 
 typedef struct _SeafileTrayIcon {
-    NOTIFYICONDATA nid;
+    NOTIFYICONDATAW nid;
 } SeafileTrayIcon;
 
 SeafileTrayIcon *trayicon_new();
 
 void trayicon_init (SeafileTrayIcon *icon);
 
-void trayicon_set_icon_by_id(SeafileTrayIcon *icon, UINT icon_id);
+void trayicon_set_icon_by_id (SeafileTrayIcon *icon, UINT icon_id);
 
-void trayicon_set_tooltip (SeafileTrayIcon *icon, LPCTSTR tooltip,
-                           int balloon, LPCTSTR title,
+void trayicon_set_tooltip (SeafileTrayIcon *icon, char *tooltip,
+                           int balloon, char *title,
                            unsigned int timeout);
 
 void trayicon_delete_icon (SeafileTrayIcon *icon);
