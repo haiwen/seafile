@@ -120,8 +120,11 @@ redirect_to_upload_error (evhtp_request_t *req,
 
     evhtp_headers_add_header(req->headers_out,
                              evhtp_header_new("Location",
-                                              url, 0, 0));
-    evhtp_send_reply(req, EVHTP_RES_FOUND);
+                                              url, 1, 1));
+    evhtp_headers_add_header(req->headers_out,
+                             evhtp_header_new("Content-Length",
+                                              "0", 1, 1));
+    evhtp_send_reply(req, EVHTP_RES_SEEOTHER);
 }
 
 static void
@@ -141,8 +144,11 @@ redirect_to_update_error (evhtp_request_t *req,
 
     evhtp_headers_add_header(req->headers_out,
                              evhtp_header_new("Location",
-                                              url, 0, 0));
-    evhtp_send_reply(req, EVHTP_RES_FOUND);
+                                              url, 1, 1));
+    evhtp_headers_add_header(req->headers_out,
+                             evhtp_header_new("Content-Length",
+                                              "0", 1, 1));
+    evhtp_send_reply(req, EVHTP_RES_SEEOTHER);
 }
 
 static void
@@ -160,8 +166,12 @@ redirect_to_success_page (evhtp_request_t *req,
 
     evhtp_headers_add_header(req->headers_out,
                              evhtp_header_new("Location",
-                                              url, 0, 0));
-    evhtp_send_reply(req, EVHTP_RES_FOUND);
+                                              url, 1, 1));
+    /* Firefox expects Content-Length header. */
+    evhtp_headers_add_header(req->headers_out,
+                             evhtp_header_new("Content-Length",
+                                              "0", 1, 1));
+    evhtp_send_reply(req, EVHTP_RES_SEEOTHER);
 }
 
 static gboolean
