@@ -15,12 +15,6 @@
 #include "repo-mgr.h"
 #include "fs-mgr.h"
 #include "seafile-error.h"
-#include "gc.h"
-#include "seafile-crypt.h"
-#include "index/index.h"
-#include "index/cache-tree.h"
-#include "unpack-trees.h"
-#include "diff-simple.h"
 
 #include "seaf-db.h"
 

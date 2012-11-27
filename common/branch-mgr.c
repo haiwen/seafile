@@ -79,12 +79,12 @@ struct _SeafBranchManagerPriv {
     pthread_mutex_t db_lock;
 #endif
 
-#if defined( SEAFILE_SERVER ) && !defined( HTTP_SERVER ) && !defined( SEAFILE_MONITOR )
+#if defined( SEAFILE_SERVER ) && defined( FULL_FEATURE )
     uint32_t cevent_id;
 #endif    
 };
 
-#if defined( SEAFILE_SERVER ) && !defined( HTTP_SERVER ) && !defined( SEAFILE_MONITOR )
+#if defined( SEAFILE_SERVER ) && defined( FULL_FEATURE )
 
 #include "mq-mgr.h"
 #include <ccnet/cevent.h>
@@ -113,7 +113,7 @@ seaf_branch_manager_new (struct _SeafileSession *seaf)
 int
 seaf_branch_manager_init (SeafBranchManager *mgr)
 {
-#if defined( SEAFILE_SERVER ) && !defined( HTTP_SERVER ) && !defined( SEAFILE_MONITOR )
+#if defined( SEAFILE_SERVER ) && defined( FULL_FEATURE )
     mgr->priv->cevent_id = cevent_manager_register (seaf->ev_mgr,
                                     (cevent_handler)publish_repo_update_event,
                                                     NULL);
@@ -246,7 +246,7 @@ seaf_branch_manager_update_branch (SeafBranchManager *mgr, SeafBranch *branch)
 #endif
 }
 
-#if defined( SEAFILE_SERVER ) && !defined( HTTP_SERVER ) && !defined( SEAFILE_MONITOR )
+#if defined( SEAFILE_SERVER ) && defined( FULL_FEATURE )
 
 static gboolean
 get_commit_id (SeafDBRow *row, void *data)

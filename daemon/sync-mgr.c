@@ -1240,13 +1240,13 @@ auto_delete_repo (SeafSyncManager *manager, SeafRepo *repo)
     SyncInfo *info = seaf_sync_manager_get_sync_info (manager, repo->id);
     char *name = g_strdup (repo->name);
 
+    seaf_message ("Auto deleted repo '%s'.\n", repo->name);
+
     if (info != NULL && info->in_sync) {
         seaf_repo_manager_mark_repo_deleted (seaf->repo_mgr, repo);
     } else {
         seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
     }
-
-    seaf_message ("Auto deleted repo '%s'.\n", repo->name);
 
     /* Publish a message, for applet to notify in the system tray */
     seaf_mq_manager_publish_notification (seaf->mq_mgr,

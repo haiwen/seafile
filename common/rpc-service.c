@@ -1507,6 +1507,7 @@ seafile_gc (GError **error)
     return gc_start ();
 }
 
+#if 0
 int
 seafile_gc_get_progress (GError **error)
 {
@@ -1519,6 +1520,7 @@ seafile_gc_get_progress (GError **error)
 
     return progress;
 }
+#endif
 
 /*
  * RPC functions only available for server.

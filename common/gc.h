@@ -7,13 +7,6 @@
 int
 gc_start ();
 
-/*
- * Returns progress of GC in precentage.
- * If GC is not started, returns -1.
- */
-int
-gc_get_progress ();
-
 gboolean
 gc_is_started ();
 

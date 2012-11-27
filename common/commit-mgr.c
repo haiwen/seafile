@@ -177,25 +177,15 @@ seaf_commit_manager_new (SeafileSession *seaf)
 
     mgr->priv = g_new0 (SeafCommitManagerPriv, 1);
     mgr->seaf = seaf;
+    mgr->obj_store = seaf_obj_store_new (mgr->seaf, "commits");
+
     return mgr;
 }
 
 int
 seaf_commit_manager_init (SeafCommitManager *mgr)
 {
-    mgr->obj_store = seaf_obj_store_new (mgr->seaf, "commits");
-
-#if defined SEAFILE_MONITOR
-    if (seaf_obj_store_init (mgr->obj_store, FALSE, NULL) < 0) {
-        g_warning ("[commit mgr] Failed to init commit object store.\n");
-        return -1;
-    }
-#elif defined HTTP_SERVER
-    if (seaf_obj_store_init (mgr->obj_store, FALSE, NULL) < 0) {
-        g_warning ("[commit mgr] Failed to init commit object store.\n");
-        return -1;
-    }
-#elif defined SEAFILE_SERVER
+#if defined SEAFILE_SERVER && defined FULL_FEATURE
     if (seaf_obj_store_init (mgr->obj_store, TRUE, seaf->ev_mgr) < 0) {
         g_warning ("[commit mgr] Failed to init commit object store.\n");
         return -1;

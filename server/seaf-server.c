@@ -414,10 +414,10 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_gc,
                                      "seafile_gc",
                                      searpc_signature_int__void());
-    searpc_server_register_function ("seafserv-rpcserver",
-                                     seafile_gc_get_progress,
-                                     "seafile_gc_get_progress",
-                                     searpc_signature_int__void());
+    /* searpc_server_register_function ("seafserv-rpcserver", */
+    /*                                  seafile_gc_get_progress, */
+    /*                                  "seafile_gc_get_progress", */
+    /*                                  searpc_signature_int__void()); */
 
     /* password management */
     searpc_server_register_function ("seafserv-threaded-rpcserver",

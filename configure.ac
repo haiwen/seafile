@@ -458,6 +458,7 @@ AC_CONFIG_FILES(
     common/index/Makefile
     daemon/Makefile
     server/Makefile
+    server/gc/Makefile
     app/Makefile
     python/Makefile
     python/seafile/Makefile

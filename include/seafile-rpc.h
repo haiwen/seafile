@@ -392,8 +392,8 @@ seafile_gc (GError **error);
  *     progress of GC in precentage.
  *     -1 if GC is not running.
  */
-int
-seafile_gc_get_progress (GError **error);
+/* int */
+/* seafile_gc_get_progress (GError **error); */
 
 /* -----------------  Task Related --------------  */
 
