@@ -66,7 +66,7 @@ seaf_server_SOURCES = \
 	repo-mgr.c ../common/commit-mgr.c \
 	../common/log.c ../common/avl/avl.c ../common/object-list.c \
 	../common/rpc-service.c \
-	../common/gc.c ../common/gc-core.c ../common/vc-common.c \
+	../common/vc-common.c \
 	../common/seaf-utils.c \
 	../common/obj-store.c \
 	../common/obj-backend-fs.c \

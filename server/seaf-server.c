@@ -409,16 +409,6 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "seafile_get_monitor",
                                      searpc_signature_string__void());
 
-    /* gc */
-    searpc_server_register_function ("seafserv-rpcserver",
-                                     seafile_gc,
-                                     "seafile_gc",
-                                     searpc_signature_int__void());
-    /* searpc_server_register_function ("seafserv-rpcserver", */
-    /*                                  seafile_gc_get_progress, */
-    /*                                  "seafile_gc_get_progress", */
-    /*                                  searpc_signature_int__void()); */
-
     /* password management */
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_set_passwd,
@@ -658,6 +648,24 @@ write_pidfile (const char *pidfile_path)
 }
 
 static void
+load_history_config ()
+{
+    int keep_history_days;
+    GError *error = NULL;
+
+    seaf->keep_history_days = -1;
+
+    /* <= 0 means don't keep any history data. */
+    keep_history_days = g_key_file_get_integer (seaf->config,
+                                                "history", "keep_days",
+                                                &error);
+    if (keep_history_days < 0)
+        keep_history_days = 0;
+    if (error == NULL)
+        seaf->keep_history_days = keep_history_days;
+}
+
+static void
 on_seaf_server_exit(void)
 {
     if (pidfile)
@@ -769,6 +777,8 @@ main (int argc, char **argv)
     seaf->async_ccnetrpc_client_t = async_ccnetrpc_client_t;
     seaf->client_pool = ccnet_client_pool_new (config_dir);
     seaf->cloud_mode = cloud_mode;
+
+    load_history_config ();
 
     if (seafile_log_init (logfile, ccnet_debug_level_str,
                           seafile_debug_level_str) < 0) {

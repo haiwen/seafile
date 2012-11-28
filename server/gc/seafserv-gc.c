@@ -27,7 +27,27 @@ static const struct option long_opts[] = {
 static void usage ()
 {
     fprintf (stderr,
-             "usage: seafserv-gc [-c config_dir] [-d seafile_dir] [--verify]\n");
+             "usage: seafserv-gc [-c config_dir] [-d seafile_dir]\n"
+             "Additional options:\n"
+             "-V, --verify: check for missing blocks\n");
+}
+
+static void
+load_history_config ()
+{
+    int keep_history_days;
+    GError *error = NULL;
+
+    seaf->keep_history_days = -1;
+
+    /* <= 0 means don't keep any history data. */
+    keep_history_days = g_key_file_get_integer (seaf->config,
+                                                "history", "keep_days",
+                                                &error);
+    if (keep_history_days < 0)
+        keep_history_days = 0;
+    if (error == NULL)
+        seaf->keep_history_days = keep_history_days;
 }
 
 int
@@ -78,6 +98,8 @@ main(int argc, char *argv[])
         g_warning ("Failed to create seafile session.\n");
         exit (1);
     }
+
+    load_history_config ();
 
     if (verify) {
         verify_repos ();

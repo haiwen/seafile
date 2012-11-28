@@ -30,6 +30,8 @@ struct _SeafileSession {
     SeafCommitManager   *commit_mgr;
     SeafBranchManager   *branch_mgr;
     SeafRepoManager     *repo_mgr;
+
+    int                  keep_history_days;
 };
 
 extern SeafileSession *seaf;

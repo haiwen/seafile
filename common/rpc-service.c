@@ -21,7 +21,10 @@
 #include "web-accesstoken-mgr.h"
 #endif
 
+#ifndef SEAFILE_SERVER
 #include "gc.h"
+#endif
+
 #include "log.h"
 
 #ifndef SEAFILE_SERVER
@@ -1360,12 +1363,35 @@ struct CollectParam {
     int limit;
     int count;
     GList *commits;
+#ifdef SEAFILE_SERVER
+    gint64 truncate_time;
+    gboolean traversed_head;
+#endif
 };
 
 static gboolean
 get_commit (SeafCommit *c, void *data, gboolean *stop)
 {
     struct CollectParam *cp = data;
+
+#ifdef SEAFILE_SERVER
+    if (cp->truncate_time == 0)
+    {
+        *stop = TRUE;
+        /* Stop after traversing the head commit. */
+    }
+    else if (cp->truncate_time > 0 &&
+             c->ctime < cp->truncate_time &&
+             cp->traversed_head)
+    {
+        *stop = TRUE;
+        return TRUE;
+    }
+
+    /* Always traverse the head commit. */
+    if (!cp->traversed_head)
+        cp->traversed_head = TRUE;
+#endif
 
     /* if offset = 1, limit = 1, we should stop when the count = 2 */
     if (cp->limit > 0 && cp->count >= cp->offset + cp->limit) {
@@ -1436,10 +1462,18 @@ seafile_get_commit_list (const char *repo_id,
 #endif
 
     /* Init CollectParam */
+    memset (&cp, 0, sizeof(cp));
     cp.offset = offset;
     cp.limit = limit;
-    cp.count = 0;
-    cp.commits = NULL;
+
+#ifdef SEAFILE_SERVER
+    if (seaf->keep_history_days > 0) {
+        cp.truncate_time = 
+            (gint64)time(NULL) - seaf->keep_history_days * 24 * 3600;
+    } else if (seaf->keep_history_days < 0) {
+        cp.truncate_time = -1;
+    }
+#endif
 
     ret = seaf_commit_manager_traverse_commit_tree (
         seaf->commit_mgr, commit_id, get_commit, &cp);
@@ -1501,11 +1535,13 @@ seafile_destroy_repo (const char *repo_id, GError **error)
     return 0;
 }
 
+#ifndef SEAFILE_SERVER
 int
 seafile_gc (GError **error)
 {
     return gc_start ();
 }
+#endif
 
 #if 0
 int

@@ -2447,6 +2447,14 @@ struct CollectRevisionParam {
     const char *path;
     GHashTable *wanted_commits;
     GHashTable *file_id_cache;
+
+    /* > 0: keep a period of history;
+     * == 0: N/A
+     * < 0: keep all history data.
+     */
+    gint64 truncate_time;
+    gboolean got_latest;
+
     GError **error;
 };
 
@@ -2499,6 +2507,20 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
     char *parent_file_id2 = NULL;
 
     gboolean ret = TRUE;
+
+    /* At least find the latest revision. */
+    if (data->got_latest && data->truncate_time == 0) {
+        *stop = TRUE;
+        return TRUE;
+    }
+
+    if (data->got_latest &&
+        data->truncate_time > 0 &&
+        commit->ctime < data->truncate_time)
+    {
+        *stop = TRUE;
+        return TRUE;
+    }
 
     file_id = get_commit_file_id_with_cache (commit, path,
                                              file_id_cache, error);
@@ -2564,6 +2586,9 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
         }
     }
 
+    if (!data->got_latest)
+        data->got_latest = TRUE;
+
     seaf_commit_ref (commit);
     g_hash_table_insert (wanted_commits, commit->commit_id, commit);
 
@@ -2606,6 +2631,13 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
     data.path = path;
     data.error = error;
 
+    if (seaf->keep_history_days > 0) {
+        data.truncate_time = 
+            (gint64)time(NULL) - seaf->keep_history_days * 24 * 3600;
+    } else if (seaf->keep_history_days < 0) {
+        data.truncate_time = -1;
+    }
+
     /* A (commit id, commit) hash table. We specify a value destroy
      * function, so that even if we fail in half way of traversing, we can
      * free all commits in the hashtbl.*/
@@ -2636,7 +2668,7 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
         commit_list = g_list_insert_sorted (commit_list, commit,
                                             (GCompareFunc)compare_commit_by_time);
     }
-        
+
 out:
     if (repo)
         seaf_repo_unref (repo);
@@ -2836,16 +2868,22 @@ out:
     return ret;
 }
 
-#define MAX_DELETE_TIME (30 * 24 * 3600) /* 30 days */
+#define DEFAULT_TRUNCATE_DAYS 30
 
 static gboolean
 collect_deleted (SeafCommit *commit, void *data, gboolean *stop)
 {
     GHashTable *entries = data;
-    guint64 now = time(NULL);
+    gint64 now = time(NULL);
+    gint64 truncate_time;
     SeafCommit *p1, *p2;
 
-    if (now - commit->ctime >= MAX_DELETE_TIME) {
+    if (seaf->keep_history_days > 0)
+        truncate_time = seaf->keep_history_days * 24 * 3600;
+    else
+        truncate_time = DEFAULT_TRUNCATE_DAYS * 24 * 3600;
+
+    if (now - commit->ctime >= truncate_time) {
         *stop = TRUE;
         return TRUE;
     }
@@ -2858,10 +2896,12 @@ collect_deleted (SeafCommit *commit, void *data, gboolean *stop)
         seaf_warning ("Failed to find commit %s.\n", commit->parent_id);
         return FALSE;
     }
-    if (find_deleted_recursive (commit->root_id, p1->root_id, "/",
-                                commit, p1, entries) < 0) {
-        seaf_commit_unref (p1);
-        return FALSE;
+    if (now - p1->ctime < truncate_time) {
+        if (find_deleted_recursive (commit->root_id, p1->root_id, "/",
+                                    commit, p1, entries) < 0) {
+            seaf_commit_unref (p1);
+            return FALSE;
+        }
     }
     seaf_commit_unref (p1);
 
@@ -2873,10 +2913,12 @@ collect_deleted (SeafCommit *commit, void *data, gboolean *stop)
                           commit->second_parent_id);
             return FALSE;
         }
-        if (find_deleted_recursive (commit->root_id, p2->root_id, "/",
-                                    commit, p2, entries) < 0) {
-            seaf_commit_unref (p2);
-            return FALSE;
+        if (now - p2->ctime < truncate_time) {
+            if (find_deleted_recursive (commit->root_id, p2->root_id, "/",
+                                        commit, p2, entries) < 0) {
+                seaf_commit_unref (p2);
+                return FALSE;
+            }
         }
         seaf_commit_unref (p2);
     }
@@ -2945,6 +2987,9 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
     SeafRepo *repo;
     GHashTable *entries;
     GList *ret = NULL;
+
+    if (seaf->keep_history_days == 0)
+        return NULL;
 
     repo = seaf_repo_manager_get_repo (mgr, repo_id);
     if (!repo) {

@@ -48,6 +48,15 @@ typedef struct {
     gboolean no_history;
     char end_commit[41];
 #endif
+
+#ifdef SEAFILE_SERVER
+    /* > 0: keep a period of history;
+     * == 0: only keep data in head commit;
+     * < 0: keep all history data.
+     */
+    gint64 truncate_time;
+    gboolean traversed_head;
+#endif
 } GCData;
 
 static int
@@ -110,6 +119,24 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
     }
 #endif
 
+#ifdef SEAFILE_SERVER
+    if (data->truncate_time == 0)
+    {
+        *stop = TRUE;
+        /* Stop after traversing the head commit. */
+    }
+    else if (data->truncate_time > 0 &&
+             commit->ctime < data->truncate_time &&
+             data->traversed_head)
+    {
+        *stop = TRUE;
+        return TRUE;
+    }
+
+    if (!data->traversed_head)
+        data->traversed_head = TRUE;
+#endif
+
     seaf_debug ("[GC] traversed commit %s.\n", commit->commit_id);
 
     ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
@@ -148,6 +175,15 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index)
         if (remote_head)
             memcpy (data->end_commit, remote_head, 41);
         g_free (remote_head);
+    }
+#endif
+
+#ifdef SEAFILE_SERVER
+    if (seaf->keep_history_days > 0) {
+        data->truncate_time =
+            (gint64)time(NULL) - seaf->keep_history_days * 24 * 3600;
+    } else if (seaf->keep_history_days < 0) {
+        data->truncate_time = -1;
     }
 #endif
 

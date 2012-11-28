@@ -1,6 +1,11 @@
 #include "seafile-session.h"
 #include "log.h"
 
+typedef struct VerifyData {
+    gint64 truncate_time;
+    gboolean traversed_head;
+} VerifyData;
+
 static int
 check_blocks (SeafFSManager *mgr, const char *file_id)
 {
@@ -40,7 +45,24 @@ fs_callback (SeafFSManager *mgr,
 static gboolean
 traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
 {
+    VerifyData *data = vdata;
     int ret;
+
+    if (data->truncate_time == 0)
+    {
+        *stop = TRUE;
+        /* Stop after traversing the head commit. */
+    }
+    else if (data->truncate_time > 0 &&
+             commit->ctime < data->truncate_time &&
+             data->traversed_head)
+    {
+        *stop = TRUE;
+        return TRUE;
+    }
+
+    if (!data->traversed_head)
+        data->traversed_head = TRUE;
 
     ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
                                          commit->root_id,
@@ -58,6 +80,14 @@ verify_repo (SeafRepo *repo)
     GList *branches, *ptr;
     SeafBranch *branch;
     int ret = 0;
+    VerifyData data = {0};
+
+    if (seaf->keep_history_days > 0) {
+        data.truncate_time = 
+            (gint64)time(NULL) - seaf->keep_history_days * 24 * 3600;
+    } else if (seaf->keep_history_days < 0) {
+        data.truncate_time = -1;
+    }
 
     branches = seaf_branch_manager_get_branch_list (seaf->branch_mgr, repo->id);
     if (branches == NULL) {
@@ -70,7 +100,7 @@ verify_repo (SeafRepo *repo)
         gboolean res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                                  branch->commit_id,
                                                                  traverse_commit,
-                                                                 NULL);
+                                                                 &data);
         seaf_branch_unref (branch);
         if (!res) {
             ret = -1;

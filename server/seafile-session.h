@@ -75,6 +75,7 @@ struct _SeafileSession {
     const char          *monitor_id;
 
     int                  cloud_mode;
+    int                  keep_history_days;
 };
 
 extern SeafileSession *seaf;
