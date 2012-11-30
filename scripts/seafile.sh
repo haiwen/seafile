@@ -8,7 +8,7 @@ TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
 ccnet_pidfile=${INSTALLPATH}/runtime/ccnet.pid
 
-export LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
 export PATH=${INSTALLPATH}/seafile/bin:$PATH
 
 script_name=$0

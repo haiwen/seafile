@@ -11,7 +11,7 @@ manage_py=${INSTALLPATH}/seahub/manage.py
 gunicorn_conf=${INSTALLPATH}/runtime/seahub.conf
 gunicorn_pidfile=${INSTALLPATH}/runtime/seahub.pid
 
-export LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
 
 script_name=$0
 function usage () {
@@ -26,6 +26,29 @@ if [[ $1 != "start" && $1 != "stop" && $1 != "restart" ]]; then
     usage;
     exit 1;
 fi
+
+function check_python_executable() {
+    if [[ "$PYTHON" != "" && -x $PYTHON ]]; then
+        return 0
+    fi
+        
+    if which python2.7 2>/dev/null 1>&2; then
+        PYTHON=python2.7
+    elif which python27 2>/dev/null 1>&2; then
+        PYTHON=python27
+    elif which python2.6 2>/dev/null 1>&2; then
+        PYTHON=python2.6
+    elif which python26 2>/dev/null 1>&2; then
+        PYTHON=python26
+    else
+        echo 
+        echo "Can't find a python executable of version 2.6 or above in PATH"
+        echo "Install python 2.6+ before continue."
+        echo "Or if you installed it in a non-standard PATH, set the PYTHON enviroment varirable to it"
+        echo 
+        exit 1
+    fi
+}
 
 function validate_seaf_server_running () {
     if ! pgrep -f "seafile-controller -c ${default_ccnet_conf_dir}" 2>/dev/null 1>&2; then
@@ -67,6 +90,7 @@ else
 fi
 
 function start_seahub () {
+    check_python_executable;
     validate_seaf_server_running;
     validate_seahub_running;
     pid=$(pgrep -f "${manage_py} run_gunicorn")
@@ -75,11 +99,9 @@ function start_seahub () {
         exit 1;
     fi
     echo "Starting seahub http server at port ${port} ..."
-    seafile_python_path=${INSTALLPATH}/seafile/lib/python2.7/site-packages
-    thirdpart_path=${INSTALLPATH}/seahub/thirdpart
     export CCNET_CONF_DIR=${default_ccnet_conf_dir}
-    export PYTHONPATH=${seafile_python_path}:${thirdpart_path}
-    "${manage_py}" run_gunicorn -c "${gunicorn_conf}" -b "0.0.0.0:${port}"
+    export PYTHONPATH=${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
+    $PYTHON "${manage_py}" run_gunicorn -c "${gunicorn_conf}" -b "0.0.0.0:${port}"
 
     # Ensure seahub is started successfully
     sleep 2

@@ -8,7 +8,7 @@ default_seafile_data_dir=${TOPDIR}/seafile-data
 default_seahub_db=${TOPDIR}/seahub.db
 
 old_ld_path=$LD_LIBRARY_PATH
-new_ld_path=${INSTALLPATH}/seafile/lib/:${LD_LIBRARY_PATH}
+new_ld_path=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
 export LD_LIBRARY_PATH=$new_ld_path
 
 use_existing_ccnet="false"
@@ -104,12 +104,38 @@ function check_existing_ccnet () {
     echo
 }
 
+function check_python_executable() {
+    if [[ "$PYTHON" != "" && -x $PYTHON ]]; then
+        return 0
+    fi
+        
+    if which python2.7 2>/dev/null 1>&2; then
+        PYTHON=python2.7
+    elif which python27 2>/dev/null 1>&2; then
+        PYTHON=python27
+    elif which python2.6 2>/dev/null 1>&2; then
+        PYTHON=python2.6
+    elif which python26 2>/dev/null 1>&2; then
+        PYTHON=python26
+    else
+        echo 
+        echo "Can't find a python executable of version 2.6 or above in PATH"
+        echo "Install python 2.6+ before continue."
+        echo "Or if you installed it in a non-standard PATH, set the PYTHON enviroment varirable to it"
+        echo 
+        exit 1
+    fi
+
+    echo "Find python: $PYTHON"
+    echo
+}
+
 function check_python_module () {
     module=$1 
     name=$2
     hint=$3
     printf "  Checking python module: ${name} ... " 
-    if ! python -c "import ${module}" 2>/dev/null 1>&2; then
+    if ! $PYTHON -c "import ${module}" 2>/dev/null 1>&2; then
         echo
         printf "\033[33m ${name} \033[m is not installed, Please install it first.\n"
         if [[ "${hint}" != "" ]]; then
@@ -123,21 +149,25 @@ function check_python_module () {
 
 function check_python () {
     echo "Checking python on this machine ..."
-    if ! which python 2>/dev/null 1>&2; then
-        echo "No python found on this machine. Please install it first."
+    check_python_executable
+    if ! which $PYTHON 2>/dev/null 1>&2; then
+        echo "No $PYTHON found on this machine. Please install it first."
         err_and_quit;
     else
-        if (python --version 2>&1 | grep "3\\.[0-9].\\.[0-9]") 2>/dev/null 1>&2 ; then
+        if ($Python --version 2>&1 | grep "3\\.[0-9].\\.[0-9]") 2>/dev/null 1>&2 ; then
             printf "\033[33m Python version 3.x \033[m detected\n"
             echo "Python 3.x is not supported. Please use python 2.x. Now quit."
             err_and_quit;
         fi
         
-        hint="\nOn Debian/Ubntu: apt-get install python-setuptools\nOn CentOS/RHEL: yum install python-setuptools"
+        if [[ $PYTHON == "python2.6" ]]; then
+            py26="2.6"
+        fi
+        hint="\nOn Debian/Ubntu: apt-get install python-setuptools\nOn CentOS/RHEL: yum install python${py26}-distribute"
         check_python_module pkg_resources setuptools "${hint}"
-        hint="\nOn Debian/Ubntu: apt-get install python-simplejson\nOn CentOS/RHEL: yum install python-simplejson"
+        hint="\nOn Debian/Ubntu: apt-get install python-simplejson\nOn CentOS/RHEL: yum install python${py26}-simplejson"
         check_python_module simplejson python-simplejson "${hint}"
-        hint="\nOn Debian/Ubntu: apt-get install python-imaging\nOn CentOS/RHEL: yum install python-imaging"
+        hint="\nOn Debian/Ubntu: apt-get install python-imaging\nOn CentOS/RHEL: yum install python${py26}-imaging"
         check_python_module PIL python-imaging "${hint}"
         check_python_module sqlite3 python-sqlite3
     fi
@@ -377,7 +407,7 @@ HTTP_SERVER_ROOT=http://${ip_or_domain}:8082
 if [[ ! -f ${dest_settings_py} ]]; then
     echo "HTTP_SERVER_ROOT = \"${HTTP_SERVER_ROOT}\"" > "${dest_settings_py}"
     echo -n "SECRET_KEY = " >> "${dest_settings_py}"
-    key=$(python "${seahub_secret_keygen}")
+    key=$($PYTHON "${seahub_secret_keygen}")
     echo "\"${key}\"" >> "${dest_settings_py}"
 fi
 
@@ -473,10 +503,12 @@ if [[ "${use_existing_ccnet}" != "true" ]]; then
 fi
 
 printf "Now sync seahub database ... "
-export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:${PYTHONPATH}
+
+export PYTHONPATH=${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
+
 manage_py=${INSTALLPATH}/seahub/manage.py
 pushd "${INSTALLPATH}/seahub" 2>/dev/null 1>&2
-if ! python manage.py syncdb 2>/dev/null 1>&2; then
+if ! $PYTHON manage.py syncdb 2>/dev/null 1>&2; then
     popd 2>/dev/null 1>&2
     echo "Failed to sync seahub database."
     err_and_quit;
