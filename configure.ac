@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 
 
 AC_PREREQ(2.61)
-AC_INIT([seafile], [1.2.0], [freeplant@gmail.com])
+AC_INIT([seafile], [1.2.2], [freeplant@gmail.com])
 AC_CONFIG_HEADER([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -401,21 +401,21 @@ if test "${compile_server}" = "yes"; then
    AC_SUBST(ZDB_CFLAGS)
    AC_SUBST(ZDB_LIBS)
 
-   MYSQL_LIBS=`mysql_config --libs_r`
-   MYSQL_CFLAGS=`mysql_config --cflags`
+   MYSQL_CFLAGS=$(mysql_config --include)
+   MYSQL_LIBS=$(mysql_config --libs_r)
 
    # On CentOS, libmysqlclient is in /usr/lib64/mysql/, not /usr/lib, so we
    # need to adjust CPPFLAGS and LDFLAGS before check it
    saved_CPPFLAGS=$CPPFLAGS
    saved_LDFLAGS=$LDFLAGS
    CPPFLAGS="$MYSQL_CFLAGS $CPPFLAGS"
-   LDFLAGS＝"$MYSQL_LIBS $LDFLAGS"
+   LDFLAGS="$MYSQL_LIBS $LDFLAGS"
     
    AC_CHECK_LIB(mysqlclient, mysql_init, [echo "found library mysqlclient"],
       AC_MSG_ERROR([*** Unable to find mysql client library]), )
       
    CPPFLAGS=$saved_CPPFLAGS
-   LDFLAGS＝$saved_LDFLAGS
+   LDFLAGS=$saved_LDFLAGS
 
    AC_SUBST(MYSQL_LIBS)
    AC_SUBST(MYSQL_CFLAGS)
