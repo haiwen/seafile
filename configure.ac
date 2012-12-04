@@ -18,7 +18,7 @@ AC_SUBST(LIBTOOL_DEPS)
 
 # Checks for programs.
 AC_PROG_CC
-AM_C_PROTOTYPES
+#AM_C_PROTOTYPES
 AC_C_CONST
 AC_PROG_MAKE_SET
 # AC_PROG_RANLIB
@@ -249,7 +249,6 @@ if test "$bwin32" = true; then
   LIB_SHELL32=-lshell32
   LIB_PSAPI=-lpsapi
   MSVC_CFLAGS=-D__MSVCRT_VERSION__=0x0601
-  LIB_DIRWATCH=
 elif test "$bmac" = true ; then
   LIB_WS32=
   LIB_GDI32=
@@ -262,7 +261,6 @@ elif test "$bmac" = true ; then
   LIB_SHELL32=
   LIB_PSAPI=
   MSVC_CFLAGS=
-  LIB_DIRWATCH=-framework CoreServices
 else
   LIB_WS32=
   LIB_GDI32=
@@ -275,7 +273,6 @@ else
   LIB_SHELL32=
   LIB_PSAPI=
   MSVC_CFLAGS=
-  LIB_DIRWATCH=
 fi
 
 AC_SUBST(LIB_WS32)
@@ -289,7 +286,6 @@ AC_SUBST(LIB_IPHLPAPI)
 AC_SUBST(LIB_SHELL32)
 AC_SUBST(LIB_PSAPI)
 AC_SUBST(MSVC_CFLAGS)
-AC_SUBST(LIB_DIRWATCH)
 
 
 # gtk and glib

@@ -7,11 +7,163 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		456D1988166CD36E001C044D /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 456D1975166CD36E001C044D /* ccnet */; };
+		456D1989166CD36E001C044D /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 456D1975166CD36E001C044D /* ccnet */; };
+		456D198A166CD36E001C044D /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 456D1975166CD36E001C044D /* ccnet */; };
+		456D198B166CD36E001C044D /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 456D1975166CD36E001C044D /* ccnet */; };
+		456D198C166CD36E001C044D /* libccnet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1976166CD36E001C044D /* libccnet.0.dylib */; };
+		456D198D166CD36E001C044D /* libccnet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1976166CD36E001C044D /* libccnet.0.dylib */; };
+		456D198E166CD36E001C044D /* libccnet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1976166CD36E001C044D /* libccnet.0.dylib */; };
+		456D198F166CD36E001C044D /* libccnet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1976166CD36E001C044D /* libccnet.0.dylib */; };
+		456D1994166CD36E001C044D /* libevent-2.0.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1978166CD36E001C044D /* libevent-2.0.5.dylib */; };
+		456D1995166CD36E001C044D /* libevent-2.0.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1978166CD36E001C044D /* libevent-2.0.5.dylib */; };
+		456D1996166CD36E001C044D /* libevent-2.0.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1978166CD36E001C044D /* libevent-2.0.5.dylib */; };
+		456D1997166CD36E001C044D /* libevent-2.0.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1978166CD36E001C044D /* libevent-2.0.5.dylib */; };
+		456D1998166CD36E001C044D /* libffi.6.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1979166CD36E001C044D /* libffi.6.dylib */; };
+		456D1999166CD36E001C044D /* libffi.6.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1979166CD36E001C044D /* libffi.6.dylib */; };
+		456D199A166CD36E001C044D /* libffi.6.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1979166CD36E001C044D /* libffi.6.dylib */; };
+		456D199B166CD36E001C044D /* libffi.6.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1979166CD36E001C044D /* libffi.6.dylib */; };
+		456D199C166CD36E001C044D /* libgio-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197A166CD36E001C044D /* libgio-2.0.0.dylib */; };
+		456D199D166CD36E001C044D /* libgio-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197A166CD36E001C044D /* libgio-2.0.0.dylib */; };
+		456D199E166CD36E001C044D /* libgio-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197A166CD36E001C044D /* libgio-2.0.0.dylib */; };
+		456D199F166CD36E001C044D /* libgio-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197A166CD36E001C044D /* libgio-2.0.0.dylib */; };
+		456D19A0166CD36E001C044D /* libglib-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197B166CD36E001C044D /* libglib-2.0.0.dylib */; };
+		456D19A1166CD36E001C044D /* libglib-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197B166CD36E001C044D /* libglib-2.0.0.dylib */; };
+		456D19A2166CD36E001C044D /* libglib-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197B166CD36E001C044D /* libglib-2.0.0.dylib */; };
+		456D19A3166CD36E001C044D /* libglib-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197B166CD36E001C044D /* libglib-2.0.0.dylib */; };
+		456D19A4166CD36E001C044D /* libgmodule-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197C166CD36E001C044D /* libgmodule-2.0.0.dylib */; };
+		456D19A5166CD36E001C044D /* libgmodule-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197C166CD36E001C044D /* libgmodule-2.0.0.dylib */; };
+		456D19A6166CD36E001C044D /* libgmodule-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197C166CD36E001C044D /* libgmodule-2.0.0.dylib */; };
+		456D19A7166CD36E001C044D /* libgmodule-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197C166CD36E001C044D /* libgmodule-2.0.0.dylib */; };
+		456D19A8166CD36E001C044D /* libgobject-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197D166CD36E001C044D /* libgobject-2.0.0.dylib */; };
+		456D19A9166CD36E001C044D /* libgobject-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197D166CD36E001C044D /* libgobject-2.0.0.dylib */; };
+		456D19AA166CD36E001C044D /* libgobject-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197D166CD36E001C044D /* libgobject-2.0.0.dylib */; };
+		456D19AB166CD36E001C044D /* libgobject-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197D166CD36E001C044D /* libgobject-2.0.0.dylib */; };
+		456D19AC166CD36E001C044D /* libgthread-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197E166CD36E001C044D /* libgthread-2.0.0.dylib */; };
+		456D19AD166CD36E001C044D /* libgthread-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197E166CD36E001C044D /* libgthread-2.0.0.dylib */; };
+		456D19AE166CD36E001C044D /* libgthread-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197E166CD36E001C044D /* libgthread-2.0.0.dylib */; };
+		456D19AF166CD36E001C044D /* libgthread-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197E166CD36E001C044D /* libgthread-2.0.0.dylib */; };
+		456D19B0166CD36E001C044D /* libiconv.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197F166CD36E001C044D /* libiconv.2.dylib */; };
+		456D19B1166CD36E001C044D /* libiconv.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197F166CD36E001C044D /* libiconv.2.dylib */; };
+		456D19B2166CD36E001C044D /* libiconv.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197F166CD36E001C044D /* libiconv.2.dylib */; };
+		456D19B3166CD36E001C044D /* libiconv.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D197F166CD36E001C044D /* libiconv.2.dylib */; };
+		456D19B4166CD36E001C044D /* libintl.8.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1980166CD36E001C044D /* libintl.8.dylib */; };
+		456D19B5166CD36E001C044D /* libintl.8.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1980166CD36E001C044D /* libintl.8.dylib */; };
+		456D19B6166CD36E001C044D /* libintl.8.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1980166CD36E001C044D /* libintl.8.dylib */; };
+		456D19B7166CD36E001C044D /* libintl.8.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1980166CD36E001C044D /* libintl.8.dylib */; };
+		456D19B8166CD36E001C044D /* libseafile.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1981166CD36E001C044D /* libseafile.0.dylib */; };
+		456D19B9166CD36E001C044D /* libseafile.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1981166CD36E001C044D /* libseafile.0.dylib */; };
+		456D19BA166CD36E001C044D /* libseafile.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1981166CD36E001C044D /* libseafile.0.dylib */; };
+		456D19BB166CD36E001C044D /* libseafile.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1981166CD36E001C044D /* libseafile.0.dylib */; };
+		456D19BC166CD36E001C044D /* libsearpc-json-glib.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1982166CD36E001C044D /* libsearpc-json-glib.0.dylib */; };
+		456D19BD166CD36E001C044D /* libsearpc-json-glib.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1982166CD36E001C044D /* libsearpc-json-glib.0.dylib */; };
+		456D19BE166CD36E001C044D /* libsearpc-json-glib.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1982166CD36E001C044D /* libsearpc-json-glib.0.dylib */; };
+		456D19BF166CD36E001C044D /* libsearpc-json-glib.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1982166CD36E001C044D /* libsearpc-json-glib.0.dylib */; };
+		456D19C0166CD36E001C044D /* libsearpc.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1983166CD36E001C044D /* libsearpc.1.dylib */; };
+		456D19C1166CD36E001C044D /* libsearpc.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1983166CD36E001C044D /* libsearpc.1.dylib */; };
+		456D19C2166CD36E001C044D /* libsearpc.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1983166CD36E001C044D /* libsearpc.1.dylib */; };
+		456D19C3166CD36E001C044D /* libsearpc.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1983166CD36E001C044D /* libsearpc.1.dylib */; };
+		456D19CC166CD36E001C044D /* libuuid.16.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1986166CD36E001C044D /* libuuid.16.dylib */; };
+		456D19CD166CD36E001C044D /* libuuid.16.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1986166CD36E001C044D /* libuuid.16.dylib */; };
+		456D19CE166CD36E001C044D /* libuuid.16.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1986166CD36E001C044D /* libuuid.16.dylib */; };
+		456D19CF166CD36E001C044D /* libuuid.16.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1986166CD36E001C044D /* libuuid.16.dylib */; };
+		456D19D0166CD36E001C044D /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1987166CD36E001C044D /* libz.1.dylib */; };
+		456D19D1166CD36E001C044D /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1987166CD36E001C044D /* libz.1.dylib */; };
+		456D19D2166CD36E001C044D /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1987166CD36E001C044D /* libz.1.dylib */; };
+		456D19D3166CD36E001C044D /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1987166CD36E001C044D /* libz.1.dylib */; };
+		456D19D5166CD386001C044D /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 456D19D4166CD386001C044D /* seaf-daemon */; };
+		456D19D6166CD386001C044D /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 456D19D4166CD386001C044D /* seaf-daemon */; };
+		456D19D7166CD386001C044D /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 456D19D4166CD386001C044D /* seaf-daemon */; };
+		456D19D8166CD386001C044D /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 456D19D4166CD386001C044D /* seaf-daemon */; };
+		456D19DA166CD38F001C044D /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 456D19D9166CD38F001C044D /* seafileweb.app */; };
+		456D19DB166CD38F001C044D /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 456D19D9166CD38F001C044D /* seafileweb.app */; };
+		456D19DC166CD38F001C044D /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 456D19D9166CD38F001C044D /* seafileweb.app */; };
+		456D19DD166CD38F001C044D /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 456D19D9166CD38F001C044D /* seafileweb.app */; };
+		456D19DE166CD3CB001C044D /* libffi.6.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1979166CD36E001C044D /* libffi.6.dylib */; };
+		456D19DF166CD3F8001C044D /* libffi.6.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1979166CD36E001C044D /* libffi.6.dylib */; };
+		456D19E0166CD3FF001C044D /* libffi.6.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1979166CD36E001C044D /* libffi.6.dylib */; };
+		456D19E1166CD405001C044D /* libffi.6.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1979166CD36E001C044D /* libffi.6.dylib */; };
+		456D19E2166CEC9F001C044D /* libccnet.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1976166CD36E001C044D /* libccnet.0.dylib */; };
+		456D19E4166CEC9F001C044D /* libevent-2.0.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1978166CD36E001C044D /* libevent-2.0.5.dylib */; };
+		456D19E5166CEC9F001C044D /* libgio-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197A166CD36E001C044D /* libgio-2.0.0.dylib */; };
+		456D19E6166CEC9F001C044D /* libglib-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197B166CD36E001C044D /* libglib-2.0.0.dylib */; };
+		456D19E7166CEC9F001C044D /* libgmodule-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197C166CD36E001C044D /* libgmodule-2.0.0.dylib */; };
+		456D19E8166CEC9F001C044D /* libgobject-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197D166CD36E001C044D /* libgobject-2.0.0.dylib */; };
+		456D19E9166CEC9F001C044D /* libgthread-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197E166CD36E001C044D /* libgthread-2.0.0.dylib */; };
+		456D19EA166CEC9F001C044D /* libiconv.2.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197F166CD36E001C044D /* libiconv.2.dylib */; };
+		456D19EB166CEC9F001C044D /* libintl.8.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1980166CD36E001C044D /* libintl.8.dylib */; };
+		456D19EC166CEC9F001C044D /* libseafile.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1981166CD36E001C044D /* libseafile.0.dylib */; };
+		456D19ED166CEC9F001C044D /* libsearpc-json-glib.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1982166CD36E001C044D /* libsearpc-json-glib.0.dylib */; };
+		456D19EE166CEC9F001C044D /* libsearpc.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1983166CD36E001C044D /* libsearpc.1.dylib */; };
+		456D19F1166CEC9F001C044D /* libuuid.16.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1986166CD36E001C044D /* libuuid.16.dylib */; };
+		456D19F2166CEC9F001C044D /* libz.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1987166CD36E001C044D /* libz.1.dylib */; };
+		456D19F3166CECAC001C044D /* libccnet.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1976166CD36E001C044D /* libccnet.0.dylib */; };
+		456D19F5166CECAC001C044D /* libevent-2.0.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1978166CD36E001C044D /* libevent-2.0.5.dylib */; };
+		456D19F6166CECAC001C044D /* libgio-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197A166CD36E001C044D /* libgio-2.0.0.dylib */; };
+		456D19F7166CECAC001C044D /* libglib-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197B166CD36E001C044D /* libglib-2.0.0.dylib */; };
+		456D19F8166CECAC001C044D /* libgmodule-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197C166CD36E001C044D /* libgmodule-2.0.0.dylib */; };
+		456D19F9166CECAC001C044D /* libgobject-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197D166CD36E001C044D /* libgobject-2.0.0.dylib */; };
+		456D19FA166CECAC001C044D /* libgthread-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197E166CD36E001C044D /* libgthread-2.0.0.dylib */; };
+		456D19FB166CECAC001C044D /* libiconv.2.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197F166CD36E001C044D /* libiconv.2.dylib */; };
+		456D19FC166CECAC001C044D /* libintl.8.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1980166CD36E001C044D /* libintl.8.dylib */; };
+		456D19FD166CECAC001C044D /* libseafile.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1981166CD36E001C044D /* libseafile.0.dylib */; };
+		456D19FE166CECAC001C044D /* libsearpc-json-glib.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1982166CD36E001C044D /* libsearpc-json-glib.0.dylib */; };
+		456D19FF166CECAC001C044D /* libsearpc.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1983166CD36E001C044D /* libsearpc.1.dylib */; };
+		456D1A02166CECAC001C044D /* libuuid.16.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1986166CD36E001C044D /* libuuid.16.dylib */; };
+		456D1A03166CECAC001C044D /* libz.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1987166CD36E001C044D /* libz.1.dylib */; };
+		456D1A04166CECB8001C044D /* libccnet.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1976166CD36E001C044D /* libccnet.0.dylib */; };
+		456D1A06166CECB8001C044D /* libevent-2.0.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1978166CD36E001C044D /* libevent-2.0.5.dylib */; };
+		456D1A07166CECB8001C044D /* libgio-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197A166CD36E001C044D /* libgio-2.0.0.dylib */; };
+		456D1A08166CECB8001C044D /* libglib-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197B166CD36E001C044D /* libglib-2.0.0.dylib */; };
+		456D1A09166CECB8001C044D /* libgmodule-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197C166CD36E001C044D /* libgmodule-2.0.0.dylib */; };
+		456D1A0A166CECB8001C044D /* libgobject-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197D166CD36E001C044D /* libgobject-2.0.0.dylib */; };
+		456D1A0B166CECB8001C044D /* libgthread-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197E166CD36E001C044D /* libgthread-2.0.0.dylib */; };
+		456D1A0C166CECB8001C044D /* libiconv.2.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197F166CD36E001C044D /* libiconv.2.dylib */; };
+		456D1A0D166CECB8001C044D /* libintl.8.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1980166CD36E001C044D /* libintl.8.dylib */; };
+		456D1A0E166CECB8001C044D /* libseafile.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1981166CD36E001C044D /* libseafile.0.dylib */; };
+		456D1A0F166CECB8001C044D /* libsearpc-json-glib.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1982166CD36E001C044D /* libsearpc-json-glib.0.dylib */; };
+		456D1A10166CECB8001C044D /* libsearpc.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1983166CD36E001C044D /* libsearpc.1.dylib */; };
+		456D1A13166CECB8001C044D /* libuuid.16.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1986166CD36E001C044D /* libuuid.16.dylib */; };
+		456D1A14166CECB8001C044D /* libz.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1987166CD36E001C044D /* libz.1.dylib */; };
+		456D1A15166CECC1001C044D /* libccnet.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1976166CD36E001C044D /* libccnet.0.dylib */; };
+		456D1A17166CECC1001C044D /* libevent-2.0.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1978166CD36E001C044D /* libevent-2.0.5.dylib */; };
+		456D1A18166CECC1001C044D /* libgio-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197A166CD36E001C044D /* libgio-2.0.0.dylib */; };
+		456D1A19166CECC1001C044D /* libglib-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197B166CD36E001C044D /* libglib-2.0.0.dylib */; };
+		456D1A1A166CECC1001C044D /* libgmodule-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197C166CD36E001C044D /* libgmodule-2.0.0.dylib */; };
+		456D1A1B166CECC1001C044D /* libgobject-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197D166CD36E001C044D /* libgobject-2.0.0.dylib */; };
+		456D1A1C166CECC1001C044D /* libgthread-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197E166CD36E001C044D /* libgthread-2.0.0.dylib */; };
+		456D1A1D166CECC1001C044D /* libiconv.2.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D197F166CD36E001C044D /* libiconv.2.dylib */; };
+		456D1A1E166CECC1001C044D /* libintl.8.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1980166CD36E001C044D /* libintl.8.dylib */; };
+		456D1A1F166CECC1001C044D /* libseafile.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1981166CD36E001C044D /* libseafile.0.dylib */; };
+		456D1A20166CECC1001C044D /* libsearpc-json-glib.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1982166CD36E001C044D /* libsearpc-json-glib.0.dylib */; };
+		456D1A21166CECC1001C044D /* libsearpc.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1983166CD36E001C044D /* libsearpc.1.dylib */; };
+		456D1A24166CECC1001C044D /* libuuid.16.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1986166CD36E001C044D /* libuuid.16.dylib */; };
+		456D1A25166CECC1001C044D /* libz.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1987166CD36E001C044D /* libz.1.dylib */; };
+		456D1A28166CED65001C044D /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1A26166CED65001C044D /* libsqlite3.0.dylib */; };
+		456D1A29166CED65001C044D /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1A26166CED65001C044D /* libsqlite3.0.dylib */; };
+		456D1A2A166CED65001C044D /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1A26166CED65001C044D /* libsqlite3.0.dylib */; };
+		456D1A2B166CED65001C044D /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1A26166CED65001C044D /* libsqlite3.0.dylib */; };
+		456D1A2C166CED65001C044D /* libssl.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1A27166CED65001C044D /* libssl.1.0.0.dylib */; };
+		456D1A2D166CED65001C044D /* libssl.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1A27166CED65001C044D /* libssl.1.0.0.dylib */; };
+		456D1A2E166CED65001C044D /* libssl.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1A27166CED65001C044D /* libssl.1.0.0.dylib */; };
+		456D1A2F166CED65001C044D /* libssl.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1A27166CED65001C044D /* libssl.1.0.0.dylib */; };
+		456D1A30166CEDA9001C044D /* libsqlite3.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1A26166CED65001C044D /* libsqlite3.0.dylib */; };
+		456D1A31166CEDA9001C044D /* libssl.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1A27166CED65001C044D /* libssl.1.0.0.dylib */; };
+		456D1A32166CEDAF001C044D /* libsqlite3.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1A26166CED65001C044D /* libsqlite3.0.dylib */; };
+		456D1A33166CEDAF001C044D /* libssl.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1A27166CED65001C044D /* libssl.1.0.0.dylib */; };
+		456D1A34166CEDB5001C044D /* libsqlite3.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1A26166CED65001C044D /* libsqlite3.0.dylib */; };
+		456D1A35166CEDB5001C044D /* libssl.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1A27166CED65001C044D /* libssl.1.0.0.dylib */; };
+		456D1A36166CEDBD001C044D /* libsqlite3.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1A26166CED65001C044D /* libsqlite3.0.dylib */; };
+		456D1A37166CEDBD001C044D /* libssl.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1A27166CED65001C044D /* libssl.1.0.0.dylib */; };
+		456D1A39166CEE0A001C044D /* libcrypto.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1A38166CEE0A001C044D /* libcrypto.1.0.0.dylib */; };
+		456D1A3A166CEE0A001C044D /* libcrypto.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1A38166CEE0A001C044D /* libcrypto.1.0.0.dylib */; };
+		456D1A3B166CEE0A001C044D /* libcrypto.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1A38166CEE0A001C044D /* libcrypto.1.0.0.dylib */; };
+		456D1A3C166CEE0A001C044D /* libcrypto.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 456D1A38166CEE0A001C044D /* libcrypto.1.0.0.dylib */; };
+		456D1A3D166CEE82001C044D /* libcrypto.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1A38166CEE0A001C044D /* libcrypto.1.0.0.dylib */; };
+		456D1A3E166CEE86001C044D /* libcrypto.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1A38166CEE0A001C044D /* libcrypto.1.0.0.dylib */; };
+		456D1A3F166CEE8B001C044D /* libcrypto.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1A38166CEE0A001C044D /* libcrypto.1.0.0.dylib */; };
+		456D1A40166CEE90001C044D /* libcrypto.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 456D1A38166CEE0A001C044D /* libcrypto.1.0.0.dylib */; };
 		5715F1D8158C233900CA822C /* seafile-release-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5715F1D7158C233900CA822C /* seafile-release-Info.plist */; };
-		57266B8F15D6A0B6000AD014 /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 57266B8E15D6A0B6000AD014 /* seafileweb.app */; };
-		57266B9015D6A0B6000AD014 /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 57266B8E15D6A0B6000AD014 /* seafileweb.app */; };
-		57266B9115D6A0B6000AD014 /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 57266B8E15D6A0B6000AD014 /* seafileweb.app */; };
-		57266B9215D6A0B6000AD014 /* seafileweb.app in Resources */ = {isa = PBXBuildFile; fileRef = 57266B8E15D6A0B6000AD014 /* seafileweb.app */; };
 		57335CEC160D8DDE00018AE8 /* network-stop.png in Resources */ = {isa = PBXBuildFile; fileRef = 57335CEB160D8DDE00018AE8 /* network-stop.png */; };
 		57335CED160D8DDE00018AE8 /* network-stop.png in Resources */ = {isa = PBXBuildFile; fileRef = 57335CEB160D8DDE00018AE8 /* network-stop.png */; };
 		57335CEE160D8DDE00018AE8 /* network-stop.png in Resources */ = {isa = PBXBuildFile; fileRef = 57335CEB160D8DDE00018AE8 /* network-stop.png */; };
@@ -34,70 +186,6 @@
 		575BD52E158D021400F6C6A7 /* network-rotate4.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD523158D021400F6C6A7 /* network-rotate4.png */; };
 		575BD52F158D021400F6C6A7 /* network-up.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD524158D021400F6C6A7 /* network-up.png */; };
 		575BD530158D021400F6C6A7 /* network-up.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD524158D021400F6C6A7 /* network-up.png */; };
-		5763F3E6158B0B34003CCFE7 /* libccnet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
-		5763F3F8158B0B48003CCFE7 /* libcrypto.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
-		5763F3F9158B0B48003CCFE7 /* libevent-2.0.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
-		5763F3FA158B0B48003CCFE7 /* libffi.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
-		5763F3FB158B0B48003CCFE7 /* libgio-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
-		5763F3FC158B0B48003CCFE7 /* libglib-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
-		5763F3FD158B0B48003CCFE7 /* libgmodule-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
-		5763F3FE158B0B48003CCFE7 /* libgobject-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
-		5763F3FF158B0B48003CCFE7 /* libgthread-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
-		5763F400158B0B48003CCFE7 /* libiconv.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
-		5763F401158B0B48003CCFE7 /* libintl.8.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
-		5763F402158B0B48003CCFE7 /* libseafile.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
-		5763F403158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
-		5763F404158B0B48003CCFE7 /* libsearpc.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
-		5763F406158B0B48003CCFE7 /* libssl.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
-		5763F407158B0B48003CCFE7 /* libuuid.16.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
-		5763F409158B0F50003CCFE7 /* libccnet.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
-		5763F40A158B0F50003CCFE7 /* libcrypto.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
-		5763F40B158B0F50003CCFE7 /* libevent-2.0.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
-		5763F40C158B0F50003CCFE7 /* libffi.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
-		5763F40D158B0F50003CCFE7 /* libgio-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
-		5763F40E158B0F50003CCFE7 /* libglib-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
-		5763F40F158B0F50003CCFE7 /* libgmodule-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
-		5763F410158B0F50003CCFE7 /* libgobject-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
-		5763F411158B0F50003CCFE7 /* libgthread-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
-		5763F412158B0F50003CCFE7 /* libiconv.2.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
-		5763F413158B0F50003CCFE7 /* libintl.8.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
-		5763F414158B0F50003CCFE7 /* libseafile.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
-		5763F415158B0F50003CCFE7 /* libsearpc-json-glib.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
-		5763F416158B0F50003CCFE7 /* libsearpc.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
-		5763F418158B0F50003CCFE7 /* libssl.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
-		5763F419158B0F50003CCFE7 /* libuuid.16.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
-		5763F41B158B11BF003CCFE7 /* libccnet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
-		5763F41C158B11BF003CCFE7 /* libcrypto.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
-		5763F41D158B11BF003CCFE7 /* libevent-2.0.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
-		5763F41E158B11BF003CCFE7 /* libffi.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
-		5763F41F158B11BF003CCFE7 /* libgio-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
-		5763F420158B11BF003CCFE7 /* libglib-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
-		5763F421158B11BF003CCFE7 /* libgmodule-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
-		5763F422158B11BF003CCFE7 /* libgobject-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
-		5763F423158B11BF003CCFE7 /* libgthread-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
-		5763F424158B11BF003CCFE7 /* libiconv.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
-		5763F425158B11BF003CCFE7 /* libintl.8.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
-		5763F426158B11BF003CCFE7 /* libseafile.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
-		5763F427158B11BF003CCFE7 /* libsearpc-json-glib.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
-		5763F428158B11BF003CCFE7 /* libsearpc.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
-		5763F42A158B11BF003CCFE7 /* libssl.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
-		5763F42B158B11BF003CCFE7 /* libuuid.16.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
-		5763F42D158B11D3003CCFE7 /* libccnet.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
-		5763F42E158B11D3003CCFE7 /* libcrypto.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
-		5763F42F158B11D3003CCFE7 /* libevent-2.0.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
-		5763F430158B11D3003CCFE7 /* libffi.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
-		5763F431158B11D3003CCFE7 /* libgio-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
-		5763F432158B11D3003CCFE7 /* libglib-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
-		5763F433158B11D3003CCFE7 /* libgmodule-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
-		5763F434158B11D3003CCFE7 /* libgobject-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
-		5763F435158B11D3003CCFE7 /* libgthread-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
-		5763F436158B11D3003CCFE7 /* libiconv.2.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
-		5763F437158B11D3003CCFE7 /* libintl.8.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
-		5763F438158B11D3003CCFE7 /* libseafile.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
-		5763F439158B11D3003CCFE7 /* libsearpc-json-glib.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
-		5763F43A158B11D3003CCFE7 /* libsearpc.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
-		5763F43C158B11D3003CCFE7 /* libssl.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
-		5763F43D158B11D3003CCFE7 /* libuuid.16.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
 		577BBD3D1562815F00FD577C /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 577BBD3C1562815F00FD577C /* Cocoa.framework */; };
 		577BBD471562815F00FD577C /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD451562815F00FD577C /* InfoPlist.strings */; };
 		577BBD491562815F00FD577C /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD481562815F00FD577C /* main.m */; };
@@ -109,8 +197,6 @@
 		577F89CA1563B30D0059F53D /* ccnet-init.c in Sources */ = {isa = PBXBuildFile; fileRef = 577F89C91563B30D0059F53D /* ccnet-init.c */; };
 		5789630D159EA0A70013ED13 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5789630C159EA0A70013ED13 /* CoreServices.framework */; };
 		5789630F159EFC590013ED13 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5789630C159EA0A70013ED13 /* CoreServices.framework */; };
-		578FA5CD15674C1800EAAC19 /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5C415674C1800EAAC19 /* seaf-daemon */; };
-		578FA5CF15674C3300EAAC19 /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5CE15674C3300EAAC19 /* ccnet */; };
 		578FA5DB156781FC00EAAC19 /* MAAttachedWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = 578FA5DA156781FC00EAAC19 /* MAAttachedWindow.m */; };
 		57972D721573C70900915E2E /* PreferencePanes.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 57972D711573C70900915E2E /* PreferencePanes.framework */; };
 		579F9BFC1588F92500570010 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD481562815F00FD577C /* main.m */; };
@@ -128,16 +214,10 @@
 		579F9C121588F92500570010 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD451562815F00FD577C /* InfoPlist.strings */; };
 		579F9C131588F92500570010 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD4B1562815F00FD577C /* Credits.rtf */; };
 		579F9C141588F92500570010 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD511562815F00FD577C /* MainMenu.xib */; };
-		579F9C151588F92500570010 /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5C415674C1800EAAC19 /* seaf-daemon */; };
-		579F9C161588F92500570010 /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5CE15674C3300EAAC19 /* ccnet */; };
 		57A0559E1644BEC0006511AA /* seafile.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57A0559D1644BEC0006511AA /* seafile.icns */; };
 		57A0559F1644BEC0006511AA /* seafile.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57A0559D1644BEC0006511AA /* seafile.icns */; };
 		57A055A01644BEC0006511AA /* seafile.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57A0559D1644BEC0006511AA /* seafile.icns */; };
 		57A055A11644BEC0006511AA /* seafile.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57A0559D1644BEC0006511AA /* seafile.icns */; };
-		57BE9FD11599E33B008B639C /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */; };
-		57BE9FD21599E33B008B639C /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */; };
-		57BE9FD31599E33B008B639C /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FD01599E33B008B639C /* libz.1.dylib */; };
-		57BE9FD41599E33B008B639C /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FD01599E33B008B639C /* libz.1.dylib */; };
 		57DE0A7E15A98E0E006C0152 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD481562815F00FD577C /* main.m */; };
 		57DE0A7F15A98E0E006C0152 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD4F1562815F00FD577C /* AppDelegate.m */; };
 		57DE0A8015A98E0E006C0152 /* platform.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD6A15638D8B00FD577C /* platform.m */; };
@@ -149,47 +229,11 @@
 		57DE0A8615A98E0E006C0152 /* rpc-wrapper.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F73A021570A11800C06653 /* rpc-wrapper.c */; };
 		57DE0A8715A98E0E006C0152 /* applet-rpc-service.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F73A0F1570B37600C06653 /* applet-rpc-service.c */; };
 		57DE0A8915A98E0E006C0152 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5789630C159EA0A70013ED13 /* CoreServices.framework */; };
-		57DE0A8A15A98E0E006C0152 /* libccnet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
-		57DE0A8B15A98E0E006C0152 /* libcrypto.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
-		57DE0A8C15A98E0E006C0152 /* libevent-2.0.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
-		57DE0A8D15A98E0E006C0152 /* libffi.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
-		57DE0A8E15A98E0E006C0152 /* libgio-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
-		57DE0A8F15A98E0E006C0152 /* libglib-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
-		57DE0A9015A98E0E006C0152 /* libgmodule-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
-		57DE0A9115A98E0E006C0152 /* libgobject-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
-		57DE0A9215A98E0E006C0152 /* libgthread-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
-		57DE0A9315A98E0E006C0152 /* libiconv.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
-		57DE0A9415A98E0E006C0152 /* libintl.8.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
-		57DE0A9515A98E0E006C0152 /* libseafile.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
-		57DE0A9615A98E0E006C0152 /* libsearpc-json-glib.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
-		57DE0A9715A98E0E006C0152 /* libsearpc.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
-		57DE0A9815A98E0E006C0152 /* libssl.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
-		57DE0A9915A98E0E006C0152 /* libuuid.16.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
 		57DE0A9A15A98E0E006C0152 /* PreferencePanes.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 57972D711573C70900915E2E /* PreferencePanes.framework */; };
 		57DE0A9B15A98E0E006C0152 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 577BBD3C1562815F00FD577C /* Cocoa.framework */; };
-		57DE0A9C15A98E0E006C0152 /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */; };
-		57DE0A9D15A98E0E006C0152 /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FD01599E33B008B639C /* libz.1.dylib */; };
-		57DE0A9F15A98E0E006C0152 /* libccnet.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
-		57DE0AA015A98E0E006C0152 /* libcrypto.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
-		57DE0AA115A98E0E006C0152 /* libevent-2.0.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
-		57DE0AA215A98E0E006C0152 /* libffi.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
-		57DE0AA315A98E0E006C0152 /* libgio-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
-		57DE0AA415A98E0E006C0152 /* libglib-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
-		57DE0AA515A98E0E006C0152 /* libgmodule-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
-		57DE0AA615A98E0E006C0152 /* libgobject-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
-		57DE0AA715A98E0E006C0152 /* libgthread-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
-		57DE0AA815A98E0E006C0152 /* libiconv.2.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
-		57DE0AA915A98E0E006C0152 /* libintl.8.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
-		57DE0AAA15A98E0E006C0152 /* libseafile.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
-		57DE0AAB15A98E0E006C0152 /* libsearpc-json-glib.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
-		57DE0AAC15A98E0E006C0152 /* libsearpc.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
-		57DE0AAD15A98E0E006C0152 /* libssl.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
-		57DE0AAE15A98E0E006C0152 /* libuuid.16.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
 		57DE0AAF15A98E0E006C0152 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD451562815F00FD577C /* InfoPlist.strings */; };
 		57DE0AB015A98E0E006C0152 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD4B1562815F00FD577C /* Credits.rtf */; };
 		57DE0AB115A98E0E006C0152 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD511562815F00FD577C /* MainMenu.xib */; };
-		57DE0AB215A98E0E006C0152 /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5C415674C1800EAAC19 /* seaf-daemon */; };
-		57DE0AB315A98E0E006C0152 /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5CE15674C3300EAAC19 /* ccnet */; };
 		57DE0AB515A98E0E006C0152 /* network-down.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD51F158D021400F6C6A7 /* network-down.png */; };
 		57DE0AB615A98E0E006C0152 /* network-rotate1.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD520158D021400F6C6A7 /* network-rotate1.png */; };
 		57DE0AB715A98E0E006C0152 /* network-rotate2.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD521158D021400F6C6A7 /* network-rotate2.png */; };
@@ -210,47 +254,11 @@
 		57DE0ACF15A9AA89006C0152 /* rpc-wrapper.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F73A021570A11800C06653 /* rpc-wrapper.c */; };
 		57DE0AD015A9AA89006C0152 /* applet-rpc-service.c in Sources */ = {isa = PBXBuildFile; fileRef = 57F73A0F1570B37600C06653 /* applet-rpc-service.c */; };
 		57DE0AD215A9AA89006C0152 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5789630C159EA0A70013ED13 /* CoreServices.framework */; };
-		57DE0AD315A9AA89006C0152 /* libccnet.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
-		57DE0AD415A9AA89006C0152 /* libcrypto.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
-		57DE0AD515A9AA89006C0152 /* libevent-2.0.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
-		57DE0AD615A9AA89006C0152 /* libffi.5.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
-		57DE0AD715A9AA89006C0152 /* libgio-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
-		57DE0AD815A9AA89006C0152 /* libglib-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
-		57DE0AD915A9AA89006C0152 /* libgmodule-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
-		57DE0ADA15A9AA89006C0152 /* libgobject-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
-		57DE0ADB15A9AA89006C0152 /* libgthread-2.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
-		57DE0ADC15A9AA89006C0152 /* libiconv.2.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
-		57DE0ADD15A9AA89006C0152 /* libintl.8.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
-		57DE0ADE15A9AA89006C0152 /* libseafile.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
-		57DE0ADF15A9AA89006C0152 /* libsearpc-json-glib.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
-		57DE0AE015A9AA89006C0152 /* libsearpc.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
-		57DE0AE115A9AA89006C0152 /* libssl.1.0.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
-		57DE0AE215A9AA89006C0152 /* libuuid.16.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
 		57DE0AE315A9AA89006C0152 /* PreferencePanes.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 57972D711573C70900915E2E /* PreferencePanes.framework */; };
 		57DE0AE415A9AA89006C0152 /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 577BBD3C1562815F00FD577C /* Cocoa.framework */; };
-		57DE0AE515A9AA89006C0152 /* libsqlite3.0.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */; };
-		57DE0AE615A9AA89006C0152 /* libz.1.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 57BE9FD01599E33B008B639C /* libz.1.dylib */; };
-		57DE0AE815A9AA89006C0152 /* libccnet.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */; };
-		57DE0AE915A9AA89006C0152 /* libcrypto.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */; };
-		57DE0AEA15A9AA89006C0152 /* libevent-2.0.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */; };
-		57DE0AEB15A9AA89006C0152 /* libffi.5.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */; };
-		57DE0AEC15A9AA89006C0152 /* libgio-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */; };
-		57DE0AED15A9AA89006C0152 /* libglib-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */; };
-		57DE0AEE15A9AA89006C0152 /* libgmodule-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */; };
-		57DE0AEF15A9AA89006C0152 /* libgobject-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */; };
-		57DE0AF015A9AA89006C0152 /* libgthread-2.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */; };
-		57DE0AF115A9AA89006C0152 /* libiconv.2.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */; };
-		57DE0AF215A9AA89006C0152 /* libintl.8.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */; };
-		57DE0AF315A9AA89006C0152 /* libseafile.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */; };
-		57DE0AF415A9AA89006C0152 /* libsearpc-json-glib.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */; };
-		57DE0AF515A9AA89006C0152 /* libsearpc.1.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */; };
-		57DE0AF615A9AA89006C0152 /* libssl.1.0.0.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */; };
-		57DE0AF715A9AA89006C0152 /* libuuid.16.dylib in Resources */ = {isa = PBXBuildFile; fileRef = 5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */; };
 		57DE0AF815A9AA89006C0152 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD451562815F00FD577C /* InfoPlist.strings */; };
 		57DE0AF915A9AA89006C0152 /* Credits.rtf in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD4B1562815F00FD577C /* Credits.rtf */; };
 		57DE0AFA15A9AA89006C0152 /* MainMenu.xib in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD511562815F00FD577C /* MainMenu.xib */; };
-		57DE0AFB15A9AA89006C0152 /* seaf-daemon in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5C415674C1800EAAC19 /* seaf-daemon */; };
-		57DE0AFC15A9AA89006C0152 /* ccnet in Resources */ = {isa = PBXBuildFile; fileRef = 578FA5CE15674C3300EAAC19 /* ccnet */; };
 		57DE0AFE15A9AA89006C0152 /* network-down.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD51F158D021400F6C6A7 /* network-down.png */; };
 		57DE0AFF15A9AA89006C0152 /* network-rotate1.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD520158D021400F6C6A7 /* network-rotate1.png */; };
 		57DE0B0015A9AA89006C0152 /* network-rotate2.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD521158D021400F6C6A7 /* network-rotate2.png */; };
@@ -267,8 +275,28 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		456D1975166CD36E001C044D /* ccnet */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ccnet; sourceTree = "<group>"; };
+		456D1976166CD36E001C044D /* libccnet.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libccnet.0.dylib; sourceTree = "<group>"; };
+		456D1978166CD36E001C044D /* libevent-2.0.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libevent-2.0.5.dylib"; sourceTree = "<group>"; };
+		456D1979166CD36E001C044D /* libffi.6.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libffi.6.dylib; sourceTree = "<group>"; };
+		456D197A166CD36E001C044D /* libgio-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libgio-2.0.0.dylib"; sourceTree = "<group>"; };
+		456D197B166CD36E001C044D /* libglib-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libglib-2.0.0.dylib"; sourceTree = "<group>"; };
+		456D197C166CD36E001C044D /* libgmodule-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libgmodule-2.0.0.dylib"; sourceTree = "<group>"; };
+		456D197D166CD36E001C044D /* libgobject-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libgobject-2.0.0.dylib"; sourceTree = "<group>"; };
+		456D197E166CD36E001C044D /* libgthread-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libgthread-2.0.0.dylib"; sourceTree = "<group>"; };
+		456D197F166CD36E001C044D /* libiconv.2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libiconv.2.dylib; sourceTree = "<group>"; };
+		456D1980166CD36E001C044D /* libintl.8.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libintl.8.dylib; sourceTree = "<group>"; };
+		456D1981166CD36E001C044D /* libseafile.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libseafile.0.dylib; sourceTree = "<group>"; };
+		456D1982166CD36E001C044D /* libsearpc-json-glib.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libsearpc-json-glib.0.dylib"; sourceTree = "<group>"; };
+		456D1983166CD36E001C044D /* libsearpc.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libsearpc.1.dylib; sourceTree = "<group>"; };
+		456D1986166CD36E001C044D /* libuuid.16.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libuuid.16.dylib; sourceTree = "<group>"; };
+		456D1987166CD36E001C044D /* libz.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libz.1.dylib; sourceTree = "<group>"; };
+		456D19D4166CD386001C044D /* seaf-daemon */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "seaf-daemon"; sourceTree = "<group>"; };
+		456D19D9166CD38F001C044D /* seafileweb.app */ = {isa = PBXFileReference; lastKnownFileType = wrapper.application; path = seafileweb.app; sourceTree = "<group>"; };
+		456D1A26166CED65001C044D /* libsqlite3.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libsqlite3.0.dylib; sourceTree = "<group>"; };
+		456D1A27166CED65001C044D /* libssl.1.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libssl.1.0.0.dylib; sourceTree = "<group>"; };
+		456D1A38166CEE0A001C044D /* libcrypto.1.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libcrypto.1.0.0.dylib; sourceTree = "<group>"; };
 		5715F1D7158C233900CA822C /* seafile-release-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "seafile-release-Info.plist"; sourceTree = "<group>"; };
-		57266B8E15D6A0B6000AD014 /* seafileweb.app */ = {isa = PBXFileReference; lastKnownFileType = wrapper.application; path = seafileweb.app; sourceTree = "<group>"; };
 		57335CEB160D8DDE00018AE8 /* network-stop.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-stop.png"; sourceTree = "<group>"; };
 		5743817E159B0399003DECFB /* seafilefolder.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = seafilefolder.icns; sourceTree = "<group>"; };
 		57438181159B249D003DECFB /* seafilerepo.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = seafilerepo.icns; sourceTree = "<group>"; };
@@ -279,22 +307,6 @@
 		575BD522158D021400F6C6A7 /* network-rotate3.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-rotate3.png"; sourceTree = "<group>"; };
 		575BD523158D021400F6C6A7 /* network-rotate4.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-rotate4.png"; sourceTree = "<group>"; };
 		575BD524158D021400F6C6A7 /* network-up.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-up.png"; sourceTree = "<group>"; };
-		5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libccnet.0.dylib; sourceTree = "<group>"; };
-		5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libcrypto.1.0.0.dylib; sourceTree = "<group>"; };
-		5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libevent-2.0.5.dylib"; sourceTree = "<group>"; };
-		5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libffi.5.dylib; sourceTree = "<group>"; };
-		5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libgio-2.0.0.dylib"; sourceTree = "<group>"; };
-		5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libglib-2.0.0.dylib"; sourceTree = "<group>"; };
-		5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libgmodule-2.0.0.dylib"; sourceTree = "<group>"; };
-		5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libgobject-2.0.0.dylib"; sourceTree = "<group>"; };
-		5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libgthread-2.0.0.dylib"; sourceTree = "<group>"; };
-		5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libiconv.2.dylib; sourceTree = "<group>"; };
-		5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libintl.8.dylib; sourceTree = "<group>"; };
-		5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libseafile.0.dylib; sourceTree = "<group>"; };
-		5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libsearpc-json-glib.0.dylib"; sourceTree = "<group>"; };
-		5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libsearpc.1.dylib; sourceTree = "<group>"; };
-		5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libssl.1.0.0.dylib; sourceTree = "<group>"; };
-		5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libuuid.16.dylib; sourceTree = "<group>"; };
 		577BBD381562815F00FD577C /* seafile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = seafile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		577BBD3C1562815F00FD577C /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		577BBD3F1562815F00FD577C /* AppKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AppKit.framework; path = System/Library/Frameworks/AppKit.framework; sourceTree = SDKROOT; };
@@ -314,15 +326,11 @@
 		577F89C91563B30D0059F53D /* ccnet-init.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; name = "ccnet-init.c"; path = "../../common/ccnet-init.c"; sourceTree = "<group>"; };
 		577F89CB1563B3200059F53D /* ccnet-init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = "ccnet-init.h"; path = "../../common/ccnet-init.h"; sourceTree = "<group>"; };
 		5789630C159EA0A70013ED13 /* CoreServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreServices.framework; path = System/Library/Frameworks/CoreServices.framework; sourceTree = SDKROOT; };
-		578FA5C415674C1800EAAC19 /* seaf-daemon */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = "seaf-daemon"; sourceTree = "<group>"; };
-		578FA5CE15674C3300EAAC19 /* ccnet */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = ccnet; sourceTree = "<group>"; };
 		578FA5D9156781FC00EAAC19 /* MAAttachedWindow.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MAAttachedWindow.h; sourceTree = "<group>"; };
 		578FA5DA156781FC00EAAC19 /* MAAttachedWindow.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MAAttachedWindow.m; sourceTree = "<group>"; };
 		57972D711573C70900915E2E /* PreferencePanes.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = PreferencePanes.framework; path = System/Library/Frameworks/PreferencePanes.framework; sourceTree = SDKROOT; };
 		579F9C221588F92500570010 /* seafile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = seafile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		57A0559D1644BEC0006511AA /* seafile.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = seafile.icns; sourceTree = "<group>"; };
-		57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libsqlite3.0.dylib; sourceTree = "<group>"; };
-		57BE9FD01599E33B008B639C /* libz.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libz.1.dylib; sourceTree = "<group>"; };
 		57DE0AC215A98E0E006C0152 /* seafile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = seafile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		57DE0B0B15A9AA89006C0152 /* seafile.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = seafile.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		57F70506158321D100C65071 /* platform.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = platform.h; sourceTree = "<group>"; };
@@ -346,24 +354,24 @@
 				5789630D159EA0A70013ED13 /* CoreServices.framework in Frameworks */,
 				57972D721573C70900915E2E /* PreferencePanes.framework in Frameworks */,
 				577BBD3D1562815F00FD577C /* Cocoa.framework in Frameworks */,
-				5763F3E6158B0B34003CCFE7 /* libccnet.0.dylib in Frameworks */,
-				5763F3F8158B0B48003CCFE7 /* libcrypto.1.0.0.dylib in Frameworks */,
-				5763F3F9158B0B48003CCFE7 /* libevent-2.0.5.dylib in Frameworks */,
-				5763F3FA158B0B48003CCFE7 /* libffi.5.dylib in Frameworks */,
-				5763F3FB158B0B48003CCFE7 /* libgio-2.0.0.dylib in Frameworks */,
-				5763F3FC158B0B48003CCFE7 /* libglib-2.0.0.dylib in Frameworks */,
-				5763F3FD158B0B48003CCFE7 /* libgmodule-2.0.0.dylib in Frameworks */,
-				5763F3FE158B0B48003CCFE7 /* libgobject-2.0.0.dylib in Frameworks */,
-				5763F3FF158B0B48003CCFE7 /* libgthread-2.0.0.dylib in Frameworks */,
-				5763F400158B0B48003CCFE7 /* libiconv.2.dylib in Frameworks */,
-				5763F401158B0B48003CCFE7 /* libintl.8.dylib in Frameworks */,
-				5763F402158B0B48003CCFE7 /* libseafile.0.dylib in Frameworks */,
-				5763F403158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib in Frameworks */,
-				5763F404158B0B48003CCFE7 /* libsearpc.1.dylib in Frameworks */,
-				5763F406158B0B48003CCFE7 /* libssl.1.0.0.dylib in Frameworks */,
-				5763F407158B0B48003CCFE7 /* libuuid.16.dylib in Frameworks */,
-				57BE9FD11599E33B008B639C /* libsqlite3.0.dylib in Frameworks */,
-				57BE9FD31599E33B008B639C /* libz.1.dylib in Frameworks */,
+				456D198C166CD36E001C044D /* libccnet.0.dylib in Frameworks */,
+				456D1994166CD36E001C044D /* libevent-2.0.5.dylib in Frameworks */,
+				456D1998166CD36E001C044D /* libffi.6.dylib in Frameworks */,
+				456D199C166CD36E001C044D /* libgio-2.0.0.dylib in Frameworks */,
+				456D19A0166CD36E001C044D /* libglib-2.0.0.dylib in Frameworks */,
+				456D19A4166CD36E001C044D /* libgmodule-2.0.0.dylib in Frameworks */,
+				456D19A8166CD36E001C044D /* libgobject-2.0.0.dylib in Frameworks */,
+				456D19AC166CD36E001C044D /* libgthread-2.0.0.dylib in Frameworks */,
+				456D19B0166CD36E001C044D /* libiconv.2.dylib in Frameworks */,
+				456D19B4166CD36E001C044D /* libintl.8.dylib in Frameworks */,
+				456D19B8166CD36E001C044D /* libseafile.0.dylib in Frameworks */,
+				456D19BC166CD36E001C044D /* libsearpc-json-glib.0.dylib in Frameworks */,
+				456D19C0166CD36E001C044D /* libsearpc.1.dylib in Frameworks */,
+				456D19CC166CD36E001C044D /* libuuid.16.dylib in Frameworks */,
+				456D19D0166CD36E001C044D /* libz.1.dylib in Frameworks */,
+				456D1A28166CED65001C044D /* libsqlite3.0.dylib in Frameworks */,
+				456D1A2C166CED65001C044D /* libssl.1.0.0.dylib in Frameworks */,
+				456D1A39166CEE0A001C044D /* libcrypto.1.0.0.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -372,26 +380,26 @@
 			buildActionMask = 2147483647;
 			files = (
 				5789630F159EFC590013ED13 /* CoreServices.framework in Frameworks */,
-				5763F41B158B11BF003CCFE7 /* libccnet.0.dylib in Frameworks */,
-				5763F41C158B11BF003CCFE7 /* libcrypto.1.0.0.dylib in Frameworks */,
-				5763F41D158B11BF003CCFE7 /* libevent-2.0.5.dylib in Frameworks */,
-				5763F41E158B11BF003CCFE7 /* libffi.5.dylib in Frameworks */,
-				5763F41F158B11BF003CCFE7 /* libgio-2.0.0.dylib in Frameworks */,
-				5763F420158B11BF003CCFE7 /* libglib-2.0.0.dylib in Frameworks */,
-				5763F421158B11BF003CCFE7 /* libgmodule-2.0.0.dylib in Frameworks */,
-				5763F422158B11BF003CCFE7 /* libgobject-2.0.0.dylib in Frameworks */,
-				5763F423158B11BF003CCFE7 /* libgthread-2.0.0.dylib in Frameworks */,
-				5763F424158B11BF003CCFE7 /* libiconv.2.dylib in Frameworks */,
-				5763F425158B11BF003CCFE7 /* libintl.8.dylib in Frameworks */,
-				5763F426158B11BF003CCFE7 /* libseafile.0.dylib in Frameworks */,
-				5763F427158B11BF003CCFE7 /* libsearpc-json-glib.0.dylib in Frameworks */,
-				5763F428158B11BF003CCFE7 /* libsearpc.1.dylib in Frameworks */,
-				5763F42A158B11BF003CCFE7 /* libssl.1.0.0.dylib in Frameworks */,
-				5763F42B158B11BF003CCFE7 /* libuuid.16.dylib in Frameworks */,
 				579F9C071588F92500570010 /* PreferencePanes.framework in Frameworks */,
 				579F9C081588F92500570010 /* Cocoa.framework in Frameworks */,
-				57BE9FD21599E33B008B639C /* libsqlite3.0.dylib in Frameworks */,
-				57BE9FD41599E33B008B639C /* libz.1.dylib in Frameworks */,
+				456D198D166CD36E001C044D /* libccnet.0.dylib in Frameworks */,
+				456D1995166CD36E001C044D /* libevent-2.0.5.dylib in Frameworks */,
+				456D1999166CD36E001C044D /* libffi.6.dylib in Frameworks */,
+				456D199D166CD36E001C044D /* libgio-2.0.0.dylib in Frameworks */,
+				456D19A1166CD36E001C044D /* libglib-2.0.0.dylib in Frameworks */,
+				456D19A5166CD36E001C044D /* libgmodule-2.0.0.dylib in Frameworks */,
+				456D19A9166CD36E001C044D /* libgobject-2.0.0.dylib in Frameworks */,
+				456D19AD166CD36E001C044D /* libgthread-2.0.0.dylib in Frameworks */,
+				456D19B1166CD36E001C044D /* libiconv.2.dylib in Frameworks */,
+				456D19B5166CD36E001C044D /* libintl.8.dylib in Frameworks */,
+				456D19B9166CD36E001C044D /* libseafile.0.dylib in Frameworks */,
+				456D19BD166CD36E001C044D /* libsearpc-json-glib.0.dylib in Frameworks */,
+				456D19C1166CD36E001C044D /* libsearpc.1.dylib in Frameworks */,
+				456D19CD166CD36E001C044D /* libuuid.16.dylib in Frameworks */,
+				456D19D1166CD36E001C044D /* libz.1.dylib in Frameworks */,
+				456D1A29166CED65001C044D /* libsqlite3.0.dylib in Frameworks */,
+				456D1A2D166CED65001C044D /* libssl.1.0.0.dylib in Frameworks */,
+				456D1A3A166CEE0A001C044D /* libcrypto.1.0.0.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -400,26 +408,26 @@
 			buildActionMask = 2147483647;
 			files = (
 				57DE0A8915A98E0E006C0152 /* CoreServices.framework in Frameworks */,
-				57DE0A8A15A98E0E006C0152 /* libccnet.0.dylib in Frameworks */,
-				57DE0A8B15A98E0E006C0152 /* libcrypto.1.0.0.dylib in Frameworks */,
-				57DE0A8C15A98E0E006C0152 /* libevent-2.0.5.dylib in Frameworks */,
-				57DE0A8D15A98E0E006C0152 /* libffi.5.dylib in Frameworks */,
-				57DE0A8E15A98E0E006C0152 /* libgio-2.0.0.dylib in Frameworks */,
-				57DE0A8F15A98E0E006C0152 /* libglib-2.0.0.dylib in Frameworks */,
-				57DE0A9015A98E0E006C0152 /* libgmodule-2.0.0.dylib in Frameworks */,
-				57DE0A9115A98E0E006C0152 /* libgobject-2.0.0.dylib in Frameworks */,
-				57DE0A9215A98E0E006C0152 /* libgthread-2.0.0.dylib in Frameworks */,
-				57DE0A9315A98E0E006C0152 /* libiconv.2.dylib in Frameworks */,
-				57DE0A9415A98E0E006C0152 /* libintl.8.dylib in Frameworks */,
-				57DE0A9515A98E0E006C0152 /* libseafile.0.dylib in Frameworks */,
-				57DE0A9615A98E0E006C0152 /* libsearpc-json-glib.0.dylib in Frameworks */,
-				57DE0A9715A98E0E006C0152 /* libsearpc.1.dylib in Frameworks */,
-				57DE0A9815A98E0E006C0152 /* libssl.1.0.0.dylib in Frameworks */,
-				57DE0A9915A98E0E006C0152 /* libuuid.16.dylib in Frameworks */,
 				57DE0A9A15A98E0E006C0152 /* PreferencePanes.framework in Frameworks */,
 				57DE0A9B15A98E0E006C0152 /* Cocoa.framework in Frameworks */,
-				57DE0A9C15A98E0E006C0152 /* libsqlite3.0.dylib in Frameworks */,
-				57DE0A9D15A98E0E006C0152 /* libz.1.dylib in Frameworks */,
+				456D198E166CD36E001C044D /* libccnet.0.dylib in Frameworks */,
+				456D1996166CD36E001C044D /* libevent-2.0.5.dylib in Frameworks */,
+				456D199A166CD36E001C044D /* libffi.6.dylib in Frameworks */,
+				456D199E166CD36E001C044D /* libgio-2.0.0.dylib in Frameworks */,
+				456D19A2166CD36E001C044D /* libglib-2.0.0.dylib in Frameworks */,
+				456D19A6166CD36E001C044D /* libgmodule-2.0.0.dylib in Frameworks */,
+				456D19AA166CD36E001C044D /* libgobject-2.0.0.dylib in Frameworks */,
+				456D19AE166CD36E001C044D /* libgthread-2.0.0.dylib in Frameworks */,
+				456D19B2166CD36E001C044D /* libiconv.2.dylib in Frameworks */,
+				456D19B6166CD36E001C044D /* libintl.8.dylib in Frameworks */,
+				456D19BA166CD36E001C044D /* libseafile.0.dylib in Frameworks */,
+				456D19BE166CD36E001C044D /* libsearpc-json-glib.0.dylib in Frameworks */,
+				456D19C2166CD36E001C044D /* libsearpc.1.dylib in Frameworks */,
+				456D19CE166CD36E001C044D /* libuuid.16.dylib in Frameworks */,
+				456D19D2166CD36E001C044D /* libz.1.dylib in Frameworks */,
+				456D1A2A166CED65001C044D /* libsqlite3.0.dylib in Frameworks */,
+				456D1A2E166CED65001C044D /* libssl.1.0.0.dylib in Frameworks */,
+				456D1A3B166CEE0A001C044D /* libcrypto.1.0.0.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -428,26 +436,26 @@
 			buildActionMask = 2147483647;
 			files = (
 				57DE0AD215A9AA89006C0152 /* CoreServices.framework in Frameworks */,
-				57DE0AD315A9AA89006C0152 /* libccnet.0.dylib in Frameworks */,
-				57DE0AD415A9AA89006C0152 /* libcrypto.1.0.0.dylib in Frameworks */,
-				57DE0AD515A9AA89006C0152 /* libevent-2.0.5.dylib in Frameworks */,
-				57DE0AD615A9AA89006C0152 /* libffi.5.dylib in Frameworks */,
-				57DE0AD715A9AA89006C0152 /* libgio-2.0.0.dylib in Frameworks */,
-				57DE0AD815A9AA89006C0152 /* libglib-2.0.0.dylib in Frameworks */,
-				57DE0AD915A9AA89006C0152 /* libgmodule-2.0.0.dylib in Frameworks */,
-				57DE0ADA15A9AA89006C0152 /* libgobject-2.0.0.dylib in Frameworks */,
-				57DE0ADB15A9AA89006C0152 /* libgthread-2.0.0.dylib in Frameworks */,
-				57DE0ADC15A9AA89006C0152 /* libiconv.2.dylib in Frameworks */,
-				57DE0ADD15A9AA89006C0152 /* libintl.8.dylib in Frameworks */,
-				57DE0ADE15A9AA89006C0152 /* libseafile.0.dylib in Frameworks */,
-				57DE0ADF15A9AA89006C0152 /* libsearpc-json-glib.0.dylib in Frameworks */,
-				57DE0AE015A9AA89006C0152 /* libsearpc.1.dylib in Frameworks */,
-				57DE0AE115A9AA89006C0152 /* libssl.1.0.0.dylib in Frameworks */,
-				57DE0AE215A9AA89006C0152 /* libuuid.16.dylib in Frameworks */,
 				57DE0AE315A9AA89006C0152 /* PreferencePanes.framework in Frameworks */,
 				57DE0AE415A9AA89006C0152 /* Cocoa.framework in Frameworks */,
-				57DE0AE515A9AA89006C0152 /* libsqlite3.0.dylib in Frameworks */,
-				57DE0AE615A9AA89006C0152 /* libz.1.dylib in Frameworks */,
+				456D198F166CD36E001C044D /* libccnet.0.dylib in Frameworks */,
+				456D1997166CD36E001C044D /* libevent-2.0.5.dylib in Frameworks */,
+				456D199B166CD36E001C044D /* libffi.6.dylib in Frameworks */,
+				456D199F166CD36E001C044D /* libgio-2.0.0.dylib in Frameworks */,
+				456D19A3166CD36E001C044D /* libglib-2.0.0.dylib in Frameworks */,
+				456D19A7166CD36E001C044D /* libgmodule-2.0.0.dylib in Frameworks */,
+				456D19AB166CD36E001C044D /* libgobject-2.0.0.dylib in Frameworks */,
+				456D19AF166CD36E001C044D /* libgthread-2.0.0.dylib in Frameworks */,
+				456D19B3166CD36E001C044D /* libiconv.2.dylib in Frameworks */,
+				456D19B7166CD36E001C044D /* libintl.8.dylib in Frameworks */,
+				456D19BB166CD36E001C044D /* libseafile.0.dylib in Frameworks */,
+				456D19BF166CD36E001C044D /* libsearpc-json-glib.0.dylib in Frameworks */,
+				456D19C3166CD36E001C044D /* libsearpc.1.dylib in Frameworks */,
+				456D19CF166CD36E001C044D /* libuuid.16.dylib in Frameworks */,
+				456D19D3166CD36E001C044D /* libz.1.dylib in Frameworks */,
+				456D1A2B166CED65001C044D /* libsqlite3.0.dylib in Frameworks */,
+				456D1A2F166CED65001C044D /* libssl.1.0.0.dylib in Frameworks */,
+				456D1A3C166CEE0A001C044D /* libcrypto.1.0.0.dylib in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -457,55 +465,34 @@
 		577BBD2D1562815E00FD577C = {
 			isa = PBXGroup;
 			children = (
-				577BBD731563A79A00FD577C /* opendir-proc.h */,
-				577BBD721563A79A00FD577C /* opendir-proc.c */,
-				577F89C91563B30D0059F53D /* ccnet-init.c */,
-				577F89CB1563B3200059F53D /* ccnet-init.h */,
-				57F73A021570A11800C06653 /* rpc-wrapper.c */,
-				57F73A031570A11800C06653 /* rpc-wrapper.h */,
-				57F739FA1570A10C00C06653 /* applet-common.h */,
 				57F739F91570A10C00C06653 /* applet-common.c */,
-				57F739FE1570A10C00C06653 /* applet-rpc-service.h */,
-				57F73A0F1570B37600C06653 /* applet-rpc-service.c */,
+				57F739FA1570A10C00C06653 /* applet-common.h */,
 				57F739FB1570A10C00C06653 /* applet-log.c */,
 				57F739FC1570A10C00C06653 /* applet-log.h */,
 				57F739FD1570A10C00C06653 /* applet-po.h */,
-				57F73A051570A38000C06653 /* seafile-applet.h */,
-				577BBD421562815F00FD577C /* seafile */,
-				578FA5CE15674C3300EAAC19 /* ccnet */,
-				578FA5C415674C1800EAAC19 /* seaf-daemon */,
-				5763F3E4158B0B34003CCFE7 /* libccnet.0.dylib */,
-				57266B8E15D6A0B6000AD014 /* seafileweb.app */,
-				5763F3E7158B0B48003CCFE7 /* libcrypto.1.0.0.dylib */,
-				57BE9FCF1599E33B008B639C /* libsqlite3.0.dylib */,
-				57BE9FD01599E33B008B639C /* libz.1.dylib */,
-				5763F3E8158B0B48003CCFE7 /* libevent-2.0.5.dylib */,
-				5763F3E9158B0B48003CCFE7 /* libffi.5.dylib */,
-				5763F3EA158B0B48003CCFE7 /* libgio-2.0.0.dylib */,
-				5763F3EB158B0B48003CCFE7 /* libglib-2.0.0.dylib */,
-				5763F3EC158B0B48003CCFE7 /* libgmodule-2.0.0.dylib */,
-				5763F3ED158B0B48003CCFE7 /* libgobject-2.0.0.dylib */,
-				5763F3EE158B0B48003CCFE7 /* libgthread-2.0.0.dylib */,
-				5763F3EF158B0B48003CCFE7 /* libiconv.2.dylib */,
-				5763F3F0158B0B48003CCFE7 /* libintl.8.dylib */,
-				5763F3F1158B0B48003CCFE7 /* libseafile.0.dylib */,
-				5763F3F2158B0B48003CCFE7 /* libsearpc-json-glib.0.dylib */,
-				5763F3F3158B0B48003CCFE7 /* libsearpc.1.dylib */,
-				5763F3F5158B0B48003CCFE7 /* libssl.1.0.0.dylib */,
-				5763F3F6158B0B48003CCFE7 /* libuuid.16.dylib */,
+				57F73A0F1570B37600C06653 /* applet-rpc-service.c */,
+				57F739FE1570A10C00C06653 /* applet-rpc-service.h */,
+				577F89C91563B30D0059F53D /* ccnet-init.c */,
+				577F89CB1563B3200059F53D /* ccnet-init.h */,
+				577BBD3B1562815F00FD577C /* Frameworks */,
 				575BD51F158D021400F6C6A7 /* network-down.png */,
-				57335CEB160D8DDE00018AE8 /* network-stop.png */,
 				575BD520158D021400F6C6A7 /* network-rotate1.png */,
 				575BD521158D021400F6C6A7 /* network-rotate2.png */,
 				575BD522158D021400F6C6A7 /* network-rotate3.png */,
 				575BD523158D021400F6C6A7 /* network-rotate4.png */,
+				57335CEB160D8DDE00018AE8 /* network-stop.png */,
 				575BD524158D021400F6C6A7 /* network-up.png */,
+				577BBD721563A79A00FD577C /* opendir-proc.c */,
+				577BBD731563A79A00FD577C /* opendir-proc.h */,
+				577BBD391562815F00FD577C /* Products */,
+				57F73A021570A11800C06653 /* rpc-wrapper.c */,
+				57F73A031570A11800C06653 /* rpc-wrapper.h */,
+				577BBD421562815F00FD577C /* seafile */,
+				57F73A051570A38000C06653 /* seafile-applet.h */,
 				57A0559D1644BEC0006511AA /* seafile.icns */,
 				5743817E159B0399003DECFB /* seafilefolder.icns */,
 				57438181159B249D003DECFB /* seafilerepo.icns */,
 				57438184159B2CF3003DECFB /* warning.png */,
-				577BBD3B1562815F00FD577C /* Frameworks */,
-				577BBD391562815F00FD577C /* Products */,
 			);
 			sourceTree = "<group>";
 		};
@@ -523,9 +510,30 @@
 		577BBD3B1562815F00FD577C /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
-				5789630C159EA0A70013ED13 /* CoreServices.framework */,
+				456D1975166CD36E001C044D /* ccnet */,
 				577BBD3C1562815F00FD577C /* Cocoa.framework */,
+				5789630C159EA0A70013ED13 /* CoreServices.framework */,
+				456D1976166CD36E001C044D /* libccnet.0.dylib */,
+				456D1A38166CEE0A001C044D /* libcrypto.1.0.0.dylib */,
+				456D1978166CD36E001C044D /* libevent-2.0.5.dylib */,
+				456D1979166CD36E001C044D /* libffi.6.dylib */,
+				456D197A166CD36E001C044D /* libgio-2.0.0.dylib */,
+				456D197B166CD36E001C044D /* libglib-2.0.0.dylib */,
+				456D197C166CD36E001C044D /* libgmodule-2.0.0.dylib */,
+				456D197D166CD36E001C044D /* libgobject-2.0.0.dylib */,
+				456D197E166CD36E001C044D /* libgthread-2.0.0.dylib */,
+				456D197F166CD36E001C044D /* libiconv.2.dylib */,
+				456D1980166CD36E001C044D /* libintl.8.dylib */,
+				456D1981166CD36E001C044D /* libseafile.0.dylib */,
+				456D1982166CD36E001C044D /* libsearpc-json-glib.0.dylib */,
+				456D1983166CD36E001C044D /* libsearpc.1.dylib */,
+				456D1A26166CED65001C044D /* libsqlite3.0.dylib */,
+				456D1A27166CED65001C044D /* libssl.1.0.0.dylib */,
+				456D1986166CD36E001C044D /* libuuid.16.dylib */,
+				456D1987166CD36E001C044D /* libz.1.dylib */,
 				577BBD3E1562815F00FD577C /* Other Frameworks */,
+				456D19D4166CD386001C044D /* seaf-daemon */,
+				456D19D9166CD38F001C044D /* seafileweb.app */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -544,13 +552,13 @@
 		577BBD421562815F00FD577C /* seafile */ = {
 			isa = PBXGroup;
 			children = (
-				578FA5D9156781FC00EAAC19 /* MAAttachedWindow.h */,
-				578FA5DA156781FC00EAAC19 /* MAAttachedWindow.m */,
 				577BBD4E1562815F00FD577C /* AppDelegate.h */,
 				577BBD4F1562815F00FD577C /* AppDelegate.m */,
+				578FA5D9156781FC00EAAC19 /* MAAttachedWindow.h */,
+				578FA5DA156781FC00EAAC19 /* MAAttachedWindow.m */,
+				577BBD511562815F00FD577C /* MainMenu.xib */,
 				57F70506158321D100C65071 /* platform.h */,
 				577BBD6A15638D8B00FD577C /* platform.m */,
-				577BBD511562815F00FD577C /* MainMenu.xib */,
 				577BBD431562815F00FD577C /* Supporting Files */,
 			);
 			path = seafile;
@@ -674,27 +682,27 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5763F409158B0F50003CCFE7 /* libccnet.0.dylib in Resources */,
-				5763F40A158B0F50003CCFE7 /* libcrypto.1.0.0.dylib in Resources */,
-				5763F40B158B0F50003CCFE7 /* libevent-2.0.5.dylib in Resources */,
-				5763F40C158B0F50003CCFE7 /* libffi.5.dylib in Resources */,
-				5763F40D158B0F50003CCFE7 /* libgio-2.0.0.dylib in Resources */,
-				5763F40E158B0F50003CCFE7 /* libglib-2.0.0.dylib in Resources */,
-				5763F40F158B0F50003CCFE7 /* libgmodule-2.0.0.dylib in Resources */,
-				5763F410158B0F50003CCFE7 /* libgobject-2.0.0.dylib in Resources */,
-				5763F411158B0F50003CCFE7 /* libgthread-2.0.0.dylib in Resources */,
-				5763F412158B0F50003CCFE7 /* libiconv.2.dylib in Resources */,
-				5763F413158B0F50003CCFE7 /* libintl.8.dylib in Resources */,
-				5763F414158B0F50003CCFE7 /* libseafile.0.dylib in Resources */,
-				5763F415158B0F50003CCFE7 /* libsearpc-json-glib.0.dylib in Resources */,
-				5763F416158B0F50003CCFE7 /* libsearpc.1.dylib in Resources */,
-				5763F418158B0F50003CCFE7 /* libssl.1.0.0.dylib in Resources */,
-				5763F419158B0F50003CCFE7 /* libuuid.16.dylib in Resources */,
+				456D1A3D166CEE82001C044D /* libcrypto.1.0.0.dylib in Resources */,
+				456D1A36166CEDBD001C044D /* libsqlite3.0.dylib in Resources */,
+				456D1A37166CEDBD001C044D /* libssl.1.0.0.dylib in Resources */,
+				456D19E2166CEC9F001C044D /* libccnet.0.dylib in Resources */,
+				456D19E4166CEC9F001C044D /* libevent-2.0.5.dylib in Resources */,
+				456D19E5166CEC9F001C044D /* libgio-2.0.0.dylib in Resources */,
+				456D19E6166CEC9F001C044D /* libglib-2.0.0.dylib in Resources */,
+				456D19E7166CEC9F001C044D /* libgmodule-2.0.0.dylib in Resources */,
+				456D19E8166CEC9F001C044D /* libgobject-2.0.0.dylib in Resources */,
+				456D19E9166CEC9F001C044D /* libgthread-2.0.0.dylib in Resources */,
+				456D19EA166CEC9F001C044D /* libiconv.2.dylib in Resources */,
+				456D19EB166CEC9F001C044D /* libintl.8.dylib in Resources */,
+				456D19EC166CEC9F001C044D /* libseafile.0.dylib in Resources */,
+				456D19ED166CEC9F001C044D /* libsearpc-json-glib.0.dylib in Resources */,
+				456D19EE166CEC9F001C044D /* libsearpc.1.dylib in Resources */,
+				456D19F1166CEC9F001C044D /* libuuid.16.dylib in Resources */,
+				456D19F2166CEC9F001C044D /* libz.1.dylib in Resources */,
+				456D19E1166CD405001C044D /* libffi.6.dylib in Resources */,
 				577BBD471562815F00FD577C /* InfoPlist.strings in Resources */,
 				577BBD4D1562815F00FD577C /* Credits.rtf in Resources */,
 				577BBD531562815F00FD577C /* MainMenu.xib in Resources */,
-				578FA5CD15674C1800EAAC19 /* seaf-daemon in Resources */,
-				578FA5CF15674C3300EAAC19 /* ccnet in Resources */,
 				5715F1D8158C233900CA822C /* seafile-release-Info.plist in Resources */,
 				575BD525158D021400F6C6A7 /* network-down.png in Resources */,
 				575BD527158D021400F6C6A7 /* network-rotate1.png in Resources */,
@@ -705,9 +713,11 @@
 				5743817F159B0399003DECFB /* seafilefolder.icns in Resources */,
 				57438182159B249D003DECFB /* seafilerepo.icns in Resources */,
 				57438185159B2CF3003DECFB /* warning.png in Resources */,
-				57266B8F15D6A0B6000AD014 /* seafileweb.app in Resources */,
 				57335CEC160D8DDE00018AE8 /* network-stop.png in Resources */,
 				57A0559E1644BEC0006511AA /* seafile.icns in Resources */,
+				456D1988166CD36E001C044D /* ccnet in Resources */,
+				456D19D5166CD386001C044D /* seaf-daemon in Resources */,
+				456D19DA166CD38F001C044D /* seafileweb.app in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -715,27 +725,27 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5763F42D158B11D3003CCFE7 /* libccnet.0.dylib in Resources */,
-				5763F42E158B11D3003CCFE7 /* libcrypto.1.0.0.dylib in Resources */,
-				5763F42F158B11D3003CCFE7 /* libevent-2.0.5.dylib in Resources */,
-				5763F430158B11D3003CCFE7 /* libffi.5.dylib in Resources */,
-				5763F431158B11D3003CCFE7 /* libgio-2.0.0.dylib in Resources */,
-				5763F432158B11D3003CCFE7 /* libglib-2.0.0.dylib in Resources */,
-				5763F433158B11D3003CCFE7 /* libgmodule-2.0.0.dylib in Resources */,
-				5763F434158B11D3003CCFE7 /* libgobject-2.0.0.dylib in Resources */,
-				5763F435158B11D3003CCFE7 /* libgthread-2.0.0.dylib in Resources */,
-				5763F436158B11D3003CCFE7 /* libiconv.2.dylib in Resources */,
-				5763F437158B11D3003CCFE7 /* libintl.8.dylib in Resources */,
-				5763F438158B11D3003CCFE7 /* libseafile.0.dylib in Resources */,
-				5763F439158B11D3003CCFE7 /* libsearpc-json-glib.0.dylib in Resources */,
-				5763F43A158B11D3003CCFE7 /* libsearpc.1.dylib in Resources */,
-				5763F43C158B11D3003CCFE7 /* libssl.1.0.0.dylib in Resources */,
-				5763F43D158B11D3003CCFE7 /* libuuid.16.dylib in Resources */,
+				456D1A3E166CEE86001C044D /* libcrypto.1.0.0.dylib in Resources */,
+				456D1A34166CEDB5001C044D /* libsqlite3.0.dylib in Resources */,
+				456D1A35166CEDB5001C044D /* libssl.1.0.0.dylib in Resources */,
+				456D19F3166CECAC001C044D /* libccnet.0.dylib in Resources */,
+				456D19F5166CECAC001C044D /* libevent-2.0.5.dylib in Resources */,
+				456D19F6166CECAC001C044D /* libgio-2.0.0.dylib in Resources */,
+				456D19F7166CECAC001C044D /* libglib-2.0.0.dylib in Resources */,
+				456D19F8166CECAC001C044D /* libgmodule-2.0.0.dylib in Resources */,
+				456D19F9166CECAC001C044D /* libgobject-2.0.0.dylib in Resources */,
+				456D19FA166CECAC001C044D /* libgthread-2.0.0.dylib in Resources */,
+				456D19FB166CECAC001C044D /* libiconv.2.dylib in Resources */,
+				456D19FC166CECAC001C044D /* libintl.8.dylib in Resources */,
+				456D19FD166CECAC001C044D /* libseafile.0.dylib in Resources */,
+				456D19FE166CECAC001C044D /* libsearpc-json-glib.0.dylib in Resources */,
+				456D19FF166CECAC001C044D /* libsearpc.1.dylib in Resources */,
+				456D1A02166CECAC001C044D /* libuuid.16.dylib in Resources */,
+				456D1A03166CECAC001C044D /* libz.1.dylib in Resources */,
+				456D19E0166CD3FF001C044D /* libffi.6.dylib in Resources */,
 				579F9C121588F92500570010 /* InfoPlist.strings in Resources */,
 				579F9C131588F92500570010 /* Credits.rtf in Resources */,
 				579F9C141588F92500570010 /* MainMenu.xib in Resources */,
-				579F9C151588F92500570010 /* seaf-daemon in Resources */,
-				579F9C161588F92500570010 /* ccnet in Resources */,
 				575BD526158D021400F6C6A7 /* network-down.png in Resources */,
 				575BD528158D021400F6C6A7 /* network-rotate1.png in Resources */,
 				575BD52A158D021400F6C6A7 /* network-rotate2.png in Resources */,
@@ -745,9 +755,11 @@
 				57438180159B0399003DECFB /* seafilefolder.icns in Resources */,
 				57438183159B249D003DECFB /* seafilerepo.icns in Resources */,
 				57438186159B2CF3003DECFB /* warning.png in Resources */,
-				57266B9015D6A0B6000AD014 /* seafileweb.app in Resources */,
 				57335CED160D8DDE00018AE8 /* network-stop.png in Resources */,
 				57A0559F1644BEC0006511AA /* seafile.icns in Resources */,
+				456D1989166CD36E001C044D /* ccnet in Resources */,
+				456D19D6166CD386001C044D /* seaf-daemon in Resources */,
+				456D19DB166CD38F001C044D /* seafileweb.app in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -755,27 +767,27 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				57DE0A9F15A98E0E006C0152 /* libccnet.0.dylib in Resources */,
-				57DE0AA015A98E0E006C0152 /* libcrypto.1.0.0.dylib in Resources */,
-				57DE0AA115A98E0E006C0152 /* libevent-2.0.5.dylib in Resources */,
-				57DE0AA215A98E0E006C0152 /* libffi.5.dylib in Resources */,
-				57DE0AA315A98E0E006C0152 /* libgio-2.0.0.dylib in Resources */,
-				57DE0AA415A98E0E006C0152 /* libglib-2.0.0.dylib in Resources */,
-				57DE0AA515A98E0E006C0152 /* libgmodule-2.0.0.dylib in Resources */,
-				57DE0AA615A98E0E006C0152 /* libgobject-2.0.0.dylib in Resources */,
-				57DE0AA715A98E0E006C0152 /* libgthread-2.0.0.dylib in Resources */,
-				57DE0AA815A98E0E006C0152 /* libiconv.2.dylib in Resources */,
-				57DE0AA915A98E0E006C0152 /* libintl.8.dylib in Resources */,
-				57DE0AAA15A98E0E006C0152 /* libseafile.0.dylib in Resources */,
-				57DE0AAB15A98E0E006C0152 /* libsearpc-json-glib.0.dylib in Resources */,
-				57DE0AAC15A98E0E006C0152 /* libsearpc.1.dylib in Resources */,
-				57DE0AAD15A98E0E006C0152 /* libssl.1.0.0.dylib in Resources */,
-				57DE0AAE15A98E0E006C0152 /* libuuid.16.dylib in Resources */,
+				456D1A3F166CEE8B001C044D /* libcrypto.1.0.0.dylib in Resources */,
+				456D1A32166CEDAF001C044D /* libsqlite3.0.dylib in Resources */,
+				456D1A33166CEDAF001C044D /* libssl.1.0.0.dylib in Resources */,
+				456D1A04166CECB8001C044D /* libccnet.0.dylib in Resources */,
+				456D1A06166CECB8001C044D /* libevent-2.0.5.dylib in Resources */,
+				456D1A07166CECB8001C044D /* libgio-2.0.0.dylib in Resources */,
+				456D1A08166CECB8001C044D /* libglib-2.0.0.dylib in Resources */,
+				456D1A09166CECB8001C044D /* libgmodule-2.0.0.dylib in Resources */,
+				456D1A0A166CECB8001C044D /* libgobject-2.0.0.dylib in Resources */,
+				456D1A0B166CECB8001C044D /* libgthread-2.0.0.dylib in Resources */,
+				456D1A0C166CECB8001C044D /* libiconv.2.dylib in Resources */,
+				456D1A0D166CECB8001C044D /* libintl.8.dylib in Resources */,
+				456D1A0E166CECB8001C044D /* libseafile.0.dylib in Resources */,
+				456D1A0F166CECB8001C044D /* libsearpc-json-glib.0.dylib in Resources */,
+				456D1A10166CECB8001C044D /* libsearpc.1.dylib in Resources */,
+				456D1A13166CECB8001C044D /* libuuid.16.dylib in Resources */,
+				456D1A14166CECB8001C044D /* libz.1.dylib in Resources */,
+				456D19DE166CD3CB001C044D /* libffi.6.dylib in Resources */,
 				57DE0AAF15A98E0E006C0152 /* InfoPlist.strings in Resources */,
 				57DE0AB015A98E0E006C0152 /* Credits.rtf in Resources */,
 				57DE0AB115A98E0E006C0152 /* MainMenu.xib in Resources */,
-				57DE0AB215A98E0E006C0152 /* seaf-daemon in Resources */,
-				57DE0AB315A98E0E006C0152 /* ccnet in Resources */,
 				57DE0AB515A98E0E006C0152 /* network-down.png in Resources */,
 				57DE0AB615A98E0E006C0152 /* network-rotate1.png in Resources */,
 				57DE0AB715A98E0E006C0152 /* network-rotate2.png in Resources */,
@@ -785,9 +797,11 @@
 				57DE0ABC15A98E0E006C0152 /* seafilefolder.icns in Resources */,
 				57DE0ABD15A98E0E006C0152 /* seafilerepo.icns in Resources */,
 				57DE0ABE15A98E0E006C0152 /* warning.png in Resources */,
-				57266B9115D6A0B6000AD014 /* seafileweb.app in Resources */,
 				57335CEE160D8DDE00018AE8 /* network-stop.png in Resources */,
 				57A055A01644BEC0006511AA /* seafile.icns in Resources */,
+				456D198A166CD36E001C044D /* ccnet in Resources */,
+				456D19D7166CD386001C044D /* seaf-daemon in Resources */,
+				456D19DC166CD38F001C044D /* seafileweb.app in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -795,27 +809,27 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				57DE0AE815A9AA89006C0152 /* libccnet.0.dylib in Resources */,
-				57DE0AE915A9AA89006C0152 /* libcrypto.1.0.0.dylib in Resources */,
-				57DE0AEA15A9AA89006C0152 /* libevent-2.0.5.dylib in Resources */,
-				57DE0AEB15A9AA89006C0152 /* libffi.5.dylib in Resources */,
-				57DE0AEC15A9AA89006C0152 /* libgio-2.0.0.dylib in Resources */,
-				57DE0AED15A9AA89006C0152 /* libglib-2.0.0.dylib in Resources */,
-				57DE0AEE15A9AA89006C0152 /* libgmodule-2.0.0.dylib in Resources */,
-				57DE0AEF15A9AA89006C0152 /* libgobject-2.0.0.dylib in Resources */,
-				57DE0AF015A9AA89006C0152 /* libgthread-2.0.0.dylib in Resources */,
-				57DE0AF115A9AA89006C0152 /* libiconv.2.dylib in Resources */,
-				57DE0AF215A9AA89006C0152 /* libintl.8.dylib in Resources */,
-				57DE0AF315A9AA89006C0152 /* libseafile.0.dylib in Resources */,
-				57DE0AF415A9AA89006C0152 /* libsearpc-json-glib.0.dylib in Resources */,
-				57DE0AF515A9AA89006C0152 /* libsearpc.1.dylib in Resources */,
-				57DE0AF615A9AA89006C0152 /* libssl.1.0.0.dylib in Resources */,
-				57DE0AF715A9AA89006C0152 /* libuuid.16.dylib in Resources */,
+				456D1A40166CEE90001C044D /* libcrypto.1.0.0.dylib in Resources */,
+				456D1A30166CEDA9001C044D /* libsqlite3.0.dylib in Resources */,
+				456D1A31166CEDA9001C044D /* libssl.1.0.0.dylib in Resources */,
+				456D1A15166CECC1001C044D /* libccnet.0.dylib in Resources */,
+				456D1A17166CECC1001C044D /* libevent-2.0.5.dylib in Resources */,
+				456D1A18166CECC1001C044D /* libgio-2.0.0.dylib in Resources */,
+				456D1A19166CECC1001C044D /* libglib-2.0.0.dylib in Resources */,
+				456D1A1A166CECC1001C044D /* libgmodule-2.0.0.dylib in Resources */,
+				456D1A1B166CECC1001C044D /* libgobject-2.0.0.dylib in Resources */,
+				456D1A1C166CECC1001C044D /* libgthread-2.0.0.dylib in Resources */,
+				456D1A1D166CECC1001C044D /* libiconv.2.dylib in Resources */,
+				456D1A1E166CECC1001C044D /* libintl.8.dylib in Resources */,
+				456D1A1F166CECC1001C044D /* libseafile.0.dylib in Resources */,
+				456D1A20166CECC1001C044D /* libsearpc-json-glib.0.dylib in Resources */,
+				456D1A21166CECC1001C044D /* libsearpc.1.dylib in Resources */,
+				456D1A24166CECC1001C044D /* libuuid.16.dylib in Resources */,
+				456D1A25166CECC1001C044D /* libz.1.dylib in Resources */,
+				456D19DF166CD3F8001C044D /* libffi.6.dylib in Resources */,
 				57DE0AF815A9AA89006C0152 /* InfoPlist.strings in Resources */,
 				57DE0AF915A9AA89006C0152 /* Credits.rtf in Resources */,
 				57DE0AFA15A9AA89006C0152 /* MainMenu.xib in Resources */,
-				57DE0AFB15A9AA89006C0152 /* seaf-daemon in Resources */,
-				57DE0AFC15A9AA89006C0152 /* ccnet in Resources */,
 				57DE0AFE15A9AA89006C0152 /* network-down.png in Resources */,
 				57DE0AFF15A9AA89006C0152 /* network-rotate1.png in Resources */,
 				57DE0B0015A9AA89006C0152 /* network-rotate2.png in Resources */,
@@ -825,9 +839,11 @@
 				57DE0B0515A9AA89006C0152 /* seafilefolder.icns in Resources */,
 				57DE0B0615A9AA89006C0152 /* seafilerepo.icns in Resources */,
 				57DE0B0715A9AA89006C0152 /* warning.png in Resources */,
-				57266B9215D6A0B6000AD014 /* seafileweb.app in Resources */,
 				57335CEF160D8DDE00018AE8 /* network-stop.png in Resources */,
 				57A055A11644BEC0006511AA /* seafile.icns in Resources */,
+				456D198B166CD36E001C044D /* ccnet in Resources */,
+				456D19D8166CD386001C044D /* seaf-daemon in Resources */,
+				456D19DD166CD38F001C044D /* seafileweb.app in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

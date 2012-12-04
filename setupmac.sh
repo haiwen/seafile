@@ -6,13 +6,13 @@ top_dir=${PWD}
 exts=" /usr/lib/libresolv.9.dylib /usr/lib/libSystem.B.dylib /usr/lib/system/libcache.dylib /usr/lib/system/libcommonCrypto.dylib /usr/lib/system/libcompiler_rt.dylib /usr/lib/system/libcopyfile.dylib /usr/lib/system/libdispatch.dylib /usr/lib/system/libdnsinfo.dylib /usr/lib/system/libdyld.dylib /usr/lib/system/libkeymgr.dylib /usr/lib/system/liblaunch.dylib /usr/lib/system/libmacho.dylib /usr/lib/system/libmathCommon.A.dylib /usr/lib/system/libquarantine.dylib /usr/lib/system/libremovefile.dylib /usr/lib/system/libsystem_blocks.dylib /usr/lib/system/libsystem_c.dylib /usr/lib/system/libsystem_dnssd.dylib /usr/lib/system/libsystem_info.dylib /usr/lib/system/libsystem_kernel.dylib /usr/lib/system/libsystem_network.dylib /usr/lib/system/libsystem_notify.dylib /usr/lib/system/libsystem_sandbox.dylib /usr/lib/system/libunc.dylib /usr/lib/system/libunwind.dylib /usr/lib/system/libxpc.dylib /usr/lib/libobjc.A.dylib"
 
 
-dylibs_com="/usr/local/lib/libccnet.0.dylib /usr/local/lib/libseafile.0.dylib /usr/local/lib/libsearpc.1.dylib /usr/local/lib/libsearpc-json-glib.0.dylib /opt/local/lib/libcrypto.1.0.0.dylib /opt/local/lib/libuuid.16.dylib /opt/local/lib/libevent-2.0.5.dylib /opt/local/lib/libssl.1.0.0.dylib /opt/local/lib/libgio-2.0.0.dylib /opt/local/lib/libgmodule-2.0.0.dylib /opt/local/lib/libgobject-2.0.0.dylib /opt/local/lib/libgthread-2.0.0.dylib /opt/local/lib/libffi.5.dylib /opt/local/lib/libglib-2.0.0.dylib /opt/local/lib/libintl.8.dylib /opt/local/lib/libiconv.2.dylib"
+dylibs_com="/usr/local/lib/libccnet.0.dylib /usr/local/lib/libseafile.0.dylib /usr/local/lib/libsearpc.1.dylib /usr/local/lib/libsearpc-json-glib.0.dylib /opt/local/lib/libcrypto.1.0.0.dylib /opt/local/lib/libuuid.16.dylib /opt/local/lib/libevent-2.0.5.dylib /opt/local/lib/libssl.1.0.0.dylib /opt/local/lib/libgio-2.0.0.dylib /opt/local/lib/libgmodule-2.0.0.dylib /opt/local/lib/libgobject-2.0.0.dylib /opt/local/lib/libgthread-2.0.0.dylib /opt/local/lib/libffi.6.dylib /opt/local/lib/libglib-2.0.0.dylib /opt/local/lib/libintl.8.dylib /opt/local/lib/libiconv.2.dylib /opt/local/lib/libsqlite3.0.dylib /opt/local/lib/libz.1.dylib"
 
-dylibs_orig=$dylibs_com" /opt/local/lib/libsqlite3.0.8.6.dylib /opt/local/lib/libz.1.2.7.dylib"
+dylibs_orig=$dylibs_com
 
 all_orig=$dylibs_orig" /usr/local/bin/ccnet /usr/local/bin/seaf-daemon"
 
-dylibs=$dylibs_com" /opt/local/lib/libsqlite3.0.dylib /opt/local/lib/libz.1.dylib"
+dylibs=$dylibs_com
 all=$dylibs" /usr/local/bin/ccnet /usr/local/bin/seaf-daemon"
 
 while [ $# -ge 1 ]; do
@@ -37,11 +37,9 @@ while [ $# -ge 1 ]; do
           chmod 0744 $base
       done
 
-      mv libsqlite3.0.8.6.dylib libsqlite3.0.dylib
-      mv libz.1.2.7.dylib libz.1.dylib
-
       for var in $all ; do
           dyexe=$(basename "$var")
+          echo "Deal with "$dyexe
           for libpath in $dylibs ; do
               lib=$(basename $libpath)
               if [ "$lib" = "$dyexe" ] ; then

@@ -8,8 +8,6 @@ Usage:
     python setup.py py2app
 """
 import os
-import shutil
-
 from setuptools import setup
 
 VERSION='1.2'
@@ -31,9 +29,7 @@ OPTIONS = {"packages":PACKAGES, "includes":INCLUDES,
 destdir = "dist/seafileweb.app/Contents/Resources/"
 
 try:
-    shutil.rmtree("dist")
-    shutil.rmtree("build")
-    shutil.copy("main.py", targetfile)
+    os.system("rm -rf diet; rm -rf build; cp main.py "+ targetfile)
 except Exception, e:
     pass    
 
@@ -45,7 +41,7 @@ setup(
     setup_requires=['py2app'],
 )
 
+os.system ("cp -rf i18n "+destdir + "i18n")
+os.system ("cp -rf static "+destdir + "static")
+os.system ("cp -rf templates "+destdir + "templates")
 
-shutil.copytree("i18n", destdir + "i18n")
-shutil.copytree("static", destdir + "static")
-shutil.copytree("templates", destdir + "templates")
