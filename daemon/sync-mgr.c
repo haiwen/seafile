@@ -640,6 +640,7 @@ merge_job_done (void *vresult)
                                              repo->id,
                                              REPO_REMOTE_HEAD,
                                              master->commit_id);
+        seaf_branch_unref (master);
     }
 
     if (res->success && res->real_merge)
