@@ -624,11 +624,30 @@ merge_job_done (void *vresult)
         }
     }
 
+    if (res->success) {
+        SeafBranch *master = seaf_branch_manager_get_branch (seaf->branch_mgr,
+                                                             repo->id,
+                                                             "master");
+        if (!master) {
+            seaf_warning ("[sync mgr] master branch doesn't exist.\n");
+            seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_DATA_CORRUPT);
+            goto out;
+        }
+        /* Save head commit id of master branch for GC, since we've
+         * checked out the blocks on the master branch.
+         */
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             REPO_REMOTE_HEAD,
+                                             master->commit_id);
+    }
+
     if (res->success && res->real_merge)
         start_upload_if_necessary (info->current_task);
     else
         transition_sync_state (info->current_task, SYNC_STATE_DONE);
 
+out:
     g_free (res);
 }
 
@@ -1409,11 +1428,16 @@ on_repo_uploaded (SeafileSession *seaf,
 
     if (tx_task->state == TASK_STATE_FINISHED) {
         memcpy (info->head_commit, tx_task->head, 41);
-        transition_sync_state (task, SYNC_STATE_DONE);
 
+        /* Save current head commit id for GC. */
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             task->repo->id,
+                                             REPO_REMOTE_HEAD,
+                                             task->repo->head->commit_id);
+
+        transition_sync_state (task, SYNC_STATE_DONE);
     } else if (tx_task->state == TASK_STATE_CANCELED) {
         transition_sync_state (task, SYNC_STATE_CANCELED);
-        
     } else if (tx_task->state == TASK_STATE_ERROR) {
         if (tx_task->error == TASK_ERR_ACCESS_DENIED) {
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_ACCESS_DENIED);

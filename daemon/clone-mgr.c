@@ -1211,6 +1211,7 @@ merge_job_done (void *data)
 {
     MergeAux *aux = data;
     CloneTask *task = aux->task;
+    SeafRepo *repo = aux->repo;
 
     if (!aux->success) {
         g_free (aux);
@@ -1224,9 +1225,14 @@ merge_job_done (void *data)
 
     if (task->state == CLONE_STATE_CANCEL_PENDING)
         transition_state (task, CLONE_STATE_CANCELED);
-    else if (task->state == CLONE_STATE_MERGE)
+    else if (task->state == CLONE_STATE_MERGE) {
+        /* Save repo head if for GC. */
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             REPO_REMOTE_HEAD,
+                                             repo->head->commit_id);
         transition_state (task, CLONE_STATE_DONE);
-    else
+    } else
         g_assert (0);
 
     g_free (aux);
@@ -1331,8 +1337,13 @@ on_checkout_done (CheckoutTask *ctask, SeafRepo *repo, void *data)
 
     if (task->state == CLONE_STATE_CANCEL_PENDING)
         transition_state (task, CLONE_STATE_CANCELED);
-    else if (task->state == CLONE_STATE_CHECKOUT)
+    else if (task->state == CLONE_STATE_CHECKOUT) {
+        /* Save repo head if for GC. */
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             REPO_REMOTE_HEAD,
+                                             repo->head->commit_id);
         transition_state (task, CLONE_STATE_DONE);
-    else
+    } else
         g_assert (0);
 }

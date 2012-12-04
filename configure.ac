@@ -410,13 +410,13 @@ if test "${compile_server}" = "yes"; then
    saved_CPPFLAGS=$CPPFLAGS
    saved_LDFLAGS=$LDFLAGS
    CPPFLAGS="$MYSQL_CFLAGS $CPPFLAGS"
-   LDFLAGS＝"$MYSQL_LIBS $LDFLAGS"
+   LDFLAGS="$MYSQL_LIBS $LDFLAGS"
     
    AC_CHECK_LIB(mysqlclient, mysql_init, [echo "found library mysqlclient"],
       AC_MSG_ERROR([*** Unable to find mysql client library]), )
       
    CPPFLAGS=$saved_CPPFLAGS
-   LDFLAGS＝$saved_LDFLAGS
+   LDFLAGS=$saved_LDFLAGS
 
    AC_SUBST(MYSQL_LIBS)
    AC_SUBST(MYSQL_CFLAGS)
