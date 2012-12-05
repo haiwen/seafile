@@ -11,7 +11,7 @@
 @interface AppDelegate : NSObject <NSApplicationDelegate> {
     IBOutlet NSMenu *statusMenu;
 
-    @public
+@public
     CFRunLoopRef loop;
     NSImage *statusImage[3];
     NSImage *transferImage[4];
@@ -39,29 +39,29 @@
 
 
 
-- (IBAction)open_browser:(id)sender;
-- (IBAction)restart:(id)sender;
-- (IBAction)quit:(id)sender;
-- (IBAction)openSeafileSite:(id)sender;
-- (IBAction)enableAutoSync:(id)sender;
-- (IBAction)disableAutoSync:(id)sender;
+- (IBAction)open_browser: (id)sender;
+- (IBAction)restart: (id)sender;
+- (IBAction)quit: (id)sender;
+- (IBAction)openSeafileSite: (id)sender;
+- (IBAction)enableAutoSync: (id)sender;
+- (IBAction)disableAutoSync: (id)sender;
 
 
-- (IBAction)initseafile_ok:(id)sender;
-- (IBAction)initseafile_cancel:(id)sender;
-- (IBAction)initseafile_choose_dir:(id)sender;
+- (IBAction)initseafile_ok: (id)sender;
+- (IBAction)initseafile_cancel: (id)sender;
+- (IBAction)initseafile_choose_dir: (id)sender;
 
-- (void) popup_bubble :(const char *)title message:(const char *) msg;
+- (void)popup_bubble: (const char *)title message: (const char *)msg;
 
-- (int) show_initseafile_window;
+- (int)show_initseafile_window;
 
-- (void) add_dir_to_sidebar:(NSString *) appPath;
-- (void) add_conn_server_timer:(int) timeout_ms;
-- (void) add_open_browser_timer:(int) timeout_ms;
-- (void) del_open_browser_timer;
-- (void) add_trayicon_rotate_timer:(int) timeout_ms;
-- (void) add_heartbeat_monitor_timer:(int) timeout_ms;
-- (void) add_app_as_login_item:(NSString *) appPath;
-- (void) del_app_from_login_item:(NSString *) appPath;
+- (void)add_dir_to_sidebar: (NSString *)appPath;
+- (void)add_conn_server_timer: (int)timeout_ms;
+- (void)add_open_browser_timer: (int)timeout_ms;
+- (void)del_open_browser_timer;
+- (void)add_trayicon_rotate_timer: (int)timeout_ms;
+- (void)add_heartbeat_monitor_timer: (int)timeout_ms;
+- (void)add_app_as_login_item: (NSString *)appPath;
+- (void)del_app_from_login_item: (NSString *)appPath;
 
 @end

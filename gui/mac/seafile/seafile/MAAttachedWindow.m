@@ -15,7 +15,7 @@
 - (void)_updateBackground;
 - (NSColor *)_backgroundColorPatternImage;
 - (NSBezierPath *)_backgroundPath;
-- (void)_appendArrowToPath:(NSBezierPath *)path;
+- (void)_appendArrowToPath: (NSBezierPath *)path;
 - (void)_redisplay;
 
 @end
@@ -26,11 +26,11 @@
 #pragma mark Initializers
 
 
-- (MAAttachedWindow *)initWithView:(NSView *)view
-                   attachedToPoint:(NSPoint)point
-                          inWindow:(NSWindow *)window
-                            onSide:(MAWindowPosition)side
-                        atDistance:(float)distance
+- (MAAttachedWindow *)initWithView: (NSView *)view
+                   attachedToPoint: (NSPoint)point
+                          inWindow: (NSWindow *)window
+                            onSide: (MAWindowPosition)side
+                        atDistance: (float)distance
 {
     // Insist on having a valid view.
     if (!view) {
@@ -41,10 +41,10 @@
     NSRect contentRect = NSZeroRect;
     contentRect.size = [view frame].size;
 
-    if ((self = [super initWithContentRect:contentRect
-                                styleMask:NSBorderlessWindowMask
-                                  backing:NSBackingStoreBuffered
-                                    defer:NO])) {
+    if ((self = [super initWithContentRect: contentRect
+                                 styleMask: NSBorderlessWindowMask
+                                   backing: NSBackingStoreBuffered
+                                     defer: NO])) {
         _view = view;
         _window = window;
         _point = point;
@@ -52,13 +52,13 @@
         _distance = distance;
 
         // Configure window characteristics.
-        [super setBackgroundColor:[NSColor clearColor]];
-        [self setMovableByWindowBackground:NO];
-        [self setExcludedFromWindowsMenu:YES];
-        [self setAlphaValue:1.0];
-        [self setOpaque:NO];
-        [self setHasShadow:YES];
-        [self useOptimizedDrawing:YES];
+        [super setBackgroundColor: [NSColor clearColor]];
+        [self setMovableByWindowBackground: NO];
+        [self setExcludedFromWindowsMenu: YES];
+        [self setAlphaValue: 1.0];
+        [self setOpaque: NO];
+        [self setHasShadow: YES];
+        [self useOptimizedDrawing: YES];
 
         // Set up some sensible defaults for display.
         _MABackgroundColor = [MAATTACHEDWINDOW_DEFAULT_BACKGROUND_COLOR copy];
@@ -84,82 +84,94 @@
         [self _updateBackground];
 
         // Add view as subview of our contentView.
-        [[self contentView] addSubview:_view];
+        [[self contentView] addSubview: _view];
 
         // Subscribe to notifications for when we change size.
-        [[NSNotificationCenter defaultCenter] addObserver:self
-                                                 selector:@selector(windowDidResize:)
-                                                     name:NSWindowDidResizeNotification
-                                                   object:self];
+        [[NSNotificationCenter defaultCenter] addObserver: self
+                                                 selector: @selector(windowDidResize:)
+                                                     name: NSWindowDidResizeNotification
+                                                   object: self];
     }
     return self;
 }
 
 
-- (MAAttachedWindow *)initWithView:(NSView *)view
-                   attachedToPoint:(NSPoint)point
-                          inWindow:(NSWindow *)window
-                        atDistance:(float)distance
+- (MAAttachedWindow *)initWithView: (NSView *)view
+                   attachedToPoint: (NSPoint)point
+                          inWindow: (NSWindow *)window
+                        atDistance: (float)distance
 {
-    return [self initWithView:view attachedToPoint:point
-                     inWindow:window onSide:MAPositionAutomatic
-                   atDistance:distance];
+    return [self initWithView: view
+              attachedToPoint: point
+                     inWindow: window
+                       onSide: MAPositionAutomatic
+                   atDistance: distance];
 }
 
 
-- (MAAttachedWindow *)initWithView:(NSView *)view
-                   attachedToPoint:(NSPoint)point
-                            onSide:(MAWindowPosition)side
-                        atDistance:(float)distance
+- (MAAttachedWindow *)initWithView: (NSView *)view
+                   attachedToPoint: (NSPoint)point
+                            onSide: (MAWindowPosition)side
+                        atDistance: (float)distance
 {
-    return [self initWithView:view attachedToPoint:point
-                     inWindow:nil onSide:side
-                   atDistance:distance];
+    return [self initWithView: view
+              attachedToPoint: point
+                     inWindow: nil
+                       onSide: side
+                   atDistance: distance];
 }
 
 
-- (MAAttachedWindow *)initWithView:(NSView *)view
-                   attachedToPoint:(NSPoint)point
-                        atDistance:(float)distance
+- (MAAttachedWindow *)initWithView: (NSView *)view
+                   attachedToPoint: (NSPoint)point
+                        atDistance: (float)distance
 {
-    return [self initWithView:view attachedToPoint:point
-                     inWindow:nil onSide:MAPositionAutomatic
-                   atDistance:distance];
+    return [self initWithView: view
+              attachedToPoint: point
+                     inWindow: nil
+                       onSide: MAPositionAutomatic
+                   atDistance: distance];
 }
 
 
-- (MAAttachedWindow *)initWithView:(NSView *)view
-                   attachedToPoint:(NSPoint)point
-                          inWindow:(NSWindow *)window
+- (MAAttachedWindow *)initWithView: (NSView *)view
+                   attachedToPoint: (NSPoint)point
+                          inWindow: (NSWindow *)window
 {
-    return [self initWithView:view attachedToPoint:point
-                     inWindow:window onSide:MAPositionAutomatic
-                   atDistance:0];
+    return [self initWithView: view
+              attachedToPoint: point
+                     inWindow: window
+                       onSide: MAPositionAutomatic
+                   atDistance: 0];
 }
 
 
-- (MAAttachedWindow *)initWithView:(NSView *)view
-                   attachedToPoint:(NSPoint)point
-                            onSide:(MAWindowPosition)side
+- (MAAttachedWindow *)initWithView: (NSView *)view
+                   attachedToPoint: (NSPoint)point
+                            onSide: (MAWindowPosition)side
 {
-    return [self initWithView:view attachedToPoint:point
-                     inWindow:nil onSide:side
-                   atDistance:0];
+    return [self initWithView: view
+              attachedToPoint: point
+                     inWindow: nil
+                       onSide: side
+                   atDistance: 0];
 }
 
 
-- (MAAttachedWindow *)initWithView:(NSView *)view
-                   attachedToPoint:(NSPoint)point
+- (MAAttachedWindow *)initWithView: (NSView *)view
+                   attachedToPoint: (NSPoint)point
 {
-    return [self initWithView:view attachedToPoint:point
-                     inWindow:nil onSide:MAPositionAutomatic
-                   atDistance:0];
+    return [self initWithView: view
+              attachedToPoint: point
+                     inWindow: nil
+                       onSide: MAPositionAutomatic
+                   atDistance: 0];
 }
 
 
 - (void)dealloc
 {
-    [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [[NSNotificationCenter defaultCenter] removeObserver: self];
     [borderColor release];
     [_MABackgroundColor release];
 
@@ -216,7 +228,7 @@
     }
 
     // Position frame origin appropriately for _side, accounting for arrow-inset.
-    contentRect.origin = (_window) ? [_window convertBaseToScreen:_point] : _point;
+    contentRect.origin = (_window) ? [_window convertBaseToScreen: _point]:  _point;
     float arrowInset = [self _arrowInset];
     float halfWidth = contentRect.size.width / 2.0;
     float halfHeight = contentRect.size.height / 2.0;
@@ -294,8 +306,8 @@
     }
 
     // Reconfigure window and view frames appropriately.
-    [self setFrame:contentRect display:NO];
-    [_view setFrame:_viewFrame];
+    [self setFrame: contentRect display: NO];
+    [_view setFrame: _viewFrame];
 }
 
 
@@ -306,9 +318,9 @@
     if (_window && [_window screen]) {
         screenFrame = [[_window screen] visibleFrame];
     } else {
-         screenFrame = [[NSScreen mainScreen] visibleFrame];
+        screenFrame = [[NSScreen mainScreen] visibleFrame];
     }
-    NSPoint pointOnScreen = (_window) ? [_window convertBaseToScreen:_point] : _point;
+    NSPoint pointOnScreen = (_window) ? [_window convertBaseToScreen: _point] : _point;
     NSSize viewSize = [_view frame].size;
     viewSize.width += (viewMargin * MAATTACHEDWINDOW_SCALE_FACTOR) * 2.0;
     viewSize.height += (viewMargin * MAATTACHEDWINDOW_SCALE_FACTOR) * 2.0;
@@ -337,7 +349,7 @@
     float halfWidth = viewSize.width / 2.0;
     float halfHeight = viewSize.height / 2.0;
 
-    NSRect parentFrame = (_window) ? [_window frame] : screenFrame;
+    NSRect parentFrame = (_window) ? [_window frame]: screenFrame;
     float arrowInset = [self _arrowInset];
 
     // We're currently at a primary side.
@@ -410,26 +422,24 @@
 
 
 #pragma mark Drawing
-
-
 - (void)_updateBackground
 {
     // Call NSWindow's implementation of -setBackgroundColor: because we override
     // it in this class to let us set the entire background image of the window
     // as an NSColor patternImage.
-    NSDisableScreenUpdates();
-    [super setBackgroundColor:[self _backgroundColorPatternImage]];
+    NSDisableScreenUpdates ();
+    [super setBackgroundColor: [self _backgroundColorPatternImage]];
     if ([self isVisible]) {
         [self display];
         [self invalidateShadow];
     }
-    NSEnableScreenUpdates();
+    NSEnableScreenUpdates ();
 }
 
 
 - (NSColor *)_backgroundColorPatternImage
 {
-    NSImage *bg = [[NSImage alloc] initWithSize:[self frame].size];
+    NSImage *bg = [[NSImage alloc] initWithSize: [self frame].size];
     NSRect bgRect = NSZeroRect;
     bgRect.size = [bg size];
 
@@ -445,7 +455,7 @@
     // Draw border if appropriate.
     if (borderWidth > 0) {
         // Double the borderWidth since we're drawing inside the path.
-        [bgPath setLineWidth:(borderWidth * 2.0) * MAATTACHEDWINDOW_SCALE_FACTOR];
+        [bgPath setLineWidth: (borderWidth * 2.0) * MAATTACHEDWINDOW_SCALE_FACTOR];
         [borderColor set];
         [bgPath stroke];
     }
@@ -453,7 +463,7 @@
     [NSGraphicsContext restoreGraphicsState];
     [bg unlockFocus];
 
-    return [NSColor colorWithPatternImage:[bg autorelease]];
+    return [NSColor colorWithPatternImage: [bg autorelease]];
 }
 
 
@@ -484,7 +494,7 @@
     float maxY = NSMaxY(contentArea) * scaleFactor;
 
     NSBezierPath *path = [NSBezierPath bezierPath];
-    [path setLineJoinStyle:NSRoundLineJoinStyle];
+    [path setLineJoinStyle: NSRoundLineJoinStyle];
 
     // Begin at top-left. This will be either after the rounded corner, or
     // at the top-left point if cornerRadius is zero and/or we're drawing
@@ -492,7 +502,7 @@
     NSPoint currPt = NSMakePoint(minX, maxY);
     if (scaledRadius > 0 &&
         (drawsRoundCornerBesideArrow ||
-            (_side != MAPositionBottomRight && _side != MAPositionRightBottom))
+         (_side != MAPositionBottomRight && _side != MAPositionRightBottom))
         ) {
         currPt.x += scaledRadius;
     }
@@ -507,31 +517,31 @@
         shouldDrawNextCorner = YES;
     }
 
-    [path moveToPoint:currPt];
+    [path moveToPoint: currPt];
 
     // If arrow should be drawn at top-left point, draw it.
     if (_side == MAPositionBottomRight) {
-        [self _appendArrowToPath:path];
+        [self _appendArrowToPath: path];
     } else if (_side == MAPositionBottom) {
         // Line to relevant point before arrow.
-        [path lineToPoint:NSMakePoint(midX - halfArrowWidth, maxY)];
+        [path lineToPoint: NSMakePoint(midX - halfArrowWidth, maxY)];
         // Draw arrow.
-        [self _appendArrowToPath:path];
+        [self _appendArrowToPath: path];
     } else if (_side == MAPositionBottomLeft) {
         // Line to relevant point before arrow.
-        [path lineToPoint:NSMakePoint(endOfLine.x - scaledArrowWidth, maxY)];
+        [path lineToPoint: NSMakePoint(endOfLine.x - scaledArrowWidth, maxY)];
         // Draw arrow.
-        [self _appendArrowToPath:path];
+        [self _appendArrowToPath: path];
     }
 
     // Line to end of this side.
-    [path lineToPoint:endOfLine];
+    [path lineToPoint: endOfLine];
 
     // Rounded corner on top-right.
     if (shouldDrawNextCorner) {
-        [path appendBezierPathWithArcFromPoint:NSMakePoint(maxX, maxY)
-                                       toPoint:NSMakePoint(maxX, maxY - scaledRadius)
-                                        radius:scaledRadius];
+        [path appendBezierPathWithArcFromPoint: NSMakePoint(maxX, maxY)
+                                       toPoint: NSMakePoint(maxX, maxY - scaledRadius)
+                                        radius: scaledRadius];
     }
 
 
@@ -548,27 +558,27 @@
 
     // If arrow should be drawn at right-top point, draw it.
     if (_side == MAPositionLeftBottom) {
-        [self _appendArrowToPath:path];
+        [self _appendArrowToPath: path];
     } else if (_side == MAPositionLeft) {
         // Line to relevant point before arrow.
-        [path lineToPoint:NSMakePoint(maxX, midY + halfArrowWidth)];
+        [path lineToPoint: NSMakePoint(maxX, midY + halfArrowWidth)];
         // Draw arrow.
-        [self _appendArrowToPath:path];
+        [self _appendArrowToPath: path];
     } else if (_side == MAPositionLeftTop) {
         // Line to relevant point before arrow.
-        [path lineToPoint:NSMakePoint(maxX, endOfLine.y + scaledArrowWidth)];
+        [path lineToPoint: NSMakePoint(maxX, endOfLine.y + scaledArrowWidth)];
         // Draw arrow.
-        [self _appendArrowToPath:path];
+        [self _appendArrowToPath: path];
     }
 
     // Line to end of this side.
-    [path lineToPoint:endOfLine];
+    [path lineToPoint: endOfLine];
 
     // Rounded corner on bottom-right.
     if (shouldDrawNextCorner) {
-        [path appendBezierPathWithArcFromPoint:NSMakePoint(maxX, minY)
-                                       toPoint:NSMakePoint(maxX - scaledRadius, minY)
-                                        radius:scaledRadius];
+        [path appendBezierPathWithArcFromPoint: NSMakePoint(maxX, minY)
+                                       toPoint: NSMakePoint(maxX - scaledRadius, minY)
+                                        radius: scaledRadius];
     }
 
 
@@ -585,27 +595,27 @@
 
     // If arrow should be drawn at bottom-right point, draw it.
     if (_side == MAPositionTopLeft) {
-        [self _appendArrowToPath:path];
+        [self _appendArrowToPath: path];
     } else if (_side == MAPositionTop) {
         // Line to relevant point before arrow.
-        [path lineToPoint:NSMakePoint(midX + halfArrowWidth, minY)];
+        [path lineToPoint: NSMakePoint(midX + halfArrowWidth, minY)];
         // Draw arrow.
-        [self _appendArrowToPath:path];
+        [self _appendArrowToPath: path];
     } else if (_side == MAPositionTopRight) {
         // Line to relevant point before arrow.
-        [path lineToPoint:NSMakePoint(endOfLine.x + scaledArrowWidth, minY)];
+        [path lineToPoint: NSMakePoint(endOfLine.x + scaledArrowWidth, minY)];
         // Draw arrow.
-        [self _appendArrowToPath:path];
+        [self _appendArrowToPath: path];
     }
 
     // Line to end of this side.
-    [path lineToPoint:endOfLine];
+    [path lineToPoint: endOfLine];
 
     // Rounded corner on bottom-left.
     if (shouldDrawNextCorner) {
-        [path appendBezierPathWithArcFromPoint:NSMakePoint(minX, minY)
-                                       toPoint:NSMakePoint(minX, minY + scaledRadius)
-                                        radius:scaledRadius];
+        [path appendBezierPathWithArcFromPoint: NSMakePoint(minX, minY)
+                                       toPoint: NSMakePoint(minX, minY + scaledRadius)
+                                        radius: scaledRadius];
     }
 
 
@@ -622,27 +632,27 @@
 
     // If arrow should be drawn at left-bottom point, draw it.
     if (_side == MAPositionRightTop) {
-        [self _appendArrowToPath:path];
+        [self _appendArrowToPath: path];
     } else if (_side == MAPositionRight) {
         // Line to relevant point before arrow.
-        [path lineToPoint:NSMakePoint(minX, midY - halfArrowWidth)];
+        [path lineToPoint: NSMakePoint(minX, midY - halfArrowWidth)];
         // Draw arrow.
-        [self _appendArrowToPath:path];
+        [self _appendArrowToPath: path];
     } else if (_side == MAPositionRightBottom) {
         // Line to relevant point before arrow.
-        [path lineToPoint:NSMakePoint(minX, endOfLine.y - scaledArrowWidth)];
+        [path lineToPoint: NSMakePoint(minX, endOfLine.y - scaledArrowWidth)];
         // Draw arrow.
-        [self _appendArrowToPath:path];
+        [self _appendArrowToPath: path];
     }
 
     // Line to end of this side.
-    [path lineToPoint:endOfLine];
+    [path lineToPoint: endOfLine];
 
     // Rounded corner on top-left.
     if (shouldDrawNextCorner) {
-        [path appendBezierPathWithArcFromPoint:NSMakePoint(minX, maxY)
-                                       toPoint:NSMakePoint(minX + scaledRadius, maxY)
-                                        radius:scaledRadius];
+        [path appendBezierPathWithArcFromPoint: NSMakePoint(minX, maxY)
+                                       toPoint: NSMakePoint(minX + scaledRadius, maxY)
+                                        radius: scaledRadius];
     }
 
     [path closePath];
@@ -650,7 +660,7 @@
 }
 
 
-- (void)_appendArrowToPath:(NSBezierPath *)path
+- (void)_appendArrowToPath: (NSBezierPath *)path
 {
     if (!hasArrow) {
         return;
@@ -702,8 +712,8 @@
             break; // won't happen, but this satisfies gcc with -Wall
     }
 
-    [path lineToPoint:tipPt];
-    [path lineToPoint:endPt];
+    [path lineToPoint: tipPt];
+    [path lineToPoint: endPt];
 }
 
 
@@ -743,21 +753,21 @@
 }
 
 
-- (BOOL)validateMenuItem:(NSMenuItem *)item
+- (BOOL)validateMenuItem: (NSMenuItem *)item
 {
     if (_window) {
-        return [_window validateMenuItem:item];
+        return [_window validateMenuItem: item];
     }
-    return [super validateMenuItem:item];
+    return [super validateMenuItem: item];
 }
 
 
-- (IBAction)performClose:(id)sender
+- (IBAction)performClose: (id)sender
 {
     if (_window) {
-        [_window performClose:sender];
+        [_window performClose: sender];
     } else {
-        [super performClose:sender];
+        [super performClose: sender];
     }
 }
 
@@ -765,7 +775,7 @@
 # pragma mark Notification handlers
 
 
-- (void)windowDidResize:(NSNotification *)note
+- (void)windowDidResize: (NSNotification *)note
 {
     [self _redisplay];
 }
@@ -774,12 +784,14 @@
 #pragma mark Accessors
 
 
-- (NSColor *)windowBackgroundColor {
+- (NSColor *)windowBackgroundColor
+{
     return [[_MABackgroundColor retain] autorelease];
 }
 
 
-- (void)setBackgroundColor:(NSColor *)value {
+- (void)setBackgroundColor: (NSColor *)value
+{
     if (_MABackgroundColor != value) {
         [_MABackgroundColor release];
         _MABackgroundColor = [value copy];
@@ -789,12 +801,14 @@
 }
 
 
-- (NSColor *)borderColor {
+- (NSColor *)borderColor
+{
     return [[borderColor retain] autorelease];
 }
 
 
-- (void)setBorderColor:(NSColor *)value {
+- (void)setBorderColor: (NSColor *)value
+{
     if (borderColor != value) {
         [borderColor release];
         borderColor = [value copy];
@@ -804,12 +818,14 @@
 }
 
 
-- (float)borderWidth {
+- (float)borderWidth
+{
     return borderWidth;
 }
 
 
-- (void)setBorderWidth:(float)value {
+- (void)setBorderWidth: (float)value
+{
     if (borderWidth != value) {
         float maxBorderWidth = viewMargin;
         if (value <= maxBorderWidth) {
@@ -823,27 +839,31 @@
 }
 
 
-- (float)viewMargin {
+- (float)viewMargin
+{
     return viewMargin;
 }
 
 
-- (void)setViewMargin:(float)value {
+- (void)setViewMargin: (float)value
+{
     if (viewMargin != value) {
         viewMargin = MAX(value, 0.0);
 
         // Adjust cornerRadius appropriately (which will also adjust arrowBaseWidth).
-        [self setCornerRadius:cornerRadius];
+        [self setCornerRadius: cornerRadius];
     }
 }
 
 
-- (float)arrowBaseWidth {
+- (float)arrowBaseWidth
+{
     return arrowBaseWidth;
 }
 
 
-- (void)setArrowBaseWidth:(float)value {
+- (void)setArrowBaseWidth: (float)value
+{
     float maxWidth = (MIN(_viewFrame.size.width, _viewFrame.size.height) +
                       (viewMargin * 2.0)) - cornerRadius;
     if (drawsRoundCornerBesideArrow) {
@@ -859,12 +879,14 @@
 }
 
 
-- (float)arrowHeight {
+- (float)arrowHeight
+{
     return arrowHeight;
 }
 
 
-- (void)setArrowHeight:(float)value {
+- (void)setArrowHeight: (float)value
+{
     if (arrowHeight != value) {
         arrowHeight = value;
 
@@ -873,12 +895,14 @@
 }
 
 
-- (float)hasArrow {
+- (float)hasArrow
+{
     return hasArrow;
 }
 
 
-- (void)setHasArrow:(float)value {
+- (void)setHasArrow: (float)value
+{
     if (hasArrow != value) {
         hasArrow = value;
 
@@ -887,12 +911,14 @@
 }
 
 
-- (float)cornerRadius {
+- (float)cornerRadius
+{
     return cornerRadius;
 }
 
 
-- (void)setCornerRadius:(float)value {
+- (void)setCornerRadius: (float)value
+{
     float maxRadius = ((MIN(_viewFrame.size.width, _viewFrame.size.height) +
                         (viewMargin * 2.0)) - arrowBaseWidth) / 2.0;
     if (value <= maxRadius) {
@@ -903,16 +929,18 @@
     cornerRadius = MAX(cornerRadius, 0.0);
 
     // Adjust arrowBaseWidth appropriately.
-    [self setArrowBaseWidth:arrowBaseWidth];
+    [self setArrowBaseWidth: arrowBaseWidth];
 }
 
 
-- (float)drawsRoundCornerBesideArrow {
+- (float)drawsRoundCornerBesideArrow
+{
     return drawsRoundCornerBesideArrow;
 }
 
 
-- (void)setDrawsRoundCornerBesideArrow:(float)value {
+- (void)setDrawsRoundCornerBesideArrow: (float)value
+{
     if (drawsRoundCornerBesideArrow != value) {
         drawsRoundCornerBesideArrow = value;
 
@@ -921,10 +949,10 @@
 }
 
 
-- (void)setBackgroundImage:(NSImage *)value
+- (void)setBackgroundImage: (NSImage *)value
 {
     if (value) {
-        [self setBackgroundColor:[NSColor colorWithPatternImage:value]];
+        [self setBackgroundColor: [NSColor colorWithPatternImage: value]];
     }
 }
 

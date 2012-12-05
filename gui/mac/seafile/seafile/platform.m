@@ -26,18 +26,18 @@ SeafileApplet *applet = NULL;
 
 void start_trayicon_rotate_timer (int timeout_ms, void *data);
 
-void show_warning(const char *title, const char *fmt, ...)
+void show_warning (const char *title, const char *fmt, ...)
 {
     va_list params;
     char buf[2048];
 
-    va_start(params, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, params);
-    va_end(params);
+    va_start (params, fmt);
+    vsnprintf (buf, sizeof(buf), fmt, params);
+    va_end (params);
 
-    NSString *t = [[NSString alloc] initWithUTF8String:title?title:APP_NAME];
-    NSString *msg = [[NSString alloc] initWithUTF8String:buf];
-    NSAlert *alert= [NSAlert alertWithMessageText:t defaultButton:@"OK" alternateButton:nil otherButton:nil informativeTextWithFormat:@"%@", msg];
+    NSString *t = [[NSString alloc] initWithUTF8String: title?title: APP_NAME];
+    NSString *msg = [[NSString alloc] initWithUTF8String: buf];
+    NSAlert *alert= [NSAlert alertWithMessageText: t defaultButton: @"OK" alternateButton: nil otherButton: nil informativeTextWithFormat: @"%@", msg];
     [alert runModal];
     [t release];
     [msg release];
@@ -49,12 +49,12 @@ int msgbox_yes_or_no (char *format, ...)
     va_list params;
     char buf[2048];
 
-    va_start(params, format);
-    vsnprintf(buf, sizeof(buf), format, params);
-    va_end(params);
-    NSString *msg = [[NSString alloc] initWithUTF8String:buf];
+    va_start (params, format);
+    vsnprintf (buf, sizeof(buf), format, params);
+    va_end (params);
+    NSString *msg = [[NSString alloc] initWithUTF8String: buf];
 
-    NSAlert *alert= [NSAlert alertWithMessageText:@"Seafile" defaultButton:@"YES" alternateButton:@"NO" otherButton:nil informativeTextWithFormat:@"%@", msg];
+    NSAlert *alert= [NSAlert alertWithMessageText: @"Seafile" defaultButton: @"YES" alternateButton: @"NO" otherButton: nil informativeTextWithFormat: @"%@", msg];
 
     ret = [alert runModal];
     if (ret == NSAlertDefaultReturn) {
@@ -70,20 +70,20 @@ int spawn_ccnet_daemon (void)
     NSBundle *bundle = [NSBundle mainBundle];
 
     NSTask *task = [[NSTask alloc] init];
-    [task setLaunchPath:[bundle pathForResource:@"ccnet" ofType:nil]];
+    [task setLaunchPath: [bundle pathForResource: @"ccnet" ofType: nil]];
 
     NSMutableArray *args = [NSMutableArray array];
-    NSString *str = [[NSString alloc] initWithUTF8String:applet->config_dir];
-    [args addObject:@"-c" ];
-    [args addObject:str ];
-    [args addObject:@"--no-multicast" ];
-    [args addObject:@"-D"];
+    NSString *str = [[NSString alloc] initWithUTF8String: applet->config_dir];
+    [args addObject: @"-c" ];
+    [args addObject: str ];
+    [args addObject: @"--no-multicast" ];
+    [args addObject: @"-D"];
 #ifdef DEBUG
-    [args addObject:@"ALL"];
+    [args addObject: @"ALL"];
 #else
-    [args addObject:@"Peer,Group,Requirement,Message,Connection,Other"];
+    [args addObject: @"Peer,Group,Requirement,Message,Connection,Other"];
 #endif
-    [task setArguments:args];
+    [task setArguments: args];
     [task launch];
     [str release];
 
@@ -93,39 +93,39 @@ int spawn_ccnet_daemon (void)
     return 0;
 }
 
-int start_seafile_daemon(void)
+int start_seafile_daemon (void)
 {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
     NSBundle *bundle = [NSBundle mainBundle];
 
     NSTask *task = [[NSTask alloc] init];
-    [task setLaunchPath:[bundle pathForResource:@"seaf-daemon" ofType:nil]];
+    [task setLaunchPath: [bundle pathForResource: @"seaf-daemon" ofType: nil]];
 
     NSMutableArray *args = [NSMutableArray array];
-    NSString *ccnet_conf = [[NSString alloc] initWithUTF8String:applet->config_dir];
-    NSString *seaf_conf = [[NSString alloc] initWithUTF8String:applet->seafile_dir];
-    NSString *wtree =  [[NSString alloc] initWithUTF8String:applet->seafile_worktree];
+    NSString *ccnet_conf = [[NSString alloc] initWithUTF8String: applet->config_dir];
+    NSString *seaf_conf = [[NSString alloc] initWithUTF8String: applet->seafile_dir];
+    NSString *wtree =  [[NSString alloc] initWithUTF8String: applet->seafile_worktree];
 
     applet_message ("Starting seaf-daemon ...\n");
     applet_message ("data dir:      %s\n", applet->seafile_dir);
     applet_message ("worktree dir:  %s\n", applet->seafile_worktree);
 
-    [args addObject:@"-c" ];
-    [args addObject:ccnet_conf];
-    [args addObject:@"-d"];
-    [args addObject:seaf_conf];
-    [args addObject:@"-D"];
-    [args addObject:@"All"];
-    [args addObject:@"-w"];
-    [args addObject:wtree];
+    [args addObject: @"-c" ];
+    [args addObject: ccnet_conf];
+    [args addObject: @"-d"];
+    [args addObject: seaf_conf];
+    [args addObject: @"-D"];
+    [args addObject: @"All"];
+    [args addObject: @"-w"];
+    [args addObject: wtree];
 
 #ifdef DEBUG
-    [args addObject:@"-g"];
-    [args addObject:@"debug"];
-    [args addObject:@"-G"];
-    [args addObject:@"debug"];
+    [args addObject: @"-g"];
+    [args addObject: @"debug"];
+    [args addObject: @"-G"];
+    [args addObject: @"debug"];
 #endif
-    [task setArguments:args];
+    [task setArguments: args];
     [task launch];
 
     [ccnet_conf release];
@@ -133,27 +133,27 @@ int start_seafile_daemon(void)
     [wtree release];
 
     if (![task isRunning]) {
-        [delegate setTask:NULL];
+        [delegate setTask: NULL];
         return -1;
     }
-    [delegate setTask:task];
+    [delegate setTask: task];
     return 0;
 }
 
-int start_web_server(void)
+int start_web_server (void)
 {
 #ifdef DEBUG
-    system("/usr/local/bin/ccnet-web.sh start");
+    system ("/usr/local/bin/ccnet-web.sh start");
 #else
     NSLog (@" start web server ...\n");
-    NSString *path = [[NSBundle mainBundle] pathForResource:@"seafileweb.app" ofType:nil];
-    if ([[NSWorkspace sharedWorkspace] respondsToSelector:@selector(launchApplicationAtURL:options:configuration:error:)]) {
+    NSString *path = [[NSBundle mainBundle] pathForResource: @"seafileweb.app" ofType: nil];
+    if ([[NSWorkspace sharedWorkspace] respondsToSelector: @selector(launchApplicationAtURL: options: configuration: error: )]) {
         // As recommended for OS X >= 10.6.
-        NSURL *url = [NSURL fileURLWithPath:path isDirectory:NO];
+        NSURL *url = [NSURL fileURLWithPath: path isDirectory: NO];
         NSMutableDictionary *confs = [NSMutableDictionary dictionary];
-        NSMutableArray *args = [NSArray arrayWithObjects:NS_SEAF_HTTP_ADDR, nil];
-        [confs setObject:args forKey:NSWorkspaceLaunchConfigurationArguments];
-        [[NSWorkspace sharedWorkspace] launchApplicationAtURL:url options:NSWorkspaceLaunchDefault configuration:confs error:NULL];
+        NSMutableArray *args = [NSArray arrayWithObjects: NS_SEAF_HTTP_ADDR, nil];
+        [confs setObject: args forKey: NSWorkspaceLaunchConfigurationArguments];
+        [[NSWorkspace sharedWorkspace] launchApplicationAtURL: url options: NSWorkspaceLaunchDefault configuration: confs error: NULL];
     } else {
         // For older systems.
         NSString *path = [[NSBundle mainBundle] resourcePath];
@@ -161,7 +161,7 @@ int start_web_server(void)
         NSMutableArray *args = [NSArray arrayWithObjects: path,
                                 @"--args", @"127.0.0.1:13420", nil];
         [task setLaunchPath: @"/usr/bin/open"];
-        [task setArguments:args];
+        [task setArguments: args];
         [task launch];
         [task release];
     }
@@ -171,48 +171,10 @@ int start_web_server(void)
     return 0;
 }
 
-#if 0
-static NSRunningApplication* getAppWithBundleId(NSString *bundleId) {
-    if(bundleId == NULL)
-        return NULL;
-    NSArray *arr = [[NSWorkspace sharedWorkspace] runningApplications];
-    int count = [arr count];
-    for (int i = 0; i < count; ++i) {
-        NSRunningApplication *app = [arr objectAtIndex:i];
-        NSLog(@"%@ %@\n", [app bundleIdentifier],
-              [[app executableURL] absoluteString]);
-        if ([bundleId isEqual:[app bundleIdentifier]]) {
-            return app;
-        }
-    }
-    return NULL;
-}
-
-static NSDictionary *getInfoWithBundleId(NSString *bundleId) {
-    NSDictionary *info;
-    BOOL foundApp = NO;
-    OSErr err;
-    ProcessSerialNumber psn = {0, kNoProcess};
-
-    while (!foundApp){
-        err = GetNextProcess(&psn);
-        if (!err) {
-            info = (NSDictionary *)ProcessInformationCopyDictionary(&psn, kProcessDictionaryIncludeAllInformationMask);
-            foundApp = [SEAFILEWEBBUNDLE isEqual:[info objectForKey:(NSString *)kCFBundleIdentifierKey]];
-            if (foundApp) {
-                return info;
-            }
-        } else {
-            break;
-        }
-    }
-    return NULL;
-}
-#endif
-
 typedef struct kinfo_proc kinfo_proc;
 
-static int GetBSDProcessList(kinfo_proc **procList, size_t *procCount) {
+static int GetBSDProcessList (kinfo_proc **procList, size_t *procCount)
+{
     int                 err;
     kinfo_proc *        result;
     bool                done;
@@ -221,9 +183,9 @@ static int GetBSDProcessList(kinfo_proc **procList, size_t *procCount) {
     // sysctl because the prototype doesn't include the const modifier.
     size_t              length;
 
-    assert( procList != NULL);
-    assert(*procList == NULL);
-    assert(procCount != NULL);
+    assert ( procList != NULL);
+    assert (*procList == NULL);
+    assert (procCount != NULL);
 
     *procCount = 0;
 
@@ -240,13 +202,13 @@ static int GetBSDProcessList(kinfo_proc **procList, size_t *procCount) {
     result = NULL;
     done = false;
     do {
-        assert(result == NULL);
+        assert (result == NULL);
         // Call sysctl with a NULL buffer.
 
         length = 0;
-        err = sysctl( (int *) name, (sizeof(name) / sizeof(*name)) - 1,
-                      NULL, &length,
-                      NULL, 0);
+        err = sysctl ((int *) name, (sizeof(name) / sizeof(*name)) - 1,
+                     NULL, &length,
+                     NULL, 0);
         if (err == -1) {
             err = errno;
         }
@@ -255,7 +217,7 @@ static int GetBSDProcessList(kinfo_proc **procList, size_t *procCount) {
         // from the previous call.
 
         if (err == 0) {
-            result = malloc(length);
+            result = malloc (length);
             if (result == NULL) {
                 err = ENOMEM;
             }
@@ -265,9 +227,9 @@ static int GetBSDProcessList(kinfo_proc **procList, size_t *procCount) {
         // error, toss away our buffer and start again.
 
         if (err == 0) {
-            err = sysctl( (int *) name, (sizeof(name) / sizeof(*name)) - 1,
-                          result, &length,
-                          NULL, 0);
+            err = sysctl ((int *) name, (sizeof(name) / sizeof(*name)) - 1,
+                         result, &length,
+                         NULL, 0);
             if (err == -1) {
                 err = errno;
             }
@@ -275,7 +237,7 @@ static int GetBSDProcessList(kinfo_proc **procList, size_t *procCount) {
                 done = true;
             } else if (err == ENOMEM) {
                 assert(result != NULL);
-                free(result);
+                free (result);
                 result = NULL;
                 err = 0;
             }
@@ -285,7 +247,7 @@ static int GetBSDProcessList(kinfo_proc **procList, size_t *procCount) {
     // Clean up and establish post conditions.
 
     if (err != 0 && result != NULL) {
-        free(result);
+        free (result);
         result = NULL;
     }
     *procList = result;
@@ -293,56 +255,58 @@ static int GetBSDProcessList(kinfo_proc **procList, size_t *procCount) {
         *procCount = length / sizeof(kinfo_proc);
     }
 
-    assert( (err == 0) == (*procList != NULL) );
+    assert ( (err == 0) == (*procList != NULL) );
 
     return err;
 }
 
-static int getBSDProcessPid(const char *name, int except_pid)
+static int getBSDProcessPid (const char *name, int except_pid)
 {
     int pid = 0;
     struct kinfo_proc *mylist = NULL;
     size_t mycount = 0;
-    GetBSDProcessList(&mylist, &mycount);
-    for(int k = 0; k < mycount; k++) {
+    GetBSDProcessList (&mylist, &mycount);
+    for (int k = 0; k < mycount; k++) {
         kinfo_proc *proc =  &mylist[k];
         if (proc->kp_proc.p_pid != except_pid
-            && strcmp(proc->kp_proc.p_comm, name) == 0){
+            && strcmp (proc->kp_proc.p_comm, name) == 0){
             pid = proc->kp_proc.p_pid;
             break;
         }
     }
-    free(mylist);
+    free (mylist);
     return pid;
 }
 
-void shutdown_process(const char *name) {
+void shutdown_process (const char *name)
+{
     struct kinfo_proc *mylist = NULL;
     size_t mycount = 0;
-    GetBSDProcessList(&mylist, &mycount);
-    for(int k = 0; k < mycount; k++) {
+    GetBSDProcessList (&mylist, &mycount);
+    for (int k = 0; k < mycount; k++) {
         kinfo_proc *proc =  &mylist[k];
-        if (strcmp(proc->kp_proc.p_comm, name) == 0){
-            kill(proc->kp_proc.p_pid, SIGKILL);
+        if (strcmp (proc->kp_proc.p_comm, name) == 0){
+            kill (proc->kp_proc.p_pid, SIGKILL);
         }
     }
-    free(mylist);
+    free (mylist);
 }
 
-int is_process_already_running(const char *name) {
-    int pid = getBSDProcessPid(name, getpid());
+int is_process_already_running (const char *name)
+{
+    int pid = getBSDProcessPid (name, getpid ());
     if (pid)
         return YES;
     return NO;
 }
 
-int stop_web_server(void)
+int stop_web_server (void)
 {
 #ifdef DEBUG
-    system("/usr/local/bin/ccnet-web.sh stop");
+    system ("/usr/local/bin/ccnet-web.sh stop");
     applet->web_status = WEB_NOT_STARTED;
 #else
-    shutdown_process("seafileweb");
+    shutdown_process ("seafileweb");
     applet->web_status = WEB_NOT_STARTED;
 #endif
 
@@ -356,13 +320,13 @@ void trayicon_notify (char *title, char *buf)
     if (title == NULL)
         title = "Seafile";
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    [delegate popup_bubble:title message:buf];
+    [delegate popup_bubble: title message: buf];
 }
 
 void trayicon_set_tip (char *tip)
 {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    [[delegate statusItem] setToolTip:[[NSString alloc] initWithUTF8String:tip]];
+    [[delegate statusItem] setToolTip: [[NSString alloc] initWithUTF8String: tip]];
 }
 
 
@@ -372,37 +336,37 @@ void trayicon_set_ccnet_state (int state)
 
     if ((state == CCNET_STATE_UP) || (state == CCNET_STATE_DOWN)
         || (state == CCNET_STATE_AUTOSYNC_DISABLED)) {
-        [[delegate statusItem] setImage:delegate->statusImage[state]];
+        [[delegate statusItem] setImage: delegate->statusImage[state]];
     } else {
-        applet_warning("Error set unknown state %d\n", state);
+        applet_warning ("Error set unknown state %d\n", state);
     }
 }
 
-int show_init_seafile_window(void)
+int show_init_seafile_window (void)
 {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
     return [delegate show_initseafile_window];
 }
 
-int ccnet_open_dir(const char *path)
+int ccnet_open_dir (const char *path)
 {
-    NSString *spath = [[NSString alloc] initWithUTF8String:path];
-    NSURL    *pathURL = [NSURL fileURLWithPath: spath];
-    int ret = [[NSWorkspace sharedWorkspace] openURL:pathURL];
+    NSString *spath = [[NSString alloc] initWithUTF8String: path];
+    NSURL *pathURL = [NSURL fileURLWithPath: spath];
+    int ret = [[NSWorkspace sharedWorkspace] openURL: pathURL];
 
     [spath release];
     return ret;
 }
 
 
-int open_web_browser(const char *url)
+int open_web_browser (const char *url)
 {
-    NSString *surl = [[NSString alloc] initWithUTF8String:url];
+    NSString *surl = [[NSString alloc] initWithUTF8String: url];
 #if 0
-    NSArray* urls = [NSArray arrayWithObject:[NSURL URLWithString:surl]];
-    [[NSWorkspace sharedWorkspace] openURLs:urls withAppBundleIdentifier:nil options:NSWorkspaceLaunchWithoutActivation additionalEventParamDescriptor:nil launchIdentifiers:nil];
+    NSArray* urls = [NSArray arrayWithObject: [NSURL URLWithString: surl]];
+    [[NSWorkspace sharedWorkspace] openURLs: urls withAppBundleIdentifier: nil options: NSWorkspaceLaunchWithoutActivation additionalEventParamDescriptor: nil launchIdentifiers: nil];
 #else
-    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:surl]];
+    [[NSWorkspace sharedWorkspace] openURL: [NSURL URLWithString: surl]];
 #endif
     [surl release];
     return 0;
@@ -411,13 +375,13 @@ int open_web_browser(const char *url)
 void start_conn_daemon_timer (int timeout_ms, void *data)
 {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    [delegate add_conn_server_timer:timeout_ms];
+    [delegate add_conn_server_timer: timeout_ms];
 }
 
 void start_open_browser_timer (int timeout_ms, void *data)
 {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    [delegate add_open_browser_timer:timeout_ms];
+    [delegate add_open_browser_timer: timeout_ms];
 }
 
 void stop_open_browser_timer (void)
@@ -429,57 +393,59 @@ void stop_open_browser_timer (void)
 void start_trayicon_rotate_timer (int timeout_ms, void *data)
 {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    [delegate add_trayicon_rotate_timer:timeout_ms];
+    [delegate add_trayicon_rotate_timer: timeout_ms];
 }
 
 void start_heartbeat_monitor_timer (int timeout_ms, void *data)
 {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    [delegate add_heartbeat_monitor_timer:timeout_ms];
+    [delegate add_heartbeat_monitor_timer: timeout_ms];
 }
 
 
-static void readCB(CFSocketRef child, CFSocketCallBackType type,
+static void readCB (CFSocketRef child, CFSocketCallBackType type,
                    CFDataRef address, const void *data, void *info)
 {
-    if (CFSocketIsValid(child) && (type & kCFSocketReadCallBack) ) {
+    if (CFSocketIsValid (child) && (type & kCFSocketReadCallBack) ) {
         if (ccnet_client_read_input (applet->client) <= 0) {
-            on_ccnet_daemon_down();
-            CFRelease(child);
+            on_ccnet_daemon_down ();
+            CFRelease (child);
         }
     } else {
-        on_ccnet_daemon_down();
-        CFRelease(child);
+        on_ccnet_daemon_down ();
+        CFRelease (child);
     }
 }
 
-void add_client_fd_to_mainloop (void) {
-    CFSocketRef child = CFSocketCreateWithNative(NULL,
+void add_client_fd_to_mainloop (void)
+{
+    CFSocketRef child = CFSocketCreateWithNative (NULL,
                                                  applet->client->connfd,
                                                  kCFSocketReadCallBack,
                                                  readCB,
                                                  NULL);
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
 
-    CFRunLoopSourceRef childSource = CFSocketCreateRunLoopSource(NULL, child, 0);
-    delegate->loop = CFRunLoopGetCurrent();
-    CFRunLoopAddSource(delegate->loop, childSource, kCFRunLoopDefaultMode);
-    [delegate setSock:childSource];
+    CFRunLoopSourceRef childSource = CFSocketCreateRunLoopSource (NULL, child, 0);
+    delegate->loop = CFRunLoopGetCurrent ();
+    CFRunLoopAddSource (delegate->loop, childSource, kCFRunLoopDefaultMode);
+    [delegate setSock: childSource];
 }
 
-void rm_client_fd_from_mainloop (void) {
+void rm_client_fd_from_mainloop (void)
+{
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
     if (delegate.sock) {
         CFRunLoopRemoveSource (delegate->loop, delegate.sock, kCFRunLoopDefaultMode);
-        CFRelease([delegate sock]);
+        CFRelease ([delegate sock]);
         delegate.sock = nil;
     }
 }
 
 void on_quit (void) {
     stop_ccnet ();
-    stop_web_server();
-    [[NSApplication sharedApplication] terminate:[[NSApplication sharedApplication] delegate]];
+    stop_web_server ();
+    [[NSApplication sharedApplication] terminate: [[NSApplication sharedApplication] delegate]];
 
 }
 
@@ -497,7 +463,7 @@ gboolean trayicon_do_rotate (void)
         return FALSE;
     }
 
-    [[delegate statusItem] setImage:delegate->transferImage[nth_trayicon%4]];
+    [[delegate statusItem] setImage: delegate->transferImage[nth_trayicon%4]];
     nth_trayicon++;
     rotate_counter++;
     return TRUE;
@@ -511,14 +477,14 @@ void trayicon_rotate (gboolean start)
             nth_trayicon = 0;
             trayicon_is_rotating = TRUE;
             AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-            [delegate add_trayicon_rotate_timer:500];
+            [delegate add_trayicon_rotate_timer: 500];
         }
     } else {
         trayicon_is_rotating = FALSE;
     }
 }
 
-int is_seafile_daemon_running(void)
+int is_seafile_daemon_running (void)
 {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
     NSTask *task = [delegate task];
@@ -526,56 +492,60 @@ int is_seafile_daemon_running(void)
     return is_running;
 }
 
-static int set_folder_image(const char *path, NSImage *iconImage) {
+static int set_folder_image (const char *path, NSImage *iconImage)
+{
     if (!path) {
         return 0;
     }
-    NSString *nspath =  [[NSString alloc] initWithUTF8String:path];
-    NSURL* directoryURL = [NSURL fileURLWithPath:nspath isDirectory:YES];
-    return [[NSWorkspace sharedWorkspace] setIcon:iconImage forFile:[directoryURL path] options:0];
+    NSString *nspath =  [[NSString alloc] initWithUTF8String: path];
+    NSURL* directoryURL = [NSURL fileURLWithPath: nspath isDirectory: YES];
+    return [[NSWorkspace sharedWorkspace] setIcon: iconImage forFile: [directoryURL path] options: 0];
 }
 
-void seafile_set_seafilefolder_icns(void) {
-   // AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
+void seafile_set_seafilefolder_icns (void)
+{
+    // AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
     //set_folder_image (applet->seafile_worktree, delegate->wktreeImage);
 }
 
-void seafile_set_repofolder_icns(const char *path) {
+void seafile_set_repofolder_icns (const char *path)
+{
     if (!path)
         return;
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
     set_folder_image (path, delegate->repoImage);
 }
 
-void seafile_unset_repofolder_icns(const char *path) {
+void seafile_unset_repofolder_icns (const char *path)
+{
     if (!path)
         return;
-    set_folder_image (path, [NSImage imageNamed:@"NSFolder"]);
+    set_folder_image (path, [NSImage imageNamed: @"NSFolder"]);
 }
 
 int set_visibility_for_file (const char *cpath, int isDirectory, int visible)
 {
     int ret = 0;
-    NSString *filename = [[NSString alloc] initWithUTF8String:cpath];
-    NSURL *url = [NSURL fileURLWithPath:filename];
-    ret = [url setResourceValue:[NSNumber numberWithBool:!visible] forKey:NSURLIsHiddenKey error:NULL];
+    NSString *filename = [[NSString alloc] initWithUTF8String: cpath];
+    NSURL *url = [NSURL fileURLWithPath: filename];
+    ret = [url setResourceValue: [NSNumber numberWithBool: !visible] forKey: NSURLIsHiddenKey error: NULL];
     [filename release];
     return ret;
 }
 
-int set_seafile_auto_start(const int on)
+int set_seafile_auto_start (const int on)
 {
     AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
     if (on)
-        [delegate add_app_as_login_item:[[NSBundle mainBundle] bundlePath]];
+        [delegate add_app_as_login_item: [[NSBundle mainBundle] bundlePath]];
     else
-        [delegate del_app_from_login_item:[[NSBundle mainBundle] bundlePath]];
+        [delegate del_app_from_login_item: [[NSBundle mainBundle] bundlePath]];
 
     return YES;
 }
 
 
-void reset_trayicon_and_tip(void)
+void reset_trayicon_and_tip (void)
 {
     char *tip = "Seafile";
 
@@ -618,7 +588,7 @@ void set_auto_sync_cb (void *result, void *data, GError *error)
         }
 
         applet->auto_sync_disabled = disable;
-        reset_trayicon_and_tip();
+        reset_trayicon_and_tip ();
     }
 
     g_free (sdata);

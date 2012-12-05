@@ -52,7 +52,7 @@ typedef enum _MAWindowPosition {
     float cornerRadius;
     BOOL drawsRoundCornerBesideArrow;
 
-    @private
+@private
     NSColor *_MABackgroundColor;
     __weak NSView *_view;
     __weak NSWindow *_window;
@@ -88,51 +88,51 @@ typedef enum _MAWindowPosition {
             Default: 0.
  */
 
-- (MAAttachedWindow *)initWithView:(NSView *)view           // designated initializer
-                   attachedToPoint:(NSPoint)point
-                          inWindow:(NSWindow *)window
-                            onSide:(MAWindowPosition)side
-                        atDistance:(float)distance;
-- (MAAttachedWindow *)initWithView:(NSView *)view
-                   attachedToPoint:(NSPoint)point
-                          inWindow:(NSWindow *)window
-                        atDistance:(float)distance;
-- (MAAttachedWindow *)initWithView:(NSView *)view
-                   attachedToPoint:(NSPoint)point
-                            onSide:(MAWindowPosition)side
-                        atDistance:(float)distance;
-- (MAAttachedWindow *)initWithView:(NSView *)view
-                   attachedToPoint:(NSPoint)point
-                        atDistance:(float)distance;
-- (MAAttachedWindow *)initWithView:(NSView *)view
-                   attachedToPoint:(NSPoint)point
-                          inWindow:(NSWindow *)window;
-- (MAAttachedWindow *)initWithView:(NSView *)view
-                   attachedToPoint:(NSPoint)point
-                            onSide:(MAWindowPosition)side;
-- (MAAttachedWindow *)initWithView:(NSView *)view
-                   attachedToPoint:(NSPoint)point;
+- (MAAttachedWindow *)initWithView: (NSView *)view           // designated initializer
+                   attachedToPoint: (NSPoint)point
+                          inWindow: (NSWindow *)window
+                            onSide: (MAWindowPosition)side
+                        atDistance: (float)distance;
+- (MAAttachedWindow *)initWithView: (NSView *)view
+                   attachedToPoint: (NSPoint)point
+                          inWindow: (NSWindow *)window
+                        atDistance: (float)distance;
+- (MAAttachedWindow *)initWithView: (NSView *)view
+                   attachedToPoint: (NSPoint)point
+                            onSide: (MAWindowPosition)side
+                        atDistance: (float)distance;
+- (MAAttachedWindow *)initWithView: (NSView *)view
+                   attachedToPoint: (NSPoint)point
+                        atDistance: (float)distance;
+- (MAAttachedWindow *)initWithView: (NSView *)view
+                   attachedToPoint: (NSPoint)point
+                          inWindow: (NSWindow *)window;
+- (MAAttachedWindow *)initWithView: (NSView *)view
+                   attachedToPoint: (NSPoint)point
+                            onSide: (MAWindowPosition)side;
+- (MAAttachedWindow *)initWithView: (NSView *)view
+                   attachedToPoint: (NSPoint)point;
 
 // Accessor methods
 - (NSColor *)borderColor;
-- (void)setBorderColor:(NSColor *)value;
+- (void)setBorderColor: (NSColor *)value;
 - (float)borderWidth;
-- (void)setBorderWidth:(float)value;                   // See note 1 below.
+- (void)setBorderWidth: (float)value;                   // See note 1 below.
 - (float)viewMargin;
-- (void)setViewMargin:(float)value;                    // See note 2 below.
+- (void)setViewMargin: (float)value;                    // See note 2 below.
 - (float)arrowBaseWidth;
-- (void)setArrowBaseWidth:(float)value;                // See note 2 below.
+- (void)setArrowBaseWidth: (float)value;                // See note 2 below.
 - (float)arrowHeight;
-- (void)setArrowHeight:(float)value;                   // See note 2 below.
+- (void)setArrowHeight: (float)value;                   // See note 2 below.
 - (float)hasArrow;
-- (void)setHasArrow:(float)value;
+- (void)setHasArrow: (float)value;
 - (float)cornerRadius;
-- (void)setCornerRadius:(float)value;                  // See note 2 below.
+- (void)setCornerRadius: (float)value;                  // See note 2 below.
 - (float)drawsRoundCornerBesideArrow;                  // See note 3 below.
-- (void)setDrawsRoundCornerBesideArrow:(float)value;   // See note 2 below.
-- (void)setBackgroundImage:(NSImage *)value;
+- (void)setDrawsRoundCornerBesideArrow: (float)value;   // See note 2 below.
+- (void)setBackgroundImage: (NSImage *)value;
 - (NSColor *)windowBackgroundColor;                    // See note 4 below.
-- (void)setBackgroundColor:(NSColor *)value;
+- (void)setBackgroundColor: (NSColor *)value;
 
 /*
  Notes regarding accessor methods:
