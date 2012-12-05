@@ -405,7 +405,8 @@ transition_sync_state (SyncTask *task, int new_state)
     g_assert (new_state >= 0 && new_state < SYNC_STATE_NUM);
 
     if (task->state != new_state) {
-        if (!(task->state == SYNC_STATE_DONE && new_state == SYNC_STATE_INIT) &&
+        if (!task->quiet &&
+            !(task->state == SYNC_STATE_DONE && new_state == SYNC_STATE_INIT) &&
             !(task->state == SYNC_STATE_INIT && new_state == SYNC_STATE_DONE)) {
             seaf_message ("Repo '%s' sync state transition from '%s' to '%s'.\n",
                           task->repo->name,
@@ -899,7 +900,7 @@ commit_job (void *vtask)
     if (commit_id == NULL && error != NULL) {
         seaf_warning ("[Sync mgr] Failed to commit to repo %s(%.8s).\n",
                       repo->name, repo->id);
-    } else if (error == NULL) {
+    } else if (commit_id == NULL) {
         res->changed = FALSE;
     }
     g_free (commit_id);
@@ -951,6 +952,13 @@ commit_job_done (void *vres)
             seaf_warning ("[sync mgr] failed to refresh worktree watch for repo %s(%.8s).\n",
                        repo->name, repo->id);
         }
+    }
+
+    /* Nothing committed, no need to sync. */
+    if (!res->changed) {
+        transition_sync_state (res->task, SYNC_STATE_DONE);
+        g_free (res);
+        return;
     }
 
     SyncTask *task = res->task;
@@ -1285,7 +1293,7 @@ compare_sync_task (gconstpointer a, gconstpointer b)
 }
 
 static void
-enqueue_sync_task (SeafSyncManager *manager, SeafRepo *repo)
+enqueue_sync_task (SeafSyncManager *manager, SeafRepo *repo, gboolean quiet)
 {
     SyncInfo *info;
     SyncTask *task;
@@ -1303,6 +1311,7 @@ enqueue_sync_task (SeafSyncManager *manager, SeafRepo *repo)
     info = get_sync_info (manager, repo->id);
     task = create_sync_task (manager, info, repo,
                              FALSE, FALSE, TRUE);
+    task->quiet = quiet;
     g_queue_push_tail (manager->sync_tasks, task);
 }
 
@@ -1349,12 +1358,12 @@ auto_commit_pulse (void *vmanager)
                        commit it soon. */
                     /* repo->wt_changed = TRUE; */
                     if (now - last_changed >= 2) {
-                        enqueue_sync_task (manager, repo);
+                        enqueue_sync_task (manager, repo, FALSE);
                         status->last_check = now;
                     }
                 } else if (now - status->last_check >= manager->wt_interval) {
                     /* Try to commit if no change has been detected in 10 mins. */
-                    enqueue_sync_task (manager, repo);
+                    enqueue_sync_task (manager, repo, TRUE);
                     status->last_check = now;
                 }
             }
@@ -1521,7 +1530,7 @@ add_sync_tasks_for_all (SeafSyncManager *mgr)
         if (repo->worktree_invalid)
             continue;
         
-        enqueue_sync_task (mgr, repo);
+        enqueue_sync_task (mgr, repo, FALSE);
     }
 
     g_list_free (repos);

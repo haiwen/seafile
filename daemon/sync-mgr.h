@@ -67,6 +67,7 @@ struct _SyncTask {
     gboolean         is_sync_lan;
     gboolean         force_upload;
     gboolean         need_commit;
+    gboolean         quiet;     /* don't print log messages. */
     int              state;
     int              error;
     char            *tx_id;
