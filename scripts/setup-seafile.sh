@@ -504,7 +504,7 @@ fi
 
 printf "Now sync seahub database ... "
 
-export PYTHONPATH=${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
+export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
 
 manage_py=${INSTALLPATH}/seahub/manage.py
 pushd "${INSTALLPATH}/seahub" 2>/dev/null 1>&2

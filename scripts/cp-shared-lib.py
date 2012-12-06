@@ -4,7 +4,7 @@ import os
 import sys
 import shutil
 
-syslibs = ['libsearpc.so', 'libccnet.so', 'libpthread.so', 'libc.so', 'libm.so', 'librt.so', 'libdl.so', 'libselinux.so']
+syslibs = ['libsearpc', 'libccnet', 'libseafile', 'libpthread.so', 'libc.so', 'libm.so', 'librt.so', 'libdl.so', 'libselinux.so']
 
 def is_syslib(lib):
     for syslib in syslibs:
@@ -36,7 +36,7 @@ for line in lines:
         print 'Copying %s' % tokens[2]
         shutil.copy(tokens[2], dst_dir)
     else:
-	print 'deleting %s' % tokens[2]
+        print 'deleting %s' % tokens[2]
         fn = os.path.join(dst_dir, os.path.basename(tokens[2]))
-	os.remove(fn)
+        os.remove(fn)
 

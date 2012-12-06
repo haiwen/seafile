@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 
 
 AC_PREREQ(2.61)
-AC_INIT([seafile], [1.2.1], [freeplant@gmail.com])
+AC_INIT([seafile], [1.3.0], [freeplant@gmail.com])
 AC_CONFIG_HEADER([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -25,7 +25,7 @@ AC_PROG_MAKE_SET
 AC_PROG_LIBTOOL
 
 # python
-AM_PATH_PYTHON([2.4]) 
+AM_PATH_PYTHON([2.6])
 
 # Checks for headers.
 AC_HEADER_DIRENT
@@ -398,8 +398,8 @@ if test "${compile_server}" = "yes"; then
    AC_SUBST(ZDB_CFLAGS)
    AC_SUBST(ZDB_LIBS)
 
-   MYSQL_LIBS=`mysql_config --libs_r`
-   MYSQL_CFLAGS=`mysql_config --cflags`
+   MYSQL_CFLAGS=$(mysql_config --include)
+   MYSQL_LIBS=$(mysql_config --libs_r)
 
    # On CentOS, libmysqlclient is in /usr/lib64/mysql/, not /usr/lib, so we
    # need to adjust CPPFLAGS and LDFLAGS before check it
