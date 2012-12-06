@@ -225,7 +225,7 @@ trayicon_set_tooltip (SeafileTrayIcon *icon, char *tooltip,
 
     } else {
         icon->nid.uFlags = NIF_TIP;
-        safe_wcsncpy (icon->nid.szInfo, tip_w,
+        safe_wcsncpy (icon->nid.szTip, tip_w,
                         sizeof(icon->nid.szInfo) / sizeof(wchar_t));
     }
 
