@@ -458,6 +458,15 @@ def copy_scripts_and_libs():
     must_copy(os.path.join(scripts_srcdir, 'create-seahub-admin.sh'),
               serverdir)
 
+    # copy update scripts
+    update_scriptsdir = os.path.join(scripts_srcdir, 'upgrade')
+    dst_update_scriptsdir = os.path.join(serverdir, 'upgrade')
+    try:
+        shutil.copytree(update_scriptsdir, dst_update_scriptsdir)
+    except Exception, e:
+        error('failed to copy upgrade scripts: %s' % e)
+
+    # copy runtime/seahub.conf
     runtimedir = os.path.join(serverdir, 'runtime')
     must_mkdir(runtimedir)
     must_copy(os.path.join(scripts_srcdir, 'seahub.conf'),
@@ -475,7 +484,7 @@ def copy_scripts_and_libs():
     seahub_thirdpart = os.path.join(dst_seahubdir, 'thirdpart')
     copy_seahub_thirdpart_libs(seahub_thirdpart)
 
-    # copy other c libs
+    # copy shared c libs
     copy_shared_libs()
 
 def copy_shared_libs():

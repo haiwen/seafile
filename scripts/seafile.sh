@@ -70,7 +70,7 @@ function start_seafile_server () {
 
     ${seaf_controller} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"
 
-    sleep 3
+    sleep 10
 
     ${httpserver} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"
 
