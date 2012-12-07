@@ -64,7 +64,7 @@
         {#elseif $T.task.error_str == "merge"}
     <p class="error">${_("Failed to merge local file changes.")}</p>
         {#elseif $T.task.error_str == "password"}
-    <p class="error">${_("Incorrect password. Failed to decrypt files.")}</p>
+    <p class="error">${_("Incorrect password. Please download again.")}</p>
         {#elseif $T.task.error_str == "internal"}
     <p class="error">${_("Internal error.")}</p>
         {#/if}
@@ -76,18 +76,18 @@
     <button data="/repos/download-tasks/?op=cancel&&repo_id={$T.task.repo_id}" class="task-op-btn">${_("Cancel")}</button>
     {#/if}
 
-    {#if $T.task.error_str == "password"}
-    <form action="/repo/download/" method="post">
-        <input id="repo_id" type="hidden" name="repo_id" value="{$T.task.repo_id}" />
-        <input id="relay_id" type="hidden" name="relay_id" value="{$T.task.relay_id}" />
-        <input id="repo_name" type="hidden" name="repo_name" value="{$T.task.repo_name}" />
-        <input id="encrypted" type="hidden" name="encrypted" value="1" />
-        <input id="worktree" type="hidden" name="worktree" value="{$T.task.worktree}" />
-        <p>${_("Please reenter the password:")}</p>
-        <input id="password" type="password" name="password" value="" maxlength="64" /><br/>
-        <input type="submit" value="${_("Submit")}" />
-    </form>
-    {#/if}
+    <!-- {#if $T.task.error_str == "password"} -->
+    <!-- <form action="/repo/download/" method="post"> -->
+    <!--     <input id="repo_id" type="hidden" name="repo_id" value="{$T.task.repo_id}" /> -->
+    <!--     <input id="relay_id" type="hidden" name="relay_id" value="{$T.task.relay_id}" /> -->
+    <!--     <input id="repo_name" type="hidden" name="repo_name" value="{$T.task.repo_name}" /> -->
+    <!--     <input id="encrypted" type="hidden" name="encrypted" value="1" /> -->
+    <!--     <input id="worktree" type="hidden" name="worktree" value="{$T.task.worktree}" /> -->
+    <!--     <p>${_("Please reenter the password:")}</p> -->
+    <!--     <input id="password" type="password" name="password" value="" maxlength="64" /><br/> -->
+    <!--     <input type="submit" value="${_("Submit")}" /> -->
+    <!-- </form> -->
+    <!-- {#/if} -->
 </li>
 {#/for}
 </textarea>
