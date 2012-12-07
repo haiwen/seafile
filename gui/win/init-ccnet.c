@@ -305,7 +305,10 @@ InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         set_dlg_icon (hDlg, IDI_SEAFILE_ICON);
         wchar_t *msg =  wchar_from_utf8(_("Choose a disk"));
         SetWindowTextW (GetDlgItem(hDlg, IDC_STATIC_TITLE), msg);
+        wchar_t *title = wchar_from_utf8(_("Seafile Initialization"));
+        SetWindowTextW (hDlg, title);
         g_free (msg);
+        g_free (title);
                        
         set_control_font (GetDlgItem(hDlg, IDC_STATIC_TITLE), "Courier");
         make_wnd_foreground(hDlg);
@@ -371,7 +374,7 @@ InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-static BOOL first_use = FALSE;
+BOOL first_use = FALSE;
 
 int
 show_init_seafile_window ()
@@ -394,69 +397,4 @@ static inline void
 open_browser(const char *url)
 {
     ShellExecute(NULL, "open", url, NULL, NULL, SW_SHOWNORMAL);
-}
-
-static BOOL CALLBACK
-Win7TipProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    switch(message) {
-    case WM_INITDIALOG:
-        set_dlg_icon (hDlg, IDI_SEAFILE_ICON);
-        make_wnd_foreground (hDlg);
-        break;
-
-    case WM_COMMAND:
-        if (LOWORD(wParam) == ID_FINISH) {
-            EndDialog (hDlg,0);
-            return TRUE;
-        }
-        break;
-
-    case WM_CLOSE:
-        EndDialog (hDlg,0);
-        return TRUE;
-        break;
-
-    case WM_DESTROY:
-        break;
-
-    default:
-        break;
-    }
-
-    return FALSE;
-}
-
-static BOOL
-is_windows_seven ()
-{
-    OSVERSIONINFOEX ver = {0};
-
-    ver.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
-
-    if (!GetVersionEx((LPOSVERSIONINFO)&ver)) {
-        applet_warning ("GetVersionEx failed, GLE=%lu\n", GetLastError());
-        return TRUE;
-    }
-
-    /* tell if seafile is running on Windows 7 */
-    if (ver.dwMajorVersion == 6
-        && ver.dwMinorVersion == 1
-        && ver.wProductType == VER_NT_WORKSTATION) {
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
-void prompt_win7_tip_if_necessary ()
-{
-    if (!is_windows_seven () || !first_use)
-        return;
-
-    first_use = FALSE;
-
-    DialogBox (applet->hInstance,
-               MAKEINTRESOURCE(IDD_WIN7_TIP),
-               applet->hWnd, Win7TipProc);
 }

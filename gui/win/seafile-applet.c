@@ -34,9 +34,6 @@ SeafileApplet *applet;
 /* In UTF-8 */
 char *seafile_bin_dir = NULL;
 
-extern int show_login_window ();
-extern void prompt_win7_tip_if_necessary ();
-
 void
 on_quit ()
 {
@@ -45,6 +42,8 @@ on_quit ()
     if (applet->icon)
         trayicon_delete_icon(applet->icon);
 }
+
+extern BOOL first_use;
 
 static void CALLBACK
 TestWebServer (HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
@@ -55,7 +54,9 @@ TestWebServer (HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
         applet_message ("Web server is up.\n");
 
         applet->web_status = WEB_READY;
-        trayicon_notify (_("Seafile is started"), _("Click the icon to open admin console"));
+        if (first_use) {
+            trayicon_notify (_("Seafile is started"), _("Click the icon to open admin console"));
+        }
     }
 }
 
@@ -240,8 +241,7 @@ static UINT_PTR open_browser_timer_id = 0;
  *  1. Connect to daemon
  *  2. spawn seaf-daemon, sefile-web
  *  3. start rpc server & rpc client
- *  4. prompt login, if not finished yet
- *  5. open browser when 13420 port can be connected
+ *  4. open browser when 13420 port can be connected
  */
 static void CALLBACK
 ConnDaemonProc (HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
@@ -256,8 +256,6 @@ ConnDaemonProc (HWND hwnd, UINT message, UINT iTimerID, DWORD dwTime)
     start_seafile_daemon ();
     start_heartbeat_monitor ();
     start_web_server ();
-
-    prompt_win7_tip_if_necessary ();
 
     open_browser_timer_id = SetTimer (NULL, OPEN_BROWSER_TIMER_ID,
                                       1000, TestWebServer);

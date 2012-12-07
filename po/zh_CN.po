@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: seafile 1.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2012-11-03 14:00+0800\n"
+"POT-Creation-Date: 2012-12-07 10:45+0800\n"
 "PO-Revision-Date: 2012-10-25 14:18+0800\n"
 "Last-Translator: lin <linshuai2012@gmail.com>\n"
 "Language-Team: Chinese (simplified)\n"
@@ -62,54 +62,53 @@ msgstr ""
 msgid "Seafile is already running\n"
 msgstr "Seafile 已经运行, 请不要重复启动\n"
 
-#: ../gui/gtk/trayicon.c:159 ../gui/win/seafile-applet.c:71
+#: ../gui/gtk/trayicon.c:159 ../gui/win/seafile-applet.c:74
 msgid "Auto sync is disabled"
 msgstr "Seafile 同步已暂停"
 
-#: ../gui/win/init-ccnet.c:169
+#: ../gui/win/init-ccnet.c:174
 msgid "free"
 msgstr "空闲"
 
-#: ../gui/win/init-ccnet.c:171
+#: ../gui/win/init-ccnet.c:179
 msgid "free space unknown"
 msgstr "空闲空间大小未知"
 
-#: ../gui/win/init-ccnet.c:261 ../gui/win/init-ccnet.c:264
+#: ../gui/win/init-ccnet.c:274 ../gui/win/init-ccnet.c:275
 msgid "Seafile help.txt"
 msgstr "Seafile使用帮助.txt"
 
-#: ../gui/win/init-ccnet.c:289
+#: ../gui/win/init-ccnet.c:306
 msgid "Choose a disk"
 msgstr "选择一个磁盘"
 
-#: ../gui/win/init-ccnet.c:290
-msgid "Courier"
-msgstr "宋体"
+#: ../gui/win/init-ccnet.c:308
+msgid "Seafile Initialization"
+msgstr "Seafile 初始化"
 
-#: ../gui/win/init-ccnet.c:333 ../gui/win/init-ccnet.c:343
+#: ../gui/win/init-ccnet.c:356 ../gui/win/init-ccnet.c:366
 msgid "Initialzation is not finished. Really quit?"
 msgstr "Seafile 初始化仍未完成。确认要退出吗？"
 
-#: ../gui/win/seafile-applet.c:56
+#: ../gui/win/seafile-applet.c:58
 msgid "Seafile is started"
 msgstr "Seafile 已启动"
 
-#: ../gui/win/seafile-applet.c:56
+#: ../gui/win/seafile-applet.c:58
 msgid "Click the icon to open admin console"
 msgstr "点击图标即可打开管理页面"
 
-#: ../gui/win/seafile-applet.c:373
+#: ../gui/win/seafile-applet.c:355
 msgid "Failed to disable auto sync"
 msgstr "暂停同步失败"
 
-#: ../gui/win/seafile-applet.c:373
+#: ../gui/win/seafile-applet.c:356
 msgid "Failed to enable auto sync"
 msgstr "开启同步失败"
 
-#: ../gui/win/seafile-applet.c:521
+#: ../gui/win/seafile-applet.c:518
 msgid "Seafile is already running"
 msgstr "Seafile 已经运行，请不要重复启动"
 
-#: ../gui/win/seafile-applet.c:537
-msgid "Seafile Initialization"
-msgstr "Seafile 初始化"
+#~ msgid "Courier"
+#~ msgstr "宋体"
