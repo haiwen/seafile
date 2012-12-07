@@ -556,7 +556,7 @@ make_worktree (SeafCloneManager *mgr,
     rc = g_lstat (wt, &st);
     if (rc < 0 && errno == ENOENT) {
         ret = wt;
-        goto mk_dir;
+        return ret;
     } else if (rc < 0 || !S_ISDIR(st.st_mode)) {
         if (!dry_run) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
@@ -566,7 +566,7 @@ make_worktree (SeafCloneManager *mgr,
         }
         ret = try_worktree (wt);
         g_free (wt);
-        goto mk_dir;
+        return ret;
     }
 
     /* OK, wt is an existing dir. Let's see if it's the worktree for
@@ -584,14 +584,6 @@ make_worktree (SeafCloneManager *mgr,
         return wt;
     }
 
-mk_dir:
-    if (!dry_run && g_mkdir_with_parents (ret, 0777) < 0) {
-        seaf_warning ("[clone mgr] Failed to create dir %s.\n", ret);
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "Failed to create worktree");
-        g_free (ret);
-        return NULL;
-    }
     return ret;
 }
 
@@ -836,14 +828,6 @@ make_worktree_for_download (SeafCloneManager *mgr,
     }
 
     if (!check_worktree_path (mgr, worktree, error)) {
-        g_free (worktree);
-        return NULL;
-    }
-
-    if (g_mkdir (worktree, 0777) < 0) {
-        seaf_warning ("[clone mgr] Failed to create dir %s.\n", worktree);
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "Failed to create worktree");
         g_free (worktree);
         return NULL;
     }
@@ -1260,6 +1244,14 @@ start_checkout (SeafRepo *repo, CloneTask *task)
         seaf_warning ("[Clone mgr] Password is empty for encrypted repo %s.\n",
                    repo->id);
         transition_to_error (task, CLONE_ERROR_PASSWD);
+        return;
+    }
+
+    if (g_access (task->worktree, F_OK) != 0 &&
+        g_mkdir_with_parents (task->worktree, 0777) < 0) {
+        seaf_warning ("[clone mgr] Failed to create worktree %s.\n",
+                      task->worktree);
+        transition_to_error (task, CLONE_ERROR_CHECKOUT);
         return;
     }
 
