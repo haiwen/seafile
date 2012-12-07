@@ -24,6 +24,7 @@ po/POTFILES
 po/Makefile*
 po/stamp-it
 po/*.gmo
+po/*.pot
 missing
 mkinstalldirs
 stamp-h1
@@ -73,6 +74,7 @@ app/seafserv-tool
 daemon/seaf-daemon
 gui/gtk/seafile-applet
 server/seaf-server
+server/gc/seafserv-gc
 monitor/seaf-mon
 controller/seafile-controller
 httpserver/httpserver
@@ -111,5 +113,3 @@ web/build/
 web/dist/
 tests/basic/conf2/misc/
 tests/basic/conf2/seafile-data/
-
-
