@@ -188,10 +188,19 @@ enum {
     statusImage[1] = [[NSImage alloc] initWithContentsOfFile: [bundle pathForResource: @"network-down" ofType: @"png"]];
     statusImage[2] = [[NSImage alloc] initWithContentsOfFile: [bundle pathForResource: @"network-stop" ofType: @"png"]];
 
+	NSSize imageSize;
+	imageSize.width = 24;
+	imageSize.height = 24;
+	[statusImage[0] setSize:imageSize];
+	[statusImage[1] setSize:imageSize];
+	[statusImage[2] setSize:imageSize];
+
     for (int i = 0; i < 4; ++i) {
         NSString *image_name = [NSString stringWithFormat: @"network-rotate%d",i+1];
         transferImage[i] = [[NSImage alloc] initWithContentsOfFile: [bundle pathForResource: image_name ofType: @"png"]];
-    }
+		
+		[transferImage[i] setSize:imageSize];
+	}
     warningImage = [[NSImage alloc] initWithContentsOfFile: [bundle pathForResource: @"warning" ofType: @"png"]];
     wktreeImage = [[NSImage alloc] initWithContentsOfFile: [bundle pathForResource: @"seafilefolder" ofType: @"icns"]];
     repoImage  = [[NSImage alloc] initWithContentsOfFile: [bundle pathForResource: @"seafilerepo" ofType: @"icns"]];
