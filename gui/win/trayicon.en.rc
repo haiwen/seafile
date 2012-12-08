@@ -30,7 +30,7 @@ LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-IDI_SEAFILE_ICON          ICON                    "seafile.ico"
+IDI_SEAFILE_ICON        ICON                    "seafile.ico"
 IDI_STATUS_UP           ICON                    "ccnet_daemon_up.ico"
 IDI_STATUS_DOWN         ICON                    "ccnet_daemon_down.ico"
 IDI_STATUS_TRANSFER_1   ICON                    "seafile_transfer_1.ico"
@@ -48,14 +48,14 @@ IDC_STARTINTRAY MENU
 BEGIN
     POPUP "нд╪Ч(&F)"
     BEGIN
-        MENUITEM "Open admin page(&O)",                  IDM_OPEN
+        MENUITEM "Open admin page(&O)",         IDM_OPEN
         MENUITEM SEPARATOR
-        MENUITEM "Disable auto sync",                        IDM_DISABLE_AUTO_SYNC
-        MENUITEM "Enable auto sync",                        IDM_ENABLE_AUTO_SYNC
+        MENUITEM "Disable auto sync",           IDM_DISABLE_AUTO_SYNC
+        MENUITEM "Enable auto sync",            IDM_ENABLE_AUTO_SYNC
         MENUITEM SEPARATOR
-        MENUITEM "Restart Seafile(&R)",              IDM_RESTART
+        MENUITEM "Restart Seafile(&R)",         IDM_RESTART
         MENUITEM SEPARATOR
-        MENUITEM "Quit(&X)",                      IDM_EXIT
+        MENUITEM "Quit(&X)",                    IDM_EXIT
     END
 END
 
@@ -164,7 +164,6 @@ END
 // Bitmap
 //
 
-IDB_TRAYICON_TIP        BITMAP                  "win7-trayicon-tip.bmp"
 IDB_TOP_BANNER          BITMAP                  "window-head.bmp"
 
 /////////////////////////////////////////////////////////////////////////////

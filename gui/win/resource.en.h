@@ -5,7 +5,7 @@
 #define IDI_STARTINTRAY                 102
 #define IDS_APP_TITLE                   103
 #define IDM_EXIT                        105
-#define IDI_SEAFILE_ICON                  107
+#define IDI_SEAFILE_ICON                107
 #define IDC_STARTINTRAY                 108
 #define IDI_STATUS_UP                   110
 #define IDI_STATUS_DOWN                 111
@@ -16,7 +16,6 @@
 #define IDD_CREATE_REPO1                138
 #define IDD_WIN7_TIP                    140
 #define IDD_INIT_SEAFILE                141
-#define IDB_TRAYICON_TIP                142
 #define IDB_TOP_BANNER                  144
 #define IDI_ICON1                       145
 #define IDI_STATUS_AUTO_SYNC_DISABLED   145
