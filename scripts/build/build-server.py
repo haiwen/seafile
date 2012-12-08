@@ -590,6 +590,7 @@ def create_tarball(tarball_name):
         # seahub
         os.path.join(versioned_serverdir, 'seahub', '.git*'),
         os.path.join(versioned_serverdir, 'seahub', 'media', 'flexpaper*'),
+        os.path.join(versioned_serverdir, 'seahub', 'avatar', 'testdata*'),
         
         # seafile
         os.path.join(versioned_serverdir, 'seafile', 'share*'),
