@@ -1,9 +1,16 @@
 #!/bin/bash
 
+
 SCRIPT=$(readlink -f "$0")
-INSTALLPATH=$(dirname "${SCRIPT}")
+UPGRADE_DIR=$(dirname "$SCRIPT")
+INSTALLPATH=$(dirname "$UPGRADE_DIR")
 TOPDIR=$(dirname "${INSTALLPATH}")
+default_ccnet_conf_dir=${TOPDIR}/ccnet
 default_seahub_db=${TOPDIR}/seahub.db
+
+export CCNET_CONF_DIR=${default_ccnet_conf_dir}
+export LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
+export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
 
 prev_version=1.0.0
 current_version=1.1.0
@@ -14,8 +21,32 @@ echo "This script would upgrade your seafile server from ${prev_version} to ${cu
 echo "Press [ENTER] to contiune"
 echo "-------------------------------------------------------------"
 echo
-
 read dummy
+
+function check_python_executable() {
+    if [[ "$PYTHON" != "" && -x $PYTHON ]]; then
+        return 0
+    fi
+        
+    if which python2.7 2>/dev/null 1>&2; then
+        PYTHON=python2.7
+    elif which python27 2>/dev/null 1>&2; then
+        PYTHON=python27
+    elif which python2.6 2>/dev/null 1>&2; then
+        PYTHON=python2.6
+    elif which python26 2>/dev/null 1>&2; then
+        PYTHON=python26
+    else
+        echo 
+        echo "Can't find a python executable of version 2.6 or above in PATH"
+        echo "Install python 2.6+ before continue."
+        echo "Or if you installed it in a non-standard PATH, set the PYTHON enviroment varirable to it"
+        echo 
+        exit 1
+    fi
+}
+
+check_python_executable
 
 # test whether seafile server has been stopped.
 if pgrep seaf-server 2>/dev/null 1>&2 ; then
@@ -36,10 +67,9 @@ fi
 echo "------------------------------"
 echo "updating seahub database ... "
 echo
-export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:${PYTHONPATH}
 manage_py=${INSTALLPATH}/seahub/manage.py
 pushd "${INSTALLPATH}/seahub" 2>/dev/null 1>&2
-if ! python manage.py syncdb 2>/dev/null 1>&2; then
+if ! $PYTHON manage.py syncdb 2>/dev/null 1>&2; then
     echo "failed"
     exit -1
 fi
@@ -78,9 +108,9 @@ echo "update ccnet/seafile databse ..."
 ccnet_conf_path=${TOPDIR}/ccnet
 seafile_data_path=${TOPDIR}/seafile-data
 
-alter_db_py=${INSTALLPATH}/alter_pubrepo_db.py
+alter_db_py=${UPGRADE_DIR}/alter_pubrepo_db.py
 
-if ! python "${alter_db_py}" "${seafile_data_path}" ; then
+if ! $PYTHON "${alter_db_py}" "${seafile_data_path}" ; then
     echo "failed"
     exit -1
 fi
@@ -89,3 +119,4 @@ fi
 echo "Done"
 echo "------------------------------"
 echo
+
