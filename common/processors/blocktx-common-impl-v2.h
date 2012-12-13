@@ -225,7 +225,7 @@ send_encrypted_data (EVP_CIPHER_CTX *ctx, int sockfd,
     }
 
     if (remain == 0) {
-        if (EVP_EncryptFinal (ctx, (unsigned char *)out_buf, &out_len) == 0) {
+        if (EVP_EncryptFinal_ex (ctx, (unsigned char *)out_buf, &out_len) == 0) {
             seaf_warning ("Failed to encrypt data.\n");
             return -1;
         }
@@ -420,7 +420,7 @@ write_decrypted_data (const char *buf, int len,
     }
 
     if (fsm->remain == 0) {
-        if (EVP_DecryptFinal (&fsm->ctx, (unsigned char *)out_buf, &out_len) == 0)
+        if (EVP_DecryptFinal_ex (&fsm->ctx, (unsigned char *)out_buf, &out_len) == 0)
         {
             seaf_warning ("Failed to encrypt data.\n");
             return -1;
