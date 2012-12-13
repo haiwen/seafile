@@ -2446,7 +2446,7 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     /* If repo head is set but failed to load branch or commit. */
     if (repo->is_corrupted) {
         seaf_repo_free (repo);
-        remove_repo_ondisk (manager, repo_id);
+        /* remove_repo_ondisk (manager, repo_id); */
         return NULL;
     }
 
@@ -2479,7 +2479,7 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
 
     if (repo->is_corrupted) {
         seaf_repo_free (repo);
-        remove_repo_ondisk (manager, repo_id);
+        /* remove_repo_ondisk (manager, repo_id); */
         return NULL;
     }
 

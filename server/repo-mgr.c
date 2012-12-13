@@ -529,13 +529,13 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
         return NULL;
     } else if (n == 0) {
         seaf_repo_free (repo);
-        remove_repo_ondisk (manager, repo_id);
+        /* remove_repo_ondisk (manager, repo_id); */
         return NULL;
     }
 
     if (repo->is_corrupted) {
         seaf_repo_free (repo);
-        remove_repo_ondisk (manager, repo_id);
+        /* remove_repo_ondisk (manager, repo_id); */
         return NULL;
     }
 
