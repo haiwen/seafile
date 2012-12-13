@@ -289,7 +289,7 @@ check_heartbeat (void *data)
         try_kill_process(PID_SERVER);
         seaf_message ("seaf-server need restart...\n");
         start_seaf_server ();
-        ctl->last_hb[HB_SEAFILE_SERVER] = now;
+        ctl->last_hb[HB_SEAFILE_SERVER] = time(NULL);
 
     }
 
@@ -298,7 +298,7 @@ check_heartbeat (void *data)
         try_kill_process(PID_MONITOR);
         seaf_message ("seaf-mon need restart...\n");
         start_seaf_monitor ();
-        ctl->last_hb[HB_SEAFILE_MONITOR] = now;
+        ctl->last_hb[HB_SEAFILE_MONITOR] = time(NULL);
     }
 
     return TRUE;
