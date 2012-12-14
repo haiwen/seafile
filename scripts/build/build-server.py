@@ -52,6 +52,7 @@ CONF_KEEP               = 'keep'
 CONF_BUILDDIR           = 'builddir'
 CONF_OUTPUTDIR          = 'outputdir'
 CONF_THIRDPARTDIR       = 'thirdpartdir'
+CONF_NO_STRIP           = 'nostrip'
 
 ####################
 ### Common helper functions
@@ -308,6 +309,9 @@ def validate_args(usage, options):
     # [ keep ]
     keep = get_option(CONF_KEEP)
 
+    # [ no strip]
+    nostrip = get_option(CONF_NO_STRIP)
+
     conf[CONF_VERSION] = version
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
     conf[CONF_CCNET_VERSION] = ccnet_version
@@ -317,6 +321,7 @@ def validate_args(usage, options):
     conf[CONF_OUTPUTDIR] = outputdir
     conf[CONF_KEEP] = keep
     conf[CONF_THIRDPARTDIR] = thirdpartdir
+    conf[CONF_NO_STRIP] = nostrip
 
     prepare_builddir(builddir)
     show_build_info()
@@ -326,10 +331,13 @@ def show_build_info():
     info('------------------------------------------')
     info('BUILD INFO')
     info('------------------------------------------')
-    info('version:          %s' % conf[CONF_VERSION])
+    info('seafile:          %s' % conf[CONF_VERSION])
+    info('ccnet:            %s' % conf[CONF_CCNET_VERSION])
+    info('libsearpc:        %s' % conf[CONF_LIBSEARPC_VERSION])
     info('builddir:         %s' % conf[CONF_BUILDDIR])
     info('outputdir:        %s' % conf[CONF_OUTPUTDIR])
     info('source dir:       %s' % conf[CONF_SRCDIR])
+    info('strip symbols:    %s' % (not conf[CONF_NO_STRIP]))
     info('clean on exit:    %s' % (not conf[CONF_KEEP]))
     info('------------------------------------------')
     info('press any key to continue ')
@@ -401,6 +409,10 @@ def parse_args():
                       action='store_true',
                       help='''keep the build directory after the script exits. By default, the script would delete the build directory at exit.''')
 
+    parser.add_option(long_opt(CONF_NO_STRIP),
+                      dest=CONF_NO_STRIP,
+                      action='store_true',
+                      help='''do not strip debug symbols''')
     usage = parser.format_help()
     options, remain = parser.parse_args()
     if remain:
@@ -427,6 +439,11 @@ def setup_build_env():
     append_env_value('CPPFLAGS',
                      '-I%s' % os.path.join(prefix, 'include'),
                      seperator=' ')
+
+    if conf[CONF_NO_STRIP]:
+        append_env_value('CPPFLAGS',
+                         '-g -O0',
+                         seperator=' ')
 
     append_env_value('LDFLAGS',
                      '-L%s' % os.path.join(prefix, 'lib'),
@@ -616,10 +633,11 @@ def create_tarball(tarball_name):
 
 def gen_tarball():
     # strip symbols of libraries to reduce size
-    try:
-        strip_symbols()
-    except Exception, e:
-        error('failed to strip symbols: %s' % e)
+    if not conf[CONF_NO_STRIP]:
+        try:
+            strip_symbols()
+        except Exception, e:
+            error('failed to strip symbols: %s' % e)
 
     # determine the output name
     # 64-bit: seafile-server_1.2.2_x86-64.tar.gz
@@ -629,8 +647,12 @@ def gen_tarball():
     if arch != 'x86-64':
         arch = 'i386'
 
-    tarball_name = 'seafile-server_%(version)s_%(arch)s.tar.gz' \
-                   % dict(version=version, arch=arch)
+    dbg = ''
+    if conf[CONF_NO_STRIP]:
+        dbg = 'dbg'
+
+    tarball_name = 'seafile-server_%(version)s_%(arch)s.%(dbg)s.tar.gz' \
+                   % dict(version=version, arch=arch, dbg=dbg)
     dst_tarball = os.path.join(conf[CONF_OUTPUTDIR], tarball_name)
 
     # generate the tarball
