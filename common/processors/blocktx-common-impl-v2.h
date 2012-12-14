@@ -349,11 +349,12 @@ send_blocks (ThreadData *tdata)
 
         ret = send_block_packet (tdata, blk_req.block_idx, blk_req.block_id, 
                                  handle, tdata->data_fd);
-        if (ret < 0)
-            return -1;
 
         seaf_block_manager_close_block (block_mgr, handle);
         seaf_block_manager_block_handle_free (block_mgr, handle);
+
+        if (ret < 0)
+            return -1;
     }
 
     return 0;

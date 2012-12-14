@@ -116,11 +116,12 @@ static int default_write_chunk (CDCDescriptor *chunk_descr)
     memset(chksum_str, 0, sizeof(chksum_str));
     rawdata_to_hex (chunk_descr->checksum, chksum_str, CHECKSUM_LENGTH);
     snprintf (filename, NAME_MAX_SZ, "./%s", chksum_str);
-    fd_chunk = open (filename, O_RDWR | O_CREAT | O_BINARY, 0644);
+    fd_chunk = g_open (filename, O_RDWR | O_CREAT | O_BINARY, 0644);
     if (fd_chunk < 0)
         return -1;    
     
     ret = writen (fd_chunk, chunk_descr->block_buf, chunk_descr->len);
+    close (fd_chunk);
     return ret;
 }
 

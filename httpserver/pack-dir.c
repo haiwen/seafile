@@ -203,9 +203,9 @@ add_file_to_archive (PackDirData *data,
                 /* If it's the last piece of a block, call decrypt_final()
                  * to decrypt the possible partial block. */
                 if (remain == 0) {
-                    r = EVP_DecryptFinal (&ctx,
-                                          (unsigned char *)dec_out,
-                                          &dec_out_len);
+                    r = EVP_DecryptFinal_ex (&ctx,
+                                             (unsigned char *)dec_out,
+                                             &dec_out_len);
                     if (r != 0) {
                         seaf_warning ("Decrypt block %s failed.\n", blk_id);
                         ret = -1;

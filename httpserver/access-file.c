@@ -199,9 +199,9 @@ next:
         /* If it's the last piece of a block, call decrypt_final()
          * to decrypt the possible partial block. */
         if (data->remain == 0) {
-            ret = EVP_DecryptFinal (&data->ctx,
-                                    (unsigned char *)dec_out,
-                                    &dec_out_len);
+            ret = EVP_DecryptFinal_ex (&data->ctx,
+                                       (unsigned char *)dec_out,
+                                       &dec_out_len);
             if (ret == 0) {
                 seaf_warning ("Decrypt block %s failed.\n", blk_id);
                 g_free (dec_out);
