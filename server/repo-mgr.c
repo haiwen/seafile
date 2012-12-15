@@ -54,7 +54,7 @@ static const char *ignore_table[] = {
 static GPatternSpec** ignore_patterns;
 
 static SeafRepo *
-load_repo (SeafRepoManager *manager, const char *repo_id);
+load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt);
 
 static int create_db_tables_if_not_exist (SeafRepoManager *mgr);
 
@@ -420,7 +420,29 @@ seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
     memcpy (repo.id, id, len + 1);
 
     if (repo_exists_in_db (manager->seaf->db, id)) {
-        SeafRepo *ret = load_repo (manager, id);
+        SeafRepo *ret = load_repo (manager, id, FALSE);
+        if (!ret)
+            return NULL;
+        /* seaf_repo_ref (ret); */
+        return ret;
+    }
+
+    return NULL;
+}
+
+SeafRepo*
+seaf_repo_manager_get_repo_ex (SeafRepoManager *manager, const gchar *id)
+{
+    SeafRepo repo;
+    int len = strlen(id);
+
+    if (len >= 37)
+        return NULL;
+
+    memcpy (repo.id, id, len + 1);
+
+    if (repo_exists_in_db (manager->seaf->db, id)) {
+        SeafRepo *ret = load_repo (manager, id, TRUE);
         if (!ret)
             return NULL;
         /* seaf_repo_ref (ret); */
@@ -504,7 +526,7 @@ load_branch_cb (SeafDBRow *row, void *vrepo)
 }
 
 static SeafRepo *
-load_repo (SeafRepoManager *manager, const char *repo_id)
+load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt)
 {
     char sql[256];
     int n;
@@ -523,19 +545,13 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
      * This means the repo is corrupted.
      */
     n = seaf_db_foreach_selected_row (seaf->db, sql, load_branch_cb, repo);
-    if (n < 0) {
+    if (n <= 0) {
         seaf_warning ("Error read branch for repo %s.\n", repo->id);
-        seaf_repo_free (repo);
-        return NULL;
-    } else if (n == 0) {
-        seaf_repo_free (repo);
-        /* remove_repo_ondisk (manager, repo_id); */
-        return NULL;
+        repo->is_corrupted = TRUE;
     }
 
-    if (repo->is_corrupted) {
+    if (repo->is_corrupted && !ret_corrupt) {
         seaf_repo_free (repo);
-        /* remove_repo_ondisk (manager, repo_id); */
         return NULL;
     }
 

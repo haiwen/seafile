@@ -95,6 +95,10 @@ static void handle_response (CcnetProcessor *processor,
 {
     SeafileSyncRepoProc *proc = (SeafileSyncRepoProc *)processor;
 
+    proc->task->info->deleted_on_relay = FALSE;
+    proc->task->info->branch_deleted_on_relay = FALSE;
+    proc->task->info->repo_corrupted = FALSE;
+
     if (memcmp (code, SC_COMMIT_ID, 3) == 0) {
         
         if (content[clen-1] != '\0') {
@@ -111,8 +115,7 @@ static void handle_response (CcnetProcessor *processor,
         }
 
         memcpy(proc->task->info->head_commit, content, 41);
-        proc->task->info->deleted_on_relay = FALSE;
-        proc->task->info->branch_deleted_on_relay = FALSE;
+
         ccnet_processor_done (processor, TRUE);
     } else if (memcmp (code, SC_NO_REPO, 3) == 0) {
         proc->task->info->deleted_on_relay = TRUE;
@@ -120,7 +123,9 @@ static void handle_response (CcnetProcessor *processor,
     } else if (memcmp (code, SC_NO_BRANCH, 3) == 0) {
         proc->task->info->branch_deleted_on_relay = TRUE;
         ccnet_processor_done (processor, TRUE);
-    }
-
-    ccnet_processor_done (processor, FALSE);
+    } else if (memcmp (code, SC_REPO_CORRUPT, 3) == 0) {
+        proc->task->info->repo_corrupted = TRUE;
+        ccnet_processor_done (processor, TRUE);
+    } else 
+        ccnet_processor_done (processor, FALSE);
 }

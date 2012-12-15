@@ -457,6 +457,7 @@ static const char *sync_error_str[] = {
     "Failed to start download.",
     "Error occured in download.",
     "No such repo on relay.",
+    "Repo is damaged on relay.",
     "Unknown error.",
 };
 
@@ -683,14 +684,15 @@ update_sync_status (SyncTask *task)
     if (!local) {
         seaf_warning ("[sync-mgr] Branch local not found for repo %s(%.8s).\n",
                    repo->name, repo->id);
-        info->bad_local_branch = TRUE;
         seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
         return;
     }
     master = seaf_branch_manager_get_branch (
         seaf->branch_mgr, info->repo_id, "master");
 
-    if (info->deleted_on_relay) {
+    if (info->repo_corrupted) {
+        seaf_sync_manager_set_task_error (task, SYNC_ERROR_REPO_CORRUPT);
+    } else if (info->deleted_on_relay) {
         /* First upload. */
         if (!master)
             start_upload_if_necessary (task);
@@ -699,7 +701,7 @@ update_sync_status (SyncTask *task)
          */
         else {
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_NOREPO);
-            seaf_debug ("remove repo %s(%.8s) since it's deleted on relay",
+            seaf_debug ("remove repo %s(%.8s) since it's deleted on relay\n",
                         repo->name, repo->id);
             seaf_mq_manager_publish_notification (seaf->mq_mgr,
                                                   "repo.deleted_on_relay",

@@ -113,6 +113,10 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr, SeafRepo *repo);
 SeafRepo* 
 seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id);
 
+/* Return repo object even if it's corrupted. */
+SeafRepo*
+seaf_repo_manager_get_repo_ex (SeafRepoManager *manager, const gchar *id);
+
 SeafRepo* 
 seaf_repo_manager_get_repo_prefix (SeafRepoManager *manager, const gchar *id);
 

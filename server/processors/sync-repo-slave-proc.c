@@ -104,10 +104,14 @@ send_repo_branch_info (void *vprocessor)
     SeafBranch *seaf_branch;
     USE_PRIV;
     
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, priv->repo_id);
+    repo = seaf_repo_manager_get_repo_ex (seaf->repo_mgr, priv->repo_id);
     if (!repo) {
         priv->rsp_code = g_strdup (SC_NO_REPO);
         priv->rsp_msg = g_strdup (SS_NO_REPO);
+        return vprocessor;
+    } else if (repo->is_corrupted) {
+        priv->rsp_code = g_strdup (SC_REPO_CORRUPT);
+        priv->rsp_msg = g_strdup (SS_REPO_CORRUPT);
         return vprocessor;
     }
 

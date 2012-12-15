@@ -21,7 +21,7 @@ struct _SyncInfo {
     gint       err_cnt;
     gboolean   deleted_on_relay;
     gboolean   branch_deleted_on_relay;
-    gboolean   bad_local_branch;
+    gboolean   repo_corrupted;
     gboolean   need_fetch;
     gboolean   need_upload;
     gboolean   need_merge;
@@ -56,6 +56,7 @@ enum {
     SYNC_ERROR_START_FETCH,
     SYNC_ERROR_FETCH,
     SYNC_ERROR_NOREPO,
+    SYNC_ERROR_REPO_CORRUPT,
     SYNC_ERROR_UNKNOWN,
     SYNC_ERROR_NUM,
 };
