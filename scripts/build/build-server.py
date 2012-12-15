@@ -649,9 +649,9 @@ def gen_tarball():
 
     dbg = ''
     if conf[CONF_NO_STRIP]:
-        dbg = 'dbg'
+        dbg = '.dbg'
 
-    tarball_name = 'seafile-server_%(version)s_%(arch)s.%(dbg)s.tar.gz' \
+    tarball_name = 'seafile-server_%(version)s_%(arch)s%(dbg)s.tar.gz' \
                    % dict(version=version, arch=arch, dbg=dbg)
     dst_tarball = os.path.join(conf[CONF_OUTPUTDIR], tarball_name)
 
