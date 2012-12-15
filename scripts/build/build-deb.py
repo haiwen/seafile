@@ -9,9 +9,6 @@ Some notes:
 to change to the 'builddir'. We make use of the 'cwd' argument in
 'subprocess.Popen' to run a command in a specific directory.
 
-2. django/djblets/gunicorn must be easy_install-ed to a directory before run
-this script. That directory is passed in as the  '--thirdpartdir' arguments.
-
 '''
 
 import sys
@@ -28,7 +25,6 @@ if sys.version_info[1] < 6:
 
 import os
 import glob
-import commands
 import tempfile
 import shutil
 import re
@@ -51,7 +47,6 @@ CONF_SRCDIR             = 'srcdir'
 CONF_KEEP               = 'keep'
 CONF_BUILDDIR           = 'builddir'
 CONF_OUTPUTDIR          = 'outputdir'
-CONF_THIRDPARTDIR       = 'thirdpartdir'
 CONF_NO_STRIP           = 'nostrip'
 
 ####################
@@ -153,8 +148,6 @@ class Project(object):
     build_commands = []
 
     def __init__(self):
-        # the path to pass to --prefix=/<prefix> 
-        self.prefix = os.path.join(conf[CONF_BUILDDIR], 'seafile-server', 'seafile')
         self.version = self.get_version()
         self.src_tarball = os.path.join(conf[CONF_SRCDIR],
                             '%s-%s.tar.gz' % (self.name, self.version))
@@ -182,26 +175,11 @@ class Project(object):
 class Libsearpc(Project):
     name = 'libsearpc'
 
-    def __init__(self):
-        Project.__init__(self)
-        self.build_commands = [
-            './configure --prefix=%s' % self.prefix,
-            'make',
-            'make install'
-        ]
-
     def get_version(self):
         return conf[CONF_LIBSEARPC_VERSION]
 
 class Ccnet(Project):
     name = 'ccnet'
-    def __init__(self):
-        Project.__init__(self)
-        self.build_commands = [
-            './configure --prefix=%s --disable-client --enable-server' % self.prefix,
-            'make',
-            'make install'
-        ]
 
     def get_version(self):
         return conf[CONF_CCNET_VERSION]
@@ -211,38 +189,11 @@ class Seafile(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
-            './configure --prefix=%s --disable-client --enable-server --enable-httpserver' % self.prefix,
-            'make',
-            'make install'
+            'dpkg-buildpackage -B -nc -uc -us',
         ]
 
     def get_version(self):
         return conf[CONF_VERSION]
-
-class Seahub(Project):
-    name = 'seahub'
-    def __init__(self):
-        Project.__init__(self)
-        # nothing to do for seahub
-        self.build_commands = [
-        ]
-
-    def get_version(self):
-        return conf[CONF_VERSION]
-
-def check_seahub_thirdpart(thirdpartdir):
-    '''The ${thirdpartdir} must have django/djblets/gunicorn pre-installed. So
-    we can copy it to seahub/thirdpart
-
-    '''
-    thirdpart_libs = ['Django', 'Djblets', 'gunicorn']
-    def check_thirdpart_lib(name):
-        name += '*/'
-        if not glob.glob(os.path.join(thirdpartdir, name)):
-            error('%s not find in %s' % (name, thirdpartdir))
-
-    for lib in thirdpart_libs:
-        check_thirdpart_lib(lib)
 
 def check_targz_src(proj, version, srcdir):
     src_tarball = os.path.join(srcdir, '%s-%s.tar.gz' % (proj, version))
@@ -255,9 +206,8 @@ def validate_args(usage, options):
         CONF_LIBSEARPC_VERSION,
         CONF_CCNET_VERSION,
         CONF_SRCDIR,
-        CONF_THIRDPARTDIR,
     ]
-    
+
     # fist check required args
     for optname in required_args:
         if getattr(options, optname, None) == None:
@@ -271,7 +221,7 @@ def validate_args(usage, options):
         '''A valid version must be like 1.2.2, 1.3'''
         if not re.match('^[0-9]\.[0-9](\.[0-9])?$', version):
             error('%s is not a valid version' % version, usage=usage)
-        
+
     version = get_option(CONF_VERSION)
     libsearpc_version = get_option(CONF_LIBSEARPC_VERSION)
     ccnet_version = get_option(CONF_CCNET_VERSION)
@@ -279,24 +229,19 @@ def validate_args(usage, options):
     check_project_version(version)
     check_project_version(libsearpc_version)
     check_project_version(ccnet_version)
-    
+
     # [ srcdir ]
     srcdir = get_option(CONF_SRCDIR)
     check_targz_src('libsearpc', libsearpc_version, srcdir)
     check_targz_src('ccnet', ccnet_version, srcdir)
     check_targz_src('seafile', version, srcdir)
-    check_targz_src('seahub', version, srcdir)
 
     # [ builddir ]
     builddir = get_option(CONF_BUILDDIR)
     if not os.path.exists(builddir):
         error('%s does not exist' % builddir, usage=usage)
 
-    builddir = os.path.join(builddir, 'seafile-server-build')
-
-    # [ thirdpartdir ]
-    thirdpartdir = get_option(CONF_THIRDPARTDIR)
-    check_seahub_thirdpart(thirdpartdir)
+    builddir = os.path.join(builddir, 'seafile-deb-build')
 
     # [ outputdir ]
     outputdir = get_option(CONF_OUTPUTDIR)
@@ -315,12 +260,11 @@ def validate_args(usage, options):
     conf[CONF_VERSION] = version
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
     conf[CONF_CCNET_VERSION] = ccnet_version
-    
+
     conf[CONF_BUILDDIR] = builddir
     conf[CONF_SRCDIR] = srcdir
     conf[CONF_OUTPUTDIR] = outputdir
     conf[CONF_KEEP] = keep
-    conf[CONF_THIRDPARTDIR] = thirdpartdir
     conf[CONF_NO_STRIP] = nostrip
 
     prepare_builddir(builddir)
@@ -329,7 +273,7 @@ def validate_args(usage, options):
 def show_build_info():
     '''Print all conf information. Confirm before continue.'''
     info('------------------------------------------')
-    info('Seafile server package: BUILD INFO')
+    info('Seafile debian package: BUILD INFO')
     info('------------------------------------------')
     info('seafile:          %s' % conf[CONF_VERSION])
     info('ccnet:            %s' % conf[CONF_CCNET_VERSION])
@@ -359,18 +303,10 @@ def prepare_builddir(builddir):
 
     os.chdir(builddir)
 
-    must_mkdir(os.path.join(builddir, 'seafile-server'))
-    must_mkdir(os.path.join(builddir, 'seafile-server', 'seafile'))
-
 def parse_args():
     parser = optparse.OptionParser()
     def long_opt(opt):
         return '--' + opt
-
-    parser.add_option(long_opt(CONF_THIRDPARTDIR),
-                      dest=CONF_THIRDPARTDIR,
-                      nargs=1,
-                      help='where to find the thirdpart libs for seahub')
 
     parser.add_option(long_opt(CONF_VERSION),
                       dest=CONF_VERSION,
@@ -422,7 +358,7 @@ def parse_args():
 
 def setup_build_env():
     '''Setup environment variables, such as export PATH=$BUILDDDIR/bin:$PATH'''
-    prefix = os.path.join(conf[CONF_BUILDDIR], 'seafile-server', 'seafile')
+    prefix = os.path.join(Seafile().projdir, 'debian', 'seafile', 'usr')
     def append_env_value(name, value, seperator=':'):
         '''append a new value to a list'''
         try:
@@ -436,239 +372,48 @@ def setup_build_env():
 
         os.environ[name] = new_value
 
-    append_env_value('CPPFLAGS',
+    append_env_value('DEB_CPPFLAGS_APPEND',
                      '-I%s' % os.path.join(prefix, 'include'),
                      seperator=' ')
 
+    append_env_value('DEB_CPPFLAGS_APPEND',
+                     '-I%s' % os.path.join(prefix, 'include', 'searpc'),
+                     seperator=' ')
+
+    append_env_value('DEB_CPPFLAGS_APPEND',
+                     '-I%s' % os.path.join(prefix, 'include', 'ccnet'),
+                     seperator=' ')
+
     if conf[CONF_NO_STRIP]:
-        append_env_value('CPPFLAGS',
+        append_env_value('DEB_CPPFLAGS_APPEND',
                          '-g -O0',
                          seperator=' ')
 
-    append_env_value('LDFLAGS',
+    append_env_value('DEB_LDFLAGS_APPEND',
                      '-L%s' % os.path.join(prefix, 'lib'),
-                     seperator=' ')
-
-    append_env_value('LDFLAGS',
-                     '-L%s' % os.path.join(prefix, 'lib64'),
                      seperator=' ')
 
     append_env_value('PATH', os.path.join(prefix, 'bin'))
     append_env_value('PKG_CONFIG_PATH', os.path.join(prefix, 'lib', 'pkgconfig'))
-    append_env_value('PKG_CONFIG_PATH', os.path.join(prefix, 'lib64', 'pkgconfig'))
 
-def copy_scripts_and_libs():
-    '''Copy server release scripts and shared libs, as well as seahub
-    thirdpart libs
+    os.environ['LIBSEARPC_SOURCE_DIR'] = Libsearpc().projdir
+    os.environ['CCNET_SOURCE_DIR'] = Ccnet().projdir
 
-    '''
+def move_deb():
     builddir = conf[CONF_BUILDDIR]
-    scripts_srcdir = os.path.join(builddir, Seafile().projdir, 'scripts')
-    serverdir = os.path.join(builddir, 'seafile-server')
+    deb_name = glob.glob('*.deb')[0]
 
-    must_copy(os.path.join(scripts_srcdir, 'setup-seafile.sh'),
-              serverdir)
-    must_copy(os.path.join(scripts_srcdir, 'seafile.sh'),
-              serverdir)
-    must_copy(os.path.join(scripts_srcdir, 'seahub.sh'),
-              serverdir)
-    must_copy(os.path.join(scripts_srcdir, 'create-seahub-admin.sh'),
-              serverdir)
+    src_deb = os.path.join(builddir, deb_name)
+    dst_deb = os.path.join(conf[CONF_OUTPUTDIR], deb_name)
 
-    # copy update scripts
-    update_scriptsdir = os.path.join(scripts_srcdir, 'upgrade')
-    dst_update_scriptsdir = os.path.join(serverdir, 'upgrade')
+    # move deb to outputdir
     try:
-        shutil.copytree(update_scriptsdir, dst_update_scriptsdir)
+        shutil.move(src_deb, dst_deb)
     except Exception, e:
-        error('failed to copy upgrade scripts: %s' % e)
-
-    # copy runtime/seahub.conf
-    runtimedir = os.path.join(serverdir, 'runtime')
-    must_mkdir(runtimedir)
-    must_copy(os.path.join(scripts_srcdir, 'seahub.conf'),
-              runtimedir)
-
-    # move seahub to seafile-server/seahub
-    src_seahubdir = Seahub().projdir
-    dst_seahubdir = os.path.join(serverdir, 'seahub')
-    try:
-        shutil.move(src_seahubdir, dst_seahubdir)
-    except Exception, e:
-        error('failed to move seahub to seafile-server/seahub: %s' % e)
-
-    # copy seahub thirdpart libs
-    seahub_thirdpart = os.path.join(dst_seahubdir, 'thirdpart')
-    copy_seahub_thirdpart_libs(seahub_thirdpart)
-
-    # copy shared c libs
-    copy_shared_libs()
-
-def copy_shared_libs():
-    '''copy shared c libs, such as libevent, glib, libmysqlclient'''
-    builddir = conf[CONF_BUILDDIR]
-
-    dst_dir = os.path.join(builddir,
-                           'seafile-server',
-                           'seafile',
-                           'lib')
-
-    syslibs = ['libsearpc', 'libccnet', 'libseafile', 'libpthread.so', 'libc.so', 'libm.so', 'librt.so', 'libdl.so', 'libselinux.so']
-    def is_syslib(lib):
-        for syslib in syslibs:
-            if syslib in lib:
-                return True
-        return False
-
-    httpserver_path = os.path.join(builddir,
-                                   'seafile-server',
-                                   'seafile',
-                                   'bin',
-                                   'httpserver')
-
-    ldd_output = commands.getoutput('ldd %s' % httpserver_path)
-    for line in ldd_output.splitlines():
-        tokens = line.split()
-        if len(tokens) != 4:
-            continue
-        if is_syslib(tokens[0]):
-            continue
-
-        info('Copying %s' % tokens[2])
-        shutil.copy(tokens[2], dst_dir)
-
-def copy_seahub_thirdpart_libs(seahub_thirdpart):
-    '''copy django/djblets/gunicorn from ${thirdpartdir} to
-    seahub/thirdpart
-
-    '''
-    src = conf[CONF_THIRDPARTDIR]
-    dst = seahub_thirdpart
-
-    pattern = os.path.join(src, '*')
-    try:
-        for path in glob.glob(pattern):
-            target_path = os.path.join(dst, os.path.basename(path))
-            if os.path.isdir(path):
-                shutil.copytree(path, target_path)
-            else:
-                shutil.copy(path, target_path)
-    except Exception, e:
-        error('failed to copy seahub thirdpart libs: %s' % e)
-
-def strip_symbols():
-    def do_strip(fn):
-        run('chmod u+w %s' % fn)
-        info('stripping:    %s' % fn)
-        run('strip "%s"' % fn)
-
-    def remove_static_lib(fn):
-        info('removing:     %s' % fn)
-        os.remove(fn)
-
-    for parent, dnames, fnames in os.walk('seafile-server/seafile'):
-        dummy = dnames          # avoid pylint 'unused' warning
-        for fname in fnames:
-            fn = os.path.join(parent, fname)
-            if os.path.isdir(fn):
-                continue
-
-            if fn.endswith(".a") or fn.endswith(".la"):
-                remove_static_lib(fn)
-                continue
-                
-            if os.path.islink(fn):
-                continue
-
-            finfo = commands.getoutput('file "%s"' % fn)
-
-            if 'not stripped' in finfo:
-                do_strip(fn)
-
-def create_tarball(tarball_name):
-    '''call tar command to generate a tarball'''
-    version  = conf[CONF_VERSION]
-
-    serverdir = 'seafile-server'
-    versioned_serverdir = 'seafile-server-' + version
-
-    # move seafile-server to seafile-server-${version}
-    try:
-        shutil.move(serverdir, versioned_serverdir)
-    except Exception, e:
-        error('failed to move %s to %s: %s' % (serverdir, versioned_serverdir, e))
-    
-    ignored_patterns = [
-        # common ignored files
-        '*.pyc',
-        '*~',
-        '*#',
-        
-        # seahub
-        os.path.join(versioned_serverdir, 'seahub', '.git*'),
-        os.path.join(versioned_serverdir, 'seahub', 'media', 'flexpaper*'),
-        os.path.join(versioned_serverdir, 'seahub', 'avatar', 'testdata*'),
-        
-        # seafile
-        os.path.join(versioned_serverdir, 'seafile', 'share*'),
-        os.path.join(versioned_serverdir, 'seafile', 'include*'),
-        os.path.join(versioned_serverdir, 'seafile', 'lib', 'pkgconfig*'),
-        os.path.join(versioned_serverdir, 'seafile', 'lib64', 'pkgconfig*'),
-        os.path.join(versioned_serverdir, 'seafile', 'bin', 'ccnet-demo*'),
-        os.path.join(versioned_serverdir, 'seafile', 'bin', 'ccnet-tool'),
-        os.path.join(versioned_serverdir, 'seafile', 'bin', 'ccnet-servtool'),
-        os.path.join(versioned_serverdir, 'seafile', 'bin', 'searpc-codegen.py'),
-    ]
-
-    excludes_list = [ '--exclude=%s' % pattern for pattern in ignored_patterns ]
-    excludes = ' '.join(excludes_list)
-
-    tar_cmd = 'tar czvf %(tarball_name)s %(versioned_serverdir)s %(excludes)s' \
-              % dict(tarball_name=tarball_name,
-                     versioned_serverdir=versioned_serverdir,
-                     excludes=excludes)
-
-    if run(tar_cmd) < 0:
-        error('failed to generate the tarball')
-
-def gen_tarball():
-    # strip symbols of libraries to reduce size
-    if not conf[CONF_NO_STRIP]:
-        try:
-            strip_symbols()
-        except Exception, e:
-            error('failed to strip symbols: %s' % e)
-
-    # determine the output name
-    # 64-bit: seafile-server_1.2.2_x86-64.tar.gz
-    # 32-bit: seafile-server_1.2.2_i386.tar.gz
-    version = conf[CONF_VERSION]
-    arch = os.uname()[-1].replace('_', '-')
-    if arch != 'x86-64':
-        arch = 'i386'
-
-    dbg = ''
-    if conf[CONF_NO_STRIP]:
-        dbg = '.dbg'
-
-    tarball_name = 'seafile-server_%(version)s_%(arch)s%(dbg)s.tar.gz' \
-                   % dict(version=version, arch=arch, dbg=dbg)
-    dst_tarball = os.path.join(conf[CONF_OUTPUTDIR], tarball_name)
-
-    # generate the tarball
-    try:
-        create_tarball(tarball_name)
-    except Exception, e:
-        error('failed to generate tarball: %s' % e)
-
-    # move tarball to outputdir
-    try:
-        shutil.copy(tarball_name, dst_tarball)
-    except Exception, e:
-        error('failed to copy %s to %s: %s' % (tarball_name, dst_tarball, e))
+        error('failed to copy %s to %s: %s' % (src_deb, dst_deb, e))
 
     print '---------------------------------------------'
-    print 'The build is successfully. Output is:\t%s' % dst_tarball
+    print 'The build is successfully. Output is:\t%s' % dst_deb
     print '---------------------------------------------'
 
 def main():
@@ -678,20 +423,16 @@ def main():
     libsearpc = Libsearpc()
     ccnet = Ccnet()
     seafile = Seafile()
-    seahub = Seahub()
 
     libsearpc.uncompress()
     ccnet.uncompress()
     seafile.uncompress()
-    seahub.uncompress()
 
     libsearpc.build()
     ccnet.build()
     seafile.build()
-    seahub.build()
 
-    copy_scripts_and_libs()
-    gen_tarball()
+    move_deb()
 
 if __name__ == '__main__':
     main()

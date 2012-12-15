@@ -21,70 +21,41 @@ CROSS= --build $(DEB_BUILD_GNU_TYPE)
 endif
 
 
-searpc_dir = $(CURDIR)/../deb-libsearpc
-ccnet_dir = $(CURDIR)/../deb-ccnet
-#shell_ext_dir = $(CURDIR)/desktop/nautilus
+# SEARPC_SOURCE_DIR and CCNET_SOURCE_DIR is set by build-deb.py
+searpc_dir = $(LIBSEARPC_SOURCE_DIR)
+ccnet_dir = $(CCNET_SOURCE_DIR)
+install_prefix = $(CURDIR)/debian/seafile/usr
 
-config.status: 
+build:
 	dh_testdir
-	# Add here commands to configure the package.
-	[ -f configure ] || ./autogen.sh ;
-	./configure $(CROSS) --prefix=/usr --enable-seaf-server=no --enable-appindicator --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info CFLAGS="$(CFLAGS)"
+	mkdir -p install_prefix
+	# build and install libsearpc so it can be used by ccnet and seafile
+	cd $(searpc_dir) && ./configure $(CROSS) --prefix=$(install_prefix) --disable-compile-demo CFLAGS="$(CFLAGS)" && make && make install
 
-build: build-stamp
+	# build and install ccnet so it can be used by seafile
+	cd $(ccnet_dir) && ./configure $(CROSS) --prefix=$(install_prefix) --disable-compile-demo CFLAGS="$(CFLAGS)" && make && make install
 
-${searpc_dir}/config.status : 
-	cd $(searpc_dir); [ -f configure ] || ./autogen.sh; ./configure $(CROSS) --prefix=/usr --disable-compile-demo --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info CFLAGS="$(CFLAGS)"
+	./configure --prefix=$(install_prefix) --enable-appindicator CFLAGS="$(CFLAGS)" && make && make install
 
-${ccnet_dir}/config.status : 
-	cd $(ccnet_dir); [ -f configure ] || ./autogen.sh; ./configure $(CROSS) --prefix=/usr --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info CFLAGS="$(CFLAGS)"
+	# remove development files
+	rm -rf $(install_prefix)/include
+	rm -rf $(install_prefix)/lib/pkgconfig
+	rm -rf $(install_prefix)/lib/*.a
+	rm -rf $(install_prefix)/lib/*.la
+	rm -f $(install_prefix)/bin/searpc-codegen.py
+	rm -f $(install_prefix)/bin/ccnet-servtool
 
-build-stamp:  config.status ${searpc_dir}/config.status ${ccnet_dir}/config.status
-	dh_testdir
-
-	# Add here commands to compile the package.
-	$(MAKE)
-	#docbook-to-man debian/ccnet.sgml > ccnet.1
-	make -C $(searpc_dir)
-	make -C $(ccnet_dir)
-	#make -C $(shell_ext_dir)
-
-	touch $@
-
-clean: 
-	dh_testdir
-	dh_testroot
-	rm -f build-stamp 
-
-	# Add here commands to clean up after the build process.
-	[ ! -f Makefile ] || $(MAKE) distclean
-	rm -f config.sub config.guess
-
-	dh_clean 
-
-install: build
-	dh_testdir
-	dh_testroot
-	dh_prep  
-	dh_installdirs
-
-	# Add here commands to install the package into debian/ccnet.
-	$(MAKE) DESTDIR=$(CURDIR)/debian/seafile install
-	make -C $(searpc_dir) DESTDIR=$(CURDIR)/debian/seafile install
-	make -C $(ccnet_dir) DESTDIR=$(CURDIR)/debian/seafile install
-	#make -C $(shell_ext_dir) DESTDIR=$(CURDIR)/debian/seafile install
-	rm -rf $(CURDIR)/debian/seafile/usr/include
-
+clean:
+	dh_clean
 
 # Build architecture-independent files here.
-binary-indep: install
+binary-indep:
 # We have nothing to do by default.
 
 # Build architecture-dependent files here.
-binary-arch: install
-	dh_testdir
+binary-arch:
 	dh_testroot
-	dh_installchangelogs 
+	dh_installchangelogs
 	dh_installdocs
 #	dh_installexamples
 #	dh_install
@@ -112,4 +83,4 @@ binary-arch: install
 	dh_builddeb
 
 binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary install 
+.PHONY: build clean binary-indep binary-arch binary
