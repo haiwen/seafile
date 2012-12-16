@@ -29,7 +29,7 @@ config.status:
 	dh_testdir
 	# Add here commands to configure the package.
 	[ -f configure ] || ./autogen.sh ;
-	./configure $(CROSS) --prefix=/usr --enable-seaf-server=no --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info CFLAGS="$(CFLAGS)"
+	./configure $(CROSS) --prefix=/usr --enable-seaf-server=no --enable-appindicator --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info CFLAGS="$(CFLAGS)"
 
 build: build-stamp
 
@@ -104,7 +104,7 @@ binary-arch: install
 	dh_compress
 	dh_fixperms
 #	dh_perl
-#	dh_makeshlibs
+	dh_makeshlibs
 	dh_installdeb
 	dh_shlibdeps
 	dh_gencontrol
