@@ -1,8 +1,8 @@
-seafile (1.3.0) stable; urgency=low
+seafile (1.3.5) stable; urgency=low
 
   * Support encryption of data transfer
 
- -- plt <freeplant@gmail.com>  Sat, 8 December 2012 19:00:32 +0800
+ -- plt <freeplant@gmail.com>  Sat, 16 December 2012 19:00:32 +0800
 
 seafile (1.2.2) stable; urgency=low
 
