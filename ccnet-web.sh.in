@@ -10,7 +10,7 @@ if [ $1 == "start" ]; then
     if [ -f /tmp/ccnet-web.pid ]; then
         kill -9 `cat /tmp/ccnet-web.pid`
     fi
-    python main.py 127.0.0.1:13420 &
+    @PYTHON@ main.py 127.0.0.1:13420 &
     echo $! > /tmp/ccnet-web.pid
 elif [ $1 == "stop" ]; then
     kill -9 `cat /tmp/ccnet-web.pid`
