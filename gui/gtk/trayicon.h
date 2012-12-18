@@ -39,7 +39,7 @@ SeafileTrayIcon *seafile_trayicon_new ();
 #define SEAFILE_TRANFER_3   "seafile_transfer_3"
 #define SEAFILE_TRANFER_4   "seafile_transfer_4"
 
-void seaf_tray_icon_set_icon (SeafileTrayIcon *icon, const char *name);
+void seafile_trayicon_set_icon (SeafileTrayIcon *icon, const char *name);
 
 void seafile_trayicon_notify (SeafileTrayIcon *icon, char *title, char *buf);
 

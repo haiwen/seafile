@@ -35,9 +35,6 @@
 #define WARNING_MSG_TITLE "Seafile"
 
 static GtkDialog       *dialog;
-static GtkEntry        *name_entry;
-static GtkLabel        *error_name_label;
-static GtkLabel        *name_label;
 static GtkBuilder      *builder;
 
 static void

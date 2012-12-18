@@ -28,7 +28,7 @@ struct SeafileTrayIconPriv {
 #ifdef HAVE_APP_INDICATOR
     AppIndicator        *icon;
 #else
-    GtkStatusIcon         *icon;
+    GtkStatusIcon       *icon;
 #endif
     GtkWidget           *popup_menu;
     GtkAction           *start_action;
@@ -49,64 +49,23 @@ tray_icon_popup_menu_cb (GtkStatusIcon     *tray_icon,
                          guint              activate_time,
                          SeafileTrayIcon   *icon);
 
-#ifdef HAVE_APP_INDICATOR
-static void _tray_set_icon (AppIndicator *icon, const char *icon_name)
-{
-    app_indicator_set_icon_full(icon, icon_name, NULL);
-}
-
-static void _update_icon_tootip(AppIndicator *icon, const char *tooltip)
-{
-    /* This is _label_ , not tooltip. */
-    /* app_indicator_set_label (icon, tooltip, NULL); */
-}
-
-static AppIndicator* _create_icon ()
-{
-    AppIndicator *app_icon = app_indicator_new("seafile",
-                                               ICON_STATUS_UP,
-                                               APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
-    app_indicator_set_status (app_icon, APP_INDICATOR_STATUS_ACTIVE);
-    app_indicator_set_icon_theme_path (app_icon, PKGDATADIR );
-    return app_icon;
-}
-
-static void _setup_menu (SeafileTrayIcon *icon, GtkWidget *menu)
-{
-    app_indicator_set_menu(APP_INDICATOR(icon->priv->icon), GTK_MENU(menu));
-}
-
-#else  /* IFDEF HAVE_APP_INDICATOR */
-static void _tray_set_icon (GtkStatusIcon *icon, const char *icon_name)
-{
-    gtk_status_icon_set_from_icon_name (icon, icon_name);
-}
-
-static void
-_update_icon_tootip (GtkStatusIcon *icon, const char *tooltip)
-{
-    gtk_status_icon_set_tooltip_text (icon, tooltip);
-}
-
-static GtkStatusIcon* _create_icon ()
-{
-    return  gtk_status_icon_new ();
-}
-
-static void _setup_menu (SeafileTrayIcon *icon, GtkWidget *menu)
-{
-    g_signal_connect (icon->priv->icon, "popup-menu",
-                      G_CALLBACK (tray_icon_popup_menu_cb),
-                      icon);
-}
-#endif
 
 void
 seafile_trayicon_set_icon (SeafileTrayIcon *icon, const char *name)
 {
     SeafileTrayIconPriv *priv = GET_PRIV (icon);
-    
-    _tray_set_icon (priv->icon, name);
+
+#ifdef HAVE_APP_INDICATOR
+    const char *desktop;
+    desktop = g_environ_getenv (g_get_environ(), "XDG_CURRENT_DESKTOP");
+    if (g_strcmp0(desktop, "Unity") == 0) {
+        app_indicator_set_icon_full (priv->icon, name, NULL);
+    } else {
+        gtk_status_icon_set_from_icon_name (priv->icon, name);
+    }
+#else
+    gtk_status_icon_set_from_icon_name (priv->icon, name);
+#endif
 }
 
 static void
@@ -137,7 +96,6 @@ tray_icon_popup_menu_cb (GtkStatusIcon     *tray_icon,
 {
     SeafileTrayIconPriv *priv = GET_PRIV (icon);
 
-
     gtk_menu_popup (GTK_MENU (priv->popup_menu),
                     NULL, NULL,
                     gtk_status_icon_position_menu,
@@ -166,6 +124,7 @@ void reset_trayicon_and_tip(SeafileTrayIcon *icon)
     seafile_trayicon_set_tooltip (icon, tip);
 }
 
+void
 set_auto_sync_cb (void *result, void *data, GError *error)
 {
     SetAutoSyncData *sdata = data;
@@ -195,12 +154,14 @@ set_auto_sync_cb (void *result, void *data, GError *error)
     g_free (sdata);
 }
 
-static disable_auto_sync (GtkAction *action, SeafileTrayIcon *icon)
+static void
+disable_auto_sync (GtkAction *action, SeafileTrayIcon *icon)
 {
     seafile_disable_auto_sync();
 }
 
-static enable_auto_sync (GtkAction *action, SeafileTrayIcon *icon)
+static void
+enable_auto_sync (GtkAction *action, SeafileTrayIcon *icon)
 {
     seafile_enable_auto_sync();
 }
@@ -268,11 +229,37 @@ seafile_tray_icon_init (SeafileTrayIcon *icon)
         SEAFILE_TYPE_TRAY_ICON, SeafileTrayIconPriv);
 
     icon->priv = priv;
-    priv->icon = _create_icon();
 
+#ifdef HAVE_APP_INDICATOR
+    const char *desktop;
+    desktop = g_environ_getenv (g_get_environ(), "XDG_CURRENT_DESKTOP");
+    if (g_strcmp0(desktop, "Unity") == 0) {
+        AppIndicator *app_icon = app_indicator_new("seafile",
+                                               ICON_STATUS_UP,
+                                               APP_INDICATOR_CATEGORY_APPLICATION_STATUS);
+        app_indicator_set_status (app_icon, APP_INDICATOR_STATUS_ACTIVE);
+        app_indicator_set_icon_theme_path (app_icon, PKGDATADIR);
+
+        priv->icon = app_icon;
+        tray_icon_create_menu (icon);
+        app_indicator_set_menu(APP_INDICATOR(icon->priv->icon),
+                               GTK_MENU(priv->popup_menu));
+    } else {
+        priv->icon = gtk_status_icon_new ();
+        tray_icon_create_menu (icon);
+        g_signal_connect (icon->priv->icon, "popup-menu",
+                          G_CALLBACK (tray_icon_popup_menu_cb),
+                          icon);
+        g_signal_connect (priv->icon, "activate",
+                          G_CALLBACK (open_browser_cb),
+                          icon);
+    }
+#else
+    priv->icon = gtk_status_icon_new ();
     tray_icon_create_menu (icon);
-    _setup_menu (icon, priv->popup_menu);
-#ifndef HAVE_APP_INDICATOR
+    g_signal_connect (icon->priv->icon, "popup-menu",
+                      G_CALLBACK (tray_icon_popup_menu_cb),
+                      icon);
     g_signal_connect (priv->icon, "activate",
                       G_CALLBACK (open_browser_cb),
                       icon);
@@ -296,26 +283,35 @@ seafile_trayicon_new (GtkWindow *window)
 static GtkStatusIcon *
 seafile_trayicon_get_gtk_icon (SeafileTrayIcon *icon)
 {
-#ifndef HAVE_APP_INDICATOR
-    return (GtkStatusIcon *)(icon->priv->icon);
+#ifdef HAVE_APP_INDICATOR
+    const char *desktop;
+    desktop = g_environ_getenv (g_get_environ(), "XDG_CURRENT_DESKTOP");
+    if (g_strcmp0(desktop, "Unity") == 0) {
+        return NULL;
+    } else
+        return (GtkStatusIcon *)(icon->priv->icon);
 #else
-    return NULL;
+    return (GtkStatusIcon *)(icon->priv->icon);
 #endif
 }
 
 void seafile_trayicon_notify (SeafileTrayIcon *icon, char *title, char *buf)
 {
     NotifyNotification *n;
-    GtkStatusIcon *gicon = seafile_trayicon_get_gtk_icon(icon);
+    GtkStatusIcon *gtk_icon = seafile_trayicon_get_gtk_icon(icon);
 
     /* notify_notification_new_with_status_icon doesn't exists in
        libnotify version > 0.7 */
 #ifdef LIBNOTIFY_GREAT_THAN_7
-    const char *name = gtk_status_icon_get_icon_name (gicon);
-    n = notify_notification_new (title, buf, name);
+    if (gtk_icon) {
+        const char *name = gtk_status_icon_get_icon_name (gtk_icon);
+        n = notify_notification_new (title, buf, name);
+    } else {
+        n = notify_notification_new (title, buf, NULL);
+    }
 #else
     n = notify_notification_new_with_status_icon (title, buf,
-                                                  "Seafile", gicon);
+                                                  "Seafile", gtk_icon);
 #endif
 
     notify_notification_set_timeout (n, 2000);
@@ -327,5 +323,15 @@ void
 seafile_trayicon_set_tooltip (SeafileTrayIcon *icon,
                               const char *tooltip)
 {
-    _update_icon_tootip (icon->priv->icon, tooltip);
+#ifdef HAVE_APP_INDICATOR
+    const char *desktop;
+    desktop = g_environ_getenv (g_get_environ(), "XDG_CURRENT_DESKTOP");
+    if (g_strcmp0(desktop, "Unity") == 0) {
+        /* do nothing */
+    } else {
+        gtk_status_icon_set_tooltip_text (icon->priv->icon, tooltip);
+    }
+#else
+    gtk_status_icon_set_tooltip_text (icon->priv->icon, tooltip);
+#endif
 }

@@ -71,11 +71,11 @@
   <object class="GtkAction" id="disable_auto_sync_action">
     <property name="label">Disable Auto Sync</property>
     <property name="tooltip">Disable Auto Sync</property>
-    <property name="stock_id">gtk-refresh</property>
+    <property name="stock_id">gtk-media-pause</property>
   </object>
   <object class="GtkAction" id="enable_auto_sync_action">
     <property name="label">Enable Auto Sync</property>
     <property name="tooltip">Enable Auto Sync</property>
-    <property name="stock_id">gtk-refresh</property>
+    <property name="stock_id">gtk-media-play</property>
   </object>
 </interface>
