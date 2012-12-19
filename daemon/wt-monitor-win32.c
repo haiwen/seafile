@@ -30,7 +30,7 @@ typedef struct WatchCommand {
     FILE_NOTIFY_CHANGE_FILE_NAME |  FILE_NOTIFY_CHANGE_LAST_WRITE \
     | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_SIZE 
 
-#define DIR_WATCH_BUFSIZE (sizeof(FILE_NOTIFY_INFORMATION) + MAX_PATH * 2)
+#define DIR_WATCH_BUFSIZE (sizeof(FILE_NOTIFY_INFORMATION) + SEAF_PATH_MAX * 2)
 
 /* Hold the OVERLAPPED struct for asynchronous ReadDirectoryChangesW(), and
    the buf to receive dir change info. */

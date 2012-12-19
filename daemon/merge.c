@@ -24,14 +24,14 @@ do_real_merge (SeafRepo *repo,
                char **error)
 {
     struct merge_options opts;
-    char index_path[PATH_MAX];
+    char index_path[SEAF_PATH_MAX];
     struct index_state istate;
     char *root_id = NULL;
     SeafCommit *merged;
     int ret = 0, clean;
 
     memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
+    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
     if (read_index_from (&istate, index_path) < 0) {
         g_warning ("Failed to load index.\n");
         *error = g_strdup ("Internal error.\n");
@@ -211,14 +211,14 @@ get_new_blocks_ff (SeafRepo *repo,
                    BlockList **bl)
 {
     SeafRepoManager *mgr = repo->manager;
-    char index_path[PATH_MAX];
+    char index_path[SEAF_PATH_MAX];
     struct tree_desc trees[2];
     struct unpack_trees_options topts;
     struct index_state istate;
     int ret = 0;
 
     memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
+    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
     if (read_index_from (&istate, index_path) < 0) {
         g_warning ("Failed to load index.\n");
         return -1;
@@ -264,12 +264,12 @@ get_new_blocks_merge (SeafRepo *repo,
                       BlockList **bl)
 {
     struct merge_options opts;
-    char index_path[PATH_MAX];
+    char index_path[SEAF_PATH_MAX];
     struct index_state istate;
     int ret, clean;
 
     memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
+    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
     if (read_index_from (&istate, index_path) < 0) {
         g_warning ("Failed to load index.\n");
         return -1;

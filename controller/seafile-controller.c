@@ -1,5 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include "common.h"
+
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
@@ -454,7 +456,7 @@ static void
 init_pidfile_path (SeafileController *ctl)
 {
     char tmp[] = "XXXXXX";
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     int pid = (int)getpid();
 
     if (!mktemp(tmp))

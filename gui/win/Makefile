@@ -14,6 +14,7 @@ GLIB_LDFLAGS=$(shell pkg-config --libs libsearpc)
 
 CFLAGS += -I$(top_srcdir)/include \
 		-I$(top_srcdir)/lib \
+		-I$(top_srcdir)/common \
 		-I. -I../common \
         $(GLIB_CFLAGS) -g -O0 -Wall
 

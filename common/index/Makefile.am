@@ -1,4 +1,4 @@
-AM_CFLAGS = -Wall
+AM_CPPFLAGS = -Wall -I${top_srcdir}/common
 
 noinst_LTLIBRARIES = libindex.la
 

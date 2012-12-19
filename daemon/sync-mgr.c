@@ -22,10 +22,6 @@
 #define DEBUG_FLAG SEAFILE_DEBUG_SYNC
 #include "log.h"
 
-#ifndef PATH_MAX
-#define PATH_MAX MAX_PATH
-#endif
-
 #define DEFAULT_SYNC_INTERVAL 30 /* 30s */
 #define CHECK_SYNC_INTERVAL  1000 /* 1s */
 #define MAX_RUNNING_SYNC_TASKS 5

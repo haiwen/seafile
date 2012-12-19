@@ -80,7 +80,7 @@ add_watch_recursive (int in_fd, char *path, int pathlen)
                 strcmp (dent->d_name, "..") == 0)
                 continue;
 
-            int len = snprintf (path + pathlen, PATH_MAX, "/%s", dent->d_name);
+            int len = snprintf (path + pathlen, SEAF_PATH_MAX, "/%s", dent->d_name);
             if (add_watch_recursive (in_fd, path, pathlen + len) < 0)
                 return -1;
         }
@@ -100,7 +100,7 @@ add_watch (const char *repo_id)
 {
     SeafRepo *repo;
     int inotify_fd;
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
@@ -114,7 +114,7 @@ add_watch (const char *repo_id)
         return -1;
     }
 
-    g_strlcpy (path, repo->worktree, PATH_MAX);
+    g_strlcpy (path, repo->worktree, SEAF_PATH_MAX);
     if (add_watch_recursive (inotify_fd, path, strlen(path)) < 0) {
         close (inotify_fd);
         return -1;
@@ -144,7 +144,7 @@ static int
 refresh_watch (int inotify_fd, const char *repo_id)
 {
     SeafRepo *repo;
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
@@ -152,7 +152,7 @@ refresh_watch (int inotify_fd, const char *repo_id)
         return -1;
     }
 
-    g_strlcpy (path, repo->worktree, PATH_MAX);
+    g_strlcpy (path, repo->worktree, SEAF_PATH_MAX);
     if (add_watch_recursive (inotify_fd, path, strlen(path)) < 0) {
         return -1;
     }

@@ -732,13 +732,13 @@ static int verify_uptodate_1(struct cache_entry *ce,
                              enum unpack_trees_error_types error_type)
 {
 #if 0
-    char full_path[PATH_MAX];
+    char full_path[SEAF_PATH_MAX];
     struct stat st;
 
     if (o->index_only || (!((ce->ce_flags & CE_VALID) || ce_skip_worktree(ce)) && (o->reset || ce_uptodate(ce))))
         return 0;
 
-    snprintf(full_path, PATH_MAX, "%s/%s", o->base, ce->name);
+    snprintf(full_path, SEAF_PATH_MAX, "%s/%s", o->base, ce->name);
     if (!g_lstat (full_path, &st)) {
         unsigned changed = ie_match_stat(o->src_index, ce, &st, CE_MATCH_IGNORE_VALID|CE_MATCH_IGNORE_SKIP_WORKTREE);
         if (!changed)
@@ -897,13 +897,13 @@ static int verify_absent_1(struct cache_entry *ce,
                            struct unpack_trees_options *o)
 {
 #if 0
-    char full_path[PATH_MAX];
+    char full_path[SEAF_PATH_MAX];
     struct stat st;
 
     if (o->index_only || o->reset || !o->update)
         return 0;
 
-    snprintf (full_path, PATH_MAX, "%s/%s", o->base, ce->name);
+    snprintf (full_path, SEAF_PATH_MAX, "%s/%s", o->base, ce->name);
     if (!g_lstat (full_path, &st) && S_ISREG(st.st_mode))
         return o->gently ? -1:
             add_rejected_path(o, error_type, ce->name);
@@ -1292,8 +1292,8 @@ int oneway_merge(struct cache_entry **src, struct unpack_trees_options *o)
         int update = 0;
         if (o->reset && !ce_uptodate(old) && !ce_skip_worktree(old)) {
             struct stat st;
-            char full_path[PATH_MAX];
-            snprintf (full_path, PATH_MAX, "%s/%s", o->base, old->name);
+            char full_path[SEAF_PATH_MAX];
+            snprintf (full_path, SEAF_PATH_MAX, "%s/%s", o->base, old->name);
             if (g_lstat (full_path, &st) ||
                 ie_match_stat(o->src_index, old, &st, CE_MATCH_IGNORE_VALID|CE_MATCH_IGNORE_SKIP_WORKTREE))
                 update |= CE_UPDATE;

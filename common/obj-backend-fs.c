@@ -28,7 +28,7 @@ obj_backend_fs_read (ObjBackend *bend,
                      void **data,
                      int *len)
 {
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
     gsize tmp_len;
     GError *error = NULL;
 
@@ -50,7 +50,7 @@ obj_backend_fs_write (ObjBackend *bend,
                       void *data,
                       int len)
 {
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
     struct stat st;
     GError *error = NULL;
 
@@ -75,7 +75,7 @@ static gboolean
 obj_backend_fs_exists (ObjBackend *bend,
                        const char *obj_id)
 {
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
     struct stat st;
 
     id_to_path (bend->priv, obj_id, path);
@@ -90,7 +90,7 @@ static void
 obj_backend_fs_delete (ObjBackend *bend,
                        const char *obj_id)
 {
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
 
     id_to_path (bend->priv, obj_id, path);
     g_unlink (path);
@@ -102,7 +102,7 @@ init_obj_dir (ObjBackend *bend)
     FsPriv *priv = bend->priv;
     int i;
     int len = priv->dir_len;
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
     char *pos;
 
     memcpy (path, priv->obj_dir, len);

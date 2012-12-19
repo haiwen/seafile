@@ -1,5 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include "common.h"
+
 #include <glib/gi18n.h>
 #include <getopt.h>
 #include <stdlib.h>
@@ -195,7 +197,7 @@ get_seafile_auto_start()
         return -1;
     }
 
-    char buf[MAX_PATH] = {0};
+    char buf[SEAF_PATH_MAX] = {0};
     DWORD len = sizeof(buf);
     result = RegQueryValueEx (hKey,             /* Key */
                               "Seafile",        /* value */
@@ -219,8 +221,8 @@ set_seafile_auto_start(int on)
     int result = 0;
     if (on) {
         /* turn on auto start  */
-        wchar_t applet_path[MAX_PATH];
-        if (GetModuleFileNameW (NULL, applet_path, MAX_PATH) == 0) {
+        wchar_t applet_path[SEAF_PATH_MAX];
+        if (GetModuleFileNameW (NULL, applet_path, SEAF_PATH_MAX) == 0) {
             return -1;
         }
 
@@ -451,11 +453,11 @@ tray_socket_cb (UINT message, WPARAM wParam, LPARAM lParam)
 static int
 set_applet_wd()
 {
-    wchar_t module_path[MAX_PATH];
+    wchar_t module_path[SEAF_PATH_MAX];
     wchar_t *bindir_w = NULL;
     char *module_path_utf8 = NULL;
 
-    if (GetModuleFileNameW (NULL, module_path, MAX_PATH) == 0) {
+    if (GetModuleFileNameW (NULL, module_path, SEAF_PATH_MAX) == 0) {
         applet_warning ("Failed to get module name\n");
         return -1;
     }

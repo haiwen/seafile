@@ -345,7 +345,7 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     char *type = NULL;
     char file_size[255];
     gchar *content_type = NULL;
-    char cont_filename[PATH_MAX];
+    char cont_filename[SEAF_PATH_MAX];
     char *key_hex, *iv_hex;
     unsigned char enc_key[16], enc_iv[16];
     SeafileCrypt *crypt = NULL;
@@ -392,18 +392,18 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
 
     if (strcmp(operation, "download") == 0) {
         if (test_firefox (req)) {
-            snprintf(cont_filename, PATH_MAX,
+            snprintf(cont_filename, SEAF_PATH_MAX,
                      "attachment;filename*=\"utf8\' \'%s\"", filename);
         } else {
-            snprintf(cont_filename, PATH_MAX,
+            snprintf(cont_filename, SEAF_PATH_MAX,
                      "attachment;filename=\"%s\"", filename);
         }
     } else {
         if (test_firefox (req)) {
-            snprintf(cont_filename, PATH_MAX,
+            snprintf(cont_filename, SEAF_PATH_MAX,
                      "inline;filename*=\"utf8\' \'%s\"", filename);
         } else {
-            snprintf(cont_filename, PATH_MAX,
+            snprintf(cont_filename, SEAF_PATH_MAX,
                      "inline;filename=\"%s\"", filename);
         }
     }
@@ -454,7 +454,7 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *file_id,
 {
     char *zipfile = NULL;
     char *filename_escaped = NULL;
-    char cont_filename[PATH_MAX];
+    char cont_filename[SEAF_PATH_MAX];
     char file_size[255];
     struct stat st;
     char *key_hex, *iv_hex;
@@ -503,10 +503,10 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *file_id,
             evhtp_header_new("Content-Length", file_size, 1, 1));
 
     if (test_firefox (req)) {
-        snprintf(cont_filename, PATH_MAX,
+        snprintf(cont_filename, SEAF_PATH_MAX,
                  "attachment;filename*=\"utf8\' \'%s.zip\"", filename);
     } else {
-        snprintf(cont_filename, PATH_MAX,
+        snprintf(cont_filename, SEAF_PATH_MAX,
                  "attachment;filename=\"%s.zip\"", filename);
     }
 

@@ -3,6 +3,8 @@
 #ifndef SEAF_REPO_MGR_H
 #define SEAF_REPO_MGR_H
 
+#include "common.h"
+
 #include <pthread.h>
 
 #include "seafile-object.h"
@@ -312,7 +314,7 @@ seaf_repo_manager_get_merge_info (SeafRepoManager *manager,
                                   SeafRepoMergeInfo *info);
 typedef struct {
     char repo_id[41];
-    char worktree[PATH_MAX];
+    char worktree[SEAF_PATH_MAX];
     int total_files;
     int finished_files;
     gboolean success;

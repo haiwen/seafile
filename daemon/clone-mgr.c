@@ -1019,13 +1019,13 @@ static int
 real_merge (SeafRepo *repo, SeafCommit *head, CloneTask *task)
 {
     struct merge_options opts;
-    char index_path[PATH_MAX];
+    char index_path[SEAF_PATH_MAX];
     struct index_state istate;
     char *root_id = NULL;
     int clean;
 
     memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
+    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
     if (read_index_from (&istate, index_path) < 0) {
         seaf_warning ("Failed to load index.\n");
         return -1;
@@ -1074,7 +1074,7 @@ static int
 fast_forward_checkout (SeafRepo *repo, SeafCommit *head, CloneTask *task)
 {
     SeafRepoManager *mgr = repo->manager;
-    char index_path[PATH_MAX];
+    char index_path[SEAF_PATH_MAX];
     struct tree_desc trees[2];
     struct unpack_trees_options topts;
     struct index_state istate;
@@ -1084,7 +1084,7 @@ fast_forward_checkout (SeafRepo *repo, SeafCommit *head, CloneTask *task)
         return 0;
 
     memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
+    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
     if (read_index_from (&istate, index_path) < 0) {
         seaf_warning ("Failed to load index.\n");
         return -1;

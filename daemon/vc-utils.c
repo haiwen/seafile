@@ -109,11 +109,11 @@ commit_trees_cb (struct cache_tree *it, struct cache_entry **cache,
 int
 update_index (struct index_state *istate, const char *index_path)
 {
-    char index_shadow[PATH_MAX];
+    char index_shadow[SEAF_PATH_MAX];
     int index_fd;
     int ret = 0;
 
-    snprintf (index_shadow, PATH_MAX, "%s.shadow", index_path);
+    snprintf (index_shadow, SEAF_PATH_MAX, "%s.shadow", index_path);
     index_fd = g_open (index_shadow, O_RDWR | O_CREAT | O_TRUNC | O_BINARY, 0666);
     if (index_fd < 0) {
         g_warning ("Failed to open shadow index: %s.\n", strerror(errno));
@@ -137,7 +137,7 @@ update_index (struct index_state *istate, const char *index_path)
 static int
 unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
 {
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
     struct stat st;
     int base_len = strlen(o->base);
     int len = ce_namelen(ce);
@@ -148,7 +148,7 @@ unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
         return -1;
     }
 
-    snprintf (path, PATH_MAX, "%s/%s", o->base, ce->name);
+    snprintf (path, SEAF_PATH_MAX, "%s/%s", o->base, ce->name);
 
     if (!S_ISDIR(ce->ce_mode)) {
         /* file doesn't exist in work tree */
@@ -231,7 +231,7 @@ checkout_entry (struct cache_entry *ce,
     int base_len = strlen(o->base);
     int len = ce_namelen(ce);
     int full_len;
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
     int offset;
     struct stat st;
     char file_id[41];
@@ -241,7 +241,7 @@ checkout_entry (struct cache_entry *ce,
         return -1;
     }
 
-    snprintf (path, PATH_MAX, "%s/", o->base);
+    snprintf (path, SEAF_PATH_MAX, "%s/", o->base);
 
     /* first create all leading directories. */
     full_len = base_len + len + 1;

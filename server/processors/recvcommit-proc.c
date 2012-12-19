@@ -1,5 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include "common.h"
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -24,8 +26,8 @@ enum {
 };
 
 typedef struct  {
-    char        object_path[PATH_MAX];
-    char        tmp_object_path[PATH_MAX];
+    char        object_path[SEAF_PATH_MAX];
+    char        tmp_object_path[SEAF_PATH_MAX];
     char        buf[4096];
     char       *bufptr;
     int         pending_objects;

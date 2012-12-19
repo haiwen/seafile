@@ -41,7 +41,7 @@ block_backend_fs_open_block (BlockBackend *bend,
                              int rw_type)
 {
     BHandle *handle;
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
     int fd = -1;
 
     g_return_val_if_fail (block_id != NULL, NULL);
@@ -108,7 +108,7 @@ static int
 block_backend_fs_commit_block (BlockBackend *bend,
                                BHandle *handle)
 {
-    char path[PATH_MAX], tmp_path[PATH_MAX];
+    char path[SEAF_PATH_MAX], tmp_path[SEAF_PATH_MAX];
 
     g_assert (handle->rw_type == BLOCK_WRITE);
 
@@ -126,7 +126,7 @@ block_backend_fs_commit_block (BlockBackend *bend,
 static gboolean
 block_backend_fs_block_exists (BlockBackend *bend, const char *block_sha1)
 {
-    char block_path[PATH_MAX];
+    char block_path[SEAF_PATH_MAX];
 
     get_block_path (bend, block_sha1, block_path);
     if (g_access (block_path, F_OK) == 0)
@@ -139,7 +139,7 @@ static int
 block_backend_fs_remove_block (BlockBackend *bend,
                                  const char *block_id)
 {
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
 
     get_block_path (bend, block_id, path);
 
@@ -150,7 +150,7 @@ static BMetadata *
 block_backend_fs_stat_block (BlockBackend *bend,
                              const char *block_id)
 {
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
     struct stat st;
     BMetadata *block_md;
 
@@ -195,7 +195,7 @@ block_backend_fs_foreach_block (BlockBackend *bend,
     GDir *dir1, *dir2;
     const char *dname1, *dname2;
     char block_id[128];
-    char path[PATH_MAX], *pos;
+    char path[SEAF_PATH_MAX], *pos;
     int ret = 0;
 
     dir1 = g_dir_open (block_dir, 0, NULL);
@@ -278,7 +278,7 @@ init_block_dir (BlockBackend *bend)
     FsPriv *priv = bend->be_priv;
     int i;
     int len = priv->block_dir_len;
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
     char *pos;
 
     memcpy (path, priv->block_dir, len);

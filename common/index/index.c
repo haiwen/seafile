@@ -10,6 +10,8 @@
 #include <config.h>
 #endif
 
+#include "common.h"
+
 #include "index.h"
 #include "../seafile-crypt.h"
 /* #include "../vc-utils.h" */
@@ -1203,7 +1205,7 @@ int index_fd(unsigned char *sha1, int fd, struct stat *st,
 int index_path(unsigned char *sha1, const char *path, struct stat *st)
 {
     int fd;
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     int pathlen;
 
     switch (st->st_mode & S_IFMT) {
@@ -1219,7 +1221,7 @@ int index_path(unsigned char *sha1, const char *path, struct stat *st)
         break;
 #ifndef WIN32        
     case S_IFLNK:
-        pathlen = readlink(path, buf, PATH_MAX);
+        pathlen = readlink(path, buf, SEAF_PATH_MAX);
         if (pathlen != st->st_size) {
             char *errstr = strerror(errno);
             g_warning("readlink(\"%s\"): %s\n", path, errstr);

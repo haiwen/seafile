@@ -475,7 +475,7 @@ seaf_repo_manager_post_file (SeafRepoManager *mgr,
     SeafCommit *head_commit = NULL;
     char *canon_path = NULL;
     unsigned char sha1[20];
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     char *root_id = NULL;
     SeafileCrypt *crypt = NULL;
     SeafDirent *new_dent = NULL;
@@ -550,7 +550,7 @@ seaf_repo_manager_post_file (SeafRepoManager *mgr,
         goto out;
     }
 
-    snprintf(buf, PATH_MAX, "Added \"%s\"", file_name);
+    snprintf(buf, SEAF_PATH_MAX, "Added \"%s\"", file_name);
     if (gen_new_commit (repo_id, head_commit, root_id,
                         user, buf, error) < 0)
         ret = -1;
@@ -1008,7 +1008,7 @@ seaf_repo_manager_del_file (SeafRepoManager *mgr,
     SeafRepo *repo = NULL;
     SeafCommit *head_commit = NULL;
     char *canon_path = NULL;
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     char *root_id = NULL;
     int mode = 0;
     int ret = 0;
@@ -1036,9 +1036,9 @@ seaf_repo_manager_del_file (SeafRepoManager *mgr,
 
     /* Commit. */
     if (S_ISDIR(mode)) {
-        snprintf(buf, PATH_MAX, "Removed directory \"%s\"", file_name);
+        snprintf(buf, SEAF_PATH_MAX, "Removed directory \"%s\"", file_name);
     } else {
-        snprintf(buf, PATH_MAX, "Deleted \"%s\"", file_name);
+        snprintf(buf, SEAF_PATH_MAX, "Deleted \"%s\"", file_name);
     }
 
     if (gen_new_commit (repo_id, head_commit, root_id,
@@ -1120,7 +1120,7 @@ put_dirent_and_commit (const char *repo_id,
     SeafRepo *repo = NULL;
     SeafCommit *head_commit = NULL;
     char *root_id = NULL;
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     int ret = 0;
 
     GET_REPO_OR_FAIL(repo, repo_id);
@@ -1262,7 +1262,7 @@ move_file_same_repo (const char *repo_id,
     SeafRepo *repo = NULL;
     SeafCommit *head_commit = NULL;
     char *root_id_after_put = NULL, *root_id = NULL;
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     int ret = 0;
 
     GET_REPO_OR_FAIL(repo, repo_id);
@@ -1284,9 +1284,9 @@ move_file_same_repo (const char *repo_id,
 
     /* Commit. */
     if (S_ISDIR(src_dent->mode)) {
-        snprintf(buf, PATH_MAX, "Moved directory \"%s\"", src_dent->name);
+        snprintf(buf, SEAF_PATH_MAX, "Moved directory \"%s\"", src_dent->name);
     } else {
-        snprintf(buf, PATH_MAX, "Moved \"%s\"", src_dent->name);
+        snprintf(buf, SEAF_PATH_MAX, "Moved \"%s\"", src_dent->name);
     }
 
     if (gen_new_commit (repo_id, head_commit, root_id,
@@ -1417,7 +1417,7 @@ seaf_repo_manager_post_dir (SeafRepoManager *mgr,
     SeafRepo *repo = NULL;
     SeafCommit *head_commit = NULL;
     char *canon_path = NULL;
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     char *root_id = NULL;
     SeafDirent *new_dent = NULL;
     int ret = 0;
@@ -1443,7 +1443,7 @@ seaf_repo_manager_post_dir (SeafRepoManager *mgr,
     }
 
     /* Commit. */
-    snprintf(buf, PATH_MAX, "Added directory \"%s\"", new_dir_name);
+    snprintf(buf, SEAF_PATH_MAX, "Added directory \"%s\"", new_dir_name);
     if (gen_new_commit (repo_id, head_commit, root_id,
                         user, buf, error) < 0)
         ret = -1;
@@ -1472,7 +1472,7 @@ seaf_repo_manager_post_empty_file (SeafRepoManager *mgr,
     SeafRepo *repo = NULL;
     SeafCommit *head_commit = NULL;
     char *canon_path = NULL;
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     char *root_id = NULL;
     SeafDirent *new_dent = NULL;
     int ret = 0;
@@ -1500,7 +1500,7 @@ seaf_repo_manager_post_empty_file (SeafRepoManager *mgr,
     }
 
     /* Commit. */
-    snprintf(buf, PATH_MAX, "Added \"%s\"", new_file_name);
+    snprintf(buf, SEAF_PATH_MAX, "Added \"%s\"", new_file_name);
     if (gen_new_commit (repo_id, head_commit, root_id,
                         user, buf, error) < 0)
         ret = -1;
@@ -1642,7 +1642,7 @@ seaf_repo_manager_rename_file (SeafRepoManager *mgr,
     SeafCommit *head_commit = NULL;
     char *root_id = NULL;
     char *canon_path = NULL;
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     int mode = 0;
     int ret = 0;
 
@@ -1669,9 +1669,9 @@ seaf_repo_manager_rename_file (SeafRepoManager *mgr,
 
     /* Commit. */
     if (S_ISDIR(mode)) {
-        snprintf(buf, PATH_MAX, "Renamed directory \"%s\"", oldname);
+        snprintf(buf, SEAF_PATH_MAX, "Renamed directory \"%s\"", oldname);
     } else {
-        snprintf(buf, PATH_MAX, "Renamed \"%s\"", oldname);
+        snprintf(buf, SEAF_PATH_MAX, "Renamed \"%s\"", oldname);
     }
 
     if (gen_new_commit (repo_id, head_commit, root_id,
@@ -1801,7 +1801,7 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
     SeafCommit *head_commit = NULL;
     char *canon_path = NULL;
     unsigned char sha1[20];
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     char *root_id = NULL;
     SeafileCrypt *crypt = NULL;
     SeafDirent *new_dent = NULL;
@@ -1891,7 +1891,7 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
     }
 
     /* Commit. */
-    snprintf(buf, PATH_MAX, "Modified \"%s\"", file_name);
+    snprintf(buf, SEAF_PATH_MAX, "Modified \"%s\"", file_name);
     if (gen_new_commit (repo_id, head_commit, root_id,
                         user, buf, error) < 0)
         ret = -1;
@@ -1945,7 +1945,7 @@ revert_file_to_root (const char *root_id,
     SeafDir *dir = NULL;
     SeafDirent *dent = NULL, *newdent = NULL;
     char *basename = NULL, *ext = NULL;
-    char new_file_name[PATH_MAX];
+    char new_file_name[SEAF_PATH_MAX];
     char *new_root_id = NULL;
     int i = 1;
     GList *p;
@@ -2017,7 +2017,7 @@ revert_file_to_parent_dir (const char *root_id,
     SeafDir *dir = NULL;
     SeafDirent *dent = NULL, *newdent = NULL;
     char *basename = NULL, *ext = NULL;
-    char new_file_name[PATH_MAX];
+    char new_file_name[SEAF_PATH_MAX];
     char *new_root_id = NULL;
     gboolean is_overwrite = FALSE;
     int i = 1;
@@ -2118,7 +2118,7 @@ seaf_repo_manager_revert_file (SeafRepoManager *mgr,
     char *parent_dir = NULL, *filename = NULL;
     char *revert_to_file_id = NULL;
     char *canon_path = NULL, *root_id = NULL;
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     char time_str[512];
     gboolean parent_dir_exist = FALSE;
     gboolean revert_to_root = FALSE;
@@ -2217,7 +2217,7 @@ seaf_repo_manager_revert_file (SeafRepoManager *mgr,
     /* Commit. */
     strftime (time_str, sizeof(time_str), "%F %T",
               localtime((time_t *)(&old_commit->ctime)));
-    snprintf(buf, PATH_MAX, "Reverted file \"%s\" to status at %s", filename, time_str);
+    snprintf(buf, SEAF_PATH_MAX, "Reverted file \"%s\" to status at %s", filename, time_str);
     if (gen_new_commit (repo_id, head_commit, root_id,
                         user, buf, error) < 0)
         ret = -1;
@@ -2256,7 +2256,7 @@ revert_dir (const char *root_id,
 {
     SeafDir *dir = NULL;
     SeafDirent *dent = NULL, *newdent = NULL;
-    char new_dir_name[PATH_MAX];
+    char new_dir_name[SEAF_PATH_MAX];
     char *new_root_id = NULL;
     int i = 1;
     GList *p;
@@ -2319,7 +2319,7 @@ seaf_repo_manager_revert_dir (SeafRepoManager *mgr,
     char *parent_dir = NULL, *dirname = NULL;
     char *revert_to_dir_id = NULL;
     char *canon_path = NULL, *root_id = NULL;
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     gboolean parent_dir_exist = FALSE;
     gboolean revert_to_root = FALSE;
     gboolean skipped = FALSE;
@@ -2412,7 +2412,7 @@ seaf_repo_manager_revert_dir (SeafRepoManager *mgr,
     }
 
     /* Commit. */
-    snprintf(buf, PATH_MAX, "Recovered deleted directory \"%s\"", dirname);
+    snprintf(buf, SEAF_PATH_MAX, "Recovered deleted directory \"%s\"", dirname);
     if (gen_new_commit (repo_id, head_commit, root_id,
                         user, buf, error) < 0)
         ret = -1;

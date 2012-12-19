@@ -1,5 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include "common.h"
+
 #include <glib/gi18n.h>
 #include <stdlib.h>
 #include <string.h>
@@ -138,7 +140,7 @@ static void
 InitComboxList(HWND hDlg)
 {
     HWND hwndGroupsBox = GetDlgItem(hDlg, IDC_COMBOX_DISK);
-    wchar_t drives[MAX_PATH];
+    wchar_t drives[SEAF_PATH_MAX];
     wchar_t *p;
     ULARGE_INTEGER free_space;
     ULARGE_INTEGER largest_free_space;
@@ -292,7 +294,7 @@ static BOOL CALLBACK
 InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     int len;
-    char seafiledir[MAX_PATH];
+    char seafiledir[SEAF_PATH_MAX];
 
     memset(seafiledir, 0, sizeof(seafiledir));
 

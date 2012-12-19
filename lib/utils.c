@@ -2,6 +2,7 @@
 
 #include <config.h>
 
+#include "common.h"
 #include "utils.h"
 
 #ifdef WIN32
@@ -153,7 +154,7 @@ objstore_mkdir (const char *base)
     int ret;
     int i, j, len;
     static const char hex[] = "0123456789abcdef";
-    char subdir[PATH_MAX];
+    char subdir[SEAF_PATH_MAX];
 
     if ( (ret = checkdir_with_mkdir(base)) < 0)
         return ret;
@@ -341,7 +342,7 @@ char*
 ccnet_expand_path (const char *src)
 {
 #ifdef WIN32
-    char new_path[PATH_MAX + 1];
+    char new_path[SEAF_PATH_MAX + 1];
     char *p = new_path;
     const char *q = src;
 
@@ -363,14 +364,14 @@ ccnet_expand_path (const char *src)
     return strdup (new_path);
 #else
     const char *next_in, *ntoken;
-    char new_path[PATH_MAX + 1];
+    char new_path[SEAF_PATH_MAX + 1];
     char *next_out;
     int len;
 
    /* special cases */
     if (!src || *src == '\0')
         return NULL;
-    if (strlen(src) > PATH_MAX)
+    if (strlen(src) > SEAF_PATH_MAX)
         return NULL;
 
     next_in = src;
@@ -403,7 +404,7 @@ ccnet_expand_path (const char *src)
         if (*next_in == '\0')
             return strdup (new_path);
     } else if (*src != '/') {
-        getcwd (new_path, PATH_MAX);
+        getcwd (new_path, SEAF_PATH_MAX);
         for ( ; *next_out; next_out++) ; /* to '\0' */
     }
     
@@ -1400,7 +1401,7 @@ get_process_handle (const char *process_name_in)
 
     HANDLE hProcess;
     HMODULE hMod;
-    char process_name[MAX_PATH];
+    char process_name[SEAF_PATH_MAX];
     unsigned int i;
 
     for (i = 0; i < cProcesses; i++) {
@@ -1427,8 +1428,8 @@ get_process_handle (const char *process_name_in)
 
 int count_process (const char *process_name_in)
 {
-    char name[MAX_PATH];
-    char process_name[MAX_PATH];
+    char name[SEAF_PATH_MAX];
+    char process_name[SEAF_PATH_MAX];
     DWORD aProcesses[1024], cbNeeded, cProcesses;
     HANDLE hProcess;
     HMODULE hMods[1024];
@@ -1656,9 +1657,9 @@ find_process_in_dirent(struct dirent *dir, const char *process_name)
         return -1;
     }
 
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     /* get the full path of exe */
-    ssize_t l = readlink(path, buf, PATH_MAX);
+    ssize_t l = readlink(path, buf, SEAF_PATH_MAX);
 
     if (l < 0)
         return -1;

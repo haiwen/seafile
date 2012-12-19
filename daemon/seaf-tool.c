@@ -177,8 +177,8 @@ get_seaf_data_dir (const char *dir)
         return NULL;
     }
 
-    char data_dir[PATH_MAX]; 
-    size_t len = fread (data_dir, 1, PATH_MAX, seaf_ini);
+    char data_dir[SEAF_PATH_MAX]; 
+    size_t len = fread (data_dir, 1, SEAF_PATH_MAX, seaf_ini);
     if (len <= 0) {
         perror("Read seafile.ini failed");
         fclose(seaf_ini);
@@ -295,11 +295,11 @@ static int validate_repo_index(SeafRepo *repo)
     if (!repo) return -1;
     g_message("Checking for index\n");
 
-    char index_path[PATH_MAX];
+    char index_path[SEAF_PATH_MAX];
     struct index_state istate;
     memset (&istate, 0, sizeof(istate));
 
-    snprintf (index_path, PATH_MAX, "%s/%s", seaf->repo_mgr->index_dir, repo->id);
+    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", seaf->repo_mgr->index_dir, repo->id);
     if (read_index_from (&istate, index_path) < 0) {
         g_warning ("[ERROR] Failed to validate index for repo %s\n", repo->id);
         return -1;

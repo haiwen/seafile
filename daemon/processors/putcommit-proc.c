@@ -1,5 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include "common.h"
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -20,7 +22,7 @@
 
 typedef struct  {
     char        commit_id[41];
-    char        object_path[PATH_MAX];
+    char        object_path[SEAF_PATH_MAX];
     gboolean    transfer_started;
     int         fd;
 } SeafilePutcommitProcPriv;

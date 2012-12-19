@@ -97,7 +97,7 @@ read_directory_recursive(struct dir_struct *dir,
     int dtype;
 
     if (fdir) {
-        char path[PATH_MAX + 1];
+        char path[SEAF_PATH_MAX + 1];
         memcpy(path, base, baselen);
         while ((dname = g_dir_read_name(fdir)) != NULL) {
             int len = 0;
@@ -255,7 +255,8 @@ void wt_status_collect_changes_worktree(struct index_state *index,
         if (g_lstat(realpath, &st) < 0) {
             if (errno != ENOENT && errno != ENOTDIR)
                 changed = -1;
-            changed = 1;
+            else
+                changed = 1;
         }
 
         if (changed) {

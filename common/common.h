@@ -27,6 +27,8 @@
 #define DEFAULT_PROTO_VERSION 1
 #define CURRENT_PROTO_VERSION 3
 
+#define SEAF_PATH_MAX 4096
+
 #ifndef ccnet_warning
 #define ccnet_warning(fmt, ...) g_warning("%s(%d): " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 #endif

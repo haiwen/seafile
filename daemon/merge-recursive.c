@@ -170,7 +170,7 @@ static int get_files_dirs_recursive(struct merge_options *o, SeafDir *tree,
             snprintf(path, pathlen, "%s%s", base, dent->name);
             g_hash_table_replace(o->current_directory_set, path, path);
 
-            snprintf(base + baselen, PATH_MAX, "%s/", dent->name);
+            snprintf(base + baselen, SEAF_PATH_MAX, "%s/", dent->name);
             new_baselen = baselen + dent->name_len + 1;
             subdir = seaf_fs_manager_get_seafdir(seaf->fs_mgr, dent->id);
             if (!subdir) {
@@ -192,7 +192,7 @@ static int get_files_dirs_recursive(struct merge_options *o, SeafDir *tree,
 
 static int get_files_dirs(struct merge_options *o, SeafDir *tree)
 {
-    char base[PATH_MAX];
+    char base[SEAF_PATH_MAX];
 
     base[0] = 0;
     return get_files_dirs_recursive(o, tree, base, 0);
@@ -408,7 +408,7 @@ static int create_leading_directories(int base_len,
                                       int *clean)
 {
     int len = strlen(path);
-    char buf[PATH_MAX];
+    char buf[SEAF_PATH_MAX];
     int offset = base_len, my_offset = base_len;
     struct stat st;
     int n;
@@ -439,7 +439,7 @@ static int create_leading_directories(int base_len,
             *clean = 0;
 
             strftime(time_buf, 64, "%Y-%m-%d-%H-%M-%S", localtime(&t));
-            n = snprintf (&buf[my_offset], PATH_MAX - my_offset,
+            n = snprintf (&buf[my_offset], SEAF_PATH_MAX - my_offset,
                           " (%s %s)", conflict_suffix, time_buf);
             my_offset += n;
             if (g_lstat (buf, &st) == 0 && S_ISDIR(st.st_mode))
