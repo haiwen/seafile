@@ -184,7 +184,7 @@ process_ack (CcnetProcessor *processor, char *content, int clen)
     BitfieldRem (&proc->active, block_idx);
     BitfieldRem (&proc->tx_task->active, block_idx);
     BitfieldAdd (&proc->tx_task->uploaded, block_idx);
-    g_debug ("[sendlbock] recv ack for block %d\n", block_idx);
+    /* g_debug ("[sendlbock] recv ack for block %d\n", block_idx); */
     ++(proc->tx_task->n_uploaded);
 }
 

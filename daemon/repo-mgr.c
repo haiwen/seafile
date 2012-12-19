@@ -370,6 +370,7 @@ add_recursive (struct index_state *istate,
     char *subpath;
     struct stat st;
     int n;
+    int ret = 0;
 
     if (has_trailing_space (path)) {
         /* Ignore files/dir whose path has trailing spaces. It would cause
@@ -386,8 +387,8 @@ add_recursive (struct index_state *istate,
     }
 
     if (S_ISREG(st.st_mode)) {
-        int ret = add_to_index (istate, path, full_path,
-                                &st, 0, crypt, index_cb);
+        ret = add_to_index (istate, path, full_path,
+                            &st, 0, crypt, index_cb);
         g_free (full_path);
         return ret;
     }
@@ -408,14 +409,19 @@ add_recursive (struct index_state *istate,
             ++n;
 
             subpath = g_build_path (PATH_SEPERATOR, path, dname, NULL);
-            add_recursive (istate, worktree, subpath, crypt, ignore_empty_dir);
+            ret = add_recursive (istate, worktree, subpath,
+                                 crypt, ignore_empty_dir);
             g_free (subpath);
+            if (ret < 0)
+                break;
         }
         g_dir_close (dir);
         if (errno != 0) {
             g_warning ("Failed to read dir %s: %s.\n", path, strerror(errno));
             goto bad;
         }
+        if (ret < 0)
+            goto bad;
 
         if (n == 0 && !ignore_empty_dir) {
             g_debug ("Adding empty dir %s\n", path);
