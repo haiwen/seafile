@@ -81,7 +81,7 @@ int spawn_ccnet_daemon (void)
 #ifdef DEBUG
     [args addObject: @"ALL"];
 #else
-    [args addObject: @"Peer,Group,Requirement,Message,Connection,Other"];
+    [args addObject: @"Peer,Message,Connection,Other"];
 #endif
     [task setArguments: args];
     [task launch];
@@ -114,12 +114,12 @@ int start_seafile_daemon (void)
     [args addObject: ccnet_conf];
     [args addObject: @"-d"];
     [args addObject: seaf_conf];
-    [args addObject: @"-D"];
-    [args addObject: @"All"];
     [args addObject: @"-w"];
     [args addObject: wtree];
 
 #ifdef DEBUG
+    [args addObject: @"-D"];
+    [args addObject: @"All"];
     [args addObject: @"-g"];
     [args addObject: @"debug"];
     [args addObject: @"-G"];
