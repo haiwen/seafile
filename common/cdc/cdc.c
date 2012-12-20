@@ -157,14 +157,16 @@ static int init_cdc_file_descriptor (int fd, CDCFileDescriptor *file_descr)
 
 #define WRITE_CDC_BLOCK(block_sz, write_data)                \
 do {                                                         \
-    int _block_sz = block_sz;                                \
+    int _block_sz = (block_sz);                              \
     chunk_descr.len = _block_sz;                             \
     chunk_descr.offset = offset;                             \
     ret = file_descr->write_block (&chunk_descr,             \
             crypt, chunk_descr.checksum,                     \
                                    (write_data));            \
-    if (ret < 0)                                             \
+    if (ret < 0) {                                           \
+        free (buf);                                          \
         return -1;                                           \
+    }                                                        \
     memcpy (file_descr->blk_sha1s +                          \
             file_descr->block_nr * CHECKSUM_LENGTH,          \
             chunk_descr.checksum, CHECKSUM_LENGTH);          \
@@ -172,10 +174,9 @@ do {                                                         \
     file_descr->block_nr++;                                  \
     offset += _block_sz;                                     \
                                                              \
-    memmove (buf, buf + _block_sz, tail - _block_sz +1);     \
+    memmove (buf, buf + _block_sz, tail - _block_sz);        \
     tail = tail - _block_sz;                                 \
     cur = 0;                                                 \
-    break;                                                   \
 }while(0);
 
 /* content-defined chunking */
@@ -204,6 +205,11 @@ int file_chunk_cdc(int fd_src,
     if (!buf)
         return -1;
 
+    /* buf: a fix-sized buffer.
+     * cur: data behind (inclusive) this offset has been scanned.
+     *      cur + 1 is the bytes that has been scanned.
+     * tail: length of data loaded into memory. buf[tail] is invalid.
+     */
     tail = cur = 0;
     while (1) {
         if (cur < block_min_sz) {
@@ -216,13 +222,22 @@ int file_chunk_cdc(int fd_src,
             free (buf);
             return -1;
         }
-        tail = tail + ret;
+        tail += ret;
+
+        /* We've read all the data in this file. Output the block immediately
+         * in two cases:
+         * 1. The data left in the file is less than block_min_sz;
+         * 2. We cannot find the break value until the end of this file.
+         */
         if (tail < block_min_sz || cur >= tail) {
             if (tail > 0)
                 WRITE_CDC_BLOCK (tail, write_data);
             break;
         }
 
+        /* 
+         * A block is at least of size block_min_sz.
+         */
         if (cur < block_min_sz - 1)
             cur = block_min_sz - 1;
 
