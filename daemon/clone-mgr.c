@@ -402,7 +402,8 @@ is_non_empty_directory (const char *path)
     dir = g_dir_open (path, 0, &error);
     if (dir != NULL && g_dir_read_name (dir) != NULL)
         ret = TRUE;
-    g_dir_close (dir);
+    if (dir)
+        g_dir_close (dir);
 
     return ret;
 }
