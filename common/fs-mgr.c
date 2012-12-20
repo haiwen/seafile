@@ -637,6 +637,7 @@ seaf_dir_from_data (const char *dir_id, const uint8_t *data, int len)
     int remain;
     int dirent_base_size;
     guint32 meta_type;
+    guint32 name_len;
 
     ptr = data;
     remain = len;
@@ -660,12 +661,13 @@ seaf_dir_from_data (const char *dir_id, const uint8_t *data, int len)
         memcpy (dent->id, ptr, 40);
         dent->id[40] = '\0';
         ptr += 40;
-        dent->name_len = get32bit (&ptr);
+        name_len = get32bit (&ptr);
         remain -= dirent_base_size;
-        if (remain >= dent->name_len) {
+        if (remain >= name_len) {
+            dent->name_len = MIN (name_len, SEAF_DIR_NAME_LEN - 1);
             memcpy (dent->name, ptr, dent->name_len);
-            ptr += dent->name_len;
-            remain -= dent->name_len;
+            ptr += name_len;
+            remain -= name_len;
         } else {
             g_warning ("Bad data format for dir objcet %s.\n", dir_id);
             g_free (dent);
@@ -834,8 +836,10 @@ seaf_dirent_new (const char *sha1, int mode, const char *name)
     memcpy(dent->id, sha1, 40);
     dent->id[40] = '\0';
     dent->mode = mode;
-    dent->name_len = strlen(name);
-    strncpy(dent->name, name, dent->name_len);
+
+    /* Name would be truncated if it's too long. */
+    dent->name_len = MIN (strlen(name), SEAF_DIR_NAME_LEN - 1);
+    memcpy (dent->name, name, dent->name_len);
 
     return dent;
 }

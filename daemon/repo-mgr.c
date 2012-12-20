@@ -298,6 +298,10 @@ should_ignore(const char *filename, void *data)
 {
     GPatternSpec **spec = ignore_patterns;
 
+    /* Ignore file/dir if its name is too long. */
+    if (strlen(filename) >= SEAF_DIR_NAME_LEN)
+        return TRUE;
+
     while (*spec) {
         if (g_pattern_match_string(*spec, filename))
             return TRUE;
@@ -403,6 +407,8 @@ add_recursive (struct index_state *istate,
         errno = 0;
         n = 0;
         while ((dname = g_dir_read_name(dir)) != NULL) {
+            /* TODO: Notify user if a file's name is too long. */
+
             if (should_ignore(dname, NULL))
                 continue;
 
