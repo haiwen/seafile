@@ -2524,9 +2524,12 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     repo->email = load_repo_property (manager, repo->id, REPO_PROP_EMAIL);
     repo->token = load_repo_property (manager, repo->id, REPO_PROP_TOKEN);
     
-    /* TODO: check worktree valid, for example, if worktree was deleted,
-     * the corresponding index should be deleted too.
-     */
+    if (seaf_repo_check_worktree (repo) < 0) {
+        seaf_message ("Worktree for repo \"%s\" is invalid, delte it.\n",
+                      repo->name);
+        seaf_repo_manager_del_repo (manager, repo);
+        return NULL;
+    }
 
     avl_insert (manager->priv->repo_tree, repo);
     send_wktree_notification (repo, TRUE);
