@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION=1.3
+VERSION=1.3.5
 top_dir=${PWD}
 
 exts=" /usr/lib/libresolv.9.dylib /usr/lib/libSystem.B.dylib /usr/lib/system/libcache.dylib /usr/lib/system/libcommonCrypto.dylib /usr/lib/system/libcompiler_rt.dylib /usr/lib/system/libcopyfile.dylib /usr/lib/system/libdispatch.dylib /usr/lib/system/libdnsinfo.dylib /usr/lib/system/libdyld.dylib /usr/lib/system/libkeymgr.dylib /usr/lib/system/liblaunch.dylib /usr/lib/system/libmacho.dylib /usr/lib/system/libmathCommon.A.dylib /usr/lib/system/libquarantine.dylib /usr/lib/system/libremovefile.dylib /usr/lib/system/libsystem_blocks.dylib /usr/lib/system/libsystem_c.dylib /usr/lib/system/libsystem_dnssd.dylib /usr/lib/system/libsystem_info.dylib /usr/lib/system/libsystem_kernel.dylib /usr/lib/system/libsystem_network.dylib /usr/lib/system/libsystem_notify.dylib /usr/lib/system/libsystem_sandbox.dylib /usr/lib/system/libunc.dylib /usr/lib/system/libunwind.dylib /usr/lib/system/libxpc.dylib /usr/lib/libobjc.A.dylib"

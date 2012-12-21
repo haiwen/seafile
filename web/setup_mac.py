@@ -10,14 +10,14 @@ Usage:
 import os
 from setuptools import setup
 
-VERSION='1.3'
+VERSION='1.3.5'
 targetfile = "seafileweb.py"
 
 APP = [targetfile]
 DATA_FILES = []
 PACKAGES = []
 INCLUDES = ["utils"]
-EXCLUDES = ["local_settings"]
+EXCLUDES = ["local_settings", "test"]
 PLIST = {"LSBackgroundOnly":True,
          "CFBundleIdentifier":"seafile.seafileweb",
          "NSHumanReadableCopyright":u"Copyright © 2012 海文互知. All rights reserved.",
