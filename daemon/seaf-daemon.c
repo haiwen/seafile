@@ -266,7 +266,7 @@ get_argv_utf8 (int *argc)
     cmdline = GetCommandLineW();
     argv_w = CommandLineToArgvW (cmdline, argc); 
     if (!argv_w) {
-        printf("failed to CommandLineToArgvW(), GLE=%u\n", GetLastError());
+        printf("failed to CommandLineToArgvW(), GLE=%lu\n", GetLastError());
         return NULL;
     }
 

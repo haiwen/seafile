@@ -112,7 +112,7 @@ start_watch_dir_change(SeafWTMonitorPriv *priv, HANDLE dir_handle)
             g_free(aux);
 
         seaf_warning("Failed to ReadDirectoryChangesW, "
-                     "error code %u", (uint32_t)GetLastError());
+                     "error code %lu", GetLastError());
     } else {
         if (first_alloc)
             /* insert the aux buffer into hash table at the first watch */
@@ -147,8 +147,8 @@ start_watch_cmd_pipe (SeafWTMonitorPriv *priv, OVERLAPPED *ol_in)
          ol);                   /* overlapped */
 
     if (!sts && (GetLastError() != ERROR_IO_PENDING)) {
-        seaf_warning ("failed to ReadFile, error code %u\n",
-                      (uint32_t)GetLastError());
+        seaf_warning ("failed to ReadFile, error code %lu\n",
+                      GetLastError());
         if (!ol_in)
             /* free the overlapped struct if failed at the first watch */
             g_free(ol);
@@ -189,8 +189,8 @@ add_handle_to_iocp (SeafWTMonitorPriv *priv, HANDLE hAdd)
          1);                    /* Num of concurrent threads */
 
     if (!priv->iocp_handle) {
-        seaf_warning ("failed to create/add iocp, error code %u",
-                      (uint32_t)GetLastError());
+        seaf_warning ("failed to create/add iocp, error code %lu",
+                      GetLastError());
         return FALSE;
     }
 
@@ -212,7 +212,7 @@ add_all_to_iocp (SeafWTMonitorPriv *priv)
     if (!add_handle_to_iocp(priv, (HANDLE)priv->cmd_pipe[0])) {
 
         seaf_warning("Failed to add cmd_pipe to iocp, "
-                     "error code %u", (uint32_t)GetLastError());
+                     "error code %lu", GetLastError());
         return FALSE;
     }
 
@@ -224,8 +224,8 @@ add_all_to_iocp (SeafWTMonitorPriv *priv)
     while (g_hash_table_iter_next (&iter, &key, &value)) {
         if (!add_handle_to_iocp(priv, (HANDLE)value)) {
             seaf_warning("Failed to add dir handle to iocp, "
-                         "repo %s, error code %u", (char *)key,
-                         (uint32_t)GetLastError());
+                         "repo %s, error code %lu", (char *)key,
+                         GetLastError());
             continue;
         }
     }
@@ -256,8 +256,10 @@ get_handle_of_path(const wchar_t *path)
          NULL);                 /* template file */
 
     if (dir_handle == INVALID_HANDLE_VALUE) {
+        char *path_utf8 = g_utf16_to_utf8 (path, -1, NULL, NULL, NULL);
         seaf_warning("failed to create dir handle for path %s, "
-                     "error code %u", path, (uint32_t)GetLastError());
+                     "error code %lu", path_utf8, GetLastError());
+        g_free (path_utf8);
         return NULL;
     }
 
@@ -353,7 +355,7 @@ wt_monitor_job (void *vmonitor)
 
         if (!ret) {
             seaf_warning ("GetQueuedCompletionStatus failed, "
-                          "error code %u", (uint32_t)GetLastError());
+                          "error code %lu", GetLastError());
 
             if (retry++ < 3)
                 continue;
@@ -405,8 +407,8 @@ wt_monitor_job (void *vmonitor)
                 if (!start_watch_dir_change(priv, hTriggered)) {
 
                     seaf_warning ("start_watch_dir_change failed"
-                                  "for repo %s, error code %u\n",
-                                  repo_id, (uint32_t)GetLastError());
+                                  "for repo %s, error code %lu\n",
+                                  repo_id, GetLastError());
                 }
             } else {
                 /* A previously unwatched dir_handle's DirWatchAux buf was
