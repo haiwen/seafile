@@ -7,9 +7,7 @@ default_ccnet_conf_dir=${TOPDIR}/ccnet
 default_seafile_data_dir=${TOPDIR}/seafile-data
 default_seahub_db=${TOPDIR}/seahub.db
 
-old_ld_path=$LD_LIBRARY_PATH
-new_ld_path=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
-export LD_LIBRARY_PATH=$new_ld_path
+export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
 
 use_existing_ccnet="false"
 use_existing_seafile="false"
@@ -362,8 +360,7 @@ seaf_server_init=${INSTALLPATH}/seafile/bin/seaf-server-init
 if [[ "${use_existing_ccnet}" != "true" ]]; then
     echo "Generating ccnet configuration in ${default_ccnet_conf_dir}..."
     echo
-    if ! "${ccnet_init}" -c "${default_ccnet_conf_dir}" --name "${server_name}" \
-        --port "${server_port}" --host "${ip_or_domain}" 2>/dev/null 1>&2 ; then
+    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH "${ccnet_init}" -c "${default_ccnet_conf_dir}" --name "${server_name}" --port "${server_port}" --host "${ip_or_domain}" 2>/dev/null 1>&2 ; then
         err_and_quit;
     fi
 
@@ -379,7 +376,7 @@ sleep 0.5
 if [[ "${use_existing_seafile}" != "true" ]]; then
     echo "Generating seafile configuration in ${seafile_data_dir} ..."
     echo
-    if ! ${seaf_server_init} --seafile-dir "${seafile_data_dir}" \
+    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_server_init} --seafile-dir "${seafile_data_dir}" \
         --port ${seafile_server_port} 2>/dev/null 1>&2; then
         
         echo "Failed to generate seafile configuration"
@@ -477,7 +474,6 @@ usermgr_db_dir=${default_ccnet_conf_dir}/PeerMgr/
 usermgr_db=${usermgr_db_dir}/usermgr.db
 
 if [[ "${use_existing_ccnet}" != "true" ]]; then
-    export LD_LIBRARY_PATH=$old_ld_path
     # create admin user/passwd entry in ccnet db
     if ! mkdir -p "${usermgr_db_dir}" 2>/dev/null 1>&2 ; then
         echo "Failed to create seahub admin."
@@ -499,12 +495,11 @@ if [[ "${use_existing_ccnet}" != "true" ]]; then
         echo "Failed to create seahub admin."
         err_and_quit;
     fi
-    export LD_LIBRARY_PATH=$new_ld_path
 fi
 
 printf "Now sync seahub database ... "
 
-export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
+export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
 
 manage_py=${INSTALLPATH}/seahub/manage.py
 pushd "${INSTALLPATH}/seahub" 2>/dev/null 1>&2

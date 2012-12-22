@@ -8,8 +8,8 @@ TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
 ccnet_pidfile=${INSTALLPATH}/runtime/ccnet.pid
 
-export LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
 export PATH=${INSTALLPATH}/seafile/bin:$PATH
+export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
 
 script_name=$0
 function usage () {
@@ -66,15 +66,33 @@ function start_seafile_server () {
     httpserver="${INSTALLPATH}/seafile/bin/httpserver"
 
     bin_dir="${INSTALLPATH}/seafile/bin"
-    htmls_dir="${INSTALLPATH}/runtime/htmls"
 
-    ${seaf_controller} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"
+    LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_controller} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"
 
     sleep 10
 
-    ${httpserver} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"
+    # check if seafile server started successfully
+    if ! pgrep -f "seafile-controller -c ${default_ccnet_conf_dir}" 2>/dev/null 1>&2; then
+        echo "Failed to start seafile server"
+        exit 1;
+    fi
 
     echo "Seafile server started"
+    echo
+
+    echo "Starting seafile httpserver, please wait ..."
+    LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${httpserver} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"
+
+    sleep 2
+    # Check if httpserver started successfully
+    if ! pgrep -f "httpserver -c ${default_ccnet_conf_dir}" 2>/dev/null 1>&2; then
+        echo "Failed to start httpserver server"
+        # Since we have seaf-server started, kill it on failure
+        pkill -SIGTERM -f "seafile-controller -c ${default_ccnet_conf_dir}"
+        exit 1;
+    fi
+
+    echo "Seafile httpserver started"
 }
 
 function stop_seafile_server () {

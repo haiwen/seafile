@@ -11,8 +11,6 @@ manage_py=${INSTALLPATH}/seahub/manage.py
 gunicorn_conf=${INSTALLPATH}/runtime/seahub.conf
 gunicorn_pidfile=${INSTALLPATH}/runtime/seahub.pid
 
-export LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
-
 script_name=$0
 function usage () {
     echo "Usage : "
@@ -100,11 +98,11 @@ function start_seahub () {
     fi
     echo "Starting seahub http server at port ${port} ..."
     export CCNET_CONF_DIR=${default_ccnet_conf_dir}
-    export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
+    export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
     $PYTHON "${manage_py}" run_gunicorn -c "${gunicorn_conf}" -b "0.0.0.0:${port}"
 
     # Ensure seahub is started successfully
-    sleep 2
+    sleep 5
     if ! pgrep -f "${manage_py} run_gunicorn" 2>/dev/null 1>&2; then
         printf "\033[33mError:Seahub failed to start.\033[m\n"
         echo "Please try to run \"./seafile.sh start\" again"

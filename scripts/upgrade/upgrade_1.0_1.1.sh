@@ -9,7 +9,6 @@ default_ccnet_conf_dir=${TOPDIR}/ccnet
 default_seahub_db=${TOPDIR}/seahub.db
 
 export CCNET_CONF_DIR=${default_ccnet_conf_dir}
-export LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
 
 prev_version=1.0.0
