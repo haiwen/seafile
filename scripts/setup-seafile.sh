@@ -263,6 +263,23 @@ function get_seafile_server_port () {
     echo
 }
 
+function get_httpserver_port () {
+    question="What tcp port do you want to use for seafile httpserver?" 
+    hint="8082 is the recommended port."
+    default="8082"
+    ask_question "${question}\n${hint}" "${default}"
+    read httpserver_port
+    if [[ "${httpserver_port}" == "" ]]; then
+        httpserver_port="${default}"
+    fi
+    if [[ ! ${httpserver_port} =~ ^[0-9]+$ ]]; then
+        echo "\"${httpserver_port}\" is not a valid port number. "
+        get_httpserver_port
+    fi
+    echo
+}
+
+
 function get_seafile_data_dir () {
     question="Where do you want to put your seafile data?"
     note="Please use a volume with enough free space." 
@@ -326,6 +343,7 @@ fi
 get_seafile_data_dir;
 if [[ ${use_existing_seafile} != "true" ]]; then
     get_seafile_server_port
+    get_httpserver_port
 fi
 
 sleep .5
@@ -343,6 +361,7 @@ fi
 if [[ ${use_existing_seafile} != "true" ]]; then
     printf "seafile data dir:   \033[33m${seafile_data_dir}\033[m\n"
     printf "seafile port:       \033[33m${seafile_server_port}\033[m\n"
+    printf "httpserver port:    \033[33m${httpserver_port}\033[m\n"
 else
     printf "seafile data dir:   use existing data in    \033[33m${seafile_data_dir}\033[m\n"
 fi
@@ -377,7 +396,8 @@ if [[ "${use_existing_seafile}" != "true" ]]; then
     echo "Generating seafile configuration in ${seafile_data_dir} ..."
     echo
     if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_server_init} --seafile-dir "${seafile_data_dir}" \
-        --port ${seafile_server_port} 2>/dev/null 1>&2; then
+        --port ${seafile_server_port} --httpserver-port ${httpserver_port} \
+        2>/dev/null 1>&2; then
         
         echo "Failed to generate seafile configuration"
         err_and_quit;
@@ -399,7 +419,7 @@ echo "${seafile_data_dir}" > "${default_ccnet_conf_dir}/seafile.ini"
 dest_settings_py=${TOPDIR}/seahub_settings.py
 seahub_secret_keygen=${INSTALLPATH}/seahub/tools/secret_key_generator.py
 
-HTTP_SERVER_ROOT=http://${ip_or_domain}:8082
+HTTP_SERVER_ROOT=http://${ip_or_domain}:${httpserver_port}
 
 if [[ ! -f ${dest_settings_py} ]]; then
     echo "HTTP_SERVER_ROOT = \"${HTTP_SERVER_ROOT}\"" > "${dest_settings_py}"
@@ -535,7 +555,16 @@ echo "Your seafile server configuration has been finished successfully."
 echo "-----------------------------------------------------------------"
 echo 
 echo "run seafile server:     ./seafile.sh { start | stop | restart }"
-echo "run seahub  server:     ./seahub.sh  { start <port> | stop | restart <port> } "
+echo "run seahub  server:     ./seahub.sh  { start <port> | stop | restart <port> }"
+echo
+echo "-----------------------------------------------------------------"
+echo "If you are behind a firewall, remember to allow input/output of these tcp ports:"
+echo "-----------------------------------------------------------------"
+echo
+echo "port of ccnet server:         ${server_port}"
+echo "port of seafile server:       ${seafile_server_port}"
+echo "port of httpserver server:    ${httpserver_port}"
+echo "port of seahub:               8000"
 echo
 echo -e "When problems occur, Refer to\n"
 echo -e "      ${server_manual_http}\n"

@@ -15,43 +15,38 @@
 #include "access-file.h"
 #include "upload-file.h"
 
+#define DEFAULT_BIND_PORT  8082
+
 static char *config_dir = NULL;
 static char *seafile_dir = NULL;
 static char *bind_addr = "0.0.0.0";
-static uint16_t bind_port = 8082;
+static gboolean use_https = FALSE;
+static uint16_t bind_port = 0;
 static int num_threads = 10;
-static char *root_dir = NULL;
-static uint16_t https_port = 4433;
+static char *pemfile = NULL;
+static char *privkey = NULL;
 
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvfc:d:p:b:t:r:l:g:G:D:s:k:P:";
+static const char *short_opts = "hvfc:d:t:l:g:G:D:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
     { "foreground", no_argument, NULL, 'f', },
-    { "config-file", required_argument, NULL, 'c', },
+    { "ccnet-config-dir", required_argument, NULL, 'c', },
     { "seafdir", required_argument, NULL, 'd', },
-    { "port", required_argument, NULL, 'p', },
-    { "bindaddr", required_argument, NULL, 'b', },
     { "threads", required_argument, NULL, 't', },
-    { "root", required_argument, NULL, 'r', },
     { "log", required_argument, NULL, 'l' },
     { "ccnet-debug-level", required_argument, NULL, 'g' },
     { "http-debug-level", required_argument, NULL, 'G' },
     { "debug", required_argument, NULL, 'D' },
-    { "https", required_argument, NULL, 's' },
-    { "privkey", required_argument, NULL, 'k' },
-    { "https-port", required_argument, NULL, 'P' },
 };
 
 static void usage ()
 {
     fprintf (stderr,
-             "usage: httpserver [-c config_dir] [-d seafile_dir] \n"
-             "[-b address] [-p http_port] \n"
-             "[-s pemfile -k privkey] [-P https_port]\n");
+             "usage: httpserver [-c config_dir] [-d seafile_dir] \n");
 }
 
 static void
@@ -59,6 +54,53 @@ default_cb(evhtp_request_t *req, void *arg)
 {
     /* Return empty page. */
     evhtp_send_reply (req, EVHTP_RES_OK);
+}
+
+static void
+load_httpserver_config (SeafileSession *session)
+{
+    GError *error = NULL;
+    int port = 0;
+
+    port = g_key_file_get_integer (session->config, "httpserver", "port", &error);
+    if (!error) {
+        bind_port = port;
+    } else {
+        if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND &&
+            error->code != G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
+            fprintf (stderr, "[conf] Error: failed to read the value of 'port'\n");
+            exit (1);
+        }
+
+        bind_port = DEFAULT_BIND_PORT;
+        g_clear_error (&error);
+    }
+
+    use_https = g_key_file_get_boolean (session->config, "httpserver", "https", &error);
+    if (error) {
+        if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND &&
+            error->code != G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
+            fprintf (stderr, "[conf] Error: failed to read the value of 'https'\n");
+            exit (1);
+        }
+
+        /* There is no <https> field in seafile.conf, so we use http. */
+        g_error_free (error);
+        
+    } else if (use_https) {
+        /* read https config */
+        pemfile = g_key_file_get_string (session->config, "httpserver", "pemfile", &error);
+        if (error) {
+            fprintf (stderr, "[conf] Error: https is true, but the value of pemfile is unknown\n");
+            exit (1);
+        }
+
+        privkey = g_key_file_get_string (session->config, "httpserver", "privkey", &error);
+        if (error) {
+            fprintf (stderr, "[conf] Error: https is true, but the value of privkey is unknown\n");
+            exit (1);
+        }
+    }
 }
 
 int
@@ -72,8 +114,6 @@ main(int argc, char *argv[])
     char *ccnet_debug_level_str = "info";
     char *http_debug_level_str = "debug";
     const char *debug_str = NULL;
-    char *pemfile = NULL;
-    char *privkey = NULL;
 
     config_dir = DEFAULT_CONFIG_DIR;
 
@@ -92,26 +132,8 @@ main(int argc, char *argv[])
         case 'd':
             seafile_dir = strdup(optarg);
             break;
-        case 'p':
-            bind_port = atoi(optarg);
-            break;
-        case 'b':
-            bind_addr = strdup(optarg);
-            break;
         case 't':
             num_threads = atoi(optarg);
-            break;
-        case 'r':
-            root_dir = strdup(optarg);
-            break;
-        case 's':
-            pemfile = strdup(optarg);
-            break;
-        case 'k':
-            privkey = strdup(optarg);
-            break;
-        case 'P':
-            https_port = atoi(optarg);
             break;
         case 'f':
             daemon_mode = 0;
@@ -134,15 +156,10 @@ main(int argc, char *argv[])
         }
     }
 
-    if ((pemfile && !privkey) || (!pemfile && privkey)) {
-        fprintf (stderr, "pemfile and privkey must be provided together.\n");
-        exit (-1);
-    }
-
-#ifndef WIN32    
+#ifndef WIN32
     if (daemon_mode)
         daemon(1, 0);
-#endif    
+#endif
 
     g_type_init();
 
@@ -156,8 +173,8 @@ main(int argc, char *argv[])
         seafile_dir = g_build_filename (config_dir, "seafile-data", NULL);
     if (logfile == NULL)
         logfile = g_build_filename (seafile_dir, "http.log", NULL);
-    
-    seaf = seafile_session_new(seafile_dir, ccnet_client);
+
+    seaf = seafile_session_new (seafile_dir, ccnet_client);
     if (!seaf) {
         g_warning ("Failed to create seafile session.\n");
         exit (1);
@@ -176,6 +193,14 @@ main(int argc, char *argv[])
         exit (1);
     }
 
+    load_httpserver_config (seaf);
+    if (use_https) {
+        seaf_message ("port = %d, https = true, pemfile = %s, privkey = %s\n",
+                      bind_port, pemfile, privkey);
+    } else {
+        seaf_message ("port = %d, https = false\n", bind_port);
+    }
+
     evbase = event_base_new();
     htp = evhtp_new(evbase, NULL);
 
@@ -190,8 +215,6 @@ main(int argc, char *argv[])
         scfg.scache_timeout = 5000;
 
         evhtp_ssl_init (htp, &scfg);
-
-        bind_port = https_port;
     }
 
     if (access_file_init (htp) < 0)
@@ -199,7 +222,7 @@ main(int argc, char *argv[])
 
     if (upload_file_init (htp) < 0)
         exit (1);
-    
+
     evhtp_set_gencb(htp, default_cb, NULL);
 
     evhtp_use_threads(htp, NULL, num_threads, NULL);

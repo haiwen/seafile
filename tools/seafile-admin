@@ -299,6 +299,23 @@ def get_seafile_port():
                                         key=key,
                                         default=default,
                                         validate=validate)
+
+def get_httpserver_port():
+    def validate(s):
+        try:
+            port = int(s)
+        except ValueError:
+            return False
+
+        return port > 0 and port < 65536
+
+    question = 'Which port do you want to use for the seafile httpserver?'
+    key = 'seafile httpserver port'
+    default = '8082'
+    conf['httpserver_port'] = ask_question(question,
+                                           key=key,
+                                           default=default,
+                                           validate=validate)
 def get_seafile_data_dir():
     seafile_data_dir = os.path.join(cwd, 'seafile-data')
     seafile_conf = os.path.join(seafile_data_dir, 'seafile.conf')
@@ -423,7 +440,7 @@ def set_httpserver_root():
         get_server_ip_or_domain()
 
     conf['ip_or_domain'] = conf['ip_or_domain'].lstrip('http://')
-    content = "HTTP_SERVER_ROOT = 'http://%s:8082'" % conf['ip_or_domain']
+    content = "HTTP_SERVER_ROOT = 'http://%s:%s'" % (conf['ip_or_domain'], conf['httpserver_port'])
     with open(local_settings_py, 'w') as fp:
         fp.write(content)
 
@@ -494,6 +511,7 @@ def config_ccnet_seafile():
     get_seafile_data_dir()
     if not conf['seafile_data_exists']:
         get_seafile_port()
+        get_httpserver_port()
 
     print '\nThis is your configuration\n'
     print '------------------------------------------'
@@ -509,8 +527,9 @@ def config_ccnet_seafile():
     if conf['seafile_data_exists']:
         print 'seafile:             use existing config in %s' % highlight(conf['seafile_data_dir'])
     else:
-        print 'seafile data dir:    %s' % highlight(conf['seafile_data_dir'])
-        print 'seafile port:        %s' % highlight(conf['seafile_port'])
+        print 'seafile data dir:        %s' % highlight(conf['seafile_data_dir'])
+        print 'seafile port:            %s' % highlight(conf['seafile_port'])
+        print 'seafile httpserver port: %s' % highlight(conf['httpserver_port'])
 
     print '------------------------------------------'
     print '\nPress ENTER if the config is right, or anything else to re-config ',
@@ -553,6 +572,8 @@ def init_ccnet_seafile():
         argv = [
             'seaf-server-init',
             '--seafile-dir', conf['seafile_data_dir'],
+            '--port', conf['seafile_port'],
+            '--httpserver-port', conf['httpserver_port'],
         ]
 
         if run(argv) != 0:

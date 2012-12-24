@@ -35,7 +35,7 @@ save_config_file (GKeyFile *key_file, const char *path)
     return 0;
 }
 
-static const char *short_opts = "hmvs:t:r:d:p:";
+static const char *short_opts = "hmvs:t:r:d:p:P:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h' },
     { "verbose", no_argument, NULL, 'v' },
@@ -45,6 +45,7 @@ static const struct option long_opts[] = {
     { "root-passwd", required_argument, NULL, 'r' },
     { "seafile-dir", required_argument, NULL, 'd' },
     { "port", required_argument, NULL, 'p' },
+    { "httpserver-port", required_argument, NULL, 'P' },
     { 0, 0, 0, 0 },
 };
 
@@ -56,6 +57,7 @@ struct seaf_server_config {
     char *seafile_dir;
     char *mysql_socket;
     char *port;
+    char *httpserver_port;
 }; 
 
 static struct seaf_server_config config = {
@@ -78,6 +80,7 @@ void usage(int code) {
 "  -v, --verbose          output more information\n"
 "  -d, --seafile-dir      specify a diretory to put your seafile server config and data\n" 
 "  -p, --port             specify a port to to transmit data\n" 
+"  -P, --httpserver-port  specify the port to use by httpserver\n" 
 "  -m, --mysql            use mysql database. Default is to use sqlite3\n"
 "\n"
 "When using mysql database, you need to specify these arguments:\n\n"
@@ -126,6 +129,9 @@ int main (int argc, char **argv)
             break;
         case 'p':
             config.port = strdup(optarg);
+            break;
+        case 'P':
+            config.httpserver_port = strdup(optarg);
             break;
         default:
             usage(1);
@@ -196,6 +202,7 @@ int main (int argc, char **argv)
     }
 
     g_key_file_set_string (key_file, "network", "port", config.port);
+    g_key_file_set_string (key_file, "httpserver", "port", config.httpserver_port);
 
     struct stat st;
     if (lstat (config.seafile_dir, &st) < 0) {
