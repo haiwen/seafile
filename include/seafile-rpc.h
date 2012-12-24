@@ -718,8 +718,12 @@ int
 seafile_check_quota (const char *repo_id, GError **error);
 
 char *
-seafile_get_file_by_path (const char *repo_id, const char *path,
-                          GError **error);
+seafile_get_file_id_by_path (const char *repo_id, const char *path,
+                             GError **error);
+
+char *
+seafile_get_dir_id_by_path (const char *repo_id, const char *path,
+                            GError **error);
 
 /**
  * Return a list of commits where every commit contains a unique version of

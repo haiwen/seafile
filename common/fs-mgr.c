@@ -1237,10 +1237,19 @@ seaf_fs_manager_path_to_obj_id (SeafFSManager *mgr,
     SeafDir *base_dir = NULL;
     SeafDirent *dent;
     GList *p;
-    char *file_id = NULL;
+    char *obj_id = NULL;
 
     while (off >= 0 && copy[off] == '/')
         copy[off--] = 0;
+
+    if (strlen(copy) == 0) {
+        /* the path is root "/" */
+        if (mode) {
+            *mode = S_IFDIR;
+        }
+        obj_id = g_strdup(root_id);
+        goto out;
+    }
 
     slash = strrchr (copy, '/');
     if (!slash) {
@@ -1276,7 +1285,7 @@ seaf_fs_manager_path_to_obj_id (SeafFSManager *mgr,
     for (p = base_dir->entries; p != NULL; p = p->next) {
         dent = p->data;
         if (strcmp (dent->name, name) == 0) {
-            file_id = g_strdup (dent->id);
+            obj_id = g_strdup (dent->id);
             if (mode) {
                 *mode = dent->mode;
             }
@@ -1288,7 +1297,7 @@ out:
     if (base_dir)
         seaf_dir_free (base_dir);
     g_free (copy);
-    return file_id;
+    return obj_id;
 }
 
 char *

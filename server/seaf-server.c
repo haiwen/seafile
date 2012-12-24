@@ -256,8 +256,13 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      searpc_signature_string__string_string());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
-                                     seafile_get_file_by_path,
-                                     "seafile_get_file_by_path",
+                                     seafile_get_file_id_by_path,
+                                     "seafile_get_file_id_by_path",
+                                     searpc_signature_string__string_string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_dir_id_by_path,
+                                     "seafile_get_dir_id_by_path",
                                      searpc_signature_string__string_string());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",

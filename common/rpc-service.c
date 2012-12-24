@@ -2917,13 +2917,15 @@ seafile_check_quota (const char *repo_id, GError **error)
     return seaf_quota_manager_check_quota (seaf->quota_mgr, repo_id);
 }
 
-char *
-seafile_get_file_by_path (const char *repo_id, const char *path,
-                          GError **error)
+static char *
+get_obj_id_by_path (const char *repo_id,
+                    const char *path,
+                    gboolean want_dir,
+                    GError **error)
 {
     SeafRepo *repo = NULL;
     SeafCommit *commit = NULL;
-    char *file_id = NULL;
+    char *obj_id = NULL;
 
     if (!repo_id || !path) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
@@ -2946,15 +2948,38 @@ seafile_get_file_by_path (const char *repo_id, const char *path,
         goto out;
     }
 
-    file_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr, commit->root_id,
-                                               path, NULL, error);
+    guint32 mode = 0;
+    obj_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr, commit->root_id,
+                                             path, &mode, error);
 
 out:
     if (repo)
         seaf_repo_unref (repo);
     if (commit)
         seaf_commit_unref (commit);
-    return file_id;
+    if (obj_id) {
+        /* check if the mode matches */
+        if ((want_dir && !S_ISDIR(mode)) || (!want_dir) && S_ISDIR(mode)) {
+            g_free (obj_id);
+            return NULL;
+        }
+    }
+
+    return obj_id;
+}
+
+char *seafile_get_file_id_by_path (const char *repo_id,
+                                  const char *path,
+                                  GError **error)
+{
+    return get_obj_id_by_path (repo_id, path, FALSE, error);
+}
+
+char *seafile_get_dir_id_by_path (const char *repo_id,
+                                  const char *path,
+                                  GError **error)
+{
+    return get_obj_id_by_path (repo_id, path, TRUE, error);
 }
 
 GList *

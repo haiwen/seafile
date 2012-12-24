@@ -401,9 +401,14 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     get_dirid_by_path = seafile_get_dirid_by_path
 
     @searpc_func("string", ["string", "string"])
-    def seafile_get_file_by_path(repo_id, path):
+    def seafile_get_file_id_by_path(repo_id, path):
         pass
-    get_file_by_path = seafile_get_file_by_path
+    get_file_id_by_path = seafile_get_file_id_by_path
+
+    @searpc_func("string", ["string", "string"])
+    def seafile_get_dir_id_by_path(repo_id, path):
+        pass
+    get_dir_id_by_path = seafile_get_dir_id_by_path
 
     @searpc_func("string", ["string", "string"])
     def seafile_get_file_id_by_commit_and_path(commit_id, path):
