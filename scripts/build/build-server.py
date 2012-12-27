@@ -423,7 +423,7 @@ def parse_args():
 def setup_build_env():
     '''Setup environment variables, such as export PATH=$BUILDDDIR/bin:$PATH'''
     prefix = os.path.join(conf[CONF_BUILDDIR], 'seafile-server', 'seafile')
-    def append_env_value(name, value, seperator=':'):
+    def prepend_env_value(name, value, seperator=':'):
         '''append a new value to a list'''
         try:
             current_value = os.environ[name]
@@ -436,26 +436,26 @@ def setup_build_env():
 
         os.environ[name] = new_value
 
-    append_env_value('CPPFLAGS',
+    prepend_env_value('CPPFLAGS',
                      '-I%s' % os.path.join(prefix, 'include'),
                      seperator=' ')
 
     if conf[CONF_NO_STRIP]:
-        append_env_value('CPPFLAGS',
+        prepend_env_value('CPPFLAGS',
                          '-g -O0',
                          seperator=' ')
 
-    append_env_value('LDFLAGS',
+    prepend_env_value('LDFLAGS',
                      '-L%s' % os.path.join(prefix, 'lib'),
                      seperator=' ')
 
-    append_env_value('LDFLAGS',
+    prepend_env_value('LDFLAGS',
                      '-L%s' % os.path.join(prefix, 'lib64'),
                      seperator=' ')
 
-    append_env_value('PATH', os.path.join(prefix, 'bin'))
-    append_env_value('PKG_CONFIG_PATH', os.path.join(prefix, 'lib', 'pkgconfig'))
-    append_env_value('PKG_CONFIG_PATH', os.path.join(prefix, 'lib64', 'pkgconfig'))
+    prepend_env_value('PATH', os.path.join(prefix, 'bin'))
+    prepend_env_value('PKG_CONFIG_PATH', os.path.join(prefix, 'lib', 'pkgconfig'))
+    prepend_env_value('PKG_CONFIG_PATH', os.path.join(prefix, 'lib64', 'pkgconfig'))
 
 def copy_scripts_and_libs():
     '''Copy server release scripts and shared libs, as well as seahub

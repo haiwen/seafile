@@ -1,11 +1,7 @@
 ## Process this file with automake to produce Makefile.in
 
-APPNAME = seafile-applet
-
-TARGET = $(APPNAME).exe
-
-all: $(TARGET)
-en: $(TARGET)
+all: seafile-applet.exe
+en: seafile-applet.en.exe
 
 top_srcdir=../..
 
@@ -16,7 +12,7 @@ CFLAGS += -I$(top_srcdir)/include \
 		-I$(top_srcdir)/lib \
 		-I$(top_srcdir)/common \
 		-I. -I../common \
-        $(GLIB_CFLAGS) -g -O0 -Wall
+        $(GLIB_CFLAGS) -g -O0 -Wall $(CPPFLAGS)
 
 LDFLAGS += -L${top_srcdir}/lib/.libs/   \
 	-lseafile -lseafile_common -lccnet\
@@ -91,7 +87,7 @@ rpc-wrapper.o : ../common/rpc-wrapper.c
 resource.o : ${RCFILE} ${RC_HEADER} ${ICONS} Application.manifest
 	${RC}  -i $< -o $@
 
-$(TARGET) : $(OBJECTS) resource.o .deps
+%.exe : $(OBJECTS) resource.o .deps
 	${CC} -o "$@" ${OBJECTS} resource.o ${LDFLAGS} 
 
 debug:all

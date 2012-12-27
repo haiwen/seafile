@@ -22,4 +22,4 @@ WIN_ICONS = $(addprefix win/, \
 	seafile_auto_sync_disabled.ico \
 	window-head.bmp win7-trayicon-tip.bmp )
 
-EXTRA_DIST = $(WIN_SRCS) $(WIN_ICONS) win/Makefile
+EXTRA_DIST = win

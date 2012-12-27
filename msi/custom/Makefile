@@ -13,7 +13,7 @@ custom32.o: custom.c
 	$(CC32) $(CFLAGS) custom.c -c -o $@
 
 custom64.o: custom.c
-	C_INCLUDE_PATH= $(CC64) $(CFLAGS) custom.c -c -o $@
+	$(CC64) $(CFLAGS) custom.c -c -o $@
 
 seafile_custom32.dll: custom32.o
 	$(DLLWRAP32) $(DLLWRAPFLAGS) --def custom.def $< -o $@

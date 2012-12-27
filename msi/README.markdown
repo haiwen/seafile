@@ -20,7 +20,7 @@ How to build seafile Windows MSI installer
     cd ccnet; make && make install
     cd seafile; make && make install
 
-* cd msi/custom; make; make x64;
+* cd msi/custom; make
 
 * ./dll2pyd.sh; ./setupwin.sh /c/pack
 
