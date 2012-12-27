@@ -574,6 +574,7 @@ add_uploaded_file (RecvFSM *fsm)
     close (fsm->fd);
     fsm->file_name = NULL;
     fsm->tmp_file = NULL;
+    fsm->recved_crlf = FALSE;
 }
 
 static evhtp_res
