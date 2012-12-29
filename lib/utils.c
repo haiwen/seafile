@@ -112,21 +112,21 @@ ccnet_strlcpy (char *dest, const char *src, size_t size)
 int
 checkdir (const char *dir)
 {
-    struct stat st;
+    SeafStat st;
 
 #ifdef WIN32
     /* remove trailing '\\' */
     char *path = g_strdup(dir);
     char *p = (char *)path + strlen(path) - 1;
     while (*p == '\\' || *p == '/') *p-- = '\0';
-    if ((g_stat(dir, &st) < 0) || !S_ISDIR(st.st_mode)) {
+    if ((seaf_stat(dir, &st) < 0) || !S_ISDIR(st.st_mode)) {
         g_free (path);
         return -1;
     }
     g_free (path);
     return 0;
 #else
-    if ((g_stat(dir, &st) < 0) || !S_ISDIR(st.st_mode))
+    if ((seaf_stat(dir, &st) < 0) || !S_ISDIR(st.st_mode))
         return -1;
     return 0;
 #endif
@@ -189,6 +189,21 @@ objstore_get_path (char *path, const char *base, const char *obj_id)
     strcpy(path+len+4, obj_id+2);
 }
 
+int
+seaf_stat (const char *path, SeafStat *st)
+{
+#ifdef WIN32
+    wchar_t *wpath = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
+    int ret;
+
+    ret = _wstat64 (wpath, st);
+    g_free (wpath);
+
+    return ret;
+#else
+    return stat (path, st);
+#endif
+}
 
 ssize_t						/* Read "n" bytes from a descriptor. */
 readn(int fd, void *vptr, size_t n)

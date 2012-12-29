@@ -408,10 +408,10 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
                               unsigned char sha1[],
                               SeafileCrypt *crypt)
 {
-    struct stat sb;
+    SeafStat sb;
     CDCFileDescriptor cdc;
 
-    if (g_lstat (file_path, &sb) < 0) {
+    if (seaf_stat (file_path, &sb) < 0) {
         g_warning ("Bad file %s: %s.\n", file_path, strerror(errno));
         return -1;
     }

@@ -1407,7 +1407,7 @@ static int get_stat_data(struct cache_entry *ce,
 
     if (!cached && !ce_uptodate(ce)) {
         int changed;
-        struct stat st;
+        SeafStat st;
         changed = check_removed(ce, &st, diffopt->worktree);
         if (changed < 0)
             return -1;

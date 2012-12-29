@@ -12,7 +12,8 @@ CFLAGS += -I$(top_srcdir)/include \
 		-I$(top_srcdir)/lib \
 		-I$(top_srcdir)/common \
 		-I. -I../common \
-        $(GLIB_CFLAGS) -g -O0 -Wall $(CPPFLAGS)
+        $(GLIB_CFLAGS) -g -O0 -Wall $(CPPFLAGS) \
+	-D__MSVCRT_VERSION__=0x0601
 
 LDFLAGS += -L${top_srcdir}/lib/.libs/   \
 	-lseafile -lseafile_common -lccnet\

@@ -1,4 +1,5 @@
 #include "common.h"
+#include "utils.h"
 #include "obj-backend.h"
 
 typedef struct FsPriv {
@@ -51,13 +52,13 @@ obj_backend_fs_write (ObjBackend *bend,
                       int len)
 {
     char path[SEAF_PATH_MAX];
-    struct stat st;
+    SeafStat st;
     GError *error = NULL;
 
     id_to_path (bend->priv, obj_id, path);
 
     /* Don't overwrite existing objects. */
-    if (g_lstat (path, &st) == 0)
+    if (seaf_stat (path, &st) == 0)
         return 0;
 
     g_file_set_contents (path, data, len, &error);
@@ -76,11 +77,11 @@ obj_backend_fs_exists (ObjBackend *bend,
                        const char *obj_id)
 {
     char path[SEAF_PATH_MAX];
-    struct stat st;
+    SeafStat st;
 
     id_to_path (bend->priv, obj_id, path);
 
-    if (g_lstat (path, &st) == 0)
+    if (seaf_stat (path, &st) == 0)
         return TRUE;
 
     return FALSE;

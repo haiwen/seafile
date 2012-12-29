@@ -67,11 +67,11 @@ is_dot_or_dotdot(const char *name)
 static int
 get_dtype(const char *dname, const char *path)
 {
-    struct stat st;
+    SeafStat st;
     int dtype = DT_UNKNOWN;
     char *realpath = g_build_path (PATH_SEPERATOR, path, dname, NULL);
 
-    if (!g_lstat(realpath, &st)) {
+    if (!seaf_stat(realpath, &st)) {
         if (S_ISREG(st.st_mode))
             dtype =  DT_REG;
         if (S_ISDIR(st.st_mode))
@@ -217,7 +217,7 @@ void wt_status_collect_changes_worktree(struct index_state *index,
     entries = index->cache_nr;
     for (i = 0; i < entries; i++) {
         char *realpath;
-        struct stat st;
+        SeafStat st;
         struct cache_entry *ce = index->cache[i];
         int changed = 0;
 
@@ -252,7 +252,7 @@ void wt_status_collect_changes_worktree(struct index_state *index,
             continue;
 
         realpath = g_build_path (PATH_SEPERATOR, worktree, ce->name, NULL);
-        if (g_lstat(realpath, &st) < 0) {
+        if (seaf_stat(realpath, &st) < 0) {
             if (errno != ENOENT && errno != ENOTDIR)
                 changed = -1;
             else

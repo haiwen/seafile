@@ -45,7 +45,7 @@ static void handle_watch_command (SeafWTMonitorPriv *priv, WatchCommand *cmd);
 static int
 add_watch_recursive (int in_fd, char *path, int pathlen)
 {
-    struct stat st;
+    SeafStat st;
     DIR *dir;
     struct dirent *dent;
 

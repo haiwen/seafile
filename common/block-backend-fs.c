@@ -151,11 +151,11 @@ block_backend_fs_stat_block (BlockBackend *bend,
                              const char *block_id)
 {
     char path[SEAF_PATH_MAX];
-    struct stat st;
+    SeafStat st;
     BMetadata *block_md;
 
     get_block_path (bend, block_id, path);
-    if (g_stat (path, &st) < 0) {
+    if (seaf_stat (path, &st) < 0) {
         g_warning ("[block bend] Failed to stat block %s.\n", block_id);
         return NULL;
     }
@@ -170,10 +170,10 @@ static BMetadata *
 block_backend_fs_stat_block_by_handle (BlockBackend *bend,
                                        BHandle *handle)
 {
-    struct stat st;
+    SeafStat st;
     BMetadata *block_md;
 
-    if (fstat (handle->fd, &st) < 0) {
+    if (seaf_fstat (handle->fd, &st) < 0) {
         g_warning ("[block bend] Failed to stat block %s.\n", handle->block_id);
         return NULL;
     }

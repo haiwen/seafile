@@ -286,7 +286,7 @@ check_file_content (const char *file, const char *content, int clen)
 static int
 check_dir (const char *path)
 {
-    struct stat st;
+    SeafStat st;
     if (g_stat (path, &st) < 0) {
         fprintf (stderr, "Bug: %s should exist.\n", path);
         return -1;

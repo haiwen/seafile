@@ -112,7 +112,7 @@ seaf_repo_new (const char *id, const char *name, const char *desc)
 int
 seaf_repo_check_worktree (SeafRepo *repo)
 {
-    struct stat st;
+    SeafStat st;
 
     if (repo->worktree == NULL)
         return -1;
@@ -120,7 +120,7 @@ seaf_repo_check_worktree (SeafRepo *repo)
     /* check repo worktree */
     if (g_access(repo->worktree, F_OK) < 0)
         return -1;
-    if (g_stat(repo->worktree, &st) < 0)
+    if (seaf_stat(repo->worktree, &st) < 0)
         return -1;
     if (!S_ISDIR(st.st_mode))
         return -1;
@@ -372,7 +372,7 @@ add_recursive (struct index_state *istate,
     GDir *dir;
     const char *dname;
     char *subpath;
-    struct stat st;
+    SeafStat st;
     int n;
     int ret = 0;
 
@@ -384,7 +384,7 @@ add_recursive (struct index_state *istate,
     }
 
     full_path = g_build_path (PATH_SEPERATOR, worktree, path, NULL);
-    if (g_lstat (full_path, &st) < 0) {
+    if (seaf_stat (full_path, &st) < 0) {
         g_warning ("Failed to stat %s.\n", full_path);
         g_free (full_path);
         return 1;
@@ -474,7 +474,7 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
     char path[SEAF_PATH_MAX];
     unsigned int i;
     int len = strlen(prefix);
-    struct stat st;
+    SeafStat st;
     int ret;
 
     for (i = 0; i < istate->cache_nr; ++i) {
@@ -483,7 +483,7 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
         if (strncmp (ce->name, prefix, len) != 0)
             continue;
         snprintf (path, SEAF_PATH_MAX, "%s/%s", worktree, ce->name);
-        ret = g_lstat (path, &st);
+        ret = seaf_stat (path, &st);
 
         if (S_ISDIR (ce->ce_mode)) {
             if (ret < 0 || !S_ISDIR (st.st_mode) || !is_empty_dir (path))
@@ -663,7 +663,7 @@ check_local_mod (struct index_state *istate, GList *rmlist, const char *worktree
     int errs = 0;
 
     for (p = rmlist; p; p = p->next) {
-        struct stat st;
+        SeafStat st;
         struct cache_entry *ce;
         int pos;
         const char *name = (const char *)p->data;
@@ -674,7 +674,7 @@ check_local_mod (struct index_state *istate, GList *rmlist, const char *worktree
             continue;
         ce = istate->cache[pos];
 
-        if (g_lstat (path, &st) < 0) {
+        if (seaf_stat (path, &st) < 0) {
             if (errno != ENOENT)
                 g_warning ("'%s': %s", ce->name, strerror (errno));
             g_free (path);

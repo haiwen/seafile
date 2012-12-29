@@ -19,6 +19,7 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include "utils.h"
 
 #ifdef WIN32
 #include <inttypes.h>
@@ -412,7 +413,7 @@ typedef int (*IndexCB) (const char *path,
 int add_to_index(struct index_state *istate,
                  const char *path,
                  const char *full_path,
-                 struct stat *st,
+                 SeafStat *st,
                  int flags,
                  struct SeafileCrypt *crypt,
                  IndexCB index_cb);
@@ -432,13 +433,13 @@ extern int index_name_is_other(const struct index_state *, const char *, int);
 #define CE_MATCH_RACY_IS_DIRTY        02
 /* do stat comparison even if CE_SKIP_WORKTREE is true */
 #define CE_MATCH_IGNORE_SKIP_WORKTREE    04
-extern int ie_match_stat(const struct index_state *, struct cache_entry *, struct stat *, unsigned int);
-extern int ie_modified(const struct index_state *, struct cache_entry *, struct stat *, unsigned int);
+extern int ie_match_stat(const struct index_state *, struct cache_entry *, SeafStat *, unsigned int);
+extern int ie_modified(const struct index_state *, struct cache_entry *, SeafStat *, unsigned int);
 
 extern int ce_path_match(const struct cache_entry *ce, const char **pathspec);
-extern int index_fd(unsigned char *sha1, int fd, struct stat *st, enum object_type type, const char *path);
-extern int index_path(unsigned char *sha1, const char *path, struct stat *st);
-extern void fill_stat_cache_info(struct cache_entry *ce, struct stat *st);
+extern int index_fd(unsigned char *sha1, int fd, SeafStat *st, enum object_type type, const char *path);
+extern int index_path(unsigned char *sha1, const char *path, SeafStat *st);
+extern void fill_stat_cache_info(struct cache_entry *ce, SeafStat *st);
 extern void mark_all_ce_unused(struct index_state *index);
 
 #define MTIME_CHANGED    0x0001

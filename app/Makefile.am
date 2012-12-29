@@ -4,6 +4,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	-I$(top_srcdir)/lib  \
 	@CCNET_CFLAGS@ \
 	@GLIB2_CFLAGS@ \
+	@MSVC_CFLAGS@ \
 	-Wall
 
 bin_PROGRAMS = seafile

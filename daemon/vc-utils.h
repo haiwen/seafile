@@ -37,7 +37,7 @@ gboolean
 files_locked_on_windows (struct index_state *index, const char *worktree);
 
 int
-compare_file_content (const char *path, struct stat *st, 
+compare_file_content (const char *path, SeafStat *st, 
                       const unsigned char *ce_sha1,
                       struct SeafileCrypt *crypt);
 

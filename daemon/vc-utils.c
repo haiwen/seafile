@@ -138,7 +138,7 @@ static int
 unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
 {
     char path[SEAF_PATH_MAX];
-    struct stat st;
+    SeafStat st;
     int base_len = strlen(o->base);
     int len = ce_namelen(ce);
     int offset;
@@ -152,7 +152,7 @@ unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
 
     if (!S_ISDIR(ce->ce_mode)) {
         /* file doesn't exist in work tree */
-        if (g_lstat (path, &st) < 0 || !S_ISREG(st.st_mode)) {
+        if (seaf_stat (path, &st) < 0 || !S_ISREG(st.st_mode)) {
             return 0;
         }
 
@@ -169,7 +169,7 @@ unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
             return -1;
         }
     } else {
-        if (g_lstat (path, &st) < 0 || !S_ISDIR(st.st_mode))
+        if (seaf_stat (path, &st) < 0 || !S_ISDIR(st.st_mode))
             return 0;
 
         if (g_rmdir (path) < 0) {
@@ -197,7 +197,7 @@ unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
 }
 
 int
-compare_file_content (const char *path, struct stat *st, const unsigned char *ce_sha1,
+compare_file_content (const char *path, SeafStat *st, const unsigned char *ce_sha1,
                       SeafileCrypt *crypt)
 {
     CDCFileDescriptor cdc;
@@ -233,7 +233,7 @@ checkout_entry (struct cache_entry *ce,
     int full_len;
     char path[SEAF_PATH_MAX];
     int offset;
-    struct stat st;
+    SeafStat st;
     char file_id[41];
 
     if (!len) {
@@ -255,7 +255,7 @@ checkout_entry (struct cache_entry *ce,
             break;
         path[offset] = 0;
 
-        if (g_lstat (path, &st) == 0 && S_ISDIR(st.st_mode))
+        if (seaf_stat (path, &st) == 0 && S_ISDIR(st.st_mode))
             continue;
         
         if (ccnet_mkdir (path, 0777) < 0) {
@@ -269,7 +269,7 @@ checkout_entry (struct cache_entry *ce,
         /* In case that we're replacing an empty dir with a file,
          * we need first to remove the empty dir.
          */
-        if (g_lstat (path, &st) == 0 && S_ISDIR(st.st_mode)) {
+        if (seaf_stat (path, &st) == 0 && S_ISDIR(st.st_mode)) {
             if (g_rmdir (path) < 0) {
                 g_warning ("Failed to remove dir %s: %s\n", path, strerror(errno));
                 /* Don't quit since we can handle conflict later. */
@@ -287,7 +287,7 @@ checkout_entry (struct cache_entry *ce,
         return 0;
     }
 
-    if (!o->reset && g_lstat (path, &st) == 0 && S_ISREG(st.st_mode) &&
+    if (!o->reset && seaf_stat (path, &st) == 0 && S_ISREG(st.st_mode) &&
         (ce->ce_ctime.sec != st.st_ctime || ce->ce_mtime.sec != st.st_mtime))
     {
         /* If we're recovering an interrupted merge, we don't know whether
@@ -319,7 +319,7 @@ checkout_entry (struct cache_entry *ce,
 
 update_cache:
     /* finally fill cache_entry info */
-    g_lstat (path, &st);
+    seaf_stat (path, &st);
     fill_stat_cache_info (ce, &st);
 
     return 0;

@@ -305,12 +305,12 @@ remove_path (const char *worktree, const char *name, unsigned int ctime, unsigne
 {
     char *slash;
     char *path;
-    struct stat st;
+    SeafStat st;
 
     path = g_build_path(PATH_SEPERATOR, worktree, name, NULL);
 
     /* file doesn't exist in work tree */
-    if (g_lstat (path, &st) < 0) {
+    if (seaf_stat (path, &st) < 0) {
         g_free (path);
         return 0;
     }
@@ -372,8 +372,8 @@ static int remove_file(struct merge_options *o, int clean,
 
 inline static int file_exists(const char *f)
 {
-    struct stat sb;
-    return (g_lstat (f, &sb) == 0);
+    SeafStat sb;
+    return (seaf_stat (f, &sb) == 0);
 }
 
 #if 0
@@ -410,7 +410,7 @@ static int create_leading_directories(int base_len,
     int len = strlen(path);
     char buf[SEAF_PATH_MAX];
     int offset = base_len, my_offset = base_len;
-    struct stat st;
+    SeafStat st;
     int n;
 
     memcpy (buf, path, base_len);
@@ -429,7 +429,7 @@ static int create_leading_directories(int base_len,
         }
         buf[my_offset] = 0;
 
-        if (g_lstat (buf, &st) == 0 && S_ISDIR(st.st_mode)) {
+        if (seaf_stat (buf, &st) == 0 && S_ISDIR(st.st_mode)) {
             continue;
         } else if (S_ISREG(st.st_mode)) {
             time_t t = time(NULL);
@@ -442,7 +442,7 @@ static int create_leading_directories(int base_len,
             n = snprintf (&buf[my_offset], SEAF_PATH_MAX - my_offset,
                           " (%s %s)", conflict_suffix, time_buf);
             my_offset += n;
-            if (g_lstat (buf, &st) == 0 && S_ISDIR(st.st_mode))
+            if (seaf_stat (buf, &st) == 0 && S_ISDIR(st.st_mode))
                 continue;
         }
         
@@ -462,7 +462,7 @@ static int make_room_for_path(struct index_state *index, const char *path,
                               const char *conflict_suffix, int *clean)
 {
     int status;
-    struct stat st;
+    SeafStat st;
     int base_len = strlen(real_path) - strlen(path);
 
     status = create_leading_directories(base_len, real_path, new_path, conflict_suffix, clean);
@@ -470,7 +470,7 @@ static int make_room_for_path(struct index_state *index, const char *path,
         return -1;
     }
 
-    if (g_lstat (*new_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+    if (seaf_stat (*new_path, &st) == 0 && S_ISDIR(st.st_mode)) {
         if (g_rmdir (*new_path) < 0) {
             g_warning ("failed to remove directory %s.\n", *new_path);
             /* Don't return error since we can handle conflict later. */
@@ -521,7 +521,7 @@ static int update_file_flags(struct merge_options *o,
 
     if (update_wd) {
         char *new_path;
-        struct stat st;
+        SeafStat st;
         char *conflict_suffix;
 
         /* When creating a conflict directory, we use o->branch2 as conflict
@@ -547,7 +547,7 @@ static int update_file_flags(struct merge_options *o,
          * Note that file is clean only when it's added by others.
          */
         if (update_cache && o->recover_merge && 
-            g_lstat(new_path, &st) == 0 && S_ISREG(st.st_mode)) {
+            seaf_stat(new_path, &st) == 0 && S_ISREG(st.st_mode)) {
             if (compare_file_content (new_path, &st, sha, 
                                       o->crypt) == 0) {
                 real_path = new_path;
@@ -732,7 +732,7 @@ static int process_df_entry(struct merge_options *o,
     unsigned char *o_sha = o_mode ? entry->stages[1].sha : NULL;
     unsigned char *a_sha = a_mode ? entry->stages[2].sha : NULL;
     unsigned char *b_sha = b_mode ? entry->stages[3].sha : NULL;
-    struct stat st;
+    SeafStat st;
     char *real_path = g_build_path(PATH_SEPERATOR, o->worktree, path, NULL);
     char *new_path = NULL;
     char *conflict_suffix = NULL;
@@ -742,7 +742,7 @@ static int process_df_entry(struct merge_options *o,
         clean_merge = 0;
         /* Modify/delete; deleted side may have put a directory in the way */
         if (b_sha) {
-            if (g_lstat (real_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+            if (seaf_stat (real_path, &st) == 0 && S_ISDIR(st.st_mode)) {
                 /* D/F conflict. */
                 /* If b is an empty dir, don't check it out. */
                 if (S_ISDIR(b_mode))
@@ -771,7 +771,7 @@ static int process_df_entry(struct merge_options *o,
     } else if (!o_sha && !!a_sha != !!b_sha) {
         /* directory -> (directory, file) */
         if (b_sha) {
-            if (g_lstat (real_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+            if (seaf_stat (real_path, &st) == 0 && S_ISDIR(st.st_mode)) {
                 /* D/F conflict. */
                 clean_merge = 0;
 

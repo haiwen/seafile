@@ -548,13 +548,13 @@ make_worktree (SeafCloneManager *mgr,
                GError **error)
 {
     char *wt = g_strdup (worktree);
-    struct stat st;
+    SeafStat st;
     int rc;
     char *ret;
 
     remove_trail_slash (wt);
 
-    rc = g_lstat (wt, &st);
+    rc = seaf_stat (wt, &st);
     if (rc < 0 && errno == ENOENT) {
         ret = wt;
         return ret;

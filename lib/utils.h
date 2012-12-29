@@ -20,6 +20,7 @@
 #include <glib-object.h>
 #include <stdlib.h>
 #include <evutil.h>
+#include <sys/stat.h>
 
 #ifdef WIN32
 #include <errno.h>
@@ -56,6 +57,10 @@ static inline int ccnet_rename(const char *oldfile, const char *newfile)
     }
     return 0;
 }
+
+#define SeafStat struct __stat64
+#define seaf_fstat(fd,st) _fstat64(fd,st)
+
 #else
 
 #define ccnet_pipe_t int
@@ -66,10 +71,16 @@ static inline int ccnet_rename(const char *oldfile, const char *newfile)
 #define pipewrite(a,b,c) write((a),(b),(c))
 #define pipeclose(a) close((a))
 #define ccnet_rename g_rename
+
+#define SeafStat struct stat
+#define seaf_fstat(fd,st) fstat(fd,st)
+
 #endif
 
 #define pipereadn(a,b,c) recvn((a),(b),(c))
 #define pipewriten(a,b,c) sendn((a),(b),(c))
+
+int seaf_stat (const char *path, SeafStat *st);
 
 #ifndef O_BINARY
 #define O_BINARY 0

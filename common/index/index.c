@@ -11,6 +11,7 @@
 #endif
 
 #include "common.h"
+#include "utils.h"
 
 #include "index.h"
 #include "../seafile-crypt.h"
@@ -82,12 +83,12 @@ void *git_mmap(void *start, size_t length, int prot, int flags, int fd, off_t of
     HANDLE hmap;
     void *temp;
     off_t len;
-    struct stat st;
+    SeafStat st;
     uint64_t o = offset;
     uint32_t l = o & 0xFFFFFFFF;
     uint32_t h = (o >> 32) & 0xFFFFFFFF;
 
-    if (!fstat(fd, &st))
+    if (!seaf_fstat(fd, &st))
         len = st.st_size;
     else
         die("mmap: could not determine filesize");
@@ -117,37 +118,6 @@ int git_munmap(void *start, size_t length)
     return !UnmapViewOfFile(start);
 }
 #endif //for WIN32
-
-static inline uint64_t
-hton64(uint64_t val)
-{
-    uint64_t ret;
-    uint8_t *ptr = (uint8_t *)&ret;
-
-    ptr[0]=((val)>>56)&0xFF;
-    ptr[1]=((val)>>48)&0xFF;
-    ptr[2]=((val)>>40)&0xFF;
-    ptr[3]=((val)>>32)&0xFF;
-    ptr[4]=((val)>>24)&0xFF;
-    ptr[5]=((val)>>16)&0xFF;
-    ptr[6]=((val)>>8)&0xFF;
-    ptr[7]=(val)&0xFF;
-
-    return ret;
-}
-
-static inline uint64_t 
-ntoh64(uint64_t val) 
-{
-    uint64_t t64;
-    uint8_t *ptr = (uint8_t *)&val;
-
-    t64=(ptr[3]+256*(ptr[2]+256*(ptr[1]+256*ptr[0])));
-    t64<<=32;
-    t64|=((ptr[7]+256*(ptr[6]+256*(ptr[5]+256*ptr[4]))))&0xffffffffU;
-
-    return t64;
-}
 
 static void set_index_entry(struct index_state *istate, int nr, struct cache_entry *ce)
 {
@@ -286,7 +256,7 @@ static int read_index_extension(struct index_state *istate,
 int read_index_from(struct index_state *istate, const char *path)
 {
     int fd, i;
-    struct stat st;
+    SeafStat st;
     unsigned long src_offset, dst_offset;
     struct cache_header *hdr;
     void *mm;
@@ -305,7 +275,7 @@ int read_index_from(struct index_state *istate, const char *path)
         return -1;
     }
 
-    if (fstat(fd, &st)) {
+    if (seaf_fstat(fd, &st)) {
         g_critical("cannot stat the open index");
         return -1;
     }
@@ -437,7 +407,7 @@ int cache_name_compare(const char *name1, int flags1, const char *name2, int fla
  * cache, ie the parts that aren't tracked by GIT, and only used
  * to validate the cache.
  */
-void fill_stat_cache_info(struct cache_entry *ce, struct stat *st)
+void fill_stat_cache_info(struct cache_entry *ce, SeafStat *st)
 {
     ce->ce_ctime.sec = (unsigned int)st->st_ctime;
     ce->ce_mtime.sec = (unsigned int)st->st_mtime;
@@ -478,7 +448,7 @@ static int is_empty_blob_sha1(const unsigned char *sha1)
     return !hashcmp(sha1, empty_blob_sha1);
 }
 
-static int ce_match_stat_basic(struct cache_entry *ce, struct stat *st)
+static int ce_match_stat_basic(struct cache_entry *ce, SeafStat *st)
 {
     unsigned int changed = 0;
 
@@ -550,7 +520,7 @@ static int is_racy_timestamp(const struct index_state *istate, struct cache_entr
 }
 
 #if 0
-static int ce_compare_data(struct cache_entry *ce, struct stat *st)
+static int ce_compare_data(struct cache_entry *ce, SeafStat *st)
 {
     int match = -1;
     int fd = g_open (ce->name, O_RDONLY | O_BINARY);
@@ -564,7 +534,7 @@ static int ce_compare_data(struct cache_entry *ce, struct stat *st)
     return match;
 }
 
-static int ce_compare_link(struct cache_entry *ce, struct stat *st)
+static int ce_compare_link(struct cache_entry *ce, SeafStat *st)
 {
     int match = -1;
     unsigned char sha1[20];
@@ -575,7 +545,7 @@ static int ce_compare_link(struct cache_entry *ce, struct stat *st)
     return match;
 }
 
-static int ce_modified_check_fs(struct cache_entry *ce, struct stat *st)
+static int ce_modified_check_fs(struct cache_entry *ce, SeafStat *st)
 {
     switch (st->st_mode & S_IFMT) {
     case S_IFREG:
@@ -594,7 +564,7 @@ static int ce_modified_check_fs(struct cache_entry *ce, struct stat *st)
 #endif
 
 int ie_match_stat(const struct index_state *istate,
-                  struct cache_entry *ce, struct stat *st,
+                  struct cache_entry *ce, SeafStat *st,
                   unsigned int options)
 {
     unsigned int changed;
@@ -937,7 +907,7 @@ int add_index_entry(struct index_state *istate, struct cache_entry *ce, int opti
 int add_to_index(struct index_state *istate,
                  const char *path,
                  const char *full_path,
-                 struct stat *st,
+                 SeafStat *st,
                  int flags,
                  SeafileCrypt *crypt,
                  IndexCB index_cb)
@@ -1024,9 +994,9 @@ add_empty_dir_to_index (struct index_state *istate, const char *path)
 static struct cache_entry *refresh_cache_entry(struct cache_entry *ce,
                                                const char *full_path)
 {
-    struct stat st;
+    SeafStat st;
 
-    if (g_lstat (full_path, &st) < 0) {
+    if (seaf_stat (full_path, &st) < 0) {
         g_warning("Failed to stat %s.\n", full_path);
         return NULL;
     }
@@ -1067,61 +1037,14 @@ struct cache_entry *make_cache_entry(unsigned int mode,
 #if 0
 int add_file_to_index(struct index_state *istate, const char *path, int flags)
 {
-    struct stat st;
-    if (g_lstat (path, &st)) {
+    SeafStat st;
+    if (seaf_stat (path, &st)) {
         g_warning("unable to stat '%s'\n", path);
         return -1;
     }
     return add_to_index(istate, path, &st, flags);
 }
 #endif
-
-static ssize_t
-readn(int fd, void *vptr, size_t n)
-{
-    size_t    nleft;
-    ssize_t    nread;
-    char    *ptr;
-
-    ptr = vptr;
-    nleft = n;
-    while (nleft > 0) {
-        if ( (nread = read(fd, ptr, nleft)) < 0) {
-            if (errno == EINTR)
-                nread = 0;        /* and call read() again */
-            else
-                return(-1);
-        } else if (nread == 0)
-            break;                /* EOF */
-
-        nleft -= nread;
-        ptr   += nread;
-    }
-    return(n - nleft);        /* return >= 0 */
-}
-
-static ssize_t
-writen(int fd, const void *vptr, size_t n)
-{
-    size_t        nleft;
-    ssize_t        nwritten;
-    const char    *ptr;
-
-    ptr = vptr;
-    nleft = n;
-    while (nleft > 0) {
-        if ( (nwritten = write(fd, ptr, nleft)) <= 0) {
-            if (nwritten < 0 && errno == EINTR)
-                nwritten = 0;        /* and call write() again */
-            else
-                return(-1);            /* error */
-        }
-
-        nleft -= nwritten;
-        ptr   += nwritten;
-    }
-    return(n);
-}
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
 
@@ -1176,7 +1099,7 @@ static int index_mem(unsigned char *sha1, void *buf, uint64_t size,
 
 #define SMALL_FILE_SIZE (32*1024)
 
-int index_fd(unsigned char *sha1, int fd, struct stat *st,
+int index_fd(unsigned char *sha1, int fd, SeafStat *st,
              enum object_type type, const char *path)
 {
     int ret;
@@ -1202,7 +1125,7 @@ int index_fd(unsigned char *sha1, int fd, struct stat *st,
     return ret;
 }
 
-int index_path(unsigned char *sha1, const char *path, struct stat *st)
+int index_path(unsigned char *sha1, const char *path, SeafStat *st)
 {
     int fd;
     char buf[SEAF_PATH_MAX];
@@ -1330,9 +1253,9 @@ static void ce_smudge_racily_clean_entry(struct cache_entry *ce)
      * contents.  The caller checks with is_racy_timestamp() which
      * always says "no" for gitlinks, so we are not called for them ;-)
      */
-    struct stat st;
+    SeafStat st;
 
-    if (g_lstat (ce->name, &st) < 0)
+    if (seaf_stat (ce->name, &st) < 0)
         return;
     if (ce_match_stat_basic(ce, &st))
         return;
@@ -1406,7 +1329,7 @@ int write_index(struct index_state *istate, int newfd)
     int i, removed, extended;
     struct cache_entry **cache = istate->cache;
     int entries = istate->cache_nr;
-    struct stat st;
+    SeafStat st;
 
     memset (&info, 0, sizeof(info));
 
@@ -1466,7 +1389,7 @@ int write_index(struct index_state *istate, int newfd)
     }
 #endif
 
-    if (ce_flush(&info, newfd) || fstat(newfd, &st))
+    if (ce_flush(&info, newfd) || seaf_fstat(newfd, &st))
         return -1;
     istate->timestamp.sec = (unsigned int)st.st_mtime;
     istate->timestamp.nsec = 0;

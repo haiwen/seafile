@@ -47,6 +47,7 @@ typedef struct _CDCFileDescriptor {
 
     uint32_t block_nr;
     uint8_t *blk_sha1s;
+    int max_block_nr;
     uint8_t  file_sum[CHECKSUM_LENGTH];
 
     WriteblockFunc write_block;

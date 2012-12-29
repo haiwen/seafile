@@ -1,5 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include "common.h"
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +10,8 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <glib/gstdio.h>
+
+#include "utils.h"
 
 #include "cdc.h"
 #include "../seafile-crypt.h"
@@ -35,78 +39,6 @@
 
 #define BYTE_TO_HEX(b)  (((b)>=10)?('a'+b-10):('0'+b))
 
-/* static void sha1 (const void *data, int len, uint8_t *sha1) */
-/* { */
-/*     SHA_CTX ctx; */
-
-/*     SHA1_Init (&ctx); */
-/*     SHA1_Update (&ctx, data, len); */
-/*     SHA1_Final (sha1, &ctx); */
-/* } */
-
-static void rawdata_to_hex (const unsigned char *rawdata, 
-                            char *hex_str, int n_bytes)
-{
-    static const char hex[] = "0123456789abcdef";
-    int i;
-
-    for (i = 0; i < n_bytes; i++) {
-        unsigned int val = *rawdata++;
-        *hex_str++ = hex[val >> 4];
-        *hex_str++ = hex[val & 0xf];
-    }
-    *hex_str = '\0';
-}
-
-/* Read "n" bytes from a descriptor. */
-static ssize_t
-readn(int fd, void *vptr, size_t n)
-{
-	size_t	nleft;
-	ssize_t	nread;
-	char	*ptr;
-
-	ptr = vptr;
-	nleft = n;
-	while (nleft > 0) {
-		if ( (nread = read(fd, ptr, nleft)) < 0) {
-			if (errno == EINTR)
-				nread = 0;		/* and call read() again */
-			else
-				return(-1);
-		} else if (nread == 0)
-			break;				/* EOF */
-
-		nleft -= nread;
-		ptr   += nread;
-	}
-	return(n - nleft);		/* return >= 0 */
-}
-
-/* Write "n" bytes to a descriptor. */
-static ssize_t
-writen(int fd, const void *vptr, size_t n)
-{
-	size_t		nleft;
-	ssize_t		nwritten;
-	const char	*ptr;
-
-	ptr = vptr;
-	nleft = n;
-	while (nleft > 0) {
-		if ( (nwritten = write(fd, ptr, nleft)) <= 0) {
-			if (nwritten < 0 && errno == EINTR)
-				nwritten = 0;		/* and call write() again */
-			else
-				return(-1);			/* error */
-		}
-
-		nleft -= nwritten;
-		ptr   += nwritten;
-	}
-	return(n);
-}
-
 static int default_write_chunk (CDCDescriptor *chunk_descr)
 {
     char filename[NAME_MAX_SZ];
@@ -129,7 +61,7 @@ static int init_cdc_file_descriptor (int fd, CDCFileDescriptor *file_descr)
 {
     int max_block_nr = 0;
     int block_min_sz = 0;
-    struct stat sb;
+    SeafStat sb;
 
     file_descr->block_nr = 0;
 
@@ -143,7 +75,7 @@ static int init_cdc_file_descriptor (int fd, CDCFileDescriptor *file_descr)
     if (file_descr->write_block == NULL)
         file_descr->write_block = (WriteblockFunc)default_write_chunk;
 
-    if (fstat (fd, &sb) < 0) {
+    if (seaf_fstat (fd, &sb) < 0) {
         return -1;
     }
 
@@ -151,6 +83,7 @@ static int init_cdc_file_descriptor (int fd, CDCFileDescriptor *file_descr)
     max_block_nr = ((sb.st_size + block_min_sz - 1) / block_min_sz);
     file_descr->blk_sha1s = (uint8_t *)calloc (sizeof(uint8_t),
                                                max_block_nr * CHECKSUM_LENGTH);
+    file_descr->max_block_nr = max_block_nr;
 
     return 0;
 }
@@ -230,8 +163,13 @@ int file_chunk_cdc(int fd_src,
          * 2. We cannot find the break value until the end of this file.
          */
         if (tail < block_min_sz || cur >= tail) {
-            if (tail > 0)
+            if (tail > 0) {
+                if (file_descr->block_nr == file_descr->max_block_nr) {
+                    g_warning ("File size changed while chunking it.\n");
+                    return -1;
+                }
                 WRITE_CDC_BLOCK (tail, write_data);
+            }
             break;
         }
 
@@ -249,7 +187,13 @@ int file_chunk_cdc(int fd_src,
 
             /* get a chunk, write block info to chunk file */
             if (((fingerprint & block_mask) ==  ((BREAK_VALUE & block_mask)))
-                || cur + 1 >= file_descr->block_max_sz) {
+                || cur + 1 >= file_descr->block_max_sz)
+            {
+                if (file_descr->block_nr == file_descr->max_block_nr) {
+                    g_warning ("File size changed while chunking it.\n");
+                    return -1;
+                }
+
                 WRITE_CDC_BLOCK (cur + 1, write_data);
                 break;
             } else {
