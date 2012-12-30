@@ -169,6 +169,7 @@ handle_upload_ok (CcnetProcessor *processor, TransferTask *task,
     if (clen != 41 || content[clen-1] != '\0') {
         g_warning ("Bad response content.\n");
         transfer_task_set_error (task, TASK_ERR_UNKNOWN);
+        ccnet_processor_send_update (processor, SC_BAD_ARGS, SS_BAD_ARGS, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
     }
@@ -179,6 +180,7 @@ handle_upload_ok (CcnetProcessor *processor, TransferTask *task,
         !is_fast_forward (task->head, task->remote_head)) {
         g_warning ("Upload is not fast-forward.\n");
         transfer_task_set_error (task, TASK_ERR_NOT_FAST_FORWARD);
+        ccnet_processor_send_update (processor, SC_SHUTDOWN, SS_SHUTDOWN, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
     }
@@ -194,6 +196,7 @@ handle_download_ok (CcnetProcessor *processor, TransferTask *task,
     if (clen != 41 || content[clen-1] != '\0') {
         g_warning ("Bad response content.\n");
         transfer_task_set_error (task, TASK_ERR_UNKNOWN);
+        ccnet_processor_send_update (processor, SC_BAD_ARGS, SS_BAD_ARGS, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
     }
@@ -227,6 +230,8 @@ handle_response (CcnetProcessor *processor,
         if (content[clen-1] != '\0') {
             g_warning ("Bad response content.\n");
             transfer_task_set_error (task, TASK_ERR_UNKNOWN);
+            ccnet_processor_send_update (processor, SC_BAD_ARGS, SS_BAD_ARGS,
+                                         NULL, 0);
             ccnet_processor_done (processor, FALSE);
             return;
         }

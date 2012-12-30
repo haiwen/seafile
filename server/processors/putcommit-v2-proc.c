@@ -272,6 +272,8 @@ collect_commit_id_done (void *vprocessor)
     USE_PRIV;
 
     if (processor->delay_shutdown) {
+        ccnet_processor_send_response (processor, SC_SHUTDOWN, SS_SHUTDOWN,
+                                       NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
     }

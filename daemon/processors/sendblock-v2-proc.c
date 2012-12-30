@@ -42,7 +42,7 @@ enum {
     REQUEST_SENT,
     BLOCKLIST_SENT,
     GET_PORT,
-    ESTABLISHED,
+    READY,
 };
 
 #define GET_PRIV(o)  \
@@ -122,9 +122,6 @@ seafile_sendblock_v2_proc_send_block (SeafileSendblockV2Proc *proc,
     char *block_id;
     USE_PRIV;
 
-    if (processor->state != ESTABLISHED)
-        return -1;
-
     if (block_idx < 0 || block_idx >= bl->n_blocks)
         return -1;
     block_id = g_ptr_array_index (bl->block_ids, block_idx);
@@ -147,7 +144,10 @@ seafile_sendblock_v2_proc_send_block (SeafileSendblockV2Proc *proc,
 gboolean
 seafile_sendblock_v2_proc_is_ready (SeafileSendblockV2Proc *proc)
 {
-    return (((CcnetProcessor *)proc)->state == ESTABLISHED);
+    CcnetProcessor *processor = (CcnetProcessor *)proc;
+    USE_PRIV;
+
+    return (g_atomic_int_get(&priv->tdata->state) == READY);
 }
 
 static void
@@ -193,6 +193,7 @@ static void handle_response (CcnetProcessor *processor,
                              char *content, int clen)
 {
     SeafileSendblockV2Proc *proc = (SeafileSendblockV2Proc *)processor;
+    USE_PRIV;
 
     if (proc->tx_task->state != TASK_STATE_NORMAL) {
         g_debug ("Task not running, send-block proc exits.\n");
@@ -200,11 +201,11 @@ static void handle_response (CcnetProcessor *processor,
         return;
     }
 
-    switch (processor->state) {
+    switch (priv->tdata->state) {
     case REQUEST_SENT:
         if (memcmp (code, SC_OK, 3) == 0) {
             send_block_list (processor);
-            processor->state = BLOCKLIST_SENT;
+            priv->tdata->state = BLOCKLIST_SENT;
             return;
         }
         break;
@@ -220,7 +221,7 @@ static void handle_response (CcnetProcessor *processor,
             return;
         }
         break;
-    case ESTABLISHED:
+    case READY:
         if (memcmp (code, SC_ACK, 3) == 0) {
             process_ack (processor, content, clen);
             return;

@@ -21,7 +21,7 @@
 
 enum {
     PREPARE,
-    ESTABLISHED,
+    READY,
 };
 
 #define GET_PRIV(o)  \
@@ -104,7 +104,9 @@ static void handle_update (CcnetProcessor *processor,
                            char *code, char *code_msg,
                            char *content, int clen)
 {
-    switch (processor->state) {
+    USE_PRIV;
+
+    switch (priv->tdata->state) {
     case PREPARE:
         if (memcmp (code, SC_BLOCKLIST, 3) == 0) {
             process_block_list (processor, content, clen);

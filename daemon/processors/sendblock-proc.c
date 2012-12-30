@@ -43,7 +43,7 @@ enum {
     REQUEST_SENT,
     BLOCKLIST_SENT,
     GET_PORT,
-    ESTABLISHED,
+    READY,
 };
 
 #define GET_PRIV(o)  \
@@ -88,7 +88,7 @@ seafile_sendblock_proc_send_block (SeafileSendblockProc *proc,
     char *block_id;
     USE_PRIV;
 
-    if (processor->state != ESTABLISHED)
+    if (processor->state != READY)
         return -1;
 
     if (block_idx < 0 || block_idx >= bl->n_blocks)
@@ -113,7 +113,7 @@ seafile_sendblock_proc_send_block (SeafileSendblockProc *proc,
 gboolean
 seafile_sendblock_proc_is_ready (SeafileSendblockProc *proc)
 {
-    return (((CcnetProcessor *)proc)->state == ESTABLISHED);
+    return (((CcnetProcessor *)proc)->state == READY);
 }
 
 static void
@@ -203,7 +203,7 @@ static void handle_response (CcnetProcessor *processor,
             return;
         }
         break;
-    case ESTABLISHED:
+    case READY:
         if (memcmp (code, SC_ACK, 3) == 0) {
             process_ack (processor, content, clen);
             return;

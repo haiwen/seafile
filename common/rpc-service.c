@@ -2959,7 +2959,7 @@ out:
         seaf_commit_unref (commit);
     if (obj_id) {
         /* check if the mode matches */
-        if ((want_dir && !S_ISDIR(mode)) || (!want_dir) && S_ISDIR(mode)) {
+        if ((want_dir && !S_ISDIR(mode)) || ((!want_dir) && S_ISDIR(mode))) {
             g_free (obj_id);
             return NULL;
         }

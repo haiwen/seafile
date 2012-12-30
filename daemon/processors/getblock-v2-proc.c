@@ -40,7 +40,7 @@ enum {
     REQUEST_SENT,
     BLOCKLIST_SENT,
     GET_PORT,
-    ESTABLISHED,
+    READY,
 };
 
 #define GET_PRIV(o)  \
@@ -119,9 +119,6 @@ seafile_getblock_v2_proc_get_block (SeafileGetblockV2Proc *proc,
     char buf[128];
     int len;
 
-    if (processor->state != ESTABLISHED)
-        return -1;
-
     ++(proc->pending_blocks);
     BitfieldAdd (&proc->active, block_idx);
 
@@ -137,7 +134,10 @@ seafile_getblock_v2_proc_get_block (SeafileGetblockV2Proc *proc,
 gboolean
 seafile_getblock_v2_proc_is_ready (SeafileGetblockV2Proc *proc)
 {
-    return (((CcnetProcessor *)proc)->state == ESTABLISHED);
+    CcnetProcessor *processor = (CcnetProcessor *)proc;
+    USE_PRIV;
+
+    return (g_atomic_int_get(&priv->tdata->state) == READY);
 }
 
 static void
@@ -162,6 +162,7 @@ static void handle_response (CcnetProcessor *processor,
                              char *content, int clen)
 {
     SeafileGetblockV2Proc *proc = (SeafileGetblockV2Proc *)processor;
+    USE_PRIV;
 
     if (proc->tx_task->state != TASK_STATE_NORMAL) {
         g_debug ("Task not running, get-block proc exits.\n");
@@ -169,11 +170,11 @@ static void handle_response (CcnetProcessor *processor,
         return;
     }
 
-    switch (processor->state) {
+    switch (priv->tdata->state) {
     case REQUEST_SENT:
         if (memcmp (code, SC_OK, 3) == 0) {
             send_block_list (processor);
-            processor->state = BLOCKLIST_SENT;
+            priv->tdata->state = BLOCKLIST_SENT;
             return;
         }
         break;

@@ -22,7 +22,7 @@
 
 enum {
     PREPARE,
-    ESTABLISHED,
+    READY,
 };
 
 #define GET_PRIV(o)  \

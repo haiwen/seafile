@@ -524,7 +524,7 @@ static void* do_transfer(void *vtdata)
     }
 
     tdata->data_fd = data_fd;
-    tdata->processor->state = ESTABLISHED;
+    tdata->processor->state = READY;
 
 #ifdef SEND
     tdata->thread_ret = send_blocks (tdata);
@@ -645,7 +645,7 @@ accept_connection (int fd, short event, void *vdata)
 
     evutil_closesocket (fd);
 
-    processor->state = ESTABLISHED;
+    processor->state = READY;
 
     if (ccnet_pipe (tdata->task_pipe) < 0) {
         g_warning ("failed to create task pipe.\n");

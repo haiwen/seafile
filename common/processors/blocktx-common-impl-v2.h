@@ -74,6 +74,12 @@ struct ThreadData {
     char                *token;
     TransferFunc         transfer_func;
     int                  thread_ret;
+
+    /* Use this state instead of processor->state, since
+     * both the main thread and the worker thread need to
+     * access it.
+     */
+    int                  state;
 };
 
 typedef struct {
@@ -85,6 +91,17 @@ typedef struct {
 /*
  * Common code for processor start and release_resource functions.
  */
+
+static void
+send_error (CcnetProcessor *processor)
+{
+    if (IS_SLAVE(processor))
+        ccnet_processor_send_response (processor, SC_SHUTDOWN, SS_SHUTDOWN,
+                                       NULL, 0);
+    else
+        ccnet_processor_send_update (processor, SC_SHUTDOWN, SS_SHUTDOWN,
+                                     NULL, 0);
+}
 
 static void
 prepare_thread_data (CcnetProcessor *processor,
@@ -137,10 +154,12 @@ thread_done (void *vtdata)
      */
     if (!tdata->processor_done) {
         seaf_debug ("Processor is not released. Release it now.\n");
-        if (tdata->thread_ret == 0)
+        if (tdata->thread_ret == 0) {
             ccnet_processor_done (tdata->processor, TRUE);
-        else
+        } else {
+            send_error (tdata->processor);
             ccnet_processor_done (tdata->processor, FALSE);
+        }
     }
 
     g_free (tdata->token);
@@ -377,6 +396,7 @@ typedef struct {
     BlockHandle *handle;
     uint32_t cevent_id;
     EVP_CIPHER_CTX ctx;
+    gboolean enc_init;
 } RecvFSM;
 
 static int
@@ -475,8 +495,10 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
             fsm->handle = handle; 
             fsm->state = RECV_STATE_BLOCK;
 
-            if (fsm->tdata->encrypt_channel)
+            if (fsm->tdata->encrypt_channel) {
                 decrypt_init (&fsm->ctx, fsm->tdata->key, fsm->tdata->iv);
+                fsm->enc_init = TRUE;
+            }
         }
         break;
     case RECV_STATE_BLOCK:
@@ -488,10 +510,10 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
         if (n < 0) {
             seaf_warning ("failed to read data: %s.\n",
                        evutil_socket_error_to_string(EVUTIL_SOCKET_ERROR()));
-            goto data_error;
+            return -1;
         } else if (n == 0) {
             seaf_debug ("data connection closed.\n");
-            goto data_error;
+            return -1;
         }
         fsm->remain -= n;
 
@@ -503,7 +525,7 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
 
         if (ret < 0) {
             seaf_warning ("Failed to write block %s.\n", fsm->hdr.block_id);
-            goto data_error;
+            return -1;
         }
 
 #ifdef GETBLOCK_PROC
@@ -512,8 +534,10 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
 #endif
 
         if (fsm->remain == 0) {
-            if (fsm->tdata->encrypt_channel)
+            if (fsm->tdata->encrypt_channel) {
                 EVP_CIPHER_CTX_cleanup (&fsm->ctx);
+                fsm->enc_init = FALSE;
+            }
 
             if (seaf_block_manager_close_block (block_mgr, handle) < 0) {
                 seaf_warning ("Failed to close block %s.\n", fsm->hdr.block_id);
@@ -542,13 +566,6 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
     }
 
     return 0;
-
-data_error:
-    if (fsm->tdata->encrypt_channel)
-        EVP_CIPHER_CTX_cleanup (&fsm->ctx);
-    seaf_block_manager_close_block (seaf->block_mgr, fsm->handle);
-    seaf_block_manager_block_handle_free (seaf->block_mgr, fsm->handle);
-    return -1;
 }
 
 static int
@@ -599,6 +616,12 @@ recv_blocks (ThreadData *tdata)
     return 0;
 
 error:
+    if (fsm->tdata->encrypt_channel && fsm->enc_init)
+        EVP_CIPHER_CTX_cleanup (&fsm->ctx);
+    if (fsm->handle) {
+        seaf_block_manager_close_block (seaf->block_mgr, fsm->handle);
+        seaf_block_manager_block_handle_free (seaf->block_mgr, fsm->handle);
+    }
     g_free (fsm);
     return -1;
 }
@@ -703,7 +726,9 @@ static void* do_transfer(void *vtdata)
     }
 
     tdata->data_fd = data_fd;
-    tdata->processor->state = ESTABLISHED;
+
+    /* The client can send block requests now. */
+    g_atomic_int_set (&tdata->state, READY);
 
     tdata->thread_ret = tdata->transfer_func(tdata);
 
@@ -722,38 +747,33 @@ get_port (CcnetProcessor *processor, char *content, int clen)
     USE_PRIV;
     ThreadData *tdata = priv->tdata;
     char *p, *port_str, *token;
+    CcnetPeer *peer = NULL;
 
     if (content[clen-1] != '\0') {
         seaf_warning ("Bad port and token\n");
-        ccnet_processor_done (processor, FALSE);
-        return;
+        goto fail;
     }
 
     p = strchr (content, '\t');
     if (!p) {
         seaf_warning ("Bad port and token\n");
-        ccnet_processor_done (processor, FALSE);
-        return;
+        goto fail;
     }
 
     *p = '\0';
     port_str = content; token = p + 1;
 
-    CcnetPeer *peer = ccnet_get_peer (seaf->ccnetrpc_client, processor->peer_id);
+    peer = ccnet_get_peer (seaf->ccnetrpc_client, processor->peer_id);
     if (!peer) {
         seaf_warning ("Invalid peer %s.\n", processor->peer_id);
-        g_free (tdata);
-        ccnet_processor_done (processor, FALSE);
-        return;
+        goto fail;
     }
     /* Store peer address so that we don't need to call ccnet_get_peer()
      * in the worker thread later.
      */
     if (ccnet_pipe (tdata->task_pipe) < 0) {
         seaf_warning ("failed to create task pipe.\n");
-        g_free (tdata);
-        ccnet_processor_done (processor, FALSE);
-        return;
+        goto fail;
     }
     
     tdata->port = atoi (port_str);
@@ -767,6 +787,16 @@ get_port (CcnetProcessor *processor, char *content, int clen)
                                     do_transfer,
                                     thread_done,
                                     tdata);
+
+    return;
+
+fail:
+    g_free (tdata);
+    if (peer)
+        g_object_unref (peer);
+    ccnet_processor_send_update (processor, SC_SHUTDOWN, SS_SHUTDOWN,
+                                 NULL, 0);
+    ccnet_processor_done (processor, FALSE);
 }
 
 static void
@@ -811,6 +841,8 @@ process_block_bitmap (CcnetProcessor *processor, char *content, int clen)
 
     if (proc->block_bitmap.byteCount < priv->bm_offset + clen) {
         seaf_warning ("Received block bitmap is too large.\n");
+        ccnet_processor_send_update (processor, SC_SHUTDOWN, SS_SHUTDOWN,
+                                     NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return -1;
     }
@@ -825,7 +857,7 @@ process_block_bitmap (CcnetProcessor *processor, char *content, int clen)
 #endif
         ccnet_processor_send_update (processor, SC_GET_PORT, SS_GET_PORT,
                                      NULL, 0);
-        processor->state = GET_PORT;
+        priv->tdata->state = GET_PORT;
     }
 
     return 0;
@@ -869,22 +901,36 @@ static void
 accept_connection (evutil_socket_t connfd, void *vdata)
 {
     ThreadData *tdata = vdata;
-    CcnetProcessor *processor = tdata->processor;
+    CcnetProcessor *processor;
     CcnetPeer *peer = NULL;
 
-    /* client error or timeout */
+    /* 
+     * The processor may have been shutdown since accept_connection()
+     * is run outside of the processor's context.
+     */
+    if (tdata->processor_done) {
+        g_free (tdata);
+        if (connfd >= 0)
+            evutil_closesocket (connfd);
+        return;
+    }
+
     if (connfd < 0)
         goto fail;
+
+    processor = tdata->processor;
 
     peer = ccnet_get_peer (seaf->ccnetrpc_client, processor->peer_id);
     if (!peer) {
         seaf_warning ("Invalid peer %s.\n", processor->peer_id);
+        evutil_closesocket (tdata->data_fd);
         goto fail;
     }
 
     tdata->data_fd = connfd;
 
-    processor->state = ESTABLISHED;
+    /* Start to accept block requests from the client */
+    tdata->state = READY;
 
     if (ccnet_pipe (tdata->task_pipe) < 0) {
         seaf_warning ("failed to create task pipe.\n");
@@ -903,7 +949,10 @@ accept_connection (evutil_socket_t connfd, void *vdata)
     return;
 
 fail:
-    g_object_unref (peer);
+    if (peer)
+        g_object_unref (peer);
+    ccnet_processor_send_response (processor, SC_SHUTDOWN, SS_SHUTDOWN,
+                                   NULL, 0);
     ccnet_processor_done (processor, FALSE);
     g_free (tdata);
 }
@@ -922,6 +971,8 @@ send_port (CcnetProcessor *processor)
                         priv->tdata, 10) < 0) {
         seaf_warning ("failed to register token\n");
         g_free (token);
+        ccnet_processor_send_response (processor, SC_SHUTDOWN, SS_SHUTDOWN,
+                                       NULL, 0);
         ccnet_processor_done (processor, FALSE);
     }
 

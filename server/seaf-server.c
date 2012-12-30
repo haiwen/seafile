@@ -72,20 +72,26 @@ static void usage ()
 
 static void register_processors (CcnetClient *client)
 {
+#if 0
+    /* Deprecated processors. */
     ccnet_register_service (client, "seafile-check-tx-slave", "basic",
                             SEAFILE_TYPE_CHECK_TX_SLAVE_PROC, NULL);
-    ccnet_register_service (client, "seafile-check-tx-slave-v2", "basic",
-                            SEAFILE_TYPE_CHECK_TX_SLAVE_V2_PROC, NULL);
     ccnet_register_service (client, "seafile-putcommit", "basic",
                             SEAFILE_TYPE_PUTCOMMIT_PROC, NULL);
     ccnet_register_service (client, "seafile-recvcommit", "basic",
                             SEAFILE_TYPE_RECVCOMMIT_PROC, NULL);
+    ccnet_register_service (client, "seafile-recvcommit-v2", "basic",
+                            SEAFILE_TYPE_RECVCOMMIT_V2_PROC, NULL);
     ccnet_register_service (client, "seafile-putblock", "basic",
                             SEAFILE_TYPE_PUTBLOCK_PROC, NULL);
-    ccnet_register_service (client, "seafile-putblock-v2", "basic",
-                            SEAFILE_TYPE_PUTBLOCK_V2_PROC, NULL);
     ccnet_register_service (client, "seafile-recvblock", "basic",
                             SEAFILE_TYPE_RECVBLOCK_PROC, NULL);
+#endif
+
+    ccnet_register_service (client, "seafile-check-tx-slave-v2", "basic",
+                            SEAFILE_TYPE_CHECK_TX_SLAVE_V2_PROC, NULL);
+    ccnet_register_service (client, "seafile-putblock-v2", "basic",
+                            SEAFILE_TYPE_PUTBLOCK_V2_PROC, NULL);
     ccnet_register_service (client, "seafile-recvblock-v2", "basic",
                             SEAFILE_TYPE_RECVBLOCK_V2_PROC, NULL);
     ccnet_register_service (client, "seafile-recvfs", "basic",
@@ -98,8 +104,6 @@ static void register_processors (CcnetClient *client)
                             SEAFILE_TYPE_SYNC_REPO_SLAVE_PROC, NULL);
     ccnet_register_service (client, "seafile-putcommit-v2", "basic",
                             SEAFILE_TYPE_PUTCOMMIT_V2_PROC, NULL);
-    ccnet_register_service (client, "seafile-recvcommit-v2", "basic",
-                            SEAFILE_TYPE_RECVCOMMIT_V2_PROC, NULL);
     ccnet_register_service (client, "seafile-recvcommit-v3", "basic",
                             SEAFILE_TYPE_RECVCOMMIT_V3_PROC, NULL);
     ccnet_register_service (client, "seafile-put-repo-email-token", "basic",

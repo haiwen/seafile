@@ -41,7 +41,7 @@ enum {
     REQUEST_SENT,
     BLOCKLIST_SENT,
     GET_PORT,
-    ESTABLISHED,
+    READY,
 };
 
 #define GET_PRIV(o)  \
@@ -86,7 +86,7 @@ seafile_getblock_proc_get_block (SeafileGetblockProc *proc,
     char buf[128];
     int len;
 
-    if (processor->state != ESTABLISHED)
+    if (processor->state != READY)
         return -1;
 
     ++(proc->pending_blocks);
@@ -104,7 +104,7 @@ seafile_getblock_proc_get_block (SeafileGetblockProc *proc,
 gboolean
 seafile_getblock_proc_is_ready (SeafileGetblockProc *proc)
 {
-    return (((CcnetProcessor *)proc)->state == ESTABLISHED);
+    return (((CcnetProcessor *)proc)->state == READY);
 }
 
 static void

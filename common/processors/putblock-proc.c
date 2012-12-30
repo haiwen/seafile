@@ -22,7 +22,7 @@
 
 enum {
     PREPARE,
-    ESTABLISHED,
+    READY,
 };
 
 #define GET_PRIV(o)  \
@@ -106,7 +106,7 @@ static void handle_update (CcnetProcessor *processor,
             return;
         }
         break;
-    case ESTABLISHED:
+    case READY:
         if (memcmp (code, SC_GET_BLOCK, 3) == 0) {
             process_get_block (processor, content, clen);
             return;

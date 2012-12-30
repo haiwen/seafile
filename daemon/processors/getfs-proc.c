@@ -280,6 +280,8 @@ bad:
     g_warning ("Bad fs object received.\n");
     transfer_task_set_error (((SeafileGetfsProc *)processor)->tx_task,
                              TASK_ERR_DOWNLOAD_FS);
+    ccnet_processor_send_update (processor, SC_BAD_OBJECT, SS_BAD_OBJECT,
+                                 NULL, 0);
     ccnet_processor_done (processor, FALSE);
     return -1;
 }
