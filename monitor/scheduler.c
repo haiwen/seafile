@@ -136,7 +136,7 @@ get_cached_head_id (SeafDB *db, const char *repo_id)
 
     snprintf (sql, sizeof(sql), "SELECT head_id FROM RepoSize WHERE repo_id='%s'",
               repo_id);
-    return g_strdup(seaf_db_get_string (db, sql));
+    return seaf_db_get_string (db, sql);
 }
 
 static void*

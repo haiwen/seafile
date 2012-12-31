@@ -179,12 +179,24 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index)
 #endif
 
 #ifdef SEAFILE_SERVER
-    if (seaf->keep_history_days > 0) {
-        data->truncate_time =
-            (gint64)time(NULL) - seaf->keep_history_days * 24 * 3600;
-    } else if (seaf->keep_history_days < 0) {
-        data->truncate_time = -1;
+    gint64 truncate_time = seaf_repo_manager_get_repo_truncate_time (repo->manager,
+                                                                     repo->id);
+    if (truncate_time > 0) {
+        seaf_repo_manager_set_repo_valid_since (repo->manager,
+                                                repo->id,
+                                                truncate_time);
+    } else if (truncate_time == 0) {
+        /* Only the head commit is valid after GC if no history is kept. */
+        SeafCommit *head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                           repo->head->commit_id);
+        if (head)
+            seaf_repo_manager_set_repo_valid_since (repo->manager,
+                                                    repo->id,
+                                                    head->ctime);
+        seaf_commit_unref (head);
     }
+
+    data->truncate_time = truncate_time;
 #endif
 
     for (ptr = branches; ptr != NULL; ptr = ptr->next) {

@@ -1467,12 +1467,8 @@ seafile_get_commit_list (const char *repo_id,
     cp.limit = limit;
 
 #ifdef SEAFILE_SERVER
-    if (seaf->keep_history_days > 0) {
-        cp.truncate_time = 
-            (gint64)time(NULL) - seaf->keep_history_days * 24 * 3600;
-    } else if (seaf->keep_history_days < 0) {
-        cp.truncate_time = -1;
-    }
+    cp.truncate_time = seaf_repo_manager_get_repo_truncate_time (seaf->repo_mgr,
+                                                                 repo_id);
 #endif
 
     ret = seaf_commit_manager_traverse_commit_tree (
@@ -1795,6 +1791,38 @@ seafile_server_repo_size(const char *repo_id, GError **error)
     }
 
     return ret;
+}
+
+int
+seafile_set_repo_history_limit (const char *repo_id,
+                                int days,
+                                GError **error)
+{
+    if (!repo_id || !is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
+    if (seaf_repo_manager_set_repo_history_limit (seaf->repo_mgr,
+                                                  repo_id,
+                                                  days) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "DB Error");
+        return -1;
+    }
+
+    return 0;
+}
+
+int
+seafile_get_repo_history_limit (const char *repo_id,
+                                GError **error)
+{
+    if (!repo_id || !is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
+    return  seaf_repo_manager_get_repo_history_limit (seaf->repo_mgr, repo_id);
 }
 
 int

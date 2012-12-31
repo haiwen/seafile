@@ -2631,12 +2631,7 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
     data.path = path;
     data.error = error;
 
-    if (seaf->keep_history_days > 0) {
-        data.truncate_time = 
-            (gint64)time(NULL) - seaf->keep_history_days * 24 * 3600;
-    } else if (seaf->keep_history_days < 0) {
-        data.truncate_time = -1;
-    }
+    data.truncate_time = seaf_repo_manager_get_repo_truncate_time (mgr, repo_id);
 
     /* A (commit id, commit) hash table. We specify a value destroy
      * function, so that even if we fail in half way of traversing, we can
@@ -3050,22 +3045,22 @@ out:
     return ret;
 }
 
+typedef struct CollectDelData {
+    GHashTable *entries;
+    gint64 truncate_time;
+} CollectDelData;
+
 #define DEFAULT_TRUNCATE_DAYS 30
 
 static gboolean
-collect_deleted (SeafCommit *commit, void *data, gboolean *stop)
+collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
 {
-    GHashTable *entries = data;
-    gint64 now = time(NULL);
-    gint64 truncate_time;
+    CollectDelData *data = vdata;
+    GHashTable *entries = data->entries;
+    gint64 truncate_time = data->truncate_time;
     SeafCommit *p1, *p2;
 
-    if (seaf->keep_history_days > 0)
-        truncate_time = seaf->keep_history_days * 24 * 3600;
-    else
-        truncate_time = DEFAULT_TRUNCATE_DAYS * 24 * 3600;
-
-    if (now - commit->ctime >= truncate_time) {
+    if (commit->ctime < truncate_time) {
         *stop = TRUE;
         return TRUE;
     }
@@ -3078,7 +3073,7 @@ collect_deleted (SeafCommit *commit, void *data, gboolean *stop)
         seaf_warning ("Failed to find commit %s.\n", commit->parent_id);
         return FALSE;
     }
-    if (now - p1->ctime < truncate_time) {
+    if (p1->ctime >= truncate_time) {
         if (find_deleted_recursive (commit->root_id, p1->root_id, "/",
                                     commit, p1, entries) < 0) {
             seaf_commit_unref (p1);
@@ -3095,7 +3090,7 @@ collect_deleted (SeafCommit *commit, void *data, gboolean *stop)
                           commit->second_parent_id);
             return FALSE;
         }
-        if (now - p2->ctime < truncate_time) {
+        if (p2->ctime >= truncate_time) {
             if (find_deleted_recursive (commit->root_id, p2->root_id, "/",
                                         commit, p2, entries) < 0) {
                 seaf_commit_unref (p2);
@@ -3167,10 +3162,11 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
                                        GError **error)
 {
     SeafRepo *repo;
-    GHashTable *entries;
+    gint64 truncate_time;
     GList *ret = NULL;
 
-    if (seaf->keep_history_days == 0)
+    truncate_time = seaf_repo_manager_get_repo_truncate_time (mgr, repo_id);
+    if (truncate_time == 0)
         return NULL;
 
     repo = seaf_repo_manager_get_repo (mgr, repo_id);
@@ -3180,12 +3176,16 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
         return NULL;
     }
 
-    entries = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                     g_free, g_object_unref);
+    CollectDelData data = {0};
+    GHashTable *entries = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                 g_free, g_object_unref);
+    data.entries = entries;
+    data.truncate_time = truncate_time;
+
     if (!seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                    repo->head->commit_id,
                                                    collect_deleted,
-                                                   entries))
+                                                   &data))
     {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
                      "Internal error");

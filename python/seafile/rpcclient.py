@@ -692,3 +692,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("objlist", ["int", "string"])
     def list_org_inner_pub_repos_by_owner(org_id, user):
         pass
+
+    @searpc_func("int", ["string", "int"])
+    def set_repo_history_limit(repo_id, days):
+        pass
+
+    @searpc_func("int", ["string"])
+    def get_repo_history_limit(repo_id):
+        pass

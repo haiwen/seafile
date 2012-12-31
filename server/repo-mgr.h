@@ -3,8 +3,6 @@
 #ifndef SEAF_REPO_MGR_H
 #define SEAF_REPO_MGR_H
 
-#include <pthread.h>
-
 #include "seafile-object.h"
 #include "commit-mgr.h"
 #include "branch-mgr.h"
@@ -166,6 +164,38 @@ seaf_repo_manager_get_email_by_token (SeafRepoManager *manager,
 gint64
 seaf_repo_manager_get_repo_size (SeafRepoManager *mgr, const char *repo_id);
 
+int
+seaf_repo_manager_set_repo_history_limit (SeafRepoManager *mgr,
+                                          const char *repo_id,
+                                          int days);
+
+/*
+ * > 0: keep a period of history;
+ * = 0: don't keep history;
+ * < 0: keep full history.
+ */
+int
+seaf_repo_manager_get_repo_history_limit (SeafRepoManager *mgr,
+                                          const char *repo_id);
+
+int
+seaf_repo_manager_set_repo_valid_since (SeafRepoManager *mgr,
+                                        const char *repo_id,
+                                        gint64 timestamp);
+
+gint64
+seaf_repo_manager_get_repo_valid_since (SeafRepoManager *mgr,
+                                        const char *repo_id);
+
+/*
+ * Return the timestamp to stop traversing history.
+ * Returns > 0 if traverse a period of history;
+ * Returns = 0 if only traverse the head commit;
+ * Returns < 0 if traverse full history.
+ */
+gint64
+seaf_repo_manager_get_repo_truncate_time (SeafRepoManager *mgr,
+                                          const char *repo_id);
 
 /*
  * Repo Operations.

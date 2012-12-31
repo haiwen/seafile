@@ -569,6 +569,15 @@ gint64
 seafile_get_file_size (const char *file_id, GError **error);
 
 int
+seafile_set_repo_history_limit (const char *repo_id,
+                                int days,
+                                GError **error);
+
+int
+seafile_get_repo_history_limit (const char *repo_id,
+                                GError **error);
+
+int
 seafile_set_passwd (const char *repo_id,
                     const char *user,
                     const char *passwd,

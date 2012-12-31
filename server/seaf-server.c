@@ -582,6 +582,16 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                          "list_org_inner_pub_repos_by_owner",
                                          searpc_signature_objlist__int_string());
     }
+
+    /* History */
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_set_repo_history_limit,
+                                     "set_repo_history_limit",
+                                     searpc_signature_int__string_int());
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_repo_history_limit,
+                                     "get_repo_history_limit",
+                                     searpc_signature_int__string());
 }
 
 static void
@@ -669,12 +679,9 @@ load_history_config ()
 
     seaf->keep_history_days = -1;
 
-    /* <= 0 means don't keep any history data. */
     keep_history_days = g_key_file_get_integer (seaf->config,
                                                 "history", "keep_days",
                                                 &error);
-    if (keep_history_days < 0)
-        keep_history_days = 0;
     if (error == NULL)
         seaf->keep_history_days = keep_history_days;
 }

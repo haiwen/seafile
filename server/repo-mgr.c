@@ -743,6 +743,16 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
+    sql = "CREATE TABLE IF NOT EXISTS RepoHistoryLimit ("
+        "repo_id CHAR(37) PRIMARY KEY, days INTEGER)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS RepoValidSince ("
+        "repo_id CHAR(37) PRIMARY KEY, timestamp BIGINT)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
     sql = "CREATE TABLE IF NOT EXISTS WebAP (repo_id CHAR(37) PRIMARY KEY, "
         "access_property CHAR(10))";
     if (seaf_db_query (db, sql) < 0)
@@ -923,6 +933,89 @@ seaf_repo_manager_get_repo_size (SeafRepoManager *mgr, const char *repo_id)
         return -1;
 
     return size;
+}
+
+int
+seaf_repo_manager_set_repo_history_limit (SeafRepoManager *mgr,
+                                          const char *repo_id,
+                                          int days)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "REPLACE INTO RepoHistoryLimit VALUES ('%s', %d)",
+              repo_id, days);
+    if (seaf_db_query (mgr->seaf->db, sql) < 0)
+        return -1;
+
+    return 0;
+}
+
+int
+seaf_repo_manager_get_repo_history_limit (SeafRepoManager *mgr,
+                                          const char *repo_id)
+{
+    char sql[256];
+    int per_repo_days;
+
+    snprintf (sql, sizeof(sql),
+              "SELECT days FROM RepoHistoryLimit WHERE repo_id='%s'",
+              repo_id);
+    per_repo_days = seaf_db_get_int (mgr->seaf->db, sql);
+
+    /* If per repo value is not set or DB error, return the global one. */
+    if (per_repo_days < 0)
+        return mgr->seaf->keep_history_days;
+
+    return per_repo_days;
+}
+
+int
+seaf_repo_manager_set_repo_valid_since (SeafRepoManager *mgr,
+                                        const char *repo_id,
+                                        gint64 timestamp)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "REPLACE INTO RepoValidSince VALUES ('%s', %lld)",
+              repo_id, timestamp);
+    if (seaf_db_query (mgr->seaf->db, sql) < 0)
+        return -1;
+
+    return 0;
+}
+
+gint64
+seaf_repo_manager_get_repo_valid_since (SeafRepoManager *mgr,
+                                        const char *repo_id)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "SELECT timestamp FROM RepoValidSince WHERE repo_id='%s'",
+              repo_id);
+    /* Also return -1 if doesn't exist. */
+    return seaf_db_get_int64 (mgr->seaf->db, sql);
+}
+
+gint64
+seaf_repo_manager_get_repo_truncate_time (SeafRepoManager *mgr,
+                                          const char *repo_id)
+{
+    int days;
+    gint64 timestamp;
+
+    days = seaf_repo_manager_get_repo_history_limit (mgr, repo_id);
+    timestamp = seaf_repo_manager_get_repo_valid_since (mgr, repo_id);
+
+    gint64 now = (gint64)time(NULL);
+    if (days > 0)
+        return MAX (now - days * 24 * 3600, timestamp);
+    else if (days < 0)
+        return timestamp;
+    else
+        return 0;
 }
 
 /*

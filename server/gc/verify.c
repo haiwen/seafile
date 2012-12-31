@@ -82,12 +82,8 @@ verify_repo (SeafRepo *repo)
     int ret = 0;
     VerifyData data = {0};
 
-    if (seaf->keep_history_days > 0) {
-        data.truncate_time = 
-            (gint64)time(NULL) - seaf->keep_history_days * 24 * 3600;
-    } else if (seaf->keep_history_days < 0) {
-        data.truncate_time = -1;
-    }
+    data.truncate_time = seaf_repo_manager_get_repo_truncate_time (repo->manager,
+                                                                   repo->id);
 
     branches = seaf_branch_manager_get_branch_list (seaf->branch_mgr, repo->id);
     if (branches == NULL) {

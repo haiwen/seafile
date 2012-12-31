@@ -40,12 +40,9 @@ load_history_config ()
 
     seaf->keep_history_days = -1;
 
-    /* <= 0 means don't keep any history data. */
     keep_history_days = g_key_file_get_integer (seaf->config,
                                                 "history", "keep_days",
                                                 &error);
-    if (keep_history_days < 0)
-        keep_history_days = 0;
     if (error == NULL)
         seaf->keep_history_days = keep_history_days;
 }
