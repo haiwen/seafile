@@ -2969,8 +2969,8 @@ out:
 }
 
 char *seafile_get_file_id_by_path (const char *repo_id,
-                                  const char *path,
-                                  GError **error)
+                                   const char *path,
+                                   GError **error)
 {
     return get_obj_id_by_path (repo_id, path, FALSE, error);
 }
@@ -3012,6 +3012,22 @@ seafile_list_file_revisions (const char *repo_id,
     }
 
     return l;
+}
+
+GList *
+seafile_calc_files_last_modified (const char *repo_id,
+                                  const char *parent_dir,
+                                  int limit,
+                                  GError **error)
+{
+    if (!repo_id || !parent_dir) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Bad arguments");
+        return NULL;
+    }
+
+    return seaf_repo_manager_calc_files_last_modified (seaf->repo_mgr,
+                                repo_id, parent_dir, limit, error);
 }
 
 int

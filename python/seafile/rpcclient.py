@@ -420,6 +420,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     list_file_revisions = seafile_list_file_revisions
 
+    @searpc_func("objlist", ["string", "string"])
+    def seafile_calc_files_last_modified(repo_id, parent_dir, limit):
+        pass
+    calc_files_last_modified = seafile_calc_files_last_modified
+
     @searpc_func("int", ["string", "string", "string", "string"])
     def seafile_revert_file(repo_id, commit_id, path, user):
         pass

@@ -2459,10 +2459,10 @@ struct CollectRevisionParam {
 };
 
 static char *
-get_commit_file_id_with_cache (SeafCommit *commit,
-                               const char *path,
-                               GHashTable *file_id_cache,
-                               GError **error)
+get_file_id_with_cache (SeafCommit *commit,
+                        const char *path,
+                        GHashTable *file_id_cache,
+                        GError **error)
 {
     char *file_id = NULL;
     guint32 mode;
@@ -2500,8 +2500,8 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
     GHashTable *wanted_commits = data->wanted_commits;
     GHashTable *file_id_cache = data->file_id_cache;
 
-    SeafCommit *parent = NULL;
-    SeafCommit *parent2 = NULL;
+    SeafCommit *parent_commit = NULL;
+    SeafCommit *parent_commit2 = NULL;
     char *file_id = NULL;
     char *parent_file_id = NULL;
     char *parent_file_id2 = NULL;
@@ -2522,8 +2522,8 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
         return TRUE;
     }
 
-    file_id = get_commit_file_id_with_cache (commit, path,
-                                             file_id_cache, error);
+    file_id = get_file_id_with_cache (commit, path,
+                                      file_id_cache, error);
     if (*error) {
         ret = FALSE;
         goto out;
@@ -2541,17 +2541,17 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
         goto out;
     }
 
-    parent = seaf_commit_manager_get_commit (seaf->commit_mgr,
+    parent_commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
                                              commit->parent_id);
-    if (!parent) {
+    if (!parent_commit) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Faild to get commit %s", commit->parent_id);
         ret = FALSE;
         goto out;
     }
 
-    parent_file_id = get_commit_file_id_with_cache (parent,
-                                                    path, file_id_cache, error);
+    parent_file_id = get_file_id_with_cache (parent_commit,
+                                             path, file_id_cache, error);
     if (*error) {
         ret = FALSE;
         goto out;
@@ -2564,17 +2564,17 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
 
     /* In case of a merge, the second parent also need compare */
     if (commit->second_parent_id) {
-        parent2 = seaf_commit_manager_get_commit (seaf->commit_mgr,
+        parent_commit2 = seaf_commit_manager_get_commit (seaf->commit_mgr,
                                                  commit->second_parent_id);
-        if (!parent2) {
+        if (!parent_commit2) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                          "Faild to get commit %s", commit->second_parent_id);
             ret = FALSE;
             goto out;
         }
 
-        parent_file_id2 = get_commit_file_id_with_cache (parent2,
-                                        path, file_id_cache, error);
+        parent_file_id2 = get_file_id_with_cache (parent_commit2,
+                                                  path, file_id_cache, error);
         if (*error) {
             ret = FALSE;
             goto out;
@@ -2597,8 +2597,8 @@ out:
     g_free (parent_file_id);
     g_free (parent_file_id2);
 
-    if (parent) seaf_commit_unref (parent);
-    if (parent2) seaf_commit_unref (parent2);
+    if (parent_commit) seaf_commit_unref (parent_commit);
+    if (parent_commit2) seaf_commit_unref (parent_commit2);
 
     return ret;
 }
@@ -2678,6 +2678,191 @@ out:
         g_hash_table_destroy (data.file_id_cache);
 
     return commit_list;
+}
+
+typedef struct CalcFilesLastModifiedParam CalcFilesLastModifiedParam;
+
+struct CalcFilesLastModifiedParam {
+    GError **error;
+    const char *parent_dir;
+    GHashTable *last_modified_hash;
+    GHashTable *current_file_id_hash;
+    SeafCommit *current_commit;
+};
+
+static gboolean
+check_file_last_modified (void *key, void *value, void *user_data)
+{
+    char *file_name = key;
+    char *current_file_id = value;
+    CalcFilesLastModifiedParam *data = user_data;
+    SeafCommit *commit = data->current_commit;
+    GError **error = data->error;
+    gint64 *ctime = NULL;
+    gboolean remove = FALSE;
+
+    char *file_path = g_build_filename (data->parent_dir, file_name, NULL);
+    char *file_id = seaf_fs_manager_get_seafile_id_by_path (seaf->fs_mgr,
+                                                            commit->root_id,
+                                                            file_path,
+                                                            error);
+    if (*error) {
+        goto out;
+    }
+
+    if (g_strcmp0(file_id, current_file_id) == 0) {
+        ctime = g_new0 (gint64, 1);
+        *ctime = commit->ctime;
+        g_hash_table_replace (data->last_modified_hash,
+                              g_strdup(file_name),
+                              ctime);
+    } else {
+        /* The last modified time of this file is the previous commit */
+        remove = TRUE;
+    }
+    
+out:    
+    g_free (file_id);
+    g_free (file_path);
+
+    return remove;
+}
+
+static gboolean
+collect_files_last_modified (SeafCommit *commit, void *vdata, gboolean *stop)
+{
+    CalcFilesLastModifiedParam *data = vdata;
+
+    data->current_commit = commit;
+    g_hash_table_foreach_remove (data->current_file_id_hash, check_file_last_modified, data);
+
+    if (*(data->error)) {
+        *stop = TRUE;
+        return FALSE;
+    }
+
+    if (g_hash_table_size(data->current_file_id_hash) == 0) {
+        /* All files under this diretory is done */
+        *stop = TRUE;
+        return TRUE;
+    }
+
+    return TRUE;
+}
+
+/**
+ * Give a directory, return the last modification timestamps of all the files
+ * under this directory.
+ *
+ * First we record the current id of every file, then traverse the commit
+ * tree. Give a commit, for each file, if the file id in that commit is
+ * different than its current id, then this file is last modified in the
+ * commit previous to that commit.
+ */
+GList *
+seaf_repo_manager_calc_files_last_modified (SeafRepoManager *mgr,
+                                            const char *repo_id,
+                                            const char *parent_dir,
+                                            int limit,
+                                            GError **error)
+{
+    SeafRepo *repo = NULL;
+    SeafCommit *head_commit = NULL;
+    SeafDir *dir = NULL;
+    gboolean has_regular_file = FALSE;
+    GList *ptr = NULL;
+    SeafDirent *dent = NULL; 
+    CalcFilesLastModifiedParam data = {0};
+    GList *ret_list = NULL;
+
+    repo = seaf_repo_manager_get_repo (mgr, repo_id);
+    if (!repo) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "No such repo %s", repo_id);
+        goto out;
+    }
+
+    head_commit = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->head->commit_id);
+    if (!head_commit) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to get commit %s", repo->head->commit_id);
+        goto out;
+    }
+
+    dir = seaf_fs_manager_get_seafdir_by_path (seaf->fs_mgr, head_commit->root_id,
+                                               parent_dir, error);
+    if (*error || !dir) {
+        goto out;
+    }
+    
+    /* A hash table of pattern (file_name, current_file_id) */
+    data.current_file_id_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                       g_free, g_free);
+    /* A (file_name, last_modified) hashtable. <last_modified> is a heap
+       allocated gint64
+    */
+    data.last_modified_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                     g_free, g_free);
+    for (ptr = dir->entries; ptr; ptr = ptr->next) {
+        dent = ptr->data;
+        if (S_ISREG(dent->mode)) {
+            has_regular_file = TRUE;
+            g_hash_table_insert (data.current_file_id_hash,
+                                 g_strdup(dent->name),
+                                 g_strdup(dent->id));
+            
+            g_hash_table_insert (data.last_modified_hash,
+                                 g_strdup(dent->name), 
+                                 g_strdup(head_commit->commit_id));
+        }
+    }
+
+    if (!has_regular_file) {
+        /* No regular file under this diretory, no need to traverse */
+        goto out;
+    }
+
+    data.parent_dir = parent_dir;
+    data.error = error;
+
+    if (!seaf_commit_manager_traverse_commit_tree_with_limit (seaf->commit_mgr,
+                                                        repo->head->commit_id,
+                                (CommitTraverseFunc)collect_files_last_modified,
+                                                              limit, &data)) {
+        seaf_warning ("error when travsersing commits: %s\n", (*error)->message);
+        g_clear_error (error);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "failed to traverse commit of repo %s", repo_id);
+        goto out;
+    }
+
+    GHashTableIter iter;
+    gpointer key, value;
+
+    g_hash_table_iter_init (&iter, data.last_modified_hash);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        SeafileFileLastModifiedInfo *info;
+        gint64 last_modified = *(gint64 *)value;
+        info = g_object_new (SEAFILE_TYPE_FILE_LAST_MODIFIED_INFO,
+                             "file_name", key,
+                             "last_modified", last_modified,
+                             NULL);
+        ret_list = g_list_prepend (ret_list, info);
+    }
+
+out:
+    if (repo)
+        seaf_repo_unref (repo);
+    if (head_commit)
+        seaf_commit_unref(head_commit);
+    if (dir)
+        seaf_dir_free (dir);
+    if (data.last_modified_hash)
+        g_hash_table_destroy (data.last_modified_hash);
+    if (data.current_file_id_hash)
+        g_hash_table_destroy (data.current_file_id_hash);
+
+    return g_list_reverse(ret_list);
 }
 
 int

@@ -309,6 +309,13 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
                                        int limit,
                                        GError **error);
 
+GList *
+seaf_repo_manager_calc_files_last_modified (SeafRepoManager *mgr,
+                                            const char *repo_id,
+                                            const char *parent_dir,
+                                            int limit,
+                                            GError **error);
+
 int
 seaf_repo_manager_revert_file (SeafRepoManager *mgr,
                                const char *repo_id,

@@ -13,4 +13,11 @@ public class Dirent : Object {
 	public int mode { set; get; }
 }
 
+public class FileLastModifiedInfo : Object {
+
+	public string file_name { set; get; }
+
+    public int64 last_modified { set; get; }
+}
+
 } // namespace

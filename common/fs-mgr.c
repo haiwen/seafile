@@ -1193,7 +1193,7 @@ seaf_fs_manager_get_seafdir_by_path (SeafFSManager *mgr,
         for (l = dir->entries; l != NULL; l = l->next) {
             dent = l->data;
             
-            if (strcmp(dent->name, name) == 0) {
+            if (strcmp(dent->name, name) == 0 && S_ISDIR(dent->mode)) {
                 dir_id = dent->id;
                 break;
             }
@@ -1314,9 +1314,7 @@ seaf_fs_manager_get_seafile_id_by_path (SeafFSManager *mgr,
     if (*error)
         return NULL;
 
-    if (!S_ISREG(mode)) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "%s is a dir, not a file", path);
+    if (file_id && S_ISDIR(mode)) {
         g_free (file_id);
         return NULL;
     }
@@ -1330,7 +1328,7 @@ seaf_fs_manager_get_seafdir_id_by_path (SeafFSManager *mgr,
                                        const char *path,
                                        GError **error)
 {
-    guint32 mode;
+    guint32 mode = 0;
     char *dir_id;
 
     dir_id = seaf_fs_manager_path_to_obj_id (mgr, root_id, path, &mode, error);
@@ -1338,9 +1336,7 @@ seaf_fs_manager_get_seafdir_id_by_path (SeafFSManager *mgr,
     if (*error)
         return NULL;
 
-    if (!S_ISDIR(mode)) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "%s is not a dir", path);
+    if (dir_id && !S_ISDIR(mode)) {
         g_free (dir_id);
         return NULL;
     }

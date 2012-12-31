@@ -735,6 +735,12 @@ seafile_list_file_revisions (const char *repo_id,
                              int limit,
                              GError **error);
 
+GList *
+seafile_calc_files_last_modified (const char *repo_id,
+                                  const char *parent_dir,
+                                  int limit,
+                                  GError **error);
+
 int
 seafile_revert_file (const char *repo_id,
                      const char *commit_id,
