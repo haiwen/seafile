@@ -2702,10 +2702,11 @@ check_file_last_modified (void *key, void *value, void *user_data)
     gboolean remove = FALSE;
 
     char *file_path = g_build_filename (data->parent_dir, file_name, NULL);
-    char *file_id = seaf_fs_manager_get_seafile_id_by_path (seaf->fs_mgr,
-                                                            commit->root_id,
-                                                            file_path,
-                                                            error);
+    char *file_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
+                                                    commit->root_id,
+                                                    file_path,
+                                                    NULL,
+                                                    error);
     if (*error) {
         goto out;
     }
@@ -2769,7 +2770,6 @@ seaf_repo_manager_calc_files_last_modified (SeafRepoManager *mgr,
     SeafRepo *repo = NULL;
     SeafCommit *head_commit = NULL;
     SeafDir *dir = NULL;
-    gboolean has_regular_file = FALSE;
     GList *ptr = NULL;
     SeafDirent *dent = NULL; 
     CalcFilesLastModifiedParam data = {0};
@@ -2805,20 +2805,17 @@ seaf_repo_manager_calc_files_last_modified (SeafRepoManager *mgr,
                                                      g_free, g_free);
     for (ptr = dir->entries; ptr; ptr = ptr->next) {
         dent = ptr->data;
-        if (S_ISREG(dent->mode)) {
-            has_regular_file = TRUE;
-            g_hash_table_insert (data.current_file_id_hash,
-                                 g_strdup(dent->name),
-                                 g_strdup(dent->id));
-            
-            g_hash_table_insert (data.last_modified_hash,
-                                 g_strdup(dent->name), 
-                                 g_strdup(head_commit->commit_id));
-        }
+        g_hash_table_insert (data.current_file_id_hash,
+                             g_strdup(dent->name),
+                             g_strdup(dent->id));
+
+        g_hash_table_insert (data.last_modified_hash,
+                             g_strdup(dent->name), 
+                             g_strdup(head_commit->commit_id));
     }
 
-    if (!has_regular_file) {
-        /* No regular file under this diretory, no need to traverse */
+    if (g_hash_table_size (data.current_file_id_hash) == 0) {
+        /* An empty directory, no need to traverse */
         goto out;
     }
 
