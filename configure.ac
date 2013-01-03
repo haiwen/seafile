@@ -25,47 +25,13 @@ AC_PROG_MAKE_SET
 AC_PROG_LIBTOOL
 
 # Checks for headers.
-AC_HEADER_DIRENT
-AC_HEADER_STDC
-AC_HEADER_MAJOR
-AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h libintl.h limits.h locale.h netdb.h netinet/in.h stdint.h stdlib.h string.h strings.h sys/ioctl.h sys/socket.h sys/time.h termios.h unistd.h utime.h utmp.h])
+#AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h libintl.h limits.h locale.h netdb.h netinet/in.h stdint.h stdlib.h string.h strings.h sys/ioctl.h sys/socket.h sys/time.h termios.h unistd.h utime.h utmp.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
-AC_C_CONST
-AC_C_INLINE
-AC_TYPE_MODE_T
-AC_TYPE_OFF_T
-AC_TYPE_PID_T
-AC_TYPE_SIZE_T
-AC_TYPE_SSIZE_T
-AC_STRUCT_ST_BLOCKS
-AC_CHECK_MEMBERS([struct stat.st_rdev])
-AC_HEADER_TIME
-AC_STRUCT_TM
-AC_TYPE_UINT16_T
-AC_TYPE_UINT32_T
-AC_C_VOLATILE
-
 AC_SYS_LARGEFILE
 
 # Checks for library functions.
-AC_FUNC_CHOWN
-AC_FUNC_CLOSEDIR_VOID
-AC_FUNC_FORK
-AC_PROG_GCC_TRADITIONAL
-AC_FUNC_LSTAT
-AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
-AC_FUNC_MALLOC
-AC_FUNC_MKTIME
-AC_FUNC_REALLOC
-AC_FUNC_SELECT_ARGTYPES
-AC_TYPE_SIGNAL
-AC_FUNC_STAT
-AC_FUNC_STRFTIME
-AC_FUNC_STRTOD
-AC_FUNC_UTIME_NULL
-AC_CHECK_FUNCS([alarm dup2 ftruncate getcwd gethostbyname gettimeofday memmove memset mkdir rmdir select setlocale socket strcasecmp strchr strdup strrchr strstr strtol uname utime strtok_r sendfile])
+#AC_CHECK_FUNCS([alarm dup2 ftruncate getcwd gethostbyname gettimeofday memmove memset mkdir rmdir select setlocale socket strcasecmp strchr strdup strrchr strstr strtol uname utime strtok_r sendfile])
 
 # check platform
 AC_MSG_CHECKING(for WIN32)

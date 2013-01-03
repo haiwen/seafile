@@ -3,15 +3,6 @@
 #ifndef CCNET_UTILS_H
 #define CCNET_UTILS_H
 
-#if !defined(_)
-#if defined(HAVE_LIBINTL_H)
- #include <libintl.h>
-#define _(a) gettext (a)
-#else
-  #define _(a) (a)
-#endif
-#endif
-
 #include <sys/time.h>
 #include <stdint.h>
 #include <unistd.h>
