@@ -764,8 +764,11 @@ seafile_revert_dir (const char *repo_id,
                     const char *user,
                     GError **error);
 
+/*
+ * @show_days: return deleted files in how many days, return all if 0.
+ */
 GList *
-seafile_get_deleted (const char *repo_id, GError **error);
+seafile_get_deleted (const char *repo_id, int show_days, GError **error);
 
 int seafile_set_repo_token (const char *repo_id,
                             const char *email,

@@ -435,8 +435,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     revert_dir = seafile_revert_dir
 
-    @searpc_func("objlist", ["string"])
-    def get_deleted(repo_id):
+    @searpc_func("objlist", ["string", "int"])
+    def get_deleted(repo_id, show_days):
         pass
 
     # share repo to user

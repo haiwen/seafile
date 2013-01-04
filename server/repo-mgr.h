@@ -363,11 +363,12 @@ seaf_repo_manager_revert_dir (SeafRepoManager *mgr,
                               GError **error);
 
 /*
- * Return deleted files/dirs during the last 30 days.
+ * Return deleted files/dirs.
  */
 GList *
 seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
                                        const char *repo_id,
+                                       int show_days,
                                        GError **error);
 
 /*

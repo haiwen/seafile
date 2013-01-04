@@ -3050,7 +3050,7 @@ typedef struct CollectDelData {
     gint64 truncate_time;
 } CollectDelData;
 
-#define DEFAULT_TRUNCATE_DAYS 30
+#define DEFAULT_RECYCLE_DAYS 7
 
 static gboolean
 collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
@@ -3159,15 +3159,21 @@ hash_to_list (gpointer key, gpointer value, gpointer user_data)
 GList *
 seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
                                        const char *repo_id,
+                                       int show_days,
                                        GError **error)
 {
     SeafRepo *repo;
-    gint64 truncate_time;
+    gint64 truncate_time, show_time;
     GList *ret = NULL;
 
     truncate_time = seaf_repo_manager_get_repo_truncate_time (mgr, repo_id);
     if (truncate_time == 0)
         return NULL;
+
+    if (show_days <= 0)
+        show_time = -1;
+    else
+        show_time = (gint64)time(NULL) - show_days * 24 * 3600;
 
     repo = seaf_repo_manager_get_repo (mgr, repo_id);
     if (!repo) {
@@ -3180,7 +3186,7 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
     GHashTable *entries = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                  g_free, g_object_unref);
     data.entries = entries;
-    data.truncate_time = truncate_time;
+    data.truncate_time = MAX (show_time, truncate_time);
 
     if (!seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                    repo->head->commit_id,
