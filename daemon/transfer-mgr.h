@@ -106,7 +106,8 @@ typedef struct {
     GHashTable  *processors;
     BlockList   *block_list;
     Bitfield     active;
-    gint         tx_bytes;      /* bytes transferred in the last second. */
+    gint         tx_bytes;      /* bytes transferred in the this second. */
+    gint         last_tx_bytes; /* bytes transferred in the last second. */
 
     /* Fields only used by upload task. */
     Bitfield     uploaded;
@@ -125,7 +126,7 @@ task_rt_state_to_str (int rt_state);
 const char *
 task_error_str (int task_errno);
 
-double
+int
 transfer_task_get_rate (TransferTask *task);
 
 void

@@ -223,10 +223,10 @@ seaf_transfer_task_free (TransferTask *task)
     g_free (task);
 }
 
-double
+int
 transfer_task_get_rate (TransferTask *task)
 {
-    return (double) g_atomic_int_get (&task->tx_bytes);
+    return task->last_tx_bytes;
 }
 
 static BlockList *
@@ -1975,7 +1975,7 @@ format_transfer_task_detail (TransferTask *task, GString *buf)
     } else {
         return;
     }
-    int rate = (int)transfer_task_get_rate(task);
+    int rate = transfer_task_get_rate(task);
 
     g_string_append_printf (buf, "%s\t%d %s\n", type, rate, repo_name);
 }
@@ -2042,16 +2042,18 @@ schedule_task_pulse (void *vmanager)
         g_list_free (tasks_in_transfer);
     }
 
-    /* reset tx_bytes to 0 every second */
+    /* Save tx_bytes to last_tx_bytes and reset tx_bytes to 0 every second */
     g_hash_table_iter_init (&iter, mgr->download_tasks);
     while (g_hash_table_iter_next (&iter, &key, &value)) {
         task = value;
+        task->last_tx_bytes = g_atomic_int_get (&task->tx_bytes);
         g_atomic_int_set (&task->tx_bytes, 0);
     }
 
     g_hash_table_iter_init (&iter, mgr->upload_tasks);
     while (g_hash_table_iter_next (&iter, &key, &value)) {
         task = value;
+        task->last_tx_bytes = g_atomic_int_get (&task->tx_bytes);
         g_atomic_int_set (&task->tx_bytes, 0);
     }
 

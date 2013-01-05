@@ -910,14 +910,14 @@ convert_task (TransferTask *task)
         if (task->runtime_state == TASK_RT_STATE_DATA) {
             g_object_set (t, "block_total", task->block_list->n_blocks,
                           "block_done", task->block_list->n_valid_blocks, NULL);
-            g_object_set (t, "rate", (int)transfer_task_get_rate(task), NULL);
+            g_object_set (t, "rate", transfer_task_get_rate(task), NULL);
         }
     } else {
         g_object_set (t, "ttype", "upload", NULL);
         if (task->runtime_state == TASK_RT_STATE_DATA) {
             g_object_set (t, "block_total", task->block_list->n_blocks,
                           "block_done", task->n_uploaded, NULL);
-            g_object_set (t, "rate", (int)transfer_task_get_rate(task), NULL);
+            g_object_set (t, "rate", transfer_task_get_rate(task), NULL);
         }
     }
 
