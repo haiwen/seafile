@@ -202,7 +202,8 @@ int main (int argc, char **argv)
     }
 
     g_key_file_set_string (key_file, "network", "port", config.port);
-    g_key_file_set_string (key_file, "httpserver", "port", config.httpserver_port);
+    if (config.httpserver_port)
+        g_key_file_set_string (key_file, "httpserver", "port", config.httpserver_port);
 
     struct stat st;
     if (lstat (config.seafile_dir, &st) < 0) {

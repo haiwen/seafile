@@ -23,6 +23,11 @@
 #include "httpserver.h"
 #include "upload-file.h"
 
+#define SEAF_HTTP_RES_BADFILENAME 440
+#define SEAF_HTTP_RES_EXISTS 441
+#define SEAF_HTTP_RES_TOOLARGE 442
+#define SEAF_HTTP_RES_NOQUOTA 443
+
 enum RecvState {
     RECV_INIT,
     RECV_HEADERS,
@@ -314,6 +319,104 @@ error:
 }
 
 static void
+upload_api_cb(evhtp_request_t *req, void *arg)
+{
+    RecvFSM *fsm = arg;
+    SearpcClient *rpc_client = NULL;
+    char *parent_dir;
+    GError *error = NULL;
+    int error_code = ERROR_INTERNAL;
+    char *filenames_json, *tmp_files_json;
+
+    /* After upload_headers_cb() returns an error, libevhtp may still
+     * receive data from the web browser and call into this cb.
+     * In this case fsm will be NULL.
+     */
+    if (!fsm || fsm->state == RECV_ERROR)
+        return;
+
+    if (!fsm->tmp_files) {
+        seaf_warning ("[upload] No file uploaded.\n");
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
+
+    parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
+    if (!parent_dir) {
+        seaf_warning ("[upload] No parent dir given.\n");
+        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
+
+    if (!check_tmp_file_list (fsm->tmp_files, &error_code))
+        goto error;
+
+    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                                 NULL,
+                                                 "seafserv-threaded-rpcserver");
+
+    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
+        seaf_warning ("[upload] Out of quota.\n");
+        error_code = ERROR_QUOTA;
+        goto error;
+    }
+
+    filenames_json = file_list_to_json (fsm->uploaded_files);
+    tmp_files_json = file_list_to_json (fsm->tmp_files);
+
+    seafile_post_multi_files (rpc_client,
+                              fsm->repo_id,
+                              parent_dir,
+                              filenames_json,
+                              tmp_files_json,
+                              fsm->user,
+                              &error);
+    g_free (filenames_json);
+    g_free (tmp_files_json);
+    if (error) {
+        if (error->code == POST_FILE_ERR_FILENAME) {
+            error_code = ERROR_FILENAME;
+            seaf_warning ("[upload] Bad filename.\n");
+        }
+        g_clear_error (&error);
+        goto error;
+    }
+
+    ccnet_rpc_client_free (rpc_client);
+
+    evhtp_send_reply (req, EVHTP_RES_OK);
+    return;
+
+error:
+    if (rpc_client)
+        ccnet_rpc_client_free (rpc_client);
+
+    switch (error_code) {
+    case ERROR_FILENAME:
+        evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
+        evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
+        break;
+    case ERROR_EXISTS:
+        evbuffer_add_printf(req->buffer_out, "File already exists.\n");
+        evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
+        break;
+    case ERROR_SIZE:
+        evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
+        evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
+        break;
+    case ERROR_QUOTA:
+        evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
+        evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
+        break;
+    case ERROR_RECV:
+    case ERROR_INTERNAL:
+        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        break;
+    }
+}
+
+static void
 update_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
@@ -424,12 +527,14 @@ upload_finish_cb (evhtp_request_t *req, void *arg)
 
     evbuffer_free (fsm->line);
 
-    pthread_mutex_lock (&pg_lock);
-    g_hash_table_remove (upload_progress, fsm->progress_id);
-    pthread_mutex_unlock (&pg_lock);
+    if (fsm->progress_id) {
+        pthread_mutex_lock (&pg_lock);
+        g_hash_table_remove (upload_progress, fsm->progress_id);
+        pthread_mutex_unlock (&pg_lock);
 
-    /* fsm->progress has been free'd by g_hash_table_remove(). */
-    g_free (fsm->progress_id);
+        /* fsm->progress has been free'd by g_hash_table_remove(). */
+        g_free (fsm->progress_id);
+    }
 
     g_free (fsm);
 
@@ -668,10 +773,12 @@ upload_read_cb (evhtp_request_t *req, evbuf_t *buf, void *arg)
         return EVHTP_RES_OK;
 
     /* Update upload progress. */
-    fsm->progress->uploaded += (gint64)evbuffer_get_length(buf);
+    if (fsm->progress) {
+        fsm->progress->uploaded += (gint64)evbuffer_get_length(buf);
 
-    seaf_debug ("progress: %lld/%lld\n",
-                fsm->progress->uploaded, fsm->progress->size);
+        seaf_debug ("progress: %lld/%lld\n",
+                    fsm->progress->uploaded, fsm->progress->size);
+    }
 
     evbuffer_add_buffer (fsm->line, buf);
     /* Drain the buffer so that evhtp don't copy it to another buffer
@@ -848,19 +955,18 @@ get_progress_info (evhtp_request_t *req,
     const char *content_len_str;
     const char *uuid;
 
+    uuid = evhtp_kv_find (req->uri->query, "X-Progress-ID");
+    /* If progress id is not given, we don't need content-length either. */
+    if (!uuid)
+        return 0;
+    *progress_id = g_strdup(uuid);
+
     content_len_str = evhtp_kv_find (hdr, "Content-Length");
     if (!content_len_str) {
         seaf_warning ("[upload] Content-Length not found.\n");
         return -1;
     }
     *content_len = strtoll (content_len_str, NULL, 10);
-
-    uuid = evhtp_kv_find (req->uri->query, "X-Progress-ID");
-    if (!uuid) {
-        seaf_warning ("[upload] Progress id not found.\n");
-        return -1;
-    }
-    *progress_id = g_strdup(uuid);
 
     return 0;
 }
@@ -903,9 +1009,6 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
     if (get_progress_info (req, hdr, &content_len, &progress_id) < 0)
         goto err;
 
-    progress = g_new0 (Progress, 1);
-    progress->size = content_len;
-
     fsm = g_new0 (RecvFSM, 1);
     fsm->boundary = boundary;
     fsm->repo_id = repo_id;
@@ -913,12 +1016,17 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
     fsm->line = evbuffer_new ();
     fsm->form_kvs = g_hash_table_new_full (g_str_hash, g_str_equal,
                                            g_free, g_free);
-    fsm->progress_id = progress_id;
-    fsm->progress = progress;
 
-    pthread_mutex_lock (&pg_lock);
-    g_hash_table_insert (upload_progress, g_strdup(progress_id), progress);
-    pthread_mutex_unlock (&pg_lock);
+    if (progress_id != NULL) {
+        progress = g_new0 (Progress, 1);
+        progress->size = content_len;
+        fsm->progress_id = progress_id;
+        fsm->progress = progress;
+
+        pthread_mutex_lock (&pg_lock);
+        g_hash_table_insert (upload_progress, g_strdup(progress_id), progress);
+        pthread_mutex_unlock (&pg_lock);
+    }
 
     /* Set up per-request hooks, so that we can read file data piece by piece. */
     evhtp_set_hook (&req->hooks, evhtp_hook_on_read, upload_read_cb, fsm);
@@ -1008,6 +1116,9 @@ upload_file_init (evhtp_t *htp)
 
     cb = evhtp_set_regex_cb (htp, "^/upload/.*", upload_cb, NULL);
     /* upload_headers_cb() will be called after evhtp parsed all http headers. */
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
+
+    cb = evhtp_set_regex_cb (htp, "^/upload-api/.*", upload_api_cb, NULL);
     evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
     cb = evhtp_set_regex_cb (htp, "^/update/.*", update_cb, NULL);
