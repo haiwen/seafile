@@ -221,7 +221,7 @@ function get_server_name () {
 
 function get_server_ip_or_domain () {
     question="What is the ip or domain of this server?\nFor example, www.mycompany.com, or, 192.168.1.101" 
-    ask_question "${question}\n" "nodefault" "ip or domain"
+    ask_question "${question}\n" "nodefault" "This server's ip or domain"
     read ip_or_domain
     if [[ "${ip_or_domain}" == "" ]]; then
         echo

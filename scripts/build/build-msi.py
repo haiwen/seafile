@@ -165,8 +165,8 @@ def must_mkdir(path):
     '''Create a directory, exit on failure'''
     try:
         os.mkdir(path)
-    except OSError as e:
-        error('failed to create directory %s: %s' % (path, e))
+    except OSError, e:
+        error('failed to create directory %s:%s' % (path, e))
 
 def must_copy(src, dst):
     '''Copy src to dst, exit on failure'''

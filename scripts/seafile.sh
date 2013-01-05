@@ -115,7 +115,7 @@ function restart_seafile_server () {
 
 manage_py=${INSTALLPATH}/seahub/manage.py
 function check_seahub_running () {
-    if pgrep -f "${manage_py} run_gunicorn" 2>/dev/null 1>&2; then
+    if pgrep -f "${manage_py}" 2>/dev/null 1>&2; then
         echo "Seahub is running, please stop it before stop seafile."
         printf "You can stop it by \"\033[33m./seahub.sh stop\033[m\"\n\n"
         exit 1;

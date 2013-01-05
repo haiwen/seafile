@@ -9,7 +9,7 @@ Some notes:
 to change to the 'builddir'. We make use of the 'cwd' argument in
 'subprocess.Popen' to run a command in a specific directory.
 
-2. django/djblets/gunicorn must be easy_install-ed to a directory before run
+2. django/djblets/gunicorn/flup must be easy_install-ed to a directory before run
 this script. That directory is passed in as the  '--thirdpartdir' arguments.
 
 '''
@@ -134,8 +134,8 @@ def must_mkdir(path):
     '''Create a directory, exit on failure'''
     try:
         os.mkdir(path)
-    except OSError:
-        error('failed to create directory %s' % path)
+    except OSError, e:
+        error('failed to create directory %s:%s' % (path, e))
 
 def must_copy(src, dst):
     '''Copy src to dst, exit on failure'''
@@ -235,7 +235,7 @@ def check_seahub_thirdpart(thirdpartdir):
     we can copy it to seahub/thirdpart
 
     '''
-    thirdpart_libs = ['Django', 'Djblets', 'gunicorn']
+    thirdpart_libs = ['Django', 'Djblets', 'gunicorn', 'flup']
     def check_thirdpart_lib(name):
         name += '*/'
         if not glob.glob(os.path.join(thirdpartdir, name)):
@@ -345,9 +345,6 @@ def show_build_info():
     dummy = raw_input()
 
 def prepare_builddir(builddir):
-    if os.path.exists(builddir):
-        shutil.rmtree(builddir, ignore_errors=True)
-
     must_mkdir(builddir)
 
     if not conf[CONF_KEEP]:
@@ -681,13 +678,15 @@ def main():
     seahub = Seahub()
 
     libsearpc.uncompress()
-    ccnet.uncompress()
-    seafile.uncompress()
-    seahub.uncompress()
-
     libsearpc.build()
+
+    ccnet.uncompress()
     ccnet.build()
+
+    seafile.uncompress()
     seafile.build()
+
+    seahub.uncompress()
     seahub.build()
 
     copy_scripts_and_libs()

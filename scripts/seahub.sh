@@ -9,18 +9,28 @@ default_ccnet_conf_dir=${TOPDIR}/ccnet
 
 manage_py=${INSTALLPATH}/seahub/manage.py
 gunicorn_conf=${INSTALLPATH}/runtime/seahub.conf
-gunicorn_pidfile=${INSTALLPATH}/runtime/seahub.pid
+pidfile=${INSTALLPATH}/runtime/seahub.pid
+errorlog=${INSTALLPATH}/runtime/error.log
+accesslog=${INSTALLPATH}/runtime/access.log
+
 
 script_name=$0
 function usage () {
-    echo "Usage : "
-    echo "$(basename ${script_name}) { start <port> | stop | restart <port> }" 
-    echo "default port is 8000"
+    echo "Usage: "
+    echo
+    echo "  $(basename ${script_name}) { start <port> | stop | restart <port> }" 
+    echo
+    echo "To run seahub in fastcgi:"
+    echo
+    echo "  $(basename ${script_name}) { start-fastcgi <port> | stop | restart-fastcgi <port> }" 
+    echo
+    echo "<port> is optional, and defaults to 8000"
     echo ""
 }
 
 # Check args
-if [[ $1 != "start" && $1 != "stop" && $1 != "restart" ]]; then
+if [[ $1 != "start" && $1 != "stop" && $1 != "restart" \
+    && $1 != "start-fastcgi" && $1 != "restart-fastcgi" ]]; then
     usage;
     exit 1;
 fi
@@ -59,7 +69,7 @@ function validate_seaf_server_running () {
 }
 
 function validate_seahub_running () {
-    if pgrep -f "${manage_py} run_gunicorn" 2>/dev/null 1>&2; then
+    if pgrep -f "${manage_py}" 2>/dev/null 1>&2; then
         echo "Seahub is already running."
         exit 1;
     fi
@@ -73,7 +83,8 @@ function validate_port () {
     fi
 }
 
-if [[ ($1 == "start" || $1 == "restart") && ($# == 2 || $# == 1) ]]; then
+if [[ ($1 == "start" || $1 == "restart" || $1 == "start-fastcgi" || $1 == "restart-fastcgi") \
+    && ($# == 2 || $# == 1) ]]; then
     if [[ $# == 2 ]]; then
         port=$2
         validate_port
@@ -87,23 +98,22 @@ else
     exit 1
 fi
 
-function start_seahub () {
+function before_start() {
     check_python_executable;
     validate_seaf_server_running;
     validate_seahub_running;
-    pid=$(pgrep -f "${manage_py} run_gunicorn")
-    if [[ "${pid}" != "" ]]; then
-        echo "Seahub has already been running.".
-        exit 1;
-    fi
-    echo "Starting seahub http server at port ${port} ..."
     export CCNET_CONF_DIR=${default_ccnet_conf_dir}
     export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
+}
+
+function start_seahub () {
+    before_start;
+    echo "Starting seahub http server at port ${port} ..."
     $PYTHON "${manage_py}" run_gunicorn -c "${gunicorn_conf}" -b "0.0.0.0:${port}"
 
     # Ensure seahub is started successfully
     sleep 5
-    if ! pgrep -f "${manage_py} run_gunicorn" 2>/dev/null 1>&2; then
+    if ! pgrep -f "${manage_py}" 2>/dev/null 1>&2; then
         printf "\033[33mError:Seahub failed to start.\033[m\n"
         echo "Please try to run \"./seafile.sh start\" again"
         echo "If it fails again, Please remove ${default_ccnet_conf_dir} and run ./setup-seafile.sh again"
@@ -111,32 +121,51 @@ function start_seahub () {
     fi
 }
 
+function start_seahub_fastcgi () {
+    before_start;
+    echo "Starting seahub http server (fastcgi) at port ${port} ..."
+    $PYTHON "${manage_py}" runfcgi host=127.0.0.1 port=$port pidfile=$pidfile \
+        outlog=${accesslog} errlog=${errorlog}
+
+    # Ensure seahub is started successfully
+    sleep 5
+    if ! pgrep -f "${manage_py}" 1>/dev/null; then
+        printf "\033[33mError:Seahub failed to start.\033[m\n"
+        exit 1;
+    fi
+}
+
 function stop_seahub () {
-    if [[ -f ${gunicorn_pidfile} ]]; then
-        pid=$(cat "${gunicorn_pidfile}")
+    if [[ -f ${pidfile} ]]; then
+        pid=$(cat "${pidfile}")
         echo "Stopping seahub ..."
         kill ${pid}
+        rm -f ${pidfile}
         return 0
     else
         echo "Seahub is not running"
     fi
 }
 
-function restart_seahub () {
-    stop_seahub
-    sleep 2
-    start_seahub
-}
-
 case $1 in 
     "start" )
         start_seahub;
+        ;;
+    "start-fastcgi" )
+        start_seahub_fastcgi;
         ;;
     "stop" )
         stop_seahub;
         ;;
     "restart" )
-        restart_seahub;
+        stop_seahub
+        sleep 2
+        start_seahub
+        ;;
+    "restart-fastcgi" )
+        stop_seahub
+        sleep 2
+        start_seahub_fastcgi
         ;;
 esac
 

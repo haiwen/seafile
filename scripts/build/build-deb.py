@@ -129,8 +129,8 @@ def must_mkdir(path):
     '''Create a directory, exit on failure'''
     try:
         os.mkdir(path)
-    except OSError:
-        error('failed to create directory %s' % path)
+    except OSError, e:
+        error('failed to create directory %s:%s' % (path, e))
 
 def must_copy(src, dst):
     '''Copy src to dst, exit on failure'''
@@ -289,9 +289,6 @@ def show_build_info():
     dummy = raw_input()
 
 def prepare_builddir(builddir):
-    if os.path.exists(builddir):
-        shutil.rmtree(builddir, ignore_errors=True)
-
     must_mkdir(builddir)
 
     if not conf[CONF_KEEP]:
