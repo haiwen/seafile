@@ -24,18 +24,19 @@ endif
 # SEARPC_SOURCE_DIR and CCNET_SOURCE_DIR is set by build-deb.py
 searpc_dir = $(LIBSEARPC_SOURCE_DIR)
 ccnet_dir = $(CCNET_SOURCE_DIR)
-install_prefix = $(CURDIR)/debian/seafile/usr
+destdir = $(CURDIR)/debian/seafile
+install_prefix = $(destdir)/usr
 
 build:
 	dh_testdir
-	mkdir -p install_prefix
+	mkdir -p $(install_prefix)
 	# build and install libsearpc so it can be used by ccnet and seafile
-	cd $(searpc_dir) && ./configure $(CROSS) --prefix=$(install_prefix) --disable-compile-demo CFLAGS="$(CFLAGS)" && make && make install
+	cd $(searpc_dir) && ./configure $(CROSS) --prefix=/usr --disable-compile-demo CFLAGS="$(CFLAGS)" && make && make install DESTDIR=$(destdir)
 
 	# build and install ccnet so it can be used by seafile
-	cd $(ccnet_dir) && ./configure $(CROSS) --prefix=$(install_prefix) --disable-compile-demo CFLAGS="$(CFLAGS)" && make && make install
+	cd $(ccnet_dir) && ./configure $(CROSS) --prefix=/usr --disable-compile-demo CFLAGS="$(CFLAGS)" && make && make install DESTDIR=$(destdir)
 
-	./configure --prefix=$(install_prefix) --enable-appindicator CFLAGS="$(CFLAGS)" && make && make install
+	./configure --prefix=/usr --enable-appindicator CFLAGS="$(CFLAGS)" && make && make install DESTDIR=$(destdir)
 
 	# remove development files
 	rm -rf $(install_prefix)/include

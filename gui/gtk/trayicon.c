@@ -57,7 +57,7 @@ seafile_trayicon_set_icon (SeafileTrayIcon *icon, const char *name)
 
 #ifdef HAVE_APP_INDICATOR
     const char *desktop;
-    desktop = g_environ_getenv (g_get_environ(), "XDG_CURRENT_DESKTOP");
+    desktop = g_getenv ("XDG_CURRENT_DESKTOP");
     if (g_strcmp0(desktop, "Unity") == 0) {
         app_indicator_set_icon_full (priv->icon, name, NULL);
     } else {
@@ -232,7 +232,7 @@ seafile_tray_icon_init (SeafileTrayIcon *icon)
 
 #ifdef HAVE_APP_INDICATOR
     const char *desktop;
-    desktop = g_environ_getenv (g_get_environ(), "XDG_CURRENT_DESKTOP");
+    desktop = g_getenv ("XDG_CURRENT_DESKTOP");
     if (g_strcmp0(desktop, "Unity") == 0) {
         AppIndicator *app_icon = app_indicator_new("seafile",
                                                ICON_STATUS_UP,
@@ -285,7 +285,7 @@ seafile_trayicon_get_gtk_icon (SeafileTrayIcon *icon)
 {
 #ifdef HAVE_APP_INDICATOR
     const char *desktop;
-    desktop = g_environ_getenv (g_get_environ(), "XDG_CURRENT_DESKTOP");
+    desktop = g_getenv ("XDG_CURRENT_DESKTOP");
     if (g_strcmp0(desktop, "Unity") == 0) {
         return NULL;
     } else
@@ -325,7 +325,7 @@ seafile_trayicon_set_tooltip (SeafileTrayIcon *icon,
 {
 #ifdef HAVE_APP_INDICATOR
     const char *desktop;
-    desktop = g_environ_getenv (g_get_environ(), "XDG_CURRENT_DESKTOP");
+    desktop = g_getenv ("XDG_CURRENT_DESKTOP");
     if (g_strcmp0(desktop, "Unity") == 0) {
         /* do nothing */
     } else {
