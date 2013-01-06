@@ -93,6 +93,7 @@ read_directory_recursive(struct dir_struct *dir,
     char *realpath = g_build_path (PATH_SEPERATOR, worktree, base, NULL);
     GDir *fdir = g_dir_open (realpath, 0, NULL);
     const char *dname;
+    char *nfc_dname;
     int contents = 0;
     int dtype;
 
@@ -102,26 +103,37 @@ read_directory_recursive(struct dir_struct *dir,
         while ((dname = g_dir_read_name(fdir)) != NULL) {
             int len = 0;
 
-            if (is_dot_or_dotdot(dname))
-                continue;
+#ifdef __APPLE__
+            nfc_dname = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
+#else
+            nfc_dname = g_strdup(dname);
+#endif
 
-            if (ignore_func (dname, NULL))
+            if (is_dot_or_dotdot(nfc_dname)) {
+                g_free (nfc_dname);
                 continue;
+            }
 
-            dtype = get_dtype(dname, realpath);
+            if (ignore_func (nfc_dname, NULL)) {
+                g_free (nfc_dname);
+                continue;
+            }
+
+            dtype = get_dtype(nfc_dname, realpath);
             switch (dtype) {
             case DT_REG:
-                len = strlen(dname);
-                memcpy(path + baselen, dname, len + 1);
+                len = strlen(nfc_dname);
+                memcpy(path + baselen, nfc_dname, len + 1);
                 len = strlen(path);
                 break;
             case DT_DIR:
-                len = strlen(dname);
-                memcpy(path + baselen, dname, len + 1);
+                len = strlen(nfc_dname);
+                memcpy(path + baselen, nfc_dname, len + 1);
                 memcpy(path + baselen + len, "/", 2);
                 len = strlen(path);
                 read_directory_recursive(dir, path, len, 0,
                                          index, worktree, ignore_func);
+                g_free (nfc_dname);
                 continue;
             default: /* DT_UNKNOWN */
                 len = 0;
@@ -129,6 +141,7 @@ read_directory_recursive(struct dir_struct *dir,
             }
             if(len > 0)
                 dir_add_name(dir, path, len, index);
+            g_free (nfc_dname);
         }
         g_dir_close(fdir);
     }

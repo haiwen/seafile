@@ -407,14 +407,18 @@ add_recursive (struct index_state *istate,
         errno = 0;
         n = 0;
         while ((dname = g_dir_read_name(dir)) != NULL) {
-            /* TODO: Notify user if a file's name is too long. */
-
             if (should_ignore(dname, NULL))
                 continue;
 
             ++n;
 
+#ifdef __APPLE__
+            char *norm_dname = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
+            subpath = g_build_path (PATH_SEPERATOR, path, norm_dname, NULL);
+            g_free (norm_dname);
+#else
             subpath = g_build_path (PATH_SEPERATOR, path, dname, NULL);
+#endif
             ret = add_recursive (istate, worktree, subpath,
                                  crypt, ignore_empty_dir);
             g_free (subpath);
