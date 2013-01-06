@@ -146,6 +146,14 @@ next:
         goto err;
     } else if (n == 0) {
         /* We've read up the data of this block, finish or try next block. */
+        seaf_block_manager_close_block (seaf->block_mgr, handle);
+        seaf_block_manager_block_handle_free (seaf->block_mgr, handle);
+        data->handle = NULL;
+        if (data->crypt != NULL) {
+            EVP_CIPHER_CTX_cleanup (&data->ctx);
+            data->enc_init = FALSE;
+        }
+
         if (data->idx == data->file->n_blocks - 1) {
             /* Recover evhtp's callbacks */
             struct bufferevent *bev = evhtp_request_get_bev (data->req);
@@ -164,11 +172,6 @@ next:
         }
 
         ++(data->idx);
-        data->handle = NULL;
-        if (data->crypt != NULL) {
-            EVP_CIPHER_CTX_cleanup (&data->ctx);
-            data->enc_init = FALSE;
-        }
         goto next;
     }
 
