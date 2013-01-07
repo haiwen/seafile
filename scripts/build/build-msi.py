@@ -506,7 +506,7 @@ def web_py2exe():
 def parse_depends_csv(path):
     '''parse the output of dependency walker'''
     libs = []
-    def should_ingore_lib(lib):
+    def should_ignore_lib(lib):
         if not os.path.exists(lib):
             return True
 
@@ -521,35 +521,34 @@ def parse_depends_csv(path):
             if len(row) < 2:
                 continue
             lib = row[1]
-            if not should_ingore_lib(lib):
+            if not should_ignore_lib(lib):
                 libs.append(lib)
 
     return libs
 
 def copy_shared_libs():
-    '''Copy shared libs need by libccnet, such as libevent, libsqlite, etc.
-    First we use Dependency walker to analyse libccnet-0.dll, and get an
-    output file in csv format. Then we parse the csv file to get the list of
-    shared libs.
+    '''Copy shared libs need by seafile-applet.exe, such as libccnet,
+    libseafile, etc. First we use Dependency walker to analyse
+    seafile-applet.exe, and get an output file in csv format. Then we parse
+    the csv file to get the list of shared libs.
 
     '''
 
     output = os.path.join(conf[CONF_BUILDDIR], 'depends.csv')
-    libccnet = os.path.join(Seafile().prefix, 'bin', 'libccnet-0.dll')
-    cmd = 'depends.exe -c -f 1 -oc %s %s' % (output, libccnet)
+    applet = os.path.join(Seafile().projdir(), 'gui', 'win', 'seafile-applet.exe')
+    cmd = 'depends.exe -c -f 1 -oc %s %s' % (output, applet)
 
     # See the manual of Dependency walker
     if run(cmd) > 0x100:
-        error('failed to run dependency walker for libccnet')
+        error('failed to run dependency walker for seafile-applet.exe')
 
     if not os.path.exists(output):
-        error('failed to run dependency walker for libccnet')
+        error('failed to run dependency walker for seafile-applet.exe')
 
     shared_libs = parse_depends_csv(output)
     pack_bin_dir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin')
     for lib in shared_libs:
         must_copy(lib, pack_bin_dir)
-
 
 def copy_dll_exe():
     prefix = Seafile().prefix
