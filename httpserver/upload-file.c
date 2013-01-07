@@ -1009,6 +1009,16 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
     if (get_progress_info (req, hdr, &content_len, &progress_id) < 0)
         goto err;
 
+    if (progress_id != NULL) {
+        pthread_mutex_lock (&pg_lock);
+        if (g_hash_table_lookup (upload_progress, progress_id)) {
+            pthread_mutex_unlock (&pg_lock);
+            err_msg = "Duplicate progress id.\n";
+            goto err;
+        }
+        pthread_mutex_unlock (&pg_lock);
+    }
+
     fsm = g_new0 (RecvFSM, 1);
     fsm->boundary = boundary;
     fsm->repo_id = repo_id;
@@ -1056,6 +1066,7 @@ err:
     g_free (repo_id);
     g_free (user);
     g_free (boundary);
+    g_free (progress_id);
     return EVHTP_RES_OK;
 }
 
