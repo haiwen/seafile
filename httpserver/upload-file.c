@@ -75,7 +75,6 @@ typedef struct RecvFSM {
 
 #define MAX_CONTENT_LINE 10240
 #define TEMP_FILE_DIR "/tmp/seafhttp"
-#define MAX_UPLOAD_FILE_SIZE 100 * ((gint64)1 << 20) /* 100MB */
 
 static GHashTable *upload_progress;
 static pthread_mutex_t pg_lock;
@@ -199,7 +198,7 @@ check_tmp_file_list (GList *tmp_files, int *error_code)
         total_size += (gint64)st.st_size;
     }
 
-    if (total_size > MAX_UPLOAD_FILE_SIZE) {
+    if (total_size > seaf->max_upload_size) {
         seaf_warning ("[upload] File size is too large.\n");
         *error_code = ERROR_SIZE;
         return FALSE;

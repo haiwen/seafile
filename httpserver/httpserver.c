@@ -16,6 +16,7 @@
 #include "upload-file.h"
 
 #define DEFAULT_BIND_PORT  8082
+#define DEFAULT_MAX_UPLOAD_SIZE 100 * ((gint64)1 << 20) /* 100MB */
 
 static char *config_dir = NULL;
 static char *seafile_dir = NULL;
@@ -61,6 +62,7 @@ load_httpserver_config (SeafileSession *session)
 {
     GError *error = NULL;
     int port = 0;
+    int max_upload_size_mb;
 
     port = g_key_file_get_integer (session->config, "httpserver", "port", &error);
     if (!error) {
@@ -76,7 +78,9 @@ load_httpserver_config (SeafileSession *session)
         g_clear_error (&error);
     }
 
-    use_https = g_key_file_get_boolean (session->config, "httpserver", "https", &error);
+    use_https = g_key_file_get_boolean (session->config,
+                                        "httpserver", "https",
+                                        &error);
     if (error) {
         if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND &&
             error->code != G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
@@ -85,21 +89,41 @@ load_httpserver_config (SeafileSession *session)
         }
 
         /* There is no <https> field in seafile.conf, so we use http. */
-        g_error_free (error);
+        g_clear_error (&error);
         
     } else if (use_https) {
         /* read https config */
-        pemfile = g_key_file_get_string (session->config, "httpserver", "pemfile", &error);
+        pemfile = g_key_file_get_string (session->config,
+                                         "httpserver", "pemfile",
+                                         &error);
         if (error) {
-            fprintf (stderr, "[conf] Error: https is true, but the value of pemfile is unknown\n");
+            fprintf (stderr, "[conf] Error: https is true, "
+                     "but the value of pemfile is unknown\n");
             exit (1);
         }
 
-        privkey = g_key_file_get_string (session->config, "httpserver", "privkey", &error);
+        privkey = g_key_file_get_string (session->config,
+                                         "httpserver", "privkey",
+                                         &error);
         if (error) {
-            fprintf (stderr, "[conf] Error: https is true, but the value of privkey is unknown\n");
+            fprintf (stderr, "[conf] Error: https is true, "
+                     "but the value of privkey is unknown\n");
             exit (1);
         }
+    }
+
+    max_upload_size_mb = g_key_file_get_integer (session->config,
+                                                 "httpserver",
+                                                 "max_upload_size",
+                                                 &error);
+    if (error) {
+        session->max_upload_size = DEFAULT_MAX_UPLOAD_SIZE;
+        g_clear_error (&error);
+    } else {
+        if (max_upload_size_mb <= 0)
+            session->max_upload_size = DEFAULT_MAX_UPLOAD_SIZE;
+        else 
+            session->max_upload_size = max_upload_size_mb * ((gint64)1 << 20);
     }
 }
 
