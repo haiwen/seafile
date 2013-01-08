@@ -202,8 +202,12 @@ int main (int argc, char **argv)
     }
 
     g_key_file_set_string (key_file, "network", "port", config.port);
-    if (config.httpserver_port)
+    if (config.httpserver_port) {
         g_key_file_set_string (key_file, "httpserver", "port", config.httpserver_port);
+    } else {
+        /* httpserver port defaults to 8082 */
+        g_key_file_set_string (key_file, "httpserver", "port", "8082");
+    }
 
     struct stat st;
     if (lstat (config.seafile_dir, &st) < 0) {
