@@ -9,8 +9,9 @@ Some notes:
 to change to the 'builddir'. We make use of the 'cwd' argument in
 'subprocess.Popen' to run a command in a specific directory.
 
-2. django/djblets/gunicorn/flup must be easy_install-ed to a directory before run
-this script. That directory is passed in as the  '--thirdpartdir' arguments.
+2. django/djangorestframework/djblets/gunicorn/flup must be easy_install-ed to
+a directory before run this script. That directory is passed in as the
+'--thirdpartdir' arguments.
 
 '''
 
@@ -235,7 +236,7 @@ def check_seahub_thirdpart(thirdpartdir):
     we can copy it to seahub/thirdpart
 
     '''
-    thirdpart_libs = ['Django', 'Djblets', 'gunicorn', 'flup']
+    thirdpart_libs = ['Django', 'Djblets', 'gunicorn', 'flup', 'djangorestframework']
     def check_thirdpart_lib(name):
         name += '*/'
         if not glob.glob(os.path.join(thirdpartdir, name)):

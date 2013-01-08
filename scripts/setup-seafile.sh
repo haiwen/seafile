@@ -421,10 +421,7 @@ echo "${seafile_data_dir}" > "${default_ccnet_conf_dir}/seafile.ini"
 dest_settings_py=${TOPDIR}/seahub_settings.py
 seahub_secret_keygen=${INSTALLPATH}/seahub/tools/secret_key_generator.py
 
-HTTP_SERVER_ROOT=http://${ip_or_domain}:${httpserver_port}
-
 if [[ ! -f ${dest_settings_py} ]]; then
-    echo "HTTP_SERVER_ROOT = \"${HTTP_SERVER_ROOT}\"" > "${dest_settings_py}"
     echo -n "SECRET_KEY = " >> "${dest_settings_py}"
     key=$($PYTHON "${seahub_secret_keygen}")
     echo "\"${key}\"" >> "${dest_settings_py}"
