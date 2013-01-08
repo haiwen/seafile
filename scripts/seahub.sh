@@ -6,6 +6,7 @@ SCRIPT=$(readlink -f "$0")
 INSTALLPATH=$(dirname "${SCRIPT}")
 TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
+default_seafile_data_dir=${TOPDIR}/seafile-data
 
 manage_py=${INSTALLPATH}/seahub/manage.py
 gunicorn_conf=${INSTALLPATH}/runtime/seahub.conf
@@ -103,6 +104,7 @@ function before_start() {
     validate_seaf_server_running;
     validate_seahub_running;
     export CCNET_CONF_DIR=${default_ccnet_conf_dir}
+    export SEAFILE_CONF_DIR=${default_seafile_data_dir}
     export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
 }
 

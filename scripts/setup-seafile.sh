@@ -7,6 +7,8 @@ default_ccnet_conf_dir=${TOPDIR}/ccnet
 default_seafile_data_dir=${TOPDIR}/seafile-data
 default_seahub_db=${TOPDIR}/seahub.db
 
+export CCNET_CONF_DIR=$default_ccnet_conf_dir
+export SEAFILE_CONF_DIR=$default_seafile_data_dir
 export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
 
 use_existing_ccnet="false"

@@ -6,9 +6,11 @@ UPGRADE_DIR=$(dirname "$SCRIPT")
 INSTALLPATH=$(dirname "$UPGRADE_DIR")
 TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
+default_seafile_data_dir=${TOPDIR}/seafile-data
 default_seahub_db=${TOPDIR}/seahub.db
 
 export CCNET_CONF_DIR=${default_ccnet_conf_dir}
+export SEAFILE_CONF_DIR=$default_seafile_data_dir
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
 
 prev_version=1.1.0
