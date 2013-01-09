@@ -470,7 +470,7 @@ def copy_scripts_and_libs():
               serverdir)
     must_copy(os.path.join(scripts_srcdir, 'seahub.sh'),
               serverdir)
-    must_copy(os.path.join(scripts_srcdir, 'create-seahub-admin.sh'),
+    must_copy(os.path.join(scripts_srcdir, 'reset-admin.sh'),
               serverdir)
 
     # copy update scripts
