@@ -771,6 +771,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
                              const char *repo_name,
                              const char *token,
                              const char *passwd,
+                             const char *magic,
                              const char *worktree_in,
                              const char *peer_addr,
                              const char *peer_port,
@@ -794,6 +795,13 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     if (is_duplicate_task (mgr, repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, 
                      "Task is already in progress");
+        return NULL;
+    }
+
+    /* If magic is not given, check password before checkout. */
+    if (passwd && magic && seaf_repo_verify_passwd(repo_id, passwd, magic) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Incorrect password");
         return NULL;
     }
 
@@ -843,6 +851,7 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
                                       const char *repo_name,
                                       const char *token,
                                       const char *passwd,
+                                      const char *magic,
                                       const char *wt_parent,
                                       const char *peer_addr,
                                       const char *peer_port,
@@ -866,6 +875,13 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
     if (is_duplicate_task (mgr, repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, 
                      "Task is already in progress");
+        return NULL;
+    }
+
+    /* If magic is not given, check password before checkout. */
+    if (passwd && magic && seaf_repo_verify_passwd(repo_id, passwd, magic) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Incorrect password");
         return NULL;
     }
 
@@ -1227,8 +1243,9 @@ static void
 start_checkout (SeafRepo *repo, CloneTask *task)
 {
     if (repo->encrypted && task->passwd != NULL) {
+        /* keep this password check to be compatible with old servers. */
         if (repo->enc_version >= 1 && 
-            seaf_repo_verify_passwd (repo, task->passwd) < 0) {
+            seaf_repo_verify_passwd (repo->id, task->passwd, repo->magic) < 0) {
             seaf_warning ("[Clone mgr] incorrect password.\n");
             transition_to_error (task, CLONE_ERROR_PASSWD);
             return;

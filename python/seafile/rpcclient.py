@@ -99,13 +99,13 @@ class SeafileRpcClient(ccnet.RpcClientBase):
     def gen_default_worktree(worktree_parent, repo_name):
         pass
 
-    @searpc_func("string", ["string", "string", "string", "string", "string", "string"])
-    def seafile_clone(repo_id, peer_id, repo_name, worktree, token, password):
+    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "string", "string", "string"])
+    def seafile_clone(repo_id, peer_id, repo_name, worktree, token, password, magic, peer_addr, peer_port, email):
         pass
     clone = seafile_clone
 
-    @searpc_func("string", ["string", "string", "string", "string", "string", "string"])
-    def seafile_download(repo_id, peer_id, repo_name, wt_parent, token, password):
+    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "string", "string", "string"])
+    def seafile_download(repo_id, peer_id, repo_name, wt_parent, token, password, magic, peer_addr, peer_port, email):
         pass
     download = seafile_download
 

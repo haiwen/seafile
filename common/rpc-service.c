@@ -639,7 +639,7 @@ seafile_checkout (const char *repo_id,
 
     if (repo->encrypted) {
         if (repo->enc_version >= 1 &&
-            seaf_repo_verify_passwd (repo, passwd) < 0) {
+            seaf_repo_verify_passwd (repo->id, passwd, repo->magic) < 0) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Incorrect password");
             return -1;
         }
@@ -737,6 +737,7 @@ seafile_clone (const char *repo_id,
                const char *worktree,
                const char *token,
                const char *passwd,
+               const char *magic,
                const char *peer_addr,
                const char *peer_port,
                const char *email,
@@ -767,7 +768,7 @@ seafile_clone (const char *repo_id,
     return seaf_clone_manager_add_task (seaf->clone_mgr,
                                         repo_id, relay_id,
                                         repo_name, token,
-                                        passwd, worktree,
+                                        passwd, magic, worktree,
                                         peer_addr, peer_port,
                                         email, error);
 }
@@ -779,6 +780,7 @@ seafile_download (const char *repo_id,
                   const char *wt_parent,
                   const char *token,
                   const char *passwd,
+                  const char *magic,
                   const char *peer_addr,
                   const char *peer_port,
                   const char *email,
@@ -809,7 +811,7 @@ seafile_download (const char *repo_id,
     return seaf_clone_manager_add_download_task (seaf->clone_mgr,
                                                  repo_id, relay_id,
                                                  repo_name, token,
-                                                 passwd, wt_parent,
+                                                 passwd, magic, wt_parent,
                                                  peer_addr, peer_port,
                                                  email, error);
 }
@@ -1280,6 +1282,7 @@ seafile_get_repo (const char *repo_id, GError **error)
     SeafileRepo *repo = seafile_repo_new ();
     g_object_set (repo, "id", r->id, "name", r->name,
                   "desc", r->desc, "encrypted", r->encrypted,
+                  "magic", r->magic,
                   "head_branch", r->head ? r->head->name : NULL,
                   "head_cmmt_id", r->head ? r->head->commit_id : NULL,
                   NULL);

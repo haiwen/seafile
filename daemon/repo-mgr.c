@@ -273,21 +273,23 @@ out:
 }
 
 int
-seaf_repo_verify_passwd (SeafRepo *repo, const char *passwd)
+seaf_repo_verify_passwd (const char *repo_id,
+                         const char *passwd,
+                         const char *magic)
 {
     GString *buf = g_string_new (NULL);
     unsigned char key[16], iv[16];
     char hex[33];
 
     /* Recompute the magic and compare it with the one comes with the repo. */
-    g_string_append_printf (buf, "%s%s", repo->id, passwd);
+    g_string_append_printf (buf, "%s%s", repo_id, passwd);
 
-    seafile_generate_enc_key (buf->str, buf->len, repo->enc_version, key, iv);
+    seafile_generate_enc_key (buf->str, buf->len, CURRENT_ENC_VERSION, key, iv);
 
     g_string_free (buf, TRUE);
     rawdata_to_hex (key, hex, 16);
 
-    if (strcmp (hex, repo->magic) == 0)
+    if (g_strcmp0 (hex, magic) == 0)
         return 0;
     else
         return -1;

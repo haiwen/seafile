@@ -103,7 +103,9 @@ GList *
 seaf_repo_get_commits (SeafRepo *repo);
 
 int
-seaf_repo_verify_passwd (SeafRepo *repo, const char *passwd);
+seaf_repo_verify_passwd (const char *repo_id,
+                         const char *passwd,
+                         const char *magic);
 
 int
 seaf_repo_index_add (SeafRepo *repo, const char *path);

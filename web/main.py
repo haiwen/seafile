@@ -511,7 +511,7 @@ class repo_download:
         inputs = web.webapi.input(relay_id='', token='',
                                   relay_addr='', relay_port = '',
                                   repo_id='', repo_name='',
-                                  encrypted='', email='')
+                                  encrypted='', magic='', email='')
 
         relay_id   = inputs.relay_id
         token       = inputs.token
@@ -535,9 +535,11 @@ class repo_download:
         wt_parent = get_default_seafile_worktree ()
 
         sync_url = "/repo/sync/?relay_id=%s&relay_addr=%s&relay_port=%s&" \
-            "email=%s&token=%s&repo_id=%s&repo_name=%s&encrypted=%s" % \
+            "email=%s&token=%s&repo_id=%s&repo_name=%s" % \
             (relay_id, relay_addr, relay_port, urllib.quote(email), token, repo_id,
-             urllib.quote(repo_name.encode('utf-8')), inputs.encrypted)
+             urllib.quote(repo_name.encode('utf-8')))
+        if inputs.encrypted:
+            sync_url += "&encrypted=1&magic=%s" % inputs.magic
 
         return render.repo_download(error_msg=None,
                                     repo_already_exists=False,
@@ -549,6 +551,7 @@ class repo_download:
                                     repo_name=repo_name,
                                     wt_parent=wt_parent,
                                     encrypted=inputs.encrypted,
+                                    magic=inputs.magic,
                                     email=email,
                                     sync_url=sync_url,
                                     **default_options)
@@ -556,14 +559,17 @@ class repo_download:
     def POST(self):
         inputs = web.webapi.input(relay_id='', token='',
                                   relay_addr='', relay_port = '',
-                                  repo_id='', repo_name='', encrypted='',
-                                  password='', wt_parent='', email='')
+                                  repo_id='', repo_name='',
+                                  encrypted='', password='', magic='',
+                                  wt_parent='', email='')
 
         sync_url = "/repo/sync/?relay_id=%s&relay_addr=%s&relay_port=%s&" \
-            "email=%s&token=%s&repo_id=%s&repo_name=%s&encrypted=%s" % \
+            "email=%s&token=%s&repo_id=%s&repo_name=%s" % \
             (inputs.relay_id, inputs.relay_addr, inputs.relay_port,
              urllib.quote(inputs.email), inputs.token, inputs.repo_id,
-             urllib.quote(inputs.repo_name.encode('utf-8')), inputs.encrypted)
+             urllib.quote(inputs.repo_name.encode('utf-8')))
+        if inputs.encrypted:
+            sync_url += "&encrypted=1&magic=%s" % inputs.magic
 
         error_msg = None
         if not inputs.wt_parent:
@@ -583,7 +589,7 @@ class repo_download:
                                          token=inputs.token,
                                          repo_name=inputs.repo_name,
                                          encrypted=inputs.encrypted,
-                                         password=inputs.password,
+                                         magic=inputs.magic,
                                          wt_parent=inputs.wt_parent,
                                          email=inputs.email,
                                          sync_url=sync_url,
@@ -591,6 +597,8 @@ class repo_download:
 
         if not inputs.password:
             inputs.password = None
+        if not inputs.magic:
+            inputs.magic = None
                                          
         try:
             seafile_rpc.download (inputs.repo_id, inputs.relay_id,
@@ -598,6 +606,7 @@ class repo_download:
                                   inputs.wt_parent.encode('utf-8'),
                                   inputs.token,
                                   inputs.password,
+                                  inputs.magic,
                                   inputs.relay_addr,
                                   inputs.relay_port,
                                   inputs.email)
@@ -610,6 +619,8 @@ class repo_download:
                 error_msg = _('The local directory you chose cannot be under or includes a system directory of seafile.')
             elif e.msg == 'Worktree conflicts existing repo':
                 error_msg = _('The local directory you chose cannot be under or includes another library.')
+            elif e.msg == 'Incorrect password':
+                error_msg = _('Incorrect password.')
             else:
                 error_msg = _('Internal error.') + str(e)
 
@@ -624,6 +635,7 @@ class repo_download:
                                          repo_name=inputs.repo_name,
                                          encrypted=inputs.encrypted,
                                          password=inputs.password,
+                                         magic=inputs.magic,
                                          wt_parent=inputs.wt_parent,
                                          email=inputs.email,
                                          sync_url=sync_url,
@@ -638,7 +650,7 @@ class repo_sync:
         inputs = web.webapi.input(relay_id='', token='',
                                   relay_addr='', relay_port = '',
                                   repo_id='', repo_name='',
-                                  encrypted='', email='')
+                                  encrypted='', magic='', email='')
 
         relay_id   = inputs.relay_id
         token       = inputs.token
@@ -668,14 +680,16 @@ class repo_sync:
                                 repo_name=repo_name,
                                 worktree='',
                                 encrypted=inputs.encrypted,
+                                magic=inputs.magic,
                                 email=email,
                                 **default_options)
 
     def POST(self):
         inputs = web.webapi.input(relay_id='', token='',
                                   relay_addr='', relay_port = '',
-                                  repo_id='', repo_name='', encrypted='',
-                                  password='', worktree='', email='')
+                                  repo_id='', repo_name='',
+                                  encrypted='', password='', magic='',
+                                  worktree='', email='')
 
         repo_id = inputs.repo_id.strip()
 
@@ -697,20 +711,23 @@ class repo_sync:
                                      token=inputs.token,
                                      repo_name=inputs.repo_name,
                                      encrypted=inputs.encrypted,
-                                     password=inputs.password,
+                                     magic=inputs.magic,
                                      worktree=inputs.worktree,
                                      email=inputs.email,
                                      **default_options)
 
         if not inputs.password:
             inputs.password = None
-                                         
+        if not inputs.magic:
+            inputs.magic = None
+
         try:
             seafile_rpc.clone (repo_id, inputs.relay_id,
                                inputs.repo_name.encode('utf-8'),
                                inputs.worktree.encode('utf-8'),
                                inputs.token,
                                inputs.password,
+                               inputs.magic,
                                inputs.relay_addr, inputs.relay_port, inputs.email)
         except SearpcError as e:
             if e.msg == 'Invalid local directory':
@@ -721,6 +738,8 @@ class repo_sync:
                 error_msg = _('The local directory you chose cannot be under or includes a system directory of seafile.')
             elif e.msg == 'Worktree conflicts existing repo':
                 error_msg = _('The local directory you chose cannot be under or includes another library.')
+            elif e.msg == 'Incorrect password':
+                error_msg = _('Incorrect password.')
             else:
                 error_msg = _('Internal error.') + str(e)
 
@@ -734,7 +753,7 @@ class repo_sync:
                                      token=inputs.token,
                                      repo_name=inputs.repo_name,
                                      encrypted=inputs.encrypted,
-                                     password=inputs.password,
+                                     magic=inputs.magic,
                                      worktree=inputs.worktree,
                                      email=inputs.email,
                                      **default_options)
