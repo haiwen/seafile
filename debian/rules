@@ -33,6 +33,9 @@ build:
 	# build and install libsearpc so it can be used by ccnet and seafile
 	cd $(searpc_dir) && ./configure $(CROSS) --prefix=/usr --disable-compile-demo CFLAGS="$(CFLAGS)" && make && make install DESTDIR=$(destdir)
 
+	# Fix the problem of DESTDIR and libtool
+	sed -i -e "s;/usr/lib/libsearpc-json-glib;$(destdir)/usr/lib/libsearpc-json-glib;g" $(install_prefix)/lib/libsearpc.la
+
 	# build and install ccnet so it can be used by seafile
 	cd $(ccnet_dir) && ./configure $(CROSS) --prefix=/usr --disable-compile-demo CFLAGS="$(CFLAGS)" && make && make install DESTDIR=$(destdir)
 

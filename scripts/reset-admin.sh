@@ -1,3 +1,4 @@
+
 #!/bin/bash
 
 SCRIPT=$(readlink -f "$0")
@@ -7,7 +8,8 @@ default_ccnet_conf_dir=${TOPDIR}/ccnet
 default_seafile_data_dir=${TOPDIR}/seafile-data
 default_seahub_db=${TOPDIR}/seahub.db
 
-function check_python_executable() {if [[ "$PYTHON" != "" && -x $PYTHON ]]; then
+function check_python_executable() {
+    if [[ "$PYTHON" != "" && -x $PYTHON ]]; then
         return 0
     fi
         
