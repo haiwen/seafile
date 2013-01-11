@@ -275,8 +275,14 @@ seaf_db_get_int (SeafDB *db, const char *sql)
 
     seaf_row.res = result;
 
-    if (ResultSet_next (result))
-        ret = seaf_db_row_get_column_int (&seaf_row, 0);
+    TRY
+        if (ResultSet_next (result))
+            ret = seaf_db_row_get_column_int (&seaf_row, 0);
+    CATCH (SQLException)
+        g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
+        Connection_close (conn);
+        return -1;
+    END_TRY;
 
     Connection_close (conn);
     return ret;
@@ -303,9 +309,15 @@ seaf_db_get_int64 (SeafDB *db, const char *sql)
     END_TRY;
 
     seaf_row.res = result;
-    
-    if (ResultSet_next (result))
-        ret = seaf_db_row_get_column_int64 (&seaf_row, 0);
+
+    TRY
+        if (ResultSet_next (result))
+            ret = seaf_db_row_get_column_int64 (&seaf_row, 0);
+    CATCH (SQLException)
+        g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
+        Connection_close (conn);
+        return -1;
+    END_TRY;
 
     Connection_close (conn);
     return ret;
@@ -334,10 +346,16 @@ seaf_db_get_string (SeafDB *db, const char *sql)
 
     seaf_row.res = result;
     
-    if (ResultSet_next (result)) {
-        s = seaf_db_row_get_column_text (&seaf_row, 0);
-        ret = g_strdup(s);
-    }
+    TRY
+        if (ResultSet_next (result)) {
+            s = seaf_db_row_get_column_text (&seaf_row, 0);
+            ret = g_strdup(s);
+        }
+    CATCH (SQLException)
+        g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
+        Connection_close (conn);
+        return NULL;
+    END_TRY;
 
     Connection_close (conn);
     return ret;
