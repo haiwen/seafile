@@ -19,7 +19,7 @@
 #include "seafile-controller.h"
 
 #define CHECK_HEARTBEAT_INTERVAL 2        /* every 2 seconds */
-#define MAX_HEARTBEAT_LIMIT 4
+#define MAX_HEARTBEAT_LIMIT 15
 
 SeafileController *ctl;
 

@@ -535,7 +535,7 @@ def copy_shared_libs():
     '''
 
     output = os.path.join(conf[CONF_BUILDDIR], 'depends.csv')
-    applet = os.path.join(Seafile().projdir(), 'gui', 'win', 'seafile-applet.exe')
+    applet = os.path.join(Seafile().projdir, 'gui', 'win', 'seafile-applet.exe')
     cmd = 'depends.exe -c -f 1 -oc %s %s' % (output, applet)
 
     # See the manual of Dependency walker
