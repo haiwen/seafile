@@ -1,6 +1,7 @@
 #ifndef UNPACK_TREES_H
 #define UNPACK_TREES_H
 
+#include "common.h"
 #include "utils.h"
 #include "seaf-tree-walk.h"
 #include "index/index.h"

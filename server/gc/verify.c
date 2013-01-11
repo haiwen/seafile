@@ -114,8 +114,9 @@ verify_repos ()
 {
     GList *repos = NULL, *ptr;
     int ret = 0;
+    gboolean db_err = FALSE;
 
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, &db_err);
     for (ptr = repos; ptr != NULL; ptr = ptr->next) {
         ret = verify_repo ((SeafRepo *)ptr->data);
         seaf_repo_unref ((SeafRepo *)ptr->data);

@@ -1,6 +1,7 @@
 #ifndef BLOCKTX_COMMON_IMPL_V2_H
 #define BLOCKTX_COMMON_IMPL_V2_H
 
+#include "common.h"
 #include "utils.h"
 
 #define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
@@ -915,10 +916,10 @@ accept_connection (evutil_socket_t connfd, void *vdata)
         return;
     }
 
+    processor = tdata->processor;
+
     if (connfd < 0)
         goto fail;
-
-    processor = tdata->processor;
 
     peer = ccnet_get_peer (seaf->ccnetrpc_client, processor->peer_id);
     if (!peer) {

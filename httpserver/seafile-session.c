@@ -116,10 +116,17 @@ onerror:
 int
 seafile_session_init (SeafileSession *session)
 {
-    seaf_commit_manager_init (session->commit_mgr);
-    seaf_fs_manager_init (session->fs_mgr);
-    seaf_branch_manager_init (session->branch_mgr);
-    seaf_repo_manager_init (session->repo_mgr);
+    if (seaf_commit_manager_init (session->commit_mgr) < 0)
+        return -1;
+
+    if (seaf_fs_manager_init (session->fs_mgr) < 0)
+        return -1;
+
+    if (seaf_branch_manager_init (session->branch_mgr) < 0)
+        return -1;
+
+    if (seaf_repo_manager_init (session->repo_mgr) < 0)
+        return -1;
 
     return 0;
 }

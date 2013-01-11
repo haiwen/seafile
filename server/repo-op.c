@@ -303,8 +303,11 @@ gen_new_commit (const char *repo_id,
                 const char *desc,
                 GError **error)
 {
+#define MAX_RETRY_COUNT 3
+
     SeafRepo *repo = NULL;
-    SeafCommit *new_commit = NULL, *current_head = NULL;
+    SeafCommit *new_commit = NULL, *current_head = NULL, *merged_commit = NULL;
+    int retry_cnt = 0;
     int ret = 0;
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
@@ -344,7 +347,6 @@ retry:
     if (strcmp (base->commit_id, current_head->commit_id) != 0) {
         MergeOptions opt;
         const char *roots[3];
-        SeafCommit *merged_commit;
 
         memset (&opt, 0, sizeof(opt));
         opt.n_ways = 3;
@@ -376,27 +378,26 @@ retry:
             seaf_warning ("Failed to add commit.\n");
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                          "Failed to add commit");
-            seaf_commit_unref (new_commit);
-            return -1;
+            ret = -1;
+            goto out;
         }
-
-        /* replace new_commit with merged_commit. */
-        seaf_commit_unref (new_commit);
-        new_commit = merged_commit;
+    } else {
+        seaf_commit_ref (new_commit);
+        merged_commit = new_commit;
     }
 
-    seaf_branch_set_commit(repo->head, new_commit->commit_id);
+    seaf_branch_set_commit(repo->head, merged_commit->commit_id);
 
     if (seaf_branch_manager_test_and_update_branch(seaf->branch_mgr,
                                                    repo->head,
                                                    current_head->commit_id) < 0)
     {
-        seaf_message ("Concurrent branch update, retry.\n");
-
         seaf_repo_unref (repo);
         repo = NULL;
         seaf_commit_unref (current_head);
         current_head = NULL;
+        seaf_commit_unref (merged_commit);
+        merged_commit = NULL;
 
         repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
         if (!repo) {
@@ -406,12 +407,22 @@ retry:
             goto out;
         }
 
-        goto retry;
+        if (++retry_cnt <= MAX_RETRY_COUNT) {
+            seaf_message ("Concurrent branch update, retry.\n");
+            /* Sleep random time between 100 and 1000 millisecs. */
+            usleep (g_random_int_range(1, 11) * 100 * 1000);
+            goto retry;
+        } else {
+            seaf_warning ("Stop retrying.\n");
+            ret = -1;
+            goto out;
+        }
     }
 
 out:
     seaf_commit_unref (new_commit);
     seaf_commit_unref (current_head);
+    seaf_commit_unref (merged_commit);
     seaf_repo_unref (repo);
     return ret;
 }

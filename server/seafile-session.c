@@ -145,7 +145,7 @@ seafile_session_new(const char *seafile_dir,
     session->mq_mgr = seaf_mq_manager_new (session);
     if (!session->mq_mgr)
         goto onerror;
-    
+
     return session;
 
 onerror:
@@ -157,57 +157,70 @@ onerror:
     return NULL;    
 }
 
-void
+int
 seafile_session_init (SeafileSession *session)
 {
-    seaf_commit_manager_init (session->commit_mgr);
-    seaf_fs_manager_init (session->fs_mgr);
-    seaf_branch_manager_init (session->branch_mgr);
-    seaf_repo_manager_init (session->repo_mgr);
-    seaf_quota_manager_init (session->quota_mgr);
+    if (seaf_commit_manager_init (session->commit_mgr) < 0)
+        return -1;
+
+    if (seaf_fs_manager_init (session->fs_mgr) < 0)
+        return -1;
+
+    if (seaf_branch_manager_init (session->branch_mgr) < 0)
+        return -1;
+
+    if (seaf_repo_manager_init (session->repo_mgr) < 0)
+        return -1;
+
+    if (seaf_quota_manager_init (session->quota_mgr) < 0)
+        return -1;
 
     seaf_mq_manager_init (session->mq_mgr);
     seaf_mq_manager_set_heartbeat_name (session->mq_mgr,
                                         "seaf_server.heartbeat");
+
+    return 0;
 }
 
-void
+int
 seafile_session_start (SeafileSession *session)
 {
     if (cevent_manager_start (session->ev_mgr) < 0) {
         g_error ("Failed to start event manager.\n");
-        return;
+        return -1;
     }
 
     if (seaf_cs_manager_start (session->cs_mgr) < 0) {
         g_error ("Failed to start chunk server manager.\n");
-        return;
+        return -1;
     }
 
     if (seaf_share_manager_start (session->share_mgr) < 0) {
         g_error ("Failed to start share manager.\n");
-        return;
+        return -1;
     }
 
     if (seaf_web_at_manager_start (session->web_at_mgr) < 0) {
         g_error ("Failed to start web access check manager.\n");
-        return;
+        return -1;
     }
 
     if (seaf_passwd_manager_start (session->passwd_mgr) < 0) {
         g_error ("Failed to start password manager.\n");
-        return;
+        return -1;
     }
 
     if (seaf_mq_manager_start (session->mq_mgr) < 0) {
         g_error ("Failed to start mq manager.\n");
-        return;
+        return -1;
     }
 
     if (seaf_listen_manager_start (session->listen_mgr) < 0) {
         g_error ("Failed to start listen manager.\n");
-        return;
+        return -1;
     }
+
+    return 0;
 }
 
 int

@@ -203,7 +203,8 @@ main(int argc, char *argv[])
         g_warning ("Failed to create seafile session.\n");
         exit (1);
     }
-    seafile_session_init(seaf);
+    if (seafile_session_init(seaf) < 0)
+        exit (1);
 
     seaf->client_pool = ccnet_client_pool_new (config_dir);
 

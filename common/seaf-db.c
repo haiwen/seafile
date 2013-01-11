@@ -114,15 +114,19 @@ get_db_connection (SeafDB *db)
      * and then return NULL.
      */
     while (!conn) {
-        if (retries++ == MAX_GET_CONNECTION_RETRIES)
-            break;
+        if (retries++ == MAX_GET_CONNECTION_RETRIES) {
+            g_warning ("Too many concurrent connections. "
+                       "Failed to create new connection.\n");
+            goto out;
+        }
         sleep (1);
         conn = ConnectionPool_getConnection (db->pool);
     }
 
     if (!conn)
-        g_warning ("Too many concurrent connections. Failed to create new connection.\n");
+        g_warning ("Failed to create new connection.\n");
 
+out:
     return conn;
 }
 
@@ -149,26 +153,38 @@ seaf_db_query (SeafDB *db, const char *sql)
 }
 
 gboolean
-seaf_db_check_for_existence (SeafDB *db, const char *sql)
+seaf_db_check_for_existence (SeafDB *db, const char *sql, gboolean *db_err)
 {
     Connection_T conn;
     ResultSet_T result;
     gboolean ret = TRUE;
 
+    *db_err = FALSE;
+
     conn = get_db_connection (db);
-    if (!conn)
+    if (!conn) {
+        *db_err = TRUE;
         return FALSE;
+    }
 
     TRY
         result = Connection_executeQuery (conn, "%s", sql);
     CATCH (SQLException)
         g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
         Connection_close (conn);
+        *db_err = TRUE;
         return FALSE;
     END_TRY;
 
-    if (!ResultSet_next (result))
-        ret = FALSE;
+    TRY
+        if (!ResultSet_next (result))
+            ret = FALSE;
+    CATCH (SQLException)
+        g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
+        Connection_close (conn);
+        *db_err = TRUE;
+        return FALSE;
+    END_TRY;
 
     Connection_close (conn);
 
@@ -197,11 +213,17 @@ seaf_db_foreach_selected_row (SeafDB *db, const char *sql,
     END_TRY;
 
     seaf_row.res = result;
-    while (ResultSet_next (result)) {
-        n_rows++;
-        if (!callback (&seaf_row, data))
-            break;
-    }
+    TRY
+        while (ResultSet_next (result)) {
+            n_rows++;
+            if (!callback (&seaf_row, data))
+                break;
+        }
+    CATCH (SQLException)
+        g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
+        Connection_close (conn);
+        return -1;
+    END_TRY;
 
     Connection_close (conn);
     return n_rows;
@@ -252,7 +274,7 @@ seaf_db_get_int (SeafDB *db, const char *sql)
     END_TRY;
 
     seaf_row.res = result;
-    
+
     if (ResultSet_next (result))
         ret = seaf_db_row_get_column_int (&seaf_row, 0);
 
@@ -338,23 +360,53 @@ seaf_db_begin_transaction (SeafDB *db)
     }
 
     trans->conn = conn;
-    Connection_beginTransaction (trans->conn);
+    TRY
+        Connection_beginTransaction (trans->conn);
+    CATCH (SQLException)
+        g_warning ("Start transaction failed: %s.\n", Exception_frame.message);
+        Connection_close (trans->conn);
+        g_free (trans);
+        return NULL;
+    END_TRY;
 
     return trans;
 }
 
 void
-seaf_db_commit (SeafDBTrans *trans)
+seaf_db_trans_close (SeafDBTrans *trans)
 {
-    Connection_commit (trans->conn);
     Connection_close (trans->conn);
+    g_free (trans);
 }
 
-void
+int
+seaf_db_commit (SeafDBTrans *trans)
+{
+    Connection_T conn = trans->conn;
+
+    TRY
+        Connection_commit (conn);
+    CATCH (SQLException)
+        g_warning ("Commit failed: %s.\n", Exception_frame.message);
+        return -1;
+    END_TRY;
+
+    return 0;
+}
+
+int
 seaf_db_rollback (SeafDBTrans *trans)
 {
-    Connection_rollback (trans->conn);
-    Connection_close (trans->conn);
+    Connection_T conn = trans->conn;
+
+    TRY
+        Connection_rollback (conn);
+    CATCH (SQLException)
+        g_warning ("Rollback failed: %s.\n", Exception_frame.message);
+        return -1;
+    END_TRY;
+
+    return 0;
 }
 
 int
@@ -374,20 +426,31 @@ seaf_db_trans_query (SeafDBTrans *trans, const char *sql)
 }
 
 gboolean
-seaf_db_trans_check_for_existence (SeafDBTrans *trans, const char *sql)
+seaf_db_trans_check_for_existence (SeafDBTrans *trans,
+                                   const char *sql,
+                                   gboolean *db_err)
 {
     ResultSet_T result;
     gboolean ret = TRUE;
+
+    *db_err = FALSE;
 
     TRY
         result = Connection_executeQuery (trans->conn, "%s", sql);
     CATCH (SQLException)
         g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
+        *db_err = TRUE;
         return FALSE;
     END_TRY;
 
-    if (!ResultSet_next (result))
-        ret = FALSE;
+    TRY
+        if (!ResultSet_next (result))
+            ret = FALSE;
+    CATCH (SQLException)
+        g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
+        *db_err = TRUE;
+        return FALSE;
+    END_TRY;
 
     return ret;
 }
@@ -408,11 +471,16 @@ seaf_db_trans_foreach_selected_row (SeafDBTrans *trans, const char *sql,
     END_TRY;
 
     seaf_row.res = result;
+    TRY
     while (ResultSet_next (result)) {
         n_rows++;
         if (!callback (&seaf_row, data))
             break;
     }
+    CATCH (SQLException)
+        g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
+        return -1;
+    END_TRY;
 
     return n_rows;
 }

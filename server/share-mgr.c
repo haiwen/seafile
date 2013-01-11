@@ -27,7 +27,7 @@ seaf_share_manager_start (SeafShareManager *mgr)
     if (db_type == SEAF_DB_TYPE_MYSQL) {
         sql = "CREATE TABLE IF NOT EXISTS SharedRepo "
             "(repo_id CHAR(37) , from_email VARCHAR(512), to_email VARCHAR(512), "
-            "permission CHAR(15), INDEX (repo_id))";
+            "permission CHAR(15), INDEX (repo_id)) ENGINE=INNODB";
 
         if (seaf_db_query (db, sql) < 0)
             return -1;
@@ -51,12 +51,13 @@ seaf_share_manager_add_share (SeafShareManager *mgr, const char *repo_id,
                               const char *permission)
 {
     char sql[512];
+    gboolean db_err = FALSE;
 
     snprintf (sql, sizeof(sql),
               "SELECT repo_id from SharedRepo WHERE repo_id='%s' AND "
               "from_email='%s' AND to_email='%s'", repo_id, from_email,
               to_email);
-    if (seaf_db_check_for_existence (mgr->seaf->db, sql))
+    if (seaf_db_check_for_existence (mgr->seaf->db, sql, &db_err))
         return 0;
 
     snprintf (sql, sizeof(sql),

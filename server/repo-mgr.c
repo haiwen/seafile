@@ -399,27 +399,25 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
 }
 
 static gboolean
-repo_exists_in_db (SeafDB *db, const char *id)
+repo_exists_in_db (SeafDB *db, const char *id, gboolean *db_err)
 {
     char sql[256];
 
     snprintf (sql, sizeof(sql), "SELECT repo_id FROM Repo WHERE repo_id = '%s'",
               id);
-    return seaf_db_check_for_existence (db, sql);
+    return seaf_db_check_for_existence (db, sql, db_err);
 }
 
 SeafRepo*
 seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
 {
-    SeafRepo repo;
     int len = strlen(id);
+    gboolean db_err = FALSE;
 
     if (len >= 37)
         return NULL;
 
-    memcpy (repo.id, id, len + 1);
-
-    if (repo_exists_in_db (manager->seaf->db, id)) {
+    if (repo_exists_in_db (manager->seaf->db, id, &db_err)) {
         SeafRepo *ret = load_repo (manager, id, FALSE);
         if (!ret)
             return NULL;
@@ -433,19 +431,23 @@ seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
 SeafRepo*
 seaf_repo_manager_get_repo_ex (SeafRepoManager *manager, const gchar *id)
 {
-    SeafRepo repo;
     int len = strlen(id);
+    gboolean db_err = FALSE, exists;
+    SeafRepo *ret = NULL;
 
     if (len >= 37)
         return NULL;
 
-    memcpy (repo.id, id, len + 1);
+    exists = repo_exists_in_db (manager->seaf->db, id, &db_err);
 
-    if (repo_exists_in_db (manager->seaf->db, id)) {
-        SeafRepo *ret = load_repo (manager, id, TRUE);
-        if (!ret)
-            return NULL;
-        /* seaf_repo_ref (ret); */
+    if (db_err) {
+        ret = seaf_repo_new(id, NULL, NULL);
+        ret->is_corrupted = TRUE;
+        return ret;
+    }
+
+    if (exists) {
+        ret = load_repo (manager, id, TRUE);
         return ret;
     }
 
@@ -455,10 +457,8 @@ seaf_repo_manager_get_repo_ex (SeafRepoManager *manager, const gchar *id)
 gboolean
 seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id)
 {
-    SeafRepo repo;
-    memcpy (repo.id, id, 37);
-
-    return repo_exists_in_db (manager->seaf->db, id);
+    gboolean db_err = FALSE;
+    return repo_exists_in_db (manager->seaf->db, id, &db_err);
 }
 
 static int
@@ -558,188 +558,244 @@ load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt)
     return repo;
 }
 
-static int 
-create_db_tables_if_not_exist (SeafRepoManager *mgr)
+static int
+create_tables_mysql (SeafRepoManager *mgr)
 {
     SeafDB *db = mgr->seaf->db;
+    char *sql;
 
-    char *sql = "CREATE TABLE IF NOT EXISTS Repo (repo_id CHAR(37) PRIMARY KEY)";
+    sql = "CREATE TABLE IF NOT EXISTS Repo (repo_id CHAR(37) PRIMARY KEY)"
+        "ENGINE=INNODB";
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
-    int db_type = seaf_db_type (db);
-    if (db_type == SEAF_DB_TYPE_MYSQL) {
-        sql = "CREATE TABLE IF NOT EXISTS RepoOwner ("
-            "repo_id CHAR(37) PRIMARY KEY, "
-            "owner_id VARCHAR(255),"
-            "INDEX (owner_id))";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
+    sql = "CREATE TABLE IF NOT EXISTS RepoOwner ("
+        "repo_id CHAR(37) PRIMARY KEY, "
+        "owner_id VARCHAR(255),"
+        "INDEX (owner_id))"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
 
-        sql = "CREATE TABLE IF NOT EXISTS RepoGroup (repo_id CHAR(37), "
-            "group_id INTEGER, user_name VARCHAR(255), permission CHAR(15), "
-            "UNIQUE INDEX (group_id, repo_id), "
-            "INDEX (repo_id), INDEX (user_name))";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
+    sql = "CREATE TABLE IF NOT EXISTS RepoGroup (repo_id CHAR(37), "
+        "group_id INTEGER, user_name VARCHAR(255), permission CHAR(15), "
+        "UNIQUE INDEX (group_id, repo_id), "
+        "INDEX (repo_id), INDEX (user_name))"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
 
-        if (!mgr->seaf->cloud_mode) {
-            sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
-                "repo_id CHAR(37) PRIMARY KEY,"
-                "permission CHAR(15))";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-        }
-
-        if (mgr->seaf->cloud_mode) {
-            sql = "CREATE TABLE IF NOT EXISTS OrgRepo (org_id INTEGER, "
-                "repo_id CHAR(37), "
-                "user VARCHAR(255), "
-                "INDEX (org_id, repo_id), UNIQUE INDEX (repo_id), "
-                "INDEX (org_id, user))";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-
-            sql = "CREATE TABLE IF NOT EXISTS OrgGroupRepo ("
-                "org_id INTEGER, repo_id CHAR(37), "
-                "group_id INTEGER, owner VARCHAR(255), permission CHAR(15), "
-                "UNIQUE INDEX (org_id, group_id, repo_id), "
-                "INDEX (repo_id), INDEX (owner))";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-
-            sql = "CREATE TABLE IF NOT EXISTS OrgInnerPubRepo ("
-                "org_id INTEGER, repo_id CHAR(37),"
-                "PRIMARY KEY (org_id, repo_id), "
-                "permission CHAR(15))";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-        }
-
-        sql = "CREATE TABLE IF NOT EXISTS RepoUserToken ("
-            "repo_id CHAR(37), "
-            "email VARCHAR(255), "
-            "token CHAR(41), "
-            "UNIQUE INDEX (repo_id, token))";
-
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-        
-    } else if (db_type == SEAF_DB_TYPE_SQLITE) {
-        /* Owner */
-
-        sql = "CREATE TABLE IF NOT EXISTS RepoOwner ("
-            "repo_id CHAR(37) PRIMARY KEY, "
-            "owner_id TEXT)";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-        sql = "CREATE INDEX IF NOT EXISTS OwnerIndex ON RepoOwner (owner_id)";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-
-        /* Group repo */
-
-        sql = "CREATE TABLE IF NOT EXISTS RepoGroup (repo_id CHAR(37), "
-            "group_id INTEGER, user_name TEXT, permission CHAR(15))";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-
-        sql = "CREATE UNIQUE INDEX IF NOT EXISTS groupid_repoid_indx on "
-            "RepoGroup (group_id, repo_id)";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-
-        sql = "CREATE INDEX IF NOT EXISTS repogroup_repoid_index on "
-            "RepoGroup (repo_id)";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-
-        sql = "CREATE INDEX IF NOT EXISTS repogroup_username_indx on "
-            "RepoGroup (user_name)";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-
-        /* Public repo */
-
-        if (!mgr->seaf->cloud_mode) {
-            sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
-                "repo_id CHAR(37) PRIMARY KEY,"
-                "permission CHAR(15))";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-        }
-
-        if (mgr->seaf->cloud_mode) {
-            /* Org repo */
-
-            sql = "CREATE TABLE IF NOT EXISTS OrgRepo (org_id INTEGER, "
-                "repo_id CHAR(37), user VARCHAR(255))";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-
-            sql = "CREATE UNIQUE INDEX IF NOT EXISTS repoid_indx on "
-                "OrgRepo (repo_id)";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-
-            sql = "CREATE INDEX IF NOT EXISTS orgid_repoid_indx on "
-                "OrgRepo (org_id, repo_id)";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-
-            sql = "CREATE INDEX IF NOT EXISTS orgrepo_orgid_user_indx on "
-                "OrgRepo (org_id, user)";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-            
-            /* Org group repo */
-
-            sql = "CREATE TABLE IF NOT EXISTS OrgGroupRepo ("
-                "org_id INTEGER, repo_id CHAR(37), "
-                "group_id INTEGER, owner VARCHAR(255), permission CHAR(15))";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-
-            sql = "CREATE UNIQUE INDEX IF NOT EXISTS orgid_groupid_repoid_indx on "
-                "OrgGroupRepo (org_id, group_id, repo_id)";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-
-            sql = "CREATE INDEX IF NOT EXISTS org_repoid_index on "
-                "OrgGroupRepo (repo_id)";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-
-            sql = "CREATE INDEX IF NOT EXISTS org_owner_indx on "
-                "OrgGroupRepo (owner)";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-
-            /* Org public repo */
-
-            sql = "CREATE TABLE IF NOT EXISTS OrgInnerPubRepo ("
-                "org_id INTEGER, repo_id CHAR(37),"
-                "permission CHAR(15),"
-                "PRIMARY KEY (org_id, repo_id))";
-            if (seaf_db_query (db, sql) < 0)
-                return -1;
-        }
-
-        sql = "CREATE TABLE IF NOT EXISTS RepoUserToken ("
-            "repo_id CHAR(37), "
-            "email VARCHAR(255), "
-            "token CHAR(41))";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-
-        sql = "CREATE UNIQUE INDEX IF NOT EXISTS repo_token_indx on "
-            "RepoUserToken (repo_id, token)";
+    if (!mgr->seaf->cloud_mode) {
+        sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
+            "repo_id CHAR(37) PRIMARY KEY,"
+            "permission CHAR(15))"
+            "ENGINE=INNODB";
         if (seaf_db_query (db, sql) < 0)
             return -1;
     }
 
+    if (mgr->seaf->cloud_mode) {
+        sql = "CREATE TABLE IF NOT EXISTS OrgRepo (org_id INTEGER, "
+            "repo_id CHAR(37), "
+            "user VARCHAR(255), "
+            "INDEX (org_id, repo_id), UNIQUE INDEX (repo_id), "
+            "INDEX (org_id, user))"
+            "ENGINE=INNODB";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        sql = "CREATE TABLE IF NOT EXISTS OrgGroupRepo ("
+            "org_id INTEGER, repo_id CHAR(37), "
+            "group_id INTEGER, owner VARCHAR(255), permission CHAR(15), "
+            "UNIQUE INDEX (org_id, group_id, repo_id), "
+            "INDEX (repo_id), INDEX (owner))"
+            "ENGINE=INNODB";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        sql = "CREATE TABLE IF NOT EXISTS OrgInnerPubRepo ("
+            "org_id INTEGER, repo_id CHAR(37),"
+            "PRIMARY KEY (org_id, repo_id), "
+            "permission CHAR(15))"
+            "ENGINE=INNODB";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
+
+    sql = "CREATE TABLE IF NOT EXISTS RepoUserToken ("
+        "repo_id CHAR(37), "
+        "email VARCHAR(255), "
+        "token CHAR(41), "
+        "UNIQUE INDEX (repo_id, token))"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS RepoHead ("
+        "repo_id CHAR(37) PRIMARY KEY, branch_name VARCHAR(10))"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS RepoSize ("
+        "repo_id CHAR(37) PRIMARY KEY,"
+        "size BIGINT UNSIGNED,"
+        "head_id CHAR(41))"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS RepoHistoryLimit ("
+        "repo_id CHAR(37) PRIMARY KEY, days INTEGER)"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS RepoValidSince ("
+        "repo_id CHAR(37) PRIMARY KEY, timestamp BIGINT)"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS WebAP (repo_id CHAR(37) PRIMARY KEY, "
+        "access_property CHAR(10))"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    return 0;
+}
+
+static int
+create_tables_sqlite (SeafRepoManager *mgr)
+{
+    SeafDB *db = mgr->seaf->db;
+    char *sql;
+
+    sql = "CREATE TABLE IF NOT EXISTS Repo (repo_id CHAR(37) PRIMARY KEY)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    /* Owner */
+
+    sql = "CREATE TABLE IF NOT EXISTS RepoOwner ("
+        "repo_id CHAR(37) PRIMARY KEY, "
+        "owner_id TEXT)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+    sql = "CREATE INDEX IF NOT EXISTS OwnerIndex ON RepoOwner (owner_id)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    /* Group repo */
+
+    sql = "CREATE TABLE IF NOT EXISTS RepoGroup (repo_id CHAR(37), "
+        "group_id INTEGER, user_name TEXT, permission CHAR(15))";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE UNIQUE INDEX IF NOT EXISTS groupid_repoid_indx on "
+        "RepoGroup (group_id, repo_id)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE INDEX IF NOT EXISTS repogroup_repoid_index on "
+        "RepoGroup (repo_id)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE INDEX IF NOT EXISTS repogroup_username_indx on "
+        "RepoGroup (user_name)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    /* Public repo */
+
+    if (!mgr->seaf->cloud_mode) {
+        sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
+            "repo_id CHAR(37) PRIMARY KEY,"
+            "permission CHAR(15))";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
+
+    if (mgr->seaf->cloud_mode) {
+        /* Org repo */
+
+        sql = "CREATE TABLE IF NOT EXISTS OrgRepo (org_id INTEGER, "
+            "repo_id CHAR(37), user VARCHAR(255))";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        sql = "CREATE UNIQUE INDEX IF NOT EXISTS repoid_indx on "
+            "OrgRepo (repo_id)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        sql = "CREATE INDEX IF NOT EXISTS orgid_repoid_indx on "
+            "OrgRepo (org_id, repo_id)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        sql = "CREATE INDEX IF NOT EXISTS orgrepo_orgid_user_indx on "
+            "OrgRepo (org_id, user)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+            
+        /* Org group repo */
+
+        sql = "CREATE TABLE IF NOT EXISTS OrgGroupRepo ("
+            "org_id INTEGER, repo_id CHAR(37), "
+            "group_id INTEGER, owner VARCHAR(255), permission CHAR(15))";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        sql = "CREATE UNIQUE INDEX IF NOT EXISTS orgid_groupid_repoid_indx on "
+            "OrgGroupRepo (org_id, group_id, repo_id)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        sql = "CREATE INDEX IF NOT EXISTS org_repoid_index on "
+            "OrgGroupRepo (repo_id)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        sql = "CREATE INDEX IF NOT EXISTS org_owner_indx on "
+            "OrgGroupRepo (owner)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        /* Org public repo */
+
+        sql = "CREATE TABLE IF NOT EXISTS OrgInnerPubRepo ("
+            "org_id INTEGER, repo_id CHAR(37),"
+            "permission CHAR(15),"
+            "PRIMARY KEY (org_id, repo_id))";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
+
+    sql = "CREATE TABLE IF NOT EXISTS RepoUserToken ("
+        "repo_id CHAR(37), "
+        "email VARCHAR(255), "
+        "token CHAR(41))";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE UNIQUE INDEX IF NOT EXISTS repo_token_indx on "
+        "RepoUserToken (repo_id, token)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
     sql = "CREATE TABLE IF NOT EXISTS RepoHead ("
         "repo_id CHAR(37) PRIMARY KEY, branch_name VARCHAR(10))";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS RepoSize ("
+        "repo_id CHAR(37) PRIMARY KEY,"
+        "size BIGINT UNSIGNED,"
+        "head_id CHAR(41))";
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
@@ -759,6 +815,21 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
         return -1;
 
     return 0;
+}
+
+static int 
+create_db_tables_if_not_exist (SeafRepoManager *mgr)
+{
+    SeafDB *db = mgr->seaf->db;
+    int db_type = seaf_db_type (db);
+
+    if (db_type == SEAF_DB_TYPE_MYSQL)
+        return create_tables_mysql (mgr);
+    else if (db_type == SEAF_DB_TYPE_SQLITE)
+        return create_tables_sqlite (mgr);
+
+    g_assert (0);
+    return -1;
 }
 
 /*
@@ -823,8 +894,9 @@ seaf_repo_manager_get_repo_token_nonnull (SeafRepoManager *mgr,
 {
     char sql[256];
     char *token = NULL;
+    gboolean db_err = FALSE;
 
-    if (!repo_exists_in_db (mgr->seaf->db, repo_id))
+    if (!repo_exists_in_db (mgr->seaf->db, repo_id, &db_err))
         return NULL;
     
     snprintf (sql, sizeof(sql), 
@@ -857,8 +929,9 @@ seaf_repo_manager_get_repo_token (SeafRepoManager *mgr,
 {
     char sql[256];
     char *token = NULL;
+    gboolean db_err = FALSE;
 
-    if (!repo_exists_in_db (mgr->seaf->db, repo_id))
+    if (!repo_exists_in_db (mgr->seaf->db, repo_id, &db_err))
         return NULL;
 
     snprintf (sql, sizeof(sql), 
@@ -1488,11 +1561,12 @@ seaf_repo_manager_is_inner_pub_repo (SeafRepoManager *mgr,
                                      const char *repo_id)
 {
     char sql[256];
+    gboolean db_err = FALSE;
 
     snprintf (sql, sizeof(sql),
               "SELECT repo_id FROM InnerPubRepo WHERE repo_id='%s'",
               repo_id);
-    return seaf_db_check_for_existence (mgr->seaf->db, sql);
+    return seaf_db_check_for_existence (mgr->seaf->db, sql, &db_err);
 }
 
 static gboolean
@@ -1896,12 +1970,13 @@ seaf_repo_manager_is_org_inner_pub_repo (SeafRepoManager *mgr,
                                          const char *repo_id)
 {
     char sql[256];
+    gboolean db_err = FALSE;
 
     snprintf (sql, sizeof(sql),
               "SELECT repo_id FROM OrgInnerPubRepo WHERE "
               "org_id = %d AND repo_id='%s'",
               org_id, repo_id);
-    return seaf_db_check_for_existence (mgr->seaf->db, sql);
+    return seaf_db_check_for_existence (mgr->seaf->db, sql, &db_err);
 }
 
 GList *

@@ -8,7 +8,7 @@
 #include "fs-mgr.h"
 #include "commit-mgr.h"
 #include "branch-mgr.h"
-#include "../repo-mgr.h"
+#include "repo-mgr.h"
 #include "db.h"
 #include "seaf-db.h"
 

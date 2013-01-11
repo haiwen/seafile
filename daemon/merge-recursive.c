@@ -4,8 +4,6 @@
  * Fredrik Kuivinen.
  * The thieves were Alex Riesen and Johannes Schindelin, in June/July 2006
  */
-#include <sys/stat.h>
-#include <time.h>
 #include "common.h"
 
 #ifdef WIN32

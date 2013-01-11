@@ -293,7 +293,17 @@ gc_core_run ()
 
     /* If we meet any error when filling in the index, we should bail out.
      */
+#ifdef SEAFILE_SERVER
+    gboolean io_err = FALSE;
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, &io_err);
+    if (io_err) {
+        seaf_warning ("IO error when getting repo list.\n");
+        return -1;
+    }
+#else
     repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
+#endif
+
     for (ptr = repos; ptr != NULL; ptr = ptr->next) {
         ret = populate_gc_index_for_repo ((SeafRepo *)ptr->data, index);
 #ifdef SEAFILE_SERVER

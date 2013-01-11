@@ -207,10 +207,11 @@ static gboolean
 repo_exists_in_db (SeafDB *db, const char *id)
 {
     char sql[256];
+    gboolean db_err = FALSE;
 
     snprintf (sql, sizeof(sql), "SELECT repo_id FROM Repo WHERE repo_id = '%s'",
               id);
-    return seaf_db_check_for_existence (db, sql);
+    return seaf_db_check_for_existence (db, sql, &db_err);
 }
 
 SeafRepo*
@@ -410,8 +411,11 @@ collect_repos (SeafDBRow *row, void *data)
     repo_id = seaf_db_row_get_column_text (row, 0);
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
-        /* Continue to collect the remaining repos. */
-        return TRUE;
+        /* In GC, we should be more conservative.
+         * No matter a repo is really corrupted or it's a temp error,
+         * we return error here.
+         */
+        return FALSE;
     }
     *p_repos = g_list_prepend (*p_repos, repo);
 
@@ -446,7 +450,9 @@ seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr)
 }
 
 GList *
-seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
+seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
+                                 int start, int limit,
+                                 gboolean *io_err)
 {
     GList *ret = NULL;
     char sql[256];
@@ -457,8 +463,10 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
         snprintf (sql, 256, "SELECT repo_id FROM Repo LIMIT %d, %d", start, limit);
 
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
-                                      collect_repos, &ret) < 0)
+                                      collect_repos, &ret) < 0) {
+        *io_err = TRUE;
         return NULL;
+    }
 
     return g_list_reverse (ret);
 }

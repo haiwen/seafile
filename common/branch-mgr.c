@@ -126,6 +126,7 @@ static int
 open_db (SeafBranchManager *mgr)
 {
 #ifndef SEAFILE_SERVER
+
     char *db_path;
     const char *sql;
 
@@ -145,12 +146,27 @@ open_db (SeafBranchManager *mgr)
     sql = "CREATE INDEX IF NOT EXISTS branch_index ON Branch(repo_id, name);";
     if (sqlite_query_exec (mgr->priv->db, sql) < 0)
         return -1;
-#else
-    char *sql = "CREATE TABLE IF NOT EXISTS Branch ("
-          "name VARCHAR(10), repo_id CHAR(41), commit_id CHAR(41),"
-          "PRIMARY KEY (repo_id, name))";
-    if (seaf_db_query (mgr->seaf->db, sql) < 0)
-        return -1;
+
+#elif defined FULL_FEATURE
+
+    char *sql;
+    switch (seaf_db_type (mgr->seaf->db)) {
+    case SEAF_DB_TYPE_MYSQL:
+        sql = "CREATE TABLE IF NOT EXISTS Branch ("
+            "name VARCHAR(10), repo_id CHAR(41), commit_id CHAR(41),"
+            "PRIMARY KEY (repo_id, name)) ENGINE = INNODB";
+        if (seaf_db_query (mgr->seaf->db, sql) < 0)
+            return -1;
+        break;
+    case SEAF_DB_TYPE_SQLITE:
+        sql = "CREATE TABLE IF NOT EXISTS Branch ("
+            "name VARCHAR(10), repo_id CHAR(41), commit_id CHAR(41),"
+            "PRIMARY KEY (repo_id, name))";
+        if (seaf_db_query (mgr->seaf->db, sql) < 0)
+            return -1;
+        break;
+    }
+
 #endif
 
     return 0;
@@ -302,19 +318,34 @@ seaf_branch_manager_test_and_update_branch (SeafBranchManager *mgr,
     char commit_id[41] = { 0 };
 
     trans = seaf_db_begin_transaction (mgr->seaf->db);
+    if (!trans)
+        return -1;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT commit_id FROM Branch WHERE name='%s' AND repo_id='%s'",
-              branch->name, branch->repo_id);
+    switch (seaf_db_type (mgr->seaf->db)) {
+    case SEAF_DB_TYPE_MYSQL:
+        snprintf (sql, sizeof(sql),
+                  "SELECT commit_id FROM Branch WHERE name='%s' "
+                  "AND repo_id='%s' FOR UPDATE",
+                  branch->name, branch->repo_id);
+        break;
+    case SEAF_DB_TYPE_SQLITE:
+        snprintf (sql, sizeof(sql),
+                  "SELECT commit_id FROM Branch WHERE name='%s' "
+                  "AND repo_id='%s'",
+                  branch->name, branch->repo_id);
+        break;
+    }
     if (seaf_db_trans_foreach_selected_row (trans, sql,
                                             get_commit_id, commit_id) < 0) {
         seaf_db_rollback (trans);
+        seaf_db_trans_close (trans);
         return -1;
     }
     if (strcmp (old_commit_id, commit_id) != 0) {
-        g_warning ("[branch mgr] Branch update conflict for repo %s, rollback.\n",
+        g_message ("[branch mgr] Branch update conflict for repo %s, rollback.\n",
                    branch->repo_id);
         seaf_db_rollback (trans);
+        seaf_db_trans_close (trans);
         return -1;
     }
 
@@ -324,10 +355,18 @@ seaf_branch_manager_test_and_update_branch (SeafBranchManager *mgr,
               branch->commit_id, branch->name, branch->repo_id);
     if (seaf_db_trans_query (trans, sql) < 0) {
         seaf_db_rollback (trans);
+        seaf_db_trans_close (trans);
         return -1;
     }
 
-    seaf_db_commit (trans);
+    if (seaf_db_commit (trans) < 0) {
+        seaf_db_rollback (trans);
+        seaf_db_trans_close (trans);
+        return -1;
+    }
+
+    seaf_db_trans_close (trans);
+
     on_branch_updated (mgr, branch);
 
     return 0;
@@ -474,10 +513,11 @@ seaf_branch_manager_branch_exists (SeafBranchManager *mgr,
     return ret;
 #else
     char sql[256];
+    gboolean db_err = FALSE;
 
     snprintf (sql, sizeof(sql), "SELECT name FROM Branch WHERE name='%s' "
               "AND repo_id='%s'", name, repo_id);
-    return seaf_db_check_for_existence (mgr->seaf->db, sql);
+    return seaf_db_check_for_existence (mgr->seaf->db, sql, &db_err);
 #endif
 }
 

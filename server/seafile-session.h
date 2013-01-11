@@ -83,10 +83,10 @@ extern SeafileSession *seaf;
 SeafileSession *
 seafile_session_new(const char *seafile_dir,
                     struct _CcnetClient *ccnet_session);
-void
+int
 seafile_session_init (SeafileSession *session);
 
-void
+int
 seafile_session_start (SeafileSession *session);
 
 char *

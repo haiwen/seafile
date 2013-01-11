@@ -207,10 +207,11 @@ static gboolean
 repo_exists_in_db (SeafDB *db, const char *id)
 {
     char sql[256];
+    gboolean db_err = FALSE;
 
     snprintf (sql, sizeof(sql), "SELECT repo_id FROM Repo WHERE repo_id = '%s'",
               id);
-    return seaf_db_check_for_existence (db, sql);
+    return seaf_db_check_for_existence (db, sql, &db_err);
 }
 
 SeafRepo*

@@ -1,6 +1,8 @@
 #ifndef INDEX_H
 #define INDEX_H
 
+#include "common.h"
+
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/stat.h>

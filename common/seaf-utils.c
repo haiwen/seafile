@@ -73,9 +73,6 @@ mysql_db_start (SeafileSession *session)
 
     unix_socket = g_key_file_get_string (session->config, 
                                          "database", "unix_socket", &error);
-    if (!unix_socket) {
-        g_warning ("Unix socket path not set in config.\n");
-    }
 
     session->db = seaf_db_new_mysql (host, user, passwd, db, unix_socket);
     if (!session->db) {

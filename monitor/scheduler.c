@@ -46,29 +46,9 @@ scheduler_new (SeafileSession *session)
     return sched;
 }
 
-static int
-create_repo_stat_tables (SeafileSession *session)
-{
-    SeafDB *db = session->db;
-
-    char *sql = "CREATE TABLE IF NOT EXISTS RepoSize ("
-        "repo_id CHAR(37) PRIMARY KEY,"
-        "size BIGINT UNSIGNED,"
-        "head_id CHAR(41))";
-    if (seaf_db_query (db, sql) < 0)
-        return -1;
-
-    return 0;
-}
-
 int
 scheduler_init (Scheduler *scheduler)
 {
-    if (create_repo_stat_tables (scheduler->seaf) < 0) {
-        g_warning ("[scheduler] failed to create stat tables.\n");
-        return -1;
-    }
-
     scheduler->priv->repo_size_job_queue = g_queue_new ();
     scheduler->priv->sched_timer = ccnet_timer_new (schedule_pulse,
                                               scheduler,

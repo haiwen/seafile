@@ -813,9 +813,11 @@ main (int argc, char **argv)
     set_signal_handlers (seaf);
 
     /* init seaf */
-    seafile_session_init (seaf);
+    if (seafile_session_init (seaf) < 0)
+        exit (1);
 
-    seafile_session_start (seaf);
+    if (seafile_session_start (seaf) < 0)
+        exit (1);
 
     if (pidfile) {
         if (write_pidfile (pidfile) < 0) {

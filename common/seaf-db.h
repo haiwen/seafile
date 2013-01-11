@@ -32,7 +32,7 @@ int
 seaf_db_query (SeafDB *db, const char *sql);
 
 gboolean
-seaf_db_check_for_existence (SeafDB *db, const char *sql);
+seaf_db_check_for_existence (SeafDB *db, const char *sql, gboolean *db_err);
 
 int
 seaf_db_foreach_selected_row (SeafDB *db, const char *sql, 
@@ -62,16 +62,21 @@ SeafDBTrans *
 seaf_db_begin_transaction (SeafDB *db);
 
 void
+seaf_db_trans_close (SeafDBTrans *trans);
+
+int
 seaf_db_commit (SeafDBTrans *trans);
 
-void
+int
 seaf_db_rollback (SeafDBTrans *trans);
 
 int
 seaf_db_trans_query (SeafDBTrans *trans, const char *sql);
 
 gboolean
-seaf_db_trans_check_for_existence (SeafDBTrans *trans, const char *sql);
+seaf_db_trans_check_for_existence (SeafDBTrans *trans,
+                                   const char *sql,
+                                   gboolean *db_err);
 
 int
 seaf_db_trans_foreach_selected_row (SeafDBTrans *trans, const char *sql,
