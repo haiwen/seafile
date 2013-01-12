@@ -23,7 +23,7 @@ def main():
     c.execute('CREATE INDEX IF NOT EXISTS "share_fileshare_f775835c" ON "share_fileshare" ("s_type")')
         
     sql = '''CREATE TABLE IF NOT EXISTS `base_dirfileslastmodifiedinfo` (
-    "id" integer NOT NULL PRIMARY KEY,
+    "id" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
     "repo_id" varchar(36) NOT NULL,
     "parent_dir" text NOT NULL,
     "parent_dir_hash" varchar(12) NOT NULL,
