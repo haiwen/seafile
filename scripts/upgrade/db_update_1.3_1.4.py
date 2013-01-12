@@ -33,6 +33,13 @@ def main():
     
     c.execute(sql)
 
+    sql = '''CREATE TABLE "api2_token" (
+    "key" varchar(40) NOT NULL PRIMARY KEY,
+    "user" varchar(255) NOT NULL UNIQUE,
+    "created" datetime NOT NULL)'''
+    
+    c.execute(sql)
+
     conn.commit()
 
 if __name__ == '__main__':    
