@@ -20,6 +20,11 @@ seaf_wt_monitor_new (SeafileSession *seaf)
         (g_direct_hash, g_direct_equal, NULL, NULL);
 #endif
 
+#ifdef __linux__
+    priv->mapping_hash = g_hash_table_new_full (g_direct_hash, g_direct_equal,
+                                                NULL, (GDestroyNotify)free_mapping);
+#endif
+
     monitor->priv = priv;
     monitor->seaf = seaf;
 

@@ -57,11 +57,12 @@ static int default_write_chunk (CDCDescriptor *chunk_descr)
     return ret;
 }
 
-static int init_cdc_file_descriptor (int fd, CDCFileDescriptor *file_descr)
+static int init_cdc_file_descriptor (int fd,
+                                     uint64_t file_size,
+                                     CDCFileDescriptor *file_descr)
 {
     int max_block_nr = 0;
     int block_min_sz = 0;
-    SeafStat sb;
 
     file_descr->block_nr = 0;
 
@@ -75,12 +76,8 @@ static int init_cdc_file_descriptor (int fd, CDCFileDescriptor *file_descr)
     if (file_descr->write_block == NULL)
         file_descr->write_block = (WriteblockFunc)default_write_chunk;
 
-    if (seaf_fstat (fd, &sb) < 0) {
-        return -1;
-    }
-
     block_min_sz = file_descr->block_min_sz;
-    max_block_nr = ((sb.st_size + block_min_sz - 1) / block_min_sz);
+    max_block_nr = ((file_size + block_min_sz - 1) / block_min_sz);
     file_descr->blk_sha1s = (uint8_t *)calloc (sizeof(uint8_t),
                                                max_block_nr * CHECKSUM_LENGTH);
     file_descr->max_block_nr = max_block_nr;
@@ -124,7 +121,13 @@ int file_chunk_cdc(int fd_src,
     CDCDescriptor chunk_descr;
     SHA1_Init (&file_ctx);
 
-    init_cdc_file_descriptor (fd_src, file_descr);
+    SeafStat sb;
+    if (seaf_fstat (fd_src, &sb) < 0) {
+        return -1;
+    }
+    uint64_t expected_size = sb.st_size;
+
+    init_cdc_file_descriptor (fd_src, expected_size, file_descr);
     uint32_t block_min_sz = file_descr->block_min_sz;
     uint32_t block_mask = file_descr->block_sz - 1;
 
@@ -156,6 +159,13 @@ int file_chunk_cdc(int fd_src,
             return -1;
         }
         tail += ret;
+        file_descr->file_size += ret;
+
+        if (file_descr->file_size > expected_size) {
+            g_warning ("File size changed while chunking.\n");
+            free (buf);
+            return -1;
+        }
 
         /* We've read all the data in this file. Output the block immediately
          * in two cases:
@@ -165,7 +175,8 @@ int file_chunk_cdc(int fd_src,
         if (tail < block_min_sz || cur >= tail) {
             if (tail > 0) {
                 if (file_descr->block_nr == file_descr->max_block_nr) {
-                    g_warning ("File size changed while chunking it.\n");
+                    g_warning ("Block id array is not large enough, bail out.\n");
+                    free (buf);
                     return -1;
                 }
                 WRITE_CDC_BLOCK (tail, write_data);
@@ -190,7 +201,8 @@ int file_chunk_cdc(int fd_src,
                 || cur + 1 >= file_descr->block_max_sz)
             {
                 if (file_descr->block_nr == file_descr->max_block_nr) {
-                    g_warning ("File size changed while chunking it.\n");
+                    g_warning ("Block id array is not large enough, bail out.\n");
+                    free (buf);
                     return -1;
                 }
 

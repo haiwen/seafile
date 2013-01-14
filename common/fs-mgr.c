@@ -62,7 +62,6 @@ uint32_t
 calculate_chunk_size (uint64_t total_size);
 static int
 write_seafile (SeafFSManager *fs_mgr,
-               uint64_t file_size,
                CDCFileDescriptor *cdc);
 #endif  /* SEAFILE_SERVER */
 
@@ -277,7 +276,6 @@ bad:
 
 static int
 write_seafile (SeafFSManager *fs_mgr,
-               uint64_t file_size,
                CDCFileDescriptor *cdc)
 {
     char seafile_id[41];
@@ -291,7 +289,7 @@ write_seafile (SeafFSManager *fs_mgr,
     ondisk = (SeafileOndisk *)g_new0 (char, ondisk_size);
 
     ondisk->type = htonl(SEAF_METADATA_TYPE_FILE);
-    ondisk->file_size = hton64 (file_size); 
+    ondisk->file_size = hton64 (cdc->file_size);
     memcpy (ondisk->block_ids, cdc->blk_sha1s, cdc->block_nr * 20);
 
     if (seaf_obj_store_write_obj (fs_mgr->obj_store, seafile_id,
@@ -435,7 +433,7 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
         memcpy (sha1, cdc.file_sum, 20);
     }
 
-    if (write_seafile (mgr, (uint64_t)sb.st_size, &cdc) < 0) {
+    if (write_seafile (mgr, &cdc) < 0) {
         g_warning ("Failed to write seafile for %s.\n", file_path);
         return -1;
     }

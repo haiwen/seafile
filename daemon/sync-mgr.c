@@ -603,8 +603,8 @@ merge_job_done (void *vresult)
     SeafRepo *repo = res->task->repo;
 
     if (repo->delete_pending) {
-        seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
         transition_sync_state (res->task, SYNC_STATE_CANCELED);
+        seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
         g_free (res);
         return;
     }
@@ -615,11 +615,12 @@ merge_job_done (void *vresult)
         return;
     }
 
-    if (res->success && repo->auto_sync) {
+    if (repo->auto_sync && res->task->force_upload) {
         if (seaf_wt_monitor_refresh_repo (seaf->wt_monitor, 
                                           repo->id) < 0) {
-            seaf_warning ("[sync mgr] failed to refresh worktree watch for repo %s(%.8s).\n",
-                       repo->name, repo->id);
+            seaf_warning ("[sync mgr] failed to refresh worktree "
+                          "watch for repo %s(%.8s).\n",
+                          repo->name, repo->id);
         }
     }
 
@@ -734,8 +735,8 @@ sync_done_cb (CcnetProcessor *processor, gboolean success, void *data)
     SeafRepo *repo = task->repo;
 
     if (repo->delete_pending) {
-        seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
         transition_sync_state (task, SYNC_STATE_CANCELED);
+        seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
         return;
     }
 
@@ -921,8 +922,8 @@ commit_job_done (void *vres)
     SeafRepo *repo = res->task->repo;
 
     if (repo->delete_pending) {
-        seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
         transition_sync_state (res->task, SYNC_STATE_CANCELED);
+        seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
         g_free (res);
         return;
     }
@@ -933,34 +934,19 @@ commit_job_done (void *vres)
         return;
     }
 
+    if (repo->auto_sync && res->task->force_upload) {
+        if (seaf_wt_monitor_refresh_repo (seaf->wt_monitor, 
+                                          repo->id) < 0) {
+            seaf_warning ("[sync mgr] failed to refresh worktree "
+                          "watch for repo %s(%.8s).\n",
+                          repo->name, repo->id);
+        }
+    }
+
     if (!res->success) {
         seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_COMMIT);
         g_free (res);
         return;
-    }
-
-    /* If a new dir or file is added, we need to add watch for it.
-     * This is not automatically handled by inotify, we need to refresh
-     * the watch list.
-     * On windows, this will be no-op since the system handles this
-     * situation already.
-     */
-    /* XXX: We should check res->changed first. But we ignore empty
-     * directories. On linux, this may cause one problem:
-     *  1. the user creates an empty dir;
-     *  2. We ignore empty dir, so when commit, there will be no changes in index.
-     *  3. res->changed is FALSE. So the empty dir is not monitored.
-     *  4. After that, the user adds a file under that empty dir.
-     *  5. The new file is not detected.
-     *
-     *  So we just don't check res->changed.
-     */
-    if (repo->auto_sync) {
-        if (seaf_wt_monitor_refresh_repo (seaf->wt_monitor, 
-                                          repo->id) < 0) {
-            seaf_warning ("[sync mgr] failed to refresh worktree watch for repo %s(%.8s).\n",
-                       repo->name, repo->id);
-        }
     }
 
     /* If nothing committed and is not manual sync, no need to sync. */
@@ -1002,8 +988,8 @@ get_email_token_done (CcnetProcessor *processor, gboolean success, void *data)
     char *repo_id = task->info->repo_id;
 
     if (task->repo->delete_pending) {
-        seaf_repo_manager_del_repo (seaf->repo_mgr, task->repo);
         transition_sync_state (task, SYNC_STATE_CANCELED);
+        seaf_repo_manager_del_repo (seaf->repo_mgr, task->repo);
         return;
     }
 
@@ -1407,8 +1393,8 @@ on_repo_fetched (SeafileSession *seaf,
         return;
 
     if (task->repo->delete_pending) {
-        seaf_repo_manager_del_repo (seaf->repo_mgr, task->repo);
         transition_sync_state (task, SYNC_STATE_CANCELED);
+        seaf_repo_manager_del_repo (seaf->repo_mgr, task->repo);
         return;
     }
 
@@ -1440,8 +1426,8 @@ on_repo_uploaded (SeafileSession *seaf,
     g_assert (task != NULL && info->in_sync);
 
     if (task->repo->delete_pending) {
-        seaf_repo_manager_del_repo (seaf->repo_mgr, task->repo);
         transition_sync_state (task, SYNC_STATE_CANCELED);
+        seaf_repo_manager_del_repo (seaf->repo_mgr, task->repo);
         return;
     }
 
