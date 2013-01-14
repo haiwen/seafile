@@ -3,6 +3,8 @@
 #ifndef CCNET_UTILS_H
 #define CCNET_UTILS_H
 
+#include "common.h"
+
 #include <sys/time.h>
 #include <stdint.h>
 #include <unistd.h>
