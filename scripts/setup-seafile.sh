@@ -431,7 +431,7 @@ fi
 # Seahub related config
 # -------------------------------------------
 echo "-----------------------------------------------------------------"
-echo "Seahub is the web server for seafile server administaration."
+echo "Seahub is the web interface for seafile server."
 echo "Now let's setup seahub configuration. Press [ENTER] to continue"
 echo "-----------------------------------------------------------------"
 echo
@@ -562,7 +562,7 @@ echo "-----------------------------------------------------------------"
 echo
 echo "port of ccnet server:         ${server_port}"
 echo "port of seafile server:       ${seafile_server_port}"
-echo "port of httpserver server:    ${httpserver_port}"
+echo "port of seafile httpserver:    ${httpserver_port}"
 echo "port of seahub:               8000"
 echo
 echo -e "When problems occur, Refer to\n"
