@@ -15,6 +15,10 @@
 #include <evutil.h>
 #include <sys/stat.h>
 
+#ifdef __linux__
+#include <endian.h>
+#endif
+
 #ifdef WIN32
 #include <errno.h>
 #include <glib/gstdio.h>
@@ -219,7 +223,7 @@ ccnet_decrypt (char **data_out,
  */
 
 static inline uint64_t
-hton64(uint64_t val)
+bswap64 (uint64_t val)
 {
     uint64_t ret;
     uint8_t *ptr = (uint8_t *)&ret;
@@ -236,78 +240,66 @@ hton64(uint64_t val)
     return ret;
 }
 
+static inline uint64_t
+hton64(uint64_t val)
+{
+#if __BYTE_ORDER == __LITTLE_ENDIAN || defined WIN32 || defined __APPLE__
+    return bswap64 (val);
+#else
+    return val;
+#endif
+}
+
 static inline uint64_t 
 ntoh64(uint64_t val) 
 {
-    uint64_t t64;
-    uint8_t *ptr = (uint8_t *)&val;
-
-    t64=(ptr[3]+256*(ptr[2]+256*(ptr[1]+256*ptr[0])));
-    t64<<=32;
-    t64|=((ptr[7]+256*(ptr[6]+256*(ptr[5]+256*ptr[4]))))&0xffffffffU;
-
-    return t64;
+#if __BYTE_ORDER == __LITTLE_ENDIAN || defined WIN32 || defined __APPLE__
+    return bswap64 (val);
+#else
+    return val;
+#endif
 }
 
-static inline void put64bit(uint8_t **ptr,uint64_t val) {
-    (*ptr)[0]=((val)>>56)&0xFF;
-    (*ptr)[1]=((val)>>48)&0xFF;
-    (*ptr)[2]=((val)>>40)&0xFF;
-    (*ptr)[3]=((val)>>32)&0xFF;
-    (*ptr)[4]=((val)>>24)&0xFF;
-    (*ptr)[5]=((val)>>16)&0xFF;
-    (*ptr)[6]=((val)>>8)&0xFF;
-    (*ptr)[7]=(val)&0xFF;
+static inline void put64bit(uint8_t **ptr,uint64_t val)
+{
+    uint64_t val_n = hton64 (val);
+    *((uint64_t *)(*ptr)) = val_n;
     (*ptr)+=8;
 }
 
-static inline void put32bit(uint8_t **ptr,uint32_t val) {
-    (*ptr)[0]=((val)>>24)&0xFF;
-    (*ptr)[1]=((val)>>16)&0xFF;
-    (*ptr)[2]=((val)>>8)&0xFF;
-    (*ptr)[3]=(val)&0xFF;
+static inline void put32bit(uint8_t **ptr,uint32_t val)
+{
+    uint32_t val_n = htonl (val);
+    *((uint32_t *)(*ptr)) = val_n;
     (*ptr)+=4;
 }
 
-static inline void put16bit(uint8_t **ptr,uint16_t val) {
-    (*ptr)[0]=((val)>>8)&0xFF;
-    (*ptr)[1]=(val)&0xFF;
+static inline void put16bit(uint8_t **ptr,uint16_t val)
+{
+    uint16_t val_n = htons (val);
+    *((uint16_t *)(*ptr)) = val_n;
     (*ptr)+=2;
 }
 
-static inline void put8bit(uint8_t **ptr,uint8_t val) {
-    (*ptr)[0]=(val)&0xFF;
-    (*ptr)++;
-}
-
-static inline uint64_t get64bit(const uint8_t **ptr) {
-    uint64_t t64;
-    t64=((*ptr)[3]+256*((*ptr)[2]+256*((*ptr)[1]+256*(*ptr)[0])));
-    t64<<=32;
-    t64|=(((*ptr)[7]+256*((*ptr)[6]+256*((*ptr)[5]+256*(*ptr)[4]))))&0xffffffffU;
+static inline uint64_t get64bit(const uint8_t **ptr)
+{
+    uint64_t val_h = ntoh64 (*((uint64_t *)(*ptr)));
     (*ptr)+=8;
-    return t64;
+    return val_h;
 }
 
-static inline uint32_t get32bit(const uint8_t **ptr) {
-    uint32_t t32;
-    t32=((*ptr)[3]+256*((*ptr)[2]+256*((*ptr)[1]+256*(*ptr)[0])));
+static inline uint32_t get32bit(const uint8_t **ptr)
+{
+    uint32_t val_h = ntohl (*((uint32_t *)(*ptr)));
     (*ptr)+=4;
-    return t32;
+    return val_h;
 }
 
-static inline uint16_t get16bit(const uint8_t **ptr) {
-    uint32_t t16;
-    t16=(*ptr)[1]+256*(*ptr)[0];
+static inline uint16_t get16bit(const uint8_t **ptr)
+{
+    uint16_t val_h = ntohs (*((uint16_t *)(*ptr)));
     (*ptr)+=2;
-    return t16;
-}
-
-static inline uint8_t get8bit(const uint8_t **ptr) {
-    uint32_t t8;
-    t8=(*ptr)[0];
-    (*ptr)++;
-    return t8;
+    return val_h;
 }
 
 /* Convert between local encoding and utf8. Returns the converted

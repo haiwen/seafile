@@ -1,6 +1,7 @@
 AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	-DPACKAGE_DATA_DIR=\""$(pkgdatadir)"\" \
 	-I$(top_srcdir)/include \
+	-I$(top_srcdir)/common \
 	-I$(top_srcdir)/lib  \
 	@CCNET_CFLAGS@ \
 	@GLIB2_CFLAGS@ \
