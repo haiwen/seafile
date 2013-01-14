@@ -44,6 +44,7 @@ typedef struct _CDCFileDescriptor {
     uint32_t block_min_sz;
     uint32_t block_max_sz;
     uint32_t block_sz;
+    uint64_t file_size;
 
     uint32_t block_nr;
     uint8_t *blk_sha1s;
