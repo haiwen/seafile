@@ -60,13 +60,14 @@ typedef struct RecvFSM {
     evbuf_t *line;          /* buffer for a line */
 
     GHashTable *form_kvs;       /* key/value of form fields */
-    GList *uploaded_files;      /* uploaded file names */
-    GList *tmp_files;           /* tmp files for each uploaded file */
+    GList *filenames;           /* uploaded file names */
+    GList *files;               /* paths for completely uploaded tmp files. */
 
     gboolean recved_crlf; /* Did we recv a CRLF when write out the last line? */
     char *file_name;
     char *tmp_file;
     int fd;
+    GList *tmp_files;           /* tmp files for each uploading file */
 
     /* For upload progress. */
     char *progress_id;
@@ -254,7 +255,7 @@ upload_cb(evhtp_request_t *req, void *arg)
     if (!fsm || fsm->state == RECV_ERROR)
         return;
 
-    if (!fsm->tmp_files) {
+    if (!fsm->files) {
         seaf_warning ("[upload] No file uploaded.\n");
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
@@ -268,7 +269,7 @@ upload_cb(evhtp_request_t *req, void *arg)
         return;
     }
 
-    if (!check_tmp_file_list (fsm->tmp_files, &error_code))
+    if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
     rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
@@ -281,8 +282,8 @@ upload_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    filenames_json = file_list_to_json (fsm->uploaded_files);
-    tmp_files_json = file_list_to_json (fsm->tmp_files);
+    filenames_json = file_list_to_json (fsm->filenames);
+    tmp_files_json = file_list_to_json (fsm->files);
 
     seafile_post_multi_files (rpc_client,
                               fsm->repo_id,
@@ -334,7 +335,7 @@ upload_api_cb(evhtp_request_t *req, void *arg)
     if (!fsm || fsm->state == RECV_ERROR)
         return;
 
-    if (!fsm->tmp_files) {
+    if (!fsm->files) {
         seaf_warning ("[upload] No file uploaded.\n");
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
@@ -348,7 +349,7 @@ upload_api_cb(evhtp_request_t *req, void *arg)
         return;
     }
 
-    if (!check_tmp_file_list (fsm->tmp_files, &error_code))
+    if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
     rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
@@ -361,8 +362,8 @@ upload_api_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    filenames_json = file_list_to_json (fsm->uploaded_files);
-    tmp_files_json = file_list_to_json (fsm->tmp_files);
+    filenames_json = file_list_to_json (fsm->filenames);
+    tmp_files_json = file_list_to_json (fsm->files);
 
     seafile_post_multi_files (rpc_client,
                               fsm->repo_id,
@@ -428,7 +429,7 @@ update_cb(evhtp_request_t *req, void *arg)
     if (!fsm || fsm->state == RECV_ERROR)
         return;
 
-    if (!fsm->tmp_files) {
+    if (!fsm->files) {
         seaf_warning ("[update] No file uploaded.\n");
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
@@ -445,7 +446,7 @@ update_cb(evhtp_request_t *req, void *arg)
     parent_dir = g_path_get_dirname (target_file);
     filename = g_path_get_basename (target_file);
 
-    if (!check_tmp_file_list (fsm->tmp_files, &error_code))
+    if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
     head_id = evhtp_kv_find (req->uri->query, "head");
@@ -462,7 +463,7 @@ update_cb(evhtp_request_t *req, void *arg)
 
     seafile_put_file (rpc_client,
                       fsm->repo_id,
-                      (char *)(fsm->tmp_files->data),
+                      (char *)(fsm->files->data),
                       parent_dir,
                       filename,
                       fsm->user,
@@ -522,7 +523,8 @@ upload_finish_cb (evhtp_request_t *req, void *arg)
     for (ptr = fsm->tmp_files; ptr; ptr = ptr->next)
         g_unlink ((char *)(ptr->data));
     string_list_free (fsm->tmp_files);
-    string_list_free (fsm->uploaded_files);
+    string_list_free (fsm->filenames);
+    string_list_free (fsm->files);
 
     evbuffer_free (fsm->line);
 
@@ -622,7 +624,8 @@ open_temp_file (RecvFSM *fsm)
 {
     GString *temp_file = g_string_new (NULL);
 
-    g_string_printf (temp_file, "%s/%sXXXXXX", TEMP_FILE_DIR, fsm->file_name);
+    g_string_printf (temp_file, "%s/%sXXXXXX",
+                     TEMP_FILE_DIR, get_basename(fsm->file_name));
 
     fsm->fd = mkstemp (temp_file->str);
     if (fsm->fd < 0) {
@@ -631,6 +634,8 @@ open_temp_file (RecvFSM *fsm)
     }
 
     fsm->tmp_file = g_string_free (temp_file, FALSE);
+    /* For clean up later. */
+    fsm->tmp_files = g_list_prepend (fsm->tmp_files, g_strdup(fsm->tmp_file));
 
     return 0;
 }
@@ -669,9 +674,9 @@ recv_form_field (RecvFSM *fsm, gboolean *no_line)
 static void
 add_uploaded_file (RecvFSM *fsm)
 {
-    fsm->uploaded_files = g_list_prepend (fsm->uploaded_files,
-                                          get_basename(fsm->file_name));
-    fsm->tmp_files = g_list_prepend (fsm->tmp_files, g_strdup(fsm->tmp_file));
+    fsm->filenames = g_list_prepend (fsm->filenames,
+                                     get_basename(fsm->file_name));
+    fsm->files = g_list_prepend (fsm->files, g_strdup(fsm->tmp_file));
 
     g_free (fsm->file_name);
     g_free (fsm->tmp_file);
