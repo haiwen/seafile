@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2012-12-07 11:55+CST\n"
+"POT-Creation-Date: 2013-01-16 20:21+CST\n"
 "PO-Revision-Date: 2012-11-04 11:07+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,40 +15,44 @@ msgstr ""
 "Content-Transfer-Encoding: UTF-8\n"
 "Generated-By: pygettext.py 1.5\n"
 
-#: main.py:570 main.py:684
+#: main.py:576 main.py:698
 msgid "You must choose a local directory"
 msgstr "你必须指定一个本地目录"
 
-#: main.py:572 main.py:686
+#: main.py:578 main.py:700
 msgid "Password can not be empty"
 msgstr "密码不能为空"
 
-#: main.py:574 main.py:688
+#: main.py:580 main.py:702
 msgid "Invalid Repo ID"
 msgstr "资料库ID格式不正确"
 
-#: main.py:606 main.py:717
+#: main.py:615 main.py:734
 msgid "Invalid local directory"
 msgstr "不是合法的本地目录"
 
-#: main.py:608 main.py:719
+#: main.py:617 main.py:736
 msgid ""
 "The local directory you chose is in sync with another repo. Please choose "
 "another one."
 msgstr "你所指定的本地目录已经与其他资料库同步，请指定其他本地目录"
 
-#: main.py:610 main.py:721
+#: main.py:619 main.py:738
 msgid ""
 "The local directory you chose cannot be under or includes a system directory "
 "of seafile."
 msgstr "本地目录的路径不能处在 Seafile 系统目录下，或者包含 Seafile 系统目录"
 
-#: main.py:612 main.py:723
+#: main.py:621 main.py:740
 msgid ""
 "The local directory you chose cannot be under or includes another library."
 msgstr "本地目录的路径不能处在其他资料库目录下，或者包含其他资料库目录"
 
-#: main.py:614 main.py:725 templates/clone_tasks.html:69
+#: main.py:623 main.py:742
+msgid "Incorrect password."
+msgstr "密码错误"
+
+#: main.py:625 main.py:744 templates/clone_tasks.html:69
 msgid "Internal error."
 msgstr "内部错误"
 
@@ -144,7 +148,7 @@ msgstr "合并更改失败"
 msgid "Incorrect password. Please download again."
 msgstr "密码错误。请重新下载。"
 
-#: templates/clone_tasks.html:76 templates/repo.html:91
+#: templates/clone_tasks.html:76 templates/repo.html:93
 msgid "Cancel"
 msgstr "取消"
 
@@ -355,7 +359,7 @@ msgstr "操作"
 msgid "Sync Now"
 msgstr "立即同步"
 
-#: templates/repo.html:19 templates/repo.html:90
+#: templates/repo.html:19 templates/repo.html:92
 msgid "Unsync"
 msgstr "解除同步"
 
@@ -387,23 +391,23 @@ msgstr "显示"
 msgid "Auto Sync: "
 msgstr "自动同步："
 
-#: templates/repo.html:74
+#: templates/repo.html:74 templates/repo.html:76
 msgid "transfered"
 msgstr "已完成"
 
-#: templates/repo.html:77
+#: templates/repo.html:79
 msgid "rate"
 msgstr "速率"
 
-#: templates/repo.html:77
+#: templates/repo.html:79
 msgid "s"
 msgstr "秒"
 
-#: templates/repo.html:83
+#: templates/repo.html:85
 msgid "Library transfer error:"
 msgstr "资料库传输出错："
 
-#: templates/repo.html:89
+#: templates/repo.html:91
 msgid "Really want to unsync this library?"
 msgstr "确定要解除同步？"
 
@@ -415,23 +419,23 @@ msgstr "该资料库已存在。"
 msgid "You are going to download"
 msgstr "你将下载"
 
-#: templates/repo_download.html:21
+#: templates/repo_download.html:22
 msgid "will be downloaded to:"
 msgstr "将被下载到："
 
-#: templates/repo_download.html:24 templates/repo_sync.html:25
+#: templates/repo_download.html:25 templates/repo_sync.html:26
 msgid "This library is encrypted. Please enter the password for decrypting:"
 msgstr "该资料库已加密。 请输入解密密码："
 
-#: templates/repo_download.html:30
+#: templates/repo_download.html:31
 msgid "\"OK\""
 msgstr "\"确定\""
 
-#: templates/repo_download.html:32
+#: templates/repo_download.html:33
 msgid "Advanced:"
 msgstr "高级："
 
-#: templates/repo_download.html:32
+#: templates/repo_download.html:33
 msgid "sync with an existing folder"
 msgstr "与已有的本地目录同步"
 
@@ -451,11 +455,11 @@ msgstr "的资料库不存在。"
 msgid "You are going to synchronize"
 msgstr "你将同步"
 
-#: templates/repo_sync.html:21
+#: templates/repo_sync.html:22
 msgid "Please select a local folder to synced with the library"
 msgstr "请输入与之同步的本地目录："
 
-#: templates/repo_sync.html:23
+#: templates/repo_sync.html:24
 msgid "Files in the local folder will be merged with files in the library"
 msgstr "本地目录中的文件将与该资料库中的文件合并"
 
