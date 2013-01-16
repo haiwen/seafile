@@ -25,6 +25,8 @@
 #define SEAFILE_OFFICIAL_ADDR "cloud.seafile.com.cn:10001"
 #define SEAFILE_INI "seafile.ini"
 
+static gboolean first_use = FALSE;
+
 void 
 applet_exit(int code)
 {
@@ -114,6 +116,7 @@ init_seafile ()
     if (!applet->seafile_dir
         || !g_file_test(applet->seafile_dir, G_FILE_TEST_EXISTS)) {
         
+        first_use = TRUE;
         if (show_init_seafile_window() < 0)
             applet_exit (1);
         else 
@@ -481,8 +484,12 @@ on_open_browser_timeout(void)
      */
     if (test_web_server ()) {
         applet_message ("[web] web server ready, now start browser \n");
-        open_web_browser(SEAF_HTTP_ADDR);
         applet->web_status = WEB_READY;
+
+        if (first_use) {
+            open_web_browser(SEAF_HTTP_ADDR);
+        }
+
         return FALSE;
     } else {
         //applet_message ("[web] web server not ready, wait for a moment\n");
@@ -544,6 +551,7 @@ connect_to_server (gpointer data)
     start_web_server();
 
     start_open_browser_timer (1000, NULL);
+
     return FALSE;
 }
 
