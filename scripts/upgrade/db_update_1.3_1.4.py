@@ -22,14 +22,21 @@ def main():
 
     c.execute('CREATE INDEX IF NOT EXISTS "share_fileshare_f775835c" ON "share_fileshare" ("s_type")')
         
-    sql = '''CREATE TABLE IF NOT EXISTS `base_dirfileslastmodifiedinfo` (
-    "id" integer NOT NULL PRIMARY KEY,
+    sql = '''CREATE TABLE IF NOT EXISTS "base_dirfileslastmodifiedinfo" (
+    "id" integer NOT NULL PRIMARY KEY AUTOINCREMENT,
     "repo_id" varchar(36) NOT NULL,
     "parent_dir" text NOT NULL,
     "parent_dir_hash" varchar(12) NOT NULL,
     "dir_id" varchar(40) NOT NULL,
     "last_modified_info" text NOT NULL,
     UNIQUE ("repo_id", "parent_dir_hash"))'''
+    
+    c.execute(sql)
+
+    sql = '''CREATE TABLE IF NOT EXISTS "api2_token" (
+    "key" varchar(40) NOT NULL PRIMARY KEY,
+    "user" varchar(255) NOT NULL UNIQUE,
+    "created" datetime NOT NULL)'''
     
     c.execute(sql)
 

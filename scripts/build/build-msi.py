@@ -667,8 +667,9 @@ def build_english_msi():
             error('Failed to strip seafile-applet.en.exe')
 
     applet_en = os.path.join(gui_win, applet_en_name)
+    dst_applet_en = os.path.join(pack_bin_dir, 'seafile-applet.exe')
 
-    must_copy(applet_en, pack_bin_dir)
+    must_copy(applet_en, dst_applet_en)
 
     if run('make en', cwd=pack_dir) != 0:
         error('Error when make seafile-en.msi')

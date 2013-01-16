@@ -4,6 +4,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	-DSEAFILE_LOCALE_DIR=\""$(seafilelocaledir)"\" \
 	-DGETTEXT_PACKAGE=\""$(GETTEXT_PACKAGE)"\" \
 	-I$(top_srcdir)/include \
+	-I$(top_srcdir)/common \
 	-I$(top_srcdir)/lib \
 	-I$(top_builddir)/lib \
 	-I$(top_srcdir)/gui/common \
