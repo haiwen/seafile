@@ -851,8 +851,19 @@ seaf_repo_is_worktree_changed (SeafRepo *repo)
 
 changed:
     discard_index (&istate);
+
+    DiffEntry *de;
+
+    g_message ("Worktree changes (at most 5 files are shown):\n");
+    int i = 0;
+    for (p = res; p != NULL && i < 5; p = p->next, ++i) {
+        de = p->data;
+        g_message ("type: %c, status: %c, name: %s.\n",
+                   de->type, de->status, de->name);
+    }
+
     for (p = res; p; p = p->next) {
-        DiffEntry *de = p->data;
+        de = p->data;
         diff_entry_free (de);
     }
     g_list_free (res);
