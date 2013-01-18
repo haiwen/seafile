@@ -1381,7 +1381,7 @@ get_commit (SeafCommit *c, void *data, gboolean *stop)
         /* Stop after traversing the head commit. */
     }
     else if (cp->truncate_time > 0 &&
-             c->ctime < cp->truncate_time &&
+             (gint64)(c->ctime) < cp->truncate_time &&
              cp->traversed_head)
     {
         *stop = TRUE;

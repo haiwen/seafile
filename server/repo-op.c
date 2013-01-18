@@ -2543,7 +2543,7 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
 
     if (data->got_latest &&
         data->truncate_time > 0 &&
-        commit->ctime < data->truncate_time)
+        (gint64)(commit->ctime) < data->truncate_time)
     {
         *stop = TRUE;
         return TRUE;
@@ -3087,7 +3087,7 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
     gint64 truncate_time = data->truncate_time;
     SeafCommit *p1, *p2;
 
-    if (commit->ctime < truncate_time) {
+    if ((gint64)(commit->ctime) < truncate_time) {
         *stop = TRUE;
         return TRUE;
     }
@@ -3100,7 +3100,7 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
         seaf_warning ("Failed to find commit %s.\n", commit->parent_id);
         return FALSE;
     }
-    if (p1->ctime >= truncate_time) {
+    if ((gint64)(p1->ctime) >= truncate_time) {
         if (find_deleted_recursive (commit->root_id, p1->root_id, "/",
                                     commit, p1, entries) < 0) {
             seaf_commit_unref (p1);
@@ -3117,7 +3117,7 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
                           commit->second_parent_id);
             return FALSE;
         }
-        if (p2->ctime >= truncate_time) {
+        if ((gint64)(p2->ctime) >= truncate_time) {
             if (find_deleted_recursive (commit->root_id, p2->root_id, "/",
                                         commit, p2, entries) < 0) {
                 seaf_commit_unref (p2);

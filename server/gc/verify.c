@@ -54,7 +54,7 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
         /* Stop after traversing the head commit. */
     }
     else if (data->truncate_time > 0 &&
-             commit->ctime < data->truncate_time &&
+             (gint64)(commit->ctime) < data->truncate_time &&
              data->traversed_head)
     {
         *stop = TRUE;
