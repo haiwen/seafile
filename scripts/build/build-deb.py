@@ -369,26 +369,10 @@ def setup_build_env():
 
         os.environ[name] = new_value
 
-    prepend_env_value('DEB_CPPFLAGS_APPEND',
-                     '-I%s' % os.path.join(prefix, 'include'),
-                     seperator=' ')
-
-    prepend_env_value('DEB_CPPFLAGS_APPEND',
-                     '-I%s' % os.path.join(prefix, 'include', 'searpc'),
-                     seperator=' ')
-
-    prepend_env_value('DEB_CPPFLAGS_APPEND',
-                     '-I%s' % os.path.join(prefix, 'include', 'ccnet'),
-                     seperator=' ')
-
     if conf[CONF_NO_STRIP]:
         prepend_env_value('DEB_CPPFLAGS_APPEND',
                          '-g -O0',
                          seperator=' ')
-
-    prepend_env_value('DEB_LDFLAGS_APPEND',
-                     '-L%s' % os.path.join(prefix, 'lib'),
-                     seperator=' ')
 
     prepend_env_value('PATH', os.path.join(prefix, 'bin'))
     prepend_env_value('PKG_CONFIG_PATH', os.path.join(prefix, 'lib', 'pkgconfig'))

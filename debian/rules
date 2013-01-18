@@ -9,54 +9,51 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-
-# These are used for cross-compiling and for saving the configure script
-# from having to guess our platform (since we know it already)
-DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
-DEB_BUILD_GNU_TYPE  ?= $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
-ifneq ($(DEB_HOST_GNU_TYPE),$(DEB_BUILD_GNU_TYPE))
-CROSS= --build $(DEB_BUILD_GNU_TYPE) --host $(DEB_HOST_GNU_TYPE)
-else
-CROSS= --build $(DEB_BUILD_GNU_TYPE)
-endif
-
-
 # SEARPC_SOURCE_DIR and CCNET_SOURCE_DIR is set by build-deb.py
-searpc_dir = $(LIBSEARPC_SOURCE_DIR)
-ccnet_dir = $(CCNET_SOURCE_DIR)
-destdir = $(CURDIR)/debian/seafile
-install_prefix = $(destdir)/usr
+searpc_dir := $(LIBSEARPC_SOURCE_DIR)
+ccnet_dir := $(CCNET_SOURCE_DIR)
+destdir := $(CURDIR)/debian/seafile
+install_prefix := $(destdir)/usr
 
-build:
+ENABLE_APPINDICATOR := $(shell if lsb_release -a 2>/dev/null | grep -i ubuntu 2>/dev/null 1>&2; then \
+	echo '--enable-appindicator'; \
+else \
+	echo; \
+fi)
+
+build-indep:
+build-arch:
 	dh_testdir
 	mkdir -p $(install_prefix)
-	# build and install libsearpc so it can be used by ccnet and seafile
-	cd $(searpc_dir) && ./configure $(CROSS) --prefix=/usr --disable-compile-demo CFLAGS="$(CFLAGS)" && make && make install DESTDIR=$(destdir)
 
-	# Fix the problem of DESTDIR and libtool
+# build and install libsearpc so it can be used by ccnet and seafile
+	cd $(searpc_dir) \
+	&& ./configure --prefix=/usr --disable-compile-demo $(shell dpkg-buildflags --export=configure) \
+	&& make \
+	&& make install DESTDIR=$(destdir)
+
+# Fix the problem of DESTDIR and libtool
 	sed -i -e "s;/usr/lib/libsearpc-json-glib;$(destdir)/usr/lib/libsearpc-json-glib;g" $(install_prefix)/lib/libsearpc.la
 
-	# build and install ccnet so it can be used by seafile
-	cd $(ccnet_dir) && ./configure $(CROSS) --prefix=/usr --disable-compile-demo CFLAGS="$(CFLAGS)" && make && make install DESTDIR=$(destdir)
+# build and install ccnet so it can be used by seafile
+	cd $(ccnet_dir) \
+	&& ./configure --prefix=/usr --disable-compile-demo $(shell dpkg-buildflags --export=configure) \
+	&& make \
+	&& make install DESTDIR=$(destdir)
 
-	./configure --prefix=/usr --enable-appindicator CFLAGS="$(CFLAGS)" && make && make install DESTDIR=$(destdir)
+	./configure --prefix=/usr $(ENABLE_APPINDICATOR) $(shell dpkg-buildflags --export=configure) \
+	&& make \
+	&& make install DESTDIR=$(destdir)
 
-	# remove development files
+# remove development files
 	rm -rf $(install_prefix)/include
 	rm -rf $(install_prefix)/lib/pkgconfig
 	rm -rf $(install_prefix)/lib/*.a
 	rm -rf $(install_prefix)/lib/*.la
 	rm -f $(install_prefix)/bin/searpc-codegen.py
-	rm -f $(install_prefix)/bin/ccnet-servtool
+	rm -f $(install_prefix)/bin/ccnet-tool
 
-clean:
-	dh_clean
-
-# Build architecture-independent files here.
 binary-indep:
-# We have nothing to do by default.
-
-# Build architecture-dependent files here.
 binary-arch:
 	dh_testroot
 	dh_installchangelogs
@@ -86,5 +83,9 @@ binary-arch:
 	dh_md5sums
 	dh_builddeb
 
+build: build-indep build-arch
 binary: binary-indep binary-arch
-.PHONY: build clean binary-indep binary-arch binary
+clean:
+	dh_clean
+
+.PHONY: clean build build-indep build-arch binary binary-indep binary-arch

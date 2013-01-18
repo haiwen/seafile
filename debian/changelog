@@ -1,3 +1,9 @@
+seafile (1.4.1) stable; urgency=low
+
+  * Fixed a bug in the function hton64
+
+ -- plt <freeplant@gmail.com>  Mon, 14 January 2013 19:00:32 +0800
+
 seafile (1.4.0) stable; urgency=low
 
   * Only use appindicator in Unity desktop
