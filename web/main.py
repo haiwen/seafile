@@ -84,13 +84,6 @@ default_options = { "confdir": CCNET_CONF_PATH,
                     'settings': settings,
                     }
 
-if not settings.DEBUG:
-    # if not debug, print logs to file
-    logdir = CCNET_CONF_PATH + os.sep + "logs" + os.sep
-    sys.stdout = open(logdir + "seafileweb.log", "a")
-    sys.stderr = sys.stdout
-
-
 def get_relay_of_repo(repo):
     if not repo:
         return None

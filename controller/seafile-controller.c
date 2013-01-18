@@ -249,8 +249,6 @@ read_pid_from_pidfile (const char *pidfile)
 {
     FILE *pf = fopen (pidfile, "r");
     if (!pf) {
-        g_debug ("failed to open pidfile %s:%s\n",
-                 pidfile, strerror(errno));
         return -1;
     }
 
