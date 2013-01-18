@@ -231,16 +231,35 @@ seaf_repo_verify_passwd (SeafRepo *repo, const char *passwd)
         return -1;
 }
 
+static inline gboolean
+has_trailing_space (const char *path)
+{
+    int len = strlen(path);
+    if (path[len - 1] == ' ') {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 gboolean
 should_ignore_file(const char *filename, void *data)
 {
     GPatternSpec **spec = ignore_patterns;
+
+    if (has_trailing_space (filename)) {
+        /* Ignore files/dir whose path has trailing spaces. It would cause
+         * problem on windows. */
+        /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */
+        return TRUE;
+    }
 
     while (*spec) {
         if (g_pattern_match_string(*spec, filename))
             return TRUE;
         spec++;
     }
+
     
     /*
      *  Illegal charaters in filenames under windows: (In Linux, only '/' is

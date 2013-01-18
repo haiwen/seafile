@@ -293,6 +293,17 @@ seaf_repo_verify_passwd (SeafRepo *repo, const char *passwd)
         return -1;
 }
 
+static inline gboolean
+has_trailing_space (const char *path)
+{
+    int len = strlen(path);
+    if (path[len - 1] == ' ') {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 static gboolean
 should_ignore(const char *filename, void *data)
 {
@@ -301,6 +312,13 @@ should_ignore(const char *filename, void *data)
     /* Ignore file/dir if its name is too long. */
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)
         return TRUE;
+
+    if (has_trailing_space (filename)) {
+        /* Ignore files/dir whose path has trailing spaces. It would cause
+         * problem on windows. */
+        /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */
+        return TRUE;
+    }
 
     while (*spec) {
         if (g_pattern_match_string(*spec, filename))
@@ -350,17 +368,6 @@ index_cb (const char *path,
     return 0;
 }
 
-static inline gboolean
-has_trailing_space (const char *path)
-{
-    int len = strlen(path);
-    if (path[len - 1] == ' ') {
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
 static int
 add_recursive (struct index_state *istate, 
                const char *worktree,
@@ -375,13 +382,6 @@ add_recursive (struct index_state *istate,
     SeafStat st;
     int n;
     int ret = 0;
-
-    if (has_trailing_space (path)) {
-        /* Ignore files/dir whose path has trailing spaces. It would cause
-         * problem on windows. */
-        /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */
-        return 0;
-    }
 
     full_path = g_build_path (PATH_SEPERATOR, worktree, path, NULL);
     if (seaf_stat (full_path, &st) < 0) {

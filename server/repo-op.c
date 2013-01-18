@@ -1438,6 +1438,14 @@ seaf_repo_manager_post_dir (SeafRepoManager *mgr,
 
     canon_path = get_canonical_path (parent_dir);
 
+    if (should_ignore_file (new_dir_name, NULL)) {
+        seaf_warning ("[post dir] Invalid dir name %s.\n", new_dir_name);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid dir name");
+        ret = -1;
+        goto out;
+    }
+
     FAIL_IF_FILE_EXISTS(head_commit->root_id, canon_path, new_dir_name, NULL);
 
     if (!new_dent) {
@@ -1665,6 +1673,14 @@ seaf_repo_manager_rename_file (SeafRepoManager *mgr,
     
     if (!canon_path)
         canon_path = get_canonical_path (parent_dir);
+
+    if (should_ignore_file (newname, NULL)) {
+        seaf_warning ("[rename file] Invalid filename %s.\n", newname);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid filename");
+        ret = -1;
+        goto out;
+    }
 
     FAIL_IF_FILE_NOT_EXISTS(head_commit->root_id, canon_path, oldname, &mode);
     FAIL_IF_FILE_EXISTS(head_commit->root_id, canon_path, newname, NULL);
