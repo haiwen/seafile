@@ -3,7 +3,9 @@
 #ifndef CCNET_UTILS_H
 #define CCNET_UTILS_H
 
+#ifndef __APPLE__
 #include "common.h"
+#endif
 
 #include <sys/time.h>
 #include <stdint.h>

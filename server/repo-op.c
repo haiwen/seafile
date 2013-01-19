@@ -1438,6 +1438,14 @@ seaf_repo_manager_post_dir (SeafRepoManager *mgr,
 
     canon_path = get_canonical_path (parent_dir);
 
+    if (should_ignore_file (new_dir_name, NULL)) {
+        seaf_warning ("[post dir] Invalid dir name %s.\n", new_dir_name);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid dir name");
+        ret = -1;
+        goto out;
+    }
+
     FAIL_IF_FILE_EXISTS(head_commit->root_id, canon_path, new_dir_name, NULL);
 
     if (!new_dent) {
@@ -1665,6 +1673,14 @@ seaf_repo_manager_rename_file (SeafRepoManager *mgr,
     
     if (!canon_path)
         canon_path = get_canonical_path (parent_dir);
+
+    if (should_ignore_file (newname, NULL)) {
+        seaf_warning ("[rename file] Invalid filename %s.\n", newname);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid filename");
+        ret = -1;
+        goto out;
+    }
 
     FAIL_IF_FILE_NOT_EXISTS(head_commit->root_id, canon_path, oldname, &mode);
     FAIL_IF_FILE_EXISTS(head_commit->root_id, canon_path, newname, NULL);
@@ -2527,7 +2543,7 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
 
     if (data->got_latest &&
         data->truncate_time > 0 &&
-        commit->ctime < data->truncate_time)
+        (gint64)(commit->ctime) < data->truncate_time)
     {
         *stop = TRUE;
         return TRUE;
@@ -3071,7 +3087,7 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
     gint64 truncate_time = data->truncate_time;
     SeafCommit *p1, *p2;
 
-    if (commit->ctime < truncate_time) {
+    if ((gint64)(commit->ctime) < truncate_time) {
         *stop = TRUE;
         return TRUE;
     }
@@ -3084,7 +3100,7 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
         seaf_warning ("Failed to find commit %s.\n", commit->parent_id);
         return FALSE;
     }
-    if (p1->ctime >= truncate_time) {
+    if ((gint64)(p1->ctime) >= truncate_time) {
         if (find_deleted_recursive (commit->root_id, p1->root_id, "/",
                                     commit, p1, entries) < 0) {
             seaf_commit_unref (p1);
@@ -3101,7 +3117,7 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
                           commit->second_parent_id);
             return FALSE;
         }
-        if (p2->ctime >= truncate_time) {
+        if ((gint64)(p2->ctime) >= truncate_time) {
             if (find_deleted_recursive (commit->root_id, p2->root_id, "/",
                                         commit, p2, entries) < 0) {
                 seaf_commit_unref (p2);

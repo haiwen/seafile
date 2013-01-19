@@ -10,7 +10,7 @@ Usage:
 import os
 from setuptools import setup
 
-VERSION='1.4.0'
+VERSION='1.4.1'
 targetfile = "seafileweb.py"
 
 APP = [targetfile]
