@@ -1484,6 +1484,9 @@ start_block_upload (TransferTask *task)
 {
     if (seaf_transfer_task_load_blocklist (task) < 0) {
         transition_state_to_error (task, TASK_ERR_LOAD_BLOCK_LIST);
+    } else if (task->block_list->n_valid_blocks != task->block_list->n_blocks) {
+        seaf_warning ("Some blocks are missing locally, stop upload.\n");
+        transition_state_to_error (task, TASK_ERR_LOAD_BLOCK_LIST);
     } else {
         transition_state (task, task->state, TASK_RT_STATE_DATA);
     }
