@@ -43,6 +43,11 @@ seaf_share_manager_list_org_share_repos (SeafShareManager *mgr,
                                          const char *type,
                                          int start, int limit);
 
+GList *
+seaf_share_manager_list_shared_to (SeafShareManager *mgr,
+                                   const char *owner,
+                                   const char *repo_id);
+
 int
 seaf_share_manager_remove_share (SeafShareManager *mgr, const char *repo_id,
                                  const char *from_email, const char *to_email);

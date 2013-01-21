@@ -483,6 +483,8 @@ char *seafile_get_monitor (GError **error);
 
 gint64 seafile_get_user_quota_usage (const char *email, GError **error);
 
+gint64 seafile_get_user_share_usage (const char *email, GError **error);
+
 gint64 seafile_get_org_quota_usage (int org_id, GError **error);
 
 gint64

@@ -1,6 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
 #include "common.h"
+#include "utils.h"
 
 #include "seafile-session.h"
 #include "share-mgr.h"
@@ -261,6 +262,40 @@ seaf_share_manager_list_org_share_repos (SeafShareManager *mgr,
     }
 
     return g_list_reverse (ret);
+}
+
+static gboolean
+collect_shared_to (SeafDBRow *row, void *data)
+{
+    GList **plist = data;
+    const char *to_email;
+
+    to_email = seaf_db_row_get_column_text (row, 0);
+    *plist = g_list_prepend (*plist, g_strdup(to_email));
+
+    return TRUE;
+}
+
+GList *
+seaf_share_manager_list_shared_to (SeafShareManager *mgr,
+                                   const char *owner,
+                                   const char *repo_id)
+{
+    char sql[512];
+    GList *ret = NULL;
+
+    snprintf (sql, sizeof(sql),
+              "SELECT to_email FROM SharedRepo WHERE "
+              "from_email='%s' AND repo_id='%s'",
+              owner, repo_id);
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
+                                      collect_shared_to, &ret) < 0) {
+        g_warning ("[share mgr] DB error when list shared to.\n");
+        string_list_free (ret);
+        return NULL;
+    }
+
+    return ret;
 }
 
 int

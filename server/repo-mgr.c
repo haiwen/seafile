@@ -1240,6 +1240,25 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
     return g_list_reverse (ret);
 }
 
+GList *
+seaf_repo_manager_get_repo_ids_by_owner (SeafRepoManager *mgr,
+                                         const char *email)
+{
+    GList *ret = NULL;
+    char sql[256];
+
+    snprintf (sql, 256, "SELECT repo_id FROM RepoOwner WHERE owner_id='%s'",
+              email);
+
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
+                                      collect_repo_id, &ret) < 0) {
+        string_list_free (ret);
+        return NULL;
+    }
+
+    return ret;
+}
+
 /* Web access permission. */
 
 int

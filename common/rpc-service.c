@@ -1735,7 +1735,26 @@ seafile_get_user_quota_usage (const char *email, GError **error)
         return -1;
     }
 
-    ret = get_user_quota_usage (seaf, email);
+    ret = seaf_quota_manager_get_user_usage (seaf->quota_mgr, email);
+    if (ret < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal server error");
+        return -1;
+    }
+
+    return ret;
+}
+
+gint64
+seafile_get_user_share_usage (const char *email, GError **error)
+{
+    gint64 ret;
+
+    if (!email) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad user id");
+        return -1;
+    }
+
+    ret = seaf_quota_manager_get_user_share_usage (seaf->quota_mgr, email);
     if (ret < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal server error");
         return -1;
@@ -1749,7 +1768,7 @@ seafile_get_org_quota_usage (int org_id, GError **error)
 {
     gint64 ret;
 
-    ret = get_org_quota_usage (seaf, org_id);
+    ret = seaf_quota_manager_get_org_usage (seaf->quota_mgr, org_id);
     if (ret < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal server error");
         return -1;
@@ -1768,7 +1787,7 @@ seafile_get_org_user_quota_usage (int org_id, const char *user, GError **error)
         return -1;
     }
 
-    ret = get_org_user_quota_usage (seaf, org_id, user);
+    ret = seaf_quota_manager_get_org_user_usage (seaf->quota_mgr, org_id, user);
     if (ret < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal server error");
         return -1;

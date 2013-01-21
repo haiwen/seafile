@@ -393,6 +393,10 @@ GList *
 seaf_repo_manager_get_repos_by_owner (SeafRepoManager *mgr,
                                       const char *email);
 
+GList *
+seaf_repo_manager_get_repo_ids_by_owner (SeafRepoManager *mgr,
+                                         const char *email);
+
 /* Group repos. */
 
 int

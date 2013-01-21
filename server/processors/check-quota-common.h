@@ -77,9 +77,9 @@ check_repo_owner_quota (CcnetProcessor *processor,
         return ret;
 
     if (user)
-        usage = get_user_quota_usage (seaf, user);
+        usage = seaf_quota_manager_get_user_usage (seaf->quota_mgr, user);
     else
-        usage = get_org_quota_usage (seaf, org_id);
+        usage = seaf_quota_manager_get_org_usage (seaf->quota_mgr, org_id);
 
     g_debug ("quota is %"G_GINT64_FORMAT", usage is %"G_GINT64_FORMAT"\n",
              quota, usage);

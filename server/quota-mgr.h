@@ -9,6 +9,7 @@ struct _SeafQuotaManager {
     struct _SeafileSession *session;
 
     gint64 default_quota;
+    gboolean calc_share_usage;
 };
 typedef struct _SeafQuotaManager SeafQuotaManager;
 
@@ -38,6 +39,10 @@ gint64
 seaf_quota_manager_get_org_quota (SeafQuotaManager *mgr,
                                   int org_id);
 
+gint64
+seaf_quota_manager_get_user_share_usage (SeafQuotaManager *mgr,
+                                         const char *user);
+
 /* Set/get quota for a user in a business account.
  * The caller should make sure the user is a member of the organization.
  */
@@ -58,5 +63,16 @@ seaf_quota_manager_get_org_user_quota (SeafQuotaManager *mgr,
 int
 seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
                                 const char *repo_id);
+
+gint64
+seaf_quota_manager_get_user_usage (SeafQuotaManager *mgr, const char *user);
+
+gint64
+seaf_quota_manager_get_org_usage (SeafQuotaManager *mgr, int org_id);
+
+gint64
+seaf_quota_manager_get_org_user_usage (SeafQuotaManager *mgr,
+                                       int org_id,
+                                       const char *user);
 
 #endif

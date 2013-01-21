@@ -379,6 +379,10 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "seafile_get_user_quota_usage",
                                      searpc_signature_int64__string());
     searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_user_share_usage,
+                                     "seafile_get_user_share_usage",
+                                     searpc_signature_int64__string());
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_org_quota_usage,
                                      "seafile_get_org_quota_usage",
                                      searpc_signature_int64__int());
