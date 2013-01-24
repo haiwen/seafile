@@ -17,6 +17,7 @@
 
 #define DEFAULT_BIND_PORT  8082
 #define DEFAULT_MAX_UPLOAD_SIZE 100 * ((gint64)1 << 20) /* 100MB */
+#define DEFAULT_MAX_DOWNLOAD_DIR_SIZE 100 * ((gint64)1 << 20) /* 100MB */
 
 static char *config_dir = NULL;
 static char *seafile_dir = NULL;
@@ -63,6 +64,7 @@ load_httpserver_config (SeafileSession *session)
     GError *error = NULL;
     int port = 0;
     int max_upload_size_mb;
+    int max_download_dir_size_mb;
 
     port = g_key_file_get_integer (session->config, "httpserver", "port", &error);
     if (!error) {
@@ -124,6 +126,20 @@ load_httpserver_config (SeafileSession *session)
             session->max_upload_size = DEFAULT_MAX_UPLOAD_SIZE;
         else 
             session->max_upload_size = max_upload_size_mb * ((gint64)1 << 20);
+    }
+
+    max_download_dir_size_mb = g_key_file_get_integer (session->config,
+                                                 "httpserver",
+                                                 "max_download_dir_size",
+                                                 &error);
+    if (error) {
+        session->max_download_dir_size = DEFAULT_MAX_DOWNLOAD_DIR_SIZE;
+        g_clear_error (&error);
+    } else {
+        if (max_download_dir_size_mb <= 0)
+            session->max_download_dir_size = DEFAULT_MAX_DOWNLOAD_DIR_SIZE;
+        else 
+            session->max_download_dir_size = max_download_dir_size_mb * ((gint64)1 << 20);
     }
 }
 

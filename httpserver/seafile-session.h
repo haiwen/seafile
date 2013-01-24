@@ -28,6 +28,7 @@ struct _SeafileSession {
     SeafDB              *db;
     char                *windows_encoding;
     gint64               max_upload_size;
+    gint64               max_download_dir_size;
 
     struct CcnetClientPool     *client_pool;
 

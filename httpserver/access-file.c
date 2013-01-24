@@ -459,7 +459,7 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
 }
 
 static int
-do_dir (evhtp_request_t *req, SeafRepo *repo, const char *file_id,
+do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
         const char *filename, const char *operation,
         SeafileCryptKey *crypt_key)
 {
@@ -473,6 +473,15 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     SeafileCrypt *crypt = NULL;
     int zipfd = 0;
     int ret = 0;
+    gint64 dir_size = 0;
+
+    /* ensure file size does not exceed limit */
+    dir_size = seaf_fs_manager_get_fs_size (seaf->fs_mgr, dir_id);
+    if (dir_size < 0 || dir_size > seaf->max_download_dir_size) {
+        seaf_warning ("invalid dir size: %"G_GINT64_FORMAT"\n", dir_size);
+        ret = -1;
+        goto out;
+    }
 
     /* Let's zip the directory first */
     filename_escaped = g_uri_unescape_string (filename, NULL);
@@ -494,7 +503,7 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *file_id,
         g_free (iv_hex);
     }
 
-    zipfile = pack_dir (filename_escaped, file_id, crypt, test_windows(req));
+    zipfile = pack_dir (filename_escaped, dir_id, crypt, test_windows(req));
     if (!zipfile) {
         ret = -1;
         goto out;

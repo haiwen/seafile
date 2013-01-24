@@ -1074,7 +1074,7 @@ get_file_size (SeafFSManager *mgr, const char *id)
         return -1;
     }
 
-    if (ondisk->type != SEAF_METADATA_TYPE_FILE)
+    if (ntohl(ondisk->type) != SEAF_METADATA_TYPE_FILE)
         return -1;
 
     return (gint64) ntoh64(ondisk->file_size);
