@@ -42,7 +42,7 @@ seafile_session_new(const char *seafile_dir,
     char *db_path;
     sqlite3 *config_db;
     GKeyFile *config;
-    SeafileSession *session;
+    SeafileSession *session = NULL;
 
     if (!ccnet_session)
         return NULL;

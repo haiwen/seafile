@@ -707,7 +707,8 @@ check_worktree_path (SeafCloneManager *mgr, const char *path, GError **error)
             task->state == CLONE_STATE_CANCELED)
             continue;
         if (check_dir_inclusiveness (path, task->worktree) != 0) {
-            seaf_warning ("Worktree path conflict with clone %.8s.\n", repo->id);
+            seaf_warning ("Worktree path conflict with clone %.8s.\n",
+                          task->repo_id);
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                          "Worktree conflicts existing repo");
             return FALSE;
