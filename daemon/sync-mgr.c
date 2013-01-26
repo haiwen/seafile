@@ -414,13 +414,21 @@ transition_sync_state (SyncTask *task, int new_state)
             new_state == SYNC_STATE_DONE &&
             need_notify_sync(task->repo))
         {
-            GString *buf = g_string_new (NULL);
-            g_string_append_printf (buf, "%s\t%s",
-                                    task->repo->name, task->repo->id);
-            seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                                  "sync.done",
-                                                  buf->str);
-            g_string_free (buf, TRUE);
+            SeafCommit *head;
+            head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                   task->repo->head->commit_id);
+            if (head) {
+                GString *buf = g_string_new (NULL);
+                g_string_append_printf (buf, "%s\t%s\t%s",
+                                        task->repo->name,
+                                        task->repo->id,
+                                        head->desc);
+                seaf_mq_manager_publish_notification (seaf->mq_mgr,
+                                                      "sync.done",
+                                                      buf->str);
+                g_string_free (buf, TRUE);
+                seaf_commit_unref (head);
+            }
         }
 
         task->state = new_state;

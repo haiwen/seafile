@@ -1,5 +1,6 @@
 [encoding: UTF-8]
 gui/common/applet-common.c
+gui/common/translate-commit-desc.c
 gui/gtk/init-ccnet.c
 gui/gtk/seafile-applet.c
 gui/gtk/trayicon.c
