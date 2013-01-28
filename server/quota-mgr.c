@@ -359,8 +359,6 @@ seaf_quota_manager_get_user_share_usage (SeafQuotaManager *mgr,
     gint64 total = 0, per_repo;
 
     repos = seaf_repo_manager_get_repo_ids_by_owner (seaf->repo_mgr, user);
-    if (!repos)
-        return -1;
 
     for (p = repos; p != NULL; p = p->next) {
         repo_id = p->data;
