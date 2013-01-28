@@ -3123,3 +3123,35 @@ seaf_repo_manager_get_repo_relay_info (SeafRepoManager *mgr,
     if (relay_port && port)
         *relay_port = port;
 }
+
+int
+seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
+                                          SeafRepo *repo,
+                                          const char *new_addr,
+                                          const char *new_port)
+{
+    GList *ptr, *repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, 0, -1);
+    SeafRepo *r;
+    for (ptr = repos; ptr; ptr = ptr->next) {
+        r = ptr->data;
+        if (g_strcmp0(r->relay_id, repo->relay_id) != 0)
+            continue;
+                
+        char *relay_addr = NULL;
+        char *relay_port = NULL;
+        seaf_repo_manager_get_repo_relay_info (seaf->repo_mgr, r->id, 
+                                               &relay_addr, &relay_port);
+        if (g_strcmp0(relay_addr, new_addr) != 0 ||
+            g_strcmp0(relay_port, new_port) != 0) {
+            seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, r->id,
+                                                   new_addr, new_port);
+        }
+
+        g_free (relay_addr);
+        g_free (relay_port);
+    }
+
+    g_list_free (repos);
+
+    return 0;
+}

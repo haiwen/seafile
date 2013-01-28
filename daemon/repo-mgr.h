@@ -343,5 +343,9 @@ seaf_repo_manager_add_recheckout_task (SeafRepoManager *mgr,
 CheckoutTask *
 seaf_repo_manager_get_checkout_task (SeafRepoManager *mgr,
                                      const char *repo_id);
-
+int
+seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
+                                          SeafRepo *repo,
+                                          const char *new_addr,
+                                          const char *new_port);
 #endif

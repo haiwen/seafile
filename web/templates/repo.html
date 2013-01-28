@@ -17,6 +17,7 @@
         <ul>
             <li><a id="do-sync-link" href="/repos/operation/?repo=${repo.props.id}&op=sync">${_("Sync Now")}</a></li>
             <li><a href="#" id="delete">${_("Unsync")}</a></li>
+            <li><a href="#" id="edit-relay">${_("Edit server address")}</a></li>
         </ul>
     </div>
 </div> <!-- nav-panel -->
@@ -92,6 +93,29 @@
             <button id="remove-repo-btn" data="/repos/operation/?repo=${repo.props.id}&op=remove">${_("Unsync")}</button>
             <button class="simplemodal-close">${_("Cancel")}</button>
         </div>
+
+        <form id="edit-relay-form" method="POST" action="/repos/operation/?repo=${repo.props.id}&op=edit-relay" class="hide">
+            <h2>${_("Edit Server address")}</h2>
+            <p class="warning">
+                <strong>${_("Warning:")}</strong> ${_("You should only edit the server address when you're sure the server has used a new address. Otherwise it may make the libraries unable to be synchronized. After edit the address, you should restart seafile for the changes to take effect.")}
+            </p>
+            % if relay and relay.name:
+            <div class="form-row">
+                <label for="relay_name">${_("server name")}</label>
+                <span>${relay.name}</span>
+            </div>
+            % endif
+            <div class="form-row">
+                <label for="relay_addr">${_("server address")}</label>
+                <input type="text" name="relay_addr" value="${relay_addr}" maxlength="40" />
+            </div>
+            <div class="form-row">
+                <label for="relay_port">${_("server port")}</label>
+                <input type="text" name="relay_port" value="${relay_port}" maxlength="5" />
+            </div>
+            <p id="edit-relay-error" class="error"></p>
+            <input type="submit" id="edit-relay-submit" value="${_("Submit")}" />
+        </div>
     </div>
 </div>
 </%def>
@@ -106,6 +130,47 @@ $("#open-dir-btn, #remove-repo-btn").click(function() {
 $("#delete").click(function() {
     $("#dialog-delete-confirm").modal({appendTo: "#main"}); 
     return false;
+});
+
+$('#edit-relay').click(function() {
+    $("#edit-relay-form").modal({appendTo: "#main"}); 
+    return false;
+});
+
+$('#edit-relay-form').submit(function() {
+    var addr = $('input[name="relay_addr"]').val();
+    var port = $('input[name="relay_port"]').val();
+    var addr_re = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
+    var port_re = /^[\d]+$/;
+
+    var show_error = function(msg) {
+        $('#edit-relay-error').html(msg);
+        $("#simplemodal-container").css({'height':'auto'});
+    };
+
+    if (!addr) {
+        show_error('${_("server address can not be empty")}');
+        return false;
+    } else if (!addr_re.test(addr)) {
+        show_error('${_("server address is invalid")}');
+        return false;
+    }
+                             
+    if (!port) {
+        show_error('${_("server port can not be empty")}');
+        return false;
+    } else if (!port_re.test(port)) {
+        show_error('${_("server port is invalid")}');
+        return false;
+    } else {
+        port = Number(port);
+        if (isNaN(port) || port < 0 || port > 65535) {
+            show_error('${_("server port is invalid")}');
+            return false;
+        }
+    }
+
+    return true;
 });
 
 // revert dialog

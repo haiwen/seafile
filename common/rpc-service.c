@@ -1075,6 +1075,84 @@ seafile_get_repo_property (const char *repo_id,
     return value;
 }
 
+char *
+seafile_get_repo_relay_address (const char *repo_id,
+                                GError **error)
+{
+    char *relay_addr = NULL;
+    
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return NULL;
+    }
+
+    seaf_repo_manager_get_repo_relay_info (seaf->repo_mgr, repo_id,
+                                           &relay_addr, NULL);
+
+    return relay_addr;
+}
+
+char *
+seafile_get_repo_relay_port (const char *repo_id,
+                             GError **error)
+{
+    char *relay_port = NULL;
+    
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return NULL;
+    }
+
+    seaf_repo_manager_get_repo_relay_info (seaf->repo_mgr, repo_id,
+                                           NULL, &relay_port);
+
+    return relay_port;
+}
+
+int
+seafile_update_repo_relay_info (const char *repo_id,
+                                const char *new_addr,
+                                const char *new_port,
+                                GError **error)
+{
+    if (!repo_id || !new_addr || !new_port) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return -1;
+    }
+
+    int port = atoi(new_port);
+    if (port <= 0 || port > 65535) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid port");
+        return -1;
+    }
+
+    SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        return -1;
+    }
+
+    CcnetPeer *relay = ccnet_get_peer (seaf->ccnetrpc_client, repo->relay_id);
+    if (!relay) {
+        GString *buf = g_string_new(NULL);
+        g_string_append_printf (buf, "add-relay --id %s --addr %s:%s",
+                                repo->relay_id, new_addr, new_port);
+
+        ccnet_send_command (seaf->session, buf->str, NULL, NULL);
+        g_string_free (buf, TRUE);
+    } else {
+        if (g_strcmp0(relay->public_addr, new_addr) != 0 ||
+            relay->public_port != (uint16_t)port) {
+            ccnet_update_peer_address (seaf->ccnetrpc_client, repo->relay_id,
+                                       new_addr, port);
+        }
+
+        g_object_unref (relay);
+    }
+
+    return seaf_repo_manager_update_repo_relay_info (seaf->repo_mgr, repo,
+                                                     new_addr, new_port);
+}
+
 int
 seafile_calc_dir_size (const char *path, GError **error)
 {

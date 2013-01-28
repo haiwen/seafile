@@ -307,3 +307,33 @@ a.relay-link {
 #set-sync-btn {
     vertical-align:middle;
 }
+
+#edit-relay-form h2 {
+    margin: 5px 0 10px 0;
+}
+
+#edit-relay-form .warning {
+    width: 400px;
+    margin-bottom: 10px;
+}
+
+#edit-relay-form label {
+    display: block;
+    float: left;
+    width: 7em;
+    text-align: right;
+    margin-right: 10px;
+}
+
+#edit-relay-form input {
+    padding: 3px;
+}
+
+#edit-relay-form .form-row {
+    margin-bottom: 5px;
+}
+
+#edit-relay-submit {
+    float: right;
+    margin-right: 20px;
+}

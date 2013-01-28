@@ -168,6 +168,21 @@ class SeafileRpcClient(ccnet.RpcClientBase):
         pass
     get_repo_property = seafile_get_repo_property
 
+    @searpc_func("string", ["string"])
+    def seafile_get_repo_relay_address(repo_id):
+        pass
+    get_repo_relay_address = seafile_get_repo_relay_address
+
+    @searpc_func("string", ["string"])
+    def seafile_get_repo_relay_port(repo_id):
+        pass
+    get_repo_relay_port = seafile_get_repo_relay_port
+
+    @searpc_func("int", ["string", "string", "string"])
+    def seafile_update_repo_relay_info(repo_id, addr, port):
+        pass
+    update_repo_relay_info = seafile_update_repo_relay_info
+
     @searpc_func("int", ["string", "string"])
     def seafile_set_repo_token(repo_id, token):
         pass
