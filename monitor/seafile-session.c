@@ -25,7 +25,7 @@ seafile_session_new(const char *seafile_dir,
     char *config_file_path;
     struct stat st;
     GKeyFile *config;
-    SeafileSession *session;
+    SeafileSession *session = NULL;
 
     if (!ccnet_session)
         return NULL;

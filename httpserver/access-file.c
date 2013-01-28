@@ -156,7 +156,6 @@ next:
 
         if (data->idx == data->file->n_blocks - 1) {
             /* Recover evhtp's callbacks */
-            struct bufferevent *bev = evhtp_request_get_bev (data->req);
             bev->readcb = data->saved_read_cb;
             bev->writecb = data->saved_write_cb;
             bev->errorcb = data->saved_event_cb;
@@ -179,6 +178,7 @@ next:
     if (data->crypt != NULL) {
         char *dec_out;
         int dec_out_len = -1;
+        struct evbuffer *tmp_buf;
 
         dec_out = g_new (char, n + 16);
         if (!dec_out) {
@@ -197,7 +197,9 @@ next:
             goto err;
         }
 
-        bufferevent_write (bev, dec_out, dec_out_len);
+        tmp_buf = evbuffer_new ();
+
+        evbuffer_add (tmp_buf, dec_out, dec_out_len);
 
         /* If it's the last piece of a block, call decrypt_final()
          * to decrypt the possible partial block. */
@@ -207,12 +209,19 @@ next:
                                        &dec_out_len);
             if (ret == 0) {
                 seaf_warning ("Decrypt block %s failed.\n", blk_id);
+                evbuffer_free (tmp_buf);
                 g_free (dec_out);
                 goto err;
             }
-            bufferevent_write (bev, dec_out, dec_out_len);
+            evbuffer_add (tmp_buf, dec_out, dec_out_len);
         }
+        /* This may call write_data_cb() recursively (by libevent_openssl).
+         * SendfileData struct may be free'd in the recursive calls.
+         * So don't use "data" variable after here.
+         */
+        bufferevent_write_buffer (bev, tmp_buf);
 
+        evbuffer_free (tmp_buf);
         g_free (dec_out);
     } else {
         bufferevent_write (bev, buf, n);
@@ -246,7 +255,6 @@ write_dir_data_cb (struct bufferevent *bev, void *ctx)
 
         if (data->remain == 0) {
             /* Recover evhtp's callbacks */
-            struct bufferevent *bev = evhtp_request_get_bev (data->req);
             bev->readcb = data->saved_read_cb;
             bev->writecb = data->saved_write_cb;
             bev->errorcb = data->saved_event_cb;
@@ -451,7 +459,7 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
 }
 
 static int
-do_dir (evhtp_request_t *req, SeafRepo *repo, const char *file_id,
+do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
         const char *filename, const char *operation,
         SeafileCryptKey *crypt_key)
 {
@@ -465,6 +473,15 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     SeafileCrypt *crypt = NULL;
     int zipfd = 0;
     int ret = 0;
+    gint64 dir_size = 0;
+
+    /* ensure file size does not exceed limit */
+    dir_size = seaf_fs_manager_get_fs_size (seaf->fs_mgr, dir_id);
+    if (dir_size < 0 || dir_size > seaf->max_download_dir_size) {
+        seaf_warning ("invalid dir size: %"G_GINT64_FORMAT"\n", dir_size);
+        ret = -1;
+        goto out;
+    }
 
     /* Let's zip the directory first */
     filename_escaped = g_uri_unescape_string (filename, NULL);
@@ -486,7 +503,7 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *file_id,
         g_free (iv_hex);
     }
 
-    zipfile = pack_dir (filename_escaped, file_id, crypt, test_windows(req));
+    zipfile = pack_dir (filename_escaped, dir_id, crypt, test_windows(req));
     if (!zipfile) {
         ret = -1;
         goto out;

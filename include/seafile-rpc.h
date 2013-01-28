@@ -572,6 +572,9 @@ seafile_get_org_repo_owner (const char *repo_id, GError **error);
 gint64
 seafile_get_file_size (const char *file_id, GError **error);
 
+gint64
+seafile_get_dir_size (const char *dir_id, GError **error);
+
 int
 seafile_set_repo_history_limit (const char *repo_id,
                                 int days,

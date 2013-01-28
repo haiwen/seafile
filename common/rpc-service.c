@@ -2482,6 +2482,27 @@ seafile_get_file_size (const char *file_id, GError **error)
     return file_size;
 }
 
+gint64
+seafile_get_dir_size (const char *dir_id, GError **error)
+{
+    gint64 dir_size;
+
+    if (!dir_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Dir id can not be NULL");
+        return -1;
+    }
+
+    dir_size = seaf_fs_manager_get_fs_size (seaf->fs_mgr, dir_id);
+    if (dir_size < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Failed to caculate dir size");
+        return -1;
+    }
+
+    return dir_size;
+}
+
 int
 seafile_set_passwd (const char *repo_id,
                     const char *user,

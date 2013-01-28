@@ -390,6 +390,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     get_file_size = seafile_get_file_size
 
+    @searpc_func("int64", ["string"])
+    def seafile_get_dir_size(dir_id):
+        pass
+    get_dir_size = seafile_get_dir_size
+
     @searpc_func("objlist", ["string", "string"])
     def seafile_list_dir_by_path(commit_id, path):
         pass
