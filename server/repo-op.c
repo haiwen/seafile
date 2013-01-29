@@ -3043,6 +3043,9 @@ find_deleted_recursive (const char *root1,
     SeafDirent *dent1, *dent2;
     int res, ret = 0;
 
+    if (strcmp (root1, root2) == 0)
+        return 0;
+
     d1 = seaf_fs_manager_get_seafdir_sorted (seaf->fs_mgr, root1);
     if (!d1) {
         seaf_warning ("Failed to find dir %s.\n", root1);
