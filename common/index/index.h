@@ -53,16 +53,6 @@
 extern void *git_mmap(void *start, size_t length, int prot, int flags, int fd, off_t offset);
 extern int git_munmap(void *start, size_t length);
 
-extern void die(const char *err, ...) __attribute__((format (printf, 1, 2)));
-extern void warning(const char *err, ...) __attribute__((format (printf, 1, 2)));
-
-static inline size_t xsize_t(off_t len)
-{
-    if (len > (size_t) len)
-        die("Cannot handle files this big");
-    return (size_t)len;
-}
-
 #else
     #include <netinet/in.h>
     #include <arpa/inet.h>

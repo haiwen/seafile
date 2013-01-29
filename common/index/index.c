@@ -24,60 +24,6 @@
 
 #ifdef WIN32
 
-void vreportf(const char *prefix, const char *err, va_list params)
-{
-    char msg[4096];
-    vsnprintf(msg, sizeof(msg), err, params);
-    fprintf(stderr, "%s%s\n", prefix, msg);
-}
-static void usage_builtin(const char *err, va_list params)
-{
-    vreportf("usage: ", err, params);
-    exit(129);
-}
-
-static void die_builtin(const char *err, va_list params)
-{
-    vreportf("fatal: ", err, params);
-    exit(128);
-}
-static void error_builtin(const char *err, va_list params)
-{
-    vreportf("error: ", err, params);
-}
-
-static void warn_builtin(const char *warn, va_list params)
-{
-    vreportf("warning: ", warn, params);
-}
-
-
-/* If we are in a dlopen()ed .so write to a global variable would segfault
- * (ugh), so keep things static. */
-static void (*usage_routine)(const char *err, va_list params) = usage_builtin;
-static void (*die_routine)(const char *err, va_list params) = die_builtin;
-static void (*error_routine)(const char *err, va_list params) = error_builtin;
-static void (*warn_routine)(const char *err, va_list params) = warn_builtin;
-
-
-void die(const char *err, ...)
-{
-    va_list params;
-
-    va_start(params, err);
-    die_routine(err, params);
-    va_end(params);
-}
-
-void warning(const char *warn, ...)
-{
-    va_list params;
-
-    va_start(params, warn);
-    warn_routine(warn, params);
-    va_end(params);
-}
-
 void *git_mmap(void *start, size_t length, int prot, int flags, int fd, off_t offset)
 {
     HANDLE hmap;
@@ -88,27 +34,19 @@ void *git_mmap(void *start, size_t length, int prot, int flags, int fd, off_t of
     uint32_t l = o & 0xFFFFFFFF;
     uint32_t h = (o >> 32) & 0xFFFFFFFF;
 
-    if (!seaf_fstat(fd, &st))
-        len = st.st_size;
-    else
-        die("mmap: could not determine filesize");
-
-    if ((length + offset) > len)
-        length = xsize_t(len - offset);
-
-    if (!(flags & MAP_PRIVATE))
-        die("Invalid usage of mmap when built with USE_WIN32_MMAP");
-
     hmap = CreateFileMapping((HANDLE)_get_osfhandle(fd), 0, PAGE_WRITECOPY,
                              0, 0, 0);
-
-    if (!hmap)
+    if (!hmap) {
+        g_warning ("CreateFileMapping error: %u.\n", GetLastError());
         return MAP_FAILED;
+    }
 
     temp = MapViewOfFileEx(hmap, FILE_MAP_COPY, h, l, length, start);
+    if (!temp)
+        g_warning ("MapViewOfFileEx error: %u.\n", GetLastError());
 
     if (!CloseHandle(hmap))
-        warning("unable to close file mapping handle\n");
+        g_warning ("unable to close file mapping handle\n");
 
     return temp ? temp : MAP_FAILED;
 }
@@ -140,18 +78,18 @@ static int verify_hdr(struct cache_header *hdr, unsigned long size)
     unsigned char sha1[20];
 
     if (hdr->hdr_signature != htonl(CACHE_SIGNATURE)) {
-        g_critical("bad signature");
+        g_critical("bad signature\n");
         return -1;
     }
     if (hdr->hdr_version != htonl(2) && hdr->hdr_version != htonl(3)) {
-        g_critical("bad index version");
+        g_critical("bad index version\n");
         return -1;
     }
     SHA1_Init(&c);
     SHA1_Update(&c, hdr, size - 20);
     SHA1_Final(sha1, &c);
     if (hashcmp(sha1, (unsigned char *)hdr + size - 20)) {
-        g_critical("bad index file sha1 signature");
+        g_critical("bad index file sha1 signature\n");
         return -1;
     }
     return 0;
@@ -189,7 +127,7 @@ static int convert_from_disk(struct ondisk_cache_entry *ondisk, struct cache_ent
         extended_flags = ntohs(ondisk2->flags2) << 16;
         /* We do not yet understand any bit out of CE_EXTENDED_FLAGS */
         if (extended_flags & ~CE_EXTENDED_FLAGS) {
-            g_critical("Unknown index entry format %08x", extended_flags);
+            g_critical("Unknown index entry format %08x\n", extended_flags);
             return -1;
         }
         flags |= extended_flags;
@@ -245,7 +183,7 @@ static int read_index_extension(struct index_state *istate,
         /*     return error("index uses %.4s extension, which we do not understand", */
         /*              ext); */
         /* fprintf(stderr, "ignoring %.4s extension\n", ext); */
-        g_critical("unknown extension.");
+        g_critical("unknown extension.\n");
         break;
     }
     return 0;
@@ -271,25 +209,25 @@ int read_index_from(struct index_state *istate, const char *path)
     if (fd < 0) {
         if (errno == ENOENT)
             return 0;
-        g_critical("index file open failed");
+        g_critical("index file open failed\n");
         return -1;
     }
 
     if (seaf_fstat(fd, &st)) {
-        g_critical("cannot stat the open index");
+        g_critical("cannot stat the open index\n");
         return -1;
     }
 
     mmap_size = (size_t)st.st_size;
     if (mmap_size < sizeof(struct cache_header) + 20) {
-        g_critical("index file smaller than expected");
+        g_critical("index file smaller than expected\n");
         return -1;
     }
 
     mm = mmap(NULL, mmap_size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fd, 0);
     close(fd);
     if (mm == MAP_FAILED) {
-        g_critical("unable to map index file");
+        g_critical("unable to map index file\n");
         return -1;
     }
 
@@ -357,7 +295,7 @@ int read_index_from(struct index_state *istate, const char *path)
 
 unmap:
     munmap(mm, mmap_size);
-    g_critical("index file corrupt");
+    g_critical("index file corrupt\n");
     return -1;
 }
 
