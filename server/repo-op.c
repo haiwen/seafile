@@ -2713,40 +2713,22 @@ struct CalcFilesLastModifiedParam {
 };
 
 static gboolean
-check_file_last_modified (void *key, void *value, void *user_data)
+check_non_existing_files (void *key, void *value, void *vdata)
 {
-    char *file_name = key;
-    char *current_file_id = value;
-    CalcFilesLastModifiedParam *data = user_data;
-    SeafCommit *commit = data->current_commit;
-    GError **error = data->error;
-    gint64 *ctime = NULL;
+    CalcFilesLastModifiedParam *data = vdata;
     gboolean remove = FALSE;
-
-    char *file_path = g_build_filename (data->parent_dir, file_name, NULL);
-    char *file_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
-                                                    commit->root_id,
-                                                    file_path,
-                                                    NULL,
-                                                    error);
-    if (*error) {
-        goto out;
-    }
-
-    if (g_strcmp0(file_id, current_file_id) == 0) {
-        ctime = g_new0 (gint64, 1);
-        *ctime = commit->ctime;
-        g_hash_table_replace (data->last_modified_hash,
-                              g_strdup(file_name),
-                              ctime);
-    } else {
-        /* The last modified time of this file is the previous commit */
+    
+    char *file_name = key;
+    gint64 *ctime = g_hash_table_lookup (data->last_modified_hash, file_name);
+    if (!ctime) {
+        /* Impossible */
+        remove = TRUE;
+    } else if (*ctime != data->current_commit->ctime) {
+        /* This file does not exist in this commit. So it's last modified in
+         * the previous commit.
+         */
         remove = TRUE;
     }
-    
-out:    
-    g_free (file_id);
-    g_free (file_path);
 
     return remove;
 }
@@ -2755,22 +2737,70 @@ static gboolean
 collect_files_last_modified (SeafCommit *commit, void *vdata, gboolean *stop)
 {
     CalcFilesLastModifiedParam *data = vdata;
+    GError **error = data->error;
+    SeafDirent *dent = NULL;
+    char *file_id = NULL;
+    SeafDir *dir = NULL;
+    GList *ptr;
+    gboolean ret = TRUE;
 
     data->current_commit = commit;
-    g_hash_table_foreach_remove (data->current_file_id_hash, check_file_last_modified, data);
-
-    if (*(data->error)) {
-        *stop = TRUE;
-        return FALSE;
+    dir = seaf_fs_manager_get_seafdir_by_path (seaf->fs_mgr,
+                                               commit->root_id,
+                                               data->parent_dir,
+                                               error);
+    if (*error) {
+        if (!g_error_matches(*error, SEAFILE_DOMAIN, SEAF_ERR_PATH_NO_EXIST)) {
+            *stop = TRUE;
+            ret = FALSE;
+            goto out;
+        } else {
+            g_clear_error (error);
+        }
     }
+
+    if (!dir) {
+        /* The directory does not exist in this commit. So all files are last
+         * modified in the previous commit;
+         */
+        *stop = TRUE;
+        goto out;
+    }
+
+    for (ptr = dir->entries; ptr; ptr = ptr->next) {
+        dent = ptr->data;
+        file_id = g_hash_table_lookup (data->current_file_id_hash, dent->name);
+        if (file_id) {
+            if (strcmp(file_id, dent->id) != 0) {
+                g_hash_table_remove (data->current_file_id_hash, dent->name);
+            } else {
+                gint64 *ctime = g_new (gint64, 1);
+                *ctime = commit->ctime;
+                g_hash_table_replace (data->last_modified_hash, g_strdup(dent->name), ctime);
+            }
+        }
+
+        if (g_hash_table_size(data->current_file_id_hash) == 0) {
+            *stop = TRUE;
+            goto out;
+        }
+    }
+
+    /* Files not found in the current commit are last modified in the previous
+     * commit */
+    g_hash_table_foreach_remove (data->current_file_id_hash,
+                                 check_non_existing_files, data);
 
     if (g_hash_table_size(data->current_file_id_hash) == 0) {
-        /* All files under this diretory is done */
+        /* All files under this diretory have been calculated  */
         *stop = TRUE;
-        return TRUE;
+        goto out;
     }
 
-    return TRUE;
+out:
+    seaf_dir_free (dir);
+
+    return ret;
 }
 
 /**
@@ -2831,9 +2861,11 @@ seaf_repo_manager_calc_files_last_modified (SeafRepoManager *mgr,
                              g_strdup(dent->name),
                              g_strdup(dent->id));
 
+        gint64 *ctime = g_new (gint64, 1);
+        *ctime = head_commit->ctime;
         g_hash_table_insert (data.last_modified_hash,
                              g_strdup(dent->name), 
-                             g_strdup(head_commit->commit_id));
+                             ctime);
     }
 
     if (g_hash_table_size (data.current_file_id_hash) == 0) {
@@ -2874,12 +2906,12 @@ out:
         seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref(head_commit);
-    if (dir)
-        seaf_dir_free (dir);
     if (data.last_modified_hash)
         g_hash_table_destroy (data.last_modified_hash);
     if (data.current_file_id_hash)
         g_hash_table_destroy (data.current_file_id_hash);
+    if (dir)
+        seaf_dir_free (dir);
 
     return g_list_reverse(ret_list);
 }

@@ -664,16 +664,18 @@ seaf_dir_from_data (const char *dir_id, const uint8_t *data, int len)
         if (remain >= name_len) {
             dent->name_len = MIN (name_len, SEAF_DIR_NAME_LEN - 1);
             memcpy (dent->name, ptr, dent->name_len);
-            ptr += name_len;
-            remain -= name_len;
+            ptr += dent->name_len;
+            remain -= dent->name_len;
         } else {
             g_warning ("Bad data format for dir objcet %s.\n", dir_id);
             g_free (dent);
             goto bad;
         }
         
-        root->entries = g_list_append(root->entries, dent);
+        root->entries = g_list_prepend (root->entries, dent);
     }
+
+    root->entries = g_list_reverse (root->entries);
 
     return root;
 
