@@ -1088,7 +1088,7 @@ get_dir_size (SeafFSManager *mgr, const char *id)
     SeafDir *dir;
     SeafDirent *seaf_dent;
     guint64 size = 0;
-    int result;
+    gint64 result;
     GList *p;
 
     dir = seaf_fs_manager_get_seafdir (mgr, id);
