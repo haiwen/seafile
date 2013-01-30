@@ -208,7 +208,11 @@ handle_seafile_notification (char *type, char *content)
         }
         *p = '\0';
         desc = p + 1;
+#ifdef __APPLE__
+        char *translated_desc = g_strdup(desc);
+#else
         char *translated_desc = translate_commit_desc(desc);
+#endif
 
         memcpy (applet->last_synced_repo, repo_id, strlen(repo_id) + 1);
         snprintf (buf, sizeof(buf), "\"%s\" %s", repo_name, _("is synchronized"));
