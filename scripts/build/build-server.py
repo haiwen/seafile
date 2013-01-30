@@ -616,6 +616,8 @@ def create_tarball(tarball_name):
         os.path.join(versioned_serverdir, 'seafile', 'bin', 'ccnet-tool'),
         os.path.join(versioned_serverdir, 'seafile', 'bin', 'ccnet-servtool'),
         os.path.join(versioned_serverdir, 'seafile', 'bin', 'searpc-codegen.py'),
+        os.path.join(versioned_serverdir, 'seafile', 'bin', 'seafile-admin'),
+        os.path.join(versioned_serverdir, 'seafile', 'bin', 'seafile'),
     ]
 
     excludes_list = [ '--exclude=%s' % pattern for pattern in ignored_patterns ]

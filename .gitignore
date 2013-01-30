@@ -113,3 +113,6 @@ web/build/
 web/dist/
 tests/basic/conf2/misc/
 tests/basic/conf2/seafile-data/
+tests/test-cdc
+tests/test-index
+tests/test-seafile-fmt
