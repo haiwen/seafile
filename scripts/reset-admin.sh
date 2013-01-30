@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 SCRIPT=$(readlink -f "$0")
