@@ -54,15 +54,15 @@ web/i18n/zh_CN/LC_MESSAGES/messages.mo: $(top_srcdir)/web/i18n/zh_CN/LC_MESSAGES
 	msgfmt -o $@ $<
 
 install-web:
-	$(INSTALL) -d $(DESTDIR)$(pkglibdir)
-	if test -d $(DESTDIR)$(pkglibdir)/web; then \
-	    rm -rf $(DESTDIR)$(pkglibdir)/web; \
+	$(INSTALL) -d $(DESTDIR)$(pkgdatadir)
+	if test -d $(DESTDIR)$(pkgdatadir)/web; then \
+	    rm -rf $(DESTDIR)$(pkgdatadir)/web; \
     fi
-	cp -r $(top_srcdir)/web $(DESTDIR)$(pkglibdir)
+	cp -r $(top_srcdir)/web $(DESTDIR)$(pkgdatadir)
 
 uninstall-web:
-	chmod u+rw -R $(DESTDIR)$(pkglibdir)/web
-	-rm -rf $(DESTDIR)$(pkglibdir)/web
+	chmod u+rw -R $(DESTDIR)$(pkgdatadir)/web
+	-rm -rf $(DESTDIR)$(pkgdatadir)/web
 
 if COMPILE_CLIENT
 bin_SCRIPTS = ccnet-web.sh

@@ -76,7 +76,6 @@ ccnet_file_lookup (const gchar *filename, const gchar *subdir)
 		g_free (path);
 		path = g_build_filename (PKGDATADIR, filename, NULL);
 	}
-    fprintf (stderr, "%s\n", path);
 	return path;
 }
 
