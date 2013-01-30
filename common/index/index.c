@@ -28,8 +28,6 @@ void *git_mmap(void *start, size_t length, int prot, int flags, int fd, off_t of
 {
     HANDLE hmap;
     void *temp;
-    off_t len;
-    SeafStat st;
     uint64_t o = offset;
     uint32_t l = o & 0xFFFFFFFF;
     uint32_t h = (o >> 32) & 0xFFFFFFFF;
@@ -37,13 +35,13 @@ void *git_mmap(void *start, size_t length, int prot, int flags, int fd, off_t of
     hmap = CreateFileMapping((HANDLE)_get_osfhandle(fd), 0, PAGE_WRITECOPY,
                              0, 0, 0);
     if (!hmap) {
-        g_warning ("CreateFileMapping error: %u.\n", GetLastError());
+        g_warning ("CreateFileMapping error: %lu.\n", GetLastError());
         return MAP_FAILED;
     }
 
     temp = MapViewOfFileEx(hmap, FILE_MAP_COPY, h, l, length, start);
     if (!temp)
-        g_warning ("MapViewOfFileEx error: %u.\n", GetLastError());
+        g_warning ("MapViewOfFileEx error: %lu.\n", GetLastError());
 
     if (!CloseHandle(hmap))
         g_warning ("unable to close file mapping handle\n");

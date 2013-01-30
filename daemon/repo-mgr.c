@@ -822,7 +822,7 @@ seaf_repo_is_worktree_changed (SeafRepo *repo)
     DiffEntry *de;
     int pos;
     struct cache_entry *ce;
-    struct stat sb;
+    SeafStat sb;
     char *full_path;
 
     if (!check_worktree_common (repo))
@@ -880,8 +880,8 @@ changed:
         ce = istate.cache[pos];
 
         g_message ("type: %c, status: %c, name: %s, "
-                   "ce mtime: %d, ce size: %llu, "
-                   "file mtime: %d, file size: %llu\n",
+                   "ce mtime: %d, ce size: %" G_GUINT64_FORMAT ", "
+                   "file mtime: %d, file size: %" G_GUINT64_FORMAT "\n",
                    de->type, de->status, de->name,
                    ce->ce_mtime.sec, ce->ce_size, (int)sb.st_mtime, sb.st_size);
     }
