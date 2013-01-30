@@ -143,7 +143,7 @@ int start_seafile_daemon (void)
 int start_web_server (void)
 {
 #ifdef DEBUG
-    system ("/usr/local/bin/ccnet-web.sh start");
+    system ("/usr/local/bin/seafile-web start");
 #else
     NSLog (@" start web server ...\n");
     NSString *path = [[NSBundle mainBundle] pathForResource: @"seafileweb.app" ofType: nil];
@@ -303,7 +303,7 @@ int is_process_already_running (const char *name)
 int stop_web_server (void)
 {
 #ifdef DEBUG
-    system ("/usr/local/bin/ccnet-web.sh stop");
+    system ("/usr/local/bin/seafile-web stop");
     applet->web_status = WEB_NOT_STARTED;
 #else
     shutdown_process ("seafileweb");

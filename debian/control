@@ -12,7 +12,7 @@ Build-Depends:
 	libevent-dev,
 	uuid-dev,
 	libgtk2.0-dev
-Standards-Version: 3.9.2
+Standards-Version: 3.9.4
 Homepage: http://seafile.com
 
 Package: seafile

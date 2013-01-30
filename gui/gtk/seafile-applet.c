@@ -44,7 +44,7 @@ int start_web_server ()
 {
     applet_message ("Starting web ...\n");
 
-    if (spawn_process("ccnet-web.sh start") < 0) {
+    if (spawn_process("seafile-web start") < 0) {
         applet_warning ("Failed to start seafile web\n");
         applet_exit(-1);
     }
@@ -210,7 +210,7 @@ int
 stop_web_server ()
 {
     if (applet->web_status != WEB_NOT_STARTED) {
-        if (system("ccnet-web.sh stop") < 0) {
+        if (system("seafile-web stop") < 0) {
             applet_warning ("failed to stop web\n");
             return -1;
         }

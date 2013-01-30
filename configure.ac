@@ -405,7 +405,7 @@ fi
 ac_configure_args="$ac_configure_args -q"
 
 AC_CONFIG_FILES(
-    ccnet-web.sh
+    seafile-web
     Makefile
     include/Makefile
     data/Makefile

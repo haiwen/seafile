@@ -65,7 +65,7 @@ uninstall-web:
 	-rm -rf $(DESTDIR)$(pkgdatadir)/web
 
 if COMPILE_CLIENT
-bin_SCRIPTS = ccnet-web.sh
+bin_SCRIPTS = seafile-web
 install_web = install-web
 uninstall_web = uninstall-web
 make_web_mos = $(web_mos)

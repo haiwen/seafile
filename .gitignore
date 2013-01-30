@@ -81,7 +81,7 @@ httpserver/httpserver
 tests/common-conf.sh
 tools/seaf-server-init
 *.mo
-ccnet-web.sh
+seafile-web
 tests/basic/conf1/c882e263e9d02c63ca6b61c68508761cbc74c358.peer
 tests/basic/conf1/c882e263e9d02c63ca6b61c68508761cbc74c358.user
 tests/basic/conf1/group-db/
