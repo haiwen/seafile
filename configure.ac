@@ -434,6 +434,7 @@ AC_CONFIG_FILES(
     tests/Makefile
     tests/common-conf.sh
     po/Makefile.in
+    doc/Makefile
 )
 
 AC_OUTPUT

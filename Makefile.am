@@ -16,12 +16,12 @@ if WIN32
   MAKE_data =
 endif
 
-SUBDIRS = include lib common app python tests \
+SUBDIRS = include lib common app python tests doc \
 	$(MAKE_CLIENT) $(MAKE_SERVER) $(MAKE_PO) $(MAKE_data)
 
 DIST_SUBDIRS = include lib common app python tests \
 	daemon gui server tools monitor httpserver controller \
-	po data
+	po data doc
 
 INTLTOOL = \
 	intltool-extract.in \
