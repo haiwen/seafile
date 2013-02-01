@@ -19,10 +19,11 @@ if sys.version_info.minor < 6:
 import os
 import time
 import re
-import sha
+import shutil
 import subprocess
 import argparse
 import sqlite3
+import uuid
 import hashlib
 import getpass
 
@@ -39,7 +40,7 @@ except ImportError:
 SERVER_MANUAL_HTTP = 'https://github.com/haiwen/seafile/wiki'
 SEAFILE_GOOGLE_GROUP = 'https://groups.google.com/forum/?fromgroups#!forum/seafile'
 SEAFILE_WEBSITE = 'http://www.seafile.com'
-SEAHUB_DOWNLOAD_URL = 'https://www.github.com/haiwen/seahub'
+SEAHUB_DOWNLOAD_URL = 'https://seafile.com.cn/downloads/seahub-latest.tar.gz'
 
 ####################
 ### Global variables
@@ -53,6 +54,7 @@ conf = {}
 CONF_SERVER_NAME = 'server_name'
 CONF_CCNET_DIR = 'ccnet_dir'
 CONF_SEAFILE_DIR = 'seafile_dir'
+CONF_SEAHUB_DIR = 'seafile_dir'
 CONF_CCNET_PORT = 'ccnet_port'
 CONF_SEAFILE_PORT = 'seafile_port'
 CONF_HTTPSERVER_PORT = 'httpserver_port'
@@ -74,7 +76,7 @@ CONF_ADMIN_PASSWORD = 'admin_password'
 
 ####################
 ### Common helper functions
-####################
+
 def highlight(content):
     '''Add ANSI color to content to get it highlighted on terminal'''
     return '\x1b[33m%s\x1b[m' % content
@@ -83,7 +85,7 @@ def info(msg):
     print msg
 
 def error(msg):
-    print msg
+    print 'Error: ' + msg
     sys.exit(1)
 
 def ask_question(desc, key=None, note=None, default=None,
@@ -202,6 +204,16 @@ def kill(pid):
 
     run_argv(argv)
 
+def must_mkdir(path):
+    '''Create a directory, exit on failure'''
+    try:
+        os.mkdir(path)
+    except OSError, e:
+        error('failed to create directory %s:%s' % (path, e))
+
+### END of Common helper functions
+####################
+
 def check_seafile_install():
     '''Check if seafile has been correctly built and installed in this
     system
@@ -237,15 +249,18 @@ def check_seafile_install():
         check_prog(prog)
 
 def get_seahub_env():
-    '''And PYTHONPATH and CCNET_CONF_DIR to env, which is needed by seahub'''
-    seahub_dir = os.path.join(cwd, 'seahub')
-    seahub_thirdpart = os.path.join(seahub_dir, 'thirdpart')
+    '''And PYTHONPATH and CCNET_CONF_DIR/SEAFILE_CONF_DIR to env, which is
+    needed by seahub
+
+    '''
+    seahub_dir = conf[CONF_SEAHUB_DIR]
+    seahub_thirdpart_dir = os.path.join(seahub_dir, 'thirdpart')
 
     env = dict(os.environ)
     pypath = env.get('PYTHONPATH', '')
 
     pathlist = [ p for p in pypath.split(':') if p != '' ]
-    pathlist.append(seahub_thirdpart)
+    pathlist.append(seahub_thirdpart_dir)
     newpypath = ':'.join(pathlist)
     env['PYTHONPATH'] = newpypath
     env['CCNET_CONF_DIR'] = conf[CONF_CCNET_DIR]
@@ -385,13 +400,15 @@ def get_seafile_data_dir():
     conf[CONF_SEAFILE_DIR] = seafile_data_dir
 
 def create_gunicorn_conf():
-    runtime_dir = os.path.join(cwd, 'runtime')
+    runtime_dir = os.path.join(cwd, 'seafile-server', 'runtime')
     confpath = os.path.join(runtime_dir, 'seahub.conf')
 
     if os.path.exists(confpath):
         return
 
-    os.mkdir(runtime_dir)
+    if not os.path.exists(runtime_dir):
+        must_mkdir(runtime_dir)
+
     content = '''\
 import os
 daemon = True
@@ -402,15 +419,12 @@ runtime_dir = os.path.dirname(__file__)
 pidfile = os.path.join(runtime_dir, 'seahub.pid')
 errorlog = os.path.join(runtime_dir, 'error.log')
 accesslog = os.path.join(runtime_dir, 'access.log')
-# for file upload, we need a longer timeout value (default is only 30s, too short)
-timeout = 1200
 '''
     try:
         with open(confpath, 'w') as fp:
             fp.write(content)
     except:
         error('Failed to write seahub config')
-        sys.exit(1)
 
 def get_admin_email_password():
     info('')
@@ -456,18 +470,23 @@ def get_admin_email_password():
     if raw_input() != '':
         get_admin_email_password()
     else:
-        sha1 = sha.sha(admin_password)
+        sha1 = hashlib.sha1(admin_password)
         conf[CONF_ADMIN_EMAIL] = admin_email
         conf[CONF_ADMIN_PASSWORD] = sha1.hexdigest()
 
 def create_seahub_admin():
-    get_admin_email_password()
 
     peermgr_dir = os.path.join(conf[CONF_CCNET_DIR], 'PeerMgr')
     usermgr_db = os.path.join(peermgr_dir, 'usermgr.db')
 
+    if os.path.exists(usermgr_db):
+        return
+
     if not os.path.exists(peermgr_dir):
         os.mkdir(peermgr_dir)
+        
+    get_admin_email_password()
+    
     conn = sqlite3.connect(usermgr_db)
     c = conn.cursor()
 
@@ -478,14 +497,51 @@ def create_seahub_admin():
     c.execute(sql)
     conn.commit()
 
+    info('Successfully created your admin account')
+
+def gen_seahub_secret_key():
+    data = str(uuid.uuid4()) + str(uuid.uuid4())
+    return data[:40]
+
+def create_seahub_settings_py():    
+    seahub_settings_py = os.path.join(cwd, 'seahub_settings.py')
+    try:
+        with open(seahub_settings_py, 'w') as fp:
+            line = "SECRET_KEY = '%s'" % gen_seahub_secret_key()
+            fp.write(line)
+    except Exception, e:
+        error('failed to create %s: %s' % (seahub_settings_py, e))
+
+def move_avatar():
+    seahub_data_dir = os.path.join(cwd, 'seahub-data')
+    outside_avatar_dir = os.path.join(seahub_data_dir, 'avatars')
+    seahub_avatar_dir = os.path.join(conf[CONF_SEAHUB_DIR], 'media', 'avatars')
+
+    if os.path.exists(outside_avatar_dir):
+        return
+
+    if not os.path.exists(seahub_data_dir):
+        must_mkdir(seahub_data_dir)
+
+    # move the avatars dir outside
+    shutil.move(seahub_avatar_dir, outside_avatar_dir)
+    # make the the original avatars dir a symlink pointing to the outside dir
+    os.symlink(outside_avatar_dir, seahub_avatar_dir)
+
 def init_seahub():
-    seahub_dir = os.path.join(cwd, 'seahub')
+    seahub_dir = conf[CONF_SEAHUB_DIR]
+
+    # create seahub_settings.py
+    create_seahub_settings_py()
 
     argv = [PYTHON, 'manage.py', 'syncdb']
     # Set proper PYTHONPATH before run django syncdb command
     env = get_seahub_env()
 
+    print
+    print
     info('Now initializing seahub database, please wait...')
+    print
 
     if run_argv(argv, cwd=seahub_dir, env=env) != 0:
         error('Seahub syncdb failed')
@@ -493,6 +549,7 @@ def init_seahub():
     info('done')
 
     create_seahub_admin()
+    move_avatar()
     create_gunicorn_conf()
 
 def check_django_version():
@@ -509,19 +566,19 @@ def check_python_module(import_name, package_name, silent=False):
     try:
         __import__(import_name)
     except ImportError:
-        error('%s not found. Please install it first' % package_name)
+        error('Python module "%s" not found. Please install it first' % package_name)
 
 def check_python_dependencies(silent=False):
     '''Ensure all python libraries we need are installed'''
 
     if not silent:
         info('check python modules ...')
-    check_python_module('simplejson', 'simplejson')
-    check_python_module('sqlite3', 'sqlite3')
-    check_python_module('PIL', 'python imaging library(PIL)')
-    check_python_module('django', 'django 1.3')
-    check_python_module('djblets', 'djblets')
-    check_python_module('rest_framework', 'django rest framework')
+    check_python_module('simplejson', 'simplejson', silent=silent)
+    check_python_module('sqlite3', 'sqlite3', silent=silent)
+    check_python_module('PIL', 'python imaging library(PIL)', silent=silent)
+    check_python_module('django', 'django 1.3', silent=silent)
+    check_python_module('djblets', 'djblets', silent=silent)
+    check_python_module('rest_framework', 'django rest framework', silent=silent)
     check_django_version()
 
     print
@@ -563,22 +620,12 @@ def config_ccnet_seafile():
     else:
         return
 
-def check_seahub():
-    seahub_dir = os.path.join(cwd, 'seahub')
-    if not os.path.exists(seahub_dir):
-        info(highlight('\nThe "seahub" folder not found in the current directory'))
-        info('Please run %s in the right directory' % SCRIPT_NAME)
-        info('If you have not downloaded seahub, download it from:')
-        info('\t%s\n' % SEAHUB_DOWNLOAD_URL)
-        info('Then put it under this directory, and run the script again\n')
-        error('')
-
 def init_ccnet_seafile():
     if not conf[CONF_CCNET_CONF_EXISTS]:
         info('Generating ccnet configuration...')
         argv = [
             'ccnet-init',
-            '-c', conf[CONF_CCNET_DIR], 
+            '-c', conf[CONF_CCNET_DIR],
             '--name', conf[CONF_SERVER_NAME],
             '--port', conf[CONF_CCNET_PORT],
             '--host', conf[CONF_IP_OR_DOMAIN],
@@ -617,7 +664,7 @@ def start_controller():
     if run_argv(argv) != 0:
         error('Failed to start seafile')
 
-    # check again after 3 seconds
+    # check again after several seconds
     time.sleep(10)
 
     if not is_running('seafile-controller'):
@@ -659,12 +706,12 @@ def start_seahub_fastcgi():
     argv = [
         PYTHON, 'manage.py', 'runfcgi',
         'host=127.0.0.1',
-        'port=%(port)s', 
+        'port=%(port)s',
         'pidfile=%(pidfile)s',
         'outlog=%(outlog)s',
         'errlog=%(errlog)s',
     ]
-        
+
     cmdline = ' '.join(argv) % \
               dict(port=conf[CONF_SEAHUB_PORT],
                    pidfile=conf[CONF_SEAHUB_PIDFILE],
@@ -677,39 +724,67 @@ def start_seahub_fastcgi():
         error('Failed to start seahub in fastcgi mode')
 
     info('Seahub running on port %s (fastcgi)' % conf[CONF_SEAHUB_PORT])
-    
+
 def check_config(args):
+    def error_not_found(path):
+        error('%s not found' % path)
     ccnet_conf_dir = os.path.join(cwd, 'ccnet')
     if not os.path.exists(ccnet_conf_dir):
-        print 'No directory named "ccnet" found under current directory.'
-        error('Have you run <seafile-admin setup>?')
+        error_not_found(ccnet_conf_dir)
+
+    ccnet_conf = os.path.join(ccnet_conf_dir, 'ccnet.conf')
+    if not os.path.exists(ccnet_conf):
+        error_not_found(ccnet_conf)
 
     seafile_data_dir = os.path.join(cwd, 'seafile-data')
     if not os.path.exists(seafile_data_dir):
-        print 'No directory named "seafile-data" found under current directory.'
-        error('Have you run <seafile-admin setup>?')
+        error_not_found(seafile_data_dir)
 
-    seahub_dir = os.path.join(cwd, 'seahub')
-    if not os.path.exists(seafile_data_dir):
-        error('No directory named "seahub" found under current directory')
+    seafile_conf = os.path.join(seafile_data_dir, 'seafile.conf')
+    if not os.path.exists(seafile_conf):
+        error_not_found(seafile_conf)
 
-    seahub_conf = os.path.join(cwd, 'runtime', 'seahub.conf')
-    if not os.path.exists(seafile_data_dir):
-        error('seahub.conf not found')
+    runtime_dir = os.path.join(cwd, 'seafile-server', 'runtime')
+    seahub_conf = os.path.join(runtime_dir, 'seahub.conf')
+    if not os.path.exists(seahub_conf):
+        error_not_found(seahub_conf)
 
-    runtime_dir = os.path.join(cwd, 'runtime')
+    seahub_dir = os.path.join(cwd, 'seafile-server', 'seahub')
+    if not os.path.exists(seahub_conf):
+        error_not_found(seahub_dir)
+
+    try:
+        port = int(args.port)
+    except ValueError:
+        error('invalid port: %s' % args.port)
+    else:
+        if port <= 0 or port > 65535:
+            error('invalid port: %s' % args.port)
 
     conf[CONF_CCNET_DIR]        = ccnet_conf_dir
     conf[CONF_SEAFILE_DIR]      = seafile_data_dir
     conf[CONF_SEAHUB_DIR]       = seahub_dir
     conf[CONF_SEAHUB_CONF]      = seahub_conf
-    conf[CONF_SEAHUB_PORT]      = args.port
+    conf[CONF_SEAHUB_PORT]      = port
     conf[CONF_SEAHUB_PIDFILE]   = os.path.join(runtime_dir, 'seahub.pid')
     conf[CONF_SEAHUB_OUTLOG]    = os.path.join(runtime_dir, 'access.log')
     conf[CONF_SEAHUB_ERRLOG]    = os.path.join(runtime_dir, 'error.log')
 
+def check_directory_layout():
+    seaf_server_dir = os.path.join(cwd, 'seafile-server')
+    if not os.path.exists(seaf_server_dir):
+        error('"seafile-server/" not found in current directory. \nPlease run seafile-admin in the correct directory.')
+
+    seahub_dir = os.path.join(seaf_server_dir, 'seahub')
+    if not os.path.exists(seahub_dir):
+        error('"seafile-server/seahub/" not found. \nPlease download seahub first.')
+
+    conf[CONF_SEAHUB_DIR] = seahub_dir
+
 def setup_seafile(args):
-    dummy = args                # avoid pylint "unused variable" warning
+    # avoid pylint "unused variable" warning
+    dummy = args
+
     welcome()
     check_python_dependencies()
     config_ccnet_seafile()
@@ -718,39 +793,66 @@ def setup_seafile(args):
 
     print
     print '-----------------------------------------------------------------'
+    print '-----------------------------------------------------------------'
     print 'Your seafile server configuration has been finished successfully.'
+    print '-----------------------------------------------------------------'
     print '-----------------------------------------------------------------'
     print
     print 'To start/stop seafile server:'
-    print 
+    print
     print highlight('         $ cd %s' % cwd)
     print highlight('         $ %s { start | stop }' % SCRIPT_NAME)
     print
     print 'If you have any problem, refer to\n'
     print
     print ' Seafile server manual:      %s' % SERVER_MANUAL_HTTP
-    print 
+    print
     print ' Seafile discussion group:   %s' % SEAFILE_GOOGLE_GROUP
-    print 
+    print
     print ' Seafile website:            %s' % SEAFILE_WEBSITE
     print
     print 'for more information.'
     print
 
+def check_necessary_files():
+    files = [
+        os.path.join(cwd, 'ccnet', 'ccnet.conf'),
+        os.path.join(cwd, 'seafile-data', 'seafile.conf'),
+        os.path.join(cwd, 'seafile-server', 'runtime', 'seahub.conf'),
+        os.path.join(cwd, 'seahub.db'),
+        os.path.join(cwd, 'seahub_settings.py'),
+    ]
+
+    for fpath in files:
+        if not os.path.exists(fpath):
+            error('%s not found' % fpath)
+
 def start_seafile(args):
     '''start ccnet/seafile/seahub/httpserver'''
-    check_python_dependencies(silent=True)
-    if args.fastcgi:
-        check_python_module('flup', 'flup')
-    else:
-        check_python_module('gunicorn', 'gunicorn')
-        
-    check_config(args)
     if is_running('seafile-controller'):
         error(highlight('NOTE: Seafile is already running'))
 
+    check_python_dependencies(silent=True)
+    if args.fastcgi:
+        check_python_module('flup', 'flup', silent=True)
+    else:
+        check_python_module('gunicorn', 'gunicorn', silent=True)
+
+    check_necessary_files()
+
+    check_config(args)
+
     start_controller()
     start_httpserver()
+
+    if args.port:
+        try:
+            port = int(args.port)
+        except ValueError:
+            error('invalid port: %s' % args.port)
+        else:
+            if port <= 0 or port > 65535:
+                error('invalid port: %s' % args.port)
 
     if args.fastcgi:
         start_seahub_fastcgi()
@@ -763,9 +865,11 @@ def stop_seafile(dummy):
     info('Stopping seafile server')
     pkill('seafile-controller')
     pkill('httpserver')
+    runtime_dir = os.path.join(cwd, 'seafile-server', 'runtime')
+    pidfile = os.path.join(runtime_dir, 'seahub.pid')
     try:
-        with open(os.path.join(cwd, 'runtime', 'seahub.pid'), 'r') as fp:
-            pid = fp.read().strip('\n').strip()
+        with open(pidfile, 'r') as fp:
+            pid = fp.read().strip('\n ')
             if pid:
                 kill(pid)
     except:
@@ -825,9 +929,7 @@ def reset_admin(dummy):
     if passwd != passwd2:
         error('Two passwords are not the same')
 
-    mySha1 = hashlib.sha1()
-    mySha1.update(passwd)
-    enc_passwd = mySha1.hexdigest()
+    enc_passwd = hashlib.sha1(passwd).hexdigest()
     sql = "INSERT INTO EmailUser(email, passwd, is_staff, is_active, ctime) VALUES ('%s', '%s', 1, 1, '%d');" % (username, enc_passwd, time.time()*1000000)
     try:
         c = conn.cursor()
@@ -838,13 +940,13 @@ def reset_admin(dummy):
     else:
         info('Admin user created successfully')
 
-    # Close db    
+    # Close db
     conn.close()
 
 def main():
     check_seafile_install()
-    check_seahub()
-    
+    check_directory_layout()
+
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(title='subcommands',
                                        description='')
