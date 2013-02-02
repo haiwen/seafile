@@ -31,7 +31,7 @@ SeafileCrypt *
 seafile_crypt_new (int version, unsigned char *key, unsigned char *iv);
 
 /*  
-  @data_out: pointer to the ouput of the encrpyted/decrypted data,
+  @data_out: pointer to the output of the encrpyted/decrypted data,
   whose content must be freed by g_free when not used.
 
   @out_len: pointer to length of output, in bytes

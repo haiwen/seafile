@@ -385,7 +385,7 @@ need_notify_sync (SeafRepo *repo)
 
 static const char *sync_state_str[] = {
     "synchronized",
-    "commiting",
+    "committing",
     "initializing",
     "downloading",
     "merging",

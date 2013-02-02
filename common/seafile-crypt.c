@@ -104,7 +104,7 @@ seafile_encrypt (char **data_out,
     *data_out = (char *)g_malloc (blks * BLK_SIZE);
 
     if (*data_out == NULL) {
-        g_warning ("failed to allocate the ouput buffer.\n");
+        g_warning ("failed to allocate the output buffer.\n");
         goto enc_error;
     }                
 
@@ -200,7 +200,7 @@ seafile_decrypt (char **data_out,
     *data_out = (char *)g_malloc (in_len);
 
     if (*data_out == NULL) {
-        g_warning ("failed to allocate the ouput buffer.\n");
+        g_warning ("failed to allocate the output buffer.\n");
         goto dec_error;
     }                
 
