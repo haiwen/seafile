@@ -133,6 +133,7 @@ function before_start() {
     export CCNET_CONF_DIR=${default_ccnet_conf_dir}
     export SEAFILE_CONF_DIR=${seafile_data_dir}
     export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
+    export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seafile/lib64/python2.7/site-packages:$PYTHONPATH
 }
 
 function start_seahub () {
@@ -145,7 +146,6 @@ function start_seahub () {
     if ! pgrep -f "${manage_py}" 2>/dev/null 1>&2; then
         printf "\033[33mError:Seahub failed to start.\033[m\n"
         echo "Please try to run \"./seafile.sh start\" again"
-        echo "If it fails again, Please remove ${default_ccnet_conf_dir} and run ./setup-seafile.sh again"
         exit 1;
     fi
 }
