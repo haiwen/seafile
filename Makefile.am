@@ -55,7 +55,10 @@ web/i18n/zh_CN/LC_MESSAGES/messages.mo: $(top_srcdir)/web/i18n/zh_CN/LC_MESSAGES
 
 install-web:
 	$(INSTALL) -d $(DESTDIR)$(pkgdatadir)
-	rsync -a --delete $(top_srcdir)/web/ $(DESTDIR)$(pkgdatadir)/web/
+	if test -d $(DESTDIR)$(pkgdatadir)/web; then \
+		rm -rf $(DESTDIR)$(pkgdatadir)/web; \
+	fi
+	cp -r $(top_srcdir)/web $(DESTDIR)$(pkgdatadir)
 
 uninstall-web:
 	chmod u+rw -R $(DESTDIR)$(pkgdatadir)/web
