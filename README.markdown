@@ -29,7 +29,7 @@ Compared to other open-source Dropbox-like projects, such as
 
 1. Mature, reliable, production-ready file syncing algorithm.
 2. Doesn't depend on Git.
-3. Online collaboration features useful for teamwork.
+3. Not a Dropbox-clone, but a newly designed product for teamwork. 
 
 Internal
 ========
