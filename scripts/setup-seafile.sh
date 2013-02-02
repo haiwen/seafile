@@ -212,7 +212,7 @@ function get_server_name () {
         echo
         echo "server name can not be empty"
         get_server_name
-    elif [[ ! ${server_name} =~ ^[a-zA-Z][a-zA-Z0-9_-]{2,14}$ ]]; then
+    elif [[ ! ${server_name} =~ ^[a-zA-Z0-9_-]{3,14}$ ]]; then
         printf "\n\033[33m${server_name}\033[m is not a valid name.\n"
         get_server_name;
     fi
