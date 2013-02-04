@@ -2468,17 +2468,13 @@ seafile_get_file_size (const char *file_id, GError **error)
         return -1;
     }
 
-    file = seaf_fs_manager_get_seafile (seaf->fs_mgr, file_id);
-    if (!file) {
+    file_size = seaf_fs_manager_get_file_size (seaf->fs_mgr, file_id);
+    if (file_size < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
-                     "Couldn't get file");
-        seafile_unref (file);
+                     "failed to read file size");
         return -1;
     }
 
-    file_size = file->file_size;
-
-    seafile_unref (file);
     return file_size;
 }
 

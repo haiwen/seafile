@@ -193,6 +193,9 @@ gboolean
 seaf_fs_manager_object_exists (SeafFSManager *mgr, const char *id);
 
 gint64
+seaf_fs_manager_get_file_size (SeafFSManager *mgr, const char *file_id);
+
+gint64
 seaf_fs_manager_get_fs_size (SeafFSManager *mgr, const char *root_id);
 
 #ifndef SEAFILE_SERVER
