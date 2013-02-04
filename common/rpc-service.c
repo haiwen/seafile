@@ -1591,9 +1591,9 @@ seafile_get_repo_owner (const char *repo_id, GError **error)
     }
 
     char *owner = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
-    if (!owner){
-        g_warning ("Failed to get repo owner for repo %s.\n", repo_id);
-    }
+    /* if (!owner){ */
+    /*     g_warning ("Failed to get repo owner for repo %s.\n", repo_id); */
+    /* } */
 
     return owner;
 }
