@@ -28,7 +28,7 @@ INTLTOOL = \
 	intltool-merge.in \
 	intltool-update.in
 
-EXTRA_DIST = install-sh $(INTLTOOL) README.markdown web scripts debian msi
+EXTRA_DIST = install-sh $(INTLTOOL) README.markdown web scripts debian msi LICENCE.txt
 
 DISTCLEANFILES = \
 	intltool-extract.in \
