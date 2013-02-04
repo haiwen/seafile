@@ -30,11 +30,6 @@ INTLTOOL = \
 
 EXTRA_DIST = install-sh $(INTLTOOL) README.markdown web scripts debian msi LICENCE.txt
 
-DISTCLEANFILES = \
-	intltool-extract.in \
-	intltool-merge.in \
-	intltool-update.in
-
 DISTCHECK_CONFIGURE_FLAGS = --enable-server --enable-httpserver
 
 ACLOCAL_AMFLAGS = -I m4
@@ -63,6 +58,17 @@ install-web:
 uninstall-web:
 	chmod u+rw -R $(DESTDIR)$(pkgdatadir)/web
 	-rm -rf $(DESTDIR)$(pkgdatadir)/web
+
+dist-hook:
+	find $(distdir)/web -name '*.pyc' -o \
+	-name '*.sh' -o \
+	-name '*~' -o \
+	-name '*#' -o \
+	-name '*.mo' \
+	| xargs rm -f
+
+clean-local:
+	rm -f po/*.gmo
 
 if COMPILE_CLIENT
 bin_SCRIPTS = seafile-web
