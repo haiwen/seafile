@@ -84,7 +84,7 @@ def highlight(content, is_error=False):
 def info(msg):
     print highlight('[INFO] ') + msg
 
-def exist_in_path(prog):
+def find_in_path(prog):
     '''Test whether prog exists in system path'''
     dirs = os.environ['PATH'].split(';')
     for d in dirs:
@@ -92,9 +92,9 @@ def exist_in_path(prog):
             continue
         path = os.path.join(d, prog)
         if os.path.exists(path):
-            return True
+            return path
 
-    return False
+    return None
 
 def prepend_env_value(name, value, seperator=':'):
     '''prepend a new value to a list'''
@@ -550,6 +550,10 @@ def copy_shared_libs():
     for lib in shared_libs:
         must_copy(lib, pack_bin_dir)
 
+    # libsqlite3 can not be found automatically
+    libsqlite3 = find_in_path('libsqlite3-0.dll')
+    must_copy(libsqlite3, pack_bin_dir)
+
 def copy_dll_exe():
     prefix = Seafile().prefix
     destdir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin')
@@ -703,7 +707,7 @@ def check_tools():
     ]
 
     for prog in tools:
-        if not exist_in_path(prog + '.exe'):
+        if not find_in_path(prog + '.exe'):
             error('%s not found' % prog)
 
 def main():
