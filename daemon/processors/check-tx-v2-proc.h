@@ -8,11 +8,6 @@
 
 #include "transfer-mgr.h"
 
-enum {
-    CHECK_TX_TYPE_UPLOAD,
-    CHECK_TX_TYPE_DOWNLOAD,
-};
-
 #define SEAFILE_TYPE_CHECK_TX_V2_PROC               (seafile_check_tx_v2_proc_get_type ())
 #define SEAFILE_CHECK_TX_V2_PROC(obj)               (G_TYPE_CHECK_INSTANCE_CAST ((obj), SEAFILE_TYPE_CHECK_TX_V2_PROC, SeafileCheckTxV2Proc))
 #define SEAFILE_IS_CHECK_TX_V2_PROC(obj)            (G_TYPE_CHECK_INSTANCE_TYPE ((obj), SEAFILE_TYPE_CHECK_TX_PROC))

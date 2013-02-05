@@ -28,6 +28,7 @@ proc_headers = $(addprefix processors/, \
 	sync-repo-slave-proc.h \
 	check-tx-slave-proc.h \
 	check-tx-slave-v2-proc.h \
+	check-tx-slave-v3-proc.h \
 	putcommit-proc.h  \
 	putfs-proc.h \
 	putcommit-v2-proc.h \
@@ -91,6 +92,7 @@ seaf_server_SOURCES = \
 	processors/sync-repo-slave-proc.c \
 	processors/check-tx-slave-proc.c \
 	processors/check-tx-slave-v2-proc.c \
+	processors/check-tx-slave-v3-proc.c \
 	processors/putcommit-proc.c \
 	processors/putfs-proc.c \
 	../common/processors/putblock-proc.c \

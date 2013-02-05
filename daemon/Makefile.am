@@ -19,6 +19,7 @@ endif
 proc_headers = $(addprefix processors/, \
 	check-tx-proc.h \
 	check-tx-v2-proc.h \
+	check-tx-v3-proc.h \
 	getcommit-proc.h \
 	sendcommit-proc.h \
 	sendfs-proc.h \
@@ -93,6 +94,7 @@ common_src = \
 	../common/mq-mgr.c \
 	processors/check-tx-proc.c \
 	processors/check-tx-v2-proc.c \
+	processors/check-tx-v3-proc.c \
 	processors/getcommit-proc.c \
 	processors/sendcommit-proc.c \
 	processors/sendfs-proc.c \

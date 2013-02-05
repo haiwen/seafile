@@ -29,6 +29,7 @@
 #include "mq-mgr.h"
 
 #include "processors/check-tx-v2-proc.h"
+#include "processors/check-tx-v3-proc.h"
 #include "processors/getcommit-proc.h"
 #include "processors/sendcommit-proc.h"
 #include "processors/sendfs-proc.h"
@@ -546,6 +547,10 @@ static void register_processors (CcnetClient *client)
     ccnet_proc_factory_register_processor (client->proc_factory,
                                            "seafile-check-tx-v2",
                                            SEAFILE_TYPE_CHECK_TX_V2_PROC);
+
+    ccnet_proc_factory_register_processor (client->proc_factory,
+                                           "seafile-check-tx-v3",
+                                           SEAFILE_TYPE_CHECK_TX_V3_PROC);
 
     ccnet_proc_factory_register_processor (client->proc_factory,
                                            "seafile-getcommit",
@@ -1251,6 +1256,23 @@ check_download_cb (CcnetProcessor *processor, gboolean success, void *data)
             save_clone_head (task, task->head);
 
         start_commit_download (task);
+    } else if (processor->failure == PROC_NO_SERVICE) {
+        /* Talking to an old server. */
+        CcnetProcessor *v2_proc;
+
+        v2_proc = ccnet_proc_factory_create_remote_master_processor (
+            seaf->session->proc_factory, "seafile-check-tx-v2", task->dest_id);
+        if (!v2_proc) {
+            seaf_warning ("failed to create check-tx-v2 proc for download.\n");
+            transition_state_to_error (task, TASK_ERR_CHECK_DOWNLOAD_START);
+        }
+
+        g_signal_connect (v2_proc, "done", (GCallback)check_download_cb, task);
+
+        ((SeafileCheckTxV2Proc *)v2_proc)->task = task;
+        if (ccnet_processor_startl (v2_proc, "download", NULL) < 0)
+            seaf_warning ("failed to start check-tx-v2 proc for download.\n");
+
     } else if (task->state != TASK_STATE_ERROR
                && task->runtime_state == TASK_RT_STATE_CHECK) {
         transfer_task_with_proc_failure (
@@ -1276,7 +1298,7 @@ start_download (TransferTask *task)
         return -1;
 
     processor = ccnet_proc_factory_create_remote_master_processor (
-        seaf->session->proc_factory, "seafile-check-tx-v2", dest_id);
+        seaf->session->proc_factory, "seafile-check-tx-v3", dest_id);
     if (!processor) {
         seaf_warning ("failed to create check-tx proc for download.\n");
         transition_state_to_error (task, TASK_ERR_CHECK_DOWNLOAD_START);
@@ -1285,7 +1307,7 @@ start_download (TransferTask *task)
 
     g_signal_connect (processor, "done", (GCallback)check_download_cb, task);
 
-    ((SeafileCheckTxV2Proc *)processor)->task = task;
+    ((SeafileCheckTxV3Proc *)processor)->task = task;
     if (ccnet_processor_startl (processor, "download", NULL) < 0) {
         seaf_warning ("failed to start check-tx proc for download.\n");
         return -1;
@@ -1601,6 +1623,23 @@ check_upload_cb (CcnetProcessor *processor, gboolean success, void *data)
 
     if (success) {
         start_commit_upload (task);
+    } else if (processor->failure == PROC_NO_SERVICE) {
+        /* Talking to an old server. */
+        CcnetProcessor *v2_proc;
+
+        v2_proc = ccnet_proc_factory_create_remote_master_processor (
+            seaf->session->proc_factory, "seafile-check-tx-v2", task->dest_id);
+        if (!v2_proc) {
+            seaf_warning ("failed to create check-tx-v2 proc for upload.\n");
+            transition_state_to_error (task, TASK_ERR_CHECK_UPLOAD_START);
+        }
+
+        g_signal_connect (v2_proc, "done", (GCallback)check_upload_cb, task);
+
+        ((SeafileCheckTxV2Proc *)v2_proc)->task = task;
+        if (ccnet_processor_startl (v2_proc, "upload", NULL) < 0)
+            seaf_warning ("failed to start check-tx-v2 proc for upload.\n");
+
     } else if (task->state != TASK_STATE_ERROR
                && task->runtime_state == TASK_RT_STATE_CHECK) {
         transfer_task_with_proc_failure (
@@ -1637,19 +1676,19 @@ start_upload (TransferTask *task)
     seaf_branch_unref (branch);
 
     processor = ccnet_proc_factory_create_remote_master_processor (
-        seaf->session->proc_factory, "seafile-check-tx-v2", dest_id);
+        seaf->session->proc_factory, "seafile-check-tx-v3", dest_id);
     if (!processor) {
-        seaf_warning ("failed to create check-tx proc for upload.\n");
+        seaf_warning ("failed to create check-tx-v3 proc for upload.\n");
         transition_state_to_error (task, TASK_ERR_CHECK_UPLOAD_START);
         return -1;
     }
 
     g_signal_connect (processor, "done", (GCallback)check_upload_cb, task);
 
-    ((SeafileCheckTxV2Proc *)processor)->task = task;
+    ((SeafileCheckTxV3Proc *)processor)->task = task;
     if (ccnet_processor_startl (processor, "upload", NULL) < 0)
     {
-        seaf_warning ("failed to start check-tx proc for upload.\n");
+        seaf_warning ("failed to start check-tx-v3 proc for upload.\n");
         return -1;
     }
 
