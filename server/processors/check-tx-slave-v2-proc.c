@@ -152,7 +152,7 @@ decrypt_token (CcnetProcessor *processor)
     unsigned char key[16], iv[16];
     char *token = NULL;
     int ret = 0;
-    
+
     /* raw data is half the length of hexidecimal */
     hex_len = strlen(priv->token);
     if (hex_len % 2 != 0) {
@@ -160,6 +160,12 @@ decrypt_token (CcnetProcessor *processor)
         ret = -1;
         goto out;
     }
+
+    token = seaf_repo_manager_get_decrypted_token (seaf->repo_mgr,
+                                                   priv->token,
+                                                   priv->session_key);
+    if (token)
+        goto found;
     
     encrypted_len = hex_len / 2;
     encrypted_token = g_malloc (encrypted_len);
@@ -179,6 +185,13 @@ decrypt_token (CcnetProcessor *processor)
         goto out;
     }
 
+    /* Add to cache. */
+    seaf_repo_manager_add_decrypted_token (seaf->repo_mgr,
+                                           priv->token,
+                                           priv->session_key,
+                                           token);
+
+found:
     g_free (priv->token);
     /* we can use the decrypted data directly, since the trailing null byte is
      * also included when encrypting in the client */

@@ -2460,7 +2460,6 @@ gint64
 seafile_get_file_size (const char *file_id, GError **error)
 {
     gint64 file_size;
-    Seafile *file = NULL;
 
     if (!file_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,

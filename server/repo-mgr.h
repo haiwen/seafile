@@ -617,4 +617,17 @@ seaf_repo_manager_set_access_property (SeafRepoManager *mgr, const char *repo_id
 char *
 seaf_repo_manager_query_access_property (SeafRepoManager *mgr, const char *repo_id);
 
+/* Decrypted repo token cache. */
+
+void
+seaf_repo_manager_add_decrypted_token (SeafRepoManager *mgr,
+                                       const char *encrypted_token,
+                                       const char *session_key,
+                                       const char *decrypted_token);
+
+char *
+seaf_repo_manager_get_decrypted_token (SeafRepoManager *mgr,
+                                       const char *encrypted_token,
+                                       const char *session_key);
+
 #endif
