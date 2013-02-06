@@ -30,26 +30,6 @@
 #ifndef SEAFILE_SERVER
 #include "../daemon/vc-utils.h"
 
-#ifdef WIN32
-static char *normal_index_path(const char *path)
-{
-    char *newpath = g_strdup(path);
-    char *p = newpath;
-
-    while(*p != '\0') {
-        if(*p == '\\') *p = '/';
-        ++p;
-    }
-
-    return newpath;
-}
-#else
-static char *normal_index_path(const char *path)
-{
-    return g_strdup(path);
-}
-#endif
-
 #endif  /* SEAFILE_SERVER */
 
 
@@ -238,99 +218,6 @@ seafile_get_config (const char *key, GError **error)
     return seafile_session_config_get_string(seaf, key);
 }
 
-#if 0
-const gchar*
-seafile_create_repo (const char *name,
-                     const char *description,
-                     const char *worktree,
-                     const char *passwd,
-                     const char *relay_id,
-                     int keep_local_history,
-                     GError **error)
-{
-    SeafRepo *repo;
-    SeafBranch *branch;
-    SeafCommit *commit;
-
-    if (!name || !description) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Name and description should not be null");
-        return NULL;
-    }
-
-    /* check worktree before create repo */
-    if (!worktree || worktree[0] == '\0') {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid work directory");
-        return NULL;
-    }
-
-    if (g_access(worktree, F_OK) != 0) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid work directory");
-        return NULL;
-    }
-
-    repo = seaf_repo_manager_create_new_repo (seaf->repo_mgr, name, description);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Error when create repo");
-        return NULL;
-    }
-
-    if (passwd != NULL && passwd[0] != '\0') {
-        repo->encrypted = TRUE;
-        repo->enc_version = CURRENT_ENC_VERSION;
-        seaf_repo_generate_magic (repo, passwd);
-        seaf_repo_manager_set_repo_passwd (seaf->repo_mgr,
-                                           repo,
-                                           passwd);
-    }
-
-    seaf_repo_manager_set_repo_worktree (seaf->repo_mgr, repo, worktree);
-    seaf_repo_manager_set_repo_relay_id (seaf->repo_mgr, repo, relay_id);
-
-    commit = seaf_commit_new (NULL,
-                              repo->id,
-                              EMPTY_SHA1,
-                              seaf->session->base.user_name,
-                              seaf->session->base.id,
-                              description,
-                              0);
-    commit->repo_name = g_strdup(name);
-    commit->repo_desc = g_strdup(description);
-    if (passwd && passwd[0] != '\0') {
-        commit->encrypted = TRUE;
-        commit->enc_version = repo->enc_version;
-        commit->magic = g_strdup(repo->magic);
-    } else
-        commit->encrypted = FALSE;
-
-    if (!keep_local_history) {
-        repo->no_local_history = TRUE;
-        commit->no_local_history = TRUE;
-    }
-
-    if (seaf_commit_manager_add_commit (seaf->commit_mgr, commit) < 0)
-        return NULL;
-
-    branch = seaf_branch_new ("local", repo->id, commit->commit_id);
-    seaf_branch_manager_add_branch (seaf->branch_mgr, branch);
-
-    seaf_repo_set_head (repo, branch, commit);
-
-    seaf_commit_unref (commit);
-    seaf_branch_unref (branch);
-
-    /* Publish a message, for applet to notify in the system tray */
-    GString *buf = g_string_new (NULL);
-    g_string_append_printf (buf, "%s\t%s", (char *)worktree, repo->id);
-
-    seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                          "repo.created",
-                                          buf->str);
-    g_string_free (buf, TRUE);
-
-    return g_strdup(repo->id);
-}
-#endif
-
 int
 seafile_edit_repo (const char *repo_id,
                    const char *name,
@@ -446,217 +333,6 @@ seafile_repo_last_modify(const char *repo_id, GError **error)
     return ctime;
 }
 
-int
-seafile_add (const char *repo_id, const char *path, GError **error)
-{
-    SeafRepo *repo;
-    char *normalpath = NULL;
-
-    if (!path || !repo_id) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
-        return -1;
-    }
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such repository");
-        return -1;
-    }
-
-    pthread_mutex_lock (&repo->lock);
-
-    normalpath = normal_index_path (path);
-    if (seaf_repo_index_add (repo, normalpath) < 0) {
-        g_set_error (error, SEAFILE_DOMAIN, -1, "Failed to add %s", normalpath);
-        pthread_mutex_unlock (&repo->lock);
-        g_free (normalpath);
-        return -1;
-    }
-
-    pthread_mutex_unlock (&repo->lock);
-    g_free (normalpath);
-    return 0;
-}
-
-int
-seafile_rm (const char *repo_id, const char *path, GError **error)
-{
-    SeafRepo *repo;
-    char *normalpath = NULL;
-
-    if (!path || !repo_id) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
-        return -1;
-    }
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such repository");
-        return -1;
-    }
-
-    pthread_mutex_lock (&repo->lock);
-
-    normalpath = normal_index_path (path);
-    if (seaf_repo_index_rm (repo, normalpath) < 0) {
-        g_set_error (error, SEAFILE_DOMAIN, -1, "Failed to remove %s", normalpath);
-        pthread_mutex_unlock (&repo->lock);
-        g_free (normalpath);
-        return -1;
-    }
-
-    pthread_mutex_unlock (&repo->lock);
-    g_free (normalpath);
-
-    return 0;
-}
-
-static int check_whitespace(const char *str)
-{
-    const char *p;
-
-    for (p = str; *p != '\0'; p++) {
-        if (isspace(*p))
-            return 1;
-    }
-
-    return 0;
-}
-
-int
-seafile_branch_add (const char *repo_id, const char *branch_name,
-                    const char *original_branch,
-                    GError **error)
-{
-    SeafRepo *repo;
-    SeafBranch *branch;
-
-    if (!repo_id || !branch_name) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
-        return -1;
-    }
-
-    /* check branch name with whitespace */
-    if (check_whitespace(branch_name)) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Branch name cannot include whitespace");
-        return -1;
-    }
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such repository");
-        return -1;
-    }
-
-    if (original_branch == NULL || strlen(original_branch) == 0)
-        original_branch = "HEAD"; /* default create branch from head */
-
-    if (strcmp(original_branch, "HEAD") == 0) {
-        if (!repo->head) {
-            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
-                "Try to create branch from HEAD, but HEAD branch not exists.");
-            return -1;
-        } else
-            branch = seaf_branch_new (branch_name, repo->id,
-                                      repo->head->commit_id);
-    } else {
-        SeafBranch *old_branch;
-        old_branch = seaf_branch_manager_get_branch (
-            seaf->branch_mgr, repo_id, original_branch);
-        if (!old_branch) {
-            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
-                         "Original branch %s not exists.", original_branch);
-            return -1;
-        }
-        branch = seaf_branch_new (branch_name, repo->id, old_branch->commit_id);
-        seaf_branch_unref (old_branch);
-    }
-
-    seaf_branch_manager_add_branch (seaf->branch_mgr, branch);
-    seaf_branch_unref (branch);
-
-    return 0;
-}
-
-const char *
-seafile_commit(const char *repo_id, const char *desc, GError **error)
-{
-    SeafRepo *repo;
-    char *commit_id = NULL;
-
-    if (!repo_id || !desc) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
-        return NULL;
-    }
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such repository");
-        return NULL;
-    }
-
-    pthread_mutex_lock (&repo->lock);
-
-    gboolean unmerged = seaf_repo_is_index_unmerged (repo);
-
-    if (seaf_repo_index_add (repo, "") < 0) {
-        g_set_error (error, SEAFILE_DOMAIN, -1, "Failed to add");
-        goto unlock_and_return;
-    }
-
-    commit_id = seaf_repo_index_commit (repo, desc, unmerged, NULL, error);
-    if (!commit_id) {
-        goto unlock_and_return;
-    }
-
-unlock_and_return:
-    pthread_mutex_unlock (&repo->lock);
-
-    return commit_id;
-}
-
-int
-seafile_checkout (const char *repo_id,
-                  const char *passwd,
-                  GError **error)
-{
-    SeafRepo *repo;
-    if (!is_repo_id_valid(repo_id)) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
-        return -1;
-    }
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such repository");
-        return -1;
-    }
-
-    if (repo->encrypted && !passwd) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Password can not be empty");
-        return -1;
-    }
-
-    if (repo->encrypted) {
-        if (repo->enc_version >= 1 &&
-            seaf_repo_verify_passwd (repo->id, passwd, repo->magic) < 0) {
-            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Incorrect password");
-            return -1;
-        }
-
-        if (seaf_repo_manager_set_repo_passwd (seaf->repo_mgr,
-                                               repo,
-                                               passwd) < 0) {
-            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal data error");
-            return -1;
-        }
-    }
-
-    return seaf_repo_manager_add_checkout_task(seaf->repo_mgr, repo,
-                                               seaf->worktree_dir,
-                                               NULL, NULL);
-}
-
 GObject *
 seafile_get_checkout_task (const char *repo_id, GError **error)
 {
@@ -681,39 +357,6 @@ seafile_get_checkout_task (const char *repo_id, GError **error)
 
     return (GObject *)c_task;
 }
-
-int
-seafile_merge (const char *repo_id, const char *branch, GError **error)
-{
-    SeafRepo *repo;
-    char *err_msgs = NULL;
-    gboolean unused;
-
-    if (!repo_id || !branch) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
-        return -1;
-    }
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such repository");
-        return -1;
-    }
-
-    pthread_mutex_lock (&repo->lock);
-
-    if (seaf_repo_merge (repo, branch, &err_msgs, &unused) < 0) {
-        g_set_error (error, SEAFILE_DOMAIN, -1, "%s", err_msgs);
-        g_free (err_msgs);
-        pthread_mutex_unlock (&repo->lock);
-        return -1;
-    }
-
-    pthread_mutex_unlock (&repo->lock);
-
-    return 0;
-}
-
 
 char *
 seafile_gen_default_worktree (const char *worktree_parent,
@@ -1118,79 +761,6 @@ int seafile_is_auto_sync_enabled (GError **error)
  * RPC functions available for both clients and server.
  */
 
-#include "diff-simple.h"
-
-inline static const char*
-get_diff_status_str(char status)
-{
-    if (status == DIFF_STATUS_ADDED)
-        return "add";
-    if (status == DIFF_STATUS_DELETED)
-        return "del";
-    if (status == DIFF_STATUS_MODIFIED)
-        return "mod";
-    if (status == DIFF_STATUS_RENAMED)
-        return "mov";
-    if (status == DIFF_STATUS_DIR_ADDED)
-        return "newdir";
-    if (status == DIFF_STATUS_DIR_DELETED)
-        return "deldir";
-    return NULL;
-}
-
-GList *
-seafile_diff (const char *repo_id, const char *arg1, const char *arg2, GError **error)
-{
-    SeafRepo *repo;
-    char *err_msgs = NULL;
-    GList *diff_entries, *p;
-    GList *ret = NULL;
-
-    if (!repo_id || !arg1 || !arg2) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
-        return NULL;
-    }
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such repository");
-        return NULL;
-    }
-
-    diff_entries = seaf_repo_diff (repo, arg1, arg2, &err_msgs);
-    if (err_msgs) {
-        g_set_error (error, SEAFILE_DOMAIN, -1, "%s", err_msgs);
-        g_free (err_msgs);
-#ifdef SEAFILE_SERVER
-        seaf_repo_unref (repo);
-#endif
-        return NULL;
-    }
-
-#ifdef SEAFILE_SERVER
-    seaf_repo_unref (repo);
-#endif
-
-    for (p = diff_entries; p != NULL; p = p->next) {
-        DiffEntry *de = p->data;
-        SeafileDiffEntry *entry = g_object_new (
-            SEAFILE_TYPE_DIFF_ENTRY,
-            "status", get_diff_status_str(de->status),
-            "name", de->name,
-            "new_name", de->new_name,
-            NULL);
-        ret = g_list_prepend (ret, entry);
-    }
-
-    for (p = diff_entries; p != NULL; p = p->next) {
-        DiffEntry *de = p->data;
-        diff_entry_free (de);
-    }
-    g_list_free (diff_entries);
-
-    return g_list_reverse (ret);
-}
-
 GList *
 seafile_list_dir (const char *dir_id, GError **error)
 {
@@ -1562,6 +1132,80 @@ seafile_gc_get_progress (GError **error)
  */
 
 #ifdef SEAFILE_SERVER
+
+#include "diff-simple.h"
+
+inline static const char*
+get_diff_status_str(char status)
+{
+    if (status == DIFF_STATUS_ADDED)
+        return "add";
+    if (status == DIFF_STATUS_DELETED)
+        return "del";
+    if (status == DIFF_STATUS_MODIFIED)
+        return "mod";
+    if (status == DIFF_STATUS_RENAMED)
+        return "mov";
+    if (status == DIFF_STATUS_DIR_ADDED)
+        return "newdir";
+    if (status == DIFF_STATUS_DIR_DELETED)
+        return "deldir";
+    return NULL;
+}
+
+GList *
+seafile_diff (const char *repo_id, const char *arg1, const char *arg2, GError **error)
+{
+    SeafRepo *repo;
+    char *err_msgs = NULL;
+    GList *diff_entries, *p;
+    GList *ret = NULL;
+
+    if (!repo_id || !arg1 || !arg2) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return NULL;
+    }
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such repository");
+        return NULL;
+    }
+
+    diff_entries = seaf_repo_diff (repo, arg1, arg2, &err_msgs);
+    if (err_msgs) {
+        g_set_error (error, SEAFILE_DOMAIN, -1, "%s", err_msgs);
+        g_free (err_msgs);
+#ifdef SEAFILE_SERVER
+        seaf_repo_unref (repo);
+#endif
+        return NULL;
+    }
+
+#ifdef SEAFILE_SERVER
+    seaf_repo_unref (repo);
+#endif
+
+    for (p = diff_entries; p != NULL; p = p->next) {
+        DiffEntry *de = p->data;
+        SeafileDiffEntry *entry = g_object_new (
+            SEAFILE_TYPE_DIFF_ENTRY,
+            "status", get_diff_status_str(de->status),
+            "name", de->name,
+            "new_name", de->new_name,
+            NULL);
+        ret = g_list_prepend (ret, entry);
+    }
+
+    for (p = diff_entries; p != NULL; p = p->next) {
+        DiffEntry *de = p->data;
+        diff_entry_free (de);
+    }
+    g_list_free (diff_entries);
+
+    return g_list_reverse (ret);
+}
+
 int
 seafile_is_repo_owner (const char *email,
                        const char *repo_id,

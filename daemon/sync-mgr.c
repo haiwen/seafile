@@ -899,13 +899,6 @@ commit_job (void *vtask)
         }
     }
 
-    if (seaf_repo_index_add (repo, "") < 0) {
-        seaf_warning ("[Sync mgr] Failed to add in repo %s(%.8s).\n",
-                      repo->name, repo->id);
-        res->success = FALSE;
-        goto out;
-    }
-
     char *commit_id = seaf_repo_index_commit (repo, "", 
                                               unmerged, remote_name, &error);
     if (commit_id == NULL && error != NULL) {
@@ -917,7 +910,6 @@ commit_job (void *vtask)
     }
     g_free (commit_id);
 
-out:
     g_free (remote_name);
     pthread_mutex_unlock (&repo->lock);
     return res;
