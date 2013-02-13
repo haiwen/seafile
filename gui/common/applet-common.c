@@ -132,10 +132,16 @@ init_seafile ()
     char *parent_name = g_path_get_basename (parent_dir);
 
     if (parent_name && (strcmp(parent_name, "Seafile") == 0)) {
-        /* For seafile version >= 0.9.4 */
+        /* For seafile version >= 0.9.4 in windows
+              applet->seafile_dir:       C:/Seafile/seafile-data
+              applet->seafile_worktree:  C:/Seafile
+         */
         applet->seafile_worktree = g_strdup(parent_dir);
     } else {
-        /* For seafile version < 0.9.4 */
+        /* For seafile version < 0.9.4 in windows and all versions in linux
+              applet->seafile_dir:       /data/seafile-data
+              applet->seafile_worktree:  /data/seafile
+         */
         applet->seafile_worktree = g_build_filename (parent_dir, "seafile", NULL);
     }
     g_free (parent_dir);

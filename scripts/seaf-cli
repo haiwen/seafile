@@ -2,82 +2,75 @@
 
 '''
 
-seaf-cli program is used to run some commands in command line, e.g. start
-seafile client or synchronize a repo.
-
+seaf-cli is command line interface for seafile client.
 
 Subcommands:
-    init:           initialize config file before starting seafile client
-    start:          start seafile client
-    start-ccnet:    start ccnet daemon
-    start-seafile:  start seafile daemon
-    clone:          clone a repo from seafile server
-    sync:           synchronize a repo from seafile server
-    desync:         desynchronize a repo from seafile server
+    init:           create config files for seafile client
+    start:          start and run seafile client as daemon
+    stop:           stop seafile client
+    download:       download a library from seafile server
+    sync:           synchronize an existing folder with a library in 
+                        seafile server
+    desync:         desynchronize a library with seafile server
 
 
 Usage:
 
 init
 ----
-Initialize config file in a given path.
+Initialize seafile client. This command create sub-directories `seafile-data` and `seafile` under `parent-dir`. 
 
-usage: seaf-cli init -c <config> [-n <username>]
+usage: seaf-cli init -d <parent-dir>
 
 start
 -----
-Start seafile client
+Start seafile client. This command start `ccnet` and `seaf-daemon`, `ccnet` is the network part of seafile client, `seaf-daemon` manages the files.
 
-usage: seaf-cli start -c <config> [-w <worktree>]
+usage: seaf-cli start
 
-start-ccnet
------------
-Start ccnet daemon
+stop
+----
+Stop seafile client.
 
-usage: seaf-cli start-ccnet -c <config>
+usage: seaf-cli stop
 
-start-seafile
--------------
-Start seafile daemon
-
-usage: seaf-cli start-seafile -c <config> [-w <worktree>]
 
 clone
 -----
-clone a repo from seafile server
+clone a library from seafile server
 
-usage: seaf-cli clone -c <config> -r <repo-id> -u <seahub-server-url>
-                      [-w <worktree> -n <username> -p <password>]
+usage: seaf-cli clone -r <library-id> -h <seahub-server-url> -d <parent-directory> -u <username> -p <password>
+
 
 sync
 ----
-Synchronize a repo from seafile server
+Synchronize a library with an existing folder.
 
-usage: seaf-cli sync -c <config> -r <repo-id>
+usage: seaf-cli sync -r <library-id> -h <seahub-server-url> -d <existing-folder> -u <username> -p <password>
 
 desync
 ------
-Desynchronize a repo from seafile server
+Desynchronize a library from seafile server
 
-usage: seaf-cli desync -c <config> -r <repo-id>
+usage: seaf-cli desync -d <existing-folder>
 
 '''
 
-import os
-import sys
 import argparse
-import subprocess
-import time
-
+import os
 import simplejson as json
+import subprocess
+import sys
+import time
 
 import ccnet
 import seafile
 
-sys.path.append('/usr/local/lib/seafile/web')
 
-DEFAULT_CONFIG_FILE = "%s/.ccnet" % os.environ['HOME']
-DEFAULT_WORKTREE = "%s/seafile" % os.environ['HOME']
+DEFAULT_CONF_DIR = "%s/.ccnet" % os.environ['HOME']
+
+seafile_datadir = None
+seafile_worktree = None
 
 # check python version
 if sys.version_info.major == 3:
@@ -96,16 +89,16 @@ def _check_seafile():
         ''' Check whether 'prog' exists in system path '''
         for d in dirs:
             if d == '':
-                continue;
-        path = os.path.join(d, prog)
-        if os.path.exists(path):
-            return True
+                continue
+            path = os.path.join(d, prog)
+            if os.path.exists(path):
+                return True
 
     progs = [ 'ccnet', 'ccnet-init', 'seaf-daemon' ]
 
     for prog in progs:
         if not exist_in_path(prog):
-            print "%s not found in PATH. Have you built and installed seafile?" % prog
+            print "%s not found in PATH. Have you installed seafile?" % prog
             sys.exit(1)
 
 
@@ -113,42 +106,61 @@ def _config_valid(conf):
     ''' Check config file valid '''
 
     if not os.path.exists(conf) or not os.path.isdir(conf):
+        print "%s not exists" % conf
         return False
 
     config_conf = conf + "/ccnet.conf"
     seafile_ini = conf + "/seafile.ini"
-    if not os.path.exists(config_conf) or \
-       not os.path.exists(seafile_ini):
+    if not os.path.exists(config_conf):
+        print "Can not load %s" % config_conf
+        return False
+    if not os.path.exists(seafile_ini):
+        print "Can not load %s" % seafile_ini
         return False
 
+    with open(seafile_ini) as f:
+        for line in f:
+            global seafile_datadir, seafile_worktree
+            seafile_datadir = line.strip()
+            seafile_worktree = os.path.join(
+                os.path.dirname(seafile_datadir), "seafile")
+            break
+
+    if not seafile_datadir or not seafile_worktree:
+        print "Can not load seafile_datadir and seafile_worktree"
+        return False
     return True
 
 
-def seaf_init_config(args):
-    ''' initialize config file '''
+def seaf_init(args):
+    ''' initialize config files'''
 
-    config_path = DEFAULT_CONFIG_FILE
-    if args.config:
-        config_path = args.config
-    config_path = os.path.abspath(config_path)
+    ccnet_conf_dir = DEFAULT_CONF_DIR
+    if args.confdir:
+        ccnet_conf_dir = args.confdir
+    if args.dir:
+        seafile_path = args.dir
+    seafile_path = os.path.abspath(seafile_path)
 
-    if os.path.exists(config_path):
-        print "%s has existsed" % config_path
+    if os.path.exists(ccnet_conf_dir):
+        print "%s has existsed" % ccnet_conf_dir
         sys.exit(0)
 
-    username = args.name
-    if not username:
-        import socket
-        username = socket.gethostname()
+    import socket
+    node_name = socket.gethostname()
 
-    cmd = [ "ccnet-init", "-c", config_path, "-n", username ]
+    cmd = [ "ccnet-init", "-c", ccnet_conf_dir, "-n", node_name ]
     subprocess.call(cmd)
 
-    seafile_ini = config_path + "/seafile.ini"
-    seafile_data = config_path + "/seafile-data"
+    if not os.path.exists(seafile_path):
+        print "%s not exists" % seafile_path
+        sys.exit(0)
+    seafile_ini = ccnet_conf_dir + "/seafile.ini"
+    seafile_data = seafile_path + "/seafile-data"
     fp = open(seafile_ini, 'w')
     fp.write(seafile_data)
     fp.close()
+    print "Writen seafile data directory %s to %s" % (seafile_data, seafile_ini)
 
 
 def seaf_start_all(args):
@@ -163,82 +175,69 @@ def seaf_start_all(args):
 def seaf_start_ccnet(args):
     ''' start ccnet daemon '''
 
-    config_path = DEFAULT_CONFIG_FILE
-    if args.config:
-        config_path = args.config
-    config_path = os.path.abspath(config_path)
+    conf_dir = DEFAULT_CONF_DIR
+    if args.confdir:
+        conf_dir = args.confdir
+    conf_dir = os.path.abspath(conf_dir)
 
-    if not _config_valid(config_path):
-        print "Config file invalid"
+    if not _config_valid(conf_dir):
+        print "Config directory invalid"
         sys.exit(1)
 
     print "starting ccnet daemon ..."
-    cmd = [ "ccnet", "--daemon", "-c", config_path ]
+    cmd = [ "ccnet", "--daemon", "-c", conf_dir ]
     subprocess.call(cmd)
+    print "started ccnet daemon ..."
 
 
 def seaf_start_seafile(args):
     ''' start seafile daemon '''
 
-    config_path = DEFAULT_CONFIG_FILE
-    if args.config:
-        config_path = args.config
-    config_path = os.path.abspath(config_path)
+    conf_dir = DEFAULT_CONF_DIR
+    if args.confdir:
+        conf_dir = args.confdir
+    conf_dir = os.path.abspath(conf_dir)
 
-    if not _config_valid(config_path):
+    if not _config_valid(conf_dir):
         print "Config file invalid"
         sys.exit(1)
-
-    worktree = None
-    if args.worktree:
-        worktree = args.worktree
-        worktree = os.path.abspath(worktree)
 
     print "starting seafile daemon ..."
-    cmd = [ "seaf-daemon", "--daemon", "-c", config_path ]
-    if args.worktree and worktree:
-        cmd.append("-w")
-        cmd.append(worktree)
+    cmd = [ "seaf-daemon", "--daemon", "-c", conf_dir, "-d", seafile_datadir,
+            "-w", seafile_worktree ]
     subprocess.call(cmd)
+    print "started seafile daemon ..."
 
 
-def seaf_clone(args):
-    ''' clone a repo from seafile server '''
+def seaf_download(args):
+    '''Download a library from seafile server '''
 
-    config_path = DEFAULT_CONFIG_FILE
-    if args.config:
-        config_path = args.config
-    config_path = os.path.abspath(config_path)
+    conf_dir = DEFAULT_CONF_DIR
+    if args.confdir:
+        conf_dir = args.confdir
+    conf_dir = os.path.abspath(conf_dir)
 
-    if not _config_valid(config_path):
+    if not _config_valid(conf_dir):
         print "Config file invalid"
         sys.exit(1)
 
-    repo = args.repo
+    repo = args.library
     if not repo:
-        print "Repo id need to be presented"
+        print "Library id need to be presented"
         sys.exit(1)
 
-    url = args.url
+    url = args.server
     if not url:
-        print "Seahub url need to be presented"
+        print "Seafile server url need to be presented"
         sys.exit(1)
 
-    worktree = DEFAULT_WORKTREE
-    if args.worktree:
-        worktree = args.worktree
-        worktree = os.path.abspath(worktree)
+    download_dir = seafile_worktree
+    if args.dir:
+        download_dir = os.path.abspath(args.dir)
 
-    # we import seaserv until now because CCNET_CONF_PATH needs to be changed
-    os.environ["CCNET_CONF_DIR"] = config_path
-    from seaserv import CCNET_CONF_PATH
-    from seaserv import seafile_rpc
-    from seaserv import get_repos, get_repo, get_default_seafile_worktree
-
-    from pysearpc import SearpcError
 
     print "try to connect ..."
-    pool = ccnet.ClientPool(CCNET_CONF_PATH)
+    pool = ccnet.ClientPool(conf_dir)
     ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
     seafile_rpc = seafile.RpcClient(pool, req_pool=True)
 
@@ -248,11 +247,11 @@ def seaf_clone(args):
     password = args.password
     if not password:
         import getpass
-        pssword = getpass.getpass("Enter password for user %s " % username)
+        password = getpass.getpass("Enter password for user %s " % username)
 
     # curl -d 'username=XXX&password=YYY' http://127.0.0.1:8000/api2/auth-token
     cmd = [
-        "curl", "-d",
+        "curl", "-k", "-d",
         "username=%s&password=%s" % (username, password),
         "%s/api2/auth-token/" % url
     ]
@@ -260,8 +259,9 @@ def seaf_clone(args):
     tmp = json.loads(token_json)
     token = tmp['token']
 
-    cmd = "curl -H 'Authorization: Token %s' -H 'Accept: application/json; indent=4' %s/api2/repos/%s/download-info/" % (token, url, repo)
+    cmd = "curl -k -H 'Authorization: Token %s' -H 'Accept: application/json; indent=4' %s/api2/repos/%s/download-info/" % (token, url, repo)
     repo_info = os.popen(cmd).read()
+    # print repo_info
     tmp = json.loads(repo_info)
     encrypted = tmp['encrypted']
     clone_token = tmp['token']
@@ -271,22 +271,28 @@ def seaf_clone(args):
     email = tmp['email']
     repo_name = tmp['repo_name']
 
-    print "starting to clone ..."
-    print "Repo %s will be cloned to %s" % (repo, worktree)
-    seafile_rpc.clone(repo, relay_id, repo_name.encode('utf-8'),
-                      worktree.encode('utf-8'), clone_token, None,
-                      encrypted, relay_addr, relay_port, email)
+    print "starting to download ..."
+    print "Library %s will be downloaded to %s" % (repo, download_dir)
+    seafile_rpc.download(repo,
+                         relay_id, 
+                         repo_name.encode('utf-8'),
+                         download_dir.encode('utf-8'),
+                         clone_token,
+                         None, None,
+                         relay_addr,
+                         relay_port,
+                         email)
 
 
 def seaf_sync(args):
-    ''' synchronize a repo from seafile server '''
+    ''' synchronize a library from seafile server '''
 
-    config_path = DEFAULT_CONFIG_FILE
-    if args.config:
-        config_path = args.config
-    config_path = os.path.abspath(config_path)
+    conf_dir = DEFAULT_CONF_DIR
+    if args.confdir:
+        conf_dir = args.condir
+    conf_dir = os.path.abspath(conf_dir)
 
-    if not _config_valid(config_path):
+    if not _config_valid(conf_dir):
         print "Config file invalid"
         sys.exit(1)
 
@@ -298,14 +304,7 @@ def seaf_sync(args):
     os.environ["CCNET_CONF_DIR"] = config_path
     from seaserv import CCNET_CONF_PATH
     from seaserv import seafile_rpc
-    from seaserv import get_repos, get_repo, get_default_seafile_worktree
-
-    from pysearpc import SearpcError
-
-    print "try to connect ..."
-    pool = ccnet.ClientPool(CCNET_CONF_PATH)
-    ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=True)
+  
 
     seafile_rpc.sync(repo, None)
 
@@ -313,12 +312,12 @@ def seaf_sync(args):
 def seaf_desync(args):
     ''' desynchronize a repo from seafile server '''
 
-    config_path = DEFAULT_CONFIG_FILE
-    if args.config:
-        config_path = args.config
-    config_path = os.path.abspath(config_path)
+    conf_dir = DEFAULT_CONF_DIR
+    if args.confdir:
+        conf_dir = args.confdir
+    conf_dir = os.path.abspath(conf_dir)
 
-    if not _config_valid(config_path):
+    if not _config_valid(conf_dir):
         print "Config file invalid"
         sys.exit(1)
 
@@ -334,7 +333,6 @@ def seaf_desync(args):
 
     from pysearpc import SearpcError
 
-    print "try to connect ..."
     pool = ccnet.ClientPool(CCNET_CONF_PATH)
     ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
     seafile_rpc = seafile.RpcClient(pool, req_pool=True)
@@ -351,51 +349,40 @@ def main():
     subparsers = parser.add_subparsers(title='subcommands', description='')
 
     parser_init = subparsers.add_parser('init', help='Initialize config file')
-    parser_init.set_defaults(func=seaf_init_config)
-    parser_init.add_argument('-c', '--config', help='config dir path', type=str)
-    parser_init.add_argument('-n', '--name', help='username', type=str)
+    parser_init.set_defaults(func=seaf_init)
+    parser_init.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_init.add_argument('-d', '--dir', help='the parent directory to put seafile-data', type=str)
 
     parser_start = subparsers.add_parser('start',
                                          help='Start ccnet and seafile daemon')
     parser_start.set_defaults(func=seaf_start_all)
-    parser_start.add_argument('-c', '--config', help='config dir path', type=str)
-    parser_start.add_argument('-w', '--worktree', help='worktree path', type=str)
+    parser_start.add_argument('-c', '--confdir', help='the config directory', type=str)
 
-    parser_start_ccnet = subparsers.add_parser('start-ccnet',
-                                               help='Start ccnet daemon')
-    parser_start_ccnet.set_defaults(func=seaf_start_ccnet)
-    parser_start_ccnet.add_argument('-c', '--config',
-                                    help='config dir path', type=str)
-
-    parser_start_seaf = subparsers.add_parser('start-seafile',
-                                              help='Start seafile daemon')
-    parser_start_seaf.set_defaults(func=seaf_start_seafile)
-    parser_start_seaf.add_argument('-c', '--config',
-                                   help='config dir path', type=str)
-    parser_start_seaf.add_argument('-w', '--worktree',
-                                   help='worktree path', type=str)
-
-    parser_clone = subparsers.add_parser('clone',
-                                         help='Clone a repo from seafile server')
-    parser_clone.set_defaults(func=seaf_clone)
-    parser_clone.add_argument('-c', '--config', help='config dir path', type=str)
-    parser_clone.add_argument('-r', '--repo', help='repo id', type=str)
-    parser_clone.add_argument('-u', '--url', help='seahub url', type=str)
-    parser_clone.add_argument('-w', '--worktree', help='worktree path', type=str)
-    parser_clone.add_argument('-n', '--name', help='username', type=str)
-    parser_clone.add_argument('-p', '--password', help='password', type=str)
+    parser_download = subparsers.add_parser('download',
+                                         help='Download a library from seafile server')
+    parser_download.set_defaults(func=seaf_download)
+    parser_download.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_download.add_argument('-r', '--library', help='library id', type=str)
+    parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
+    parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
+    parser_download.add_argument('-n', '--name', help='username', type=str)
+    parser_download.add_argument('-p', '--password', help='password', type=str)
 
     parser_sync = subparsers.add_parser('sync',
-                                        help='Sync a repo from seafile server')
+                                        help='Sync a library with an existing foler')
     parser_sync.set_defaults(func=seaf_sync)
-    parser_sync.add_argument('-c', '--config', help='config dir path', type=str)
-    parser_sync.add_argument('-r', '--repo', help='repo id', type=str)
+    parser_sync.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_sync.add_argument('-r', '--library', help='library id', type=str)
+    parser_sync.add_argument('-s', '--server', help='URL for seafile server', type=str)
+    parser_sync.add_argument('-n', '--name', help='username', type=str)
+    parser_sync.add_argument('-p', '--password', help='password', type=str)
+    parser_sync.add_argument('-d', '--folder', help='the existing local folder', type=str)
 
     parser_desync = subparsers.add_parser('desync',
-                                          help='Desync a repo from seafile server')
+                                          help='Desync a library with seafile server')
     parser_desync.set_defaults(func=seaf_desync)
-    parser_desync.add_argument('-c', '--config', help='config dir path', type=str)
-    parser_desync.add_argument('-r', '--repo', help='repo id', type=str)
+    parser_desync.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_desync.add_argument('-d', '--folder', help='the local folder', type=str)
 
     args = parser.parse_args()
     args.func(args)
