@@ -44,14 +44,14 @@ clone
 -----
 clone a library from seafile server
 
-usage: seaf-cli clone -r <library-id> -h <seahub-server-url> -d <parent-directory> -u <username> -p <password>
+usage: seaf-cli clone -l <library-id> -h <seahub-server-url> -d <parent-directory> -u <username> -p <password>
 
 
 sync
 ----
 Synchronize a library with an existing folder.
 
-usage: seaf-cli sync -r <library-id> -h <seahub-server-url> -d <existing-folder> -u <username> -p <password>
+usage: seaf-cli sync -l <library-id> -h <seahub-server-url> -d <existing-folder> -u <username> -p <password>
 
 desync
 ------
@@ -231,7 +231,7 @@ def seaf_list(args):
     seafile_rpc = seafile.RpcClient(pool, req_pool=True)    
     
     repos = seafile_rpc.get_repo_list(-1, -1)
-    print "name\tID\tpath"
+    print "Name\tID\tPath"
     for repo in repos:
         print repo.name, repo.id, repo.worktree
 
@@ -422,6 +422,57 @@ def seaf_desync(args):
         print "%s is not a library" % args.folder
 
 
+def seaf_status(args):
+    '''Show status'''
+    
+    conf_dir = DEFAULT_CONF_DIR
+    if args.confdir:
+        conf_dir = args.confdir
+    conf_dir = os.path.abspath(conf_dir)
+
+    if not _config_valid(conf_dir):
+        print "config directory invalid"
+        sys.exit(1)
+    
+    pool = ccnet.ClientPool(conf_dir)
+    ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
+    seafile_rpc = seafile.RpcClient(pool, req_pool=True)
+
+    tasks = seafile_rpc.get_clone_tasks()
+    print "# Name\tStatus\tProgress"
+    for task in tasks:
+        if task.state == "fetch":
+            tx_task = seafile_rpc.find_transfer_task(task.repo_id)
+            print "%s\t%s\t%d/%d, %.1fKB/s" % (task.repo_name, "downloading", 
+                                        tx_task.block_done, tx_task.block_total,
+                                        tx_task.rate/1024.0)
+        elif task.state == "checkout":
+            checkout_task = seafile_rpc.get_checkout_task(task.repo_id)
+            print "%s\t%s\t%d/%d" % (task.repo_name, "checkout", 
+                                   checkout_task.finished_files,
+                                   checkout_task.total_files)
+        elif task.state == "error":
+            tx_task = seafile_rpc.find_transfer_task(task.repo_id)
+            print "%s\t%s\t%s" % (task.repo_name, "error", tx_task.error_str)
+        else:
+            print "%s\t%s" % (task.repo_name, "unknown")
+
+    # show repo status
+    print ""
+    print "# Name\tStatus"
+    repos = seafile_rpc.get_repo_list(-1, -1)
+    for repo in repos:
+        relay = ccnet_rpc.get_peer(repo.props.relay_id)
+        t = seafile_rpc.get_repo_sync_task(repo.id)
+        if not relay.is_ready:
+            print "%s\t%s" % (repo.name, "connecting server")
+        else:
+            if t.state == "error":
+                print "%s\t%s" % (repo.name, t.error)
+            else:
+                print "%s\t%s" % (repo.name, t.state)
+
+
 def main():
     ''' Main entry '''
 
@@ -452,13 +503,17 @@ def main():
     parser_list.set_defaults(func=seaf_list)
     parser_list.add_argument('-c', '--confdir', help='the config directory', type=str)
     
+    # status
+    parser_status = subparsers.add_parser('status', help='show syncing status')
+    parser_status.set_defaults(func=seaf_status)
+    parser_status.add_argument('-c', '--confdir', help='the config directory', type=str)
 
     # download
     parser_download = subparsers.add_parser('download',
                                          help='Download a library from seafile server')
     parser_download.set_defaults(func=seaf_download)
     parser_download.add_argument('-c', '--confdir', help='the config directory', type=str)
-    parser_download.add_argument('-r', '--library', help='library id', type=str)
+    parser_download.add_argument('-l', '--library', help='library id', type=str)
     parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
     parser_download.add_argument('-n', '--name', help='username', type=str)
@@ -470,7 +525,7 @@ def main():
                                         help='Sync a library with an existing foler')
     parser_sync.set_defaults(func=seaf_sync)
     parser_sync.add_argument('-c', '--confdir', help='the config directory', type=str)
-    parser_sync.add_argument('-r', '--library', help='library id', type=str)
+    parser_sync.add_argument('-l', '--library', help='library id', type=str)
     parser_sync.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_sync.add_argument('-n', '--name', help='username', type=str)
     parser_sync.add_argument('-p', '--password', help='password', type=str)
