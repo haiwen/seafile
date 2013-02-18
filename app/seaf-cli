@@ -12,7 +12,7 @@ Subcommands:
     list:           list local liraries
     status:         show syncing status
     download:       download a library from seafile server
-    sync:           synchronize an existing folder with a library in 
+    sync:           synchronize an existing folder with a library in
                         seafile server
     desync:         desynchronize a library with seafile server
 
@@ -24,7 +24,7 @@ Seafile client stores all its configure information in a config dir. The default
 
 init
 ----
-Initialize seafile client. This command initializes the config dir. It also creates sub-directories `seafile-data` and `seafile` under `parent-dir`. `seafile-data` is used to store internal data, while `seafile` is used as the default location put downloaded libraries. 
+Initialize seafile client. This command initializes the config dir. It also creates sub-directories `seafile-data` and `seafile` under `parent-dir`. `seafile-data` is used to store internal data, while `seafile` is used as the default location put downloaded libraries.
 
     seaf-cli init [-c <config-dir>] -d <parent-dir>
 
@@ -229,8 +229,8 @@ def seaf_list(args):
 
     pool = ccnet.ClientPool(conf_dir)
     ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=True)    
-    
+    seafile_rpc = seafile.RpcClient(pool, req_pool=True)
+
     repos = seafile_rpc.get_repo_list(-1, -1)
     print "Name\tID\tPath"
     for repo in repos:
@@ -301,7 +301,7 @@ def seaf_download(args):
     print "starting to download ..."
     print "Library %s will be downloaded to %s" % (repo, download_dir)
     seafile_rpc.download(repo,
-                         relay_id, 
+                         relay_id,
                          repo_name.encode('utf-8'),
                          download_dir.encode('utf-8'),
                          clone_token,
@@ -377,7 +377,7 @@ def seaf_sync(args):
     print "starting to download ..."
 
     seafile_rpc.clone(repo,
-                      relay_id, 
+                      relay_id,
                       repo_name.encode('utf-8'),
                       folder.encode('utf-8'),
                       clone_token,
@@ -407,8 +407,8 @@ def seaf_desync(args):
 
     pool = ccnet.ClientPool(conf_dir)
     ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=True)    
-    
+    seafile_rpc = seafile.RpcClient(pool, req_pool=True)
+
     repos = seafile_rpc.get_repo_list(-1, -1)
     repo = None
     for r in repos:
@@ -425,7 +425,7 @@ def seaf_desync(args):
 
 def seaf_status(args):
     '''Show status'''
-    
+
     conf_dir = DEFAULT_CONF_DIR
     if args.confdir:
         conf_dir = args.confdir
@@ -434,7 +434,7 @@ def seaf_status(args):
     if not _config_valid(conf_dir):
         print "config directory invalid"
         sys.exit(1)
-    
+
     pool = ccnet.ClientPool(conf_dir)
     ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
     seafile_rpc = seafile.RpcClient(pool, req_pool=True)
@@ -444,17 +444,24 @@ def seaf_status(args):
     for task in tasks:
         if task.state == "fetch":
             tx_task = seafile_rpc.find_transfer_task(task.repo_id)
-            print "%s\t%s\t%d/%d, %.1fKB/s" % (task.repo_name, "downloading", 
+            print "%s\t%s\t%d/%d, %.1fKB/s" % (task.repo_name, "downloading",
                                         tx_task.block_done, tx_task.block_total,
                                         tx_task.rate/1024.0)
         elif task.state == "checkout":
             checkout_task = seafile_rpc.get_checkout_task(task.repo_id)
-            print "%s\t%s\t%d/%d" % (task.repo_name, "checkout", 
+            print "%s\t%s\t%d/%d" % (task.repo_name, "checkout",
                                    checkout_task.finished_files,
                                    checkout_task.total_files)
         elif task.state == "error":
             tx_task = seafile_rpc.find_transfer_task(task.repo_id)
-            print "%s\t%s\t%s" % (task.repo_name, "error", tx_task.error_str)
+            if tx_task:
+                err = tx_task.error_str
+            else:
+                err = task.error_str
+            print "%s\t%s\t%s" % (task.repo_name, "error", err)
+        elif task.state == 'synchronized':
+            # will be shown in repo status
+            pass
         else:
             print "%s\t%s" % (task.repo_name, "unknown")
 
@@ -463,6 +470,10 @@ def seaf_status(args):
     print "# Name\tStatus"
     repos = seafile_rpc.get_repo_list(-1, -1)
     for repo in repos:
+        if not repo.auto_sync:
+            print "%s\t%s" % (repo.name, "auto sync disabled")
+            continue
+
         relay = ccnet_rpc.get_peer(repo.props.relay_id)
         t = seafile_rpc.get_repo_sync_task(repo.id)
         if not relay.is_ready:
@@ -503,7 +514,7 @@ def main():
     parser_list = subparsers.add_parser('list', help='list local libraries')
     parser_list.set_defaults(func=seaf_list)
     parser_list.add_argument('-c', '--confdir', help='the config directory', type=str)
-    
+
     # status
     parser_status = subparsers.add_parser('status', help='show syncing status')
     parser_status.set_defaults(func=seaf_status)

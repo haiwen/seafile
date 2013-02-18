@@ -13,6 +13,10 @@ if COMPILE_SERVER
 bin_PROGRAMS += seafserv-tool
 endif
 
+if COMPILE_CLIENT
+bin_SCRIPTS = seaf-cli
+endif
+
 seafile_SOURCES = seafile.c
 seafile_LDADD =  @CCNET_LIBS@ \
 	$(top_builddir)/lib/libseafile.la \
