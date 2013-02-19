@@ -503,12 +503,9 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
     remove_marked_cache_entries (istate);
 }
 
-int
-seaf_repo_index_add (SeafRepo *repo, const char *path)
+static int
+index_add (SeafRepo *repo, struct index_state *istate, const char *path)
 {
-    SeafRepoManager *mgr = repo->manager;
-    char index_path[SEAF_PATH_MAX];
-    struct index_state istate;
     SeafileCrypt *crypt = NULL;
 
     /* We cannot write any new block when GC is running.
@@ -526,16 +523,6 @@ seaf_repo_index_add (SeafRepo *repo, const char *path)
 #endif
     }
 
-    if (!check_worktree_common (repo))
-        return -1;
-
-    memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
-        g_warning ("Failed to load index.\n");
-        return -1;
-    }
-
     /* Skip any leading '/'. */
     while (path[0] == '/')
         path = &path[1];
@@ -544,21 +531,15 @@ seaf_repo_index_add (SeafRepo *repo, const char *path)
         crypt = seafile_crypt_new (repo->enc_version, repo->enc_key, repo->enc_iv);
     }
 
-    if (add_recursive (&istate, repo->worktree, path, crypt, TRUE) < 0)
+    if (add_recursive (istate, repo->worktree, path, crypt, TRUE) < 0)
         goto error;
 
-    remove_deleted (&istate, repo->worktree, path);
+    remove_deleted (istate, repo->worktree, path);
 
-    if (update_index (&istate, index_path) < 0)
-        goto error;
-
-    discard_index (&istate);
     g_free (crypt);
-
     return 0;
 
 error:
-    discard_index (&istate);
     g_free (crypt);
     return -1;
 }
@@ -633,184 +614,6 @@ error:
     return -1;
 }
 
-static int
-remove_path (const char *worktree, const char *name)
-{
-    char *slash;
-    char *path;
-
-    path = g_build_path (PATH_SEPERATOR, worktree, name, NULL);
-
-    if (g_unlink(path) && errno != ENOENT) {
-        g_free (path);
-        return -1;
-    }
-
-    slash = strrchr (path, '/');
-    if (slash) {
-        char *dirs = strdup (path);
-        slash = dirs + (slash - path);
-        do {
-            *slash = '\0';
-        } while (strcmp (worktree, dirs) != 0 &&
-                 g_rmdir (dirs) == 0 &&
-                 (slash = strrchr (dirs, '/')));
-        free (dirs);
-    }
-
-    g_free (path);
-    return 0;
-}
-
-static int
-check_local_mod (struct index_state *istate, GList *rmlist, const char *worktree)
-{
-    GList *p;
-    int errs = 0;
-
-    for (p = rmlist; p; p = p->next) {
-        SeafStat st;
-        struct cache_entry *ce;
-        int pos;
-        const char *name = (const char *)p->data;
-        char *path = g_build_path (PATH_SEPERATOR, worktree, name, NULL);
-
-        pos = index_name_pos (istate, name, strlen(name));
-        if (pos < 0)
-            continue;
-        ce = istate->cache[pos];
-
-        if (seaf_stat (path, &st) < 0) {
-            if (errno != ENOENT)
-                g_warning ("'%s': %s", ce->name, strerror (errno));
-            g_free (path);
-            continue;
-        } else if (S_ISDIR (st.st_mode)) {
-            g_free (path);
-            continue;
-        }
-
-        if (ie_match_stat (istate, ce, &st, 0)) {
-            errs = -1;
-            g_warning ("'%s' has local modifications\n", name);
-        }
-
-        g_free (path);
-    }
-
-    return errs;
-}
-
-int
-seaf_repo_index_rm (SeafRepo *repo, const char *path)
-{
-    GList *p, *rmlist = NULL;
-    SeafRepoManager *mgr = repo->manager;
-    char index_path[SEAF_PATH_MAX];
-    struct index_state istate;
-    int i, pathlen;
-
-    memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
-        g_warning ("Failed to load index.\n");
-        goto error;
-    }
-
-    /* Skip any leading '/'. */
-    while (path[0] == '/')
-        path = &path[1];
-
-    pathlen = strlen(path);
-    for (i = 0; i < istate.cache_nr; i++) {
-        struct cache_entry *ce = istate.cache[i];
-        if (strncmp(ce->name, path, pathlen))
-            continue;
-        rmlist = g_list_prepend (rmlist, ce->name);
-    }
-
-    /* TODO: check stage changes */
-
-    if (check_local_mod (&istate, rmlist, repo->worktree) < 0) {
-        g_list_free (rmlist);
-        discard_index (&istate);
-        goto error;
-    }
-
-    for (p = rmlist; p; p = p->next) {
-        const char *path = (const char *)p->data;
-
-        if (remove_file_from_index (&istate, path))
-            g_warning ("seafile rm: unable to remove %s", path);
-
-        if (remove_path (repo->worktree, path))
-            g_warning ("remove %s from fs failed", path);
-    }
-
-    if (update_index (&istate, index_path) < 0)
-        goto error;
-
-    g_list_free (rmlist);
-    discard_index (&istate);
-
-    return 0;
-
-error:
-    return -1;
-}
-
-char *
-seaf_repo_status (SeafRepo *repo)
-{
-    SeafRepoManager *mgr = repo->manager;
-    GList *p;
-    struct index_state istate;
-    GList *results = NULL;
-    char *res_str;
-    char index_path[SEAF_PATH_MAX];
-    
-    if (!check_worktree_common (repo))
-        return NULL;
-
-    memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
-        repo->index_corrupted = TRUE;
-        g_warning ("Failed to load index.\n");
-        goto error;
-    }
-    repo->index_corrupted = FALSE;
-
-    /* TODO: merge diff results of worktree and index. */
-    wt_status_collect_changes_worktree (&istate, &results,
-                                        repo->worktree, should_ignore);
-    wt_status_collect_untracked (&istate, &results, repo->worktree, should_ignore);
-    wt_status_collect_changes_index (&istate, &results, repo);
-
-    if (results != NULL) {
-        repo->wt_changed = TRUE;
-        /* repo->wt_check_time = time(NULL); */
-    } else {
-        repo->wt_changed = FALSE;
-        /* repo->wt_check_time = time(NULL); */
-    }
-
-    res_str = format_diff_results (results);
-
-    for (p = results; p; p = p->next) {
-        DiffEntry *de = p->data;
-        diff_entry_free (de);
-    }
-    g_list_free (results);
-
-    discard_index (&istate);
-
-    return res_str;
-
-error:
-    return NULL;
-}
-
 gboolean
 seaf_repo_is_worktree_changed (SeafRepo *repo)
 {
@@ -822,7 +625,7 @@ seaf_repo_is_worktree_changed (SeafRepo *repo)
     DiffEntry *de;
     int pos;
     struct cache_entry *ce;
-    struct stat sb;
+    SeafStat sb;
     char *full_path;
 
     if (!check_worktree_common (repo))
@@ -880,8 +683,8 @@ changed:
         ce = istate.cache[pos];
 
         g_message ("type: %c, status: %c, name: %s, "
-                   "ce mtime: %d, ce size: %llu, "
-                   "file mtime: %d, file size: %llu\n",
+                   "ce mtime: %d, ce size: %" G_GUINT64_FORMAT ", "
+                   "file mtime: %d, file size: %" G_GUINT64_FORMAT "\n",
                    de->type, de->status, de->name,
                    ce->ce_mtime.sec, ce->ce_size, (int)sb.st_mtime, sb.st_size);
     }
@@ -1137,6 +940,11 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
         return NULL;
     }
 
+    if (index_add (repo, &istate, "") < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Failed to add");
+        goto error;
+    }
+
     char *my_desc = g_strdup(desc);
     if (!unmerged && my_desc[0] == '\0') {
         char *gen_desc = gen_commit_description (repo, &istate);
@@ -1167,6 +975,9 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
     }
     g_free (my_desc);
     cache_tree_free (&it);
+
+    if (update_index (&istate, index_path) < 0)
+        goto error;
 
     discard_index (&istate);
 
@@ -1408,173 +1219,6 @@ error:
     return -1;
 }
 
-static int
-reset_common (SeafRepo *repo, struct index_state *istate, SeafCommit *commit, char **error)
-{
-    struct tree_desc tree;
-    struct unpack_trees_options topts;
-    GString *err_msgs;
-    int ret = 0;
-
-    fill_tree_descriptor (&tree, commit->root_id);
-
-    memset(&topts, 0, sizeof(topts));
-    topts.base = repo->worktree;
-    topts.head_idx = 1;
-    topts.src_index = istate;
-    /* topts.dst_index = &istate; */
-    topts.update = 1;
-    topts.merge = 1;
-    topts.reset = 1;
-    /* topts.debug_unpack = 1; */
-    topts.fn = oneway_merge;
-    if (repo->encrypted) {
-        topts.crypt = seafile_crypt_new (repo->enc_version, 
-                                         repo->enc_key, 
-                                         repo->enc_iv);
-    }
-
-    if (unpack_trees (1, &tree, &topts) < 0) {
-        g_warning ("Failed to reset worktree to commit %s.\n", commit->commit_id);
-        ret = -1;
-        goto out;
-    }
-
-    if (update_worktree (&topts, FALSE, NULL, NULL, NULL) < 0) {
-        g_warning ("Failed to update worktree.\n");
-        ret = -1;
-        goto out;
-    }
-
-    discard_index (istate);
-    *istate = topts.result;
-
-out:
-    err_msgs = g_string_new ("");
-    get_unpack_trees_error_msgs (&topts, err_msgs, OPR_CHECKOUT);
-    *error = g_string_free (err_msgs, FALSE);
-
-    tree_desc_free (&tree);
-    seaf_commit_unref (commit);
-
-    g_free (topts.crypt);
-
-    return ret;
-}
-
-int
-seaf_repo_reset (SeafRepo *repo, const char *commit_id, char **error)
-{
-    SeafRepoManager *mgr = repo->manager;
-    char index_path[SEAF_PATH_MAX];
-    struct index_state istate;
-    int ret = 0;
-    SeafCommit *commit;
-    g_return_val_if_fail (*error == NULL, -1);
-
-    if (!check_worktree_common (repo))
-        return -1;
-
-    memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
-        *error = g_strdup("Failed to load index.");
-        g_warning ("Failed to load index.\n");
-        return -1;
-    }
-
-    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
-    if (!commit) {
-        *error = g_strdup_printf ("Cannot find commit %s", commit_id);
-        g_warning ("Cannot find commit %s.\n", commit_id);
-        return -1;
-    }
-
-    if (reset_common (repo, &istate, commit, error) < 0) {
-        ret = -1;
-        goto out;
-    }
-
-    if (update_index (&istate, index_path) < 0) {
-        *error = g_strdup("Failed to update index.");
-        g_warning ("Failed to update index.\n");
-        ret = -1;
-        goto out;
-    }
-
-    /* Update branch */
-    seaf_branch_set_commit (repo->head, commit_id);
-    seaf_branch_manager_update_branch (seaf->branch_mgr, repo->head);
-
-out:
-    discard_index (&istate);
-
-    return ret;
-}
-
-int
-seaf_repo_revert (SeafRepo *repo, const char *commit_id, char **error)
-{
-    SeafRepoManager *mgr = repo->manager;
-    char index_path[SEAF_PATH_MAX];
-    struct index_state istate;
-    int ret = 0;
-    SeafCommit *commit;
-    g_return_val_if_fail (*error == NULL, -1);
-
-    if (!check_worktree_common (repo))
-        return -1;
-
-    memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
-        *error = g_strdup("Failed to load index.");
-        g_warning ("Failed to load index.\n");
-        return -1;
-    }
-
-    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
-    if (!commit) {
-        *error = g_strdup_printf ("Cannot find commit %s", commit_id);
-        g_warning ("Cannot find commit %s.\n", commit_id);
-        return -1;
-    }
-
-    if (reset_common (repo, &istate, commit, error) < 0) {
-        ret = -1;
-        goto out;
-    }
-
-    if (update_index (&istate, index_path) < 0) {
-        *error = g_strdup("Failed to update index.");
-        g_warning ("Failed to update index.\n");
-        ret = -1;
-        goto out;
-    }
-
-    char desc[512];
-#ifndef WIN32
-    strftime (desc, sizeof(desc), "Reverted repo to status at %F %T.", 
-              localtime((time_t *)(&commit->ctime)));
-#else
-    strftime (desc, sizeof(desc), "Reverted repo to status at %Y-%m-%d %H:%M:%S.", 
-              localtime((time_t *)(&commit->ctime)));
-#endif
-
-    GError *err = NULL;
-    if (seaf_repo_index_commit (repo, desc, FALSE, NULL, &err) == NULL &&
-        err != NULL) {
-        *error = g_strdup("Failed to commit.");
-        g_warning ("Failed to commit.\n");
-        ret = -1;
-    }
-
-out:
-    discard_index (&istate);
-
-    return ret;
-}
-
 int
 seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
                  gboolean *real_merge)
@@ -1691,85 +1335,6 @@ seaf_repo_generate_magic (SeafRepo *repo, const char *passwd)
 
     g_string_free (buf, TRUE);
     rawdata_to_hex (key, repo->magic, 16);
-}
-
-static SeafCommit *
-get_commit(SeafRepo *repo, const char *branch_or_commit)
-{
-    SeafBranch *b;
-    SeafCommit *c;
-
-    b = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id,
-                                        branch_or_commit);
-    if (!b) {
-        if (strcmp(branch_or_commit, "HEAD") == 0)
-            c = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                                repo->head->commit_id);
-        else
-            c = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                                branch_or_commit);
-    } else {
-        c = seaf_commit_manager_get_commit (seaf->commit_mgr, b->commit_id);
-    }
-
-    if (b)
-        seaf_branch_unref (b);
-    
-    return c;
-}
-
-GList *
-seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, char **error)
-{
-    SeafCommit *c1 = NULL, *c2 = NULL;
-    int ret = 0;
-    GList *diff_entries = NULL;
-
-    g_return_val_if_fail (*error == NULL, NULL);
-
-    c2 = get_commit (repo, new);
-    if (!c2) {
-        *error = g_strdup("Can't find new commit");
-        return NULL;
-    }
-    
-    if (old == NULL || old[0] == '\0') {
-        if (c2->parent_id && c2->second_parent_id) {
-            ret = diff_merge (c2, &diff_entries);
-            if (ret < 0) {
-                *error = g_strdup("Failed to do diff");
-                seaf_commit_unref (c2);
-                return NULL;
-            }
-            seaf_commit_unref (c2);
-            return diff_entries;
-        }
-
-        if (!c2->parent_id) {
-            seaf_commit_unref (c2);
-            return NULL;
-        }
-        c1 = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                             c2->parent_id);
-    } else {
-        c1 = get_commit (repo, old);
-    }
-
-    if (!c1) {
-        *error = g_strdup("Can't find old commit");
-        seaf_commit_unref (c2);
-        return NULL;
-    }
-
-    /* do diff */
-    ret = diff_commits (c1, c2, &diff_entries);
-    if (ret < 0)
-        *error = g_strdup("Failed to do diff");
-
-    seaf_commit_unref (c1);
-    seaf_commit_unref (c2);
-
-    return diff_entries;
 }
 
 static int 

@@ -664,16 +664,18 @@ seaf_dir_from_data (const char *dir_id, const uint8_t *data, int len)
         if (remain >= name_len) {
             dent->name_len = MIN (name_len, SEAF_DIR_NAME_LEN - 1);
             memcpy (dent->name, ptr, dent->name_len);
-            ptr += name_len;
-            remain -= name_len;
+            ptr += dent->name_len;
+            remain -= dent->name_len;
         } else {
             g_warning ("Bad data format for dir objcet %s.\n", dir_id);
             g_free (dent);
             goto bad;
         }
         
-        root->entries = g_list_append(root->entries, dent);
+        root->entries = g_list_prepend (root->entries, dent);
     }
+
+    root->entries = g_list_reverse (root->entries);
 
     return root;
 
@@ -1063,21 +1065,22 @@ seaf_fs_manager_object_exists (SeafFSManager *mgr, const char *id)
     return seaf_obj_store_obj_exists (mgr->obj_store, id);
 }
 
-static gint64
-get_file_size (SeafFSManager *mgr, const char *id)
+gint64
+seaf_fs_manager_get_file_size (SeafFSManager *mgr, const char *file_id)
 {
-    SeafileOndisk *ondisk;
-    int len;
+    Seafile *file;
+    gint64 file_size;
 
-    if (seaf_obj_store_read_obj (mgr->obj_store, id, (void **)&ondisk, &len) < 0) {
-        g_warning ("[fs mgr] Failed to read file %s.\n", id);
+    file = seaf_fs_manager_get_seafile (seaf->fs_mgr, file_id);
+    if (!file) {
+        seaf_warning ("Couldn't get file %s", file_id);
         return -1;
     }
 
-    if (ntohl(ondisk->type) != SEAF_METADATA_TYPE_FILE)
-        return -1;
+    file_size = file->file_size;
 
-    return (gint64) ntoh64(ondisk->file_size);
+    seafile_unref (file);
+    return file_size;
 }
 
 static gint64
@@ -1086,7 +1089,7 @@ get_dir_size (SeafFSManager *mgr, const char *id)
     SeafDir *dir;
     SeafDirent *seaf_dent;
     guint64 size = 0;
-    int result;
+    gint64 result;
     GList *p;
 
     dir = seaf_fs_manager_get_seafdir (mgr, id);
@@ -1097,7 +1100,7 @@ get_dir_size (SeafFSManager *mgr, const char *id)
         seaf_dent = (SeafDirent *)p->data;
 
         if (S_ISREG(seaf_dent->mode)) {
-            result = get_file_size (mgr, seaf_dent->id);
+            result = seaf_fs_manager_get_file_size (mgr, seaf_dent->id);
             if (result < 0) {
                 seaf_dir_free (dir);
                 return result;

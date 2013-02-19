@@ -56,7 +56,7 @@ start (CcnetProcessor *processor, int argc, char **argv)
     const char *repo_id = argv[0];
     const char *token = argv[1];
 
-    seaf_debug ("[notifysync-slave] Recieve notify sync repo %s from %s\n",
+    seaf_debug ("[notifysync-slave] Receive notify sync repo %s from %s\n",
                 repo_id, processor->peer_id);
 
     if (!seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id)) {

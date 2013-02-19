@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: seafile 1.1.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2012-12-07 10:45+0800\n"
+"POT-Creation-Date: 2013-01-26 18:20+0800\n"
 "PO-Revision-Date: 2012-10-25 14:18+0800\n"
 "Last-Translator: lin <linshuai2012@gmail.com>\n"
 "Language-Team: Chinese (simplified)\n"
@@ -17,19 +17,19 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ../gui/common/applet-common.c:161
+#: ../gui/common/applet-common.c:165
 msgid "Uploading"
 msgstr "正在上传"
 
-#: ../gui/common/applet-common.c:161
+#: ../gui/common/applet-common.c:165
 msgid "Downloading"
 msgstr "正在下载"
 
-#: ../gui/common/applet-common.c:162
+#: ../gui/common/applet-common.c:166
 msgid "Speed"
 msgstr "速度"
 
-#: ../gui/common/applet-common.c:188
+#: ../gui/common/applet-common.c:191
 msgid ""
 "is unsynced. \n"
 "Reason: Deleted on server"
@@ -37,11 +37,11 @@ msgstr ""
 "已经被解除同步。\n"
 "原因：该目录已经在服务器上被删除"
 
-#: ../gui/common/applet-common.c:202
+#: ../gui/common/applet-common.c:214
 msgid "is synchronized"
 msgstr "已同步"
 
-#: ../gui/common/applet-common.c:216
+#: ../gui/common/applet-common.c:230
 msgid ""
 "failed to sync. \n"
 "Access denied to service"
@@ -49,7 +49,7 @@ msgstr ""
 "同步出错。\n"
 "您没有权限访问该资料库"
 
-#: ../gui/common/applet-common.c:229
+#: ../gui/common/applet-common.c:243
 msgid ""
 "failed to sync.\n"
 "The library owner's storage space is used up."
@@ -57,56 +57,125 @@ msgstr ""
 "同步出错。\n"
 "资料库所有者的空间已用完"
 
+#: ../gui/common/translate-commit-desc.c:104
+msgid "files"
+msgstr "文件"
+
+#: ../gui/common/translate-commit-desc.c:106
+msgid "directories"
+msgstr "目录"
+
+#: ../gui/common/translate-commit-desc.c:109
+#, c-format
+msgid "and %s more"
+msgstr "以及其它 %s 个"
+
+#: ../gui/common/translate-commit-desc.c:141
+msgid "Added"
+msgstr "添加了"
+
+#: ../gui/common/translate-commit-desc.c:142
+msgid "Deleted"
+msgstr "删除了"
+
+#: ../gui/common/translate-commit-desc.c:143
+msgid "Removed"
+msgstr "删除了"
+
+#: ../gui/common/translate-commit-desc.c:144
+msgid "Modified"
+msgstr "修改了"
+
+#: ../gui/common/translate-commit-desc.c:145
+msgid "Renamed"
+msgstr "重命名了"
+
+#: ../gui/common/translate-commit-desc.c:146
+msgid "Moved"
+msgstr "移动了"
+
+#: ../gui/common/translate-commit-desc.c:147
+msgid "Added directory"
+msgstr "添加了目录"
+
+#: ../gui/common/translate-commit-desc.c:148
+msgid "Removed directory"
+msgstr "删除了目录"
+
+#: ../gui/common/translate-commit-desc.c:149
+msgid "Renamed directory"
+msgstr "重命名了目录"
+
+#: ../gui/common/translate-commit-desc.c:150
+msgid "Moved directory"
+msgstr "移动了目录"
+
+#: ../gui/common/translate-commit-desc.c:155
+msgid "Reverted repo to status at"
+msgstr "资料库内容还原到"
+
+#: ../gui/common/translate-commit-desc.c:158
+msgid "Reverted file to status at"
+msgstr "文件内容还原到"
+
+#: ../gui/common/translate-commit-desc.c:161
+msgid "Recovered deleted directory"
+msgstr "还原已删除的目录"
+
+#: ../gui/common/translate-commit-desc.c:163
+msgid "Auto merge by seafile system"
+msgstr "系统自动合并修改"
+
 #: ../gui/gtk/seafile-applet.c:159
 #, c-format
 msgid "Seafile is already running\n"
 msgstr "Seafile 已经运行, 请不要重复启动\n"
 
-#: ../gui/gtk/trayicon.c:159 ../gui/win/seafile-applet.c:74
+#: ../gui/gtk/trayicon.c:117 ../gui/win/seafile-applet.c:76
 msgid "Auto sync is disabled"
 msgstr "Seafile 同步已暂停"
 
-#: ../gui/win/init-ccnet.c:174
+#: ../gui/win/init-ccnet.c:176
 msgid "free"
 msgstr "空闲"
 
-#: ../gui/win/init-ccnet.c:179
+#: ../gui/win/init-ccnet.c:181
 msgid "free space unknown"
 msgstr "空闲空间大小未知"
 
-#: ../gui/win/init-ccnet.c:274 ../gui/win/init-ccnet.c:275
+#: ../gui/win/init-ccnet.c:276 ../gui/win/init-ccnet.c:277
 msgid "Seafile help.txt"
 msgstr "Seafile使用帮助.txt"
 
-#: ../gui/win/init-ccnet.c:306
+#: ../gui/win/init-ccnet.c:308
 msgid "Choose a disk"
 msgstr "选择一个磁盘"
 
-#: ../gui/win/init-ccnet.c:308
+#: ../gui/win/init-ccnet.c:310
 msgid "Seafile Initialization"
 msgstr "Seafile 初始化"
 
-#: ../gui/win/init-ccnet.c:356 ../gui/win/init-ccnet.c:366
+#: ../gui/win/init-ccnet.c:358 ../gui/win/init-ccnet.c:368
 msgid "Initialzation is not finished. Really quit?"
 msgstr "Seafile 初始化仍未完成。确认要退出吗？"
 
-#: ../gui/win/seafile-applet.c:58
+#: ../gui/win/seafile-applet.c:60
 msgid "Seafile is started"
 msgstr "Seafile 已启动"
 
-#: ../gui/win/seafile-applet.c:58
+#: ../gui/win/seafile-applet.c:60
 msgid "Click the icon to open admin console"
 msgstr "点击图标即可打开管理页面"
 
-#: ../gui/win/seafile-applet.c:355
+#: ../gui/win/seafile-applet.c:357
 msgid "Failed to disable auto sync"
 msgstr "暂停同步失败"
 
-#: ../gui/win/seafile-applet.c:356
+#: ../gui/win/seafile-applet.c:358
 msgid "Failed to enable auto sync"
 msgstr "开启同步失败"
 
-#: ../gui/win/seafile-applet.c:518
+#: ../gui/win/seafile-applet.c:520
 msgid "Seafile is already running"
 msgstr "Seafile 已经运行，请不要重复启动"
 

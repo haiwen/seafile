@@ -25,9 +25,19 @@
 
 #include "seaf-db.h"
 
+#define REAP_TOKEN_INTERVAL 300 /* 5 mins */
+#define DECRYPTED_TOKEN_TTL 3600 /* 1 hour */
+
+typedef struct DecryptedToken {
+    char *token;
+    gint64 reap_time;
+} DecryptedToken;
 
 struct _SeafRepoManagerPriv {
-    int dummy;
+    /* (encrypted_token, session_key) -> decrypted token */
+    GHashTable *decrypted_tokens;
+    pthread_rwlock_t lock;
+    CcnetTimer *reap_token_timer;
 };
 
 static const char *ignore_table[] = {
@@ -59,6 +69,9 @@ load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt);
 static int create_db_tables_if_not_exist (SeafRepoManager *mgr);
 
 static int save_branch_repo_map (SeafRepoManager *manager, SeafBranch *branch);
+
+static int reap_token (void *data);
+static void decrypted_token_free (DecryptedToken *token);
 
 gboolean
 is_repo_id_valid (const char *id)
@@ -290,7 +303,6 @@ should_ignore_file(const char *filename, void *data)
     return FALSE;
 }
 
-
 SeafRepoManager*
 seaf_repo_manager_new (SeafileSession *seaf)
 {
@@ -298,6 +310,13 @@ seaf_repo_manager_new (SeafileSession *seaf)
 
     mgr->priv = g_new0 (SeafRepoManagerPriv, 1);
     mgr->seaf = seaf;
+
+    mgr->priv->decrypted_tokens = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                         g_free,
+                                                         (GDestroyNotify)decrypted_token_free);
+    pthread_rwlock_init (&mgr->priv->lock, NULL);
+    mgr->priv->reap_token_timer = ccnet_timer_new (reap_token, mgr,
+                                                   REAP_TOKEN_INTERVAL * 1000);
 
     ignore_patterns = g_new0 (GPatternSpec*, G_N_ELEMENTS(ignore_table));
     int i;
@@ -2244,3 +2263,78 @@ out:
     return NULL;
 }
 
+static int reap_token (void *data)
+{
+    SeafRepoManager *mgr = data;
+    GHashTableIter iter;
+    gpointer key, value;
+    DecryptedToken *t;
+
+    pthread_rwlock_wrlock (&mgr->priv->lock);
+
+    gint64 now = (gint64)time(NULL);
+
+    g_hash_table_iter_init (&iter, mgr->priv->decrypted_tokens);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        t = value;
+        if (now >= t->reap_time)
+            g_hash_table_iter_remove (&iter);
+    }
+
+    pthread_rwlock_unlock (&mgr->priv->lock);
+
+    return TRUE;
+}
+
+static void decrypted_token_free (DecryptedToken *token)
+{
+    if (!token)
+        return;
+    g_free (token->token);
+    g_free (token);
+}
+
+void
+seaf_repo_manager_add_decrypted_token (SeafRepoManager *mgr,
+                                       const char *encrypted_token,
+                                       const char *session_key,
+                                       const char *decrypted_token)
+{
+    char key[256];
+    DecryptedToken *token;
+
+    snprintf (key, sizeof(key), "%s%s", encrypted_token, session_key);
+    key[255] = 0;
+
+    pthread_rwlock_wrlock (&mgr->priv->lock);
+
+    token = g_new0 (DecryptedToken, 1);
+    token->token = g_strdup(decrypted_token);
+    token->reap_time = (gint64)time(NULL) + DECRYPTED_TOKEN_TTL;
+
+    g_hash_table_insert (mgr->priv->decrypted_tokens,
+                         g_strdup(key),
+                         token);
+
+    pthread_rwlock_unlock (&mgr->priv->lock);
+}
+
+char *
+seaf_repo_manager_get_decrypted_token (SeafRepoManager *mgr,
+                                       const char *encrypted_token,
+                                       const char *session_key)
+{
+    char key[256];
+    DecryptedToken *token;
+
+    snprintf (key, sizeof(key), "%s%s", encrypted_token, session_key);
+    key[255] = 0;
+
+    pthread_rwlock_rdlock (&mgr->priv->lock);
+    token = g_hash_table_lookup (mgr->priv->decrypted_tokens, key);
+    pthread_rwlock_unlock (&mgr->priv->lock);
+
+    if (token)
+        return g_strdup(token->token);
+    return NULL;
+}

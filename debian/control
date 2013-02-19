@@ -2,12 +2,42 @@ Source: seafile
 Section: net
 Priority: extra
 Maintainer: Lingtao Pan <freeplant@gmail.com>
-Build-Depends: debhelper (>= 7), autotools-dev, libssl-dev, libsqlite3-dev, intltool, libglib2.0-dev, libevent-dev, uuid-dev, libgtk2.0-dev
-Standards-Version: 1.4.1
+Build-Depends:
+	debhelper (>= 7),
+	autotools-dev,
+	libssl-dev,
+	libsqlite3-dev,
+	intltool,
+	libglib2.0-dev,
+	libevent-dev,
+	uuid-dev,
+	libgtk2.0-dev
+Standards-Version: 3.9.4
 Homepage: http://seafile.com
 
 Package: seafile
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libglib2.0-0, libgtk2.0-0 (>= 2.16.0), libsqlite3-0, libuuid1, libssl0.9.8 | libssl1.0.0, libevent-2.0-5, python-webpy, python-mako, python-simplejson
-Description: Seafile
- Seafile is an online file storage and collaboration tool. This is seafile client for synchronizing your local files with seafile server. 
+Depends:
+	${shlibs:Depends},
+	${misc:Depends},
+	libglib2.0-0,
+	libgtk2.0-0 (>= 2.16.0),
+	libsqlite3-0,
+	libuuid1,
+	libssl0.9.8 | libssl1.0.0,
+	libevent-2.0-5,
+	python-webpy,
+	python-mako,
+	python-simplejson
+Description: Client of seafile, an online file storage and collaboration tool
+ Seafile enables you to build private cloud for file sharing and collaboration
+ among team members in your company/organization. This is the Linux desktop
+ client of the seafile system.
+ .
+ First you create a file library in the web and upload files to it. Then you
+ share it into a team or with another user.
+ .
+ File libraries can also be synchronized among computers and mobile devices. You
+ download a library to your PC. Whenever you add, delete or edit a file, the
+ latest version be uploaded to the server automatically and then be synchronized
+ to everyone's computer.

@@ -8,6 +8,9 @@
 #include <ccnet/job-mgr.h>
 #include <ccnet/ccnet-object.h>
 
+#include <openssl/aes.h>
+#include <openssl/evp.h>
+
 #include "common.h"
 
 #define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
@@ -16,7 +19,7 @@
 #include "seafile-session.h"
 #include "utils.h"
 
-#include "check-tx-slave-v2-proc.h"
+#include "check-tx-slave-v3-proc.h"
 
 #define SC_GET_TOKEN        "301"
 #define SS_GET_TOKEN        "Get token"
@@ -68,15 +71,15 @@ typedef struct {
     char *rsp_msg;
     char head_id[41];
     int has_branch;
-} SeafileCheckTxSlaveV2ProcPriv;
+} SeafileCheckTxSlaveV3ProcPriv;
 
 #define GET_PRIV(o)  \
-   (G_TYPE_INSTANCE_GET_PRIVATE ((o), SEAFILE_TYPE_CHECK_TX_SLAVE_V2_PROC, SeafileCheckTxSlaveV2ProcPriv))
+   (G_TYPE_INSTANCE_GET_PRIVATE ((o), SEAFILE_TYPE_CHECK_TX_SLAVE_V3_PROC, SeafileCheckTxSlaveV3ProcPriv))
 
 #define USE_PRIV \
-    SeafileCheckTxSlaveV2ProcPriv *priv = GET_PRIV(processor);
+    SeafileCheckTxSlaveV3ProcPriv *priv = GET_PRIV(processor);
 
-G_DEFINE_TYPE (SeafileCheckTxSlaveV2Proc, seafile_check_tx_slave_v2_proc, CCNET_TYPE_PROCESSOR)
+G_DEFINE_TYPE (SeafileCheckTxSlaveV3Proc, seafile_check_tx_slave_v3_proc, CCNET_TYPE_PROCESSOR)
 
 static int start (CcnetProcessor *processor, int argc, char **argv);
 static void handle_update (CcnetProcessor *processor,
@@ -96,25 +99,25 @@ release_resource(CcnetProcessor *processor)
     g_free (priv->rsp_code);
     g_free (priv->rsp_msg);
 
-    CCNET_PROCESSOR_CLASS (seafile_check_tx_slave_v2_proc_parent_class)->release_resource (processor);
+    CCNET_PROCESSOR_CLASS (seafile_check_tx_slave_v3_proc_parent_class)->release_resource (processor);
 }
 
 
 static void
-seafile_check_tx_slave_v2_proc_class_init (SeafileCheckTxSlaveV2ProcClass *klass)
+seafile_check_tx_slave_v3_proc_class_init (SeafileCheckTxSlaveV3ProcClass *klass)
 {
     CcnetProcessorClass *proc_class = CCNET_PROCESSOR_CLASS (klass);
 
-    proc_class->name = "check-tx-slave-v2-proc";
+    proc_class->name = "check-tx-slave-v3-proc";
     proc_class->start = start;
     proc_class->handle_update = handle_update;
     proc_class->release_resource = release_resource;
 
-    g_type_class_add_private (klass, sizeof (SeafileCheckTxSlaveV2ProcPriv));
+    g_type_class_add_private (klass, sizeof (SeafileCheckTxSlaveV3ProcPriv));
 }
 
 static void
-seafile_check_tx_slave_v2_proc_init (SeafileCheckTxSlaveV2Proc *processor)
+seafile_check_tx_slave_v3_proc_init (SeafileCheckTxSlaveV3Proc *processor)
 {
 }
 
@@ -156,42 +159,35 @@ decrypt_token (CcnetProcessor *processor)
     /* raw data is half the length of hexidecimal */
     hex_len = strlen(priv->token);
     if (hex_len % 2 != 0) {
-        seaf_warning ("[check tx slave v2] invalid length of encrypted token\n"); 
+        seaf_warning ("[check tx slave v3] invalid length of encrypted token\n"); 
         ret = -1;
         goto out;
     }
 
-    token = seaf_repo_manager_get_decrypted_token (seaf->repo_mgr,
-                                                   priv->token,
-                                                   priv->session_key);
-    if (token)
-        goto found;
-    
     encrypted_len = hex_len / 2;
     encrypted_token = g_malloc (encrypted_len);
     hex_to_rawdata (priv->token,
                     (unsigned char *)encrypted_token,
                     encrypted_len);
 
-    seafile_generate_enc_key (priv->session_key,
-                              strlen(priv->session_key),
-                              CURRENT_ENC_VERSION, key, iv);
+    EVP_BytesToKey (EVP_aes_128_cbc(), /* cipher mode */
+                    EVP_sha1(),        /* message digest */
+                    NULL,              /* slat */
+                    (unsigned char*)priv->session_key,
+                    strlen(priv->session_key),
+                    1,   /* iteration times */
+                    key, /* the derived key */
+                    iv); /* IV, initial vector */
+
     crypt = seafile_crypt_new (CURRENT_ENC_VERSION, key, iv);
     
     if (seafile_decrypt (&token, &token_len, encrypted_token,
                          encrypted_len, crypt) < 0) {
-        seaf_warning ("[check tx slave v2] failed to decrypt token\n");
+        seaf_warning ("[check tx slave v3] failed to decrypt token\n");
         ret = -1;
         goto out;
     }
 
-    /* Add to cache. */
-    seaf_repo_manager_add_decrypted_token (seaf->repo_mgr,
-                                           priv->token,
-                                           priv->session_key,
-                                           token);
-
-found:
     g_free (priv->token);
     /* we can use the decrypted data directly, since the trailing null byte is
      * also included when encrypting in the client */
@@ -333,7 +329,7 @@ start (CcnetProcessor *processor, int argc, char **argv)
 
     CcnetPeer *peer = ccnet_get_peer (seaf->ccnetrpc_client, processor->peer_id);
     if (!peer || !peer->session_key) {
-        seaf_warning ("[check tx slave v2] session key of peer %.10s is null\n",
+        seaf_warning ("[check tx slave v3] session key of peer %.10s is null\n",
                       processor->peer_id);
         ccnet_processor_send_response (processor, SC_BAD_PEER, SS_BAD_PEER, NULL, 0);
         ccnet_processor_done (processor, FALSE);

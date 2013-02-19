@@ -243,13 +243,11 @@ write_dir_data_cb (struct bufferevent *bev, void *ctx)
     int n;
 
     n = readn (data->zipfd, buf, sizeof(buf));
-    if (n <= 0) {
+    if (n < 0) {
         seaf_warning ("failed to read zipfile %s\n", data->zipfile);
         evhtp_connection_free (evhtp_request_get_connection (data->req));
         free_senddir_data (data);
-        return;
-        
-    } else {
+    } else if (n > 0) {
         bufferevent_write (bev, buf, n);
         data->remain -= n;
 
@@ -452,6 +450,10 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
      */
     evhtp_request_pause (req);
 
+    /* Avoid recursive call of write_data_cb(). */
+    if (req->htp->ssl_cfg != NULL)
+        evbuffer_defer_callbacks (bev->output, bev->ev_base);
+
     /* Kick start data transfer by sending out http headers. */
     evhtp_send_reply_start(req, EVHTP_RES_OK);
 
@@ -564,6 +566,10 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
      * handling this request.
      */
     evhtp_request_pause (req);
+
+    /* Avoid recursive call of write_dir_data_cb(). */
+    if (req->htp->ssl_cfg != NULL)
+        evbuffer_defer_callbacks (bev->output, bev->ev_base);
 
     /* Kick start data transfer by sending out http headers. */
     evhtp_send_reply_start(req, EVHTP_RES_OK);

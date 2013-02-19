@@ -142,15 +142,11 @@ start_rpc_service (CcnetClient *client)
                                      seafile_is_auto_sync_enabled,
                                      "seafile_is_auto_sync_enabled",
                                      searpc_signature_int__void());
-    
+
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_branch_gets,
                                      "seafile_branch_gets",
                                      searpc_signature_objlist__string());
-    searpc_server_register_function ("seafile-rpcserver",
-                                     seafile_diff,
-                                     "seafile_diff",
-                                     searpc_signature_objlist__string_string_string());
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_gen_default_worktree,
                                      "gen_default_worktree",

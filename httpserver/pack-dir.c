@@ -309,6 +309,7 @@ char *pack_dir (const char *dirname,
     char *tmpfile_name = NULL ;
     char *ret = NULL;
     int fd = -1;
+    PackDirData *data = NULL;
 
     fd = g_file_open_tmp ("seafile-XXXXXX.zip", &tmpfile_name, NULL);
     if (fd < 0) {
@@ -320,7 +321,7 @@ char *pack_dir (const char *dirname,
     archive_write_set_format_zip (a);
     archive_write_open_fd (a, fd);
 
-    PackDirData *data = g_new0 (PackDirData, 1);
+    data = g_new0 (PackDirData, 1);
     data->crypt = crypt;
     data->is_windows = is_windows;
     data->a = a;

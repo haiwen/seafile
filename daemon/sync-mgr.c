@@ -385,7 +385,7 @@ need_notify_sync (SeafRepo *repo)
 
 static const char *sync_state_str[] = {
     "synchronized",
-    "commiting",
+    "committing",
     "initializing",
     "downloading",
     "merging",
@@ -414,13 +414,21 @@ transition_sync_state (SyncTask *task, int new_state)
             new_state == SYNC_STATE_DONE &&
             need_notify_sync(task->repo))
         {
-            GString *buf = g_string_new (NULL);
-            g_string_append_printf (buf, "%s\t%s",
-                                    task->repo->name, task->repo->id);
-            seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                                  "sync.done",
-                                                  buf->str);
-            g_string_free (buf, TRUE);
+            SeafCommit *head;
+            head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                   task->repo->head->commit_id);
+            if (head) {
+                GString *buf = g_string_new (NULL);
+                g_string_append_printf (buf, "%s\t%s\t%s",
+                                        task->repo->name,
+                                        task->repo->id,
+                                        head->desc);
+                seaf_mq_manager_publish_notification (seaf->mq_mgr,
+                                                      "sync.done",
+                                                      buf->str);
+                g_string_free (buf, TRUE);
+                seaf_commit_unref (head);
+            }
         }
 
         task->state = new_state;
@@ -891,13 +899,6 @@ commit_job (void *vtask)
         }
     }
 
-    if (seaf_repo_index_add (repo, "") < 0) {
-        seaf_warning ("[Sync mgr] Failed to add in repo %s(%.8s).\n",
-                      repo->name, repo->id);
-        res->success = FALSE;
-        goto out;
-    }
-
     char *commit_id = seaf_repo_index_commit (repo, "", 
                                               unmerged, remote_name, &error);
     if (commit_id == NULL && error != NULL) {
@@ -909,7 +910,6 @@ commit_job (void *vtask)
     }
     g_free (commit_id);
 
-out:
     g_free (remote_name);
     pthread_mutex_unlock (&repo->lock);
     return res;

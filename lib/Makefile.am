@@ -37,7 +37,7 @@ seafile-object.h: ${seafile_object_define}
 	rm -f $@
 	valac --pkg posix ${seafile_object_define} -C -H seafile-object.h
 
-DISTCLEANFILES = seafile-object.h ${seafile_object_gen} ${searpc_gen}
+DISTCLEANFILES = ${searpc_gen}
 
 ## library rules
 lib_LTLIBRARIES = libseafile.la
@@ -65,4 +65,5 @@ ${searpc_gen}: $(top_srcdir)/lib/rpc_table.py
 	@echo "[libsearpc]: done"
 
 clean-local:
-	-rm ${searpc_gen} 
+	rm -f ${searpc_gen}
+	rm -f $(top_srcdir)/lib/rpc_table.pyc

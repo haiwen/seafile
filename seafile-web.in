@@ -1,0 +1,18 @@
+#!/bin/bash
+
+prefix=@prefix@
+pkgdatadir=${prefix}/share/seafile
+
+export PYTHONPATH=@pythondir@:$PYTHONPATH
+
+if [ $1 == "start" ]; then
+    if [ -f /tmp/seafile-web.pid ]; then
+        kill -9 `cat /tmp/seafile-web.pid`
+    fi
+    cd ${pkgdatadir}/web
+    @PYTHON@ main.py 127.0.0.1:13420 &
+    echo $! > /tmp/seafile-web.pid
+elif [ $1 == "stop" ]; then
+    kill -9 `cat /tmp/seafile-web.pid`
+    rm -f /tmp/seafile-web.pid
+fi

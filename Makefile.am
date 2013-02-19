@@ -16,24 +16,19 @@ if WIN32
   MAKE_data =
 endif
 
-SUBDIRS = include lib common app python tests \
+SUBDIRS = include lib common app python tests doc \
 	$(MAKE_CLIENT) $(MAKE_SERVER) $(MAKE_PO) $(MAKE_data)
 
 DIST_SUBDIRS = include lib common app python tests \
 	daemon gui server tools monitor httpserver controller \
-	po data
+	po data doc
 
 INTLTOOL = \
 	intltool-extract.in \
 	intltool-merge.in \
 	intltool-update.in
 
-EXTRA_DIST = install-sh $(INTLTOOL) README.markdown web scripts debian msi
-
-DISTCLEANFILES = \
-	intltool-extract.in \
-	intltool-merge.in \
-	intltool-update.in
+EXTRA_DIST = install-sh $(INTLTOOL) README.markdown web scripts debian msi LICENCE.txt
 
 DISTCHECK_CONFIGURE_FLAGS = --enable-server --enable-httpserver
 
@@ -54,18 +49,29 @@ web/i18n/zh_CN/LC_MESSAGES/messages.mo: $(top_srcdir)/web/i18n/zh_CN/LC_MESSAGES
 	msgfmt -o $@ $<
 
 install-web:
-	$(INSTALL) -d $(DESTDIR)$(pkglibdir)
-	if test -d $(DESTDIR)$(pkglibdir)/web; then \
-	    rm -rf $(DESTDIR)$(pkglibdir)/web; \
-    fi
-	cp -r $(top_srcdir)/web $(DESTDIR)$(pkglibdir)
+	$(INSTALL) -d $(DESTDIR)$(pkgdatadir)
+	if test -d $(DESTDIR)$(pkgdatadir)/web; then \
+		rm -rf $(DESTDIR)$(pkgdatadir)/web; \
+	fi
+	cp -r $(top_srcdir)/web $(DESTDIR)$(pkgdatadir)
 
 uninstall-web:
-	chmod u+rw -R $(DESTDIR)$(pkglibdir)/web
-	-rm -rf $(DESTDIR)$(pkglibdir)/web
+	chmod u+rw -R $(DESTDIR)$(pkgdatadir)/web
+	-rm -rf $(DESTDIR)$(pkgdatadir)/web
+
+dist-hook:
+	find $(distdir)/web -name '*.pyc' -o \
+	-name '*.sh' -o \
+	-name '*~' -o \
+	-name '*#' -o \
+	-name '*.mo' \
+	| xargs rm -f
+
+clean-local:
+	rm -f po/*.gmo
 
 if COMPILE_CLIENT
-bin_SCRIPTS = ccnet-web.sh
+bin_SCRIPTS = seafile-web
 install_web = install-web
 uninstall_web = uninstall-web
 make_web_mos = $(web_mos)

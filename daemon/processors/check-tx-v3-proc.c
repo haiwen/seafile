@@ -4,6 +4,9 @@
 
 #include <ccnet.h>
 
+#include <openssl/aes.h>
+#include <openssl/evp.h>
+
 #include "common.h"
 #include "seafile-session.h"
 #include "vc-common.h"
@@ -11,7 +14,7 @@
 #include "log.h"
 #include "utils.h"
 
-#include "check-tx-v2-proc.h"
+#include "check-tx-v3-proc.h"
 
 #define SC_GET_TOKEN        "301"
 #define SS_GET_TOKEN        "Get token"
@@ -42,7 +45,7 @@ enum {
     CHECK_TX_TYPE_DOWNLOAD,
 };
 
-G_DEFINE_TYPE (SeafileCheckTxV2Proc, seafile_check_tx_v2_proc, CCNET_TYPE_PROCESSOR)
+G_DEFINE_TYPE (SeafileCheckTxV3Proc, seafile_check_tx_v3_proc, CCNET_TYPE_PROCESSOR)
 
 static int start (CcnetProcessor *processor, int argc, char **argv);
 static void handle_response (CcnetProcessor *processor,
@@ -52,23 +55,23 @@ static void handle_response (CcnetProcessor *processor,
 static void
 release_resource(CcnetProcessor *processor)
 {
-    CCNET_PROCESSOR_CLASS (seafile_check_tx_v2_proc_parent_class)->release_resource (processor);
+    CCNET_PROCESSOR_CLASS (seafile_check_tx_v3_proc_parent_class)->release_resource (processor);
 }
 
 
 static void
-seafile_check_tx_v2_proc_class_init (SeafileCheckTxV2ProcClass *klass)
+seafile_check_tx_v3_proc_class_init (SeafileCheckTxV3ProcClass *klass)
 {
     CcnetProcessorClass *proc_class = CCNET_PROCESSOR_CLASS (klass);
 
-    proc_class->name = "check-tx-proc-v2";
+    proc_class->name = "check-tx-proc-v3";
     proc_class->start = start;
     proc_class->handle_response = handle_response;
     proc_class->release_resource = release_resource;
 }
 
 static void
-seafile_check_tx_v2_proc_init (SeafileCheckTxV2Proc *processor)
+seafile_check_tx_v3_proc_init (SeafileCheckTxV3Proc *processor)
 {
 }
 
@@ -88,19 +91,24 @@ encrypt_token (CcnetProcessor *processor, const char *token)
 
     peer = ccnet_get_peer(seaf->ccnetrpc_client, processor->peer_id);
     if (!peer || !peer->session_key) {
-        seaf_warning ("[check tx v2] peer or peer session key not exist\n");
+        seaf_warning ("[check tx v3] peer or peer session key not exist\n");
         goto out;
     }
 
-    seafile_generate_enc_key (peer->session_key,
-                              strlen(peer->session_key),
-                              CURRENT_ENC_VERSION, key, iv);
-                              
+    EVP_BytesToKey (EVP_aes_128_cbc(), /* cipher mode */
+                    EVP_sha1(),        /* message digest */
+                    NULL,              /* slat */
+                    (unsigned char*)peer->session_key,
+                    strlen(peer->session_key),
+                    1,   /* iteration times */
+                    key, /* the derived key */
+                    iv); /* IV, initial vector */
+
     crypt = seafile_crypt_new (CURRENT_ENC_VERSION, key, iv);
     
     /* encrypt the token with session key, including the trailing null byte */
     if (seafile_encrypt (&enc_out, &len, token, strlen(token) + 1, crypt) < 0) {
-        seaf_warning ("[check tx v2] failed to encrypt token\n");
+        seaf_warning ("[check tx v3] failed to encrypt token\n");
         goto out;
     }
 
@@ -122,7 +130,7 @@ out:
 static int
 start (CcnetProcessor *processor, int argc, char **argv)
 {
-    SeafileCheckTxV2Proc *proc = (SeafileCheckTxV2Proc *)processor;
+    SeafileCheckTxV3Proc *proc = (SeafileCheckTxV3Proc *)processor;
     TransferTask *task = proc->task;
     char *type, *enc_token;
     GString *buf;
@@ -148,7 +156,7 @@ start (CcnetProcessor *processor, int argc, char **argv)
 
     buf = g_string_new(NULL);
     g_string_append_printf (buf,
-              "remote %s seafile-check-tx-slave-v2 %s %d %s %s %s",
+              "remote %s seafile-check-tx-slave-v3 %s %d %s %s %s",
               processor->peer_id, type, CURRENT_PROTO_VERSION, 
             task->repo_id, task->to_branch, enc_token);
 
@@ -217,7 +225,7 @@ handle_response (CcnetProcessor *processor,
                  char *code, char *code_msg,
                  char *content, int clen)
 {
-    SeafileCheckTxV2Proc *proc = (SeafileCheckTxV2Proc *)processor;
+    SeafileCheckTxV3Proc *proc = (SeafileCheckTxV3Proc *)processor;
     TransferTask *task = proc->task;
 
     if (strncmp(code, SC_OK, 3) == 0) {
@@ -248,7 +256,7 @@ handle_response (CcnetProcessor *processor,
         task->protocol_version = atoi(content);
         ccnet_processor_done (processor, TRUE);
     } else {
-        g_warning ("[check tx v2] Bad response: %s %s", code, code_msg);
+        g_warning ("[check tx v3] Bad response: %s %s", code, code_msg);
         if (strncmp(code, SC_ACCESS_DENIED, 3) == 0)
             transfer_task_set_error (task, TASK_ERR_ACCESS_DENIED);
         else if (strncmp(code, SC_QUOTA_ERROR, 3) == 0)

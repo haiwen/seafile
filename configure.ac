@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 
 
 AC_PREREQ(2.61)
-AC_INIT([seafile], [1.4.1], [freeplant@gmail.com])
+AC_INIT([seafile], [1.4.5], [freeplant@gmail.com])
 AC_CONFIG_HEADER([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -405,7 +405,7 @@ fi
 ac_configure_args="$ac_configure_args -q"
 
 AC_CONFIG_FILES(
-    ccnet-web.sh
+    seafile-web
     Makefile
     include/Makefile
     data/Makefile
@@ -434,6 +434,7 @@ AC_CONFIG_FILES(
     tests/Makefile
     tests/common-conf.sh
     po/Makefile.in
+    doc/Makefile
 )
 
 AC_OUTPUT

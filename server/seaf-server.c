@@ -23,22 +23,16 @@
 #include "log.h"
 #include "utils.h"
 
-#include "processors/check-tx-slave-proc.h"
 #include "processors/check-tx-slave-v2-proc.h"
-#include "processors/putcommit-proc.h"
-#include "processors/recvcommit-proc.h"
+#include "processors/check-tx-slave-v3-proc.h"
 #include "processors/recvfs-proc.h"
 #include "processors/putfs-proc.h"
-#include "processors/putblock-proc.h"
 #include "processors/putblock-v2-proc.h"
-#include "processors/recvblock-proc.h"
 #include "processors/recvblock-v2-proc.h"
 #include "processors/recvbranch-proc.h"
 #include "processors/sync-repo-slave-proc.h"
 #include "processors/putcommit-v2-proc.h"
-#include "processors/recvcommit-v2-proc.h"
 #include "processors/recvcommit-v3-proc.h"
-#include "processors/putrepoemailtoken-proc.h"
 
 SeafileSession *seaf;
 SearpcClient *ccnetrpc_client;
@@ -86,10 +80,14 @@ static void register_processors (CcnetClient *client)
                             SEAFILE_TYPE_PUTBLOCK_PROC, NULL);
     ccnet_register_service (client, "seafile-recvblock", "basic",
                             SEAFILE_TYPE_RECVBLOCK_PROC, NULL);
+    ccnet_register_service (client, "seafile-put-repo-email-token", "basic",
+                            SEAFILE_TYPE_PUTREPOEMAILTOKEN_PROC, NULL);
 #endif
 
     ccnet_register_service (client, "seafile-check-tx-slave-v2", "basic",
                             SEAFILE_TYPE_CHECK_TX_SLAVE_V2_PROC, NULL);
+    ccnet_register_service (client, "seafile-check-tx-slave-v3", "basic",
+                            SEAFILE_TYPE_CHECK_TX_SLAVE_V3_PROC, NULL);
     ccnet_register_service (client, "seafile-putblock-v2", "basic",
                             SEAFILE_TYPE_PUTBLOCK_V2_PROC, NULL);
     ccnet_register_service (client, "seafile-recvblock-v2", "basic",
@@ -106,8 +104,6 @@ static void register_processors (CcnetClient *client)
                             SEAFILE_TYPE_PUTCOMMIT_V2_PROC, NULL);
     ccnet_register_service (client, "seafile-recvcommit-v3", "basic",
                             SEAFILE_TYPE_RECVCOMMIT_V3_PROC, NULL);
-    ccnet_register_service (client, "seafile-put-repo-email-token", "basic",
-                            SEAFILE_TYPE_PUTREPOEMAILTOKEN_PROC, NULL);
 }
 
 #include <searpc.h>

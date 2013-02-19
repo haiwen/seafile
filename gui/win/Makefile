@@ -54,7 +54,8 @@ SRCS = seafile-applet.c trayicon.c init-ccnet.c
 COMMON_SRCS = \
 	../common/opendir-proc.c ../common/ccnet-init.c \
 	../common/applet-log.c ../common/rpc-wrapper.c \
-	../common/applet-common.c ../common/applet-rpc-service.c
+	../common/applet-common.c ../common/applet-rpc-service.c \
+	../common/translate-commit-desc.c
 
 OBJECTS = ${SRCS:%.c=%.o}  ${COMMON_SRCS:../common/%.c=%.o}
 
@@ -80,6 +81,9 @@ applet-log.o : ../common/applet-log.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 rpc-wrapper.o : ../common/rpc-wrapper.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+translate-commit-desc.o: ../common/translate-commit-desc.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
 %.o : %.c

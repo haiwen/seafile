@@ -130,78 +130,6 @@ int seafile_enable_auto_sync (GError **error);
 
 int seafile_is_auto_sync_enabled (GError **error);
 
-
-/**
- * seafile_add:
- * Add a file or files under a directory to the index of a repository.
- * @repo_id: repository id.
- * @path: the path of a file or a directory, if path is empty
- * string(""), the repo root directory will be added.
- */
-int seafile_add (const gchar *repo_id, const gchar *path, GError **error);
-
-/**
- * seafile_rm:
- * Remove a file or files under a directory from the index of a repository.
- */
-int seafile_rm (const gchar *repo_id, const gchar *path, GError **error);
-
-/**
- * seafile_repo_gets:
- * Get branches of a repo.
- */
-GList *seafile_branch_gets (const gchar *repo_id, GError **error);
-
-/**
- * seafile_branch_add:
- * Add a new branch.
- * @original_branch: the original branch, if it is NULL or it is "HEAD",
- * the commit of the new branch will be set to the HEAD commit.
- */
-int seafile_branch_add (const gchar *repo_id, const gchar *branch_name,
-                        const char *original_branch, GError **error);
-
-/**
- * seafile_branch_del:
- * Del a branch.
- */
-int seafile_branch_del (const gchar *repo_id, const gchar *branch_name, GError **error);
-
-/**
- * seafile_status:
- * Show the working tree status.
- */
-const gchar *seafile_status (const gchar *repo_id, GError **error);
-
-/**
- * seafile_commit:
- * Commit current index.
- */
-const gchar* seafile_commit (const gchar *repo_id, const gchar *desc, GError **error);
-
-
-/**
- * seafile_set_worktree:
- *
- */
-int seafile_set_worktree (const gchar *repo_id,
-                          const char *path,
-                          GError **error);
-
-
-/**
- * seafile_checkout:
- * @repo_id:
- * @passwd: password to decrypt if the repo is encrypted
- *
- * Checkout the content of "local" branch.
- *  
- * Returns: 0 if ok, -1 on error.
- */
-int seafile_checkout (const gchar *repo_id,
-                      const char *passwd,
-                      GError **error);
-
 /**
  * seafile_list_dir:
  * List a directory.
@@ -227,34 +155,10 @@ GList * seafile_list_dir_by_path (const char *commit_id, const char *path, GErro
 char * seafile_get_dirid_by_path (const char *commit_id, const char *path, GError **error);
 
 /**
- * seafile_reset:
- * Reset the repo head to a commit.
- */
-int seafile_reset (const char *repo_id, const char *commit, GError **error);
-
-/**
  * seafile_revert:
  * Reset the repo to a previous state by creating a new commit.
  */
 int seafile_revert (const char *repo_id, const char *commit, GError **error);
-
-/**
- * seafile_merge:
- *
- */
-int seafile_merge (const char *repo_id, const char *branch, GError **error);
-
-/**
- * seafile_diff:
- *
- * Show the difference between @old commit and @new commit. If @old is NULL, then
- * show the difference between @new commit and its parent.
- *
- * @old and @new can also be branch name.
- */
-GList *
-seafile_diff (const char *repo_id, const char *old, const char *new,
-              GError **error);
 
 char *
 seafile_gen_default_worktree (const char *worktree_parent,
@@ -312,50 +216,6 @@ seafile_get_clone_tasks (GError **error);
  * Sync a repo with relay.
  */
 int seafile_sync (const char *repo_id, const char *peer_id, GError **error);
-
-/**
- * seafile_synclan:
- *
- * Sync a repo with a peer in lan.
- */
-int
-seafile_synclan (const char *repo_id, const char *peer_id,
-                 const char *token, GError **error);
-
-/**
- * seafile_upload:
- *
- * Returns: task id.
- */
-char *seafile_upload (const gchar *repo_id,
-                    const gchar *from_branch,
-                    const gchar *to_branch,
-                    GError **error);
-
-/**
- * seafile_fetch:
- *
- * Returns: task id.
- */
-char *seafile_fetch (const gchar *repo_id,
-                     const char *peer_id,
-                     const gchar *from_branch,
-                     const gchar *to_branch,
-                     const gchar *token, 
-                     GError **error);
-
-/**
- * seafile_fetchlan:
- *
- * Returns: task id.
- */
-char *
-seafile_fetchlan (const char *repo_id, 
-                  const char *peer_id,
-                  const char *from_branch, 
-                  const char *to_branch, 
-                  const char *token,
-                  GError **error);
 
 /**
  * seafile_get_total_block_size:
@@ -437,6 +297,21 @@ int seafile_remove_task (const char *task_id, int task_type, GError **error);
 
 
 /* ------------------ Relay specific RPC calls. ------------ */
+
+/**
+ * seafile_diff:
+ *
+ * Show the difference between @old commit and @new commit. If @old is NULL, then
+ * show the difference between @new commit and its parent.
+ *
+ * @old and @new can also be branch name.
+ */
+GList *
+seafile_diff (const char *repo_id, const char *old, const char *new,
+              GError **error);
+
+GList *
+seafile_branch_gets (const char *repo_id, GError **error);
 
 /**
  * Return 1 if user is the owner of repo, otherwise return 0.

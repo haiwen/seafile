@@ -140,7 +140,7 @@ read_cb (struct bufferevent *bufev, void *user_data)
     /* we set the high & low watermark to TOKEN_LEN, so the received data can
      * only be this length. */
     if (len != TOKEN_LEN) {
-        seaf_warning ("[listen mgr] token with incorrect length recieved: %d\n",
+        seaf_warning ("[listen mgr] token with incorrect length received: %d\n",
                       (int)len);
         goto error;
     }

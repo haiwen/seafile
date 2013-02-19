@@ -7,8 +7,6 @@ default_ccnet_conf_dir=${TOPDIR}/ccnet
 default_seafile_data_dir=${TOPDIR}/seafile-data
 default_seahub_db=${TOPDIR}/seahub.db
 
-export CCNET_CONF_DIR=$default_ccnet_conf_dir
-export SEAFILE_CONF_DIR=$default_seafile_data_dir
 export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
 
 use_existing_ccnet="false"
@@ -214,7 +212,7 @@ function get_server_name () {
         echo
         echo "server name can not be empty"
         get_server_name
-    elif [[ ! ${server_name} =~ ^[a-zA-Z][a-zA-Z0-9_-]{2,14}$ ]]; then
+    elif [[ ! ${server_name} =~ ^[a-zA-Z0-9_-]{3,14}$ ]]; then
         printf "\n\033[33m${server_name}\033[m is not a valid name.\n"
         get_server_name;
     fi
@@ -381,11 +379,10 @@ seaf_server_init=${INSTALLPATH}/seafile/bin/seaf-server-init
 if [[ "${use_existing_ccnet}" != "true" ]]; then
     echo "Generating ccnet configuration in ${default_ccnet_conf_dir}..."
     echo
-    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH "${ccnet_init}" -c "${default_ccnet_conf_dir}" --name "${server_name}" --port "${server_port}" --host "${ip_or_domain}" 2>/dev/null 1>&2 ; then
+    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH "${ccnet_init}" -c "${default_ccnet_conf_dir}" --name "${server_name}" --port "${server_port}" --host "${ip_or_domain}"; then
         err_and_quit;
     fi
 
-    echo "Done. "
     echo
 fi
 
@@ -398,14 +395,12 @@ if [[ "${use_existing_seafile}" != "true" ]]; then
     echo "Generating seafile configuration in ${seafile_data_dir} ..."
     echo
     if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_server_init} --seafile-dir "${seafile_data_dir}" \
-        --port ${seafile_server_port} --httpserver-port ${httpserver_port} \
-        2>/dev/null 1>&2; then
+        --port ${seafile_server_port} --httpserver-port ${httpserver_port}; then
         
         echo "Failed to generate seafile configuration"
         err_and_quit;
     fi
     
-    echo "Done. "
     echo
 fi
 
@@ -494,7 +489,7 @@ usermgr_db=${usermgr_db_dir}/usermgr.db
 
 if [[ "${use_existing_ccnet}" != "true" ]]; then
     # create admin user/passwd entry in ccnet db
-    if ! mkdir -p "${usermgr_db_dir}" 2>/dev/null 1>&2 ; then
+    if ! mkdir -p "${usermgr_db_dir}"; then
         echo "Failed to create seahub admin."
         err_and_quit;
     fi
@@ -516,19 +511,25 @@ if [[ "${use_existing_ccnet}" != "true" ]]; then
     fi
 fi
 
-printf "Now sync seahub database ... "
+echo "Now sync seahub database ... "
+echo
+
+export CCNET_CONF_DIR=$default_ccnet_conf_dir
+export SEAFILE_CONF_DIR=$seafile_data_dir
 
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
+export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seafile/lib64/python2.7/site-packages:$PYTHONPATH
 
 manage_py=${INSTALLPATH}/seahub/manage.py
 pushd "${INSTALLPATH}/seahub" 2>/dev/null 1>&2
-if ! $PYTHON manage.py syncdb 2>/dev/null 1>&2; then
+if ! $PYTHON manage.py syncdb; then
     popd 2>/dev/null 1>&2
     echo "Failed to sync seahub database."
     err_and_quit;
 fi
 popd 2>/dev/null 1>&2
-printf "Done.\n"
+echo
+echo "Done."
 
 # prepare avatar folder
 

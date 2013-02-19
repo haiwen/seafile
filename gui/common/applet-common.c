@@ -16,6 +16,7 @@
 #include "rpc-wrapper.h"
 #include "applet-common.h"
 #include "seafile-applet.h"
+#include "translate-commit-desc.h"
 
 
 #ifdef __APPLE__
@@ -166,7 +167,6 @@ collect_transfer_info (GString *msg, const char *info, char *repo_name)
     g_string_append (msg, buf);
 }
 
-
 static void
 handle_seafile_notification (char *type, char *content)
 {
@@ -192,18 +192,33 @@ handle_seafile_notification (char *type, char *content)
         trayicon_notify ("Seafile", buf);
         
     } else if (strcmp(type, "sync.done") == 0) {
-        /* format: <repo_name\trepo_id> */
-        char *p = strchr(content, '\t');
+        /* format: repo_name \t repo_id \t description */
+        char *p, *repo_name, *repo_id, *desc;
+        repo_name = content;
+        p = strchr(content, '\t');
         if (!p) {
             return;
         }
         *p = '\0';
-        char *repo_name = content;
-        char *repo_id = p + 1;
+        repo_id = p + 1;
+
+        p = strchr(p + 1, '\t');
+        if (!p) {
+            return;
+        }
+        *p = '\0';
+        desc = p + 1;
+#ifdef __APPLE__
+        char *translated_desc = g_strdup(desc);
+#else
+        char *translated_desc = translate_commit_desc(desc);
+#endif
 
         memcpy (applet->last_synced_repo, repo_id, strlen(repo_id) + 1);
         snprintf (buf, sizeof(buf), "\"%s\" %s", repo_name, _("is synchronized"));
-        trayicon_notify ("Seafile", buf);
+        trayicon_notify (buf, translated_desc);
+
+        g_free (translated_desc);
         
     } else if (strcmp(type, "sync.access_denied") == 0) {
         /* format: <repo_name\trepo_id> */
