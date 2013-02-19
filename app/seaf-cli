@@ -41,18 +41,18 @@ Stop seafile client.
     seaf-cli stop [-c <config-dir>]
 
 
-clone
------
-clone a library from seafile server
+Download
+--------
+Download a library from seafile server
 
-    seaf-cli clone -l <library-id> -h <seahub-server-url> -d <parent-directory> -u <username> -p <password>
+    seaf-cli download -l <library-id> -s <seahub-server-url> -d <parent-directory> -u <username> -p <password>
 
 
 sync
 ----
 Synchronize a library with an existing folder.
 
-    seaf-cli sync -l <library-id> -h <seahub-server-url> -d <existing-folder> -u <username> -p <password>
+    seaf-cli sync -l <library-id> -s <seahub-server-url> -d <existing-folder> -u <username> -p <password>
 
 desync
 ------
@@ -214,6 +214,26 @@ def seaf_start_seafile(args):
     subprocess.call(cmd)
     print "started seafile daemon ..."
 
+def seaf_stop(args):
+    '''stop seafile daemon '''
+
+    conf_dir = DEFAULT_CONF_DIR
+    if args.confdir:
+        conf_dir = args.confdir
+    conf_dir = os.path.abspath(conf_dir)
+
+    if not _config_valid(conf_dir):
+        print "config directory invalid"
+        sys.exit(1)
+
+    pool = ccnet.ClientPool(conf_dir)
+    client = pool.get_client()
+    try:
+        client.send_cmd("shutdown")
+    except:
+        # ignore NetworkError("Failed to read from socket")
+        pass
+
 
 def seaf_list(args):
     '''List local libraries'''
@@ -268,7 +288,7 @@ def seaf_download(args):
     ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
     seafile_rpc = seafile.RpcClient(pool, req_pool=True)
 
-    username = args.name
+    username = args.username
     if not username:
         username = raw_input("Enter username: ")
     password = args.password
@@ -288,7 +308,7 @@ def seaf_download(args):
 
     cmd = "curl -k -H 'Authorization: Token %s' -H 'Accept: application/json; indent=4' %s/api2/repos/%s/download-info/" % (token, url, repo)
     repo_info = os.popen(cmd).read()
-    # print repo_info
+    print repo_info
     tmp = json.loads(repo_info)
     encrypted = tmp['encrypted']
     clone_token = tmp['token']
@@ -344,7 +364,7 @@ def seaf_sync(args):
     ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
     seafile_rpc = seafile.RpcClient(pool, req_pool=True)
 
-    username = args.name
+    username = args.username
     if not username:
         username = raw_input("Enter username: ")
     password = args.password
@@ -505,10 +525,11 @@ def main():
     parser_start.set_defaults(func=seaf_start_all)
     parser_start.add_argument('-c', '--confdir', help='the config directory', type=str)
 
-    parser_start = subparsers.add_parser('start',
+    # stop
+    parser_stop = subparsers.add_parser('stop',
                                          help='Start ccnet and seafile daemon')
-    parser_start.set_defaults(func=seaf_start_all)
-    parser_start.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_stop.set_defaults(func=seaf_stop)
+    parser_stop.add_argument('-c', '--confdir', help='the config directory', type=str)
 
     # list
     parser_list = subparsers.add_parser('list', help='list local libraries')
@@ -528,7 +549,7 @@ def main():
     parser_download.add_argument('-l', '--library', help='library id', type=str)
     parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
-    parser_download.add_argument('-n', '--name', help='username', type=str)
+    parser_download.add_argument('-u', '--username', help='username', type=str)
     parser_download.add_argument('-p', '--password', help='password', type=str)
 
 
@@ -539,7 +560,7 @@ def main():
     parser_sync.add_argument('-c', '--confdir', help='the config directory', type=str)
     parser_sync.add_argument('-l', '--library', help='library id', type=str)
     parser_sync.add_argument('-s', '--server', help='URL for seafile server', type=str)
-    parser_sync.add_argument('-n', '--name', help='username', type=str)
+    parser_sync.add_argument('-u', '--username', help='username', type=str)
     parser_sync.add_argument('-p', '--password', help='password', type=str)
     parser_sync.add_argument('-d', '--folder', help='the existing local folder', type=str)
 
