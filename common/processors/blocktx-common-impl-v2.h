@@ -31,6 +31,7 @@
 #define MAX_BL_LEN 1024
 #define IO_BUF_LEN 1024
 #define ENC_BLOCK_SIZE 16
+#define BLOCKTX_TIMEOUT 5
 
 typedef struct {
     int     block_idx;
@@ -347,8 +348,34 @@ send_blocks (ThreadData *tdata)
     BlockHandle *handle;
     int         n;
     int         ret;
+    fd_set      fds;
+    int max_fd = tdata->task_pipe[0];
+    struct timeval tv = { BLOCKTX_TIMEOUT, 0 };
 
     while (1) {
+        FD_ZERO (&fds);
+        FD_SET (tdata->task_pipe[0], &fds);
+
+        n = select (max_fd + 1, &fds, NULL, NULL, &tv);
+        if (n < 0 && errno == EINTR) {
+            continue;
+        } else if (n < 0) {
+            seaf_warning ("select error: %s.\n", strerror(errno));
+            return -1;
+        }
+
+#ifdef PUTBLOCK_PROC
+        if (n == 0) {
+            seaf_warning ("timeout before GET_BLOCK command arrives.\n");
+            return -1;
+        }
+#endif
+
+#ifdef SENDBLOCK_PROC
+        if (n == 0)
+            continue;
+#endif
+
         n = pipereadn (tdata->task_pipe[0], &blk_req, sizeof(blk_req));
         if (n == 0) {
             seaf_debug ("Processor exited. Worker thread exits now.\n");
@@ -574,6 +601,7 @@ recv_blocks (ThreadData *tdata)
 {
     fd_set fds;
     int max_fd = MAX (tdata->task_pipe[0], tdata->data_fd);
+    struct timeval tv = { BLOCKTX_TIMEOUT, 0 };
     int rc;
 
     RecvFSM *fsm = g_new0 (RecvFSM, 1);
@@ -586,13 +614,25 @@ recv_blocks (ThreadData *tdata)
         FD_SET (tdata->task_pipe[0], &fds);
         FD_SET (tdata->data_fd, &fds);
 
-        rc = select (max_fd + 1, &fds, NULL, NULL, NULL);
+        rc = select (max_fd + 1, &fds, NULL, NULL, &tv);
         if (rc < 0 && errno == EINTR) {
             continue;
         } else if (rc < 0) {
             seaf_warning ("select error: %s.\n", strerror(errno));
             goto error;
         }
+
+#ifdef RECVBLOCK_PROC
+        if (rc == 0) {
+            seaf_warning ("Recv block timeout.\n");
+            goto error;
+        }
+#endif
+
+#ifdef GETBLOCK_PROC
+        if (rc == 0)
+            continue;
+#endif
 
         if (FD_ISSET (tdata->data_fd, &fds)) {
             if (recv_tick (fsm, tdata->data_fd) < 0) {
