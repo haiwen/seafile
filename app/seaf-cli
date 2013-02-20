@@ -68,6 +68,7 @@ import simplejson as json
 import subprocess
 import sys
 import time
+import getpass
 
 import ccnet
 import seafile
@@ -248,7 +249,6 @@ def seaf_list(args):
         sys.exit(1)
 
     pool = ccnet.ClientPool(conf_dir)
-    ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
     seafile_rpc = seafile.RpcClient(pool, req_pool=True)
 
     repos = seafile_rpc.get_repo_list(-1, -1)
@@ -285,7 +285,6 @@ def seaf_download(args):
 
 
     pool = ccnet.ClientPool(conf_dir)
-    ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
     seafile_rpc = seafile.RpcClient(pool, req_pool=True)
 
     username = args.username
@@ -293,10 +292,9 @@ def seaf_download(args):
         username = raw_input("Enter username: ")
     password = args.password
     if not password:
-        import getpass
         password = getpass.getpass("Enter password for user %s " % username)
 
-    # curl -d 'username=XXX&password=YYY' http://127.0.0.1:8000/api2/auth-token
+    # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
     cmd = [
         "curl", "-k", "-d",
         "username=%s&password=%s" % (username, password),
@@ -330,7 +328,6 @@ def seaf_download(args):
     print "starting to download ..."
     print "Library %s will be downloaded to %s" % (repo, download_dir)
     if encrypted == 1:
-        import getpass
         repo_passwd = getpass.getpass("Enter password for the library: ")
     else:
         repo_passwd = None
@@ -375,7 +372,6 @@ def seaf_sync(args):
         print "The local directory does not exists"
 
     pool = ccnet.ClientPool(conf_dir)
-    ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
     seafile_rpc = seafile.RpcClient(pool, req_pool=True)
 
     username = args.username
@@ -383,7 +379,6 @@ def seaf_sync(args):
         username = raw_input("Enter username: ")
     password = args.password
     if not password:
-        import getpass
         password = getpass.getpass("Enter password for user %s " % username)
 
 
@@ -419,7 +414,6 @@ def seaf_sync(args):
 
     print "starting to download ..."
     if encrypted == 1:
-        import getpass
         repo_passwd = getpass.getpass("Enter password for the library: ")
     else:
         repo_passwd = None
@@ -454,7 +448,6 @@ def seaf_desync(args):
     repo_path = os.path.abspath(repo_path)
 
     pool = ccnet.ClientPool(conf_dir)
-    ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
     seafile_rpc = seafile.RpcClient(pool, req_pool=True)
 
     repos = seafile_rpc.get_repo_list(-1, -1)
@@ -527,7 +520,11 @@ def seaf_status(args):
         if not relay.is_ready:
             print "%s\t%s" % (repo.name, "connecting server")
         else:
-            if t.state == "error":
+            if not t:
+                # Relay is ready, but the sync task is not scheduled yet
+                # (shortly after seaf-daemon is started)
+                print "%s\t%s" % (repo.name, "initializing")
+            elif t.state == "error":
                 print "%s\t%s" % (repo.name, t.error)
             else:
                 print "%s\t%s" % (repo.name, t.state)
