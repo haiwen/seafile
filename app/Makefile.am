@@ -39,3 +39,5 @@ endif
 # monitor_tool_LDADD = @CCNET_CFLAGS@ \
 # 	-lsearpc \
 # 	@GLIB2_LIBS@  @GOBJECT_LIBS@ -lssl -lrt -luuid -lsqlite3
+
+EXTRA_DIST = seaf-cli

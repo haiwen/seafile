@@ -230,6 +230,9 @@ def copy_shared_libs():
     for lib in shared_libs:
         must_copy(lib, bin_dir)
 
+    libsqlite3 = which('libsqlite3-0.dll')
+    must_copy(libsqlite3, bin_dir)
+
 def copy_dll_exe():
     filelist = [
         'libsearpc-1.dll',

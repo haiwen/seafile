@@ -153,12 +153,21 @@ def remove_unused_files():
 def gen_tarball():
     output = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-latest.tar.gz')
     dirname = 'seafile-%s' % conf[CONF_VERSION]
+
+    ignored_patterns = [
+        # windows msvc dlls
+        os.path.join(dirname, 'msi', 'bin*'),
+    ]
+
+    excludes_list = [ '--exclude=%s' % pattern for pattern in ignored_patterns ]
     argv = [
         'tar',
         'czvf',
         output,
         dirname,
     ]
+
+    argv.append(*excludes_list)
 
     if run_argv(argv) != 0:
         error('failed to gen %s' % output)
