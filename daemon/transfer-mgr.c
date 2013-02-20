@@ -219,6 +219,9 @@ seaf_transfer_task_free (TransferTask *task)
     if (task->fs_roots)
         object_list_free (task->fs_roots);
 
+    if (task->commits)
+        object_list_free (task->commits);
+
     g_hash_table_destroy (task->processors);
 
     g_free (task);
@@ -234,50 +237,78 @@ static BlockList *
 load_blocklist_with_local_history (TransferTask *task)
 {
     BlockList *bl1, *bl2, *bl = NULL;
-    ObjectList *roots = task->fs_roots;
-    char *root_id;
     int i;
+    ObjectList *commits = task->commits;
+    char *commit_id;
+    SeafCommit *commit;
+    GList *parents = NULL;
 
-    /* Best effort to reduce block list size. This can effectively
-     * reduce the I/O load on the server.
-     */
     /* Upload the blocks pointed by new commits, excluding
-     * blocks pointed by remote head (if server has this repo).
+     * blocks that have been uploaded before.
      */
+
     bl1 = block_list_new ();
-    for (i = 0; i < roots->obj_ids->len; ++i) {
-        root_id = g_ptr_array_index (roots->obj_ids, i);
-        if (seaf_fs_manager_populate_blocklist (seaf->fs_mgr,
-                                                root_id, bl1) < 0) {
+
+    for (i = 0; i < commits->obj_ids->len; ++i) {
+        commit_id = g_ptr_array_index (commits->obj_ids, i);
+        commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
+        if (!commit) {
+            seaf_warning ("Failed to get commit %s.\n", commit_id);
             block_list_free (bl1);
             return NULL;
         }
+
+        if (seaf_fs_manager_populate_blocklist (seaf->fs_mgr,
+                                                commit->root_id,
+                                                bl1) < 0) {
+            seaf_commit_unref (commit);
+            block_list_free (bl1);
+            return NULL;
+        }
+
+        if (commit->parent_id && !object_list_exists (commits, commit->parent_id))
+            parents = g_list_prepend (parents, g_strdup(commit->parent_id));
+
+        if (commit->second_parent_id &&
+            !object_list_exists (commits, commit->second_parent_id))
+            parents = g_list_prepend (parents, g_strdup(commit->second_parent_id));
+
+        seaf_commit_unref (commit);
     }
 
-    if (task->remote_head[0] != 0) {
-        SeafCommit *base = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                                           task->remote_head);
-        if (!base) {
+    GList *p;
+    char *parent_id;
+    SeafCommit *parent;
+
+    for (p = parents; p; p = p->next) {
+        parent_id = p->data;
+        parent = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                 parent_id);
+        if (!parent) {
             block_list_free (bl1);
             return NULL;
         }
+
         bl2 = block_list_new ();
         if (seaf_fs_manager_populate_blocklist (seaf->fs_mgr, 
-                                                base->root_id, bl2) < 0) {
-            seaf_commit_unref (base);
+                                                parent->root_id, bl2) < 0) {
+            seaf_commit_unref (parent);
             block_list_free (bl1);
             block_list_free (bl2);
             return NULL;
         }
+
         bl = block_list_difference (bl1, bl2);
-        seaf_commit_unref (base);
         block_list_free (bl1);
+        bl1 = bl;
+
+        seaf_commit_unref (parent);
         block_list_free (bl2);
-    } else {
-        bl = bl1;
     }
 
-    return bl;
+    seaf_debug ("Uploading %u blocks.\n", bl1->n_blocks);
+
+    return bl1;
 }
 
 static int

@@ -99,7 +99,7 @@ typedef struct {
 
     char        *dest_id;
 
-    ObjectList  *commits;       /* commits need to be sent/get */
+    ObjectList  *commits;       /* commits need to be uploaded */
     ObjectList  *fs_roots;      /* the root of file systems to be sent/get */
 
     GList       *chunk_servers;

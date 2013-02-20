@@ -28,6 +28,12 @@ object_list_serialize (ObjectList *ol, uint8_t **buffer, uint32_t *len);
 gboolean
 object_list_insert (ObjectList *ol, const char *object_id);
 
+inline static gboolean
+object_list_exists (ObjectList *ol, const char *object_id)
+{
+    return (g_hash_table_lookup(ol->obj_hash, object_id) != NULL);
+}
+
 inline static int
 object_list_length (ObjectList *ol)
 {

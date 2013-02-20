@@ -101,6 +101,10 @@ send_commit_start (CcnetProcessor *processor, int argc, char **argv)
     if (task->fs_roots != NULL)
         object_list_free (task->fs_roots);
     task->fs_roots = object_list_new ();
+
+    if (task->commits != NULL)
+        object_list_free (task->commits);
+    task->commits = object_list_new ();
     
     buf = g_string_new (NULL);
     g_string_printf (buf, "remote %s seafile-recvcommit-v3 %s %s",
@@ -196,9 +200,12 @@ traverse_commit_fast_forward (SeafCommit *commit, void *data, gboolean *stop)
 
     priv->id_list = g_list_prepend (priv->id_list, g_strdup(commit->commit_id));
 
-    /* We don't need to send the contents under an empty dir. */
+    /* We don't need to send the contents under an empty dir.
+     */
     if (strcmp (commit->root_id, EMPTY_SHA1) != 0)
         object_list_insert (task->fs_roots, commit->root_id);
+
+    object_list_insert (task->commits, commit->commit_id);
 
     return TRUE;
 }
@@ -231,6 +238,8 @@ compute_delta (SeafCommit *commit, void *data, gboolean *stop)
 
         if (strcmp (commit->root_id, EMPTY_SHA1) != 0)
             object_list_insert (task->fs_roots, commit->root_id);
+
+        object_list_insert (task->commits, commit->commit_id);
     } else {
         /* Stop traversing down from this commit if it already exists
          * in the remote branch.
@@ -253,6 +262,9 @@ compute_delta_commits (CcnetProcessor *processor, const char *head)
 
     object_list_free (task->fs_roots);
     task->fs_roots = object_list_new ();
+
+    object_list_free (task->commits);
+    task->commits = object_list_new ();
 
     priv->commit_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                g_free, NULL);
