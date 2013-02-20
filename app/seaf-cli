@@ -302,15 +302,24 @@ def seaf_download(args):
         "username=%s&password=%s" % (username, password),
         "%s/api2/auth-token/" % url
     ]
-    token_json = subprocess.check_output(cmd)
+    pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=open("/dev/null")).stdout
+    token_json = pipe.read()
     tmp = json.loads(token_json)
     token = tmp['token']
 
-    cmd = "curl -k -H 'Authorization: Token %s' -H 'Accept: application/json; indent=4' %s/api2/repos/%s/download-info/" % (token, url, repo)
-    repo_info = os.popen(cmd).read()
-    print repo_info
+    cmd = [
+        "curl", "-k",
+        "-H", "Authorization: Token %s" % token,
+        "%s/api2/repos/%s/download-info/" % (url, repo)
+        ]
+    pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=open("/dev/null")).stdout
+    repo_info = pipe.read()
+
     tmp = json.loads(repo_info)
     encrypted = tmp['encrypted']
+    magic = None
+    if encrypted == 1:
+        magic = tmp['magic']
     clone_token = tmp['token']
     relay_id = tmp['relay_id']
     relay_addr = tmp['relay_addr']
@@ -320,12 +329,17 @@ def seaf_download(args):
 
     print "starting to download ..."
     print "Library %s will be downloaded to %s" % (repo, download_dir)
+    if encrypted == 1:
+        import getpass
+        repo_passwd = getpass.getpass("Enter password for the library: ")
+    else:
+        repo_passwd = None
     seafile_rpc.download(repo,
                          relay_id,
                          repo_name.encode('utf-8'),
                          download_dir.encode('utf-8'),
                          clone_token,
-                         None, None,
+                         repo_passwd, magic,
                          relay_addr,
                          relay_port,
                          email)
@@ -378,15 +392,24 @@ def seaf_sync(args):
         "username=%s&password=%s" % (username, password),
         "%s/api2/auth-token/" % url
     ]
-    token_json = subprocess.check_output(cmd)
+    pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=open("/dev/null")).stdout
+    token_json = pipe.read()
     tmp = json.loads(token_json)
     token = tmp['token']
 
-    cmd = "curl -k -H 'Authorization: Token %s' -H 'Accept: application/json; indent=4' %s/api2/repos/%s/download-info/" % (token, url, repo)
-    repo_info = os.popen(cmd).read()
-    # print repo_info
+    cmd = [
+        "curl", "-k",
+        "-H", "Authorization: Token %s" % token,
+        "%s/api2/repos/%s/download-info/" % (url, repo)
+        ]
+    pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=open("/dev/null")).stdout
+    repo_info = pipe.read()
+
     tmp = json.loads(repo_info)
     encrypted = tmp['encrypted']
+    magic = None
+    if encrypted == 1:
+        magic = tmp['magic']
     clone_token = tmp['token']
     relay_id = tmp['relay_id']
     relay_addr = tmp['relay_addr']
@@ -395,13 +418,18 @@ def seaf_sync(args):
     repo_name = tmp['repo_name']
 
     print "starting to download ..."
+    if encrypted == 1:
+        import getpass
+        repo_passwd = getpass.getpass("Enter password for the library: ")
+    else:
+        repo_passwd = None
 
     seafile_rpc.clone(repo,
                       relay_id,
                       repo_name.encode('utf-8'),
-                      folder.encode('utf-8'),
+                      folder,
                       clone_token,
-                      None, None,
+                      repo_passwd, magic,
                       relay_addr,
                       relay_port,
                       email)
@@ -432,7 +460,7 @@ def seaf_desync(args):
     repos = seafile_rpc.get_repo_list(-1, -1)
     repo = None
     for r in repos:
-        if r.worktree == repo_path:
+        if r.worktree == repo_path.decode('utf-8'):
             repo = r
             break
 
