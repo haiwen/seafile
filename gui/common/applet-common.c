@@ -179,6 +179,12 @@ handle_seafile_notification (char *type, char *content)
     char buf[1024];
 
     if (strcmp(type, "transfer") == 0) {
+        if (applet->auto_sync_disabled) {
+            /* When auto sync is disabled but there is clone task running,
+             * applet can still get "transfer" notification, but we don't
+             * rotate the icon */
+            return;
+        }
         trayicon_rotate (TRUE);
 
         if (content == NULL) {

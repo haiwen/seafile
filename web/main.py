@@ -223,11 +223,15 @@ class repo:
 
         relay = get_relay_of_repo(repo)
 
+        relay_addr = seafile_rpc.get_repo_relay_address(repo_id)
+        relay_port = seafile_rpc.get_repo_relay_port(repo_id)
+
         return render.repo(repo=repo,
                            recent_commits=recent_commits,
                            relay=relay,
+                           relay_addr=relay_addr,
+                           relay_port=relay_port,
                            **default_options)
-    
 
     def GET(self):
         inputs = web.webapi.input(repo='')
@@ -430,6 +434,13 @@ class repo_operation:
             passwd = web.webapi.input(passwd="").passwd
             if passwd:
                 seafile_rpc.set_repo_passwd(repo.props.id, passwd)
+
+        elif op == 'edit-relay':
+            inputs = web.webapi.input(relay_addr='', relay_port='')
+            if inputs.relay_addr and inputs.relay_port:
+                seafile_rpc.update_repo_relay_info(repo_id,
+                                                   inputs.relay_addr,
+                                                   inputs.relay_port)
   
         referer = web.ctx.env.get('HTTP_REFERER', '/home/')
         raise web.seeother(referer)

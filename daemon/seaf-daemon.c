@@ -129,6 +129,21 @@ start_rpc_service (CcnetClient *client)
                                      searpc_signature_string__string_string());
 
     searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_get_repo_relay_address,
+                                     "seafile_get_repo_relay_address",
+                                     searpc_signature_string__string());
+
+    searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_get_repo_relay_port,
+                                     "seafile_get_repo_relay_port",
+                                     searpc_signature_string__string());
+
+    searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_update_repo_relay_info,
+                                     "seafile_update_repo_relay_info",
+                                     searpc_signature_int__string_string_string());
+
+    searpc_server_register_function ("seafile-rpcserver",
                                      seafile_disable_auto_sync,
                                      "seafile_disable_auto_sync",
                                      searpc_signature_int__void());
