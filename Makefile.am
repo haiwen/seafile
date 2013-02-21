@@ -1,6 +1,12 @@
+MAKE_CLIENT =
+
 if COMPILE_CLIENT
-  MAKE_CLIENT = daemon gui
+  MAKE_CLIENT += daemon
+endif
+
+if COMPILE_GUI
   MAKE_data = data # Caution: don't use MAKE_DATA
+  MAKE_CLIENT += gui
   MAKE_PO = po
 endif
 
@@ -70,7 +76,7 @@ dist-hook:
 clean-local:
 	rm -f po/*.gmo
 
-if COMPILE_CLIENT
+if COMPILE_GUI
 bin_SCRIPTS = seafile-web
 install_web = install-web
 uninstall_web = uninstall-web

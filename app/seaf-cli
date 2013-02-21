@@ -142,7 +142,7 @@ def seaf_init(args):
     seafile_path = os.path.abspath(seafile_path)
 
     if os.path.exists(ccnet_conf_dir):
-        print "%s has existsed" % ccnet_conf_dir
+        print "%s already existed" % ccnet_conf_dir
         sys.exit(0)
 
     import socket
@@ -492,7 +492,7 @@ def seaf_status(args):
             else:
                 err = task.error_str
             print "%s\t%s\t%s" % (task.repo_name, "error", err)
-        elif task.state == 'synchronized':
+        elif task.state == 'done':
             # will be shown in repo status
             pass
         else:

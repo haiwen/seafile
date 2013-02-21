@@ -62,6 +62,7 @@ fi
 
 if test "$bwin32" = true; then
    compile_client=yes
+   compile_gui=yes
    compile_cli=no
    compile_tools=no
    compile_server=no
@@ -70,6 +71,7 @@ fi
 
 if test "$bmac" = true; then
    compile_client=yes
+   compile_gui=yes
    compile_cli=no
    compile_tools=no
    compile_server=no
@@ -77,7 +79,7 @@ if test "$bmac" = true; then
 
    AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
       [compile_server=$enableval],[compile_server="no"])
-   
+
    AC_ARG_ENABLE(httpserver, AC_HELP_STRING([--enable-httpserver], [enable httpserver]),
      [compile_httpserver=$enableval],[compile_httpserver="no"])
 
@@ -89,15 +91,17 @@ if test "$blinux" = true; then
 
    compile_server=no
    compile_httpserver=no
-   
 
-   AC_ARG_ENABLE(client, AC_HELP_STRING([--enable-client], [enable server]),
+
+   AC_ARG_ENABLE(client, AC_HELP_STRING([--enable-client], [enable client]),
       [compile_client=$enableval],[compile_client="yes"])
+
+   AC_ARG_ENABLE(gui, AC_HELP_STRING([--enable-gui], [enable gui]),
+      [compile_gui=$enableval],[compile_gui="yes"])
 
    AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
       [compile_server=$enableval],[compile_server="no"])
 
-   
   AC_ARG_ENABLE(httpserver, AC_HELP_STRING([--enable-httpserver], [enable httpserver]),
      [compile_httpserver=$enableval],[compile_httpserver="no"])
 
@@ -156,6 +160,7 @@ AM_CONDITIONAL([COMPILE_CLI], [test "${compile_cli}" = "yes"])
 AM_CONDITIONAL([COMPILE_TOOLS], [test "${compile_tools}" = "yes"])
 AM_CONDITIONAL([COMPILE_PYTHON], [test "${compile_python}" = "yes"])
 AM_CONDITIONAL([COMPILE_CLIENT], [test "${compile_client}" = "yes"])
+AM_CONDITIONAL([COMPILE_GUI], [test "${compile_client}" = "yes" -a "${compile_gui}" = "yes"])
 AM_CONDITIONAL([COMPILE_SERVER], [test "${compile_server}" = "yes"])
 AM_CONDITIONAL([COMPILE_HTTPSERVER], [test "${compile_httpserver}" = "yes"])
 #AM_CONDITIONAL([COMPILE_SEABLOCK], [test "${compile_seablock}" = "yes"])
@@ -290,8 +295,8 @@ fi
 
 AM_CONDITIONAL(HAVE_APP_INDICATOR, [test x"$enable_appindicator" = xyes])
 
-if test "$blinux" = true -a x${compile_client} = xyes; then
-   dnl on linux, check GTK if client is enabled
+if test "$blinux" = true -a x${compile_client} = xyes -a x${compile_gui} = xyes; then
+   dnl on linux, check GTK if client and gui is enabled
    PKG_CHECK_MODULES(GTK, [gtk+-2.0 >= $GTK_REQUIRED])
    AC_SUBST(GTK_CFLAGS)
    AC_SUBST(GTK_LIBS)
@@ -320,7 +325,8 @@ if test "$blinux" = true -a x${compile_client} = xyes; then
    #AC_SUBST(LIBNAUTILUS_EXTENSION_LIBS)
 fi
 
-if test x${compile_client} = xyes; then
+# check for intltool if compile gui
+if test x${compile_client} = xyes -a x${compile_gui} = xyes; then
 
    m4_ifdef([IT_PROG_INTLTOOL],
         [IT_PROG_INTLTOOL([0.35.0],[no-xml])],
@@ -365,10 +371,10 @@ if test "${compile_server}" = "yes"; then
    saved_LDFLAGS=$LDFLAGS
    CPPFLAGS="$MYSQL_CFLAGS $CPPFLAGS"
    LDFLAGS="$MYSQL_LIBS $LDFLAGS"
-    
+
    AC_CHECK_LIB(mysqlclient, mysql_init, [echo "found library mysqlclient"],
       AC_MSG_ERROR([*** Unable to find mysql client library]), )
-      
+
    CPPFLAGS=$saved_CPPFLAGS
    LDFLAGS=$saved_LDFLAGS
 
@@ -444,8 +450,10 @@ echo
 echo "The following modules will be built:"
 echo
 if test x${compile_client} = xyes; then
-    echo "seafile-applet"
-   echo    "seaf-daemon"
+    echo "seaf-daemon"
+    if test x${compile_gui} = xyes; then
+        echo "seafile-applet"
+    fi
 fi
 if test x${compile_server} = xyes; then
    echo    "seaf-server"
