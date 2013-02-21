@@ -913,6 +913,7 @@ tx_done_cb (CcnetProcessor *processor, gboolean success, void *data)
         /* block tx processor encountered non-recoverable error,
          * such as access denied.
          */
+        /* TODO: This is BUG */
         free_task_resources (task);
     } else {
         /* Otherwise processs exits successfully, or the error is

@@ -79,14 +79,6 @@ DEFAULT_CONF_DIR = "%s/.ccnet" % os.environ['HOME']
 seafile_datadir = None
 seafile_worktree = None
 
-# check python version
-if sys.version_info.major == 3:
-    print 'Python 3 not support yet. Quit now'
-    sys.exit(1)
-if sys.version_info.minor < 6:
-    print 'Python 2.6 or above is required. Quit now'
-    sys.exit(1)
-
 
 def _check_seafile():
     ''' Check ccnet and seafile have been installed '''
