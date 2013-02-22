@@ -320,20 +320,20 @@ a.relay-link {
 #edit-relay-form label {
     display: block;
     float: left;
-    width: 7em;
+    width: 8em;
     text-align: right;
-    margin-right: 10px;
+    margin-right: 16px;
+    margin-top: 0px;
 }
 
-#edit-relay-form input {
-    padding: 3px;
+#edit-relay-form input[type="text"] {
+    padding: 0px 2px;
 }
 
 #edit-relay-form .form-row {
-    margin-bottom: 5px;
+    margin-bottom: 7px;
 }
 
 #edit-relay-submit {
-    float: right;
-    margin-right: 20px;
+    margin-left: 120px;
 }

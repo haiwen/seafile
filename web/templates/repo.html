@@ -101,16 +101,16 @@
             </p>
             % if relay and relay.name:
             <div class="form-row">
-                <label for="relay_name">${_("server name")}</label>
+                <label for="relay_name">${_("server name")}:</label>
                 <span>${relay.name}</span>
             </div>
             % endif
             <div class="form-row">
-                <label for="relay_addr">${_("server address")}</label>
+                <label for="relay_addr">${_("server address")}:</label>
                 <input type="text" name="relay_addr" value="${relay_addr}" maxlength="40" />
             </div>
             <div class="form-row">
-                <label for="relay_port">${_("server port")}</label>
+                <label for="relay_port">${_("server port")}:</label>
                 <input type="text" name="relay_port" value="${relay_port}" maxlength="5" />
             </div>
             <p id="edit-relay-error" class="error"></p>
