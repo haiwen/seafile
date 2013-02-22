@@ -473,6 +473,9 @@ seaf_repo_manager_is_inner_pub_repo (SeafRepoManager *mgr,
 GList *
 seaf_repo_manager_list_inner_pub_repos (SeafRepoManager *mgr);
 
+gint64
+seaf_repo_manager_count_inner_pub_repos (SeafRepoManager *mgr);
+
 GList *
 seaf_repo_manager_list_inner_pub_repos_by_owner (SeafRepoManager *mgr,
                                                  const char *user);

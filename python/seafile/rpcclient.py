@@ -697,6 +697,10 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def list_inner_pub_repos_by_owner(user):
         pass
 
+    @searpc_func("int64", [])
+    def count_inner_pub_repos():
+        pass
+    
     @searpc_func("int", ["string"])
     def is_inner_pub_repo(repo_id):
         pass

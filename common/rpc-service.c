@@ -1915,6 +1915,12 @@ seafile_list_inner_pub_repos (GError **error)
     return seaf_repo_manager_list_inner_pub_repos (seaf->repo_mgr);
 }
 
+gint64
+seafile_count_inner_pub_repos (GError **error)
+{
+    return seaf_repo_manager_count_inner_pub_repos (seaf->repo_mgr);
+}
+
 GList *
 seafile_list_inner_pub_repos_by_owner (const char *user, GError **error)
 {
