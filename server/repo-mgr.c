@@ -1693,10 +1693,7 @@ seaf_repo_manager_count_inner_pub_repos (SeafRepoManager *mgr)
 {
     char sql[256];
 
-    snprintf (sql, 256,
-              "SELECT COUNT(*)"
-              "FROM InnerPubRepo, RepoOwner "
-              "WHERE InnerPubRepo.repo_id=RepoOwner.repo_id");
+    snprintf (sql, 256, "SELECT COUNT(*) FROM InnerPubRepo");
 
     return seaf_db_get_int64(mgr->seaf->db, sql);
 }
