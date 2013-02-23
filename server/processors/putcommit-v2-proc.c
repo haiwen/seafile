@@ -338,6 +338,7 @@ put_commit_start (CcnetProcessor *processor, int argc, char **argv)
     priv->registered = TRUE;
 
     ccnet_processor_thread_create (processor,
+                                   seaf->job_mgr,
                                    collect_commit_id_thread,
                                    collect_commit_id_done,
                                    processor);

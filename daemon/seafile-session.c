@@ -28,6 +28,8 @@
 #include "gc.h"
 #include "log.h"
 
+#define MAX_THREADS 50
+
 enum {
 	REPO_COMMITTED,
     REPO_FETCHED,
@@ -155,7 +157,7 @@ seafile_session_new(const char *seafile_dir,
     if (!session->wt_monitor)
         goto onerror;
 
-    session->job_mgr = ccnet_job_manager_new ();
+    session->job_mgr = ccnet_job_manager_new (MAX_THREADS);
     session->ev_mgr = cevent_manager_new ();
     if (!session->ev_mgr)
         goto onerror;

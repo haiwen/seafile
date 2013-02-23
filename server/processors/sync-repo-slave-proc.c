@@ -82,6 +82,7 @@ sync_repo_slave_start (CcnetProcessor *processor, int argc, char **argv)
 
     /* send the head commit of the branch */
     if (ccnet_processor_thread_create (processor, 
+                                       seaf->job_mgr,
                                        send_repo_branch_info,
                                        thread_done,
                                        processor) < 0) {

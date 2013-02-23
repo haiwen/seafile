@@ -76,6 +76,9 @@ struct _SeafileSession {
 
     int                  cloud_mode;
     int                  keep_history_days;
+
+    int                  rpc_thread_pool_size;
+    int                  sync_thread_pool_size;
 };
 
 extern SeafileSession *seaf;

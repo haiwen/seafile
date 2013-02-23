@@ -347,7 +347,8 @@ start (CcnetProcessor *processor, int argc, char **argv)
 
     seaf_debug ("[check-tx] %s repo %.8s.\n", argv[0], repo_id);
 
-    ccnet_processor_thread_create (processor, check_tx, thread_done, processor);
+    ccnet_processor_thread_create (processor, seaf->job_mgr,
+                                   check_tx, thread_done, processor);
 
     return 0;
 }

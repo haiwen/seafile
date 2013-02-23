@@ -113,8 +113,11 @@ start (CcnetProcessor *processor, int argc, char **argv)
         return -1;
     }
 
-    ccnet_processor_thread_create (processor, update_repo,
-                                   thread_done, processor);
+    ccnet_processor_thread_create (processor,
+                                   seaf->job_mgr,
+                                   update_repo,
+                                   thread_done,
+                                   processor);
 
     return 0;
 }

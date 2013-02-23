@@ -11,6 +11,7 @@
 #include "seafile-config.h"
 #include "seaf-utils.h"
 
+#define MAX_THREADS 50
 #define REFRESH_INTV 86400      /* 24 hours */
 
 static int
@@ -82,7 +83,7 @@ seafile_session_new(const char *seafile_dir,
     if (!session->branch_mgr)
         goto onerror;
 
-    session->job_mgr = ccnet_job_manager_new ();
+    session->job_mgr = ccnet_job_manager_new (MAX_THREADS);
 
     session->scheduler = scheduler_new (session);
 

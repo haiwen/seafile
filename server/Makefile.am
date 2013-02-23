@@ -19,26 +19,18 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 bin_PROGRAMS = seaf-server
 
 proc_headers = $(addprefix processors/, \
-	recvcommit-proc.h \
 	recvfs-proc.h \
 	recvbranch-proc.h \
-	recvblock-proc.h \
 	recvblock-v2-proc.h \
 	putcs-proc.h \
 	sync-repo-slave-proc.h \
-	check-tx-slave-proc.h \
 	check-tx-slave-v2-proc.h \
 	check-tx-slave-v3-proc.h \
-	putcommit-proc.h  \
 	putfs-proc.h \
 	putcommit-v2-proc.h \
-	recvcommit-v2-proc.h \
-	recvcommit-v3-proc.h \
-	check-quota-common.h \
-	putrepoemailtoken-proc.h )
+	recvcommit-v3-proc.h)
 
-proc_headers += ../common/processors/putblock-proc.h \
-	../common/processors/putblock-v2-proc.h
+proc_headers += ../common/processors/putblock-v2-proc.h
 
 noinst_HEADERS = web-accesstoken-mgr.h chunkserv-mgr.h seafile-session.h \
 	repo-mgr.h \
@@ -83,24 +75,17 @@ seaf_server_SOURCES = \
 	../common/block-backend-fs.c \
 	../common/block-backend-ceph.c \
 	../common/merge-new.c \
-	processors/recvcommit-proc.c \
 	processors/recvfs-proc.c \
-	processors/recvblock-proc.c \
 	processors/recvblock-v2-proc.c \
 	processors/recvbranch-proc.c \
 	processors/putcs-proc.c \
 	processors/sync-repo-slave-proc.c \
-	processors/check-tx-slave-proc.c \
 	processors/check-tx-slave-v2-proc.c \
 	processors/check-tx-slave-v3-proc.c \
-	processors/putcommit-proc.c \
 	processors/putfs-proc.c \
-	../common/processors/putblock-proc.c \
 	../common/processors/putblock-v2-proc.c \
 	processors/putcommit-v2-proc.c \
-	processors/recvcommit-v2-proc.c \
-	processors/recvcommit-v3-proc.c \
-	processors/putrepoemailtoken-proc.c
+	processors/recvcommit-v3-proc.c
 
 seaf_server_LDADD = @CCNET_LIBS@ \
 	$(top_builddir)/lib/libseafile_common.la \
