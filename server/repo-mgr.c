@@ -1688,6 +1688,16 @@ seaf_repo_manager_list_inner_pub_repos (SeafRepoManager *mgr)
     return g_list_reverse (ret);    
 }
 
+gint64
+seaf_repo_manager_count_inner_pub_repos (SeafRepoManager *mgr)
+{
+    char sql[256];
+
+    snprintf (sql, 256, "SELECT COUNT(*) FROM InnerPubRepo");
+
+    return seaf_db_get_int64(mgr->seaf->db, sql);
+}
+
 GList *
 seaf_repo_manager_list_inner_pub_repos_by_owner (SeafRepoManager *mgr,
                                                  const char *user)

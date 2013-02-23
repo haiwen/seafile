@@ -505,6 +505,10 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                          "list_inner_pub_repos",
                                          searpc_signature_objlist__void());
         searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                         seafile_count_inner_pub_repos,
+                                         "count_inner_pub_repos",
+                                         searpc_signature_int64__void());
+        searpc_server_register_function ("seafserv-threaded-rpcserver",
                                          seafile_list_inner_pub_repos_by_owner,
                                          "list_inner_pub_repos_by_owner",
                                          searpc_signature_objlist__string());

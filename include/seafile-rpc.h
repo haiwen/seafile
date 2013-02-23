@@ -743,6 +743,9 @@ seafile_unset_inner_pub_repo (const char *repo_id, GError **error);
 GList *
 seafile_list_inner_pub_repos (GError **error);
 
+gint64
+seafile_count_inner_pub_repos (GError **error);
+
 GList *
 seafile_list_inner_pub_repos_by_owner (const char *user, GError **error);
 
