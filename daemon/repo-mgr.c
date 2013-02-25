@@ -945,13 +945,19 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
         goto error;
     }
 
+    /* Commit before updating the index, so that new blocks won't be GC'ed. */
+
     char *my_desc = g_strdup(desc);
     if (!unmerged && my_desc[0] == '\0') {
         char *gen_desc = gen_commit_description (repo, &istate);
         if (!gen_desc) {
             /* error not set. */
             g_free (my_desc);
+
+            /* Still need to update index even nothing to commit. */
+            update_index (&istate, index_path);
             discard_index (&istate);
+
             return NULL;
         }
         g_free (my_desc);
