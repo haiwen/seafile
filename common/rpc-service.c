@@ -219,74 +219,6 @@ seafile_get_config (const char *key, GError **error)
 }
 
 int
-seafile_edit_repo (const char *repo_id,
-                   const char *name,
-                   const char *description,
-                   GError **error)
-{
-    SeafRepo *repo;
-    SeafCommit *commit, *parent;
-
-    if (!name && !description) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "At least one argument should be non-null");
-        return -1;
-    }
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such repository");
-        return -1;
-    }
-
-    pthread_mutex_lock (&repo->lock);
-
-    /*
-     * We only change repo_name or repo_desc, so just copy the head commit
-     * and change these two fields.
-     */
-    parent = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                             repo->head->commit_id);
-    commit = seaf_commit_new (NULL,
-                              repo->id,
-                              parent->root_id,
-                              seaf->session->base.user_name,
-                              seaf->session->base.id,
-                              description,
-                              0);
-    commit->parent_id = g_strdup(parent->commit_id);
-    commit->repo_name = g_strdup(name);
-    commit->repo_desc = g_strdup(description);
-    if (seaf_commit_manager_add_commit (seaf->commit_mgr, commit) < 0) {
-        pthread_mutex_unlock (&repo->lock);
-        return -1;
-    }
-
-    seaf_branch_set_commit (repo->head, commit->commit_id);
-    seaf_branch_manager_update_branch (seaf->branch_mgr, repo->head);
-    /*seaf_repo_set_head (repo, commit);*/
-
-    /* update the repo'name and desc so that seaf-list-repo can show
-     * the latest info */
-
-    char *orig_name = repo->name;
-    char *orig_desc = repo->desc;
-
-    repo->name = g_strdup (name);
-    repo->desc = g_strdup (description);
-
-    g_free (orig_name);
-    g_free (orig_desc);
-    seaf_commit_unref (commit);
-
-    g_signal_emit_by_name (seaf, "repo-committed", repo);
-
-    pthread_mutex_unlock (&repo->lock);
-
-    return 0;
-}
-
-
-int
 seafile_repo_last_modify(const char *repo_id, GError **error)
 {
     SeafRepo *repo;
@@ -1210,6 +1142,80 @@ seafile_gc_get_progress (GError **error)
  */
 
 #ifdef SEAFILE_SERVER
+
+int
+seafile_edit_repo (const char *repo_id,
+                   const char *name,
+                   const char *description,
+                   const char *user,
+                   GError **error)
+{
+    SeafRepo *repo;
+    SeafCommit *commit, *parent;
+    int ret = 0;
+
+    if (!user) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "No user given");
+        return -1;
+    }
+
+    if (!name && !description) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "At least one argument should be non-null");
+        return -1;
+    }
+
+retry:
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such library");
+        return -1;
+    }
+
+    if (!name)
+        name = repo->name;
+    if (!description)
+        description = repo->desc;
+
+    /*
+     * We only change repo_name or repo_desc, so just copy the head commit
+     * and change these two fields.
+     */
+    parent = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             repo->head->commit_id);
+    commit = seaf_commit_new (NULL,
+                              repo->id,
+                              parent->root_id,
+                              user,
+                              EMPTY_SHA1,
+                              "Changed library name or description",
+                              0);
+    commit->parent_id = g_strdup(parent->commit_id);
+    commit->repo_name = g_strdup(name);
+    commit->repo_desc = g_strdup(description);
+    if (seaf_commit_manager_add_commit (seaf->commit_mgr, commit) < 0) {
+        ret = -1;
+        goto out;
+    }
+
+    seaf_branch_set_commit (repo->head, commit->commit_id);
+    if (seaf_branch_manager_test_and_update_branch (seaf->branch_mgr,
+                                                    repo->head,
+                                                    parent->commit_id) < 0) {
+        seaf_repo_unref (repo);
+        seaf_commit_unref (commit);
+        seaf_commit_unref (parent);
+        goto retry;
+    }
+
+out:
+    seaf_commit_unref (commit);
+    seaf_commit_unref (parent);
+    seaf_repo_unref (repo);
+
+    return ret;
+}
 
 #include "diff-simple.h"
 

@@ -87,6 +87,7 @@ int seafile_destroy_repo (const gchar *repo_id, GError **error);
 int seafile_edit_repo (const gchar *repo_id, 
 		       const gchar *name, 
 		       const gchar *description,
+                       const gchar *user,
 		       GError **error);
 
 /**

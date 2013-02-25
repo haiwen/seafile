@@ -304,7 +304,12 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_get_repo_list(start, limit):
         pass
     get_repo_list = seafile_get_repo_list
-    
+
+    @searpc_func("int", ["string", "string", "string", "string"])
+    def seafile_edit_repo(repo_id, name, description, user):
+        pass
+    edit_repo = seafile_edit_repo
+
     @searpc_func("int", ["string", "string"])
     def seafile_is_repo_owner(user_id, repo_id):
         pass

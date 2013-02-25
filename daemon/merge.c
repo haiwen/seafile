@@ -177,6 +177,13 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
         }
         seaf_branch_set_commit (repo->head, remote->commit_id);
         seaf_branch_manager_update_branch (seaf->branch_mgr, repo->head);
+
+        /* Repo info on the client is in memory. */
+        g_free (repo->name);
+        repo->name = g_strdup(remote->repo_name);
+        g_free (repo->desc);
+        repo->desc = g_strdup(remote->repo_desc);
+
         g_debug ("Fast forward.\n");
     } else {
         /* Not up-to-date and ff, we need a real merge. */
