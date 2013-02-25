@@ -291,14 +291,6 @@ diff_merge (SeafCommit *merge, GList **results)
         return -1;
     }
 
-    if (strcmp (merge->root_id, EMPTY_SHA1) == 0 ||
-        strcmp (parent1->root_id, EMPTY_SHA1) == 0 ||
-        strcmp (parent2->root_id, EMPTY_SHA1) == 0) {
-        seaf_commit_unref (parent1);
-        seaf_commit_unref (parent2);
-        return -1;
-    }
-
     fill_tree_descriptor(&t[0], merge->root_id);
     fill_tree_descriptor(&t[1], parent1->root_id);
     fill_tree_descriptor(&t[2], parent2->root_id);
