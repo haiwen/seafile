@@ -14,8 +14,8 @@
 #define DEFAULT_SERVER_PORT 12001
 
 #define TOKEN_LEN                   37   /* a uuid */
-#define CHECK_EXPIRE_INTERVAL       1    /* check expiratoin every second */
-#define READ_TOKEN_TIMEOUT          5 /* 5 sec, for bufferevent read timeout */
+#define CHECK_EXPIRE_INTERVAL       1
+#define READ_TOKEN_TIMEOUT          180 /* bufferevent read timeout */
 
 struct _SeafListenManagerPriv {
     GHashTable             *token_hash;

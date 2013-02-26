@@ -31,7 +31,8 @@
 #define MAX_BL_LEN 1024
 #define IO_BUF_LEN 1024
 #define ENC_BLOCK_SIZE 16
-#define BLOCKTX_TIMEOUT 5
+#define TOKEN_TIMEOUT 180
+#define BLOCKTX_TIMEOUT 30
 
 typedef struct {
     int     block_idx;
@@ -355,6 +356,8 @@ send_blocks (ThreadData *tdata)
     while (1) {
         FD_ZERO (&fds);
         FD_SET (tdata->task_pipe[0], &fds);
+        tv.tv_sec = BLOCKTX_TIMEOUT;
+        tv.tv_usec = 0;
 
         n = select (max_fd + 1, &fds, NULL, NULL, &tv);
         if (n < 0 && errno == EINTR) {
@@ -613,6 +616,8 @@ recv_blocks (ThreadData *tdata)
         FD_ZERO (&fds);
         FD_SET (tdata->task_pipe[0], &fds);
         FD_SET (tdata->data_fd, &fds);
+        tv.tv_sec = BLOCKTX_TIMEOUT;
+        tv.tv_usec = 0;
 
         rc = select (max_fd + 1, &fds, NULL, NULL, &tv);
         if (rc < 0 && errno == EINTR) {
@@ -1009,7 +1014,7 @@ send_port (CcnetProcessor *processor)
     token = seaf_listen_manager_generate_token (seaf->listen_mgr);
     if (seaf_listen_manager_register_token (seaf->listen_mgr, token,
                         (ConnAcceptedCB)accept_connection,
-                        priv->tdata, 10) < 0) {
+                        priv->tdata, TOKEN_TIMEOUT) < 0) {
         seaf_warning ("failed to register token\n");
         g_free (token);
         ccnet_processor_send_response (processor, SC_SHUTDOWN, SS_SHUTDOWN,
