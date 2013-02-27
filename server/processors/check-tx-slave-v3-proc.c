@@ -260,12 +260,13 @@ static void
 thread_done (void *result)
 {
     CcnetProcessor *processor = result;
-    USE_PRIV;
 
     if (processor->delay_shutdown) {
         ccnet_processor_done (processor, FALSE);
         return;
     }
+
+    USE_PRIV;
 
     if (strcmp (priv->rsp_code, SC_OK) == 0) {
         if (priv->has_branch) {

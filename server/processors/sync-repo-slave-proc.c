@@ -140,12 +140,13 @@ static void
 thread_done (void *vprocessor)
 {
     CcnetProcessor *processor = vprocessor;
-    USE_PRIV;
 
     if (processor->delay_shutdown) {
         ccnet_processor_done (processor, FALSE);
         return;
     }
+
+    USE_PRIV;
 
     if (strcmp (priv->rsp_code, SC_COMMIT_ID) == 0) {
         ccnet_processor_send_response (processor, 
