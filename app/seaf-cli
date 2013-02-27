@@ -139,16 +139,16 @@ def seaf_init(args):
         ccnet_conf_dir = args.confdir
     if args.dir:
         seafile_path = args.dir
+    else:
+        print "Must specify the parent path for put seafile-data"
+        sys.exit(0)
     seafile_path = os.path.abspath(seafile_path)
 
     if os.path.exists(ccnet_conf_dir):
         print "%s already existed" % ccnet_conf_dir
         sys.exit(0)
 
-    import socket
-    node_name = socket.gethostname()
-
-    cmd = [ "ccnet-init", "-c", ccnet_conf_dir, "-n", node_name ]
+    cmd = [ "ccnet-init", "-c", ccnet_conf_dir, "-n", "anonymous" ]
     subprocess.call(cmd)
 
     if not os.path.exists(seafile_path):
