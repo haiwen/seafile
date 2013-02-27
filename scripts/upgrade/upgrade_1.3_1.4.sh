@@ -9,7 +9,6 @@ default_seafile_data_dir=${TOPDIR}/seafile-data
 default_seahub_db=${TOPDIR}/seahub.db
 
 export CCNET_CONF_DIR=${default_ccnet_conf_dir}
-export SEAFILE_CONF_DIR=$default_seafile_data_dir
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seafile/lib64/python2.7/site-packages:$PYTHONPATH
 
@@ -47,7 +46,25 @@ function check_python_executable() {
     fi
 }
 
+function read_seafile_data_dir () {
+    seafile_ini=${default_ccnet_conf_dir}/seafile.ini
+    if [[ ! -f ${seafile_ini} ]]; then
+        echo "${seafile_ini} not found. Now quit"
+        exit 1
+    fi
+    seafile_data_dir=$(cat "${seafile_ini}")
+    if [[ ! -d ${seafile_data_dir} ]]; then
+        echo "Your seafile server data directory \"${seafile_data_dir}\" is invalid or doesn't exits."
+        echo "Please check it first, or create this directory yourself."
+        echo ""
+        exit 1;
+    fi
+}
+
 check_python_executable
+read_seafile_data_dir
+
+export SEAFILE_CONF_DIR=$seafile_data_dir
 
 # test whether seafile server has been stopped.
 if pgrep seaf-server 2>/dev/null 1>&2 ; then

@@ -1,21 +1,19 @@
 #!/bin/bash
 
-
-SCRIPT=$(readlink -f "$0")
-UPGRADE_DIR=$(dirname "$SCRIPT")
-INSTALLPATH=$(dirname "$UPGRADE_DIR")
-TOPDIR=$(dirname "${INSTALLPATH}")
+SCRIPT=$(readlink -f "$0") # haiwen/seafile-server-1.3.0/upgrade/upgrade_xx_xx.sh
+UPGRADE_DIR=$(dirname "$SCRIPT") # haiwen/seafile-server-1.3.0/upgrade/
+INSTALLPATH=$(dirname "$UPGRADE_DIR") # haiwen/seafile-server-1.3.0/
+TOPDIR=$(dirname "${INSTALLPATH}") # haiwen/
 default_ccnet_conf_dir=${TOPDIR}/ccnet
 default_seafile_data_dir=${TOPDIR}/seafile-data
 default_seahub_db=${TOPDIR}/seahub.db
 
-export CCNET_CONF_DIR=$default_ccnet_conf_dir
-export SEAFILE_CONF_DIR=$default_seafile_data_dir
+export CCNET_CONF_DIR=${default_ccnet_conf_dir}
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seafile/lib64/python2.7/site-packages:$PYTHONPATH
 
-prev_version=1.0.0
-current_version=1.1.0
+prev_version=1.2.0
+current_version=1.3.0
 
 echo
 echo "-------------------------------------------------------------"
@@ -48,7 +46,25 @@ function check_python_executable() {
     fi
 }
 
+function read_seafile_data_dir () {
+    seafile_ini=${default_ccnet_conf_dir}/seafile.ini
+    if [[ ! -f ${seafile_ini} ]]; then
+        echo "${seafile_ini} not found. Now quit"
+        exit 1
+    fi
+    seafile_data_dir=$(cat "${seafile_ini}")
+    if [[ ! -d ${seafile_data_dir} ]]; then
+        echo "Your seafile server data directory \"${seafile_data_dir}\" is invalid or doesn't exits."
+        echo "Please check it first, or create this directory yourself."
+        echo ""
+        exit 1;
+    fi
+}
+
 check_python_executable
+read_seafile_data_dir
+
+export SEAFILE_CONF_DIR=$seafile_data_dir
 
 # test whether seafile server has been stopped.
 if pgrep seaf-server 2>/dev/null 1>&2 ; then
@@ -103,22 +119,3 @@ fi
 echo "DONE"
 echo "------------------------------"
 echo
-
-echo "------------------------------"
-echo "update ccnet/seafile databse ..."
-# update seafile database from ${prev_version} to ${current_version}
-ccnet_conf_path=${TOPDIR}/ccnet
-seafile_data_path=${TOPDIR}/seafile-data
-
-alter_db_py=${UPGRADE_DIR}/alter_pubrepo_db.py
-
-if ! $PYTHON "${alter_db_py}" "${seafile_data_path}" ; then
-    echo "failed"
-    exit -1
-fi
-
-
-echo "Done"
-echo "------------------------------"
-echo
-
