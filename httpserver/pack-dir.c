@@ -208,7 +208,7 @@ add_file_to_archive (PackDirData *data,
                     r = EVP_DecryptFinal_ex (&ctx,
                                              (unsigned char *)dec_out,
                                              &dec_out_len);
-                    if (r != 0) {
+                    if (r != 1) {
                         seaf_warning ("Decrypt block %s failed.\n", blk_id);
                         ret = -1;
                         goto out;
