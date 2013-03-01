@@ -1,3 +1,9 @@
+seafile (1.5.1) stable; urgency=low
+
+  * Use blocking DNS lookup instead of evdns
+
+ -- plt <freeplant@gmail.com>  Friday, 1 March 2013 19:00:32 +0800
+
 seafile (1.5.0) stable; urgency=low
 
   * Fixed some bugs
