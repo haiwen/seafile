@@ -139,11 +139,6 @@ get_repo_token_done (void *result)
     CcnetProcessor *processor = result;
     USE_PRIV;
 
-    if (processor->delay_shutdown) {
-        ccnet_processor_done (processor, FALSE);
-        return;
-    }
-
     if (strcmp (priv->rsp_code, SC_NO_REPO) == 0) {
         ccnet_processor_send_response (processor, SC_NO_REPO,
                                        SS_NO_REPO, NULL, 0);

@@ -269,12 +269,6 @@ static void
 collect_commit_id_done (void *vprocessor)
 {
     CcnetProcessor *processor = vprocessor;
-
-    if (processor->delay_shutdown) {
-        ccnet_processor_done (processor, FALSE);
-        return;
-    }
-
     USE_PRIV;
 
     if (!priv->id_list) {
