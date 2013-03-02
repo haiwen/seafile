@@ -174,6 +174,10 @@
 		57438183159B249D003DECFB /* seafilerepo.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57438181159B249D003DECFB /* seafilerepo.icns */; };
 		57438185159B2CF3003DECFB /* warning.png in Resources */ = {isa = PBXBuildFile; fileRef = 57438184159B2CF3003DECFB /* warning.png */; };
 		57438186159B2CF3003DECFB /* warning.png in Resources */ = {isa = PBXBuildFile; fileRef = 57438184159B2CF3003DECFB /* warning.png */; };
+		5748E76C16E205E10048A53B /* libseafile_common.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5748E76B16E205E10048A53B /* libseafile_common.a */; };
+		5748E76D16E2061D0048A53B /* libseafile_common.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5748E76B16E205E10048A53B /* libseafile_common.a */; };
+		5748E76E16E206270048A53B /* libseafile_common.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5748E76B16E205E10048A53B /* libseafile_common.a */; };
+		5748E76F16E206340048A53B /* libseafile_common.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 5748E76B16E205E10048A53B /* libseafile_common.a */; };
 		575BD525158D021400F6C6A7 /* network-down.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD51F158D021400F6C6A7 /* network-down.png */; };
 		575BD526158D021400F6C6A7 /* network-down.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD51F158D021400F6C6A7 /* network-down.png */; };
 		575BD527158D021400F6C6A7 /* network-rotate1.png in Resources */ = {isa = PBXBuildFile; fileRef = 575BD520158D021400F6C6A7 /* network-rotate1.png */; };
@@ -301,6 +305,7 @@
 		5743817E159B0399003DECFB /* seafilefolder.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = seafilefolder.icns; sourceTree = "<group>"; };
 		57438181159B249D003DECFB /* seafilerepo.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; path = seafilerepo.icns; sourceTree = "<group>"; };
 		57438184159B2CF3003DECFB /* warning.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = warning.png; sourceTree = "<group>"; };
+		5748E76B16E205E10048A53B /* libseafile_common.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libseafile_common.a; path = ../../../lib/.libs/libseafile_common.a; sourceTree = "<group>"; };
 		575BD51F158D021400F6C6A7 /* network-down.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-down.png"; sourceTree = "<group>"; };
 		575BD520158D021400F6C6A7 /* network-rotate1.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-rotate1.png"; sourceTree = "<group>"; };
 		575BD521158D021400F6C6A7 /* network-rotate2.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "network-rotate2.png"; sourceTree = "<group>"; };
@@ -351,6 +356,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5748E76F16E206340048A53B /* libseafile_common.a in Frameworks */,
 				5789630D159EA0A70013ED13 /* CoreServices.framework in Frameworks */,
 				57972D721573C70900915E2E /* PreferencePanes.framework in Frameworks */,
 				577BBD3D1562815F00FD577C /* Cocoa.framework in Frameworks */,
@@ -379,6 +385,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5748E76D16E2061D0048A53B /* libseafile_common.a in Frameworks */,
 				5789630F159EFC590013ED13 /* CoreServices.framework in Frameworks */,
 				579F9C071588F92500570010 /* PreferencePanes.framework in Frameworks */,
 				579F9C081588F92500570010 /* Cocoa.framework in Frameworks */,
@@ -407,6 +414,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5748E76C16E205E10048A53B /* libseafile_common.a in Frameworks */,
 				57DE0A8915A98E0E006C0152 /* CoreServices.framework in Frameworks */,
 				57DE0A9A15A98E0E006C0152 /* PreferencePanes.framework in Frameworks */,
 				57DE0A9B15A98E0E006C0152 /* Cocoa.framework in Frameworks */,
@@ -435,6 +443,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				5748E76E16E206270048A53B /* libseafile_common.a in Frameworks */,
 				57DE0AD215A9AA89006C0152 /* CoreServices.framework in Frameworks */,
 				57DE0AE315A9AA89006C0152 /* PreferencePanes.framework in Frameworks */,
 				57DE0AE415A9AA89006C0152 /* Cocoa.framework in Frameworks */,
@@ -510,6 +519,7 @@
 		577BBD3B1562815F00FD577C /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				5748E76B16E205E10048A53B /* libseafile_common.a */,
 				456D1975166CD36E001C044D /* ccnet */,
 				577BBD3C1562815F00FD577C /* Cocoa.framework */,
 				5789630C159EA0A70013ED13 /* CoreServices.framework */,
@@ -654,7 +664,7 @@
 		577BBD2F1562815E00FD577C /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0440;
+				LastUpgradeCheck = 0460;
 				ORGANIZATIONNAME = tsinghua;
 			};
 			buildConfigurationList = 577BBD321562815E00FD577C /* Build configuration list for PBXProject "seafile" */;
@@ -954,6 +964,10 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				CLANG_ENABLE_OBJC_ARC = NO;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
@@ -996,6 +1010,10 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
 				CLANG_ENABLE_OBJC_ARC = NO;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = YES;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				GCC_C_LANGUAGE_STANDARD = gnu99;
@@ -1049,18 +1067,18 @@
 				HEADER_SEARCH_PATHS = (
 					../../../include,
 					../../../gui/common,
-					../../../include/ccnet,
 					../../../lib,
 					"/opt/local/include/glib-2.0",
 					"/opt/local/lib/glib-2.0/include",
 					/opt/local/include,
-					../../../seafile/include,
-					../../../seafile/lib,
 					/usr/local/include,
 					/usr/local/include/searpc,
 				);
 				INFOPLIST_FILE = "seafile/seafile-Info.plist";
-				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				LIBRARY_SEARCH_PATHS = (
+					"\"$(SRCROOT)\"",
+					"\"$(SRCROOT)/../../../lib/.libs\"",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				USER_HEADER_SEARCH_PATHS = .;
@@ -1086,18 +1104,18 @@
 				HEADER_SEARCH_PATHS = (
 					../../../include,
 					../../../gui/common,
-					../../../include/ccnet,
 					../../../lib,
 					"/opt/local/include/glib-2.0",
 					"/opt/local/lib/glib-2.0/include",
 					/opt/local/include,
-					../../../seafile/include,
-					../../../seafile/lib,
 					/usr/local/include,
 					/usr/local/include/searpc,
 				);
 				INFOPLIST_FILE = "seafile/seafile-Info.plist";
-				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				LIBRARY_SEARCH_PATHS = (
+					"\"$(SRCROOT)\"",
+					"\"$(SRCROOT)/../../../lib/.libs\"",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				USER_HEADER_SEARCH_PATHS = .;
@@ -1124,18 +1142,18 @@
 				HEADER_SEARCH_PATHS = (
 					../../../include,
 					../../../gui/common,
-					../../../include/ccnet,
 					../../../lib,
 					"/opt/local/include/glib-2.0",
 					"/opt/local/lib/glib-2.0/include",
 					/opt/local/include,
-					../../../seafile/include,
-					../../../seafile/lib,
 					/usr/local/include,
 					/usr/local/include/searpc,
 				);
 				INFOPLIST_FILE = "seafile/seafile-release-Info.plist";
-				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				LIBRARY_SEARCH_PATHS = (
+					"\"$(SRCROOT)\"",
+					"\"$(SRCROOT)/../../../lib/.libs\"",
+				);
 				PRODUCT_NAME = seafile;
 				SDKROOT = macosx;
 				USER_HEADER_SEARCH_PATHS = .;
@@ -1161,18 +1179,18 @@
 				HEADER_SEARCH_PATHS = (
 					../../../include,
 					../../../gui/common,
-					../../../include/ccnet,
 					../../../lib,
 					"/opt/local/include/glib-2.0",
 					"/opt/local/lib/glib-2.0/include",
 					/opt/local/include,
-					../../../seafile/include,
-					../../../seafile/lib,
 					/usr/local/include,
 					/usr/local/include/searpc,
 				);
 				INFOPLIST_FILE = "seafile/seafile-release-Info.plist";
-				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				LIBRARY_SEARCH_PATHS = (
+					"\"$(SRCROOT)\"",
+					"\"$(SRCROOT)/../../../lib/.libs\"",
+				);
 				PRODUCT_NAME = seafile;
 				SDKROOT = macosx;
 				USER_HEADER_SEARCH_PATHS = .;
@@ -1199,18 +1217,18 @@
 				HEADER_SEARCH_PATHS = (
 					../../../include,
 					../../../gui/common,
-					../../../include/ccnet,
 					../../../lib,
 					"/opt/local/include/glib-2.0",
 					"/opt/local/lib/glib-2.0/include",
 					/opt/local/include,
-					../../../seafile/include,
-					../../../seafile/lib,
 					/usr/local/include,
 					/usr/local/include/searpc,
 				);
 				INFOPLIST_FILE = "seafile/seafile-release-10.6-Info.plist";
-				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				LIBRARY_SEARCH_PATHS = (
+					"\"$(SRCROOT)\"",
+					"\"$(SRCROOT)/../../../lib/.libs\"",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_NAME = seafile;
@@ -1239,18 +1257,18 @@
 				HEADER_SEARCH_PATHS = (
 					../../../include,
 					../../../gui/common,
-					../../../include/ccnet,
 					../../../lib,
 					"/opt/local/include/glib-2.0",
 					"/opt/local/lib/glib-2.0/include",
 					/opt/local/include,
-					../../../seafile/include,
-					../../../seafile/lib,
 					/usr/local/include,
 					/usr/local/include/searpc,
 				);
 				INFOPLIST_FILE = "seafile/seafile-release-10.6-Info.plist";
-				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				LIBRARY_SEARCH_PATHS = (
+					"\"$(SRCROOT)\"",
+					"\"$(SRCROOT)/../../../lib/.libs\"",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = seafile;
@@ -1283,18 +1301,18 @@
 				HEADER_SEARCH_PATHS = (
 					../../../include,
 					../../../gui/common,
-					../../../include/ccnet,
 					../../../lib,
 					"/opt/local/include/glib-2.0",
 					"/opt/local/lib/glib-2.0/include",
 					/opt/local/include,
-					../../../seafile/include,
-					../../../seafile/lib,
 					/usr/local/include,
 					/usr/local/include/searpc,
 				);
 				INFOPLIST_FILE = "seafile/seafile-10.6-debug-Info.plist";
-				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				LIBRARY_SEARCH_PATHS = (
+					"\"$(SRCROOT)\"",
+					"\"$(SRCROOT)/../../../lib/.libs\"",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				ONLY_ACTIVE_ARCH = NO;
 				PRODUCT_NAME = seafile;
@@ -1323,18 +1341,18 @@
 				HEADER_SEARCH_PATHS = (
 					../../../include,
 					../../../gui/common,
-					../../../include/ccnet,
 					../../../lib,
 					"/opt/local/include/glib-2.0",
 					"/opt/local/lib/glib-2.0/include",
 					/opt/local/include,
-					../../../seafile/include,
-					../../../seafile/lib,
 					/usr/local/include,
 					/usr/local/include/searpc,
 				);
 				INFOPLIST_FILE = "seafile/seafile-10.6-debug-Info.plist";
-				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)\"";
+				LIBRARY_SEARCH_PATHS = (
+					"\"$(SRCROOT)\"",
+					"\"$(SRCROOT)/../../../lib/.libs\"",
+				);
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = seafile;
