@@ -154,7 +154,7 @@ class Project(object):
     build_commands = []
 
     def __init__(self):
-        # the path to pass to --prefix=/<prefix> 
+        # the path to pass to --prefix=/<prefix>
         self.prefix = os.path.join(conf[CONF_BUILDDIR], 'seafile-server', 'seafile')
         self.version = self.get_version()
         self.src_tarball = os.path.join(conf[CONF_SRCDIR],
@@ -199,7 +199,7 @@ class Ccnet(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
-            './configure --prefix=%s --disable-client --enable-server' % self.prefix,
+            './configure --prefix=%s --disable-client --enable-server --enable-ldap' % self.prefix,
             'make',
             'make install'
         ]
@@ -236,7 +236,7 @@ def check_seahub_thirdpart(thirdpartdir):
     we can copy it to seahub/thirdpart
 
     '''
-    thirdpart_libs = ['Django', 'Djblets', 'gunicorn', 'flup', 'djangorestframework']
+    thirdpart_libs = ['Django', 'Djblets', 'gunicorn', 'flup', 'chardet']
     def check_thirdpart_lib(name):
         name += '*/'
         if not glob.glob(os.path.join(thirdpartdir, name)):
@@ -258,7 +258,7 @@ def validate_args(usage, options):
         CONF_SRCDIR,
         CONF_THIRDPARTDIR,
     ]
-    
+
     # fist check required args
     for optname in required_args:
         if getattr(options, optname, None) == None:
@@ -272,7 +272,7 @@ def validate_args(usage, options):
         '''A valid version must be like 1.2.2, 1.3'''
         if not re.match('^[0-9]\.[0-9](\.[0-9])?$', version):
             error('%s is not a valid version' % version, usage=usage)
-        
+
     version = get_option(CONF_VERSION)
     libsearpc_version = get_option(CONF_LIBSEARPC_VERSION)
     ccnet_version = get_option(CONF_CCNET_VERSION)
@@ -280,7 +280,7 @@ def validate_args(usage, options):
     check_project_version(version)
     check_project_version(libsearpc_version)
     check_project_version(ccnet_version)
-    
+
     # [ srcdir ]
     srcdir = get_option(CONF_SRCDIR)
     check_targz_src('libsearpc', libsearpc_version, srcdir)
@@ -316,7 +316,7 @@ def validate_args(usage, options):
     conf[CONF_VERSION] = version
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
     conf[CONF_CCNET_VERSION] = ccnet_version
-    
+
     conf[CONF_BUILDDIR] = builddir
     conf[CONF_SRCDIR] = srcdir
     conf[CONF_OUTPUTDIR] = outputdir
@@ -502,6 +502,27 @@ def copy_scripts_and_libs():
     # copy shared c libs
     copy_shared_libs()
 
+def get_dependent_libs(executable):
+    syslibs = ['libsearpc', 'libccnet', 'libseafile', 'libpthread.so', 'libc.so', 'libm.so', 'librt.so', 'libdl.so', 'libselinux.so']
+    def is_syslib(lib):
+        for syslib in syslibs:
+            if syslib in lib:
+                return True
+        return False
+
+    ldd_output = commands.getoutput('ldd %s' % executable)
+    ret = []
+    for line in ldd_output.splitlines():
+        tokens = line.split()
+        if len(tokens) != 4:
+            continue
+        if is_syslib(tokens[0]):
+            continue
+
+        ret.append(tokens[2])
+
+    return ret
+
 def copy_shared_libs():
     '''copy shared c libs, such as libevent, glib, libmysqlclient'''
     builddir = conf[CONF_BUILDDIR]
@@ -511,29 +532,29 @@ def copy_shared_libs():
                            'seafile',
                            'lib')
 
-    syslibs = ['libsearpc', 'libccnet', 'libseafile', 'libpthread.so', 'libc.so', 'libm.so', 'librt.so', 'libdl.so', 'libselinux.so']
-    def is_syslib(lib):
-        for syslib in syslibs:
-            if syslib in lib:
-                return True
-        return False
-
     httpserver_path = os.path.join(builddir,
                                    'seafile-server',
                                    'seafile',
                                    'bin',
                                    'httpserver')
 
-    ldd_output = commands.getoutput('ldd %s' % httpserver_path)
-    for line in ldd_output.splitlines():
-        tokens = line.split()
-        if len(tokens) != 4:
-            continue
-        if is_syslib(tokens[0]):
-            continue
+    ccnet_server_path = os.path.join(builddir,
+                                     'seafile-server',
+                                     'seafile',
+                                     'bin',
+                                     'ccnet-server')
 
-        info('Copying %s' % tokens[2])
-        shutil.copy(tokens[2], dst_dir)
+    httpserver_libs = get_dependent_libs(httpserver_path)
+    ccnet_server_libs = get_dependent_libs(ccnet_server_path)
+
+    libs = httpserver_libs
+    for lib in ccnet_server_libs:
+        if lib not in libs:
+            libs.append(lib)
+
+    for lib in libs:
+        info('Copying %s' % lib)
+        shutil.copy(lib, dst_dir)
 
 def copy_seahub_thirdpart_libs(seahub_thirdpart):
     '''copy django/djblets/gunicorn from ${thirdpartdir} to
@@ -574,7 +595,7 @@ def strip_symbols():
             if fn.endswith(".a") or fn.endswith(".la"):
                 remove_static_lib(fn)
                 continue
-                
+
             if os.path.islink(fn):
                 continue
 
@@ -595,18 +616,18 @@ def create_tarball(tarball_name):
         shutil.move(serverdir, versioned_serverdir)
     except Exception, e:
         error('failed to move %s to %s: %s' % (serverdir, versioned_serverdir, e))
-    
+
     ignored_patterns = [
         # common ignored files
         '*.pyc',
         '*~',
         '*#',
-        
+
         # seahub
         os.path.join(versioned_serverdir, 'seahub', '.git*'),
         os.path.join(versioned_serverdir, 'seahub', 'media', 'flexpaper*'),
         os.path.join(versioned_serverdir, 'seahub', 'avatar', 'testdata*'),
-        
+
         # seafile
         os.path.join(versioned_serverdir, 'seafile', 'share*'),
         os.path.join(versioned_serverdir, 'seafile', 'include*'),
