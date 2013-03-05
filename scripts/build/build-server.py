@@ -46,6 +46,7 @@ conf = {}
 
 # key names in the conf dictionary.
 CONF_VERSION            = 'version'
+CONF_SEAFILE_VERSION    = 'seafile_version'
 CONF_LIBSEARPC_VERSION  = 'libsearpc_version'
 CONF_CCNET_VERSION      = 'ccnet_version'
 CONF_SRCDIR             = 'srcdir'
@@ -218,7 +219,7 @@ class Seafile(Project):
         ]
 
     def get_version(self):
-        return conf[CONF_VERSION]
+        return conf[CONF_SEAFILE_VERSION]
 
 class Seahub(Project):
     name = 'seahub'
@@ -229,7 +230,7 @@ class Seahub(Project):
         ]
 
     def get_version(self):
-        return conf[CONF_VERSION]
+        return conf[CONF_SEAFILE_VERSION]
 
 def check_seahub_thirdpart(thirdpartdir):
     '''The ${thirdpartdir} must have django/djblets/gunicorn pre-installed. So
@@ -255,6 +256,7 @@ def validate_args(usage, options):
         CONF_VERSION,
         CONF_LIBSEARPC_VERSION,
         CONF_CCNET_VERSION,
+        CONF_SEAFILE_VERSION,
         CONF_SRCDIR,
         CONF_THIRDPARTDIR,
     ]
@@ -274,18 +276,20 @@ def validate_args(usage, options):
             error('%s is not a valid version' % version, usage=usage)
 
     version = get_option(CONF_VERSION)
+    seafile_version = get_option(CONF_SEAFILE_VERSION)
     libsearpc_version = get_option(CONF_LIBSEARPC_VERSION)
     ccnet_version = get_option(CONF_CCNET_VERSION)
 
     check_project_version(version)
     check_project_version(libsearpc_version)
     check_project_version(ccnet_version)
+    check_project_version(seafile_version)
 
     # [ srcdir ]
     srcdir = get_option(CONF_SRCDIR)
     check_targz_src('libsearpc', libsearpc_version, srcdir)
     check_targz_src('ccnet', ccnet_version, srcdir)
-    check_targz_src('seafile', version, srcdir)
+    check_targz_src('seafile', seafile_version, srcdir)
     check_targz_src('seahub', version, srcdir)
 
     # [ builddir ]
@@ -315,6 +319,7 @@ def validate_args(usage, options):
 
     conf[CONF_VERSION] = version
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
+    conf[CONF_SEAFILE_VERSION] = seafile_version
     conf[CONF_CCNET_VERSION] = ccnet_version
 
     conf[CONF_BUILDDIR] = builddir
@@ -330,9 +335,9 @@ def validate_args(usage, options):
 def show_build_info():
     '''Print all conf information. Confirm before continue.'''
     info('------------------------------------------')
-    info('Seafile server package: BUILD INFO')
+    info('Seafile server %s: BUILD INFO' % conf[CONF_VERSION])
     info('------------------------------------------')
-    info('seafile:          %s' % conf[CONF_VERSION])
+    info('seafile:          %s' % conf[CONF_SEAFILE_VERSION])
     info('ccnet:            %s' % conf[CONF_CCNET_VERSION])
     info('libsearpc:        %s' % conf[CONF_LIBSEARPC_VERSION])
     info('builddir:         %s' % conf[CONF_BUILDDIR])
@@ -374,6 +379,11 @@ def parse_args():
                       dest=CONF_VERSION,
                       nargs=1,
                       help='the version to build. Must be digits delimited by dots, like 1.3.0')
+
+    parser.add_option(long_opt(CONF_SEAFILE_VERSION),
+                      dest=CONF_SEAFILE_VERSION,
+                      nargs=1,
+                      help='the version of seafile as specified in its "configure.ac". Must be digits delimited by dots, like 1.3.0')
 
     parser.add_option(long_opt(CONF_LIBSEARPC_VERSION),
                       dest=CONF_LIBSEARPC_VERSION,
