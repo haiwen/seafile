@@ -174,7 +174,7 @@ translate_commit_desc (const char *input)
         return str_replace(input, "Recovered deleted directory",
                           _("Recovered deleted directory"));
     } else if (starts_with(input, "Merged") || starts_with(input, "Auto merge")) {
-        return _("Auto merge by seafile system");
+        return g_strdup(_("Auto merge by seafile system"));
     }
 
     /* Use regular expression to translate commit description. Commit
