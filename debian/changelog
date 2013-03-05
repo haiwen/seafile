@@ -1,3 +1,9 @@
+seafile (1.5.2) stable; urgency=low
+
+  * Fixed a bug when displaying desktop notify
+
+ -- plt <freeplant@gmail.com>  Tuesday, 5 March 2013 19:00:32 +0800
+
 seafile (1.5.1) stable; urgency=low
 
   * Use blocking DNS lookup instead of evdns
