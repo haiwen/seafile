@@ -31,7 +31,7 @@ static char *privkey = NULL;
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvfc:d:t:l:g:G:D:";
+static const char *short_opts = "hvfc:d:t:l:g:G:D:k:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -43,6 +43,7 @@ static const struct option long_opts[] = {
     { "ccnet-debug-level", required_argument, NULL, 'g' },
     { "http-debug-level", required_argument, NULL, 'G' },
     { "debug", required_argument, NULL, 'D' },
+    { "temp-file-dir", required_argument, NULL, 'k' },
 };
 
 static void usage ()
@@ -154,6 +155,7 @@ main(int argc, char *argv[])
     char *ccnet_debug_level_str = "info";
     char *http_debug_level_str = "debug";
     const char *debug_str = NULL;
+    char *temp_file_dir = NULL;
 
     config_dir = DEFAULT_CONFIG_DIR;
 
@@ -190,6 +192,9 @@ main(int argc, char *argv[])
         case 'D':
             debug_str = optarg;
             break;
+        case 'k':
+            temp_file_dir = optarg;
+            break;
         default:
             usage();
             exit(-1);
@@ -211,8 +216,6 @@ main(int argc, char *argv[])
 
     if (seafile_dir == NULL)
         seafile_dir = g_build_filename (config_dir, "seafile-data", NULL);
-    if (logfile == NULL)
-        logfile = g_build_filename (seafile_dir, "http.log", NULL);
 
     seaf = seafile_session_new (seafile_dir, ccnet_client);
     if (!seaf) {
@@ -222,11 +225,19 @@ main(int argc, char *argv[])
     if (seafile_session_init(seaf) < 0)
         exit (1);
 
+    if (temp_file_dir == NULL)
+        seaf->http_temp_dir = g_build_filename (seaf->seaf_dir, "httptemp", NULL);
+    else
+        seaf->http_temp_dir = g_strdup(temp_file_dir);
+
     seaf->client_pool = ccnet_client_pool_new (config_dir);
 
     if (!debug_str)
         debug_str = g_getenv("SEAFILE_DEBUG");
     seafile_debug_set_flags_string (debug_str);
+
+    if (logfile == NULL)
+        logfile = g_build_filename (seaf->seaf_dir, "http.log", NULL);
 
     if (seafile_log_init (logfile, ccnet_debug_level_str,
                           http_debug_level_str) < 0) {

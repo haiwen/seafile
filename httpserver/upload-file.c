@@ -75,7 +75,6 @@ typedef struct RecvFSM {
 } RecvFSM;
 
 #define MAX_CONTENT_LINE 10240
-#define TEMP_FILE_DIR "/tmp/seafhttp"
 
 static GHashTable *upload_progress;
 static pthread_mutex_t pg_lock;
@@ -625,7 +624,7 @@ open_temp_file (RecvFSM *fsm)
     GString *temp_file = g_string_new (NULL);
 
     g_string_printf (temp_file, "%s/%sXXXXXX",
-                     TEMP_FILE_DIR, get_basename(fsm->file_name));
+                     seaf->http_temp_dir, get_basename(fsm->file_name));
 
     fsm->fd = mkstemp (temp_file->str);
     if (fsm->fd < 0) {
@@ -1124,8 +1123,9 @@ upload_file_init (evhtp_t *htp)
 {
     evhtp_callback_t *cb;
 
-    if (g_mkdir_with_parents (TEMP_FILE_DIR, 0777) < 0) {
-        seaf_warning ("Failed to create temp file dir %s.\n", TEMP_FILE_DIR);
+    if (g_mkdir_with_parents (seaf->http_temp_dir, 0777) < 0) {
+        seaf_warning ("Failed to create temp file dir %s.\n",
+                      seaf->http_temp_dir);
         return -1;
     }
 
