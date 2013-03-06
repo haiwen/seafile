@@ -100,6 +100,7 @@ init_ccnet ()
     applet_log_init(config_dir);
     
     applet_message ("Load config dir %s success\n", config_dir);
+    applet_message ("starting seafile-applet "PACKAGE_VERSION"\n");
     g_setenv("CCNET_CONF_DIR", config_dir, 1);
     
     g_free (config_file);

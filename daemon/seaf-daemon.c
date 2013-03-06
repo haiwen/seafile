@@ -400,6 +400,8 @@ main (int argc, char **argv)
         exit (1);
     }
 
+    seaf_message ("starting seaf-daemon "PACKAGE_VERSION"\n");
+
     g_free (seafile_dir);
     g_free (worktree_dir);
     g_free (logfile);
