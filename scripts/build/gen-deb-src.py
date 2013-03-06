@@ -303,7 +303,6 @@ def validate_args(usage, options):
     check_targz_src('libsearpc', libsearpc_version, srcdir)
     check_targz_src('ccnet', ccnet_version, srcdir)
     check_targz_src('seafile', version, srcdir)
-    check_targz_src('seahub', version, srcdir)
 
     # [ builddir ]
     builddir = get_option(CONF_BUILDDIR)
