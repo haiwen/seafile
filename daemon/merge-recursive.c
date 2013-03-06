@@ -508,8 +508,6 @@ static int update_file_flags(struct merge_options *o,
     char file_id[41];
     int clean = 1;
 
-    g_assert(S_ISREG(mode));
-
     if (update_wd && o->collect_blocks_only) {
         fill_seafile_blocks (sha, o->bl);
         return clean;

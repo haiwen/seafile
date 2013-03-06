@@ -287,12 +287,12 @@ void wt_status_collect_changes_worktree(struct index_state *index,
         }
 
         if (S_ISDIR (ce->ce_mode)) {
-            if (!S_ISDIR (st.st_mode) ||
-                !is_empty_dir (realpath, ignore_func)) {
-                de = diff_entry_new (DIFF_TYPE_WORKTREE, DIFF_STATUS_DIR_DELETED,
-                                     ce->sha1, ce->name);
-                *results = g_list_prepend (*results, de);
-            }
+            /* if (!S_ISDIR (st.st_mode) || */
+            /*     !is_empty_dir (realpath, ignore_func)) { */
+            /*     de = diff_entry_new (DIFF_TYPE_WORKTREE, DIFF_STATUS_DIR_DELETED, */
+            /*                          ce->sha1, ce->name); */
+            /*     *results = g_list_prepend (*results, de); */
+            /* } */
             g_free (realpath);
             continue;
         }
