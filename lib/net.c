@@ -531,7 +531,8 @@ ccnet_net_bind_tcp (int port, int nonblock)
         
     memset (&hints, 0,sizeof (struct addrinfo));
     hints.ai_flags = AI_PASSIVE;
-    hints.ai_family = AF_UNSPEC;
+    /* TODO: add an option to use both IPv4 and IPv6 */
+    hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
 
     snprintf (buf, sizeof(buf), "%d", port);
