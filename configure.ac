@@ -433,6 +433,7 @@ AC_CONFIG_FILES(
     app/Makefile
     python/Makefile
     python/seafile/Makefile
+    python/seaserv/Makefile
     controller/Makefile
     httpserver/Makefile
     monitor/Makefile
