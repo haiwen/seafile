@@ -521,11 +521,20 @@ def seaf_status(args):
             else:
                 print "%s\t%s" % (repo.name, t.state)
 
+def setup_env():
+    '''In the released command line only package, we need to set
+    LD_LIBRARY_PATH before calling ccnet-int/ccnet/seaf-daemon
+
+    '''
+    if 'SEAFILE_LD_LIBRARY_PATH' in os.environ:
+        os.environ['LD_LIBRARY_PATH'] = os.environ['SEAFILE_LD_LIBRARY_PATH']
 
 def main():
     ''' Main entry '''
 
     _check_seafile()
+
+    setup_env()
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(title='subcommands', description='')
@@ -587,6 +596,10 @@ def main():
     parser_desync.set_defaults(func=seaf_desync)
     parser_desync.add_argument('-c', '--confdir', help='the config directory', type=str)
     parser_desync.add_argument('-d', '--folder', help='the local folder', type=str)
+
+    if len(sys.argv) == 1:
+        print parser.format_help()
+        return
 
     args = parser.parse_args()
     args.func(args)
