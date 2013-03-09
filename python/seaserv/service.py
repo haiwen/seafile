@@ -370,7 +370,6 @@ def edit_repo(repo_id, name, desc, user):
     try:
         ret = seafserv_threaded_rpc.edit_repo(repo_id, name, desc, user)
     except SearpcError, e:
-        print str(e)
         ret = -1
     return True if ret == 0 else False
 
@@ -774,6 +773,14 @@ def list_org_shared_repos(org_id, user, user_type, start, limit):
 
     share_repos.sort(lambda x, y: cmp(y.last_modified, x.last_modified))
     return share_repos
+
+# dir
+def list_dir_by_path(commit_id, path):
+    try:
+        ret = seafserv_threaded_rpc.list_dir_by_path(commit_id, path)
+    except SearpcError:
+        ret = None
+    return ret
 
 # misc functions
 def is_valid_filename(file_or_dir):
