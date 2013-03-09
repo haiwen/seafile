@@ -638,6 +638,7 @@ seafile_get_dir_id_by_path (const char *repo_id, const char *path,
 GList *
 seafile_list_file_revisions (const char *repo_id,
                              const char *path,
+                             int max_revision,
                              int limit,
                              GError **error);
 

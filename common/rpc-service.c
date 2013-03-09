@@ -2785,6 +2785,7 @@ char *seafile_get_dir_id_by_path (const char *repo_id,
 GList *
 seafile_list_file_revisions (const char *repo_id,
                              const char *path,
+                             int max_revision,
                              int limit,
                              GError **error)
 {
@@ -2797,6 +2798,7 @@ seafile_list_file_revisions (const char *repo_id,
     GList *commit_list;
     commit_list = seaf_repo_manager_list_file_revisions (seaf->repo_mgr,
                                                          repo_id, path,
+                                                         max_revision,
                                                          limit, error);
     GList *l = NULL;
     if (commit_list) {
