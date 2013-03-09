@@ -49,6 +49,8 @@ release_resource (CcnetProcessor *processor)
     if (priv->registered)
         seaf_obj_store_unregister_async_read (seaf->commit_mgr->obj_store,
                                               priv->reader_id);
+
+    CCNET_PROCESSOR_CLASS (seafile_putcommit_v2_proc_parent_class)->release_resource (processor);
 }
 
 static void

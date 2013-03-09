@@ -16,10 +16,10 @@
 /* #define DEBUG 1 */
 
 typedef struct {
-    char repo_id[37];
-    char obj_id[41];
-    char op[32];
-    char username[255];
+    char *repo_id;
+    char *obj_id;
+    char *op;
+    char *username;
     long expire_time;
 } AccessInfo;
 
@@ -28,6 +28,19 @@ typedef struct {
     long expire_time;
 } AccessToken;
 
+static void
+free_access_info (AccessInfo *info)
+{
+    if (!info)
+        return;
+
+    g_free (info->repo_id);
+    g_free (info->obj_id);
+    g_free (info->op);
+    g_free (info->username);
+    g_free (info);
+}
+
 SeafWebAccessTokenManager*
 seaf_web_at_manager_new (SeafileSession *seaf)
 {
@@ -35,7 +48,8 @@ seaf_web_at_manager_new (SeafileSession *seaf)
 
     mgr->seaf = seaf;
     mgr->access_token_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                                    g_free, g_free);
+                                                    g_free,
+                                                    (GDestroyNotify)free_access_info);
     mgr->access_info_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                    g_free, g_free);
 
@@ -139,10 +153,10 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
         g_hash_table_insert (mgr->access_info_hash, g_strdup(key->str), token);
 
         info = g_new0 (AccessInfo, 1);
-        memcpy (info->repo_id, repo_id, 36);
-        memcpy (info->obj_id, obj_id, 40);
-        memcpy (info->op, op, 32);
-        memcpy (info->username, username, 255);
+        info->repo_id = g_strdup (repo_id);
+        info->obj_id = g_strdup (obj_id);
+        info->op = g_strdup (op);
+        info->username = g_strdup (username);
         info->expire_time = expire;
 
         g_hash_table_insert (mgr->access_token_hash, g_strdup(t), info);

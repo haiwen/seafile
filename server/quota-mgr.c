@@ -188,6 +188,7 @@ seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
     char *user = NULL;
     int org_id;
     gint64 quota, usage;
+    int ret = 0;
 
     user = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
     if (user != NULL) {
@@ -196,17 +197,19 @@ seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
         org_id = seaf_repo_manager_get_repo_org (seaf->repo_mgr, repo_id);
         if (org_id < 0) {
             seaf_warning ("Repo %s has no owner.\n", repo_id);
-            return -1;
+            ret = -1;
+            goto out;
         }
 
         quota = seaf_quota_manager_get_org_quota (mgr, org_id);
     } else {
         seaf_warning ("Repo %s has no owner.\n", repo_id);
-        return -1;
+        ret = -1;
+        goto out;
     }
 
     if (quota == INFINITE_QUOTA)
-        return 0;
+        goto out;
 
     if (user) {
         if (!mgr->calc_share_usage) {
@@ -214,20 +217,26 @@ seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
         } else {
             gint64 my_usage, share_usage;
             share_usage = seaf_quota_manager_get_user_share_usage (mgr, user);
-            if (share_usage < 0)
-                return -1;
+            if (share_usage < 0) {
+                ret = -1;
+                goto out;
+            }
             my_usage = seaf_quota_manager_get_user_usage (mgr, user);
-            if (my_usage < 0)
-                return -1;
+            if (my_usage < 0) {
+                ret = -1;
+                goto out;
+            }
             usage = my_usage + share_usage;
         }
     } else
         usage = seaf_quota_manager_get_org_usage (mgr, org_id);
 
     if (usage < 0 || usage >= quota)
-        return -1;
+        ret = -1;
 
-    return 0;
+out:
+    g_free (user);
+    return ret;
 }
 
 static gboolean

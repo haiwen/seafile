@@ -50,6 +50,8 @@ release_resource (CcnetProcessor *processor)
     if (priv->registered)
         seaf_obj_store_unregister_async_write (seaf->commit_mgr->obj_store,
                                                priv->writer_id);
+
+    CCNET_PROCESSOR_CLASS (seafile_recvcommit_v3_proc_parent_class)->release_resource (processor);
 }
 
 static void

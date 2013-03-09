@@ -68,6 +68,8 @@ release_resource (CcnetProcessor *processor)
         string_list_free (priv->id_list);
     if (priv->commit_hash)
         g_hash_table_destroy (priv->commit_hash);
+
+    CCNET_PROCESSOR_CLASS (seafile_sendcommit_v3_proc_parent_class)->release_resource (processor);
 }
 
 static void
