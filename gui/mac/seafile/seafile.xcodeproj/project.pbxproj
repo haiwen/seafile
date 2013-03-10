@@ -1102,6 +1102,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_LABEL = YES;
 				HEADER_SEARCH_PATHS = (
+					../../../,
 					../../../include,
 					../../../gui/common,
 					../../../lib,
@@ -1177,6 +1178,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_LABEL = YES;
 				HEADER_SEARCH_PATHS = (
+					../../../,
 					../../../include,
 					../../../gui/common,
 					../../../lib,
@@ -1255,6 +1257,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_LABEL = YES;
 				HEADER_SEARCH_PATHS = (
+					../../../,
 					../../../include,
 					../../../gui/common,
 					../../../lib,
@@ -1339,6 +1342,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_LABEL = YES;
 				HEADER_SEARCH_PATHS = (
+					../../../,
 					../../../include,
 					../../../gui/common,
 					../../../lib,
