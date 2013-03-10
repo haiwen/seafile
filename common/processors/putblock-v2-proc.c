@@ -17,6 +17,8 @@
 #include "seafile-session.h"
 #include "fs-mgr.h"
 #include "block-mgr.h"
+#include "mq-mgr.h"
+
 #include "putblock-v2-proc.h"
 
 enum {
@@ -64,7 +66,9 @@ seafile_putblock_v2_proc_init (SeafilePutblockV2Proc *processor)
 static int
 block_proc_start (CcnetProcessor *processor, int argc, char **argv)
 {
-    if (verify_session_token (processor, argc, argv) < 0) {
+    USE_PRIV;
+
+    if (verify_session_token (processor, priv->repo_id, argc, argv) < 0) {
         ccnet_processor_send_response (processor, 
                                        SC_ACCESS_DENIED, SS_ACCESS_DENIED,
                                        NULL, 0);
@@ -151,8 +155,15 @@ static void handle_update (CcnetProcessor *processor,
 static void
 put_block_cb (CEvent *event, void *vprocessor)
 {
+    CcnetProcessor *processor = (CcnetProcessor *)vprocessor;
+    USE_PRIV;
     BlockResponse *blk_rsp = event->data;
 
-    /* do nothing */
+    char buf[256];
+    snprintf (buf, sizeof(buf), "put-block\t%s\t%s\t%s\t%d",
+              priv->repo_id, processor->peer_id, blk_rsp->block_id, blk_rsp->tx_bytes);
+
+    seaf_mq_manager_publish_event (seaf->mq_mgr, buf);
+    
     g_free (blk_rsp);
 }

@@ -43,6 +43,7 @@ typedef struct {
     int      block_idx;
     int      tx_bytes;
     int      tx_time;
+    char     block_id[41];
 } BlockResponse;
 
 typedef struct {
@@ -89,6 +90,7 @@ typedef struct {
     ThreadData      *tdata;
     int              bm_offset;
     GHashTable      *block_hash;
+    char             repo_id[37];
 } BlockProcPriv;
 
 /*
@@ -175,10 +177,13 @@ thread_done (void *vtdata)
  */
 
 static void
-send_block_rsp (int cevent_id, int block_idx, int tx_bytes, int tx_time)
+send_block_rsp (int cevent_id, int block_idx, const char *block_id,
+                int tx_bytes, int tx_time)
 {
     BlockResponse *blk_rsp = g_new0 (BlockResponse, 1);
     blk_rsp->block_idx = block_idx;
+    memcpy(blk_rsp->block_id, block_id, 40);
+    blk_rsp->block_id[40] = '\0';
     blk_rsp->tx_bytes = tx_bytes;
     blk_rsp->tx_time = tx_time;
     cevent_manager_add_event (seaf->ev_mgr, 
@@ -330,9 +335,8 @@ send_block_packet (ThreadData *tdata,
         goto out;
     }
 
-#if defined SENDBLOCK_PROC
-    send_block_rsp (tdata->cevent_id, block_idx, 0, 0);
-#endif
+    send_block_rsp (tdata->cevent_id, block_idx, block_id, size, 0);
+
 
 out:
     if (tdata->encrypt_channel)
@@ -587,7 +591,8 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
             /* Notify finish receiving this block. */
             send_block_rsp (fsm->cevent_id,
                             (int)ntohl (fsm->hdr.block_idx),
-                            0, 0);
+                            block_id,
+                            (int)ntohl (fsm->hdr.block_size), 0);
 
             /* Prepare for the next packet. */
             fsm->state = RECV_STATE_HEADER;
@@ -914,7 +919,8 @@ process_block_bitmap (CcnetProcessor *processor, char *content, int clen)
 #if defined RECVBLOCK_PROC || defined PUTBLOCK_PROC
 
 static int
-verify_session_token (CcnetProcessor *processor, int argc, char **argv)
+verify_session_token (CcnetProcessor *processor, char *ret_repo_id,
+                      int argc, char **argv)
 {
     if (argc != 1) {
         return -1;
@@ -923,7 +929,7 @@ verify_session_token (CcnetProcessor *processor, int argc, char **argv)
     char *session_token = argv[0];
     if (seaf_token_manager_verify_token (seaf->token_mgr,
                                          processor->peer_id,
-                                         session_token, NULL) < 0) {
+                                         session_token, ret_repo_id) < 0) {
         return -1;
     }
 
