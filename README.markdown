@@ -58,6 +58,13 @@ Build and Run
 
 See <https://github.com/haiwen/seafile/wiki>
 
+Change Logs
+===========
+
+* Server <http://cloud.seafile.com/f/9629806bbe/>
+* Desktop Client <http://cloud.seafile.com/f/6d54523324/>
+
+
 Contact
 =======
 
