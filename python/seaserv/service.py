@@ -336,6 +336,11 @@ def send_command(command):
     pool.return_client(client)
     return ret
 
+def send_message(msg_type, content):
+    client = pool.get_client()
+    client.send_message(msg_type, content)
+    pool.return_client(client)
+
 def get_binding_peerids(email):
     """Get peer ids of a given email"""
     try:
