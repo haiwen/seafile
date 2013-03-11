@@ -69,6 +69,8 @@ import subprocess
 import sys
 import time
 import getpass
+import urllib
+import urllib2
 
 import ccnet
 import seafile
@@ -130,6 +132,57 @@ def _config_valid(conf):
         return False
     return True
 
+def run_argv(argv, cwd=None, env=None, suppress_stdout=False, suppress_stderr=False):
+    '''Run a program and wait it to finish, and return its exit code. The
+    standard output of this program is supressed.
+
+    '''
+    with open(os.devnull, 'w') as devnull:
+        if suppress_stdout:
+            stdout = devnull
+        else:
+            stdout = sys.stdout
+
+        if suppress_stderr:
+            stderr = devnull
+        else:
+            stderr = sys.stderr
+
+        proc = subprocess.Popen(argv,
+                                cwd=cwd,
+                                stdout=stdout,
+                                stderr=stderr,
+                                env=env)
+        return proc.wait()
+
+def get_env():
+    env = dict(os.environ)
+    ld_library_path = os.environ.get('SEAFILE_LD_LIBRARY_PATH', '')
+    if ld_library_path:
+        env['LD_LIBRARY_PATH'] = ld_library_path
+
+    return env
+
+def urlopen(url, data=None, headers=None):
+    if data:
+        data = urllib.urlencode(data)
+    headers = headers or {}
+    req = urllib2.Request(url, data=data, headers=headers)
+    resp = urllib2.urlopen(req)
+
+    return resp.read()
+
+def get_token(url, username, password):
+    data = { 'username': username, 'password': password }
+    token_json = urlopen("%s/api2/auth-token/" % url, data=data)
+    tmp = json.loads(token_json)
+    token = tmp['token']
+    return token
+
+def get_repo_downlod_info(url, token):
+    headers = { 'Authorization': 'Token %s' % token }
+    repo_info = urlopen(url, headers=headers)
+    return json.loads(repo_info)
 
 def seaf_init(args):
     ''' initialize config directorys'''
@@ -149,7 +202,9 @@ def seaf_init(args):
         sys.exit(0)
 
     cmd = [ "ccnet-init", "-c", ccnet_conf_dir, "-n", "anonymous" ]
-    subprocess.call(cmd)
+    if run_argv(cmd, env=get_env()) != 0:
+        print 'failed to init ccnet'
+        sys.exit(1)
 
     if not os.path.exists(seafile_path):
         print "%s not exists" % seafile_path
@@ -184,10 +239,13 @@ def seaf_start_ccnet(args):
         sys.exit(1)
 
     print "starting ccnet daemon ..."
-    cmd = [ "ccnet", "--daemon", "-c", conf_dir ]
-    subprocess.call(cmd)
-    print "started ccnet daemon ..."
 
+    cmd = [ "ccnet", "--daemon", "-c", conf_dir ]
+    if run_argv(cmd, env=get_env()) != 0:
+        print 'failed to start ccnet daemon'
+        sys.exit(1)
+
+    print "started ccnet daemon ..."
 
 def seaf_start_seafile(args):
     ''' start seafile daemon '''
@@ -202,9 +260,13 @@ def seaf_start_seafile(args):
         sys.exit(1)
 
     print "starting seafile daemon ..."
+    
     cmd = [ "seaf-daemon", "--daemon", "-c", conf_dir, "-d", seafile_datadir,
             "-w", seafile_worktree ]
-    subprocess.call(cmd)
+    if run_argv(cmd, env=get_env()) != 0:
+        print 'failed to start seafile daemon'
+        sys.exit(1)
+
     print "started seafile daemon ..."
 
 def seaf_stop(args):
@@ -287,25 +349,10 @@ def seaf_download(args):
         password = getpass.getpass("Enter password for user %s " % username)
 
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
-    cmd = [
-        "curl", "-k", "-d",
-        "username=%s&password=%s" % (username, password),
-        "%s/api2/auth-token/" % url
-    ]
-    pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=open("/dev/null")).stdout
-    token_json = pipe.read()
-    tmp = json.loads(token_json)
-    token = tmp['token']
+    token = get_token("%s/api2/auth-token/" % url, username, password)
 
-    cmd = [
-        "curl", "-k",
-        "-H", "Authorization: Token %s" % token,
-        "%s/api2/repos/%s/download-info/" % (url, repo)
-        ]
-    pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=open("/dev/null")).stdout
-    repo_info = pipe.read()
+    tmp = get_repo_downlod_info("%s/api2/repos/%s/download-info/" % (url, repo), token)
 
-    tmp = json.loads(repo_info)
     encrypted = tmp['encrypted']
     magic = None
     if encrypted == 1:
@@ -373,26 +420,9 @@ def seaf_sync(args):
     if not password:
         password = getpass.getpass("Enter password for user %s " % username)
 
+    token = get_token(url, username, password)
+    tmp = get_repo_downlod_info("%s/api2/repos/%s/download-info/" % (url, repo), token)
 
-    cmd = [
-        "curl", "-k", "-d",
-        "username=%s&password=%s" % (username, password),
-        "%s/api2/auth-token/" % url
-    ]
-    pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=open("/dev/null")).stdout
-    token_json = pipe.read()
-    tmp = json.loads(token_json)
-    token = tmp['token']
-
-    cmd = [
-        "curl", "-k",
-        "-H", "Authorization: Token %s" % token,
-        "%s/api2/repos/%s/download-info/" % (url, repo)
-        ]
-    pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=open("/dev/null")).stdout
-    repo_info = pipe.read()
-
-    tmp = json.loads(repo_info)
     encrypted = tmp['encrypted']
     magic = None
     if encrypted == 1:
@@ -521,20 +551,10 @@ def seaf_status(args):
             else:
                 print "%s\t%s" % (repo.name, t.state)
 
-def setup_env():
-    '''In the released command line only package, we need to set
-    LD_LIBRARY_PATH before calling ccnet-int/ccnet/seaf-daemon
-
-    '''
-    if 'SEAFILE_LD_LIBRARY_PATH' in os.environ:
-        os.environ['LD_LIBRARY_PATH'] = os.environ['SEAFILE_LD_LIBRARY_PATH']
-
 def main():
     ''' Main entry '''
 
     _check_seafile()
-
-    setup_env()
 
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(title='subcommands', description='')
