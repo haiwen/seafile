@@ -2,13 +2,13 @@
 <archive type="com.apple.InterfaceBuilder3.Cocoa.XIB" version="8.00">
 	<data>
 		<int key="IBDocument.SystemTarget">1060</int>
-		<string key="IBDocument.SystemVersion">12B19</string>
-		<string key="IBDocument.InterfaceBuilderVersion">2549</string>
-		<string key="IBDocument.AppKitVersion">1187</string>
-		<string key="IBDocument.HIToolboxVersion">624.00</string>
+		<string key="IBDocument.SystemVersion">12C60</string>
+		<string key="IBDocument.InterfaceBuilderVersion">3084</string>
+		<string key="IBDocument.AppKitVersion">1187.34</string>
+		<string key="IBDocument.HIToolboxVersion">625.00</string>
 		<object class="NSMutableDictionary" key="IBDocument.PluginVersions">
 			<string key="NS.key.0">com.apple.InterfaceBuilder.CocoaPlugin</string>
-			<string key="NS.object.0">2549</string>
+			<string key="NS.object.0">3084</string>
 		</object>
 		<array key="IBDocument.IntegratedClassDependencies">
 			<string>NSBox</string>
@@ -417,21 +417,22 @@
 				</array>
 			</object>
 			<object class="NSCustomView" id="1051126277">
-				<nil key="NSNextResponder"/>
+				<reference key="NSNextResponder"/>
 				<int key="NSvFlags">268</int>
 				<array class="NSMutableArray" key="NSSubviews">
 					<object class="NSTextField" id="335808835">
 						<reference key="NSNextResponder" ref="1051126277"/>
 						<int key="NSvFlags">268</int>
-						<string key="NSFrame">{{17, 59}, {88, 19}}</string>
+						<string key="NSFrame">{{17, 59}, {215, 19}}</string>
 						<reference key="NSSuperview" ref="1051126277"/>
+						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="499484575"/>
 						<bool key="NSViewIsLayerTreeHost">YES</bool>
 						<string key="NSReuseIdentifierKey">_NS:1505</string>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTextFieldCell" key="NSCell" id="437503179">
-							<int key="NSCellFlags">68157504</int>
-							<int key="NSCellFlags2">1346372672</int>
+							<int key="NSCellFlags">67108928</int>
+							<int key="NSCellFlags2">1077938752</int>
 							<string key="NSContents">title</string>
 							<object class="NSFont" key="NSSupport">
 								<string key="NSName">LucidaGrande</string>
@@ -455,6 +456,7 @@
 						<int key="NSvFlags">274</int>
 						<string key="NSFrame">{{17, 0}, {215, 51}}</string>
 						<reference key="NSSuperview" ref="1051126277"/>
+						<reference key="NSWindow"/>
 						<bool key="NSViewIsLayerTreeHost">YES</bool>
 						<bool key="NSEnabled">YES</bool>
 						<object class="NSTextFieldCell" key="NSCell" id="250248631">
@@ -470,6 +472,8 @@
 					</object>
 				</array>
 				<string key="NSFrameSize">{247, 90}</string>
+				<reference key="NSSuperview"/>
+				<reference key="NSWindow"/>
 				<reference key="NSNextKeyView" ref="335808835"/>
 				<string key="NSReuseIdentifierKey">_NS:9</string>
 				<string key="NSClassName">NSView</string>
