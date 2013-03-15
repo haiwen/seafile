@@ -876,8 +876,20 @@ int add_to_index(struct index_state *istate,
     ce->ce_mode = create_ce_mode(st_mode);
 
     alias = index_name_exists(istate, ce->name, ce_namelen(ce), 0);
+    if (alias->ce_mtime.sec == 0) {
+        g_warning ("alias mtime: %u, alias size: %"G_GUINT64_FORMAT
+                   ", file mtime: %u, file size: %"G_GUINT64_FORMAT"\n",
+                   alias->ce_mtime.sec, alias->ce_size,
+                   (unsigned int)st->st_mtime, st->st_size);
+    }
     if (alias && !ce_stage(alias) && !ie_match_stat(istate, alias, st, ce_option)) {
         /* Nothing changed, really */
+
+        if (alias->ce_mtime.sec == 0) {
+            g_warning ("Don't update cache entry %s with timestamp 0.\n",
+                       alias->name);
+        }
+
         free(ce);
         if (!S_ISGITLINK(alias->ce_mode))
             ce_mark_uptodate(alias);

@@ -389,7 +389,7 @@ add_recursive (struct index_state *istate,
     if (seaf_stat (full_path, &st) < 0) {
         g_warning ("Failed to stat %s.\n", full_path);
         g_free (full_path);
-        return 1;
+        return -1;
     }
 
     if (S_ISREG(st.st_mode)) {
@@ -929,8 +929,12 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
     char index_path[SEAF_PATH_MAX];
     char commit_id[41];
 
+    seaf_message ("Commiting repo %s(%.10s).\n", repo->name, repo->id);
+
     if (!check_worktree_common (repo))
         return NULL;
+
+    seaf_message ("%s(%.10s) Worktree is valid.\n", repo->name, repo->id);
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
@@ -945,6 +949,8 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
         goto error;
     }
 
+    seaf_message ("%s(%.10s) Add succeeded.\n", repo->name, repo->id);
+
     /* Commit before updating the index, so that new blocks won't be GC'ed. */
 
     char *my_desc = g_strdup(desc);
@@ -957,6 +963,9 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
             /* Still need to update index even nothing to commit. */
             update_index (&istate, index_path);
             discard_index (&istate);
+
+            seaf_message ("%s(%.10s) Nothing to commit and updated index.\n",
+                          repo->name, repo->id);
 
             return NULL;
         }
@@ -982,8 +991,12 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
     g_free (my_desc);
     cache_tree_free (&it);
 
+    seaf_message ("%s(%.10s) Created new commit.\n", repo->name, repo->id);
+
     if (update_index (&istate, index_path) < 0)
         goto error;
+
+    seaf_message ("%s(%.10s) Updated index.\n", repo->name, repo->id);
 
     discard_index (&istate);
 
