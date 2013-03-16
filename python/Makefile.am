@@ -1,1 +1,1 @@
-SUBDIRS = seafile
+SUBDIRS = seafile seaserv

@@ -63,7 +63,8 @@ seafile_recvblock_v2_proc_init (SeafileRecvblockV2Proc *processor)
 static int
 block_proc_start (CcnetProcessor *processor, int argc, char **argv)
 {
-    if (verify_session_token (processor, argc, argv) < 0) {
+    USE_PRIV;
+    if (verify_session_token (processor, priv->repo_id, argc, argv) < 0) {
         ccnet_processor_send_response (processor, 
                                        SC_ACCESS_DENIED, SS_ACCESS_DENIED,
                                        NULL, 0);

@@ -2474,6 +2474,12 @@ struct CollectRevisionParam {
     const char *path;
     GHashTable *wanted_commits;
     GHashTable *file_id_cache;
+    
+    /* 
+     * > 0: stop collect when this amount of revisions are collected.
+     * <= 0: no limit
+     */
+    int max_revision;
 
     /* > 0: keep a period of history;
      * == 0: N/A
@@ -2545,6 +2551,12 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
         data->truncate_time > 0 &&
         (gint64)(commit->ctime) < data->truncate_time)
     {
+        *stop = TRUE;
+        return TRUE;
+    }
+
+    if (data->max_revision > 0
+        && g_hash_table_size(wanted_commits) > data->max_revision) {
         *stop = TRUE;
         return TRUE;
     }
@@ -2641,6 +2653,7 @@ GList *
 seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
                                        const char *repo_id,
                                        const char *path,
+                                       int max_revision,
                                        int limit,
                                        GError **error)
 {
@@ -2657,6 +2670,7 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
 
     data.path = path;
     data.error = error;
+    data.max_revision = max_revision;
 
     data.truncate_time = seaf_repo_manager_get_repo_truncate_time (mgr, repo_id);
 

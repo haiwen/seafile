@@ -440,8 +440,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     get_file_id_by_commit_and_path = seafile_get_file_id_by_commit_and_path
 
-    @searpc_func("objlist", ["string", "string"])
-    def seafile_list_file_revisions(repo_id, path, limit):
+    @searpc_func("objlist", ["string", "string", "int", "int"])
+    def seafile_list_file_revisions(repo_id, path, max_revision, limit):
         pass
     list_file_revisions = seafile_list_file_revisions
 
