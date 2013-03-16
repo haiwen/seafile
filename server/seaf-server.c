@@ -689,6 +689,32 @@ on_seaf_server_exit(void)
         remove_pidfile (pidfile);
 }
 
+#ifdef WIN32
+/* Get the commandline arguments in unicode, then convert them to utf8  */
+static char **
+get_argv_utf8 (int *argc)
+{
+    int i = 0;
+    char **argv = NULL;
+    const wchar_t *cmdline = NULL;
+    wchar_t **argv_w = NULL;
+
+    cmdline = GetCommandLineW();
+    argv_w = CommandLineToArgvW (cmdline, argc);
+    if (!argv_w) {
+        printf("failed to CommandLineToArgvW(), GLE=%lu\n", GetLastError());
+        return NULL;
+    }
+
+    argv = (char **)malloc (sizeof(char*) * (*argc));
+    for (i = 0; i < *argc; i++) {
+        argv[i] = wchar_to_utf8 (argv_w[i]);
+    }
+
+    return argv;
+}
+#endif
+
 int
 main (int argc, char **argv)
 {
@@ -703,6 +729,10 @@ main (int argc, char **argv)
     char *ccnet_debug_level_str = "info";
     char *seafile_debug_level_str = "debug";
     int cloud_mode = 0;
+
+#ifdef WIN32
+    argv = get_argv_utf8 (&argc);
+#endif
 
     while ((c = getopt_long (argc, argv, short_options, 
                              long_options, NULL)) != EOF)

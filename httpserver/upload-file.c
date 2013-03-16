@@ -4,6 +4,7 @@
 #include "log.h"
 
 #include <getopt.h>
+#include <fcntl.h>
 
 #include <event.h>
 #include <evhtp.h>
@@ -22,6 +23,7 @@
 #include "seafile-session.h"
 #include "httpserver.h"
 #include "upload-file.h"
+
 
 #define SEAF_HTTP_RES_BADFILENAME 440
 #define SEAF_HTTP_RES_EXISTS 441
@@ -79,6 +81,28 @@ typedef struct RecvFSM {
 
 static GHashTable *upload_progress;
 static pthread_mutex_t pg_lock;
+
+#ifdef WIN32
+int mkstemp(char *template)
+{
+    DWORD pathSize;
+    char pathBuffer[1000];
+    char tempFilename[MAX_PATH];
+    UINT uniqueNum;
+
+    pathSize = GetTempPath( 1000, pathBuffer);
+
+    if (pathSize < 1000)
+
+        pathBuffer[pathSize] = 0;
+    else
+        pathBuffer[0] = 0;
+    uniqueNum = GetTempFileName(pathBuffer, "tmp", FILE_FLAG_DELETE_ON_CLOSE , tempFilename);
+
+    strcpy(template, tempFilename);
+    return open(tempFilename, O_RDWR|O_BINARY);
+}
+#endif
 
 /* IE8 will set filename to the full path of the uploaded file.
  * So we need to strip out the basename from it.

@@ -8,6 +8,7 @@
 #include <string.h>
 
 #include <glib.h>
+#include <glib/gstdio.h>
 
 #include "../common/seaf-db.h"
 
@@ -210,8 +211,8 @@ int main (int argc, char **argv)
     }
 
     struct stat st;
-    if (lstat (config.seafile_dir, &st) < 0) {
-        if (mkdir (config.seafile_dir, 0777) < 0) {
+    if (g_lstat (config.seafile_dir, &st) < 0) {
+        if (g_mkdir (config.seafile_dir, 0777) < 0) {
             fprintf (stderr, "Directory %s cannot be created.\n", config.seafile_dir);
             return 1;
         }

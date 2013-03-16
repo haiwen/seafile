@@ -18,6 +18,12 @@
 #include <archive_entry.h>
 #include <iconv.h>
 
+#ifdef WIN32
+#define S_IFLNK    0120000 /* Symbolic link */
+#define S_ISLNK(x) (((x) & S_IFMT) == S_IFLNK)
+#endif
+
+
 typedef struct {
     struct archive *a;
     SeafileCrypt *crypt;

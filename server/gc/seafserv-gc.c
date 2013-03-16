@@ -48,12 +48,42 @@ load_history_config ()
         seaf->keep_history_days = keep_history_days;
 }
 
+#ifdef WIN32
+/* Get the commandline arguments in unicode, then convert them to utf8  */
+static char **
+get_argv_utf8 (int *argc)
+{
+    int i = 0;
+    char **argv = NULL;
+    const wchar_t *cmdline = NULL;
+    wchar_t **argv_w = NULL;
+
+    cmdline = GetCommandLineW();
+    argv_w = CommandLineToArgvW (cmdline, argc);
+    if (!argv_w) {
+        printf("failed to CommandLineToArgvW(), GLE=%lu\n", GetLastError());
+        return NULL;
+    }
+
+    argv = (char **)malloc (sizeof(char*) * (*argc));
+    for (i = 0; i < *argc; i++) {
+        argv[i] = wchar_to_utf8 (argv_w[i]);
+    }
+
+    return argv;
+}
+#endif
+
 int
 main(int argc, char *argv[])
 {
     int c;
     int verify = 0;
     int dry_run = 0;
+
+#ifdef WIN32
+    argv = get_argv_utf8 (&argc);
+#endif
 
     config_dir = DEFAULT_CONFIG_DIR;
 

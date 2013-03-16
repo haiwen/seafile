@@ -139,7 +139,7 @@ load_httpserver_config (SeafileSession *session)
 
         /* There is no <https> field in seafile.conf, so we use http. */
         g_clear_error (&error);
-        
+
     } else if (use_https) {
         /* read https config */
         pemfile = g_key_file_get_string (session->config,
@@ -171,7 +171,7 @@ load_httpserver_config (SeafileSession *session)
     } else {
         if (max_upload_size_mb <= 0)
             session->max_upload_size = DEFAULT_MAX_UPLOAD_SIZE;
-        else 
+        else
             session->max_upload_size = max_upload_size_mb * ((gint64)1 << 20);
     }
 
@@ -185,10 +185,36 @@ load_httpserver_config (SeafileSession *session)
     } else {
         if (max_download_dir_size_mb <= 0)
             session->max_download_dir_size = DEFAULT_MAX_DOWNLOAD_DIR_SIZE;
-        else 
+        else
             session->max_download_dir_size = max_download_dir_size_mb * ((gint64)1 << 20);
     }
 }
+
+#ifdef WIN32
+/* Get the commandline arguments in unicode, then convert them to utf8  */
+static char **
+get_argv_utf8 (int *argc)
+{
+    int i = 0;
+    char **argv = NULL;
+    const wchar_t *cmdline = NULL;
+    wchar_t **argv_w = NULL;
+
+    cmdline = GetCommandLineW();
+    argv_w = CommandLineToArgvW (cmdline, argc);
+    if (!argv_w) {
+        printf("failed to CommandLineToArgvW(), GLE=%lu\n", GetLastError());
+        return NULL;
+    }
+
+    argv = (char **)malloc (sizeof(char*) * (*argc));
+    for (i = 0; i < *argc; i++) {
+        argv[i] = wchar_to_utf8 (argv_w[i]);
+    }
+
+    return argv;
+}
+#endif
 
 int
 main(int argc, char *argv[])
@@ -202,6 +228,10 @@ main(int argc, char *argv[])
     char *http_debug_level_str = "debug";
     const char *debug_str = NULL;
     char *temp_file_dir = NULL;
+
+#ifdef WIN32
+    argv = get_argv_utf8 (&argc);
+#endif
 
     config_dir = DEFAULT_CONFIG_DIR;
 
@@ -253,6 +283,9 @@ main(int argc, char *argv[])
 #ifndef WIN32
     if (daemon_mode)
         daemon(1, 0);
+#else
+    WSADATA     wsadata;
+    WSAStartup(0x0101, &wsadata);
 #endif
 
     g_type_init();

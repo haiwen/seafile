@@ -77,12 +77,6 @@ if test "$bmac" = true; then
    compile_server=no
    compile_httpserver=no
 
-   AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
-      [compile_server=$enableval],[compile_server="no"])
-
-   AC_ARG_ENABLE(httpserver, AC_HELP_STRING([--enable-httpserver], [enable httpserver]),
-     [compile_httpserver=$enableval],[compile_httpserver="no"])
-
 fi
 
 if test "$blinux" = true; then
@@ -99,12 +93,6 @@ if test "$blinux" = true; then
    AC_ARG_ENABLE(gui, AC_HELP_STRING([--enable-gui], [enable gui]),
       [compile_gui=$enableval],[compile_gui="yes"])
 
-   AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
-      [compile_server=$enableval],[compile_server="no"])
-
-  AC_ARG_ENABLE(httpserver, AC_HELP_STRING([--enable-httpserver], [enable httpserver]),
-     [compile_httpserver=$enableval],[compile_httpserver="no"])
-
 #   AC_ARG_ENABLE(seablock, AC_HELP_STRING([--enable-seablock],
 #      [enable seablock]), [compile_seablock=$enableval],
 #      [compile_seablock="no"])
@@ -116,6 +104,13 @@ if test "$blinux" = true; then
       [compile_ceph=$enableval],[compile_ceph="no"])
 
 fi
+
+AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
+   [compile_server=$enableval],[compile_server="no"])
+
+AC_ARG_ENABLE(httpserver, AC_HELP_STRING([--enable-httpserver], [enable httpserver]),
+   [compile_httpserver=$enableval],[compile_httpserver="no"])
+
 
 AC_ARG_ENABLE(python,
               AC_HELP_STRING([--enable-python],[build ccnet python binding]),
@@ -215,7 +210,7 @@ if test "$bwin32" = true; then
   LIB_IPHLPAPI=-liphlpapi
   LIB_SHELL32=-lshell32
   LIB_PSAPI=-lpsapi
-  MSVC_CFLAGS=-D__MSVCRT_VERSION__=0x0601
+  MSVC_CFLAGS="-D__MSVCRT__ -D__MSVCRT_VERSION__=0x0601"
 elif test "$bmac" = true ; then
   LIB_WS32=
   LIB_GDI32=
@@ -362,25 +357,29 @@ if test "${compile_server}" = "yes"; then
    AC_SUBST(ZDB_CFLAGS)
    AC_SUBST(ZDB_LIBS)
 
-   MYSQL_CFLAGS=$(mysql_config --include)
-   MYSQL_LIBS=$(mysql_config --libs_r)
+   if test "$bwin32" != true; then
+     MYSQL_CFLAGS=$(mysql_config --include)
+     MYSQL_LIBS=$(mysql_config --libs_r)
 
-   # On CentOS, libmysqlclient is in /usr/lib64/mysql/, not /usr/lib, so we
-   # need to adjust CPPFLAGS and LDFLAGS before check it
-   saved_CPPFLAGS=$CPPFLAGS
-   saved_LDFLAGS=$LDFLAGS
-   CPPFLAGS="$MYSQL_CFLAGS $CPPFLAGS"
-   LDFLAGS="$MYSQL_LIBS $LDFLAGS"
+     # On CentOS, libmysqlclient is in /usr/lib64/mysql/, not /usr/lib, so we
+     # need to adjust CPPFLAGS and LDFLAGS before check it
+     saved_CPPFLAGS=$CPPFLAGS
+     saved_LDFLAGS=$LDFLAGS
+     CPPFLAGS="$MYSQL_CFLAGS $CPPFLAGS"
+     LDFLAGS="$MYSQL_LIBS $LDFLAGS"
 
-   AC_CHECK_LIB(mysqlclient, mysql_init, [echo "found library mysqlclient"],
-      AC_MSG_ERROR([*** Unable to find mysql client library]), )
+     if test "$bwin32" != true; then
+       AC_CHECK_LIB(mysqlclient, mysql_init, [echo "found library mysqlclient"],
+       AC_MSG_ERROR([*** Unable to find mysql client library]), )
+     fi
 
-   CPPFLAGS=$saved_CPPFLAGS
-   LDFLAGS=$saved_LDFLAGS
+     CPPFLAGS=$saved_CPPFLAGS
+     LDFLAGS=$saved_LDFLAGS
 
-   AC_SUBST(MYSQL_LIBS)
-   AC_SUBST(MYSQL_CFLAGS)
+     AC_SUBST(MYSQL_LIBS)
+     AC_SUBST(MYSQL_CFLAGS)
 
+   fi
 fi
 
 if test x${compile_httpserver} = xyes; then

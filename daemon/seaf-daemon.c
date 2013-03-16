@@ -313,6 +313,7 @@ main (int argc, char **argv)
     {
         switch (c) {
         case 'h':
+            usage();
             exit (1);
             break;
         case 'v':

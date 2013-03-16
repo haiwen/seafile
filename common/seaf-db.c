@@ -4,6 +4,11 @@
 #include <zdb.h>
 #include "seaf-db.h"
 
+#ifdef WIN32
+#include <windows.h>
+#define sleep(n) Sleep(1000 * (n))
+#endif
+
 #define MAX_GET_CONNECTION_RETRIES 3
 
 struct SeafDB {

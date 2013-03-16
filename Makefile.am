@@ -10,16 +10,15 @@ if COMPILE_GUI
   MAKE_PO = po
 endif
 
-if COMPILE_HTTPSERVER
-  MAKE_HTTPSERVER = httpserver
-endif
-
-if COMPILE_SERVER
-  MAKE_SERVER = server tools monitor $(MAKE_HTTPSERVER) controller
-endif
+MAKE_CONTROLLER = controller
 
 if WIN32
   MAKE_data =
+  MAKE_CONTROLLER =
+endif
+
+if COMPILE_SERVER
+  MAKE_SERVER = server tools monitor httpserver $(MAKE_CONTROLLER)
 endif
 
 SUBDIRS = include lib common app python tests doc \
@@ -36,7 +35,7 @@ INTLTOOL = \
 
 EXTRA_DIST = install-sh $(INTLTOOL) README.markdown web scripts debian msi LICENCE.txt
 
-DISTCHECK_CONFIGURE_FLAGS = --enable-server --enable-httpserver
+DISTCHECK_CONFIGURE_FLAGS = --enable-server
 
 ACLOCAL_AMFLAGS = -I m4
 
