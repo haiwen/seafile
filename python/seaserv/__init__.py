@@ -21,7 +21,7 @@ from service import get_repos, get_repo, get_commits, get_branches, remove_repo,
     list_personal_repos_by_owner, get_repo_token_nonnull, get_repo_owner, \
     server_repo_size, get_file_id_by_path, get_commit, set_repo_history_limit,\
     get_repo_history_limit, list_inner_pub_repos_by_owner, unset_inner_pub_repo,\
-    count_inner_pub_repos, edit_repo, list_dir_by_path
+    count_inner_pub_repos, edit_repo, list_dir_by_path, create_repo, remove_repo
 
 from service import get_binding_peerids, is_valid_filename, check_permission,\
     is_passwd_set
@@ -31,6 +31,7 @@ from service import create_org, get_orgs_by_user, get_org_by_url_prefix, \
     org_user_exists, list_org_repos_by_owner
 
 from service import get_related_users_by_repo, get_related_users_by_org_repo
+from service import post_empty_file, del_file
 
 from service import CCNET_CONF_PATH, CCNET_SERVER_ADDR, CCNET_SERVER_PORT, \
     MAX_UPLOAD_FILE_SIZE, MAX_DOWNLOAD_DIR_SIZE, HTTP_SERVER_ROOT, CALC_SHARE_USAGE

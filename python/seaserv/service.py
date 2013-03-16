@@ -378,8 +378,27 @@ def edit_repo(repo_id, name, desc, user):
         ret = -1
     return True if ret == 0 else False
 
+def create_repo(name, desc, user, passwd):
+    """
+    Return repo id if successfully created a repo, otherwise None.
+    """
+    try:
+        ret = seafserv_threaded_rpc.create_repo(name, desc, user, passwd)
+    except SearpcError, e:
+        logger.error(e)
+        ret = None
+    return ret
+    
 def remove_repo(repo_id):
-    seafserv_threaded_rpc.remove_repo(repo_id)
+    """
+    Return true if successfully removed a repo, otherwise false.
+    """
+    try:
+        ret = seafserv_threaded_rpc.remove_repo(repo_id)
+    except SearpcError, e:
+        logger.error(e)
+        ret = -1
+    return True if ret == 0 else False
 
 def list_personal_repos_by_owner(owner):
     """
@@ -786,6 +805,31 @@ def list_dir_by_path(commit_id, path):
     except SearpcError:
         ret = None
     return ret
+
+# file
+def post_empty_file(repo_id, parent_dir, file_name, user):
+    """
+    Return true if successfully make a new file, otherwise false.
+    """
+    try:
+        ret = seafserv_threaded_rpc.post_empty_file(repo_id, parent_dir,
+                                              file_name, user)
+    except SearpcError, e:
+        logger.error(e)
+        ret = -1
+    return True if ret == 0 else False
+
+def del_file(repo_id, parent_dir, file_name, user):
+    """
+    Return true if successfully delete a file, otherwise false.
+    """
+    try:
+        ret = seafserv_threaded_rpc.del_file(repo_id, parent_dir,
+                                             file_name, user)
+    except SearpcError, e:
+        logger.error(e)
+        ret = -1
+    return True if ret == 0 else False
 
 # misc functions
 def is_valid_filename(file_or_dir):
