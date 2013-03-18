@@ -82,16 +82,6 @@ function read_seafile_data_dir () {
     fi
 }
 
-function validate_seaf_server_running () {
-    if ! pgrep -f "seafile-controller -c ${default_ccnet_conf_dir}" 2>/dev/null 1>&2; then
-        echo "seafile server process is not running, please start it by:"
-        echo ""
-        echo "          ./seafile.sh start"
-        echo ""
-        exit 1;
-    fi
-}
-
 function validate_seahub_running () {
     if pgrep -f "${manage_py}" 2>/dev/null 1>&2; then
         echo "Seahub is already running."
@@ -127,7 +117,6 @@ function before_start() {
     validate_ccnet_conf_dir;
     read_seafile_data_dir;
 
-    validate_seaf_server_running;
     validate_seahub_running;
 
     export CCNET_CONF_DIR=${default_ccnet_conf_dir}

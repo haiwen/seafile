@@ -113,21 +113,11 @@ function restart_seafile_server () {
     start_seafile_server;
 }
 
-manage_py=${INSTALLPATH}/seahub/manage.py
-function check_seahub_running () {
-    if pgrep -f "${manage_py}" 2>/dev/null 1>&2; then
-        echo "Seahub is running, please stop it before stop seafile."
-        printf "You can stop it by \"\033[33m./seahub.sh stop\033[m\"\n\n"
-        exit 1;
-    fi
-}
-
 case $1 in
     "start" )
         start_seafile_server;
         ;;
     "stop" )
-        check_seahub_running;
         stop_seafile_server;
         ;;
     "restart" )
