@@ -84,6 +84,10 @@ struct ThreadData {
      * access it.
      */
     int                  state;
+
+    /* For checking block list. */
+    Bitfield            *bitmap;
+    char                *blocklist;
 };
 
 typedef struct {
@@ -1036,14 +1040,48 @@ send_port (CcnetProcessor *processor)
     g_free (token);
 }
 
+#ifdef RECVBLOCK_PROC
+static void *
+check_block_list (void *vtdata)
+{
+    ThreadData *tdata = vtdata;
+    Bitfield *bitmap = tdata->bitmap;
+    char *block_list = tdata->blocklist;
+    char *block_id;
+    int i;
+
+    block_id = block_list;
+    for (i = 0; i < bitmap->bitCount; ++i) {
+        block_id[40] = '\0';
+        if (seaf_block_manager_block_exists(seaf->block_mgr, block_id))
+            BitfieldAdd (bitmap, i);
+        block_id += 41;
+    }
+
+    return vtdata;
+}
+
+static void
+check_block_list_done (void *vtdata)
+{
+    ThreadData *tdata = vtdata;
+    Bitfield *bitmap = tdata->bitmap;
+
+    if (!tdata->processor_done)
+        ccnet_processor_send_response (tdata->processor, SC_BBITMAP, SS_BBITMAP,
+                                       (char *)(bitmap->bits), bitmap->byteCount);
+
+    BitfieldDestruct (bitmap);
+    g_free (bitmap);
+    g_free (tdata->blocklist);
+}
+#endif  /* RECVBLOCK_PROC */
 
 static void
 process_block_list (CcnetProcessor *processor, char *content, int clen)
 {
-    char *block_id;
     int n_blocks;
-    Bitfield bitmap;
-    int i;
+    Bitfield *bitmap;
 
     if (clen % 41 != 0) {
         seaf_warning ("Bad block list.\n");
@@ -1052,20 +1090,32 @@ process_block_list (CcnetProcessor *processor, char *content, int clen)
         return;
     }
 
+    bitmap = g_new0 (Bitfield, 1);
     n_blocks = clen/41;
-    BitfieldConstruct (&bitmap, n_blocks);
+    BitfieldConstruct (bitmap, n_blocks);
 
-    block_id = content;
-    for (i = 0; i < n_blocks; ++i) {
-        block_id[40] = '\0';
-        if (seaf_block_manager_block_exists(seaf->block_mgr, block_id))
-            BitfieldAdd (&bitmap, i);
-        block_id += 41;
-    }
-
+#ifdef PUTBLOCK_PROC
+    /* If it's a download, we can assume all the blocks are present
+     * on the server. So no need to check.
+     */
+    BitfieldAddRange (bitmap, 0, n_blocks);
     ccnet_processor_send_response (processor, SC_BBITMAP, SS_BBITMAP,
-                                   (char *)(bitmap.bits), bitmap.byteCount);
-    BitfieldDestruct (&bitmap);
+                                   (char *)(bitmap->bits), bitmap->byteCount);
+    BitfieldDestruct (bitmap);
+    g_free (bitmap);
+#endif
+
+#ifdef RECVBLOCK_PROC
+    USE_PRIV;
+    ThreadData *tdata = priv->tdata;
+    tdata->bitmap = bitmap;
+    tdata->blocklist = g_memdup (content, clen);
+
+    ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                    check_block_list,
+                                    check_block_list_done,
+                                    tdata);
+#endif
 }
 
 #endif  /* defined RECVBLOCK_PROC || defined PUTBLOCK_PROC */
