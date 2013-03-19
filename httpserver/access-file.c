@@ -123,6 +123,8 @@ next:
         BlockMetadata *bmd;
         bmd = seaf_block_manager_stat_block_by_handle (seaf->block_mgr,
                                                        data->handle);
+        if (!bmd)
+            goto err;
         data->remain = bmd->size;
         g_free (bmd);
 
