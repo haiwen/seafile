@@ -52,14 +52,9 @@ obj_backend_fs_write (ObjBackend *bend,
                       int len)
 {
     char path[SEAF_PATH_MAX];
-    SeafStat st;
     GError *error = NULL;
 
     id_to_path (bend->priv, obj_id, path);
-
-    /* Don't overwrite existing objects. */
-    if (seaf_stat (path, &st) == 0)
-        return 0;
 
     g_file_set_contents (path, data, len, &error);
     if (error) {

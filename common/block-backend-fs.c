@@ -16,6 +16,7 @@ struct _BHandle {
     char    block_id[41];
     int     fd;
     int     rw_type;
+    char    *tmp_file;
 };
 
 typedef struct {
@@ -30,10 +31,10 @@ get_block_path (BlockBackend *bend,
                 const char *block_sha1,
                 char path[]);
 
-static char *
-get_tmp_file_path (BlockBackend *bend,
-                   const char *basename,
-                   char path[]);
+static int
+open_tmp_file (BlockBackend *bend,
+               const char *basename,
+               char **path);
 
 static BHandle *
 block_backend_fs_open_block (BlockBackend *bend,
@@ -41,31 +42,37 @@ block_backend_fs_open_block (BlockBackend *bend,
                              int rw_type)
 {
     BHandle *handle;
-    char path[SEAF_PATH_MAX];
     int fd = -1;
+    char *tmp_file;
 
     g_return_val_if_fail (block_id != NULL, NULL);
     g_return_val_if_fail (strlen(block_id) == 40, NULL);
     g_assert (rw_type == BLOCK_READ || rw_type == BLOCK_WRITE);
 
     if (rw_type == BLOCK_READ) {
+        char path[SEAF_PATH_MAX];
         get_block_path (bend, block_id, path);
         fd = g_open (path, O_RDONLY | O_BINARY, 0);
+        if (fd < 0) {
+            ccnet_warning ("[block bend] failed to open block %s for read: %s\n",
+                           block_id, strerror(errno));
+            return NULL;
+        }
     } else {
-        get_tmp_file_path (bend, block_id, path);
-        fd = g_open (path, O_WRONLY | O_CREAT | O_BINARY, 0644);
-    }
-
-    if (fd < 0) {
-        ccnet_warning ("[block bend] failed to open block %s: %s, path is %s\n",
-                       block_id, strerror(errno), path);
-        return NULL;
+        fd = open_tmp_file (bend, block_id, &tmp_file);
+        if (fd < 0) {
+            ccnet_warning ("[block bend] failed to open block %s for write: %s\n",
+                           block_id, strerror(errno));
+            return NULL;
+        }
     }
 
     handle = g_new0(BHandle, 1);
     handle->fd = fd;
     memcpy (handle->block_id, block_id, 41);
     handle->rw_type = rw_type;
+    if (rw_type == BLOCK_WRITE)
+        handle->tmp_file = tmp_file;
 
     return handle;
 }
@@ -101,6 +108,11 @@ static void
 block_backend_fs_block_handle_free (BlockBackend *bend,
                                     BHandle *handle)
 {
+    if (handle->rw_type == BLOCK_WRITE) {
+        /* make sure the tmp file is removed even on failure. */
+        g_unlink (handle->tmp_file);
+        g_free (handle->tmp_file);
+    }
     g_free (handle);
 }
 
@@ -108,13 +120,12 @@ static int
 block_backend_fs_commit_block (BlockBackend *bend,
                                BHandle *handle)
 {
-    char path[SEAF_PATH_MAX], tmp_path[SEAF_PATH_MAX];
+    char path[SEAF_PATH_MAX];
 
     g_assert (handle->rw_type == BLOCK_WRITE);
 
     get_block_path (bend, handle->block_id, path);
-    get_tmp_file_path (bend, handle->block_id, tmp_path);
-    if (ccnet_rename (tmp_path, path) < 0) {
+    if (ccnet_rename (handle->tmp_file, path) < 0) {
         g_warning ("[block bend] failed to commit block %s: %s\n",
                    handle->block_id, strerror(errno));
         return -1;
@@ -256,20 +267,20 @@ get_block_path (BlockBackend *bend,
     return path;
 }
 
-static char *
-get_tmp_file_path (BlockBackend *bend,
-                   const char *basename,
-                   char path[])
+static int
+open_tmp_file (BlockBackend *bend,
+               const char *basename,
+               char **path)
 {
-    int path_len;
     FsPriv *priv = bend->be_priv;
+    int fd;
 
-    path_len = priv->tmp_dir_len;
-    memcpy (path, priv->tmp_dir, path_len + 1);
-    path[path_len] = '/';
-    strcpy (path + path_len + 1, basename);
+    *path = g_strdup_printf ("%s/%s.XXXXXX", priv->tmp_dir, basename);
+    fd = g_mkstemp (*path);
+    if (fd < 0)
+        g_free (*path);
 
-    return path;
+    return fd;
 }
 
 static void
