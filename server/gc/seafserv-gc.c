@@ -9,6 +9,8 @@
 #include "gc-core.h"
 #include "verify.h"
 
+#include "utils.h"
+
 static char *config_dir = NULL;
 static char *seafile_dir = NULL;
 

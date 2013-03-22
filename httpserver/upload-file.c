@@ -1241,7 +1241,7 @@ upload_progress_cb(evhtp_request_t *req, void *arg)
     /* Return JSONP formated data. */
     buf = g_string_new (NULL);
     g_string_append_printf (buf,
-                            "%s({\"uploaded\": %lld, \"length\": %lld});",
+                            "%s({\"uploaded\": %"G_GINT64_FORMAT", \"length\": %"G_GINT64_FORMAT"});",
                             callback, progress->uploaded, progress->size);
     evbuffer_add (req->buffer_out, buf->str, buf->len);
 

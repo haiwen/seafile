@@ -1,5 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-
+#ifdef WIN32
+    #define WINVER 0x0501
+#endif
 #include "include.h"
 
 #include <unistd.h>
@@ -10,7 +12,6 @@
 
 
 #ifdef WIN32
-    #define WINVER 0x0501
     #include <inttypes.h>
     #include <winsock2.h>
     #include <ctype.h>
@@ -882,13 +883,13 @@ create_multicast_sock (struct sockaddr *sasend, socklen_t salen)
     if (recvfd < 0) {
         ccnet_warning ("Create multicast listen socket fails: %d\n",
                        WSAGetLastError());
-        return;
+        return -1;
     }
     ret = setsockopt(recvfd, SOL_SOCKET, SO_REUSEADDR, (char *)&on, sizeof(on));
     if (ret != 0) {
         ccnet_warning("Failed to setsockopt SO_REUSEADDR, WSAGetLastError=%d\n",
                       WSAGetLastError());
-        return;
+        return -1;
     }
 
     sarecv = malloc(salen);

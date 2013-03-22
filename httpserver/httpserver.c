@@ -15,6 +15,8 @@
 #include "access-file.h"
 #include "upload-file.h"
 
+#include "utils.h"
+
 #define DEFAULT_BIND_PORT  8082
 #define DEFAULT_MAX_UPLOAD_SIZE 100 * ((gint64)1 << 20) /* 100MB */
 #define DEFAULT_MAX_DOWNLOAD_DIR_SIZE 100 * ((gint64)1 << 20) /* 100MB */

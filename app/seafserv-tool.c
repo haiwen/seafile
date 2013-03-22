@@ -319,11 +319,11 @@ static int set_user_quota (int argc, char **argv)
     quota = strtoll (argv[1], NULL, 10);
 
     if (seafile_set_user_quota (threaded_rpc_client, user, quota, &error) < 0) {
-        fprintf (stderr, "Failed to set user %s quota to %lld\n", user, quota);
+        fprintf (stderr, "Failed to set user %s quota to %"G_GINT64_FORMAT"\n", user, quota);
         return -1;
     }
 
-    printf ("Successfully set quota for %s to %lld.\n", user, quota);
+    printf ("Successfully set quota for %s to %"G_GINT64_FORMAT".\n", user, quota);
     return 0;
 }
 
@@ -341,11 +341,11 @@ static int set_org_quota (int argc, char **argv)
     quota = strtoll (argv[1], NULL, 10);
 
     if (seafile_set_org_quota (threaded_rpc_client, org_id, quota, &error) < 0) {
-        fprintf (stderr, "Failed to set org %d quota to %lld\n", org_id, quota);
+        fprintf (stderr, "Failed to set org %d quota to %"G_GINT64_FORMAT"\n", org_id, quota);
         return -1;
     }
 
-    printf ("Successfully set quota for %d to %lld.\n", org_id, quota);
+    printf ("Successfully set quota for %d to %"G_GINT64_FORMAT".\n", org_id, quota);
     return 0;
 }
 
@@ -366,10 +366,10 @@ static int set_org_user_quota (int argc, char **argv)
 
     if (seafile_set_org_user_quota (threaded_rpc_client, 
                                     org_id, user, quota, &error) < 0) {
-        fprintf (stderr, "Failed to set user %s quota to %lld\n", user, quota);
+        fprintf (stderr, "Failed to set user %s quota to %"G_GINT64_FORMAT"\n", user, quota);
         return -1;
     }
 
-    printf ("Successfully set quota for %s to %lld.\n", user, quota);
+    printf ("Successfully set quota for %s to %"G_GINT64_FORMAT".\n", user, quota);
     return 0;
 }

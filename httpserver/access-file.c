@@ -522,7 +522,11 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
         goto out;
     }
 
+#ifndef WIN32
     snprintf (file_size, sizeof(file_size), "%"G_GUINT64_FORMAT"", st.st_size);
+#else
+    snprintf (file_size, sizeof(file_size), "%ld", st.st_size);
+#endif
     evhtp_headers_add_header (req->headers_out,
             evhtp_header_new("Content-Length", file_size, 1, 1));
 
@@ -646,8 +650,13 @@ access_cb(evhtp_request_t *req, void *arg)
          * If-Modified-Since header the next time it gets the same
          * file.
          */
+#ifndef WIN32
         strftime (http_date, sizeof(http_date), "%a, %d %b %Y %T GMT",
                   gmtime(&now));
+#else
+        strftime (http_date, sizeof(http_date), "%a, %d %b %Y %H:%M:%S GMT",
+                  gmtime(&now));
+#endif
         kv = evhtp_kv_new ("Last-Modified", http_date, 1, 1);
         evhtp_kvs_add_kv (req->headers_out, kv);
 

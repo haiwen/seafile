@@ -2260,8 +2260,13 @@ seaf_repo_manager_revert_file (SeafRepoManager *mgr,
     }
 
     /* Commit. */
+#ifndef WIN32
     strftime (time_str, sizeof(time_str), "%F %T",
               localtime((time_t *)(&old_commit->ctime)));
+#else
+    strftime (time_str, sizeof(time_str), "%Y-%m-%d %H:%M:%S",
+              localtime((time_t *)(&old_commit->ctime)));
+#endif
     snprintf(buf, SEAF_PATH_MAX, "Reverted file \"%s\" to status at %s", filename, time_str);
     if (gen_new_commit (repo_id, head_commit, root_id,
                         user, buf, error) < 0)
@@ -2976,8 +2981,13 @@ retry:
         goto out;
     }
 
+#ifndef WIN32
     strftime (desc, sizeof(desc), "Reverted repo to status at %F %T.", 
               localtime((time_t *)(&commit->ctime)));
+#else
+    strftime (desc, sizeof(desc), "Reverted repo to status at %%Y-%m-%d %H:%M:%S.", 
+              localtime((time_t *)(&commit->ctime)));
+#endif
 
     new_commit = seaf_commit_new (NULL, repo->id, commit->root_id,
                                   user_name, EMPTY_SHA1,

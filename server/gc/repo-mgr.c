@@ -553,7 +553,7 @@ seaf_repo_manager_set_repo_valid_since (SeafRepoManager *mgr,
     char sql[256];
 
     snprintf (sql, sizeof(sql),
-              "REPLACE INTO RepoValidSince VALUES ('%s', %lld)",
+              "REPLACE INTO RepoValidSince VALUES ('%s', %"G_GINT64_FORMAT")",
               repo_id, timestamp);
     if (seaf_db_query (mgr->seaf->db, sql) < 0)
         return -1;
