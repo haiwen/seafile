@@ -176,6 +176,12 @@ get_canonical_path (const char *path)
             *p = '/';
     }
 
+    /* Remove trailing slashes from dir path. */
+    int len = strlen(ret);
+    int i = len - 1;
+    while (i >= 0 && ret[i] == '/')
+        ret[i--] = 0;
+
     return ret;
 }
 
