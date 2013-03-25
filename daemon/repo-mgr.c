@@ -389,7 +389,7 @@ add_recursive (struct index_state *istate,
     if (seaf_stat (full_path, &st) < 0) {
         g_warning ("Failed to stat %s.\n", full_path);
         g_free (full_path);
-        return 1;
+        return -1;
     }
 
     if (S_ISREG(st.st_mode)) {
@@ -868,7 +868,7 @@ seaf_repo_is_index_unmerged (SeafRepo *repo)
 static int
 commit_tree (SeafRepo *repo, struct cache_tree *it,
              const char *desc, char commit_id[],
-             gboolean unmerged, const char *remote_name)
+             gboolean unmerged)
 {
     SeafCommit *commit;
     char root_id[41];
@@ -919,15 +919,14 @@ commit_tree (SeafRepo *repo, struct cache_tree *it,
 }
 
 char *
-seaf_repo_index_commit (SeafRepo *repo, const char *desc, 
-                        gboolean unmerged, const char *remote_name,
-                        GError **error)
+seaf_repo_index_commit (SeafRepo *repo, const char *desc, GError **error)
 {
     SeafRepoManager *mgr = repo->manager;
     struct index_state istate;
     struct cache_tree *it;
     char index_path[SEAF_PATH_MAX];
     char commit_id[41];
+    gboolean unmerged = FALSE;
 
     if (!check_worktree_common (repo))
         return NULL;
@@ -939,6 +938,9 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal data structure error");
         return NULL;
     }
+
+    if (unmerged_index (&istate))
+        unmerged = TRUE;
 
     if (index_add (repo, &istate, "") < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Failed to add");
@@ -973,7 +975,7 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
         goto error;
     }
 
-    if (commit_tree (repo, it, my_desc, commit_id, unmerged, remote_name) < 0) {
+    if (commit_tree (repo, it, my_desc, commit_id, unmerged) < 0) {
         g_warning ("Failed to save commit file");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal error");
         cache_tree_free (&it);

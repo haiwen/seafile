@@ -360,7 +360,9 @@ update_worktree (struct unpack_trees_options *o,
             *finished_entries = *finished_entries + 1;
     }
 
-    return errs != 0;
+    if (errs != 0)
+        return -1;
+    return 0;
 }
 
 #ifdef WIN32

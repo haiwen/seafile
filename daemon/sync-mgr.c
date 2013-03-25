@@ -463,6 +463,8 @@ static const char *sync_error_str[] = {
     "No such repo on relay.",
     "Repo is damaged on relay.",
     "Failed to index files.",
+    "Conflict in merge.",
+    "Files changed in local folder, skip merge.",
     "Unknown error.",
 };
 
@@ -558,7 +560,31 @@ struct MergeResult {
     SyncTask *task;
     gboolean success;
     gboolean real_merge;
+    gboolean worktree_dirty;
 };
+
+static int
+fix_dirty_worktree (SeafRepo *repo)
+{
+    char *commit_id;
+    GError *error = NULL;
+
+    commit_id = seaf_repo_index_commit (repo, "", &error);
+    if (error != NULL) {
+        seaf_warning ("Failed to commit unclean worktree.\n");
+        g_error_free (error);
+        return -1;
+    }
+    g_free (commit_id);
+
+    /* After commit, the worktree should be clean. */
+    if (seaf_repo_is_worktree_changed (repo)) {
+        seaf_warning ("Worktree is still dirty after commit.\n");
+        return -1;
+    }
+
+    return 0;
+}
 
 static void *
 merge_job (void *vtask)
@@ -577,16 +603,26 @@ merge_job (void *vtask)
 
     pthread_mutex_lock (&repo->lock);
 
-    if (seaf_repo_is_worktree_changed (repo)) {
+    /* Try to commit if worktree is not clean. */
+    if (seaf_repo_is_worktree_changed (repo) && fix_dirty_worktree (repo) < 0) {
         seaf_message ("[sync mgr] Worktree is not clean. Skip merging repo %s(%.8s).\n",
                    repo->name, repo->id);
         res->success = FALSE;
+        res->worktree_dirty = TRUE;
         pthread_mutex_unlock (&repo->lock);
         return res;
     }
 
-    /* If there are merge conflicts, the next commit operation will fix that.
-     */
+    /*
+     * 4 types of errors may occur:
+     * 1. merge conflicts;
+     * 2. fail to checkout a file because the worktree file has been changed;
+     * 3. Files are locked on Windows;
+     * 4. other I/O errors.
+     *
+     * For 1, 2, 4, the next commit operation will make worktree clean.
+     * For 3, just wait another merge retry.
+     * */
     if (seaf_repo_merge (repo, "master", &err_msg, &res->real_merge) < 0) {
         seaf_message ("[Sync mgr] Merge of repo %s(%.8s) is not clean.\n",
                    repo->name, repo->id);
@@ -607,7 +643,6 @@ static void
 merge_job_done (void *vresult)
 {
     struct MergeResult *res = vresult;
-    SyncInfo *info = res->task->info;
     SeafRepo *repo = res->task->repo;
 
     if (repo->delete_pending) {
@@ -652,9 +687,13 @@ merge_job_done (void *vresult)
     }
 
     if (res->success && res->real_merge)
-        start_upload_if_necessary (info->current_task);
+        start_upload_if_necessary (res->task);
+    else if (res->success)
+        transition_sync_state (res->task, SYNC_STATE_DONE);
+    else if (res->worktree_dirty)
+        seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_WORKTREE_DIRTY);
     else
-        transition_sync_state (info->current_task, SYNC_STATE_DONE);
+        seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_MERGE);
 
 out:
     g_free (res);
@@ -878,29 +917,7 @@ commit_job (void *vtask)
     res->changed = TRUE;
     res->success = TRUE;
 
-    gboolean unmerged = seaf_repo_is_index_unmerged (repo);
-    char *remote_name = g_strdup("other");
-
-    if (unmerged) {
-        SeafBranch *remote;
-        SeafCommit *remote_head;
-
-        remote = seaf_branch_manager_get_branch (seaf->branch_mgr,
-                                                 repo->id,
-                                                 "master");
-        if (remote) {
-            remote_head = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                                          remote->commit_id);
-            if (remote_head) {
-                remote_name = g_strdup (remote_head->creator_name);
-                seaf_commit_unref (remote_head);
-            }
-            seaf_branch_unref (remote);
-        }
-    }
-
-    char *commit_id = seaf_repo_index_commit (repo, "", 
-                                              unmerged, remote_name, &error);
+    char *commit_id = seaf_repo_index_commit (repo, "", &error);
     if (commit_id == NULL && error != NULL) {
         seaf_warning ("[Sync mgr] Failed to commit to repo %s(%.8s).\n",
                       repo->name, repo->id);
@@ -910,7 +927,6 @@ commit_job (void *vtask)
     }
     g_free (commit_id);
 
-    g_free (remote_name);
     pthread_mutex_unlock (&repo->lock);
     return res;
 }
