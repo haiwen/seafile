@@ -513,7 +513,7 @@ def copy_scripts_and_libs():
     copy_shared_libs()
 
 def get_dependent_libs(executable):
-    syslibs = ['libsearpc', 'libccnet', 'libseafile', 'libpthread.so', 'libc.so', 'libm.so', 'librt.so', 'libdl.so', 'libselinux.so']
+    syslibs = ['libsearpc', 'libccnet', 'libseafile', 'libpthread.so', 'libc.so', 'libm.so', 'librt.so', 'libdl.so', 'libselinux.so', 'libresolv.so' ]
     def is_syslib(lib):
         for syslib in syslibs:
             if syslib in lib:
