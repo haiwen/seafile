@@ -1,3 +1,10 @@
+seafile (1.6.0) stable; urgency=low
+
+  * Fix some bugs
+  * Improve block/object write-in
+
+ -- plt <freeplant@gmail.com>  Tuesday, 27 March 2013 19:00:32 +0800
+
 seafile (1.5.3) stable; urgency=low
 
   * Fix bugs of empty directory handling
