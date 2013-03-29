@@ -52,6 +52,11 @@ typedef struct {
     char     block_id[41];
 } __attribute__((__packed__)) BlockPacket;
 
+typedef struct BLInfo {
+    char *block_list;
+    int n_blocks;
+} BLInfo;
+
 typedef struct ThreadData ThreadData;
 
 /* function called when receiving event from transfer thread via pipe. */
@@ -86,8 +91,10 @@ struct ThreadData {
     int                  state;
 
     /* For checking block list. */
-    Bitfield            *bitmap;
-    char                *blocklist;
+    BLInfo              *blinfo;
+    Bitfield             bitmap;
+    GQueue              *bl_queue;
+    gboolean             checking_bl;
 };
 
 typedef struct {
@@ -142,6 +149,8 @@ release_thread (CcnetProcessor *processor)
 
         priv->tdata->processor_done = TRUE;
         cevent_manager_unregister (seaf->ev_mgr, priv->tdata->cevent_id);
+        if (priv->tdata->bl_queue)
+            g_queue_free (priv->tdata->bl_queue);
     }
 }
 
@@ -1045,18 +1054,23 @@ static void *
 check_block_list (void *vtdata)
 {
     ThreadData *tdata = vtdata;
-    Bitfield *bitmap = tdata->bitmap;
-    char *block_list = tdata->blocklist;
+    char *block_list = tdata->blinfo->block_list;
+    int n_blocks = tdata->blinfo->n_blocks;
     char *block_id;
     int i;
 
+    BitfieldConstruct (&tdata->bitmap, n_blocks);
+
     block_id = block_list;
-    for (i = 0; i < bitmap->bitCount; ++i) {
+    for (i = 0; i < n_blocks; ++i) {
         block_id[40] = '\0';
         if (seaf_block_manager_block_exists(seaf->block_mgr, block_id))
-            BitfieldAdd (bitmap, i);
+            BitfieldAdd (&tdata->bitmap, i);
         block_id += 41;
     }
+
+    g_free (tdata->blinfo->block_list);
+    g_free (tdata->blinfo);
 
     return vtdata;
 }
@@ -1065,15 +1079,32 @@ static void
 check_block_list_done (void *vtdata)
 {
     ThreadData *tdata = vtdata;
-    Bitfield *bitmap = tdata->bitmap;
+    Bitfield *pbitmap = &tdata->bitmap;
 
-    if (!tdata->processor_done)
-        ccnet_processor_send_response (tdata->processor, SC_BBITMAP, SS_BBITMAP,
-                                       (char *)(bitmap->bits), bitmap->byteCount);
+    tdata->checking_bl = FALSE;
 
-    BitfieldDestruct (bitmap);
-    g_free (bitmap);
-    g_free (tdata->blocklist);
+    if (tdata->processor_done) {
+        BitfieldDestruct (pbitmap);
+        g_free (tdata);
+        return;
+    }
+
+    ccnet_processor_send_response (tdata->processor, SC_BBITMAP, SS_BBITMAP,
+                                   (char *)(pbitmap->bits), pbitmap->byteCount);
+    BitfieldDestruct (pbitmap);
+
+    /* Process next block list segment, or exit. */
+    if (tdata->bl_queue != NULL) {
+        BLInfo *blinfo = g_queue_pop_head (tdata->bl_queue);
+        if (blinfo != NULL) {
+            tdata->checking_bl = TRUE;
+            tdata->blinfo = blinfo;
+            ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                            check_block_list,
+                                            check_block_list_done,
+                                            tdata);
+        }
+    }
 }
 #endif  /* RECVBLOCK_PROC */
 
@@ -1081,7 +1112,6 @@ static void
 process_block_list (CcnetProcessor *processor, char *content, int clen)
 {
     int n_blocks;
-    Bitfield *bitmap;
 
     if (clen % 41 != 0) {
         seaf_warning ("Bad block list.\n");
@@ -1089,32 +1119,47 @@ process_block_list (CcnetProcessor *processor, char *content, int clen)
         ccnet_processor_done (processor, FALSE);
         return;
     }
-
-    bitmap = g_new0 (Bitfield, 1);
     n_blocks = clen/41;
-    BitfieldConstruct (bitmap, n_blocks);
 
 #ifdef PUTBLOCK_PROC
+    Bitfield bitmap;
+
     /* If it's a download, we can assume all the blocks are present
      * on the server. So no need to check.
      */
-    BitfieldAddRange (bitmap, 0, n_blocks);
+    BitfieldConstruct (&bitmap, n_blocks);
+
+    BitfieldAddRange (&bitmap, 0, n_blocks);
     ccnet_processor_send_response (processor, SC_BBITMAP, SS_BBITMAP,
-                                   (char *)(bitmap->bits), bitmap->byteCount);
-    BitfieldDestruct (bitmap);
-    g_free (bitmap);
+                                   (char *)(bitmap.bits), bitmap.byteCount);
+    BitfieldDestruct (&bitmap);
 #endif
 
 #ifdef RECVBLOCK_PROC
     USE_PRIV;
     ThreadData *tdata = priv->tdata;
-    tdata->bitmap = bitmap;
-    tdata->blocklist = g_memdup (content, clen);
+    BLInfo *blinfo;
 
-    ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                    check_block_list,
-                                    check_block_list_done,
-                                    tdata);
+    /* If a worker thread is already running, push this block list to queue.
+     * It will be processed after the worker thread finishes the current one.
+     * Otherwise start a new worker thread.
+     */
+    blinfo = g_new0 (BLInfo, 1);
+    blinfo->block_list = g_memdup (content, clen);
+    blinfo->n_blocks = n_blocks;
+
+    if (!tdata->checking_bl) {
+        tdata->checking_bl = TRUE;
+        tdata->blinfo = blinfo;
+        ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                        check_block_list,
+                                        check_block_list_done,
+                                        tdata);
+    } else {
+        if (!tdata->bl_queue)
+            tdata->bl_queue = g_queue_new ();
+        g_queue_push_tail (tdata->bl_queue, blinfo);
+    }
 #endif
 }
 
