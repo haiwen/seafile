@@ -64,6 +64,8 @@ typedef void (*ThreadEventHandler) (CEvent *event, void *vprocessor);
 typedef int  (*TransferFunc) (ThreadData *tdata);
 
 struct ThreadData {
+    int                  ref_count;
+
     CcnetPeer           *peer;
     /* Never dereference this processor in the worker thread */
     CcnetProcessor      *processor;
@@ -120,6 +122,26 @@ send_error (CcnetProcessor *processor)
 }
 
 static void
+thread_data_ref (ThreadData *tdata)
+{
+    ++(tdata->ref_count);
+}
+
+static void
+thread_data_unref (ThreadData *tdata)
+{
+    if (!tdata)
+        return;
+
+    if (--(tdata->ref_count) <= 0) {
+        if (tdata->bl_queue)
+            g_queue_free (tdata->bl_queue);
+        g_free (tdata->token);
+        g_free (tdata);
+    }
+}
+
+static void
 prepare_thread_data (CcnetProcessor *processor,
                      TransferFunc tranfer_func,
                      ThreadEventHandler handler)
@@ -127,6 +149,8 @@ prepare_thread_data (CcnetProcessor *processor,
     USE_PRIV;
 
     priv->tdata = g_new0 (ThreadData, 1);
+    thread_data_ref (priv->tdata);
+
     priv->tdata->task_pipe[0] = -1;
     priv->tdata->task_pipe[1] = -1;
     priv->tdata->transfer_func = tranfer_func;
@@ -149,8 +173,8 @@ release_thread (CcnetProcessor *processor)
 
         priv->tdata->processor_done = TRUE;
         cevent_manager_unregister (seaf->ev_mgr, priv->tdata->cevent_id);
-        if (priv->tdata->bl_queue)
-            g_queue_free (priv->tdata->bl_queue);
+
+        thread_data_unref (priv->tdata);
     }
 }
 
@@ -180,8 +204,7 @@ thread_done (void *vtdata)
         }
     }
 
-    g_free (tdata->token);
-    g_free (tdata);
+    thread_data_unref (tdata);
 }
 
 
@@ -847,6 +870,7 @@ get_port (CcnetProcessor *processor, char *content, int clen)
     if (peer->encrypt_channel)
         generate_encrypt_key (tdata, peer);
 
+    thread_data_ref (tdata);
     ccnet_job_manager_schedule_job (seaf->job_mgr,
                                     do_transfer,
                                     thread_done,
@@ -855,7 +879,6 @@ get_port (CcnetProcessor *processor, char *content, int clen)
     return;
 
 fail:
-    g_free (tdata);
     if (peer)
         g_object_unref (peer);
     ccnet_processor_send_update (processor, SC_SHUTDOWN, SS_SHUTDOWN,
@@ -974,7 +997,7 @@ accept_connection (evutil_socket_t connfd, void *vdata)
      * is run outside of the processor's context.
      */
     if (tdata->processor_done) {
-        g_free (tdata);
+        thread_data_unref (tdata);
         if (connfd >= 0)
             evutil_closesocket (connfd);
         return;
@@ -1007,6 +1030,8 @@ accept_connection (evutil_socket_t connfd, void *vdata)
         generate_encrypt_key (tdata, peer);
     g_object_unref (peer);
 
+    /* Don't need to ref thread data again. We're already holding one.
+     */
     ccnet_job_manager_schedule_job (seaf->job_mgr,
                                     do_passive_transfer,
                                     thread_done,
@@ -1019,7 +1044,7 @@ fail:
     ccnet_processor_send_response (processor, SC_SHUTDOWN, SS_SHUTDOWN,
                                    NULL, 0);
     ccnet_processor_done (processor, FALSE);
-    g_free (tdata);
+    thread_data_unref (tdata);
 }
 
 static void
@@ -1040,6 +1065,11 @@ send_port (CcnetProcessor *processor)
                                        NULL, 0);
         ccnet_processor_done (processor, FALSE);
     }
+
+    /* We're leaving processor context, make sure tdata is still available
+     * when the callback is run.
+     */
+    thread_data_ref (priv->tdata);
 
     len = snprintf (buf, sizeof(buf), "%d\t%s", seaf->listen_mgr->port, token);
     ccnet_processor_send_response (processor,
@@ -1085,7 +1115,7 @@ check_block_list_done (void *vtdata)
 
     if (tdata->processor_done) {
         BitfieldDestruct (pbitmap);
-        g_free (tdata);
+        thread_data_unref (tdata);
         return;
     }
 
@@ -1099,12 +1129,15 @@ check_block_list_done (void *vtdata)
         if (blinfo != NULL) {
             tdata->checking_bl = TRUE;
             tdata->blinfo = blinfo;
+            thread_data_ref (tdata);
             ccnet_job_manager_schedule_job (seaf->job_mgr,
                                             check_block_list,
                                             check_block_list_done,
                                             tdata);
         }
     }
+
+    thread_data_unref (tdata);
 }
 #endif  /* RECVBLOCK_PROC */
 
@@ -1151,6 +1184,7 @@ process_block_list (CcnetProcessor *processor, char *content, int clen)
     if (!tdata->checking_bl) {
         tdata->checking_bl = TRUE;
         tdata->blinfo = blinfo;
+        thread_data_ref (tdata);
         ccnet_job_manager_schedule_job (seaf->job_mgr,
                                         check_block_list,
                                         check_block_list_done,
