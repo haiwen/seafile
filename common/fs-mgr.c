@@ -324,12 +324,8 @@ do_write_chunk (uint8_t *checksum, const char *buf, int len)
     rawdata_to_hex (checksum, chksum_str, 20);
 
     /* Don't write if the block already exists. */
-    BlockMetadata *bmd = seaf_block_manager_stat_block (blk_mgr, chksum_str);
-    if (bmd != NULL) {
-        g_free (bmd);
+    if (seaf_block_manager_block_exists (seaf->block_mgr, chksum_str))
         return 0;
-    }
-    g_free (bmd);
 
     handle = seaf_block_manager_open_block (blk_mgr, chksum_str, BLOCK_WRITE);
     if (!handle) {
