@@ -199,13 +199,16 @@ def is_group_user(group_id, user):
         ret = 0
     return ret
 
-def check_group_staff(group_id_int, user_or_username):
+def check_group_staff(group_id, username):
     """Check where user is group staff"""
-    from seahub.base.accounts import User
-    if isinstance(user_or_username, User):
-        user_or_username = user_or_username.username
-        
-    return ccnet_threaded_rpc.check_group_staff(group_id_int, user_or_username)
+    group_id = int(group_id)
+    try:
+        ret = ccnet_threaded_rpc.check_group_staff(group_id, username)
+    except SearpcError, e:
+        logger.error(e)
+        ret = 0
+
+    return True if ret == 1 else False
 
 def remove_group_user(user):
     """
