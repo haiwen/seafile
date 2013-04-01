@@ -55,6 +55,7 @@ CONF_BUILDDIR           = 'builddir'
 CONF_OUTPUTDIR          = 'outputdir'
 CONF_THIRDPARTDIR       = 'thirdpartdir'
 CONF_NO_STRIP           = 'nostrip'
+CONF_ENABLE_S3          = 's3'
 
 ####################
 ### Common helper functions
@@ -212,8 +213,13 @@ class Seafile(Project):
     name = 'seafile'
     def __init__(self):
         Project.__init__(self)
+        s3_support = ''
+        if conf[CONF_ENABLE_S3]:
+            s3_support = '--enable-s3'
+
         self.build_commands = [
-            './configure --prefix=%s --disable-client --enable-server --enable-httpserver' % self.prefix,
+            './configure --prefix=%s --disable-client --enable-server --enable-httpserver %s' \
+                % (self.prefix, s3_support),
             'make',
             'make install'
         ]
@@ -317,6 +323,9 @@ def validate_args(usage, options):
     # [ no strip]
     nostrip = get_option(CONF_NO_STRIP)
 
+    # [ s3 ]
+    s3 = get_option(CONF_ENABLE_S3)
+
     conf[CONF_VERSION] = version
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
     conf[CONF_SEAFILE_VERSION] = seafile_version
@@ -328,6 +337,7 @@ def validate_args(usage, options):
     conf[CONF_KEEP] = keep
     conf[CONF_THIRDPARTDIR] = thirdpartdir
     conf[CONF_NO_STRIP] = nostrip
+    conf[CONF_ENABLE_S3] = s3
 
     prepare_builddir(builddir)
     show_build_info()
@@ -344,6 +354,7 @@ def show_build_info():
     info('outputdir:        %s' % conf[CONF_OUTPUTDIR])
     info('source dir:       %s' % conf[CONF_SRCDIR])
     info('strip symbols:    %s' % (not conf[CONF_NO_STRIP]))
+    info('s3 support:       %s' % (conf[CONF_ENABLE_S3]))
     info('clean on exit:    %s' % (not conf[CONF_KEEP]))
     info('------------------------------------------')
     info('press any key to continue ')
@@ -421,6 +432,11 @@ def parse_args():
                       dest=CONF_NO_STRIP,
                       action='store_true',
                       help='''do not strip debug symbols''')
+
+    parser.add_option(long_opt(CONF_ENABLE_S3),
+                      dest=CONF_ENABLE_S3,
+                      action='store_true',
+                      help='''enable amazon s3 support''')
     usage = parser.format_help()
     options, remain = parser.parse_args()
     if remain:
