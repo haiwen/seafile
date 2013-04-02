@@ -3,7 +3,7 @@ Introduction
 
 Dropbox is good for file syncing and sharing, but is not an ideal place for collaboration. So we build Seafile, a better place for managing documents together. 
 
-In Seafile, you can easily create groups with file syncing, wiki, discussion and tasks. It enables you easily collaborate around documents within a team. In addition, it is open source. So you can build a private cloud freely for your organization.
+In Seafile, you can create groups with file syncing, wiki, discussion and tasks. It enables you to easily collaborate around documents within a team. In addition, it is open source. So you can build a private cloud freely for your organization.
 
 Feature Summary
 ===============
