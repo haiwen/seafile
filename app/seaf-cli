@@ -235,7 +235,7 @@ def seaf_start_ccnet(args):
     conf_dir = os.path.abspath(conf_dir)
 
     if not _config_valid(conf_dir):
-        print "Invalid Config directory"
+        print "Invalid config directory"
         sys.exit(1)
 
     print "starting ccnet daemon ..."
