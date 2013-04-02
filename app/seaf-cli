@@ -113,10 +113,10 @@ def _config_valid(conf):
     config_conf = conf + "/ccnet.conf"
     seafile_ini = conf + "/seafile.ini"
     if not os.path.exists(config_conf):
-        print "Can not load %s" % config_conf
+        print "Could not load %s" % config_conf
         return False
     if not os.path.exists(seafile_ini):
-        print "Can not load %s" % seafile_ini
+        print "Could not load %s" % seafile_ini
         return False
 
     with open(seafile_ini) as f:
@@ -128,7 +128,7 @@ def _config_valid(conf):
             break
 
     if not seafile_datadir or not seafile_worktree:
-        print "Can not load seafile_datadir and seafile_worktree"
+        print "Could not load seafile_datadir and seafile_worktree"
         return False
     return True
 
@@ -235,17 +235,17 @@ def seaf_start_ccnet(args):
     conf_dir = os.path.abspath(conf_dir)
 
     if not _config_valid(conf_dir):
-        print "Config directory invalid"
+        print "Invalid config directory"
         sys.exit(1)
 
     print "starting ccnet daemon ..."
 
     cmd = [ "ccnet", "--daemon", "-c", conf_dir ]
     if run_argv(cmd, env=get_env()) != 0:
-        print 'failed to start ccnet daemon'
+        print 'CCNet daemon failed to start.'
         sys.exit(1)
 
-    print "started ccnet daemon ..."
+    print "Started: ccnet daemon ..."
 
 def seaf_start_seafile(args):
     ''' start seafile daemon '''
@@ -256,7 +256,7 @@ def seaf_start_seafile(args):
     conf_dir = os.path.abspath(conf_dir)
 
     if not _config_valid(conf_dir):
-        print "config directory invalid"
+        print "Invalid config directory"
         sys.exit(1)
 
     print "starting seafile daemon ..."
@@ -264,10 +264,10 @@ def seaf_start_seafile(args):
     cmd = [ "seaf-daemon", "--daemon", "-c", conf_dir, "-d", seafile_datadir,
             "-w", seafile_worktree ]
     if run_argv(cmd, env=get_env()) != 0:
-        print 'failed to start seafile daemon'
+        print 'Failed to start seafile daemon'
         sys.exit(1)
 
-    print "started seafile daemon ..."
+    print "Started: seafile daemon ..."
 
 def seaf_stop(args):
     '''stop seafile daemon '''
@@ -278,7 +278,7 @@ def seaf_stop(args):
     conf_dir = os.path.abspath(conf_dir)
 
     if not _config_valid(conf_dir):
-        print "config directory invalid"
+        print "Invalid config directory"
         sys.exit(1)
 
     pool = ccnet.ClientPool(conf_dir)
@@ -299,7 +299,7 @@ def seaf_list(args):
     conf_dir = os.path.abspath(conf_dir)
 
     if not _config_valid(conf_dir):
-        print "Config directory invalid"
+        print "Invalid config directory"
         sys.exit(1)
 
     pool = ccnet.ClientPool(conf_dir)
@@ -320,7 +320,7 @@ def seaf_download(args):
     conf_dir = os.path.abspath(conf_dir)
 
     if not _config_valid(conf_dir):
-        print "config directory invalid"
+        print "Invalid config directory"
         sys.exit(1)
 
     repo = args.library
@@ -390,7 +390,7 @@ def seaf_sync(args):
     conf_dir = os.path.abspath(conf_dir)
 
     if not _config_valid(conf_dir):
-        print "Config directory invalid"
+        print "Invalid config directory"
         sys.exit(1)
 
     repo = args.library
@@ -434,7 +434,7 @@ def seaf_sync(args):
     email = tmp['email']
     repo_name = tmp['repo_name']
 
-    print "starting to download ..."
+    print "Starting to download ..."
     if encrypted == 1:
         repo_passwd = getpass.getpass("Enter password for the library: ")
     else:
@@ -460,7 +460,7 @@ def seaf_desync(args):
     conf_dir = os.path.abspath(conf_dir)
 
     if not _config_valid(conf_dir):
-        print "config directory invalid"
+        print "Invalid config directory"
         sys.exit(1)
 
     repo_path = args.folder
@@ -495,7 +495,7 @@ def seaf_status(args):
     conf_dir = os.path.abspath(conf_dir)
 
     if not _config_valid(conf_dir):
-        print "config directory invalid"
+        print "Invalid config directory"
         sys.exit(1)
 
     pool = ccnet.ClientPool(conf_dir)
