@@ -1,28 +1,20 @@
 Introduction
 ============
 
-Seafile enables you to build private cloud for file sharing and collaboration among team members in your company/organization. 
+Dropbox is good for file syncing and sharing, but is not an ideal place for collaboration. So we build Seafile, a better place for managing documents together. 
 
-First you create a file library in the web and upload files to
-it. Then you share it into a team or with another user.
-
-File libraries can also be synchronized among computers and mobile
-devices. You download a library to your PC. Whenever you add, delete
-or edit a file, the latest version be uploaded to the server
-automatically and then be synchronized to everyone's computer.
+In Seafile, you can easily create groups with file syncing, wiki, discussion and tasks. It enables you easily collaborate around documents within a team. In addition, it is open source. So you can build a private cloud freely for your organization.
 
 Feature Summary
 ===============
 
-Seafile can be used to build a full-fledged cloud storage platform. It
-has following features:
+Seafile is a full-fledged document collaboration platform. It has following features:
 
-1. Each library can be synced separately.
-2. Sync with existing folders.
-3. Groups, users can create and join groups. 
+1. Groups with file syncing, wiki, discussion and tasks.
+2. Managing files into libraries. Each library can be synced separately.
+3. Sync with existing folders.
 4. File revisions.
-5. File comments, event notifications, 
-6. Library encryption with a user chosen password.
+5. Library encryption with a user chosen password.
 
 Compared to other open-source Dropbox-like projects, such as
 <https://github.com/hbons/SparkleShare>, Seafile has several advantages:
@@ -68,6 +60,6 @@ Change Logs
 Contact
 =======
 
-Twitter: @seafile
+Twitter: @seafile <https://twitter.com/seafile>
 
 Google Group: <https://groups.google.com/forum/?fromgroups#!forum/seafile>
