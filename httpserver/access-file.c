@@ -94,7 +94,7 @@ static void
 free_senddir_data (SendDirData *data)
 {
     close (data->zipfd);
-    unlink (data->zipfile);
+    g_unlink (data->zipfile);
     
     g_free (data->zipfile);
     g_free (data);
@@ -471,7 +471,7 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
     char *filename_escaped = NULL;
     char cont_filename[SEAF_PATH_MAX];
     char file_size[255];
-    struct stat st;
+    SeafStat st;
     char *key_hex, *iv_hex;
     unsigned char enc_key[16], enc_iv[16];
     SeafileCrypt *crypt = NULL;
@@ -517,16 +517,12 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
     evhtp_headers_add_header(req->headers_out,
                 evhtp_header_new("Content-Type", "application/zip", 1, 1));
     
-    if (stat(zipfile, &st) < 0) {
+    if (seaf_stat(zipfile, &st) < 0) {
         ret = -1;
         goto out;
     }
 
-#ifndef WIN32
     snprintf (file_size, sizeof(file_size), "%"G_GUINT64_FORMAT"", st.st_size);
-#else
-    snprintf (file_size, sizeof(file_size), "%ld", st.st_size);
-#endif
     evhtp_headers_add_header (req->headers_out,
             evhtp_header_new("Content-Length", file_size, 1, 1));
 
@@ -541,7 +537,7 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
     evhtp_headers_add_header(req->headers_out,
             evhtp_header_new("Content-Disposition", cont_filename, 1, 1));
 
-    zipfd = open (zipfile, O_RDONLY);
+    zipfd = g_open (zipfile, O_RDONLY | O_BINARY, 0);
     if (zipfd < 0) {
         seaf_warning ("failed to open zipfile %s\n", zipfile);
         ret = -1;
@@ -584,7 +580,7 @@ out:
     g_free (filename_escaped);
     if (ret < 0) {
         if (zipfile != NULL) {
-            unlink (zipfile);
+            g_unlink (zipfile);
             g_free (zipfile);
         }
 

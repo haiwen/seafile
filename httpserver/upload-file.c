@@ -82,28 +82,6 @@ typedef struct RecvFSM {
 static GHashTable *upload_progress;
 static pthread_mutex_t pg_lock;
 
-#ifdef WIN32
-int mkstemp(char *template)
-{
-    DWORD pathSize;
-    char pathBuffer[1000];
-    char tempFilename[MAX_PATH];
-    UINT uniqueNum;
-
-    pathSize = GetTempPath( 1000, pathBuffer);
-
-    if (pathSize < 1000)
-
-        pathBuffer[pathSize] = 0;
-    else
-        pathBuffer[0] = 0;
-    uniqueNum = GetTempFileName(pathBuffer, "tmp", FILE_FLAG_DELETE_ON_CLOSE , tempFilename);
-
-    strcpy(template, tempFilename);
-    return open(tempFilename, O_RDWR|O_BINARY);
-}
-#endif
-
 /* IE8 will set filename to the full path of the uploaded file.
  * So we need to strip out the basename from it.
  */
@@ -208,13 +186,13 @@ check_tmp_file_list (GList *tmp_files, int *error_code)
 {
     GList *ptr;
     char *tmp_file;
-    struct stat st;
+    SeafStat st;
     gint64 total_size = 0;
 
     for (ptr = tmp_files; ptr; ptr = ptr->next) {
         tmp_file = ptr->data;
 
-        if (stat (tmp_file, &st) < 0) {
+        if (seaf_stat (tmp_file, &st) < 0) {
             seaf_warning ("[upload] Failed to stat temp file %s.\n", tmp_file);
             *error_code = ERROR_RECV;
             return FALSE;
@@ -759,7 +737,7 @@ open_temp_file (RecvFSM *fsm)
     g_string_printf (temp_file, "%s/%sXXXXXX",
                      seaf->http_temp_dir, get_basename(fsm->file_name));
 
-    fsm->fd = mkstemp (temp_file->str);
+    fsm->fd = g_mkstemp (temp_file->str);
     if (fsm->fd < 0) {
         g_string_free (temp_file, TRUE);
         return -1;

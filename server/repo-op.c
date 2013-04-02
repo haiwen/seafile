@@ -499,7 +499,7 @@ seaf_repo_manager_post_file (SeafRepoManager *mgr,
     char hex[41];
     int ret = 0;
 
-    if (access (temp_file_path, R_OK) != 0) {
+    if (g_access (temp_file_path, R_OK) != 0) {
         seaf_warning ("[post file] File %s doesn't exist or not readable.\n",
                       temp_file_path);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
@@ -1851,7 +1851,7 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
     char *old_file_id = NULL, *fullpath = NULL;
     int ret = 0;
 
-    if (access (temp_file_path, R_OK) != 0) {
+    if (g_access (temp_file_path, R_OK) != 0) {
         seaf_warning ("[put file] File %s doesn't exist or not readable.\n",
                       temp_file_path);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,

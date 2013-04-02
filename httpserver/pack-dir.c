@@ -353,7 +353,7 @@ out:
     
     if (!ret && tmpfile_name) {
         /* zip failed: remove tmp file */
-        unlink (tmpfile_name);
+        g_unlink (tmpfile_name);
     }
     g_free (tmpfile_name);
 
