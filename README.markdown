@@ -56,6 +56,10 @@ Change Logs
 * Server <http://cloud.seafile.com/f/9629806bbe/>
 * Desktop Client <http://cloud.seafile.com/f/6d54523324/>
 
+Why Open Source
+===============
+
+Our primary goal is to build a first-class level production. Since we are only a small team, we think the goal can only be achieved by collaborating with the whole world.
 
 Contact
 =======
