@@ -91,7 +91,7 @@ seafile_get_decrypt_key (SearpcClient *client,
                          const char *user,
                          GError **error);
 
-int
+char *
 seafile_put_file (SearpcClient *client,
                   const char *repo_id,
                   const char *file_path,

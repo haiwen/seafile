@@ -1820,7 +1820,7 @@ do_put_file (const char *root_id,
     return put_file_recursive(root_id, parent_dir, dent);
 }
 
-int
+char *
 seaf_repo_manager_put_file (SeafRepoManager *mgr,
                             const char *repo_id,
                             const char *temp_file_path,
@@ -1840,7 +1840,7 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
     SeafDirent *new_dent = NULL;
     char hex[41];
     char *old_file_id = NULL, *fullpath = NULL;
-    int ret = 0;
+    char *ret = NULL;
 
     if (access (temp_file_path, R_OK) != 0) {
         seaf_warning ("[put file] File %s doesn't exist or not readable.\n",
@@ -1861,7 +1861,6 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
         seaf_warning ("[put file] Invalid filename %s.\n", file_name);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Invalid filename");
-        ret = -1;
         goto out;
     }
 
@@ -1869,7 +1868,6 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
         seaf_warning ("[put file] parent_dir cantains // sequence.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Invalid parent dir");
-        ret = -1;
         goto out;
     }
     
@@ -1884,7 +1882,6 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
             seaf_warning ("Passwd for repo %s is not set.\n", repo_id);
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                          "Passwd is not set");
-            ret = -1;
             goto out;
         }
         crypt = seafile_crypt_new (repo->enc_version, key, iv);
@@ -1895,7 +1892,6 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
         seaf_warning ("failed to index blocks");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to index blocks");
-        ret = -1;
         goto out;
     }
         
@@ -1910,7 +1906,7 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
                                                    fullpath, NULL, NULL);
 
     if (g_strcmp0(old_file_id, new_dent->id) == 0) {
-        ret = 0;
+        ret = g_strdup(new_dent->id);
         goto out;
     }
 
@@ -1919,7 +1915,6 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
         seaf_warning ("[put file] Failed to put file.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to put file");
-        ret = -1;
         goto out;
     }
 
@@ -1927,7 +1922,9 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
     snprintf(buf, SEAF_PATH_MAX, "Modified \"%s\"", file_name);
     if (gen_new_commit (repo_id, head_commit, root_id,
                         user, buf, error) < 0)
-        ret = -1;
+        goto out;
+
+    ret = g_strdup(new_dent->id);
 
 out:
     if (repo)
@@ -1942,7 +1939,7 @@ out:
     g_free (old_file_id);
     g_free (fullpath);
 
-    if (ret == 0) {
+    if (ret != NULL) {
         update_repo_size (repo_id);
     }
 

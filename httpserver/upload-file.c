@@ -505,6 +505,7 @@ update_api_cb(evhtp_request_t *req, void *arg)
     const char *head_id = NULL;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
+    char *new_file_id = NULL;
 
     if (!fsm || fsm->state == RECV_ERROR)
         return;
@@ -541,14 +542,14 @@ update_api_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    seafile_put_file (rpc_client,
-                      fsm->repo_id,
-                      (char *)(fsm->files->data),
-                      parent_dir,
-                      filename,
-                      fsm->user,
-                      head_id,
-                      &error);
+    new_file_id = seafile_put_file (rpc_client,
+                                    fsm->repo_id,
+                                    (char *)(fsm->files->data),
+                                    parent_dir,
+                                    filename,
+                                    fsm->user,
+                                    head_id,
+                                    &error);
     g_free (parent_dir);
     g_free (filename);
     
@@ -563,7 +564,11 @@ update_api_cb(evhtp_request_t *req, void *arg)
     }
 
     ccnet_rpc_client_free (rpc_client);
+    /* Send back the new file id, so that the mobile client can update local cache */
+    evbuffer_add(req->buffer_out, new_file_id, strlen(new_file_id));
     evhtp_send_reply (req, EVHTP_RES_OK);
+
+    g_free (new_file_id);
     return;
 
 error:

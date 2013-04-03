@@ -275,7 +275,7 @@ seafile_get_decrypt_key (SearpcClient *client,
         2, "string", repo_id, "string", user);
 }
 
-int
+char *
 seafile_put_file (SearpcClient *client,
                   const char *repo_id,
                   const char *file_path,
@@ -285,7 +285,7 @@ seafile_put_file (SearpcClient *client,
                   const char *head_id,
                   GError **error)
 {
-    return searpc_client_call__int (client, "seafile_put_file", error,
+    return searpc_client_call__string (client, "seafile_put_file", error,
                                     6, "string", repo_id,
                                     "string", file_path,
                                     "string", parent_dir,

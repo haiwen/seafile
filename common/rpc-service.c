@@ -2378,7 +2378,7 @@ seafile_post_multi_files (const char *repo_id,
     return 0;
 }
 
-int
+char *
 seafile_put_file (const char *repo_id, const char *temp_file_path,
                   const char *parent_dir, const char *file_name,
                   const char *user, const char *head_id,
@@ -2387,17 +2387,13 @@ seafile_put_file (const char *repo_id, const char *temp_file_path,
     if (!repo_id || !temp_file_path || !parent_dir || !file_name || !user) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Argument should not be null");
-        return -1;
+        return NULL;
     }
 
-    if (seaf_repo_manager_put_file (seaf->repo_mgr, repo_id,
-                                    temp_file_path, parent_dir,
-                                    file_name, user, head_id,
-                                    error) < 0) {
-        return -1;
-    }
-
-    return 0;
+    return seaf_repo_manager_put_file (seaf->repo_mgr, repo_id,
+                                       temp_file_path, parent_dir,
+                                       file_name, user, head_id,
+                                       error);
 }
 
 int
