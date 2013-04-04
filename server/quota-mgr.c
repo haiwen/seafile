@@ -348,8 +348,8 @@ repo_share_usage (const char *user, const char *repo_id)
         goto out;
     }
 
-    /* share_usage = repo_size * n_shared_to / 2 */
-    usage = size * n_shared_to / 2;
+    /* share_usage = repo_size * n_shared_to */
+    usage = size * n_shared_to;
 
 out:
     g_hash_table_destroy (user_hash);
