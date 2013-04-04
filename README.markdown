@@ -53,8 +53,8 @@ See <https://github.com/haiwen/seafile/wiki>
 Change Logs
 ===========
 
-* Server <http://cloud.seafile.com/f/9629806bbe/>
-* Desktop Client <http://cloud.seafile.com/f/6d54523324/>
+See <https://seacloud.cc/group/3/wiki/home/>
+
 
 Why Open Source
 ===============
