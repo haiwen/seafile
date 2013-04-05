@@ -1210,7 +1210,7 @@ add_auto_sync_tasks (SeafSyncManager *manager)
             continue;
 
         /* Don't sync if worktree doesn't exist. */
-        if (seaf_repo_check_worktree (repo) < 0)
+        if (!repo->head || seaf_repo_check_worktree (repo) < 0)
             continue;
 
         /* Don't sync repos without a relay-id */
