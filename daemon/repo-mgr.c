@@ -495,7 +495,12 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
             if (ret < 0 || !S_ISDIR (st.st_mode) || !is_empty_dir (path))
                 ce->ce_flags |= CE_REMOVE;
         } else {
-            if (ret < 0 || !S_ISREG (st.st_mode))
+            /* If ce->mtime is 0, it was not successfully checked out.
+             * In this case we don't want to mistakenly remove the file
+             * from the repo.
+             */
+            if ((ret < 0 || !S_ISREG (st.st_mode)) &&
+                ce_array[i]->ce_mtime.sec != 0)
                 ce_array[i]->ce_flags |= CE_REMOVE;
         }
     }

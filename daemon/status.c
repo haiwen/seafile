@@ -279,6 +279,11 @@ void wt_status_collect_changes_worktree(struct index_state *index,
                 continue;
             }
 
+            if (ce->ce_mtime.sec == 0) {
+                g_free (realpath);
+                continue;
+            }
+
             de = diff_entry_new (DIFF_TYPE_WORKTREE, DIFF_STATUS_DELETED,
                                  ce->sha1, ce->name);
             *results = g_list_prepend (*results, de);

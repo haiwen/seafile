@@ -141,7 +141,8 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
                                const char *file_path,
                                guint32 mode,
                                struct SeafileCrypt *crypt,
-                               const char *conflict_suffix);
+                               const char *conflict_suffix,
+                               gboolean *conflicted);
 
 #endif  /* not SEAFILE_SERVER */
 

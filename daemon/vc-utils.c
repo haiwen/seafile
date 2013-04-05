@@ -297,28 +297,37 @@ checkout_entry (struct cache_entry *ce,
          */
         if (!recover_merge || 
             compare_file_content (path, &st, ce->sha1, o->crypt) != 0) {
-            g_warning ("File %s is changed. Skip checking out.\n", path);
-            return -1;
+            g_warning ("File %s is changed. Checkout to conflict file.\n", path);
+        } else {
+            /* Recover merge and file content matches index entry.
+             * We were interrupted before updating the index, update index
+             * entry timestamp now.
+             */
+            goto update_cache;
         }
-
-        /* Recover merge and file content matches index entry.
-         * We were interrupted before updating the index, update index
-         * entry timestamp now.
-         */
-        goto update_cache;
     }
 
     /* then checkout the file. */
+    gboolean conflicted = FALSE;
     rawdata_to_hex (ce->sha1, file_id, 20);
     if (seaf_fs_manager_checkout_file (seaf->fs_mgr, file_id,
                                        path, ce->ce_mode,
-                                       o->crypt, conflict_suffix) < 0) {
+                                       o->crypt,
+                                       conflict_suffix,
+                                       &conflicted) < 0) {
         g_warning ("Failed to checkout file %s.\n", path);
         return -1;
     }
 
+    if (conflicted)
+        return 0;
+
 update_cache:
     /* finally fill cache_entry info */
+    /* Only update index if we checked out the file without any error
+     * or conflicts. The timestamp of the entry will remain 0 if error
+     * or conflicted.
+     */
     seaf_stat (path, &st);
     fill_stat_cache_info (ce, &st);
 

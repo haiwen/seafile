@@ -561,13 +561,15 @@ static int update_file_flags(struct merge_options *o,
         if (!conflict_suffix)
             conflict_suffix = g_strdup(o->branch2);
 
+        gboolean conflicted;
         rawdata_to_hex(sha, file_id, 20);
         if (seaf_fs_manager_checkout_file(seaf->fs_mgr, 
                                           file_id,
                                           new_path,
                                           mode,
                                           o->crypt,
-                                          conflict_suffix) < 0) {
+                                          conflict_suffix,
+                                          &conflicted) < 0) {
             g_warning("Failed to checkout file %s.\n", file_id);
             g_free(new_path);
             g_free (conflict_suffix);
