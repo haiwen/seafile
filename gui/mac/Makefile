@@ -29,3 +29,4 @@ install:
 clean:
 distclean:
 distdir:
+dist:
