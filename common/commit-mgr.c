@@ -674,6 +674,10 @@ commit_from_json_node (const char *commit_id, JsonNode *node)
     int no_local_history = 0;
 
     object = json_node_get_object (node);
+    if (!object) {
+        g_warning ("Commit %.10s corrupted.\n", commit_id);
+        return NULL;
+    }
 
     root_id = json_object_get_string_member (object, "root_id");
     repo_id = json_object_get_string_member (object, "repo_id");
@@ -700,9 +704,9 @@ commit_from_json_node (const char *commit_id, JsonNode *node)
         no_local_history = json_object_get_int_member (object, "no_local_history");
 
     /* sanity check for incoming values. */
-    if (strlen(repo_id) != 36 ||
-        strlen(root_id) != 40 ||
-        strlen(creator) != 40 ||
+    if (!repo_id || strlen(repo_id) != 36 ||
+        !root_id || strlen(root_id) != 40 ||
+        !creator || strlen(creator) != 40 ||
         (parent_id && strlen(parent_id) != 40) ||
         (second_parent_id && strlen(second_parent_id) != 40) ||
         (enc_version >= 1 && magic == NULL) ||
@@ -762,6 +766,10 @@ load_commit (SeafCommitManager *mgr, const char *commit_id)
     JsonNode *root;
 
     root = json_parser_get_root (parser);
+    if (!root) {
+        g_warning ("Commit %.10s corrupted.\n", commit_id);
+        goto out;
+    }
 
     commit = commit_from_json_node (commit_id, root);
     if (commit)
