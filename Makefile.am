@@ -22,8 +22,12 @@ if WIN32
   MAKE_data =
 endif
 
-SUBDIRS = include lib common app python tests doc \
+SUBDIRS = include lib common app tests doc \
 	$(MAKE_CLIENT) $(MAKE_SERVER) $(MAKE_PO) $(MAKE_data)
+
+if COMPILE_PYTHON
+  SUBDIRS += python
+endif
 
 DIST_SUBDIRS = include lib common app python tests \
 	daemon gui server tools monitor httpserver controller \
