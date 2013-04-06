@@ -19,7 +19,7 @@
 
 #include "trayicon.h"
 #include <commdlg.h>
-#include <ShlObj.h>
+#include <shlobj.h>
 #include <shlwapi.h>
 
 #include "utils.h"

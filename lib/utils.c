@@ -8,7 +8,7 @@
 #ifdef WIN32
     #include <winsock2.h>
     #include <ws2tcpip.h>
-    #include <Rpc.h>
+    #include <rpc.h>
     #include <shlobj.h>
     #include <psapi.h>
 #else

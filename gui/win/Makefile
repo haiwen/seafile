@@ -19,7 +19,7 @@ CFLAGS += -I$(top_srcdir) \
 LDFLAGS += -L${top_srcdir}/lib/.libs/   \
 	-lseafile -lseafile_common -lccnet\
 	-lcrypto -lgdi32 -levent  \
-	-lRpcrt4 -lpthread -lws2_32 -lpsapi -lshlwapi \
+	-lrpcrt4 -lpthread -lws2_32 -lpsapi -lshlwapi \
 	$(GLIB_LDFLAGS)
 
 CC = gcc
