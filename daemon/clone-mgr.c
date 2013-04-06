@@ -210,13 +210,6 @@ seaf_clone_manager_init (SeafCloneManager *mgr)
     if (sqlite_query_exec (mgr->db, sql) < 0)
         return -1;
 
-    sql = "SELECT * FROM CloneTasks";
-    if (sqlite_foreach_selected_row (mgr->db, sql, restart_task, mgr) < 0)
-        return -1;
-
-    g_signal_connect (seaf, "repo-fetched",
-                      (GCallback)on_repo_fetched, mgr);
-
     return 0;
 }
 
@@ -251,6 +244,14 @@ seaf_clone_manager_start (SeafCloneManager *mgr)
 {
     mgr->check_timer = ccnet_timer_new (check_connect_pulse, mgr,
                                         CHECK_CONNECT_INTERVAL * 1000);
+
+    char *sql = "SELECT * FROM CloneTasks";
+    if (sqlite_foreach_selected_row (mgr->db, sql, restart_task, mgr) < 0)
+        return -1;
+
+    g_signal_connect (seaf, "repo-fetched",
+                      (GCallback)on_repo_fetched, mgr);
+
     return 0;
 }
 

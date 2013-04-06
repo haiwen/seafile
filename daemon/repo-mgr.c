@@ -519,7 +519,7 @@ index_add (SeafRepo *repo, struct index_state *istate, const char *path)
      * user experience.
      */
     while (gc_is_started ()) {
-        /* g_debug ("GC is running, hold up index_add.\n"); */
+        g_message ("GC is running, hold up index_add.\n");
 #ifdef WIN32
         /* TODO: #define sleep(x)  Sleep((x)*1000) in windows */
         Sleep (1000);
@@ -564,6 +564,16 @@ seaf_repo_index_worktree_files (const char *repo_id,
     unsigned char key[16], iv[16];
     SeafileCrypt *crypt = NULL;
     struct cache_tree *it = NULL;
+
+    while (gc_is_started ()) {
+        g_message ("GC is running, hold up index_worktree_files.\n");
+#ifdef WIN32
+        /* TODO: #define sleep(x)  Sleep((x)*1000) in windows */
+        Sleep (1000);
+#else
+        sleep (1);
+#endif
+    }
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", seaf->repo_mgr->index_dir, repo_id);

@@ -381,12 +381,10 @@ static int remove_task_state (TransferTask *task)
 {
     char sql[256];
 
-    if (task->is_clone) {
-        snprintf (sql, 256, "DELETE FROM CloneHeads WHERE repo_id = '%s';",
-                  task->repo_id);
-        if (sqlite_query_exec (task->manager->db, sql) < 0)
-            return -1;
-    }
+    snprintf (sql, 256, "DELETE FROM CloneHeads WHERE repo_id = '%s';",
+              task->repo_id);
+    if (sqlite_query_exec (task->manager->db, sql) < 0)
+        return -1;
 
     return 0;
 }
@@ -1284,8 +1282,7 @@ check_download_cb (CcnetProcessor *processor, gboolean success, void *data)
         /* Save remote head id for use in GC.
          * GC can then mark the blocks refered by these head ids as alive.
          */
-        if (task->is_clone)
-            save_clone_head (task, task->head);
+        save_clone_head (task, task->head);
 
         start_commit_download (task);
     } else if (processor->failure == PROC_NO_SERVICE) {
@@ -1428,7 +1425,7 @@ schedule_download_task (TransferTask *task)
      * after restart.
      */
     if (gc_is_started ()) {
-        seaf_debug ("[tr mgr] GC is running, hold up download.\n");
+        seaf_message ("[tr mgr] GC is running, hold up download.\n");
         return;
     }
 

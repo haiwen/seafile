@@ -7,7 +7,7 @@
 #include "gc.h"
 #include "gc-core.h"
 
-static gboolean gc_started = FALSE;
+static int gc_started = 0;
 
 static void *gc_thread_func (void *data);
 static void gc_thread_done (void *data);
@@ -17,7 +17,7 @@ gc_start ()
 {
     int ret;
 
-    gc_started = TRUE;
+    g_atomic_int_set (&gc_started, 1);
 
     ret = ccnet_job_manager_schedule_job (seaf->job_mgr,
                                           gc_thread_func,
@@ -29,10 +29,10 @@ gc_start ()
     return 0;
 }
 
-gboolean
+int
 gc_is_started ()
 {
-    return gc_started;
+    return g_atomic_int_get (&gc_started);
 }
 
 static void *
@@ -45,5 +45,5 @@ gc_thread_func (void *data)
 static void
 gc_thread_done (void *data)
 {
-    gc_started = FALSE;
+    g_atomic_int_set (&gc_started, 0);
 }

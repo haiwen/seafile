@@ -7,7 +7,7 @@
 int
 gc_start ();
 
-gboolean
+int
 gc_is_started ();
 
 #endif
