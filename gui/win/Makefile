@@ -22,8 +22,8 @@ LDFLAGS += -L${top_srcdir}/lib/.libs/   \
 	-lrpcrt4 -lpthread -lws2_32 -lpsapi -lshlwapi \
 	$(GLIB_LDFLAGS)
 
-CC = gcc
-RC = windres
+CC ?= gcc
+RC ?= windres
 ICONS = seafile.ico ccnet_daemon_up.ico ccnet_daemon_down.ico \
 	seafile_transfer_1.ico seafile_transfer_2.ico \
 	seafile_transfer_3.ico seafile_transfer_4.ico \
