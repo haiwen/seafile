@@ -303,7 +303,7 @@ def seaf_list(args):
         sys.exit(1)
 
     pool = ccnet.ClientPool(conf_dir)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=True)
+    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
 
     repos = seafile_rpc.get_repo_list(-1, -1)
     print "Name\tID\tPath"
@@ -339,7 +339,7 @@ def seaf_download(args):
 
 
     pool = ccnet.ClientPool(conf_dir)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=True)
+    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
 
     username = args.username
     if not username:
@@ -411,7 +411,7 @@ def seaf_sync(args):
         print "The local directory does not exists"
 
     pool = ccnet.ClientPool(conf_dir)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=True)
+    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
 
     username = args.username
     if not username:
@@ -470,7 +470,7 @@ def seaf_desync(args):
     repo_path = os.path.abspath(repo_path)
 
     pool = ccnet.ClientPool(conf_dir)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=True)
+    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
 
     repos = seafile_rpc.get_repo_list(-1, -1)
     repo = None
@@ -499,8 +499,8 @@ def seaf_status(args):
         sys.exit(1)
 
     pool = ccnet.ClientPool(conf_dir)
-    ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=True)
+    ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=False)
+    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
 
     tasks = seafile_rpc.get_clone_tasks()
     print "# Name\tStatus\tProgress"
