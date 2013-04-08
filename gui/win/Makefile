@@ -19,11 +19,11 @@ CFLAGS += -I$(top_srcdir) \
 LDFLAGS += -L${top_srcdir}/lib/.libs/   \
 	-lseafile -lseafile_common -lccnet\
 	-lcrypto -lgdi32 -levent  \
-	-lRpcrt4 -lpthread -lws2_32 -lpsapi -lshlwapi \
+	-lrpcrt4 -lpthread -lws2_32 -lpsapi -lshlwapi \
 	$(GLIB_LDFLAGS)
 
-CC = gcc
-RC = windres
+CC ?= gcc
+RC ?= windres
 ICONS = seafile.ico ccnet_daemon_up.ico ccnet_daemon_down.ico \
 	seafile_transfer_1.ico seafile_transfer_2.ico \
 	seafile_transfer_3.ico seafile_transfer_4.ico \
