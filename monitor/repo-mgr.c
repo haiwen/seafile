@@ -84,7 +84,7 @@ seaf_repo_unref (SeafRepo *repo)
 }
 
 static void
-set_head_common (SeafRepo *repo, SeafBranch *branch, SeafCommit *commit)
+set_head_common (SeafRepo *repo, SeafBranch *branch)
 {
     if (repo->head)
         seaf_branch_unref (repo->head);
@@ -324,7 +324,7 @@ load_repo_commit (SeafRepoManager *manager,
         return;
     }
 
-    set_head_common (repo, branch, commit);
+    set_head_common (repo, branch);
     seaf_repo_from_commit (repo, commit);
 
     seaf_commit_unref (commit);

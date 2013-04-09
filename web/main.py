@@ -401,18 +401,27 @@ class repo_operation:
                                    **default_options)
 
         elif op == 'remove':
-            seafile_rpc.remove_repo(repo_id)
+            try:
+                seafile_rpc.remove_repo(repo_id)
+            except:
+                pass
             raise web.seeother('/repos/')
 
         elif op == 'set-auto-sync':
-            seafile_rpc.set_repo_property(repo_id, "auto-sync", "true")
             auto_sync = {}
+            try:
+                seafile_rpc.set_repo_property(repo_id, "auto-sync", "true")
+            except:
+                pass
             auto_sync['start'] = True
             return json.dumps(auto_sync)
 
         elif op == 'set-manual-sync':
-            seafile_rpc.set_repo_property(repo_id, "auto-sync", "false")
             auto_sync = {}
+            try:
+                seafile_rpc.set_repo_property(repo_id, "auto-sync", "false")
+            except:
+                pass
             auto_sync['start'] = False
             return json.dumps(auto_sync)
 

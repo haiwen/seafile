@@ -784,6 +784,11 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     char *worktree;
     char *ret;
 
+    if (!seaf->started) {
+        seaf_message ("System not started, skip adding clone task.\n");
+        return NULL;
+    }
+
     g_assert (strlen(repo_id) == 36);
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
@@ -864,6 +869,11 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
     char *wt_tmp, *worktree;
     char *ret;
 
+    if (!seaf->started) {
+        seaf_message ("System not started, skip adding clone task.\n");
+        return NULL;
+    }
+
     g_assert (strlen(repo_id) == 36);
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
@@ -909,6 +919,11 @@ seaf_clone_manager_cancel_task (SeafCloneManager *mgr,
 {
     CloneTask *task;
 
+    if (!seaf->started) {
+        seaf_message ("System not started, skip canceling clone task.\n");
+        return -1;
+    }
+
     task = g_hash_table_lookup (mgr->tasks, repo_id);
     if (!task)
         return -1;
@@ -947,6 +962,11 @@ seaf_clone_manager_remove_task (SeafCloneManager *mgr,
                                 const char *repo_id)
 {
     CloneTask *task;
+
+    if (!seaf->started) {
+        seaf_message ("System not started, skip removing clone task.\n");
+        return -1;
+    }
 
     task = g_hash_table_lookup (mgr->tasks, repo_id);
     if (!task)
@@ -1078,10 +1098,6 @@ real_merge (SeafRepo *repo, SeafCommit *head, CloneTask *task)
         return -1;
     }
 
-    /* We only update the worktree and index, but don't commit.
-     * The next auto-commit cycle will check and do that for us.
-     */
-
     discard_index (&istate);
     g_free (opts.crypt);
     clear_merge_options (&opts);
@@ -1196,10 +1212,21 @@ merge_job (void *data)
     } else {
         if (real_merge (repo, head, task) < 0)
             goto out;
+
+        /* Commit the result of merge. */
+        GError *error = NULL;
+        /* XXX: the commit code assumes repo->head is set. */
+        repo->head = local;
+        seaf_repo_index_commit (repo, "", &error);
+        if (error) {
+            seaf_warning ("Failed to commit after merge.\n");
+            goto out;
+        }
+        repo->head = NULL;
     }
 
     /* Set repo head to mark checkout done. */
-    seaf_repo_set_head (repo, local, head);
+    seaf_repo_set_head (repo, local);
 
     aux->success = TRUE;
 

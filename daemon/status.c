@@ -196,6 +196,7 @@ void wt_status_collect_untracked(struct index_state *index,
     free(dir.entries);
 }
 
+#if 0
 static gboolean
 is_empty_dir (const char *path, IgnoreFunc should_ignore)
 {
@@ -218,6 +219,7 @@ is_empty_dir (const char *path, IgnoreFunc should_ignore)
 
     return (n == 0);
 }
+#endif
 
 void wt_status_collect_changes_worktree(struct index_state *index,
                                         GList **results,

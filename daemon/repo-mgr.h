@@ -80,7 +80,7 @@ void
 seaf_repo_free (SeafRepo *repo);
 
 int
-seaf_repo_set_head (SeafRepo *repo, SeafBranch *branch, SeafCommit *commit);
+seaf_repo_set_head (SeafRepo *repo, SeafBranch *branch);
 
 int
 seaf_repo_checkdir (SeafRepo *repo);

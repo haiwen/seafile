@@ -55,7 +55,7 @@ void
 seaf_repo_unref (SeafRepo *repo);
 
 int
-seaf_repo_set_head (SeafRepo *repo, SeafBranch *branch, SeafCommit *commit);
+seaf_repo_set_head (SeafRepo *repo, SeafBranch *branch);
 
 /* Update repo name, desc, magic etc from commit.
  */

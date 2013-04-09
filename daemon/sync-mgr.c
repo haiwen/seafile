@@ -210,6 +210,11 @@ seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
                                  gboolean is_sync_lan,
                                  GError **error)
 {
+    if (!seaf->started) {
+        seaf_message ("sync manager is not started, skip sync request.\n");
+        return -1;
+    }
+
     SyncInfo *info = get_sync_info (mgr, repo_id);
     SeafRepo *repo;
 
@@ -289,6 +294,11 @@ seaf_sync_manager_cancel_sync_task (SeafSyncManager *mgr,
     SyncInfo *info;
     SyncTask *task;
     GList *link;
+
+    if (!seaf->started) {
+        seaf_message ("sync manager is not started, skip cancel request.\n");
+        return;
+    }
 
     /* Cancel any pending tasks for this repo on the queue. */
     link = g_queue_find_custom (mgr->sync_tasks,
@@ -1520,6 +1530,11 @@ cancel_all_sync_tasks (SeafSyncManager *mgr)
 int
 seaf_sync_manager_disable_auto_sync (SeafSyncManager *mgr)
 {
+    if (!seaf->started) {
+        seaf_message ("sync manager is not started, skip disable auto sync.\n");
+        return -1;
+    }
+
     cancel_all_sync_tasks (mgr);
     mgr->priv->auto_sync_enabled = FALSE;
     g_debug ("[sync mgr] auto sync is disabled\n");
@@ -1550,6 +1565,11 @@ add_sync_tasks_for_all (SeafSyncManager *mgr)
 int
 seaf_sync_manager_enable_auto_sync (SeafSyncManager *mgr)
 {
+    if (!seaf->started) {
+        seaf_message ("sync manager is not started, skip enable auto sync.\n");
+        return -1;
+    }
+
     add_sync_tasks_for_all (mgr);
     mgr->priv->auto_sync_enabled = TRUE;
     g_debug ("[sync mgr] auto sync is enabled\n");

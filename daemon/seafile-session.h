@@ -65,6 +65,9 @@ struct _SeafileSession {
 
     CEventManager       *ev_mgr;
     CcnetJobManager     *job_mgr;
+
+    /* Set after all components are up and running. */
+    gboolean             started;
 };
 
 struct _SeafileSessionClass

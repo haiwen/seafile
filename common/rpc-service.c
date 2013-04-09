@@ -1085,6 +1085,11 @@ seafile_destroy_repo (const char *repo_id, GError **error)
     }
 
 #ifndef SEAFILE_SERVER
+    if (!seaf->started) {
+        seaf_message ("System not started, skip removing repo.\n");
+        return -1;
+    }
+
     if (repo->auto_sync)
         seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo_id);
 

@@ -1420,15 +1420,6 @@ update_local_repo (TransferTask *task)
 static void
 schedule_download_task (TransferTask *task)
 {
-    /* We cannot write any new block when GC is running.
-     * This should only be effective for a short period
-     * after restart.
-     */
-    if (gc_is_started ()) {
-        seaf_message ("[tr mgr] GC is running, hold up download.\n");
-        return;
-    }
-
     /* This can happen when:
      * 1. A repo was deleted, but we're also syncing that repo;
      * 2. So we just mark the repo as deleted.

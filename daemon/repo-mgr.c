@@ -178,7 +178,7 @@ seaf_repo_free (SeafRepo *repo)
 }
 
 static void
-set_head_common (SeafRepo *repo, SeafBranch *branch, SeafCommit *commit)
+set_head_common (SeafRepo *repo, SeafBranch *branch)
 {
     if (repo->head)
         seaf_branch_unref (repo->head);
@@ -187,11 +187,11 @@ set_head_common (SeafRepo *repo, SeafBranch *branch, SeafCommit *commit)
 }
 
 int
-seaf_repo_set_head (SeafRepo *repo, SeafBranch *branch, SeafCommit *commit)
+seaf_repo_set_head (SeafRepo *repo, SeafBranch *branch)
 {
     if (save_branch_repo_map (repo->manager, branch) < 0)
         return -1;
-    set_head_common (repo, branch, commit);
+    set_head_common (repo, branch);
     return 0;
 }
 
@@ -513,21 +513,6 @@ index_add (SeafRepo *repo, struct index_state *istate, const char *path)
 {
     SeafileCrypt *crypt = NULL;
 
-    /* We cannot write any new block when GC is running.
-     * Poll for GC to finish. This can only happen in a short
-     * period after restart, so it should do no harm to general
-     * user experience.
-     */
-    while (gc_is_started ()) {
-        g_message ("GC is running, hold up index_add.\n");
-#ifdef WIN32
-        /* TODO: #define sleep(x)  Sleep((x)*1000) in windows */
-        Sleep (1000);
-#else
-        sleep (1);
-#endif
-    }
-
     /* Skip any leading '/'. */
     while (path[0] == '/')
         path = &path[1];
@@ -565,25 +550,14 @@ seaf_repo_index_worktree_files (const char *repo_id,
     SeafileCrypt *crypt = NULL;
     struct cache_tree *it = NULL;
 
-    while (gc_is_started ()) {
-        g_message ("GC is running, hold up index_worktree_files.\n");
-#ifdef WIN32
-        /* TODO: #define sleep(x)  Sleep((x)*1000) in windows */
-        Sleep (1000);
-#else
-        sleep (1);
-#endif
-    }
-
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", seaf->repo_mgr->index_dir, repo_id);
 
-    /* If the repo is encrypted and old index file exists, delete it.
-     * This is because the user may enter a wrong password at first then
-     * clone the repo again.
+    /* Remove existing index. An existing index signifies an interrupted
+     * clone-merge. Removing it assures that new blocks from the worktree
+     * get added into the repo again (they're deleted by GC).
      */
-    if (passwd != NULL)
-        g_unlink (index_path);
+    g_unlink (index_path);
 
     if (read_index_from (&istate, index_path) < 0) {
         g_warning ("Failed to load index.\n");
@@ -1231,7 +1205,7 @@ seaf_repo_checkout (SeafRepo *repo, const char *worktree, char **error)
         goto error;
     }
 
-    seaf_repo_set_head (repo, branch, commit);
+    seaf_repo_set_head (repo, branch);
 
     seaf_branch_unref (branch);
     seaf_commit_unref (commit);
@@ -1428,56 +1402,9 @@ watch_repos (SeafRepoManager *mgr)
     }
 }
 
-static void *
-recover_merge_job (void *vrepo)
-{
-    SeafRepo *repo = vrepo;
-    char *err_msg = NULL;
-    gboolean unused;
-
-    /* No one else is holding the lock. */
-    pthread_mutex_lock (&repo->lock);
-    if (seaf_repo_merge (repo, "master", &err_msg, &unused) < 0) {
-        g_free (err_msg);
-    }
-    pthread_mutex_unlock (&repo->lock);
-
-    return NULL;
-}
-
-static void
-merge_job_done (void *vresult)
-{
-}
-
-static void
-recover_interrupted_merges (SeafRepoManager *mgr)
-{
-    avl_node_t *node;
-    SeafRepo *repo;
-    SeafRepoMergeInfo info;
-
-    for (node = mgr->priv->repo_tree->head; node; node = node->next) {
-        repo = node->item;
-
-        if (seaf_repo_manager_get_merge_info (mgr, repo->id, &info) < 0) {
-            g_warning ("Failed to get merge info for repo %s.\n", repo->id);
-            continue;
-        }
-
-        if (info.in_merge) {
-            ccnet_job_manager_schedule_job (seaf->job_mgr, 
-                                            recover_merge_job, 
-                                            merge_job_done,
-                                            repo);
-        }
-    }
-}
-
 int
 seaf_repo_manager_start (SeafRepoManager *mgr)
 {
-    recover_interrupted_merges (mgr);
     watch_repos (mgr);
 
     return 0;
@@ -1916,7 +1843,7 @@ load_repo_commit (SeafRepoManager *manager,
         return;
     }
 
-    set_head_common (repo, branch, commit);
+    set_head_common (repo, branch);
     seaf_repo_from_commit (repo, commit);
 
     seaf_commit_unref (commit);
@@ -2342,6 +2269,11 @@ seaf_repo_manager_set_repo_property (SeafRepoManager *manager,
         return -1;
 
     if (strcmp(key, REPO_AUTO_SYNC) == 0) {
+        if (!seaf->started) {
+            seaf_message ("System not started, skip setting auto sync value.\n");
+            return 0;
+        }
+
         if (g_strcmp0(value, "true") == 0) {
             repo->auto_sync = 1;
             seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id);

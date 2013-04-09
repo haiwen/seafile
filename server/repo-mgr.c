@@ -129,7 +129,7 @@ seaf_repo_unref (SeafRepo *repo)
 }
 
 static void
-set_head_common (SeafRepo *repo, SeafBranch *branch, SeafCommit *commit)
+set_head_common (SeafRepo *repo, SeafBranch *branch)
 {
     if (repo->head)
         seaf_branch_unref (repo->head);
@@ -138,11 +138,11 @@ set_head_common (SeafRepo *repo, SeafBranch *branch, SeafCommit *commit)
 }
 
 int
-seaf_repo_set_head (SeafRepo *repo, SeafBranch *branch, SeafCommit *commit)
+seaf_repo_set_head (SeafRepo *repo, SeafBranch *branch)
 {
     if (save_branch_repo_map (repo->manager, branch) < 0)
         return -1;
-    set_head_common (repo, branch, commit);
+    set_head_common (repo, branch);
     return 0;
 }
 
@@ -535,7 +535,7 @@ load_repo_commit (SeafRepoManager *manager,
         return;
     }
 
-    set_head_common (repo, branch, commit);
+    set_head_common (repo, branch);
     seaf_repo_from_commit (repo, commit);
 
     seaf_commit_unref (commit);
@@ -2190,7 +2190,7 @@ create_repo_common (SeafRepoManager *mgr,
         goto out;
     }
 
-    if (seaf_repo_set_head (repo, master, commit) < 0) {
+    if (seaf_repo_set_head (repo, master) < 0) {
         seaf_warning ("Failed to set repo head.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to set repo head.");

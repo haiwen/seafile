@@ -25,7 +25,7 @@
 #include "seafile-config.h"
 #include "vc-utils.h"
 #include "seaf-utils.h"
-#include "gc.h"
+#include "gc-core.h"
 #include "log.h"
 
 #define MAX_THREADS 50
@@ -202,10 +202,53 @@ seafile_session_prepare (SeafileSession *session)
                                         "seafile.heartbeat");
 }
 
-
-void
-seafile_session_start (SeafileSession *session)
+static void
+recover_interrupted_merges ()
 {
+    GList *repos, *ptr;
+    SeafRepo *repo;
+    SeafRepoMergeInfo info;
+    char *err_msg = NULL;
+    gboolean unused;
+
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
+    for (ptr = repos; ptr; ptr = ptr->next) {
+        repo = ptr->data;
+
+        if (seaf_repo_manager_get_merge_info (seaf->repo_mgr, repo->id, &info) < 0) {
+            g_warning ("Failed to get merge info for repo %s.\n", repo->id);
+            continue;
+        }
+
+        if (info.in_merge) {
+            seaf_message ("Recovering merge for repo %.8s.\n", repo->id);
+
+            /* No one else is holding the lock. */
+            pthread_mutex_lock (&repo->lock);
+            if (seaf_repo_merge (repo, "master", &err_msg, &unused) < 0) {
+                g_free (err_msg);
+            }
+            pthread_mutex_unlock (&repo->lock);
+        }
+    }
+    g_list_free (repos);
+}
+
+static void *
+on_start_cleanup_job (void *vdata)
+{
+    recover_interrupted_merges ();
+
+    gc_core_run ();
+
+    return vdata;
+}
+
+static void
+cleanup_job_done (void *vdata)
+{
+    SeafileSession *session = vdata;
+
     if (cevent_manager_start (session->ev_mgr) < 0) {
         g_error ("Failed to start event manager.\n");
         return;
@@ -226,11 +269,6 @@ seafile_session_start (SeafileSession *session)
         return;
     }
 
-    if (seaf_mq_manager_start (session->mq_mgr) < 0) {
-        g_error ("Failed to start mq manager.\n");
-        return;
-    }
-
     /* Must be after wt monitor, since we may add watch to repo worktree. */
     if (seaf_repo_manager_start (session->repo_mgr) < 0) {
         g_error ("Failed to start repo manager.\n");
@@ -242,13 +280,30 @@ seafile_session_start (SeafileSession *session)
         return;
     }
 
-    /* Clean up unused blocks on restart.
-     * This would set a flag to tell other threads and download tasks
-     * to wait until GC completes.
-     */
-    if (gc_start () < 0) {
-        g_warning ("Failed to start gc.\n");
+    /* The system is up and running. */
+    session->started = TRUE;
+}
+
+static void
+on_start_cleanup (SeafileSession *session)
+{
+    ccnet_job_manager_schedule_job (seaf->job_mgr, 
+                                    on_start_cleanup_job, 
+                                    cleanup_job_done,
+                                    session);
+}
+
+void
+seafile_session_start (SeafileSession *session)
+{
+    /* MQ must be started to send heartbeat message to applet. */
+    if (seaf_mq_manager_start (session->mq_mgr) < 0) {
+        g_error ("Failed to start mq manager.\n");
+        return;
     }
+
+    /* Finish cleanup task before anything is run. */
+    on_start_cleanup (session);
 }
 
 #if 0
