@@ -2390,10 +2390,12 @@ seafile_put_file (const char *repo_id, const char *temp_file_path,
         return NULL;
     }
 
-    return seaf_repo_manager_put_file (seaf->repo_mgr, repo_id,
-                                       temp_file_path, parent_dir,
-                                       file_name, user, head_id,
-                                       error);
+    char *new_file_id = NULL;
+    seaf_repo_manager_put_file (seaf->repo_mgr, repo_id,
+                                temp_file_path, parent_dir,
+                                file_name, user, head_id,
+                                &new_file_id, error);
+    return new_file_id;
 }
 
 int

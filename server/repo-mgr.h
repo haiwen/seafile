@@ -256,9 +256,9 @@ seaf_repo_manager_post_dir (SeafRepoManager *mgr,
  * @params: same as seaf_repo_manager_post_file
  * @head_id: the commit id for the original file version.
  *           It's optional. If it's NULL, the current repo head will be used.
- * @return The new file id
+ * @new_file_id: The return location of the new file id
  */
-char *
+int
 seaf_repo_manager_put_file (SeafRepoManager *mgr,
                             const char *repo_id,
                             const char *temp_file_path,
@@ -266,6 +266,7 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
                             const char *file_name,
                             const char *user,
                             const char *head_id,
+                            char **new_file_id,                            
                             GError **error);
 
 int
