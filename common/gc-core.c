@@ -271,11 +271,7 @@ gc_core_run ()
     total_blocks = seaf_block_manager_get_block_number (seaf->block_mgr);
     removed_blocks = 0;
 
-#ifdef WIN32
-    g_message ("GC started. Total block number is %I64u.\n", total_blocks);
-#else
     g_message ("GC started. Total block number is %"G_GUINT64_FORMAT".\n", total_blocks);
-#endif
 
     /*
      * Store the index of live blocks in bloom filter to save memory.
@@ -294,10 +290,9 @@ gc_core_run ()
     /* If we meet any error when filling in the index, we should bail out.
      */
 #ifdef SEAFILE_SERVER
-    gboolean io_err = FALSE;
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, &io_err);
-    if (io_err) {
-        seaf_warning ("IO error when getting repo list.\n");
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
+    if (!repos) {
+        seaf_warning ("Failed to get repo list.\n");
         return -1;
     }
 #else
@@ -338,11 +333,7 @@ gc_core_run ()
         goto out;
     }
 
-#ifdef WIN32
-    g_message ("GC finished. %I64u blocks are removed.\n", removed_blocks);
-#else
     g_message ("GC finished. %"G_GUINT64_FORMAT" blocks are removed.\n", removed_blocks);
-#endif
 
 out:
     bloom_destroy (index);

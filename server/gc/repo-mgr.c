@@ -402,27 +402,6 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
 }
 
 static gboolean
-collect_repos (SeafDBRow *row, void *data)
-{
-    GList **p_repos = data;
-    const char *repo_id;
-    SeafRepo *repo;
-
-    repo_id = seaf_db_row_get_column_text (row, 0);
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        /* In GC, we should be more conservative.
-         * No matter a repo is really corrupted or it's a temp error,
-         * we return error here.
-         */
-        return FALSE;
-    }
-    *p_repos = g_list_prepend (*p_repos, repo);
-
-    return TRUE;
-}
-
-static gboolean
 collect_repo_id (SeafDBRow *row, void *data)
 {
     GList **p_ids = data;
@@ -449,26 +428,66 @@ seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr)
     return ret;
 }
 
+typedef struct {
+    GList *repos;
+    gboolean error;
+} CollectReposData;
+
+static gboolean
+collect_repos (SeafDBRow *row, void *vdata)
+{
+    CollectReposData *data = vdata;
+    const char *repo_id;
+    SeafRepo *repo;
+
+    repo_id = seaf_db_row_get_column_text (row, 0);
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        /* In GC, we should be more conservative.
+         * No matter a repo is really corrupted or it's a temp error,
+         * we return error here.
+         */
+        g_warning ("Failed to get repo %.8s.\n", repo_id);
+        data->error = TRUE;
+        return FALSE;
+    }
+    data->repos = g_list_prepend (data->repos, repo);
+
+    return TRUE;
+}
+
 GList *
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
-                                 int start, int limit,
-                                 gboolean *io_err)
+                                 int start, int limit)
 {
-    GList *ret = NULL;
+    CollectReposData data;
     char sql[256];
+    GList *ptr;
+    SeafRepo *repo;
 
     if (start == -1 && limit == -1)
         snprintf (sql, 256, "SELECT repo_id FROM Repo");
     else
         snprintf (sql, 256, "SELECT repo_id FROM Repo LIMIT %d, %d", start, limit);
 
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
-                                      collect_repos, &ret) < 0) {
-        *io_err = TRUE;
-        return NULL;
-    }
+    memset (&data, 0, sizeof(data));
 
-    return g_list_reverse (ret);
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
+                                      collect_repos, &data) < 0)
+        goto error;
+
+    if (data.error)
+        goto error;
+
+    return g_list_reverse (data.repos);
+
+error:
+    for (ptr = data.repos; ptr; ptr = ptr->next) {
+        repo = ptr->data;
+        seaf_repo_unref (repo);
+    }
+    g_list_free (data.repos);
+    return NULL;
 }
 
 int
