@@ -218,7 +218,6 @@ block_backend_fs_foreach_block (BlockBackend *bend,
     memcpy (path, block_dir, dir_len);
     pos = path + dir_len;
 
-    errno = 0;
     while ((dname1 = g_dir_read_name(dir1)) != NULL) {
         snprintf (pos, sizeof(path) - dir_len, "/%s", dname1);
 
@@ -237,8 +236,6 @@ block_backend_fs_foreach_block (BlockBackend *bend,
         }
         g_dir_close (dir2);
     }
-    if (errno != 0)
-        ret = -1;
 
 out:
     g_dir_close (dir1);

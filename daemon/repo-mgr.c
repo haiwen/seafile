@@ -387,6 +387,13 @@ add_recursive (struct index_state *istate,
 
     full_path = g_build_path (PATH_SEPERATOR, worktree, path, NULL);
     if (seaf_stat (full_path, &st) < 0) {
+#ifndef WIN32
+        /* Ignore broken symlinks on Linux and Mac OS X */
+        if (lstat (full_path, &st) == 0 && S_ISLNK(st.st_mode)) {
+            g_free (full_path);
+            return 0;
+        }
+#endif
         g_warning ("Failed to stat %s.\n", full_path);
         g_free (full_path);
         return -1;
@@ -406,7 +413,6 @@ add_recursive (struct index_state *istate,
             goto bad;
         }
 
-        errno = 0;
         n = 0;
         while ((dname = g_dir_read_name(dir)) != NULL) {
             if (should_ignore(dname, NULL))
@@ -428,10 +434,6 @@ add_recursive (struct index_state *istate,
                 break;
         }
         g_dir_close (dir);
-        if (errno != 0) {
-            g_warning ("Failed to read dir %s: %s.\n", path, strerror(errno));
-            goto bad;
-        }
         if (ret < 0)
             goto bad;
 

@@ -33,7 +33,7 @@ typedef struct WatchPathMapping {
     GHashTable *wd_to_path;     /* watch descriptor -> full path */
 } WatchPathMapping;
 
-#define WATCH_MASK IN_MODIFY | IN_ATTRIB | IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO | IN_CLOSE_WRITE | IN_DONT_FOLLOW
+#define WATCH_MASK IN_MODIFY | IN_ATTRIB | IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO | IN_CLOSE_WRITE
 
 struct SeafWTMonitorPriv {
     GHashTable *handle_hash;        /* repo_id -> inotify_fd (or handle) */
@@ -59,7 +59,7 @@ process_event (SeafWTMonitorPriv *priv, int in_fd)
     WatchPathMapping *mapping;
     int rc, n;
     char *dir, *full_path;
-    struct stat sb;
+    struct stat sb, sb2;
     gboolean ret = FALSE;
 
     rc = ioctl (in_fd, FIONREAD, &buf_size);
@@ -97,8 +97,15 @@ process_event (SeafWTMonitorPriv *priv, int in_fd)
 
             full_path = g_build_filename (dir, event->name, NULL);
 
-            if (lstat (full_path, &sb) < 0) {
+            if (stat (full_path, &sb) < 0) {
                 seaf_warning ("Failed to stat %s: %s.\n",
+                              full_path, strerror(errno));
+                g_free (full_path);
+                goto out;
+            }
+
+            if (lstat (full_path, &sb2) < 0) {
+                seaf_warning ("Failed to lstat %s: %s.\n",
                               full_path, strerror(errno));
                 g_free (full_path);
                 goto out;
@@ -113,8 +120,13 @@ process_event (SeafWTMonitorPriv *priv, int in_fd)
              * write events. Not updating last_changed on "create
              * file" event avoids to start auto commit before nautilus
              * finish writing the file.
+             *
+             * Note that if a symlink to file is created, we have to update
+             * status->last_changed, because the file will not be written
+             * later.
              */
-            if ((event->mask & IN_MOVED_TO) || S_ISDIR(sb.st_mode))
+            if ((event->mask & IN_MOVED_TO) ||
+                S_ISDIR(sb.st_mode) || S_ISLNK(sb2.st_mode))
                 ret = TRUE;
 
             if (S_ISDIR (sb.st_mode)) {
@@ -214,6 +226,9 @@ static void add_mapping (WatchPathMapping *mapping,
     g_hash_table_insert (mapping->wd_to_path, (gpointer)(long)wd, g_strdup(path));
 }
 
+/* Ignore errors so that we can still monitor other dirs
+ * when one dir is bad.
+ */
 static int
 add_watch_recursive (WatchPathMapping *mapping, int in_fd, const char *path)
 {
@@ -224,7 +239,7 @@ add_watch_recursive (WatchPathMapping *mapping, int in_fd, const char *path)
 
     if (stat (path, &st) < 0) {
         seaf_warning ("[wt mon] fail to stat %s: %s\n", path, strerror(errno));
-        return -1;
+        return 0;
     }
 
     if (S_ISDIR (st.st_mode)) {
@@ -234,7 +249,7 @@ add_watch_recursive (WatchPathMapping *mapping, int in_fd, const char *path)
         if (wd < 0) {
             seaf_warning ("[wt mon] fail to add watch to %s: %s.\n",
                           path, strerror(errno));
-            return -1;
+            return 0;
         }
 
         add_mapping (mapping, path, wd);
@@ -243,10 +258,9 @@ add_watch_recursive (WatchPathMapping *mapping, int in_fd, const char *path)
         if (!dir) {
             seaf_warning ("[wt mon] fail to open dir %s: %s.\n",
                           path, strerror(errno));
-            return -1;
+            return 0;
         }
 
-        errno = 0;
         while (1) {
             dent = readdir (dir);
             if (!dent)
@@ -256,14 +270,8 @@ add_watch_recursive (WatchPathMapping *mapping, int in_fd, const char *path)
                 continue;
 
             char *sub_path = g_build_filename (path, dent->d_name, NULL);
-            int ret = add_watch_recursive (mapping, in_fd, sub_path);
+            add_watch_recursive (mapping, in_fd, sub_path);
             g_free (sub_path);
-            if (ret < 0)
-                return -1;
-        }
-        if (errno != 0) {
-            seaf_warning ("[wt mon] fail to read dir: %s.\n", strerror(errno));
-            return -1;
         }
 
         closedir (dir);
