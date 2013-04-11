@@ -319,7 +319,8 @@ class repo_sync_status:
             # No sync task yet: seafile maybe have just been started 
             sync_status['state'] = 'waiting for sync'
 
-        if sync_status['state'] == 'waiting for sync' and not repo.props.auto_sync:
+        auto_sync_enabled = seafile_rpc.is_auto_sync_enabled()
+        if not auto_sync_enabled or not repo.props.auto_sync:
             sync_status['state'] = 'auto sync is turned off'
 
         return json.dumps(sync_status)

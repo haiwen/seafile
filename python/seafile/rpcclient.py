@@ -150,6 +150,10 @@ class SeafileRpcClient(ccnet.RpcClientBase):
         pass
     get_repo_sync_info = seafile_get_repo_sync_info
 
+    @searpc_func("int", [])
+    def seafile_is_auto_sync_enabled():
+        pass
+    is_auto_sync_enabled = seafile_is_auto_sync_enabled
 
     ###### Property Management #########
 

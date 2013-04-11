@@ -533,7 +533,8 @@ def seaf_status(args):
     print "# Name\tStatus"
     repos = seafile_rpc.get_repo_list(-1, -1)
     for repo in repos:
-        if not repo.auto_sync:
+        auto_sync_enabled = seafile_rpc.is_auto_sync_enabled()
+        if not auto_sync_enabled or not repo.auto_sync:
             print "%s\t%s" % (repo.name, "auto sync disabled")
             continue
 
