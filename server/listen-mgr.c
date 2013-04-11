@@ -1,7 +1,8 @@
+#include "common.h"
+
 #include <event2/event.h>
 #include <event2/listener.h>
 
-#include "common.h"
 #include "seafile-session.h"
 #include "utils.h"
 #include "net.h"

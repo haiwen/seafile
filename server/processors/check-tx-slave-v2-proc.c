@@ -1,5 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include "common.h"
+
 #include <string.h>
 #include <ccnet.h>
 #include <stdlib.h>
@@ -7,8 +9,6 @@
 #include <ccnet.h>
 #include <ccnet/job-mgr.h>
 #include <ccnet/ccnet-object.h>
-
-#include "common.h"
 
 #define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
 #include "log.h"

@@ -1,10 +1,10 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
-#include <string.h>
+#include "common.h"
 
+#include <string.h>
 #include <ccnet.h>
 
-#include "common.h"
 #include "seafile-session.h"
 #include "vc-common.h"
 #include "seafile-crypt.h"

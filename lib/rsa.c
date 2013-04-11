@@ -1,5 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include "common.h"
+
 #include <openssl/pem.h>
 #include <openssl/rand.h>
 #include <openssl/rsa.h>

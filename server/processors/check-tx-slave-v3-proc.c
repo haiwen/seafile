@@ -1,5 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include "common.h"
+
 #include <string.h>
 #include <ccnet.h>
 #include <stdlib.h>
@@ -10,8 +12,6 @@
 
 #include <openssl/aes.h>
 #include <openssl/evp.h>
-
-#include "common.h"
 
 #define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
 #include "log.h"

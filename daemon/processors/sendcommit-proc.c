@@ -17,6 +17,8 @@
  * Boston, MA 02111-1307, USA.
  */
 
+#include "common.h"
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <fcntl.h>
