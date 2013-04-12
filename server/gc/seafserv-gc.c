@@ -15,13 +15,14 @@ static char *seafile_dir = NULL;
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvc:d:V";
+static const char *short_opts = "hvc:d:VD";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
     { "config-file", required_argument, NULL, 'c', },
     { "seafdir", required_argument, NULL, 'd', },
     { "verify", no_argument, NULL, 'V' },
+    { "dry-run", no_argument, NULL, 'D' },
 };
 
 static void usage ()
@@ -52,6 +53,7 @@ main(int argc, char *argv[])
 {
     int c;
     int verify = 0;
+    int dry_run = 0;
 
     config_dir = DEFAULT_CONFIG_DIR;
 
@@ -72,6 +74,9 @@ main(int argc, char *argv[])
             break;
         case 'V':
             verify = 1;
+            break;
+        case 'D':
+            dry_run = 1;
             break;
         default:
             usage();
@@ -103,7 +108,7 @@ main(int argc, char *argv[])
         return 0;
     }
 
-    gc_core_run ();
+    gc_core_run (dry_run);
 
     return 0;
 }

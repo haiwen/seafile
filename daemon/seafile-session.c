@@ -239,7 +239,7 @@ on_start_cleanup_job (void *vdata)
 {
     recover_interrupted_merges ();
 
-    gc_core_run ();
+    gc_core_run (0);
 
     return vdata;
 }

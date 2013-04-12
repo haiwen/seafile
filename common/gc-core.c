@@ -248,21 +248,28 @@ populate_gc_index_for_head (const char *head_id, Bloom *index)
 }
 #endif
 
+typedef struct {
+    Bloom *index;
+    int dry_run;
+} CheckBlocksData;
+
 static gboolean
-check_block_liveness (const char *block_id, void *vindex)
+check_block_liveness (const char *block_id, void *vdata)
 {
-    Bloom *index = vindex;
+    CheckBlocksData *data = vdata;
+    Bloom *index = data->index;
 
     if (!bloom_test (index, block_id)) {
         ++removed_blocks;
-        seaf_block_manager_remove_block (seaf->block_mgr, block_id);
+        if (!data->dry_run)
+            seaf_block_manager_remove_block (seaf->block_mgr, block_id);
     }
 
     return TRUE;
 }
 
 int
-gc_core_run ()
+gc_core_run (int dry_run)
 {
     Bloom *index;
     GList *repos = NULL, *clone_heads = NULL, *ptr;
@@ -323,17 +330,29 @@ gc_core_run ()
     }
 #endif
 
-    g_message ("Scanning and deleting unused blocks.\n");
+    if (!dry_run)
+        g_message ("Scanning and deleting unused blocks.\n");
+    else
+        g_message ("Scanning unused blocks.\n");
+
+    CheckBlocksData data;
+    data.index = index;
+    data.dry_run = dry_run;
 
     ret = seaf_block_manager_foreach_block (seaf->block_mgr,
                                             check_block_liveness,
-                                            index);
+                                            &data);
     if (ret < 0) {
         seaf_warning ("GC: Failed to clean dead blocks.\n");
         goto out;
     }
 
-    g_message ("GC finished. %"G_GUINT64_FORMAT" blocks are removed.\n", removed_blocks);
+    if (!dry_run)
+        g_message ("GC finished. %"G_GUINT64_FORMAT" blocks are removed.\n",
+                   removed_blocks);
+    else
+        g_message ("GC finished. %"G_GUINT64_FORMAT" blocks can be removed.\n",
+                   removed_blocks);
 
 out:
     bloom_destroy (index);
