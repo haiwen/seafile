@@ -933,8 +933,11 @@ int merge_recursive(struct merge_options *o,
     *clean = process_unmerged_entries (o, head, remote);
 #endif
 
-    if (*clean)
+    if (*clean) {
         *root_id = write_tree_from_memory(o);
+        if (*root_id == NULL)
+            ret = -1;
+    }
 
 out:
     seaf_dir_free (head);
