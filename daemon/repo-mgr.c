@@ -497,12 +497,12 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
             if (ret < 0 || !S_ISDIR (st.st_mode) || !is_empty_dir (path))
                 ce->ce_flags |= CE_REMOVE;
         } else {
-            /* If ce->mtime is 0, it was not successfully checked out.
+            /* If ce->mtime is 0 and stage is 0, it was not successfully checked out.
              * In this case we don't want to mistakenly remove the file
              * from the repo.
              */
             if ((ret < 0 || !S_ISREG (st.st_mode)) &&
-                ce_array[i]->ce_mtime.sec != 0)
+                (ce_array[i]->ce_mtime.sec != 0 || ce_stage(ce_array[i]) != 0))
                 ce_array[i]->ce_flags |= CE_REMOVE;
         }
     }
@@ -1110,8 +1110,7 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
                          commit->creator_name,
                          finished_entries) < 0) {
         g_warning ("Failed to update worktree.\n");
-        ret = -1;
-        goto out;
+        /* Still finish checkout even have I/O errors. */
     }
 
     discard_index (&istate);

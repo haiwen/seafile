@@ -630,7 +630,8 @@ merge_job (void *vtask)
      * 3. Files are locked on Windows;
      * 4. other I/O errors.
      *
-     * For 1, 2, 4, the next commit operation will make worktree clean.
+     * For 1, the next commit operation will make worktree clean.
+     * For 2 and 4, the errors are ignored by the merge routine (return 0).
      * For 3, just wait another merge retry.
      * */
     if (seaf_repo_merge (repo, "master", &err_msg, &res->real_merge) < 0) {

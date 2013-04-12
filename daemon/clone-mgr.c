@@ -1153,8 +1153,7 @@ fast_forward_checkout (SeafRepo *repo, SeafCommit *head, CloneTask *task)
                          head->creator_name,
                          NULL) < 0) {
         seaf_warning ("Failed to update worktree.\n");
-        ret = -1;
-        goto out;
+        /* Still finishe checkout even have I/O errors. */
     }
 
     discard_index (&istate);
@@ -1162,6 +1161,7 @@ fast_forward_checkout (SeafRepo *repo, SeafCommit *head, CloneTask *task)
 
     if (update_index (&istate, index_path) < 0) {
         seaf_warning ("Failed to update index.\n");
+        ret = -1;
     }
 
 out:
