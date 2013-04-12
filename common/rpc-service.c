@@ -1197,8 +1197,13 @@ retry:
                               "Changed library name or description",
                               0);
     commit->parent_id = g_strdup(parent->commit_id);
+    seaf_repo_to_commit (repo, commit);
+
+    g_free (commit->repo_name);
     commit->repo_name = g_strdup(name);
+    g_free (commit->repo_desc);
     commit->repo_desc = g_strdup(description);
+
     if (seaf_commit_manager_add_commit (seaf->commit_mgr, commit) < 0) {
         ret = -1;
         goto out;
