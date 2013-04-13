@@ -453,11 +453,11 @@ function get_seahub_admin_passwd () {
     echo
     question="Please specify the passwd you want to use for seahub admininstrator:"
     ask_question "${question}" "nodefault" "seahub admin password"
-    read seahub_admin_passwd
+    read -s seahub_admin_passwd
     echo
     question="Please ensure the passwd again:"
     ask_question "${question}" "nodefault" "seahub admin password again"
-    read seahub_admin_passwd_again
+    read -s seahub_admin_passwd_again
     echo
     if [[ "${seahub_admin_passwd}" != "${seahub_admin_passwd_again}" ]]; then
         printf "\033[33mTwo passwords you give mismatch.\033[m"
@@ -478,7 +478,7 @@ printf "\n\n"
 echo "This is your seahub admin username/password"
 echo
 printf "admin user name:        \033[33m${seahub_admin_email}\033[m\n"
-printf "admin password:         \033[33m${seahub_admin_passwd}\033[m\n\n"
+printf "admin password:         \033[33m**************\033[m\n\n"
 
 echo
 echo "If you are OK with these configuration, press [ENTER] to continue."
