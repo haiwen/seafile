@@ -1509,6 +1509,14 @@ seaf_repo_manager_post_empty_file (SeafRepoManager *mgr,
         /* no need to call get_canonical_path again when retry */
         canon_path = get_canonical_path (parent_dir);
 
+    if (should_ignore_file (new_file_name, NULL)) {
+        seaf_warning ("[post file] Invalid file name %s.\n", new_file_name);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid file name");
+        ret = -1;
+        goto out;
+    }
+
     FAIL_IF_FILE_EXISTS(head_commit->root_id, canon_path, new_file_name, NULL);
 
     if (!new_dent) {

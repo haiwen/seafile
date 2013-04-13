@@ -260,6 +260,10 @@ should_ignore_file(const char *filename, void *data)
 {
     GPatternSpec **spec = ignore_patterns;
 
+    /* Ignore file/dir if its name is too long. */
+    if (strlen(filename) >= SEAF_DIR_NAME_LEN)
+        return TRUE;
+
     if (has_trailing_space (filename)) {
         /* Ignore files/dir whose path has trailing spaces. It would cause
          * problem on windows. */
