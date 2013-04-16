@@ -108,6 +108,10 @@ fi
 AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
    [compile_server=$enableval],[compile_server="no"])
 
+# default compile mysql, but only check it for server.
+AC_ARG_ENABLE(mysql, AC_HELP_STRING([--enable-mysql], [enable mysql]),
+   [compile_mysql=$enableval],[compile_mysql="yes"])
+
 AC_ARG_ENABLE(httpserver, AC_HELP_STRING([--enable-httpserver], [enable httpserver]),
    [compile_httpserver=$enableval],[compile_httpserver="no"])
 
@@ -357,7 +361,7 @@ if test "${compile_server}" = "yes"; then
    AC_SUBST(ZDB_CFLAGS)
    AC_SUBST(ZDB_LIBS)
 
-   if test "$bwin32" != true; then
+   if test "$compile_mysql" = "yes"; then
      MYSQL_CFLAGS=$(mysql_config --include)
      MYSQL_LIBS=$(mysql_config --libs_r)
 
@@ -368,10 +372,8 @@ if test "${compile_server}" = "yes"; then
      CPPFLAGS="$MYSQL_CFLAGS $CPPFLAGS"
      LDFLAGS="$MYSQL_LIBS $LDFLAGS"
 
-     if test "$bwin32" != true; then
-       AC_CHECK_LIB(mysqlclient, mysql_init, [echo "found library mysqlclient"],
-       AC_MSG_ERROR([*** Unable to find mysql client library]), )
-     fi
+     AC_CHECK_LIB(mysqlclient, mysql_init, [echo "found library mysqlclient"],
+     AC_MSG_ERROR([*** Unable to find mysql client library]), )
 
      CPPFLAGS=$saved_CPPFLAGS
      LDFLAGS=$saved_LDFLAGS
