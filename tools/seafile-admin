@@ -380,7 +380,14 @@ def get_httpserver_port():
                                               default=default,
                                               validate=validate)
 def get_seafile_data_dir():
-    seafile_data_dir = os.path.join(cwd, 'seafile-data')
+    question = 'Where do you want to put your seafile data?'
+    key = 'seafile-data'
+    note = 'Please use a volume with enough free space'
+    default = os.path.join(cwd, 'seafile-data')
+    seafile_data_dir = ask_question(question,
+                                    key=key,
+                                    note=note,
+                                    default=default)
     seafile_conf = os.path.join(seafile_data_dir, 'seafile.conf')
 
     if os.path.exists(seafile_data_dir):
@@ -398,6 +405,7 @@ def get_seafile_data_dir():
         conf[CONF_SEAFILE_CONF_EXISTS] = False
 
     conf[CONF_SEAFILE_DIR] = seafile_data_dir
+
 
 def create_gunicorn_conf():
     runtime_dir = os.path.join(cwd, 'seafile-server', 'runtime')
@@ -484,9 +492,9 @@ def create_seahub_admin():
 
     if not os.path.exists(peermgr_dir):
         os.mkdir(peermgr_dir)
-        
+
     get_admin_email_password()
-    
+
     conn = sqlite3.connect(usermgr_db)
     c = conn.cursor()
 
@@ -503,7 +511,7 @@ def gen_seahub_secret_key():
     data = str(uuid.uuid4()) + str(uuid.uuid4())
     return data[:40]
 
-def create_seahub_settings_py():    
+def create_seahub_settings_py():
     seahub_settings_py = os.path.join(cwd, 'seahub_settings.py')
     try:
         with open(seahub_settings_py, 'w') as fp:
@@ -650,6 +658,10 @@ def init_ccnet_seafile():
 
         info('done')
 
+    seafile_ini = os.path.join(conf[CONF_CCNET_DIR], 'seafile.ini')
+    with open(seafile_ini, 'w') as fp:
+        fp.write(conf[CONF_SEAFILE_DIR])
+
 ####################
 ### <start> command
 ####################
@@ -725,6 +737,27 @@ def start_seahub_fastcgi():
 
     info('Seahub running on port %s (fastcgi)' % conf[CONF_SEAHUB_PORT])
 
+
+def read_seafile_data_dir(ccnet_conf_dir):
+    '''Read the location of seafile-data from seafile.ini, also consider the
+    upgrade from older version which do not has the seafile.ini feature
+
+    '''
+    seafile_ini = os.path.join(ccnet_conf_dir, 'seafile.ini')
+    if os.path.exists(seafile_ini):
+        with open(seafile_ini, 'r') as fp:
+            seafile_data_dir = fp.read()
+    else:
+        # In previous seafile-admin, seafiled-data folder must be under
+        # the top level directory, so we do not store the location of
+        # seafile-data folder in seafile.ini
+        seafile_data_dir = os.path.join(cwd, 'seafile-data')
+        if os.path.exists(seafile_data_dir):
+            with open(seafile_ini, 'w') as fp:
+                fp.write(seafile_data_dir)
+
+    return seafile_data_dir
+
 def check_config(args):
     def error_not_found(path):
         error('%s not found' % path)
@@ -736,7 +769,7 @@ def check_config(args):
     if not os.path.exists(ccnet_conf):
         error_not_found(ccnet_conf)
 
-    seafile_data_dir = os.path.join(cwd, 'seafile-data')
+    seafile_data_dir = read_seafile_data_dir(ccnet_conf_dir)
     if not os.path.exists(seafile_data_dir):
         error_not_found(seafile_data_dir)
 
@@ -817,7 +850,6 @@ def setup_seafile(args):
 def check_necessary_files():
     files = [
         os.path.join(cwd, 'ccnet', 'ccnet.conf'),
-        os.path.join(cwd, 'seafile-data', 'seafile.conf'),
         os.path.join(cwd, 'seafile-server', 'runtime', 'seahub.conf'),
         os.path.join(cwd, 'seahub.db'),
         os.path.join(cwd, 'seahub_settings.py'),
