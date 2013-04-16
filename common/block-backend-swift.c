@@ -37,12 +37,6 @@ typedef struct {
 
 } SwiftPriv;
 
-// struct SeafSwiftClient {
-//     CURL *curl;
-//     char *host;
-//     char *port;
-// };
-
 typedef struct SwiftObject {
     void *data;
     size_t size;
