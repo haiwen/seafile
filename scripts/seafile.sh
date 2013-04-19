@@ -63,7 +63,6 @@ function start_seafile_server () {
     echo "Starting seafile server, please wait ..."
 
     seaf_controller="${INSTALLPATH}/seafile/bin/seafile-controller"
-    httpserver="${INSTALLPATH}/seafile/bin/httpserver"
 
     bin_dir="${INSTALLPATH}/seafile/bin"
 
@@ -79,20 +78,6 @@ function start_seafile_server () {
 
     echo "Seafile server started"
     echo
-
-    echo "Starting seafile httpserver, please wait ..."
-    LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${httpserver} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"
-
-    sleep 2
-    # Check if httpserver started successfully
-    if ! pgrep -f "httpserver -c ${default_ccnet_conf_dir}" 2>/dev/null 1>&2; then
-        echo "Failed to start httpserver server"
-        # Since we have seaf-server started, kill it on failure
-        pkill -SIGTERM -f "seafile-controller -c ${default_ccnet_conf_dir}"
-        exit 1;
-    fi
-
-    echo "Seafile httpserver started"
 }
 
 function stop_seafile_server () {
@@ -103,7 +88,6 @@ function stop_seafile_server () {
 
     echo "Stopping seafile server ..."
     pkill -SIGTERM -f "seafile-controller -c ${default_ccnet_conf_dir}"
-    pkill -f "httpserver -c ${default_ccnet_conf_dir}"
     return 0
 }
 

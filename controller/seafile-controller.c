@@ -18,8 +18,7 @@
 #include "log.h"
 #include "seafile-controller.h"
 
-#define CHECK_HEARTBEAT_INTERVAL 2        /* every 2 seconds */
-#define MAX_HEARTBEAT_LIMIT 30
+#define CHECK_PROCESS_INTERVAL 10        /* every 10 seconds */
 
 SeafileController *ctl;
 
@@ -48,6 +47,10 @@ controller_exit (int code)
     exit(code);
 }
 
+//
+// Utility functions Start
+//
+
 /* returns the pid of the newly created process */
 static int
 spawn_process (char *argv[])
@@ -73,7 +76,7 @@ spawn_process (char *argv[])
             seaf_warning ("error when fork %s: %s\n", argv[0], strerror(errno));
         else
             seaf_message ("spawned %s, pid %d\n", argv[0], pid);
-        
+
         return (int)pid;
     }
 }
@@ -99,6 +102,56 @@ set_path_env (const char *bin_dir)
 }
 
 static int
+read_pid_from_pidfile (const char *pidfile)
+{
+    FILE *pf = fopen (pidfile, "r");
+    if (!pf) {
+        return -1;
+    }
+
+    int pid = -1;
+    if (fscanf (pf, "%d", &pid) < 0) {
+        seaf_warning ("bad pidfile format: %s\n", pidfile);
+        return -1;
+    }
+
+    return pid;
+}
+
+static void
+try_kill_process(int which)
+{
+    if (which < 0 || which >= N_PID)
+        return;
+
+    char *pidfile = ctl->pidfile[which];
+    int pid = read_pid_from_pidfile(pidfile);
+    if (pid > 0)
+        kill((pid_t)pid, SIGTERM);
+}
+
+static gboolean process_running(char *pidfile) {
+    char buf[256];
+    int pid;
+
+    pid = read_pid_from_pidfile(pidfile);
+    if (pid < 0) {
+        return FALSE;
+    }
+
+    snprintf (buf, sizeof(buf), "/proc/%d", pid);
+    if (g_file_test(buf, G_FILE_TEST_IS_DIR)) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+//
+// Utility functions End
+//
+
+static int
 start_ccnet_server ()
 {
     if (!ctl->config_dir)
@@ -112,7 +165,7 @@ start_ccnet_server ()
         "-d",
         "-P", ctl->pidfile[PID_CCNET],
         NULL};
-    
+
     int pid = spawn_process (argv);
     if (pid <= 0) {
         seaf_warning ("Failed to spawn ccnet-server\n");
@@ -141,7 +194,7 @@ start_seaf_server ()
     if (!ctl->cloud_mode) {
         argv[7] = NULL;
     }
-    
+
     int pid = spawn_process (argv);
     if (pid <= 0) {
         seaf_warning ("Failed to spawn seaf-server\n");
@@ -165,7 +218,7 @@ start_seaf_monitor ()
         "-d", ctl->seafile_dir,
         "-P", ctl->pidfile[PID_MONITOR],
         NULL};
-    
+
     int pid = spawn_process (argv);
     if (pid <= 0) {
         seaf_warning ("Failed to spawn seaf-mon\n");
@@ -175,65 +228,23 @@ start_seaf_monitor ()
     return 0;
 }
 
-#define IS_APP_MSG(msg,topic) (strcmp((msg)->app, topic) == 0)
-
-static void mq_cb (CcnetMessage *msg, void *data)
-{
-    time_t now = time (NULL);
-
-    if (IS_APP_MSG(msg, "seaf_server.heartbeat")) {
-        
-        ctl->last_hb[HB_SEAFILE_SERVER] = now;
-        
-    } else if (IS_APP_MSG(msg, "seaf_mon.heartbeat")) {
-
-        ctl->last_hb[HB_SEAFILE_MONITOR] = now;
-    }
-}
-
 static int
-start_mq_client ()
-{
-    seaf_message ("starting mq client ...\n");
-    
-    CcnetMqclientProc *mqclient_proc;
-
-    mqclient_proc = (CcnetMqclientProc *)
-        ccnet_proc_factory_create_master_processor
-        (ctl->client->proc_factory, "mq-client");
-    
-    if (!mqclient_proc) {
-        seaf_warning ("Failed to create mqclient proc.\n");
-        return -1;
-    }
-
-    static char *topics[] = {
-        "seaf_server.heartbeat",
-        "seaf_mon.heartbeat",
+start_httpserver() {
+    char *argv[] = {
+        "httpserver",
+        "-c", ctl->config_dir,
+        "-d", ctl->seafile_dir,
+        "-P", ctl->pidfile[PID_HTTPSERVER],
+        NULL
     };
 
-    ccnet_mqclient_proc_set_message_got_cb (mqclient_proc, mq_cb, NULL);
-
-    /* Subscribe to messages. */
-    if (ccnet_processor_start ((CcnetProcessor *)mqclient_proc,
-                               G_N_ELEMENTS(topics), topics) < 0) {
-        seaf_warning ("Failed to start mqclient proc\n");
+    int pid = spawn_process (argv);
+    if (pid <= 0) {
+        seaf_warning ("Failed to spawn httpserver\n");
         return -1;
     }
 
-    ctl->mqclient_proc = mqclient_proc;
-
     return 0;
-}
-
-static void
-stop_mq_client ()
-{
-    if (ctl->mqclient_proc) {
-        seaf_message ("stopping mq client ...\n");
-        ccnet_mqclient_proc_unsubscribe_apps (ctl->mqclient_proc);
-        ctl->mqclient_proc = NULL;
-    }
 }
 
 static void
@@ -244,82 +255,40 @@ run_controller_loop ()
     g_main_loop_run (mainloop);
 }
 
-static int
-read_pid_from_pidfile (const char *pidfile)
-{
-    FILE *pf = fopen (pidfile, "r");
-    if (!pf) {
-        return -1;
-    }
-
-    int pid = -1;
-    if (fscanf (pf, "%d", &pid) < 0) {
-        seaf_warning ("bad pidfile format: %s\n", pidfile);
-        return -1;
-    }
-
-    return pid;
-}
-
-static void
-try_kill_process(int which)
-{
-    if (which < 0 || which >= N_PID)
-        return;
-    
-    char *pidfile = ctl->pidfile[which];
-    int pid = read_pid_from_pidfile(pidfile);
-    if (pid > 0)
-        kill((pid_t)pid, SIGTERM);
-}
-
 static gboolean
-check_heartbeat (void *data)
+check_process (void *data)
 {
-    time_t now = time(NULL);
-    int i;
-
-    for (i = 0; i < N_HEARTBEAT; i++) {
-        if (ctl->last_hb[i] == 0)
-            ctl->last_hb[i] = now;
-    }
-
-    if (now - ctl->last_hb[HB_SEAFILE_SERVER] > MAX_HEARTBEAT_LIMIT) {
-
-        try_kill_process(PID_SERVER);
+    if (!process_running(ctl->pidfile[PID_SERVER])) {
         seaf_message ("seaf-server need restart...\n");
         start_seaf_server ();
-        ctl->last_hb[HB_SEAFILE_SERVER] = time(NULL);
-
     }
 
-    if (now - ctl->last_hb[HB_SEAFILE_MONITOR] > MAX_HEARTBEAT_LIMIT) {
-
-        try_kill_process(PID_MONITOR);
+    if (!process_running(ctl->pidfile[PID_MONITOR])) {
         seaf_message ("seaf-mon need restart...\n");
         start_seaf_monitor ();
-        ctl->last_hb[HB_SEAFILE_MONITOR] = time(NULL);
+    }
+
+    if (!process_running(ctl->pidfile[PID_HTTPSERVER])) {
+        seaf_message ("httpserver need restart...\n");
+        start_httpserver ();
     }
 
     return TRUE;
 }
 
 static void
-start_hearbeat_monitor ()
+start_process_monitor ()
 {
-    ctl->hearbeat_timer = g_timeout_add (
-        CHECK_HEARTBEAT_INTERVAL * 1000, check_heartbeat, NULL);
+    ctl->check_process_timer = g_timeout_add (
+        CHECK_PROCESS_INTERVAL * 1000, check_process, NULL);
 }
 
 static void
-stop_heartbeat_monitor ()
+stop_process_monitor ()
 {
-    if (ctl->hearbeat_timer != 0) {
-        g_source_remove (ctl->hearbeat_timer);
-        ctl->hearbeat_timer = 0;
-
-        ctl->last_hb[HB_SEAFILE_SERVER] = 0;
-        ctl->last_hb[HB_SEAFILE_MONITOR] = 0;
+    if (ctl->check_process_timer != 0) {
+        g_source_remove (ctl->check_process_timer);
+        ctl->check_process_timer = 0;
     }
 }
 
@@ -345,8 +314,7 @@ static int seaf_controller_start ();
 static void
 on_ccnet_daemon_down ()
 {
-    stop_heartbeat_monitor ();
-    stop_mq_client ();
+    stop_process_monitor ();
     disconnect_clients ();
     rm_client_fd_from_mainloop ();
 
@@ -403,12 +371,16 @@ on_ccnet_connected ()
     if (start_seaf_monitor () < 0)
         controller_exit(1);
 
-    if (start_mq_client () < 0)
-        controller_exit(1);
+    if (!process_running(ctl->pidfile[PID_HTTPSERVER])) {
+        /* Since httpserver doesn't die when ccnet server dies, when ccnet
+         * server is restarted, we don't need to start httpserver */
+        if (start_httpserver() < 0)
+            controller_exit(1);
+    }
 
     add_client_fd_to_mainloop ();
 
-    start_hearbeat_monitor ();
+    start_process_monitor ();
 }
 
 static gboolean
@@ -448,26 +420,24 @@ stop_ccnet_server ()
     try_kill_process(PID_CCNET);
     try_kill_process(PID_SERVER);
     try_kill_process(PID_MONITOR);
+    try_kill_process(PID_HTTPSERVER);
 }
 
 static void
 init_pidfile_path (SeafileController *ctl)
 {
-    char tmp[] = "XXXXXX";
-    char buf[SEAF_PATH_MAX];
-    int pid = (int)getpid();
+    char *pid_dir = g_build_filename(ctl->seafile_dir, "pids", NULL);
+    if (!g_file_test(pid_dir, G_FILE_TEST_EXISTS)) {
+        if (g_mkdir(pid_dir, 0777) < 0) {
+            seaf_warning("failed to create pid dir %s: %s", pid_dir, strerror(errno));
+            controller_exit(1);
+        }
+    }
 
-    if (!mktemp(tmp))
-        return;
-    /* use controller pid and mktemp to generate unique path */
-    snprintf (buf, sizeof(buf), "/tmp/seafile-%d-%s.ccnet.pid", pid, tmp);
-    ctl->pidfile[PID_CCNET] = g_strdup(buf);
-
-    snprintf (buf, sizeof(buf), "/tmp/seafile-%d-%s.server.pid", pid, tmp);
-    ctl->pidfile[PID_SERVER] = g_strdup(buf);
-
-    snprintf (buf, sizeof(buf), "/tmp/seafile-%d-%s.monitor.pid", pid, tmp);
-    ctl->pidfile[PID_MONITOR] = g_strdup(buf);
+    ctl->pidfile[PID_CCNET] = g_build_filename(pid_dir, "ccnet.pid", NULL);
+    ctl->pidfile[PID_SERVER] = g_build_filename(pid_dir, "seaf-server.pid", NULL);
+    ctl->pidfile[PID_MONITOR] = g_build_filename(pid_dir, "seaf-mon.pid", NULL);
+    ctl->pidfile[PID_HTTPSERVER] = g_build_filename(pid_dir, "httpserver.pid", NULL);
 }
 
 static int
@@ -528,10 +498,21 @@ seaf_controller_start ()
     return 0;
 }
 
+static void remove_pidfiles() {
+    int i;
+    for (i = 0; i < N_PID; i++) {
+        if (g_file_test(ctl->pidfile[i], G_FILE_TEST_EXISTS)) {
+            g_unlink (ctl->pidfile[i]);
+        }
+    }
+}
+
 static void
 sigint_handler (int signo)
 {
     stop_ccnet_server ();
+
+    remove_pidfiles();
 
     signal (signo, SIG_DFL);
     raise (signo);
@@ -569,7 +550,7 @@ int main (int argc, char **argv)
         usage ();
         exit (1);
     }
-    
+
     char *bin_dir = NULL;
     char *config_dir = DEFAULT_CONFIG_DIR;
     char *seafile_dir = NULL;
@@ -657,7 +638,7 @@ int main (int argc, char **argv)
 
     set_signal_handlers ();
 
-    if (ctl->bin_dir) 
+    if (ctl->bin_dir)
         set_path_env (ctl->bin_dir);
 
     if (seaf_controller_start (ctl) < 0)

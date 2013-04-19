@@ -28,10 +28,12 @@ static int num_threads = 10;
 static char *pemfile = NULL;
 static char *privkey = NULL;
 
+static char *pidfile = NULL;
+
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvfc:d:t:l:g:G:D:k:";
+static const char *short_opts = "hvfc:d:t:l:g:G:D:k:P:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -44,6 +46,7 @@ static const struct option long_opts[] = {
     { "http-debug-level", required_argument, NULL, 'G' },
     { "debug", required_argument, NULL, 'D' },
     { "temp-file-dir", required_argument, NULL, 'k' },
+    { "pidfile", required_argument, NULL, 'P' },
 };
 
 static void usage ()
@@ -57,6 +60,49 @@ default_cb(evhtp_request_t *req, void *arg)
 {
     /* Return empty page. */
     evhtp_send_reply (req, EVHTP_RES_OK);
+}
+
+static void
+remove_pidfile (const char *pidfile)
+{
+    if (pidfile) {
+        g_unlink (pidfile);
+    }
+}
+
+static int
+write_pidfile (const char *pidfile_path)
+{
+    if (!pidfile_path)
+        return -1;
+
+    pid_t pid = getpid();
+
+    FILE *pidfile = fopen(pidfile_path, "w");
+    if (!pidfile) {
+        seaf_warning ("Failed to fopen() pidfile %s: %s\n",
+                      pidfile_path, strerror(errno));
+        return -1;
+    }
+
+    char buf[32];
+    snprintf (buf, sizeof(buf), "%d\n", pid);
+    if (fputs(buf, pidfile) < 0) {
+        seaf_warning ("Failed to write pidfile %s: %s\n",
+                      pidfile_path, strerror(errno));
+        return -1;
+    }
+
+    fflush (pidfile);
+    fclose (pidfile);
+    return 0;
+}
+
+static void
+on_httpserver_exit(void)
+{
+    if (pidfile)
+        remove_pidfile (pidfile);
 }
 
 static void
@@ -195,6 +241,9 @@ main(int argc, char *argv[])
         case 'k':
             temp_file_dir = optarg;
             break;
+        case 'P':
+            pidfile = optarg;
+            break;
         default:
             usage();
             exit(-1);
@@ -283,6 +332,15 @@ main(int argc, char *argv[])
         g_warning ("Could not bind socket: %s\n", strerror(errno));
         exit(-1);
     }
+
+    if (pidfile) {
+        if (write_pidfile (pidfile) < 0) {
+            seaf_message ("Failed to write pidfile\n");
+            return -1;
+        }
+    }
+    
+    atexit (on_httpserver_exit);
 
     event_base_loop(evbase, 0);
 
