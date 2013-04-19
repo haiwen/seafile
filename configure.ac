@@ -66,7 +66,6 @@ if test "$bwin32" = true; then
    compile_cli=no
    compile_tools=no
    compile_server=no
-   compile_httpserver=no
 fi
 
 if test "$bmac" = true; then
@@ -75,8 +74,6 @@ if test "$bmac" = true; then
    compile_cli=no
    compile_tools=no
    compile_server=no
-   compile_httpserver=no
-
 fi
 
 if test "$blinux" = true; then
@@ -84,14 +81,6 @@ if test "$blinux" = true; then
    compile_tools=yes
 
    compile_server=no
-   compile_httpserver=no
-
-
-   AC_ARG_ENABLE(client, AC_HELP_STRING([--enable-client], [enable client]),
-      [compile_client=$enableval],[compile_client="yes"])
-
-   AC_ARG_ENABLE(gui, AC_HELP_STRING([--enable-gui], [enable gui]),
-      [compile_gui=$enableval],[compile_gui="yes"])
 
 #   AC_ARG_ENABLE(seablock, AC_HELP_STRING([--enable-seablock],
 #      [enable seablock]), [compile_seablock=$enableval],
@@ -105,16 +94,18 @@ if test "$blinux" = true; then
 
 fi
 
+AC_ARG_ENABLE(client, AC_HELP_STRING([--enable-client], [enable client]),
+   [compile_client=$enableval],[compile_client="yes"])
+
+AC_ARG_ENABLE(gui, AC_HELP_STRING([--enable-gui], [enable gui]),
+   [compile_gui=$enableval],[compile_gui="yes"])
+
 AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
    [compile_server=$enableval],[compile_server="no"])
 
 # default compile mysql, but only check it for server.
 AC_ARG_ENABLE(mysql, AC_HELP_STRING([--enable-mysql], [enable mysql]),
    [compile_mysql=$enableval],[compile_mysql="yes"])
-
-AC_ARG_ENABLE(httpserver, AC_HELP_STRING([--enable-httpserver], [enable httpserver]),
-   [compile_httpserver=$enableval],[compile_httpserver="no"])
-
 
 AC_ARG_ENABLE(python,
               AC_HELP_STRING([--enable-python],[build ccnet python binding]),
@@ -147,7 +138,6 @@ if test x${server_pkg} = xyes; then
   compile_cli=yes
   compile_tools=yes
   compile_server=yes
-  compile_httpserver=yes
   SERVER_PKG_RPATH=-Wl,-R,\'\$\$ORIGIN/../lib\'
   SERVER_PKG_PY_RPATH=-Wl,-R,\'\$\$ORIGIN/../../..\'
 fi
@@ -161,7 +151,6 @@ AM_CONDITIONAL([COMPILE_PYTHON], [test "${compile_python}" = "yes"])
 AM_CONDITIONAL([COMPILE_CLIENT], [test "${compile_client}" = "yes"])
 AM_CONDITIONAL([COMPILE_GUI], [test "${compile_client}" = "yes" -a "${compile_gui}" = "yes"])
 AM_CONDITIONAL([COMPILE_SERVER], [test "${compile_server}" = "yes"])
-AM_CONDITIONAL([COMPILE_HTTPSERVER], [test "${compile_httpserver}" = "yes"])
 #AM_CONDITIONAL([COMPILE_SEABLOCK], [test "${compile_seablock}" = "yes"])
 AM_CONDITIONAL([COMPILE_RIAK], [test "${compile_riak}" = "yes"])
 AM_CONDITIONAL([COMPILE_CEPH], [test "${compile_ceph}" = "yes"])
@@ -384,7 +373,7 @@ if test "${compile_server}" = "yes"; then
    fi
 fi
 
-if test x${compile_httpserver} = xyes; then
+if test x${compile_server} = xyes; then
    dnl check libarchive
    LIBARCHIVE_REQUIRED=2.8.5
    PKG_CHECK_MODULES(LIBARCHIVE, [libarchive >= $LIBARCHIVE_REQUIRED])
@@ -461,9 +450,6 @@ if test x${compile_server} = xyes; then
    echo    "seaf-server"
 fi
 
-if test x${compile_httpserver} = xyes; then
-   echo    "httpserver"
-fi
 #if test x${compile_seablock} = xyes; then
 #   echo    "seablock"
 #fi

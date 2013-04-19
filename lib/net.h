@@ -46,6 +46,8 @@ evutil_socket_t ccnet_net_accept (evutil_socket_t b,
                                   struct sockaddr_storage *cliaddr,
                                   socklen_t *len, int nonblock);
 
+int ccnet_net_make_socket_blocking (evutil_socket_t fd);
+
 /* bind to an IPv4 address, if (*port == 0) the port number will be returned */
 evutil_socket_t ccnet_net_bind_v4 (const char *ipaddr, int *port);
 

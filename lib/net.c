@@ -608,6 +608,33 @@ ccnet_net_bind_tcp (int port, int nonblock)
 #endif
 }
 
+int
+ccnet_net_make_socket_blocking(evutil_socket_t fd)
+{
+#ifdef WIN32
+	{
+		u_long nonblocking = 0;
+		if (ioctlsocket(fd, FIONBIO, &nonblocking) == SOCKET_ERROR) {
+			ccnet_warning (fd, "fcntl(%d, F_GETFL)", (int)fd);
+			return -1;
+		}
+	}
+#else
+	{
+		int flags;
+		if ((flags = fcntl(fd, F_GETFL, NULL)) < 0) {
+			ccnet_warning ("fcntl(%d, F_GETFL)", fd);
+			return -1;
+		}
+		if (fcntl(fd, F_SETFL, flags & ~O_NONBLOCK) == -1) {
+			ccnet_warning ("fcntl(%d, F_SETFL)", fd);
+			return -1;
+		}
+	}
+#endif
+	return 0;
+}
+
 evutil_socket_t
 ccnet_net_accept (evutil_socket_t b, struct sockaddr_storage *cliaddr, 
                   socklen_t *len, int nonblock)

@@ -821,11 +821,17 @@ recv_file_data (RecvFSM *fsm, gboolean *no_line)
                     return EVHTP_RES_SERVERR;
                 }
             }
-            if (evbuffer_write (fsm->line, fsm->fd) < 0) {
+
+            size_t size = evbuffer_get_length (fsm->line);
+            char *buf = g_new (char, size);
+            evbuffer_remove (fsm->line, buf, size);
+            if (writen (fsm->fd, buf, size) < 0) {
                 seaf_warning ("[upload] Failed to write temp file: %s.\n",
                            strerror(errno));
+                g_free (buf);
                 return EVHTP_RES_SERVERR;
             }
+            g_free (buf);
             fsm->recved_crlf = FALSE;
         }
         *no_line = TRUE;

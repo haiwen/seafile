@@ -86,7 +86,7 @@ seaf_listen_manager_start (SeafListenManager *mgr)
         return -1;
     }
 
-    flags = LEV_OPT_REUSEABLE | LEV_OPT_CLOSE_ON_EXEC | LEV_OPT_LEAVE_SOCKETS_BLOCKING;
+    flags = LEV_OPT_REUSEABLE | LEV_OPT_CLOSE_ON_EXEC;
 
     /* start to listen on block transfer port */
     priv->listener = evconnlistener_new (NULL,     /* base */
@@ -150,6 +150,14 @@ read_cb (struct bufferevent *bufev, void *user_data)
     cbstruct = g_hash_table_lookup (mgr->priv->token_hash, token);
     if (!cbstruct) {
         seaf_warning ("[listen mgr] unknown token received: %s\n", token);
+        goto error;
+    }
+
+    /* The connfd should be non-blocking for adding to bufferevent.
+     * But now we want it to be blocking again.
+     */
+    if (ccnet_net_make_socket_blocking (connfd) < 0) {
+        seaf_warning ("[listen mgr] Failed to set socket blocking.\n");
         goto error;
     }
 
