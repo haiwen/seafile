@@ -101,19 +101,32 @@ set_path_env (const char *bin_dir)
     }
 }
 
+#define PID_ERROR_ENOENT 0
+#define PID_ERROR_OTHER  -1
+
+/**
+ * @return
+ * - pid if successfully opened and read the file
+ * - PID_ERROR_ENOENT if file not exists,
+ * - PID_ERROR_OTHER if other errors
+ */
 static int
 read_pid_from_pidfile (const char *pidfile)
 {
     FILE *pf = fopen (pidfile, "r");
     if (!pf) {
-        return -1;
+        if (errno == ENOENT) {
+            return PID_ERROR_ENOENT;
+        } else {
+            return PID_ERROR_OTHER;
+        }
     }
 
-    int pid = -1;
+    int pid = PID_ERROR_OTHER;
     if (fscanf (pf, "%d", &pid) < 0) {
         seaf_warning ("bad pidfile format: %s\n", pidfile);
         fclose(pf);
-        return -1;
+        return PID_ERROR_OTHER;
     }
 
     fclose(pf);
@@ -133,22 +146,6 @@ try_kill_process(int which)
         kill((pid_t)pid, SIGTERM);
 }
 
-static gboolean process_running(char *pidfile) {
-    char buf[256];
-    int pid;
-
-    pid = read_pid_from_pidfile(pidfile);
-    if (pid < 0) {
-        return FALSE;
-    }
-
-    snprintf (buf, sizeof(buf), "/proc/%d", pid);
-    if (g_file_test(buf, G_FILE_TEST_IS_DIR)) {
-        return TRUE;
-    }
-
-    return FALSE;
-}
 
 //
 // Utility functions End
@@ -259,19 +256,43 @@ run_controller_loop ()
 }
 
 static gboolean
+need_restart (int which)
+{
+    if (which < 0 || which >= N_PID)
+        return FALSE;
+
+    int pid = read_pid_from_pidfile (ctl->pidfile[which]);
+    if (pid == PID_ERROR_ENOENT) {
+        seaf_warning ("pid file %s does not exist\n", ctl->pidfile[which]);
+        return TRUE;
+    } else if (pid == PID_ERROR_OTHER) {
+        seaf_warning ("failed to read pidfile %s: %s\n", ctl->pidfile[which], strerror(errno));
+        return FALSE;
+    } else {
+        char buf[256];
+        snprintf (buf, sizeof(buf), "/proc/%d", pid);
+        if (g_file_test (buf, G_FILE_TEST_IS_DIR)) {
+            return FALSE;
+        } else {
+            return TRUE;
+        }
+    }
+}
+
+static gboolean
 check_process (void *data)
 {
-    if (!process_running(ctl->pidfile[PID_SERVER])) {
+    if (need_restart(PID_SERVER)) {
         seaf_message ("seaf-server need restart...\n");
         start_seaf_server ();
     }
 
-    if (!process_running(ctl->pidfile[PID_MONITOR])) {
+    if (need_restart(PID_MONITOR)) {
         seaf_message ("seaf-mon need restart...\n");
         start_seaf_monitor ();
     }
 
-    if (!process_running(ctl->pidfile[PID_HTTPSERVER])) {
+    if (need_restart(PID_HTTPSERVER)) {
         seaf_message ("httpserver need restart...\n");
         start_httpserver ();
     }
@@ -374,7 +395,7 @@ on_ccnet_connected ()
     if (start_seaf_monitor () < 0)
         controller_exit(1);
 
-    if (!process_running(ctl->pidfile[PID_HTTPSERVER])) {
+    if (need_restart(PID_HTTPSERVER)) {
         /* Since httpserver doesn't die when ccnet server dies, when ccnet
          * server is restarted, we don't need to start httpserver */
         if (start_httpserver() < 0)
