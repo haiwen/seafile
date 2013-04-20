@@ -501,21 +501,10 @@ seaf_controller_start ()
     return 0;
 }
 
-static void remove_pidfiles() {
-    int i;
-    for (i = 0; i < N_PID; i++) {
-        if (g_file_test(ctl->pidfile[i], G_FILE_TEST_EXISTS)) {
-            g_unlink (ctl->pidfile[i]);
-        }
-    }
-}
-
 static void
 sigint_handler (int signo)
 {
     stop_ccnet_server ();
-
-    remove_pidfiles();
 
     signal (signo, SIG_DFL);
     raise (signo);
