@@ -112,8 +112,11 @@ read_pid_from_pidfile (const char *pidfile)
     int pid = -1;
     if (fscanf (pf, "%d", &pid) < 0) {
         seaf_warning ("bad pidfile format: %s\n", pidfile);
+        fclose(pf);
         return -1;
     }
+
+    fclose(pf);
 
     return pid;
 }
