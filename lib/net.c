@@ -615,7 +615,7 @@ ccnet_net_make_socket_blocking(evutil_socket_t fd)
 	{
 		u_long nonblocking = 0;
 		if (ioctlsocket(fd, FIONBIO, &nonblocking) == SOCKET_ERROR) {
-			ccnet_warning (fd, "fcntl(%d, F_GETFL)", (int)fd);
+			ccnet_warning ("fcntl(%d, F_GETFL)", (int)fd);
 			return -1;
 		}
 	}
