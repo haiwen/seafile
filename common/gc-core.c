@@ -46,7 +46,8 @@ typedef struct {
     GHashTable *visited;
 #ifndef SEAFILE_SERVER
     gboolean no_history;
-    char end_commit[41];
+    char remote_end_commit[41];
+    char local_end_commit[41];
 #endif
 
 #ifdef SEAFILE_SERVER
@@ -113,7 +114,8 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
 
 #ifndef SEAFILE_SERVER
     if (data->no_history && 
-        strcmp (commit->commit_id, data->end_commit) == 0) {
+        (strcmp (commit->commit_id, data->local_end_commit) == 0 ||
+         strcmp (commit->commit_id, data->remote_end_commit) == 0)) {
         *stop = TRUE;
         return TRUE;
     }
@@ -173,8 +175,15 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index)
                                                                  repo->id,
                                                                  REPO_REMOTE_HEAD);
         if (remote_head)
-            memcpy (data->end_commit, remote_head, 41);
+            memcpy (data->remote_end_commit, remote_head, 41);
         g_free (remote_head);
+
+        char *local_head = seaf_repo_manager_get_repo_property (repo->manager,
+                                                                repo->id,
+                                                                REPO_LOCAL_HEAD);
+        if (local_head)
+            memcpy (data->local_end_commit, local_head, 41);
+        g_free (local_head);
     }
 #endif
 

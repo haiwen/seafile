@@ -20,6 +20,7 @@
 #define REPO_NET_BROWSABLE    "net-browsable"
 #define REPO_DOUBLE_SYNC      "double-sync"
 #define REPO_REMOTE_HEAD      "remote-head"
+#define REPO_LOCAL_HEAD       "local-head"
 #define REPO_PROP_EMAIL       "email"
 #define REPO_PROP_TOKEN       "token"
 #define REPO_PROP_RELAY_ADDR  "relay-address"
