@@ -540,7 +540,8 @@ gboolean heartbeat_monitor (void *data)
         applet->last_heartbeat = now;
         return TRUE;
      } else if (now - applet->last_heartbeat > 3 * HEARTBEAT_INTERVAL) {
-        /* hearbeat not received */
+        /* heartbeat not received */
+
         if (is_seafile_daemon_running()) {
             return TRUE;
         } else {
@@ -548,6 +549,7 @@ gboolean heartbeat_monitor (void *data)
                             "now bring it up..\n");
             applet->auto_sync_disabled = FALSE;
             start_seafile_daemon();
+            applet->last_heartbeat = time(NULL);
         }
      }
     return TRUE;
