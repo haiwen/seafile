@@ -3,6 +3,7 @@ import ccnet
 from pysearpc import searpc_func, SearpcError
 
 class SeafileRpcClient(ccnet.RpcClientBase):
+    """RPC used in client"""
 
     def __init__(self, ccnet_client_pool, *args, **kwargs):
         ccnet.RpcClientBase.__init__(self, ccnet_client_pool, "seafile-rpcserver",
@@ -199,6 +200,7 @@ class SeafileRpcClient(ccnet.RpcClientBase):
 
 
 class SeafileThreadedRpcClient(ccnet.RpcClientBase):
+    """RPC used in client that run in a thread"""
 
     def __init__(self, ccnet_client_pool, *args, **kwargs):
         ccnet.RpcClientBase.__init__(self, ccnet_client_pool, 
@@ -293,7 +295,12 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
                                      "seafserv-threaded-rpcserver",
                                      *args, **kwargs)
 
-    # repo manupulation 
+    # repo manipulation 
+    @searpc_func("string", ["string", "string", "string", "string"])
+    def seafile_create_repo(name, desc, owner_email, passwd):
+        pass
+    create_repo = seafile_create_repo
+
     @searpc_func("object", ["string"])
     def seafile_get_repo(repo_id):
         pass
@@ -365,7 +372,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     post_dir = seafile_post_dir 
 
     @searpc_func("int", ["string", "string", "string", "string"])
-    def seafile_post_empty_file(repo_id, parent_dir, new_dir_name, user):
+    def seafile_post_empty_file(repo_id, parent_dir, filename, user):
         pass
     post_empty_file = seafile_post_empty_file
 
@@ -620,12 +627,6 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     unset_passwd = seafile_unset_passwd
     
-    @searpc_func("string", ["string", "string", "string", "string"])
-    def seafile_create_repo(name, desc, owner_email, passwd):
-        pass
-
-    create_repo = seafile_create_repo
-
     # repo permission checking
     @searpc_func("string", ["string", "string"])
     def check_permission(repo_id, user):
