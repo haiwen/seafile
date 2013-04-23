@@ -2936,6 +2936,57 @@ seafile_get_repo_token_nonnull (const char *repo_id,
 }
 
 char *
+seafile_generate_repo_token (const char *repo_id,
+                             const char *email,
+                             GError **error)
+{
+    char *token;
+
+    if (!repo_id || !email) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return NULL;
+    }
+
+    token = seaf_repo_manager_generate_repo_token (seaf->repo_mgr, repo_id, email, error);    
+
+    return token;
+}
+
+GList *
+seafile_list_repo_tokens (const char *repo_id,
+                          GError **error)
+{
+    GList *ret_list;
+
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return NULL;
+    }
+
+    ret_list = seaf_repo_manager_list_repo_tokens (seaf->repo_mgr, repo_id, error);
+
+    return ret_list;
+}
+
+GList *
+seafile_list_repo_tokens_by_email (const char *repo_id,
+                                   const char *email,
+                                   GError **error)
+{
+    GList *ret_list;
+
+    if (!repo_id || !email) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return NULL;
+    }
+
+    ret_list = seaf_repo_manager_list_repo_tokens_by_email (seaf->repo_mgr, repo_id, email, error);
+
+    return ret_list;
+}
+
+
+char *
 seafile_check_permission (const char *repo_id, const char *user, GError **error)
 {
     if (!repo_id || !user) {

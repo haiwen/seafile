@@ -230,6 +230,11 @@ check_tx (void *vprocessor)
         goto out;
     }
 
+    /* Record the (token, email, <peer info>) information, <peer info> may
+     * include peer_id, peer_ip, peer_name, etc.
+     */
+    save_client_token_info (processor, priv->token, user, repo_id);
+
     if (priv->type == CHECK_TX_TYPE_UPLOAD &&
         seaf_quota_manager_check_quota (seaf->quota_mgr, repo_id) < 0) {
         priv->rsp_code = g_strdup(SC_QUOTA_FULL);
@@ -385,3 +390,12 @@ handle_update (CcnetProcessor *processor,
                                    NULL, 0);
     ccnet_processor_done (processor, FALSE);
 }
+
+static void
+save_client_token_info (CcnetProcessor *processor,
+                        const char *token,
+                        const char *user,
+                        const char *repo_id)
+{
+}
+

@@ -361,6 +361,21 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "seafile_get_repo_token_nonnull",
                                      searpc_signature_string__string_string());
 
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_generate_repo_token,
+                                     "seafile_generate_repo_token",
+                                     searpc_signature_string__string_string());
+    
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_list_repo_tokens,
+                                     "seafile_list_repo_tokens",
+                                     searpc_signature_objlist__string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_list_repo_tokens_by_email,
+                                     "seafile_list_repo_tokens_by_email",
+                                     searpc_signature_objlist__string_string());
+    
     /* quota */
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_user_quota_usage,

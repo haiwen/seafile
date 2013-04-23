@@ -674,6 +674,16 @@ create_tables_mysql (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
+    sql = "CREATE TABLE IF NOT EXISTS RepoTokenPeerInfo ("
+        "token CHAR(41), "
+        "peer_id CHAR(41), "
+        "peer_ip VARCHAR(41), "
+        "peer_name VARCHAR(255), "
+        "UNIQUE INDEX (token))"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
     sql = "CREATE TABLE IF NOT EXISTS RepoHead ("
         "repo_id CHAR(37) PRIMARY KEY, branch_name VARCHAR(10))"
         "ENGINE=INNODB";
@@ -965,12 +975,149 @@ seaf_repo_manager_get_repo_token_nonnull (SeafRepoManager *mgr,
     return token;
 }
 
+static int
+add_repo_token (SeafRepoManager *mgr,
+                const char *repo_id,
+                const char *email,
+                const char *token,
+                GError **error)
+{
+    char sql[512];
+
+    snprintf (sql, sizeof(sql),
+              "INSERT INTO RepoUserToken VALUES ('%s', '%s', '%s')",
+              repo_id, email, token);
+
+    if (seaf_db_query (mgr->seaf->db, sql) < 0) {
+        seaf_warning ("failed to add repo token. repo = %s, email = %s\n",
+                      repo_id, email);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
+        return -1;
+    }
+
+    return 0;
+}
+
+char *
+seaf_repo_manager_generate_repo_token (SeafRepoManager *mgr,
+                                       const char *repo_id,
+                                       const char *email,
+                                       GError **error)
+{
+    char *token = generate_repo_token ();
+    if (add_repo_token (mgr, repo_id, email, token, error) < 0) {
+        g_free (token);        
+        return NULL;
+    }
+
+    return token;
+}
+
+static
+collect_repo_token (SeafDBRow *row, void *data)
+{
+    GList **ret_list = data;
+    const char *repo_id, *repo_owner, *email, *token;
+    const char *peer_id, *peer_ip, *peer_name;
+
+    repo_id = seaf_db_row_get_column_text (row, 0);
+    repo_owner = seaf_db_row_get_column_text (row, 1);
+    email = seaf_db_row_get_column_text (row, 2);
+    token = seaf_db_row_get_column_text (row, 3);
+
+    peer_id = seaf_db_row_get_column_text (row, 4);
+    peer_ip = seaf_db_row_get_column_text (row, 5);
+    peer_name = seaf_db_row_get_column_text (row, 6);
+
+    SeafileRepoTokenInfo *repo_token_info;
+    repo_token_info = g_object_new (SEAFILE_TYPE_REPO_USER_TOKEN,
+                                    "repo_id", repo_id,
+                                    "repo_owner", repo_owner,
+                                    "email", email,
+                                    "token", token,
+                                    "peer_id", peer_id,
+                                    "peer_ip", peer_ip,
+                                    "peer_name", peer_name,
+                                    NULL);
+
+    *ret_list = g_list_prepend (*ret_list, repo_token_info);
+    
+    return TRUE;
+}
+
+GList *
+seaf_repo_manager_list_repo_tokens (SeafRepoManager *mgr,
+                                    const char *repo_id,
+                                    GError **error)
+{
+    GList *ret_list = NULL;
+    char sql[2048];
+    gboolean db_err = FALSE;
+
+    if (!repo_exists_in_db (mgr->seaf->db, repo_id, &db_err)) {
+        if (db_err) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
+        }
+        return NULL;
+    }
+
+    snprintf (sql, sizeof(sql), 
+              "SELECT u.repo_id, o.owner_id, u.email, u.token, p.peer_id, p.peer_ip, p.peer_name "
+              "FROM RepoUserToken u, RepoTokenPeerInfo p, RepoOwner o "
+              "WHERE u.repo_id = '%s' and u.token = p.token and o.repo_id = '%s' ",
+              repo_id, repo_id);
+
+    int n_row = seaf_db_foreach_selected_row (mgr->seaf->db, sql,
+                                              collect_repo_token, &ret_list);
+    if (n_row < 0) {
+        seaf_warning ("DB error when get token for repo %s.\n",
+                      repo_id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
+    }
+
+    return g_list_reverse(ret_list);
+}
+
+GList *
+seaf_repo_manager_list_repo_tokens_by_email (SeafRepoManager *mgr,
+                                             const char *repo_id,
+                                             const char *email,
+                                             GError **error)
+{
+    GList *ret_list = NULL;
+    char sql[2048];
+    gboolean db_err = FALSE;
+
+    if (!repo_exists_in_db (mgr->seaf->db, repo_id, &db_err)) {
+        if (db_err) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
+        }
+        return NULL;
+    }
+
+    snprintf (sql, sizeof(sql), 
+              "SELECT u.repo_id, o.owner_id, u.email, u.token, p.peer_id, p.peer_ip, p.peer_name "
+              "FROM RepoUserToken u, RepoTokenPeerInfo p, RepoOwner o "
+              "WHERE u.repo_id = '%s' and u.email = '%s' and u.token = p.token and o.repo_id = '%s' ",
+              repo_id, email, repo_id);
+
+    int n_row = seaf_db_foreach_selected_row (mgr->seaf->db, sql,
+                                              collect_repo_token, &ret_list);
+    if (n_row < 0) {
+        seaf_warning ("DB error when get token for repo %s, email %s.\n",
+                      repo_id, email);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
+    }
+
+    return g_list_reverse(ret_list);
+}
+
 char *
 seaf_repo_manager_get_repo_token (SeafRepoManager *mgr,
                                   const char *repo_id,
                                   const char *email)
 {
-    char sql[256];
+    char sql[1024];
     char *token = NULL;
     gboolean db_err = FALSE;
 
@@ -978,7 +1125,9 @@ seaf_repo_manager_get_repo_token (SeafRepoManager *mgr,
         return NULL;
 
     snprintf (sql, sizeof(sql), 
-              "SELECT token FROM RepoUserToken WHERE repo_id='%s' and email='%s'",
+              "SELECT u.repo_id, u.email, u.token, p.peer_id, p.peer_ip, p.peer_name "
+              "FROM RepoUserToken u, RepoTokenPeerInfo p "
+              "WHERE u.repo_id = '%s' and u.email ='%s' and u.token = p.token",
               repo_id, email);
 
     int n_row = seaf_db_foreach_selected_row (mgr->seaf->db, sql,
