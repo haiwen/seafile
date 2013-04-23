@@ -682,23 +682,6 @@ def start_controller():
     if not is_running('seafile-controller'):
         error('Failed to start seafile')
 
-def start_httpserver():
-    argv = [
-        'httpserver',
-        '-c', conf[CONF_CCNET_DIR],
-        '-d', conf[CONF_SEAFILE_DIR],
-    ]
-
-    info('Starting seafile httpserver...')
-    if run_argv(argv) != 0:
-        error('Failed to start seafile httpserver')
-
-    # check again after 2 seconds
-    time.sleep(2)
-
-    if not is_running('httpserver'):
-        error('Failed to start httpserver')
-
 def start_seahub_gunicorn():
     argv = [
         'gunicorn_django',
@@ -875,7 +858,6 @@ def start_seafile(args):
     check_config(args)
 
     start_controller()
-    start_httpserver()
 
     if args.port:
         try:
@@ -896,7 +878,6 @@ def start_seafile(args):
 def stop_seafile(dummy):
     info('Stopping seafile server')
     pkill('seafile-controller')
-    pkill('httpserver')
     runtime_dir = os.path.join(cwd, 'seafile-server', 'runtime')
     pidfile = os.path.join(runtime_dir, 'seahub.pid')
     try:
