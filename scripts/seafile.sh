@@ -68,7 +68,7 @@ function start_seafile_server () {
 
     LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_controller} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"
 
-    sleep 10
+    sleep 3
 
     # check if seafile server started successfully
     if ! pgrep -f "seafile-controller -c ${default_ccnet_conf_dir}" 2>/dev/null 1>&2; then
