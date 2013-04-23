@@ -1,4 +1,3 @@
-
 AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	-DPACKAGE_DATA_DIR=\""$(pkgdatadir)"\" \
 	-DSEAFILE_SERVER \
@@ -36,6 +35,7 @@ httpserver_SOURCES = \
 	../common/block-backend.c \
 	../common/block-backend-fs.c \
 	../common/block-backend-ceph.c \
+	../common/block-backend-swift.c \
 	../common/commit-mgr.c \
 	../common/log.c \
 	../common/avl/avl.c \
