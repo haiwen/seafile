@@ -1,6 +1,8 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#ifndef __APPLE__
 #include "common.h"
+#endif
 
 #include <sys/stat.h>
 #include <sys/param.h>
