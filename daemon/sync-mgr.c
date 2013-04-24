@@ -1464,7 +1464,7 @@ on_repo_uploaded (SeafileSession *seaf,
         /* Save current head commit id for GC. */
         seaf_repo_manager_set_repo_property (seaf->repo_mgr,
                                              task->repo->id,
-                                             REPO_REMOTE_HEAD,
+                                             REPO_LOCAL_HEAD,
                                              task->repo->head->commit_id);
 
         transition_sync_state (task, SYNC_STATE_DONE);
