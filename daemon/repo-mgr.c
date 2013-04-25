@@ -114,16 +114,28 @@ seaf_repo_check_worktree (SeafRepo *repo)
 {
     SeafStat st;
 
-    if (repo->worktree == NULL)
+    if (repo->worktree == NULL) {
+        seaf_warning ("Worktree for repo '%s'(%.8s) is not set.\n",
+                      repo->name, repo->id);
         return -1;
+    }
 
     /* check repo worktree */
-    if (g_access(repo->worktree, F_OK) < 0)
+    if (g_access(repo->worktree, F_OK) < 0) {
+        seaf_warning ("Failed to access worktree %s for repo '%s'(%.8s)\n",
+                      repo->worktree, repo->name, repo->id);
         return -1;
-    if (seaf_stat(repo->worktree, &st) < 0)
+    }
+    if (seaf_stat(repo->worktree, &st) < 0) {
+        seaf_warning ("Failed to stat worktree %s for repo '%s'(%.8s)\n",
+                      repo->worktree, repo->name, repo->id);
         return -1;
-    if (!S_ISDIR(st.st_mode))
+    }
+    if (!S_ISDIR(st.st_mode)) {
+        seaf_warning ("Worktree %s for repo '%s'(%.8s) is not a directory.\n",
+                      repo->worktree, repo->name, repo->id);
         return -1;
+    }
 
     return 0;
 }
@@ -148,8 +160,11 @@ send_wktree_notification (SeafRepo *repo, int addordel)
 static gboolean
 check_worktree_common (SeafRepo *repo)
 {
-    if (!repo->head)
+    if (!repo->head) {
+        seaf_warning ("Head for repo '%s'(%.8s) is not set.\n",
+                      repo->name, repo->id);
         return FALSE;
+    }
 
     if (seaf_repo_check_worktree (repo) < 0) {
         /* The worktree is invalid */
@@ -296,10 +311,10 @@ seaf_repo_verify_passwd (const char *repo_id,
 }
 
 static inline gboolean
-has_trailing_space (const char *path)
+has_trailing_space_or_period (const char *path)
 {
     int len = strlen(path);
-    if (path[len - 1] == ' ') {
+    if (path[len - 1] == ' ' || path[len - 1] == '.') {
         return TRUE;
     }
 
@@ -315,7 +330,7 @@ should_ignore(const char *filename, void *data)
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)
         return TRUE;
 
-    if (has_trailing_space (filename)) {
+    if (has_trailing_space_or_period (filename)) {
         /* Ignore files/dir whose path has trailing spaces. It would cause
          * problem on windows. */
         /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */
