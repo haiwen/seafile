@@ -38,5 +38,4 @@ from service import CCNET_CONF_PATH, CCNET_SERVER_ADDR, CCNET_SERVER_PORT, \
 
 from service import send_message
 
-
-    
+from api import seafile_api

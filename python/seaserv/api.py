@@ -263,3 +263,5 @@ class SeafileAPI(object):
     def is_inner_pub_repo(self, repo_id):
         return seafserv_threaded_rpc.is_inner_pub_repo(repo_id)
 
+
+seafile_api = SeafileAPI()
