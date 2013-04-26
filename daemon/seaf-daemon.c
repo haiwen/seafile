@@ -226,13 +226,13 @@ create_sync_rpc_clients (const char *config_dir)
     /* sync client and rpc client */
     sync_client = ccnet_client_new ();
     if ( (ccnet_client_load_confdir(sync_client, config_dir)) < 0 ) {
-        fprintf (stderr, "Read config dir error\n");
+        seaf_warning ("Read config dir error\n");
         exit(1);
     }
 
     if (ccnet_client_connect_daemon (sync_client, CCNET_CLIENT_SYNC) < 0)
     {
-        fprintf(stderr, "Connect to server fail: %s\n", strerror(errno));
+        seaf_warning ("Connect to server fail: %s\n", strerror(errno));
         exit(1);
     }
 
@@ -276,13 +276,13 @@ bind_ccnet_service (const char *config_dir)
 
     bind_client = ccnet_client_new ();
     if ( (ccnet_client_load_confdir(bind_client, config_dir)) < 0 ) {
-        fprintf (stderr, "Read config dir error\n");
+        seaf_warning ("Read config dir error\n");
         exit(1);
     }
 
     if (ccnet_client_connect_daemon (bind_client, CCNET_CLIENT_SYNC) < 0)
     {
-        fprintf(stderr, "Connect to server fail: %s\n", strerror(errno));
+        seaf_warning ("Connect to server fail: %s\n", strerror(errno));
         exit(1);
     }
 
@@ -372,6 +372,14 @@ main (int argc, char **argv)
         debug_str = g_getenv("SEAFILE_DEBUG");
     seafile_debug_set_flags_string (debug_str);
 
+    if (logfile == NULL)
+        logfile = g_build_filename (config_dir, "logs", "seafile.log", NULL);
+    if (seafile_log_init (logfile, ccnet_debug_level_str,
+                          seafile_debug_level_str) < 0) {
+        seaf_warning ("Failed to init log.\n");
+        exit (1);
+    }
+
     if (!bind_ccnet_service (config_dir)) {
         seaf_warning ("Failed to bind ccnet service\n");
         exit (1);
@@ -393,22 +401,14 @@ main (int argc, char **argv)
         seafile_dir = g_build_filename (config_dir, "seafile-data", NULL);
     if (worktree_dir == NULL)
         worktree_dir = g_build_filename (g_get_home_dir(), "seafile", NULL);
-    if (logfile == NULL)
-        logfile = g_build_filename (config_dir, "logs", "seafile.log", NULL);
 
     seaf = seafile_session_new (seafile_dir, worktree_dir, client);
     if (!seaf) {
-        fprintf (stderr, "Failed to create seafile session.\n");
+        seaf_warning ("Failed to create seafile session.\n");
         exit (1);
     }
     seaf->ccnetrpc_client = ccnetrpc_client;
     seaf->appletrpc_client = appletrpc_client;
-
-    if (seafile_log_init (logfile, ccnet_debug_level_str,
-                          seafile_debug_level_str) < 0) {
-        fprintf (stderr, "Failed to init log.\n");
-        exit (1);
-    }
 
     seaf_message ("starting seaf-daemon "PACKAGE_VERSION"\n");
 

@@ -474,7 +474,7 @@ update_cb(evhtp_request_t *req, void *arg)
             error_code = ERROR_NOT_EXIST;
         }
         if (error->message)
-            printf ("%s\n", error->message);
+            seaf_warning ("%s\n", error->message);
         g_clear_error (&error);
         goto error;
     }
@@ -558,7 +558,7 @@ update_api_cb(evhtp_request_t *req, void *arg)
             error_code = ERROR_NOT_EXIST;
         }
         if (error->message)
-            printf ("%s\n", error->message);
+            seaf_warning ("%s\n", error->message);
         g_clear_error (&error);
         goto error;
     }
