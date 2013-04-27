@@ -1,7 +1,5 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
-#include "common.h"
-
 #include <sys/stat.h>
 #include <sys/param.h>
 
