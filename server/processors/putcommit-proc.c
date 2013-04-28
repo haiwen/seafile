@@ -115,7 +115,7 @@ send_commit_ids (CcnetProcessor *processor, const char *head)
     ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                     head,
                                                     commit_collector,
-                                                    ol);
+                                                    ol, FALSE);
     if (ret == FALSE) {
         object_list_free (ol);
         g_warning ("[putcommit] Load commits error\n");

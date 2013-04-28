@@ -36,7 +36,7 @@ alloc_gc_index ()
 {
     size_t size = (size_t) MAX(total_blocks << 2, 1 << 13);
 
-    g_message ("GC index size is %u Byte.\n", (int)size >> 3);
+    seaf_message ("GC index size is %u Byte.\n", (int)size >> 3);
 
     return bloom_create (size, 3, 0);
 }
@@ -58,6 +58,8 @@ typedef struct {
     gint64 truncate_time;
     gboolean traversed_head;
 #endif
+
+    gboolean ignore_errors;
 } GCData;
 
 static int
@@ -139,25 +141,25 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
         data->traversed_head = TRUE;
 #endif
 
-    seaf_debug ("[GC] traversed commit %s.\n", commit->commit_id);
-
     ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
                                          commit->root_id,
                                          fs_callback,
-                                         data);
-    if (ret < 0)
+                                         data, data->ignore_errors);
+    if (ret < 0 && !data->ignore_errors)
         return FALSE;
 
     return TRUE;
 }
 
 static int
-populate_gc_index_for_repo (SeafRepo *repo, Bloom *index)
+populate_gc_index_for_repo (SeafRepo *repo, Bloom *index, gboolean ignore_errors)
 {
     GList *branches, *ptr;
     SeafBranch *branch;
     GCData *data;
     int ret = 0;
+
+    seaf_message ("Populating index for repo %.8s.\n", repo->id);
 
     branches = seaf_branch_manager_get_branch_list (seaf->branch_mgr, repo->id);
     if (branches == NULL) {
@@ -206,6 +208,7 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index)
     }
 
     data->truncate_time = truncate_time;
+    data->ignore_errors = ignore_errors;
 #endif
 
     for (ptr = branches; ptr != NULL; ptr = ptr->next) {
@@ -213,9 +216,10 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index)
         gboolean res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                                  branch->commit_id,
                                                                  traverse_commit,
-                                                                 data);
+                                                                 data,
+                                                                 ignore_errors);
         seaf_branch_unref (branch);
-        if (!res) {
+        if (!res && !ignore_errors) {
             ret = -1;
             break;
         }
@@ -249,7 +253,7 @@ populate_gc_index_for_head (const char *head_id, Bloom *index)
     ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
                                          head->root_id,
                                          fs_callback,
-                                         data);
+                                         data, FALSE);
 
     g_free (data);
     seaf_commit_unref (head);
@@ -278,7 +282,7 @@ check_block_liveness (const char *block_id, void *vdata)
 }
 
 int
-gc_core_run (int dry_run)
+gc_core_run (int dry_run, int ignore_errors)
 {
     Bloom *index;
     GList *repos = NULL, *clone_heads = NULL, *ptr;
@@ -287,7 +291,12 @@ gc_core_run (int dry_run)
     total_blocks = seaf_block_manager_get_block_number (seaf->block_mgr);
     removed_blocks = 0;
 
-    g_message ("GC started. Total block number is %"G_GUINT64_FORMAT".\n", total_blocks);
+    if (total_blocks == 0) {
+        seaf_message ("No blocks. Skip GC.\n");
+        return 0;
+    }
+
+    seaf_message ("GC started. Total block number is %"G_GUINT64_FORMAT".\n", total_blocks);
 
     /*
      * Store the index of live blocks in bloom filter to save memory.
@@ -301,14 +310,14 @@ gc_core_run (int dry_run)
         return -1;
     }
 
-    g_message ("Pupulating index.\n");
+    seaf_message ("Pupulating index.\n");
 
     /* If we meet any error when filling in the index, we should bail out.
      */
 #ifdef SEAFILE_SERVER
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, ignore_errors);
     if (!repos) {
-        seaf_warning ("Failed to get repo list.\n");
+        seaf_warning ("Failed to get repo list or no repos.\n");
         return -1;
     }
 #else
@@ -316,11 +325,12 @@ gc_core_run (int dry_run)
 #endif
 
     for (ptr = repos; ptr != NULL; ptr = ptr->next) {
-        ret = populate_gc_index_for_repo ((SeafRepo *)ptr->data, index);
+        ret = populate_gc_index_for_repo ((SeafRepo *)ptr->data, index,
+                                          ignore_errors);
 #ifdef SEAFILE_SERVER
         seaf_repo_unref ((SeafRepo *)ptr->data);
 #endif
-        if (ret < 0)
+        if (ret < 0 && !ignore_errors)
             goto out;
     }
 
@@ -340,9 +350,9 @@ gc_core_run (int dry_run)
 #endif
 
     if (!dry_run)
-        g_message ("Scanning and deleting unused blocks.\n");
+        seaf_message ("Scanning and deleting unused blocks.\n");
     else
-        g_message ("Scanning unused blocks.\n");
+        seaf_message ("Scanning unused blocks.\n");
 
     CheckBlocksData data;
     data.index = index;
@@ -357,11 +367,11 @@ gc_core_run (int dry_run)
     }
 
     if (!dry_run)
-        g_message ("GC finished. %"G_GUINT64_FORMAT" blocks are removed.\n",
-                   removed_blocks);
+        seaf_message ("GC finished. %"G_GUINT64_FORMAT" blocks are removed.\n",
+                      removed_blocks);
     else
-        g_message ("GC finished. %"G_GUINT64_FORMAT" blocks can be removed.\n",
-                   removed_blocks);
+        seaf_message ("GC finished. %"G_GUINT64_FORMAT" blocks can be removed.\n",
+                      removed_blocks);
 
 out:
     bloom_destroy (index);

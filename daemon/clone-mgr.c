@@ -1044,7 +1044,7 @@ check_fast_forward (SeafCommit *head, const char *root_id)
     if (!seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                    head->commit_id,
                                                    compare_root,
-                                                   aux)) {
+                                                   aux, FALSE)) {
         g_free (aux);
         return FALSE;
     }

@@ -151,7 +151,8 @@ seaf_repo_get_commits (SeafRepo *repo)
         gboolean res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                                  branch->commit_id,
                                                                  collect_commit,
-                                                                 &commits);
+                                                                 &commits,
+                                                                 FALSE);
         if (!res) {
             for (ptr = commits; ptr != NULL; ptr = ptr->next)
                 seaf_commit_unref ((SeafCommit *)(ptr->data));

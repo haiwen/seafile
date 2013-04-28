@@ -396,7 +396,8 @@ gboolean
 seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
                                           const char *head,
                                           CommitTraverseFunc func,
-                                          void *data)
+                                          void *data,
+                                          gboolean skip_errors)
 {
     SeafCommit *commit;
     GList *list = NULL;
@@ -406,7 +407,8 @@ seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
     commit = seaf_commit_manager_get_commit (mgr, head);
     if (!commit) {
         g_warning ("Failed to find commit %s.\n", head);
-        return FALSE;
+        if (!skip_errors)
+            return FALSE;
     }
 
     /* A hash table for recording id of traversed commits. */
@@ -426,9 +428,13 @@ seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
 
         if (!func (commit, data, &stop)) {
             g_warning("[comit-mgr] CommitTraverseFunc failed\n");
-            seaf_commit_unref (commit);
-            ret = FALSE;
-            goto out;
+
+            /* If skip errors, continue to traverse parents. */
+            if (!skip_errors) {
+                seaf_commit_unref (commit);
+                ret = FALSE;
+                goto out;
+            }
         }
         if (stop) {
             seaf_commit_unref (commit);
@@ -441,17 +447,24 @@ seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
         if (commit->parent_id) {
             if (insert_parent_commit (&list, commit_hash, commit->parent_id) < 0) {
                 g_warning("[comit-mgr] insert parent commit failed\n");
-                seaf_commit_unref (commit);
-                ret = FALSE;
-                goto out;
+
+                /* If skip errors, try insert second parent. */
+                if (!skip_errors) {
+                    seaf_commit_unref (commit);
+                    ret = FALSE;
+                    goto out;
+                }
             }
         }
         if (commit->second_parent_id) {
             if (insert_parent_commit (&list, commit_hash, commit->second_parent_id) < 0) {
                 g_warning("[comit-mgr]insert second parent commit failed\n");
-                seaf_commit_unref (commit);
-                ret = FALSE;
-                goto out;
+
+                if (!skip_errors) {
+                    seaf_commit_unref (commit);
+                    ret = FALSE;
+                    goto out;
+                }
             }
         }
         seaf_commit_unref (commit);
@@ -530,7 +543,7 @@ seaf_commit_manager_compare_commit (SeafCommitManager *mgr,
         f.to_find = c2;
         f.result = FALSE;
         if (!seaf_commit_manager_traverse_commit_tree (
-                mgr, c1->commit_id, (CommitTraverseFunc)find_commit, &f))
+                 mgr, c1->commit_id, (CommitTraverseFunc)find_commit, &f, FALSE))
             ret = -2;
         if (f.result == TRUE)
             ret = 1;
@@ -541,7 +554,7 @@ seaf_commit_manager_compare_commit (SeafCommitManager *mgr,
         f.to_find = c1;
         f.result = FALSE;
         if (!seaf_commit_manager_traverse_commit_tree (
-                mgr, c2->commit_id, (CommitTraverseFunc)find_commit, &f))
+                 mgr, c2->commit_id, (CommitTraverseFunc)find_commit, &f, FALSE))
             ret = -2;
         if (f.result == TRUE)
             ret = -1;

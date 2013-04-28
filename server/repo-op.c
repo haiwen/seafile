@@ -3285,7 +3285,8 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
     if (!seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                    repo->head->commit_id,
                                                    collect_deleted,
-                                                   &data))
+                                                   &data,
+                                                   FALSE))
     {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
                      "Internal error");

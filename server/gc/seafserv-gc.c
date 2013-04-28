@@ -15,7 +15,7 @@ static char *seafile_dir = NULL;
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvc:d:VD";
+static const char *short_opts = "hvc:d:VDi";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -23,6 +23,7 @@ static const struct option long_opts[] = {
     { "seafdir", required_argument, NULL, 'd', },
     { "verify", no_argument, NULL, 'V' },
     { "dry-run", no_argument, NULL, 'D' },
+    { "ignore-errors", no_argument, NULL, 'i' },
 };
 
 static void usage ()
@@ -54,6 +55,7 @@ main(int argc, char *argv[])
     int c;
     int verify = 0;
     int dry_run = 0;
+    int ignore_errors = 0;
 
     config_dir = DEFAULT_CONFIG_DIR;
 
@@ -78,6 +80,9 @@ main(int argc, char *argv[])
         case 'D':
             dry_run = 1;
             break;
+        case 'i':
+            ignore_errors = 1;
+            break;
         default:
             usage();
             exit(-1);
@@ -86,9 +91,14 @@ main(int argc, char *argv[])
 
     g_type_init();
 
+    if (seafile_log_init ("-", "info", "debug") < 0) {
+        seaf_warning ("Failed to init log.\n");
+        exit (1);
+    }
+
     ccnet_client = ccnet_client_new();
     if ((ccnet_client_load_confdir(ccnet_client, config_dir)) < 0) {
-        g_warning ("Read config dir error\n");
+        seaf_warning ("Read config dir error\n");
         return -1;
     }
 
@@ -97,7 +107,7 @@ main(int argc, char *argv[])
     
     seaf = seafile_session_new(seafile_dir, ccnet_client);
     if (!seaf) {
-        g_warning ("Failed to create seafile session.\n");
+        seaf_warning ("Failed to create seafile session.\n");
         exit (1);
     }
 
@@ -108,7 +118,7 @@ main(int argc, char *argv[])
         return 0;
     }
 
-    gc_core_run (dry_run);
+    gc_core_run (dry_run, ignore_errors);
 
     return 0;
 }

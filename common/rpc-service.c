@@ -1055,7 +1055,7 @@ seafile_get_commit_list (const char *repo_id,
 #endif
 
     ret = seaf_commit_manager_traverse_commit_tree (
-        seaf->commit_mgr, commit_id, get_commit, &cp);
+            seaf->commit_mgr, commit_id, get_commit, &cp, FALSE);
     g_free (commit_id);
 
     if (!ret) {

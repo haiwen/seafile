@@ -38,7 +38,7 @@ gc_is_started ()
 static void *
 gc_thread_func (void *data)
 {
-    gc_core_run (0);
+    gc_core_run (0, 0);
     return NULL;
 }
 

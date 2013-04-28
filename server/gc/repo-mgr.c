@@ -151,7 +151,8 @@ seaf_repo_get_commits (SeafRepo *repo)
         gboolean res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                                  branch->commit_id,
                                                                  collect_commit,
-                                                                 &commits);
+                                                                 &commits,
+                                                                 FALSE);
         if (!res) {
             for (ptr = commits; ptr != NULL; ptr = ptr->next)
                 seaf_commit_unref ((SeafCommit *)(ptr->data));
@@ -430,6 +431,7 @@ seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr)
 
 typedef struct {
     GList *repos;
+    gboolean ignore_errors;
     gboolean error;
 } CollectReposData;
 
@@ -443,11 +445,13 @@ collect_repos (SeafDBRow *row, void *vdata)
     repo_id = seaf_db_row_get_column_text (row, 0);
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
+        g_warning ("Failed to get repo %.8s.\n", repo_id);
+        if (data->ignore_errors)
+            return TRUE;
         /* In GC, we should be more conservative.
          * No matter a repo is really corrupted or it's a temp error,
          * we return error here.
          */
-        g_warning ("Failed to get repo %.8s.\n", repo_id);
         data->error = TRUE;
         return FALSE;
     }
@@ -458,7 +462,8 @@ collect_repos (SeafDBRow *row, void *vdata)
 
 GList *
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
-                                 int start, int limit)
+                                 int start, int limit,
+                                 gboolean ignore_errors)
 {
     CollectReposData data;
     char sql[256];
@@ -471,6 +476,7 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
         snprintf (sql, 256, "SELECT repo_id FROM Repo LIMIT %d, %d", start, limit);
 
     memset (&data, 0, sizeof(data));
+    data.ignore_errors = ignore_errors;
 
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
                                       collect_repos, &data) < 0)
