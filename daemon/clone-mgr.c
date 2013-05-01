@@ -1261,6 +1261,10 @@ merge_job_done (void *data)
                                              repo->id,
                                              REPO_REMOTE_HEAD,
                                              repo->head->commit_id);
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             REPO_LOCAL_HEAD,
+                                             repo->head->commit_id);
         transition_state (task, CLONE_STATE_DONE);
     } else
         g_assert (0);
@@ -1381,6 +1385,10 @@ on_checkout_done (CheckoutTask *ctask, SeafRepo *repo, void *data)
         seaf_repo_manager_set_repo_property (seaf->repo_mgr,
                                              repo->id,
                                              REPO_REMOTE_HEAD,
+                                             repo->head->commit_id);
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             REPO_LOCAL_HEAD,
                                              repo->head->commit_id);
         transition_state (task, CLONE_STATE_DONE);
     } else
