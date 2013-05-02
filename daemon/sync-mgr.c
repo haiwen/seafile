@@ -976,6 +976,14 @@ commit_job_done (void *vres)
         return;
     }
 
+    /* If this repo is downloaded by syncing with an existing folder, and
+     * the folder's contents are different from the server, clone manager
+     * will create a "index" branch. This branch is of no use after the
+     * first commit operation succeeds.
+     */
+    if (seaf_branch_manager_branch_exists (seaf->branch_mgr, repo->id, "index"))
+        seaf_branch_manager_del_branch (seaf->branch_mgr, repo->id, "index");
+
     /* If nothing committed and is not manual sync, no need to sync. */
     if (!res->changed && !res->task->force_upload) {
         transition_sync_state (res->task, SYNC_STATE_DONE);

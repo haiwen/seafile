@@ -141,6 +141,8 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
         data->traversed_head = TRUE;
 #endif
 
+    seaf_debug ("Traversed commit %.8s.\n", commit->commit_id);
+
     ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
                                          commit->root_id,
                                          fs_callback,
@@ -310,7 +312,7 @@ gc_core_run (int dry_run, int ignore_errors)
         return -1;
     }
 
-    seaf_message ("Pupulating index.\n");
+    seaf_message ("Populating index.\n");
 
     /* If we meet any error when filling in the index, we should bail out.
      */

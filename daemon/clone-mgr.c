@@ -1175,6 +1175,44 @@ out:
     return ret;
 }
 
+static int
+create_index_branch (SeafRepo *repo, const char *root_id)
+{
+    SeafCommit *commit = NULL;
+    SeafBranch *branch = NULL;
+    int ret = 0;
+
+    commit = seaf_commit_new (NULL, repo->id, root_id,
+                              repo->email ? repo->email
+                              : seaf->session->base.user_name,
+                              seaf->session->base.id,
+                              "Temp commit for index", 0);
+    seaf_repo_to_commit (repo, commit);
+    if (seaf_commit_manager_add_commit (seaf->commit_mgr, commit) < 0) {
+        seaf_warning ("Failed to add commit.\n");
+        ret = -1;
+        goto out;
+    }
+
+    branch = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "index");
+    if (!branch) {
+        branch = seaf_branch_new ("index", repo->id, commit->commit_id);
+        if (seaf_branch_manager_add_branch (seaf->branch_mgr, branch) < 0) {
+            seaf_warning ("Failed to add branch.\n");
+            ret = -1;
+            goto out;
+        }
+    } else {
+        seaf_branch_set_commit (branch, commit->commit_id);
+        seaf_branch_manager_update_branch (seaf->branch_mgr, branch);
+    }
+
+out:
+    seaf_commit_unref (commit);
+    seaf_branch_unref (branch);
+    return ret;
+}
+
 static void *
 merge_job (void *data)
 {
@@ -1209,20 +1247,37 @@ merge_job (void *data)
         seaf_debug ("[clone mgr] Fast forward.\n");
         if (fast_forward_checkout (repo, head, task) < 0)
             goto out;
+
+        /* Save repo head id for GC. */
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             REPO_REMOTE_HEAD,
+                                             head->commit_id);
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             REPO_LOCAL_HEAD,
+                                             head->commit_id);
     } else {
         if (real_merge (repo, head, task) < 0)
             goto out;
 
-        /* Commit the result of merge. */
-        GError *error = NULL;
-        /* XXX: the commit code assumes repo->head is set. */
-        repo->head = local;
-        seaf_repo_index_commit (repo, "", &error);
-        if (error) {
-            seaf_warning ("Failed to commit after merge.\n");
+        /* Save head id for GC. */
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             REPO_REMOTE_HEAD,
+                                             head->commit_id);
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             REPO_LOCAL_HEAD,
+                                             head->commit_id);
+
+        /* Create a temp branch "index" which references to task->root_id,
+         * so that new changes from the worktree won't be removed by GC.
+         * This branch should be deleted on the first commit operation of
+         * the repo.
+         */
+        if (create_index_branch (repo, task->root_id) < 0)
             goto out;
-        }
-        repo->head = NULL;
     }
 
     /* Set repo head to mark checkout done. */
@@ -1241,7 +1296,6 @@ merge_job_done (void *data)
 {
     MergeAux *aux = data;
     CloneTask *task = aux->task;
-    SeafRepo *repo = aux->repo;
 
     if (!aux->success) {
         g_free (aux);
@@ -1256,15 +1310,6 @@ merge_job_done (void *data)
     if (task->state == CLONE_STATE_CANCEL_PENDING)
         transition_state (task, CLONE_STATE_CANCELED);
     else if (task->state == CLONE_STATE_MERGE) {
-        /* Save repo head if for GC. */
-        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
-                                             repo->id,
-                                             REPO_REMOTE_HEAD,
-                                             repo->head->commit_id);
-        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
-                                             repo->id,
-                                             REPO_LOCAL_HEAD,
-                                             repo->head->commit_id);
         transition_state (task, CLONE_STATE_DONE);
     } else
         g_assert (0);
