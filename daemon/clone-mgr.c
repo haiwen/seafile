@@ -1247,29 +1247,9 @@ merge_job (void *data)
         seaf_debug ("[clone mgr] Fast forward.\n");
         if (fast_forward_checkout (repo, head, task) < 0)
             goto out;
-
-        /* Save repo head id for GC. */
-        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
-                                             repo->id,
-                                             REPO_REMOTE_HEAD,
-                                             head->commit_id);
-        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
-                                             repo->id,
-                                             REPO_LOCAL_HEAD,
-                                             head->commit_id);
     } else {
         if (real_merge (repo, head, task) < 0)
             goto out;
-
-        /* Save head id for GC. */
-        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
-                                             repo->id,
-                                             REPO_REMOTE_HEAD,
-                                             head->commit_id);
-        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
-                                             repo->id,
-                                             REPO_LOCAL_HEAD,
-                                             head->commit_id);
 
         /* Create a temp branch "index" which references to task->root_id,
          * so that new changes from the worktree won't be removed by GC.
@@ -1280,8 +1260,15 @@ merge_job (void *data)
             goto out;
     }
 
-    /* Set repo head to mark checkout done. */
-    seaf_repo_set_head (repo, local);
+    /* Save head id for GC. */
+    seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                         repo->id,
+                                         REPO_REMOTE_HEAD,
+                                         head->commit_id);
+    seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                         repo->id,
+                                         REPO_LOCAL_HEAD,
+                                         head->commit_id);
 
     aux->success = TRUE;
 
@@ -1296,16 +1283,33 @@ merge_job_done (void *data)
 {
     MergeAux *aux = data;
     CloneTask *task = aux->task;
+    SeafRepo *repo = aux->repo;
+    SeafBranch *local = NULL;
 
     if (!aux->success) {
-        g_free (aux);
-        transition_to_error (task, CLONE_ERROR_MERGE);
-        return;
+        goto error;
     }
 
-    seaf_repo_manager_set_repo_worktree (aux->repo->manager,
-                                         aux->repo,
+    seaf_repo_manager_set_repo_worktree (repo->manager,
+                                         repo,
                                          task->worktree);
+
+    local = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "local");
+    if (!local) {
+        seaf_warning ("Cannot get branch local for repo %s(%.10s).\n",
+                      repo->name, repo->id);
+        goto error;
+    }
+    /* Set repo head to mark checkout done. */
+    seaf_repo_set_head (repo, local);
+    seaf_branch_unref (local);
+
+    if (repo->auto_sync) {
+        if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id) < 0) {
+            seaf_warning ("failed to watch repo %s(%.10s).\n", repo->name, repo->id);
+            goto error;
+        }
+    }
 
     if (task->state == CLONE_STATE_CANCEL_PENDING)
         transition_state (task, CLONE_STATE_CANCELED);
@@ -1315,6 +1319,12 @@ merge_job_done (void *data)
         g_assert (0);
 
     g_free (aux);
+    return;
+
+error:
+    g_free (aux);
+    transition_to_error (task, CLONE_ERROR_MERGE);
+    return;
 }
 
 static void

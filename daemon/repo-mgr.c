@@ -1221,8 +1221,6 @@ seaf_repo_checkout (SeafRepo *repo, const char *worktree, char **error)
         goto error;
     }
 
-    seaf_repo_set_head (repo, branch);
-
     seaf_branch_unref (branch);
     seaf_commit_unref (commit);
 
@@ -1284,14 +1282,6 @@ seaf_repo_manager_set_repo_worktree (SeafRepoManager *mgr,
         return -1;
 
     repo->worktree_invalid = FALSE;
-
-#ifndef SEAF_TEST
-    if (repo->auto_sync) {
-        if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id) < 0) {
-            g_warning ("failed to watch repo %s.\n", repo->id);
-        }
-    }
-#endif
 
     return 0;
 }
@@ -2096,7 +2086,7 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     repo->email = load_repo_property (manager, repo->id, REPO_PROP_EMAIL);
     repo->token = load_repo_property (manager, repo->id, REPO_PROP_TOKEN);
     
-    if (seaf_repo_check_worktree (repo) < 0) {
+    if (repo->head != NULL && seaf_repo_check_worktree (repo) < 0) {
         seaf_message ("Worktree for repo \"%s\" is invalid, delte it.\n",
                       repo->name);
         seaf_repo_manager_del_repo (manager, repo);
@@ -2520,11 +2510,34 @@ checkout_job_done (void *vresult)
     if (!vresult)
         return;
     CheckoutData *cdata = vresult;
+    SeafRepo *repo = cdata->repo;
+    SeafBranch *local = NULL;
 
-    seaf_repo_manager_set_repo_worktree (cdata->repo->manager,
-                                         cdata->repo,
+    if (!cdata->task->success)
+        goto out;
+
+    seaf_repo_manager_set_repo_worktree (repo->manager,
+                                         repo,
                                          cdata->task->worktree);
 
+    local = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "local");
+    if (!local) {
+        seaf_warning ("Cannot get branch local for repo %s(%.10s).\n",
+                      repo->name, repo->id);
+        return;
+    }
+    /* Set repo head to mark checkout done. */
+    seaf_repo_set_head (repo, local);
+    seaf_branch_unref (local);
+
+    if (repo->auto_sync) {
+        if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id) < 0) {
+            seaf_warning ("failed to watch repo %s(%.10s).\n", repo->name, repo->id);
+            return;
+        }
+    }
+
+out:
     if (cdata->done_cb)
         cdata->done_cb (cdata->task, cdata->repo, cdata->cb_data);
 
