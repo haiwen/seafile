@@ -205,7 +205,8 @@ seaf_repo_get_commits (SeafRepo *repo)
         gboolean res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                                  branch->commit_id,
                                                                  collect_commit,
-                                                                 &commits);
+                                                                 &commits,
+                                                                 FALSE);
         if (!res) {
             for (ptr = commits; ptr != NULL; ptr = ptr->next)
                 seaf_commit_unref ((SeafCommit *)(ptr->data));
@@ -245,10 +246,10 @@ seaf_repo_verify_passwd (SeafRepo *repo, const char *passwd)
 }
 
 static inline gboolean
-has_trailing_space (const char *path)
+has_trailing_space_or_period (const char *path)
 {
     int len = strlen(path);
-    if (path[len - 1] == ' ') {
+    if (path[len - 1] == ' ' || path[len - 1] == '.') {
         return TRUE;
     }
 
@@ -264,7 +265,7 @@ should_ignore_file(const char *filename, void *data)
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)
         return TRUE;
 
-    if (has_trailing_space (filename)) {
+    if (has_trailing_space_or_period (filename)) {
         /* Ignore files/dir whose path has trailing spaces. It would cause
          * problem on windows. */
         /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */

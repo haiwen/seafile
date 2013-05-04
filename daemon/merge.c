@@ -256,6 +256,7 @@ out:
     tree_desc_free (&trees[0]);
     tree_desc_free (&trees[1]);
     discard_index (&istate);
+    discard_index (&topts.result);
 
     return ret;
 }

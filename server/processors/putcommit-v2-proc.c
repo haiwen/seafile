@@ -216,7 +216,8 @@ compute_delta_commits (CcnetProcessor *processor, const char *head)
     ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                     priv->remote_commit_id,
                                                     collect_id_remote,
-                                                    processor);
+                                                    processor,
+                                                    FALSE);
     if (!ret) {
         seaf_warning ("[putcommit] Failed to traverse remote branch.\n");
         string_list_free (priv->id_list);
@@ -227,7 +228,8 @@ compute_delta_commits (CcnetProcessor *processor, const char *head)
     ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                     head,
                                                     compute_delta,
-                                                    processor);
+                                                    processor,
+                                                    FALSE);
     if (!ret) {
         seaf_warning ("[putcommit] Failed to compute delta commits.\n");
         string_list_free (priv->id_list);
@@ -248,7 +250,8 @@ collect_commit_id_thread (void *vprocessor)
     if (seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                   priv->head_commit_id,
                                                   collect_id_fast_forward,
-                                                  processor) < 0) {
+                                                  processor,
+                                                  FALSE) < 0) {
         g_warning ("[putcommit] Failed to collect commit id.\n");
         string_list_free (priv->id_list);
         priv->id_list = NULL;

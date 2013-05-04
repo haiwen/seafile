@@ -188,7 +188,8 @@ int
 seaf_fs_manager_traverse_tree (SeafFSManager *mgr,
                                const char *root_id,
                                TraverseFSTreeCallback callback,
-                               void *user_data);
+                               void *user_data,
+                               gboolean skip_errors);
 
 gboolean
 seaf_fs_manager_object_exists (SeafFSManager *mgr, const char *id);

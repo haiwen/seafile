@@ -1197,7 +1197,7 @@ start_fs_download (TransferTask *task, const char *peer_id)
         ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                         task->head,
                                                         fs_root_collector,
-                                                        ol);
+                                                        ol, FALSE);
         if (ret == FALSE) {
             object_list_free (ol);
             transition_state_to_error (task, TASK_ERR_LOAD_FS);
@@ -1570,7 +1570,7 @@ start_fs_upload (TransferTask *task, const char *peer_id)
         ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                         task->head,
                                                         fs_root_collector,
-                                                        ol);
+                                                        ol, FALSE);
         if (ret == FALSE) {
             object_list_free (ol);
             transition_state_to_error (task, TASK_ERR_LOAD_FS);

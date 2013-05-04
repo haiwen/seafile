@@ -114,11 +114,11 @@ char *write_tree_from_memory(struct merge_options *o)
 
     if (unmerged_index(o->index)) {
         int i;
-        fprintf(stderr, "BUG: There are unmerged index entries:\n");
+        g_warning("BUG: There are unmerged index entries:\n");
         for (i = 0; i < o->index->cache_nr; i++) {
             struct cache_entry *ce = o->index->cache[i];
             if (ce_stage(ce))
-                fprintf(stderr, "BUG: %d %.*s", ce_stage(ce),
+                g_warning("BUG: %d %.*s", ce_stage(ce),
                         (int)ce_namelen(ce), ce->name);
         }
         g_assert(0);

@@ -123,7 +123,8 @@ gboolean
 seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
                                           const char *head,
                                           CommitTraverseFunc func,
-                                          void *data);
+                                          void *data,
+                                          gboolean skip_errors);
 
 /**
  * Works the same as seaf_commit_manager_traverse_commit_tree, but stops

@@ -274,7 +274,7 @@ compute_delta_commits (CcnetProcessor *processor, const char *head)
     ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                     priv->remote_id,
                                                     traverse_commit_remote,
-                                                    processor);
+                                                    processor, FALSE);
     if (!ret) {
         ccnet_processor_send_update (processor, SC_NOT_FOUND, SS_NOT_FOUND,
                                      NULL, 0);
@@ -285,7 +285,7 @@ compute_delta_commits (CcnetProcessor *processor, const char *head)
     ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                     head,
                                                     compute_delta,
-                                                    processor);
+                                                    processor, FALSE);
     if (!ret) {
         ccnet_processor_send_update (processor, SC_NOT_FOUND, SS_NOT_FOUND,
                                      NULL, 0);
@@ -306,7 +306,7 @@ send_commits (CcnetProcessor *processor, const char *head)
     ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                     head,
                                                     traverse_commit_fast_forward,
-                                                    processor);
+                                                    processor, FALSE);
     if (!ret) {
         ccnet_processor_send_update (processor, SC_NOT_FOUND, SS_NOT_FOUND,
                                      NULL, 0);

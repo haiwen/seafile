@@ -67,7 +67,7 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
     ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
                                          commit->root_id,
                                          fs_callback,
-                                         vdata);
+                                         vdata, FALSE);
     if (ret < 0)
         return FALSE;
 
@@ -96,7 +96,7 @@ verify_repo (SeafRepo *repo)
         gboolean res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                                  branch->commit_id,
                                                                  traverse_commit,
-                                                                 &data);
+                                                                 &data, FALSE);
         seaf_branch_unref (branch);
         if (!res) {
             ret = -1;
@@ -115,7 +115,7 @@ verify_repos ()
     GList *repos = NULL, *ptr;
     int ret = 0;
 
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, FALSE);
     for (ptr = repos; ptr != NULL; ptr = ptr->next) {
         ret = verify_repo ((SeafRepo *)ptr->data);
         seaf_repo_unref ((SeafRepo *)ptr->data);

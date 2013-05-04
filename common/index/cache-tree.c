@@ -213,8 +213,8 @@ static int verify_cache(struct cache_entry **cache,
                 fprintf(stderr, "...\n");
                 break;
             }
-            fprintf(stderr, "You have both %s and %s\n",
-                    this_name, next_name);
+            g_warning("You have both %s and %s\n",
+                      this_name, next_name);
         }
     }
     if (funny)

@@ -960,14 +960,16 @@ static int
 traverse_file (SeafFSManager *mgr, 
                const char *id, 
                TraverseFSTreeCallback callback,
-               void *user_data)
+               void *user_data,
+               gboolean skip_errors)
 {
     gboolean stop = FALSE;
 
     if (memcmp (id, EMPTY_SHA1, 40) == 0)
         return 0;
 
-    if (!callback (mgr, id, SEAF_METADATA_TYPE_FILE, user_data, &stop))
+    if (!callback (mgr, id, SEAF_METADATA_TYPE_FILE, user_data, &stop) &&
+        !skip_errors)
         return -1;
 
     return 0;
@@ -977,14 +979,16 @@ static int
 traverse_dir (SeafFSManager *mgr, 
               const char *id, 
               TraverseFSTreeCallback callback,
-              void *user_data)
+              void *user_data,
+              gboolean skip_errors)
 {
     SeafDir *dir;
     GList *p;
     SeafDirent *seaf_dent;
     gboolean stop = FALSE;
 
-    if (!callback (mgr, id, SEAF_METADATA_TYPE_DIR, user_data, &stop))
+    if (!callback (mgr, id, SEAF_METADATA_TYPE_DIR, user_data, &stop) &&
+        !skip_errors)
         return -1;
 
     if (stop)
@@ -993,20 +997,28 @@ traverse_dir (SeafFSManager *mgr,
     dir = seaf_fs_manager_get_seafdir (mgr, id);
     if (!dir) {
         g_warning ("[fs-mgr]get seafdir %s failed\n", id);
+        if (skip_errors)
+            return 0;
         return -1;
     }
     for (p = dir->entries; p; p = p->next) {
         seaf_dent = (SeafDirent *)p->data;
 
         if (S_ISREG(seaf_dent->mode)) {
-            if (traverse_file (mgr, seaf_dent->id, callback, user_data) < 0) {
-                seaf_dir_free (dir);
-                return -1;
+            if (traverse_file (mgr, seaf_dent->id,
+                               callback, user_data, skip_errors) < 0) {
+                if (!skip_errors) {
+                    seaf_dir_free (dir);
+                    return -1;
+                }
             }
         } else if (S_ISDIR(seaf_dent->mode)) {
-            if (traverse_dir (mgr, seaf_dent->id, callback, user_data) < 0) {
-                seaf_dir_free (dir);
-                return -1;
+            if (traverse_dir (mgr, seaf_dent->id,
+                              callback, user_data, skip_errors) < 0) {
+                if (!skip_errors) {
+                    seaf_dir_free (dir);
+                    return -1;
+                }
             }
         }
     }
@@ -1019,7 +1031,8 @@ int
 seaf_fs_manager_traverse_tree (SeafFSManager *mgr,
                                const char *root_id,
                                TraverseFSTreeCallback callback,
-                               void *user_data)
+                               void *user_data,
+                               gboolean skip_errors)
 {
     if (strcmp (root_id, EMPTY_SHA1) == 0) {
 #if 0
@@ -1027,7 +1040,7 @@ seaf_fs_manager_traverse_tree (SeafFSManager *mgr,
 #endif        
         return 0;
     }
-    return traverse_dir (mgr, root_id, callback, user_data);
+    return traverse_dir (mgr, root_id, callback, user_data, skip_errors);
 }
 
 static gboolean
@@ -1061,7 +1074,7 @@ seaf_fs_manager_populate_blocklist (SeafFSManager *mgr,
 {
     return seaf_fs_manager_traverse_tree (mgr, root_id, 
                                           fill_blocklist,
-                                          bl);
+                                          bl, FALSE);
 }
 
 gboolean

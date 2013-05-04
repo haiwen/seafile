@@ -50,7 +50,7 @@ commit_tree_to_hash (SeafCommit *head)
     res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                     head->commit_id,
                                                     add_to_commit_hash,
-                                                    hash);
+                                                    hash, FALSE);
     if (!res)
         goto fail;
 
@@ -173,7 +173,7 @@ merge_bases_many (SeafCommit *one, int n, SeafCommit **twos)
         res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                         twos[i]->commit_id,
                                                         get_merge_bases,
-                                                        &data);
+                                                        &data, FALSE);
         if (!res)
             goto fail;
     }

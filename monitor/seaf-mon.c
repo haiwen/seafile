@@ -209,14 +209,6 @@ main (int argc, char **argv)
 #endif
     g_type_init ();
 
-    client = ccnet_init (config_dir);
-    if (!client)
-        exit (1);
-
-    register_processors (client);
-
-    start_rpc_service (client);
-
     if (seafile_dir == NULL) {
         usage ();
         exit (1);
@@ -225,20 +217,28 @@ main (int argc, char **argv)
     if (logfile == NULL)
         logfile = g_build_filename (seafile_dir, "monitor.log", NULL);
 
+    if (seafile_log_init (logfile, ccnet_debug_level_str,
+                          monitor_debug_level_str) < 0) {
+        seaf_warning ("Failed to init log.\n");
+        exit (1);
+    }
+
+    client = ccnet_init (config_dir);
+    if (!client)
+        exit (1);
+
+    register_processors (client);
+
+    start_rpc_service (client);
+
     seaf = seafile_session_new (seafile_dir, client);
     if (!seaf) {
-        fprintf (stderr, "Failed to create seafile monitor.\n");
+        seaf_warning ("Failed to create seafile monitor.\n");
         exit (1);
     }
 
     if (seafile_session_init (seaf) < 0) {
-        fprintf (stderr, "Failed to init seafile monitor.\n");
-        exit (1);
-    }
-
-    if (seafile_log_init (logfile, ccnet_debug_level_str,
-                          monitor_debug_level_str) < 0) {
-        fprintf (stderr, "Failed to init log.\n");
+        seaf_warning ("Failed to init seafile monitor.\n");
         exit (1);
     }
 

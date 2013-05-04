@@ -13,6 +13,7 @@
 #include "vc-utils.h"
 #include "utils.h"
 #include "cdc/cdc.h"
+#include "log.h"
 
 struct dir_entry {
     unsigned int len;

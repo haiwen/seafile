@@ -1,3 +1,9 @@
+seafile (1.6.1) stable; urgency=low
+
+  * Fix some bugs
+
+ -- plt <freeplant@gmail.com>  Friday, 26 April 2013 19:00:32 +0800
+
 seafile (1.6.0) stable; urgency=low
 
   * Fix some bugs

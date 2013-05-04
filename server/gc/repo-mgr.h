@@ -94,7 +94,8 @@ seaf_repo_manager_repo_exists_prefix (SeafRepoManager *manager, const gchar *id)
 
 GList* 
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
-                                 int start, int limit);
+                                 int start, int limit,
+                                 gboolean ignore_errors);
 
 GList *
 seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr);

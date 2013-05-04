@@ -114,16 +114,28 @@ seaf_repo_check_worktree (SeafRepo *repo)
 {
     SeafStat st;
 
-    if (repo->worktree == NULL)
+    if (repo->worktree == NULL) {
+        seaf_warning ("Worktree for repo '%s'(%.8s) is not set.\n",
+                      repo->name, repo->id);
         return -1;
+    }
 
     /* check repo worktree */
-    if (g_access(repo->worktree, F_OK) < 0)
+    if (g_access(repo->worktree, F_OK) < 0) {
+        seaf_warning ("Failed to access worktree %s for repo '%s'(%.8s)\n",
+                      repo->worktree, repo->name, repo->id);
         return -1;
-    if (seaf_stat(repo->worktree, &st) < 0)
+    }
+    if (seaf_stat(repo->worktree, &st) < 0) {
+        seaf_warning ("Failed to stat worktree %s for repo '%s'(%.8s)\n",
+                      repo->worktree, repo->name, repo->id);
         return -1;
-    if (!S_ISDIR(st.st_mode))
+    }
+    if (!S_ISDIR(st.st_mode)) {
+        seaf_warning ("Worktree %s for repo '%s'(%.8s) is not a directory.\n",
+                      repo->worktree, repo->name, repo->id);
         return -1;
+    }
 
     return 0;
 }
@@ -148,8 +160,11 @@ send_wktree_notification (SeafRepo *repo, int addordel)
 static gboolean
 check_worktree_common (SeafRepo *repo)
 {
-    if (!repo->head)
+    if (!repo->head) {
+        seaf_warning ("Head for repo '%s'(%.8s) is not set.\n",
+                      repo->name, repo->id);
         return FALSE;
+    }
 
     if (seaf_repo_check_worktree (repo) < 0) {
         /* The worktree is invalid */
@@ -254,7 +269,7 @@ seaf_repo_get_commits (SeafRepo *repo)
         gboolean res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                                  branch->commit_id,
                                                                  collect_commit,
-                                                                 &commits);
+                                                                 &commits, FALSE);
         if (!res) {
             for (ptr = commits; ptr != NULL; ptr = ptr->next)
                 seaf_commit_unref ((SeafCommit *)(ptr->data));
@@ -296,10 +311,10 @@ seaf_repo_verify_passwd (const char *repo_id,
 }
 
 static inline gboolean
-has_trailing_space (const char *path)
+has_trailing_space_or_period (const char *path)
 {
     int len = strlen(path);
-    if (path[len - 1] == ' ') {
+    if (path[len - 1] == ' ' || path[len - 1] == '.') {
         return TRUE;
     }
 
@@ -315,7 +330,7 @@ should_ignore(const char *filename, void *data)
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)
         return TRUE;
 
-    if (has_trailing_space (filename)) {
+    if (has_trailing_space_or_period (filename)) {
         /* Ignore files/dir whose path has trailing spaces. It would cause
          * problem on windows. */
         /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */
@@ -1206,8 +1221,6 @@ seaf_repo_checkout (SeafRepo *repo, const char *worktree, char **error)
         goto error;
     }
 
-    seaf_repo_set_head (repo, branch);
-
     seaf_branch_unref (branch);
     seaf_commit_unref (commit);
 
@@ -1269,14 +1282,6 @@ seaf_repo_manager_set_repo_worktree (SeafRepoManager *mgr,
         return -1;
 
     repo->worktree_invalid = FALSE;
-
-#ifndef SEAF_TEST
-    if (repo->auto_sync) {
-        if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id) < 0) {
-            g_warning ("failed to watch repo %s.\n", repo->id);
-        }
-    }
-#endif
 
     return 0;
 }
@@ -2081,7 +2086,7 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     repo->email = load_repo_property (manager, repo->id, REPO_PROP_EMAIL);
     repo->token = load_repo_property (manager, repo->id, REPO_PROP_TOKEN);
     
-    if (seaf_repo_check_worktree (repo) < 0) {
+    if (repo->head != NULL && seaf_repo_check_worktree (repo) < 0) {
         seaf_message ("Worktree for repo \"%s\" is invalid, delte it.\n",
                       repo->name);
         seaf_repo_manager_del_repo (manager, repo);
@@ -2505,11 +2510,34 @@ checkout_job_done (void *vresult)
     if (!vresult)
         return;
     CheckoutData *cdata = vresult;
+    SeafRepo *repo = cdata->repo;
+    SeafBranch *local = NULL;
 
-    seaf_repo_manager_set_repo_worktree (cdata->repo->manager,
-                                         cdata->repo,
+    if (!cdata->task->success)
+        goto out;
+
+    seaf_repo_manager_set_repo_worktree (repo->manager,
+                                         repo,
                                          cdata->task->worktree);
 
+    local = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "local");
+    if (!local) {
+        seaf_warning ("Cannot get branch local for repo %s(%.10s).\n",
+                      repo->name, repo->id);
+        return;
+    }
+    /* Set repo head to mark checkout done. */
+    seaf_repo_set_head (repo, local);
+    seaf_branch_unref (local);
+
+    if (repo->auto_sync) {
+        if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id) < 0) {
+            seaf_warning ("failed to watch repo %s(%.10s).\n", repo->name, repo->id);
+            return;
+        }
+    }
+
+out:
     if (cdata->done_cb)
         cdata->done_cb (cdata->task, cdata->repo, cdata->cb_data);
 

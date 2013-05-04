@@ -106,7 +106,7 @@ send_commit_start (CcnetProcessor *processor, int argc, char **argv)
     ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                     task->head,
                                                     commit_collector,
-                                                    ol);
+                                                    ol, FALSE);
     if (ret == FALSE) {
         object_list_free (ol);
         g_warning ("[sendcommit] Load commits error\n");

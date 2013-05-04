@@ -121,7 +121,7 @@ load_httpserver_config (SeafileSession *session)
     } else {
         if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND &&
             error->code != G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
-            fprintf (stderr, "[conf] Error: failed to read the value of 'port'\n");
+            seaf_warning ("[conf] Error: failed to read the value of 'port'\n");
             exit (1);
         }
 
@@ -135,7 +135,7 @@ load_httpserver_config (SeafileSession *session)
     if (error) {
         if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND &&
             error->code != G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
-            fprintf (stderr, "[conf] Error: failed to read the value of 'https'\n");
+            seaf_warning ("[conf] Error: failed to read the value of 'https'\n");
             exit (1);
         }
 
@@ -148,8 +148,8 @@ load_httpserver_config (SeafileSession *session)
                                          "httpserver", "pemfile",
                                          &error);
         if (error) {
-            fprintf (stderr, "[conf] Error: https is true, "
-                     "but the value of pemfile is unknown\n");
+            seaf_warning ("[conf] Error: https is true, "
+                          "but the value of pemfile is unknown\n");
             exit (1);
         }
 
@@ -157,8 +157,8 @@ load_httpserver_config (SeafileSession *session)
                                          "httpserver", "privkey",
                                          &error);
         if (error) {
-            fprintf (stderr, "[conf] Error: https is true, "
-                     "but the value of privkey is unknown\n");
+            seaf_warning ("[conf] Error: https is true, "
+                          "but the value of privkey is unknown\n");
             exit (1);
         }
     }
@@ -292,14 +292,26 @@ main(int argc, char *argv[])
 
     g_type_init();
 
+    if (!debug_str)
+        debug_str = g_getenv("SEAFILE_DEBUG");
+    seafile_debug_set_flags_string (debug_str);
+
+    if (seafile_dir == NULL)
+        seafile_dir = g_build_filename (config_dir, "seafile-data", NULL);
+    if (logfile == NULL)
+        logfile = g_build_filename (seafile_dir, "http.log", NULL);
+
+    if (seafile_log_init (logfile, ccnet_debug_level_str,
+                          http_debug_level_str) < 0) {
+        g_warning ("Failed to init log.\n");
+        exit (1);
+    }
+
     ccnet_client = ccnet_client_new();
     if ((ccnet_client_load_confdir(ccnet_client, config_dir)) < 0) {
         g_warning ("Read config dir error\n");
         return -1;
     }
-
-    if (seafile_dir == NULL)
-        seafile_dir = g_build_filename (config_dir, "seafile-data", NULL);
 
     seaf = seafile_session_new (seafile_dir, ccnet_client);
     if (!seaf) {
@@ -315,19 +327,6 @@ main(int argc, char *argv[])
         seaf->http_temp_dir = g_strdup(temp_file_dir);
 
     seaf->client_pool = ccnet_client_pool_new (config_dir);
-
-    if (!debug_str)
-        debug_str = g_getenv("SEAFILE_DEBUG");
-    seafile_debug_set_flags_string (debug_str);
-
-    if (logfile == NULL)
-        logfile = g_build_filename (seaf->seaf_dir, "http.log", NULL);
-
-    if (seafile_log_init (logfile, ccnet_debug_level_str,
-                          http_debug_level_str) < 0) {
-        g_warning ("Failed to init log.\n");
-        exit (1);
-    }
 
     load_httpserver_config (seaf);
     if (use_https) {

@@ -1,6 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
 #include "common.h"
+#define DEBUG_FLAG SEAFILE_DEBUG_MERGE
 #include "log.h"
 #include "seafile-error.h"
 
@@ -222,35 +223,237 @@ compare_file_content (const char *path, SeafStat *st, const unsigned char *ce_sh
     return hashcmp (sha1, ce_sha1);
 }
 
-static int
-checkout_entry (struct cache_entry *ce,
-                struct unpack_trees_options *o,
-                gboolean recover_merge,
-                const char *conflict_suffix)
+#if defined WIN32 || defined __APPLE__
+
+/*
+ * If the names are different case-sensitively but the same case-insensitively,
+ * it's a case conflict.
+ * Note that the names are in UTF-8, so we use UTF-8 function to compare them.
+ */
+static gboolean
+case_conflict_utf8 (const char *name1, const char *name2)
 {
-    int base_len = strlen(o->base);
-    int len = ce_namelen(ce);
+    char *casefold1, *casefold2;
+    gboolean ret;
+
+    if (strcmp (name1, name2) == 0)
+        return FALSE;
+
+    casefold1 = g_utf8_casefold (name1, -1);
+    casefold2 = g_utf8_casefold (name2, -1);
+    ret = (g_utf8_collate (casefold1, casefold2) == 0);
+
+    g_free (casefold1);
+    g_free (casefold2);
+
+    return ret;
+}
+
+static gboolean
+case_conflict_exists (const char *dir_path, const char *new_dname)
+{
+    GDir *dir;
+    const char *dname;
+    gboolean is_case_conflict = FALSE;
+    GError *error = NULL;
+
+    dir = g_dir_open (dir_path, 0, &error);
+    if (!dir && error) {
+        seaf_warning ("Failed to open dir %s: %s.\n", dir_path, error->message);
+        g_error_free (error);
+        return FALSE;
+    }
+
+    while (1) {
+        dname = g_dir_read_name (dir);
+        if (!dname)
+            break;
+
+        if (case_conflict_utf8 (dname, new_dname)) {
+            is_case_conflict = TRUE;
+            break;
+        }
+    }
+    g_dir_close (dir);
+
+    return is_case_conflict;
+}
+
+/*
+ * If files "test (case conflict 1).txt" and "Test (case conflict 2).txt" exist,
+ * and we have to checkout "TEST.txt", it will be checked out to "TEST
+ * (case conflict 3).txt".
+ */
+static char *
+gen_case_conflict_free_dname (const char *dir_path, const char *dname)
+{
+    char *copy = g_strdup (dname);
+    GString *buf = g_string_new (NULL);
+    char ret_dname[256];
+    char *dot, *ext;
+    int cnt = 1;
+
+    dot = strrchr (copy, '.');
+
+    while (cnt < 255) {
+        if (dot != NULL) {
+            *dot = '\0';
+            ext = dot + 1;
+            snprintf (ret_dname, sizeof(ret_dname), "%s (case conflict %d).%s",
+                      copy, cnt, ext);
+            g_string_printf (buf, "%s/%s (case conflict %d).%s",
+                             dir_path, copy, cnt, ext);
+        } else {
+            snprintf (ret_dname, sizeof(ret_dname), "%s (case conflict %d)",
+                      copy, cnt);
+            g_string_printf (buf, "%s/%s (case conflict %d)",
+                             dir_path, copy, cnt);
+        }
+
+        if (g_access (buf->str, F_OK) != 0)
+            break;
+
+        g_string_truncate (buf, 0);
+        ++cnt;
+    }
+
+    g_free (copy);
+    g_string_free (buf, TRUE);
+
+    return g_strdup(ret_dname);
+}
+
+/*
+ * @conflict_hash: conflicting_dir_path -> conflict_free_dname
+ * @no_conflict_hash: a hash table to remember dirs that have no case conflict.
+ */
+static char *
+build_case_conflict_free_path (const char *worktree,
+                               const char *ce_name,
+                               GHashTable *conflict_hash,
+                               GHashTable *no_conflict_hash,
+                               gboolean *is_case_conflict)
+{
+    GString *buf = g_string_new (worktree);
+    char **components, *ptr;
+    guint i, n_comps;
+    static int dummy;
+
+    components = g_strsplit (ce_name, "/", -1);
+    n_comps = g_strv_length (components);
+    for (i = 0; i < n_comps; ++i) {
+        char *path = NULL, *dname = NULL, *case_conflict_free_path = NULL;
+        SeafStat st;
+
+        ptr = components[i];
+
+        path = g_build_path ("/", buf->str, ptr, NULL);
+        /* If path doesn't exist, case conflict is not possible. */
+        if (seaf_stat (path, &st) < 0) {
+            if (i != n_comps - 1) {
+                if (g_mkdir (path, 0777) < 0) {
+                    seaf_warning ("Failed to create dir %s.\n", path);
+                    g_free (path);
+                    goto error;
+                }
+            }
+            g_string_append_printf (buf, "/%s", ptr);
+            g_free (path);
+            continue;
+        }
+
+        dname = g_hash_table_lookup (conflict_hash, path);
+        if (dname) {
+            /* We've detected (and fixed) case conflict for this dir before. */
+            *is_case_conflict = TRUE;
+            g_free (path);
+            g_string_append_printf (buf, "/%s", dname);
+            continue;
+        }
+
+        if (g_hash_table_lookup (no_conflict_hash, path) != NULL) {
+            /* We've confirmed this dir has no case conflict before. */
+            g_free (path);
+            g_string_append_printf (buf, "/%s", ptr);
+            continue;
+        }
+
+        /* No luck in the hash tables, we have to run case conflict detection. */
+        if (!case_conflict_exists (buf->str, ptr)) {
+            /* No case conflict. */
+            if (i != n_comps - 1)
+                g_hash_table_insert (no_conflict_hash,
+                                     g_strdup(path),
+                                     &dummy);
+            g_free (path);
+            g_string_append_printf (buf, "/%s", ptr);
+            continue;
+        }
+
+        *is_case_conflict = TRUE;
+
+        /* If case conflict, create a conflict free path and
+         * remember it in the hash table.
+         */
+
+        dname = gen_case_conflict_free_dname (buf->str, ptr);
+
+        case_conflict_free_path = g_build_path ("/", buf->str, dname, NULL);
+        if (i != n_comps - 1) {
+            if (g_mkdir (case_conflict_free_path, 0777) < 0) {
+                seaf_warning ("Failed to create dir %s.\n", case_conflict_free_path);
+                g_free (path);
+                g_free (dname);
+                g_free (case_conflict_free_path);
+                goto error;
+            }
+
+            g_hash_table_insert (conflict_hash, g_strdup(path), g_strdup(dname));
+        }
+
+        g_string_append_printf (buf, "/%s", dname);
+
+        g_free (path);
+        g_free (dname);
+        g_free (case_conflict_free_path);
+    }
+
+    g_strfreev (components);
+    return g_string_free (buf, FALSE);
+
+error:
+    g_strfreev (components);
+    return NULL;
+}
+
+#endif  /* defined WIN32 || defined __APPLE__ */
+
+#ifdef __linux__
+
+static char *
+build_checkout_path (const char *worktree, const char *ce_name, int len)
+{
+    int base_len = strlen(worktree);
     int full_len;
     char path[SEAF_PATH_MAX];
     int offset;
     SeafStat st;
-    char file_id[41];
 
     if (!len) {
         g_warning ("entry name should not be empty.\n");
-        return -1;
+        return NULL;
     }
 
-    snprintf (path, SEAF_PATH_MAX, "%s/", o->base);
+    snprintf (path, SEAF_PATH_MAX, "%s/", worktree);
 
     /* first create all leading directories. */
     full_len = base_len + len + 1;
     offset = base_len + 1;
     while (offset < full_len) {
         do {
-            path[offset] = ce->name[offset-base_len-1];
+            path[offset] = ce_name[offset-base_len-1];
             offset++;
-        } while (offset < full_len && ce->name[offset-base_len-1] != '/');
+        } while (offset < full_len && ce_name[offset-base_len-1] != '/');
         if (offset >= full_len)
             break;
         path[offset] = 0;
@@ -260,10 +463,41 @@ checkout_entry (struct cache_entry *ce,
         
         if (ccnet_mkdir (path, 0777) < 0) {
             g_warning ("Failed to create directory %s.\n", path);
-            return -1;
+            return NULL;
         }
     }
     path[offset] = 0;
+
+    return g_strdup(path);
+}
+
+#endif  /* __linux__ */
+
+static int
+checkout_entry (struct cache_entry *ce,
+                struct unpack_trees_options *o,
+                gboolean recover_merge,
+                const char *conflict_suffix,
+                GHashTable *conflict_hash,
+                GHashTable *no_conflict_hash)
+{
+    char *path_in, *path;
+    SeafStat st;
+    char file_id[41];
+    gboolean case_conflict = FALSE;
+
+    path_in = g_build_path ("/", o->base, ce->name, NULL);
+#ifndef __linux__
+    path = build_case_conflict_free_path (o->base, ce->name,
+                                          conflict_hash, no_conflict_hash,
+                                          &case_conflict);
+#else
+    path = build_checkout_path (o->base, ce->name, ce_namelen(ce));
+#endif
+
+    g_free (path_in);
+    if (!path)
+        return -1;
 
     if (!S_ISDIR(ce->ce_mode)) {
         /* In case that we're replacing an empty dir with a file,
@@ -284,6 +518,7 @@ checkout_entry (struct cache_entry *ce,
         if (g_mkdir (path, 0777) < 0) {
             g_warning ("Failed to create empty dir %s.\n", path);
         }
+        g_free (path);
         return 0;
     }
 
@@ -316,11 +551,24 @@ checkout_entry (struct cache_entry *ce,
                                        conflict_suffix,
                                        &conflicted) < 0) {
         g_warning ("Failed to checkout file %s.\n", path);
+        g_free (path);
         return -1;
     }
 
-    if (conflicted)
+    /* If case conflict, this file has been checked out to another path.
+     * Remove the current entry, otherwise it won't be removed later
+     * since it's timestamp is 0.
+     */
+    if (case_conflict) {
+        ce->ce_flags |= CE_REMOVE;
+        g_free (path);
         return 0;
+    }
+
+    if (conflicted) {
+        g_free (path);
+        return 0;
+    }
 
 update_cache:
     /* finally fill cache_entry info */
@@ -331,6 +579,7 @@ update_cache:
     seaf_stat (path, &st);
     fill_stat_cache_info (ce, &st);
 
+    g_free (path);
     return 0;
 }
 
@@ -346,12 +595,18 @@ update_worktree (struct unpack_trees_options *o,
     struct cache_entry *ce;
     char *conflict_suffix = NULL;
     int errs = 0;
+    GHashTable *conflict_hash, *no_conflict_hash;
 
     for (i = 0; i < result->cache_nr; ++i) {
         ce = result->cache[i];
         if (ce->ce_flags & CE_WT_REMOVE)
             errs |= unlink_entry (ce, o);
     }
+
+    conflict_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                           g_free, g_free);
+    no_conflict_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                              g_free, NULL);
 
     for (i = 0; i < result->cache_nr; ++i) {
         ce = result->cache[i];
@@ -362,12 +617,17 @@ update_worktree (struct unpack_trees_options *o,
                 if (!conflict_suffix)
                     conflict_suffix = g_strdup(default_conflict_suffix);
             }
-            errs |= checkout_entry (ce, o, recover_merge, conflict_suffix);
+            errs |= checkout_entry (ce, o, recover_merge,
+                                    conflict_suffix,
+                                    conflict_hash, no_conflict_hash);
             g_free (conflict_suffix);
         }
         if (finished_entries)
             *finished_entries = *finished_entries + 1;
     }
+
+    g_hash_table_destroy (conflict_hash);
+    g_hash_table_destroy (no_conflict_hash);
 
     if (errs != 0)
         return -1;
