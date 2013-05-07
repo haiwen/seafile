@@ -63,6 +63,13 @@ Our primary goal is to build a first-class level production. Since we are only a
 
 Seafile is an open and extensible system. A library is a collection of files that could be synced. It can be presented to users as a Wiki, a set of notes, a gallery and so on. We have already write the Wiki module as an example. We need your contributions to make Seafile more versatile. Let's build an awesome system together!
 
+Licence 
+=======
+
+Seafile and its desktop and mobile clients are published under GPLv3 with one exception -- the seafile's logo of desktop and mobile clients must be kept when redistribution.
+
+The Seafile server's web end, i.e. Seahub, is published under Apache License. The seafile logo in Seahub can be changed.
+
 Contact
 =======
 
