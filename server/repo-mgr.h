@@ -140,22 +140,6 @@ seaf_repo_manager_branch_repo_unmap (SeafRepoManager *manager, SeafBranch *branc
 #define MAX_REPO_TOKEN 64
 #define DEFAULT_REPO_TOKEN "default"
 
-int
-seaf_repo_manager_set_repo_token (SeafRepoManager *manager, 
-                                  const char *repo_id,
-                                  const char *email,
-                                  const char *token);
-
-char *
-seaf_repo_manager_get_repo_token (SeafRepoManager *manager, 
-                                  const char *repo_id,
-                                  const char *email);
-
-char *
-seaf_repo_manager_get_repo_token_nonnull (SeafRepoManager *manager, 
-                                          const char *repo_id,
-                                          const char *email);
-
 char *
 seaf_repo_manager_get_email_by_token (SeafRepoManager *manager,
                                       const char *repo_id,
@@ -166,13 +150,37 @@ seaf_repo_manager_generate_repo_token (SeafRepoManager *mgr,
                                        const char *email,
                                        GError **error);
 
+int
+seaf_repo_manager_add_token_peer_info (SeafRepoManager *mgr,
+                                       const char *token,
+                                       const char *peer_id,
+                                       const char *peer_ip,
+                                       const char *peer_name,
+                                       gint64 sync_time);
+
+int
+seaf_repo_manager_update_token_peer_info (SeafRepoManager *mgr,
+                                          const char *token,
+                                          const char *peer_ip,
+                                          gint64 sync_time);
+
+gboolean
+seaf_repo_manager_token_peer_info_exists (SeafRepoManager *mgr,
+                                          const char *token);
+
+int
+seaf_repo_manager_delete_token (SeafRepoManager *mgr,
+                                const char *repo_id,
+                                const char *token,
+                                const char *user,
+                                GError **error);
+
 GList *
 seaf_repo_manager_list_repo_tokens (SeafRepoManager *mgr,
                                     const char *repo_id,
                                     GError **error);
 GList *
 seaf_repo_manager_list_repo_tokens_by_email (SeafRepoManager *mgr,
-                                             const char *repo_id,
                                              const char *email,
                                              GError **error);
 

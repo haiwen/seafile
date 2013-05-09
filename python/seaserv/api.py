@@ -221,7 +221,16 @@ class SeafileAPI(object):
     def generate_repo_token(self, repo_id, username):
         """Generate a token for sync a repo
         """
-        pass
+        return seafserv_threaded_rpc.generate_repo_token(repo_id, username)
+
+    def delete_repo_token(self, repo_id, token, user):
+        return seafserv_threaded_rpc.delete_repo_token(repo_id, token, user)
+
+    def list_repo_tokens(self, repo_id):
+        return seafserv_threaded_rpc.list_repo_tokens(repo_id)
+
+    def list_repo_tokens_by_email(self, username):
+        return seafserv_threaded_rpc.list_repo_tokens_by_email(username)
 
     # quota
     def get_user_self_usage(self, username):

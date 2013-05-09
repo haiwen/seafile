@@ -137,6 +137,7 @@ public class DeletedEntry : Object {
 
 public class RepoTokenInfo: Object {
     public string repo_id { get; set; }
+    public string repo_name { get; set; }
     public string repo_owner { get; set; }
     public string email { get; set; }
     public string token { get; set; }
@@ -144,6 +145,7 @@ public class RepoTokenInfo: Object {
     public string peer_id { get; set; }
     public string peer_ip { get; set; }
     public string peer_name { get; set; }
+    public int64 sync_time { get; set; }
 }
 
 } // namespace

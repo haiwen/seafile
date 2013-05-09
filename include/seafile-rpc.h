@@ -669,19 +669,6 @@ seafile_revert_dir (const char *repo_id,
 GList *
 seafile_get_deleted (const char *repo_id, int show_days, GError **error);
 
-int seafile_set_repo_token (const char *repo_id,
-                            const char *email,
-                            const char *token,
-                            GError **error);
-
-/**
- * Returns the token of the repo for the specified email user. If the token
- * not exist yet, a new one is generated.
- */
-char* seafile_get_repo_token_nonnull (const char *repo_id,
-                                      const char *email,
-                                      GError **error);
-
 /**
  * Generate a new token for (repo_id, email) and return it
  */
@@ -690,13 +677,18 @@ seafile_generate_repo_token (const char *repo_id,
                              const char *email,
                              GError **error);
 
+int
+seafile_delete_repo_token (const char *repo_id,
+                           const char *token,
+                           const char *user,
+                           GError **error);
+
 GList *
 seafile_list_repo_tokens (const char *repo_id,
                           GError **error);
 
 GList *
-seafile_list_repo_tokens_by_email (const char *repo_id,
-                                   const char *email,
+seafile_list_repo_tokens_by_email (const char *email,
                                    GError **error);
 
 /**

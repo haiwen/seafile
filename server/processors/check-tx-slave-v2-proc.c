@@ -63,6 +63,8 @@ typedef struct {
     char *branch_name;
     char *token;
     char *session_key;
+    char *peer_addr;
+    char *peer_name;
 
     char *rsp_code;
     char *rsp_msg;
@@ -92,6 +94,8 @@ release_resource(CcnetProcessor *processor)
     /* g_free works fine even if ptr is NULL. */
     g_free (priv->token);
     g_free (priv->session_key);
+    g_free (priv->peer_addr);
+    g_free (priv->peer_name);
     g_free (priv->branch_name);
     g_free (priv->rsp_code);
     g_free (priv->rsp_msg);
@@ -253,6 +257,22 @@ check_tx (void *vprocessor)
     }
     g_free (perm);
 
+    /* Record the (token, email, <peer info>) information, <peer info> may
+     * include peer_id, peer_ip, peer_name, etc.
+     */
+    if (!seaf_repo_manager_token_peer_info_exists (seaf->repo_mgr, priv->token))
+        seaf_repo_manager_add_token_peer_info (seaf->repo_mgr,
+                                               priv->token,
+                                               processor->peer_id,
+                                               priv->peer_addr,
+                                               priv->peer_name,
+                                               (gint64)time(NULL));
+    else
+        seaf_repo_manager_update_token_peer_info (seaf->repo_mgr,
+                                                  priv->token,
+                                                  priv->peer_addr,
+                                                  (gint64)time(NULL));
+
     get_branch_head (processor);
 
 out:
@@ -338,6 +358,10 @@ start (CcnetProcessor *processor, int argc, char **argv)
     }
 
     priv->session_key = g_strdup(peer->session_key);
+    priv->peer_addr = g_strdup(peer->addr_str);
+    priv->peer_name = g_strdup(peer->name);
+    if (!priv->peer_name)
+        priv->peer_name = g_strdup("Unknown");
     g_object_unref (peer);
 
     seaf_debug ("[check-tx] %s repo %.8s.\n", argv[0], repo_id);

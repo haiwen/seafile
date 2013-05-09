@@ -2889,52 +2889,6 @@ seafile_get_deleted (const char *repo_id, int show_days, GError **error)
                                                   repo_id, show_days, error);
 }
 
-int
-seafile_set_repo_token (const char *repo_id,
-                        const char *email,
-                        const char *token,
-                        GError **error)
-{
-    int ret;
-
-    if (!repo_id || !email || !token) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
-        return -1;
-    }
-
-    if (!seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id)) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_REPO, "Repo %s doesn't exist", repo_id);
-        return -1;
-    }
-
-    ret = seaf_repo_manager_set_repo_token (seaf->repo_mgr,
-                                            repo_id, email, token);
-    if (ret < 0) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
-                     "Failed to set token for repo %s", repo_id);
-        return -1;
-    }
-
-    return 0;
-}
-
-char *
-seafile_get_repo_token_nonnull (const char *repo_id,
-                                const char *email,
-                                GError **error)
-{
-    char *token;
-
-    if (!repo_id || !email) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
-        return NULL;
-    }
-
-    token = seaf_repo_manager_get_repo_token_nonnull (seaf->repo_mgr, repo_id, email);
-
-    return token;
-}
-
 char *
 seafile_generate_repo_token (const char *repo_id,
                              const char *email,
@@ -2950,6 +2904,21 @@ seafile_generate_repo_token (const char *repo_id,
     token = seaf_repo_manager_generate_repo_token (seaf->repo_mgr, repo_id, email, error);    
 
     return token;
+}
+
+int
+seafile_delete_repo_token (const char *repo_id,
+                           const char *token,
+                           const char *user,
+                           GError **error)
+{
+    if (!repo_id || !token || !user) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return -1;
+    }
+
+    return seaf_repo_manager_delete_token (seaf->repo_mgr,
+                                           repo_id, token, user, error);
 }
 
 GList *
@@ -2969,18 +2938,17 @@ seafile_list_repo_tokens (const char *repo_id,
 }
 
 GList *
-seafile_list_repo_tokens_by_email (const char *repo_id,
-                                   const char *email,
+seafile_list_repo_tokens_by_email (const char *email,
                                    GError **error)
 {
     GList *ret_list;
 
-    if (!repo_id || !email) {
+    if (!email) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
         return NULL;
     }
 
-    ret_list = seaf_repo_manager_list_repo_tokens_by_email (seaf->repo_mgr, repo_id, email, error);
+    ret_list = seaf_repo_manager_list_repo_tokens_by_email (seaf->repo_mgr, email, error);
 
     return ret_list;
 }

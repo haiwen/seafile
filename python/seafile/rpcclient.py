@@ -572,14 +572,18 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     generate_repo_token = seafile_generate_repo_token
 
+    @searpc_func("int", ["string", "string"])
+    def seafile_delete_repo_token(repo_id, token, user):
+        pass
+    delete_repo_token = seafile_delete_repo_token
     
     @searpc_func("objlist", ["string"])
     def seafile_list_repo_tokens(repo_id):
         pass
     list_repo_tokens = seafile_list_repo_tokens
 
-    @searpc_func("objlist", ["string", "string"])
-    def seafile_list_repo_tokens_by_email(repo_id, email):
+    @searpc_func("objlist", ["string"])
+    def seafile_list_repo_tokens_by_email(email):
         pass
     list_repo_tokens_by_email = seafile_list_repo_tokens_by_email
 
