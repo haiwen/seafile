@@ -243,8 +243,8 @@ class SeafileAPI(object):
     def get_user_quota(self, username):
         return seafserv_threaded_rpc.get_user_quota(username)
 
-    def set_user_quota(self, username):
-        return seafserv_threaded_rpc.set_user_quota(username)
+    def set_user_quota(self, username, quota):
+        return seafserv_threaded_rpc.set_user_quota(username, quota)
 
     def check_quota(self, repo_id):
         pass
