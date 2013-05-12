@@ -1,11 +1,34 @@
 #!/bin/bash
 
+# seafile combined init job
+
+### BEGIN INIT INFO
+# Provides:          seafilehub
+# Required-Start:    $local_fs $remote_fs $network seafile
+# Required-Stop:     $local_fs
+# Default-Start:     1 2 3 4 5
+# Default-Stop:
+# Short-Description: Starts Seafile
+# Description: seafile file syncronization service
+### END INIT INFO
+
+
+# To use this, simply link this file to /etc/init.d/seafile
+#   i.e "ln -s /var/www/seafile/seafile.sh /etc/init.d/seafile
+# And then insert it into the init.d configuration
+#   for Ubuntu/Debian, "update-rc.d seafile defaults"
+#
+# The program will run as the user owning this script. For Ubuntu/Debian
+#   it is advisable to have the directory owned by "www-data"
+
+
 echo ""
 
 SCRIPT=$(readlink -f "$0")
 INSTALLPATH=$(dirname "${SCRIPT}")
 TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
+runas=$(stat -c %U ${0//.\//})
 
 manage_py=${INSTALLPATH}/seahub/manage.py
 gunicorn_conf=${INSTALLPATH}/runtime/seahub.conf
@@ -82,6 +105,16 @@ function read_seafile_data_dir () {
     fi
 }
 
+function validate_seaf_server_running () {
+    if ! pgrep -f "seafile-controller -c ${default_ccnet_conf_dir}" 2>/dev/null 1>&2; then
+        echo "seafile server process is not running, please start it by:"
+        echo ""
+        echo "          ./seafile.sh start"
+        echo ""
+        exit 1;
+    fi
+}
+
 function validate_seahub_running () {
     if pgrep -f "${manage_py}" 2>/dev/null 1>&2; then
         echo "Seahub is already running."
@@ -117,6 +150,7 @@ function before_start() {
     validate_ccnet_conf_dir;
     read_seafile_data_dir;
 
+    validate_seaf_server_running;
     validate_seahub_running;
 
     export CCNET_CONF_DIR=${default_ccnet_conf_dir}
@@ -128,7 +162,9 @@ function before_start() {
 function start_seahub () {
     before_start;
     echo "Starting seahub http server at port ${port} ..."
-    $PYTHON "${manage_py}" run_gunicorn -c "${gunicorn_conf}" -b "0.0.0.0:${port}"
+    sudo -u ${runas} -E \
+	PYTHONPATH=${PYTHONPATH} \
+        $PYTHON "${manage_py}" run_gunicorn -c "${gunicorn_conf}" -b "0.0.0.0:${port}"
 
     # Ensure seahub is started successfully
     sleep 5
@@ -142,8 +178,10 @@ function start_seahub () {
 function start_seahub_fastcgi () {
     before_start;
     echo "Starting seahub http server (fastcgi) at port ${port} ..."
-    $PYTHON "${manage_py}" runfcgi host=127.0.0.1 port=$port pidfile=$pidfile \
-        outlog=${accesslog} errlog=${errorlog}
+    sudo -u ${runas} \
+	PYTHONPATH=${PYTHONPATH} \
+        $PYTHON "${manage_py}" runfcgi host=127.0.0.1 port=$port pidfile=$pidfile \
+            outlog=${accesslog} errlog=${errorlog}
 
     # Ensure seahub is started successfully
     sleep 5
@@ -165,7 +203,13 @@ function stop_seahub () {
     fi
 }
 
-case $1 in 
+cmd=$1
+if [[ "$0" =~ fastcgi ]]; then
+    [ "${1}" == "start" ] && cmd="start-fastgci"
+    [ "${1}" == "restart" ] && cmd="restart-fastcgi"
+fi
+
+case ${cmd} in
     "start" )
         start_seahub;
         ;;
