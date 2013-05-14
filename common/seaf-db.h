@@ -82,4 +82,9 @@ int
 seaf_db_trans_foreach_selected_row (SeafDBTrans *trans, const char *sql,
                                     SeafDBRowFunc callback, void *data);
 
+/* Escape a string contant by doubling '\" characters.
+ */
+char *
+seaf_db_escape_string (SeafDB *db, const char *from);
+
 #endif

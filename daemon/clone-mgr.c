@@ -258,29 +258,29 @@ seaf_clone_manager_start (SeafCloneManager *mgr)
 static int
 save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
 {
-    GString *sql = g_string_new (NULL);
+    char *sql;
 
     if (task->passwd)
-        g_string_append_printf (sql, "REPLACE INTO CloneTasks VALUES "
-            "('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
+        sql = sqlite3_mprintf ("REPLACE INTO CloneTasks VALUES "
+            "('%q', '%q', '%q', '%q', '%q', '%q', '%q', '%q', '%q')",
                                 task->repo_id, task->repo_name,
                                 task->token, task->peer_id,
                                 task->worktree, task->passwd,
                                 task->peer_addr, task->peer_port, task->email);
     else
-        g_string_append_printf (sql, "REPLACE INTO CloneTasks VALUES "
-            "('%s', '%s', '%s', '%s', '%s', NULL, '%s', '%s', '%s')",
+        sql = sqlite3_mprintf ("REPLACE INTO CloneTasks VALUES "
+            "('%q', '%q', '%q', '%q', '%q', NULL, '%q', '%q', '%q')",
                                 task->repo_id, task->repo_name,
                                 task->token, task->peer_id,
                                 task->worktree, task->peer_addr,
                                 task->peer_port, task->email);
 
-    if (sqlite_query_exec (mgr->db, sql->str) < 0) {
-        g_string_free (sql, TRUE);
+    if (sqlite_query_exec (mgr->db, sql) < 0) {
+        sqlite3_free (sql);
         return -1;
     }
 
-    g_string_free (sql, TRUE);
+    sqlite3_free (sql);
     return 0;
 }
 

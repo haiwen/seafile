@@ -970,10 +970,12 @@ seaf_repo_manager_add_token_peer_info (SeafRepoManager *mgr,
     GString *sql = g_string_new (NULL);
     int ret = 0;
 
+    char *esc_peer_name = seaf_db_escape_string (mgr->seaf->db, peer_name);
     g_string_printf (sql,
                      "INSERT INTO RepoTokenPeerInfo VALUES ("
                      "'%s', '%s', '%s', '%s', %"G_GINT64_FORMAT")",
-                     token, peer_id, peer_ip, peer_name, sync_time);
+                     token, peer_id, peer_ip, esc_peer_name, sync_time);
+    g_free (esc_peer_name);
     if (seaf_db_query (mgr->seaf->db, sql->str) < 0)
         ret = -1;
 

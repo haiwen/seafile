@@ -348,7 +348,7 @@ $('#do-sync-link').click(function() {
 // for passwd display
 $('#show-passwd-value').click(function() {
     if ($(this).attr('checked')) {
-        $('#repo-passwd').html('${repo.props.passwd}');
+        $('#repo-passwd').html('${repo.props.passwd.replace("'", "\\'")}');
     } else {
         $('#repo-passwd').html('*****');
     }

@@ -507,3 +507,25 @@ seaf_db_trans_foreach_selected_row (SeafDBTrans *trans, const char *sql,
 
     return n_rows;
 }
+
+char *
+seaf_db_escape_string (SeafDB *db, const char *from)
+{
+    const char *p = from;
+    char *to, *q;
+
+    to = g_malloc0 (2*strlen(from)+1);
+    q = to;
+
+    while (*p != '\0') {
+        if (*p == '\'' || *p == '\\' || *p == '"') {
+            *q = *p;
+            *(++q) = *p;
+        } else
+            *q = *p;
+        ++p;
+        ++q;
+    }
+
+    return to;
+}

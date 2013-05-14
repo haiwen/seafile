@@ -2336,8 +2336,9 @@ save_repo_enc_info (SeafRepoManager *manager,
     char sql[256];
     char key[33], iv[33];
 
-    snprintf (sql, sizeof(sql), "REPLACE INTO RepoPasswd VALUES ('%s', '%s');",
-              repo->id, repo->passwd);
+    sqlite3_snprintf (sizeof(sql), sql,
+                      "REPLACE INTO RepoPasswd VALUES ('%s', '%q');",
+                      repo->id, repo->passwd);
     if (sqlite_query_exec (db, sql) < 0)
         return -1;
 

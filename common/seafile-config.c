@@ -67,9 +67,9 @@ seafile_session_config_set_string (SeafileSession *session,
 {
     char sql[256];
 
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO Config VALUES ('%s', '%s');",
-              key, value);
+    sqlite3_snprintf (sizeof(sql), sql,
+                      "REPLACE INTO Config VALUES ('%q', '%q');",
+                      key, value);
     if (sqlite_query_exec (session->config_db, sql) < 0)
         return -1;
 
@@ -83,9 +83,9 @@ seafile_session_config_set_int (SeafileSession *session,
 {
     char sql[256];
 
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO Config VALUES ('%s', %d);",
-              key, value);
+    sqlite3_snprintf (sizeof(sql), sql,
+                      "REPLACE INTO Config VALUES ('%q', %d);",
+                      key, value);
     if (sqlite_query_exec (session->config_db, sql) < 0)
         return -1;
 

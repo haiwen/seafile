@@ -804,6 +804,11 @@ seafile_list_dir (const char *dir_id, GError **error)
 GList *
 seafile_branch_gets (const char *repo_id, GError **error)
 {
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
     GList *blist = seaf_branch_manager_get_branch_list(seaf->branch_mgr,
                                                        repo_id);
     GList *ptr;
@@ -849,6 +854,11 @@ seafile_get_repo (const char *repo_id, GError **error)
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
         return NULL;
     }
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
     r = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     /* Don't return repo that's not checked out. */
     if (r == NULL)
@@ -1004,6 +1014,11 @@ seafile_get_commit_list (const char *repo_id,
     struct CollectParam cp;
     char *commit_id;
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
     /* correct parameter */
     if (offset < 0)
         offset = 0;
@@ -1075,6 +1090,10 @@ seafile_destroy_repo (const char *repo_id, GError **error)
 
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
@@ -1171,6 +1190,11 @@ seafile_edit_repo (const char *repo_id,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
 retry:
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
@@ -1260,6 +1284,11 @@ seafile_diff (const char *repo_id, const char *arg1, const char *arg2, GError **
         return NULL;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such repository");
@@ -1305,6 +1334,11 @@ seafile_is_repo_owner (const char *email,
                        const char *repo_id,
                        GError **error)
 {
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return 0;
+    }
+
     char *owner = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
     if (!owner) {
         /* g_warning ("Failed to get owner info for repo %s.\n", repo_id); */
@@ -1325,6 +1359,10 @@ seafile_get_repo_owner (const char *repo_id, GError **error)
 {
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return NULL;
+    }
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return NULL;
     }
 
@@ -1544,6 +1582,11 @@ seafile_server_repo_size(const char *repo_id, GError **error)
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
     ret = seaf_repo_manager_get_repo_size (seaf->repo_mgr, repo_id);
     if (ret < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal server error");
@@ -1563,6 +1606,11 @@ seafile_set_repo_history_limit (const char *repo_id,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
     if (seaf_repo_manager_set_repo_history_limit (seaf->repo_mgr,
                                                   repo_id,
                                                   days) < 0) {
@@ -1578,6 +1626,11 @@ seafile_get_repo_history_limit (const char *repo_id,
                                 GError **error)
 {
     if (!repo_id || !is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
@@ -1760,6 +1813,11 @@ seafile_group_share_repo (const char *repo_id, int group_id,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
     ret = seaf_repo_manager_add_group_repo (mgr, repo_id, group_id, user_name,
                                             permission, error);
 
@@ -1779,6 +1837,11 @@ seafile_group_unshare_repo (const char *repo_id, int group_id,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
     ret = seaf_repo_manager_del_group_repo (mgr, repo_id, group_id, error);
 
     return ret;
@@ -1795,6 +1858,11 @@ seafile_get_shared_groups_by_repo(const char *repo_id, GError **error)
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Bad arguments");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return NULL;
     }
 
@@ -1864,6 +1932,11 @@ seafile_get_group_repo_owner (const char *repo_id, GError **error)
     SeafRepoManager *mgr = seaf->repo_mgr;
     GString *result = g_string_new ("");
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
     char *share_from = seaf_repo_manager_get_group_repo_owner (mgr, repo_id,
                                                                error);
     if (share_from) {
@@ -1900,6 +1973,11 @@ seafile_set_inner_pub_repo (const char *repo_id,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
     if (seaf_repo_manager_set_inner_pub_repo (seaf->repo_mgr,
                                               repo_id, permission) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Internal error");
@@ -1914,6 +1992,11 @@ seafile_unset_inner_pub_repo (const char *repo_id, GError **error)
 {
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
@@ -1953,6 +2036,11 @@ seafile_is_inner_pub_repo (const char *repo_id, GError **error)
 {
     if (!repo_id) {
         g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Bad arguments");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
@@ -2011,6 +2099,11 @@ seafile_add_org_group_repo (const char *repo_id,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
     return seaf_repo_manager_add_org_group_repo (seaf->repo_mgr,
                                                  repo_id,
                                                  org_id,
@@ -2028,6 +2121,11 @@ seafile_del_org_group_repo (const char *repo_id,
 {
     if (!repo_id || org_id < 0 || group_id < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
@@ -2074,6 +2172,11 @@ seafile_get_org_group_repo_owner (int org_id, int group_id,
 {
     SeafRepoManager *mgr = seaf->repo_mgr;
     GString *result = g_string_new ("");
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
 
     char *owner = seaf_repo_manager_get_org_group_repo_owner (mgr, org_id,
                                                               group_id,
@@ -2123,6 +2226,11 @@ seafile_get_org_groups_by_repo (int org_id, const char *repo_id,
         return NULL;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
     group_ids = seaf_repo_manager_get_org_groups_by_repo (mgr, org_id,
                                                           repo_id, error);
     if (!group_ids) {
@@ -2153,6 +2261,11 @@ seafile_set_org_inner_pub_repo (int org_id,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
     if (seaf_repo_manager_set_org_inner_pub_repo (seaf->repo_mgr,
                                                   org_id, repo_id,
                                                   permission) < 0) {
@@ -2168,6 +2281,11 @@ seafile_unset_org_inner_pub_repo (int org_id, const char *repo_id, GError **erro
 {
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
@@ -2332,6 +2450,11 @@ seafile_revert_on_server (const char *repo_id,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
     return seaf_repo_manager_revert_on_server (seaf->repo_mgr,
                                                repo_id,
                                                commit_id,
@@ -2348,6 +2471,11 @@ seafile_post_file (const char *repo_id, const char *temp_file_path,
     if (!repo_id || !temp_file_path || !parent_dir || !file_name || !user) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Argument should not be null");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
@@ -2372,6 +2500,11 @@ seafile_post_multi_files (const char *repo_id,
     if (!repo_id || !filenames_json || !parent_dir || !paths_json || !user) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Argument should not be null");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
@@ -2400,6 +2533,11 @@ seafile_put_file (const char *repo_id, const char *temp_file_path,
         return NULL;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
     char *new_file_id = NULL;
     seaf_repo_manager_put_file (seaf->repo_mgr, repo_id,
                                 temp_file_path, parent_dir,
@@ -2415,6 +2553,11 @@ seafile_post_dir (const char *repo_id, const char *parent_dir,
 {
     if (!repo_id || !parent_dir || !new_dir_name || !user) {
         g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
@@ -2437,6 +2580,11 @@ seafile_post_empty_file (const char *repo_id, const char *parent_dir,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
     if (seaf_repo_manager_post_empty_file (seaf->repo_mgr, repo_id,
                                            parent_dir, new_file_name,
                                            user, error) < 0) {
@@ -2453,6 +2601,11 @@ seafile_del_file (const char *repo_id, const char *parent_dir,
 {
     if (!repo_id || !parent_dir || !file_name || !user) {
         g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
@@ -2478,6 +2631,11 @@ seafile_copy_file (const char *src_repo_id,
     if (!src_repo_id || !src_dir || !src_filename ||
         !dst_repo_id || !dst_dir || !dst_filename || !user) {
         g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+
+    if (!is_uuid_valid (src_repo_id) || !is_uuid_valid(dst_repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
@@ -2507,6 +2665,11 @@ seafile_move_file (const char *src_repo_id,
         return -1;
     }
 
+    if (!is_uuid_valid (src_repo_id) || !is_uuid_valid(dst_repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
     if (seaf_repo_manager_move_file (seaf->repo_mgr,
                                      src_repo_id, src_dir, src_filename,
                                      dst_repo_id, dst_dir, dst_filename,
@@ -2527,6 +2690,11 @@ seafile_rename_file (const char *repo_id,
 {
     if (!repo_id || !parent_dir || !oldname || !newname || !user) {
         g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
@@ -2632,6 +2800,11 @@ seafile_get_org_repo_owner (const char *repo_id, GError **error)
     SeafRepoManager *mgr = seaf->repo_mgr;
     GString *result = g_string_new ("");
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
     char *owner = seaf_repo_manager_get_org_repo_owner (mgr, repo_id);
     if (owner) {
         g_string_append_printf (result, "%s", owner);
@@ -2646,6 +2819,11 @@ seafile_get_org_id_by_repo_id (const char *repo_id, GError **error)
 {
     if (!repo_id) {
         g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Bad arguments");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
@@ -2741,6 +2919,11 @@ get_obj_id_by_path (const char *repo_id,
         return NULL;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
@@ -2803,6 +2986,11 @@ seafile_list_file_revisions (const char *repo_id,
         return NULL;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
     GList *commit_list;
     commit_list = seaf_repo_manager_list_file_revisions (seaf->repo_mgr,
                                                          repo_id, path,
@@ -2836,6 +3024,11 @@ seafile_calc_files_last_modified (const char *repo_id,
         return NULL;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
     return seaf_repo_manager_calc_files_last_modified (seaf->repo_mgr,
                                 repo_id, parent_dir, limit, error);
 }
@@ -2850,6 +3043,11 @@ seafile_revert_file (const char *repo_id,
     if (!repo_id || !commit_id || !path || !user) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Bad arguments");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
@@ -2871,6 +3069,11 @@ seafile_revert_dir (const char *repo_id,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
     return seaf_repo_manager_revert_dir (seaf->repo_mgr,
                                          repo_id, commit_id,
                                          path, user, error);
@@ -2882,6 +3085,11 @@ seafile_get_deleted (const char *repo_id, int show_days, GError **error)
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Bad arguments");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return NULL;
     }
 
@@ -2901,6 +3109,11 @@ seafile_generate_repo_token (const char *repo_id,
         return NULL;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
     token = seaf_repo_manager_generate_repo_token (seaf->repo_mgr, repo_id, email, error);    
 
     return token;
@@ -2917,6 +3130,11 @@ seafile_delete_repo_token (const char *repo_id,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
     return seaf_repo_manager_delete_token (seaf->repo_mgr,
                                            repo_id, token, user, error);
 }
@@ -2929,6 +3147,11 @@ seafile_list_repo_tokens (const char *repo_id,
 
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return NULL;
     }
 
@@ -2959,6 +3182,11 @@ seafile_check_permission (const char *repo_id, const char *user, GError **error)
 {
     if (!repo_id || !user) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return NULL;
     }
 
@@ -2996,6 +3224,11 @@ seafile_set_group_repo_permission (int group_id,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
     return seaf_repo_manager_set_group_repo_perm (seaf->repo_mgr,
                                                   repo_id,
                                                   group_id,
@@ -3012,6 +3245,11 @@ seafile_set_org_group_repo_permission (int org_id,
 {
     if (!repo_id || !permission) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
     }
 
