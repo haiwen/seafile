@@ -6,6 +6,7 @@ SCRIPT=$(readlink -f "$0")
 INSTALLPATH=$(dirname "${SCRIPT}")
 TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
+run_as=$(ls -ld ${SCRIPT} | awk '{print $3}')
 
 manage_py=${INSTALLPATH}/seahub/manage.py
 gunicorn_conf=${INSTALLPATH}/runtime/seahub.conf
@@ -127,7 +128,8 @@ function before_start() {
 
 function start_seahub () {
     before_start;
-    echo "Starting seahub http server at port ${port} ..."
+    echo "Starting seahub at port ${port} ..."
+    sudo -u ${run_as} \
     $PYTHON "${manage_py}" run_gunicorn -c "${gunicorn_conf}" -b "0.0.0.0:${port}"
 
     # Ensure seahub is started successfully
@@ -141,7 +143,8 @@ function start_seahub () {
 
 function start_seahub_fastcgi () {
     before_start;
-    echo "Starting seahub http server (fastcgi) at port ${port} ..."
+    echo "Starting seahub (fastcgi) at port ${port} ..."
+    sudo -u ${run_as} \
     $PYTHON "${manage_py}" runfcgi host=127.0.0.1 port=$port pidfile=$pidfile \
         outlog=${accesslog} errlog=${errorlog}
 

@@ -7,6 +7,7 @@ INSTALLPATH=$(dirname "${SCRIPT}")
 TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
 ccnet_pidfile=${INSTALLPATH}/runtime/ccnet.pid
+run_as=$(ls -ld ${SCRIPT} | awk '{print $3}')
 
 export PATH=${INSTALLPATH}/seafile/bin:$PATH
 export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
@@ -48,15 +49,35 @@ function read_seafile_data_dir () {
     fi
 }
 
-function validate_alreay_running () {
-    if pgrep -f "seafile-controller -c ${default_ccnet_conf_dir}" 2>/dev/null 1>&2; then
-        echo "Seafile server already running."
-        exit 1;
+function check_component_running() {
+    name=$1
+    cmd=$2
+    if pid=$(pgrep -f "$cmd" 2>/dev/null); then
+        echo "[$name] is running, pid $pid. You can stop is by: "
+        echo
+        echo "        kill $pid"
+        echo
+        echo "Stop it and try again."
+        echo
+        exit
     fi
 }
 
+function validate_already_running () {
+    if pid=$(pgrep -f "seafile-controller -c ${default_ccnet_conf_dir}" 2>/dev/null); then
+        echo "Seafile controller is already running, pid $pid"
+        echo
+        exit 1;
+    fi
+
+    check_component_running "ccnet-server" "ccnet-server -c"
+    check_component_running "seaf-server" "seaf-server -c"
+    check_component_running "seaf-mon" "seaf-mon -c"
+    check_component_running "httpserver" "httpserver -c"
+}
+
 function start_seafile_server () {
-    validate_alreay_running;
+    validate_already_running;
     validate_ccnet_conf_dir;
     read_seafile_data_dir;
 
@@ -66,6 +87,7 @@ function start_seafile_server () {
 
     bin_dir="${INSTALLPATH}/seafile/bin"
 
+    sudo -u ${run_as} \
     LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_controller} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"
 
     sleep 3
@@ -88,6 +110,10 @@ function stop_seafile_server () {
 
     echo "Stopping seafile server ..."
     pkill -SIGTERM -f "seafile-controller -c ${default_ccnet_conf_dir}"
+    pkill ccnet-server
+    pkill seaf-server
+    pkill seaf-mon
+    pkill httpserver
     return 0
 }
 
