@@ -1,5 +1,15 @@
 #!/bin/bash
 
+### BEGIN INIT INFO
+# Provides:          seafile
+# Required-Start:    $local_fs $remote_fs $network
+# Required-Stop:     $local_fs
+# Default-Start:     1 2 3 4 5
+# Default-Stop:
+# Short-Description: Starts Seafile Server
+# Description:       starts Seafile Server
+### END INIT INFO
+
 echo ""
 
 SCRIPT=$(readlink -f "$0")

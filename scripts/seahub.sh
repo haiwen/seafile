@@ -1,5 +1,15 @@
 #!/bin/bash
 
+### BEGIN INIT INFO
+# Provides:          seahub
+# Required-Start:    $local_fs $remote_fs $network
+# Required-Stop:     $local_fs
+# Default-Start:     1 2 3 4 5
+# Default-Stop:
+# Short-Description: Starts Seahub
+# Description:       starts Seahub
+### END INIT INFO
+
 echo ""
 
 SCRIPT=$(readlink -f "$0")
@@ -19,11 +29,11 @@ script_name=$0
 function usage () {
     echo "Usage: "
     echo
-    echo "  $(basename ${script_name}) { start <port> | stop | restart <port> }" 
+    echo "  $(basename ${script_name}) { start <port> | stop | restart <port> }"
     echo
     echo "To run seahub in fastcgi:"
     echo
-    echo "  $(basename ${script_name}) { start-fastcgi <port> | stop | restart-fastcgi <port> }" 
+    echo "  $(basename ${script_name}) { start-fastcgi <port> | stop | restart-fastcgi <port> }"
     echo
     echo "<port> is optional, and defaults to 8000"
     echo ""
@@ -40,7 +50,7 @@ function check_python_executable() {
     if [[ "$PYTHON" != "" && -x $PYTHON ]]; then
         return 0
     fi
-        
+
     if which python2.7 2>/dev/null 1>&2; then
         PYTHON=python2.7
     elif which python27 2>/dev/null 1>&2; then
@@ -50,11 +60,11 @@ function check_python_executable() {
     elif which python26 2>/dev/null 1>&2; then
         PYTHON=python26
     else
-        echo 
+        echo
         echo "Can't find a python executable of version 2.6 or above in PATH"
         echo "Install python 2.6+ before continue."
         echo "Or if you installed it in a non-standard PATH, set the PYTHON enviroment varirable to it"
-        echo 
+        echo
         exit 1
     fi
 }
@@ -168,7 +178,7 @@ function stop_seahub () {
     fi
 }
 
-case $1 in 
+case $1 in
     "start" )
         start_seahub;
         ;;
