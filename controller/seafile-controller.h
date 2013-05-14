@@ -32,7 +32,6 @@ enum {
 };
 
 struct _SeafileController {
-    char *bin_dir;
     char *config_dir;
     char *seafile_dir;
 

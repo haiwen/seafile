@@ -18,6 +18,8 @@ TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
 ccnet_pidfile=${INSTALLPATH}/runtime/ccnet.pid
 run_as=$(ls -ld ${SCRIPT} | awk '{print $3}')
+seaf_controller="${INSTALLPATH}/seafile/bin/seafile-controller"
+
 
 export PATH=${INSTALLPATH}/seafile/bin:$PATH
 export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
@@ -59,6 +61,12 @@ function read_seafile_data_dir () {
     fi
 }
 
+function test_config() {
+    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_controller} --test -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"; then
+        exit 1;
+    fi
+}
+
 function check_component_running() {
     name=$1
     cmd=$2
@@ -90,12 +98,9 @@ function start_seafile_server () {
     validate_already_running;
     validate_ccnet_conf_dir;
     read_seafile_data_dir;
+    test_config;
 
     echo "Starting seafile server, please wait ..."
-
-    seaf_controller="${INSTALLPATH}/seafile/bin/seafile-controller"
-
-    bin_dir="${INSTALLPATH}/seafile/bin"
 
     sudo -u ${run_as} \
     LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_controller} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"

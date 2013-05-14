@@ -22,16 +22,16 @@
 
 SeafileController *ctl;
 
-static const char *short_opts = "hvfb:C:c:d:r:l:g:G:";
+static const char *short_opts = "hvftCc:d:l:g:G:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
     { "foreground", no_argument, NULL, 'f', },
-    { "bin-dir", required_argument, NULL, 'b', },
+    { "test", no_argument, NULL, 't', },
+    { "cloud-mode", no_argument, NULL, 'C', },
     { "config-dir", required_argument, NULL, 'c', },
     { "seafile-dir", required_argument, NULL, 'd', },
     { "logfile", required_argument, NULL, 'l', },
-    { "cloud-mode", no_argument, NULL, 'C', },
     { "ccnet-debug-level", required_argument, NULL, 'g' },
     { "seafile-debug-level", required_argument, NULL, 'G' },
 };
@@ -78,26 +78,6 @@ spawn_process (char *argv[])
             seaf_message ("spawned %s, pid %d\n", argv[0], pid);
 
         return (int)pid;
-    }
-}
-
-/* If --bin-dir is specified, modify the <PATH> env before spawning any
- * process. */
-static void
-set_path_env (const char *bin_dir)
-{
-    if (!bin_dir)
-        return;
-
-    const char *path = g_getenv("PATH");
-
-    if (!path) {
-        g_setenv ("PATH", bin_dir, TRUE);
-    } else {
-        GString *buf = g_string_new (NULL);
-        g_string_append_printf (buf, "%s:%s", bin_dir, path);
-        g_setenv ("PATH", buf->str, TRUE);
-        g_string_free (buf, TRUE);
     }
 }
 
@@ -465,17 +445,11 @@ init_pidfile_path (SeafileController *ctl)
 }
 
 static int
-seaf_controller_init (SeafileController *ctl, char *bin_dir,
-                      char *config_dir, char *seafile_dir,
+seaf_controller_init (SeafileController *ctl,
+                      char *config_dir,
+                      char *seafile_dir,
                       gboolean cloud_mode)
 {
-    if (bin_dir) {
-        if (!g_file_test (bin_dir, G_FILE_TEST_IS_DIR)) {
-            seaf_warning ("invalid config_dir: %s\n", config_dir);
-            return -1;
-        }
-    }
-
     if (!g_file_test (config_dir, G_FILE_TEST_IS_DIR)) {
         seaf_warning ("invalid config_dir: %s\n", config_dir);
         return -1;
@@ -500,7 +474,6 @@ seaf_controller_init (SeafileController *ctl, char *bin_dir,
     }
 
     ctl->config_dir = config_dir;
-    ctl->bin_dir = bin_dir;
     ctl->seafile_dir = seafile_dir;
     ctl->cloud_mode = cloud_mode;
 
@@ -557,6 +530,46 @@ usage ()
         );
 }
 
+/* seafile-controller -t is used to test whether config file is valid */
+static void
+test_config (const char *ccnet_dir, const char *seafile_dir)
+{
+    char *ccnet_conf = g_build_filename (ccnet_dir, "ccnet.conf", NULL);
+    char *seafile_conf = g_build_filename (seafile_dir, "seafile.conf", NULL);
+
+    if (!g_file_test(ccnet_conf, G_FILE_TEST_IS_REGULAR)) {
+        fprintf (stderr, "ccnet config file %s does not exist\n", ccnet_conf);
+        exit(1);
+    }
+
+    if (!g_file_test(seafile_conf, G_FILE_TEST_IS_REGULAR)) {
+        fprintf (stderr, "seafile config file %s does not exist\n", seafile_conf);
+        exit(1);
+    }
+
+    GError *error = NULL;
+    GKeyFile *keyfile = g_key_file_new ();
+    if (!g_key_file_load_from_file (keyfile, ccnet_conf, 0, &error)) {
+        fprintf (stderr, "Error in ccnet config file %s:\n%s\n",
+                 ccnet_conf,
+                 error->message);
+        exit (1);
+    }
+
+    printf ("the syntax of ccnet config file %s is OK\n", ccnet_conf);
+
+    if (!g_key_file_load_from_file (keyfile, seafile_conf, 0, &error)) {
+        fprintf (stderr, "Error in seafile config file %s:\n%s\n",
+                 seafile_conf,
+                 error->message);
+        exit (1);
+    }
+
+    printf ("the syntax of seafile config file %s is OK\n", seafile_conf);
+
+    exit(0);
+}
+
 int main (int argc, char **argv)
 {
     if (argc <= 1) {
@@ -564,7 +577,6 @@ int main (int argc, char **argv)
         exit (1);
     }
 
-    char *bin_dir = NULL;
     char *config_dir = DEFAULT_CONFIG_DIR;
     char *seafile_dir = NULL;
     char *logfile = NULL;
@@ -572,6 +584,7 @@ int main (int argc, char **argv)
     char *seafile_debug_level_str = "debug";
     int daemon_mode = 1;
     gboolean cloud_mode = FALSE;
+    gboolean test_conf = FALSE;
 
     int c;
     while ((c = getopt_long (argc, argv, short_opts,
@@ -585,8 +598,8 @@ int main (int argc, char **argv)
         case 'v':
             fprintf (stderr, "seafile-controller version 1.0\n");
             break;
-        case 'b':
-            bin_dir = optarg;
+        case 't':
+            test_conf = TRUE;
             break;
         case 'c':
             config_dir = optarg;
@@ -615,27 +628,25 @@ int main (int argc, char **argv)
         }
     }
 
-    if (daemon_mode)
-        daemon (1, 0);
-
     g_type_init ();
 #if !GLIB_CHECK_VERSION(2,32,0)
     g_thread_init (NULL);
 #endif
 
     if (!seafile_dir) {
-        seaf_warning ("<seafile_dir> must be specified with --seafile-dir\n");
-        controller_exit(1);
+        fprintf (stderr, "<seafile_dir> must be specified with --seafile-dir\n");
+        exit(1);
     }
 
-    if (bin_dir)
-        bin_dir = ccnet_expand_path(bin_dir);
-
     config_dir = ccnet_expand_path (config_dir);
-    seafile_dir = ccnet_expand_path(seafile_dir);
+    seafile_dir = ccnet_expand_path (seafile_dir);
+
+    if (test_conf) {
+        test_config (config_dir, seafile_dir);
+    }
 
     ctl = g_new0 (SeafileController, 1);
-    if (seaf_controller_init (ctl, bin_dir, config_dir, seafile_dir, cloud_mode) < 0) {
+    if (seaf_controller_init (ctl, config_dir, seafile_dir, cloud_mode) < 0) {
         controller_exit(1);
     }
 
@@ -651,11 +662,11 @@ int main (int argc, char **argv)
 
     set_signal_handlers ();
 
-    if (ctl->bin_dir)
-        set_path_env (ctl->bin_dir);
-
     if (seaf_controller_start (ctl) < 0)
         controller_exit (1);
+
+    if (daemon_mode)
+        daemon (1, 0);
 
     run_controller_loop ();
 
