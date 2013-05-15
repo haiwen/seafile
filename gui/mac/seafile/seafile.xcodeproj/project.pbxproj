@@ -1310,6 +1310,7 @@
 					/opt/local/include,
 					/usr/local/include,
 					/usr/local/include/searpc,
+					../../..,
 				);
 				INFOPLIST_FILE = "seafile/seafile-10.6-debug-Info.plist";
 				LIBRARY_SEARCH_PATHS = (
