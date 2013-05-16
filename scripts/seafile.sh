@@ -17,7 +17,6 @@ INSTALLPATH=$(dirname "${SCRIPT}")
 TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
 ccnet_pidfile=${INSTALLPATH}/runtime/ccnet.pid
-run_as=$(ls -ld ${SCRIPT} | awk '{print $3}')
 seaf_controller="${INSTALLPATH}/seafile/bin/seafile-controller"
 
 
@@ -102,7 +101,6 @@ function start_seafile_server () {
 
     echo "Starting seafile server, please wait ..."
 
-    sudo -u ${run_as} \
     LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_controller} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"
 
     sleep 3
