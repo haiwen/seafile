@@ -36,11 +36,12 @@ save_config_file (GKeyFile *key_file, const char *path)
     return 0;
 }
 
-static const char *short_opts = "hmvs:t:r:d:p:P:";
+static const char *short_opts = "hgmvs:t:r:d:p:P:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h' },
     { "verbose", no_argument, NULL, 'v' },
     { "mysql", no_argument, NULL, 'm' },
+    { "pgsql", no_argument, NULL, 'g' },
     { "host", required_argument, NULL, 's' },
     { "socket", required_argument, NULL, 't' },
     { "root-passwd", required_argument, NULL, 'r' },
@@ -51,12 +52,12 @@ static const struct option long_opts[] = {
 };
 
 struct seaf_server_config {
-    char *mysql_host;
-    char *mysql_root_passwd;
-    char *mysql_db_name;
-    char *mysql_seahub_db_name;
+    char *db_host;
+    char *db_root_passwd;
+    char *db_name;
+    char *seahub_db_name;
     char *seafile_dir;
-    char *mysql_socket;
+    char *db_socket;
     char *port;
     char *httpserver_port;
 }; 
@@ -83,8 +84,9 @@ void usage(int code) {
 "  -p, --port             specify a port to to transmit data\n" 
 "  -P, --httpserver-port  specify the port to use by httpserver\n" 
 "  -m, --mysql            use mysql database. Default is to use sqlite3\n"
+"  -g, --pgsql            use postgresql database. Default is to use sqlite3\n"
 "\n"
-"When using mysql database, you need to specify these arguments:\n\n"
+"When using mysql or postgresql database, you need to specify these arguments:\n\n"
 "       -r, --root-passwd      your mysql root passwd, needed to create seafile server database\n"
 "       -s, --host             Optional. Your mysql server host name, default is localhost\n"
 "       -t, --socket           Optional. Your mysql server socket path.\n"
@@ -99,6 +101,7 @@ int main (int argc, char **argv)
     char sql[256];
     gboolean verbose = FALSE;
     gboolean use_mysql = FALSE;
+    gboolean use_pgsql = FALSE;
     int ret;
 
     if (argc == 1)
@@ -113,17 +116,20 @@ int main (int argc, char **argv)
         case 'v':
             verbose = TRUE;
             break;
+        case 'g':
+            use_pgsql = TRUE;
+            break;
         case 'm':
             use_mysql = TRUE;
             break;
         case 's':
-            config.mysql_host = strdup(optarg);
+            config.db_host = strdup(optarg);
             break;
         case 't':
-            config.mysql_socket = strdup(optarg);
+            config.db_socket = strdup(optarg);
             break;
         case 'r':
-            config.mysql_root_passwd = strdup(optarg);
+            config.db_root_passwd = strdup(optarg);
             break;
         case 'd':
             config.seafile_dir = strdup(optarg);
@@ -139,7 +145,7 @@ int main (int argc, char **argv)
         }
     }
 
-    if (use_mysql && !config.mysql_root_passwd) {
+    if ((use_mysql || use_pgsql) && !config.db_root_passwd) {
         fprintf (stderr, "You choose to use mysql database. "
                  "Mysql Root Password must be specified.\n");
         exit(1);
@@ -150,11 +156,19 @@ int main (int argc, char **argv)
         usage(1);
     }
 
-    /* Create database for mysql */
-    if (use_mysql) {
-        SeafDB *db_root = seaf_db_new_mysql (config.mysql_host, "root",
-                                             config.mysql_root_passwd,
-                                             NULL, config.mysql_socket);
+    /* Create database for mysql/pgsql */
+    if (use_mysql || use_pgsql) {
+        SeafDB *db_root;
+            
+        if (use_mysql)
+            db_root = seaf_db_new_mysql (config.db_host, "root",
+                                         config.db_root_passwd,
+                                         NULL, config.db_socket);
+        else
+            db_root = seaf_db_new_pgsql (config.db_host, "root",
+                                         config.db_root_passwd,
+                                         NULL, config.db_socket);
+
         if (!db_root) {
         fprintf (stderr, "Out of memory!\n");
         return 1;
@@ -162,44 +176,49 @@ int main (int argc, char **argv)
 
         /* Create database for Seafile server. */
         snprintf (sql, sizeof(sql), "CREATE DATABASE IF NOT EXISTS `%s`",
-              config.mysql_db_name);
+              config.db_name);
         ret = seaf_db_query (db_root, sql);
         if (ret < 0) {
-            fprintf (stderr, "Failed to create database %s.\n", config.mysql_db_name);
+            fprintf (stderr, "Failed to create database %s.\n", config.db_name);
         return 1;
         }
         
         if (verbose)
             printf ("Successfully created database:     %s\n",
-                    config.mysql_db_name);
+                    config.db_name);
         
         /* Create database for Seahub. */
         snprintf (sql, sizeof(sql), "CREATE DATABASE IF NOT EXISTS `%s` character set utf8",
-                  config.mysql_seahub_db_name);
+                  config.seahub_db_name);
         ret = seaf_db_query (db_root, sql);
         if (ret < 0) {
             fprintf (stderr, "Failed to create database %s.\n",
-                     config.mysql_seahub_db_name);
+                     config.seahub_db_name);
             return 1;
         }
 
         if (verbose)
             printf ("Successfully created database:     %s\n",
-                    config.mysql_seahub_db_name);
+                    config.seahub_db_name);
     }
         
     /* Generate config file. */
     GKeyFile *key_file = g_key_file_new ();
 
-    g_key_file_set_string (key_file, "database", "type",
-                           use_mysql ? "mysql" : "sqlite");
+    if (use_mysql)
+        g_key_file_set_string (key_file, "database", "type", "mysql");
+    else if (use_pgsql)
+        g_key_file_set_string (key_file, "database", "type", "pgsql");
+    else
+        g_key_file_set_string (key_file, "database", "type", "sqlite");
+
     if (use_mysql) {
-        g_key_file_set_string (key_file, "database", "host", config.mysql_host);
+        g_key_file_set_string (key_file, "database", "host", config.db_host);
         g_key_file_set_string (key_file, "database", "user", "root");
-        g_key_file_set_string (key_file, "database", "password", config.mysql_root_passwd);
-        g_key_file_set_string (key_file, "database", "db_name", config.mysql_db_name);
-        if (config.mysql_socket)
-            g_key_file_set_string (key_file, "database", "unix_socket", config.mysql_socket);
+        g_key_file_set_string (key_file, "database", "password", config.db_root_passwd);
+        g_key_file_set_string (key_file, "database", "db_name", config.db_name);
+        if (config.db_socket)
+            g_key_file_set_string (key_file, "database", "unix_socket", config.db_socket);
     }
 
     g_key_file_set_string (key_file, "network", "port", config.port);

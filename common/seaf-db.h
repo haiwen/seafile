@@ -4,6 +4,7 @@
 enum {
     SEAF_DB_TYPE_SQLITE,
     SEAF_DB_TYPE_MYSQL,
+    SEAF_DB_TYPE_PGSQL,
 };
 
 typedef struct SeafDB SeafDB;
@@ -17,6 +18,13 @@ seaf_db_new_mysql (const char *host,
                    const char *user, 
                    const char *passwd,
                    const char *db,
+                   const char *unix_socket);
+
+SeafDB *
+seaf_db_new_pgsql (const char *host,
+                   const char *user,
+                   const char *passwd,
+                   const char *db_name,
                    const char *unix_socket);
 
 SeafDB *
@@ -86,5 +94,8 @@ seaf_db_trans_foreach_selected_row (SeafDBTrans *trans, const char *sql,
  */
 char *
 seaf_db_escape_string (SeafDB *db, const char *from);
+
+gboolean
+pgsql_index_exists (SeafDB *db, const char *index_name);
 
 #endif

@@ -501,13 +501,32 @@ seaf_repo_manager_set_repo_history_limit (SeafRepoManager *mgr,
                                           const char *repo_id,
                                           int days)
 {
+    SeafDB *db = mgr->seaf->db;
     char sql[256];
 
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO RepoHistoryLimit VALUES ('%s', %d)",
-              repo_id, days);
-    if (seaf_db_query (mgr->seaf->db, sql) < 0)
-        return -1;
+    if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
+        gboolean err;
+        snprintf(sql, sizeof(sql),
+                 "SELECT repo_id FROM RepoHistoryLimit "
+                 "WHERE repo_id='%s'", repo_id);
+        if (seaf_db_check_for_existence(db, sql, &err))
+            snprintf(sql, sizeof(sql),
+                     "UPDATE RepoHistoryLimit SET days=%d"
+                     "WHERE repo_id='%s'", days, repo_id);
+        else
+            snprintf(sql, sizeof(sql),
+                     "INSERT INTO RepoHistoryLimit VALUES "
+                     "('%s', %d)", repo_id, days);
+        if (err)
+            return -1;
+        return seaf_db_query(db, sql);
+    } else {
+        snprintf (sql, sizeof(sql),
+                  "REPLACE INTO RepoHistoryLimit VALUES ('%s', %d)",
+                  repo_id, days);
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
 
     return 0;
 }
@@ -556,13 +575,33 @@ seaf_repo_manager_set_repo_valid_since (SeafRepoManager *mgr,
                                         const char *repo_id,
                                         gint64 timestamp)
 {
+    SeafDB *db = mgr->seaf->db;
     char sql[256];
 
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO RepoValidSince VALUES ('%s', %"G_GINT64_FORMAT")",
-              repo_id, timestamp);
-    if (seaf_db_query (mgr->seaf->db, sql) < 0)
-        return -1;
+    if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
+        gboolean err;
+        snprintf(sql, sizeof(sql),
+                 "SELECT repo_id FROM RepoValidSince WHERE "
+                 "repo_id='%s'", repo_id);
+        if (seaf_db_check_for_existence(db, sql, &err))
+            snprintf(sql, sizeof(sql),
+                     "UPDATE RepoValidSince SET timestamp=%"G_GINT64_FORMAT
+                     " WHERE repo_id='%s'", timestamp, repo_id);
+        else
+            snprintf(sql, sizeof(sql),
+                     "INSERT INTO RepoValidSince VALUES "
+                     "('%s', %"G_GINT64_FORMAT")", repo_id, timestamp);
+        if (err)
+            return -1;
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    } else {
+        snprintf (sql, sizeof(sql),
+                  "REPLACE INTO RepoValidSince VALUES ('%s', %"G_GINT64_FORMAT")",
+                  repo_id, timestamp);
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
 
     return 0;
 }

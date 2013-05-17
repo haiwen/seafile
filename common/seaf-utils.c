@@ -89,6 +89,54 @@ mysql_db_start (SeafileSession *session)
     return 0;
 }
 
+static int
+pgsql_db_start (SeafileSession *session)
+{
+    char *host, *user, *passwd, *db, *unix_socket;
+    GError *error = NULL;
+
+    host = g_key_file_get_string (session->config, "database", "host", &error);
+    if (!host) {
+        g_warning ("DB host not set in config.\n");
+        return -1;
+    }
+
+    user = g_key_file_get_string (session->config, "database", "user", &error);
+    if (!user) {
+        g_warning ("DB user not set in config.\n");
+        return -1;
+    }
+
+    passwd = g_key_file_get_string (session->config, "database", "password", &error);
+    if (!passwd) {
+        g_warning ("DB passwd not set in config.\n");
+        return -1;
+    }
+
+    db = g_key_file_get_string (session->config, "database", "db_name", &error);
+    if (!db) {
+        g_warning ("DB name not set in config.\n");
+        return -1;
+    }
+
+    unix_socket = g_key_file_get_string (session->config,
+                                         "database", "unix_socket", &error);
+
+    session->db = seaf_db_new_pgsql (host, user, passwd, db, unix_socket);
+    if (!session->db) {
+        g_warning ("Failed to start pgsql db.\n");
+        return -1;
+    }
+
+    g_free (host);
+    g_free (user);
+    g_free (passwd);
+    g_free (db);
+    g_free (unix_socket);
+
+    return 0;
+}
+
 int
 load_database_config (SeafileSession *session)
 {
@@ -104,6 +152,8 @@ load_database_config (SeafileSession *session)
         return sqlite_db_start (session);
     } else if (strcasecmp (type, "mysql") == 0) {
         return mysql_db_start (session);
+    } else if (strcasecmp (type, "pgsql") == 0) {
+        return pgsql_db_start (session);
     } else {
         g_warning ("Unsupported db type %s.\n", type);
         return -1;

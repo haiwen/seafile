@@ -9,6 +9,7 @@ AM_CFLAGS = \
 	@SEARPC_CFLAGS@ \
 	@GLIB2_CFLAGS@ \
 	@MYSQL_CFLAGS@ \
+	@PGSQL_CFLAGS@ \
 	@ZDB_CFLAGS@ \
 	-Wall
 

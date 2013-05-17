@@ -99,12 +99,32 @@ set_repo_size (SeafDB *db, const char *repo_id, const char *head_id, guint64 siz
 {
     char sql[256];
 
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO RepoSize (repo_id, size, head_id) "
-              "VALUES ('%s', %"G_GUINT64_FORMAT", '%s')",
-              repo_id, size, head_id);
-    if (seaf_db_query (db, sql) < 0)
-        return -1;
+    if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
+        gboolean err;
+        snprintf (sql, sizeof(sql),
+                  "SELECT 1 FROM RepoSize WHERE repo_id='%s'",
+                  repo_id);
+        if (seaf_db_check_for_existence(db, sql, &err))
+            snprintf (sql, sizeof(sql),
+                      "UPDATE RepoSize SET size=%"G_GUINT64_FORMAT
+                      ", head_id='%s' WHERE repo_id='%s'",
+                      size, head_id, repo_id);
+        else
+            snprintf (sql, sizeof(sql),
+                      "INSERT INTO RepoSize VALUES('%s', %"G_GUINT64_FORMAT", '%s')",
+                      repo_id, size, head_id);
+        if (err)
+            return -1;
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    } else {
+        snprintf (sql, sizeof(sql),
+                  "REPLACE INTO RepoSize (repo_id, size, head_id) "
+                  "VALUES ('%s', %"G_GUINT64_FORMAT", '%s')",
+                  repo_id, size, head_id);
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
 
     return 0;
 }

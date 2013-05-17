@@ -41,6 +41,18 @@ seaf_share_manager_start (SeafShareManager *mgr)
         sql = "CREATE INDEX IF NOT EXISTS RepoIdIndex on SharedRepo (repo_id)";
         if (seaf_db_query (db, sql) < 0)
             return -1;
+    } else if (db_type == SEAF_DB_TYPE_PGSQL) {
+        sql = "CREATE TABLE IF NOT EXISTS SharedRepo "
+            "(repo_id CHAR(36) , from_email VARCHAR(512), to_email VARCHAR(512), "
+            "permission VARCHAR(15))";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        if (!pgsql_index_exists (db, "sharedrepo_repoid_idx")) {
+            sql = "CREATE INDEX sharedrepo_repoid_idx ON SharedRepo (repo_id)";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+        }
     }
     
     return 0;

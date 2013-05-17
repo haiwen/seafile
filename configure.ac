@@ -91,7 +91,6 @@ if test "$blinux" = true; then
 
    AC_ARG_ENABLE(ceph, AC_HELP_STRING([--enable-ceph], [enable ceph backend]),
       [compile_ceph=$enableval],[compile_ceph="no"])
-
 fi
 
 AC_ARG_ENABLE(client, AC_HELP_STRING([--enable-client], [enable client]),
@@ -106,6 +105,9 @@ AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
 # default compile mysql, but only check it for server.
 AC_ARG_ENABLE(mysql, AC_HELP_STRING([--enable-mysql], [enable mysql]),
    [compile_mysql=$enableval],[compile_mysql="yes"])
+
+AC_ARG_ENABLE(pgsql, AC_HELP_STRING([--enable-pgsql], [enable postgresql]),
+   [compile_pgsql=$enableval],[compile_pgsql="no"])
 
 AC_ARG_ENABLE(python,
               AC_HELP_STRING([--enable-python],[build ccnet python binding]),
@@ -154,6 +156,8 @@ AM_CONDITIONAL([COMPILE_SERVER], [test "${compile_server}" = "yes"])
 #AM_CONDITIONAL([COMPILE_SEABLOCK], [test "${compile_seablock}" = "yes"])
 AM_CONDITIONAL([COMPILE_RIAK], [test "${compile_riak}" = "yes"])
 AM_CONDITIONAL([COMPILE_CEPH], [test "${compile_ceph}" = "yes"])
+AM_CONDITIONAL([COMPILE_MYSQL], [test "${compile_mysql}" = "yes"])
+AM_CONDITIONAL([COMPILE_PGSQL], [test "${compile_pgsql}" = "yes"])
 
 AM_CONDITIONAL([WIN32], [test "$bwin32" = "true"])
 AM_CONDITIONAL([MACOS], [test "$bmac" = "true"])
@@ -344,7 +348,7 @@ if test x${compile_python} = xyes; then
 fi
 
 
-# Check mysql client library and libzdb if compile seafile server
+# Check libzdb if compile seafile server
 if test "${compile_server}" = "yes"; then
    PKG_CHECK_MODULES(ZDB, [zdb >= $ZDB_REQUIRED])
    AC_SUBST(ZDB_CFLAGS)
@@ -370,6 +374,25 @@ if test "${compile_server}" = "yes"; then
      AC_SUBST(MYSQL_LIBS)
      AC_SUBST(MYSQL_CFLAGS)
 
+   fi
+
+   # check postgresql if compile_pgsql is set
+   if test "${compile_pgsql}" = "yes"; then
+     saved_CPPFLAGS=$CPPFLAGS
+     saved_LDFLAGS=$LDFLAGS
+     PGSQL_CFLAGS="-I`pg_config --includedir` $CPPFLAGS"
+     PGSQL_LIBS="-L`pg_config --libdir` $LDFLAGS"
+
+     CPPFLAGS="$PGSQL_CFLAGS $CPPFLAGS"
+     LDFLAGS="$PGSQL_LIBS $LDFLAGS"
+
+     AC_CHECK_HEADERS([libpq-fe.h], [], [compile_pgsql="no"])
+
+     CPPFLAGS=$saved_CPPFLAGS
+     LDFLAGS=$saved_LDFLAGS
+
+     AC_SUBST(PGSQL_LIBS)
+     AC_SUBST(PGSQL_CFLAGS)
    fi
 fi
 
@@ -449,12 +472,5 @@ fi
 if test x${compile_server} = xyes; then
    echo    "seaf-server"
 fi
-
-#if test x${compile_seablock} = xyes; then
-#   echo    "seablock"
-#fi
-#if test x${compile_cluster} = xyes; then
-#   echo    "cluster"
-#fi
 
 echo

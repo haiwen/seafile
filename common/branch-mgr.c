@@ -158,6 +158,13 @@ open_db (SeafBranchManager *mgr)
         if (seaf_db_query (mgr->seaf->db, sql) < 0)
             return -1;
         break;
+    case SEAF_DB_TYPE_PGSQL:
+        sql = "CREATE TABLE IF NOT EXISTS Branch ("
+            "name VARCHAR(10), repo_id CHAR(40), commit_id CHAR(40),"
+            "PRIMARY KEY (repo_id, name))";
+        if (seaf_db_query (mgr->seaf->db, sql) < 0)
+            return -1;
+        break;
     case SEAF_DB_TYPE_SQLITE:
         sql = "CREATE TABLE IF NOT EXISTS Branch ("
             "name VARCHAR(10), repo_id CHAR(41), commit_id CHAR(41),"
@@ -190,11 +197,33 @@ seaf_branch_manager_add_branch (SeafBranchManager *mgr, SeafBranch *branch)
     return 0;
 #else
     char sql[256];
+    SeafDB *db = mgr->seaf->db;
 
-    snprintf (sql, sizeof(sql), "REPLACE INTO Branch VALUES ('%s', '%s', '%s')",
-              branch->name, branch->repo_id, branch->commit_id);
-    if (seaf_db_query (mgr->seaf->db, sql) < 0)
-        return -1;
+    if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
+        gboolean err;
+        snprintf(sql, sizeof(sql),
+                 "SELECT repo_id FROM Branch WHERE "
+                 "name='%s' AND repo_id='%s'",
+                 branch->name, branch->repo_id);
+        if (seaf_db_check_for_existence(db, sql, &err))
+            snprintf(sql, sizeof(sql),
+                     "UPDATE Branch SET commit_id='%s' WHERE "
+                     "name='%s' AND repo_id='%s'",
+                     branch->commit_id, branch->name, branch->repo_id);
+        else
+            snprintf(sql, sizeof(sql),
+                     "INSERT INTO Branch VALUES ('%s', '%s', '%s')",
+                     branch->name, branch->repo_id, branch->commit_id);
+        if (err)
+            return -1;
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    } else {
+        snprintf (sql, sizeof(sql), "REPLACE INTO Branch VALUES ('%s', '%s', '%s')",
+                  branch->name, branch->repo_id, branch->commit_id);
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
     return 0;
 #endif
 }
@@ -272,6 +301,7 @@ get_commit_id (SeafDBRow *row, void *data)
 
     commit_id = seaf_db_row_get_column_text (row, 0);
     memcpy (out_commit_id, commit_id, 41);
+    out_commit_id[40] = '\0';
 
     return FALSE;
 }
@@ -323,6 +353,7 @@ seaf_branch_manager_test_and_update_branch (SeafBranchManager *mgr,
 
     switch (seaf_db_type (mgr->seaf->db)) {
     case SEAF_DB_TYPE_MYSQL:
+    case SEAF_DB_TYPE_PGSQL:
         snprintf (sql, sizeof(sql),
                   "SELECT commit_id FROM Branch WHERE name='%s' "
                   "AND repo_id='%s' FOR UPDATE",

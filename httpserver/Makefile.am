@@ -11,6 +11,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@SEARPC_CFLAGS@ \
 	@GLIB2_CFLAGS@ \
 	@MYSQL_CFLAGS@ \
+	@PGSQL_CFLAGS@ \
 	@ZDB_CFLAGS@ \
 	@CURL_CFLAGS@ \
 	@LIBARCHIVE_CFLAGS@ \
@@ -54,7 +55,7 @@ httpserver_LDADD = -levent -levhtp -lssl -levent_openssl \
 	@CCNET_LIBS@ \
 	$(top_builddir)/lib/libseafile.la \
 	$(top_builddir)/common/cdc/libcdc.la \
-	@MYSQL_LIBS@ @SEARPC_LIBS@ @ZDB_LIBS@ @RADOS_LIBS@ @CURL_LIBS@ \
+	@MYSQL_LIBS@ @PGSQL_LIBS@ @SEARPC_LIBS@ @ZDB_LIBS@ @RADOS_LIBS@ @CURL_LIBS@ \
 	@LIBARCHIVE_LIBS@ ${LIB_WS32}
 
 httpserver_LDFLAGS = @STATIC_COMPILE@

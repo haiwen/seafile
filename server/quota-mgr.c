@@ -48,6 +48,23 @@ seaf_quota_manager_init (SeafQuotaManager *mgr)
     const char *sql;
 
     switch (seaf_db_type(db)) {
+    case SEAF_DB_TYPE_PGSQL:
+        sql = "CREATE TABLE IF NOT EXISTS UserQuota (\"user\" VARCHAR(255) PRIMARY KEY,"
+            "quota BIGINT)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        sql = "CREATE TABLE IF NOT EXISTS OrgQuota (org_id INTEGER PRIMARY KEY,"
+            "quota BIGINT)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        sql = "CREATE TABLE IF NOT EXISTS OrgUserQuota (org_id INTEGER,"
+            "\"user\" VARCHAR(255), quota BIGINT, PRIMARY KEY (org_id, \"user\"))";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        break;
     case SEAF_DB_TYPE_SQLITE:
         sql = "CREATE TABLE IF NOT EXISTS UserQuota (user VARCHAR(255) PRIMARY KEY,"
             "quota BIGINT)";
@@ -93,12 +110,30 @@ seaf_quota_manager_set_user_quota (SeafQuotaManager *mgr,
                                    const char *user,
                                    gint64 quota)
 {
+    SeafDB *db = mgr->session->db;
     char sql[512];
 
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO UserQuota VALUES ('%s', %"G_GINT64_FORMAT")",
-              user, quota);
-    return seaf_db_query (mgr->session->db, sql);
+    if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
+        gboolean err;
+        snprintf(sql, sizeof(sql),
+                 "SELECT 1 FROM UserQuota WHERE user='%s'", user);
+        if (seaf_db_check_for_existence(db, sql, &err))
+            snprintf(sql, sizeof(sql),
+                     "UPDATE UserQuota SET quota=%"G_GINT64_FORMAT
+                     " WHERE user='%s'", quota, user);
+        else
+            snprintf(sql, sizeof(sql),
+                     "INSERT INTO UserQuota VALUES "
+                     "('%s', %"G_GINT64_FORMAT")", user, quota);
+        if (err)
+            return -1;
+        return seaf_db_query (db, sql);
+    } else {
+        snprintf (sql, sizeof(sql),
+                  "REPLACE INTO UserQuota VALUES ('%s', %"G_GINT64_FORMAT")",
+                  user, quota);
+        return seaf_db_query (mgr->session->db, sql);
+    }
 }
 
 gint64
@@ -123,12 +158,30 @@ seaf_quota_manager_set_org_quota (SeafQuotaManager *mgr,
                                   int org_id,
                                   gint64 quota)
 {
+    SeafDB *db = mgr->session->db;
     char sql[512];
 
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO OrgQuota VALUES ('%d', %"G_GINT64_FORMAT")",
-              org_id, quota);
-    return seaf_db_query (mgr->session->db, sql);
+    if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
+        gboolean err;
+        snprintf(sql, sizeof(sql),
+                 "SELECT 1 FROM OrgQuota WHERE org_id=%d", org_id);
+        if (seaf_db_check_for_existence(db, sql, &err))
+            snprintf(sql, sizeof(sql),
+                     "UPDATE OrgQuota SET quota=%"G_GINT64_FORMAT
+                     " WHERE org_id=%d", quota, org_id);
+        else
+            snprintf(sql, sizeof(sql),
+                     "INSERT INTO OrgQuota VALUES "
+                     "(%d, %"G_GINT64_FORMAT")", org_id, quota);
+        if (err)
+            return -1;
+        return seaf_db_query (db, sql);
+    } else {
+        snprintf (sql, sizeof(sql),
+                  "REPLACE INTO OrgQuota VALUES (%d, %"G_GINT64_FORMAT")",
+                  org_id, quota);
+        return seaf_db_query (mgr->session->db, sql);
+    }
 }
 
 gint64
@@ -154,12 +207,31 @@ seaf_quota_manager_set_org_user_quota (SeafQuotaManager *mgr,
                                        const char *user,
                                        gint64 quota)
 {
+    SeafDB *db = mgr->session->db;
     char sql[512];
 
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO OrgUserQuota VALUES ('%d', '%s', %"G_GINT64_FORMAT")",
-              org_id, user, quota);
-    return seaf_db_query (mgr->session->db, sql);
+    if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
+        gboolean err;
+        snprintf(sql, sizeof(sql),
+                 "SELECT 1 FROM OrgUserQuota WHERE org_id=%d AND user='%s'",
+                 org_id, user);
+        if (seaf_db_check_for_existence(db, sql, &err))
+            snprintf(sql, sizeof(sql),
+                     "UPDATE OrgUserQuota SET quota=%"G_GINT64_FORMAT
+                     " WHERE org_id=%d AND user='%s'", quota, org_id, user);
+        else
+            snprintf(sql, sizeof(sql),
+                     "INSERT INTO OrgQuota VALUES "
+                     "(%d, '%s', %"G_GINT64_FORMAT")", org_id, user, quota);
+        if (err)
+            return -1;
+        return seaf_db_query (db, sql);
+    } else {
+        snprintf (sql, sizeof(sql),
+                  "REPLACE INTO OrgUserQuota VALUES ('%d', '%s', %"G_GINT64_FORMAT")",
+                  org_id, user, quota);
+        return seaf_db_query (mgr->session->db, sql);
+    }
 }
 
 gint64

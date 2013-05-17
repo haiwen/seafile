@@ -12,6 +12,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@SEARPC_CFLAGS@ \
 	@GLIB2_CFLAGS@ \
 	@MYSQL_CFLAGS@ \
+	@PGSQL_CFLAGS@ \
 	@ZDB_CFLAGS@ \
 	@MSVC_CFLAGS@ \
 	@CURL_CFLAGS@ \
@@ -93,6 +94,6 @@ seaf_server_LDADD = @CCNET_LIBS@ \
 	$(top_builddir)/common/index/libindex.la \
 	@GLIB2_LIBS@ @GOBJECT_LIBS@ -lssl @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent \
 	$(top_builddir)/common/cdc/libcdc.la \
-	@MYSQL_LIBS@ @SEARPC_LIBS@ @ZDB_LIBS@ @RADOS_LIBS@ @CURL_LIBS@ ${LIB_WS32}
+	@MYSQL_LIBS@  @PGSQL_LIBS@ @SEARPC_LIBS@ @ZDB_LIBS@ @RADOS_LIBS@ @CURL_LIBS@ ${LIB_WS32}
 
 seaf_server_LDFLAGS = @STATIC_COMPILE@ @SERVER_PKG_RPATH@
