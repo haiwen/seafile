@@ -344,6 +344,7 @@ $('#do-sync-link').click(function() {
 });
 % endif
 
+% if repo.props.passwd:
 // for passwd display
 $('#show-passwd-value').click(function() {
     if ($(this).attr('checked')) {
@@ -352,6 +353,7 @@ $('#show-passwd-value').click(function() {
         $('#repo-passwd').html('*****');
     }
 });
+% endif
 
 //for auto-sync setting
 $("#set-sync-btn").click(function() { 
