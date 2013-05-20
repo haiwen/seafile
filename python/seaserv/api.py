@@ -81,6 +81,9 @@ class SeafileAPI(object):
 
     # repo permission checking
     def check_repo_access_permission(self, repo_id, username):
+        """
+        Returns 'rw', 'r' or None
+        """
         return seafserv_threaded_rpc.check_permission(repo_id, username)
 
     # file/dir

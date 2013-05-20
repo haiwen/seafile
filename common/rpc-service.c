@@ -780,6 +780,10 @@ seafile_list_dir (const char *dir_id, GError **error)
     GList *res = NULL;
     GList *p;
 
+    if (dir_id == NULL) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_DIR_ID, "Bad dir id");
+        return NULL;
+    }
     dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr, dir_id);
     if (!dir) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_DIR_ID, "Bad dir id");
