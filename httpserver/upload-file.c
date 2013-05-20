@@ -102,6 +102,21 @@ get_basename (const char *path)
     return g_strdup(&path[i+1]);
 }
 
+/* It's a bug of libevhtp that it doesn't set Content-Length automatically
+ * in response to a multipart request.
+ * Just add it in our code.
+ */
+static void
+set_content_length_header (evhtp_request_t *req)
+{
+    char lstr[128];
+
+    snprintf(lstr, sizeof(lstr), "%zu", evbuffer_get_length(req->buffer_out));
+
+    evhtp_headers_add_header(req->headers_out,
+                             evhtp_header_new("Content-Length", lstr, 1, 1));
+}
+
 static void
 redirect_to_upload_error (evhtp_request_t *req,
                           const char *repo_id,
@@ -259,6 +274,7 @@ upload_cb(evhtp_request_t *req, void *arg)
 
     if (!fsm->files) {
         seaf_warning ("[upload] No file uploaded.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
     }
@@ -267,6 +283,7 @@ upload_cb(evhtp_request_t *req, void *arg)
     if (!parent_dir) {
         seaf_warning ("[upload] No parent dir given.\n");
         evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
     }
@@ -339,6 +356,7 @@ upload_api_cb(evhtp_request_t *req, void *arg)
 
     if (!fsm->files) {
         seaf_warning ("[upload] No file uploaded.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
     }
@@ -347,6 +365,7 @@ upload_api_cb(evhtp_request_t *req, void *arg)
     if (!parent_dir) {
         seaf_warning ("[upload] No parent dir given.\n");
         evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
     }
@@ -387,6 +406,7 @@ upload_api_cb(evhtp_request_t *req, void *arg)
 
     ccnet_rpc_client_free (rpc_client);
 
+    set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_OK);
     return;
 
@@ -397,22 +417,27 @@ error:
     switch (error_code) {
     case ERROR_FILENAME:
         evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
         break;
     case ERROR_EXISTS:
         evbuffer_add_printf(req->buffer_out, "File already exists.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
         break;
     case ERROR_SIZE:
         evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
         break;
     case ERROR_QUOTA:
         evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
         break;
     case ERROR_RECV:
     case ERROR_INTERNAL:
+        set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
         break;
     }
@@ -433,6 +458,7 @@ update_cb(evhtp_request_t *req, void *arg)
 
     if (!fsm->files) {
         seaf_warning ("[update] No file uploaded.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
     }
@@ -441,6 +467,7 @@ update_cb(evhtp_request_t *req, void *arg)
     if (!target_file) {
         seaf_warning ("[Update] No target file given.\n");
         evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
     }
@@ -514,6 +541,7 @@ update_api_cb(evhtp_request_t *req, void *arg)
 
     if (!fsm->files) {
         seaf_warning ("[update] No file uploaded.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
     }
@@ -522,6 +550,7 @@ update_api_cb(evhtp_request_t *req, void *arg)
     if (!target_file) {
         seaf_warning ("[Update] No target file given.\n");
         evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
     }
@@ -568,6 +597,7 @@ update_api_cb(evhtp_request_t *req, void *arg)
     ccnet_rpc_client_free (rpc_client);
     /* Send back the new file id, so that the mobile client can update local cache */
     evbuffer_add(req->buffer_out, new_file_id, strlen(new_file_id));
+    set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_OK);
 
     g_free (new_file_id);
@@ -580,27 +610,33 @@ error:
     switch (error_code) {
     case ERROR_FILENAME:
         evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
         break;
     case ERROR_EXISTS:
         evbuffer_add_printf(req->buffer_out, "File already exists.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
         break;
     case ERROR_SIZE:
         evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
         break;
     case ERROR_QUOTA:
         evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
         break;
     case ERROR_NOT_EXIST:
         evbuffer_add_printf(req->buffer_out, "File does not exist.\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_NOT_EXISTS);
         break;
     case ERROR_RECV:
     case ERROR_INTERNAL:
     default:
+        set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
         break;
     }
@@ -979,9 +1015,11 @@ out:
     }
 
     if (res == EVHTP_RES_BADREQ) {
+        set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
     } else if (res == EVHTP_RES_SERVERR) {
         evbuffer_add_printf (req->buffer_out, "Internal server error\n");
+        set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
     }
     return EVHTP_RES_OK;
@@ -1178,6 +1216,7 @@ err:
     req->keepalive = 0;
     if (err_msg)
         evbuffer_add_printf (req->buffer_out, "%s\n", err_msg);
+    set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_BADREQ);
 
     if (rpc_client)
