@@ -1657,7 +1657,9 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
     if (start == -1 && limit == -1)
         snprintf (sql, 256, "SELECT repo_id FROM Repo");
     else
-        snprintf (sql, 256, "SELECT repo_id FROM Repo LIMIT %d, %d", start, limit);
+        snprintf (sql, 256,
+                  "SELECT repo_id FROM Repo ORDER BY repo_id LIMIT %d OFFSET %d",
+                  limit, start);
 
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
                                       collect_repos, &ret) < 0)
@@ -2213,8 +2215,10 @@ seaf_repo_manager_get_org_repo_list (SeafRepoManager *mgr,
     char sql[512];
     GList *ret = NULL;
     
-    snprintf (sql, sizeof(sql), "SELECT repo_id FROM OrgRepo "
-              "WHERE org_id = %d LIMIT %d, %d", org_id, start, limit);
+    snprintf (sql, sizeof(sql),
+              "SELECT repo_id FROM OrgRepo "
+              "WHERE org_id = %d ORDER BY repo_id LIMIT %d OFFSET %d",
+              org_id, limit, start);
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
                                       collect_repos, &ret) < 0) {
         return NULL;

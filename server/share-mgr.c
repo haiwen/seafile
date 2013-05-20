@@ -174,16 +174,18 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
                       "SharedRepo, RepoOwner WHERE "
                       "from_email='%s' AND "
                       "SharedRepo.repo_id=RepoOwner.repo_id "
-                      "LIMIT %d, %d",
-                      email, start, limit);
+                      "ORDER BY SharedRepo.repo_id "
+                      "LIMIT %d OFFSET %d",
+                      email, limit, start);
         } else if (g_strcmp0 (type, "to_email") == 0) {
             snprintf (sql, sizeof(sql),
                       "SELECT SharedRepo.repo_id, from_email, permission FROM "
                       "SharedRepo, RepoOwner WHERE "
                       "to_email='%s' AND "
                       "SharedRepo.repo_id=RepoOwner.repo_id "
-                      "LIMIT %d, %d",
-                      email, start, limit);
+                      "ORDER BY SharedRepo.repo_id "
+                      "LIMIT %d OFFSET %d",
+                      email, limit, start);
         } else {
             /* should never reach here */
             g_warning ("[share mgr] Wrong column type");
@@ -245,8 +247,9 @@ seaf_share_manager_list_org_share_repos (SeafShareManager *mgr,
                       "from_email='%s' AND "
                       "OrgRepo.org_id=%d AND "
                       "SharedRepo.repo_id=OrgRepo.repo_id "
-                      "LIMIT %d, %d",
-                      email, org_id, start, limit);
+                      "ORDER BY SharedRepo.repo_id "
+                      "LIMIT %d OFFSET %d",
+                      email, org_id, limit, start);
         } else if (g_strcmp0 (type, "to_email") == 0) {
             snprintf (sql, sizeof(sql),
                       "SELECT SharedRepo.repo_id, from_email, permission FROM "
@@ -254,8 +257,9 @@ seaf_share_manager_list_org_share_repos (SeafShareManager *mgr,
                       "to_email='%s' AND "
                       "OrgRepo.org_id=%d AND "
                       "SharedRepo.repo_id=OrgRepo.repo_id "
-                      "LIMIT %d, %d",
-                      email, org_id, start, limit);
+                      "ORDER BY SharedRepo.repo_id "
+                      "LIMIT %d OFFSET %d",
+                      email, org_id, limit, start);
         } else {
             /* should never reach here */
             g_warning ("[share mgr] Wrong column type");
