@@ -64,7 +64,10 @@ Desynchronize a library from seafile server
 
 import argparse
 import os
-import simplejson as json
+try:
+    import json
+except:
+    import simplejson as json
 import subprocess
 import sys
 import time
