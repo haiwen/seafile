@@ -22,7 +22,9 @@
 
 SeafileController *ctl;
 
-static const char *short_opts = "hvftCc:d:l:g:G:";
+static char *controller_pidfile = NULL;
+
+static const char *short_opts = "hvftCc:d:l:g:G:P:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -34,6 +36,7 @@ static const struct option long_opts[] = {
     { "logfile", required_argument, NULL, 'l', },
     { "ccnet-debug-level", required_argument, NULL, 'g' },
     { "seafile-debug-level", required_argument, NULL, 'G' },
+    { "pidfile", required_argument, NULL, 'P' },
 };
 
 static void controller_exit (int code) __attribute__((noreturn));
@@ -495,10 +498,48 @@ seaf_controller_start ()
     return 0;
 }
 
+static int
+write_controller_pidfile ()
+{
+    if (!controller_pidfile)
+        return -1;
+
+    pid_t pid = getpid();
+
+    FILE *pidfile = fopen(controller_pidfile, "w");
+    if (!pidfile) {
+        seaf_warning ("Failed to fopen() pidfile %s: %s\n",
+                      controller_pidfile, strerror(errno));
+        return -1;
+    }
+
+    char buf[32];
+    snprintf (buf, sizeof(buf), "%d\n", pid);
+    if (fputs(buf, pidfile) < 0) {
+        seaf_warning ("Failed to write pidfile %s: %s\n",
+                      controller_pidfile, strerror(errno));
+        return -1;
+    }
+
+    fflush (pidfile);
+    fclose (pidfile);
+    return 0;
+}
+
+static void
+remove_controller_pidfile ()
+{
+    if (controller_pidfile) {
+        g_unlink (controller_pidfile);
+    }
+}
+
 static void
 sigint_handler (int signo)
 {
     stop_ccnet_server ();
+
+    remove_controller_pidfile();
 
     signal (signo, SIG_DFL);
     raise (signo);
@@ -622,6 +663,9 @@ int main (int argc, char **argv)
         case 'G':
             seafile_debug_level_str = optarg;
             break;
+        case 'P':
+            controller_pidfile = optarg;
+            break;
         default:
             usage ();
             exit (1);
@@ -667,6 +711,17 @@ int main (int argc, char **argv)
 
     if (daemon_mode)
         daemon (1, 0);
+
+    if (controller_pidfile == NULL) {
+        controller_pidfile = g_strdup(g_getenv ("SEAFILE_PIDFILE"));
+    }
+
+    if (controller_pidfile != NULL) {
+        if (write_controller_pidfile () < 0) {
+            seaf_warning ("Failed to write pidfile %s\n", controller_pidfile);
+            return -1;
+        }
+    }
 
     run_controller_loop ();
 
