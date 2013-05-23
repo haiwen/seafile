@@ -225,8 +225,13 @@ class SeafileAPI(object):
         return l
 
     def get_group_repo_list(self, group_id):
-        l = self.get_group_repoids(group_id)
-        return [self.get_repo(x) for x in l]
+        ret = []
+        for repo_id in self.get_group_repoids(group_id):
+            r = self.get_repo(repo_id)
+            if r is None:
+                continue
+            ret.append(r)
+        return ret    
 
     def get_group_repos_by_owner(self, username):
         return seafserv_threaded_rpc.get_group_repos_by_owner(username)
