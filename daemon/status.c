@@ -89,7 +89,8 @@ read_directory_recursive(struct dir_struct *dir,
                          int check_only,
                          struct index_state *index,
                          const char *worktree,
-                         IgnoreFunc ignore_func)
+                         IgnoreFunc ignore_func,
+                         void *data)
 {
     char *realpath = g_build_path (PATH_SEPERATOR, worktree, base, NULL);
     GDir *fdir = g_dir_open (realpath, 0, NULL);
@@ -115,7 +116,7 @@ read_directory_recursive(struct dir_struct *dir,
                 continue;
             }
 
-            if (ignore_func (nfc_dname, NULL)) {
+            if (ignore_func (realpath, nfc_dname, data)) {
                 g_free (nfc_dname);
                 continue;
             }
@@ -133,7 +134,7 @@ read_directory_recursive(struct dir_struct *dir,
                 memcpy(path + baselen + len, "/", 2);
                 len = strlen(path);
                 read_directory_recursive(dir, path, len, 0,
-                                         index, worktree, ignore_func);
+                                         index, worktree, ignore_func, data);
                 g_free (nfc_dname);
                 continue;
             default: /* DT_UNKNOWN */
@@ -167,7 +168,12 @@ read_directory(struct dir_struct *dir,
                struct index_state *index,
                IgnoreFunc ignore_func)
 {
-    read_directory_recursive(dir, "", 0, 0, index, worktree, ignore_func);
+    GList *ignore_list = NULL;
+
+    ignore_list = seaf_repo_load_ignore_files(worktree);
+    read_directory_recursive(dir, "", 0, 0, index, worktree,
+                             ignore_func, ignore_list);
+    seaf_repo_free_ignore_files(ignore_list);
     qsort(dir->entries, dir->nr, sizeof(struct dir_entry *), cmp_name);
     return dir->nr;
 }

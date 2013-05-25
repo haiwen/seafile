@@ -7,7 +7,7 @@
 #include "index/index.h"
 #include "diff-simple.h"
 
-typedef gboolean (*IgnoreFunc) (const char *filename, void *data);
+typedef gboolean (*IgnoreFunc) (const char *basepath, const char *filename, void *data);
 
 void 
 wt_status_collect_changes_worktree(struct index_state *index,
