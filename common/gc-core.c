@@ -14,6 +14,7 @@
 /* Total number of blocks to be scanned. */
 static guint64 total_blocks;
 static guint64 removed_blocks;
+static guint64 reachable_blocks;
 
 /*
  * The number of bits in the bloom filter is 4 times the number of all blocks.
@@ -64,12 +65,15 @@ typedef struct {
     gboolean traversed_head;
 #endif
 
+    int traversed_commits;
+    gint64 traversed_blocks;
     gboolean ignore_errors;
 } GCData;
 
 static int
-add_blocks_to_index (SeafFSManager *mgr, Bloom *index, const char *file_id)
+add_blocks_to_index (SeafFSManager *mgr, GCData *data, const char *file_id)
 {
+    Bloom *index = data->index;
     Seafile *seafile;
     int i;
 
@@ -79,8 +83,10 @@ add_blocks_to_index (SeafFSManager *mgr, Bloom *index, const char *file_id)
         return -1;
     }
 
-    for (i = 0; i < seafile->n_blocks; ++i)
+    for (i = 0; i < seafile->n_blocks; ++i) {
         bloom_add (index, seafile->blk_sha1s[i]);
+        ++data->traversed_blocks;
+    }
 
     seafile_unref (seafile);
 
@@ -107,7 +113,7 @@ fs_callback (SeafFSManager *mgr,
     }
 
     if (type == SEAF_METADATA_TYPE_FILE &&
-        add_blocks_to_index (mgr, data->index, obj_id) < 0)
+        add_blocks_to_index (mgr, data, obj_id) < 0)
         return FALSE;
 
     return TRUE;
@@ -147,6 +153,7 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
 #endif
 
     seaf_debug ("Traversed commit %.8s.\n", commit->commit_id);
+    ++data->traversed_commits;
 
     ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
                                          commit->root_id,
@@ -231,6 +238,10 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index, gboolean ignore_errors
             break;
         }
     }
+
+    seaf_message ("Traversed %d commits, %"G_GINT64_FORMAT" blocks.\n",
+                  data->traversed_commits, data->traversed_blocks);
+    reachable_blocks += data->traversed_blocks;
 
     g_list_free (branches);
     g_hash_table_destroy (data->visited);
@@ -374,11 +385,15 @@ gc_core_run (int dry_run, int ignore_errors)
     }
 
     if (!dry_run)
-        seaf_message ("GC finished. %"G_GUINT64_FORMAT" blocks are removed.\n",
-                      removed_blocks);
+        seaf_message ("GC finished. %"G_GUINT64_FORMAT" blocks total, "
+                      "about %"G_GUINT64_FORMAT" reachable blocks, "
+                      "%"G_GUINT64_FORMAT" blocks are removed.\n",
+                      total_blocks, reachable_blocks, removed_blocks);
     else
-        seaf_message ("GC finished. %"G_GUINT64_FORMAT" blocks can be removed.\n",
-                      removed_blocks);
+        seaf_message ("GC finished. %"G_GUINT64_FORMAT" blocks total, "
+                      "about %"G_GUINT64_FORMAT" reachable blocks, "
+                      "%"G_GUINT64_FORMAT" blocks can be removed.\n",
+                      total_blocks, reachable_blocks, removed_blocks);
 
 out:
     bloom_destroy (index);
