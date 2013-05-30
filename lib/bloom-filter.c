@@ -17,7 +17,7 @@ Bloom* bloom_create(size_t size, int k, int counting)
     Bloom *bloom;
     size_t csize = 0;
 
-    if (k <=0 || k > 10) return NULL;
+    if (k <=0 || k > 4) return NULL;
     
     if ( !(bloom = malloc(sizeof(Bloom))) ) return NULL;
     if ( !(bloom->a = calloc((size+CHAR_BIT-1)/CHAR_BIT, sizeof(char))) )
@@ -124,15 +124,15 @@ decr_bit (Bloom *bf, unsigned int bit_idx)
 int bloom_add(Bloom *bloom, const char *s)
 {
     int i;
-    SHA_CTX c;
-    unsigned char sha1[20];
-    int16_t *sha_int = (int16_t *)&sha1;
+    SHA256_CTX c;
+    unsigned char sha256[SHA256_DIGEST_LENGTH];
+    size_t *sha_int = (size_t *)&sha256;
     
     assert (s && *s);
 
-    SHA1_Init(&c);
-    SHA1_Update(&c, s, strlen(s));
-    SHA1_Final (sha1, &c);
+    SHA256_Init(&c);
+    SHA256_Update(&c, s, strlen(s));
+    SHA256_Final (sha256, &c);
     
     for (i=0; i < bloom->k; ++i)
         incr_bit (bloom, sha_int[i] % bloom->asize);
@@ -143,18 +143,18 @@ int bloom_add(Bloom *bloom, const char *s)
 int bloom_remove(Bloom *bloom, const char *s)
 {
     int i;
-    SHA_CTX c;
-    unsigned char sha1[20];
-    int16_t *sha_int = (int16_t *)&sha1;
+    SHA256_CTX c;
+    unsigned char sha256[SHA256_DIGEST_LENGTH];
+    size_t *sha_int = (size_t *)&sha256;
     
     assert (s && *s);
 
     if (!bloom->counting)
         return -1;
 
-    SHA1_Init(&c);
-    SHA1_Update(&c, s, strlen(s));
-    SHA1_Final (sha1, &c);
+    SHA256_Init(&c);
+    SHA256_Update(&c, s, strlen(s));
+    SHA256_Final (sha256, &c);
     
     for (i=0; i < bloom->k; ++i)
         decr_bit (bloom, sha_int[i] % bloom->asize);
@@ -165,15 +165,15 @@ int bloom_remove(Bloom *bloom, const char *s)
 int bloom_test(Bloom *bloom, const char *s)
 {
     int i;
-    SHA_CTX c;
-    unsigned char sha1[20];
-    int16_t *sha_int = (int16_t *)&sha1;
+    SHA256_CTX c;
+    unsigned char sha256[SHA256_DIGEST_LENGTH];
+    size_t *sha_int = (size_t *)&sha256;
     
     assert (s && *s);
 
-    SHA1_Init(&c);
-    SHA1_Update(&c, s, strlen(s));
-    SHA1_Final (sha1, &c);
+    SHA256_Init(&c);
+    SHA256_Update(&c, s, strlen(s));
+    SHA256_Final (sha256, &c);
     
     for (i=0; i < bloom->k; ++i)
         if(!(GETBIT(bloom->a, sha_int[i] % bloom->asize))) return 0;

@@ -9,6 +9,8 @@
 #define DEBUG_FLAG SEAFILE_DEBUG_OTHER
 #include "log.h"
 
+#define MAX_BF_SIZE (((size_t)1) << 29)   /* 64 MB */
+
 /* Total number of blocks to be scanned. */
 static guint64 total_blocks;
 static guint64 removed_blocks;
@@ -34,7 +36,10 @@ static guint64 removed_blocks;
 static Bloom *
 alloc_gc_index ()
 {
-    size_t size = (size_t) MAX(total_blocks << 2, 1 << 13);
+    size_t size;
+
+    size = (size_t) MAX(total_blocks << 2, 1 << 13);
+    size = MIN (size, MAX_BF_SIZE);
 
     seaf_message ("GC index size is %u Byte.\n", (int)size >> 3);
 
