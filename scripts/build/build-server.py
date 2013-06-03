@@ -469,6 +469,10 @@ def setup_build_env():
                          '-g -O0',
                          seperator=' ')
 
+        prepend_env_value('CFLAGS',
+                         '-g -O0',
+                         seperator=' ')
+
     prepend_env_value('LDFLAGS',
                      '-L%s' % os.path.join(prefix, 'lib'),
                      seperator=' ')
