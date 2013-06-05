@@ -783,16 +783,38 @@ class settings_page:
     def POST(self):
         current_prefs = get_current_prefs()
         inputs = web.webapi.input(auto_start='off', notify_sync='off',
-                                  encrypt_channel='off')
+                                  encrypt_channel='off',
+                                  upload_limit='', download_limit='')
 
         applet_rpc.set_auto_start(inputs.auto_start)
 
         if inputs.notify_sync != current_prefs['notify_sync']:
             seafile_rpc.set_config('notify_sync', inputs.notify_sync)
 
-        print inputs.encrypt_channel, current_prefs['encrypt_channel']
         if inputs.encrypt_channel != current_prefs['encrypt_channel']:
             ccnet_rpc.set_config('encrypt_channel', inputs.encrypt_channel)
+
+        if not inputs.upload_limit:
+            upload_limit = 0
+        else:
+            try:
+                upload_limit = int(inputs.upload_limit) * 1024
+            except:
+                upload_limit = 0
+
+        if not inputs.download_limit:
+            download_limit = 0
+        else:
+            try:
+                download_limit = int(inputs.download_limit) * 1024
+            except:
+                download_limit = 0
+
+        if upload_limit != current_prefs['upload_limit']:
+            seafile_rpc.set_upload_rate_limit(upload_limit)
+
+        if download_limit != current_prefs['download_limit']:
+            seafile_rpc.set_download_rate_limit(download_limit)
 
         raise web.seeother('/settings/')
 

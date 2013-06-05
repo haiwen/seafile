@@ -363,6 +363,22 @@ send_block_packet (ThreadData *tdata,
 #ifdef SENDBLOCK_PROC
         /* Update global transferred bytes. */
         g_atomic_int_add (&(tdata->task->tx_bytes), n);
+        g_atomic_int_add (&(seaf->transfer_mgr->sent_bytes), n);
+
+        /* If uploaded bytes exceeds the limit, wait until the counter
+         * is reset. We check the counter every 100 milliseconds, so we
+         * can waste up to 100 milliseconds without sending data after
+         * the counter is reset.
+         */
+        while (1) {
+            gint sent = g_atomic_int_get(&(seaf->transfer_mgr->sent_bytes));
+            if (seaf->transfer_mgr->upload_limit > 0 &&
+                sent > seaf->transfer_mgr->upload_limit)
+                /* 100 milliseconds */
+                g_usleep (100000);
+            else
+                break;
+        }
 #endif
     }
     if (n < 0) {
@@ -536,6 +552,9 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
     BlockHandle *handle;
     int n, round;
     char buf[IO_BUF_LEN];
+#ifdef GETBLOCK_PROC
+    gint recv_bytes;
+#endif
 
     switch (fsm->state) {
     case RECV_STATE_HEADER:
@@ -573,6 +592,15 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
         }
         break;
     case RECV_STATE_BLOCK:
+#ifdef GETBLOCK_PROC
+        recv_bytes = g_atomic_int_get (&(seaf->transfer_mgr->recv_bytes));
+        if (seaf->transfer_mgr->download_limit > 0 &&
+            recv_bytes > seaf->transfer_mgr->download_limit) {
+            g_usleep (100000);
+            return 0;
+        }
+#endif
+
         handle = fsm->handle;
         block_id = fsm->hdr.block_id;
 
@@ -602,6 +630,7 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
 #ifdef GETBLOCK_PROC
         /* Update global transferred bytes. */
         g_atomic_int_add (&(fsm->tdata->task->tx_bytes), n);
+        g_atomic_int_add (&(seaf->transfer_mgr->recv_bytes), n);
 #endif
 
         if (fsm->remain == 0) {

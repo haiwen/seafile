@@ -29,6 +29,26 @@
             % endif
             ${_("Enable encryption for data transfer (restart Seafile to take effect)")}
             </li>
+	    <li>
+	        <div class="speed-setting">
+		    ${_("Upload speed limit (KB):")}
+		    % if prefs['upload_limit'] > 0:
+		    <input class="fright" type="text" name="upload_limit" value="${prefs['upload_limit']}" maxlength="20">
+		    % else:
+		    <input class="fright" type="text" name="upload_limit" maxlength="20">
+		    % endif
+		</div>
+	    </li>
+	    <li>
+	        <div class="speed-setting">
+		    ${_("Download speed limit (KB):")}
+		    % if prefs['download_limit'] > 0:
+		    <input class="fright" type="text" name="download_limit" value="${prefs['download_limit']}" maxlength="20">
+		    % else:
+		    <input class="fright" type="text" name="download_limit" maxlength="20">
+		    % endif
+		</div>
+	    </li>
         </ul>
         % if error_msg:
         <p class="error">${error_msg}</p>

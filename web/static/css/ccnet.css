@@ -297,10 +297,16 @@ a.relay-link {
 #modify-relay-form select {
     margin:6px 0;
 }
+
 /* settings */
 #prefs-form li {
     line-height:24px;
 }
+
+#prefs-form .speed-setting {
+    margin-right:50%;
+}
+
 #transfer-area {
     margin-top:20px;
 }

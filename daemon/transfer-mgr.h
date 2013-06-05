@@ -152,6 +152,13 @@ struct _SeafTransferManager {
     GHashTable      *upload_tasks;
 
     CcnetTimer      *schedule_timer;
+
+    /* Sent/recv bytes from all tasks in this second. */
+    gint             sent_bytes;
+    gint             recv_bytes;
+    /* Upload/download rate limits. */
+    gint             upload_limit;
+    gint             download_limit;
 };
 
 typedef struct _SeafTransferManager SeafTransferManager;

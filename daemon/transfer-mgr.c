@@ -27,6 +27,7 @@
 #include "vc-utils.h"
 #include "gc.h"
 #include "mq-mgr.h"
+#include "seafile-config.h"
 
 #include "processors/check-tx-v2-proc.h"
 #include "processors/check-tx-v3-proc.h"
@@ -567,6 +568,19 @@ seaf_transfer_manager_new (struct _SeafileSession *seaf)
         g_free (mgr);
         return NULL;
     }
+
+    gboolean exists;
+    int download_limit = seafile_session_config_get_int (seaf,
+                                                         KEY_DOWNLOAD_LIMIT,
+                                                         &exists);
+    if (exists)
+        mgr->download_limit = download_limit;
+
+    int upload_limit = seafile_session_config_get_int (seaf,
+                                                       KEY_UPLOAD_LIMIT,
+                                                       &exists);
+    if (exists)
+        mgr->upload_limit = upload_limit;
 
     return mgr;
 }
@@ -2118,6 +2132,9 @@ schedule_task_pulse (void *vmanager)
         task->last_tx_bytes = g_atomic_int_get (&task->tx_bytes);
         g_atomic_int_set (&task->tx_bytes, 0);
     }
+
+    g_atomic_int_set (&mgr->sent_bytes, 0);
+    g_atomic_int_set (&mgr->recv_bytes, 0);
 
     return TRUE;
 }

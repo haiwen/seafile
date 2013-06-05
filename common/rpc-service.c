@@ -219,6 +219,49 @@ seafile_get_config (const char *key, GError **error)
 }
 
 int
+seafile_set_config_int (const char *key, int value, GError **error)
+{
+    return seafile_session_config_set_int(seaf, key, value);
+}
+
+int
+seafile_get_config_int (const char *key, GError **error)
+{
+    gboolean exists = TRUE;
+
+    int ret = seafile_session_config_get_int(seaf, key, &exists);
+
+    if (!exists) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Config not exists");
+        return -1;
+    }
+
+    return ret;
+}
+
+int
+seafile_set_upload_rate_limit (int limit, GError **error)
+{
+    if (limit < 0)
+        limit = 0;
+
+    seaf->transfer_mgr->upload_limit = limit;
+
+    return seafile_session_config_set_int (seaf, KEY_UPLOAD_LIMIT, limit);
+}
+
+int
+seafile_set_download_rate_limit (int limit, GError **error)
+{
+    if (limit < 0)
+        limit = 0;
+
+    seaf->transfer_mgr->download_limit = limit;
+
+    return seafile_session_config_set_int (seaf, KEY_DOWNLOAD_LIMIT, limit);
+}
+
+int
 seafile_repo_last_modify(const char *repo_id, GError **error)
 {
     SeafRepo *repo;

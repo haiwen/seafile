@@ -12,6 +12,8 @@
 #define KEY_DB_USER "db_user"
 #define KEY_DB_PASSWD "db_passwd"
 #define KEY_DB_NAME "db_name"
+#define KEY_UPLOAD_LIMIT "upload_limit"
+#define KEY_DOWNLOAD_LIMIT "download_limit"
 
 /*
  * Returns: config value in string. The string should be freed by caller. 

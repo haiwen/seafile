@@ -34,6 +34,26 @@ class SeafileRpcClient(ccnet.RpcClientBase):
         pass
     set_config = seafile_set_config
 
+    @searpc_func("int", ["string"])
+    def seafile_get_config_int(key):
+        pass
+    get_config_int = seafile_get_config_int
+
+    @searpc_func("int", ["string", "int"])
+    def seafile_set_config_int(key, value):
+        pass
+    set_config_int = seafile_set_config_int
+
+    @searpc_func("int", ["int"])
+    def seafile_set_upload_rate_limit(limit):
+        pass
+    set_upload_rate_limit = seafile_set_upload_rate_limit
+
+    @searpc_func("int", ["int"])
+    def seafile_set_download_rate_limit(limit):
+        pass
+    set_download_rate_limit = seafile_set_download_rate_limit
+
     ### repo
     @searpc_func("objlist", ["int", "int"])
     def seafile_get_repo_list():

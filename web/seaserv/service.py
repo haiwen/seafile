@@ -57,6 +57,7 @@ import sys
 import ccnet
 import seafile
 from appletRpc import AppletRpcClient
+from pysearpc import SearpcError
 
 if sys.platform == 'darwin' and 'LANG' not in os.environ:
     os.environ['LANG'] = 'en_US.UTF-8'
@@ -242,6 +243,13 @@ def get_seafile_config(key, default_value):
     else:
         return value
 
+def get_seafile_config_int(key, default_value):
+    try:
+        value = seafile_rpc.get_config_int(key)
+    except SearpcError, e:
+        return default_value
+    return value/1024
+
 def get_current_prefs():
     """returns a dict contains current configs
     """
@@ -249,4 +257,6 @@ def get_current_prefs():
     prefs['notify_sync'] = get_seafile_config('notify_sync', 'on')
     prefs['auto_start'] = 'on' if applet_rpc.get_auto_start() == 1 else 'off'
     prefs['encrypt_channel'] = get_ccnet_config('encrypt_channel', 'off')
+    prefs['upload_limit'] = get_seafile_config_int('upload_limit', 0)
+    prefs['download_limit'] = get_seafile_config_int('download_limit', 0)
     return prefs
