@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2013-02-01 10:10+CST\n"
+"POT-Creation-Date: 2013-06-05 20:10+CST\n"
 "PO-Revision-Date: 2012-11-04 11:07+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,44 +15,44 @@ msgstr ""
 "Content-Transfer-Encoding: UTF-8\n"
 "Generated-By: pygettext.py 1.5\n"
 
-#: main.py:580 main.py:702
+#: main.py:590 main.py:712
 msgid "You must choose a local directory"
 msgstr "你必须指定一个本地目录"
 
-#: main.py:582 main.py:704
+#: main.py:592 main.py:714
 msgid "Password can not be empty"
 msgstr "密码不能为空"
 
-#: main.py:584 main.py:706
+#: main.py:594 main.py:716
 msgid "Invalid Repo ID"
 msgstr "资料库ID格式不正确"
 
-#: main.py:619 main.py:738
+#: main.py:629 main.py:748
 msgid "Invalid local directory"
 msgstr "不是合法的本地目录"
 
-#: main.py:621 main.py:740
+#: main.py:631 main.py:750
 msgid ""
 "The local directory you chose is in sync with another repo. Please choose "
 "another one."
 msgstr "你所指定的本地目录已经与其他资料库同步，请指定其他本地目录"
 
-#: main.py:623 main.py:742
+#: main.py:633 main.py:752
 msgid ""
 "The local directory you chose cannot be under or includes a system directory "
 "of seafile."
 msgstr "本地目录的路径不能处在 Seafile 系统目录下，或者包含 Seafile 系统目录"
 
-#: main.py:625 main.py:744
+#: main.py:635 main.py:754
 msgid ""
 "The local directory you chose cannot be under or includes another library."
 msgstr "本地目录的路径不能处在其他资料库目录下，或者包含其他资料库目录"
 
-#: main.py:627 main.py:746
+#: main.py:637 main.py:756
 msgid "Incorrect password."
 msgstr "密码错误"
 
-#: main.py:629 main.py:748 templates/clone_tasks.html:69
+#: main.py:639 main.py:758 templates/clone_tasks.html:69
 msgid "Internal error."
 msgstr "内部错误"
 
@@ -84,7 +84,7 @@ msgstr "版本:"
 msgid "Navigation"
 msgstr "导航"
 
-#: templates/clone_tasks.html:6 templates/repo.html:11 templates/repos.html:45
+#: templates/clone_tasks.html:6 templates/repo.html:11 templates/repos.html:49
 msgid "All Libraries"
 msgstr "所有资料库"
 
@@ -517,61 +517,61 @@ msgstr "未连接"
 msgid "Official Server"
 msgstr "官方服务器"
 
-#: templates/repos.html:36
+#: templates/repos.html:40
 msgid "Four Steps to Use Seafile Client"
 msgstr "Seafile 客户端使用方法"
 
-#: templates/repos.html:38
+#: templates/repos.html:42
 msgid ""
 "Log in to Seafile website, either our official website or your private "
 "website."
 msgstr "登录 Seafile 网站，可以是我们的官方网站或者您的私有网站。"
 
-#: templates/repos.html:39
+#: templates/repos.html:43
 msgid "Create a library on Seafile website."
 msgstr "在网站上创建新资料库。"
 
-#: templates/repos.html:40
+#: templates/repos.html:44
 msgid "Download the library to a local folder."
 msgstr "下载该资料库到一个本地目录。"
 
-#: templates/repos.html:41
+#: templates/repos.html:45
 msgid "Add files to the local folder and they will be uploaded automatically."
 msgstr "把文件拷贝到下载下来的目录中，它们会自动同步到服务器上。"
 
-#: templates/repos.html:48
+#: templates/repos.html:52
 msgid "Name"
 msgstr "名字"
 
-#: templates/repos.html:49
+#: templates/repos.html:53
 msgid "Action"
 msgstr "操作"
 
-#: templates/repos.html:50
+#: templates/repos.html:54
 msgid "Description"
 msgstr "描述"
 
-#: templates/repos.html:51
+#: templates/repos.html:55
 msgid "Server"
 msgstr "服务器"
 
-#: templates/repos.html:52
+#: templates/repos.html:56
 msgid "Modify Time"
 msgstr "修改时间"
 
-#: templates/repos.html:53
+#: templates/repos.html:57
 msgid "State"
 msgstr "状态"
 
-#: templates/repos.html:59
+#: templates/repos.html:63
 msgid "Open"
 msgstr "打开"
 
-#: templates/repos.html:72 templates/repos.html:75
+#: templates/repos.html:76 templates/repos.html:79
 msgid "Unknown"
 msgstr "未知"
 
-#: templates/repos.html:81
+#: templates/repos.html:85
 msgid "Synchronized"
 msgstr "已同步"
 
@@ -586,6 +586,14 @@ msgstr "开机自动启动 Seafile（仅对 Windows 有效）"
 #: templates/settings.html:30
 msgid "Enable encryption for data transfer (restart Seafile to take effect)"
 msgstr "传输数据时加密（需要重启 Seafile 才生效）"
+
+#: templates/settings.html:33
+msgid "Upload speed limit:"
+msgstr "最大上传速度："
+
+#: templates/settings.html:42
+msgid "Download speed limit:"
+msgstr "最大下载速度："
 
 #~ msgid "Incorrect password. Failed to decrypt files."
 #~ msgstr "密码错误。文件解密失败。"

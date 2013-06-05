@@ -302,11 +302,18 @@ a.relay-link {
 #prefs-form li {
     line-height:24px;
 }
-
-#prefs-form .speed-setting {
-    margin-right:50%;
+.speed-set {
+    width:145px;
 }
-
+.speed-input {
+    width:70px;
+    padding-right:3px;
+    text-align:right;
+}
+input.setting-submit {
+    background:#f8f8f8;
+    padding:4px;
+}
 #transfer-area {
     margin-top:20px;
 }
