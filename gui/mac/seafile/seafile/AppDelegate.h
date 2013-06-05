@@ -16,7 +16,6 @@
     NSImage *statusImage[3];
     NSImage *transferImage[4];
     NSImage *warningImage;
-    NSImage *wktreeImage;
     NSImage *repoImage;
 }
 

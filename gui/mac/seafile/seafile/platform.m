@@ -505,7 +505,6 @@ static int set_folder_image (const char *path, NSImage *iconImage)
 void seafile_set_seafilefolder_icns (void)
 {
     // AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    //set_folder_image (applet->seafile_worktree, delegate->wktreeImage);
 }
 
 void seafile_set_repofolder_icns (const char *path)
