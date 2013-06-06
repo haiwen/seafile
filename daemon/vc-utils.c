@@ -495,6 +495,7 @@ checkout_entry (struct cache_entry *ce,
     SeafStat st;
     char file_id[41];
     gboolean case_conflict = FALSE;
+    gboolean force_conflict = FALSE;
 
     path_in = g_build_path ("/", o->base, ce->name, NULL);
 #ifndef __linux__
@@ -543,6 +544,7 @@ checkout_entry (struct cache_entry *ce,
         if (!recover_merge || 
             compare_file_content (path, &st, ce->sha1, o->crypt) != 0) {
             g_warning ("File %s is changed. Checkout to conflict file.\n", path);
+            force_conflict = TRUE;
         } else {
             /* Recover merge and file content matches index entry.
              * We were interrupted before updating the index, update index
@@ -559,6 +561,7 @@ checkout_entry (struct cache_entry *ce,
                                        path, ce->ce_mode,
                                        o->crypt,
                                        conflict_suffix,
+                                       force_conflict,
                                        &conflicted) < 0) {
         g_warning ("Failed to checkout file %s.\n", path);
         g_free (path);

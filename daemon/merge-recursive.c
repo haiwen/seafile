@@ -569,6 +569,7 @@ static int update_file_flags(struct merge_options *o,
                                           mode,
                                           o->crypt,
                                           conflict_suffix,
+                                          FALSE,
                                           &conflicted) < 0) {
             g_warning("Failed to checkout file %s.\n", file_id);
             g_free(new_path);
