@@ -920,14 +920,18 @@ commit_tree (SeafRepo *repo, struct cache_tree *it,
         commit->parent_id = g_strdup (repo->head->commit_id);
 
     if (unmerged) {
-        SeafBranch *b = seaf_branch_manager_get_branch (seaf->branch_mgr,
-                                                        repo->id,
-                                                        "master");
-        if (!b) {
-            seaf_commit_unref (commit);
+        SeafRepoMergeInfo minfo;
+
+        /* Don't use head commit of master branch since that branch may have
+         * been updated after the last merge.
+         */
+        memset (&minfo, 0, sizeof(minfo));
+        if (seaf_repo_manager_get_merge_info (repo->manager, repo->id, &minfo) < 0) {
+            seaf_warning ("Failed to get merge info of repo %.10s.\n", repo->id);
             return -1;
         }
-        commit->second_parent_id = g_strdup (b->commit_id);
+
+        commit->second_parent_id = g_strdup (minfo.remote_head);
     }
 
     seaf_repo_to_commit (repo, commit);
@@ -2409,14 +2413,14 @@ seaf_repo_manager_set_repo_passwd (SeafRepoManager *manager,
 int
 seaf_repo_manager_set_merge (SeafRepoManager *manager,
                              const char *repo_id,
-                             const char *branch)
+                             const char *remote_head)
 {
     char sql[256];
 
     pthread_mutex_lock (&manager->priv->db_lock);
 
     snprintf (sql, sizeof(sql), "REPLACE INTO MergeInfo VALUES ('%s', 1, '%s');",
-              repo_id, branch);
+              repo_id, remote_head);
     int ret = sqlite_query_exec (manager->priv->db, sql);
 
     pthread_mutex_unlock (&manager->priv->db_lock);
@@ -2446,16 +2450,16 @@ get_merge_info (sqlite3_stmt *stmt, void *vinfo)
     int in_merge;
 
     in_merge = sqlite3_column_int (stmt, 1);
-    if (in_merge == 0) {
+    if (in_merge == 0)
         info->in_merge = FALSE;
-        /* Only one row. */
-        return FALSE;
-    }
+    else
+        info->in_merge = TRUE;
 
-    /* If in_merge, fill the branch field. */
-    info->in_merge = TRUE;
-    /* branch = (char *) sqlite3_column_text (stmt, 2); */
-    /* info->branch = g_strdup (branch); */
+    /* 
+     * Note that compatibility, we store remote_head in the "branch" column.
+     */
+    const char *remote_head = (const char *) sqlite3_column_text (stmt, 2);
+    memcpy (info->remote_head, remote_head, 40);
 
     return FALSE;
 }

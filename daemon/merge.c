@@ -117,6 +117,7 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
 
     *real_merge = FALSE;
 
+    memset (&minfo, 0, sizeof(minfo));
     if (seaf_repo_manager_get_merge_info (repo->manager, repo->id, &minfo) < 0) {
         g_warning ("Failed to get merge status of repo %s.\n", repo->id);
         return -1;
@@ -153,7 +154,7 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
     /* We use the same logic for normal merge and recover. */
 
     /* Set in_merge state. */
-    seaf_repo_manager_set_merge (repo->manager, repo->id, remote_branch->name);
+    seaf_repo_manager_set_merge (repo->manager, repo->id, remote_branch->commit_id);
 
     common = get_merge_base (head, remote);
 

@@ -298,7 +298,7 @@ seaf_repo_manager_set_repo_relay_id (SeafRepoManager *mgr,
 int
 seaf_repo_manager_set_merge (SeafRepoManager *manager,
                              const char *repo_id,
-                             const char *branch);
+                             const char *remote_head);
 
 int
 seaf_repo_manager_clear_merge (SeafRepoManager *manager,
@@ -306,7 +306,7 @@ seaf_repo_manager_clear_merge (SeafRepoManager *manager,
 
 typedef struct {
     gboolean in_merge;
-    /* char *branch; */
+    char remote_head[41];
 } SeafRepoMergeInfo;
 
 int
