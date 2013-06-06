@@ -230,11 +230,12 @@ is_empty_dir (const char *path, IgnoreFunc should_ignore)
 
 void wt_status_collect_changes_worktree(struct index_state *index,
                                         GList **results,
-                                        const char *worktree,
-                                        IgnoreFunc ignore_func)
+                                        const char *worktree)
 {
     DiffEntry *de;
     int entries, i;
+
+    GList *ignore_list = seaf_repo_load_ignore_files (worktree);
 
     entries = index->cache_nr;
     for (i = 0; i < entries; i++) {
@@ -301,15 +302,20 @@ void wt_status_collect_changes_worktree(struct index_state *index,
         }
 
         if (S_ISDIR (ce->ce_mode)) {
-            /* if (!S_ISDIR (st.st_mode) || */
-            /*     !is_empty_dir (realpath, ignore_func)) { */
-            /*     de = diff_entry_new (DIFF_TYPE_WORKTREE, DIFF_STATUS_DIR_DELETED, */
-            /*                          ce->sha1, ce->name); */
-            /*     *results = g_list_prepend (*results, de); */
-            /* } */
             g_free (realpath);
             continue;
         }
+
+        /* Don't check changes to ignored files.
+         * This can happen when a file is committed and then added to
+         * ignore.txt. After that changes to this file will not committed,
+         * and it should be ignored here.
+         */
+        if (seaf_repo_check_ignore_file (ignore_list, realpath)) {
+            g_free (realpath);
+            continue;
+        }
+
         g_free (realpath);
 
         changed = ie_match_stat (index, ce, &st, 0);
@@ -322,6 +328,8 @@ void wt_status_collect_changes_worktree(struct index_state *index,
                              ce->sha1, ce->name);
         *results = g_list_prepend (*results, de);
     }
+
+    seaf_repo_free_ignore_files (ignore_list);
 }
 
 static struct cache_entry *

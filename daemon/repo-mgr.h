@@ -348,6 +348,13 @@ seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
                                           const char *new_addr,
                                           const char *new_port);
 
-GList *seaf_repo_load_ignore_files (const char *worktree);
-void seaf_repo_free_ignore_files (GList *ignore_list);
+GList *
+seaf_repo_load_ignore_files (const char *worktree);
+
+gboolean
+seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath);
+
+void
+seaf_repo_free_ignore_files (GList *ignore_list);
+
 #endif

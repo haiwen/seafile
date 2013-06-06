@@ -12,8 +12,7 @@ typedef gboolean (*IgnoreFunc) (const char *basepath, const char *filename, void
 void 
 wt_status_collect_changes_worktree(struct index_state *index,
                                    GList **results,
-                                   const char *worktree,
-                                   IgnoreFunc ignore_func);
+                                   const char *worktree);
 
 void 
 wt_status_collect_untracked(struct index_state *index,

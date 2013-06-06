@@ -326,7 +326,7 @@ static gboolean
 should_ignore(const char *basepath, const char *filename, void *data)
 {
     GPatternSpec **spec = ignore_patterns;
-    GList *p, *ignore_list = (GList *)data;
+    GList *ignore_list = (GList *)data;
 
     /* Ignore file/dir if its name is too long. */
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)
@@ -358,9 +358,6 @@ should_ignore(const char *basepath, const char *filename, void *data)
 
     int i;
     char c;
-    char *str;
-    GPatternSpec *ignore_spec;
-    SeafStat st;
     
     for (i = 0; i < G_N_ELEMENTS(illegals); i++) {
         if (strchr (filename, illegals[i])) {
@@ -373,33 +370,14 @@ should_ignore(const char *basepath, const char *filename, void *data)
             return TRUE;
         }
     }
-        
-    /* Ignore files in ignore.txt */
-    str = g_build_filename(basepath, filename, NULL);
 
-    /* first check the path is a reg file or a dir */
-    if (seaf_stat(str, &st) < 0) {
-        g_free(str);
+    char *fullpath = g_build_path ("/", basepath, filename, NULL);
+    if (seaf_repo_check_ignore_file (ignore_list, fullpath)) {
+        g_free (fullpath);
         return TRUE;
     }
-    if (S_ISDIR(st.st_mode)) {
-        g_free(str);
-        str = g_build_filename(basepath, filename, "/", NULL);
-    }
+    g_free (fullpath);
 
-    for (p = ignore_list; p != NULL; p = p->next) {
-        char *pattern = (char *)p->data;
-
-        ignore_spec = g_pattern_spec_new(pattern);
-        if (g_pattern_match_string(ignore_spec, str)) {
-            g_free(str);
-            g_pattern_spec_free(ignore_spec);
-            return TRUE;
-        }
-        g_pattern_spec_free(ignore_spec);
-    }
-
-    g_free(str);
     return FALSE;
 }
 
@@ -689,8 +667,7 @@ seaf_repo_is_worktree_changed (SeafRepo *repo)
     }
     repo->index_corrupted = FALSE;
 
-    wt_status_collect_changes_worktree (&istate, &res,
-                                        repo->worktree, should_ignore);
+    wt_status_collect_changes_worktree (&istate, &res, repo->worktree);
     if (res != NULL)
         goto changed;
 
@@ -2779,7 +2756,13 @@ GList *seaf_repo_load_ignore_files (const char *worktree)
 
         /* trim the last '\n' character */
         path[strlen(path)-1] = '\0';
-        pattern = g_strdup_printf("%s/%s", worktree, path);
+
+        /* Change 'foo/' to 'foo/ *'. */
+        if (path[strlen(path)-1] == '/')
+            pattern = g_strdup_printf("%s/%s*", worktree, path);
+        else
+            pattern = g_strdup_printf("%s/%s", worktree, path);
+
         list = g_list_prepend(list, g_strdup(pattern));
     }
 
@@ -2790,6 +2773,42 @@ GList *seaf_repo_load_ignore_files (const char *worktree)
 error:
     free (full_path);
     return NULL;
+}
+
+gboolean
+seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath)
+{
+    char *str;
+    SeafStat st;
+    GPatternSpec *ignore_spec;
+    GList *p;
+
+    str = g_strdup(fullpath);
+
+    /* first check the path is a reg file or a dir */
+    if (seaf_stat(str, &st) < 0) {
+        g_free(str);
+        return TRUE;
+    }
+    if (S_ISDIR(st.st_mode)) {
+        g_free(str);
+        str = g_strconcat (fullpath, "/", NULL);
+    }
+
+    for (p = ignore_list; p != NULL; p = p->next) {
+        char *pattern = (char *)p->data;
+
+        ignore_spec = g_pattern_spec_new(pattern);
+        if (g_pattern_match_string(ignore_spec, str)) {
+            g_free (str);
+            g_pattern_spec_free(ignore_spec);
+            return TRUE;
+        }
+        g_pattern_spec_free(ignore_spec);
+    }
+
+    g_free (str);
+    return FALSE;
 }
 
 /*
