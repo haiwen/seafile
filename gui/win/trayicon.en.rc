@@ -126,18 +126,18 @@ END
 IDD_INIT_SEAFILE DIALOGEX 200, 80, 327, 207
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 EXSTYLE WS_EX_TOOLWINDOW | WS_EX_APPWINDOW
-CAPTION "Seafile Configuration"
+CAPTION "Seafile Initialization"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     DEFPUSHBUTTON   "Next",IDOK,206,184,50,14
     PUSHBUTTON      "Cancel",IDCANCEL,261,184,50,14
-    CONTROL         144,-1,"Static",SS_BITMAP,0,0,329,36
     CONTROL         "",-1,"Static",SS_BLACKFRAME | SS_SUNKEN,0,175,327,1
     CONTROL         "",-1,"Static",SS_BLACKFRAME | SS_SUNKEN,0,36,327,1
-    LTEXT           "Choose a disk:",IDC_STATIC_SEAFILRDIR,49,122,50,9
-    COMBOBOX        IDC_COMBOX_DISK,99,119,121,16,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "Please choose a disk.\n\nWe will create a Seafile folder in this disk. When you download a library, it will be saved in this folder by default.",IDC_STATIC_SEAFILE,53,66,227,41
-    LTEXT           "此处显示当前设置",IDC_STATIC_TITLE,23,13,65,14,0,WS_EX_TRANSPARENT
+    LTEXT           "Please choose a folder.\n\nWe will create a Seafile subfolder in it. When you download a library, it will be saved there by default.",IDC_STATIC_SEAFILE,53,66,227,41
+    LTEXT           "Choose a folder",IDC_STATIC_TITLE,23,13,101,14,0,WS_EX_TRANSPARENT
+    PUSHBUTTON      "Click to choose...",IDC_BUTTON_CHOOSE_SEAFILE_DIR,53,119,61,14
+    EDITTEXT        IDC_EDIT_SEAFILE_DIR,125,119,135,14,ES_AUTOHSCROLL | ES_READONLY
+    CONTROL         144,-1,"Static",SS_BITMAP,0,0,329,36
 END
 
 
@@ -154,6 +154,13 @@ BEGIN
         HORZGUIDE, 96
         HORZGUIDE, 121
         HORZGUIDE, 228
+    END
+
+    IDD_INIT_SEAFILE, DIALOG
+    BEGIN
+        VERTGUIDE, 53
+        HORZGUIDE, 119
+        HORZGUIDE, 133
     END
 END
 #endif    // APSTUDIO_INVOKED

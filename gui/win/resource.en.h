@@ -27,6 +27,8 @@
 #define IDC_CHECK_NO_TIP                1032
 #define ID_FINISH                       1033
 #define IDC_STATIC_TITLE                1037
+#define IDC_BUTTON_CHOOSE_SEAFILE_DIR   1039
+#define IDC_EDIT_SEAFILE_DIR            1040
 #define IDM_OPEN                        32773
 #define IDM_RESTART                     32776
 #define ID_Menu                         32778
