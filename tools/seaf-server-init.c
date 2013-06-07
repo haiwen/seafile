@@ -23,7 +23,7 @@ save_config_file (GKeyFile *key_file, const char *path)
         return -1;
     }
 
-    FILE *fp = fopen (path, "w");
+    FILE *fp = g_fopen (path, "w");
     if (fp == NULL) {
         fprintf (stderr, "Failed to save config file: %s %s.\n",
                  path, strerror(errno));

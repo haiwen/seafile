@@ -2749,7 +2749,7 @@ GList *seaf_repo_load_ignore_files (const char *worktree)
         goto error;
     if (!S_ISREG(st.st_mode))
         goto error;
-    fp = fopen(full_path, "r");
+    fp = g_fopen(full_path, "r");
     if (fp == NULL)
         goto error;
 
@@ -2798,14 +2798,6 @@ seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath)
         g_free(str);
         str = g_strconcat (fullpath, "/", NULL);
     }
-
-#ifdef WIN32
-    /* Worktree path contains '\' */
-    char *p;
-    for (p = str; *p != 0; ++p)
-        if (*p == '\\')
-            *p = '/';
-#endif
 
     for (p = ignore_list; p != NULL; p = p->next) {
         char *pattern = (char *)p->data;
