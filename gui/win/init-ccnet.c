@@ -348,6 +348,7 @@ InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_INITDIALOG:
+        set_dlg_icon (hDlg, IDI_SEAFILE_ICON);
         set_control_font (GetDlgItem(hDlg, IDC_STATIC_TITLE), "Courier");
         make_wnd_foreground(hDlg);
         return TRUE;
