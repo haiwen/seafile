@@ -2754,12 +2754,12 @@ GList *seaf_repo_load_ignore_files (const char *worktree)
         goto error;
 
     while (fgets(path, PATH_MAX, fp) != NULL) {
-        /* ignore comment and blank line */
-        if (path[0] == '#' || path[0] == '\n')
-            continue;
+        /* remove leading and trailing whitespace, including \n \r. */
+        g_strstrip (path);
 
-        /* trim the last '\n' character */
-        path[strlen(path)-1] = '\0';
+        /* ignore comment and blank line */
+        if (path[0] == '#' || path[0] == '\0')
+            continue;
 
         /* Change 'foo/' to 'foo/ *'. */
         if (path[strlen(path)-1] == '/')
@@ -2798,6 +2798,14 @@ seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath)
         g_free(str);
         str = g_strconcat (fullpath, "/", NULL);
     }
+
+#ifdef WIN32
+    /* Worktree path contains '\' */
+    char *p;
+    for (p = str; *p != 0; ++p)
+        if (*p == '\\')
+            *p = '/';
+#endif
 
     for (p = ignore_list; p != NULL; p = p->next) {
         char *pattern = (char *)p->data;
