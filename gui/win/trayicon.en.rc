@@ -135,8 +135,8 @@ BEGIN
     CONTROL         "",-1,"Static",SS_BLACKFRAME | SS_SUNKEN,0,36,327,1
     LTEXT           "Please choose a folder.\n\nWe will create a Seafile subfolder in it. When you download a library, it will be saved there by default.",IDC_STATIC_SEAFILE,53,66,227,41
     LTEXT           "Choose a folder",IDC_STATIC_TITLE,23,13,101,14,0,WS_EX_TRANSPARENT
-    PUSHBUTTON      "Click to choose...",IDC_BUTTON_CHOOSE_SEAFILE_DIR,53,119,61,14
-    EDITTEXT        IDC_EDIT_SEAFILE_DIR,125,119,135,14,ES_AUTOHSCROLL | ES_READONLY
+    PUSHBUTTON      "Choose another folder...",IDC_BUTTON_CHOOSE_SEAFILE_DIR,189,119,85,14
+    EDITTEXT        IDC_EDIT_SEAFILE_DIR,53,119,123,14,ES_AUTOHSCROLL | ES_READONLY
     CONTROL         144,-1,"Static",SS_BITMAP,0,0,329,36
 END
 
