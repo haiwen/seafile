@@ -48,6 +48,7 @@ conf = {}
 CONF_VERSION            = 'version'
 CONF_LIBSEARPC_VERSION  = 'libsearpc_version'
 CONF_CCNET_VERSION      = 'ccnet_version'
+CONF_SEAFILE_VERSION    = 'seafile_version'
 CONF_SRCDIR             = 'srcdir'
 CONF_KEEP               = 'keep'
 CONF_BUILDDIR           = 'builddir'
@@ -264,7 +265,7 @@ class Seafile(Project):
         ]
 
     def get_version(self):
-        return conf[CONF_VERSION]
+        return conf[CONF_SEAFILE_VERSION]
 
 def check_targz_src(proj, version, srcdir):
     src_tarball = os.path.join(srcdir, '%s-%s.tar.gz' % (proj, version))
@@ -276,6 +277,7 @@ def validate_args(usage, options):
         CONF_VERSION,
         CONF_LIBSEARPC_VERSION,
         CONF_CCNET_VERSION,
+        CONF_SEAFILE_VERSION,
         CONF_SRCDIR,
     ]
 
@@ -296,16 +298,18 @@ def validate_args(usage, options):
     version = get_option(CONF_VERSION)
     libsearpc_version = get_option(CONF_LIBSEARPC_VERSION)
     ccnet_version = get_option(CONF_CCNET_VERSION)
+    seafile_version = get_option(CONF_SEAFILE_VERSION)
 
     check_project_version(version)
     check_project_version(libsearpc_version)
     check_project_version(ccnet_version)
+    check_project_version(seafile_version)
 
     # [ srcdir ]
     srcdir = to_win_path(get_option(CONF_SRCDIR))
     check_targz_src('libsearpc', libsearpc_version, srcdir)
     check_targz_src('ccnet', ccnet_version, srcdir)
-    check_targz_src('seafile', version, srcdir)
+    check_targz_src('seafile', seafile_version, srcdir)
 
     # [ builddir ]
     builddir = to_win_path(get_option(CONF_BUILDDIR))
@@ -331,6 +335,7 @@ def validate_args(usage, options):
     conf[CONF_VERSION] = version
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
     conf[CONF_CCNET_VERSION] = ccnet_version
+    conf[CONF_SEAFILE_VERSION] = seafile_version
 
     conf[CONF_BUILDDIR] = builddir
     conf[CONF_SRCDIR] = srcdir
@@ -348,8 +353,9 @@ def show_build_info():
     info('Seafile msi installer: BUILD INFO')
     info('------------------------------------------')
     info('seafile:                  %s' % conf[CONF_VERSION])
-    info('ccnet:                    %s' % conf[CONF_CCNET_VERSION])
     info('libsearpc:                %s' % conf[CONF_LIBSEARPC_VERSION])
+    info('ccnet:                    %s' % conf[CONF_CCNET_VERSION])
+    info('seafile:                  %s' % conf[CONF_SEAFILE_VERSION])
     info('builddir:                 %s' % conf[CONF_BUILDDIR])
     info('outputdir:                %s' % conf[CONF_OUTPUTDIR])
     info('source dir:               %s' % conf[CONF_SRCDIR])
@@ -392,6 +398,11 @@ def parse_args():
                       dest=CONF_CCNET_VERSION,
                       nargs=1,
                       help='the version of ccnet as specified in its "configure.ac". Must be digits delimited by dots, like 1.3.0')
+
+    parser.add_option(long_opt(CONF_SEAFILE_VERSION),
+                      dest=CONF_SEAFILE_VERSION,
+                      nargs=1,
+                      help='the version of seafile as specified in its "configure.ac". Must be digits delimited by dots, like 1.3.0')
 
     parser.add_option(long_opt(CONF_BUILDDIR),
                       dest=CONF_BUILDDIR,

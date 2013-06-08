@@ -210,6 +210,41 @@ InitComboxList(HWND hDlg)
 }
 #endif
 
+static wchar_t *
+get_largest_disk()
+{
+    wchar_t drives[SEAF_PATH_MAX];
+    wchar_t *p, *largest_drive;
+    ULARGE_INTEGER free_space;
+    ULARGE_INTEGER largest_free_space;
+
+    largest_free_space.QuadPart = 0;
+    largest_drive = NULL;
+
+    GetLogicalDriveStringsW (sizeof(drives), drives);
+    for (p = drives; *p != L'\0'; p += wcslen(p) + 1) {
+        /* Skip floppy disk, network drive, etc */
+        if (GetDriveTypeW(p) != DRIVE_FIXED)
+            continue;
+
+        if (GetDiskFreeSpaceExW (p, &free_space, NULL, NULL)) {
+            if (free_space.QuadPart > largest_free_space.QuadPart) {
+                largest_free_space.QuadPart = free_space.QuadPart;
+                if (largest_drive != NULL) {
+                    free (largest_drive);
+                }
+                largest_drive = wcsdup(p);
+            }
+
+        } else {
+            applet_warning ("failed to GetDiskFreeSpaceEx(), GLE=%lu\n",
+                            GetLastError());
+        }
+    }
+
+    return largest_drive;
+}
+
 /* 1. set seafile-data directory to hidden
    2. set seafile folder icon (via Desktop.ini)
 */
@@ -347,11 +382,17 @@ InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
     case WM_CREATE:
         break;
 
-    case WM_INITDIALOG:
+    case WM_INITDIALOG: {
         set_dlg_icon (hDlg, IDI_SEAFILE_ICON);
         set_control_font (GetDlgItem(hDlg, IDC_STATIC_TITLE), "Courier");
+        wchar_t* dft = get_largest_disk();
+        if (dft) {
+            SetWindowTextW (GetDlgItem(hDlg, IDC_EDIT_SEAFILE_DIR), dft);
+            free (dft);
+        }
         make_wnd_foreground(hDlg);
         return TRUE;
+    }
 
     case WM_CTLCOLORSTATIC:
         if (IS_DLG_CONTROL (IDC_STATIC_TITLE)) {
