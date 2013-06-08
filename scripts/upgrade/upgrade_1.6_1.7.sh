@@ -8,12 +8,14 @@ default_ccnet_conf_dir=${TOPDIR}/ccnet
 default_seafile_data_dir=${TOPDIR}/seafile-data
 default_seahub_db=${TOPDIR}/seahub.db
 
+manage_py=${INSTALLPATH}/seahub/manage.py
+
 export CCNET_CONF_DIR=${default_ccnet_conf_dir}
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seafile/lib64/python2.7/site-packages:$PYTHONPATH
 
-prev_version=1.5
-current_version=1.6
+prev_version=1.6
+current_version=1.7
 
 echo
 echo "-------------------------------------------------------------"
@@ -27,7 +29,7 @@ function check_python_executable() {
     if [[ "$PYTHON" != "" && -x $PYTHON ]]; then
         return 0
     fi
-        
+
     if which python2.7 2>/dev/null 1>&2; then
         PYTHON=python2.7
     elif which python27 2>/dev/null 1>&2; then
@@ -37,11 +39,11 @@ function check_python_executable() {
     elif which python26 2>/dev/null 1>&2; then
         PYTHON=python26
     else
-        echo 
+        echo
         echo "Can't find a python executable of version 2.6 or above in PATH"
         echo "Install python 2.6+ before continue."
         echo "Or if you installed it in a non-standard PATH, set the PYTHON enviroment varirable to it"
-        echo 
+        echo
         exit 1
     fi
 }
@@ -68,13 +70,19 @@ export SEAFILE_CONF_DIR=$seafile_data_dir
 
 # test whether seafile server has been stopped.
 if pgrep seaf-server 2>/dev/null 1>&2 ; then
-    echo 
+    echo
     echo "seafile server is still running !"
     echo "stop it using scripts before upgrade."
     echo
     exit 1
-elif pgrep -f "manage.py run_gunicorn" 2>/dev/null 1>&2 ; then
-    echo 
+elif pgrep -f "${manage_py} run_gunicorn" 2>/dev/null 1>&2 ; then
+    echo
+    echo "seahub server is still running !"
+    echo "stop it before upgrade."
+    echo
+    exit 1
+elif pgrep -f "${manage_py} run_fcgi" 2>/dev/null 1>&2 ; then
+    echo
     echo "seahub server is still running !"
     echo "stop it before upgrade."
     echo
@@ -89,7 +97,7 @@ media_dir=${INSTALLPATH}/seahub/media
 orig_avatar_dir=${INSTALLPATH}/seahub/media/avatars
 dest_avatar_dir=${TOPDIR}/seahub-data/avatars
 
-# move "media/avatars" directory outside 
+# move "media/avatars" directory outside
 if [[ ! -d ${dest_avatar_dir} ]]; then
     mkdir -p "${TOPDIR}/seahub-data"
     mv "${orig_avatar_dir}" "${dest_avatar_dir}" 2>/dev/null 1>&2
@@ -107,13 +115,20 @@ echo
 
 echo
 echo "------------------------------"
-echo "Updating seahub database ..."
+echo "Updating seafile/seahub database ..."
 echo
 
 seahub_db=${TOPDIR}/seahub.db
-seahub_sql=${UPGRADE_DIR}/sql/1.6.0/sqlite3/seahub.sql
+seahub_sql=${UPGRADE_DIR}/sql/1.7.0/sqlite3/seahub.sql
 if ! sqlite3 "${seahub_db}" < "${seahub_sql}"; then
     echo "Failed to update seahub database"
+    exit 1
+fi
+
+seafile_db=${seafile_data_dir}/seafile.db
+seafile_sql=${UPGRADE_DIR}/sql/1.7.0/sqlite3/seafile.sql
+if ! sqlite3 "${seafile_db}" < "${seafile_sql}"; then
+    echo "Failed to update seafile database"
     exit 1
 fi
 

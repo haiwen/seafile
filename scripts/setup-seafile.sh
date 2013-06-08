@@ -511,7 +511,7 @@ if [[ "${use_existing_ccnet}" != "true" ]]; then
     fi
 fi
 
-echo "Now sync seahub database ... "
+echo "Now create seahub database ... "
 echo
 
 export CCNET_CONF_DIR=$default_ccnet_conf_dir
