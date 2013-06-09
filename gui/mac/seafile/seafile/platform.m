@@ -76,7 +76,6 @@ int spawn_ccnet_daemon (void)
     NSString *str = [[NSString alloc] initWithUTF8String: applet->config_dir];
     [args addObject: @"-c" ];
     [args addObject: str ];
-    [args addObject: @"--no-multicast" ];
     [args addObject: @"-D"];
 #ifdef DEBUG
     [args addObject: @"ALL"];

@@ -200,6 +200,12 @@
 		5789630D159EA0A70013ED13 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5789630C159EA0A70013ED13 /* CoreServices.framework */; };
 		5789630F159EFC590013ED13 /* CoreServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5789630C159EA0A70013ED13 /* CoreServices.framework */; };
 		578FA5DB156781FC00EAAC19 /* MAAttachedWindow.m in Sources */ = {isa = PBXBuildFile; fileRef = 578FA5DA156781FC00EAAC19 /* MAAttachedWindow.m */; };
+		5793DC2C1764C9DC001B0DAD /* seafile-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 577BBD441562815F00FD577C /* seafile-Info.plist */; };
+		5793DC2D1764C9DD001B0DAD /* seafile-release-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5715F1D7158C233900CA822C /* seafile-release-Info.plist */; };
+		5793DC341764C9EF001B0DAD /* CoreData.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 577BBD401562815F00FD577C /* CoreData.framework */; };
+		5793DC351764C9F1001B0DAD /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 577BBD411562815F00FD577C /* Foundation.framework */; };
+		5793DC361764C9F4001B0DAD /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 577BBD3F1562815F00FD577C /* AppKit.framework */; };
+		5793DC3F1764CA35001B0DAD /* seafile.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57A0559D1644BEC0006511AA /* seafile.icns */; };
 		57972D721573C70900915E2E /* PreferencePanes.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 57972D711573C70900915E2E /* PreferencePanes.framework */; };
 		579F9BFC1588F92500570010 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD481562815F00FD577C /* main.m */; };
 		579F9BFD1588F92500570010 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD4F1562815F00FD577C /* AppDelegate.m */; };
@@ -219,7 +225,6 @@
 		57A0559E1644BEC0006511AA /* seafile.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57A0559D1644BEC0006511AA /* seafile.icns */; };
 		57A0559F1644BEC0006511AA /* seafile.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57A0559D1644BEC0006511AA /* seafile.icns */; };
 		57A055A01644BEC0006511AA /* seafile.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57A0559D1644BEC0006511AA /* seafile.icns */; };
-		57A055A11644BEC0006511AA /* seafile.icns in Resources */ = {isa = PBXBuildFile; fileRef = 57A0559D1644BEC0006511AA /* seafile.icns */; };
 		57DE0A7E15A98E0E006C0152 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD481562815F00FD577C /* main.m */; };
 		57DE0A7F15A98E0E006C0152 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD4F1562815F00FD577C /* AppDelegate.m */; };
 		57DE0A8015A98E0E006C0152 /* platform.m in Sources */ = {isa = PBXBuildFile; fileRef = 577BBD6A15638D8B00FD577C /* platform.m */; };
@@ -460,6 +465,9 @@
 				456D1A2B166CED65001C044D /* libsqlite3.0.dylib in Frameworks */,
 				456D1A2F166CED65001C044D /* libssl.1.0.0.dylib in Frameworks */,
 				456D1A3C166CEE0A001C044D /* libcrypto.1.0.0.dylib in Frameworks */,
+				5793DC341764C9EF001B0DAD /* CoreData.framework in Frameworks */,
+				5793DC351764C9F1001B0DAD /* Foundation.framework in Frameworks */,
+				5793DC361764C9F4001B0DAD /* AppKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -840,10 +848,12 @@
 				57DE0B0615A9AA89006C0152 /* seafilerepo.icns in Resources */,
 				57DE0B0715A9AA89006C0152 /* warning.png in Resources */,
 				57335CEF160D8DDE00018AE8 /* network-stop.png in Resources */,
-				57A055A11644BEC0006511AA /* seafile.icns in Resources */,
 				456D198B166CD36E001C044D /* ccnet in Resources */,
 				456D19D8166CD386001C044D /* seaf-daemon in Resources */,
 				456D19DD166CD38F001C044D /* seafileweb.app in Resources */,
+				5793DC2C1764C9DC001B0DAD /* seafile-Info.plist in Resources */,
+				5793DC2D1764C9DD001B0DAD /* seafile-release-Info.plist in Resources */,
+				5793DC3F1764CA35001B0DAD /* seafile.icns in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
