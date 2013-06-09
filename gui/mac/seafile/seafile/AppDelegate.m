@@ -52,7 +52,7 @@ enum {
 {
     shutdown_process ("seafileweb");
     shutdown_process ("ccnet");
-	NSLog(@"sdsadad\n");
+
     g_type_init();
     applet = g_new0 (SeafileApplet, 1);
     applet->client = ccnet_client_new ();
