@@ -72,6 +72,18 @@ char *seafile_get_config (const char *key, GError **error);
  * would be overwritten. */
 int seafile_set_config (const char *key, const char *value, GError **error);
 
+int
+seafile_set_config_int (const char *key, int value, GError **error);
+
+int
+seafile_get_config_int (const char *key, GError **error);
+
+int
+seafile_set_upload_rate_limit (int limit, GError **error);
+
+int
+seafile_set_download_rate_limit (int limit, GError **error);
+
 /**
  * seafile_destroy_repo:
  * @repo_id: repository id.

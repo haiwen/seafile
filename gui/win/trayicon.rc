@@ -131,13 +131,13 @@ FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
     DEFPUSHBUTTON   "下一步",IDOK,206,184,50,14
     PUSHBUTTON      "取消",IDCANCEL,261,184,50,14
-    CONTROL         144,-1,"Static",SS_BITMAP,0,0,329,36
     CONTROL         "",-1,"Static",SS_BLACKFRAME | SS_SUNKEN,0,175,327,1
     CONTROL         "",-1,"Static",SS_BLACKFRAME | SS_SUNKEN,0,36,327,1
-    LTEXT           "请选择磁盘:",IDC_STATIC_SEAFILRDIR,53,121,61,9
-    COMBOBOX        IDC_COMBOX_DISK,99,119,121,16,CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL | WS_TABSTOP
-    LTEXT           "请选择一个磁盘。\n\n我们会在这个磁盘下创建 Seafile 目录，您下载的资料库将默认保存在此处。",IDC_STATIC_SEAFILE,53,66,227,41
-    LTEXT           "此处显示当前设置",IDC_STATIC_TITLE,23,13,65,14,0,WS_EX_TRANSPARENT
+    LTEXT           "请选择一个文件夹。\n\n我们会在这个文件夹下创建 Seafile 目录，您下载的资料库将默认保存在此处。",IDC_STATIC_SEAFILE,53,63,227,41
+    LTEXT           "选择一个文件夹",IDC_STATIC_TITLE,23,13,91,14,0,WS_EX_TRANSPARENT
+    PUSHBUTTON      "选择其他...",IDC_BUTTON_CHOOSE_SEAFILE_DIR,199,119,57,14
+    EDITTEXT        IDC_EDIT_SEAFILE_DIR,53,119,135,13,ES_AUTOHSCROLL | ES_READONLY
+    CONTROL         144,-1,"Static",SS_BITMAP,0,0,329,36
 END
 
 
@@ -154,6 +154,14 @@ BEGIN
         HORZGUIDE, 96
         HORZGUIDE, 121
         HORZGUIDE, 228
+    END
+
+    IDD_INIT_SEAFILE, DIALOG
+    BEGIN
+        VERTGUIDE, 53
+        VERTGUIDE, 256
+        HORZGUIDE, 119
+        HORZGUIDE, 132
     END
 END
 #endif    // APSTUDIO_INVOKED

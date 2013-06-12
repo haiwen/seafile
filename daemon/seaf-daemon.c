@@ -90,6 +90,26 @@ start_rpc_service (CcnetClient *client)
                                      searpc_signature_int__string_string());
 
     searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_get_config_int,
+                                     "seafile_get_config_int",
+                                     searpc_signature_int__string());
+
+    searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_set_config_int,
+                                     "seafile_set_config_int",
+                                     searpc_signature_int__string_int());
+
+    searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_set_upload_rate_limit,
+                                     "seafile_set_upload_rate_limit",
+                                     searpc_signature_int__int());
+
+    searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_set_download_rate_limit,
+                                     "seafile_set_download_rate_limit",
+                                     searpc_signature_int__int());
+
+    searpc_server_register_function ("seafile-rpcserver",
                                      seafile_destroy_repo,
                                      "seafile_destroy_repo",
                                      searpc_signature_int__string());

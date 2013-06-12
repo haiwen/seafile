@@ -76,7 +76,6 @@ int spawn_ccnet_daemon (void)
     NSString *str = [[NSString alloc] initWithUTF8String: applet->config_dir];
     [args addObject: @"-c" ];
     [args addObject: str ];
-    [args addObject: @"--no-multicast" ];
     [args addObject: @"-D"];
 #ifdef DEBUG
     [args addObject: @"ALL"];
@@ -505,7 +504,6 @@ static int set_folder_image (const char *path, NSImage *iconImage)
 void seafile_set_seafilefolder_icns (void)
 {
     // AppDelegate *delegate = [[NSApplication sharedApplication] delegate];
-    //set_folder_image (applet->seafile_worktree, delegate->wktreeImage);
 }
 
 void seafile_set_repofolder_icns (const char *path)

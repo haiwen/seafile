@@ -33,6 +33,7 @@
 #include "db.h"
 
 #define INDEX_DIR "index"
+#define IGNORE_FILE "seafile-ignore.txt"
 
 #ifdef HAVE_KEYSTORAGE_GK
 #include "repokey/seafile-gnome-keyring.h"
@@ -326,9 +327,10 @@ has_trailing_space_or_period (const char *path)
 }
 
 static gboolean
-should_ignore(const char *filename, void *data)
+should_ignore(const char *basepath, const char *filename, void *data)
 {
     GPatternSpec **spec = ignore_patterns;
+    GList *ignore_list = (GList *)data;
 
     /* Ignore file/dir if its name is too long. */
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)
@@ -372,7 +374,14 @@ should_ignore(const char *filename, void *data)
             return TRUE;
         }
     }
-        
+
+    char *fullpath = g_build_path ("/", basepath, filename, NULL);
+    if (seaf_repo_check_ignore_file (ignore_list, fullpath)) {
+        g_free (fullpath);
+        return TRUE;
+    }
+    g_free (fullpath);
+
     return FALSE;
 }
 
@@ -394,7 +403,8 @@ add_recursive (struct index_state *istate,
                const char *worktree,
                const char *path,
                SeafileCrypt *crypt,
-               gboolean ignore_empty_dir)
+               gboolean ignore_empty_dir,
+               GList *ignore_list)
 {
     char *full_path;
     GDir *dir;
@@ -434,7 +444,7 @@ add_recursive (struct index_state *istate,
 
         n = 0;
         while ((dname = g_dir_read_name(dir)) != NULL) {
-            if (should_ignore(dname, NULL))
+            if (should_ignore(full_path, dname, ignore_list))
                 continue;
 
             ++n;
@@ -447,7 +457,7 @@ add_recursive (struct index_state *istate,
             subpath = g_build_path (PATH_SEPERATOR, path, dname, NULL);
 #endif
             ret = add_recursive (istate, worktree, subpath,
-                                 crypt, ignore_empty_dir);
+                                 crypt, ignore_empty_dir, ignore_list);
             g_free (subpath);
             if (ret < 0)
                 break;
@@ -471,7 +481,7 @@ bad:
 }
 
 static gboolean
-is_empty_dir (const char *path)
+is_empty_dir (const char *path, GList *ignore_list)
 {
     GDir *dir;
     const char *dname;
@@ -484,7 +494,7 @@ is_empty_dir (const char *path)
 
     int n = 0;
     while ((dname = g_dir_read_name(dir)) != NULL) {
-        if (should_ignore(dname, NULL))
+        if (should_ignore(path, dname, ignore_list))
             continue;
         ++n;
     }
@@ -494,7 +504,8 @@ is_empty_dir (const char *path)
 }
 
 static void
-remove_deleted (struct index_state *istate, const char *worktree, const char *prefix)
+remove_deleted (struct index_state *istate, const char *worktree,
+                const char *prefix, GList *ignore_list)
 {
     struct cache_entry **ce_array = istate->cache;
     struct cache_entry *ce;
@@ -513,7 +524,7 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
         ret = seaf_stat (path, &st);
 
         if (S_ISDIR (ce->ce_mode)) {
-            if (ret < 0 || !S_ISDIR (st.st_mode) || !is_empty_dir (path))
+            if (ret < 0 || !S_ISDIR (st.st_mode) || !is_empty_dir (path, ignore_list))
                 ce->ce_flags |= CE_REMOVE;
         } else {
             /* If ce->mtime is 0 and stage is 0, it was not successfully checked out.
@@ -533,6 +544,7 @@ static int
 index_add (SeafRepo *repo, struct index_state *istate, const char *path)
 {
     SeafileCrypt *crypt = NULL;
+    GList *ignore_list = NULL;
 
     /* Skip any leading '/'. */
     while (path[0] == '/')
@@ -542,15 +554,19 @@ index_add (SeafRepo *repo, struct index_state *istate, const char *path)
         crypt = seafile_crypt_new (repo->enc_version, repo->enc_key, repo->enc_iv);
     }
 
-    if (add_recursive (istate, repo->worktree, path, crypt, TRUE) < 0)
+    ignore_list = seaf_repo_load_ignore_files (repo->worktree);
+
+    if (add_recursive (istate, repo->worktree, path, crypt, TRUE, ignore_list) < 0)
         goto error;
 
-    remove_deleted (istate, repo->worktree, path);
+    remove_deleted (istate, repo->worktree, path, ignore_list);
 
+    seaf_repo_free_ignore_files (ignore_list);
     g_free (crypt);
     return 0;
 
 error:
+    seaf_repo_free_ignore_files (ignore_list);
     g_free (crypt);
     return -1;
 }
@@ -570,6 +586,7 @@ seaf_repo_index_worktree_files (const char *repo_id,
     unsigned char key[16], iv[16];
     SeafileCrypt *crypt = NULL;
     struct cache_tree *it = NULL;
+    GList *ignore_list = NULL;
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", seaf->repo_mgr->index_dir, repo_id);
@@ -590,13 +607,15 @@ seaf_repo_index_worktree_files (const char *repo_id,
         crypt = seafile_crypt_new (1, key, iv);
     }
 
+    ignore_list = seaf_repo_load_ignore_files(worktree);
+
     /* Add empty dir to index. Otherwise if the repo on relay contains an empty
      * dir, we'll fail to detect fast-forward relationship later.
      */
-    if (add_recursive (&istate, worktree, "", crypt, FALSE) < 0)
+    if (add_recursive (&istate, worktree, "", crypt, FALSE, ignore_list) < 0)
         goto error;
 
-    remove_deleted (&istate, worktree, "");
+    remove_deleted (&istate, worktree, "", ignore_list);
 
     it = cache_tree ();
     if (cache_tree_update (it, istate.cache, istate.cache_nr,
@@ -614,6 +633,7 @@ seaf_repo_index_worktree_files (const char *repo_id,
     g_free (crypt);
     if (it)
         cache_tree_free (&it);
+    seaf_repo_free_ignore_files(ignore_list);
     return 0;
 
 error:
@@ -621,6 +641,7 @@ error:
     g_free (crypt);
     if (it)
         cache_tree_free (&it);
+    seaf_repo_free_ignore_files(ignore_list);
     return -1;
 }
 
@@ -650,8 +671,7 @@ seaf_repo_is_worktree_changed (SeafRepo *repo)
     }
     repo->index_corrupted = FALSE;
 
-    wt_status_collect_changes_worktree (&istate, &res,
-                                        repo->worktree, should_ignore);
+    wt_status_collect_changes_worktree (&istate, &res, repo->worktree);
     if (res != NULL)
         goto changed;
 
@@ -904,14 +924,18 @@ commit_tree (SeafRepo *repo, struct cache_tree *it,
         commit->parent_id = g_strdup (repo->head->commit_id);
 
     if (unmerged) {
-        SeafBranch *b = seaf_branch_manager_get_branch (seaf->branch_mgr,
-                                                        repo->id,
-                                                        "master");
-        if (!b) {
-            seaf_commit_unref (commit);
+        SeafRepoMergeInfo minfo;
+
+        /* Don't use head commit of master branch since that branch may have
+         * been updated after the last merge.
+         */
+        memset (&minfo, 0, sizeof(minfo));
+        if (seaf_repo_manager_get_merge_info (repo->manager, repo->id, &minfo) < 0) {
+            seaf_warning ("Failed to get merge info of repo %.10s.\n", repo->id);
             return -1;
         }
-        commit->second_parent_id = g_strdup (b->commit_id);
+
+        commit->second_parent_id = g_strdup (minfo.remote_head);
     }
 
     seaf_repo_to_commit (repo, commit);
@@ -2409,14 +2433,14 @@ seaf_repo_manager_set_repo_passwd (SeafRepoManager *manager,
 int
 seaf_repo_manager_set_merge (SeafRepoManager *manager,
                              const char *repo_id,
-                             const char *branch)
+                             const char *remote_head)
 {
     char sql[256];
 
     pthread_mutex_lock (&manager->priv->db_lock);
 
     snprintf (sql, sizeof(sql), "REPLACE INTO MergeInfo VALUES ('%s', 1, '%s');",
-              repo_id, branch);
+              repo_id, remote_head);
     int ret = sqlite_query_exec (manager->priv->db, sql);
 
     pthread_mutex_unlock (&manager->priv->db_lock);
@@ -2446,16 +2470,16 @@ get_merge_info (sqlite3_stmt *stmt, void *vinfo)
     int in_merge;
 
     in_merge = sqlite3_column_int (stmt, 1);
-    if (in_merge == 0) {
+    if (in_merge == 0)
         info->in_merge = FALSE;
-        /* Only one row. */
-        return FALSE;
-    }
+    else
+        info->in_merge = TRUE;
 
-    /* If in_merge, fill the branch field. */
-    info->in_merge = TRUE;
-    /* branch = (char *) sqlite3_column_text (stmt, 2); */
-    /* info->branch = g_strdup (branch); */
+    /* 
+     * Note that compatibility, we store remote_head in the "branch" column.
+     */
+    const char *remote_head = (const char *) sqlite3_column_text (stmt, 2);
+    memcpy (info->remote_head, remote_head, 40);
 
     return FALSE;
 }
@@ -2724,4 +2748,105 @@ seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
     g_list_free (repos);
 
     return 0;
+}
+
+/*
+ * Read ignored files from ignore.txt
+ */
+GList *seaf_repo_load_ignore_files (const char *worktree)
+{
+    GList *list = NULL;
+    SeafStat st;
+    FILE *fp;
+    char *full_path, *pattern;
+    char path[PATH_MAX];
+
+    full_path = g_build_path (PATH_SEPERATOR, worktree,
+                              IGNORE_FILE, NULL);
+    if (g_access (full_path, F_OK) < 0)
+        goto error;
+    if (seaf_stat (full_path, &st) < 0)
+        goto error;
+    if (!S_ISREG(st.st_mode))
+        goto error;
+    fp = g_fopen(full_path, "r");
+    if (fp == NULL)
+        goto error;
+
+    while (fgets(path, PATH_MAX, fp) != NULL) {
+        /* remove leading and trailing whitespace, including \n \r. */
+        g_strstrip (path);
+
+        /* ignore comment and blank line */
+        if (path[0] == '#' || path[0] == '\0')
+            continue;
+
+        /* Change 'foo/' to 'foo/ *'. */
+        if (path[strlen(path)-1] == '/')
+            pattern = g_strdup_printf("%s/%s*", worktree, path);
+        else
+            pattern = g_strdup_printf("%s/%s", worktree, path);
+
+        list = g_list_prepend(list, g_strdup(pattern));
+    }
+
+    fclose(fp);
+    free (full_path);
+    return list;
+
+error:
+    free (full_path);
+    return NULL;
+}
+
+gboolean
+seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath)
+{
+    char *str;
+    SeafStat st;
+    GPatternSpec *ignore_spec;
+    GList *p;
+
+    str = g_strdup(fullpath);
+
+    /* first check the path is a reg file or a dir */
+    if (seaf_stat(str, &st) < 0) {
+        g_free(str);
+        return TRUE;
+    }
+    if (S_ISDIR(st.st_mode)) {
+        g_free(str);
+        str = g_strconcat (fullpath, "/", NULL);
+    }
+
+    for (p = ignore_list; p != NULL; p = p->next) {
+        char *pattern = (char *)p->data;
+
+        ignore_spec = g_pattern_spec_new(pattern);
+        if (g_pattern_match_string(ignore_spec, str)) {
+            g_free (str);
+            g_pattern_spec_free(ignore_spec);
+            return TRUE;
+        }
+        g_pattern_spec_free(ignore_spec);
+    }
+
+    g_free (str);
+    return FALSE;
+}
+
+/*
+ * Free ignored file list
+ */
+void seaf_repo_free_ignore_files (GList *ignore_list)
+{
+    GList *p;
+
+    if (ignore_list == NULL)
+        return;
+
+    for (p = ignore_list; p != NULL; p = p->next)
+        free(p->data);
+
+    g_list_free (ignore_list);
 }

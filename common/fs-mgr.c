@@ -215,6 +215,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
                                guint32 mode,
                                SeafileCrypt *crypt,
                                const char *conflict_suffix,
+                               gboolean force_conflict,
                                gboolean *conflicted)
 {
     Seafile *seafile;
@@ -222,6 +223,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
     int wfd;
     int i;
     char *tmp_path;
+    char *conflict_path;
 
     *conflicted = FALSE;
 
@@ -248,11 +250,22 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
 
     close (wfd);
     wfd = -1;
-    if (ccnet_rename (tmp_path, file_path) < 0) {
+
+    /* The caller has detected conflict. */
+    if (force_conflict) {
+        *conflicted = TRUE;
+        conflict_path = gen_conflict_path (file_path,
+                                           conflict_suffix);
+        if (ccnet_rename (tmp_path, conflict_path) < 0) {
+            g_free (conflict_path);
+            goto bad;
+        }
+        g_free (conflict_path);
+    } else if (ccnet_rename (tmp_path, file_path) < 0) {
         if (conflict_suffix) {
             *conflicted = TRUE;
-            char *conflict_path = gen_conflict_path (file_path,
-                                                     conflict_suffix);
+            conflict_path = gen_conflict_path (file_path,
+                                               conflict_suffix);
             if (ccnet_rename (tmp_path, conflict_path) < 0) {
                 g_free (conflict_path);
                 goto bad;

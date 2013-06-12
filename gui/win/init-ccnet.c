@@ -34,6 +34,23 @@
 
 #define IS_DLG_CONTROL(ID)   ((HWND)(lParam) == GetDlgItem(hDlg, (ID)))
 
+void
+msgbox (HWND hWnd, char *format, ...)
+{
+    va_list params;
+    char buf[2048];
+    wchar_t *wbuf;
+
+    va_start(params, format);
+    vsnprintf(buf, sizeof(buf), format, params);
+    va_end(params);
+
+    wbuf = wchar_from_utf8 (buf);
+    MessageBoxW (hWnd, wbuf, L"Seafile", MB_ICONINFORMATION | MB_OK);
+
+    g_free (wbuf);
+}
+
 BOOL
 msgbox_yes_or_no (HWND hWnd, char *format, ...)
 {
@@ -136,6 +153,7 @@ void set_dlg_icon(HWND hDlg, UINT icon_id)
 
 extern char *seafile_bin_dir;
 
+#if 0
 static void
 InitComboxList(HWND hDlg)
 {
@@ -189,6 +207,42 @@ InitComboxList(HWND hDlg)
     }
 
     SendDlgItemMessage (hDlg, IDC_COMBOX_DISK, CB_SETCURSEL, largest_disk_index, 0);
+}
+#endif
+
+static wchar_t *
+get_largest_disk()
+{
+    wchar_t drives[SEAF_PATH_MAX];
+    wchar_t *p, *largest_drive;
+    ULARGE_INTEGER free_space;
+    ULARGE_INTEGER largest_free_space;
+
+    largest_free_space.QuadPart = 0;
+    largest_drive = NULL;
+
+    GetLogicalDriveStringsW (sizeof(drives), drives);
+    for (p = drives; *p != L'\0'; p += wcslen(p) + 1) {
+        /* Skip floppy disk, network drive, etc */
+        if (GetDriveTypeW(p) != DRIVE_FIXED)
+            continue;
+
+        if (GetDiskFreeSpaceExW (p, &free_space, NULL, NULL)) {
+            if (free_space.QuadPart > largest_free_space.QuadPart) {
+                largest_free_space.QuadPart = free_space.QuadPart;
+                if (largest_drive != NULL) {
+                    free (largest_drive);
+                }
+                largest_drive = wcsdup(p);
+            }
+
+        } else {
+            applet_warning ("failed to GetDiskFreeSpaceEx(), GLE=%lu\n",
+                            GetLastError());
+        }
+    }
+
+    return largest_drive;
 }
 
 /* 1. set seafile-data directory to hidden
@@ -290,11 +344,37 @@ copy_user_manual ()
     g_free (dst_path_w);
 }
 
+static wchar_t*
+browse_for_folder()
+{
+    wchar_t path[MAX_PATH];
+    wchar_t *title = wchar_from_utf8(_("Choose a folder"));
+    BROWSEINFOW info = {0};
+    wchar_t *ret = NULL;
+
+    info.pidlRoot = NULL;       /* file system root */
+    info.lpszTitle = title;     /* dialog title text */
+    info.ulFlags = BIF_DONTGOBELOWDOMAIN | BIF_NEWDIALOGSTYLE;
+    info.lpfn = NULL;           /* event callback function  */
+
+    ITEMIDLIST *idlist = SHBrowseForFolderW(&info);
+    if (idlist != NULL) {
+        SHGetPathFromIDListW(idlist, path);
+        if (wcslen(path) != 0) {
+            ret =  wcsdup(path);
+        }
+    }
+
+    g_free (title);
+
+    return ret;
+}
+
 static BOOL CALLBACK
 InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
     int len;
-    char seafiledir[SEAF_PATH_MAX];
+    wchar_t seafiledir[SEAF_PATH_MAX];
 
     memset(seafiledir, 0, sizeof(seafiledir));
 
@@ -303,19 +383,15 @@ InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_INITDIALOG: {
-        InitComboxList(hDlg);
         set_dlg_icon (hDlg, IDI_SEAFILE_ICON);
-        wchar_t *msg =  wchar_from_utf8(_("Choose a disk"));
-        SetWindowTextW (GetDlgItem(hDlg, IDC_STATIC_TITLE), msg);
-        wchar_t *title = wchar_from_utf8(_("Seafile Initialization"));
-        SetWindowTextW (hDlg, title);
-        g_free (msg);
-        g_free (title);
-                       
         set_control_font (GetDlgItem(hDlg, IDC_STATIC_TITLE), "Courier");
+        wchar_t* dft = get_largest_disk();
+        if (dft) {
+            SetWindowTextW (GetDlgItem(hDlg, IDC_EDIT_SEAFILE_DIR), dft);
+            free (dft);
+        }
         make_wnd_foreground(hDlg);
         return TRUE;
-        break;
     }
 
     case WM_CTLCOLORSTATIC:
@@ -327,20 +403,34 @@ InitSeafileProc (HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_COMMAND:
+        /* Return 0 if we handle it, 1 if not */
+        if (IS_DLG_CONTROL(IDC_BUTTON_CHOOSE_SEAFILE_DIR)) {
+            WORD cmd = HIWORD(wParam);
+            if (cmd == BN_CLICKED || cmd == BN_DOUBLECLICKED) {
+                wchar_t *path = browse_for_folder();
+                if (path != NULL) {
+                    SetWindowTextW (GetDlgItem(hDlg, IDC_EDIT_SEAFILE_DIR), path);
+                }
+                free (path);
+                return 0;
+            }
+        }
         switch(LOWORD(wParam)) {
         case IDOK: {
-            len = GetWindowText (GetDlgItem(hDlg,IDC_COMBOX_DISK),
-                                 seafiledir, sizeof(seafiledir));
-            seafiledir[len] = '\0';
-            int i = 0;
-            while (seafiledir[i] != '\t')
-                i++;
+            len = GetWindowTextW (GetDlgItem(hDlg, IDC_EDIT_SEAFILE_DIR),
+                                  seafiledir, G_N_ELEMENTS(seafiledir));
+            if (len == 0) {
+                msgbox (applet->hWnd, _("Please choose a folder first"));
+                return 0;
+            }
 
-            seafiledir[i] = '\0';
+            char *dir = wchar_to_utf8(seafiledir);
 
-            applet->seafile_dir = g_build_filename(seafiledir,
+            applet->seafile_dir = g_build_filename(dir,
                                                    "Seafile",
                                                    "seafile-data", NULL);
+
+            g_free (dir);
 
             if (checkdir_with_mkdir(applet->seafile_dir) < 0) {
                 g_free (applet->seafile_dir);

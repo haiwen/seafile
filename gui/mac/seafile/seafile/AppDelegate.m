@@ -202,7 +202,6 @@ enum {
 		[transferImage[i] setSize:imageSize];
 	}
     warningImage = [[NSImage alloc] initWithContentsOfFile: [bundle pathForResource: @"warning" ofType: @"png"]];
-    wktreeImage = [[NSImage alloc] initWithContentsOfFile: [bundle pathForResource: @"seafilefolder" ofType: @"icns"]];
     repoImage  = [[NSImage alloc] initWithContentsOfFile: [bundle pathForResource: @"seafilerepo" ofType: @"icns"]];
 
     [statusItem setImage: statusImage[0]];

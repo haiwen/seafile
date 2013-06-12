@@ -171,7 +171,7 @@ get_seaf_data_dir (const char *dir)
         return NULL;
     }
 
-    FILE *seaf_ini = fopen(buf, "r");
+    FILE *seaf_ini = g_fopen(buf, "r");
     if (!seaf_ini) {
         perror("Open seaf_ini failed");
         return NULL;

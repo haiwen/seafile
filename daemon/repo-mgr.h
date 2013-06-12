@@ -298,7 +298,7 @@ seaf_repo_manager_set_repo_relay_id (SeafRepoManager *mgr,
 int
 seaf_repo_manager_set_merge (SeafRepoManager *manager,
                              const char *repo_id,
-                             const char *branch);
+                             const char *remote_head);
 
 int
 seaf_repo_manager_clear_merge (SeafRepoManager *manager,
@@ -306,7 +306,7 @@ seaf_repo_manager_clear_merge (SeafRepoManager *manager,
 
 typedef struct {
     gboolean in_merge;
-    /* char *branch; */
+    char remote_head[41];
 } SeafRepoMergeInfo;
 
 int
@@ -347,4 +347,14 @@ seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
                                           SeafRepo *repo,
                                           const char *new_addr,
                                           const char *new_port);
+
+GList *
+seaf_repo_load_ignore_files (const char *worktree);
+
+gboolean
+seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath);
+
+void
+seaf_repo_free_ignore_files (GList *ignore_list);
+
 #endif

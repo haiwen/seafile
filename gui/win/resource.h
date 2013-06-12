@@ -27,6 +27,9 @@
 #define IDC_CHECK_NO_TIP                1032
 #define ID_FINISH                       1033
 #define IDC_STATIC_TITLE                1037
+#define IDC_BUTTON_CHOOSE_SEAFILE_DIR   1039
+#define IDC_EDIT2                       1040
+#define IDC_EDIT_SEAFILE_DIR            1040
 #define IDM_OPEN                        32773
 #define IDM_RESTART                     32776
 #define ID_Menu                         32778
@@ -45,7 +48,7 @@
 #define _APS_NO_MFC                     1
 #define _APS_NEXT_RESOURCE_VALUE        146
 #define _APS_NEXT_COMMAND_VALUE         32785
-#define _APS_NEXT_CONTROL_VALUE         1038
+#define _APS_NEXT_CONTROL_VALUE         1041
 #define _APS_NEXT_SYMED_VALUE           110
 #endif
 #endif

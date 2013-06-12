@@ -658,7 +658,7 @@ write_pidfile (const char *pidfile_path)
 
     pid_t pid = getpid();
 
-    FILE *pidfile = fopen(pidfile_path, "w");
+    FILE *pidfile = g_fopen(pidfile_path, "w");
     if (!pidfile) {
         seaf_warning ("Failed to fopen() pidfile %s: %s\n",
                       pidfile_path, strerror(errno));

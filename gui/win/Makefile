@@ -34,11 +34,11 @@ CFLAGS += -DWINVER=0x500 -D_WIN32_IE=0x500
 LDFLAGS += -lcomctl32 -lcomdlg32
 
 ifeq (${MAKECMDGOALS}, en)
-	# CFLAGS += -DSEAF_LANG_ENGLISH
+	CFLAGS += -DSEAF_LANG_ENGLISH
 	RCFILE = trayicon.en.rc
 	RC_HEADER = resource.en.h
 else
-	# CFLAGS += -DSEAF_LANG_CHINESE
+	CFLAGS += -DSEAF_LANG_CHINESE
 	RCFILE = trayicon.rc
 	RC_HEADER = resource.h
 endif

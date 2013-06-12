@@ -96,7 +96,7 @@ spawn_process (char *argv[])
 static int
 read_pid_from_pidfile (const char *pidfile)
 {
-    FILE *pf = fopen (pidfile, "r");
+    FILE *pf = g_fopen (pidfile, "r");
     if (!pf) {
         if (errno == ENOENT) {
             return PID_ERROR_ENOENT;
@@ -506,7 +506,7 @@ write_controller_pidfile ()
 
     pid_t pid = getpid();
 
-    FILE *pidfile = fopen(controller_pidfile, "w");
+    FILE *pidfile = g_fopen(controller_pidfile, "w");
     if (!pidfile) {
         seaf_warning ("Failed to fopen() pidfile %s: %s\n",
                       controller_pidfile, strerror(errno));

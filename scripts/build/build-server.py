@@ -201,7 +201,7 @@ class Ccnet(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
-            './configure --prefix=%s --disable-client --enable-server --enable-ldap' % self.prefix,
+            './configure --prefix=%s --disable-client --enable-server --enable-pgsql --enable-ldap' % self.prefix,
             'make',
             'make install'
         ]
@@ -218,7 +218,7 @@ class Seafile(Project):
             s3_support = '--enable-s3'
 
         self.build_commands = [
-            './configure --prefix=%s --disable-client --enable-server --enable-httpserver %s' \
+            './configure --prefix=%s --disable-client --enable-server --enable-pgsql --enable-httpserver %s' \
                 % (self.prefix, s3_support),
             'make',
             'make install'
