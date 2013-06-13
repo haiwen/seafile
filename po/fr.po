@@ -1,0 +1,181 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: seafile 1.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2013-06-06 14:22+0800\n"
+"PO-Revision-Date: 2013-06-13 15:32+0100\n"
+"Last-Translator: Pi3R1k <pierrick.brun@gmail.com>\n"
+"Language-Team: francais\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 1.5.5\n"
+
+#: ../gui/common/applet-common.c:174
+msgid "Uploading"
+msgstr "Envoi"
+
+#: ../gui/common/applet-common.c:174
+msgid "Downloading"
+msgstr "Téléchargement"
+
+#: ../gui/common/applet-common.c:175
+msgid "Speed"
+msgstr "Vitesse"
+
+#: ../gui/common/applet-common.c:206
+msgid ""
+"is unsynced. \n"
+"Reason: Deleted on server"
+msgstr ""
+"n'est pas synchronisé. \n"
+"Raison: supprimé sur le serveur"
+
+#: ../gui/common/applet-common.c:233
+msgid "is synchronized"
+msgstr "est synchronisé"
+
+#: ../gui/common/applet-common.c:249
+msgid ""
+"failed to sync. \n"
+"Access denied to service"
+msgstr ""
+"Échec de la synchro. \n"
+"Accès interdit au service"
+
+#: ../gui/common/applet-common.c:262
+msgid ""
+"failed to sync.\n"
+"The library owner's storage space is used up."
+msgstr ""
+"Échec de la synchro.\n"
+"Le propriétaire de la bibliothèque ne possède plus d'espace de stockage."
+
+#: ../gui/common/translate-commit-desc.c:114
+msgid "files"
+msgstr "autre fichiers"
+
+#: ../gui/common/translate-commit-desc.c:116
+msgid "directories"
+msgstr "Répertoires"
+
+#: ../gui/common/translate-commit-desc.c:119
+#, c-format
+msgid "and %s more"
+msgstr "ainsi que %s"
+
+#: ../gui/common/translate-commit-desc.c:155
+msgid "Added"
+msgstr "Ajout de"
+
+#: ../gui/common/translate-commit-desc.c:156
+msgid "Deleted"
+msgstr "Suppression de"
+
+#: ../gui/common/translate-commit-desc.c:157
+msgid "Removed"
+msgstr "Suppression de"
+
+#: ../gui/common/translate-commit-desc.c:158
+msgid "Modified"
+msgstr "Modification  de"
+
+#: ../gui/common/translate-commit-desc.c:159
+msgid "Renamed"
+msgstr "Renommage de"
+
+#: ../gui/common/translate-commit-desc.c:160
+msgid "Moved"
+msgstr "Déplacement de"
+
+#: ../gui/common/translate-commit-desc.c:161
+msgid "Added directory"
+msgstr "Ajout du répertoire"
+
+#: ../gui/common/translate-commit-desc.c:162
+msgid "Removed directory"
+msgstr "Suppression du répertoire"
+
+#: ../gui/common/translate-commit-desc.c:163
+msgid "Renamed directory"
+msgstr "Renommage du répertoire"
+
+#: ../gui/common/translate-commit-desc.c:164
+msgid "Moved directory"
+msgstr "Déplacement du répertoire"
+
+#: ../gui/common/translate-commit-desc.c:169
+msgid "Reverted repo to status at"
+msgstr "Retour de la bibliothèque à son état du"
+
+#: ../gui/common/translate-commit-desc.c:172
+msgid "Reverted file to status at"
+msgstr "Retour du fichier à son état du"
+
+#: ../gui/common/translate-commit-desc.c:175
+msgid "Recovered deleted directory"
+msgstr "Récupération du dossier supprimé"
+
+#: ../gui/common/translate-commit-desc.c:177
+msgid "Auto merge by seafile system"
+msgstr "Fusion automatique par seafile"
+
+#: ../gui/gtk/seafile-applet.c:161
+#, c-format
+msgid "Seafile is already running\n"
+msgstr "Seafile est déjà en fonctionnement\n"
+
+#: ../gui/gtk/trayicon.c:117 ../gui/win/seafile-applet.c:76
+msgid "Auto sync is disabled"
+msgstr "La synchro auto est désactivé"
+
+#: ../gui/win/init-ccnet.c:194
+msgid "free"
+msgstr "libre"
+
+#: ../gui/win/init-ccnet.c:199
+msgid "free space unknown"
+msgstr "Espace libre inconnu"
+
+#: ../gui/win/init-ccnet.c:295 ../gui/win/init-ccnet.c:296
+msgid "Seafile help.txt"
+msgstr "Seafile help.txt"
+
+#: ../gui/win/init-ccnet.c:316
+msgid "Choose a folder"
+msgstr "Choisissez un dossier"
+
+#: ../gui/win/init-ccnet.c:381
+msgid "Please choose a folder first"
+msgstr "Veuillez sélectionner un dossier en premier"
+
+#: ../gui/win/init-ccnet.c:406 ../gui/win/init-ccnet.c:416
+msgid "Initialzation is not finished. Really quit?"
+msgstr "L'initialisation n'est pas finie. Êtes vous sûr de vouloir quitter ?."
+
+#: ../gui/win/seafile-applet.c:60
+msgid "Seafile is started"
+msgstr "Seafile est démaré"
+
+#: ../gui/win/seafile-applet.c:60
+msgid "Click the icon to open admin console"
+msgstr "Cliquer sur l'icône pour ouvrir la console d'administration"
+
+#: ../gui/win/seafile-applet.c:357
+msgid "Failed to disable auto sync"
+msgstr "Impossible de désactiver la synchro auto"
+
+#: ../gui/win/seafile-applet.c:358
+msgid "Failed to enable auto sync"
+msgstr "Impossible d'activer la synchro auto"
+
+#: ../gui/win/seafile-applet.c:520
+msgid "Seafile is already running"
+msgstr "Seafile est déjà en fonctionnement"
+
+#~ msgid "Seafile Initialization"
+#~ msgstr "Seafile 初始化"
+
+#~ msgid "Courier"
+#~ msgstr "宋体"
