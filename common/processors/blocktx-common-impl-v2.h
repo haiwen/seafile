@@ -30,6 +30,8 @@
 
 #define MAX_BL_LEN 1024
 #define IO_BUF_LEN 1024
+#define DEFAULT_SNDBUF_SIZE (1 << 16) /* 64KB */
+#define DEFAULT_RCVBUF_SIZE (1 << 16) /* 64KB */
 #define ENC_BLOCK_SIZE 16
 #define TOKEN_TIMEOUT 180
 #define BLOCKTX_TIMEOUT 30
@@ -818,6 +820,26 @@ static void* do_transfer(void *vtdata)
         tdata->thread_ret = -1;
         goto out;
     }
+
+#if defined SENDBLOCK_PROC && defined WIN32
+    /* Set large enough TCP buffer size.
+     * This greatly enhances sync speed for high latency network.
+     * Windows by default use 8KB buffers, which is too small for such case.
+     * Linux has auto-tuning for TCP buffers, so don't need to set manually.
+     * OSX is TBD.
+     */
+
+    /* Set send buffer size. */
+    int sndbuf_size;
+    ev_socklen_t optlen = sizeof(int);
+    getsockopt (data_fd, SOL_SOCKET, SO_SNDBUF, (char *)&sndbuf_size, &optlen);
+
+    if (sndbuf_size < DEFAULT_SNDBUF_SIZE) {
+        sndbuf_size = DEFAULT_SNDBUF_SIZE;
+        optlen = sizeof(int);
+        setsockopt (data_fd, SOL_SOCKET, SO_SNDBUF, (char *)&sndbuf_size, optlen);
+    }
+#endif
 
 #ifdef __APPLE__
     if (sa->sa_family == AF_INET)
