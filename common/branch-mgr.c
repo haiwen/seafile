@@ -183,14 +183,24 @@ int
 seaf_branch_manager_add_branch (SeafBranchManager *mgr, SeafBranch *branch)
 {
 #ifndef SEAFILE_SERVER
-    char *sql;
+    char sql[256];
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    sql = sqlite3_mprintf ("INSERT INTO Branch VALUES (%Q, %Q, %Q)",
-                           branch->name, branch->repo_id, branch->commit_id);
+    sqlite3_snprintf (sizeof(sql), sql,
+                      "SELECT 1 FROM Branch WHERE name=%Q and repo_id=%Q",
+                      branch->name, branch->repo_id);
+    if (sqlite_check_for_existence (mgr->priv->db, sql))
+        sqlite3_snprintf (sizeof(sql), sql,
+                          "UPDATE Branch SET commit_id=%Q WHERE "
+                          "name=%Q and repo_id=%Q",
+                          branch->name, branch->repo_id);
+    else
+        sqlite3_snprintf (sizeof(sql), sql,
+                          "INSERT INTO Branch VALUES (%Q, %Q, %Q)",
+                          branch->name, branch->repo_id, branch->commit_id);
+
     sqlite_query_exec (mgr->priv->db, sql);
-    sqlite3_free (sql);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 

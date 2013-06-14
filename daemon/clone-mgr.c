@@ -1093,10 +1093,10 @@ real_merge (SeafRepo *repo, SeafCommit *head, CloneTask *task)
                      &clean, &root_id);
     g_free (root_id);
 
-    if (update_index (&istate, index_path) < 0) {
-        seaf_warning ("Failed to update index.\n");
-        return -1;
-    }
+    /* Don't update index. If it was an unclean merge, updating the index
+     * will generate a merge commit later. We don't want a merge commit.
+     * We just want to "apply" the local changes to the remote head.
+     */
 
     discard_index (&istate);
     g_free (opts.crypt);
