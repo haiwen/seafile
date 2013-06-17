@@ -575,38 +575,40 @@ usage ()
 static void
 test_config (const char *ccnet_dir, const char *seafile_dir)
 {
-    char *ccnet_conf = g_build_filename (ccnet_dir, "ccnet.conf", NULL);
-    char *seafile_conf = g_build_filename (seafile_dir, "seafile.conf", NULL);
-
-    if (!g_file_test(ccnet_conf, G_FILE_TEST_IS_REGULAR)) {
-        fprintf (stderr, "ccnet config file %s does not exist\n", ccnet_conf);
-        exit(1);
-    }
-
-    if (!g_file_test(seafile_conf, G_FILE_TEST_IS_REGULAR)) {
-        fprintf (stderr, "seafile config file %s does not exist\n", seafile_conf);
-        exit(1);
-    }
-
+    char buf[1024];
     GError *error = NULL;
-    GKeyFile *keyfile = g_key_file_new ();
-    if (!g_key_file_load_from_file (keyfile, ccnet_conf, 0, &error)) {
-        fprintf (stderr, "Error in ccnet config file %s:\n%s\n",
-                 ccnet_conf,
+    int retcode = 0;
+    char *child_stdout = NULL;
+    char *child_stderr = NULL;
+
+    snprintf (buf, sizeof(buf), "ccnet-server -c \"%s\" -t", ccnet_dir);
+
+    g_spawn_command_line_sync (buf,
+                               &child_stdout, /* stdout */
+                               &child_stderr, /* stderror */
+                               &retcode,
+                               &error);
+
+    if (error != NULL) {
+        fprintf (stderr,
+                 "failed to run \"ccnet-server -t\": %s\n",
                  error->message);
         exit (1);
     }
 
-    printf ("the syntax of ccnet config file %s is OK\n", ccnet_conf);
-
-    if (!g_key_file_load_from_file (keyfile, seafile_conf, 0, &error)) {
-        fprintf (stderr, "Error in seafile config file %s:\n%s\n",
-                 seafile_conf,
-                 error->message);
-        exit (1);
+    if (child_stdout) {
+        fputs (child_stdout, stdout);
     }
 
-    printf ("the syntax of seafile config file %s is OK\n", seafile_conf);
+    if (child_stderr) {
+        fputs (child_stderr, stdout);
+    }
+
+    if (retcode != 0) {
+        fprintf (stderr,
+                 "failed to run \"ccnet-server -t\"\n");
+        exit (1);
+    }
 
     exit(0);
 }
