@@ -122,11 +122,20 @@ else
     exit 1
 fi
 
+function warning_if_seafile_not_running () {
+    if ! pgrep -f "seafile-controller -c" 2>/dev/null 1>&2; then
+        echo
+        echo "Warning: seafile-controller not running. Have you run \"./seafile.sh start\" ?"
+        echo
+    fi
+}
+
 function before_start() {
     check_python_executable;
     validate_ccnet_conf_dir;
     read_seafile_data_dir;
 
+    warning_if_seafile_not_running;
     validate_seahub_running;
 
     export CCNET_CONF_DIR=${default_ccnet_conf_dir}
