@@ -35,6 +35,10 @@
 #define INDEX_DIR "index"
 #define IGNORE_FILE "seafile-ignore.txt"
 
+#ifdef HAVE_KEYSTORAGE_GK
+#include "repokey/seafile-gnome-keyring.h"
+#endif // HAVE_KEYSTORAGE_GK
+
 struct _SeafRepoManagerPriv {
     avl_tree_t *repo_tree;
     sqlite3    *db;
@@ -1561,11 +1565,13 @@ remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
     seaf_repo_manager_del_repo_property (mgr, repo_id);
 
     pthread_mutex_lock (&mgr->priv->db_lock);
-
+#ifdef HAVE_KEYSTORAGE_GK
+    gnome_keyring_sf_delete_password(repo_id, "password");
+#else
     snprintf (sql, sizeof(sql), "DELETE FROM RepoPasswd WHERE repo_id = '%s'", 
               repo_id);
     sqlite_query_exec (mgr->priv->db, sql);
-
+#endif
     snprintf (sql, sizeof(sql), "DELETE FROM RepoKeys WHERE repo_id = '%s'", 
               repo_id);
     sqlite_query_exec (mgr->priv->db, sql);
@@ -1935,13 +1941,23 @@ load_repo_passwd (SeafRepoManager *manager, SeafRepo *repo)
     int n;
 
     pthread_mutex_lock (&manager->priv->db_lock);
-    
+#ifdef HAVE_KEYSTORAGE_GK
+    guint gk_item_id;
+    char* gk_password;
+    gk_password = gnome_keyring_sf_get_password(repo->id, "password", &gk_item_id);
+    if (gk_password != NULL) {
+        repo->encrypted = TRUE;
+        repo->passwd = g_strdup(gk_password);
+        g_free(gk_password);
+        gk_password = NULL;
+    }    
+#else    
     snprintf (sql, sizeof(sql), 
               "SELECT passwd FROM RepoPasswd WHERE repo_id='%s'",
               repo->id);
     if (sqlite_foreach_selected_row (db, sql, load_passwd_cb, repo) < 0)
         return -1;
-
+#endif
     snprintf (sql, sizeof(sql), 
               "SELECT key, iv FROM RepoKeys WHERE repo_id='%s'",
               repo->id);
@@ -2360,12 +2376,16 @@ save_repo_enc_info (SeafRepoManager *manager,
     char sql[256];
     char key[33], iv[33];
 
+#ifdef HAVE_KEYSTORAGE_GK
+    if (gnome_keyring_sf_set_password(repo->id, "password", repo->passwd) != 1)
+        return -1;
+#else
     sqlite3_snprintf (sizeof(sql), sql,
                       "REPLACE INTO RepoPasswd VALUES ('%s', '%q');",
                       repo->id, repo->passwd);
     if (sqlite_query_exec (db, sql) < 0)
         return -1;
-
+#endif
     rawdata_to_hex (repo->enc_key, key, 16);
     rawdata_to_hex (repo->enc_iv, iv, 16);
     snprintf (sql, sizeof(sql), "REPLACE INTO RepoKeys VALUES ('%s', '%s', '%s')",

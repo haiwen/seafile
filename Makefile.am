@@ -14,7 +14,7 @@ MAKE_CONTROLLER = controller
 
 if WIN32
   MAKE_data =
-  MAKE_CONTROLLER =
+#  MAKE_CONTROLLER =
 endif
 
 if COMPILE_SERVER
