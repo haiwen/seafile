@@ -91,6 +91,9 @@ if test "$blinux" = true; then
 
    AC_ARG_ENABLE(ceph, AC_HELP_STRING([--enable-ceph], [enable ceph backend]),
       [compile_ceph=$enableval],[compile_ceph="no"])
+
+   AC_ARG_ENABLE(gnome-keyring, AC_HELP_STRING([--enable-gnome-keyring], [enable gnome keyring support]),
+      [compile_gnome_keyring=$enableval],[compile_gnome_keyring="no"])
 fi
 
 AC_ARG_ENABLE(client, AC_HELP_STRING([--enable-client], [enable client]),
@@ -370,6 +373,14 @@ if test "${compile_ceph}" = "yes"; then
    RADOS_LIBS="-lrados"
    AC_SUBST(RADOS_LIBS)
    AC_DEFINE([HAVE_RADOS], [1], ["define if have rados"])
+fi
+
+AM_CONDITIONAL([HAVE_KEYSTORAGE_GK], [test "${compile_gnome_keyring}" = "yes"])
+if test "${compile_gnome_keyring}" = "yes"; then
+   PKG_CHECK_MODULES(GNOME_KEYRING, [gnome-keyring-1])
+   AC_SUBST(GNOME_KEYRING_CFLAGS)
+   AC_SUBST(GNOME_KEYRING_LIBS)
+   AC_DEFINE(HAVE_KEYSTORAGE_GK, 1, [Have Gnome-Keyring support])
 fi
 
 ac_configure_args="$ac_configure_args -q"
