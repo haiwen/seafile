@@ -8,6 +8,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@CCNET_CFLAGS@ \
 	@SEARPC_CFLAGS@ \
 	@GLIB2_CFLAGS@ \
+	@GNOME_KEYRING_CFLAGS@ \
 	@MSVC_CFLAGS@ \
 	-Wall
 
@@ -72,6 +73,10 @@ if MACOS
 wt_monitor_src = wt-monitor-macos.c
 endif
 
+if HAVE_KEYSTORAGE_GK
+key_storage_src = repokey/seafile-gnome-keyring.c
+endif
+
 common_src = \
 	transfer-mgr.c \
 	../common/unpack-trees.c ../common/seaf-tree-walk.c \
@@ -92,6 +97,7 @@ common_src = \
 	../common/block-backend.c \
 	../common/block-backend-fs.c \
 	../common/mq-mgr.c \
+	$(key_storage_src) \
 	processors/check-tx-proc.c \
 	processors/check-tx-v2-proc.c \
 	processors/check-tx-v3-proc.c \
@@ -125,7 +131,7 @@ seaf_daemon_LDADD = $(top_builddir)/lib/libseafile_common.la \
 	@GLIB2_LIBS@  @GOBJECT_LIBS@ -lssl @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent \
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/common/index/libindex.la ${LIB_WS32} \
-	@SEARPC_LIBS@ @CCNET_LIBS@
+	@SEARPC_LIBS@ @CCNET_LIBS@ @GNOME_KEYRING_LIBS@
 
 seaf_daemon_LDFLAGS = @STATIC_COMPILE@ @CONSOLE@
 
