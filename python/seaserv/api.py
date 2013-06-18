@@ -166,7 +166,7 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.get_dirid_by_path(commit_id, path)
 
     def list_dir_by_commit_and_path(self, commit_id, path):
-        dir_id = seafserv_threaded_rpc.get_dir_id_by_commit_and_path(repo_id, path)
+        dir_id = seafserv_threaded_rpc.get_dirid_by_path(commit_id, path)
         return seafserv_threaded_rpc.list_dir(dir_id)
     
     def revert_file(self, repo_id, commit_id, path, username):
