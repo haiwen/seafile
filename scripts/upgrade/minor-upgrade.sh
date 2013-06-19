@@ -23,9 +23,10 @@ dest_avatar_dir=${TOPDIR}/seahub-data/avatars
 
 # move "media/avatars" directory outside
 if [[ ! -d ${dest_avatar_dir} ]]; then
-    mkdir -p "${TOPDIR}/seahub-data"
-    mv "${orig_avatar_dir}" "${dest_avatar_dir}" 2>/dev/null 1>&2
-    ln -s ../../../seahub-data/avatars ${media_dir}
+    echo
+    echo "Error: avatars directory \"${dest_avatar_dir}\" does not exist" 2>&1
+    echo
+    exit 1
 
 elif [[ ! -L ${orig_avatar_dir}} ]]; then
     mv ${orig_avatar_dir}/* "${dest_avatar_dir}" 2>/dev/null 1>&2
