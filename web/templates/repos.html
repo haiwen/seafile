@@ -25,12 +25,6 @@
         <h3>${_("Navigation")}</h3>
         <a href="/repos/download-tasks/">${_("Download Tasks")}</a>
 
-        <h3>${_("Official Server")}</h3>
-        % if lang == 'zh_CN':
-        <a href="http://cloud.seafile.com" target="_blank">cloud.seafile.com</a>
-        % else:
-        <a href="https://seacloud.cc" target="_blank">SeaCloud.cc</a>
-        % endif
     </div>
 </div>
 
@@ -58,7 +52,8 @@
             </tr>
             % for repo in repos:
             <tr>
-                <td><a href="/repo/?repo=${repo.props.id}" class="repo-link">${ repo.props.name }</a></td>
+                <td><a href="/repo/?repo=${repo.props.id}" class="repo-link">${ repo.props.name }</a>
+                </td>
                 <td>
                     <a class="opendir-link" href="/repos/operation/?repo=${repo.props.id}&op=open">${_("Open")}</a>
                 </td>

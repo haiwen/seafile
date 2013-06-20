@@ -10,7 +10,7 @@ em {
     font-weight:bold;
 }
 h2 { font-size:18px; color:#333; margin:0.95em 0 0.4em; }
-h3 { font-size:16px; color:#833; margin:0.95em 0 0.3em; font-weight:normal; }
+h3 { font-size:16px; color:#333; margin:0.95em 0 0.3em; font-weight:normal; }
 h4 { font-size:14px; color:#000; }
 h3 span { font-size:12px; color:#333; }
 p.info { color:#606 }
@@ -130,7 +130,7 @@ a.button { text-decoration: underline; color:#800; }
     border-radius:3px;
     box-shadow:0px 1px 1px #ccc;
 }
-#wrapper { font: 13px/1.5 Arial, Helvetica, sans-serif; background:#f0f0f0; color:#333; }
+#wrapper { font: 13px/1.5 Arial, Helvetica, sans-serif; background:#f8f8f8; color:#333; }
 #header-inner, #main, #footer {
     width:950px;
     margin:0 auto;
@@ -146,8 +146,9 @@ a.button { text-decoration: underline; color:#800; }
     font-weight: bold;
     padding:6px 0 7px;
     height:66px;
-    background: #333;
-    border-bottom: 2px solid #888;
+    background: #fff;
+    border-bottom: 1px solid #eee;
+    box-shadow: 1px 0px 8px rgba(80, 80, 80, 0.5)
 }
 #lang-info {
     font-size: 13px;
@@ -155,9 +156,7 @@ a.button { text-decoration: underline; color:#800; }
     font-weight: normal;
     margin: 44px 8px 0 0;
 }
-#lang-info a { color: #eef; }
 #client-note {
-    color: #ff6d4b;
     font-family: Palatino, Georgia, "Times New Roman", serif;
     font-size: 36px;
     font-size:1.5em;
@@ -176,7 +175,6 @@ a.button { text-decoration: underline; color:#800; }
     display:block;
     min-width:57px;
     text-align:center;
-    color:#fff;
     padding-top: 36px;
     background:transparent no-repeat scroll center top;
 }
