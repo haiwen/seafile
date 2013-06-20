@@ -61,6 +61,14 @@ public class Repo : Object {
     public string share_permission { get; set; }
 
     public bool no_local_history { get; set; }
+
+    // virutal repo related
+    public bool is_virtual { get; set; }
+    public string origin_repo_id { get; set; }
+    public string origin_repo_name { get; set; }
+    public string origin_path { get; set; }
+    public bool is_original_owner { get; set; }
+    public string virtual_perm { get; set; }
 }
 
 

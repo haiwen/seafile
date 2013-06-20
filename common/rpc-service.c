@@ -937,6 +937,17 @@ seafile_get_repo (const char *repo_id, GError **error)
                   "head_branch", r->head ? r->head->name : NULL,
                   "head_cmmt_id", r->head ? r->head->commit_id : NULL,
                   NULL);
+
+#ifdef SEAFILE_SERVER
+    if (r->virtual_info) {
+        g_object_set (repo,
+                      "is_virtual", TRUE,
+                      "origin_repo_id", r->virtual_info->origin_repo_id,
+                      "origin_path", r->virtual_info->path,
+                      NULL);
+    }
+#endif
+
 #ifndef SEAFILE_SERVER
     g_object_set (repo, "worktree-changed", r->wt_changed,
                   "worktree-checktime", r->wt_check_time,
@@ -1192,7 +1203,7 @@ seafile_destroy_repo (const char *repo_id, GError **error)
                                           worktree);
     g_free (worktree);
 #else
-    seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
+    seaf_repo_manager_del_repo (seaf->repo_mgr, repo->id);
     seaf_share_manager_remove_repo (seaf->share_mgr, repo->id);
 #endif
 
@@ -1448,9 +1459,12 @@ seafile_list_owned_repos (const char *email, GError **error)
     ptr = repos;
     while (ptr) {
         r = ptr->data;
+
         repo = seafile_repo_new ();
         g_object_set (repo, "id", r->id, "name", r->name,
-                      "desc", r->desc, "encrypted", r->encrypted, NULL);
+                      "desc", r->desc, "encrypted", r->encrypted,
+                      "is_virtual", (r->virtual_info != NULL),
+                      NULL);
         ret = g_list_prepend (ret, repo);
         seaf_repo_unref (r);
         ptr = ptr->next;
@@ -3351,6 +3365,95 @@ seafile_get_file_id_by_commit_and_path(const char *commit_id,
     seaf_commit_unref(commit);
 
     return file_id;
+}
+
+/* Virtual repo related */
+
+char *
+seafile_create_virtual_repo (const char *origin_repo_id,
+                             const char *path,
+                             const char *repo_name,
+                             const char *repo_desc,
+                             const char *owner,
+                             GError **error)
+{
+    if (!origin_repo_id || !path ||!repo_name || !repo_desc || !owner) {
+        g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (origin_repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
+    char *repo_id;
+
+    repo_id = seaf_repo_manager_create_virtual_repo (seaf->repo_mgr,
+                                                     origin_repo_id, path,
+                                                     repo_name, repo_desc,
+                                                     owner, error);
+    return repo_id;
+}
+
+GList *
+seafile_get_virtual_repos_by_owner (const char *owner, GError **error)
+{
+    GList *repos, *ret = NULL, *ptr;
+    SeafRepo *r, *o;
+    SeafileRepo *repo;
+    char *orig_repo_id;
+    gboolean is_original_owner;
+
+    if (!owner) {
+        g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return NULL;
+    }
+
+    repos = seaf_repo_manager_get_virtual_repos_by_owner (seaf->repo_mgr,
+                                                          owner,
+                                                          error);
+    for (ptr = repos; ptr != NULL; ptr = ptr->next) {
+        r = ptr->data;
+
+        orig_repo_id = r->virtual_info->origin_repo_id;
+        o = seaf_repo_manager_get_repo (seaf->repo_mgr, orig_repo_id);
+        if (!o) {
+            seaf_warning ("Failed to get origin repo %.10s.\n", orig_repo_id);
+            seaf_repo_unref (r);
+            continue;
+        }
+
+        char *orig_owner = seaf_repo_manager_get_repo_owner (seaf->repo_mgr,
+                                                             orig_repo_id);
+        if (g_strcmp0 (orig_owner, owner) == 0)
+            is_original_owner = TRUE;
+        else
+            is_original_owner = FALSE;
+        g_free (orig_owner);
+
+        char *perm = seaf_repo_manager_check_permission (seaf->repo_mgr,
+                                                         r->id, owner, NULL);
+
+        repo = seafile_repo_new ();
+        g_object_set (repo,
+                      "id", r->id, "name", r->name,
+                      "is_virtual", TRUE,
+                      "origin_repo_id", r->virtual_info->origin_repo_id,
+                      "origin_repo_name", o->name,
+                      "origin_path", r->virtual_info->path,
+                      "is_original_owner", is_original_owner,
+                      "virtual_perm", perm,
+                      NULL);
+
+        ret = g_list_prepend (ret, repo);
+        seaf_repo_unref (r);
+        seaf_repo_unref (o);
+        g_free (perm);
+    }
+    g_list_free (repos);
+
+    return g_list_reverse (ret);
 }
 
 #endif  /* SEAFILE_SERVER */

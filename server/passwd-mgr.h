@@ -67,4 +67,9 @@ seaf_passwd_manager_get_decrypt_key_raw (SeafPasswdManager *mgr,
                                          unsigned char *key_out,
                                          unsigned char *iv_out);
 
+char *
+seaf_passwd_manager_get_repo_passwd (SeafPasswdManager *mgr,
+                                     const char *repo_id,
+                                     const char *user);
+
 #endif

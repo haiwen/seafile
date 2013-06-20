@@ -296,4 +296,15 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.is_inner_pub_repo(repo_id)
 
 
+    # virtual repo
+    def create_virtual_repo(self, origin_repo_id, path, repo_name, repo_desc, owner):
+        return seafserv_threaded_rpc.create_virtual_repo(origin_repo_id,
+                                                         path,
+                                                         repo_name,
+                                                         repo_desc,
+                                                         owner)
+
+    def get_virtual_repos_by_owner(self, owner):
+        return seafserv_threaded_rpc.get_virtual_repos_by_owner(owner)
+
 seafile_api = SeafileAPI()

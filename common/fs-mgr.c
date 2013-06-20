@@ -1347,7 +1347,7 @@ seaf_fs_manager_get_seafile_id_by_path (SeafFSManager *mgr,
 
     file_id = seaf_fs_manager_path_to_obj_id (mgr, root_id, path, &mode, error);
 
-    if (*error)
+    if (!file_id)
         return NULL;
 
     if (file_id && S_ISDIR(mode)) {
@@ -1369,7 +1369,7 @@ seaf_fs_manager_get_seafdir_id_by_path (SeafFSManager *mgr,
 
     dir_id = seaf_fs_manager_path_to_obj_id (mgr, root_id, path, &mode, error);
 
-    if (*error)
+    if (!dir_id)
         return NULL;
 
     if (dir_id && !S_ISDIR(mode)) {

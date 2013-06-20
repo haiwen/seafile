@@ -202,6 +202,9 @@ update_repo (void *vprocessor)
         goto out;
     }
 
+    seaf_repo_manager_cleanup_virtual_repos (seaf->repo_mgr, repo_id);
+    seaf_repo_manager_merge_virtual_repo (seaf->repo_mgr, repo_id, NULL);
+
 out:
     if (repo)   seaf_repo_unref (repo);
     if (commit) seaf_commit_unref (commit);

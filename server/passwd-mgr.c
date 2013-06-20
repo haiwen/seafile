@@ -17,6 +17,7 @@
 typedef struct {
     unsigned char key[16];
     unsigned char iv[16];
+    char *passwd;
     guint64 expire_time;
 } DecryptKey;
 
@@ -27,6 +28,15 @@ struct _SeafPasswdManagerPriv {
 
 static int reap_expired_passwd (void *vmgr);
 
+static void
+decrypt_key_free (DecryptKey *key)
+{
+    if (!key) return;
+
+    g_free (key->passwd);
+    g_free (key);
+}
+
 SeafPasswdManager *
 seaf_passwd_manager_new (struct _SeafileSession *session)
 {
@@ -35,7 +45,8 @@ seaf_passwd_manager_new (struct _SeafileSession *session)
     mgr->session = session;
     mgr->priv = g_new0 (struct _SeafPasswdManagerPriv, 1);
     mgr->priv->decrypt_keys = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                                     g_free, g_free);
+                                                     g_free,
+                                                     (GDestroyNotify)decrypt_key_free);
 
     return mgr;
 }
@@ -90,6 +101,7 @@ seaf_passwd_manager_set_passwd (SeafPasswdManager *mgr,
 
     seafile_generate_enc_key (passwd, strlen(passwd), repo->enc_version,
                               crypt_key->key, crypt_key->iv);
+    crypt_key->passwd = g_strdup(passwd);
     crypt_key->expire_time = (guint64)time(NULL) + REAP_THRESHOLD;
 
     hash_key = g_string_new (NULL);
@@ -193,6 +205,27 @@ seaf_passwd_manager_get_decrypt_key_raw (SeafPasswdManager *mgr,
     memcpy (iv_out, crypt_key->iv, 16);
 
     return 0;
+}
+
+char *
+seaf_passwd_manager_get_repo_passwd (SeafPasswdManager *mgr,
+                                     const char *repo_id,
+                                     const char *user)
+{
+    GString *hash_key;
+    DecryptKey *crypt_key;
+
+    hash_key = g_string_new (NULL);
+    g_string_printf (hash_key, "%s.%s", repo_id, user);
+
+    crypt_key = g_hash_table_lookup (mgr->priv->decrypt_keys, hash_key->str);
+    if (!crypt_key) {
+        g_string_free (hash_key, TRUE);
+        return NULL;
+    }
+    g_string_free (hash_key, TRUE);
+
+    return g_strdup(crypt_key->passwd);
 }
 
 static int

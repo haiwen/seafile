@@ -257,25 +257,32 @@ int
 seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
                                 const char *repo_id)
 {
+    SeafVirtRepo *vinfo;
+    const char *r_repo_id = repo_id;
     char *user = NULL;
     int org_id;
     gint64 quota, usage;
     int ret = 0;
 
-    user = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
+    /* If it's a virtual repo, check quota to origin repo. */
+    vinfo = seaf_repo_manager_get_virtual_repo_info (seaf->repo_mgr, repo_id);
+    if (vinfo)
+        r_repo_id = vinfo->origin_repo_id;
+
+    user = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, r_repo_id);
     if (user != NULL) {
         quota = seaf_quota_manager_get_user_quota (mgr, user);
     } else if (seaf->cloud_mode) {
-        org_id = seaf_repo_manager_get_repo_org (seaf->repo_mgr, repo_id);
+        org_id = seaf_repo_manager_get_repo_org (seaf->repo_mgr, r_repo_id);
         if (org_id < 0) {
-            seaf_warning ("Repo %s has no owner.\n", repo_id);
+            seaf_warning ("Repo %s has no owner.\n", r_repo_id);
             ret = -1;
             goto out;
         }
 
         quota = seaf_quota_manager_get_org_quota (mgr, org_id);
     } else {
-        seaf_warning ("Repo %s has no owner.\n", repo_id);
+        seaf_warning ("Repo %s has no owner.\n", r_repo_id);
         ret = -1;
         goto out;
     }
@@ -307,6 +314,7 @@ seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
         ret = -1;
 
 out:
+    seaf_virtual_repo_info_free (vinfo);
     g_free (user);
     return ret;
 }
@@ -324,18 +332,21 @@ get_total_size (SeafDBRow *row, void *vpsize)
 gint64
 seaf_quota_manager_get_user_usage (SeafQuotaManager *mgr, const char *user)
 {
-    char sql[256];
-    gint64 ret = 0;
+    char sql[512];
+    gint64 total = 0;
 
     snprintf (sql, sizeof(sql), 
-              "SELECT size FROM RepoOwner, RepoSize WHERE "
-              "owner_id='%s' AND RepoOwner.repo_id=RepoSize.repo_id",
+              "SELECT size FROM "
+              "RepoOwner o LEFT JOIN VirtualRepo v ON o.repo_id=v.repo_id, "
+              "RepoSize WHERE "
+              "owner_id='%s' AND o.repo_id=RepoSize.repo_id "
+              "AND v.repo_id IS NULL",
               user);
     if (seaf_db_foreach_selected_row (mgr->session->db, sql,
-                                      get_total_size, &ret) < 0)
+                                      get_total_size, &total) < 0)
         return -1;
 
-    return ret;
+    return total;
 }
 
 static void

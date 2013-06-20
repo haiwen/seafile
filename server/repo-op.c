@@ -307,6 +307,7 @@ gen_new_commit (const char *repo_id,
                 const char *new_root,
                 const char *user,
                 const char *desc,
+                char *new_commit_id,
                 GError **error)
 {
 #define MAX_RETRY_COUNT 3
@@ -425,6 +426,9 @@ retry:
         }
     }
 
+    if (new_commit_id)
+        memcpy (new_commit_id, merged_commit->commit_id, 41);
+
 out:
     seaf_commit_unref (new_commit);
     seaf_commit_unref (current_head);
@@ -529,8 +533,12 @@ seaf_repo_manager_post_file (SeafRepoManager *mgr,
 
     snprintf(buf, SEAF_PATH_MAX, "Added \"%s\"", file_name);
     if (gen_new_commit (repo_id, head_commit, root_id,
-                        user, buf, error) < 0)
+                        user, buf, NULL, error) < 0) {
         ret = -1;
+        goto out;
+    }
+
+    seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
 out:
     if (repo)
@@ -856,8 +864,12 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
         g_string_printf (buf, "Added \"%s\".", (char *)(filenames->data));
 
     if (gen_new_commit (repo_id, head_commit, root_id,
-                        user, buf->str, error) < 0)
+                        user, buf->str, NULL, error) < 0) {
         ret = -1;
+        goto out;
+    }
+
+    seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
     GString *new_ids_buf = g_string_new(NULL);
     const char *id_sep = "\t";
@@ -1026,8 +1038,14 @@ seaf_repo_manager_del_file (SeafRepoManager *mgr,
     }
 
     if (gen_new_commit (repo_id, head_commit, root_id,
-                        user, buf, error) < 0)
+                        user, buf, NULL, error) < 0) {
         ret = -1;
+        goto out;
+    }
+
+    seaf_repo_manager_cleanup_virtual_repos (mgr, repo_id);
+
+    seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
 out:
     if (repo)
@@ -1127,7 +1145,7 @@ put_dirent_and_commit (const char *repo_id,
     }
 
     if (gen_new_commit (repo_id, head_commit, root_id,
-                        user, buf, error) < 0)
+                        user, buf, NULL, error) < 0)
         ret = -1;
 
 out:
@@ -1212,7 +1230,9 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
             ret = -1;
             goto out;
     }
-    
+
+    seaf_repo_manager_merge_virtual_repo (mgr, dst_repo_id, NULL);
+
 out:
     if (src_repo)
         seaf_repo_unref (src_repo);
@@ -1274,7 +1294,7 @@ move_file_same_repo (const char *repo_id,
     }
 
     if (gen_new_commit (repo_id, head_commit, root_id,
-                        user, buf, error) < 0)
+                        user, buf, NULL, error) < 0)
         ret = -1;
     
 out:
@@ -1347,7 +1367,9 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
             ret = -1;
             goto out;
         }
-        
+
+        seaf_repo_manager_cleanup_virtual_repos (mgr, src_repo_id);
+        seaf_repo_manager_merge_virtual_repo (mgr, src_repo_id, NULL);
     } else {
         /* move between different repos */
 
@@ -1363,6 +1385,8 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
             ret = -1;
             goto out;
         }
+
+        seaf_repo_manager_merge_virtual_repo (mgr, dst_repo_id, NULL);
 
         if (seaf_repo_manager_del_file (mgr, src_repo_id, src_path,
                                         src_filename, user, error) < 0) {
@@ -1437,8 +1461,12 @@ seaf_repo_manager_post_dir (SeafRepoManager *mgr,
     /* Commit. */
     snprintf(buf, SEAF_PATH_MAX, "Added directory \"%s\"", new_dir_name);
     if (gen_new_commit (repo_id, head_commit, root_id,
-                        user, buf, error) < 0)
+                        user, buf, NULL, error) < 0) {
         ret = -1;
+        goto out;
+    }
+
+    seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
 out:
     if (repo)
@@ -1502,8 +1530,12 @@ seaf_repo_manager_post_empty_file (SeafRepoManager *mgr,
     /* Commit. */
     snprintf(buf, SEAF_PATH_MAX, "Added \"%s\"", new_file_name);
     if (gen_new_commit (repo_id, head_commit, root_id,
-                        user, buf, error) < 0)
+                        user, buf, NULL, error) < 0) {
         ret = -1;
+        goto out;
+    }
+
+    seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
 out:
     if (repo)
@@ -1683,8 +1715,13 @@ seaf_repo_manager_rename_file (SeafRepoManager *mgr,
     }
 
     if (gen_new_commit (repo_id, head_commit, root_id,
-                        user, buf, error) < 0)
+                        user, buf, NULL, error) < 0) {
         ret = -1;
+        goto out;
+    }
+
+    seaf_repo_manager_cleanup_virtual_repos (mgr, repo_id);
+    seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
 out:
     if (repo)
@@ -1901,12 +1938,14 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
 
     /* Commit. */
     snprintf(buf, SEAF_PATH_MAX, "Modified \"%s\"", file_name);
-    if (gen_new_commit (repo_id, head_commit, root_id, user, buf, error) < 0) {
+    if (gen_new_commit (repo_id, head_commit, root_id, user, buf, NULL, error) < 0) {
         ret = -1;
         goto out;       
     }
 
     *new_file_id = g_strdup(new_dent->id);
+
+    seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
 out:
     if (repo)
@@ -1924,6 +1963,76 @@ out:
     if (ret == 0) {
         update_repo_size (repo_id);
     }
+
+    return ret;
+}
+
+int
+seaf_repo_manager_update_dir (SeafRepoManager *mgr,
+                              const char *repo_id,
+                              const char *dir_path,
+                              const char *new_dir_id,
+                              const char *user,
+                              const char *head_id,
+                              char *new_commit_id,
+                              GError **error)
+{
+    SeafRepo *repo = NULL;
+    SeafCommit *head_commit = NULL;
+    char *canon_path = NULL;
+    char *parent = NULL, *dirname = NULL;
+    SeafDirent *new_dent = NULL;
+    char *root_id = NULL;
+    char *commit_desc = "Auto merge by Seafile system";
+    int ret = 0;
+
+    GET_REPO_OR_FAIL(repo, repo_id);
+    const char *base = head_id ? head_id : repo->head->commit_id;
+    GET_COMMIT_OR_FAIL(head_commit, base);
+
+    /* Are we updating the root? */
+    if (strcmp (dir_path, "/") == 0) {
+        if (gen_new_commit (repo_id, head_commit, new_dir_id,
+                            user, commit_desc, new_commit_id, error) < 0)
+            ret = -1;
+        goto out;
+    }
+
+    parent = g_path_get_dirname (dir_path);
+    canon_path = get_canonical_path (parent);
+    g_free (parent);
+
+    dirname = g_path_get_basename (dir_path);
+
+    FAIL_IF_FILE_NOT_EXISTS(head_commit->root_id, canon_path, dirname, NULL);
+
+    new_dent = seaf_dirent_new (new_dir_id, S_IFDIR, dirname);
+
+    root_id = do_put_file (head_commit->root_id, canon_path, new_dent);
+    if (!root_id) {
+        seaf_warning ("[update dir] Failed to put file.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to update dir");
+        ret = -1;
+        goto out;
+    }
+
+    if (gen_new_commit (repo_id, head_commit, root_id,
+                        user, commit_desc, new_commit_id, error) < 0) {
+        ret = -1;
+        goto out;
+    }
+
+out:
+    seaf_repo_unref (repo);
+    seaf_commit_unref (head_commit);
+    g_free (new_dent);
+    g_free (canon_path);
+    g_free (dirname);
+    g_free (root_id);
+
+    if (ret == 0)
+        update_repo_size (repo_id);
 
     return ret;
 }
@@ -2236,8 +2345,12 @@ seaf_repo_manager_revert_file (SeafRepoManager *mgr,
 #endif
     snprintf(buf, SEAF_PATH_MAX, "Reverted file \"%s\" to status at %s", filename, time_str);
     if (gen_new_commit (repo_id, head_commit, root_id,
-                        user, buf, error) < 0)
+                        user, buf, NULL, error) < 0) {
         ret = -1;
+        goto out;
+    }
+
+    seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
 out:
     if (repo)
@@ -2431,8 +2544,12 @@ seaf_repo_manager_revert_dir (SeafRepoManager *mgr,
     /* Commit. */
     snprintf(buf, SEAF_PATH_MAX, "Recovered deleted directory \"%s\"", dirname);
     if (gen_new_commit (repo_id, head_commit, root_id,
-                        user, buf, error) < 0)
+                        user, buf, NULL, error) < 0) {
         ret = -1;
+        goto out;
+    }
+
+    seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
 out:
     if (repo)
@@ -2982,6 +3099,8 @@ retry:
         commit = new_commit = NULL;
         goto retry;
     }
+
+    seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
 out:
     if (new_commit)

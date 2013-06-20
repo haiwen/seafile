@@ -180,6 +180,38 @@ group_out:
     return seaf_repo_manager_get_org_inner_pub_repo_perm (mgr, org_id, repo_id);
 }
 
+static char *
+check_virtual_repo_permission (SeafRepoManager *mgr,
+                               const char *repo_id,
+                               const char *origin_repo_id,
+                               const char *user,
+                               GError **error)
+{
+    char *owner = NULL, *orig_owner = NULL;
+    char *permission = NULL;
+
+    owner = seaf_repo_manager_get_repo_owner (mgr, repo_id);
+    if (!owner) {
+        seaf_warning ("Failed to get owner for virtual repo %.10s.\n", repo_id);
+        goto out;
+    }
+
+    /* If this virtual repo is not created by @user, it is shared by others. */
+    if (strcmp (user, owner) != 0) {
+        permission = check_repo_share_permission (mgr, repo_id, user);
+        goto out;
+    }
+
+    /* otherwise check @user's permission to the origin repo. */
+    permission =  seaf_repo_manager_check_permission (mgr, origin_repo_id,
+                                                      user, error);
+
+out:
+    g_free (owner);
+    g_free (orig_owner);
+    return permission;
+}
+
 /*
  * Comprehensive repo access permission checker.
  *
@@ -191,9 +223,19 @@ seaf_repo_manager_check_permission (SeafRepoManager *mgr,
                                     const char *user,
                                     GError **error)
 {
+    SeafVirtRepo *vinfo;
     char *owner = NULL;
     int org_id;
     char *permission = NULL;
+
+    /* This is a virtual repo.*/
+    vinfo = seaf_repo_manager_get_virtual_repo_info (mgr, repo_id);
+    if (vinfo) {
+        permission = check_virtual_repo_permission (mgr, repo_id,
+                                                    vinfo->origin_repo_id,
+                                                    user, error);
+        goto out;
+    }
 
     owner = seaf_repo_manager_get_repo_owner (mgr, repo_id);
     if (owner != NULL) {
@@ -223,6 +265,7 @@ seaf_repo_manager_check_permission (SeafRepoManager *mgr,
     }
 
 out:
+    seaf_virtual_repo_info_free (vinfo);
     g_free (owner);
     return permission;
 }

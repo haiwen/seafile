@@ -819,7 +819,20 @@ seafile_get_file_id_by_commit_and_path(const char *commit_id,
                                        const char *path,
                                        GError **error);
 
-/* ------------------ Public RPC calls. ------------ */
+/* virtual repo related */
+
+char *
+seafile_create_virtual_repo (const char *origin_repo_id,
+                             const char *path,
+                             const char *repo_name,
+                             const char *repo_desc,
+                             const char *owner,
+                             GError **error);
+
+GList *
+seafile_get_virtual_repos_by_owner (const char *owner, GError **error);
+
+/* ------------------ public RPC calls. ------------ */
 
 GList* seafile_get_repo_list_pub (int start, int limit, GError **error);
 

@@ -456,8 +456,15 @@ seaf_repo_manager_set_repo_history_limit (SeafRepoManager *mgr,
                                           const char *repo_id,
                                           int days)
 {
+    SeafVirtRepo *vinfo;
     SeafDB *db = mgr->seaf->db;
     char sql[256];
+
+    vinfo = seaf_repo_manager_get_virtual_repo_info (mgr, repo_id);
+    if (vinfo) {
+        seaf_virtual_repo_info_free (vinfo);
+        return 0;
+    }
 
     if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
         gboolean err;
@@ -500,12 +507,20 @@ int
 seaf_repo_manager_get_repo_history_limit (SeafRepoManager *mgr,
                                           const char *repo_id)
 {
+    SeafVirtRepo *vinfo;
+    const char *r_repo_id = repo_id;
     char sql[256];
     int per_repo_days = -1;
 
+    vinfo = seaf_repo_manager_get_virtual_repo_info (mgr, repo_id);
+    if (vinfo)
+        r_repo_id = vinfo->origin_repo_id;
+
     snprintf (sql, sizeof(sql),
               "SELECT days FROM RepoHistoryLimit WHERE repo_id='%s'",
-              repo_id);
+              r_repo_id);
+    seaf_virtual_repo_info_free (vinfo);
+
     /* We don't use seaf_db_get_int() because we need to differ DB error
      * from not exist.
      * We can't just return global config value if DB error occured,
@@ -591,4 +606,48 @@ seaf_repo_manager_get_repo_truncate_time (SeafRepoManager *mgr,
         return timestamp;
     else
         return 0;
+}
+
+static gboolean
+load_virtual_info (SeafDBRow *row, void *p_vinfo)
+{
+    SeafVirtRepo *vinfo;
+    const char *origin_repo_id, *path, *base_commit;
+
+    origin_repo_id = seaf_db_row_get_column_text (row, 0);
+    path = seaf_db_row_get_column_text (row, 1);
+    base_commit = seaf_db_row_get_column_text (row, 2);
+
+    vinfo = g_new0 (SeafVirtRepo, 1);
+    memcpy (vinfo->origin_repo_id, origin_repo_id, 36);
+    vinfo->path = g_strdup(path);
+    memcpy (vinfo->base_commit, base_commit, 40);
+
+    *((SeafVirtRepo **)p_vinfo) = vinfo;
+
+    return FALSE;
+}
+
+SeafVirtRepo *
+seaf_repo_manager_get_virtual_repo_info (SeafRepoManager *mgr,
+                                         const char *repo_id)
+{
+    char sql[256];
+    SeafVirtRepo *vinfo = NULL;
+
+    snprintf (sql, 256,
+              "SELECT origin_repo, path, base_commit FROM VirtualRepo "
+              "WHERE repo_id = '%s'", repo_id);
+    seaf_db_foreach_selected_row (seaf->db, sql, load_virtual_info, &vinfo);
+
+    return vinfo;
+}
+
+void
+seaf_virtual_repo_info_free (SeafVirtRepo *vinfo)
+{
+    if (!vinfo) return;
+
+    g_free (vinfo->path);
+    g_free (vinfo);
 }

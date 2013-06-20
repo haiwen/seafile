@@ -390,6 +390,16 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "seafile_get_org_user_quota_usage",
                                      searpc_signature_int64__int_string());
 
+    /* virtual repo */
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_create_virtual_repo,
+                                     "create_virtual_repo",
+                                     searpc_signature_string__string_string_string_string_string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_virtual_repos_by_owner,
+                                     "get_virtual_repos_by_owner",
+                                     searpc_signature_objlist__string());
 
     /* -------- rpc services -------- */
     /* token for web access to repo */

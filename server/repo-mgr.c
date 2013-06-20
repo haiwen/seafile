@@ -102,8 +102,9 @@ seaf_repo_free (SeafRepo *repo)
 {
     if (repo->name) g_free (repo->name);
     if (repo->desc) g_free (repo->desc);
-    if (repo->category) g_free (repo->category);
     if (repo->head) seaf_branch_unref (repo->head);
+    if (repo->virtual_info)
+        seaf_virtual_repo_info_free (repo->virtual_info);
     g_free (repo);
 }
 
@@ -338,6 +339,11 @@ seaf_repo_manager_init (SeafRepoManager *mgr)
         return -1;
     }
 
+    if (seaf_repo_manager_init_merge_scheduler() < 0) {
+        seaf_warning ("Failed to init merge scheduler.\n");
+        return -1;
+    }
+
     return 0;
 }
 
@@ -423,14 +429,26 @@ remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
               repo_id);
     seaf_db_query (db, sql);
 
+    /* Remove virtual repos when origin repo is deleted. */
+    GList *vrepos, *ptr;
+    vrepos = seaf_repo_manager_get_virtual_repo_ids_by_origin (mgr, repo_id);
+    for (ptr = vrepos; ptr != NULL; ptr = ptr->next)
+        remove_repo_ondisk (mgr, (char *)ptr->data);
+    string_list_free (vrepos);
+
+    snprintf (sql, sizeof(sql),
+              "DELETE FROM VirtualRepo WHERE repo_id='%s' OR origin_repo='%s'",
+              repo_id, repo_id);
+    seaf_db_query (db, sql);
+
     return 0;
 }
 
 int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr,
-                            SeafRepo *repo)
+                            const char *repo_id)
 {
-    if (remove_repo_ondisk (mgr, repo->id) < 0)
+    if (remove_repo_ondisk (mgr, repo_id) < 0)
         return -1;
 
     return 0;
@@ -585,10 +603,16 @@ load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt)
         seaf_branch_unref (branch);
     }
 
-    if (repo->is_corrupted && !ret_corrupt) {
-        seaf_repo_free (repo);
-        return NULL;
+    if (repo->is_corrupted) {
+        if (!ret_corrupt) {
+            seaf_repo_free (repo);
+            return NULL;
+        }
+        return repo;
     }
+
+    /* Load virtual repo info if any. */
+    repo->virtual_info = seaf_repo_manager_get_virtual_repo_info (manager, repo_id);
 
     return repo;
 }
@@ -703,6 +727,12 @@ create_tables_mysql (SeafRepoManager *mgr)
 
     sql = "CREATE TABLE IF NOT EXISTS WebAP (repo_id CHAR(37) PRIMARY KEY, "
         "access_property CHAR(10))"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS VirtualRepo (repo_id CHAR(36) PRIMARY KEY,"
+        "origin_repo CHAR(36), path TEXT, base_commit CHAR(40), INDEX(origin_repo))"
         "ENGINE=INNODB";
     if (seaf_db_query (db, sql) < 0)
         return -1;
@@ -872,6 +902,16 @@ create_tables_sqlite (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
+    sql = "CREATE TABLE IF NOT EXISTS VirtualRepo (repo_id CHAR(36) PRIMARY KEY,"
+        "origin_repo CHAR(36), path TEXT, base_commit CHAR(40))";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE INDEX IF NOT EXISTS virtualrepo_origin_repo_idx "
+        "ON VirtualRepo (origin_repo)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
     return 0;
 }
 
@@ -1019,6 +1059,17 @@ create_tables_pgsql (SeafRepoManager *mgr)
         "access_property VARCHAR(10))";
     if (seaf_db_query (db, sql) < 0)
         return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS VirtualRepo (repo_id CHAR(36) PRIMARY KEY,"
+        "origin_repo CHAR(36), path TEXT, base_commit CHAR(40))";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    if (!pgsql_index_exists (db, "virtualrepo_origin_repo_idx")) {
+        sql = "CREATE INDEX virtualrepo_origin_repo_idx ON VirtualRepo (origin_repo)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
 
     return 0;
 }
@@ -1387,8 +1438,15 @@ seaf_repo_manager_set_repo_history_limit (SeafRepoManager *mgr,
                                           const char *repo_id,
                                           int days)
 {
+    SeafVirtRepo *vinfo;
     SeafDB *db = mgr->seaf->db;
     char sql[256];
+
+    vinfo = seaf_repo_manager_get_virtual_repo_info (mgr, repo_id);
+    if (vinfo) {
+        seaf_virtual_repo_info_free (vinfo);
+        return 0;
+    }
 
     if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
         gboolean err;
@@ -1421,13 +1479,21 @@ int
 seaf_repo_manager_get_repo_history_limit (SeafRepoManager *mgr,
                                           const char *repo_id)
 {
+    SeafVirtRepo *vinfo;
+    const char *r_repo_id = repo_id;
     char sql[256];
     int per_repo_days;
 
+    vinfo = seaf_repo_manager_get_virtual_repo_info (mgr, repo_id);
+    if (vinfo)
+        r_repo_id = vinfo->origin_repo_id;
+
     snprintf (sql, sizeof(sql),
               "SELECT days FROM RepoHistoryLimit WHERE repo_id='%s'",
-              repo_id);
+              r_repo_id);
     per_repo_days = seaf_db_get_int (mgr->seaf->db, sql);
+
+    seaf_virtual_repo_info_free (vinfo);
 
     /* If per repo value is not set or DB error, return the global one. */
     if (per_repo_days < 0)

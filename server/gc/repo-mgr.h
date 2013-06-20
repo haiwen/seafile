@@ -23,6 +23,12 @@
 struct _SeafRepoManager;
 typedef struct _SeafRepo SeafRepo;
 
+typedef struct SeafVirtRepo {
+    char        origin_repo_id[37];
+    char        *path;
+    char        base_commit[41];
+} SeafVirtRepo;
+
 struct _SeafRepo {
     struct _SeafRepoManager *manager;
 
@@ -55,6 +61,9 @@ seaf_repo_ref (SeafRepo *repo);
 
 void
 seaf_repo_unref (SeafRepo *repo);
+
+void
+seaf_virtual_repo_info_free (SeafVirtRepo *vinfo);
 
 typedef struct _SeafRepoManager SeafRepoManager;
 typedef struct _SeafRepoManagerPriv SeafRepoManagerPriv;
@@ -127,5 +136,12 @@ seaf_repo_manager_get_repo_valid_since (SeafRepoManager *mgr,
 gint64
 seaf_repo_manager_get_repo_truncate_time (SeafRepoManager *mgr,
                                           const char *repo_id);
+
+SeafVirtRepo *
+seaf_repo_manager_get_virtual_repo_info (SeafRepoManager *mgr,
+                                         const char *repo_id);
+
+void
+seaf_virtual_repo_info_free (SeafVirtRepo *vinfo);
 
 #endif
