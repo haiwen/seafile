@@ -1567,11 +1567,10 @@ remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
     pthread_mutex_lock (&mgr->priv->db_lock);
 #ifdef HAVE_KEYSTORAGE_GK
     gnome_keyring_sf_delete_password(repo_id, "password");
-#else
+#endif
     snprintf (sql, sizeof(sql), "DELETE FROM RepoPasswd WHERE repo_id = '%s'", 
               repo_id);
     sqlite_query_exec (mgr->priv->db, sql);
-#endif
     snprintf (sql, sizeof(sql), "DELETE FROM RepoKeys WHERE repo_id = '%s'", 
               repo_id);
     sqlite_query_exec (mgr->priv->db, sql);
@@ -1950,13 +1949,16 @@ load_repo_passwd (SeafRepoManager *manager, SeafRepo *repo)
         repo->passwd = g_strdup(gk_password);
         g_free(gk_password);
         gk_password = NULL;
-    }    
+    } else {
 #else    
     snprintf (sql, sizeof(sql), 
               "SELECT passwd FROM RepoPasswd WHERE repo_id='%s'",
               repo->id);
     if (sqlite_foreach_selected_row (db, sql, load_passwd_cb, repo) < 0)
         return -1;
+#endif
+#ifdef HAVE_KEYSTORAGE_GK
+    }
 #endif
     snprintf (sql, sizeof(sql), 
               "SELECT key, iv FROM RepoKeys WHERE repo_id='%s'",
