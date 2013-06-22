@@ -18,7 +18,7 @@ if WIN32
 endif
 
 if COMPILE_SERVER
-  MAKE_SERVER = server tools monitor httpserver $(MAKE_CONTROLLER)
+  MAKE_SERVER = server tools httpserver $(MAKE_CONTROLLER)
 endif
 
 SUBDIRS = include lib common app python tests doc \

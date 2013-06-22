@@ -436,47 +436,7 @@ out:
 static void
 update_repo_size(const char *repo_id)
 {
-    if (seaf->monitor_id == NULL)
-        return;
-
-    SearpcClient *ccnet_rpc_client = NULL, *monitor_rpc_client = NULL;
-    GError *error = NULL;
-
-    if (strcmp(seaf->monitor_id, seaf->session->base.id) != 0) {
-        ccnet_rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                           NULL,
-                                                           "ccnet-rpcserver");
-        if (!ccnet_rpc_client) {
-            seaf_warning ("failed to create ccnet rpc client\n");
-            goto out;
-        }
-
-        if (!ccnet_peer_is_ready (ccnet_rpc_client, seaf->monitor_id)) {
-            goto out;
-        }
-    }
-
-    monitor_rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                         NULL,
-                                                         "monitor-rpcserver");
-    if (!monitor_rpc_client) {
-        seaf_warning ("failed to create monitor rpc client\n");
-        goto out;
-    }
-
-    searpc_client_call__int (monitor_rpc_client, "compute_repo_size",
-                             &error, 1, "string", repo_id);
-
-    if (error) {
-        seaf_warning ("error when compute_repo_size: %s", error->message);
-        g_error_free (error);
-    }
-
-out:
-    if (ccnet_rpc_client)
-        ccnet_rpc_client_free (ccnet_rpc_client);
-    if (monitor_rpc_client)
-        ccnet_rpc_client_free (monitor_rpc_client);
+    schedule_repo_size_computation (seaf->size_sched, repo_id);
 }
 
 int

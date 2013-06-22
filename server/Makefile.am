@@ -43,6 +43,7 @@ noinst_HEADERS = web-accesstoken-mgr.h chunkserv-mgr.h seafile-session.h \
 	listen-mgr.h \
 	monitor-rpc-wrappers.h \
 	../common/mq-mgr.h \
+	size-sched.h \
 	$(proc_headers)
 
 seaf_server_SOURCES = \
@@ -55,6 +56,7 @@ seaf_server_SOURCES = \
 	listen-mgr.c \
 	repo-op.c \
 	repo-perm.c \
+	size-sched.c \
 	monitor-rpc-wrappers.c ../common/seaf-db.c \
 	../common/seafile-config.c ../common/bitfield.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \

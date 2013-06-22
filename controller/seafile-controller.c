@@ -188,30 +188,6 @@ start_seaf_server ()
 }
 
 static int
-start_seaf_monitor ()
-{
-    if (!ctl->config_dir || !ctl->seafile_dir)
-        return -1;
-
-    seaf_message ("starting seaf-mon ...\n");
-
-    char *argv[] = {
-        "seaf-mon",
-        "-c", ctl->config_dir,
-        "-d", ctl->seafile_dir,
-        "-P", ctl->pidfile[PID_MONITOR],
-        NULL};
-
-    int pid = spawn_process (argv);
-    if (pid <= 0) {
-        seaf_warning ("Failed to spawn seaf-mon\n");
-        return -1;
-    }
-
-    return 0;
-}
-
-static int
 start_httpserver() {
     char *argv[] = {
         "httpserver",
@@ -268,11 +244,6 @@ check_process (void *data)
     if (need_restart(PID_SERVER)) {
         seaf_message ("seaf-server need restart...\n");
         start_seaf_server ();
-    }
-
-    if (need_restart(PID_MONITOR)) {
-        seaf_message ("seaf-mon need restart...\n");
-        start_seaf_monitor ();
     }
 
     if (need_restart(PID_HTTPSERVER)) {
@@ -375,9 +346,6 @@ on_ccnet_connected ()
     if (start_seaf_server () < 0)
         controller_exit(1);
 
-    if (start_seaf_monitor () < 0)
-        controller_exit(1);
-
     if (need_restart(PID_HTTPSERVER)) {
         /* Since httpserver doesn't die when ccnet server dies, when ccnet
          * server is restarted, we don't need to start httpserver */
@@ -426,7 +394,6 @@ stop_ccnet_server ()
 
     try_kill_process(PID_CCNET);
     try_kill_process(PID_SERVER);
-    try_kill_process(PID_MONITOR);
     try_kill_process(PID_HTTPSERVER);
 }
 
@@ -443,7 +410,6 @@ init_pidfile_path (SeafileController *ctl)
 
     ctl->pidfile[PID_CCNET] = g_build_filename(pid_dir, "ccnet.pid", NULL);
     ctl->pidfile[PID_SERVER] = g_build_filename(pid_dir, "seaf-server.pid", NULL);
-    ctl->pidfile[PID_MONITOR] = g_build_filename(pid_dir, "seaf-mon.pid", NULL);
     ctl->pidfile[PID_HTTPSERVER] = g_build_filename(pid_dir, "httpserver.pid", NULL);
 }
 

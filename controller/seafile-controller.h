@@ -26,7 +26,6 @@ typedef struct _SeafileController SeafileController;
 enum {
     PID_CCNET = 0,
     PID_SERVER,
-    PID_MONITOR,
     PID_HTTPSERVER,
     N_PID
 };

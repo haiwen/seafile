@@ -22,6 +22,7 @@
 #include "passwd-mgr.h"
 #include "quota-mgr.h"
 #include "listen-mgr.h"
+#include "size-sched.h"
 
 #include "mq-mgr.h"
 
@@ -70,6 +71,8 @@ struct _SeafileSession {
 
     CEventManager       *ev_mgr;
     CcnetJobManager     *job_mgr;
+
+    SizeScheduler       *size_sched;
 
     int                  is_master;
     const char          *monitor_id;

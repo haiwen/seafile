@@ -150,6 +150,8 @@ seafile_session_new(const char *seafile_dir,
     session->job_mgr = ccnet_job_manager_new (session->sync_thread_pool_size);
     ccnet_session->job_mgr = ccnet_job_manager_new (session->rpc_thread_pool_size);
 
+    session->size_sched = size_scheduler_new (session);
+
     session->ev_mgr = cevent_manager_new ();
     if (!session->ev_mgr)
         goto onerror;
@@ -229,6 +231,11 @@ seafile_session_start (SeafileSession *session)
 
     if (seaf_listen_manager_start (session->listen_mgr) < 0) {
         g_error ("Failed to start listen manager.\n");
+        return -1;
+    }
+
+    if (size_scheduler_start (session->size_sched) < 0) {
+        g_error ("Failed to start size scheduler.\n");
         return -1;
     }
 

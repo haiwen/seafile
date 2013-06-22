@@ -215,12 +215,6 @@ out:
     return vprocessor;
 }
 
-static void
-compute_callback (void *result, void *data, GError *error)
-{
-    /* nothing to do */
-}
-
 static void 
 thread_done (void *result)
 {
@@ -228,16 +222,8 @@ thread_done (void *result)
     USE_PRIV;
 
     if (strcmp (priv->rsp_code, SC_OK) == 0) {
-        /* Repo is updated, trigger repo size computation. */
-        if (seaf->monitor_id != NULL &&
-            (strcmp (seaf->monitor_id, seaf->session->base.id) == 0 ||
-             ccnet_peer_is_ready (seaf->ccnetrpc_client, seaf->monitor_id)))
-        {
-            monitor_compute_repo_size_async_wrapper (seaf->monitor_id, 
-                                                     priv->repo_id,
-                                                     compute_callback,
-                                                     NULL);
-        }
+        /* Repo is updated, schedule repo size computation. */
+        schedule_repo_size_computation (seaf->size_sched, priv->repo_id);
 
         ccnet_processor_send_response (processor, SC_OK, SS_OK, NULL, 0);
         ccnet_processor_done (processor, TRUE);
