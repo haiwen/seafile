@@ -36,6 +36,11 @@
 					% else:
 					<option value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=en"} >English</option>
 					%endif
+					% if lang == "fr":
+					<option selected='selected' value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=fr"} >Français</option>
+					% else:
+					<option value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=fr"} >Français</option>
+					% endif
 				</select>  
 				<script>
 				    $(function(){

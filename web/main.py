@@ -61,6 +61,8 @@ NET_STATE_CONNECTED = 1
 lang_code = locale.getdefaultlocale()[0]
 if lang_code == 'zh_CN':
     DEFAULT_LANG = 'zh_CN'
+elif lang_code == 'fr':
+    DEFAULT_LANG = 'fr'
 else:
     DEFAULT_LANG = 'en_US'
 
@@ -837,6 +839,8 @@ class i18n:
              lang_in_use = 'zh_CN'
         elif inputs.ln == 'en':
              lang_in_use =  'en_US'
+        elif inputs.ln == 'fr':
+             lang_in_use =  'fr'
         else:
              lang_in_use = 'en_US'
 
