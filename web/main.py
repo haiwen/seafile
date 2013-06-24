@@ -832,18 +832,20 @@ class procs:
 class i18n:
     def GET(self):
         global lang_in_use
-        if lang_in_use == 'zh_CN':
-            lang_in_use = 'en_US'
+        inputs = web.webapi.input(prev='/home/', ln='')
+        if inputs.ln == 'cn':
+             lang_in_use = 'zh_CN'
+        elif inputs.ln == 'en':
+             lang_in_use =  'en_US'
         else:
-            lang_in_use = 'zh_CN'
+             lang_in_use = 'en_US'
 
         gettext.translation('messages', localedir,
                             languages=[lang_in_use]).install(True)
 
         seafile_rpc.set_config('lang_in_use', lang_in_use)
 
-        default_options['lang'] = lang_in_use
-        inputs = web.webapi.input(prev='/home/')    
+        default_options['lang'] = lang_in_use   
 
         raise web.seeother(inputs.prev)
 
