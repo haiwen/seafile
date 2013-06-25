@@ -1,0 +1,645 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR ORGANIZATION
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.7\n"
+"POT-Creation-Date: 2013-06-05 20:10+CST\n"
+"PO-Revision-Date: 2013-06-24 15:05+0100\n"
+"Last-Translator: Pi3R1k <pierrick.brun@gmail.com>\n"
+"Language-Team: francais\n"
+"Language: fr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: pygettext.py 1.5\n"
+"X-Generator: Poedit 1.5.5\n"
+
+#: main.py:590 main.py:712
+msgid "You must choose a local directory"
+msgstr "Vous devez choisir un répertoire local"
+
+#: main.py:592 main.py:714
+msgid "Password can not be empty"
+msgstr "Le mot de passe ne peut pas être vide"
+
+#: main.py:594 main.py:716
+msgid "Invalid Repo ID"
+msgstr "L'DI du repo est invalide"
+
+#: main.py:629 main.py:748
+msgid "Invalid local directory"
+msgstr "Le répertoire local est invalide"
+
+#: main.py:631 main.py:750
+msgid ""
+"The local directory you chose is in sync with another repo. Please choose "
+"another one."
+msgstr ""
+"Le répertoire local que vous avez choisi est synchronisé avec une autre "
+"bibliothèque. veuillez en choisir un autre."
+
+#: main.py:633 main.py:752
+msgid ""
+"The local directory you chose cannot be under or includes a system directory "
+"of seafile."
+msgstr ""
+"Le répertoire local que vous avez choisi ne peut pas inclure ou être inclus "
+"dans un répertoire système de seafile."
+
+#: main.py:635 main.py:754
+msgid ""
+"The local directory you chose cannot be under or includes another library."
+msgstr ""
+"Le répertoire local que vous avez choisi ne peut pas inclure ou être inclus "
+"dans une autre bibliothèque."
+
+#: main.py:637 main.py:756
+msgid "Incorrect password."
+msgstr "Mot de passe incorrect."
+
+#: main.py:639 main.py:758 templates/clone_tasks.html:69
+msgid "Internal error."
+msgstr "Erreur interne"
+
+#: templates/base.html:5 templates/base.html:37
+msgid "Seafile Client"
+msgstr "Client Seafile"
+
+#: templates/base.html:26
+msgid "System"
+msgstr "Systeme "
+
+#: templates/base.html:40
+msgid "Libraries"
+msgstr "Bibliothèques"
+
+#: templates/base.html:43
+msgid "Settings"
+msgstr "Paramètres"
+
+#: templates/base.html:47 templates/base.html:49
+msgid "Help"
+msgstr "Aide"
+
+#: templates/base.html:61
+msgid "Version:"
+msgstr "Version:"
+
+#: templates/clone_tasks.html:5 templates/repo.html:9 templates/repos.html:25
+msgid "Navigation"
+msgstr "Navigation"
+
+#: templates/clone_tasks.html:6 templates/repo.html:11 templates/repos.html:49
+msgid "All Libraries"
+msgstr "Toutes les bibliothèques"
+
+#: templates/clone_tasks.html:10 templates/repos.html:26
+msgid "Download Tasks"
+msgstr "Tâches en cours"
+
+#: templates/clone_tasks.html:20
+msgid "initializing..."
+msgstr "Initialisation ..."
+
+#: templates/clone_tasks.html:24
+msgid "connecting server..."
+msgstr "Connexion au serveur..."
+
+#: templates/clone_tasks.html:28
+msgid "indexing files..."
+msgstr "Indexation des fichiers ..."
+
+#: templates/clone_tasks.html:32
+msgid "Downloading..."
+msgstr "Téléchargement..."
+
+#: templates/clone_tasks.html:40
+msgid "Creating Folder"
+msgstr "Création du répertoire"
+
+#: templates/clone_tasks.html:44
+msgid "merging files changes..."
+msgstr "Fusion des changements des fichiers"
+
+#: templates/clone_tasks.html:48
+msgid "Done"
+msgstr "Fait"
+
+#: templates/clone_tasks.html:49
+msgid "View Details"
+msgstr "Voir les détails"
+
+#: templates/clone_tasks.html:52
+msgid "Canceling..."
+msgstr "Annulation ..."
+
+#: templates/clone_tasks.html:55
+msgid "Canceled"
+msgstr "annulé"
+
+#: templates/clone_tasks.html:61
+msgid "Failed to index local files."
+msgstr "Impossible d'indexer les fichiers locaux."
+
+#: templates/clone_tasks.html:63
+msgid "Failed to create local files."
+msgstr "Impossible de créer les fichiers locaux."
+
+#: templates/clone_tasks.html:65
+msgid "Failed to merge local file changes."
+msgstr "Impossible de fusionner les changements des fichiers locaux."
+
+#: templates/clone_tasks.html:67
+msgid "Incorrect password. Please download again."
+msgstr "Mot de passe incorrect. Veuillez télécharger de nouveau."
+
+#: templates/clone_tasks.html:76 templates/repo.html:94
+msgid "Cancel"
+msgstr "Annuler"
+
+#: templates/clone_tasks.html:86
+msgid "Please reenter the password:"
+msgstr "Veuillez réentrer votre mot de passe:"
+
+#: templates/download_error.html:6
+msgid "Failed to start synchronization:"
+msgstr "Impossible de démarrer la synchronisation:"
+
+#: templates/download_error.html:10
+msgid "Unknown error"
+msgstr "Erreur inconnue"
+
+#: templates/po.html:10
+msgid "List direcotry contents"
+msgstr "Lister le contenu du dossier"
+
+#: templates/po.html:11
+msgid "Restore contents to this state"
+msgstr "Restaurer le contenu à cette date."
+
+#: templates/po.html:12
+msgid "Modification Detail"
+msgstr "Détail des modifications"
+
+#: templates/po.html:13
+msgid "No file content modified."
+msgstr "Pas de contenu de fichier modifié"
+
+#: templates/po.html:16
+msgid "Submit"
+msgstr "Soumettre"
+
+#: templates/po.html:19
+msgid "Connecting"
+msgstr "Connexion"
+
+#: templates/po.html:22
+msgid "connection failed"
+msgstr "Échec de la connexion"
+
+#: templates/po.html:25
+msgid "Start download"
+msgstr "Démarrer le téléchargement"
+
+#: templates/po.html:26
+msgid "modify"
+msgstr "modifier"
+
+#: templates/po.html:29
+msgid "Decrypt again"
+msgstr "Décrypter à nouveau"
+
+#: templates/po.html:32
+msgid ""
+"For better user experience, please use Chrome, Firefox, or IE with a version "
+"8.0 or above."
+msgstr ""
+"Pour une meilleure expérience, veuillez utiliser Chrome, Firefox ou IE en "
+"version 8 ou plus ."
+
+#: templates/po.html:34
+msgid "synchronized"
+msgstr "synchronisé"
+
+#: templates/po.html:35
+msgid "indexing files"
+msgstr "Indexation des fichiers"
+
+#: templates/po.html:36
+msgid "sync initializing"
+msgstr "initialisation de la synchronisation"
+
+#: templates/po.html:37
+msgid "downloading"
+msgstr "Téléchargement"
+
+#: templates/po.html:38
+msgid "uploading"
+msgstr "Envoi"
+
+#: templates/po.html:39
+msgid "sync merging"
+msgstr "fusion de la synchro"
+
+#: templates/po.html:40
+msgid "waiting for sync"
+msgstr "En attente de synchronisation"
+
+#: templates/po.html:41
+msgid "server not connected"
+msgstr "Serveur non connecté"
+
+#: templates/po.html:42
+msgid "server authenticating"
+msgstr "Authentification du serveur"
+
+#: templates/po.html:43
+msgid "auto sync is turned off"
+msgstr "synchro auto est désactivé"
+
+#: templates/po.html:44
+msgid "sync status:"
+msgstr "Statut de la synchronisation :"
+
+#: templates/po.html:45
+msgid "You do not have permission to access this library"
+msgstr "Vous n'avez pas l'autorisation d'accéder à cette bibliothèque"
+
+#: templates/po.html:46
+msgid "The storage space of the library owner has been used up"
+msgstr "Le propriétaire de cette bibliothèque est à court d'espace."
+
+#: templates/po.html:47
+msgid "Remote service is not available"
+msgstr "Le service distant n'est pas disponible"
+
+#: templates/po.html:48
+msgid "Internal data corrupted."
+msgstr "Données internes corrompues "
+
+#: templates/po.html:49
+msgid "Failed to start upload."
+msgstr "Impossible de démarrer l'envoi."
+
+#: templates/po.html:50
+msgid "Error occured in upload."
+msgstr "Une erreur est survenue pendant l'envoi."
+
+#: templates/po.html:51
+msgid "Failed to start download."
+msgstr "Impossible de démarrer le téléchargement"
+
+#: templates/po.html:52
+msgid "Error occured in download."
+msgstr "Une erreur est survenue pendant le téléchargement."
+
+#: templates/po.html:53
+msgid "Unknown error."
+msgstr "Erreur inconnue."
+
+#: templates/po.html:54
+msgid "sync error:"
+msgstr "erreur de synchro"
+
+#: templates/po.html:55
+msgid "fetching..."
+msgstr "Aller chercher..."
+
+#: templates/po.html:56
+msgid "syncing..."
+msgstr "synchronisation..."
+
+#: templates/po.html:57
+msgid "fetching...blocks transfered"
+msgstr "L'installation ... des blocs a été transférée"
+
+#: templates/po.html:58
+msgid "sync done."
+msgstr "Synchro faite"
+
+#: templates/po.html:60
+msgid "Started"
+msgstr "Démarré "
+
+#: templates/po.html:61
+msgid "Stopped"
+msgstr "Stoppé"
+
+#: templates/procs.html:9
+msgid "Processors alive:"
+msgstr "Processeur vivant:"
+
+#: templates/procs.html:10
+msgid "Processors dead:"
+msgstr "Processeur mort:"
+
+#: templates/procs.html:15 templates/procs.html:30
+msgid "Proc Name"
+msgstr "Nom du processus"
+
+#: templates/procs.html:16
+msgid "Peer"
+msgstr "Pair"
+
+#: templates/procs.html:17 templates/procs.html:32
+msgid "Create Time"
+msgstr "Date de création"
+
+#: templates/procs.html:31
+msgid "Peer ID"
+msgstr "ID du pair"
+
+#: templates/procs.html:33
+msgid "Dead time"
+msgstr "temps mort"
+
+#: templates/repo.html:13
+msgid "View on Website"
+msgstr "Voir sur le site web"
+
+#: templates/repo.html:16
+msgid "Operations"
+msgstr "Opérations"
+
+#: templates/repo.html:18
+msgid "Sync Now"
+msgstr "synchroniser maintenant"
+
+#: templates/repo.html:19 templates/repo.html:93
+msgid "Unsync"
+msgstr "Annuler la synchro"
+
+#: templates/repo.html:20
+msgid "Edit server address"
+msgstr "Éditer l'adresse du serveur"
+
+#: templates/repo.html:32
+msgid "Encrypted"
+msgstr "Crypté"
+
+#: templates/repo.html:40
+msgid "Local Path:"
+msgstr "Chemin local:"
+
+#: templates/repo.html:43
+msgid "Sync Info"
+msgstr "Infos de synchro"
+
+#: templates/repo.html:47
+msgid "Server: "
+msgstr "Serveur:"
+
+#: templates/repo.html:53
+msgid "Password: "
+msgstr "Mot de passe : "
+
+#: templates/repo.html:54
+msgid "Show"
+msgstr "Voir"
+
+#: templates/repo.html:60 templates/repo.html:62
+msgid "Auto Sync: "
+msgstr "Synchronisation auto"
+
+#: templates/repo.html:75 templates/repo.html:77
+msgid "transfered"
+msgstr "transféré"
+
+#: templates/repo.html:80
+msgid "rate"
+msgstr "taux"
+
+#: templates/repo.html:80
+msgid "s"
+msgstr "s"
+
+#: templates/repo.html:86
+msgid "Library transfer error:"
+msgstr "Erreur de transfert de la bibliothèque:"
+
+#: templates/repo.html:92
+msgid "Really want to unsync this library?"
+msgstr "Voulez vous réellement annuler la synchronisation de la bibliothèque ?"
+
+#: templates/repo.html:98
+msgid "Edit Server address"
+msgstr "Éditer l'adresse du serveur"
+
+#: templates/repo.html:100
+msgid "Warning:"
+msgstr "Attention:"
+
+#: templates/repo.html:100
+msgid ""
+"You should only edit the server address when you're sure the server has used "
+"a new address. Otherwise it may make the libraries unable to be "
+"synchronized. After edit the address, you should restart seafile for the "
+"changes to take effect."
+msgstr ""
+"Vous devriez seulement éditer l'adresse de serveur quand vous êtes sûrs que "
+"le serveur utilise une nouvelle adresse. Autrement les bibliothèques seront "
+"incapables d'être synchronisé. Après avoir édité cette adresse, vous devriez "
+"redémarrer Seafile pour que les changements prennent effets."
+
+#: templates/repo.html:104
+msgid "server name"
+msgstr "nom du serveur"
+
+#: templates/repo.html:109
+msgid "server address"
+msgstr "adresse du serveur"
+
+#: templates/repo.html:113
+msgid "server port"
+msgstr "Port du serveur"
+
+#: templates/repo_download.html:8 templates/repo_sync.html:8
+msgid "Library already exists."
+msgstr "Cette bibliothèque existe déjà."
+
+#: templates/repo_download.html:10
+msgid "You are going to download"
+msgstr "Vous allez télécharger"
+
+#: templates/repo_download.html:22
+msgid "will be downloaded to:"
+msgstr "sera téléchargé :"
+
+#: templates/repo_download.html:25 templates/repo_sync.html:26
+msgid "This library is encrypted. Please enter the password for decrypting:"
+msgstr "Cette bibliothèque est crypté. Veuillez entrer le mot de passe:"
+
+#: templates/repo_download.html:31
+msgid "\"OK\""
+msgstr "\"OK\""
+
+#: templates/repo_download.html:33
+msgid "Advanced:"
+msgstr "Avancé:"
+
+#: templates/repo_download.html:33
+msgid "sync with an existing folder"
+msgstr "Synchroniser avec un répertoire existant"
+
+#: templates/repo_missing.html:6
+msgid "Back to library list."
+msgstr "Retour à la liste des bibliothèques."
+
+#: templates/repo_missing.html:6
+msgid "Sorry, the library with id"
+msgstr "Désolé, la bibliothèque avec l'id"
+
+#: templates/repo_missing.html:6
+msgid "does not exists."
+msgstr "n'existe pas."
+
+#: templates/repo_sync.html:10
+msgid "You are going to synchronize"
+msgstr "Vous allez synchroniser"
+
+#: templates/repo_sync.html:22
+msgid "Please select a local folder to synced with the library"
+msgstr ""
+"Veuillez séléctionner un répertoire local pour synchroniser la bibliothèque"
+
+#: templates/repo_sync.html:24
+msgid "Files in the local folder will be merged with files in the library"
+msgstr ""
+"Les fichiers du répertoire local seront mélangés avec les fichiers de la "
+"bibliothèque."
+
+#: templates/repos.html:11
+msgid "Servers"
+msgstr "Serveurs"
+
+#: templates/repos.html:15
+msgid "connected"
+msgstr "connecté"
+
+#: templates/repos.html:17
+msgid "authenticating"
+msgstr "Authentification"
+
+#: templates/repos.html:19
+msgid "not connected"
+msgstr "non connecté"
+
+#: templates/repos.html:28
+msgid "Official Server"
+msgstr "Serveur officiel"
+
+#: templates/repos.html:40
+msgid "Four Steps to Use Seafile Client"
+msgstr "Quatre étapes pour utiliser le client Seafile"
+
+#: templates/repos.html:42
+msgid ""
+"Log in to Seafile website, either our official website or your private "
+"website."
+msgstr ""
+"Connectez-vous au site Web de Seafile, notre site Web officiel ou votre site "
+"Web privé."
+
+#: templates/repos.html:43
+msgid "Create a library on Seafile website."
+msgstr "Créer une bibliothèque sur le site de Seafile"
+
+#: templates/repos.html:44
+msgid "Download the library to a local folder."
+msgstr "Télécharger la bibliothèque "
+
+#: templates/repos.html:45
+msgid "Add files to the local folder and they will be uploaded automatically."
+msgstr ""
+"Ajoutez des fichiers au répertoire local et ils seront envoyés "
+"automatiquement."
+
+#: templates/repos.html:52
+msgid "Name"
+msgstr "Nom"
+
+#: templates/repos.html:53
+msgid "Action"
+msgstr "Action"
+
+#: templates/repos.html:54
+msgid "Description"
+msgstr "Description"
+
+#: templates/repos.html:55
+msgid "Server"
+msgstr "Serveur"
+
+#: templates/repos.html:56
+msgid "Modify Time"
+msgstr "Modification"
+
+#: templates/repos.html:57
+msgid "State"
+msgstr "État"
+
+#: templates/repos.html:63
+msgid "Open"
+msgstr "Ouvrir"
+
+#: templates/repos.html:76 templates/repos.html:79
+msgid "Unknown"
+msgstr "Inconnu"
+
+#: templates/repos.html:85
+msgid "Synchronized"
+msgstr "Synchronisé"
+
+#: templates/settings.html:14
+msgid "Notify when libraries are synchronized"
+msgstr "Notifier lorsque qu'une bibliothèque est synchronisée"
+
+#: templates/settings.html:22
+msgid "Auto start Seafile on system startup (only for Windows)"
+msgstr "Lancement automatique de Seafile au démarrage (Pour Windows seulement)"
+
+#: templates/settings.html:30
+msgid "Enable encryption for data transfer (restart Seafile to take effect)"
+msgstr ""
+"Activer le cryptage lors du transfert des données (relancer Seafile pour "
+"prendre effet)"
+
+#: templates/settings.html:33
+msgid "Upload speed limit:"
+msgstr "Vitesse d'envoi:"
+
+#: templates/settings.html:42
+msgid "Download speed limit:"
+msgstr "Vitesse de téléchargement:"
+
+#~ msgid "Incorrect password. Failed to decrypt files."
+#~ msgstr "密码错误。文件解密失败。"
+
+#~ msgid "Seafile@Local"
+#~ msgstr "Seafile 本地管理"
+
+#~ msgid "Files"
+#~ msgstr "文件"
+
+#~ msgid "SyncLan"
+#~ msgstr "局域网同步"
+
+#~ msgid "Network"
+#~ msgstr "网络"
+
+#~ msgid "Seafile Client Version:"
+#~ msgstr "Seafile 客户端版本："
+
+#~ msgid "About"
+#~ msgstr "关于"
+
+#~ msgid "Contact"
+#~ msgstr "联系我们"
+
+#~ msgid "View Download Tasks"
+#~ msgstr "查看下载任务"
+
+#~ msgid "All Librarys"
+#~ msgstr "所有资料库"

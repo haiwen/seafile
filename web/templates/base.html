@@ -25,12 +25,36 @@
                 % if settings.SHOW_SYSTEM:
                 <a href="/procs/">${_("System")}</a>
                 % endif
-                <a href=${"/i18n/?prev=" + web_ctx.fullpath} >
-                    % if lang == 'zh_CN':
-                    English
-                    % else:
-                    中文
-                    % endif
+           <select id="lang_select">
+					% if lang == "zn_CN":
+					<option selected='selected' value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=cn"} >中文</option>
+					% else:
+					<option value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=cn"} >中文</option>
+					% endif
+					% if lang == "en_US":
+					<option selected='selected' value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=en"} >English</option>
+					% else:
+					<option value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=en"} >English</option>
+					%endif
+					% if lang == "fr":
+					<option selected='selected' value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=fr"} >Français</option>
+					% else:
+					<option value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=fr"} >Français</option>
+					% endif
+				</select>  
+				<script>
+				    $(function(){
+				   // bind change event to select
+					     $('#lang_select').bind('change', function () {
+						      var url = $(this).val(); // get selected value
+							  if (url) { // require a URL
+										  window.location = url; // redirect
+									}
+							  return false;
+						     });
+			        });
+				</script>
+
                 </a>
             </div>
             <div class="fleft">
