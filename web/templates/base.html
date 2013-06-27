@@ -77,10 +77,12 @@
             </div>
         </div>
     </div>
-    <div id="main" class="ovhd">
-        ${self.main_panel()}
+    <div id="main-wrapper">
+        <div id="main" class="ovhd">
+            ${self.main_panel()}
+        </div>
+        <%def name="main_panel()"></%def>
     </div>
-    <%def name="main_panel()"></%def>
     <div id="footer">
         <p>Copyright © 2013 Seafile Ltd. <span class="version">${_("Version:")} ${seafile_version}</span></p>
     </div>
