@@ -140,7 +140,7 @@ a.button { text-decoration: underline; color:#800; }
     padding:5px 0 5px;
     text-align: center;
     background: #1abc93;
-    border-top:2px solid #fff;
+    border-top:1px solid #bbc7d1;
 }
 /* #header */
 #header {
