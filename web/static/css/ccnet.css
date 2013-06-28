@@ -177,19 +177,32 @@ a.button { text-decoration: underline; color:#800; }
 #nav a:visited {
     display:block;
     text-align:center;
-    padding-top:10px;
-
+    padding-top:13px;
     color:#fff;
+    line-height:1.1;
+    border-bottom:1px solid transparent;
 }
 #nav a:hover {
     color:#fff;
+    text-decoration:none;
+    border-bottom:1px solid #fff;
 }
-#main-wrapper {
+#nav [class^="icon-"] {
+    margin-right:4px;
+}
+#lang_select {
+    background:rgba(255,255,255, 0.4);
+    border:1px solid rgba(255,255,255, 0.2);
+    color:#fff;
+    padding:1px 9px;
+    border-radius:2px;
+    outline:none;
+}
+#lang_select option {
+    background:#1abc60;
 }
 #main {
     padding:30px 0 45px;
-	min-height:480px;
-    _height:450px;/*for ie 6*/
 }
 #nav-panel {
     width:232px;
@@ -244,6 +257,10 @@ a.relay-link {
     padding: 5px 3px;
     color: #333;
 }
+.repo-ops [class^="icon-"] {
+    color:#666;
+    margin-right:5px;
+}
 .basic-info {
     margin:0px 0 20px;
 }
@@ -297,7 +314,13 @@ a.relay-link {
 #modify-relay-form select {
     margin:6px 0;
 }
-
+.repo-list [class^="icon-"] {
+    font-size:1.2em;
+}
+.repo-list .repo-op {
+    cursor:pointer;
+    margin-right:3px;
+}
 /* settings */
 #prefs-form li {
     line-height:24px;

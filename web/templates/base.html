@@ -4,6 +4,7 @@
     <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
     <title>${_("Seafile Client")}</title>
     <link rel="stylesheet" type="text/css" href="/static/css/ui-lightness/jquery-ui-1.8.16.custom.css" />
+    <link rel="stylesheet" type="text/css" href="/static/css/font-awesome.css" />
     <link rel="stylesheet" type="text/css" href="/static/css/ccnet.css?t=2" />
     <link rel="icon" type="image/png" href="/static/img/favicon.png?t=4" />
     <script type="text/javascript" src="/static/js/jquery-1.6.2.min.js"></script>
@@ -61,16 +62,16 @@
                 <span id="client-note" class="fleft">${_("Seafile Client")}</span>
                 <ul id="nav" class="fleft">
                     <li class="library-item">
-                    <a href="/repos/">${_("Libraries")}</a>
+                    <a href="/repos/"><span class="icon-folder-close"></span>${_("Libraries")}</a>
                     </li>
                     <li class="settings-item">
-                    <a href="/settings/">${_("Settings")}</a>
+                    <a href="/settings/"><span class="icon-cog"></span>${_("Settings")}</a>
                     </li>
                     <li class="help-item">
                     % if lang == 'zh_CN':
-                    <a href=${settings.DEFAULT_HELP_WEB}>${_("Help")}</a>
+                    <a href=${settings.DEFAULT_HELP_WEB}><span class="icon-question-sign"></span>${_("Help")}</a>
                     % else:
-                    <a href=${settings.DEFAULT_HELP_WEB_EN}>${_("Help")}</a>
+                    <a href=${settings.DEFAULT_HELP_WEB_EN}><span class="icon-question-sign"></span>${_("Help")}</a>
                     % endif
                     </li>
                 </ul>
@@ -89,7 +90,44 @@
 </div><!-- wrapper -->
 <script type="text/javascript" src="/static/js/jquery.tools.min.js"></script>
 <script type="text/javascript" src="/static/js/utils.js"></script>
+<script type="text/javascript">
+    // make 'footer' stay in the bottom of the window
+    if ($(window).height() > $('body').height()) {
+        $('#main-wrapper').css({'height': $(window).height() - $('#header').outerHeight(true) - $('#footer').outerHeight(true)});
+    }
+</script>
 <%def name="js()"></%def>
 ${self.js()}
+<script type="text/javascript">
+//font icons: for browsers that don't support ':before'
+    var fa_icons = [ 
+        {'name':'folder-close', 'con':'f07b'},
+        {'name':'cog', 'con':'f013'},
+        {'name':'question-sign', 'con':'f059'},
+        {'name':'ok', 'con':'f00c'},
+        {'name':'refresh', 'con':'f021'},
+        {'name':'folder-open-alt', 'con':'f115'},
+        {'name':'unlink', 'con':'f127'},
+        {'name':'repeat', 'con':'f01e'},
+        {'name':'pencil', 'con':'f040'}
+    ];
+    function setCon(icon, icon_class_prefix, icon_list) {
+        for (var i = 0, len = icon_list.length; i < len; i++) {
+            if (icon.hasClass(icon_class_prefix + icon_list[i].name)) {
+                icon.html('&#x' + icon_list[i].con + ';');
+                break;
+            }
+        }
+    }
+    var pseudo_support = true;
+    var pseudo_test = $('body').append('<span class="icon-ok pseudo-test" style="color:#fff;position:fixed;left:0;bottom:0;"></span>').children('.pseudo-test');
+    if (pseudo_test.width() == 0) {
+        pseudo_support = false;
+        $('[class^="icon-"], [class$=" icon-"]').each(function() {
+            setCon($(this), 'icon-', fa_icons);
+        }); 
+    }
+    pseudo_test.remove();
+</script>
 </body>
 </html>

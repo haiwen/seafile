@@ -14,10 +14,10 @@
             % endif
         </ul>
         <h3>${_("Operations")}</h3>
-        <ul>
-            <li><a id="do-sync-link" href="/repos/operation/?repo=${repo.props.id}&op=sync">${_("Sync Now")}</a></li>
-            <li><a href="#" id="delete">${_("Unsync")}</a></li>
-            <li><a href="#" id="edit-relay">${_("Edit Server Address")}</a></li>
+        <ul class="repo-ops">
+            <li><span class="icon-repeat"></span><a id="do-sync-link" href="/repos/operation/?repo=${repo.props.id}&op=sync">${_("Sync Now")}</a></li>
+            <li><span class="icon-unlink"></span><a href="#" id="delete">${_("Unsync")}</a></li>
+            <li><span class="icon-pencil"></span><a href="#" id="edit-relay">${_("Edit Server Address")}</a></li>
         </ul>
     </div>
 </div> <!-- nav-panel -->
