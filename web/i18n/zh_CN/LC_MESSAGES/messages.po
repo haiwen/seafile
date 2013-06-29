@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2013-06-05 20:10+CST\n"
+"POT-Creation-Date: 2013-06-29 16:11+CST\n"
 "PO-Revision-Date: 2012-11-04 11:07+0800\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -15,48 +15,48 @@ msgstr ""
 "Content-Transfer-Encoding: UTF-8\n"
 "Generated-By: pygettext.py 1.5\n"
 
-#: main.py:590 main.py:712
+#: main.py:592 main.py:714
 msgid "You must choose a local directory"
 msgstr "你必须指定一个本地目录"
 
-#: main.py:592 main.py:714
+#: main.py:594 main.py:716
 msgid "Password can not be empty"
 msgstr "密码不能为空"
 
-#: main.py:594 main.py:716
+#: main.py:596 main.py:718
 msgid "Invalid Repo ID"
 msgstr "资料库ID格式不正确"
 
-#: main.py:629 main.py:748
+#: main.py:631 main.py:750
 msgid "Invalid local directory"
 msgstr "不是合法的本地目录"
 
-#: main.py:631 main.py:750
+#: main.py:633 main.py:752
 msgid ""
 "The local directory you chose is in sync with another repo. Please choose "
 "another one."
 msgstr "你所指定的本地目录已经与其他资料库同步，请指定其他本地目录"
 
-#: main.py:633 main.py:752
+#: main.py:635 main.py:754
 msgid ""
 "The local directory you chose cannot be under or includes a system directory "
 "of seafile."
 msgstr "本地目录的路径不能处在 Seafile 系统目录下，或者包含 Seafile 系统目录"
 
-#: main.py:635 main.py:754
+#: main.py:637 main.py:756
 msgid ""
 "The local directory you chose cannot be under or includes another library."
 msgstr "本地目录的路径不能处在其他资料库目录下，或者包含其他资料库目录"
 
-#: main.py:637 main.py:756
+#: main.py:639 main.py:758
 msgid "Incorrect password."
 msgstr "密码错误"
 
-#: main.py:639 main.py:758 templates/clone_tasks.html:69
+#: main.py:641 main.py:760 templates/clone_tasks.html:73
 msgid "Internal error."
 msgstr "内部错误"
 
-#: templates/base.html:5 templates/base.html:37
+#: templates/base.html:5 templates/base.html:47
 msgid "Seafile Client"
 msgstr "Seafile 客户端"
 
@@ -64,258 +64,271 @@ msgstr "Seafile 客户端"
 msgid "System"
 msgstr "系统"
 
-#: templates/base.html:40
+#: templates/base.html:50
 msgid "Libraries"
 msgstr "资料库"
 
-#: templates/base.html:43
+#: templates/base.html:53
 msgid "Settings"
 msgstr "设置"
 
-#: templates/base.html:47 templates/base.html:49
+#: templates/base.html:57 templates/base.html:59
 msgid "Help"
 msgstr "帮助"
 
-#: templates/base.html:61
+#: templates/base.html:73
 msgid "Version:"
 msgstr "版本:"
 
-#: templates/clone_tasks.html:5 templates/repo.html:9 templates/repos.html:25
+#: templates/clone_tasks.html:6 templates/repo.html:9 templates/repos.html:25
 msgid "Navigation"
 msgstr "导航"
 
-#: templates/clone_tasks.html:6 templates/repo.html:11 templates/repos.html:49
+#: templates/clone_tasks.html:7 templates/repo.html:11 templates/repos.html:43
 msgid "All Libraries"
 msgstr "所有资料库"
 
-#: templates/clone_tasks.html:10 templates/repos.html:26
+#: templates/clone_tasks.html:13 templates/repos.html:26
 msgid "Download Tasks"
 msgstr "下载任务"
 
-#: templates/clone_tasks.html:20
+#: templates/clone_tasks.html:24
 msgid "initializing..."
 msgstr "初始化中..."
 
-#: templates/clone_tasks.html:24
+#: templates/clone_tasks.html:28
 msgid "connecting server..."
 msgstr "正在连接服务器..."
 
-#: templates/clone_tasks.html:28
+#: templates/clone_tasks.html:32
 msgid "indexing files..."
 msgstr "正在索引文件..."
 
-#: templates/clone_tasks.html:32
+#: templates/clone_tasks.html:36
 msgid "Downloading..."
 msgstr "下载中..."
 
-#: templates/clone_tasks.html:40
+#: templates/clone_tasks.html:44
 msgid "Creating Folder"
 msgstr "创建目录中"
 
-#: templates/clone_tasks.html:44
+#: templates/clone_tasks.html:48
 msgid "merging files changes..."
 msgstr "正在合并更改"
 
-#: templates/clone_tasks.html:48
+#: templates/clone_tasks.html:52
 msgid "Done"
 msgstr "完成"
 
-#: templates/clone_tasks.html:49
+#: templates/clone_tasks.html:53
 msgid "View Details"
 msgstr "查看详情"
 
-#: templates/clone_tasks.html:52
+#: templates/clone_tasks.html:56
 msgid "Canceling..."
 msgstr "取消中..."
 
-#: templates/clone_tasks.html:55
+#: templates/clone_tasks.html:59
 msgid "Canceled"
 msgstr "已取消"
 
-#: templates/clone_tasks.html:61
+#: templates/clone_tasks.html:65
 msgid "Failed to index local files."
 msgstr "创建索引失败。"
 
-#: templates/clone_tasks.html:63
+#: templates/clone_tasks.html:67
 msgid "Failed to create local files."
 msgstr "创建本地文件失败。"
 
-#: templates/clone_tasks.html:65
+#: templates/clone_tasks.html:69
 msgid "Failed to merge local file changes."
 msgstr "合并更改失败"
 
-#: templates/clone_tasks.html:67
+#: templates/clone_tasks.html:71
 msgid "Incorrect password. Please download again."
 msgstr "密码错误。请重新下载。"
 
-#: templates/clone_tasks.html:76 templates/repo.html:94
+#: templates/clone_tasks.html:80 templates/repo.html:94
+#: templates/repos.html:94
 msgid "Cancel"
 msgstr "取消"
 
-#: templates/clone_tasks.html:86
+#: templates/clone_tasks.html:90
 msgid "Please reenter the password:"
 msgstr "请重新输入密码："
 
-#: templates/download_error.html:6
+#: templates/download_error.html:5
 msgid "Failed to start synchronization:"
 msgstr "启动同步失败："
 
-#: templates/download_error.html:10
+#: templates/download_error.html:9
 msgid "Unknown error"
 msgstr "未知错误"
 
 #: templates/po.html:10
+msgid "Synchronized"
+msgstr "已同步"
+
+#: templates/po.html:11
+msgid "Syncing"
+msgstr "同步中"
+
+#: templates/po.html:12
+msgid "Open"
+msgstr "打开"
+
+#: templates/po.html:15
 msgid "List direcotry contents"
 msgstr "列出内容"
 
-#: templates/po.html:11
+#: templates/po.html:16
 msgid "Restore contents to this state"
 msgstr "把本地目录的内容恢复到这个历史状态"
 
-#: templates/po.html:12
+#: templates/po.html:17
 msgid "Modification Detail"
 msgstr "修改详情"
 
-#: templates/po.html:13
+#: templates/po.html:18
 msgid "No file content modified."
 msgstr "没有改动"
 
-#: templates/po.html:16
+#: templates/po.html:21
 msgid "Submit"
 msgstr "提交"
 
-#: templates/po.html:19
+#: templates/po.html:24
 msgid "Connecting"
 msgstr "连接中"
 
-#: templates/po.html:22
+#: templates/po.html:27
 msgid "connection failed"
 msgstr "连接失败"
 
-#: templates/po.html:25
+#: templates/po.html:30
 msgid "Start download"
 msgstr "开始下载"
 
-#: templates/po.html:26
+#: templates/po.html:31
 msgid "modify"
 msgstr "更改"
 
-#: templates/po.html:29
+#: templates/po.html:34
 msgid "Decrypt again"
 msgstr "重新解密"
 
-#: templates/po.html:32
+#: templates/po.html:37
 msgid ""
 "For better user experience, please use Chrome, Firefox, or IE with a version "
 "8.0 or above."
 msgstr ""
 "为使您能有更好的体验，请使用Chrome, Firefox, 8.0或更高版本的IE 等浏览器。"
 
-#: templates/po.html:34
+#: templates/po.html:39
 msgid "synchronized"
 msgstr "已同步"
 
-#: templates/po.html:35
+#: templates/po.html:40
 msgid "indexing files"
 msgstr "正在索引文件"
 
-#: templates/po.html:36
+#: templates/po.html:41
 msgid "sync initializing"
 msgstr "正在获取同步信息"
 
-#: templates/po.html:37
+#: templates/po.html:42
 msgid "downloading"
 msgstr "下载中"
 
-#: templates/po.html:38
+#: templates/po.html:43
 msgid "uploading"
 msgstr "上传中"
 
-#: templates/po.html:39
+#: templates/po.html:44
 msgid "sync merging"
 msgstr "正在合并更改"
 
-#: templates/po.html:40
+#: templates/po.html:45
 msgid "waiting for sync"
 msgstr "等待同步"
 
-#: templates/po.html:41
+#: templates/po.html:46
 msgid "server not connected"
 msgstr "服务器未连接"
 
-#: templates/po.html:42
+#: templates/po.html:47
 msgid "server authenticating"
 msgstr "服务器验证中"
 
-#: templates/po.html:43
+#: templates/po.html:48
 msgid "auto sync is turned off"
 msgstr "自动同步已停止。"
 
-#: templates/po.html:44
+#: templates/po.html:49
 msgid "sync status:"
 msgstr "同步状态："
 
-#: templates/po.html:45
+#: templates/po.html:50
 msgid "You do not have permission to access this library"
 msgstr "您没有权限访问该资料库"
 
-#: templates/po.html:46
+#: templates/po.html:51
 msgid "The storage space of the library owner has been used up"
 msgstr "资料库所有者的空间限额已用完"
 
-#: templates/po.html:47
+#: templates/po.html:52
 msgid "Remote service is not available"
 msgstr "与服务器通信失败"
 
-#: templates/po.html:48
+#: templates/po.html:53
 msgid "Internal data corrupted."
 msgstr "内部文件损坏"
 
-#: templates/po.html:49
+#: templates/po.html:54
 msgid "Failed to start upload."
 msgstr "启动上传失败。"
 
-#: templates/po.html:50
+#: templates/po.html:55
 msgid "Error occured in upload."
 msgstr "上传过程中出错。"
 
-#: templates/po.html:51
+#: templates/po.html:56
 msgid "Failed to start download."
 msgstr "启动下载失败。"
 
-#: templates/po.html:52
+#: templates/po.html:57
 msgid "Error occured in download."
 msgstr "下载过程中出错。"
 
-#: templates/po.html:53
+#: templates/po.html:58
 msgid "Unknown error."
 msgstr "未知错误。"
 
-#: templates/po.html:54
+#: templates/po.html:59
 msgid "sync error:"
 msgstr "同步出错："
 
-#: templates/po.html:55
+#: templates/po.html:60
 msgid "fetching..."
 msgstr "获取中..."
 
-#: templates/po.html:56
+#: templates/po.html:61
 msgid "syncing..."
 msgstr "同步中..."
 
-#: templates/po.html:57
+#: templates/po.html:62
 msgid "fetching...blocks transfered"
 msgstr "获取中...已传输块数"
 
-#: templates/po.html:58
+#: templates/po.html:63
 msgid "sync done."
 msgstr "同步已完成。"
 
-#: templates/po.html:60
+#: templates/po.html:65
 msgid "Started"
 msgstr "已开启"
 
-#: templates/po.html:61
+#: templates/po.html:66
 msgid "Stopped"
 msgstr "已停止"
 
@@ -359,12 +372,12 @@ msgstr "操作"
 msgid "Sync Now"
 msgstr "立即同步"
 
-#: templates/repo.html:19 templates/repo.html:93
+#: templates/repo.html:19 templates/repo.html:93 templates/repos.html:93
 msgid "Unsync"
 msgstr "解除同步"
 
 #: templates/repo.html:20
-msgid "Edit server address"
+msgid "Edit Server Address"
 msgstr "编辑服务器地址"
 
 #: templates/repo.html:32
@@ -411,7 +424,7 @@ msgstr "秒"
 msgid "Library transfer error:"
 msgstr "资料库传输出错："
 
-#: templates/repo.html:92
+#: templates/repo.html:92 templates/repos.html:92
 msgid "Really want to unsync this library?"
 msgstr "确定要解除同步？"
 
@@ -473,15 +486,15 @@ msgstr "高级："
 msgid "sync with an existing folder"
 msgstr "与已有的本地目录同步"
 
-#: templates/repo_missing.html:6
+#: templates/repo_missing.html:5
 msgid "Back to library list."
 msgstr "回到资料库列表"
 
-#: templates/repo_missing.html:6
+#: templates/repo_missing.html:5
 msgid "Sorry, the library with id"
 msgstr "抱歉，ID为 "
 
-#: templates/repo_missing.html:6
+#: templates/repo_missing.html:5
 msgid "does not exists."
 msgstr "的资料库不存在。"
 
@@ -490,7 +503,7 @@ msgid "You are going to synchronize"
 msgstr "你将同步"
 
 #: templates/repo_sync.html:22
-msgid "Please select a local folder to synced with the library"
+msgid "Please select a local folder to sync with the library:"
 msgstr "请输入与之同步的本地目录："
 
 #: templates/repo_sync.html:24
@@ -513,87 +526,81 @@ msgstr "验证中"
 msgid "not connected"
 msgstr "未连接"
 
-#: templates/repos.html:28
-msgid "Official Server"
-msgstr "官方服务器"
-
-#: templates/repos.html:40
+#: templates/repos.html:34
 msgid "Four Steps to Use Seafile Client"
 msgstr "Seafile 客户端使用方法"
 
-#: templates/repos.html:42
+#: templates/repos.html:36
 msgid ""
 "Log in to Seafile website, either our official website or your private "
 "website."
 msgstr "登录 Seafile 网站，可以是我们的官方网站或者您的私有网站。"
 
-#: templates/repos.html:43
+#: templates/repos.html:37
 msgid "Create a library on Seafile website."
 msgstr "在网站上创建新资料库。"
 
-#: templates/repos.html:44
+#: templates/repos.html:38
 msgid "Download the library to a local folder."
 msgstr "下载该资料库到一个本地目录。"
 
-#: templates/repos.html:45
+#: templates/repos.html:39
 msgid "Add files to the local folder and they will be uploaded automatically."
 msgstr "把文件拷贝到下载下来的目录中，它们会自动同步到服务器上。"
 
-#: templates/repos.html:52
+#: templates/repos.html:46
 msgid "Name"
 msgstr "名字"
 
-#: templates/repos.html:53
-msgid "Action"
-msgstr "操作"
-
-#: templates/repos.html:54
+#: templates/repos.html:47
 msgid "Description"
 msgstr "描述"
 
-#: templates/repos.html:55
+#: templates/repos.html:48
 msgid "Server"
 msgstr "服务器"
 
-#: templates/repos.html:56
+#: templates/repos.html:49
 msgid "Modify Time"
 msgstr "修改时间"
 
-#: templates/repos.html:57
+#: templates/repos.html:50
 msgid "State"
 msgstr "状态"
 
-#: templates/repos.html:63
-msgid "Open"
-msgstr "打开"
+#: templates/repos.html:51
+msgid "Action"
+msgstr "操作"
 
-#: templates/repos.html:76 templates/repos.html:79
+#: templates/repos.html:68 templates/repos.html:71
 msgid "Unknown"
 msgstr "未知"
 
-#: templates/repos.html:85
-msgid "Synchronized"
-msgstr "已同步"
-
-#: templates/settings.html:14
+#: templates/settings.html:13
 msgid "Notify when libraries are synchronized"
 msgstr "资料库同步后用气泡通知"
 
-#: templates/settings.html:22
+#: templates/settings.html:21
 msgid "Auto start Seafile on system startup (only for Windows)"
 msgstr "开机自动启动 Seafile（仅对 Windows 有效）"
 
-#: templates/settings.html:30
+#: templates/settings.html:29
 msgid "Enable encryption for data transfer (restart Seafile to take effect)"
 msgstr "传输数据时加密（需要重启 Seafile 才生效）"
 
-#: templates/settings.html:33
+#: templates/settings.html:32
 msgid "Upload speed limit:"
 msgstr "最大上传速度："
 
-#: templates/settings.html:42
+#: templates/settings.html:41
 msgid "Download speed limit:"
 msgstr "最大下载速度："
+
+#~ msgid "Edit server address"
+#~ msgstr "编辑服务器地址"
+
+#~ msgid "Official Server"
+#~ msgstr "官方服务器"
 
 #~ msgid "Incorrect password. Failed to decrypt files."
 #~ msgstr "密码错误。文件解密失败。"
@@ -603,9 +610,6 @@ msgstr "最大下载速度："
 
 #~ msgid "Files"
 #~ msgstr "文件"
-
-#~ msgid "SyncLan"
-#~ msgstr "局域网同步"
 
 #~ msgid "Network"
 #~ msgstr "网络"

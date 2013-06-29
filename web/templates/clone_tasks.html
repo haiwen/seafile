@@ -2,13 +2,17 @@
 
 <%def name="main_panel()">
 <div id="nav-panel" class="fleft">
-    <h3>${_("Navigation")}</h3>
-    <a href="/repos/">${_("All Libraries")}</a>
+    <div class="block">
+        <h3>${_("Navigation")}</h3>
+        <a href="/repos/">${_("All Libraries")}</a>
+    </div>
 </div>
 
 <div id="con-panel" class="fright">
-    <h3>${_("Download Tasks")}</h3>
-    <ul id="task-list"></ul>
+    <div class="block">
+        <h3>${_("Download Tasks")}</h3>
+        <ul id="task-list"></ul>
+    </div>
 </div>
 
 <textarea id="jtemplate" class="hide">

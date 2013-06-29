@@ -12,7 +12,6 @@
     <script type="text/javascript" src="/static/js/jquery.simplemodal.1.4.1.min.js"></script>
     <script type="text/javascript" src="/static/js/jquery-jtemplates.js"></script>
 </head>
-
 <%
      from seaserv import ccnet_rpc
      sinfo = ccnet_rpc.get_session_info()
@@ -26,7 +25,7 @@
                 % if settings.SHOW_SYSTEM:
                 <a href="/procs/">${_("System")}</a>
                 % endif
-           <select id="lang_select">
+                <select id="lang-select">
 					% if lang == "zn_CN":
 					<option selected='selected' value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=cn"} >中文</option>
 					% else:
@@ -42,32 +41,18 @@
 					% else:
 					<option value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=fr"} >Français</option>
 					% endif
-				</select>  
-				<script>
-				    $(function(){
-				   // bind change event to select
-					     $('#lang_select').bind('change', function () {
-						      var url = $(this).val(); // get selected value
-							  if (url) { // require a URL
-										  window.location = url; // redirect
-									}
-							  return false;
-						     });
-			        });
-				</script>
-
-                </a>
+                </select>  
             </div>
             <div class="fleft">
                 <span id="client-note" class="fleft">${_("Seafile Client")}</span>
                 <ul id="nav" class="fleft">
-                    <li class="library-item">
+                    <li>
                     <a href="/repos/"><span class="icon-folder-close"></span>${_("Libraries")}</a>
                     </li>
-                    <li class="settings-item">
+                    <li>
                     <a href="/settings/"><span class="icon-cog"></span>${_("Settings")}</a>
                     </li>
-                    <li class="help-item">
+                    <li>
                     % if lang == 'zh_CN':
                     <a href=${settings.DEFAULT_HELP_WEB}><span class="icon-question-sign"></span>${_("Help")}</a>
                     % else:
@@ -89,16 +74,32 @@
     </div>
 </div><!-- wrapper -->
 <script type="text/javascript" src="/static/js/jquery.tools.min.js"></script>
-<script type="text/javascript" src="/static/js/utils.js"></script>
+<%def name="js()"></%def>
+${self.js()}
 <script type="text/javascript">
+//highlight the tr when mouse hover on it
+$("table tr:gt(0)").hover(
+    function() {
+        $(this).addClass('hl');
+    },  
+    function() {
+        $(this).removeClass('hl');
+    }   
+);
+// bind change event to select
+$('#lang-select').bind('change', function () {
+    var url = $(this).val(); // get selected value
+    if (url) { // require a URL
+        window.location = url; // redirect
+    }
+    return false;
+});
+window.onload = function() {
     // make 'footer' stay in the bottom of the window
     if ($(window).height() > $('body').height()) {
         $('#main-wrapper').css({'height': $(window).height() - $('#header').outerHeight(true) - $('#footer').outerHeight(true)});
     }
-</script>
-<%def name="js()"></%def>
-${self.js()}
-<script type="text/javascript">
+};
 //font icons: for browsers that don't support ':before'
     var fa_icons = [ 
         {'name':'folder-close', 'con':'f07b'},

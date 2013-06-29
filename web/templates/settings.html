@@ -1,8 +1,7 @@
 <%inherit file="base.html"/>
 
 <%def name="main_panel()">
-<div id="nav-panel" class="fleft"></div>
-<div id="con-panel" class="fright">
+<div class="block wide-block">
     <form id="prefs-form" action="/settings/" method="post">
         <ul>
             <li>
@@ -29,7 +28,7 @@
             % endif
             ${_("Enable encryption for data transfer (restart Seafile to take effect)")}
             </li>
-	    <li>
+            <li>
             <label class="speed-set">${_("Upload speed limit:")}</label>
 		    % if prefs['upload_limit'] > 0:
 		    <input class="speed-input" type="text" name="upload_limit" value="${prefs['upload_limit']}" maxlength="20">

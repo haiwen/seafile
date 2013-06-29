@@ -81,7 +81,7 @@
                     % endif
                 </td>
                 <td>
-                    <span class="icon-folder-open-alt repo-op" title="${_("Open")}" data-url="/repos/operation/?repo=${repo.props.id}&op=open"></span>
+                    <span class="icon-folder-open-alt open-local-dir repo-op" title="${_("Open")}" data-url="/repos/operation/?repo=${repo.props.id}&op=open"></span>
                     <span class="icon-unlink repo-op unsync-repo" title="${_("Unsync")}" data-url="/repos/operation/?repo=${repo.props.id}&op=remove"></span>
                 </td>
             </tr>
@@ -101,6 +101,9 @@
 
 <%def name="js()">
 <script type="text/javascript">
+$('.open-local-dir').click(function() {
+    location.href = $(this).data('url');    
+});
 $('.unsync-repo').click(function() {
     var url = $(this).data('url');
     $('#dialog-delete-confirm').modal();

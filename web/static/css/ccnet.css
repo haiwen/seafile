@@ -130,6 +130,9 @@ a.button { text-decoration: underline; color:#800; }
     border-radius:3px;
     box-shadow:0px 1px 1px #ccc;
 }
+.wide-block {/*e.g: settings page*/
+    padding:20px 70px;
+}
 #wrapper { font: 13px/1.5 Arial, Helvetica, sans-serif; background:#f8f8f8; color:#333; }
 #header-inner, #main {
     width:950px;
@@ -160,7 +163,6 @@ a.button { text-decoration: underline; color:#800; }
 }
 #client-note {
     font-family: Palatino, Georgia, "Times New Roman", serif;
-    font-size: 36px;
     font-size:1.5em;
     width:258px;
     margin-top: 12px;
@@ -190,19 +192,20 @@ a.button { text-decoration: underline; color:#800; }
 #nav [class^="icon-"] {
     margin-right:4px;
 }
-#lang_select {
+#lang-select {
+    color:#fff;
+    font-size:13px;/*for ff*/
     background:rgba(255,255,255, 0.4);
     border:1px solid rgba(255,255,255, 0.2);
-    color:#fff;
-    padding:1px 9px;
     border-radius:2px;
     outline:none;
 }
-#lang_select option {
+#lang-select option {
     background:#1abc60;
 }
 #main {
     padding:30px 0 45px;
+    min-height:490px;
 }
 #nav-panel {
     width:232px;
