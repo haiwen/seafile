@@ -47,8 +47,8 @@
                 <th width="30%">${_("Description")}</th>
                 <th width="12%">${_("Server")}</th>
                 <th width="15%">${_("Modify Time")}</th>
-                <th width="11%">${_("State")}</th>
-                <th width="12%">${_("Action")}</th>
+                <th width="9%">${_("State")}</th>
+                <th width="14%">${_("Action")}</th>
             </tr>
             % for repo in repos:
             <tr>
@@ -88,8 +88,8 @@
             % endfor
         </table>
 
-        <div id="dialog-delete-confirm" class="hide">
-            <p><span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>${_("Really want to unsync this library?")}</p>
+        <div id="unsync-confirm" class="hide">
+            <p><span class="ui-icon ui-icon-alert vam"></span><span class="vam">${_("Really want to unsync this library?")}</span></p>
             <button id="remove-repo-btn">${_("Unsync")}</button>
             <button class="simplemodal-close">${_("Cancel")}</button>
         </div>
@@ -106,7 +106,7 @@ $('.open-local-dir').click(function() {
 });
 $('.unsync-repo').click(function() {
     var url = $(this).data('url');
-    $('#dialog-delete-confirm').modal();
+    $('#unsync-confirm').modal({appendTo: "#main", focus:false});
     $('#remove-repo-btn').click(function() {
         location.href = url;    
     });

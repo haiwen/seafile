@@ -88,8 +88,8 @@
             </div>
         </textarea>
 
-        <div id="dialog-delete-confirm" class="hide">
-            <p><span class="ui-icon ui-icon-alert" style="float:left; margin:0 7px 20px 0;"></span>${_("Really want to unsync this library?")}</p>
+        <div id="unsync-confirm" class="hide">
+            <p><span class="ui-icon ui-icon-alert vam"></span><span class="vam">${_("Really want to unsync this library?")}</span></p>
             <button id="remove-repo-btn" data="/repos/operation/?repo=${repo.props.id}&op=remove">${_("Unsync")}</button>
             <button class="simplemodal-close">${_("Cancel")}</button>
         </div>
@@ -128,7 +128,7 @@ $("#open-dir-btn, #remove-repo-btn").click(function() {
 
 //delete dialog
 $("#delete").click(function() {
-    $("#dialog-delete-confirm").modal({appendTo: "#main"}); 
+    $("#unsync-confirm").modal({appendTo: "#main", focus:false}); 
     return false;
 });
 
