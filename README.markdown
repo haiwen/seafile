@@ -53,7 +53,7 @@ See <https://github.com/haiwen/seafile/wiki>
 Internationalization (I18n)
 ==========
 
-See [po/i18n.markdown](https://github.com/haiwen/seafile/blob/master/po/README.markdown)
+See [po/i18n.markdown](https://github.com/haiwen/seafile/blob/master/po/i18n.markdown)
 
 Change Logs
 ===========
