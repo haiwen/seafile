@@ -44,18 +44,15 @@
         <table class="repo-list">
             <tr>
                 <th width="20%">${_("Name")}</th>
-                <th width="9%">${_("Action")}</th>
                 <th width="30%">${_("Description")}</th>
                 <th width="12%">${_("Server")}</th>
                 <th width="15%">${_("Modify Time")}</th>
-                <th width="14%">${_("State")}</th>
+                <th width="9%">${_("State")}</th>
+                <th width="14%">${_("Action")}</th>
             </tr>
             % for repo in repos:
             <tr>
                 <td><a href="/repo/?repo=${repo.props.id}" class="repo-link">${ repo.props.name }</a>
-                </td>
-                <td>
-                    <a class="opendir-link" href="/repos/operation/?repo=${repo.props.id}&op=open">${_("Open")}</a>
                 </td>
                 <td>${ repo.props.desc }</td>
                 <td>
@@ -77,14 +74,42 @@
                 <td>
                     % if repo.sync_info and repo.local_branch:
                     % if repo.sync_info.props.head_commit == repo.local_branch.props.commit_id:
-                    ${_("Synchronized")}
+                    <span class="icon-ok" title="${_("Synchronized")}"></span>
+                    % else:
+                    <span class="icon-refresh" title="${_("Syncing")}"></span>
                     % endif
                     % endif
+                </td>
+                <td>
+                    <span class="icon-folder-open-alt open-local-dir repo-op" title="${_("Open")}" data-url="/repos/operation/?repo=${repo.props.id}&op=open"></span>
+                    <span class="icon-unlink repo-op unsync-repo" title="${_("Unsync")}" data-url="/repos/operation/?repo=${repo.props.id}&op=remove"></span>
                 </td>
             </tr>
             % endfor
         </table>
+
+        <div id="unsync-confirm" class="hide">
+            <p><span class="ui-icon ui-icon-alert vam"></span><span class="vam">${_("Really want to unsync this library?")}</span></p>
+            <button id="remove-repo-btn">${_("Unsync")}</button>
+            <button class="simplemodal-close">${_("Cancel")}</button>
+        </div>
+
         % endif
     </div>
 </div>
+</%def>
+
+<%def name="js()">
+<script type="text/javascript">
+$('.open-local-dir').click(function() {
+    location.href = $(this).data('url');    
+});
+$('.unsync-repo').click(function() {
+    var url = $(this).data('url');
+    $('#unsync-confirm').modal({appendTo: "#main", focus:false});
+    $('#remove-repo-btn').click(function() {
+        location.href = url;    
+    });
+});
+</script>
 </%def>
