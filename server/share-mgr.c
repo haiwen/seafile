@@ -103,40 +103,53 @@ collect_repos (SeafDBRow *row, void *data)
     const char *repo_id;
     const char *email;
     const char *permission;
-    SeafRepo *repo = NULL;
-    SeafCommit *commit = NULL;
     SeafileSharedRepo *srepo;
     
     repo_id = seaf_db_row_get_column_text (row, 0);
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo)
-        goto out;
-
     email = seaf_db_row_get_column_text (row, 1);
     permission = seaf_db_row_get_column_text (row, 2);
-
-    commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                             repo->head->commit_id);
-    if (!commit)
-        goto out;
 
     srepo = g_object_new (SEAFILE_TYPE_SHARED_REPO,
                           "share_type", "personal",
                           "repo_id", repo_id,
-                          "repo_name", repo->name,
-                          "repo_desc", repo->desc,
-                          "encrypted", repo->encrypted,
                           "user", email,
                           "permission", permission,
-                          "last_modified", commit->ctime,
                           NULL);
     
     *p_repos = g_list_prepend (*p_repos, srepo);
 
-out:
-    seaf_repo_unref (repo);
-    seaf_commit_unref (commit);
     return TRUE;
+}
+
+static void
+fill_in_repo_info (GList *shared_repos)
+{
+    SeafileSharedRepo *srepo;
+    GList *ptr;
+    SeafRepo *repo = NULL;
+    SeafCommit *commit = NULL;
+
+    for (ptr = shared_repos; ptr; ptr = ptr->next) {
+        srepo = ptr->data;
+        repo = seaf_repo_manager_get_repo (seaf->repo_mgr,
+                                           seafile_shared_repo_get_repo_id(srepo));
+        if (!repo)
+            continue;
+        commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                 repo->head->commit_id);
+        if (!commit) {
+            seaf_repo_unref (repo);
+            continue;
+        }
+        g_object_set (srepo,
+                      "repo_name", repo->name,
+                      "repo_desc", repo->desc,
+                      "encrypted", repo->encrypted,
+                      "last_modified", commit->ctime,
+                      NULL);
+        seaf_repo_unref (repo);
+        seaf_commit_unref (commit);
+    }
 }
 
 GList*
@@ -202,6 +215,8 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
         g_list_free (ret);
         return NULL;
     }
+
+    fill_in_repo_info (ret);
 
     return g_list_reverse (ret);
 }
@@ -276,6 +291,8 @@ seaf_share_manager_list_org_share_repos (SeafShareManager *mgr,
         g_list_free (ret);
         return NULL;
     }
+
+    fill_in_repo_info (ret);
 
     return g_list_reverse (ret);
 }

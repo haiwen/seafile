@@ -331,35 +331,13 @@ load_repo_commit (SeafRepoManager *manager,
     seaf_commit_unref (commit);
 }
 
-static gboolean
-load_branch_cb (SeafDBRow *row, void *vrepo)
-{
-    SeafRepo *repo = vrepo;
-    SeafRepoManager *manager = repo->manager;
-
-    const char *branch_name = seaf_db_row_get_column_text (row, 0);
-    SeafBranch *branch =
-        seaf_branch_manager_get_branch (manager->seaf->branch_mgr,
-                                        repo->id, branch_name);
-    if (branch == NULL) {
-        g_warning ("Broken branch name for repo %s\n", repo->id); 
-        repo->is_corrupted = TRUE;
-        return FALSE;
-    }
-    load_repo_commit (manager, repo, branch);
-    seaf_branch_unref (branch);
-
-    /* Only one result. */
-    return FALSE;
-}
-
 static SeafRepo *
 load_repo (SeafRepoManager *manager, const char *repo_id)
 {
-    char sql[256];
-    int n;
+    SeafRepo *repo;
+    SeafBranch *branch;
 
-    SeafRepo *repo = seaf_repo_new(repo_id, NULL, NULL);
+    repo = seaf_repo_new(repo_id, NULL, NULL);
     if (!repo) {
         g_warning ("[repo mgr] failed to alloc repo.\n");
         return NULL;
@@ -367,17 +345,13 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
 
     repo->manager = manager;
 
-    snprintf(sql, 256, "SELECT branch_name FROM RepoHead WHERE repo_id='%s'",
-             repo->id);
-    n = seaf_db_foreach_selected_row (seaf->db, sql, load_branch_cb, repo);
-    if (n < 0) {
-        g_warning ("Error read branch for repo %s.\n", repo->id);
-        seaf_repo_free (repo);
-        return NULL;
-    } else if (n == 0) {
-        g_warning ("Repo %.8s is corrupted.\n", repo->id);
-        seaf_repo_free (repo);
-        return NULL;
+    branch = seaf_branch_manager_get_branch (seaf->branch_mgr, repo_id, "master");
+    if (!branch) {
+        g_warning ("Failed to get master branch of repo %.8s.\n", repo_id);
+        repo->is_corrupted = TRUE;
+    } else {
+        load_repo_commit (manager, repo, branch);
+        seaf_branch_unref (branch);
     }
 
     if (repo->is_corrupted) {
@@ -400,24 +374,6 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
 #endif
 
     return repo;
-}
-
-static gboolean
-collect_repos (SeafDBRow *row, void *data)
-{
-    GList **p_repos = data;
-    const char *repo_id;
-    SeafRepo *repo;
-
-    repo_id = seaf_db_row_get_column_text (row, 0);
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        /* Continue to collect the remaining repos. */
-        return TRUE;
-    }
-    *p_repos = g_list_prepend (*p_repos, repo);
-
-    return TRUE;
 }
 
 static gboolean
@@ -450,7 +406,9 @@ seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr)
 GList *
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
 {
+    GList *id_list = NULL, *ptr;
     GList *ret = NULL;
+    SeafRepo *repo;
     char sql[256];
 
     if (start == -1 && limit == -1)
@@ -459,8 +417,16 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
         snprintf (sql, 256, "SELECT repo_id FROM Repo LIMIT %d, %d", start, limit);
 
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
-                                      collect_repos, &ret) < 0)
+                                      collect_repo_id, &id_list) < 0)
         return NULL;
 
+    for (ptr = id_list; ptr; ptr = ptr->next) {
+        char *repo_id = ptr->data;
+        repo = seaf_repo_manager_get_repo (mgr, repo_id);
+        if (repo != NULL)
+            ret = g_list_prepend (ret, repo);
+    }
+
+    string_list_free (id_list);
     return g_list_reverse (ret);
 }
