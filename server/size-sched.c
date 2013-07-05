@@ -19,8 +19,8 @@ typedef struct RepoSizeJob {
     char repo_id[37];
 } RepoSizeJob;
 
-#define SCHEDULER_INTV 10000    /* 10s */
-#define CONCURRENT_JOBS 5
+#define SCHEDULER_INTV 1000    /* 1s */
+#define CONCURRENT_JOBS 1
 
 static int
 schedule_pulse (void *vscheduler);
@@ -125,7 +125,7 @@ set_repo_size (SeafDB *db,
                const char *repo_id,
                const char *old_head_id,
                const char *new_head_id,
-               guint64 size)
+               gint64 size)
 {
     SeafDBTrans *trans;
     char sql[256];
@@ -161,7 +161,7 @@ set_repo_size (SeafDB *db,
     if (n == 0) {
         /* Size not set before. */
         snprintf (sql, sizeof(sql),
-                  "INSERT INTO RepoSize VALUES ('%s', %"G_GUINT64_FORMAT", '%s')",
+                  "INSERT INTO RepoSize VALUES ('%s', %"G_GINT64_FORMAT", '%s')",
                   repo_id, size, new_head_id);
         if (seaf_db_trans_query (trans, sql) < 0) {
             ret = SET_SIZE_ERROR;
@@ -176,7 +176,7 @@ set_repo_size (SeafDB *db,
         }
 
         snprintf (sql, sizeof(sql), 
-                  "UPDATE RepoSize SET size = %"G_GUINT64_FORMAT", head_id = '%s' "
+                  "UPDATE RepoSize SET size = %"G_GINT64_FORMAT", head_id = '%s' "
                   "WHERE repo_id = '%s'",
                   size, new_head_id, repo_id);
         if (seaf_db_trans_query (trans, sql) < 0) {
@@ -218,10 +218,7 @@ compute_repo_size (void *vjob)
     SeafRepo *repo = NULL;
     SeafCommit *head = NULL;
     char *cached_head_id = NULL;
-    BlockList *bl;
-    char *block_id;
-    BlockMetadata *bmd;
-    guint64 size = 0;
+    gint64 size = 0;
 
 retry:
     repo = seaf_repo_manager_get_repo (sched->seaf->repo_mgr, job->repo_id);
@@ -242,27 +239,12 @@ retry:
         goto out;
     }
 
-    /* Load block list first so that we don't need to count duplicate blocks.
-     * We only calculate the size of the head commit.
-     */
-    bl = block_list_new ();
-    if (seaf_fs_manager_populate_blocklist (seaf->fs_mgr,
-                                            head->root_id,
-                                            bl) < 0) {
-        block_list_free (bl);
+    size = seaf_fs_manager_get_fs_size (sched->seaf->fs_mgr, head->root_id);
+    if (size < 0) {
+        g_warning ("[scheduler] Failed to compute size of repo %.8s.\n",
+                   repo->id);
         goto out;
     }
-
-    int i;
-    for (i = 0; i < bl->n_blocks; ++i) {
-        block_id = g_ptr_array_index (bl->block_ids, i);
-        bmd = seaf_block_manager_stat_block (sched->seaf->block_mgr, block_id);
-        if (bmd) {
-            size += bmd->size;
-            g_free (bmd);
-        }
-    }
-    block_list_free (bl);
 
     int ret = set_repo_size (sched->seaf->db,
                              job->repo_id,
@@ -276,6 +258,9 @@ retry:
         seaf_repo_unref (repo);
         seaf_commit_unref (head);
         g_free (cached_head_id);
+        repo = NULL;
+        head = NULL;
+        cached_head_id = NULL;
         goto retry;
     }
 
