@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: UTF-8
 
-'''This scirpt builds the seafile server tarball.
+'''This script builds the seafile server tarball.
 
 Some notes:
 
@@ -10,7 +10,7 @@ to change to the 'builddir'. We make use of the 'cwd' argument in
 'subprocess.Popen' to run a command in a specific directory.
 
 2. django/djangorestframework/djblets/gunicorn/flup must be easy_install-ed to
-a directory before run this script. That directory is passed in as the
+a directory before running this script. That directory is passed in as the
 '--thirdpartdir' arguments.
 
 '''
@@ -90,7 +90,7 @@ def error(msg=None, usage=None):
     sys.exit(1)
 
 def run_argv(argv, cwd=None, env=None, suppress_stdout=False, suppress_stderr=False):
-    '''Run a program and wait it to finish, and return its exit code. The
+    '''Run a program and wait for it to finish, and return its exit code. The
     standard output of this program is supressed.
 
     '''
@@ -719,7 +719,7 @@ def gen_tarball():
         error('failed to copy %s to %s: %s' % (tarball_name, dst_tarball, e))
 
     print '---------------------------------------------'
-    print 'The build is successfully. Output is:\t%s' % dst_tarball
+    print 'The build is successful. Output is:\t%s' % dst_tarball
     print '---------------------------------------------'
 
 def main():
