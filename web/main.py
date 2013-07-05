@@ -63,6 +63,8 @@ if lang_code == 'zh_CN':
     DEFAULT_LANG = 'zh_CN'
 elif lang_code == 'fr':
     DEFAULT_LANG = 'fr'
+elif lang_code == 'sk_SK':
+    DEFAULT_LANG = 'sk_SK'
 else:
     DEFAULT_LANG = 'en_US'
 
@@ -841,6 +843,8 @@ class i18n:
              lang_in_use =  'en_US'
         elif inputs.ln == 'fr':
              lang_in_use =  'fr'
+        elif inputs.ln == 'sk_SK':
+             lang_in_use =  'sk_SK'
         else:
              lang_in_use = 'en_US'
 

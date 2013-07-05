@@ -41,7 +41,12 @@
 					% else:
 					<option value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=fr"} >Français</option>
 					% endif
-                </select>  
+					% if lang == "sk_SK":
+					<option selected='selected' value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=sk_SK"} >Slovak</option>
+					% else:
+					<option value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=sk_SK"} >Slovak</option>
+					% endif
+                </select>
             </div>
             <div class="fleft">
                 <span id="client-note" class="fleft">${_("Seafile Client")}</span>

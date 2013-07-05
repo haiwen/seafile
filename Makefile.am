@@ -42,7 +42,8 @@ ACLOCAL_AMFLAGS = -I m4
 web_mos = \
 	web/i18n/en_US/LC_MESSAGES/messages.mo \
 	web/i18n/zh_CN/LC_MESSAGES/messages.mo \
-	web/i18n/fr/LC_MESSAGES/messages.mo
+	web/i18n/fr/LC_MESSAGES/messages.mo \
+	web/i18n/sk_SK/LC_MESSAGES/messages.mo
 
 CLEANFILES = $(web_mos)
 
@@ -55,6 +56,10 @@ web/i18n/zh_CN/LC_MESSAGES/messages.mo: $(top_srcdir)/web/i18n/zh_CN/LC_MESSAGES
 	msgfmt -o $@ $<
 
 web/i18n/fr/LC_MESSAGES/messages.mo: $(top_srcdir)/web/i18n/fr/LC_MESSAGES/messages.po
+	mkdir -p `dirname $@`
+	msgfmt -o $@ $<
+
+web/i18n/sk_SK/LC_MESSAGES/messages.mo: $(top_srcdir)/web/i18n/sk_SK/LC_MESSAGES/messages.po
 	mkdir -p `dirname $@`
 	msgfmt -o $@ $<
 

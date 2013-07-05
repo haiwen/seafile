@@ -33,4 +33,9 @@ TEST SEAFILE
    ./seafile.sh 1 2 3 4
 
    
-   
+To Add a new Translation
+========================
+
+1. Modify templates/base.html
+2. Modify ../Makefile.am
+3. Modify main.py
