@@ -577,11 +577,16 @@ char** strsplit_by_space (char *string, int *length)
     char **array;
     
     if (string == NULL || string[0] == '\0') {
-        *length = 0;
+        if (length != NULL) {
+          *length = 0;
+        }
         return NULL;
     }
 
     array = malloc (sizeof(char *) * size);
+    if (array == NULL) {
+      return NULL;
+    }
     
     remainder = string;
     while (!done) {
@@ -595,13 +600,21 @@ char** strsplit_by_space (char *string, int *length)
         array[num++] = remainder;
         if (!done && num == size) {
             size <<= 1;
-            array = realloc (array, sizeof(char *) * size);
+            char** tmp = realloc (array, sizeof(char *) * size);
+            if (tmp == NULL) {
+              free(array);
+              return NULL;
+            }
+            array = tmp;
         }
 
         remainder = s + 1;
     }
     
-    *length = num;
+    if (length != NULL) {
+      *length = num;
+    }
+
     return array;
 }
 
@@ -617,6 +630,9 @@ char** strsplit_by_char (char *string, int *length, char c)
     }
 
     array = malloc (sizeof(char *) * size);
+    if (array == NULL) {
+      return NULL;
+    }
     
     remainder = string;
     while (!done) {
@@ -630,13 +646,21 @@ char** strsplit_by_char (char *string, int *length, char c)
         array[num++] = remainder;
         if (!done && num == size) {
             size <<= 1;
-            array = realloc (array, sizeof(char *) * size);
+            char** tmp = realloc (array, sizeof(char *) * size);
+            if (tmp == NULL) {
+              free(array);
+              return NULL;
+            }
+            array = tmp;
         }
 
         remainder = s + 1;
     }
     
-    *length = num;
+    if (length != NULL) {
+      *length = num;
+    }
+
     return array;
 }
 
