@@ -217,21 +217,26 @@ static GList *get_unmerged(struct index_state *index)
     int i;
 
     for (i = 0; i < index->cache_nr; i++) {
-        struct stage_data *e;
+        struct stage_data *e = NULL;
         struct cache_entry *ce = index->cache[i];
         if (!ce_stage(ce))
             continue;
 
         if (!ce_in_unmerged_list(unmerged, ce)) {
-            e = (struct stage_data *)calloc(1, sizeof(struct stage_data));
+            e = calloc(1, sizeof(struct stage_data));
+            if (e == NULL) {
+              continue;
+            }
             e->path = g_strdup(ce->name);
             unmerged = g_list_prepend(unmerged, e);
         }
 
-        e->stages[ce_stage(ce)].ctime = ce->ce_ctime.sec;
-        e->stages[ce_stage(ce)].mtime = ce->ce_mtime.sec;
-        e->stages[ce_stage(ce)].mode = ce->ce_mode;
-        hashcpy(e->stages[ce_stage(ce)].sha, ce->sha1);
+        if (e != NULL) {
+          e->stages[ce_stage(ce)].ctime = ce->ce_ctime.sec;
+          e->stages[ce_stage(ce)].mtime = ce->ce_mtime.sec;
+          e->stages[ce_stage(ce)].mode = ce->ce_mode;
+          hashcpy(e->stages[ce_stage(ce)].sha, ce->sha1);
+        }
     }
     unmerged = g_list_reverse(unmerged);
 
