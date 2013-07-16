@@ -71,9 +71,9 @@ Seafile is an open and extensible system. A library is a collection of files tha
 Licence 
 =======
 
-Seafile and its desktop and mobile clients are published under GPLv3 with one exception -- the seafile's logo of desktop and mobile clients must be kept when redistribution.
+Seafile and its desktop and mobile clients are published under GPLv3.
 
-The Seafile server's web end, i.e. Seahub, is published under Apache License. The seafile logo in Seahub can be changed.
+The Seafile server's web end, i.e. Seahub, is published under Apache License.
 
 Contact
 =======
