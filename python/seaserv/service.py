@@ -38,6 +38,7 @@ import logging
 import os
 import sys
 import ConfigParser
+from urlparse import urlparse
 
 import ccnet
 import seafile
@@ -77,27 +78,16 @@ config.read(os.path.join(CCNET_CONF_PATH, 'ccnet.conf'))
 if config.has_option('General', 'SERVICE_URL') and \
    config.has_option('Network', 'PORT'):
     service_url = config.get('General', 'SERVICE_URL')
+    hostname = urlparse(service_url).hostname
 
-    if service_url.startswith('http://'):
-        service_url = service_url[7:]
-    elif service_url.startswith('https://'):
-        service_url = service_url[8:]
-
-    if ':' in service_url:
-        # strip http port such as ':8000' in 'http://192.168.1.101:8000'
-        idx = service_url.index(':')
-        service_url = service_url[:idx]
-    if '/' in service_url:
-        # strip url suffix like the '/seahub' part of www.gonggeng.org/seahub
-        idx = service_url.index('/')
-        service_url = service_url[:idx]
-
-    CCNET_SERVER_ADDR = service_url
+    SERVICE_URL = service_url
+    CCNET_SERVER_ADDR = hostname
     CCNET_SERVER_PORT = config.get('Network', 'PORT')
 else:
     print "Warning: SERVICE_URL not set in ccnet.conf"
     CCNET_SERVER_ADDR = None
     CCNET_SERVER_PORT = None
+    SERVICE_URL = None
 
 '''seafile'''
 try:
