@@ -536,29 +536,32 @@ static int update_file_flags(struct merge_options *o,
             return clean;
         }
         g_free (real_path);
+        real_path = new_path;
 
         /* Checkout an empty dir. */
         if (S_ISDIR (mode)) {
-            if (g_mkdir (path, 0777) < 0)
-                g_warning ("Failed to create empty dir %s.\n", path);
-            return 0;
+            if (g_mkdir (real_path, 0777) < 0) {
+                g_warning ("Failed to create empty dir %s.\n", real_path);
+                g_free (real_path);
+                return 0;
+            }
+            goto update_cache;
         }
 
         /* We're checking out a clean file in recover merge.
          * Note that file is clean only when it's added by others.
          */
         if (update_cache && o->recover_merge && 
-            seaf_stat(new_path, &st) == 0 && S_ISREG(st.st_mode)) {
-            if (compare_file_content (new_path, &st, sha, 
+            seaf_stat(real_path, &st) == 0 && S_ISREG(st.st_mode)) {
+            if (compare_file_content (real_path, &st, sha, 
                                       o->crypt) == 0) {
-                real_path = new_path;
                 goto update_cache;
             }
             /* If the file was checked out and changed by user, we
              * don't need to check out again, since the user should
              * know the content of this file.
              */
-            g_free (new_path);
+            g_free (real_path);
             return clean;
         }
 
@@ -570,21 +573,18 @@ static int update_file_flags(struct merge_options *o,
         rawdata_to_hex(sha, file_id, 20);
         if (seaf_fs_manager_checkout_file(seaf->fs_mgr, 
                                           file_id,
-                                          new_path,
+                                          real_path,
                                           mode,
                                           o->crypt,
                                           conflict_suffix,
                                           FALSE,
                                           &conflicted) < 0) {
             g_warning("Failed to checkout file %s.\n", file_id);
-            g_free(new_path);
+            g_free(real_path);
             g_free (conflict_suffix);
             return clean;
         }
         g_free (conflict_suffix);
-
-        /* replace real_path with new_path. */
-        real_path = new_path;
     }
 
 update_cache:
@@ -795,7 +795,7 @@ static int process_df_entry(struct merge_options *o,
                 g_free (conflict_suffix);
             } else {
                 /* Clean merge. */
-                update_file(o, 1, b_sha, b_mode, path);
+                clean_merge = update_file(o, 1, b_sha, b_mode, path);
             }
         }
     } else {

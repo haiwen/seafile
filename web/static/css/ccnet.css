@@ -147,7 +147,7 @@ a.button { text-decoration: underline; color:#800; }
 #footer,
 #header,
 #lang-select option {
-    background: #e83;
+    background: #1abc93;
 }
 
 #header {
@@ -168,7 +168,7 @@ a.button { text-decoration: underline; color:#800; }
     font-family: Palatino, Georgia, "Times New Roman", serif;
     font-size:1.5em;
     width:258px;
-    margin-top: 12px;
+    margin-top:11px;
     color:#fff;
 }
 #nav {
@@ -182,7 +182,7 @@ a.button { text-decoration: underline; color:#800; }
 #nav a:visited {
     display:block;
     text-align:center;
-    padding-top:13px;
+    padding-top:11px;
     color:#fff;
     line-height:1.1;
     border-bottom:1px solid transparent;
