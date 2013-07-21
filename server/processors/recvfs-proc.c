@@ -21,6 +21,7 @@
 
 #define CHECK_INTERVAL 100      /* 100ms */
 #define MAX_NUM_BATCH  64
+#define MAX_CHECKING_DIRS 1000
 
 enum {
     RECV_ROOT,
@@ -29,12 +30,18 @@ enum {
 
 typedef struct  {
     GList *fs_roots;
+    int n_roots;
+
     int inspect_objects;
     int pending_objects;
     char buf[4096];
     char *bufptr;
     int  n_batch;
+
     GHashTable  *fs_objects;
+
+    int checking_dirs;
+    GQueue *dir_queue;
 
     char *obj_seg;
     int obj_seg_len;
@@ -60,13 +67,23 @@ static void handle_update (CcnetProcessor *processor,
                            char *content, int clen);
 
 static void
+free_dir_id (gpointer data, gpointer user_data)
+{
+    g_free (data);
+}
+
+static void
 release_resource(CcnetProcessor *processor)
 {
     USE_PRIV;
 
-    g_hash_table_destroy (priv->fs_objects);
+    if (priv->fs_objects)
+        g_hash_table_destroy (priv->fs_objects);
 
     string_list_free (priv->fs_roots);
+
+    g_queue_foreach (priv->dir_queue, free_dir_id, NULL);
+    g_queue_free (priv->dir_queue);
 
     g_free (priv->obj_seg);
     
@@ -129,15 +146,11 @@ request_object_batch (CcnetProcessor *processor,
 {
     g_assert(priv->bufptr - priv->buf <= (4096-41));
 
-    if (g_hash_table_lookup(priv->fs_objects, id))
-        return;
-
     memcpy (priv->bufptr, id, 40);
     priv->bufptr += 40;
     *priv->bufptr = '\n';
     priv->bufptr++;
 
-    g_hash_table_insert (priv->fs_objects, g_strdup(id), (gpointer)1);
     /* Flush when too many objects batched. */
     if (++priv->n_batch == MAX_NUM_BATCH)
         request_object_batch_flush (processor, priv);
@@ -157,19 +170,17 @@ check_seafdir (CcnetProcessor *processor, SeafDir *dir)
         if (strcmp (dent->id, EMPTY_SHA1) == 0)
             continue;
 
-#ifdef DEBUG
-        seaf_debug ("[recvfs] Inspect object %s.\n", dent->id);
-#endif
+        /* Don't check objects that have been checked before. */
+        if (priv->fs_objects && g_hash_table_lookup (priv->fs_objects, dent->id))
+            continue;
 
         if (S_ISDIR(dent->mode)) {
-            if (seaf_obj_store_async_read (seaf->fs_mgr->obj_store,
-                                           priv->reader_id,
-                                           dent->id) < 0) {
-                g_warning ("[recvfs] Failed to start async read of %s.\n",
-                           dent->id);
-                goto bad;
-            }
+            g_queue_push_tail (priv->dir_queue, g_strdup(dent->id));
         } else {
+#ifdef DEBUG
+            seaf_debug ("[recvfs] Inspect file %s.\n", dent->id);
+#endif
+
             /* For file, we just need to check existence. */
             if (seaf_obj_store_async_stat (seaf->fs_mgr->obj_store,
                                            priv->stat_id,
@@ -178,8 +189,11 @@ check_seafdir (CcnetProcessor *processor, SeafDir *dir)
                            dent->id);
                 goto bad;
             }
+            ++(priv->inspect_objects);
         }
-        ++(priv->inspect_objects);
+
+        if (priv->fs_objects)
+            g_hash_table_insert (priv->fs_objects, g_strdup(dent->id), (gpointer)1);
     }
 
     return 0;
@@ -199,6 +213,7 @@ on_seafdir_read (OSAsyncResult *res, void *cb_data)
     USE_PRIV;
 
     --(priv->inspect_objects);
+    --(priv->checking_dirs);
 
     if (!res->success) {
         request_object_batch (processor, priv, res->obj_id);
@@ -215,8 +230,11 @@ on_seafdir_read (OSAsyncResult *res, void *cb_data)
         request_object_batch (processor, priv, res->obj_id);
         return;
     }
-    check_seafdir (processor, dir);
+
+    int ret = check_seafdir (processor, dir);
     seaf_dir_free (dir);
+    if (ret < 0)
+        return;
 }
 
 static void
@@ -245,6 +263,7 @@ on_fs_write (OSAsyncResult *res, void *cb_data)
         ccnet_processor_send_response (processor, SC_BAD_OBJECT, SS_BAD_OBJECT,
                                        NULL, 0);
         ccnet_processor_done (processor, FALSE);
+        return;
     }
 
 #ifdef DEBUG
@@ -257,11 +276,38 @@ check_end_condition (CcnetProcessor *processor)
 {
     USE_PRIV;
 
+    seaf_debug ("Number of checking dirs: %d.\n", priv->checking_dirs);
+
+    char *dir_id;
+    while (priv->checking_dirs < MAX_CHECKING_DIRS) {
+        dir_id = g_queue_pop_head (priv->dir_queue);
+        if (!dir_id)
+            break;
+
+#ifdef DEBUG
+        seaf_debug ("[recvfs] Inspect dir %s.\n", dir_id);
+#endif
+
+        if (seaf_obj_store_async_read (seaf->fs_mgr->obj_store,
+                                       priv->reader_id,
+                                       dir_id) < 0) {
+            g_warning ("[recvfs] Failed to start async read of %s.\n", dir_id);
+            ccnet_processor_send_response (processor, SC_BAD_OBJECT, SS_BAD_OBJECT,
+                                           NULL, 0);
+            ccnet_processor_done (processor, FALSE);
+            return FALSE;
+        }
+        g_free (dir_id);
+
+        ++(priv->inspect_objects);
+        ++(priv->checking_dirs);
+    }
+
     /* Flush periodically. */
     request_object_batch_flush (processor, priv);
 
     if (priv->pending_objects == 0 && priv->inspect_objects == 0) {
-        seaf_debug ("Recv fs roots end.\n");
+        seaf_debug ("Recv fs end.\n");
         ccnet_processor_send_response (processor, SC_END, SS_END, NULL, 0);
         ccnet_processor_done (processor, TRUE);
         return FALSE;
@@ -304,8 +350,7 @@ start (CcnetProcessor *processor, int argc, char **argv)
                                          session_token, NULL) == 0) {
         ccnet_processor_send_response (processor, SC_OK, SS_OK, NULL, 0);
         processor->state = RECV_ROOT;
-        priv->fs_objects = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                                  g_free, NULL);
+        priv->dir_queue = g_queue_new ();
         register_async_io (processor);
         return 0;
     } else {
@@ -374,7 +419,6 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
         goto bad;
     }
 
-    g_hash_table_remove (priv->fs_objects, pack->id);
     return 0;
 
 bad:
@@ -420,12 +464,21 @@ process_fsroot_list (CcnetProcessor *processor)
     char *object_id;
     USE_PRIV;
 
+    /* When there are more than one fs roots, there may be many
+     * duplicate fs objects between different commits.
+     * We remember checked fs objects in a hash table to avoid
+     * redundant checks.
+     */
+    if (priv->n_roots > 1)
+        priv->fs_objects = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                  g_free, NULL);
+
     request_object_batch_begin (priv);
 
     for (ptr = priv->fs_roots; ptr != NULL; ptr = ptr->next) {
         object_id = ptr->data;
 
-        /* Empty dir or file alwasys exists. */
+        /* Empty dir or file always exists. */
         if (strcmp (object_id, EMPTY_SHA1) == 0) {
             object_id += 41;
             continue;
@@ -435,16 +488,7 @@ process_fsroot_list (CcnetProcessor *processor)
         seaf_debug ("[recvfs] Inspect object %s.\n", object_id);
 #endif
 
-        if (seaf_obj_store_async_read (seaf->fs_mgr->obj_store,
-                                       priv->reader_id,
-                                       object_id) < 0) {
-            ccnet_processor_send_response (processor,
-                                           SC_BAD_OBJECT, SS_BAD_OBJECT,
-                                           NULL, 0);
-            ccnet_processor_done (processor, FALSE);
-            return;
-        }
-        ++(priv->inspect_objects);
+        g_queue_push_tail (priv->dir_queue, g_strdup(object_id));
 
         g_free (object_id);
     }
@@ -474,6 +518,7 @@ queue_fs_roots (CcnetProcessor *processor, char *content, int clen)
         object_id[40] = '\0';
         priv->fs_roots = g_list_prepend (priv->fs_roots, g_strdup(object_id));
         object_id += 41;
+        ++(priv->n_roots);
     }
 
     ccnet_processor_send_response (processor, SC_OK, SS_OK, NULL, 0);
