@@ -460,9 +460,8 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     char *filenames_json, *tmp_files_json;
 
     /* If CORS preflight header, then create an empty body response (200 OK)
-       and return it.
+     * and return it.
      */
-    printf("1\n");
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
          evhtp_headers_add_header (req->headers_out,
                                    evhtp_header_new("Access-Control-Allow-Headers",
@@ -478,16 +477,12 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
                                                     "86400", 1, 1));
          evhtp_headers_add_header (req->headers_out,
                                    evhtp_header_new("Content-Type",
-                                                    "text/html; charset=utf-8", 1, 1));
-         
+                                                    "text/html; charset=utf-8", 1, 1));         
          
          set_content_length_header (req);
          evhtp_send_reply (req, EVHTP_RES_OK);
-         printf("send reply\n");
          return;
     }
-    printf("2\n");
-    
 
     /* After upload_headers_cb() returns an error, libevhtp may still
      * receive data from the web browser and call into this cb.
@@ -547,6 +542,22 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     }
 
     ccnet_rpc_client_free (rpc_client);
+
+    GString *res_buf = g_string_new (NULL);
+    GList *ptr;
+
+    g_string_append (res_buf, "[");
+    for (ptr = fsm->filenames; ptr; ptr = ptr->next) {
+        char *filename = ptr->data;
+        if (ptr->next)
+            g_string_append_printf (res_buf, "{\"name\": \"%s\"}, ", filename);
+        else
+            g_string_append_printf (res_buf, "{\"name\": \"%s\"}", filename);
+    }
+    g_string_append (res_buf, "]");
+
+    evbuffer_add (req->buffer_out, res_buf->str, res_buf->len);
+    g_string_free (res_buf, TRUE);
 
     set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_OK);
