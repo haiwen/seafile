@@ -33,6 +33,7 @@ enum {
 struct _SeafileController {
     char *config_dir;
     char *seafile_dir;
+    char *logdir;
 
     CcnetClient         *client;
     CcnetClient         *sync_client;
