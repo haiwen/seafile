@@ -10,11 +10,12 @@ if COMPILE_GUI
   MAKE_PO = po
 endif
 
-MAKE_CONTROLLER = controller
 
 if WIN32
   MAKE_data =
   MAKE_CONTROLLER =
+else
+  MAKE_CONTROLLER = controller
 endif
 
 if COMPILE_SERVER
