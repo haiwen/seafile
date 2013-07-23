@@ -445,6 +445,146 @@ error:
     }
 }
 
+/*
+  Handle AJAX file upload.
+  @return an array of json data, e.g. [{"name": "foo.txt"}]
+ */
+static void
+upload_ajax_cb(evhtp_request_t *req, void *arg)
+{
+    RecvFSM *fsm = arg;
+    SearpcClient *rpc_client = NULL;
+    char *parent_dir;
+    GError *error = NULL;
+    int error_code = ERROR_INTERNAL;
+    char *filenames_json, *tmp_files_json;
+
+    /* If CORS preflight header, then create an empty body response (200 OK)
+       and return it.
+     */
+    printf("1\n");
+    if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
+         evhtp_headers_add_header (req->headers_out,
+                                   evhtp_header_new("Access-Control-Allow-Headers",
+                                                    "x-requested-with, content-type, accept, origin, authorization", 1, 1));
+         evhtp_headers_add_header (req->headers_out,
+                                   evhtp_header_new("Access-Control-Allow-Methods",
+                                                    "GET, POST, PUT, PATCH, DELETE, OPTIONS", 1, 1));
+         evhtp_headers_add_header (req->headers_out,
+                                   evhtp_header_new("Access-Control-Allow-Origin",
+                                                    "*", 1, 1));
+         evhtp_headers_add_header (req->headers_out,
+                                   evhtp_header_new("Access-Control-Max-Age",
+                                                    "86400", 1, 1));
+         evhtp_headers_add_header (req->headers_out,
+                                   evhtp_header_new("Content-Type",
+                                                    "text/html; charset=utf-8", 1, 1));
+         
+         
+         set_content_length_header (req);
+         evhtp_send_reply (req, EVHTP_RES_OK);
+         printf("send reply\n");
+         return;
+    }
+    printf("2\n");
+    
+
+    /* After upload_headers_cb() returns an error, libevhtp may still
+     * receive data from the web browser and call into this cb.
+     * In this case fsm will be NULL.
+     */
+    if (!fsm || fsm->state == RECV_ERROR)
+        return;
+
+    if (!fsm->files) {
+        seaf_warning ("[upload] No file uploaded.\n");
+        set_content_length_header (req);
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
+
+    parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
+    if (!parent_dir) {
+        seaf_warning ("[upload] No parent dir given.\n");
+        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
+        set_content_length_header (req);
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
+
+    if (!check_tmp_file_list (fsm->files, &error_code))
+        goto error;
+
+    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                                 NULL,
+                                                 "seafserv-threaded-rpcserver");
+
+    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
+        seaf_warning ("[upload] Out of quota.\n");
+        error_code = ERROR_QUOTA;
+        goto error;
+    }
+
+    filenames_json = file_list_to_json (fsm->filenames);
+    tmp_files_json = file_list_to_json (fsm->files);
+
+    seafile_post_multi_files (rpc_client,
+                              fsm->repo_id,
+                              parent_dir,
+                              filenames_json,
+                              tmp_files_json,
+                              fsm->user,
+                              &error);
+    g_free (filenames_json);
+    g_free (tmp_files_json);
+    if (error) {
+        if (error->code == POST_FILE_ERR_FILENAME) {
+            error_code = ERROR_FILENAME;
+            seaf_warning ("[upload] Bad filename.\n");
+        }
+        g_clear_error (&error);
+        goto error;
+    }
+
+    ccnet_rpc_client_free (rpc_client);
+
+    set_content_length_header (req);
+    evhtp_send_reply (req, EVHTP_RES_OK);
+    return;
+
+error:
+    if (rpc_client)
+        ccnet_rpc_client_free (rpc_client);
+
+    switch (error_code) {
+    case ERROR_FILENAME:
+        evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
+        set_content_length_header (req);
+        evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
+        break;
+    case ERROR_EXISTS:
+        evbuffer_add_printf(req->buffer_out, "File already exists.\n");
+        set_content_length_header (req);
+        evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
+        break;
+    case ERROR_SIZE:
+        evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
+        set_content_length_header (req);
+        evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
+        break;
+    case ERROR_QUOTA:
+        evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
+        set_content_length_header (req);
+        evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
+        break;
+    case ERROR_RECV:
+    case ERROR_INTERNAL:
+        set_content_length_header (req);
+        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        break;
+    }
+}
+
 static void
 update_cb(evhtp_request_t *req, void *arg)
 {
@@ -1143,6 +1283,10 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
     RecvFSM *fsm = NULL;
     Progress *progress = NULL;
 
+    if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
+         return EVHTP_RES_OK;
+    }    
+    
     /* URL format: http://host:port/[upload|update]/<token>?X-Progress-ID=<uuid> */
     token = req->uri->path->file;
     if (!token) {
@@ -1294,6 +1438,9 @@ upload_file_init (evhtp_t *htp)
     cb = evhtp_set_regex_cb (htp, "^/upload-api/.*", upload_api_cb, NULL);
     evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
+    cb = evhtp_set_regex_cb (htp, "^/upload-aj/.*", upload_ajax_cb, NULL);
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
+    
     cb = evhtp_set_regex_cb (htp, "^/update/.*", update_cb, NULL);
     evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
