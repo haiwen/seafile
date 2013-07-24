@@ -459,22 +459,23 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     int error_code = ERROR_INTERNAL;
     char *filenames_json, *tmp_files_json;
 
-    /* If CORS preflight header, then create an empty body response (200 OK)
-     * and return it.
-     */
+    evhtp_headers_add_header (req->headers_out,
+                              evhtp_header_new("Access-Control-Allow-Headers",
+                                               "x-requested-with, content-type, accept, origin, authorization", 1, 1));
+    evhtp_headers_add_header (req->headers_out,
+                              evhtp_header_new("Access-Control-Allow-Methods",
+                                               "GET, POST, PUT, PATCH, DELETE, OPTIONS", 1, 1));
+    evhtp_headers_add_header (req->headers_out,
+                              evhtp_header_new("Access-Control-Allow-Origin",
+                                               "*", 1, 1));
+    evhtp_headers_add_header (req->headers_out,
+                              evhtp_header_new("Access-Control-Max-Age",
+                                               "86400", 1, 1));
+
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
-         evhtp_headers_add_header (req->headers_out,
-                                   evhtp_header_new("Access-Control-Allow-Headers",
-                                                    "x-requested-with, content-type, accept, origin, authorization", 1, 1));
-         evhtp_headers_add_header (req->headers_out,
-                                   evhtp_header_new("Access-Control-Allow-Methods",
-                                                    "GET, POST, PUT, PATCH, DELETE, OPTIONS", 1, 1));
-         evhtp_headers_add_header (req->headers_out,
-                                   evhtp_header_new("Access-Control-Allow-Origin",
-                                                    "*", 1, 1));
-         evhtp_headers_add_header (req->headers_out,
-                                   evhtp_header_new("Access-Control-Max-Age",
-                                                    "86400", 1, 1));
+        /* If CORS preflight header, then create an empty body response (200 OK)
+         * and return it.
+         */
          evhtp_headers_add_header (req->headers_out,
                                    evhtp_header_new("Content-Type",
                                                     "text/html; charset=utf-8", 1, 1));         
