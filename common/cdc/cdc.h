@@ -61,7 +61,6 @@ typedef struct _CDCDescriptor {
     char    *block_buf;
 } CDCDescriptor;
 
-
 int file_chunk_cdc(int fd_src,
                    CDCFileDescriptor *file_descr,
                    struct SeafileCrypt *crypt,

@@ -50,12 +50,7 @@ static const char *ignore_table[] = {
     "*.tmp",
     "*.TMP",
     /* ms office tmp files */
-    "~$*.doc",
-    "~$*.docx",
-    "~$*.xls",
-    "~$*.xlsx",
-    "~$*.ppt",
-    "~$*.pptx",
+    "~$*",
     /* windows image cache */
     "Thumbs.db",
     NULL,

@@ -884,8 +884,9 @@ int add_to_index(struct index_state *istate,
         alias->ce_flags |= CE_ADDED;
         return 0;
     }
+    /* Skip index file errors. */
     if (index_cb (full_path, sha1, crypt) < 0)
-        return -1;
+        return 0;
     memcpy (ce->sha1, sha1, 20);
 
     ce->ce_flags |= CE_ADDED;

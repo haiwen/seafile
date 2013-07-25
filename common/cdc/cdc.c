@@ -95,6 +95,7 @@ do {                                                         \
                                    (write_data));            \
     if (ret < 0) {                                           \
         free (buf);                                          \
+        g_warning ("CDC: failed to write chunk.\n");         \
         return -1;                                           \
     }                                                        \
     memcpy (file_descr->blk_sha1s +                          \
@@ -123,6 +124,7 @@ int file_chunk_cdc(int fd_src,
 
     SeafStat sb;
     if (seaf_fstat (fd_src, &sb) < 0) {
+        g_warning ("CDC: failed to stat: %s.\n", strerror(errno));
         return -1;
     }
     uint64_t expected_size = sb.st_size;
@@ -155,6 +157,7 @@ int file_chunk_cdc(int fd_src,
         }
         ret = readn (fd_src, buf + tail, rsize);
         if (ret < 0) {
+            g_warning ("CDC: failed to read: %s.\n", strerror(errno));
             free (buf);
             return -1;
         }
@@ -227,8 +230,10 @@ int filename_chunk_cdc(const char *filename,
                        gboolean write_data)
 {
     int fd_src = g_open (filename, O_RDONLY | O_BINARY, 0);
-    if (fd_src < 0)
+    if (fd_src < 0) {
+        g_warning ("CDC: failed to open %s.\n", filename);
         return -1;
+    }
 
     int ret = file_chunk_cdc (fd_src, file_descr, crypt, write_data);
     close (fd_src);
