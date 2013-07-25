@@ -2536,7 +2536,7 @@ seafile_post_file (const char *repo_id, const char *temp_file_path,
     return 0;
 }
 
-int
+char *
 seafile_post_multi_files (const char *repo_id,
                           const char *parent_dir,
                           const char *filenames_json,
@@ -2547,25 +2547,27 @@ seafile_post_multi_files (const char *repo_id,
     if (!repo_id || !filenames_json || !parent_dir || !paths_json || !user) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Argument should not be null");
-        return -1;
+        return NULL;
     }
 
     if (!is_uuid_valid (repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
-        return -1;
+        return NULL;
     }
 
+    char *new_ids = NULL;
     if (seaf_repo_manager_post_multi_files (seaf->repo_mgr,
                                             repo_id,
                                             parent_dir,
                                             filenames_json,
                                             paths_json,
                                             user,
+                                            &new_ids,
                                             error) < 0) {
-        return -1;
+        return NULL;
     }
 
-    return 0;
+    return new_ids;
 }
 
 char *

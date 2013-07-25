@@ -757,6 +757,7 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
                                     const char *filenames_json,
                                     const char *paths_json,
                                     const char *user,
+                                    char **new_ids,
                                     GError **error)
 {
     SeafRepo *repo = NULL;
@@ -857,6 +858,12 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
     if (gen_new_commit (repo_id, head_commit, root_id,
                         user, buf->str, error) < 0)
         ret = -1;
+
+    GString *new_ids_buf = g_string_new(NULL);
+    const char *id_sep = "\t";
+
+    string_list_join (id_list, new_ids_buf, id_sep);
+    *new_ids = g_string_free (new_ids_buf, FALSE);
 
 out:
     if (repo)

@@ -112,7 +112,7 @@ seafile_post_file (SearpcClient *client,
 
 #define POST_FILE_ERR_FILENAME 401
 
-int
+char *
 seafile_post_multi_files (SearpcClient *client,
                           const char *repo_id,
                           const char *parent_dir,

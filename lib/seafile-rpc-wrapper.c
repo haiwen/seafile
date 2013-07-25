@@ -311,7 +311,7 @@ seafile_post_file (SearpcClient *client,
                                     "string", user);
 }
 
-int
+char *
 seafile_post_multi_files (SearpcClient *client,
                           const char *repo_id,
                           const char *parent_dir,
@@ -320,12 +320,12 @@ seafile_post_multi_files (SearpcClient *client,
                           const char *user,
                           GError **error)
 {
-    return searpc_client_call__int (client, "seafile_post_multi_files", error,
-                                    5, "string", repo_id,
-                                    "string", parent_dir,
-                                    "string", filenames_json,
-                                    "string", paths_json,
-                                    "string", user);
+    return searpc_client_call__string (client, "seafile_post_multi_files", error,
+                                       5, "string", repo_id,
+                                       "string", parent_dir,
+                                       "string", filenames_json,
+                                       "string", paths_json,
+                                       "string", user);
 }
 
 int

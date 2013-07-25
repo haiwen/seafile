@@ -256,6 +256,7 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
                                     const char *filenames_json,
                                     const char *paths_json,
                                     const char *user,
+                                    char **new_ids,
                                     GError **error);
 
 int

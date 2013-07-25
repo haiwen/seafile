@@ -530,7 +530,7 @@ seafile_post_file (const char *repo_id, const char *temp_file_path,
  * @filenames_json: json array of filenames
  * @paths_json: json array of temp file paths
  */
-int
+char *
 seafile_post_multi_files (const char *repo_id,
                           const char *parent_dir,
                           const char *filenames_json,

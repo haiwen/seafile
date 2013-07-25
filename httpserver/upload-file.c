@@ -386,13 +386,13 @@ upload_api_cb(evhtp_request_t *req, void *arg)
     filenames_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
 
-    seafile_post_multi_files (rpc_client,
-                              fsm->repo_id,
-                              parent_dir,
-                              filenames_json,
-                              tmp_files_json,
-                              fsm->user,
-                              &error);
+    char *new_file_ids = seafile_post_multi_files (rpc_client,
+                                              fsm->repo_id,
+                                              parent_dir,
+                                              filenames_json,
+                                              tmp_files_json,
+                                              fsm->user,
+                                              &error);
     g_free (filenames_json);
     g_free (tmp_files_json);
     if (error) {
@@ -406,6 +406,7 @@ upload_api_cb(evhtp_request_t *req, void *arg)
 
     ccnet_rpc_client_free (rpc_client);
 
+    evbuffer_add(req->buffer_out, new_file_ids, strlen(new_file_ids));
     set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_OK);
     return;
