@@ -30,7 +30,7 @@
 #include "processors/putcommit-proc.h"
 #include "processors/putfs-proc.h"
 
-#if !defined(SEAFILE_CLIENT_VERSION)
+#ifndef SEAFILE_CLIENT_VERSION
 #define SEAFILE_CLIENT_VERSION PACKAGE_VERSION
 #endif
 
@@ -438,7 +438,7 @@ main (int argc, char **argv)
 
     seaf_message ("starting seafile client "SEAFILE_CLIENT_VERSION"\n");
 #if defined(SEAFILE_SOURCE_COMMIT_ID)
-    seaf_message ("seafile source code id "SEAFILE_SOURCE_COMMIT_ID"\n");
+    seaf_message ("seafile source code version "SEAFILE_SOURCE_COMMIT_ID"\n");
 #endif
 
     g_free (seafile_dir);
