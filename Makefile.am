@@ -77,7 +77,7 @@ uninstall-web:
 	-rm -rf $(DESTDIR)$(pkgdatadir)/web
 
 dist-hook:
-	git log -1 > $(distdir)/latest_commit
+	git log --format='%H' -1 > $(distdir)/latest_commit
 	find $(distdir)/web -name '*.pyc' -o \
 	-name '*.sh' -o \
 	-name '*~' -o \

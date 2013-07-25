@@ -30,6 +30,11 @@
 #include "processors/putcommit-proc.h"
 #include "processors/putfs-proc.h"
 
+#if !defined(SEAFILE_CLIENT_VERSION)
+#define SEAFILE_CLIENT_VERSION PACKAGE_VERSION
+#endif
+
+
 SeafileSession *seaf;
 SearpcClient *ccnetrpc_client;
 SearpcClient *appletrpc_client;
@@ -431,7 +436,10 @@ main (int argc, char **argv)
     seaf->ccnetrpc_client = ccnetrpc_client;
     seaf->appletrpc_client = appletrpc_client;
 
-    seaf_message ("starting seaf-daemon "PACKAGE_VERSION"\n");
+    seaf_message ("starting seafile client "SEAFILE_CLIENT_VERSION"\n");
+#if defined(SEAFILE_SOURCE_COMMIT_ID)
+    seaf_message ("seafile source code id "SEAFILE_SOURCE_COMMIT_ID"\n");
+#endif
 
     g_free (seafile_dir);
     g_free (worktree_dir);
