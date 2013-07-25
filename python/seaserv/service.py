@@ -120,14 +120,15 @@ if config.has_option('httpserver', 'max_download_dir_size'):
     except ValueError:
         pass
 
-if CCNET_SERVER_ADDR:
-    enable_https = config.getboolean('httpserver', 'https') if \
-        config.has_option('httpserver', 'https') else False
-    http_or_https = 'https://' if enable_https else 'http://'
-    
-    port = config.get('httpserver', 'port') if \
+HTTP_SERVER_PORT = config.get('httpserver', 'port') if \
         config.has_option('httpserver', 'port') else '8082'
-    HTTP_SERVER_ROOT = http_or_https + CCNET_SERVER_ADDR + ':' + port
+HTTP_SERVER_HTTPS = config.getboolean('httpserver', 'https') if \
+        config.has_option('httpserver', 'https') else False
+
+if CCNET_SERVER_ADDR:
+    http_or_https = 'https://' if HTTP_SERVER_HTTPS else 'http://'
+    
+    HTTP_SERVER_ROOT = http_or_https + CCNET_SERVER_ADDR + ':' + HTTP_SERVER_PORT
 else:
     HTTP_SERVER_ROOT = None
 
