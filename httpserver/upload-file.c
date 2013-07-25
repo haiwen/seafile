@@ -406,7 +406,8 @@ upload_api_cb(evhtp_request_t *req, void *arg)
 
     ccnet_rpc_client_free (rpc_client);
 
-    evbuffer_add(req->buffer_out, new_file_ids, strlen(new_file_ids));
+    evbuffer_add (req->buffer_out, new_file_ids, strlen(new_file_ids));
+    g_free (new_file_ids);
     set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_OK);
     return;
