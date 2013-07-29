@@ -514,6 +514,7 @@ write_controller_pidfile ()
     if (fputs(buf, pidfile) < 0) {
         seaf_warning ("Failed to write pidfile %s: %s\n",
                       controller_pidfile, strerror(errno));
+        fclose (pidfile);
         return -1;
     }
 

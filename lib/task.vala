@@ -5,7 +5,7 @@ public class Task : Object {
 	public char _tx_id[37];
 	public string tx_id {
 		get { return (string)_tx_id; }
-		set { Posix.memcpy(_tx_id, value, 37); _tx_id[37] = '\0'; }
+		set { Posix.memcpy(_tx_id, value, 36); _tx_id[36] = '\0'; }
 	}
 
     public string ttype { get; set; }

@@ -2928,7 +2928,7 @@ seaf_repo_manager_revert_on_server (SeafRepoManager *mgr,
                                     GError **error)
 {
     SeafRepo *repo;
-    SeafCommit *commit, *new_commit;
+    SeafCommit *commit = NULL, *new_commit = NULL;
     char desc[512];
     int ret = 0;
 
