@@ -162,8 +162,10 @@ int seafile_is_auto_sync_enabled (GError **error);
  * List a directory.
  *
  * Returns: a list of dirents.
+ * 
+ * @limit: if limit <= 0, all dirents start from @offset will be returned.
  */
-GList * seafile_list_dir (const char *dir_id, GError **error);
+GList * seafile_list_dir (const char *dir_id, int offset, int limit, GError **error);
 
 /**
  * seafile_list_dir_by_path:

@@ -90,8 +90,8 @@ class SeafileRpcClient(ccnet.RpcClientBase):
         pass
     get_commit_list = seafile_get_commit_list
 
-    @searpc_func("objlist", ["string"])
-    def seafile_list_dir(dir_id):
+    @searpc_func("objlist", ["string", "int", "int"])
+    def seafile_list_dir(dir_id, offset, limit):
         pass
     list_dir = seafile_list_dir
 

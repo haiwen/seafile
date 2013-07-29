@@ -815,7 +815,7 @@ int seafile_is_auto_sync_enabled (GError **error)
  */
 
 GList *
-seafile_list_dir (const char *dir_id, GError **error)
+seafile_list_dir (const char *dir_id, int offset, int limit, GError **error)
 {
     SeafDir *dir;
     SeafDirent *dent;
@@ -833,7 +833,21 @@ seafile_list_dir (const char *dir_id, GError **error)
         return NULL;
     }
 
-    for (p = dir->entries; p != NULL; p = p->next) {
+    if (offset < 0) {
+        offset = 0;
+    }
+
+    int index = 0;
+    for (p = dir->entries; p != NULL; p = p->next, index++) {
+        if (index < offset) {
+            continue;
+        }
+        
+        if (limit > 0) {
+            if (index >= offset + limit)
+                break;
+        }
+
         dent = p->data;
         d = g_object_new (SEAFILE_TYPE_DIRENT,
                           "obj_id", dent->id,
