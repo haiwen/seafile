@@ -80,7 +80,7 @@ render = render_mako(directories=['templates'],
 
 app = web.application(urls, globals())
 
-SEAFILE_VERSION = '1.7'
+SEAFILE_VERSION = '1.7.4'
 default_options = { "confdir": CCNET_CONF_PATH,
                     'web_ctx': web.ctx, 
                     'seafile_version': SEAFILE_VERSION,

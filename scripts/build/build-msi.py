@@ -639,10 +639,14 @@ def prepare_msi():
     if not conf[CONF_NO_STRIP]:
         strip_symbols()
 
-    # copy seafile-applet mo file
-    src_mo = os.path.join(Seafile().prefix, 'share', 'locale', 'zh_CN', 'LC_MESSAGES', 'seafile.mo')
-    dst_mo = os.path.join(pack_dir, 'bin', 'i18n', 'zh_CN', 'LC_MESSAGES', 'seafile.mo')
-    must_copy(src_mo, dst_mo)
+    # copy each translation file (*.mo) to bin/i18n/LANG_CODE/LC_MESSAGES/seafile.mo)
+    src_mos_pattern = os.path.join(Seafile().prefix, 'share', 'locale', '*', 'LC_MESSAGES', 'seafile.mo')
+    d = os.path.dirname
+    b = os.path.basename
+    for src_mo in glob.glob(src_mos_pattern):
+        lang_code = b(d(d(src_mo)))
+        dst_mo = os.path.join(pack_dir, 'bin', 'i18n', lang_code, 'LC_MESSAGES', 'seafile.mo')
+        must_copy(src_mo, dst_mo)
 
 def strip_symbols():
     bin_dir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin')
