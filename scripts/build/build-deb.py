@@ -185,7 +185,7 @@ class Project(object):
 
     def append_cflags(self, macros):
         cflags = ' '.join([ '-D%s=%s' % (k, macros[k]) for k in macros ])
-        prepend_env_value('CPPFLAGS',
+        prepend_env_value('DEB_CPPFLAGS_APPEND',
                           cflags,
                           seperator=' ')
 
@@ -415,7 +415,7 @@ def setup_build_env():
     '''Setup environment variables, such as export PATH=$BUILDDDIR/bin:$PATH'''
     prefix = os.path.join(Seafile().projdir, 'debian', 'seafile', 'usr')
 
-    prepend_env_value('CPPFLAGS',
+    prepend_env_value('DEB_CPPFLAGS_APPEND',
                      '-DSEAFILE_CLIENT_VERSION=\\"%s\\"' % conf[CONF_VERSION],
                      seperator=' ')
 

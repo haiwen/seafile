@@ -1,4 +1,4 @@
-seafile (1.7.4) stable; urgency=low
+seafile (1.8.0) stable; urgency=low
 
   * Skip chunking errors
   * Fix some bugs
