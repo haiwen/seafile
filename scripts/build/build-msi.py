@@ -165,7 +165,7 @@ def run(cmdline, cwd=None, env=None, suppress_stdout=False, suppress_stderr=Fals
 def must_mkdir(path):
     '''Create a directory, exit on failure'''
     try:
-        os.mkdir(path)
+        os.makedirs(path)
     except OSError, e:
         error('failed to create directory %s:%s' % (path, e))
 
@@ -646,6 +646,9 @@ def prepare_msi():
     for src_mo in glob.glob(src_mos_pattern):
         lang_code = b(d(d(src_mo)))
         dst_mo = os.path.join(pack_dir, 'bin', 'i18n', lang_code, 'LC_MESSAGES', 'seafile.mo')
+        dst_dir = os.path.dirname(dst_mo)
+        if not os.path.exists(dst_dir):
+            must_mkdir(dst_dir)
         must_copy(src_mo, dst_mo)
 
 def strip_symbols():
