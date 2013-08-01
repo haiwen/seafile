@@ -11,6 +11,7 @@
 #include <ccnet/ccnet-object.h>
 #include "utils.h"
 #include "avl/avl.h"
+#define DEBUG_FLAG SEAFILE_DEBUG_OTHER
 #include "log.h"
 #include "seafile.h"
 
@@ -371,6 +372,9 @@ retry:
             ret = -1;
             goto out;
         }
+
+        seaf_debug ("Number of dirs visted in merge %.8s: %d.\n",
+                    repo_id, opt.visit_dirs);
 
         merged_commit = seaf_commit_new(NULL, repo->id, opt.merged_tree_root,
                                         user, EMPTY_SHA1,

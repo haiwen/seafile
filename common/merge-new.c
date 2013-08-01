@@ -382,6 +382,7 @@ merge_directories (int n, SeafDirent *dents[],
                 ret = -1;
                 goto free_sub_dirs;
             }
+            opt->visit_dirs++;
             sub_dirs[i] = dir;
 
             dirname = dents[i]->name;

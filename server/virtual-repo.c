@@ -678,6 +678,8 @@ static void *merge_virtual_repo (void *vtask)
             goto out;
         }
 
+        seaf_debug ("Number of dirs visted in merge: %d.\n", opt.visit_dirs);
+
         /* Update virtual repo root. */
         ret = seaf_repo_manager_update_dir (mgr,
                                             repo_id,
@@ -804,9 +806,10 @@ add_merge_task (const char *repo_id)
 
     pthread_mutex_lock (&scheduler->q_lock);
 
-    if (g_queue_find_custom (scheduler->queue, task, task_cmp) != NULL)
+    if (g_queue_find_custom (scheduler->queue, task, task_cmp) != NULL) {
         seaf_debug ("Task for repo %.8s is already queued.\n", repo_id);
-    else
+        g_free (task);
+    } else
         g_queue_push_tail (scheduler->queue, task);
 
     pthread_mutex_unlock (&scheduler->q_lock);

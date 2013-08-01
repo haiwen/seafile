@@ -276,11 +276,6 @@ check_end_condition (CcnetProcessor *processor)
 {
     USE_PRIV;
 
-    if (priv->checking_dirs > 100)
-        seaf_message ("Number of checking dirs: %d.\n", priv->checking_dirs);
-    if (priv->inspect_objects > 1000)
-        seaf_message ("Number of inspect objects: %d.\n", priv->inspect_objects);
-
     char *dir_id;
     while (priv->checking_dirs < MAX_CHECKING_DIRS) {
         dir_id = g_queue_pop_head (priv->dir_queue);
@@ -305,6 +300,11 @@ check_end_condition (CcnetProcessor *processor)
         ++(priv->inspect_objects);
         ++(priv->checking_dirs);
     }
+
+    if (priv->checking_dirs > 100)
+        seaf_message ("Number of checking dirs: %d.\n", priv->checking_dirs);
+    if (priv->inspect_objects > 1000)
+        seaf_message ("Number of inspect objects: %d.\n", priv->inspect_objects);
 
     /* Flush periodically. */
     request_object_batch_flush (processor, priv);
