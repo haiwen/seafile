@@ -472,18 +472,19 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
                               evhtp_header_new("Access-Control-Max-Age",
                                                "86400", 1, 1));
 
+    evhtp_headers_add_header (req->headers_out,
+                              evhtp_header_new("Content-Type",
+                                               "text/html; charset=utf-8", 1, 1));
+
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
          * and return it.
          */
-         evhtp_headers_add_header (req->headers_out,
-                                   evhtp_header_new("Content-Type",
-                                                    "text/html; charset=utf-8", 1, 1));         
-         
          set_content_length_header (req);
          evhtp_send_reply (req, EVHTP_RES_OK);
          return;
     }
+
 
     /* After upload_headers_cb() returns an error, libevhtp may still
      * receive data from the web browser and call into this cb.
@@ -820,14 +821,14 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
                               evhtp_header_new("Access-Control-Max-Age",
                                                "86400", 1, 1));
 
+    evhtp_headers_add_header (req->headers_out,
+                              evhtp_header_new("Content-Type",
+                                               "text/html; charset=utf-8", 1, 1));
+
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
          * and return it.
          */
-         evhtp_headers_add_header (req->headers_out,
-                                   evhtp_header_new("Content-Type",
-                                                    "text/html; charset=utf-8", 1, 1));         
-         
          set_content_length_header (req);
          evhtp_send_reply (req, EVHTP_RES_OK);
          return;
