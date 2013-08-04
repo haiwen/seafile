@@ -431,6 +431,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     get_commit = seafile_get_commit
 
+    @searpc_func("string", ["string", "int", "int"])
+    def seafile_list_file(file_id, offset, limit):
+        pass
+    list_file = seafile_list_file
+
     @searpc_func("objlist", ["string"])
     def seafile_list_dir(dir_id):
         pass

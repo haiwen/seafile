@@ -50,6 +50,7 @@ convert_repo_list (GList *inner_repos)
         SeafileRepo *repo = seafile_repo_new ();
         g_object_set (repo, "id", r->id, "name", r->name,
                       "desc", r->desc, "encrypted", r->encrypted,
+                      "encversion", r->enc_version,
                       NULL);
 
 #ifndef SEAFILE_SERVER
@@ -698,7 +699,7 @@ seafile_get_repo_relay_address (const char *repo_id,
                                 GError **error)
 {
     char *relay_addr = NULL;
-    
+
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
         return NULL;
@@ -715,7 +716,7 @@ seafile_get_repo_relay_port (const char *repo_id,
                              GError **error)
 {
     char *relay_port = NULL;
-    
+
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
         return NULL;
@@ -814,6 +815,42 @@ int seafile_is_auto_sync_enabled (GError **error)
  * RPC functions available for both clients and server.
  */
 
+char *
+seafile_list_file (const char *file_id, int offset, int limit, GError **error)
+{
+    Seafile *file;
+    GString *buf = g_string_new ("");
+    int index = 0;
+
+    if (file_id == NULL) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_DIR_ID, "Bad file id");
+        return NULL;
+    }
+    file = seaf_fs_manager_get_seafile (seaf->fs_mgr, file_id);
+    if (!file) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_DIR_ID, "Bad file id");
+        return NULL;
+    }
+
+    if (offset < 0)
+        offset = 0;
+
+    for (index = 0; index < file->n_blocks; index++) {
+        if (index < offset) {
+            continue;
+        }
+
+        if (limit > 0) {
+            if (index >= offset + limit)
+                break;
+        }
+        g_string_append_printf (buf, "%s\n", file->blk_sha1s[index]);
+    }
+
+    seafile_unref (file);
+    return g_string_free (buf, FALSE);
+}
+
 GList *
 seafile_list_dir (const char *dir_id, int offset, int limit, GError **error)
 {
@@ -842,7 +879,7 @@ seafile_list_dir (const char *dir_id, int offset, int limit, GError **error)
         if (index < offset) {
             continue;
         }
-        
+
         if (limit > 0) {
             if (index >= offset + limit)
                 break;
@@ -933,7 +970,7 @@ seafile_get_repo (const char *repo_id, GError **error)
     SeafileRepo *repo = seafile_repo_new ();
     g_object_set (repo, "id", r->id, "name", r->name,
                   "desc", r->desc, "encrypted", r->encrypted,
-                  "magic", r->magic,
+                  "magic", r->magic, "encversion", r->enc_version,
                   "head_branch", r->head ? r->head->name : NULL,
                   "head_cmmt_id", r->head ? r->head->commit_id : NULL,
                   NULL);
@@ -1464,7 +1501,7 @@ seafile_list_owned_repos (const char *email, GError **error)
         g_object_set (repo, "id", r->id, "name", r->name,
                       "desc", r->desc, "encrypted", r->encrypted,
                       "is_virtual", (r->virtual_info != NULL),
-                      NULL);
+                      "encversion", r->enc_version, NULL);
         ret = g_list_prepend (ret, repo);
         seaf_repo_unref (r);
         ptr = ptr->next;
@@ -1929,7 +1966,7 @@ seafile_get_shared_groups_by_repo(const char *repo_id, GError **error)
     SeafRepoManager *mgr = seaf->repo_mgr;
     GList *group_ids = NULL, *ptr;
     GString *result;
-    
+
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Bad arguments");
@@ -2222,7 +2259,7 @@ seafile_get_org_group_repoids (int org_id, int group_id, GError **error)
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad args");
         return NULL;
     }
-    
+
     repo_ids = seaf_repo_manager_get_org_group_repoids (mgr, org_id, group_id,
                                                         error);
     if (!repo_ids) {
@@ -2262,7 +2299,7 @@ seafile_get_org_group_repo_owner (int org_id, int group_id,
     }
 
     return g_string_free (result, FALSE);
-    
+
 }
 
 GList *
@@ -2294,7 +2331,7 @@ seafile_get_org_groups_by_repo (int org_id, const char *repo_id,
     SeafRepoManager *mgr = seaf->repo_mgr;
     GList *group_ids = NULL, *ptr;
     GString *result;
-    
+
     if (!repo_id || org_id < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Bad arguments");
@@ -2860,7 +2897,8 @@ seafile_list_org_repos_by_owner (int org_id, const char *user, GError **error)
         r = ptr->data;
         repo = seafile_repo_new ();
         g_object_set (repo, "id", r->id, "name", r->name,
-                      "desc", r->desc, "encrypted", r->encrypted, NULL);
+                      "desc", r->desc, "encrypted", r->encrypted,
+                      "encversion", r->enc_version, NULL);
         ret = g_list_prepend (ret, repo);
         seaf_repo_unref (r);
         ptr = ptr->next;
@@ -3191,7 +3229,7 @@ seafile_generate_repo_token (const char *repo_id,
         return NULL;
     }
 
-    token = seaf_repo_manager_generate_repo_token (seaf->repo_mgr, repo_id, email, error);    
+    token = seaf_repo_manager_generate_repo_token (seaf->repo_mgr, repo_id, email, error);
 
     return token;
 }

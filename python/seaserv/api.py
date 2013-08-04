@@ -151,6 +151,9 @@ class SeafileAPI(object):
     def post_dir(self, repo_id, parent_dir, dirname, username):
         """Add a directory"""
         return seafserv_threaded_rpc.post_dir(repo_id, parent_dir, dirname, username)
+
+    def list_file_by_file_id(self, file_id, offset=-1, limit=-1):
+        return seafserv_threaded_rpc.list_file(file_id, offset, limit)
     
     def get_dir_id_by_path(self, repo_id, path):
         return seafserv_threaded_rpc.get_dir_id_by_path(repo_id, path)

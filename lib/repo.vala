@@ -37,6 +37,7 @@ public class Repo : Object {
     }
 
     public bool encrypted { get; set; }
+    public int encversion { get; set; }
     public string passwd { get; set; }
     public string magic { get; set; }
 
@@ -117,6 +118,7 @@ public class SharedRepo : Object {
     public string repo_name { get; set; }
     public string repo_desc { get; set; }
     public bool encrypted { get; set; }
+    public bool encversion { get; set; }
     public string permission { get; set; }
 
     public string user { get; set; } // share from or share to

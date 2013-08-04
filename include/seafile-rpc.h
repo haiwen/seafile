@@ -168,6 +168,16 @@ int seafile_is_auto_sync_enabled (GError **error);
 GList * seafile_list_dir (const char *dir_id, int offset, int limit, GError **error);
 
 /**
+ * seafile_list_file:
+ * List the blocks of a file.
+ *
+ * Returns: a list of block ids speprated by '\n'.
+ * 
+ * @limit: if limit <= 0, all blocks start from @offset will be returned.
+ */
+char * seafile_list_file (const char *file_id, int offset, int limit, GError **error);
+
+/**
  * seafile_list_dir_by_path:
  * List a directory in a commit by the path of the directory.
  *
