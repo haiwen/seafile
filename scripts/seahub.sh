@@ -130,6 +130,17 @@ function warning_if_seafile_not_running () {
     fi
 }
 
+function prepare_seahub_log_dir() {
+    logdir=${TOPDIR}/logs
+    if ! [[ -d ${logsdir} ]]; then
+        if ! mkdir -p "${logdir}"; then
+            echo "ERROR: failed to create logs dir \"${logdir}\""
+            exit 1
+        fi
+    fi
+    export SEAHUB_LOG_DIR=${logdir}
+}
+
 function before_start() {
     check_python_executable;
     validate_ccnet_conf_dir;
@@ -137,6 +148,7 @@ function before_start() {
 
     warning_if_seafile_not_running;
     validate_seahub_running;
+    prepare_seahub_log_dir;
 
     export CCNET_CONF_DIR=${default_ccnet_conf_dir}
     export SEAFILE_CONF_DIR=${seafile_data_dir}
