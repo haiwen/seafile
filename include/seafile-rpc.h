@@ -832,6 +832,12 @@ seafile_create_virtual_repo (const char *origin_repo_id,
 GList *
 seafile_get_virtual_repos_by_owner (const char *owner, GError **error);
 
+GObject *
+seafile_get_virtual_repo (const char *origin_repo,
+                          const char *path,
+                          const char *owner,
+                          GError **error);
+
 /* ------------------ public RPC calls. ------------ */
 
 GList* seafile_get_repo_list_pub (int start, int limit, GError **error);

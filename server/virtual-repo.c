@@ -337,6 +337,29 @@ seaf_repo_manager_is_virtual_repo (SeafRepoManager *mgr, const char *repo_id)
     return seaf_db_check_for_existence (seaf->db, sql, &db_err);
 }
 
+char *
+seaf_repo_manager_get_virtual_repo_id (SeafRepoManager *mgr,
+                                       const char *origin_repo,
+                                       const char *path,
+                                       const char *owner)
+{
+    GString *sql = g_string_new (NULL);
+    char *ret;
+
+    char *esc_path = seaf_db_escape_string (mgr->seaf->db, path);
+    g_string_printf (sql,
+                     "SELECT RepoOwner.repo_id FROM RepoOwner, VirtualRepo "
+                     "WHERE owner_id='%s' AND origin_repo='%s' AND path='%s' "
+                     "AND RepoOwner.repo_id = VirtualRepo.repo_id",
+                     owner, origin_repo, esc_path);
+    g_free (esc_path);
+
+    ret = seaf_db_get_string (mgr->seaf->db, sql->str);
+
+    g_string_free (sql, TRUE);
+    return ret;
+}
+
 static gboolean
 collect_virtual_repo_ids (SeafDBRow *row, void *data)
 {

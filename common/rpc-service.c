@@ -3456,4 +3456,26 @@ seafile_get_virtual_repos_by_owner (const char *owner, GError **error)
     return g_list_reverse (ret);
 }
 
+GObject *
+seafile_get_virtual_repo (const char *origin_repo,
+                          const char *path,
+                          const char *owner,
+                          GError **error)
+{
+    char *repo_id;
+    GObject *repo_obj;
+
+    repo_id = seaf_repo_manager_get_virtual_repo_id (seaf->repo_mgr,
+                                                     origin_repo,
+                                                     path,
+                                                     owner);
+    if (!repo_id)
+        return NULL;
+
+    repo_obj = seafile_get_repo (repo_id, error);
+
+    g_free (repo_id);
+    return repo_obj;
+}
+
 #endif  /* SEAFILE_SERVER */

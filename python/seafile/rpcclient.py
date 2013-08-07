@@ -789,3 +789,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("objlist", ["string"])
     def get_virtual_repos_by_owner(owner):
         pass
+
+    @searpc_func("object", ["string", "string", "string"])
+    def get_virtual_repo(origin_repo, path, owner):
+        pass

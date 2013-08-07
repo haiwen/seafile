@@ -709,6 +709,12 @@ seaf_virtual_repo_info_free (SeafVirtRepo *vinfo);
 gboolean
 seaf_repo_manager_is_virtual_repo (SeafRepoManager *mgr, const char *repo_id);
 
+char *
+seaf_repo_manager_get_virtual_repo_id (SeafRepoManager *mgr,
+                                       const char *origin_repo,
+                                       const char *path,
+                                       const char *owner);
+
 GList *
 seaf_repo_manager_get_virtual_repos_by_owner (SeafRepoManager *mgr,
                                               const char *owner,

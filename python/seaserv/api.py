@@ -307,4 +307,8 @@ class SeafileAPI(object):
     def get_virtual_repos_by_owner(self, owner):
         return seafserv_threaded_rpc.get_virtual_repos_by_owner(owner)
 
+    # @path must begin with '/', e.g. '/example'
+    def get_virtual_repo(self, origin_repo, path, owner):
+        return seafserv_threaded_rpc.get_virtual_repo(origin_repo, path, owner)
+
 seafile_api = SeafileAPI()

@@ -401,6 +401,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "get_virtual_repos_by_owner",
                                      searpc_signature_objlist__string());
 
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_virtual_repo,
+                                     "get_virtual_repo",
+                                     searpc_signature_object__string_string_string());
+
     /* -------- rpc services -------- */
     /* token for web access to repo */
     searpc_server_register_function ("seafserv-rpcserver",
