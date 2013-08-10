@@ -993,7 +993,7 @@ seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
     *new_id = g_strdup(hex);
     snprintf(buf, SEAF_PATH_MAX, "Added \"%s\"", file_name);
     if (gen_new_commit (repo_id, head_commit, root_id,
-                        user, buf, error) < 0)
+                        user, buf, NULL, error) < 0)
         ret = -1;
 
 out:
@@ -2263,7 +2263,7 @@ seaf_repo_manager_put_file_blocks (SeafRepoManager *mgr,
 
     /* Commit. */
     snprintf(buf, SEAF_PATH_MAX, "Modified \"%s\"", file_name);
-    if (gen_new_commit (repo_id, head_commit, root_id, user, buf, error) < 0) {
+    if (gen_new_commit (repo_id, head_commit, root_id, user, buf, NULL, error) < 0) {
         ret = -1;
         goto out;
     }
