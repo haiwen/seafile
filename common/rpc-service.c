@@ -2473,6 +2473,27 @@ seafile_get_dir_size (const char *dir_id, GError **error)
 }
 
 int
+seafile_check_passwd (const char *repo_id,
+                      const char *user,
+                      const char *magic,
+                      GError **error)
+{
+    if (!repo_id || strlen(repo_id) != 36 || !user || !magic) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Bad arguments");
+        return -1;
+    }
+
+    if (seaf_passwd_manager_check_passwd (seaf->passwd_mgr,
+                                          repo_id, user, magic,
+                                          error) < 0) {
+        return -1;
+    }
+
+    return 0;
+}
+
+int
 seafile_set_passwd (const char *repo_id,
                     const char *user,
                     const char *passwd,
@@ -2602,6 +2623,45 @@ seafile_post_file (const char *repo_id, const char *temp_file_path,
 }
 
 char *
+seafile_post_file_blocks (const char *repo_id,
+                          const char *parent_dir,
+                          const char *file_name,
+                          const char *blockids_json,
+                          const char *paths_json,
+                          const char *user,
+                          gint64 file_size,
+                          GError **error)
+{
+    if (!repo_id || !parent_dir || !file_name
+        || !blockids_json || ! paths_json || !user || file_size < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Argument should not be null");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
+    char *new_id = NULL;
+    if (seaf_repo_manager_post_file_blocks (seaf->repo_mgr,
+                                            repo_id,
+                                            parent_dir,
+                                            file_name,
+                                            blockids_json,
+                                            paths_json,
+                                            user,
+                                            file_size,
+                                            &new_id,
+                                            error) < 0) {
+        return NULL;
+    }
+
+    return new_id;
+}
+
+char *
 seafile_post_multi_files (const char *repo_id,
                           const char *parent_dir,
                           const char *filenames_json,
@@ -2657,6 +2717,33 @@ seafile_put_file (const char *repo_id, const char *temp_file_path,
                                 temp_file_path, parent_dir,
                                 file_name, user, head_id,
                                 &new_file_id, error);
+    return new_file_id;
+}
+
+char *
+seafile_put_file_blocks (const char *repo_id, const char *parent_dir,
+                         const char *file_name, const char *blockids_json,
+                         const char *paths_json, const char *user,
+                         const char *head_id, gint64 file_size, GError **error)
+{
+    if (!repo_id || !parent_dir || !file_name
+        || !blockids_json || ! paths_json || !user) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Argument should not be null");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
+    char *new_file_id = NULL;
+    seaf_repo_manager_put_file_blocks (seaf->repo_mgr, repo_id,
+                                       parent_dir, file_name,
+                                       blockids_json, paths_json,
+                                       user, head_id, file_size,
+                                       &new_file_id, error);
     return new_file_id;
 }
 

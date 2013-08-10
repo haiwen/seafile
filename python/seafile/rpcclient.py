@@ -664,6 +664,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
 
     # password management
     @searpc_func("int", ["string", "string", "string"])
+    def seafile_check_passwd(repo_id, user, magic):
+        pass
+    check_passwd = seafile_check_passwd
+
+    @searpc_func("int", ["string", "string", "string"])
     def seafile_set_passwd(repo_id, user, passwd):
         pass
     set_passwd = seafile_set_passwd

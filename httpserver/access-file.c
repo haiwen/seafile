@@ -120,7 +120,7 @@ free_senddir_data (SendDirData *data)
 {
     close (data->zipfd);
     g_unlink (data->zipfile);
-    
+
     g_free (data->zipfile);
     g_free (data);
 }
@@ -437,7 +437,7 @@ test_firefox (evhtp_request_t *req)
     const char *user_agent = evhtp_header_find (req->headers_in, "User-Agent");
     if (!user_agent)
         return FALSE;
-    
+
     GString *s = g_string_new (user_agent);
     if (g_strrstr (g_string_ascii_down (s)->str, "firefox")) {
         g_string_free (s, TRUE);
@@ -614,11 +614,11 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
         ret = -1;
         goto out;
     }
-    
+
     /* OK, the dir is zipped */
     evhtp_headers_add_header(req->headers_out,
                 evhtp_header_new("Content-Type", "application/zip", 1, 1));
-    
+
     if (seaf_stat(zipfile, &st) < 0) {
         ret = -1;
         goto out;
@@ -793,7 +793,7 @@ access_cb(evhtp_request_t *req, void *arg)
             error = "Internal server error\n";
             goto bad_req;
         }
-        
+
     } else if (do_file(req, repo, id, filename, operation, key) < 0) {
         error = "Internal server error\n";
         goto bad_req;

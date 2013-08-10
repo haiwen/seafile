@@ -20,6 +20,19 @@ int
 seaf_passwd_manager_start (SeafPasswdManager *mgr);
 
 /**
+ * Check password @magic for @user to access contents of @repo_id.
+ * This function:
+ * 1. check whether @magic is correct;
+ *
+ * Returns 0 if password @magic is correct, -1 otherwise.
+ */
+int
+seaf_passwd_manager_check_passwd (SeafPasswdManager *mgr,
+                                  const char *repo_id,
+                                  const char *user,
+                                  const char *magic,
+                                  GError **error);
+/**
  * Set @passwd for @user to access contents of @repo_id.
  * This function:
  * 1. check whether @passwd is correct;

@@ -276,6 +276,9 @@ class SeafileAPI(object):
         pass
 
     # password management
+    def check_passwd(self, repo_id, user, magic):
+        return seafserv_threaded_rpc.check_passwd(repo_id, user, magic)
+
     def set_passwd(self, repo_id, user, passwd):
         return seafserv_threaded_rpc.set_passwd(repo_id, user, passwd)
 
