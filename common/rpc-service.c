@@ -50,7 +50,7 @@ convert_repo_list (GList *inner_repos)
         SeafileRepo *repo = seafile_repo_new ();
         g_object_set (repo, "id", r->id, "name", r->name,
                       "desc", r->desc, "encrypted", r->encrypted,
-                      "encversion", r->enc_version,
+                      "enc_version", r->enc_version,
                       NULL);
 
 #ifndef SEAFILE_SERVER
@@ -970,7 +970,7 @@ seafile_get_repo (const char *repo_id, GError **error)
     SeafileRepo *repo = seafile_repo_new ();
     g_object_set (repo, "id", r->id, "name", r->name,
                   "desc", r->desc, "encrypted", r->encrypted,
-                  "magic", r->magic, "encversion", r->enc_version,
+                  "magic", r->magic, "enc_version", r->enc_version,
                   "head_branch", r->head ? r->head->name : NULL,
                   "head_cmmt_id", r->head ? r->head->commit_id : NULL,
                   NULL);
@@ -1501,7 +1501,7 @@ seafile_list_owned_repos (const char *email, GError **error)
         g_object_set (repo, "id", r->id, "name", r->name,
                       "desc", r->desc, "encrypted", r->encrypted,
                       "is_virtual", (r->virtual_info != NULL),
-                      "encversion", r->enc_version, NULL);
+                      "enc_version", r->enc_version, NULL);
         ret = g_list_prepend (ret, repo);
         seaf_repo_unref (r);
         ptr = ptr->next;
@@ -2985,7 +2985,7 @@ seafile_list_org_repos_by_owner (int org_id, const char *user, GError **error)
         repo = seafile_repo_new ();
         g_object_set (repo, "id", r->id, "name", r->name,
                       "desc", r->desc, "encrypted", r->encrypted,
-                      "encversion", r->enc_version, NULL);
+                      "enc_version", r->enc_version, NULL);
         ret = g_list_prepend (ret, repo);
         seaf_repo_unref (r);
         ptr = ptr->next;

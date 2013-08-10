@@ -493,7 +493,7 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
 }
 
 static int
-init_cdc_chunk(CDCDescriptor *chunk, const char *path)
+init_file_chunk(CDCDescriptor *chunk, const char *path)
 {
     SeafStat sb;
     int ret;
@@ -516,7 +516,7 @@ init_cdc_chunk(CDCDescriptor *chunk, const char *path)
 }
 
 static int
-check_fill_cdc_blocks (CDCFileDescriptor *cdc, GList *paths, GList *blockids)
+check_write_file_blocks (CDCFileDescriptor *cdc, GList *paths, GList *blockids)
 {
     GList *ptr, *q;
     SHA_CTX file_ctx;
@@ -541,7 +541,7 @@ check_fill_cdc_blocks (CDCFileDescriptor *cdc, GList *paths, GList *blockids)
         char *blk_id = q->data;
         unsigned char sha1[20];
 
-        ret = init_cdc_chunk (&chunk, path);
+        ret = init_file_chunk (&chunk, path);
         if (ret < 0)
             goto out;
         hex_to_rawdata (blk_id, sha1, 20);
@@ -578,7 +578,7 @@ seaf_fs_manager_index_file_blocks (SeafFSManager *mgr,
         create_cdc_for_empty_file (&cdc);
     } else {
         memset (&cdc, 0, sizeof(cdc));
-        if (check_fill_cdc_blocks (&cdc, paths, blockids) < 0) {
+        if (check_write_file_blocks (&cdc, paths, blockids) < 0) {
             seaf_warning ("Failed to check file blocks.\n");
             ret = -1;
             goto out;
