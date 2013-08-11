@@ -150,8 +150,8 @@ int file_chunk_cdc(int fd_src,
      */
     tail = cur = 0;
     while (1) {
-        if (cur < block_min_sz) {
-            rsize = block_min_sz - cur + READ_SIZE;
+        if (tail < block_min_sz) {
+            rsize = block_min_sz - tail + READ_SIZE;
         } else {
             rsize = (buf_sz - tail < READ_SIZE) ? (buf_sz - tail) : READ_SIZE;
         }
