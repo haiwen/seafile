@@ -529,14 +529,16 @@ convert_task (TransferTask *task)
         g_object_set (t, "ttype", "download", NULL);
         if (task->runtime_state == TASK_RT_STATE_DATA) {
             g_object_set (t, "block_total", task->block_list->n_blocks,
-                          "block_done", task->block_list->n_valid_blocks, NULL);
+                          "block_done", transfer_task_get_done_blocks (task),
+                          NULL);
             g_object_set (t, "rate", transfer_task_get_rate(task), NULL);
         }
     } else {
         g_object_set (t, "ttype", "upload", NULL);
         if (task->runtime_state == TASK_RT_STATE_DATA) {
             g_object_set (t, "block_total", task->block_list->n_blocks,
-                          "block_done", task->n_uploaded, NULL);
+                          "block_done", transfer_task_get_done_blocks (task),
+                          NULL);
             g_object_set (t, "rate", transfer_task_get_rate(task), NULL);
         }
     }

@@ -25,7 +25,13 @@
 #define CURRENT_ENC_VERSION 1
 
 #define DEFAULT_PROTO_VERSION 1
-#define CURRENT_PROTO_VERSION 3
+#define CURRENT_PROTO_VERSION 4
+
+/* For compatibility with the old protocol, use an UUID for signature.
+ * Listen manager on the server will use the new block tx protocol if it
+ * receives this signature as "token".
+ */
+#define BLOCK_PROTOCOL_SIGNATURE "529319a0-577f-4d6b-a6c3-3c20f56f290c"
 
 #define SEAF_PATH_MAX 4096
 

@@ -42,6 +42,8 @@ enum TaskRuntimeState {
     TASK_RT_STATE_CHECK,
     TASK_RT_STATE_COMMIT,
     TASK_RT_STATE_FS,
+    TASK_RT_STATE_CHECK_BLOCKS,
+    TASK_RT_STATE_CHUNK_SERVER,
     TASK_RT_STATE_DATA,
     TASK_RT_STATE_UPDATE_BRANCH, /* Only used in upload. */
     TASK_RT_STATE_FINISHED,
@@ -72,14 +74,47 @@ enum TaskError {
     TASK_ERR_NOT_FAST_FORWARD,
     TASK_ERR_QUOTA_FULL,
     TASK_ERR_CHECK_QUOTA,
-    TASK_ERR_BAD_LOCAL_BRANCH,
     TASK_ERR_PROTOCOL_VERSION,
+    TASK_ERR_BAD_LOCAL_BRANCH,
+    TASK_ERR_CHECK_BLOCK_LIST,
+    TASK_ERR_GET_CHUNK_SERVER,
+    TASK_ERR_START_BLOCK_CLIENT,
+    TASK_ERR_UPLOAD_BLOCKS,
+    TASK_ERR_DOWNLOAD_BLOCKS,
     N_TASK_ERROR,
 };
 
+typedef struct {
+    char *addr;
+    int port;
+} ChunkServer;
+
+enum {
+    BLOCK_CLIENT_SUCCESS = 0,
+    BLOCK_CLIENT_FAILED,
+    BLOCK_CLIENT_NET_ERROR,
+    BLOCK_CLIENT_SERVER_ERROR,
+    BLOCK_CLIENT_CANCELED,
+};
+
+#define BLOCK_TX_SESSION_KEY_LEN 32
+
+struct _TransferTask;
+
+typedef struct _BlockTxInfo {
+    struct _TransferTask *task;
+    ChunkServer *cs;
+    unsigned char session_key[BLOCK_TX_SESSION_KEY_LEN];
+    unsigned char *enc_session_key;      /* encrypted session_key */
+    int enc_key_len;
+    int cmd_pipe[2];               /* used to notify cancel */
+    int result;
+    int n_failure;
+} BlockTxInfo;
+
 struct _SeafTransferManager;
 
-typedef struct {
+struct _TransferTask {
     struct _SeafTransferManager *manager;
     char         tx_id[37];
     char         repo_id[37];
@@ -113,9 +148,14 @@ typedef struct {
     Bitfield     uploaded;
     int          n_uploaded;
 
+    /* For new block transfer protocol */
+    BlockTxInfo *tx_info;
+    GQueue      *block_ids;
+
     gint64       rsize;            /* size remain   */
     gint64       dsize;            /* size done     */
-} TransferTask;
+};
+typedef struct _TransferTask TransferTask;
 
 const char *
 task_state_to_str (int state);
@@ -128,6 +168,9 @@ task_error_str (int task_errno);
 
 int
 transfer_task_get_rate (TransferTask *task);
+
+int
+transfer_task_get_done_blocks (TransferTask *task);
 
 void
 transfer_task_set_error (TransferTask *task, int error);

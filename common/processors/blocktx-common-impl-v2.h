@@ -1015,6 +1015,7 @@ verify_session_token (CcnetProcessor *processor, char *ret_repo_id,
 
     char *session_token = argv[0];
     if (seaf_token_manager_verify_token (seaf->token_mgr,
+                                         NULL,
                                          processor->peer_id,
                                          session_token, ret_repo_id) < 0) {
         return -1;

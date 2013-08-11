@@ -34,6 +34,7 @@ noinst_HEADERS = \
 	mq-mgr.h \
 	seaf-db.h \
 	merge-new.h \
+	block-tx-utils.h \
 	$(proc_headers)
 
 #check_PROGRAMS = riak-http-test

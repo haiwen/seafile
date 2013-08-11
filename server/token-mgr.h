@@ -3,6 +3,8 @@
 #ifndef SEAF_TOKEN_MGR_H
 #define SEAF_TOKEN_MGR_H
 
+#include <searpc-client.h>
+
 struct _SeafileSession;
 struct TokenManagerPriv;
 
@@ -30,6 +32,7 @@ seaf_token_manager_generate_token (SeafTokenManager *mgr,
  */
 int
 seaf_token_manager_verify_token (SeafTokenManager *mgr,
+                                 SearpcClient *rpc_client,
                                  const char *peer_id,
                                  char *token,
                                  char *ret_repo_id);

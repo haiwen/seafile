@@ -349,6 +349,7 @@ start (CcnetProcessor *processor, int argc, char **argv)
 
     session_token = argv[0];
     if (seaf_token_manager_verify_token (seaf->token_mgr,
+                                         NULL,
                                          processor->peer_id,
                                          session_token, NULL) == 0) {
         ccnet_processor_send_response (processor, SC_OK, SS_OK, NULL, 0);
