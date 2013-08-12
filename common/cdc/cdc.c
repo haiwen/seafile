@@ -239,3 +239,8 @@ int filename_chunk_cdc(const char *filename,
     close (fd_src);
     return ret;
 }
+
+void cdc_init ()
+{
+    rabin_init (BLOCK_WIN_SZ);
+}

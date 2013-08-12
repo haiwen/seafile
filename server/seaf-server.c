@@ -34,6 +34,8 @@
 #include "processors/putcommit-v2-proc.h"
 #include "processors/recvcommit-v3-proc.h"
 
+#include "cdc/cdc.h"
+
 SeafileSession *seaf;
 SearpcClient *ccnetrpc_client;
 SearpcClient *ccnetrpc_client_t;
@@ -812,6 +814,8 @@ main (int argc, char **argv)
     if (daemon_mode)
         daemon (1, 0);
 #endif
+
+    cdc_init ();
 
     g_type_init ();
 #if !GLIB_CHECK_VERSION(2,32,0)

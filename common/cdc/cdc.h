@@ -71,4 +71,6 @@ int filename_chunk_cdc(const char *filename,
                        struct SeafileCrypt *crypt,
                        gboolean write_data);
 
+void cdc_init ();
+
 #endif

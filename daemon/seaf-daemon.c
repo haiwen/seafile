@@ -30,6 +30,8 @@
 #include "processors/putcommit-proc.h"
 #include "processors/putfs-proc.h"
 
+#include "cdc/cdc.h"
+
 #ifndef SEAFILE_CLIENT_VERSION
 #define SEAFILE_CLIENT_VERSION PACKAGE_VERSION
 #endif
@@ -389,6 +391,8 @@ main (int argc, char **argv)
 #endif
 
 #endif
+
+    cdc_init ();
 
     g_type_init ();
 #if !GLIB_CHECK_VERSION(2,32,0)
