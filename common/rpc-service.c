@@ -1463,6 +1463,7 @@ seafile_list_owned_repos (const char *email, GError **error)
         repo = seafile_repo_new ();
         g_object_set (repo, "id", r->id, "name", r->name,
                       "desc", r->desc, "encrypted", r->encrypted,
+                      "head_cmmt_id", r->head ? r->head->commit_id : NULL,
                       "is_virtual", (r->virtual_info != NULL),
                       NULL);
         ret = g_list_prepend (ret, repo);
@@ -3438,6 +3439,7 @@ seafile_get_virtual_repos_by_owner (const char *owner, GError **error)
         repo = seafile_repo_new ();
         g_object_set (repo,
                       "id", r->id, "name", r->name,
+                      "head_cmmt_id", r->head ? r->head->commit_id : NULL,
                       "is_virtual", TRUE,
                       "origin_repo_id", r->virtual_info->origin_repo_id,
                       "origin_repo_name", o->name,
