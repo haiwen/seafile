@@ -421,8 +421,8 @@ seafile_check_write_chunk (CDCDescriptor *chunk,
                            uint8_t *sha1,
                            gboolean write_data)
 {
-    SHA_CTX ctx;
     int ret = 0;
+    SHA_CTX ctx;
 
     /* Encrypt before write to disk if needed, and we don't encrypt
      * empty files. */
@@ -437,7 +437,7 @@ seafile_check_write_chunk (CDCDescriptor *chunk,
     }
 
     if (write_data)
-        ret = do_write_chunk (chunk->checksum, chunk->block_buf, chunk->len);
+        ret = do_write_chunk (sha1, chunk->block_buf, chunk->len);
 
     return ret;
 }
@@ -545,7 +545,6 @@ check_write_file_blocks (CDCFileDescriptor *cdc, GList *paths, GList *blockids)
         if (ret < 0)
             goto out;
         hex_to_rawdata (blk_id, sha1, 20);
-        cdc->file_size += chunk.len;
         ret = seafile_check_write_chunk (&chunk, sha1, TRUE);
         if (ret < 0)
             goto out;

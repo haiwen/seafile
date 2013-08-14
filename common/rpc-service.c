@@ -2474,18 +2474,17 @@ seafile_get_dir_size (const char *dir_id, GError **error)
 
 int
 seafile_check_passwd (const char *repo_id,
-                      const char *user,
                       const char *magic,
                       GError **error)
 {
-    if (!repo_id || strlen(repo_id) != 36 || !user || !magic) {
+    if (!repo_id || strlen(repo_id) != 36 || !magic) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Bad arguments");
         return -1;
     }
 
     if (seaf_passwd_manager_check_passwd (seaf->passwd_mgr,
-                                          repo_id, user, magic,
+                                          repo_id, magic,
                                           error) < 0) {
         return -1;
     }

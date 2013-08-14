@@ -34,8 +34,8 @@ struct file_type_map {
 typedef struct SendBlockData {
     evhtp_request_t *req;
     char *block_id;
-    EVP_CIPHER_CTX ctx;
     BlockHandle *handle;
+    size_t bsize;
     size_t remain;
 
     bufferevent_data_cb saved_read_cb;
@@ -144,13 +144,7 @@ write_block_data_cb (struct bufferevent *bev, void *ctx)
             goto err;
         }
 
-        BlockMetadata *bmd;
-        bmd = seaf_block_manager_stat_block_by_handle (seaf->block_mgr,
-                                                       data->handle);
-        if (!bmd)
-            goto err;
-        data->remain = bmd->size;
-        g_free (bmd);
+        data->remain = data->bsize;
     }
     handle = data->handle;
 
@@ -160,7 +154,7 @@ write_block_data_cb (struct bufferevent *bev, void *ctx)
         seaf_warning ("Error when reading from block %s.\n", blk_id);
         goto err;
     } else if (n == 0) {
-        /* We've read up the data of this block, finish or try next block. */
+        /* We've read up the data of this block, finish. */
         seaf_block_manager_close_block (seaf->block_mgr, handle);
         seaf_block_manager_block_handle_free (seaf->block_mgr, handle);
         data->handle = NULL;
@@ -893,6 +887,7 @@ do_block(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     data->saved_write_cb = bev->writecb;
     data->saved_event_cb = bev->errorcb;
     data->saved_cb_arg = bev->cbarg;
+    data->bsize = bsize;
     bufferevent_setcb (bev,
                        NULL,
                        write_block_data_cb,

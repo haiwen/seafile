@@ -500,7 +500,6 @@ seafile_get_repo_history_limit (const char *repo_id,
 
 int
 seafile_check_passwd (const char *repo_id,
-                      const char *user,
                       const char *magic,
                       GError **error);
 

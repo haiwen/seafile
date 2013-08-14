@@ -62,7 +62,6 @@ seaf_passwd_manager_start (SeafPasswdManager *mgr)
 int
 seaf_passwd_manager_check_passwd (SeafPasswdManager *mgr,
                                   const char *repo_id,
-                                  const char *user,
                                   const char *magic,
                                   GError **error)
 {
