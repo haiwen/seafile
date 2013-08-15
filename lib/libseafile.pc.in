@@ -1,0 +1,11 @@
+prefix=(DESTDIR)@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libccnet
+Description: Client library for accessing seafile service.
+Version: @VERSION@
+Libs: -L${libdir} -lseafile @SEARPC_LIBS@
+Cflags: -I${includedir} @SEARPC_CFLAGS@
+Requires: gobject-2.0 glib-2.0

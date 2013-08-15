@@ -116,3 +116,4 @@ tests/basic/conf2/seafile-data/
 tests/test-cdc
 tests/test-index
 tests/test-seafile-fmt
+*.pc

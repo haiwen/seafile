@@ -1,3 +1,6 @@
+pcfiles = libseafile.pc
+pkgconfig_DATA = $(pcfiles)
+pkgconfigdir = $(libdir)/pkgconfig
 
 AM_CPPFLAGS = @GLIB2_CFLAGS@ -I$(top_srcdir)/include \
 	-I$(top_srcdir)/lib \
@@ -16,7 +19,7 @@ seafile_object_define = repo.vala commit.vala dirent.vala dir.vala \
 
 seafile_object_gen = $(seafile_object_define:.vala=.c)
 
-EXTRA_DIST = ${seafile_object_define} rpc_table.py
+EXTRA_DIST = ${seafile_object_define} rpc_table.py $(pcfiles)
 
 utils_headers = net.h rsa.h bloom-filter.h utils.h db.h
 
@@ -67,3 +70,10 @@ ${searpc_gen}: $(top_srcdir)/lib/rpc_table.py
 clean-local:
 	rm -f ${searpc_gen}
 	rm -f $(top_srcdir)/lib/rpc_table.pyc
+
+install-data-local:
+if MACOS
+	${SED} -i '' -e "s|(DESTDIR)|${DESTDIR}|g" $(pcfiles)
+else
+	${SED} -i "s|(DESTDIR)|${DESTDIR}|g" $(pcfiles)
+endif

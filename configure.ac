@@ -386,6 +386,7 @@ AC_CONFIG_FILES(
     data/icons/32x32/Makefile
     data/icons/48x48/Makefile
     lib/Makefile
+    lib/libseafile.pc
     gui/Makefile
     gui/gtk/Makefile
     common/Makefile
