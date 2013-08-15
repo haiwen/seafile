@@ -37,6 +37,8 @@ obj_backend_fs_read (ObjBackend *bend,
 
     g_file_get_contents (path, (gchar**)data, &tmp_len, &error);
     if (error) {
+        g_warning ("[obj backend] Failed to read object %s: %s.\n",
+                   obj_id, error->message);
         g_clear_error (&error);
         return -1;
     }
