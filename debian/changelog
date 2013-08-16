@@ -1,9 +1,15 @@
+seafile (1.8.2) stable; urgency=low
+
+  * Fix a bug when dir object is lost
+
+ -- plt <freeplant@gmail.com>  Wed, 16 August 2013 19:00:32 +0800
+
 seafile (1.8.1) stable; urgency=low
 
   * Fixed a bug in CDC
   * Init static variables in libcdc before mainloop starts.
 
- -- plt <freeplant@gmail.com>  Wed, 15 August 2013 19:00:32 +0800
+ -- plt <freeplant@gmail.com>  Wed, 14 August 2013 19:00:32 +0800
 
 seafile (1.8.0) stable; urgency=low
 
