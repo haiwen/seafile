@@ -1368,6 +1368,10 @@ update_local_repo (TransferTask *task)
     SeafBranch *branch;
 
     new_head = seaf_commit_manager_get_commit (seaf->commit_mgr, task->head);
+    if (!new_head) {
+        seaf_warning ("Failed to get commit %s.\n", task->head);
+        return -1;
+    }
 
     /* If repo doesn't exist, create it.
      * Note that branch doesn't exist either in this case.

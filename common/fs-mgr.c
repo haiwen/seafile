@@ -843,6 +843,9 @@ seaf_fs_manager_get_seafdir_sorted (SeafFSManager *mgr, const char *dir_id)
 {
     SeafDir *dir = seaf_fs_manager_get_seafdir(mgr, dir_id);
 
+    if (!dir)
+        return NULL;
+
     if (!is_dirents_sorted (dir->entries))
         dir->entries = g_list_sort (dir->entries, compare_dirents);
 

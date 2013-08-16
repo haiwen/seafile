@@ -1246,8 +1246,8 @@ seafile_edit_repo (const char *repo_id,
                    const char *user,
                    GError **error)
 {
-    SeafRepo *repo;
-    SeafCommit *commit, *parent;
+    SeafRepo *repo = NULL;
+    SeafCommit *commit = NULL, *parent = NULL;
     int ret = 0;
 
     if (!user) {
@@ -1285,6 +1285,12 @@ retry:
      */
     parent = seaf_commit_manager_get_commit (seaf->commit_mgr,
                                              repo->head->commit_id);
+    if (!parent) {
+        seaf_warning ("Failed to get commit %s.\n", repo->head->commit_id);
+        ret = -1;
+        goto out;
+    }
+
     commit = seaf_commit_new (NULL,
                               repo->id,
                               parent->root_id,
@@ -1312,6 +1318,9 @@ retry:
         seaf_repo_unref (repo);
         seaf_commit_unref (commit);
         seaf_commit_unref (parent);
+        repo = NULL;
+        commit = NULL;
+        parent = NULL;
         goto retry;
     }
 

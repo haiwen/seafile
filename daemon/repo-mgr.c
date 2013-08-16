@@ -1093,6 +1093,11 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
         SeafCommit *head =
             seaf_commit_manager_get_commit (seaf->commit_mgr,
                                             repo->head->commit_id);
+        if (!head) {
+            seaf_warning ("Failed to get commit %s.\n", repo->head->commit_id);
+            discard_index (&istate);
+            return -1;
+        }
         fill_tree_descriptor (&trees[0], head->root_id);
         seaf_commit_unref (head);
     } else {
