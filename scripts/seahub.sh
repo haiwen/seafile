@@ -165,7 +165,7 @@ function start_seahub () {
     sleep 5
     if ! pgrep -f "${manage_py}" 2>/dev/null 1>&2; then
         printf "\033[33mError:Seahub failed to start.\033[m\n"
-        echo "Please try to run \"./seafile.sh start\" again"
+        echo "Please try to run \"./seahub.sh start\" again"
         exit 1;
     fi
 }
