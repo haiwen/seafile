@@ -851,7 +851,7 @@ class SeafileConfigurator(AbstractConfigurator):
         config.set(db_section, 'port', db_config.mysql_port)
         config.set(db_section, 'user', db_config.seafile_mysql_user)
         config.set(db_section, 'password', db_config.seafile_mysql_password)
-        config.set(db_section, 'db_name', db_config.ccnet_db_name)
+        config.set(db_section, 'db_name', db_config.seafile_db_name)
 
         Utils.write_config(config, seafile_conf)
 
@@ -949,6 +949,9 @@ DATABASES = {
         'PASSWORD': '%(password)s',
         'HOST': '%(host)s',
         'PORT': '%(port)s',
+        'OPTIONS': {
+            'init_command': 'SET storage_engine=INNODB',
+        }
     }
 }
 
