@@ -89,7 +89,6 @@ function validate_already_running () {
 
     check_component_running "ccnet-server" "ccnet-server -c"
     check_component_running "seaf-server" "seaf-server -c"
-    check_component_running "seaf-mon" "seaf-mon -c"
     check_component_running "httpserver" "httpserver -c"
 }
 
@@ -125,7 +124,6 @@ function stop_seafile_server () {
     pkill -SIGTERM -f "seafile-controller -c ${default_ccnet_conf_dir}"
     pkill ccnet-server
     pkill seaf-server
-    pkill seaf-mon
     pkill httpserver
     return 0
 }
