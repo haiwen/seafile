@@ -414,7 +414,6 @@ AC_CONFIG_FILES(
     python/seaserv/Makefile
     controller/Makefile
     httpserver/Makefile
-    monitor/Makefile
     tools/Makefile
     tests/Makefile
     tests/common-conf.sh

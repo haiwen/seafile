@@ -26,7 +26,7 @@ SUBDIRS = include lib common app python tests doc \
 	$(MAKE_CLIENT) $(MAKE_SERVER) $(MAKE_PO) $(MAKE_data)
 
 DIST_SUBDIRS = include lib common app python tests \
-	daemon gui server tools monitor httpserver controller \
+	daemon gui server tools httpserver controller \
 	po data doc
 
 INTLTOOL = \
