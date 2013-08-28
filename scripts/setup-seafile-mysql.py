@@ -314,8 +314,6 @@ class EnvManager(object):
             pro_pylibs_dir,
 
             os.path.join(install_path, 'seahub', 'thirdpart'),
-            os.path.join(install_path, 'seahub-extra'),
-            os.path.join(install_path, 'seahub-extra', 'thirdpart'),
 
             os.path.join(install_path, 'seafile/lib/python2.6/site-packages'),
             os.path.join(install_path, 'seafile/lib64/python2.6/site-packages'),
@@ -325,9 +323,6 @@ class EnvManager(object):
 
         for path in extra_python_path:
             Utils.prepend_env_value('PYTHONPATH', path, env=env)
-
-        seafes_dir = os.path.join(pro_pylibs_dir, 'seafes')
-        env['SEAFES_DIR'] = seafes_dir
 
     def get_binary_env(self):
         '''Set LD_LIBRARY_PATH for seafile server executables'''
@@ -408,7 +403,7 @@ Please choose a way to initialize seafile databases:
                                       default=default,
                                       validate=Utils.validate_port)
 
-            self.check_mysql_server(host, port)
+            # self.check_mysql_server(host, port)
             self.mysql_port = port
 
             return host
@@ -441,10 +436,13 @@ Please choose a way to initialize seafile databases:
 
         try:
             conn = MySQLdb.connect(**kwargs)
-        except Exception:
-            print
-            raise InvalidAnswer('Failed to connect to mysql server using user "%s" and password "******"' \
-                                % user)
+        except Exception, e:
+            if isinstance(e, MySQLdb.OperationalError):
+                raise InvalidAnswer('Failed to connect to mysql server using user "%s" and password "***": %s' \
+                                    % (user, e.args[1]))
+            else:
+                raise InvalidAnswer('Failed to connect to mysql server using user "%s" and password "***": %s' \
+                                    % (user, e))
 
         print 'done'
         return conn
@@ -697,10 +695,13 @@ class ExistingDBConfigurator(AbstractDBConfigurator):
                                    passwd=password,
                                    db=db_name)
 
-        except Exception:
-            print
-            raise InvalidAnswer('Failed to access database %s using user "%s" and password "******"' \
-                                % (db_name, user))
+        except Exception, e:
+            if isinstance(e, MySQLdb.OperationalError):
+                raise InvalidAnswer('Failed to access database %s using user "%s" and password "***": %s' \
+                                    % (db_name, user, e.args[1]))
+            else:
+                raise InvalidAnswer('Failed to access database %s using user "%s" and password "***": %s' \
+                                    % (db_name, user, e))
 
         print 'done'
 
