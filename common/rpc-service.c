@@ -1207,6 +1207,7 @@ seafile_destroy_repo (const char *repo_id, GError **error)
 #else
     seaf_repo_manager_del_repo (seaf->repo_mgr, repo->id);
     seaf_share_manager_remove_repo (seaf->share_mgr, repo->id);
+    seaf_repo_unref (repo);
 #endif
 
     return 0;

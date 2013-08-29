@@ -260,6 +260,7 @@ seaf_transfer_task_free (TransferTask *task)
     if (task->protocol_version >= 4) {
         g_list_foreach (task->chunk_servers, free_chunk_server, NULL);
         g_list_free (task->chunk_servers);
+        block_list_free (task->block_list);
     }
 
     g_free (task);
@@ -424,10 +425,13 @@ seaf_transfer_task_load_blocklist (TransferTask *task)
     block_list_generate_bitmap (bl);
 
     task->block_list = bl;
-    BitfieldConstruct (&task->active, bl->n_blocks);
 
-    if (task->type == TASK_TYPE_UPLOAD)
-        BitfieldConstruct (&task->uploaded, bl->n_blocks);
+    if (task->protocol_version <= 3) {
+        BitfieldConstruct (&task->active, bl->n_blocks);
+
+        if (task->type == TASK_TYPE_UPLOAD)
+            BitfieldConstruct (&task->uploaded, bl->n_blocks);
+    }
 
     return 0;
 }

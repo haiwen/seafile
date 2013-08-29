@@ -2789,15 +2789,15 @@ GList *seaf_repo_load_ignore_files (const char *worktree)
         else
             pattern = g_strdup_printf("%s/%s", worktree, path);
 
-        list = g_list_prepend(list, g_strdup(pattern));
+        list = g_list_prepend(list, pattern);
     }
 
     fclose(fp);
-    free (full_path);
+    g_free (full_path);
     return list;
 
 error:
-    free (full_path);
+    g_free (full_path);
     return NULL;
 }
 

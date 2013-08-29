@@ -549,6 +549,7 @@ seaf_branch_manager_branch_exists (SeafBranchManager *mgr,
     sql = sqlite3_mprintf ("SELECT name FROM Branch WHERE name = %Q "
                            "AND repo_id='%s'", name, repo_id);
     ret = sqlite_check_for_existence (mgr->priv->db, sql);
+    sqlite3_free (sql);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
     return ret;
