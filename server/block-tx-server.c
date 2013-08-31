@@ -2,7 +2,9 @@
 #define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
 #include "log.h"
 
+#ifndef WIN32
 #include <sys/select.h>
+#endif
 #include <event2/buffer.h>
 #include <event2/util.h>
 
@@ -515,7 +517,7 @@ recv_data_cb (BlockTxServer *server)
         return;
     } else if (n < 0) {
         seaf_warning ("Read data connection error: %s.\n",
-                      evutil_socket_error_to_string(evutil_socket_geterror(clent->data_fd)));
+                      evutil_socket_error_to_string(evutil_socket_geterror(server->data_fd)));
         server->break_loop = TRUE;
         return;
     }

@@ -4,7 +4,9 @@
 
 #include "net.h"
 
+#ifndef WIN32
 #include <sys/select.h>
+#endif
 #include <event2/buffer.h>
 #include <event2/util.h>
 
@@ -151,7 +153,7 @@ connect_chunk_server (ChunkServer *cs)
     /* Disable Nagle's algorithm. */
     int val = 1;
     optlen = sizeof(int);
-    setsockopt (data_fd, IPPROTO_TCP, TCP_NODELAY, &val, optlen);
+    setsockopt (data_fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, optlen);
 
     if (connect (data_fd, (struct sockaddr *)&sa, sa_len) < 0) {
         seaf_warning ("connect error: %s.\n",
@@ -708,7 +710,7 @@ recv_data_cb (BlockTxClient *client)
         return;
     } else if (n < 0) {
         seaf_warning ("Read data connection error: %s.\n",
-                      evutil_socket_error_to_string(evutil_socket_geterror(clent->data_fd)));
+                      evutil_socket_error_to_string(evutil_socket_geterror(client->data_fd)));
         client->break_loop = TRUE;
         client->info->result = BLOCK_CLIENT_NET_ERROR;
         return;
