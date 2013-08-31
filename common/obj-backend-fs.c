@@ -2,6 +2,9 @@
 #include "utils.h"
 #include "obj-backend.h"
 
+#define DEBUG_FLAG SEAFILE_DEBUG_OTHER
+#include "log.h"
+
 typedef struct FsPriv {
     char *obj_dir;
     int   dir_len;
@@ -37,8 +40,8 @@ obj_backend_fs_read (ObjBackend *bend,
 
     g_file_get_contents (path, (gchar**)data, &tmp_len, &error);
     if (error) {
-        g_warning ("[obj backend] Failed to read object %s: %s.\n",
-                   obj_id, error->message);
+        seaf_debug ("[obj backend] Failed to read object %s: %s.\n",
+                    obj_id, error->message);
         g_clear_error (&error);
         return -1;
     }
