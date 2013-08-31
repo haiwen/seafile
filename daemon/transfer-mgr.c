@@ -1100,8 +1100,9 @@ generate_session_key (BlockTxInfo *info, const char *peer_id)
     gsize enc_key_len;
 
     if (!RAND_bytes (info->session_key, sizeof(info->session_key))) {
-        seaf_warning ("Failed to generate random session key.\n");
-        return -1;
+        seaf_warning ("Failed to generate random session key with RAND_bytes(), "
+                      "switch to RAND_pseudo_bytes().\n");
+        RAND_pseudo_bytes (info->session_key, sizeof(info->session_key));
     }
 
     sk_base64 = g_base64_encode (info->session_key, sizeof(info->session_key));
