@@ -532,7 +532,7 @@ write_decrypted_data (const char *buf, int len,
     if (fsm->remain == 0) {
         if (EVP_DecryptFinal_ex (&fsm->ctx, (unsigned char *)out_buf, &out_len) == 0)
         {
-            seaf_warning ("Failed to encrypt data.\n");
+            seaf_warning ("Failed to decrypt data.\n");
             return -1;
         }
 
