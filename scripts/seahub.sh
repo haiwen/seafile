@@ -123,7 +123,7 @@ else
 fi
 
 function warning_if_seafile_not_running () {
-    if ! pgrep -f "seafile-controller -c" 2>/dev/null 1>&2; then
+    if ! pgrep -f "seafile-controller -c ${default_ccnet_conf_dir}" 2>/dev/null 1>&2; then
         echo
         echo "Warning: seafile-controller not running. Have you run \"./seafile.sh start\" ?"
         echo
