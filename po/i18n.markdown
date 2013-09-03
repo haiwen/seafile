@@ -16,6 +16,7 @@ For example, if you like to add Russian translation.
 de_DE
 fr
 ru
+pt_BR
 zh_CN
 ```
 
