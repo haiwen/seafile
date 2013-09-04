@@ -65,6 +65,8 @@ elif lang_code == 'fr':
     DEFAULT_LANG = 'fr'
 elif lang_code == 'sk_SK':
     DEFAULT_LANG = 'sk_SK'
+elif lang_code == 'pt_BR':
+    DEFAULT_LANG = 'pt_BR'
 else:
     DEFAULT_LANG = 'en_US'
 
@@ -845,6 +847,8 @@ class i18n:
              lang_in_use =  'fr'
         elif inputs.ln == 'sk_SK':
              lang_in_use =  'sk_SK'
+        elif inputs.ln == 'pt_BR':
+             lang_in_use = 'pt_BR'
         else:
              lang_in_use = 'en_US'
 

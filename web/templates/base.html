@@ -46,6 +46,11 @@
 					% else:
 					<option value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=sk_SK"} >Slovak</option>
 					% endif
+					% if lang == "pt_BR":
+					<option selected='selected' value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=pt_BR"} >Brasilian Portuguese</option>
+					% else:
+					<option value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=pt_BR"} >Brasilian Portuguese</option>
+					% endif
                 </select>
             </div>
             <div class="fleft">
