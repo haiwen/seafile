@@ -32,6 +32,7 @@ struct _SeafCommit {
     gboolean    encrypted;         
     int         enc_version;
     char       *magic;
+    char       *random_key;
     gboolean    no_local_history;
 };
 

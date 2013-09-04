@@ -37,8 +37,9 @@ public class Repo : Object {
     }
 
     public bool encrypted { get; set; }
-    public string passwd { get; set; }
     public string magic { get; set; }
+    public int enc_version { get; set; }
+    public string random_key { get; set; }
 
     public bool worktree_changed { get; set; }
     public bool worktree_invalid { get; set; }

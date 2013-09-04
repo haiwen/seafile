@@ -36,7 +36,8 @@ struct _SeafRepo {
     gchar      *desc;
     gboolean    encrypted;
     int         enc_version;
-    gchar       magic[33];       /* hash(repo_id + passwd), key stretched. */
+    gchar       magic[65];       /* hash(repo_id + passwd), key stretched. */
+    gchar       random_key[97];
     gboolean    no_local_history;
 
     SeafBranch *head;
@@ -80,12 +81,6 @@ seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit);
  */
 GList *
 seaf_repo_get_commits (SeafRepo *repo);
-
-int
-seaf_repo_verify_passwd (SeafRepo *repo, const char *passwd);
-
-void
-seaf_repo_generate_magic (SeafRepo *repo, const char *passwd);
 
 GList *
 seaf_repo_diff (SeafRepo *repo, const char *arg1, const char *arg2, char **error);
@@ -364,6 +359,27 @@ seaf_repo_manager_create_org_repo (SeafRepoManager *mgr,
                                    const char *passwd,
                                    int org_id,
                                    GError **error);
+
+char *
+seaf_repo_manager_create_enc_repo (SeafRepoManager *mgr,
+                                   const char *repo_name,
+                                   const char *repo_desc,
+                                   const char *owner_email,
+                                   const char *magic,
+                                   const char *random_key,
+                                   int enc_version,
+                                   GError **error);
+
+char *
+seaf_repo_manager_create_org_enc_repo (SeafRepoManager *mgr,
+                                       const char *repo_name,
+                                       const char *repo_desc,
+                                       const char *user,
+                                       const char *magic,
+                                       const char *random_key,
+                                       int enc_version,
+                                       int org_id,
+                                       GError **error);
 
 /* Give a repo and a path in this repo, returns a list of commits, where every
  * commit contains a unique version of the file. The commits are sorted in

@@ -51,6 +51,8 @@ struct _CloneTask {
     char                *tx_id;
     char                *worktree;
     char                *passwd;
+    int                  enc_version;
+    char                *random_key;
     char                 root_id[41];
 };
 
@@ -89,6 +91,8 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
                              const char *token,
                              const char *passwd,
                              const char *magic,
+                             int enc_version,
+                             const char *random_key,
                              const char *worktree,
                              const char *peer_addr,
                              const char *peer_port,
@@ -108,6 +112,8 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
                                       const char *token,
                                       const char *passwd,
                                       const char *magic,
+                                      int enc_version,
+                                      const char *random_key,
                                       const char *wt_parent,
                                       const char *peer_addr,
                                       const char *peer_port,

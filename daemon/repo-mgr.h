@@ -39,7 +39,8 @@ struct _SeafRepo {
     gchar      *category;       /* not used yet */
     gboolean    encrypted;
     int         enc_version;
-    gchar       magic[33];       /* hash(repo_id + passwd), key stretched. */
+    gchar       magic[65];       /* hash(repo_id + passwd), key stretched. */
+    gchar       random_key[97];  /* key length is 48 after encryption */
     gboolean    no_local_history;
 
     SeafBranch *head;
@@ -53,9 +54,8 @@ struct _SeafRepo {
     int         wt_check_time;
     int         last_sync_time;
 
-    gchar      *passwd;         /* if the repo is encrypted */
-    unsigned char enc_key[16];   /* 128-bit encryption key */
-    unsigned char enc_iv[16];
+    unsigned char enc_key[32];   /* 256-bit encryption key */
+    unsigned char enc_iv[32];
 
     gchar      *email;          /* email of the user on the relay */
     gchar      *token;          /* token for access this repo on server */
@@ -104,17 +104,14 @@ GList *
 seaf_repo_get_commits (SeafRepo *repo);
 
 int
-seaf_repo_verify_passwd (const char *repo_id,
-                         const char *passwd,
-                         const char *magic);
-
-int
 seaf_repo_index_add (SeafRepo *repo, const char *path);
 
 int
 seaf_repo_index_worktree_files (const char *repo_id,
                                 const char *worktree,
                                 const char *passwd,
+                                int enc_version,
+                                const char *random_key,
                                 char *root_id);
 
 int
@@ -148,9 +145,6 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
 int
 seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
                  gboolean *real_merge);
-
-void
-seaf_repo_generate_magic (SeafRepo *repo, const char *passwd);
 
 GList *
 seaf_repo_diff (SeafRepo *repo, const char *arg1, const char *arg2, char **error);

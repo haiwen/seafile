@@ -67,8 +67,6 @@ convert_repo_list (GList *inner_repos)
                   "auto-sync", r->auto_sync,
                   NULL);
 
-    g_object_set (repo, "passwd", r->passwd, NULL);
-
     g_object_set (repo,
                   "last-modify", seafile_repo_last_modify(r->id, NULL),
                   NULL);
@@ -359,6 +357,8 @@ seafile_clone (const char *repo_id,
                const char *peer_addr,
                const char *peer_port,
                const char *email,
+               const char *random_key,
+               int enc_version,
                GError **error)
 {
     if (!repo_id || strlen(repo_id) != 36) {
@@ -386,7 +386,9 @@ seafile_clone (const char *repo_id,
     return seaf_clone_manager_add_task (seaf->clone_mgr,
                                         repo_id, relay_id,
                                         repo_name, token,
-                                        passwd, magic, worktree,
+                                        passwd, magic,
+                                        enc_version, random_key,
+                                        worktree,
                                         peer_addr, peer_port,
                                         email, error);
 }
@@ -402,6 +404,8 @@ seafile_download (const char *repo_id,
                   const char *peer_addr,
                   const char *peer_port,
                   const char *email,
+                  const char *random_key,
+                  int enc_version,
                   GError **error)
 {
     if (!repo_id || strlen(repo_id) != 36) {
@@ -429,7 +433,9 @@ seafile_download (const char *repo_id,
     return seaf_clone_manager_add_download_task (seaf->clone_mgr,
                                                  repo_id, relay_id,
                                                  repo_name, token,
-                                                 passwd, magic, wt_parent,
+                                                 passwd, magic,
+                                                 enc_version, random_key,
+                                                 wt_parent,
                                                  peer_addr, peer_port,
                                                  email, error);
 }
@@ -935,7 +941,7 @@ seafile_get_repo (const char *repo_id, GError **error)
     SeafileRepo *repo = seafile_repo_new ();
     g_object_set (repo, "id", r->id, "name", r->name,
                   "desc", r->desc, "encrypted", r->encrypted,
-                  "magic", r->magic,
+                  "magic", r->magic, "enc_version", r->enc_version,
                   "head_branch", r->head ? r->head->name : NULL,
                   "head_cmmt_id", r->head ? r->head->commit_id : NULL,
                   NULL);
@@ -948,6 +954,9 @@ seafile_get_repo (const char *repo_id, GError **error)
                       "origin_path", r->virtual_info->path,
                       NULL);
     }
+
+    if (r->encrypted && r->enc_version == 2)
+        g_object_set (repo, "random_key", r->random_key, NULL);
 #endif
 
 #ifndef SEAFILE_SERVER
@@ -962,8 +971,6 @@ seafile_get_repo (const char *repo_id, GError **error)
                   "relay-id", r->relay_id,
                   "auto-sync", r->auto_sync,
                   NULL);
-
-    g_object_set (repo, "passwd", r->passwd, NULL);
 
     g_object_set (repo,
                   "last-modify", seafile_repo_last_modify(r->id, NULL),
@@ -2830,7 +2837,8 @@ seafile_create_repo (const char *repo_name,
 
     repo_id = seaf_repo_manager_create_new_repo (seaf->repo_mgr,
                                                  repo_name, repo_desc,
-                                                 owner_email, passwd,
+                                                 owner_email,
+                                                 passwd,
                                                  error);
     return repo_id;
 }
@@ -2852,8 +2860,59 @@ seafile_create_org_repo (const char *repo_name,
 
     repo_id = seaf_repo_manager_create_org_repo (seaf->repo_mgr,
                                                  repo_name, repo_desc,
-                                                 user, passwd,
+                                                 user,
+                                                 passwd,
                                                  org_id, error);
+    return repo_id;
+
+}
+
+char *
+seafile_create_enc_repo (const char *repo_name,
+                         const char *repo_desc,
+                         const char *owner_email,
+                         const char *magic,
+                         const char *random_key,
+                         int enc_version,
+                         GError **error)
+{
+    if (!repo_name || !repo_desc || !owner_email) {
+        g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return NULL;
+    }
+
+    char *repo_id;
+
+    repo_id = seaf_repo_manager_create_enc_repo (seaf->repo_mgr,
+                                                 repo_name, repo_desc,
+                                                 owner_email,
+                                                 magic, random_key, enc_version,
+                                                 error);
+    return repo_id;
+}
+
+char *
+seafile_create_org_enc_repo (const char *repo_name,
+                             const char *repo_desc,
+                             const char *user,
+                             const char *magic,
+                             const char *random_key,
+                             int enc_version,
+                             int org_id,
+                             GError **error)
+{
+    if (!repo_name || !repo_desc || !user || org_id <= 0) {
+        g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Bad arguments");
+        return NULL;
+    }
+
+    char *repo_id;
+
+    repo_id = seaf_repo_manager_create_org_enc_repo (seaf->repo_mgr,
+                                                     repo_name, repo_desc,
+                                                     user,
+                                                     magic, random_key, enc_version,
+                                                     org_id, error);
     return repo_id;
 
 }

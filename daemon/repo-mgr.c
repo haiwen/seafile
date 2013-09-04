@@ -100,7 +100,6 @@ seaf_repo_new (const char *id, const char *name, const char *desc)
     repo->name = g_strdup(name);
     repo->desc = g_strdup(desc);
 
-    repo->passwd = NULL;
     repo->worktree_invalid = TRUE;
     repo->auto_sync = 1;
     repo->net_browsable = 0;
@@ -186,7 +185,6 @@ seaf_repo_free (SeafRepo *repo)
     g_free (repo->category);
     g_free (repo->worktree);
     g_free (repo->relay_id);
-    g_free (repo->passwd);
     g_free (repo->email);
     g_free (repo->token);
     g_free (repo);
@@ -218,8 +216,12 @@ seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit)
     repo->encrypted = commit->encrypted;
     if (repo->encrypted) {
         repo->enc_version = commit->enc_version;
-        if (repo->enc_version >= 1)
-            memcpy (repo->magic, commit->magic, 33);
+        if (repo->enc_version == 1)
+            memcpy (repo->magic, commit->magic, 32);
+        else if (repo->enc_version == 2) {
+            memcpy (repo->magic, commit->magic, 64);
+            memcpy (repo->random_key, commit->random_key, 96);
+        }
     }
     repo->no_local_history = commit->no_local_history;
 }
@@ -232,8 +234,12 @@ seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit)
     commit->encrypted = repo->encrypted;
     if (commit->encrypted) {
         commit->enc_version = repo->enc_version;
-        if (commit->enc_version >= 1)
+        if (commit->enc_version == 1)
             commit->magic = g_strdup (repo->magic);
+        else if (commit->enc_version == 2) {
+            commit->magic = g_strdup (repo->magic);
+            commit->random_key = g_strdup (repo->random_key);
+        }
     }
     commit->no_local_history = repo->no_local_history;
 }
@@ -285,29 +291,6 @@ out:
         seaf_branch_unref ((SeafBranch *)ptr->data);
     }
     return commits;
-}
-
-int
-seaf_repo_verify_passwd (const char *repo_id,
-                         const char *passwd,
-                         const char *magic)
-{
-    GString *buf = g_string_new (NULL);
-    unsigned char key[16], iv[16];
-    char hex[33];
-
-    /* Recompute the magic and compare it with the one comes with the repo. */
-    g_string_append_printf (buf, "%s%s", repo_id, passwd);
-
-    seafile_generate_enc_key (buf->str, buf->len, CURRENT_ENC_VERSION, key, iv);
-
-    g_string_free (buf, TRUE);
-    rawdata_to_hex (key, hex, 16);
-
-    if (g_strcmp0 (hex, magic) == 0)
-        return 0;
-    else
-        return -1;
 }
 
 static inline gboolean
@@ -574,11 +557,13 @@ int
 seaf_repo_index_worktree_files (const char *repo_id,
                                 const char *worktree,
                                 const char *passwd,
+                                int enc_version,
+                                const char *random_key,
                                 char *root_id)
 {
     char index_path[SEAF_PATH_MAX];
     struct index_state istate;
-    unsigned char key[16], iv[16];
+    unsigned char key[32], iv[32];
     SeafileCrypt *crypt = NULL;
     struct cache_tree *it = NULL;
     GList *ignore_list = NULL;
@@ -598,8 +583,12 @@ seaf_repo_index_worktree_files (const char *repo_id,
     }
 
     if (passwd != NULL) {
-        seafile_generate_enc_key (passwd, strlen(passwd), 1, key, iv);
-        crypt = seafile_crypt_new (1, key, iv);
+        if (seafile_decrypt_repo_enc_key (enc_version, passwd,
+                                          random_key, key, iv) < 0) {
+            seaf_warning ("Failed to generate enc key for repo %s.\n", repo_id);
+            goto error;
+        }
+        crypt = seafile_crypt_new (enc_version, key, iv);
     }
 
     ignore_list = seaf_repo_load_ignore_files(worktree);
@@ -1349,25 +1338,6 @@ seaf_repo_manager_validate_repo_worktree (SeafRepoManager *mgr,
     }
 }
 
-void
-seaf_repo_generate_magic (SeafRepo *repo, const char *passwd)
-{
-    GString *buf = g_string_new (NULL);
-    unsigned char key[16], iv[16];
-
-    /* Compute a "magic" string from repo_id and passwd.
-     * This is used to verify the password given by user before decrypting
-     * data.
-     * We use large iteration times to defense against brute-force attack.
-     */
-    g_string_append_printf (buf, "%s%s", repo->id, passwd);
-
-    seafile_generate_enc_key (buf->str, buf->len, CURRENT_ENC_VERSION, key, iv);
-
-    g_string_free (buf, TRUE);
-    rawdata_to_hex (key, repo->magic, 16);
-}
-
 static int 
 compare_repo (const SeafRepo *srepo, const SeafRepo *trepo)
 {
@@ -1885,17 +1855,6 @@ load_repo_commit (SeafRepoManager *manager,
 }
 
 static gboolean
-load_passwd_cb (sqlite3_stmt *stmt, void *vrepo)
-{
-    SeafRepo *repo = vrepo;
-
-    repo->encrypted = TRUE;
-    repo->passwd = g_strdup ((const char *)sqlite3_column_text(stmt, 0));
-
-    return FALSE;
-}
-
-static gboolean
 load_keys_cb (sqlite3_stmt *stmt, void *vrepo)
 {
     SeafRepo *repo = vrepo;
@@ -1904,32 +1863,15 @@ load_keys_cb (sqlite3_stmt *stmt, void *vrepo)
     key = (const char *)sqlite3_column_text(stmt, 0);
     iv = (const char *)sqlite3_column_text(stmt, 1);
 
-    hex_to_rawdata (key, repo->enc_key, 16);
-    hex_to_rawdata (iv, repo->enc_iv, 16);
+    if (repo->enc_version == 1) {
+        hex_to_rawdata (key, repo->enc_key, 16);
+        hex_to_rawdata (iv, repo->enc_iv, 16);
+    } else if (repo->enc_version == 2) {
+        hex_to_rawdata (key, repo->enc_key, 32);
+        hex_to_rawdata (iv, repo->enc_iv, 32);
+    }
 
     return FALSE;
-}
-
-static void
-recover_repo_enc_keys (SeafRepoManager *manager, SeafRepo *repo)
-{
-    unsigned char key[16], iv[16];
-    char hex_key[33], hex_iv[33];
-    sqlite3 *db = manager->priv->db;
-    char sql[256];
-
-    seafile_generate_enc_key (repo->passwd, strlen(repo->passwd), 
-                              repo->enc_version, key, iv);
-
-    memcpy (repo->enc_key, key, 16);
-    memcpy (repo->enc_iv, iv, 16);
-
-    rawdata_to_hex (key, hex_key, 16);
-    rawdata_to_hex (iv, hex_iv, 16);
-
-    snprintf (sql, sizeof(sql), "INSERT INTO RepoKeys VALUES ('%s', '%s', '%s')",
-              repo->id, hex_key, hex_iv);
-    sqlite_query_exec (db, sql);
 }
 
 static int
@@ -1940,38 +1882,13 @@ load_repo_passwd (SeafRepoManager *manager, SeafRepo *repo)
     int n;
 
     pthread_mutex_lock (&manager->priv->db_lock);
-#ifdef HAVE_KEYSTORAGE_GK
-    guint gk_item_id;
-    char* gk_password;
-    gk_password = gnome_keyring_sf_get_password(repo->id, "password", &gk_item_id);
-    if (gk_password != NULL) {
-        repo->encrypted = TRUE;
-        repo->passwd = g_strdup(gk_password);
-        g_free(gk_password);
-        gk_password = NULL;
-    } else {
-#else    
-    snprintf (sql, sizeof(sql), 
-              "SELECT passwd FROM RepoPasswd WHERE repo_id='%s'",
-              repo->id);
-    if (sqlite_foreach_selected_row (db, sql, load_passwd_cb, repo) < 0)
-        return -1;
-#endif
-#ifdef HAVE_KEYSTORAGE_GK
-    }
-#endif
+
     snprintf (sql, sizeof(sql), 
               "SELECT key, iv FROM RepoKeys WHERE repo_id='%s'",
               repo->id);
     n = sqlite_foreach_selected_row (db, sql, load_keys_cb, repo);
     if (n < 0)
         return -1;
-
-    /* Case 1: upgrade from encryption version 0 to version 1.
-     * Case 2: Database lost.
-     */
-    if (n == 0 && repo->passwd != NULL)
-        recover_repo_enc_keys (manager, repo);
 
     pthread_mutex_unlock (&manager->priv->db_lock);
 
@@ -2375,41 +2292,23 @@ save_repo_enc_info (SeafRepoManager *manager,
                     SeafRepo *repo)
 {
     sqlite3 *db = manager->priv->db;
-    char sql[256];
-    char key[33], iv[33];
+    char sql[512];
+    char key[65], iv[65];
 
-#ifdef HAVE_KEYSTORAGE_GK
-    if (gnome_keyring_sf_set_password(repo->id, "password", repo->passwd) != 1)
-        return -1;
-#else
-    sqlite3_snprintf (sizeof(sql), sql,
-                      "REPLACE INTO RepoPasswd VALUES ('%s', '%q');",
-                      repo->id, repo->passwd);
-    if (sqlite_query_exec (db, sql) < 0)
-        return -1;
-#endif
-    rawdata_to_hex (repo->enc_key, key, 16);
-    rawdata_to_hex (repo->enc_iv, iv, 16);
+    if (repo->enc_version == 1) {
+        rawdata_to_hex (repo->enc_key, key, 16);
+        rawdata_to_hex (repo->enc_iv, iv, 16);
+    } else if (repo->enc_version == 2) {
+        rawdata_to_hex (repo->enc_key, key, 32);
+        rawdata_to_hex (repo->enc_iv, iv, 32);
+    }
+
     snprintf (sql, sizeof(sql), "REPLACE INTO RepoKeys VALUES ('%s', '%s', '%s')",
               repo->id, key, iv);
     if (sqlite_query_exec (db, sql) < 0)
         return -1;
 
     return 0;
-}
-
-static void
-generate_repo_enc_key (SeafRepo *repo, const char *passwd)
-{
-    unsigned char key[16], iv[16];
-
-    /* Compute encryption key from password.
-     * We use large iteration times to defense against brute-force attack.
-     */
-    seafile_generate_enc_key (passwd, strlen(passwd), repo->enc_version, key, iv);
-
-    memcpy (repo->enc_key, key, 16);
-    memcpy (repo->enc_iv, iv, 16);
 }
 
 int 
@@ -2419,9 +2318,9 @@ seaf_repo_manager_set_repo_passwd (SeafRepoManager *manager,
 {
     int ret;
 
-    generate_repo_enc_key (repo, passwd);
-
-    repo->passwd = g_strdup(passwd);
+    if (seafile_decrypt_repo_enc_key (repo->enc_version, passwd, repo->random_key,
+                                      repo->enc_key, repo->enc_iv) < 0)
+        return -1;
 
     pthread_mutex_lock (&manager->priv->db_lock);
 

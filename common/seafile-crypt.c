@@ -3,7 +3,10 @@
 #include <string.h>
 #include <glib.h>
 #include "seafile-crypt.h"
+#include <openssl/rand.h>
 
+#include "utils.h"
+#include "log.h"
 
 /*
   The EVP_EncryptXXX and EVP_DecryptXXX series of functions have a
@@ -15,6 +18,7 @@
 #define DEC_FAILURE 0
 
 #define KEYGEN_ITERATION 1 << 19
+#define KEYGEN_ITERATION2 1000
 /* truly random sequece read from /dev/urandom. */
 static unsigned char salt[8] = { 0xda, 0x90, 0x45, 0xc3, 0x06, 0xc7, 0xcc, 0x26 };
 
@@ -29,10 +33,20 @@ seafile_crypt_new (int version, unsigned char *key, unsigned char *iv)
 }
 
 int
-seafile_generate_enc_key (const char *data_in, int in_len, int version,
-                          unsigned char *key, unsigned char *iv)
+seafile_derive_key (const char *data_in, int in_len, int version,
+                    unsigned char *key, unsigned char *iv)
 {
-    if (version >= 1)
+    if (version == 2) {
+        PKCS5_PBKDF2_HMAC_SHA1 (data_in, in_len,
+                                salt, sizeof(salt),
+                                KEYGEN_ITERATION2,
+                                32, key);
+        PKCS5_PBKDF2_HMAC_SHA1 ((char *)key, 32,
+                                salt, sizeof(salt),
+                                10,
+                                32, iv);
+        return 0;
+    } else if (version == 1)
         return EVP_BytesToKey (EVP_aes_128_cbc(), /* cipher mode */
                                EVP_sha1(),        /* message digest */
                                salt,              /* salt */
@@ -50,6 +64,135 @@ seafile_generate_enc_key (const char *data_in, int in_len, int version,
                                3,   /* iteration times */
                                key, /* the derived key */
                                iv); /* IV, initial vector */
+}
+
+void
+seafile_generate_random_key (const char *passwd, char *random_key)
+{
+    SeafileCrypt *crypt;
+    unsigned char rand_key[32], *enc_rand_key;
+    int outlen;
+    unsigned char key[32], iv[32];
+
+    if (!RAND_bytes (key, sizeof(key))) {
+        seaf_warning ("Failed to generate random key for repo encryption "
+                      "with RAND_bytes(), use RAND_pseudo_bytes().\n");
+        RAND_pseudo_bytes (key, sizeof(key));
+    }
+
+    seafile_derive_key (passwd, strlen(passwd), 2, key, iv);
+
+    crypt = seafile_crypt_new (2, key, iv);
+
+    seafile_encrypt ((char **)&enc_rand_key, &outlen,
+                     (char *)rand_key, sizeof(rand_key), crypt);
+
+    g_assert (outlen == 48);
+
+    rawdata_to_hex (enc_rand_key, random_key, 48);
+
+    g_free (crypt);
+    g_free (enc_rand_key);
+}
+
+void
+seafile_generate_magic (int version, const char *repo_id,
+                        const char *passwd, char *magic)
+{
+    GString *buf = g_string_new (NULL);
+    unsigned char key[32], iv[32];
+
+    /* Compute a "magic" string from repo_id and passwd.
+     * This is used to verify the password given by user before decrypting
+     * data.
+     */
+    g_string_append_printf (buf, "%s%s", repo_id, passwd);
+
+    seafile_derive_key (buf->str, buf->len, version, key, iv);
+
+    g_string_free (buf, TRUE);
+    rawdata_to_hex (key, magic, 32);
+}
+
+int
+seafile_verify_repo_passwd (const char *repo_id,
+                            const char *passwd,
+                            const char *magic,
+                            int version)
+{
+    GString *buf = g_string_new (NULL);
+    unsigned char key[32], iv[32];
+    char hex[65];
+
+    if (version != 1 && version != 2) {
+        seaf_warning ("Unsupported enc_version %d.\n", version);
+        return -1;
+    }
+
+    /* Recompute the magic and compare it with the one comes with the repo. */
+    g_string_append_printf (buf, "%s%s", repo_id, passwd);
+
+    seafile_derive_key (buf->str, buf->len, version, key, iv);
+
+    g_string_free (buf, TRUE);
+    if (version == 2)
+        rawdata_to_hex (key, hex, 32);
+    else
+        rawdata_to_hex (key, hex, 16);
+
+    if (g_strcmp0 (hex, magic) == 0)
+        return 0;
+    else
+        return -1;
+}
+
+int
+seafile_decrypt_repo_enc_key (int enc_version,
+                              const char *passwd, const char *random_key,
+                              unsigned char *key_out, unsigned char *iv_out)
+{
+    unsigned char key[32], iv[32];
+
+    seafile_derive_key (passwd, strlen(passwd), enc_version, key, iv);
+
+    if (enc_version == 1) {
+        memcpy (key_out, key, 16);
+        memcpy (iv_out, iv, 16);
+        return 0;
+    } else if (enc_version == 2) {
+        unsigned char enc_random_key[48], *dec_random_key;
+        int outlen;
+        SeafileCrypt *crypt;
+
+        if (random_key == NULL || random_key[0] == 0) {
+            seaf_warning ("Empty random key.\n");
+            return -1;
+        }
+
+        hex_to_rawdata (random_key, enc_random_key, 48);
+
+        crypt = seafile_crypt_new (enc_version, key, iv);
+        if (seafile_decrypt ((char **)&dec_random_key, &outlen,
+                             (char *)enc_random_key, 48,
+                             crypt) < 0) {
+            seaf_warning ("Failed to decrypt random key.\n");
+            g_free (crypt);
+            return -1;
+        }
+        g_free (crypt);
+
+        g_assert (outlen == 32);
+
+        seafile_derive_key ((char *)dec_random_key, 32, enc_version,
+                                  key, iv);
+        memcpy (key_out, key, 32);
+        memcpy (iv_out, iv, 32);
+
+        g_free (dec_random_key);
+        return 0;
+    }
+
+    return -1;
 }
 
 int
@@ -75,7 +218,13 @@ seafile_encrypt (char **data_out,
     /* Prepare CTX for encryption. */
     EVP_CIPHER_CTX_init (&ctx);
 
-    if (crypt->version >= 1)
+    if (crypt->version == 2)
+        ret = EVP_EncryptInit_ex (&ctx,
+                                  EVP_aes_256_cbc(), /* cipher mode */
+                                  NULL, /* engine, NULL for default */
+                                  crypt->key,  /* derived key */
+                                  crypt->iv);  /* initial vector */
+    else if (crypt->version == 1)
         ret = EVP_EncryptInit_ex (&ctx,
                                   EVP_aes_128_cbc(), /* cipher mode */
                                   NULL, /* engine, NULL for default */
@@ -179,7 +328,13 @@ seafile_decrypt (char **data_out,
     /* Prepare CTX for decryption. */
     EVP_CIPHER_CTX_init (&ctx);
 
-    if (crypt->version >= 1)
+    if (crypt->version == 2)
+        ret = EVP_DecryptInit_ex (&ctx,
+                                  EVP_aes_256_cbc(), /* cipher mode */
+                                  NULL, /* engine, NULL for default */
+                                  crypt->key,  /* derived key */
+                                  crypt->iv);  /* initial vector */
+    else if (crypt->version == 1)
         ret = EVP_DecryptInit_ex (&ctx,
                                   EVP_aes_128_cbc(), /* cipher mode */
                                   NULL, /* engine, NULL for default */
@@ -257,7 +412,13 @@ seafile_decrypt_init (EVP_CIPHER_CTX *ctx,
     /* Prepare CTX for decryption. */
     EVP_CIPHER_CTX_init (ctx);
 
-    if (version >= 1)
+    if (version == 2)
+        ret = EVP_DecryptInit_ex (ctx,
+                                  EVP_aes_256_cbc(), /* cipher mode */
+                                  NULL, /* engine, NULL for default */
+                                  key,  /* derived key */
+                                  iv);  /* initial vector */
+    else if (version == 1)
         ret = EVP_DecryptInit_ex (ctx,
                                   EVP_aes_128_cbc(), /* cipher mode */
                                   NULL, /* engine, NULL for default */

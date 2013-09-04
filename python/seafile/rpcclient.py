@@ -120,13 +120,13 @@ class SeafileRpcClient(ccnet.RpcClientBase):
     def gen_default_worktree(worktree_parent, repo_name):
         pass
 
-    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "string", "string", "string"])
-    def seafile_clone(repo_id, peer_id, repo_name, worktree, token, password, magic, peer_addr, peer_port, email):
+    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int"])
+    def seafile_clone(repo_id, peer_id, repo_name, worktree, token, password, magic, peer_addr, peer_port, email, random_key, enc_version):
         pass
     clone = seafile_clone
 
-    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "string", "string", "string"])
-    def seafile_download(repo_id, peer_id, repo_name, wt_parent, token, password, magic, peer_addr, peer_port, email):
+    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int"])
+    def seafile_download(repo_id, peer_id, repo_name, wt_parent, token, password, magic, peer_addr, peer_port, email, random_key, enc_version):
         pass
     download = seafile_download
 
@@ -318,6 +318,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     # repo manipulation 
     @searpc_func("string", ["string", "string", "string", "string"])
     def seafile_create_repo(name, desc, owner_email, passwd):
+        pass
+    create_repo = seafile_create_repo
+
+    @searpc_func("string", ["string", "string", "string", "string", "string", "int"])
+    def seafile_create_enc_repo(name, desc, owner_email, magic, random_key, enc_version):
         pass
     create_repo = seafile_create_repo
 
@@ -674,8 +679,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
 
     # org repo
-    @searpc_func("string", ["string", "string", "string", "string", "int"])
-    def seafile_create_org_repo(name, desc, user, passwd, org_id):
+    @searpc_func("string", ["string", "string", "string", "string", "string", "int", "int"])
+    def seafile_create_org_repo(name, desc, user, passwd, magic, random_key, enc_version, org_id):
         pass
     create_org_repo = seafile_create_org_repo
 

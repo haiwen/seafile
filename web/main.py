@@ -531,7 +531,8 @@ class repo_download:
         inputs = web.webapi.input(relay_id='', token='',
                                   relay_addr='', relay_port = '',
                                   repo_id='', repo_name='',
-                                  encrypted='', magic='', email='')
+                                  encrypted='', magic='', email='',
+                                  enc_ver='', key='')
 
         relay_id   = inputs.relay_id
         token       = inputs.token
@@ -540,6 +541,13 @@ class repo_download:
         repo_id     = inputs.repo_id
         repo_name   = inputs.repo_name
         email       = inputs.email
+
+        # seaf-daemon only accept enc_version of 1 or 2. Default to 1 if not set.
+        if not inputs.enc_ver:
+            enc_version = 1
+        else:
+            enc_version = int(inputs.enc_ver)
+        random_key = inputs.key
 
         if seafile_rpc.get_repo(inputs.repo_id):
             return render.repo_download(repo_already_exists=True,
@@ -560,6 +568,10 @@ class repo_download:
              urllib.quote(repo_name.encode('utf-8')))
         if inputs.encrypted:
             sync_url += "&encrypted=1&magic=%s" % inputs.magic
+            if enc_version:
+                sync_url += "&enc_ver=%s" % enc_version
+            if random_key:
+                sync_url += "&key=%s" % random_key
 
         return render.repo_download(error_msg=None,
                                     repo_already_exists=False,
@@ -573,6 +585,8 @@ class repo_download:
                                     encrypted=inputs.encrypted,
                                     magic=inputs.magic,
                                     email=email,
+                                    enc_version=enc_version,
+                                    random_key=random_key,
                                     sync_url=sync_url,
                                     **default_options)
 
@@ -581,7 +595,14 @@ class repo_download:
                                   relay_addr='', relay_port = '',
                                   repo_id='', repo_name='',
                                   encrypted='', password='', magic='',
-                                  wt_parent='', email='')
+                                  wt_parent='', email='',
+                                  enc_ver='', key='')
+
+        if not inputs.enc_ver:
+            enc_version = 1
+        else:
+            enc_version = int(inputs.enc_ver)
+        random_key = inputs.key
 
         sync_url = "/repo/sync/?relay_id=%s&relay_addr=%s&relay_port=%s&" \
             "email=%s&token=%s&repo_id=%s&repo_name=%s" % \
@@ -590,6 +611,10 @@ class repo_download:
              urllib.quote(inputs.repo_name.encode('utf-8')))
         if inputs.encrypted:
             sync_url += "&encrypted=1&magic=%s" % inputs.magic
+            if enc_version:
+                sync_url += "&enc_ver=%s" % enc_version
+            if random_key:
+                sync_url += "&key=%s" % random_key
 
         error_msg = None
         if not inputs.wt_parent:
@@ -612,6 +637,8 @@ class repo_download:
                                          magic=inputs.magic,
                                          wt_parent=inputs.wt_parent,
                                          email=inputs.email,
+                                         enc_version=enc_version,
+                                         random_key=random_key,
                                          sync_url=sync_url,
                                          **default_options)
 
@@ -619,6 +646,8 @@ class repo_download:
             inputs.password = None
         if not inputs.magic:
             inputs.magic = None
+        if not random_key:
+            random_key = None
                                          
         try:
             seafile_rpc.download (inputs.repo_id, inputs.relay_id,
@@ -629,7 +658,9 @@ class repo_download:
                                   inputs.magic,
                                   inputs.relay_addr,
                                   inputs.relay_port,
-                                  inputs.email)
+                                  inputs.email,
+                                  random_key,
+                                  enc_version)
         except SearpcError as e:
             if e.msg == 'Invalid local directory':
                 error_msg = _('Invalid local directory')
@@ -658,6 +689,8 @@ class repo_download:
                                          magic=inputs.magic,
                                          wt_parent=inputs.wt_parent,
                                          email=inputs.email,
+                                         enc_version=enc_version,
+                                         random_key=random_key,
                                          sync_url=sync_url,
                                          **default_options)
 
@@ -670,7 +703,8 @@ class repo_sync:
         inputs = web.webapi.input(relay_id='', token='',
                                   relay_addr='', relay_port = '',
                                   repo_id='', repo_name='',
-                                  encrypted='', magic='', email='')
+                                  encrypted='', magic='', email='',
+                                  enc_ver='', key='')
 
         relay_id   = inputs.relay_id
         token       = inputs.token
@@ -679,6 +713,11 @@ class repo_sync:
         repo_id     = inputs.repo_id
         repo_name   = inputs.repo_name
         email       = inputs.email
+        if not inputs.enc_ver:
+            enc_version = 1
+        else:
+            enc_version = int(inputs.enc_ver)
+        random_key = inputs.key
 
         if seafile_rpc.get_repo(inputs.repo_id):
             return render.repo_sync(repo_already_exists=True, **default_options)
@@ -702,6 +741,8 @@ class repo_sync:
                                 encrypted=inputs.encrypted,
                                 magic=inputs.magic,
                                 email=email,
+                                enc_version=enc_version,
+                                random_key=random_key,
                                 **default_options)
 
     def POST(self):
@@ -709,9 +750,16 @@ class repo_sync:
                                   relay_addr='', relay_port = '',
                                   repo_id='', repo_name='',
                                   encrypted='', password='', magic='',
-                                  worktree='', email='')
+                                  worktree='', email='',
+                                  enc_ver='', key='')
 
         repo_id = inputs.repo_id.strip()
+
+        if not inputs.enc_ver:
+            enc_version = 1
+        else:
+            enc_version = int(inputs.enc_ver)
+        random_key = inputs.key
 
         error_msg = None
         if not inputs.worktree:
@@ -734,12 +782,16 @@ class repo_sync:
                                      magic=inputs.magic,
                                      worktree=inputs.worktree,
                                      email=inputs.email,
+                                     enc_version=enc_version,
+                                     random_key=random_key,
                                      **default_options)
 
         if not inputs.password:
             inputs.password = None
         if not inputs.magic:
             inputs.magic = None
+        if not random_key:
+            random_key = None
 
         try:
             seafile_rpc.clone (repo_id, inputs.relay_id,
@@ -748,7 +800,8 @@ class repo_sync:
                                inputs.token,
                                inputs.password,
                                inputs.magic,
-                               inputs.relay_addr, inputs.relay_port, inputs.email)
+                               inputs.relay_addr, inputs.relay_port, inputs.email,
+                               random_key, enc_version)
         except SearpcError as e:
             if e.msg == 'Invalid local directory':
                 error_msg = _('Invalid local directory')
@@ -776,6 +829,8 @@ class repo_sync:
                                      magic=inputs.magic,
                                      worktree=inputs.worktree,
                                      email=inputs.email,
+                                     enc_version=enc_version,
+                                     random_key=random_key,
                                      **default_options)
 
         raise web.seeother('/repos/download-tasks/')
