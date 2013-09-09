@@ -505,6 +505,12 @@ send_encrypted_block (BlockTxClient *client,
 
     remain = size;
     while (remain > 0) {
+        if (info->task->state == TASK_STATE_CANCELED) {
+            info->result = BLOCK_CLIENT_CANCELED;
+            ret = -1;
+            goto out;
+        }
+
         n = seaf_block_manager_read_block (seaf->block_mgr,
                                            handle,
                                            send_buf, SEND_BUFFER_SIZE);
@@ -638,7 +644,6 @@ handle_block_content (BlockTxClient *client)
 static int
 transfer_next_block (BlockTxClient *client)
 {
-    BlockTxInfo *info = client->info;
     TransferTask *task = client->info->task;
 
     if (client->curr_block_id) {
@@ -661,14 +666,12 @@ transfer_next_block (BlockTxClient *client)
         if (send_block_header (client, REQUEST_COMMAND_PUT) < 0) {
             seaf_warning ("Failed to send block header for PUT %s.\n",
                           client->curr_block_id);
-            info->result = BLOCK_CLIENT_NET_ERROR;
             return -1;
         }
 
         if (send_block_content (client) < 0) {
             seaf_warning ("Failed to send block content for %s.\n",
                           client->curr_block_id);
-            info->result = BLOCK_CLIENT_NET_ERROR;
             return -1;
         }
 
@@ -682,7 +685,6 @@ transfer_next_block (BlockTxClient *client)
         if (send_block_header (client, REQUEST_COMMAND_GET) < 0) {
             seaf_warning ("Failed to send block header for GET %s.\n",
                           client->curr_block_id);
-            info->result = BLOCK_CLIENT_NET_ERROR;
             return -1;
         }
 
