@@ -348,12 +348,16 @@ seafile_branch_gets (const char *repo_id, GError **error);
 int
 seafile_is_repo_owner (const char *email, const char *repo_id,
                        GError **error);
+
+int
+seafile_set_repo_owner(const char *repo_id, const char *email,
+                       GError **error);
+
 /**
  * Return owner id of repo
  */
 char *
 seafile_get_repo_owner(const char *repo_id, GError **error);
-
 
 GList *
 seafile_list_owned_repos (const char *email, GError **error);

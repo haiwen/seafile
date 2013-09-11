@@ -346,6 +346,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     is_repo_owner = seafile_is_repo_owner
 
+    @searpc_func("int", ["string", "string"])
+    def seafile_set_repo_owner(email, repo_id):
+        pass
+    set_repo_owner = seafile_set_repo_owner
+    
     @searpc_func("string", ["string"])
     def seafile_get_repo_owner(repo_id):
         pass
