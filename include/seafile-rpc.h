@@ -168,6 +168,16 @@ int seafile_is_auto_sync_enabled (GError **error);
 GList * seafile_list_dir (const char *dir_id, int offset, int limit, GError **error);
 
 /**
+ * seafile_list_file:
+ * List the blocks of a file.
+ *
+ * Returns: a list of block ids speprated by '\n'.
+ * 
+ * @limit: if limit <= 0, all blocks start from @offset will be returned.
+ */
+char * seafile_list_file (const char *file_id, int offset, int limit, GError **error);
+
+/**
  * seafile_list_dir_by_path:
  * List a directory in a commit by the path of the directory.
  *
@@ -493,6 +503,11 @@ seafile_get_repo_history_limit (const char *repo_id,
                                 GError **error);
 
 int
+seafile_check_passwd (const char *repo_id,
+                      const char *magic,
+                      GError **error);
+
+int
 seafile_set_passwd (const char *repo_id,
                     const char *user,
                     const char *passwd,
@@ -544,6 +559,23 @@ seafile_post_multi_files (const char *repo_id,
                           const char *user,
                           GError **error);
 
+/**
+ * Add file blocks at once.
+ *
+ * @blocks_json: json array of block ids
+ * @paths_json: json array of temp file paths
+ */
+char *
+seafile_post_file_blocks (const char *repo_id,
+                          const char *parent_dir,
+                          const char *file_name,
+                          const char *blockids_json,
+                          const char *paths_json,
+                          const char *user,
+                          gint64 file_size,
+                          GError **error);
+
+
 int
 seafile_post_empty_file (const char *repo_id, const char *parent_dir,
                          const char *new_file_name, const char *user,
@@ -561,6 +593,19 @@ seafile_put_file (const char *repo_id, const char *temp_file_path,
                   const char *parent_dir, const char *file_name,
                   const char *user, const char *head_id,
                   GError **error);
+
+/**
+ * Add file blocks at once.
+ *
+ * @blocks_json: json array of block ids
+ * @paths_json: json array of temp file paths
+ */
+char *
+seafile_put_file_blocks (const char *repo_id, const char *parent_dir,
+                         const char *file_name, const char *blockids_json,
+                         const char *paths_json, const char *user,
+                         const char *head_id, gint64 file_size, GError **error);
+
 
 int
 seafile_post_dir (const char *repo_id, const char *parent_dir,

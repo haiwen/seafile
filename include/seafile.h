@@ -101,6 +101,19 @@ seafile_put_file (SearpcClient *client,
                   const char *head_id,
                   GError **error);
 
+char *
+seafile_put_file_blocks (SearpcClient *client,
+                         const char *repo_id,
+                         const char *parent_dir,
+                         const char *file_name,
+                         const char *blockids_json,
+                         const char *paths_json,
+                         const char *user,
+                         const char *head_id,
+                         gint64 file_size,
+                         GError **error);
+
+
 int
 seafile_post_file (SearpcClient *client,
                    const char *repo_id,
@@ -111,6 +124,17 @@ seafile_post_file (SearpcClient *client,
                    GError **error);
 
 #define POST_FILE_ERR_FILENAME 401
+
+char *
+seafile_post_file_blocks (SearpcClient *client,
+                          const char *repo_id,
+                          const char *parent_dir,
+                          const char *file_name,
+                          const char *blockids_json,
+                          const char *paths_json,
+                          const char *user,
+                          gint64 file_size,
+                          GError **error);
 
 char *
 seafile_post_multi_files (SearpcClient *client,

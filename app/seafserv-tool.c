@@ -277,7 +277,6 @@ static int put_file (int argc, char **argv)
     const char *parent_dir;
     const char *file_name;
     const char *user;
-    int ret;
 
     if (argc != 5) {
         fprintf (stderr, "[usage] seafserv-tool put-file <repo id> <file>"
@@ -291,9 +290,9 @@ static int put_file (int argc, char **argv)
     file_name = argv[3];
     user = argv[4];
 
-    ret = seafile_put_file(threaded_rpc_client, repo_id, file_path,
-                           parent_dir, file_name, user, NULL, &error);
-    if (ret < 0) {
+    seafile_put_file(threaded_rpc_client, repo_id, file_path,
+                     parent_dir, file_name, user, NULL, &error);
+    if (error) {
         fprintf (stderr, "Failed to put a file into server (filepath %s)\n",
                  file_path);
         if (error && error->message)

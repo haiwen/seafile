@@ -118,6 +118,7 @@ public class SharedRepo : Object {
     public string repo_name { get; set; }
     public string repo_desc { get; set; }
     public bool encrypted { get; set; }
+    public bool enc_version { get; set; }
     public string permission { get; set; }
 
     public string user { get; set; } // share from or share to

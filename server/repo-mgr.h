@@ -265,6 +265,18 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
                                     GError **error);
 
 int
+seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
+                                    const char *repo_id,
+                                    const char *parent_dir,
+                                    const char *file_name,
+                                    const char *blockids_json,
+                                    const char *paths_json,
+                                    const char *user,
+                                    gint64 file_size,
+                                    char **new_id,
+                                    GError **error);
+
+int
 seaf_repo_manager_post_empty_file (SeafRepoManager *mgr,
                                    const char *repo_id,
                                    const char *parent_dir,
@@ -297,6 +309,19 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
                             const char *head_id,
                             char **new_file_id,                            
                             GError **error);
+
+int
+seaf_repo_manager_put_file_blocks (SeafRepoManager *mgr,
+                                   const char *repo_id,
+                                   const char *parent_dir,
+                                   const char *file_name,
+                                   const char *blockids_json,
+                                   const char *paths_json,
+                                   const char *user,
+                                   const char *head_id,
+                                   gint64 file_size,
+                                   char **new_file_id,
+                                   GError **error);
 
 int
 seaf_repo_manager_del_file (SeafRepoManager *mgr,
