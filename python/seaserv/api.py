@@ -61,6 +61,9 @@ class SeafileAPI(object):
     def is_repo_owner(self, username, repo_id):
         return seafserv_threaded_rpc.is_repo_owner(username, repo_id)
 
+    def set_repo_owner(self, email, repo_id):
+        return seafserv_threaded_rpc.set_repo_owner(email, repo_id)
+
     def get_repo_owner(self, repo_id):
         return seafserv_threaded_rpc.get_repo_owner(repo_id)
 
