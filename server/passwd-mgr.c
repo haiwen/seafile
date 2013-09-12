@@ -67,8 +67,6 @@ seaf_passwd_manager_check_passwd (SeafPasswdManager *mgr,
                                   GError **error)
 {
     SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    DecryptKey *crypt_key;
-    GString *hash_key;
 
     if (!repo) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
@@ -82,6 +80,7 @@ seaf_passwd_manager_check_passwd (SeafPasswdManager *mgr,
                      "Repo is not encrypted");
         return -1;
     }
+
     if (strcmp (magic, repo->magic) != 0) {
         seaf_repo_unref (repo);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,

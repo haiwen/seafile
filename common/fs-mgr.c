@@ -416,32 +416,6 @@ seafile_write_chunk (CDCDescriptor *chunk,
     return ret;
 }
 
-int
-seafile_check_write_chunk (CDCDescriptor *chunk,
-                           uint8_t *sha1,
-                           gboolean write_data)
-{
-    int ret = 0;
-    SHA_CTX ctx;
-
-    /* Encrypt before write to disk if needed, and we don't encrypt
-     * empty files. */
-    /* not a encrypted repo, go ahead */
-    SHA1_Init (&ctx);
-    SHA1_Update (&ctx, chunk->block_buf, chunk->len);
-    SHA1_Final (chunk->checksum, &ctx);
-
-    if (memcmp(chunk->checksum, sha1, CHECKSUM_LENGTH) != 0) {
-        seaf_warning("Error: file chunk checksum not correct.\n");
-        return -1;
-    }
-
-    if (write_data)
-        ret = do_write_chunk (sha1, chunk->block_buf, chunk->len);
-
-    return ret;
-}
-
 static void
 create_cdc_for_empty_file (CDCFileDescriptor *cdc)
 {
@@ -493,47 +467,50 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
 }
 
 static int
-init_file_chunk(CDCDescriptor *chunk, const char *path)
+check_and_write_block (const char *path, unsigned char *sha1, const char *block_id)
 {
-    SeafStat sb;
-    int ret;
-    int fd_src = g_open (path, O_RDONLY | O_BINARY, 0);
-    if (fd_src < 0) {
-        seaf_warning ("CDC: failed to open %s.\n", path);
-        return -1;
+    char *content;
+    gsize len;
+    GError *error = NULL;
+    int ret = 0;
+
+    if (!g_file_get_contents (path, &content, &len, &error)) {
+        if (error) {
+            seaf_warning ("Failed to read %s: %s.\n", path, error->message);
+            g_clear_error (&error);
+            return -1;
+        }
     }
-    if (seaf_fstat (fd_src, &sb) < 0) {
-        seaf_warning ("CDC: failed to stat: %s.\n", strerror(errno));
-        return -1;
+
+    SHA_CTX block_ctx;
+    unsigned char checksum[20];
+
+    SHA1_Init (&block_ctx);
+    SHA1_Update (&block_ctx, content, len);
+    SHA1_Final (checksum, &block_ctx);
+
+    if (memcmp (checksum, sha1, 20) != 0) {
+        seaf_warning ("Block id %s doesn't match content.\n", block_id);
+        ret = -1;
+        goto out;
     }
-    chunk->len = sb.st_size;
-    ret = readn (fd_src, chunk->block_buf, chunk->len);
-    if (ret < 0) {
-        seaf_warning ("CDC: failed to read chunk: %s.\n", strerror(errno));
-        return -1;
+
+    if (do_write_chunk (sha1, content, len) < 0) {
+        ret = -1;
+        goto out;
     }
-    return 0;
+
+out:
+    g_free (content);
+    return ret;
 }
 
 static int
-check_write_file_blocks (CDCFileDescriptor *cdc, GList *paths, GList *blockids)
+check_and_write_file_blocks (CDCFileDescriptor *cdc, GList *paths, GList *blockids)
 {
     GList *ptr, *q;
     SHA_CTX file_ctx;
-    CDCDescriptor chunk;
     int ret = 0;
-    int block_nr = g_list_length(paths);
-
-    cdc->block_nr = 0;
-    cdc->blk_sha1s =  (uint8_t *)calloc (sizeof(uint8_t),
-                                         block_nr * CHECKSUM_LENGTH);
-    if (!cdc->blk_sha1s)
-        return -1;
-    cdc->file_size = 0;
-    chunk.offset = 0;
-    chunk.block_buf = malloc (sizeof(uint8_t) *1024*1024*4);
-    if (!chunk.block_buf)
-        return -1;
 
     SHA1_Init (&file_ctx);
     for (ptr = paths, q = blockids; ptr; ptr = ptr->next, q = q->next) {
@@ -541,24 +518,38 @@ check_write_file_blocks (CDCFileDescriptor *cdc, GList *paths, GList *blockids)
         char *blk_id = q->data;
         unsigned char sha1[20];
 
-        ret = init_file_chunk (&chunk, path);
-        if (ret < 0)
-            goto out;
         hex_to_rawdata (blk_id, sha1, 20);
-        ret = seafile_check_write_chunk (&chunk, sha1, TRUE);
+        ret = check_and_write_block (path, sha1, blk_id);
         if (ret < 0)
             goto out;
+
         memcpy (cdc->blk_sha1s + cdc->block_nr * CHECKSUM_LENGTH,
                 sha1, CHECKSUM_LENGTH);
         cdc->block_nr++;
-        SHA1_Update (&file_ctx, blk_id, 20);
+
+        SHA1_Update (&file_ctx, sha1, 20);
     }
 
     SHA1_Final (cdc->file_sum, &file_ctx);
 
 out:
-    free (chunk.block_buf);
     return ret;
+}
+
+static int
+init_file_cdc (CDCFileDescriptor *cdc, int block_nr, gint64 file_size)
+{
+    memset (cdc, 0, sizeof(CDCFileDescriptor));
+
+    cdc->file_size = file_size;
+
+    cdc->blk_sha1s =  (uint8_t *)calloc (sizeof(uint8_t), block_nr * CHECKSUM_LENGTH);
+    if (!cdc->blk_sha1s) {
+        seaf_warning ("Failed to alloc block sha1 array.\n");
+        return -1;
+    }
+
+    return 0;
 }
 
 int
@@ -576,16 +567,21 @@ seaf_fs_manager_index_file_blocks (SeafFSManager *mgr,
         memset (sha1, 0, 20);
         create_cdc_for_empty_file (&cdc);
     } else {
-        memset (&cdc, 0, sizeof(cdc));
-        if (check_write_file_blocks (&cdc, paths, blockids) < 0) {
-            seaf_warning ("Failed to check file blocks.\n");
+        int block_nr = g_list_length (paths);
+
+        if (init_file_cdc (&cdc, block_nr, file_size) < 0) {
+            ret = -1;
+            goto out;
+        }
+
+        if (check_and_write_file_blocks (&cdc, paths, blockids) < 0) {
+            seaf_warning ("Failed to check and write file blocks.\n");
             ret = -1;
             goto out;
         }
         memcpy (sha1, cdc.file_sum, CHECKSUM_LENGTH);
     }
 
-    cdc.file_size = file_size;
     if (write_seafile (mgr, &cdc) < 0) {
         seaf_warning ("Failed to write seafile.\n");
         ret = -1;

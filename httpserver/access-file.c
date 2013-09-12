@@ -35,8 +35,8 @@ typedef struct SendBlockData {
     evhtp_request_t *req;
     char *block_id;
     BlockHandle *handle;
-    size_t bsize;
-    size_t remain;
+    uint32_t bsize;
+    uint32_t remain;
 
     bufferevent_data_cb saved_read_cb;
     bufferevent_data_cb saved_write_cb;
@@ -829,7 +829,9 @@ do_block(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
          const char *blk_id)
 {
     Seafile *file;
-    size_t bsize = -1, i;
+    uint32_t bsize;
+    gboolean found = FALSE;
+    int i;
     char blk_size[255];
     char cont_filename[SEAF_PATH_MAX];
     SendBlockData *data;
@@ -841,8 +843,10 @@ do_block(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     for (i = 0; i < file->n_blocks; i++) {
         if (memcmp(file->blk_sha1s[i], blk_id, 40) == 0) {
             BlockMetadata *bm = seaf_block_manager_stat_block (seaf->block_mgr, blk_id);
-            if (bm && bm->size >= 0)
+            if (bm && bm->size >= 0) {
                 bsize = bm->size;
+                found = TRUE;
+            }
             g_free (bm);
             break;
         }
@@ -851,7 +855,7 @@ do_block(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     seafile_unref (file);
 
     /* block not found. */
-    if (bsize < 0) {
+    if (!found) {
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         seafile_unref (file);
         return 0;
@@ -871,7 +875,7 @@ do_block(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
                              evhtp_header_new("Content-Disposition", cont_filename,
                                               1, 1));
 
-    snprintf(blk_size, sizeof(blk_size), "%"G_GINT64_FORMAT"", bsize);
+    snprintf(blk_size, sizeof(blk_size), "%"G_GUINT32_FORMAT"", bsize);
     evhtp_headers_add_header (req->headers_out,
                               evhtp_header_new("Content-Length", blk_size, 1, 1));
 
@@ -918,7 +922,6 @@ access_blks_cb(evhtp_request_t *req, void *arg)
     const char *repo_id = NULL;
     const char *id = NULL;
     const char *operation = NULL;
-    const char *user = NULL;
 
     SearpcClient *rpc_client = NULL;
     char *repo_role = NULL;
@@ -977,7 +980,6 @@ access_blks_cb(evhtp_request_t *req, void *arg)
     repo_id = seafile_web_access_get_repo_id (webaccess);
     id = seafile_web_access_get_obj_id (webaccess);
     operation = seafile_web_access_get_op (webaccess);
-    user = seafile_web_access_get_username (webaccess);
 
     repo = seaf_repo_manager_get_repo(seaf->repo_mgr, repo_id);
     if (!repo) {
