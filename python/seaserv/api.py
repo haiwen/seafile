@@ -46,8 +46,8 @@ class SeafileAPI(object):
     def create_repo(self, name, desc, username, passwd):
         return seafserv_threaded_rpc.create_repo(name, desc, username, passwd)
 
-    def create_enc_repo(self, name, desc, username, magic, random_key, enc_version):
-        return seafserv_threaded_rpc.create_repo(name, desc, username, magic, random_key, enc_version)
+    def create_enc_repo(self, repo_id, name, desc, username, magic, random_key, enc_version):
+        return seafserv_threaded_rpc.create_enc_repo(repo_id, name, desc, username, magic, random_key, enc_version)
 
     def get_repo(self, repo_id):
         return seafserv_threaded_rpc.get_repo(repo_id)

@@ -321,10 +321,10 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     create_repo = seafile_create_repo
 
-    @searpc_func("string", ["string", "string", "string", "string", "string", "int"])
-    def seafile_create_enc_repo(name, desc, owner_email, magic, random_key, enc_version):
+    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "int"])
+    def seafile_create_enc_repo(repo_id, name, desc, owner_email, magic, random_key, enc_version):
         pass
-    create_repo = seafile_create_repo
+    create_enc_repo = seafile_create_enc_repo
 
     @searpc_func("object", ["string"])
     def seafile_get_repo(repo_id):

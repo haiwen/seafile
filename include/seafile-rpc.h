@@ -773,7 +773,8 @@ seafile_create_org_repo (const char *repo_name,
                          GError **error);
 
 char *
-seafile_create_enc_repo (const char *repo_name,
+seafile_create_enc_repo (const char *repo_id,
+                         const char *repo_name,
                          const char *repo_desc,
                          const char *owner_email,
                          const char *magic,
@@ -782,7 +783,8 @@ seafile_create_enc_repo (const char *repo_name,
                          GError **error);
 
 char *
-seafile_create_org_enc_repo (const char *repo_name,
+seafile_create_org_enc_repo (const char *repo_id,
+                             const char *repo_name,
                              const char *repo_desc,
                              const char *user,
                              const char *magic,

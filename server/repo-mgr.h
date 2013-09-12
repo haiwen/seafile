@@ -387,6 +387,7 @@ seaf_repo_manager_create_org_repo (SeafRepoManager *mgr,
 
 char *
 seaf_repo_manager_create_enc_repo (SeafRepoManager *mgr,
+                                   const char *repo_id,
                                    const char *repo_name,
                                    const char *repo_desc,
                                    const char *owner_email,
@@ -397,6 +398,7 @@ seaf_repo_manager_create_enc_repo (SeafRepoManager *mgr,
 
 char *
 seaf_repo_manager_create_org_enc_repo (SeafRepoManager *mgr,
+                                       const char *repo_id,
                                        const char *repo_name,
                                        const char *repo_desc,
                                        const char *user,

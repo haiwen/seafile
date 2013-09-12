@@ -2991,7 +2991,8 @@ seafile_create_org_repo (const char *repo_name,
 }
 
 char *
-seafile_create_enc_repo (const char *repo_name,
+seafile_create_enc_repo (const char *repo_id,
+                         const char *repo_name,
                          const char *repo_desc,
                          const char *owner_email,
                          const char *magic,
@@ -2999,23 +3000,24 @@ seafile_create_enc_repo (const char *repo_name,
                          int enc_version,
                          GError **error)
 {
-    if (!repo_name || !repo_desc || !owner_email) {
+    if (!repo_id || !repo_name || !repo_desc || !owner_email) {
         g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Argument should not be null");
         return NULL;
     }
 
-    char *repo_id;
+    char *ret;
 
-    repo_id = seaf_repo_manager_create_enc_repo (seaf->repo_mgr,
-                                                 repo_name, repo_desc,
+    ret = seaf_repo_manager_create_enc_repo (seaf->repo_mgr,
+                                                 repo_id, repo_name, repo_desc,
                                                  owner_email,
                                                  magic, random_key, enc_version,
                                                  error);
-    return repo_id;
+    return ret;
 }
 
 char *
-seafile_create_org_enc_repo (const char *repo_name,
+seafile_create_org_enc_repo (const char *repo_id,
+                             const char *repo_name,
                              const char *repo_desc,
                              const char *user,
                              const char *magic,
@@ -3024,19 +3026,19 @@ seafile_create_org_enc_repo (const char *repo_name,
                              int org_id,
                              GError **error)
 {
-    if (!repo_name || !repo_desc || !user || org_id <= 0) {
+    if (!repo_id || !repo_name || !repo_desc || !user || org_id <= 0) {
         g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Bad arguments");
         return NULL;
     }
 
-    char *repo_id;
+    char *ret;
 
-    repo_id = seaf_repo_manager_create_org_enc_repo (seaf->repo_mgr,
-                                                     repo_name, repo_desc,
+    ret = seaf_repo_manager_create_org_enc_repo (seaf->repo_mgr,
+                                                     repo_id, repo_name, repo_desc,
                                                      user,
                                                      magic, random_key, enc_version,
                                                      org_id, error);
-    return repo_id;
+    return ret;
 
 }
 

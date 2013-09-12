@@ -2648,7 +2648,7 @@ seaf_repo_manager_is_valid_filename (SeafRepoManager *mgr,
         return 1;
 }
 
-static char *
+static int
 create_repo_common (SeafRepoManager *mgr,
                     const char *repo_id,
                     const char *repo_name,
@@ -2662,13 +2662,13 @@ create_repo_common (SeafRepoManager *mgr,
     SeafRepo *repo = NULL;
     SeafCommit *commit = NULL;
     SeafBranch *master = NULL;
-    char *ret = NULL;
+    int ret = -1;
 
     if (enc_version != 2 && enc_version != -1) {
         seaf_warning ("Unsupported enc version %d.\n", enc_version);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Unsupported encryption version");
-        return NULL;
+        return -1;
     }
 
     if (enc_version == 2) {
@@ -2676,13 +2676,13 @@ create_repo_common (SeafRepoManager *mgr,
             seaf_warning ("Bad magic.\n");
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                          "Bad magic");
-            return NULL;
+            return -1;
         }
         if (!random_key || strlen(random_key) != 96) {
             seaf_warning ("Bad random key.\n");
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                          "Bad random key");
-            return NULL;
+            return -1;
         }
     }
 
@@ -2733,7 +2733,7 @@ create_repo_common (SeafRepoManager *mgr,
         goto out;
     }
 
-    ret = g_strdup(repo->id);
+    ret = 0;
 out:
     if (repo)
         seaf_repo_unref (repo);
@@ -2763,23 +2763,26 @@ seaf_repo_manager_create_new_repo (SeafRepoManager *mgr,
         seafile_generate_random_key (passwd, random_key);
     }
 
+    int rc;
     if (passwd)
-        create_repo_common (mgr, repo_id, repo_name, repo_desc, owner_email,
-                            magic, random_key, CURRENT_ENC_VERSION, error);
+        rc = create_repo_common (mgr, repo_id, repo_name, repo_desc, owner_email,
+                                 magic, random_key, CURRENT_ENC_VERSION, error);
     else
-        create_repo_common (mgr, repo_id, repo_name, repo_desc, owner_email,
-                            NULL, NULL, -1, error);
+        rc = create_repo_common (mgr, repo_id, repo_name, repo_desc, owner_email,
+                                 NULL, NULL, -1, error);
+    if (rc < 0)
+        goto bad;
 
     if (seaf_repo_manager_set_repo_owner (mgr, repo_id, owner_email) < 0) {
         seaf_warning ("Failed to set repo owner.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to set repo owner.");
-        goto out;
+        goto bad;
     }
 
     return repo_id;
     
-out:
+bad:
     if (repo_id)
         g_free (repo_id);
     return NULL;
@@ -2804,25 +2807,28 @@ seaf_repo_manager_create_org_repo (SeafRepoManager *mgr,
         seafile_generate_random_key (passwd, random_key);
     }
 
+    int rc;
     if (passwd)
-        create_repo_common (mgr, repo_id, repo_name, repo_desc, user,
-                            magic, random_key, CURRENT_ENC_VERSION,
-                            error);
+        rc = create_repo_common (mgr, repo_id, repo_name, repo_desc, user,
+                                 magic, random_key, CURRENT_ENC_VERSION,
+                                 error);
     else
-        create_repo_common (mgr, repo_id, repo_name, repo_desc, user,
-                            NULL, NULL, -1,
-                            error);
+        rc = create_repo_common (mgr, repo_id, repo_name, repo_desc, user,
+                                 NULL, NULL, -1,
+                                 error);
+    if (rc < 0)
+        goto bad;
 
     if (seaf_repo_manager_set_org_repo (mgr, org_id, repo_id, user) < 0) {
         seaf_warning ("Failed to set org repo.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to set org repo.");
-        goto out;
+        goto bad;
     }
 
     return repo_id;
 
-out:
+bad:
     if (repo_id)
         g_free (repo_id);
     return NULL;
@@ -2830,6 +2836,7 @@ out:
 
 char *
 seaf_repo_manager_create_enc_repo (SeafRepoManager *mgr,
+                                   const char *repo_id,
                                    const char *repo_name,
                                    const char *repo_desc,
                                    const char *owner_email,
@@ -2838,30 +2845,37 @@ seaf_repo_manager_create_enc_repo (SeafRepoManager *mgr,
                                    int enc_version,
                                    GError **error)
 {
-    char *repo_id = NULL;
+    if (!repo_id || !is_uuid_valid (repo_id)) {
+        seaf_warning ("Invalid repo_id.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid repo id");
+        return NULL;
+    }
 
-    repo_id = gen_uuid ();
+    if (seaf_repo_manager_repo_exists (mgr, repo_id)) {
+        seaf_warning ("Repo %s exists, refuse to create.\n", repo_id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Repo already exists");
+        return NULL;
+    }
 
-    create_repo_common (mgr, repo_id, repo_name, repo_desc, owner_email,
-                        magic, random_key, enc_version, error);
+    if (create_repo_common (mgr, repo_id, repo_name, repo_desc, owner_email,
+                            magic, random_key, enc_version, error) < 0)
+        return NULL;
 
     if (seaf_repo_manager_set_repo_owner (mgr, repo_id, owner_email) < 0) {
         seaf_warning ("Failed to set repo owner.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to set repo owner.");
-        goto out;
+        return NULL;
     }
 
-    return repo_id;
-    
-out:
-    if (repo_id)
-        g_free (repo_id);
-    return NULL;
+    return g_strdup (repo_id);
 }
 
 char *
 seaf_repo_manager_create_org_enc_repo (SeafRepoManager *mgr,
+                                       const char *repo_id,
                                        const char *repo_name,
                                        const char *repo_desc,
                                        const char *user,
@@ -2871,27 +2885,32 @@ seaf_repo_manager_create_org_enc_repo (SeafRepoManager *mgr,
                                        int org_id,
                                        GError **error)
 {
-    char *repo_id = NULL;
+    if (!repo_id || !is_uuid_valid (repo_id)) {
+        seaf_warning ("Invalid repo_id.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid repo id");
+        return NULL;
+    }
 
-    repo_id = gen_uuid ();
+    if (seaf_repo_manager_repo_exists (mgr, repo_id)) {
+        seaf_warning ("Repo %s exists, refuse to create.\n", repo_id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Repo already exists");
+        return NULL;
+    }
 
-    create_repo_common (mgr, repo_id, repo_name, repo_desc, user,
-                        magic, random_key, enc_version,
-                        error);
+    if (create_repo_common (mgr, repo_id, repo_name, repo_desc, user,
+                            magic, random_key, enc_version, error) < 0)
+        return NULL;
 
     if (seaf_repo_manager_set_org_repo (mgr, org_id, repo_id, user) < 0) {
         seaf_warning ("Failed to set org repo.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to set org repo.");
-        goto out;
+        return NULL;
     }
 
-    return repo_id;
-
-out:
-    if (repo_id)
-        g_free (repo_id);
-    return NULL;
+    return g_strdup(repo_id);
 }
 
 static int reap_token (void *data)
