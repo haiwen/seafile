@@ -53,7 +53,7 @@ CONF_SRCDIR             = 'srcdir'
 CONF_KEEP               = 'keep'
 CONF_BUILDDIR           = 'builddir'
 CONF_OUTPUTDIR          = 'outputdir'
-CONF_NO_STRIP           = 'nostrip'
+CONF_DEBUG              = 'debug'
 CONF_ONLY_CHINESE       = 'onlychinese'
 
 ####################
@@ -362,7 +362,7 @@ def validate_args(usage, options):
     keep = get_option(CONF_KEEP)
 
     # [ no strip]
-    nostrip = get_option(CONF_NO_STRIP)
+    debug = get_option(CONF_DEBUG)
 
     # [only chinese]
     onlychinese = get_option(CONF_ONLY_CHINESE)
@@ -376,7 +376,7 @@ def validate_args(usage, options):
     conf[CONF_SRCDIR] = srcdir
     conf[CONF_OUTPUTDIR] = outputdir
     conf[CONF_KEEP] = keep
-    conf[CONF_NO_STRIP] = nostrip
+    conf[CONF_DEBUG] = debug
     conf[CONF_ONLY_CHINESE] = onlychinese
 
     prepare_builddir(builddir)
@@ -394,7 +394,7 @@ def show_build_info():
     info('builddir:                 %s' % conf[CONF_BUILDDIR])
     info('outputdir:                %s' % conf[CONF_OUTPUTDIR])
     info('source dir:               %s' % conf[CONF_SRCDIR])
-    info('strip symbols:            %s' % (not conf[CONF_NO_STRIP]))
+    info('debug:                    %s' % conf[CONF_DEBUG])
     info('build english version:    %s' % (not conf[CONF_ONLY_CHINESE]))
     info('clean on exit:            %s' % (not conf[CONF_KEEP]))
     info('------------------------------------------')
@@ -461,10 +461,10 @@ def parse_args():
                       action='store_true',
                       help='''keep the build directory after the script exits. By default, the script would delete the build directory at exit.''')
 
-    parser.add_option(long_opt(CONF_NO_STRIP),
-                      dest=CONF_NO_STRIP,
+    parser.add_option(long_opt(CONF_DEBUG),
+                      dest=CONF_DEBUG,
                       action='store_true',
-                      help='''do not strip debug symbols''')
+                      help='''compile in debug mode''')
 
     parser.add_option(long_opt(CONF_ONLY_CHINESE),
                       dest=CONF_ONLY_CHINESE,
@@ -489,10 +489,11 @@ def setup_build_env():
                      '-DSEAFILE_CLIENT_VERSION=\\"%s\\"' % conf[CONF_VERSION],
                      seperator=' ')
 
-    if conf[CONF_NO_STRIP]:
-        prepend_env_value('CPPFLAGS',
-                         '-g -O0',
-                         seperator=' ')
+    prepend_env_value('CPPFLAGS',
+                      '-g -fno-omit-frame-pointer',
+                      seperator=' ')
+    if conf[CONF_DEBUG]:
+        prepend_env_value('CPPFLAGS', '-O0', seperator=' ')
 
     prepend_env_value('LDFLAGS',
                      '-L%s' % to_mingw_path(os.path.join(prefix, 'lib')),
@@ -636,9 +637,6 @@ def prepare_msi():
     web_py2exe()
     copy_dll_exe()
 
-    if not conf[CONF_NO_STRIP]:
-        strip_symbols()
-
     # copy each translation file (*.mo) to bin/i18n/LANG_CODE/LC_MESSAGES/seafile.mo)
     src_mos_pattern = os.path.join(Seafile().prefix, 'share', 'locale', '*', 'LC_MESSAGES', 'seafile.mo')
     d = os.path.dirname
@@ -722,10 +720,6 @@ def build_english_msi():
 
     if run('make en', cwd=gui_win) != 0:
         error('Failed to run make en in gui/win')
-
-    if not conf[CONF_NO_STRIP]:
-        if run('strip %s' % applet_en_name, cwd=gui_win) != 0:
-            error('Failed to strip seafile-applet.en.exe')
 
     applet_en = os.path.join(gui_win, applet_en_name)
     dst_applet_en = os.path.join(pack_bin_dir, 'seafile-applet.exe')
