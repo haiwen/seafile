@@ -3,6 +3,10 @@
 #include "common.h"
 #include "log.h"
 
+#ifdef WIN32
+#include <windows.h>
+#endif
+
 #include <getopt.h>
 
 #include <event.h>
@@ -233,6 +237,8 @@ main(int argc, char *argv[])
     char *temp_file_dir = NULL;
 
 #ifdef WIN32
+    LoadLibraryA ("exchndl.dll");
+
     argv = get_argv_utf8 (&argc);
 #endif
 

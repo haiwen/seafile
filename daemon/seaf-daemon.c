@@ -2,6 +2,10 @@
 
 #include "common.h"
 
+#ifdef WIN32
+#include <windows.h>
+#endif
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -336,6 +340,8 @@ main (int argc, char **argv)
     char *seafile_debug_level_str = "debug";
 
 #ifdef WIN32
+    LoadLibraryA ("exchndl.dll");
+
     argv = get_argv_utf8 (&argc);
 #endif
 
