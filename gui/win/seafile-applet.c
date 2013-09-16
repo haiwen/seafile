@@ -66,7 +66,7 @@ static void
 reset_trayicon_and_tip()
 {
     UINT id;
-    char *tip = "Seafile";
+    char *tip = APP_NAME;
 
     if (!applet->client->connected) {
         id = IDI_STATUS_DOWN;
@@ -210,7 +210,7 @@ get_seafile_auto_start()
     char buf[SEAF_PATH_MAX] = {0};
     DWORD len = sizeof(buf);
     result = RegQueryValueEx (hKey,             /* Key */
-                              "Seafile",        /* value */
+                              APP_NAME,        /* value */
                               NULL,             /* reserved */
                               NULL,             /* output type */
                               (LPBYTE)buf,      /* output data */
@@ -236,11 +236,11 @@ set_seafile_auto_start(int on)
             return -1;
         }
 
-        result = add_to_auto_start (L"Seafile", applet_path);
+        result = add_to_auto_start (APP_NAME_W, applet_path);
 
     } else {
         /* turn off auto start */
-        result = delete_from_auto_start("Seafile");
+        result = delete_from_auto_start(APP_NAME);
     }
     return result;
 }
@@ -366,7 +366,7 @@ set_auto_sync_cb (void *result, void *data, GError *error)
         wchar_t *msg = wchar_from_utf8 (disable ?
                                         _("Failed to disable auto sync") :
                                         _("Failed to enable auto sync"));
-        MessageBoxW (NULL, msg, L"Seafile", MB_OK);
+        MessageBoxW (NULL, msg, APP_NAME_W, MB_OK);
 
         g_free (msg);
 
@@ -529,7 +529,7 @@ WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, in
     if (count_process("seafile-applet") > 1) {
         char *msg = _("Seafile is already running");
         wchar_t *msg_w = wchar_from_utf8 (msg);
-        MessageBoxW (NULL, msg_w, L"Seafile", MB_OK);
+        MessageBoxW (NULL, msg_w, APP_NAME_W, MB_OK);
         exit(1);
     }
 

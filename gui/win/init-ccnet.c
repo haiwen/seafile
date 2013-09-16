@@ -46,7 +46,7 @@ msgbox (HWND hWnd, char *format, ...)
     va_end(params);
 
     wbuf = wchar_from_utf8 (buf);
-    MessageBoxW (hWnd, wbuf, L"Seafile", MB_ICONINFORMATION | MB_OK);
+    MessageBoxW (hWnd, wbuf, APP_NAME_W, MB_ICONINFORMATION | MB_OK);
 
     g_free (wbuf);
 }
@@ -64,7 +64,7 @@ msgbox_yes_or_no (HWND hWnd, char *format, ...)
     va_end(params);
 
     wbuf = wchar_from_utf8 (buf);
-    res = MessageBoxW (hWnd, wbuf, L"Seafile", MB_ICONQUESTION | MB_YESNO);
+    res = MessageBoxW (hWnd, wbuf, APP_NAME_W, MB_ICONQUESTION | MB_YESNO);
 
     g_free (wbuf);
     return (res == IDYES);

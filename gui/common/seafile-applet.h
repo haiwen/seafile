@@ -7,6 +7,7 @@
 
 
 #define APP_NAME "Seafile"
+#define APP_NAME_W L"Seafile"
 
 enum {
     WEB_NOT_STARTED = 0,
