@@ -588,17 +588,35 @@ seafile_get_repo_sync_info (const char *repo_id, GError **error)
 GObject *
 seafile_get_repo_sync_task (const char *repo_id, GError **error)
 {
+    SeafRepo *repo;
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+
+    if (!repo) {
+        return NULL;
+    }
+
     SyncInfo *info = seaf_sync_manager_get_sync_info (seaf->sync_mgr, repo_id);
     if (!info || !info->current_task)
         return NULL;
 
     SyncTask *task = info->current_task;
+    char *sync_state;
+    char allzeros[41] = {0};
+
+    if (!ccnet_peer_is_ready(seaf->ccnetrpc_client, repo->relay_id)) {
+        sync_state = "relay not connected";
+    } else if (memcmp(allzeros, info->head_commit, 41) == 0) {
+        sync_state = "waiting for sync";
+    } else {
+        sync_state = sync_state_to_str(task->state);
+    }
+
 
     SeafileSyncTask *s_task;
     s_task = g_object_new (SEAFILE_TYPE_SYNC_TASK,
                            "is_sync_lan", task->is_sync_lan,
                            "force_upload", task->force_upload,
-                           "state", sync_state_to_str(task->state),
+                           "state", sync_state,
                            "error", sync_error_to_str(task->error),
                            "tx_id", task->tx_id,
                            "dest_id", task->dest_id,
