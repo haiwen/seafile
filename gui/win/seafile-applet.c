@@ -110,10 +110,20 @@ start_seafile_daemon ()
     snprintf (buf, sizeof(buf), "seaf-daemon.exe -c \"%s\" -d \"%s\" -w \"%s\"",
               applet->config_dir, applet->seafile_dir, applet->seafile_worktree);
 
+    char *crash_rpt_path = g_build_filename (applet->config_dir,
+                                             "logs",
+                                             "seafile-crash-report.txt",
+                                             NULL);
+    if (!g_setenv ("CRASH_RPT_PATH", crash_rpt_path, FALSE))
+        applet_warning ("Failed to set CRASH_RPT_PATH env variable.\n");
+    g_free (crash_rpt_path);
+
     if (win32_spawn_process (buf, NULL) < 0) {
         applet_warning ("Failed to start seaf-daemon\n");
         applet_exit(-1);
     }
+
+    g_unsetenv ("CRASH_RPT_PATH");
 
     return 0;
 }
