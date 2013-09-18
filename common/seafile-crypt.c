@@ -37,14 +37,16 @@ seafile_derive_key (const char *data_in, int in_len, int version,
                     unsigned char *key, unsigned char *iv)
 {
     if (version == 2) {
-        PKCS5_PBKDF2_HMAC_SHA1 (data_in, in_len,
-                                salt, sizeof(salt),
-                                KEYGEN_ITERATION2,
-                                32, key);
-        PKCS5_PBKDF2_HMAC_SHA1 ((char *)key, 32,
-                                salt, sizeof(salt),
-                                10,
-                                32, iv);
+        PKCS5_PBKDF2_HMAC (data_in, in_len,
+                           salt, sizeof(salt),
+                           KEYGEN_ITERATION2,
+                           EVP_sha256(),
+                           32, key);
+        PKCS5_PBKDF2_HMAC ((char *)key, 32,
+                           salt, sizeof(salt),
+                           10,
+                           EVP_sha256(),
+                           32, iv);
         return 0;
     } else if (version == 1)
         return EVP_BytesToKey (EVP_aes_128_cbc(), /* cipher mode */
