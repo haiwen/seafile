@@ -312,7 +312,7 @@ merge_directories (int n, SeafDirent *dents[],
     if (n == 3 && opt->do_merge) {
         switch (dir_mask) {
         case 0:
-            g_assert (0);
+            g_return_val_if_reached (-1);
         case 1:
             /* head and remote are not dirs, nothing to merge. */
             seaf_debug ("%s%s: no dir, no need to merge\n", basedir, dents[0]->name);
@@ -369,7 +369,7 @@ merge_directories (int n, SeafDirent *dents[],
                         "merge recursively\n", basedir, dents[1]->name);
             break;
         default:
-            g_assert (0);
+            g_return_val_if_reached (-1);
         }
     }
 
@@ -525,7 +525,7 @@ seaf_merge_trees (int n, const char *roots[], MergeOptions *opt)
     SeafDir **trees, *root;
     int i, ret;
 
-    g_assert (n == 2 || n == 3);
+    g_return_val_if_fail (n == 2 || n == 3, -1);
 
     trees = g_new0 (SeafDir *, n);
     for (i = 0; i < n; ++i) {

@@ -723,8 +723,7 @@ recv_blocks (ThreadData *tdata)
              * This means the processor was done.
              */
             char buf[1];
-            int n = piperead (tdata->task_pipe[0], buf, sizeof(buf));
-            g_assert (n == 0);
+            piperead (tdata->task_pipe[0], buf, sizeof(buf));
             seaf_debug ("Task pipe closed. Worker thread exits now.\n");
             goto error;
         }

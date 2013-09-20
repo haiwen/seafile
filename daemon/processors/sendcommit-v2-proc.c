@@ -193,6 +193,6 @@ static void handle_response (CcnetProcessor *processor,
         ccnet_processor_done (processor, FALSE);
         break;
     default:
-        g_assert (0);
+        g_return_if_reached ();
     }
 }

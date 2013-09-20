@@ -233,7 +233,7 @@ seaf_commit_manager_add_commit (SeafCommitManager *mgr, SeafCommit *commit)
 void
 seaf_commit_manager_del_commit (SeafCommitManager *mgr, const char *id)
 {
-    g_assert (id != NULL);
+    g_return_if_fail (id != NULL);
 
 #if 0
     commit = g_hash_table_lookup(mgr->priv->commit_cache, id);

@@ -128,8 +128,6 @@ int bloom_add(Bloom *bloom, const char *s)
     unsigned char sha256[SHA256_DIGEST_LENGTH];
     size_t *sha_int = (size_t *)&sha256;
     
-    assert (s && *s);
-
     SHA256_Init(&c);
     SHA256_Update(&c, s, strlen(s));
     SHA256_Final (sha256, &c);
@@ -147,8 +145,6 @@ int bloom_remove(Bloom *bloom, const char *s)
     unsigned char sha256[SHA256_DIGEST_LENGTH];
     size_t *sha_int = (size_t *)&sha256;
     
-    assert (s && *s);
-
     if (!bloom->counting)
         return -1;
 
@@ -169,8 +165,6 @@ int bloom_test(Bloom *bloom, const char *s)
     unsigned char sha256[SHA256_DIGEST_LENGTH];
     size_t *sha_int = (size_t *)&sha256;
     
-    assert (s && *s);
-
     SHA256_Init(&c);
     SHA256_Update(&c, s, strlen(s));
     SHA256_Final (sha256, &c);

@@ -39,7 +39,7 @@ block_backend_ceph_open_block (BlockBackend *bend,
 
     g_return_val_if_fail (block_id != NULL, NULL);
     g_return_val_if_fail (strlen(block_id) == 40, NULL);
-    g_assert (rw_type == BLOCK_READ || rw_type == BLOCK_WRITE);
+    g_return_val_if_fail (rw_type == BLOCK_READ || rw_type == BLOCK_WRITE, NULL);
 
     handle = g_new0(BHandle, 1);
     memcpy (handle->block_id, block_id, 41);
@@ -190,7 +190,7 @@ block_backend_ceph_commit_block (BlockBackend *bend, BHandle *handle)
     char *value = "1";
     int err;
 
-    g_assert (handle->rw_type == BLOCK_WRITE);
+    g_return_val_if_fail (handle->rw_type == BLOCK_WRITE, -1);
 
     err = rados_setxattr (priv->io, handle->block_id, key,
                           value, strlen(value));

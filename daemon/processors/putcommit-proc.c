@@ -114,7 +114,7 @@ send_commit_ids (CcnetProcessor *processor, const char *head)
     }
 
     int ollen = object_list_length(ol);
-    g_assert (ollen != 0);
+    g_return_val_if_fail (ollen != 0, -1);
 
     for (i = 0; i < ollen; i++) {
         memcpy (ptr, g_ptr_array_index(ol->obj_ids, i), 40);

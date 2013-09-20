@@ -1087,8 +1087,7 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
     else if (db_type == SEAF_DB_TYPE_PGSQL)
         return create_tables_pgsql (mgr);
 
-    g_assert (0);
-    return -1;
+    g_return_val_if_reached (-1);
 }
 
 /*

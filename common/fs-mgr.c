@@ -436,7 +436,7 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
         return -1;
     }
 
-    g_assert (S_ISREG(sb.st_mode));
+    g_return_val_if_fail (S_ISREG(sb.st_mode), -1);
 
     if (sb.st_size == 0) {
         /* handle empty file. */

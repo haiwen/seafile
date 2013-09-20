@@ -56,7 +56,7 @@ commit_trees_cb (struct cache_tree *it, struct cache_entry **cache,
         if (slash) {
             entlen = slash - (path + baselen);
             sub = cache_tree_find_subtree(it, path + baselen, entlen, 0);
-            g_assert (sub != NULL);
+            g_return_val_if_fail (sub != NULL, -1);
             /* Skip cache entries in the sub level. */
             i += sub->cache_tree->entry_count - 1;
 

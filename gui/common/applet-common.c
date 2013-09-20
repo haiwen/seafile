@@ -655,7 +655,6 @@ int is_repo_path_allowed(const char *path) {
         snprintf(buf, 4095, "%s/", path);
 
     len = strlen(applet->seafile_dir);
-    g_assert(applet->seafile_dir[len-1] != '/');
     snprintf(buf2, 4095, "%s/", applet->seafile_dir);
 
     if (strncmp(buf2, buf, strlen(buf)) == 0)

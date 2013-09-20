@@ -416,10 +416,7 @@ seaf_transfer_task_load_blocklist (TransferTask *task)
         }
         seaf_commit_unref (remote);
 
-        /* bl cannot be NULL since we shouldn't have started download
-         * if we're already up to date.
-         */
-        g_assert (bl != NULL);
+        g_return_val_if_fail (bl != NULL, -1);
     }
 
     block_list_generate_bitmap (bl);
@@ -523,6 +520,8 @@ transition_state (TransferTask *task, int state, int rt_state)
 void
 transition_state_to_error (TransferTask *task, int task_errno)
 {
+    g_return_if_fail (task_errno != 0);
+
     seaf_message ("Transfer repo '%.8s': ('%s', '%s') --> ('%s', '%s'): %s\n",
                   task->repo_id,
                   task_state_to_str(task->state),
@@ -535,7 +534,6 @@ transition_state_to_error (TransferTask *task, int task_errno)
 
     remove_task_state (task);
 
-    g_assert (task_errno != 0);
     task->state = TASK_STATE_ERROR;
     task->runtime_state = TASK_RT_STATE_FINISHED;
     task->error = task_errno;
@@ -552,7 +550,7 @@ transfer_task_set_error (TransferTask *task, int error)
 void
 transfer_task_set_netdown (TransferTask *task)
 {
-    g_assert (task->state == TASK_STATE_NORMAL);
+    g_return_if_fail (task->state == TASK_STATE_NORMAL);
     if (task->runtime_state == TASK_RT_STATE_NETDOWN)
         return;
     transition_state (task, TASK_STATE_NORMAL, TASK_RT_STATE_NETDOWN);
@@ -571,7 +569,7 @@ transfer_task_with_proc_failure (TransferTask *task,
     switch (proc->failure) {
     case PROC_DONE:
         /* It can never happen */
-        g_assert(0);
+        g_return_if_reached ();
     case PROC_REMOTE_DEAD:
         seaf_warning ("[tr-mgr] Shutdown processor with failure %d\n",
                    proc->failure);
@@ -769,8 +767,6 @@ remove_task_help (gpointer key, gpointer value, gpointer user_data)
     if (strcmp(task->repo_id, repo_id) != 0)
         return FALSE;
 
-    g_assert (task->state != TASK_STATE_NORMAL);
-
     return TRUE;
 }
 
@@ -800,8 +796,6 @@ seaf_transfer_manager_add_download (SeafTransferManager *manager,
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Empty argument(s)");
         return NULL;
     }
-
-    g_assert(strlen(repo_id) == 36);
 
     if (is_duplicate_task (manager, repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Task is already in progress");
@@ -2286,7 +2280,7 @@ static void resume_task_from_netdown(TransferTask *task, const char *dest_id)
                 start_fs_upload(task, dest_id);
             break;
         case TASK_RT_STATE_CHECK_BLOCKS:
-            g_assert (task->type == TASK_TYPE_UPLOAD);
+            g_return_if_fail (task->type == TASK_TYPE_UPLOAD);
             start_check_block_list_proc (task);
             break;
         case TASK_RT_STATE_CHUNK_SERVER:
@@ -2321,7 +2315,7 @@ state_machine_tick (TransferTask *task)
                 seaf_debug ("[tr-mgr] Resume transfer repo %.8s when "
                             "peer %.10s is reconnected\n",
                             task->repo_id, dest_id);
-                g_assert (task->last_runtime_state != TASK_RT_STATE_NETDOWN
+                g_return_if_fail (task->last_runtime_state != TASK_RT_STATE_NETDOWN
                           && task->last_runtime_state != TASK_RT_STATE_FINISHED);
                 resume_task_from_netdown(task, dest_id);
             }
@@ -2332,12 +2326,12 @@ state_machine_tick (TransferTask *task)
                 schedule_upload_task (task);
         } else {
             /* normal && finish, can't happen */
-            g_assert (0);
+            g_return_if_reached ();
         }
         break;
     case TASK_STATE_FINISHED:
         /* state #13 */
-        g_assert (task->runtime_state == TASK_RT_STATE_FINISHED);
+        g_return_if_fail (task->runtime_state == TASK_RT_STATE_FINISHED);
         break;
     case TASK_STATE_CANCELED:
         /* state #11 */
@@ -2350,11 +2344,10 @@ state_machine_tick (TransferTask *task)
         break;
     case TASK_STATE_ERROR:
         /* state #14 */
-        g_assert (task->runtime_state == TASK_RT_STATE_FINISHED);
+        g_return_if_fail (task->runtime_state == TASK_RT_STATE_FINISHED);
         break;
     default:
-        fprintf (stderr, "state %d\n", task->state);
-        g_assert (0);
+        g_return_if_reached ();
     }
 }
 

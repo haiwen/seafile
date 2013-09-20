@@ -120,7 +120,7 @@ obj_backend_riak_new (const char *host,
     else if (strcmp (write_policy, "all") == 0)
         priv->n_write = RIAK_ALL;
     else
-        g_assert (0);
+        g_return_val_if_reached (NULL);
 
     priv->conn_pool = g_queue_new ();
     pthread_mutex_init (&priv->lock, NULL);

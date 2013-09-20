@@ -144,8 +144,6 @@ inline static void
 request_object_batch (CcnetProcessor *processor,
                       SeafileRecvfsProcPriv *priv, const char *id)
 {
-    g_assert(priv->bufptr - priv->buf <= (4096-41));
-
     memcpy (priv->bufptr, id, 40);
     priv->bufptr += 40;
     *priv->bufptr = '\n';
@@ -569,6 +567,6 @@ handle_update (CcnetProcessor *processor,
         }
         break;
     default:
-        g_assert (0);
+        g_return_if_reached ();
     }
 }

@@ -118,10 +118,10 @@ char *write_tree_from_memory(struct merge_options *o)
         for (i = 0; i < o->index->cache_nr; i++) {
             struct cache_entry *ce = o->index->cache[i];
             if (ce_stage(ce))
-                g_warning("BUG: %d %.*s", ce_stage(ce),
+                g_warning("%d %.*s\n", ce_stage(ce),
                         (int)ce_namelen(ce), ce->name);
         }
-        g_assert(0);
+        return NULL;
     }
 
     /* if (!active_cache_tree) */

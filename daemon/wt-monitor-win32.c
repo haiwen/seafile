@@ -426,7 +426,7 @@ static int handle_add_repo (SeafWTMonitorPriv *priv, const char *repo_id, long *
 {
     HANDLE inotify_fd;
 
-    g_assert (handle != NULL);
+    g_return_if_fail (handle != NULL, -1);
 
     inotify_fd = add_watch (repo_id);
     if (inotify_fd == NULL ||

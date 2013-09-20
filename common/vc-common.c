@@ -228,7 +228,6 @@ get_merge_base (SeafCommit *head, SeafCommit *remote)
      */
     while (1) {
         n = g_list_length (result) - 1;
-        g_assert (n > 0);
         one = result->data;
         twos = calloc (n, sizeof(SeafCommit *));
         for (iter = result->next, i = 0; i < n; iter = iter->next, i++) {
@@ -329,8 +328,6 @@ diff_parents_with_path (SeafCommit *commit,
     SeafCommit *p1 = NULL, *p2 = NULL;
     char *file_id_p1 = NULL, *file_id_p2 = NULL;
     int ret = 0;
-
-    g_assert (commit->parent_id != NULL);
 
     p1 = seaf_commit_manager_get_commit (seaf->commit_mgr, commit->parent_id);
     if (!p1) {

@@ -292,7 +292,7 @@ load_obj_backend (GKeyFile *config, const char *obj_type)
     else if (strcmp (obj_type, "fs") == 0)
         bend_group = "fs_object_backend";
     else
-        g_assert (0);
+        g_return_val_if_reached (NULL);
 
     backend = g_key_file_get_string (config, bend_group, "name", NULL);
     if (!backend) {

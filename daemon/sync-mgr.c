@@ -314,7 +314,7 @@ seaf_sync_manager_cancel_sync_task (SeafSyncManager *mgr,
     if (!info || !info->in_sync)
         return;
 
-    g_assert (info->current_task != NULL);
+    g_return_if_fail (info->current_task != NULL);
     task = info->current_task;
 
     switch (task->state) {
@@ -338,7 +338,7 @@ seaf_sync_manager_cancel_sync_task (SeafSyncManager *mgr,
     case SYNC_STATE_CANCEL_PENDING:
         break;
     default:
-        g_assert (0);
+        g_return_if_reached ();
     }
 }
 
@@ -413,7 +413,7 @@ static const char *sync_state_str[] = {
 static inline void
 transition_sync_state (SyncTask *task, int new_state)
 {
-    g_assert (new_state >= 0 && new_state < SYNC_STATE_NUM);
+    g_return_if_fail (new_state >= 0 && new_state < SYNC_STATE_NUM);
 
     if (task->state != new_state) {
         if (!task->quiet &&
@@ -486,7 +486,7 @@ static const char *sync_error_str[] = {
 void
 seaf_sync_manager_set_task_error (SyncTask *task, int error)
 {
-    g_assert (error >= 0 && error < SYNC_ERROR_NUM);
+    g_return_if_fail (error >= 0 && error < SYNC_ERROR_NUM);
 
     if (task->state != SYNC_STATE_ERROR) {
         seaf_message ("Repo '%s' sync state transition from %s to '%s': '%s'.\n",
@@ -812,7 +812,7 @@ sync_done_cb (CcnetProcessor *processor, gboolean success, void *data)
         switch (processor->failure) {
         case PROC_DONE:
             /* It can never happen */
-            g_assert(0);
+            g_return_if_reached ();
         case PROC_REMOTE_DEAD:
         case PROC_NO_SERVICE:
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_SERVICE_DOWN);
@@ -1463,7 +1463,7 @@ on_repo_uploaded (SeafileSession *seaf,
     SyncInfo *info = get_sync_info (manager, tx_task->repo_id);
     SyncTask *task = info->current_task;
 
-    g_assert (task != NULL && info->in_sync);
+    g_return_if_fail (task != NULL && info->in_sync);
 
     if (task->repo->delete_pending) {
         transition_sync_state (task, SYNC_STATE_CANCELED);

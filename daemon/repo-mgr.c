@@ -2638,7 +2638,7 @@ seaf_repo_manager_add_checkout_task (SeafRepoManager *mgr,
 
     CheckoutTask *task = g_new0 (CheckoutTask, 1);
     memcpy (task->repo_id, repo->id, 41);
-    g_assert (strlen(worktree) < SEAF_PATH_MAX);
+    g_return_val_if_fail (strlen(worktree) < SEAF_PATH_MAX, -1);
     strcpy (task->worktree, worktree);
 
     g_hash_table_insert (mgr->priv->checkout_tasks_hash,

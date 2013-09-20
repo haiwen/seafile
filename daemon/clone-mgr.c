@@ -789,8 +789,6 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         return NULL;
     }
 
-    g_assert (strlen(repo_id) == 36);
-
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
 
     if (repo != NULL && repo->head != NULL) {
@@ -873,8 +871,6 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         seaf_message ("System not started, skip adding clone task.\n");
         return NULL;
     }
-
-    g_assert (strlen(repo_id) == 36);
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
 
@@ -1315,8 +1311,7 @@ merge_job_done (void *data)
         transition_state (task, CLONE_STATE_CANCELED);
     else if (task->state == CLONE_STATE_MERGE) {
         transition_state (task, CLONE_STATE_DONE);
-    } else
-        g_assert (0);
+    }
 
     g_free (aux);
     return;
@@ -1393,7 +1388,7 @@ on_repo_fetched (SeafileSession *seaf,
         return;
 
     task = g_hash_table_lookup (mgr->tasks, tx_task->repo_id);
-    g_assert (task != NULL);
+    g_return_if_fail (task != NULL);
 
     if (tx_task->state == TASK_STATE_CANCELED) {
         /* g_assert (task->state == CLONE_STATE_CANCEL_PENDING); */
@@ -1426,7 +1421,7 @@ on_checkout_done (CheckoutTask *ctask, SeafRepo *repo, void *data)
 {
     SeafCloneManager *mgr = data;
     CloneTask *task = g_hash_table_lookup (mgr->tasks, repo->id);
-    g_assert (task != NULL);
+    g_return_if_fail (task != NULL);
 
     if (!ctask->success) {
         transition_to_error (task, CLONE_ERROR_CHECKOUT);
@@ -1446,6 +1441,5 @@ on_checkout_done (CheckoutTask *ctask, SeafRepo *repo, void *data)
                                              REPO_LOCAL_HEAD,
                                              repo->head->commit_id);
         transition_state (task, CLONE_STATE_DONE);
-    } else
-        g_assert (0);
+    }
 }

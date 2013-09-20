@@ -513,7 +513,6 @@ convert_task (TransferTask *task)
 
     get_task_size (task, &rsize, &dsize);
 
-    g_assert (strlen(task->repo_id) == 36);
     g_object_set (t, "tx_id", task->tx_id,
                   "repo_id", task->repo_id,
                   "dest_id", task->dest_id,

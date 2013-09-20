@@ -68,7 +68,7 @@ get_commit_start (CcnetProcessor *processor, int argc, char **argv)
     SeafBranch *master = NULL;
     char *end_commit_id = NULL;
 
-    g_assert (task->session_token);
+    g_return_val_if_fail (task->session_token, -1);
 
     if (!task->is_clone) {
         master = seaf_branch_manager_get_branch (seaf->branch_mgr,
@@ -173,7 +173,7 @@ static void handle_response (CcnetProcessor *processor,
         }
         break;
     default:
-        g_assert (0);
+        g_return_if_reached ();
     }
 
     g_warning ("Bad response: %s %s.\n", code, code_msg);
