@@ -90,6 +90,9 @@ seafile_set_download_rate_limit (int limit, GError **error);
  */
 int seafile_destroy_repo (const gchar *repo_id, GError **error);
 
+int
+seafile_unsync_repos_by_server (const char *server_addr, GError **error);
+
 /**
  * seafile_edit_repo:
  * @repo_id: repository id.

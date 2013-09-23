@@ -599,7 +599,7 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
         return NULL;
 
     SyncTask *task = info->current_task;
-    char *sync_state;
+    const char *sync_state;
     char allzeros[41] = {0};
 
     if (!ccnet_peer_is_ready(seaf->ccnetrpc_client, repo->relay_id)) {
@@ -1174,6 +1174,72 @@ seafile_get_commit_list (const char *repo_id,
     return commits;
 }
 
+#ifndef SEAFILE_SERVER
+static
+int do_unsync_repo(SeafRepo *repo)
+{
+    if (!seaf->started) {
+        seaf_message ("System not started, skip removing repo.\n");
+        return -1;
+    }
+
+    if (repo->auto_sync)
+        seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
+
+    SyncInfo *info = seaf_sync_manager_get_sync_info (seaf->sync_mgr, repo->id);
+
+    /* If we are syncing the repo,
+     * we just mark the repo as deleted and let sync-mgr actually delete it.
+     * Otherwise we are safe to delete the repo.
+     */
+    char *worktree = g_strdup (repo->worktree);
+    if (info != NULL && info->in_sync) {
+        seaf_repo_manager_mark_repo_deleted (seaf->repo_mgr, repo);
+    } else {
+        seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
+    }
+
+    g_free (worktree);
+
+    return 0;
+}
+
+int
+seafile_unsync_repos_by_server (const char *server_addr, GError **error)
+{
+    if (!server_addr) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+
+    GList *ptr, *repos = seaf_repo_manager_get_repo_list(seaf->repo_mgr, -1, -1);
+    if (!repos) {
+        return 0;
+    }
+
+    for (ptr = repos; ptr; ptr = ptr->next) {
+        SeafRepo *repo = (SeafRepo*)ptr->data;
+        char *addr = NULL;
+        seaf_repo_manager_get_repo_relay_info(seaf->repo_mgr,
+                                              repo->id,
+                                              &addr, /* addr */
+                                              NULL); /* port */
+
+        if (g_strcmp0(addr, server_addr) == 0) {
+            if (do_unsync_repo(repo) < 0) {
+                return -1;
+            }
+        }
+
+        g_free (addr);
+    }
+
+    g_list_free (repos);
+
+    return 0;
+}
+#endif
+
 int
 seafile_destroy_repo (const char *repo_id, GError **error)
 {
@@ -1195,39 +1261,14 @@ seafile_destroy_repo (const char *repo_id, GError **error)
     }
 
 #ifndef SEAFILE_SERVER
-    if (!seaf->started) {
-        seaf_message ("System not started, skip removing repo.\n");
-        return -1;
-    }
-
-    if (repo->auto_sync)
-        seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo_id);
-
-    SyncInfo *info = seaf_sync_manager_get_sync_info (seaf->sync_mgr, repo_id);
-
-    /* If we are syncing the repo,
-     * we just mark the repo as deleted and let sync-mgr actually delete it.
-     * Otherwise we are safe to delete the repo.
-     */
-    char *worktree = g_strdup (repo->worktree);
-    if (info != NULL && info->in_sync) {
-        seaf_repo_manager_mark_repo_deleted (seaf->repo_mgr, repo);
-    } else {
-        seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
-    }
-
-    /* Publish a message, for applet to notify in the system tray */
-    seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                          "repo.removed",
-                                          worktree);
-    g_free (worktree);
+    return do_unsync_repo(repo);
 #else
     seaf_repo_manager_del_repo (seaf->repo_mgr, repo->id);
     seaf_share_manager_remove_repo (seaf->share_mgr, repo->id);
     seaf_repo_unref (repo);
-#endif
 
     return 0;
+#endif
 }
 
 #ifndef SEAFILE_SERVER
@@ -1461,11 +1502,11 @@ seafile_set_repo_owner(const char *repo_id, const char *email,
 {
     if (!repo_id || !email) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
-        return NULL;
+        return -1;
     }
     if (!is_uuid_valid (repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
-        return NULL;
+        return -1;
     }
 
     return seaf_repo_manager_set_repo_owner(seaf->repo_mgr, repo_id, email);

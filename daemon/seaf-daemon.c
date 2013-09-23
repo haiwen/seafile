@@ -121,6 +121,11 @@ start_rpc_service (CcnetClient *client)
                                      searpc_signature_int__int());
 
     searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_unsync_repos_by_server,
+                                     "seafile_unsync_repos_by_server",
+                                     searpc_signature_int__string());
+
+    searpc_server_register_function ("seafile-rpcserver",
                                      seafile_destroy_repo,
                                      "seafile_destroy_repo",
                                      searpc_signature_int__string());
