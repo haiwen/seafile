@@ -241,6 +241,7 @@ SEARPC_REQUIRED=1.0
 ZDB_REQUIRED=2.10
 #LIBNAUTILUS_EXTENSION_REQUIRED=2.30.1
 CURL_REQUIRED=7.17
+FUSE_REQUIRED=2.8.6
 
 PKG_CHECK_MODULES(GLIB2, [glib-2.0 >= $GLIB_REQUIRED])
 AC_SUBST(GLIB2_CFLAGS)
@@ -296,6 +297,9 @@ if test "${compile_server}" = "yes"; then
    AC_SUBST(ZDB_CFLAGS)
    AC_SUBST(ZDB_LIBS)
 
+   PKG_CHECK_MODULES(FUSE, [fuse >= $FUSE_REQUIRED])
+   AC_SUBST(FUSE_CFLAGS)
+   AC_SUBST(FUSE_LIBS)
 fi
 
 if test x${compile_server} = xyes; then
@@ -345,6 +349,7 @@ AC_CONFIG_FILES(
     data/icons/48x48/Makefile
     data/icons/128x128/Makefile
     data/icons/scalable/Makefile
+    fuse/Makefile
     lib/Makefile
     lib/libseafile.pc
     common/Makefile
