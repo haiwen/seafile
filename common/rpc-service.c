@@ -559,6 +559,38 @@ seafile_find_transfer_task (const char *repo_id, GError *error)
     return (GObject *)convert_task (task);
 }
 
+int
+seafile_get_upload_rate(GError **error)
+{
+    int rate = 0;
+    GList *ptr, *tasks = seaf_transfer_manager_get_upload_tasks(seaf->transfer_mgr);
+
+    for (ptr = tasks; ptr; ptr = ptr->next) {
+        TransferTask *task = (TransferTask *)ptr->data;
+        rate += transfer_task_get_rate (task);
+    }
+
+    g_list_free(tasks);
+
+    return rate;
+}
+
+int
+seafile_get_download_rate(GError **error)
+{
+    int rate = 0;
+    GList *ptr, *tasks = seaf_transfer_manager_get_download_tasks(seaf->transfer_mgr);
+
+    for (ptr = tasks; ptr; ptr = ptr->next) {
+        TransferTask *task = (TransferTask *)ptr->data;
+        rate += transfer_task_get_rate (task);
+    }
+
+    g_list_free(tasks);
+
+    return rate;
+}
+
 
 GObject *
 seafile_get_repo_sync_info (const char *repo_id, GError **error)
