@@ -26,7 +26,7 @@
                 <a href="/procs/">${_("System")}</a>
                 % endif
                 <select id="lang-select">
-					% if lang == "zn_CN":
+					% if lang == "zh_CN":
 					<option selected='selected' value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=cn"} >中文</option>
 					% else:
 					<option value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=cn"} >中文</option>
@@ -50,6 +50,11 @@
 					<option selected='selected' value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=pt_BR"} >Brasilian Portuguese</option>
 					% else:
 					<option value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=pt_BR"} >Brasilian Portuguese</option>
+					% endif
+					% if lang == "de_DE":
+					<option selected='selected' value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=de_DE"} >Deutsch</option>
+					% else:
+					<option value=${"/i18n/?prev=" + web_ctx.fullpath + "&ln=de_DE"} >Deutsch</option>
 					% endif
                 </select>
             </div>
