@@ -194,7 +194,7 @@ seaf_branch_manager_add_branch (SeafBranchManager *mgr, SeafBranch *branch)
         sqlite3_snprintf (sizeof(sql), sql,
                           "UPDATE Branch SET commit_id=%Q WHERE "
                           "name=%Q and repo_id=%Q",
-                          branch->name, branch->repo_id);
+                          branch->commit_id, branch->name, branch->repo_id);
     else
         sqlite3_snprintf (sizeof(sql), sql,
                           "INSERT INTO Branch VALUES (%Q, %Q, %Q)",

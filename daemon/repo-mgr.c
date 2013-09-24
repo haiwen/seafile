@@ -1479,7 +1479,7 @@ seaf_repo_manager_add_repo (SeafRepoManager *manager,
 
     pthread_mutex_lock (&manager->priv->db_lock);
 
-    snprintf (sql, sizeof(sql), "INSERT INTO Repo VALUES ('%s');", repo->id);
+    snprintf (sql, sizeof(sql), "REPLACE INTO Repo VALUES ('%s');", repo->id);
     sqlite_query_exec (db, sql);
 
     pthread_mutex_unlock (&manager->priv->db_lock);
