@@ -21,7 +21,7 @@
 
 struct SeafileCrypt {
     int version;
-    unsigned char key[16];   /* set when enc_version >= 1 */
+    unsigned char key[32];   /* set when enc_version >= 1 */
     unsigned char iv[16];
 };
 

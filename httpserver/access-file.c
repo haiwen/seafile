@@ -454,7 +454,7 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     gchar *content_type = NULL;
     char cont_filename[SEAF_PATH_MAX];
     char *key_hex, *iv_hex;
-    unsigned char enc_key[16], enc_iv[16];
+    unsigned char enc_key[32], enc_iv[16];
     SeafileCrypt *crypt = NULL;
     SendfileData *data;
 
@@ -467,7 +467,10 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
                       "key", &key_hex,
                       "iv", &iv_hex,
                       NULL);
-        hex_to_rawdata (key_hex, enc_key, 16);
+        if (repo->enc_version == 1)
+            hex_to_rawdata (key_hex, enc_key, 16);
+        else
+            hex_to_rawdata (key_hex, enc_key, 32);
         hex_to_rawdata (iv_hex, enc_iv, 16);
         crypt = seafile_crypt_new (repo->enc_version, enc_key, enc_iv);
         g_free (key_hex);
@@ -569,7 +572,7 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
     char file_size[255];
     SeafStat st;
     char *key_hex, *iv_hex;
-    unsigned char enc_key[16], enc_iv[16];
+    unsigned char enc_key[32], enc_iv[16];
     SeafileCrypt *crypt = NULL;
     int zipfd = 0;
     int ret = 0;
@@ -596,7 +599,10 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
                       "key", &key_hex,
                       "iv", &iv_hex,
                       NULL);
-        hex_to_rawdata (key_hex, enc_key, 16);
+        if (repo->enc_version == 1)
+            hex_to_rawdata (key_hex, enc_key, 16);
+        else
+            hex_to_rawdata (key_hex, enc_key, 32);
         hex_to_rawdata (iv_hex, enc_iv, 16);
         crypt = seafile_crypt_new (repo->enc_version, enc_key, enc_iv);
         g_free (key_hex);

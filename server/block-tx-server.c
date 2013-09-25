@@ -35,7 +35,7 @@ struct _BlockTxServer {
     /* Used by put block */
     BlockHandle *block;
 
-    unsigned char key[ENC_BLOCK_SIZE];
+    unsigned char key[ENC_KEY_SIZE];
     unsigned char iv[ENC_BLOCK_SIZE];
 
     FrameParser parser;
@@ -69,7 +69,7 @@ init_frame_parser (BlockTxServer *server)
 {
     FrameParser *parser = &server->parser;
 
-    memcpy (parser->key, server->key, ENC_BLOCK_SIZE);
+    memcpy (parser->key, server->key, ENC_KEY_SIZE);
     memcpy (parser->iv, server->iv, ENC_BLOCK_SIZE);
 
     parser->cbarg = server;

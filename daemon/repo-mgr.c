@@ -563,7 +563,7 @@ seaf_repo_index_worktree_files (const char *repo_id,
 {
     char index_path[SEAF_PATH_MAX];
     struct index_state istate;
-    unsigned char key[32], iv[32];
+    unsigned char key[32], iv[16];
     SeafileCrypt *crypt = NULL;
     struct cache_tree *it = NULL;
     GList *ignore_list = NULL;
@@ -1868,7 +1868,7 @@ load_keys_cb (sqlite3_stmt *stmt, void *vrepo)
         hex_to_rawdata (iv, repo->enc_iv, 16);
     } else if (repo->enc_version == 2) {
         hex_to_rawdata (key, repo->enc_key, 32);
-        hex_to_rawdata (iv, repo->enc_iv, 32);
+        hex_to_rawdata (iv, repo->enc_iv, 16);
     }
 
     return FALSE;
@@ -2293,14 +2293,14 @@ save_repo_enc_info (SeafRepoManager *manager,
 {
     sqlite3 *db = manager->priv->db;
     char sql[512];
-    char key[65], iv[65];
+    char key[65], iv[33];
 
     if (repo->enc_version == 1) {
         rawdata_to_hex (repo->enc_key, key, 16);
         rawdata_to_hex (repo->enc_iv, iv, 16);
     } else if (repo->enc_version == 2) {
         rawdata_to_hex (repo->enc_key, key, 32);
-        rawdata_to_hex (repo->enc_iv, iv, 32);
+        rawdata_to_hex (repo->enc_iv, iv, 16);
     }
 
     snprintf (sql, sizeof(sql), "REPLACE INTO RepoKeys VALUES ('%s', '%s', '%s')",

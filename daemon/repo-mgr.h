@@ -55,7 +55,7 @@ struct _SeafRepo {
     int         last_sync_time;
 
     unsigned char enc_key[32];   /* 256-bit encryption key */
-    unsigned char enc_iv[32];
+    unsigned char enc_iv[16];
 
     gchar      *email;          /* email of the user on the relay */
     gchar      *token;          /* token for access this repo on server */

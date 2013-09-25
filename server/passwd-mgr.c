@@ -17,7 +17,7 @@
 typedef struct {
     int enc_version;
     unsigned char key[32];
-    unsigned char iv[32];
+    unsigned char iv[16];
     char *passwd;
     guint64 expire_time;
 } DecryptKey;
@@ -33,6 +33,11 @@ static void
 decrypt_key_free (DecryptKey *key)
 {
     if (!key) return;
+
+    /* clear sensitive information */
+    memset (key->key, 0, sizeof(key->key));
+    memset (key->iv, 0, sizeof(key->iv));
+    memset (key->passwd, 0, strlen(key->passwd));
 
     g_free (key->passwd);
     g_free (key);
@@ -222,7 +227,7 @@ seaf_passwd_manager_get_decrypt_key (SeafPasswdManager *mgr,
 
     if (crypt_key->enc_version == 2) {
         rawdata_to_hex (crypt_key->key, key_hex, 32);
-        rawdata_to_hex (crypt_key->iv, iv_hex, 32);
+        rawdata_to_hex (crypt_key->iv, iv_hex, 16);
     } else if (crypt_key->enc_version == 1) {
         rawdata_to_hex (crypt_key->key, key_hex, 16);
         rawdata_to_hex (crypt_key->iv, iv_hex, 16);
@@ -260,7 +265,7 @@ seaf_passwd_manager_get_decrypt_key_raw (SeafPasswdManager *mgr,
         memcpy (iv_out, crypt_key->iv, 16);
     } else if (crypt_key->enc_version == 2) {
         memcpy (key_out, crypt_key->key, 32);
-        memcpy (iv_out, crypt_key->iv, 32);
+        memcpy (iv_out, crypt_key->iv, 16);
     }
 
     return 0;

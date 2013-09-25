@@ -27,7 +27,10 @@ seafile_crypt_new (int version, unsigned char *key, unsigned char *iv)
 {
     SeafileCrypt *crypt = g_new0 (SeafileCrypt, 1);
     crypt->version = version;
-    memcpy (crypt->key, key, 16);
+    if (version == 1)
+        memcpy (crypt->key, key, 16);
+    else
+        memcpy (crypt->key, key, 32);
     memcpy (crypt->iv, iv, 16);
     return crypt;
 }
@@ -46,7 +49,7 @@ seafile_derive_key (const char *data_in, int in_len, int version,
                            salt, sizeof(salt),
                            10,
                            EVP_sha256(),
-                           32, iv);
+                           16, iv);
         return 0;
     } else if (version == 1)
         return EVP_BytesToKey (EVP_aes_128_cbc(), /* cipher mode */
@@ -72,29 +75,27 @@ void
 seafile_generate_random_key (const char *passwd, char *random_key)
 {
     SeafileCrypt *crypt;
-    unsigned char rand_key[32], *enc_rand_key;
+    unsigned char secret_key[32], *rand_key;
     int outlen;
-    unsigned char key[32], iv[32];
+    unsigned char key[32], iv[16];
 
-    if (!RAND_bytes (key, sizeof(key))) {
-        seaf_warning ("Failed to generate random key for repo encryption "
+    if (!RAND_bytes (secret_key, sizeof(secret_key))) {
+        seaf_warning ("Failed to generate secret key for repo encryption "
                       "with RAND_bytes(), use RAND_pseudo_bytes().\n");
-        RAND_pseudo_bytes (key, sizeof(key));
+        RAND_pseudo_bytes (secret_key, sizeof(secret_key));
     }
 
     seafile_derive_key (passwd, strlen(passwd), 2, key, iv);
 
     crypt = seafile_crypt_new (2, key, iv);
 
-    seafile_encrypt ((char **)&enc_rand_key, &outlen,
-                     (char *)rand_key, sizeof(rand_key), crypt);
+    seafile_encrypt ((char **)&rand_key, &outlen,
+                     (char *)secret_key, sizeof(secret_key), crypt);
 
-    g_assert (outlen == 48);
-
-    rawdata_to_hex (enc_rand_key, random_key, 48);
+    rawdata_to_hex (rand_key, random_key, 48);
 
     g_free (crypt);
-    g_free (enc_rand_key);
+    g_free (rand_key);
 }
 
 void
@@ -102,7 +103,7 @@ seafile_generate_magic (int version, const char *repo_id,
                         const char *passwd, char *magic)
 {
     GString *buf = g_string_new (NULL);
-    unsigned char key[32], iv[32];
+    unsigned char key[32], iv[16];
 
     /* Compute a "magic" string from repo_id and passwd.
      * This is used to verify the password given by user before decrypting
@@ -123,7 +124,7 @@ seafile_verify_repo_passwd (const char *repo_id,
                             int version)
 {
     GString *buf = g_string_new (NULL);
-    unsigned char key[32], iv[32];
+    unsigned char key[32], iv[16];
     char hex[65];
 
     if (version != 1 && version != 2) {
@@ -153,7 +154,7 @@ seafile_decrypt_repo_enc_key (int enc_version,
                               const char *passwd, const char *random_key,
                               unsigned char *key_out, unsigned char *iv_out)
 {
-    unsigned char key[32], iv[32];
+    unsigned char key[32], iv[16];
 
     seafile_derive_key (passwd, strlen(passwd), enc_version, key, iv);
 
@@ -183,12 +184,10 @@ seafile_decrypt_repo_enc_key (int enc_version,
         }
         g_free (crypt);
 
-        g_assert (outlen == 32);
-
         seafile_derive_key ((char *)dec_random_key, 32, enc_version,
                                   key, iv);
         memcpy (key_out, key, 32);
-        memcpy (iv_out, iv, 32);
+        memcpy (iv_out, iv, 16);
 
         g_free (dec_random_key);
         return 0;

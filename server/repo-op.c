@@ -501,7 +501,7 @@ seaf_repo_manager_post_file (SeafRepoManager *mgr,
 
     /* Write blocks. */
     if (repo->encrypted) {
-        unsigned char key[16], iv[16];
+        unsigned char key[32], iv[16];
         if (seaf_passwd_manager_get_decrypt_key_raw (seaf->passwd_mgr,
                                                      repo_id, user,
                                                      key, iv) < 0) {
