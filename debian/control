@@ -11,7 +11,8 @@ Build-Depends:
 	libglib2.0-dev,
 	libevent-dev,
 	uuid-dev,
-	libgtk2.0-dev
+	libgtk2.0-dev,
+    libqt4-dev
 Standards-Version: 3.9.4
 Homepage: http://seafile.com
 
@@ -21,14 +22,13 @@ Depends:
 	${shlibs:Depends},
 	${misc:Depends},
 	libglib2.0-0,
-	libgtk2.0-0 (>= 2.16.0),
 	libsqlite3-0,
 	libuuid1,
 	libssl0.9.8 | libssl1.0.0,
 	libevent-2.0-5,
-	python-webpy,
-	python-mako,
-	python-simplejson
+    libqt4-network,
+    libqtcore4,
+    libqtgui4
 Description: Client of seafile, an online file storage and collaboration tool
  Seafile enables you to build private cloud for file sharing and collaboration
  among team members in your company/organization. This is the Linux desktop

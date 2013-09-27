@@ -44,6 +44,7 @@ CONF_VERSION            = 'version'
 CONF_LIBSEARPC_VERSION  = 'libsearpc_version'
 CONF_CCNET_VERSION      = 'ccnet_version'
 CONF_SEAFILE_VERSION    = 'seafile_version'
+CONF_SEAFILE_CLIENT_VERSION    = 'seafile_client_version'
 CONF_SRCDIR             = 'srcdir'
 CONF_KEEP               = 'keep'
 CONF_BUILDDIR           = 'builddir'
@@ -227,6 +228,15 @@ class Ccnet(Project):
 
         self.append_cflags(macros)
 
+class SeafileClient(Project):
+    name = 'seafile-client'
+
+    def get_version(self):
+        return conf[CONF_SEAFILE_CLIENT_VERSION]
+
+    def before_build(self):
+        pass
+
 class Seafile(Project):
     name = 'seafile'
     def __init__(self):
@@ -255,6 +265,7 @@ def validate_args(usage, options):
         CONF_LIBSEARPC_VERSION,
         CONF_CCNET_VERSION,
         CONF_SEAFILE_VERSION,
+        CONF_SEAFILE_CLIENT_VERSION,
         CONF_SRCDIR,
     ]
 
@@ -276,6 +287,7 @@ def validate_args(usage, options):
     libsearpc_version = get_option(CONF_LIBSEARPC_VERSION)
     ccnet_version = get_option(CONF_CCNET_VERSION)
     seafile_version = get_option(CONF_SEAFILE_VERSION)
+    seafile_client_version = get_option(CONF_SEAFILE_CLIENT_VERSION)
 
     check_project_version(version)
     check_project_version(libsearpc_version)
@@ -287,6 +299,7 @@ def validate_args(usage, options):
     check_targz_src('libsearpc', libsearpc_version, srcdir)
     check_targz_src('ccnet', ccnet_version, srcdir)
     check_targz_src('seafile', seafile_version, srcdir)
+    check_targz_src('seafile-client', seafile_client_version, srcdir)
 
     # [ builddir ]
     builddir = get_option(CONF_BUILDDIR)
@@ -313,6 +326,7 @@ def validate_args(usage, options):
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
     conf[CONF_CCNET_VERSION] = ccnet_version
     conf[CONF_SEAFILE_VERSION] = seafile_version
+    conf[CONF_SEAFILE_CLIENT_VERSION] = seafile_client_version
 
     conf[CONF_BUILDDIR] = builddir
     conf[CONF_SRCDIR] = srcdir
@@ -329,6 +343,7 @@ def show_build_info():
     info('Seafile debian package: BUILD INFO')
     info('------------------------------------------')
     info('seafile:          %s' % conf[CONF_SEAFILE_VERSION])
+    info('seafile-client:   %s' % conf[CONF_SEAFILE_CLIENT_VERSION])
     info('ccnet:            %s' % conf[CONF_CCNET_VERSION])
     info('libsearpc:        %s' % conf[CONF_LIBSEARPC_VERSION])
     info('builddir:         %s' % conf[CONF_BUILDDIR])
@@ -377,6 +392,11 @@ def parse_args():
                       dest=CONF_SEAFILE_VERSION,
                       nargs=1,
                       help='the version of ccnet as specified in its "configure.ac". Must be digits delimited by dots, like 1.3.0')
+
+    parser.add_option(long_opt(CONF_SEAFILE_CLIENT_VERSION),
+                      dest=CONF_SEAFILE_CLIENT_VERSION,
+                      nargs=1,
+                      help='the version of seafile-client. Must be digits delimited by dots, like 1.3.0')
 
     parser.add_option(long_opt(CONF_BUILDDIR),
                       dest=CONF_BUILDDIR,
@@ -429,6 +449,7 @@ def setup_build_env():
 
     os.environ['LIBSEARPC_SOURCE_DIR'] = Libsearpc().projdir
     os.environ['CCNET_SOURCE_DIR'] = Ccnet().projdir
+    os.environ['SEAFILE_CLIENT_SOURCE_DIR'] = SeafileClient().projdir
 
 def move_deb():
     builddir = conf[CONF_BUILDDIR]
@@ -454,14 +475,17 @@ def main():
     libsearpc = Libsearpc()
     ccnet = Ccnet()
     seafile = Seafile()
+    seafile_client = SeafileClient()
 
     libsearpc.uncompress()
     ccnet.uncompress()
     seafile.uncompress()
+    seafile_client.uncompress()
 
     libsearpc.build()
     ccnet.build()
     seafile.build()
+    seafile_client.build()
 
     move_deb()
 
