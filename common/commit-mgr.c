@@ -817,11 +817,19 @@ save_commit (SeafCommitManager *manager, SeafCommit *commit)
     json_node_free (root);
     g_object_unref (gen);
 
+#ifdef SEAFILE_SERVER
     if (seaf_obj_store_write_obj (manager->obj_store, commit->commit_id,
-                                  data, (int)len) < 0) {
+                                  data, (int)len, TRUE) < 0) {
         g_free (data);
         return -1;
     }
+#else
+    if (seaf_obj_store_write_obj (manager->obj_store, commit->commit_id,
+                                  data, (int)len, FALSE) < 0) {
+        g_free (data);
+        return -1;
+    }
+#endif
     g_free (data);
 
     return 0;

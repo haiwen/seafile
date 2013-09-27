@@ -15,6 +15,7 @@ typedef struct AsyncTask {
     char    obj_id[41];
     void    *data;
     int     len;
+    gboolean need_sync;
     gboolean success;
 } AsyncTask;
 
@@ -192,11 +193,12 @@ int
 seaf_obj_store_write_obj (struct SeafObjStore *obj_store,
                           const char *obj_id,
                           void *data,
-                          int len)
+                          int len,
+                          gboolean need_sync)
 {
     ObjBackend *bend = obj_store->bend;
 
-    return bend->write (bend, obj_id, data, len);
+    return bend->write (bend, obj_id, data, len, need_sync);
 }
 
 gboolean
@@ -355,7 +357,7 @@ writer_thread (void *data, void *user_data)
 
     task->success = TRUE;
 
-    if (bend->write (bend, task->obj_id, task->data, task->len) < 0)
+    if (bend->write (bend, task->obj_id, task->data, task->len, task->need_sync) < 0)
         task->success = FALSE;
 
     cevent_manager_add_event (obj_store->ev_mgr, obj_store->write_ev_id,
@@ -548,7 +550,8 @@ seaf_obj_store_async_write (struct SeafObjStore *obj_store,
                             guint32 writer_id,
                             const char *obj_id,
                             const void *obj_data,
-                            int data_len)
+                            int data_len,
+                            gboolean need_sync)
 {
     AsyncTask *task = g_new0 (AsyncTask, 1);
     GError *error = NULL;
@@ -557,6 +560,7 @@ seaf_obj_store_async_write (struct SeafObjStore *obj_store,
     memcpy (task->obj_id, obj_id, 41);
     task->data = g_memdup (obj_data, data_len);
     task->len = data_len;
+    task->need_sync = need_sync;
 
     g_thread_pool_push (obj_store->write_tpool, task, &error);
     if (error) {

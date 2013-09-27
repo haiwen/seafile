@@ -14,7 +14,8 @@ struct ObjBackend {
     int         (*write) (ObjBackend *bend,
                           const char *obj_id,
                           void *data,
-                          int len);
+                          int len,
+                          gboolean need_sync);
 
     gboolean    (*exists) (ObjBackend *bend,
                            const char *obj_id);

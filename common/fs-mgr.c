@@ -310,7 +310,7 @@ write_seafile (SeafFSManager *fs_mgr,
     memcpy (ondisk->block_ids, cdc->blk_sha1s, cdc->block_nr * 20);
 
     if (seaf_obj_store_write_obj (fs_mgr->obj_store, seafile_id,
-                                  ondisk, ondisk_size) < 0)
+                                  ondisk, ondisk_size, FALSE) < 0)
         ret = -1;
     g_free (ondisk);
 
@@ -773,7 +773,7 @@ seaf_dir_save (SeafFSManager *fs_mgr, SeafDir *dir)
     data = seaf_dir_to_data (dir, &len);
 
     if (seaf_obj_store_write_obj (fs_mgr->obj_store, dir->dir_id,
-                                  data, len) < 0)
+                                  data, len, FALSE) < 0)
         ret = -1;
 
     g_free (data);

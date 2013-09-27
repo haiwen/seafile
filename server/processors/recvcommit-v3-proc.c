@@ -130,7 +130,8 @@ save_commit (CcnetProcessor *processor, ObjectPack *pack, int len)
                                        priv->writer_id,
                                        pack->id,
                                        pack->object,
-                                       len - 41);
+                                       len - 41,
+                                       TRUE);
 }
 
 static void

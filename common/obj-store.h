@@ -28,7 +28,8 @@ int
 seaf_obj_store_write_obj (struct SeafObjStore *obj_store,
                           const char *obj_id,
                           void *data,
-                          int len);
+                          int len,
+                          gboolean need_sync);
 
 gboolean
 seaf_obj_store_obj_exists (struct SeafObjStore *obj_store,
@@ -81,7 +82,8 @@ seaf_obj_store_async_write (struct SeafObjStore *obj_store,
                             guint32 writer_id,
                             const char *obj_id,
                             const void *obj_data,
-                            int data_len);
+                            int data_len,
+                            gboolean need_sync);
 
 /* Async stat */
 guint32

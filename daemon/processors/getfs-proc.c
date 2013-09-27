@@ -226,7 +226,8 @@ save_fs_object (ObjectPack *pack, int len)
     return seaf_obj_store_write_obj (seaf->fs_mgr->obj_store,
                                      pack->id,
                                      pack->object,
-                                     len - 41);
+                                     len - 41,
+                                     FALSE);
 }
 
 static int
