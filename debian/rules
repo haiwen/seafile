@@ -24,6 +24,7 @@ endif
 # SEARPC_SOURCE_DIR and CCNET_SOURCE_DIR is set by build-deb.py
 searpc_dir = $(LIBSEARPC_SOURCE_DIR)
 ccnet_dir = $(CCNET_SOURCE_DIR)
+seafile_client_dir = $(SEAFILE_CLIENT_SOURCE_DIR)
 destdir = $(CURDIR)/debian/seafile
 install_prefix = $(destdir)/usr
 
@@ -39,7 +40,10 @@ build:
 	# build and install ccnet so it can be used by seafile
 	cd $(ccnet_dir) && ./configure $(CROSS) --prefix=/usr --disable-compile-demo CFLAGS="$(CFLAGS)" && make && make install DESTDIR=$(destdir)
 
-	./configure --prefix=/usr --enable-appindicator CFLAGS="$(CFLAGS)" && make && make install DESTDIR=$(destdir)
+	./configure --prefix=/usr CFLAGS="$(CFLAGS)" && make && make install DESTDIR=$(destdir)
+
+	# build and install seafile-client
+	cd $(seafile_client_dir) && cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release . && make -j2 && make install DESTDIR=$(destdir)
 
 	# remove development files
 	rm -rf $(install_prefix)/include
@@ -48,6 +52,9 @@ build:
 	rm -rf $(install_prefix)/lib/*.la
 	rm -f $(install_prefix)/bin/searpc-codegen.py
 	rm -f $(install_prefix)/bin/ccnet-servtool
+
+	rm -f $(install_prefix)/bin/seafile-web
+	rm -rf $(install_prefix)/share/seafile
 
 clean:
 	dh_clean

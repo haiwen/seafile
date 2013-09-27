@@ -1,3 +1,9 @@
+seafile (2.0.0) stable; urgency=low
+
+  * Use new seafile-client
+
+ -- plt <freeplant@gmail.com>  Fri, 27 September 2013 19:00:32 +0800
+
 seafile (1.8.2) stable; urgency=low
 
   * Fix a bug when dir object is lost

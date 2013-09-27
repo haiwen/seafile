@@ -34,9 +34,6 @@ import optparse
 import atexit
 import csv
 
-from distutils.core import setup as dist_setup
-import py2exe
-
 ####################
 ### Global variables
 ####################
@@ -49,6 +46,7 @@ CONF_VERSION            = 'version'
 CONF_LIBSEARPC_VERSION  = 'libsearpc_version'
 CONF_CCNET_VERSION      = 'ccnet_version'
 CONF_SEAFILE_VERSION    = 'seafile_version'
+CONF_SEAFILE_CLIENT_VERSION  = 'seafile_client_version'
 CONF_SRCDIR             = 'srcdir'
 CONF_KEEP               = 'keep'
 CONF_BUILDDIR           = 'builddir'
@@ -302,6 +300,22 @@ class Seafile(Project):
         macros['SEAFILE_SOURCE_COMMIT_ID'] = '\\"%s\\"' % self.get_source_commit_id()
         self.append_cflags(macros)
 
+class SeafileClient(Project):
+    name = 'seafile-client'
+    def __init__(self):
+        Project.__init__(self)
+        self.build_commands = [
+            'cmake -DCMAKE_INSTALL_PREFIX=%s .' % to_mingw_path(self.prefix),
+            'make',
+            'make install',
+        ]
+
+    def get_version(self):
+        return conf[CONF_SEAFILE_CLIENT_VERSION]
+
+    def before_build(self):
+        pass
+
 def check_targz_src(proj, version, srcdir):
     src_tarball = os.path.join(srcdir, '%s-%s.tar.gz' % (proj, version))
     if not os.path.exists(src_tarball):
@@ -313,6 +327,7 @@ def validate_args(usage, options):
         CONF_LIBSEARPC_VERSION,
         CONF_CCNET_VERSION,
         CONF_SEAFILE_VERSION,
+        CONF_SEAFILE_CLIENT_VERSION,
         CONF_SRCDIR,
     ]
 
@@ -334,11 +349,13 @@ def validate_args(usage, options):
     libsearpc_version = get_option(CONF_LIBSEARPC_VERSION)
     ccnet_version = get_option(CONF_CCNET_VERSION)
     seafile_version = get_option(CONF_SEAFILE_VERSION)
+    seafile_client_version = get_option(CONF_SEAFILE_CLIENT_VERSION)
 
     check_project_version(version)
     check_project_version(libsearpc_version)
     check_project_version(ccnet_version)
     check_project_version(seafile_version)
+    check_project_version(seafile_client_version)
 
     # [ srcdir ]
     srcdir = to_win_path(get_option(CONF_SRCDIR))
@@ -371,6 +388,7 @@ def validate_args(usage, options):
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
     conf[CONF_CCNET_VERSION] = ccnet_version
     conf[CONF_SEAFILE_VERSION] = seafile_version
+    conf[CONF_SEAFILE_CLIENT_VERSION] = seafile_client_version
 
     conf[CONF_BUILDDIR] = builddir
     conf[CONF_SRCDIR] = srcdir
@@ -391,6 +409,7 @@ def show_build_info():
     info('libsearpc:                %s' % conf[CONF_LIBSEARPC_VERSION])
     info('ccnet:                    %s' % conf[CONF_CCNET_VERSION])
     info('seafile:                  %s' % conf[CONF_SEAFILE_VERSION])
+    info('seafile-client:           %s' % conf[CONF_SEAFILE_CLIENT_VERSION])
     info('builddir:                 %s' % conf[CONF_BUILDDIR])
     info('outputdir:                %s' % conf[CONF_OUTPUTDIR])
     info('source dir:               %s' % conf[CONF_SRCDIR])
@@ -438,6 +457,11 @@ def parse_args():
                       dest=CONF_SEAFILE_VERSION,
                       nargs=1,
                       help='the version of seafile as specified in its "configure.ac". Must be digits delimited by dots, like 1.3.0')
+
+    parser.add_option(long_opt(CONF_SEAFILE_CLIENT_VERSION),
+                      dest=CONF_SEAFILE_CLIENT_VERSION,
+                      nargs=1,
+                      help='the version of seafile-client. Must be digits delimited by dots, like 1.3.0')
 
     parser.add_option(long_opt(CONF_BUILDDIR),
                       dest=CONF_BUILDDIR,
@@ -510,49 +534,6 @@ def setup_build_env():
     os.environ['WIX_TEMP'] = wix_temp_dir
 
     must_mkdir(wix_temp_dir)
-
-def web_py2exe():
-    webdir = os.path.join(Seafile().projdir, 'web')
-    os.chdir(webdir)
-
-    original_argv = sys.argv
-    sys.argv = [sys.argv[0], 'py2exe']
-    sys.path.insert(0, webdir)
-
-    targetname = 'seafile-web'
-    targetfile = targetname + '.py'
-    must_copy('main.py', targetfile)
-
-    packages=["mako.cache", "utils"]
-    ex_files=[]
-    option = {"py2exe":
-              {"includes" :[targetname],
-               "packages" : packages,
-               "bundle_files" : 3}}
-
-    prepend_env_value('PATH',
-                      os.path.join(Seafile().prefix, 'bin'),
-                      seperator=';')
-    try:
-        dist_setup(name=targetname,
-                   options = option,
-                   windows=[{"script":targetfile}],
-                   data_files=ex_files)
-    except Exception as e:
-        error('Error when calling py2exe: %s' % e)
-
-    pack_bin_dir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin')
-
-    for name in glob.glob('dist/*'):
-        must_copy(name, pack_bin_dir)
-
-    must_copytree('i18n', os.path.join(pack_bin_dir, 'i18n'))
-    must_copytree('static', os.path.join(pack_bin_dir, 'static'))
-    must_copytree('templates', os.path.join(pack_bin_dir, 'templates'))
-
-    sys.path.pop(0)
-    sys.argv = original_argv
-    os.chdir(conf[CONF_BUILDDIR])
 
 def parse_depends_csv(path):
     '''parse the output of dependency walker'''
@@ -634,20 +615,7 @@ def prepare_msi():
     if run('make', cwd=os.path.join(pack_dir, 'custom')) != 0:
         error('Error when compiling seafile msi custom dlls')
 
-    web_py2exe()
     copy_dll_exe()
-
-    # copy each translation file (*.mo) to bin/i18n/LANG_CODE/LC_MESSAGES/seafile.mo)
-    src_mos_pattern = os.path.join(Seafile().prefix, 'share', 'locale', '*', 'LC_MESSAGES', 'seafile.mo')
-    d = os.path.dirname
-    b = os.path.basename
-    for src_mo in glob.glob(src_mos_pattern):
-        lang_code = b(d(d(src_mo)))
-        dst_mo = os.path.join(pack_dir, 'bin', 'i18n', lang_code, 'LC_MESSAGES', 'seafile.mo')
-        dst_dir = os.path.dirname(dst_mo)
-        if not os.path.exists(dst_dir):
-            must_mkdir(dst_dir)
-        must_copy(src_mo, dst_mo)
 
 def strip_symbols():
     bin_dir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin')
