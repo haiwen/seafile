@@ -211,7 +211,7 @@ block_backend_fs_foreach_block (BlockBackend *bend,
 
     dir1 = g_dir_open (block_dir, 0, NULL);
     if (!dir1) {
-        g_warning ("Failed to open object dir %s.\n", block_dir);
+        g_warning ("Failed to open block dir %s.\n", block_dir);
         return -1;
     }
 
@@ -223,7 +223,7 @@ block_backend_fs_foreach_block (BlockBackend *bend,
 
         dir2 = g_dir_open (path, 0, NULL);
         if (!dir2) {
-            g_warning ("Failed to open object dir %s.\n", path);
+            g_warning ("Failed to open block dir %s.\n", path);
             continue;
         }
 

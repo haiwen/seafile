@@ -117,4 +117,9 @@ seaf_block_manager_foreach_block (SeafBlockManager *mgr,
 guint64
 seaf_block_manager_get_block_number (SeafBlockManager *mgr);
 
+gboolean
+seaf_block_manager_verify_block (SeafBlockManager *mgr,
+                                 const char *block_id,
+                                 gboolean *io_error);
+
 #endif

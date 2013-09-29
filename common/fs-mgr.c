@@ -1382,5 +1382,181 @@ seaf_fs_manager_get_seafdir_id_by_path (SeafFSManager *mgr,
 
     return dir_id;
 }
-                                        
 
+gboolean
+verify_seafdir (const char *dir_id, const uint8_t *data, int len)
+{
+    guint32 meta_type;
+    guint32 mode;
+    char id[41];
+    guint32 name_len;
+    char name[SEAF_DIR_NAME_LEN];
+    const uint8_t *ptr;
+    int remain;
+    int dirent_base_size;
+    SHA_CTX ctx;
+    uint8_t sha1[20];
+    char check_id[41];
+
+    if (len < sizeof(SeafdirOndisk)) {
+        g_warning ("[fs mgr] Corrupt seafdir object %s.\n", dir_id);
+        return FALSE;
+    }
+
+    ptr = data;
+    remain = len;
+
+    meta_type = get32bit (&ptr);
+    remain -= 4;
+    if (meta_type != SEAF_METADATA_TYPE_DIR) {
+        g_warning ("Data does not contain a directory.\n");
+        return FALSE;
+    }
+
+    SHA1_Init (&ctx);
+
+    dirent_base_size = 2 * sizeof(guint32) + 40;
+    while (remain > dirent_base_size) {
+        mode = get32bit (&ptr);
+        memcpy (id, ptr, 40);
+        id[40] = '\0';
+        ptr += 40;
+        name_len = get32bit (&ptr);
+        remain -= dirent_base_size;
+        if (remain >= name_len) {
+            name_len = MIN (name_len, SEAF_DIR_NAME_LEN - 1);
+            memcpy (name, ptr, name_len);
+            ptr += name_len;
+            remain -= name_len;
+        } else {
+            g_warning ("Bad data format for dir objcet %s.\n", dir_id);
+            return FALSE;
+        }
+
+        SHA1_Update (&ctx, id, 40);
+        SHA1_Update (&ctx, name, name_len);
+        SHA1_Update (&ctx, &mode, sizeof(mode));
+    }
+
+    SHA1_Final (sha1, &ctx);
+    rawdata_to_hex (sha1, check_id, 20);
+
+    if (strcmp (check_id, dir_id) == 0)
+        return TRUE;
+    else
+        return FALSE;
+}
+                                        
+gboolean
+seaf_fs_manager_verify_seafdir (SeafFSManager *mgr,
+                                const char *dir_id,
+                                gboolean *io_error)
+{
+    void *data;
+    int len;
+
+    if (memcmp (dir_id, EMPTY_SHA1, 40) == 0) {
+        return TRUE;
+    }
+
+    if (seaf_obj_store_read_obj (mgr->obj_store, dir_id, &data, &len) < 0) {
+        g_warning ("[fs mgr] Failed to read dir %s.\n", dir_id);
+        *io_error = TRUE;
+        return FALSE;
+    }
+
+    gboolean ret = verify_seafdir (dir_id, data, len);
+    g_free (data);
+
+    return ret;
+}
+
+gboolean
+verify_seafile (const char *id, const void *data, int len)
+{
+    const SeafileOndisk *ondisk = data;
+    SHA_CTX ctx;
+    uint8_t sha1[20];
+    char check_id[41];
+
+    if (len < sizeof(SeafileOndisk)) {
+        g_warning ("[fs mgr] Corrupt seafile object %s.\n", id);
+        return FALSE;
+    }
+
+    if (ntohl(ondisk->type) != SEAF_METADATA_TYPE_FILE) {
+        g_warning ("[fd mgr] %s is not a file.\n", id);
+        return FALSE;
+    }
+
+    SHA1_Init (&ctx);
+    SHA1_Update (&ctx, ondisk->block_ids, len - sizeof(SeafileOndisk));
+    SHA1_Final (sha1, &ctx);
+
+    rawdata_to_hex (sha1, check_id, 20);
+
+    if (strcmp (check_id, id) == 0)
+        return TRUE;
+    else
+        return FALSE;
+}
+
+gboolean
+seaf_fs_manager_verify_seafile (SeafFSManager *mgr,
+                                const char *file_id,
+                                gboolean *io_error)
+{
+    void *data;
+    int len;
+
+    if (memcmp (file_id, EMPTY_SHA1, 40) == 0) {
+        return TRUE;
+    }
+
+    if (seaf_obj_store_read_obj (mgr->obj_store, file_id, &data, &len) < 0) {
+        g_warning ("[fs mgr] Failed to read file %s.\n", file_id);
+        *io_error = TRUE;
+        return FALSE;
+    }
+
+    gboolean ret = verify_seafile (file_id, data, len);
+    g_free (data);
+
+    return ret;
+}
+
+gboolean
+seaf_fs_manager_verify_object (SeafFSManager *mgr,
+                               const char *obj_id,
+                               gboolean *io_error)
+{
+    void *data;
+    int len;
+    gboolean ret = TRUE;
+
+    if (memcmp (obj_id, EMPTY_SHA1, 40) == 0) {
+        return TRUE;
+    }
+
+    if (seaf_obj_store_read_obj (mgr->obj_store, obj_id, &data, &len) < 0) {
+        g_warning ("[fs mgr] Failed to read object %s.\n", obj_id);
+        *io_error = TRUE;
+        return FALSE;
+    }
+
+    int type = seaf_metadata_type_from_data (data, len);
+    switch (type) {
+    case SEAF_METADATA_TYPE_FILE:
+        ret = verify_seafile (obj_id, data, len);
+        break;
+    case SEAF_METADATA_TYPE_DIR:
+        ret = verify_seafdir (obj_id, data, len);
+        break;
+    default:
+        seaf_warning ("Invalid meta data type: %d.\n", type);
+        return FALSE;
+    }
+
+    g_free (data);
+    return ret;
+}

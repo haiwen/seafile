@@ -2,6 +2,7 @@
 #define OBJ_BACKEND_H
 
 #include <glib.h>
+#include "obj-store.h"
 
 typedef struct ObjBackend ObjBackend;
 
@@ -22,6 +23,10 @@ struct ObjBackend {
 
     void        (*delete) (ObjBackend *bend,
                            const char *obj_id);
+
+    int         (*foreach_obj) (ObjBackend *bend,
+                               SeafObjFunc process,
+                               void *user_data);
 
     void *priv;
 };

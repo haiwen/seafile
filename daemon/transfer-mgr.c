@@ -1401,6 +1401,7 @@ start_block_download (TransferTask *task)
 {
     if (seaf_transfer_task_load_blocklist (task) < 0) {
         transition_state_to_error (task, TASK_ERR_LOAD_BLOCK_LIST);
+        return;
     }
 
     if (task->protocol_version <= 3) {
@@ -1908,9 +1909,11 @@ start_block_upload (TransferTask *task)
 {
     if (seaf_transfer_task_load_blocklist (task) < 0) {
         transition_state_to_error (task, TASK_ERR_LOAD_BLOCK_LIST);
+        return;
     } else if (task->block_list->n_valid_blocks != task->block_list->n_blocks) {
         seaf_warning ("Some blocks are missing locally, stop upload.\n");
-        transition_state_to_error (task, TASK_ERR_LOAD_BLOCK_LIST);
+        transition_state_to_error (task, TASK_ERR_LOAD_BLOCK_LIST); 
+       return;
     }
 
     if (task->protocol_version <= 3) {

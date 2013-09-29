@@ -239,4 +239,21 @@ seaf_fs_manager_get_seafdir_id_by_path (SeafFSManager *mgr,
                                         const char *path,
                                         GError **error);
 
+/* Check object integrity. */
+
+gboolean
+seaf_fs_manager_verify_seafdir (SeafFSManager *mgr,
+                                const char *dir_id,
+                                gboolean *io_error);
+
+gboolean
+seaf_fs_manager_verify_seafile (SeafFSManager *mgr,
+                                const char *file_id,
+                                gboolean *io_error);
+
+gboolean
+seaf_fs_manager_verify_object (SeafFSManager *mgr,
+                               const char *obj_id,
+                               gboolean *io_error);
+
 #endif

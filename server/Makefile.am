@@ -69,8 +69,6 @@ seaf_server_SOURCES = \
 	../common/seaf-utils.c \
 	../common/obj-store.c \
 	../common/obj-backend-fs.c \
-	../common/obj-backend-riak.c \
-	../common/riak-http-client.c \
 	../common/seafile-crypt.c \
 	../common/unpack-trees.c \
 	../common/seaf-tree-walk.c \
@@ -79,7 +77,6 @@ seaf_server_SOURCES = \
 	../common/block-mgr.c \
 	../common/block-backend.c \
 	../common/block-backend-fs.c \
-	../common/block-backend-ceph.c \
 	../common/merge-new.c \
 	block-tx-server.c \
 	../common/block-tx-utils.c \

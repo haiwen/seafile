@@ -269,6 +269,54 @@ obj_backend_fs_delete (ObjBackend *bend,
     g_unlink (path);
 }
 
+static int
+obj_backend_fs_foreach_obj (ObjBackend *bend,
+                            SeafObjFunc process,
+                            void *user_data)
+{
+    FsPriv *priv = bend->priv;
+    char *obj_dir = priv->obj_dir;
+    int dir_len = priv->dir_len;
+    GDir *dir1, *dir2;
+    const char *dname1, *dname2;
+    char obj_id[128];
+    char path[SEAF_PATH_MAX], *pos;
+    int ret = 0;
+
+    dir1 = g_dir_open (obj_dir, 0, NULL);
+    if (!dir1) {
+        g_warning ("Failed to open object dir %s.\n", obj_dir);
+        return -1;
+    }
+
+    memcpy (path, obj_dir, dir_len);
+    pos = path + dir_len;
+
+    while ((dname1 = g_dir_read_name(dir1)) != NULL) {
+        snprintf (pos, sizeof(path) - dir_len, "/%s", dname1);
+
+        dir2 = g_dir_open (path, 0, NULL);
+        if (!dir2) {
+            g_warning ("Failed to open object dir %s.\n", path);
+            continue;
+        }
+
+        while ((dname2 = g_dir_read_name(dir2)) != NULL) {
+            snprintf (obj_id, sizeof(obj_id), "%s%s", dname1, dname2);
+            if (!process (obj_id, user_data)) {
+                g_dir_close (dir2);
+                goto out;
+            }
+        }
+        g_dir_close (dir2);
+    }
+
+out:
+    g_dir_close (dir1);
+
+    return ret;
+}
+
 static void
 init_obj_dir (ObjBackend *bend)
 {
@@ -316,6 +364,7 @@ obj_backend_fs_new (const char *obj_dir)
     bend->write = obj_backend_fs_write;
     bend->exists = obj_backend_fs_exists;
     bend->delete = obj_backend_fs_delete;
+    bend->foreach_obj = obj_backend_fs_foreach_obj;
 
     return bend;
 

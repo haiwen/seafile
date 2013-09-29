@@ -52,15 +52,6 @@ typedef struct SeafObjStore SeafObjStore;
 #ifdef SEAFILE_SERVER
 static ObjBackend*
 load_obj_backend (GKeyFile *config, const char *obj_type);
-
-static ObjBackend*
-load_riak_obj_backend(GKeyFile *config, const char *bend_group);
-
-extern ObjBackend *
-obj_backend_riak_new (const char *host,
-                      const char *port,
-                      const char *bucket,
-                      const char *write_policy);
 #endif
 
 static void
@@ -219,6 +210,16 @@ seaf_obj_store_delete_obj (struct SeafObjStore *obj_store,
     return bend->delete (bend, obj_id);
 }
 
+int
+seaf_obj_store_foreach_obj (struct SeafObjStore *obj_store,
+                            SeafObjFunc process,
+                            void *user_data)
+{
+    ObjBackend *bend = obj_store->bend;
+
+    return bend->foreach_obj (bend, process, user_data);
+}
+
 #ifdef SEAFILE_SERVER
 static ObjBackend*
 load_filesystem_obj_backend(GKeyFile *config, const char *bend_group)
@@ -239,6 +240,7 @@ load_filesystem_obj_backend(GKeyFile *config, const char *bend_group)
     return bend;
 }
 
+#if 0
 static ObjBackend*
 load_riak_obj_backend(GKeyFile *config, const char *bend_group)
 {
@@ -281,6 +283,7 @@ load_riak_obj_backend(GKeyFile *config, const char *bend_group)
     g_free (write_policy);
     return bend;
 }
+#endif
 
 static ObjBackend*
 load_obj_backend (GKeyFile *config, const char *obj_type)
@@ -305,11 +308,14 @@ load_obj_backend (GKeyFile *config, const char *obj_type)
         bend = load_filesystem_obj_backend (config, bend_group);
         g_free (backend);
         return bend;
-    } else if (strcmp (backend, "riak") == 0) {
+    } 
+#if 0
+    else if (strcmp (backend, "riak") == 0) {
         bend = load_riak_obj_backend (config, bend_group);
         g_free (backend);
         return bend;
     }
+#endif
 
     g_warning ("Unknown backend\n");
     return NULL;

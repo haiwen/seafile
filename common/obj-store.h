@@ -39,6 +39,13 @@ void
 seaf_obj_store_delete_obj (struct SeafObjStore *obj_store,
                            const char *obj_id);
 
+typedef gboolean (*SeafObjFunc) (const char *obj_id, void *user_data);
+
+int
+seaf_obj_store_foreach_obj (struct SeafObjStore *obj_store,
+                            SeafObjFunc process,
+                            void *user_data);
+
 /* Asynchronous I/O interface. */
 
 typedef struct OSAsyncResult {
