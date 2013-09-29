@@ -65,7 +65,7 @@ struct _BlockTxClient {
     /* Used by get block */
     BlockHandle *block;
 
-    unsigned char key[ENC_BLOCK_SIZE];
+    unsigned char key[ENC_KEY_SIZE];
     unsigned char iv[ENC_BLOCK_SIZE];
 
     FrameParser parser;
@@ -203,7 +203,7 @@ init_frame_parser (BlockTxClient *client)
 {
     FrameParser *parser = &client->parser;
 
-    memcpy (parser->key, client->key, ENC_BLOCK_SIZE);
+    memcpy (parser->key, client->key, ENC_KEY_SIZE);
     memcpy (parser->iv, client->iv, ENC_BLOCK_SIZE);
 
     parser->cbarg = client;
