@@ -260,7 +260,8 @@ seaf_transfer_task_free (TransferTask *task)
     if (task->protocol_version >= 4) {
         g_list_foreach (task->chunk_servers, free_chunk_server, NULL);
         g_list_free (task->chunk_servers);
-        block_list_free (task->block_list);
+        if (task->block_list)
+            block_list_free (task->block_list);
     }
 
     g_free (task);
