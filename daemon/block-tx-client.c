@@ -65,12 +65,17 @@ struct _BlockTxClient {
     /* Used by get block */
     BlockHandle *block;
 
-    unsigned char key[ENC_KEY_SIZE];
+    unsigned char key[ENC_BLOCK_SIZE];
     unsigned char iv[ENC_BLOCK_SIZE];
+
+    unsigned char key_v2[ENC_KEY_SIZE];
+    unsigned char iv_v2[ENC_BLOCK_SIZE];
 
     FrameParser parser;
 
     gboolean break_loop;
+
+    int version;
 };
 
 typedef struct _BlockTxClient BlockTxClient;
@@ -203,9 +208,15 @@ init_frame_parser (BlockTxClient *client)
 {
     FrameParser *parser = &client->parser;
 
-    memcpy (parser->key, client->key, ENC_KEY_SIZE);
-    memcpy (parser->iv, client->iv, ENC_BLOCK_SIZE);
+    if (client->version == 1) {
+        memcpy (parser->key, client->key, ENC_BLOCK_SIZE);
+        memcpy (parser->iv, client->iv, ENC_BLOCK_SIZE);
+    } else if (client->version == 2) {
+        memcpy (parser->key_v2, client->key_v2, ENC_KEY_SIZE);
+        memcpy (parser->iv_v2, client->iv_v2, ENC_BLOCK_SIZE);
+    }
 
+    parser->version = client->version;
     parser->cbarg = client;
 }
 
@@ -230,8 +241,21 @@ handle_handshake_response (BlockTxClient *client)
     if (rsp.status == STATUS_OK) {
         seaf_debug ("Handshake OK.\n");
 
-        blocktx_generate_encrypt_key (info->session_key, sizeof(info->session_key),
-                                      client->key, client->iv);
+        client->version = MIN (rsp.version, BLOCK_PROTOCOL_VERSION);
+
+        if (client->version == 1)
+            blocktx_generate_encrypt_key (info->session_key, sizeof(info->session_key),
+                                          client->key, client->iv);
+        else if (client->version == 2)
+            blocktx_generate_encrypt_key (info->session_key, sizeof(info->session_key),
+                                          client->key_v2, client->iv_v2);
+        else {
+            seaf_warning ("Bad block protocol version %d.\n", rsp.version);
+            info->result = BLOCK_CLIENT_FAILED;
+            return -1;
+        }
+
+        seaf_debug ("Block protocol version %d.\n", client->version);
 
         init_frame_parser (client);
 
@@ -311,7 +335,10 @@ send_authentication (BlockTxClient *client)
     EVP_CIPHER_CTX ctx;
     int ret = 0;
 
-    blocktx_encrypt_init (&ctx, client->key, client->iv);
+    if (client->version == 1)
+        blocktx_encrypt_init (&ctx, client->key, client->iv);
+    else if (client->version == 2)
+        blocktx_encrypt_init (&ctx, client->key_v2, client->iv_v2);
 
     seaf_debug ("session token length is %d.\n", strlen(task->session_token));
 
@@ -362,7 +389,10 @@ send_block_header (BlockTxClient *client, int command)
     header.command = htonl (command);
     memcpy (header.block_id, client->curr_block_id, 40);
 
-    blocktx_encrypt_init (&ctx, client->key, client->iv);
+    if (client->version == 1)
+        blocktx_encrypt_init (&ctx, client->key, client->iv);
+    else if (client->version == 2)
+        blocktx_encrypt_init (&ctx, client->key_v2, client->iv_v2);
 
     if (send_encrypted_data_frame_begin (client->data_fd, sizeof(header)) < 0) {
         seaf_warning ("Send block header %s: failed to begin.\n",
@@ -494,7 +524,10 @@ send_encrypted_block (BlockTxClient *client,
     size = md->size;
     g_free (md);
 
-    blocktx_encrypt_init (&ctx, client->key, client->iv);
+    if (client->version == 1)
+        blocktx_encrypt_init (&ctx, client->key, client->iv);
+    else if (client->version == 2)
+        blocktx_encrypt_init (&ctx, client->key_v2, client->iv_v2);
 
     if (send_encrypted_data_frame_begin (client->data_fd, size) < 0) {
         seaf_warning ("Send block %s: failed to begin.\n", block_id);

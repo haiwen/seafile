@@ -148,7 +148,10 @@ handle_frame_content (struct evbuffer *buf, FrameParser *parser)
     if (evbuffer_get_length (input) < parser->enc_frame_len)
         return 0;
 
-    blocktx_decrypt_init (&ctx, parser->key, parser->iv);
+    if (parser->version == 1)
+        blocktx_decrypt_init (&ctx, parser->key, parser->iv);
+    else if (parser->version == 2)
+        blocktx_decrypt_init (&ctx, parser->key_v2, parser->iv_v2);
 
     frame = g_malloc (parser->enc_frame_len);
     out = g_malloc (parser->enc_frame_len + ENC_BLOCK_SIZE);
@@ -277,7 +280,10 @@ handle_frame_fragments (struct evbuffer *buf, FrameParser *parser)
         parser->enc_frame_len = ntohl (frame_len);
         parser->remain = parser->enc_frame_len;
 
-        blocktx_decrypt_init (&parser->ctx, parser->key, parser->iv);
+        if (parser->version == 1)
+            blocktx_decrypt_init (&parser->ctx, parser->key, parser->iv);
+        else if (parser->version == 2)
+            blocktx_decrypt_init (&parser->ctx, parser->key_v2, parser->iv_v2);
         parser->enc_init = TRUE;
 
         if (evbuffer_get_length (input) > 0)
