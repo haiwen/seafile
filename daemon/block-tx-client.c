@@ -687,6 +687,7 @@ transfer_next_block (BlockTxClient *client)
 
     if (g_queue_get_length (task->block_ids) == 0) {
         seaf_debug ("Transfer blocks done.\n");
+        client->info->result = BLOCK_CLIENT_SUCCESS;
         client->break_loop = TRUE;
         return 0;
     }

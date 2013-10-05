@@ -1131,6 +1131,7 @@ block_tx_client_done_cb (BlockTxInfo *info)
         }
         break;
     case BLOCK_CLIENT_FAILED:
+    case BLOCK_CLIENT_UNKNOWN:
         if (info->task->type == TASK_TYPE_UPLOAD)
             transition_state_to_error (info->task, TASK_ERR_UPLOAD_BLOCKS);
         else
@@ -1143,7 +1144,7 @@ block_tx_client_done_cb (BlockTxInfo *info)
     case BLOCK_CLIENT_SERVER_ERROR:
         /* Retry. */
         if (++info->n_failure < 3) {
-            info->result = BLOCK_CLIENT_SUCCESS;
+            info->result = BLOCK_CLIENT_UNKNOWN;
             if (block_tx_client_start (info, block_tx_client_done_cb) < 0) {
                 seaf_warning ("Failed to start block tx client.\n");
                 transition_state_to_error (info->task, TASK_ERR_START_BLOCK_CLIENT);
