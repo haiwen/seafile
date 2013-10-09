@@ -1173,6 +1173,166 @@ error:
 }
 
 static void
+update_blks_ajax_cb(evhtp_request_t *req, void *arg)
+{
+    RecvFSM *fsm = arg;
+    SearpcClient *rpc_client = NULL;
+    char *target_file, *parent_dir = NULL, *filename = NULL, *size_str = NULL;
+    const char *head_id = NULL;
+    GError *error = NULL;
+    int error_code = ERROR_INTERNAL;
+    char *new_file_id = NULL;
+    char *blockids_json, *tmp_files_json;
+    gint64 file_size = -1;
+
+    evhtp_headers_add_header (req->headers_out,
+                              evhtp_header_new("Access-Control-Allow-Headers",
+                                               "x-requested-with, content-type, accept, origin, authorization", 1, 1));
+    evhtp_headers_add_header (req->headers_out,
+                              evhtp_header_new("Access-Control-Allow-Methods",
+                                               "GET, POST, PUT, PATCH, DELETE, OPTIONS", 1, 1));
+    evhtp_headers_add_header (req->headers_out,
+                              evhtp_header_new("Access-Control-Allow-Origin",
+                                               "*", 1, 1));
+    evhtp_headers_add_header (req->headers_out,
+                              evhtp_header_new("Access-Control-Max-Age",
+                                               "86400", 1, 1));
+
+    evhtp_headers_add_header (req->headers_out,
+                              evhtp_header_new("Content-Type",
+                                               "text/html; charset=utf-8", 1, 1));
+
+    if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
+        /* If CORS preflight header, then create an empty body response (200 OK)
+         * and return it.
+         */
+         set_content_length_header (req);
+         evhtp_send_reply (req, EVHTP_RES_OK);
+         return;
+    }
+    
+    if (!fsm || fsm->state == RECV_ERROR)
+        return;
+    target_file = g_hash_table_lookup (fsm->form_kvs, "target_file");
+    size_str = g_hash_table_lookup (fsm->form_kvs, "file_size");
+    if (size_str)  file_size = atoll(size_str);
+    if (!target_file || !size_str || file_size < 0) {
+        seaf_warning ("[Update-blks] No target file given.\n");
+        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
+        set_content_length_header (req);
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
+
+    parent_dir = g_path_get_dirname (target_file);
+    filename = g_path_get_basename (target_file);
+
+    if (!check_tmp_file_list (fsm->files, &error_code))
+        goto error;
+
+    head_id = evhtp_kv_find (req->uri->query, "head");
+
+    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                                 NULL,
+                                                 "seafserv-threaded-rpcserver");
+
+    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
+        seaf_warning ("[update-blks] Out of quota.\n");
+        error_code = ERROR_QUOTA;
+        goto error;
+    }
+
+    blockids_json = file_list_to_json (fsm->filenames);
+    tmp_files_json = file_list_to_json (fsm->files);
+    new_file_id = seafile_put_file_blocks (rpc_client,
+                                           fsm->repo_id,
+                                           parent_dir,
+                                           filename,
+                                           blockids_json,
+                                           tmp_files_json,
+                                           fsm->user,
+                                           head_id,
+                                           file_size,
+                                           &error);
+    g_free (blockids_json);
+    g_free (tmp_files_json);
+    g_free (parent_dir);
+    g_free (filename);
+
+    if (error) {
+        if (g_strcmp0 (error->message, "file does not exist") == 0) {
+            error_code = ERROR_NOT_EXIST;
+        }
+        if (error->message)
+            seaf_warning ("%s\n", error->message);
+        g_clear_error (&error);
+        goto error;
+    }
+
+    ccnet_rpc_client_free (rpc_client);
+
+    GString *res_buf = g_string_new (NULL);
+    GList *ptr;
+
+    g_string_append (res_buf, "[");
+    for (ptr = fsm->filenames; ptr; ptr = ptr->next) {
+        char *filename = ptr->data;
+        if (ptr->next)
+            g_string_append_printf (res_buf, "{\"name\": \"%s\"}, ", filename);
+        else
+            g_string_append_printf (res_buf, "{\"name\": \"%s\"}", filename);
+    }
+    g_string_append (res_buf, "]");
+
+    evbuffer_add (req->buffer_out, res_buf->str, res_buf->len);
+    g_string_free (res_buf, TRUE);
+    
+    set_content_length_header (req);
+    evhtp_send_reply (req, EVHTP_RES_OK);
+
+    g_free (new_file_id);
+    return;
+
+error:
+    if (rpc_client)
+        ccnet_rpc_client_free (rpc_client);
+
+    switch (error_code) {
+    case ERROR_FILENAME:
+        evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
+        set_content_length_header (req);
+        evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
+        break;
+    case ERROR_EXISTS:
+        evbuffer_add_printf(req->buffer_out, "File already exists.\n");
+        set_content_length_header (req);
+        evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
+        break;
+    case ERROR_SIZE:
+        evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
+        set_content_length_header (req);
+        evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
+        break;
+    case ERROR_QUOTA:
+        evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
+        set_content_length_header (req);
+        evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
+        break;
+    case ERROR_NOT_EXIST:
+        evbuffer_add_printf(req->buffer_out, "File does not exist.\n");
+        set_content_length_header (req);
+        evhtp_send_reply (req, SEAF_HTTP_RES_NOT_EXISTS);
+        break;
+    case ERROR_RECV:
+    case ERROR_INTERNAL:
+    default:
+        set_content_length_header (req);
+        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        break;
+    }
+}
+
+static void
 update_ajax_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
@@ -2000,6 +2160,9 @@ upload_file_init (evhtp_t *htp)
     evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
     cb = evhtp_set_regex_cb (htp, "^/update-blks-api/.*", update_blks_api_cb, NULL);
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
+
+    cb = evhtp_set_regex_cb (htp, "^/update-blks-aj/.*", update_blks_ajax_cb, NULL);
     evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
     cb = evhtp_set_regex_cb (htp, "^/update-aj/.*", update_ajax_cb, NULL);
