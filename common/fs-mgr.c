@@ -594,6 +594,7 @@ static void compute_dir_id (SeafDir *dir, GList *entries)
     GList *p;
     uint8_t sha1[20];
     SeafDirent *dent;
+    guint32 mode_le;
 
     /* ID for empty dirs is EMPTY_SHA1. */
     if (entries == NULL) {
@@ -606,7 +607,12 @@ static void compute_dir_id (SeafDir *dir, GList *entries)
         dent = (SeafDirent *)p->data;
         SHA1_Update (&ctx, dent->id, 40);
         SHA1_Update (&ctx, dent->name, dent->name_len);
-        SHA1_Update (&ctx, &dent->mode, sizeof(dent->mode));
+        /* Convert mode to little endian before compute. */
+        if (G_BYTE_ORDER == G_BIG_ENDIAN)
+            mode_le = GUINT32_SWAP_LE_BE (dent->mode);
+        else
+            mode_le = dent->mode;
+        SHA1_Update (&ctx, &mode_le, sizeof(mode_le));
     }
     SHA1_Final (sha1, &ctx);
 
@@ -1432,6 +1438,10 @@ verify_seafdir (const char *dir_id, const uint8_t *data, int len)
             g_warning ("Bad data format for dir objcet %s.\n", dir_id);
             return FALSE;
         }
+
+        /* Convert mode to little endian before compute. */
+        if (G_BYTE_ORDER == G_BIG_ENDIAN)
+            mode = GUINT32_SWAP_LE_BE (mode);
 
         SHA1_Update (&ctx, id, 40);
         SHA1_Update (&ctx, name, name_len);
