@@ -22,7 +22,7 @@
 
 #define CHECK_INTERVAL 100      /* 100ms */
 #define MAX_NUM_BATCH  64
-#define MAX_NUM_UNREVD     256
+#define MAX_NUM_PROCESSED 1000
 
 enum {
     REQUEST_SENT,
@@ -114,37 +114,57 @@ request_object_batch (CcnetProcessor *processor,
                       SeafileGetfsProcPriv *priv,
                       const char *id)
 {
-    if (g_hash_table_lookup(priv->fs_objects, id))
-        return;
-
     memcpy (priv->bufptr, id, 40);
     priv->bufptr += 40;
     *priv->bufptr = '\n';
     priv->bufptr++;
 
-    g_hash_table_insert (priv->fs_objects, g_strdup(id), (gpointer)1);
     if (++priv->n_batch == MAX_NUM_BATCH)
         request_object_batch_flush (processor, priv);
     ++priv->pending_objects;
 }
 
 static void
-check_seafdir (CcnetProcessor *processor, SeafDir *dir)
+check_seafdir (CcnetProcessor *processor, SeafDir *dir, int *processed_objects)
 {
+    SeafileGetfsProc *proc = (SeafileGetfsProc *)processor;
     USE_PRIV;
     GList *ptr;
     SeafDirent *dent;
 
     for (ptr = dir->entries; ptr; ptr = ptr->next) {
         dent = ptr->data;
+
+        /* Don't check objects that have been checked before. */
+        if (priv->fs_objects && g_hash_table_lookup (priv->fs_objects, dent->id))
+            continue;
+
+        if (priv->fs_objects)
+            g_hash_table_insert (priv->fs_objects, g_strdup(dent->id), (gpointer)1);
+
         if (!seaf_fs_manager_object_exists(seaf->fs_mgr, dent->id)) {
             request_object_batch (processor, priv, dent->id);
             continue;
         }
+
         if (S_ISDIR(dent->mode)) {
             g_queue_push_tail (priv->inspect_queue, g_strdup(dent->id));
+        } else if (S_ISREG (dent->mode) && proc->tx_task->is_clone) {
+            /* Only check seafile object integrity when clone.
+             * This is for the purpose of recovery.
+             * In ordinary sync, checking every file object's integrity would
+             * take too much CPU time.
+             */
+            gboolean ok;
+            gboolean err = FALSE;
+            ok = seaf_fs_manager_verify_seafile (seaf->fs_mgr, dent->id, &err);
+            if (!ok && !err) {
+                seaf_warning ("File object %.8s is corrupt, recover from server.\n",
+                              dent->id);
+                request_object_batch (processor, priv, dent->id);
+            }
+            ++(*processed_objects);
         }
-        /* TODO: check seafile object integrity. */
     }
 }
 
@@ -155,13 +175,19 @@ check_object (CcnetProcessor *processor)
     char *obj_id;
     SeafDir *dir;
     static int i = 0;
+    /* Number of objects whose *content* are checked. */
+    int processed_objects = 0;
 
     request_object_batch_begin(priv);
 
     /* process inspect queue */
-    /* Note: All files in a directory must be checked in an iteration,
-     * so we may send out more items than REQUEST_THRESHOLD */
-    while (g_hash_table_size (priv->fs_objects) < MAX_NUM_UNREVD) {
+    /* Limit the number of objects whose content are checked, but not the
+     * number of object requests sent. We usually don't have a large number of
+     * requests since sub-dir objects can't be checked until they're returned
+     * from the server. But we do have a large number of objects to scanned
+     * locally if the library is large.
+     */
+    while (processed_objects < MAX_NUM_PROCESSED) {
         obj_id = (char *) g_queue_pop_head (priv->inspect_queue);
         if (obj_id == NULL)
             break;
@@ -173,9 +199,10 @@ check_object (CcnetProcessor *processor)
                 /* corrupt dir object */
                 request_object_batch (processor, priv, obj_id);
             } else {
-                check_seafdir(processor, dir);
+                check_seafdir(processor, dir, &processed_objects);
                 seaf_dir_free (dir);
             }
+            ++processed_objects;
         }
         g_free (obj_id);        /* free the memory */
     }
