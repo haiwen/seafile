@@ -1,11 +1,24 @@
 #!/bin/sh
+#
+# This shell script and spondcorresponding sqlite2mysql.py are used to
+# migrate Seafile data from SQLite to MySQL.
+#
+# Setup:
+# 
+#  1. Move this file and sqlite2mysql.py to the top directory of your Seafile
+#     installation path (e.g. /data/haiwen).
+#  2. Run: ./sqlite2mysql.sh
+#  3. Three files(ccnet-db.sql, seafile-db.sql, seahub-db.sql) is created.
+#  4. Loads these files to MySQL
+#     (mysql> source ccnet-db.sql)
+# 
 
 CCNET_DB='ccnet-db.sql'
 SEAFILE_DB='seafile-db.sql'
 SEAHUB_DB='seahub-db.sql'
 
 ########## ccnet
-read -p "Please provide your Seafile install path(e.g. /data/haiwen): " seafile_path
+seafile_path=$(pwd)
 if [ -f "${seafile_path}/ccnet/ccnet.conf" ]; then
     USER_MGR_DB=${seafile_path}/ccnet/PeerMgr/usermgr.db
     GRP_MGR_DB=${seafile_path}/ccnet/GroupMgr/groupmgr.db
