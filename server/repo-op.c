@@ -70,6 +70,64 @@ dup_seafdir_entries (const GList *entries)
     return g_list_reverse(newentries);
 }
 
+static gboolean
+filename_exists (GList *entries, const char *filename)
+{
+    GList *ptr;
+    SeafDirent *dent;
+
+    for (ptr = entries; ptr != NULL; ptr = ptr->next) {
+        dent = ptr->data;
+        if (strcmp (dent->name, filename) == 0)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
+static void
+split_filename (const char *filename, char **name, char **ext)
+{
+    char *dot;
+
+    dot = strrchr (filename, '.');
+    if (dot) {
+        *ext = g_strdup (dot + 1);
+        *name = g_strndup (filename, dot - filename);
+    } else {
+        *name = g_strdup (filename);
+        *ext = NULL;
+    }
+}
+
+static char *
+generate_unique_filename (const char *file, GList *entries)
+{
+    int i = 1;
+    char *name, *ext, *unique_name;
+
+    unique_name = g_strdup(file);
+    split_filename (unique_name, &name, &ext);
+    while (filename_exists (entries, unique_name) && i <= 16) {
+        g_free (unique_name);
+        if (ext)
+            unique_name = g_strdup_printf ("%s (%d).%s", name, i, ext);
+        else
+            unique_name = g_strdup_printf ("%s (%d)", name, i);
+        i++;
+    }
+
+    g_free (name);
+    g_free (ext);
+
+    if (i <= 16)
+        return unique_name;
+    else {
+        g_free (unique_name);
+        return NULL;
+    }
+}
+
 /* We need to call this function recursively because every dirs in canon_path
  * need to be updated.
  */
@@ -93,11 +151,19 @@ post_file_recursive (const char *dir_id,
     /* we reach the target dir.  new dir entry is added */
     if (*to_path == '\0') {
         GList *newentries;
+        char *unique_name;
+        SeafDirent *dent_dup;
+
+        unique_name = generate_unique_filename (newdent->name, olddir->entries);
+        if (!unique_name)
+            goto out;
+        dent_dup = seaf_dirent_new (newdent->id, newdent->mode, unique_name);
+        g_free (unique_name);
 
         newentries = dup_seafdir_entries (olddir->entries);
 
         newentries = g_list_insert_sorted (newentries,
-                                           dup_seaf_dirent(newdent),
+                                           dent_dup,
                                            compare_dirents);
 
         newdir = seaf_dir_new (NULL, newentries, 0);
@@ -497,8 +563,6 @@ seaf_repo_manager_post_file (SeafRepoManager *mgr,
         goto out;
     }
     
-    FAIL_IF_FILE_EXISTS(head_commit->root_id, canon_path, file_name, NULL);
-
     /* Write blocks. */
     if (repo->encrypted) {
         unsigned char key[32], iv[16];
@@ -561,36 +625,6 @@ out:
     return ret;
 }
 
-static gboolean
-filename_exists (GList *entries, const char *filename)
-{
-    GList *ptr;
-    SeafDirent *dent;
-
-    for (ptr = entries; ptr != NULL; ptr = ptr->next) {
-        dent = ptr->data;
-        if (strcmp (dent->name, filename) == 0)
-            return TRUE;
-    }
-
-    return FALSE;
-}
-
-static void
-split_filename (const char *filename, char **name, char **ext)
-{
-    char *dot;
-
-    dot = strrchr (filename, '.');
-    if (dot) {
-        *ext = g_strdup (dot + 1);
-        *name = g_strndup (filename, dot - filename);
-    } else {
-        *name = g_strdup (filename);
-        *ext = NULL;
-    }
-}
-
 static int
 add_new_entries (GList **entries, GList *filenames, GList *id_list)
 {
@@ -604,32 +638,17 @@ add_new_entries (GList **entries, GList *filenames, GList *id_list)
         file = ptr1->data;
         id = ptr2->data;
 
-        int i = 1;
-        char *name, *ext, *unique_name;
+        char *unique_name;
         SeafDirent *newdent;
 
-        unique_name = g_strdup(file);
-        split_filename (unique_name, &name, &ext);
-        while (filename_exists (*entries, unique_name) && i <= 16) {
-            g_free (unique_name);
-            if (ext)
-                unique_name = g_strdup_printf ("%s (%d).%s", name, i, ext);
-            else
-                unique_name = g_strdup_printf ("%s (%d)", name, i);
-            i++;
-        }
-
-        if (i <= 16) {
+        unique_name = generate_unique_filename (file, *entries);
+        if (unique_name != NULL) {
             newdent = seaf_dirent_new (id, S_IFREG, unique_name);
             *entries = g_list_insert_sorted (*entries, newdent, compare_dirents);
-        }
-
-        g_free (name);
-        g_free (ext);
-        g_free (unique_name);
-
-        if (i > 16)
+            g_free (unique_name);
+        } else {
             return -1;
+        }
     }
 
     return 0;
@@ -965,8 +984,6 @@ seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
         ret = -1;
         goto out;
     }
-
-    FAIL_IF_FILE_EXISTS(head_commit->root_id, canon_path, file_name, NULL);
 
     /* Write blocks. */
     if (seaf_fs_manager_index_file_blocks (seaf->fs_mgr, paths,
