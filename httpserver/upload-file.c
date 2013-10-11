@@ -304,13 +304,13 @@ upload_cb(evhtp_request_t *req, void *arg)
     filenames_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
 
-    seafile_post_multi_files (rpc_client,
-                              fsm->repo_id,
-                              parent_dir,
-                              filenames_json,
-                              tmp_files_json,
-                              fsm->user,
-                              &error);
+    char *new_file_ids = seafile_post_multi_files (rpc_client,
+                                                   fsm->repo_id,
+                                                   parent_dir,
+                                                   filenames_json,
+                                                   tmp_files_json,
+                                                   fsm->user,
+                                                   &error);
     g_free (filenames_json);
     g_free (tmp_files_json);
     if (error) {
@@ -322,6 +322,7 @@ upload_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
+    g_free (new_file_ids);
     ccnet_rpc_client_free (rpc_client);
 
     /* Redirect to repo dir page after upload finishes. */
@@ -646,23 +647,8 @@ upload_blks_ajax_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
+    g_free (new_file_ids);
     ccnet_rpc_client_free (rpc_client);
-
-    GString *res_buf = g_string_new (NULL);
-    GList *ptr;
-
-    g_string_append (res_buf, "[");
-    for (ptr = fsm->filenames; ptr; ptr = ptr->next) {
-        char *filename = ptr->data;
-        if (ptr->next)
-            g_string_append_printf (res_buf, "{\"name\": \"%s\"}, ", filename);
-        else
-            g_string_append_printf (res_buf, "{\"name\": \"%s\"}", filename);
-    }
-    g_string_append (res_buf, "]");
-
-    evbuffer_add (req->buffer_out, res_buf->str, res_buf->len);
-    g_string_free (res_buf, TRUE);
 
     set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_OK);
@@ -781,13 +767,13 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     filenames_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
 
-    seafile_post_multi_files (rpc_client,
-                              fsm->repo_id,
-                              parent_dir,
-                              filenames_json,
-                              tmp_files_json,
-                              fsm->user,
-                              &error);
+    char *new_file_ids = seafile_post_multi_files (rpc_client,
+                                                   fsm->repo_id,
+                                                   parent_dir,
+                                                   filenames_json,
+                                                   tmp_files_json,
+                                                   fsm->user,
+                                                   &error);
     g_free (filenames_json);
     g_free (tmp_files_json);
     if (error) {
@@ -799,6 +785,7 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
+    g_free (new_file_ids);
     ccnet_rpc_client_free (rpc_client);
 
     GString *res_buf = g_string_new (NULL);
@@ -901,14 +888,14 @@ update_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    seafile_put_file (rpc_client,
-                      fsm->repo_id,
-                      (char *)(fsm->files->data),
-                      parent_dir,
-                      filename,
-                      fsm->user,
-                      head_id,
-                      &error);
+    char *new_file_id = seafile_put_file (rpc_client,
+                                      fsm->repo_id,
+                                      (char *)(fsm->files->data),
+                                      parent_dir,
+                                      filename,
+                                      fsm->user,
+                                      head_id,
+                                      &error);
     if (error) {
         if (g_strcmp0 (error->message, "file does not exist") == 0) {
             error_code = ERROR_NOT_EXIST;
@@ -919,6 +906,7 @@ update_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
+    g_free (new_file_id);
     ccnet_rpc_client_free (rpc_client);
 
     /* Redirect to repo dir page after upload finishes. */
@@ -1271,22 +1259,6 @@ update_blks_ajax_cb(evhtp_request_t *req, void *arg)
 
     ccnet_rpc_client_free (rpc_client);
 
-    GString *res_buf = g_string_new (NULL);
-    GList *ptr;
-
-    g_string_append (res_buf, "[");
-    for (ptr = fsm->filenames; ptr; ptr = ptr->next) {
-        char *filename = ptr->data;
-        if (ptr->next)
-            g_string_append_printf (res_buf, "{\"name\": \"%s\"}, ", filename);
-        else
-            g_string_append_printf (res_buf, "{\"name\": \"%s\"}", filename);
-    }
-    g_string_append (res_buf, "]");
-
-    evbuffer_add (req->buffer_out, res_buf->str, res_buf->len);
-    g_string_free (res_buf, TRUE);
-    
     set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_OK);
 
