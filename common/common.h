@@ -25,7 +25,7 @@
 #define CURRENT_ENC_VERSION 1
 
 #define DEFAULT_PROTO_VERSION 1
-#define CURRENT_PROTO_VERSION 4
+#define CURRENT_PROTO_VERSION 5
 
 /* For compatibility with the old protocol, use an UUID for signature.
  * Listen manager on the server will use the new block tx protocol if it

@@ -320,6 +320,16 @@ start (CcnetProcessor *processor, int argc, char **argv)
         return -1;
     }
 
+    int client_version = atoi(argv[1]);
+    if (client_version == 4) {
+        seaf_debug ("Client protocol version is 4, not supported.\n");
+        ccnet_processor_send_response (processor,
+                                       SC_PROTOCOL_MISMATCH, SS_PROTOCOL_MISMATCH,
+                                       NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+        return -1;
+    }
+
     repo_id = argv[2];
     branch_name = argv[3];
     token = argv[4];
