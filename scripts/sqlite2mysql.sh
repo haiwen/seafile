@@ -36,8 +36,8 @@ fi
 
 rm -rf ${CCNET_DB}
 
-echo "sqlite3 ${USER_MGR_DB} .dump | python sqlite2mysql.py >> ${CCNET_DB}"
-sqlite3 ${USER_MGR_DB} .dump | python sqlite2mysql.py >> ${CCNET_DB}
+echo "sqlite3 ${USER_MGR_DB} .dump | python sqlite2mysql.py > ${CCNET_DB}"
+sqlite3 ${USER_MGR_DB} .dump | python sqlite2mysql.py > ${CCNET_DB}
 echo "sqlite3 ${GRP_MGR_DB} .dump | python sqlite2mysql.py >> ${CCNET_DB}"
 sqlite3 ${GRP_MGR_DB} .dump | python sqlite2mysql.py >> ${CCNET_DB}
 
@@ -48,14 +48,14 @@ sed 's/ctime INTEGER/ctime BIGINT/g' ${CCNET_DB} > ${CCNET_DB}.tmp && mv ${CCNET
 rm -rf ${SEAFILE_DB}
 
 if [ -f "${seafile_path}/seafile-data/seafile.db" ]; then
-    echo "sqlite3 ${seafile_path}/seafile-data/seafile.db .dump | python sqlite2mysql.py >> ${SEAFILE_DB}"
-    sqlite3 ${seafile_path}/seafile-data/seafile.db .dump | python sqlite2mysql.py >> ${SEAFILE_DB}
+    echo "sqlite3 ${seafile_path}/seafile-data/seafile.db .dump | python sqlite2mysql.py > ${SEAFILE_DB}"
+    sqlite3 ${seafile_path}/seafile-data/seafile.db .dump | python sqlite2mysql.py > ${SEAFILE_DB}
 else
     echo "${seafile_path}/seafile-data/seafile.db does not exists."
     read -p "Please provide your seafile.db path(e.g. /data/haiwen/seafile-data/seafile.db): " seafile_db_path
     if [ -f ${seafile_db_path} ];then
-        echo "sqlite3 ${seafile_db_path} .dump | python sqlite2mysql.py >> ${SEAFILE_DB}"
-        sqlite3 ${seafile_db_path} .dump | python sqlite2mysql.py >> ${SEAFILE_DB}
+        echo "sqlite3 ${seafile_db_path} .dump | python sqlite2mysql.py > ${SEAFILE_DB}"
+        sqlite3 ${seafile_db_path} .dump | python sqlite2mysql.py > ${SEAFILE_DB}
     else
         echo "${seafile_db_path} does not exists, quit."
         exit 1
@@ -72,14 +72,14 @@ sed 's/user_name TEXT/user_name VARCHAR(255)/g' ${SEAFILE_DB} > ${SEAFILE_DB}.tm
 rm -rf ${SEAHUB_DB}
 
 if [ -f "${seafile_path}/seahub.db" ]; then
-    echo "sqlite3 ${seafile_path}/seahub.db .dump | python sqlite2mysql.py >> ${SEAHUB_DB}"
-    sqlite3 ${seafile_path}/seahub.db .dump | python sqlite2mysql.py >> ${SEAHUB_DB}
+    echo "sqlite3 ${seafile_path}/seahub.db .dump | tr -d '\n' | sed 's/;/;\n/g' | python sqlite2mysql.py > ${SEAHUB_DB}"
+    sqlite3 ${seafile_path}/seahub.db .dump | tr -d '\n' | sed 's/;/;\n/g' | python sqlite2mysql.py > ${SEAHUB_DB}
 else
     echo "${seafile_path}/seahub.db does not exists."
     read -p "Please prove your seahub.db path(e.g. /data/haiwen/seahub.db): " seahub_db_path
     if [ -f ${seahub_db_path} ]; then
-        echo "sqlite3 ${seahub_db_path} .dump | python sqlite2mysql.py >> ${SEAHUB_DB}"
-        sqlite3 ${seahub_db_path} .dump | python sqlite2mysql.py >> ${SEAHUB_DB}
+        echo "sqlite3 ${seahub_db_path} .dump | tr -d '\n' | sed 's/;/;\n/g' | python sqlite2mysql.py > ${SEAHUB_DB}"
+        sqlite3 ${seahub_db_path} .dump | tr -d '\n' | sed 's/;/;\n/g' | python sqlite2mysql.py > ${SEAHUB_DB}
     else
         echo "${seahub_db_path} does not exists, quit."
         exit 1
@@ -90,8 +90,7 @@ fi
 sed 's/varchar(256) NOT NULL UNIQUE/varchar(255) NOT NULL UNIQUE/g' ${SEAHUB_DB} > ${SEAHUB_DB}.tmp && mv ${SEAHUB_DB}.tmp ${SEAHUB_DB}
 
 # remove unique from contacts_contact
-sed 's/`note` varchar(255),/`note` varchar(255)/g' ${SEAHUB_DB} > ${SEAHUB_DB}.tmp && mv ${SEAHUB_DB}.tmp ${SEAHUB_DB}
-sed '/UNIQUE (`user_email`, `contact_email`)/d' ${SEAHUB_DB} > ${SEAHUB_DB}.tmp && mv ${SEAHUB_DB}.tmp ${SEAHUB_DB}
+sed 's/,    UNIQUE (`user_email`, `contact_email`)//g' ${SEAHUB_DB} > ${SEAHUB_DB}.tmp && mv ${SEAHUB_DB}.tmp ${SEAHUB_DB}
 
 # remove base_dirfileslastmodifiedinfo records to avoid json string parsing issue between sqlite and mysql
 sed '/INSERT INTO `base_dirfileslastmodifiedinfo`/d' ${SEAHUB_DB} > ${SEAHUB_DB}.tmp && mv ${SEAHUB_DB}.tmp ${SEAHUB_DB}

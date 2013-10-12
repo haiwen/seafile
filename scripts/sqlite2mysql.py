@@ -63,7 +63,7 @@ for line in fileinput.input():
     # Add auto_increment if it's not there since sqlite auto_increments ALL
     # primary keys
     if searching_for_end:
-        if re.search(r"integer(?:\s+\w+)*\s*PRIMARY KEY(?:\s+\w+)*\s*,", line):
+        if re.search(r"integer(?:\s+\w+)*\s*PRIMARY KEY(?:\s+\w+)*\s*,", line, re.I):
             line = line.replace("PRIMARY KEY", "PRIMARY KEY AUTO_INCREMENT")
         # replace " and ' with ` because mysql doesn't like quotes in CREATE commands
         line = line.replace('"', '`').replace("'", '`')
