@@ -751,8 +751,10 @@ commit_from_json_node (const char *commit_id, JsonNode *node)
         return NULL;
     }
 
+    char *creator_name_l = g_ascii_strdown (creator_name, -1);
     commit = seaf_commit_new (commit_id, repo_id, root_id,
                               creator_name, creator, desc, ctime);
+    g_free (creator_name_l);
 
     commit->parent_id = parent_id ? g_strdup(parent_id) : NULL;
     commit->second_parent_id = second_parent_id ? g_strdup(second_parent_id) : NULL;

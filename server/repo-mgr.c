@@ -1251,11 +1251,14 @@ collect_repo_token (SeafDBRow *row, void *data)
     peer_name = seaf_db_row_get_column_text (row, 6);
     sync_time = seaf_db_row_get_column_int64 (row, 7);
 
+    char *owner_l = g_ascii_strdown (repo_owner, -1);
+    char *email_l = g_ascii_strdown (email, -1);
+
     SeafileRepoTokenInfo *repo_token_info;
     repo_token_info = g_object_new (SEAFILE_TYPE_REPO_TOKEN_INFO,
                                     "repo_id", repo_id,
-                                    "repo_owner", repo_owner,
-                                    "email", email,
+                                    "repo_owner", owner_l,
+                                    "email", email_l,
                                     "token", token,
                                     "peer_id", peer_id,
                                     "peer_ip", peer_ip,
@@ -1365,7 +1368,8 @@ get_email_by_token_cb (SeafDBRow *row, void *data)
 {
     char **email_ptr = data;
 
-    *email_ptr = g_strdup(seaf_db_row_get_column_text (row, 0));
+    const char *email = (const char *) seaf_db_row_get_column_text (row, 0);
+    *email_ptr = g_ascii_strdown (email, -1);
     /* There should be only one result. */
     return FALSE;
 }
@@ -1390,7 +1394,7 @@ seaf_repo_manager_get_email_by_token (SeafRepoManager *manager,
                                   get_email_by_token_cb, &email);
 
     g_string_free (buf, TRUE);
-    
+
     return email;
 }
 
@@ -1602,7 +1606,8 @@ get_owner (SeafDBRow *row, void *data)
 {
     char **owner_id = data;
 
-    *owner_id = g_strdup(seaf_db_row_get_column_text (row, 0));
+    const char *owner = (const char *) seaf_db_row_get_column_text (row, 0);
+    *owner_id = g_ascii_strdown (owner, -1);
     /* There should be only one result. */
     return FALSE;
 }
@@ -1941,13 +1946,16 @@ get_group_repos_cb (SeafDBRow *row, void *data)
     const char *user_name = seaf_db_row_get_column_text (row, 2);
     const char *permission = seaf_db_row_get_column_text (row, 3);
 
+    char *user_name_l = g_ascii_strdown (user_name, -1);
+
     srepo = g_object_new (SEAFILE_TYPE_SHARED_REPO,
                           "share_type", "group",
                           "repo_id", repo_id,
                           "group_id", group_id,
-                          "user", user_name,
+                          "user", user_name_l,
                           "permission", permission,
                           NULL);
+    g_free (user_name_l);
     if (srepo != NULL) {
         *p_list = g_list_prepend (*p_list, srepo);
     }
@@ -2010,7 +2018,8 @@ get_group_repo_owner (SeafDBRow *row, void *data)
 {
     char **share_from = data;
 
-    *share_from = g_strdup (seaf_db_row_get_column_text (row, 0));
+    const char *owner = (const char *) seaf_db_row_get_column_text (row, 0);
+    *share_from = g_ascii_strdown (owner, -1);
     /* There should be only one result. */
     return FALSE;
 }
@@ -2126,12 +2135,15 @@ collect_public_repos (SeafDBRow *row, void *data)
     owner = seaf_db_row_get_column_text (row, 1);
     permission = seaf_db_row_get_column_text (row, 2);
 
+    char *owner_l = g_ascii_strdown (owner, -1);
+
     srepo = g_object_new (SEAFILE_TYPE_SHARED_REPO,
                           "share_type", "public",
                           "repo_id", repo_id,
                           "permission", permission,
-                          "user", owner,
+                          "user", owner_l,
                           NULL);
+    g_free (owner_l);
     *ret = g_list_prepend (*ret, srepo);
 
     return TRUE;
@@ -2232,7 +2244,10 @@ seaf_repo_manager_get_org_repo_owner (SeafRepoManager *mgr,
     snprintf (sql, sizeof(sql),
               "SELECT user FROM OrgRepo WHERE repo_id = '%s'",
               repo_id);
-    return seaf_db_get_string (mgr->seaf->db, sql);
+    char *owner = seaf_db_get_string (mgr->seaf->db, sql);
+    char *owner_l = g_ascii_strdown (owner, -1);
+    g_free (owner);
+    return owner_l;
 }
 
 int

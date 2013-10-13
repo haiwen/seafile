@@ -65,21 +65,30 @@ seaf_share_manager_add_share (SeafShareManager *mgr, const char *repo_id,
 {
     char sql[512];
     gboolean db_err = FALSE;
+    int ret = 0;
+
+    char *from_email_l = g_ascii_strdown (from_email, -1);
+    char *to_email_l = g_ascii_strdown (to_email, -1);
 
     snprintf (sql, sizeof(sql),
               "SELECT repo_id from SharedRepo WHERE repo_id='%s' AND "
-              "from_email='%s' AND to_email='%s'", repo_id, from_email,
-              to_email);
+              "from_email='%s' AND to_email='%s'", repo_id, from_email_l,
+              to_email_l);
     if (seaf_db_check_for_existence (mgr->seaf->db, sql, &db_err))
-        return 0;
+        goto out;
 
     snprintf (sql, sizeof(sql),
               "INSERT INTO SharedRepo VALUES ('%s', '%s', '%s', '%s')", repo_id,
-              from_email, to_email, permission);
-    if (seaf_db_query (mgr->seaf->db, sql) < 0)
-        return -1;
+              from_email_l, to_email_l, permission);
+    if (seaf_db_query (mgr->seaf->db, sql) < 0) {
+        ret = -1;
+        goto out;
+    }
 
-    return 0;
+out:
+    g_free (from_email_l);
+    g_free (to_email_l);
+    return ret;
 }
 
 int
@@ -89,10 +98,14 @@ seaf_share_manager_set_permission (SeafShareManager *mgr, const char *repo_id,
 {
     char sql[512];
 
+    char *from_email_l = g_ascii_strdown (from_email, -1);
+    char *to_email_l = g_ascii_strdown (to_email, -1);
     snprintf (sql, sizeof(sql),
               "UPDATE SharedRepo SET permission='%s' WHERE "
               "repo_id='%s' AND from_email='%s' AND to_email='%s'",
-              permission, repo_id, from_email, to_email);
+              permission, repo_id, from_email_l, to_email_l);
+    g_free (from_email_l);
+    g_free (to_email_l);
     return seaf_db_query (mgr->seaf->db, sql);
 }
 
@@ -109,13 +122,15 @@ collect_repos (SeafDBRow *row, void *data)
     email = seaf_db_row_get_column_text (row, 1);
     permission = seaf_db_row_get_column_text (row, 2);
 
+    char *email_l = g_ascii_strdown (email, -1);
+
     srepo = g_object_new (SEAFILE_TYPE_SHARED_REPO,
                           "share_type", "personal",
                           "repo_id", repo_id,
-                          "user", email,
+                          "user", email_l,
                           "permission", permission,
                           NULL);
-    
+    g_free (email_l);
     *p_repos = g_list_prepend (*p_repos, srepo);
 
     return TRUE;
@@ -304,7 +319,7 @@ collect_shared_to (SeafDBRow *row, void *data)
     const char *to_email;
 
     to_email = seaf_db_row_get_column_text (row, 0);
-    *plist = g_list_prepend (*plist, g_strdup(to_email));
+    *plist = g_list_prepend (*plist, g_ascii_strdown(to_email, -1));
 
     return TRUE;
 }
