@@ -461,9 +461,8 @@ add_recursive (struct index_state *istate,
         if (ret < 0)
             goto bad;
 
-        if (n == 0 && !ignore_empty_dir) {
-            g_debug ("Adding empty dir %s\n", path);
-            add_empty_dir_to_index (istate, path);
+        if (n == 0 && path[0] != 0 && !ignore_empty_dir) {
+            add_empty_dir_to_index (istate, path, &st);
         }
     }
 
@@ -519,7 +518,9 @@ remove_deleted (struct index_state *istate, const char *worktree,
         ret = seaf_stat (path, &st);
 
         if (S_ISDIR (ce->ce_mode)) {
-            if (ret < 0 || !S_ISDIR (st.st_mode) || !is_empty_dir (path, ignore_list))
+            if ((ret < 0 || !S_ISDIR (st.st_mode)
+                 || !is_empty_dir (path, ignore_list)) &&
+                (ce->ce_mtime.sec != 0 || ce_stage(ce) != 0))
                 ce->ce_flags |= CE_REMOVE;
         } else {
             /* If ce->mtime is 0 and stage is 0, it was not successfully checked out.
@@ -527,7 +528,7 @@ remove_deleted (struct index_state *istate, const char *worktree,
              * from the repo.
              */
             if ((ret < 0 || !S_ISREG (st.st_mode)) &&
-                (ce_array[i]->ce_mtime.sec != 0 || ce_stage(ce_array[i]) != 0))
+                (ce->ce_mtime.sec != 0 || ce_stage(ce) != 0))
                 ce_array[i]->ce_flags |= CE_REMOVE;
         }
     }
@@ -551,7 +552,7 @@ index_add (SeafRepo *repo, struct index_state *istate, const char *path)
 
     ignore_list = seaf_repo_load_ignore_files (repo->worktree);
 
-    if (add_recursive (istate, repo->worktree, path, crypt, TRUE, ignore_list) < 0)
+    if (add_recursive (istate, repo->worktree, path, crypt, FALSE, ignore_list) < 0)
         goto error;
 
     remove_deleted (istate, repo->worktree, path, ignore_list);

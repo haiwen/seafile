@@ -32,7 +32,7 @@
 
 #include "db.h"
 
-#define SEAF_TMP_EXT ".seaftmp~"
+#define SEAF_TMP_EXT "~"
 
 struct _SeafFSManagerPriv {
     /* GHashTable      *seafile_cache; */
