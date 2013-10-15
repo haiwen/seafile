@@ -87,8 +87,8 @@ do_create_virtual_repo (SeafRepoManager *mgr,
     repo->no_local_history = TRUE;
     if (passwd != NULL && passwd[0] != '\0') {
         repo->encrypted = TRUE;
-        repo->enc_version = CURRENT_ENC_VERSION;
-        seaf_repo_generate_magic (repo, passwd);
+        repo->enc_version = 1;
+        seafile_generate_magic (1, repo_id, passwd, repo->magic);
     }
 
     commit = seaf_commit_new (NULL, repo->id,
@@ -209,6 +209,15 @@ seaf_repo_manager_create_virtual_repo (SeafRepoManager *mgr,
     }
 
     if (origin_repo->encrypted) {
+        if (origin_repo->enc_version != 1) {
+            seaf_warning ("Creating virtual repo for enc version %d is not supported.\n",
+                          origin_repo->enc_version);
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                         "Unsuppoorted encryption version");
+            seaf_repo_unref (origin_repo);
+            return NULL;
+        }
+
         passwd = seaf_passwd_manager_get_repo_passwd (seaf->passwd_mgr,
                                                       origin_repo_id,
                                                       owner);

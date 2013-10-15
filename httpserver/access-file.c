@@ -31,6 +31,19 @@ struct file_type_map {
     char *type;
 };
 
+typedef struct SendBlockData {
+    evhtp_request_t *req;
+    char *block_id;
+    BlockHandle *handle;
+    uint32_t bsize;
+    uint32_t remain;
+
+    bufferevent_data_cb saved_read_cb;
+    bufferevent_data_cb saved_write_cb;
+    bufferevent_event_cb saved_event_cb;
+    void *saved_cb_arg;
+} SendBlockData;
+
 typedef struct SendfileData {
     evhtp_request_t *req;
     Seafile *file;
@@ -75,6 +88,18 @@ static struct file_type_map ftmap[] = {
 };
 
 static void
+free_sendblock_data (SendBlockData *data)
+{
+    if (data->handle) {
+        seaf_block_manager_close_block(seaf->block_mgr, data->handle);
+        seaf_block_manager_block_handle_free(seaf->block_mgr, data->handle);
+    }
+
+    g_free (data->block_id);
+    g_free (data);
+}
+
+static void
 free_sendfile_data (SendfileData *data)
 {
     if (data->handle) {
@@ -95,9 +120,69 @@ free_senddir_data (SendDirData *data)
 {
     close (data->zipfd);
     g_unlink (data->zipfile);
-    
+
     g_free (data->zipfile);
     g_free (data);
+}
+
+static void
+write_block_data_cb (struct bufferevent *bev, void *ctx)
+{
+    SendBlockData *data = ctx;
+    char *blk_id;
+    BlockHandle *handle;
+    char buf[1024 * 64];
+    int n;
+
+    blk_id = data->block_id;
+
+    if (!data->handle) {
+        data->handle = seaf_block_manager_open_block(seaf->block_mgr,
+                                                     blk_id, BLOCK_READ);
+        if (!data->handle) {
+            seaf_warning ("Failed to open block %s\n", blk_id);
+            goto err;
+        }
+
+        data->remain = data->bsize;
+    }
+    handle = data->handle;
+
+    n = seaf_block_manager_read_block(seaf->block_mgr, handle, buf, sizeof(buf));
+    data->remain -= n;
+    if (n < 0) {
+        seaf_warning ("Error when reading from block %s.\n", blk_id);
+        goto err;
+    } else if (n == 0) {
+        /* We've read up the data of this block, finish. */
+        seaf_block_manager_close_block (seaf->block_mgr, handle);
+        seaf_block_manager_block_handle_free (seaf->block_mgr, handle);
+        data->handle = NULL;
+
+        /* Recover evhtp's callbacks */
+        bev->readcb = data->saved_read_cb;
+        bev->writecb = data->saved_write_cb;
+        bev->errorcb = data->saved_event_cb;
+        bev->cbarg = data->saved_cb_arg;
+
+        /* Resume reading incomming requests. */
+        evhtp_request_resume (data->req);
+
+        evhtp_send_reply_end (data->req);
+
+        free_sendblock_data (data);
+        return;
+    }
+
+    /* OK, we've got some data to send. */
+    bufferevent_write (bev, buf, n);
+
+    return;
+
+err:
+    evhtp_connection_free (evhtp_request_get_connection (data->req));
+    free_sendblock_data (data);
+    return;
 }
 
 static void
@@ -272,6 +357,17 @@ write_dir_data_cb (struct bufferevent *bev, void *ctx)
 }
 
 static void
+my_block_event_cb (struct bufferevent *bev, short events, void *ctx)
+{
+    SendBlockData *data = ctx;
+
+    data->saved_event_cb (bev, events, data->saved_cb_arg);
+
+    /* Free aux data. */
+    free_sendblock_data (data);
+}
+
+static void
 my_event_cb (struct bufferevent *bev, short events, void *ctx)
 {
     SendfileData *data = ctx;
@@ -335,7 +431,7 @@ test_firefox (evhtp_request_t *req)
     const char *user_agent = evhtp_header_find (req->headers_in, "User-Agent");
     if (!user_agent)
         return FALSE;
-    
+
     GString *s = g_string_new (user_agent);
     if (g_strrstr (g_string_ascii_down (s)->str, "firefox")) {
         g_string_free (s, TRUE);
@@ -358,7 +454,7 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     gchar *content_type = NULL;
     char cont_filename[SEAF_PATH_MAX];
     char *key_hex, *iv_hex;
-    unsigned char enc_key[16], enc_iv[16];
+    unsigned char enc_key[32], enc_iv[16];
     SeafileCrypt *crypt = NULL;
     SendfileData *data;
 
@@ -371,7 +467,10 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
                       "key", &key_hex,
                       "iv", &iv_hex,
                       NULL);
-        hex_to_rawdata (key_hex, enc_key, 16);
+        if (repo->enc_version == 1)
+            hex_to_rawdata (key_hex, enc_key, 16);
+        else
+            hex_to_rawdata (key_hex, enc_key, 32);
         hex_to_rawdata (iv_hex, enc_iv, 16);
         crypt = seafile_crypt_new (repo->enc_version, enc_key, enc_iv);
         g_free (key_hex);
@@ -473,7 +572,7 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
     char file_size[255];
     SeafStat st;
     char *key_hex, *iv_hex;
-    unsigned char enc_key[16], enc_iv[16];
+    unsigned char enc_key[32], enc_iv[16];
     SeafileCrypt *crypt = NULL;
     int zipfd = 0;
     int ret = 0;
@@ -500,7 +599,10 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
                       "key", &key_hex,
                       "iv", &iv_hex,
                       NULL);
-        hex_to_rawdata (key_hex, enc_key, 16);
+        if (repo->enc_version == 1)
+            hex_to_rawdata (key_hex, enc_key, 16);
+        else
+            hex_to_rawdata (key_hex, enc_key, 32);
         hex_to_rawdata (iv_hex, enc_iv, 16);
         crypt = seafile_crypt_new (repo->enc_version, enc_key, enc_iv);
         g_free (key_hex);
@@ -512,11 +614,11 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
         ret = -1;
         goto out;
     }
-    
+
     /* OK, the dir is zipped */
     evhtp_headers_add_header(req->headers_out,
                 evhtp_header_new("Content-Type", "application/zip", 1, 1));
-    
+
     if (seaf_stat(zipfile, &st) < 0) {
         ret = -1;
         goto out;
@@ -691,7 +793,7 @@ access_cb(evhtp_request_t *req, void *arg)
             error = "Internal server error\n";
             goto bad_req;
         }
-        
+
     } else if (do_file(req, repo, id, filename, operation, key) < 0) {
         error = "Internal server error\n";
         goto bad_req;
@@ -728,10 +830,213 @@ bad_req:
     evhtp_send_reply(req, EVHTP_RES_BADREQ);
 }
 
+static int
+do_block(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
+         const char *blk_id)
+{
+    Seafile *file;
+    uint32_t bsize;
+    gboolean found = FALSE;
+    int i;
+    char blk_size[255];
+    char cont_filename[SEAF_PATH_MAX];
+    SendBlockData *data;
+
+    file = seaf_fs_manager_get_seafile(seaf->fs_mgr, file_id);
+    if (file == NULL)
+        return -1;
+
+    for (i = 0; i < file->n_blocks; i++) {
+        if (memcmp(file->blk_sha1s[i], blk_id, 40) == 0) {
+            BlockMetadata *bm = seaf_block_manager_stat_block (seaf->block_mgr, blk_id);
+            if (bm && bm->size >= 0) {
+                bsize = bm->size;
+                found = TRUE;
+            }
+            g_free (bm);
+            break;
+        }
+    }
+
+    seafile_unref (file);
+
+    /* block not found. */
+    if (!found) {
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        seafile_unref (file);
+        return 0;
+    }
+    evhtp_headers_add_header(req->headers_out,
+                             evhtp_header_new("Access-Control-Allow-Origin",
+                                              "*", 1, 1));
+
+    if (test_firefox (req)) {
+        snprintf(cont_filename, SEAF_PATH_MAX,
+                 "attachment;filename*=\"utf8\' \'%s\"", blk_id);
+    } else {
+        snprintf(cont_filename, SEAF_PATH_MAX,
+                 "attachment;filename=\"%s\"", blk_id);
+    }
+    evhtp_headers_add_header(req->headers_out,
+                             evhtp_header_new("Content-Disposition", cont_filename,
+                                              1, 1));
+
+    snprintf(blk_size, sizeof(blk_size), "%"G_GUINT32_FORMAT"", bsize);
+    evhtp_headers_add_header (req->headers_out,
+                              evhtp_header_new("Content-Length", blk_size, 1, 1));
+
+    data = g_new0 (SendBlockData, 1);
+    data->req = req;
+    data->block_id = g_strdup(blk_id);
+
+    /* We need to overwrite evhtp's callback functions to
+     * write file data piece by piece.
+     */
+    struct bufferevent *bev = evhtp_request_get_bev (req);
+    data->saved_read_cb = bev->readcb;
+    data->saved_write_cb = bev->writecb;
+    data->saved_event_cb = bev->errorcb;
+    data->saved_cb_arg = bev->cbarg;
+    data->bsize = bsize;
+    bufferevent_setcb (bev,
+                       NULL,
+                       write_block_data_cb,
+                       my_block_event_cb,
+                       data);
+    /* Block any new request from this connection before finish
+     * handling this request.
+     */
+    evhtp_request_pause (req);
+
+    /* Avoid recursive call of write_data_cb(). */
+    if (req->htp->ssl_cfg != NULL)
+        evbuffer_defer_callbacks (bev->output, bev->ev_base);
+
+    /* Kick start data transfer by sending out http headers. */
+    evhtp_send_reply_start(req, EVHTP_RES_OK);
+
+    return 0;
+}
+
+static void
+access_blks_cb(evhtp_request_t *req, void *arg)
+{
+    SeafRepo *repo = NULL;
+    char *error = NULL;
+    char *token = NULL;
+    char *blkid = NULL;
+    const char *repo_id = NULL;
+    const char *id = NULL;
+    const char *operation = NULL;
+
+    SearpcClient *rpc_client = NULL;
+    char *repo_role = NULL;
+    SeafileWebAccess *webaccess = NULL;
+
+    /* Skip the first '/'. */
+    char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
+    if (!parts || g_strv_length (parts) < 3 ||
+        strcmp (parts[0], "blks") != 0) {
+        error = "Invalid URL";
+        goto bad_req;
+    }
+
+    token = parts[1];
+    blkid = parts[2];
+
+    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                                 NULL,
+                                                 "seafserv-rpcserver");
+
+    webaccess = (SeafileWebAccess *) searpc_client_call__object (
+        rpc_client, "seafile_web_query_access_token", SEAFILE_TYPE_WEB_ACCESS,
+        NULL, 1, "string", token);
+    if (!webaccess) {
+        error = "Bad access token";
+        goto bad_req;
+    }
+
+    if (evhtp_kv_find (req->headers_in, "If-Modified-Since") != NULL) {
+        evhtp_send_reply (req, EVHTP_RES_NOTMOD);
+        goto success;
+    } else {
+        char http_date[256];
+        evhtp_kv_t *kv;
+        time_t now = time(NULL);
+
+        /* Set Last-Modified header if the client gets this file
+         * for the first time. So that the client will set
+         * If-Modified-Since header the next time it gets the same
+         * file.
+         */
+#ifndef WIN32
+        strftime (http_date, sizeof(http_date), "%a, %d %b %Y %T GMT",
+                  gmtime(&now));
+#else
+        strftime (http_date, sizeof(http_date), "%a, %d %b %Y %H:%M:%S GMT",
+                  gmtime(&now));
+#endif
+        kv = evhtp_kv_new ("Last-Modified", http_date, 1, 1);
+        evhtp_kvs_add_kv (req->headers_out, kv);
+
+        kv = evhtp_kv_new ("Cache-Control", "max-age=3600", 1, 1);
+        evhtp_kvs_add_kv (req->headers_out, kv);
+    }
+
+    repo_id = seafile_web_access_get_repo_id (webaccess);
+    id = seafile_web_access_get_obj_id (webaccess);
+    operation = seafile_web_access_get_op (webaccess);
+
+    repo = seaf_repo_manager_get_repo(seaf->repo_mgr, repo_id);
+    if (!repo) {
+        error = "Bad repo id\n";
+        goto bad_req;
+    }
+
+    if (!seaf_fs_manager_object_exists (seaf->fs_mgr, id)) {
+        error = "Invalid file id\n";
+        goto bad_req;
+    }
+
+    if (strcmp(operation, "downloadblks") == 0) {
+        if (do_block(req, repo, id, blkid) < 0) {
+            error = "Internal server error\n";
+            goto bad_req;
+        }
+    }
+
+success:
+    ccnet_rpc_client_free (rpc_client);
+
+    g_strfreev (parts);
+    if (repo != NULL)
+        seaf_repo_unref (repo);
+    g_free (repo_role);
+    g_object_unref (webaccess);
+
+    return;
+
+bad_req:
+    g_strfreev (parts);
+    if (repo != NULL)
+        seaf_repo_unref (repo);
+    g_free (repo_role);
+    if (webaccess != NULL)
+        g_object_unref (webaccess);
+
+    if (rpc_client)
+        ccnet_rpc_client_free (rpc_client);
+
+    seaf_warning ("fetch failed: %s\n", error);
+    evbuffer_add_printf(req->buffer_out, "%s\n", error);
+    evhtp_send_reply(req, EVHTP_RES_BADREQ);
+}
+
 int
 access_file_init (evhtp_t *htp)
 {
     evhtp_set_regex_cb (htp, "^/files/.*", access_cb, NULL);
+    evhtp_set_regex_cb (htp, "^/blks/.*", access_blks_cb, NULL);
 
     return 0;
 }

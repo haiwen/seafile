@@ -65,7 +65,7 @@ struct _BlockTxClient {
     /* Used by get block */
     BlockHandle *block;
 
-    unsigned char key[ENC_BLOCK_SIZE];
+    unsigned char key[ENC_KEY_SIZE];
     unsigned char iv[ENC_BLOCK_SIZE];
 
     unsigned char key_v2[ENC_KEY_SIZE];

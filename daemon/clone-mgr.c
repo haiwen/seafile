@@ -104,6 +104,7 @@ clone_task_free (CloneTask *task)
     g_free (task->peer_addr);
     g_free (task->peer_port);
     g_free (task->email);
+    g_free (task->random_key);
 
     g_free (task);
 }
@@ -144,6 +145,38 @@ seaf_clone_manager_new (SeafileSession *session)
 }
 
 static gboolean
+load_enc_info_cb (sqlite3_stmt *stmt, void *data)
+{
+    CloneTask *task = data;
+    int enc_version;
+    const char *random_key;
+
+    enc_version = sqlite3_column_int (stmt, 0);
+    random_key = (const char *)sqlite3_column_text (stmt, 1);
+
+    task->enc_version = enc_version;
+    task->random_key = g_strdup (random_key);
+
+    return FALSE;
+}
+
+static int
+load_clone_enc_info (CloneTask *task)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "SELECT enc_version, random_key FROM CloneEncInfo WHERE repo_id='%s'",
+              task->repo_id);
+
+    if (sqlite_foreach_selected_row (task->manager->db, sql,
+                                     load_enc_info_cb, task) < 0)
+        return -1;
+
+    return 0;
+}
+
+static gboolean
 restart_task (sqlite3_stmt *stmt, void *data)
 {
     SeafCloneManager *mgr = data;
@@ -166,6 +199,13 @@ restart_task (sqlite3_stmt *stmt, void *data)
                            token, worktree, passwd,
                            peer_addr, peer_port, email);
     task->manager = mgr;
+    /* Default to 1. */
+    task->enc_version = 1;
+
+    if (passwd && load_clone_enc_info (task) < 0) {
+        clone_task_free (task);
+        return TRUE;
+    }
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (repo != NULL) {
@@ -203,10 +243,15 @@ seaf_clone_manager_init (SeafCloneManager *mgr)
     const char *sql;
 
     sql = "CREATE TABLE IF NOT EXISTS CloneTasks "
-        "(repo_id TEXT, repo_name TEXT, "
+        "(repo_id TEXT PRIMARY KEY, repo_name TEXT, "
         "token TEXT, dest_id TEXT,"
         "worktree_parent TEXT, passwd TEXT, "
         "server_addr TEXT, server_port TEXT, email TEXT);";
+    if (sqlite_query_exec (mgr->db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS CloneEncInfo "
+        "(repo_id TEXT PRIMARY KEY, enc_version INTEGER, random_key TEXT);";
     if (sqlite_query_exec (mgr->db, sql) < 0)
         return -1;
 
@@ -279,8 +324,19 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
         sqlite3_free (sql);
         return -1;
     }
-
     sqlite3_free (sql);
+
+    if (task->passwd && task->enc_version == 2 && task->random_key) {
+        sql = sqlite3_mprintf ("REPLACE INTO CloneEncInfo VALUES "
+                               "('%q', %d, '%q')",
+                               task->repo_id, task->enc_version, task->random_key);
+        if (sqlite_query_exec (mgr->db, sql) < 0) {
+            sqlite3_free (sql);
+            return -1;
+        }
+        sqlite3_free (sql);        
+    }
+
     return 0;
 }
 
@@ -291,6 +347,12 @@ remove_task_from_db (SeafCloneManager *mgr, const char *repo_id)
 
     snprintf (sql, sizeof(sql), 
               "DELETE FROM CloneTasks WHERE repo_id='%s'",
+              repo_id);
+    if (sqlite_query_exec (mgr->db, sql) < 0)
+        return -1;
+
+    snprintf (sql, sizeof(sql), 
+              "DELETE FROM CloneEncInfo WHERE repo_id='%s'",
               repo_id);
     if (sqlite_query_exec (mgr->db, sql) < 0)
         return -1;
@@ -359,7 +421,9 @@ index_files_job (void *data)
     CloneTask *task = aux->task;
 
     if (seaf_repo_index_worktree_files (task->repo_id, task->worktree,
-                                        task->passwd, task->root_id) == 0)
+                                        task->passwd, task->enc_version,
+                                        task->random_key,
+                                        task->root_id) == 0)
         aux->success = TRUE;
 
     return data;
@@ -727,6 +791,8 @@ add_task_common (SeafCloneManager *mgr,
                  const char *repo_name,
                  const char *token,
                  const char *passwd,
+                 int enc_version,
+                 const char *random_key,
                  const char *worktree,
                  const char *peer_addr,
                  const char *peer_port,
@@ -739,6 +805,8 @@ add_task_common (SeafCloneManager *mgr,
                            token, worktree, passwd,
                            peer_addr, peer_port, email);
     task->manager = mgr;
+    task->enc_version = enc_version;
+    task->random_key = g_strdup (random_key);
 
     if (save_task_to_db (mgr, task) < 0) {
         seaf_warning ("[Clone mgr] failed to save task.\n");
@@ -766,6 +834,33 @@ add_task_common (SeafCloneManager *mgr,
     return g_strdup(repo_id);
 }
 
+static gboolean
+check_encryption_args (const char *magic, int enc_version, const char *random_key,
+                       GError **error)
+{
+    if (!magic) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Magic must be specified");
+        return FALSE;
+    }
+
+    if (enc_version != 1 && enc_version != 2) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Unsupported enc version");
+        return FALSE;
+    }
+
+    if (enc_version == 2) {
+        if (!random_key || strlen(random_key) != 96) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                         "Random key not specified");
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
 char *
 seaf_clone_manager_add_task (SeafCloneManager *mgr, 
                              const char *repo_id,
@@ -774,6 +869,8 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
                              const char *token,
                              const char *passwd,
                              const char *magic,
+                             int enc_version,
+                             const char *random_key,
                              const char *worktree_in,
                              const char *peer_addr,
                              const char *peer_port,
@@ -789,6 +886,10 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         return NULL;
     }
 
+    if (passwd &&
+        !check_encryption_args (magic, enc_version, random_key, error))
+        return NULL;
+
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
 
     if (repo != NULL && repo->head != NULL) {
@@ -803,8 +904,8 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         return NULL;
     }
 
-    /* If magic is not given, check password before checkout. */
-    if (passwd && magic && seaf_repo_verify_passwd(repo_id, passwd, magic) < 0) {
+    if (passwd &&
+        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Incorrect password");
         return NULL;
@@ -822,6 +923,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     }
 
     ret = add_task_common (mgr, repo, repo_id, peer_id, repo_name, token, passwd,
+                           enc_version, random_key,
                            worktree, peer_addr, peer_port, email, error);
     g_free (worktree);
 
@@ -857,6 +959,8 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
                                       const char *token,
                                       const char *passwd,
                                       const char *magic,
+                                      int enc_version,
+                                      const char *random_key,
                                       const char *wt_parent,
                                       const char *peer_addr,
                                       const char *peer_port,
@@ -872,6 +976,10 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         return NULL;
     }
 
+    if (passwd &&
+        !check_encryption_args (magic, enc_version, random_key, error))
+        return NULL;
+
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
 
     if (repo != NULL && repo->head != NULL) {
@@ -886,8 +994,8 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         return NULL;
     }
 
-    /* If magic is not given, check password before checkout. */
-    if (passwd && magic && seaf_repo_verify_passwd(repo_id, passwd, magic) < 0) {
+    if (passwd &&
+        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Incorrect password");
         return NULL;
@@ -902,6 +1010,7 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
     }
 
     ret = add_task_common (mgr, repo, repo_id, peer_id, repo_name, token, passwd,
+                           enc_version, random_key,
                            worktree, peer_addr, peer_port, email, error);
     g_free (worktree);
     g_free (wt_tmp);
@@ -1223,6 +1332,8 @@ merge_job (void *data)
         if (seaf_repo_index_worktree_files (task->repo_id,
                                             task->worktree,
                                             task->passwd,
+                                            task->enc_version,
+                                            task->random_key,
                                             task->root_id) < 0)
             return aux;
     }
@@ -1326,14 +1437,6 @@ static void
 start_checkout (SeafRepo *repo, CloneTask *task)
 {
     if (repo->encrypted && task->passwd != NULL) {
-        /* keep this password check to be compatible with old servers. */
-        if (repo->enc_version >= 1 && 
-            seaf_repo_verify_passwd (repo->id, task->passwd, repo->magic) < 0) {
-            seaf_warning ("[Clone mgr] incorrect password.\n");
-            transition_to_error (task, CLONE_ERROR_PASSWD);
-            return;
-        }
-
         if (seaf_repo_manager_set_repo_passwd (seaf->repo_mgr,
                                                repo,
                                                task->passwd) < 0) {

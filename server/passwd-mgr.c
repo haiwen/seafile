@@ -15,7 +15,8 @@
 #define REAP_THRESHOLD 3600
 
 typedef struct {
-    unsigned char key[16];
+    int enc_version;
+    unsigned char key[32];
     unsigned char iv[16];
     char *passwd;
     guint64 expire_time;
@@ -32,6 +33,11 @@ static void
 decrypt_key_free (DecryptKey *key)
 {
     if (!key) return;
+
+    /* clear sensitive information */
+    memset (key->key, 0, sizeof(key->key));
+    memset (key->iv, 0, sizeof(key->iv));
+    memset (key->passwd, 0, strlen(key->passwd));
 
     g_free (key->passwd);
     g_free (key);
@@ -60,6 +66,39 @@ seaf_passwd_manager_start (SeafPasswdManager *mgr)
 }
 
 int
+seaf_passwd_manager_check_passwd (SeafPasswdManager *mgr,
+                                  const char *repo_id,
+                                  const char *magic,
+                                  GError **error)
+{
+    SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+
+    if (!repo) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid repo");
+        return -1;
+    }
+
+    if (!repo->encrypted) {
+        seaf_repo_unref (repo);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Repo is not encrypted");
+        return -1;
+    }
+
+    if (strcmp (magic, repo->magic) != 0) {
+        seaf_repo_unref (repo);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Incorrect password");
+        return -1;
+    }
+
+    seaf_repo_unref (repo);
+
+    return 0;
+}
+
+int
 seaf_passwd_manager_set_passwd (SeafPasswdManager *mgr,
                                 const char *repo_id,
                                 const char *user,
@@ -83,7 +122,15 @@ seaf_passwd_manager_set_passwd (SeafPasswdManager *mgr,
         return -1;
     }
 
-    if (seaf_repo_verify_passwd (repo, passwd) < 0) {
+    if (repo->enc_version != 1 && repo->enc_version != 2) {
+        seaf_repo_unref (repo);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Unsupported encryption version");
+        return -1;
+    }
+
+    if (seafile_verify_repo_passwd (repo->id, passwd,
+                                    repo->magic, repo->enc_version) < 0) {
         seaf_repo_unref (repo);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Incorrect password");
@@ -99,10 +146,17 @@ seaf_passwd_manager_set_passwd (SeafPasswdManager *mgr,
         return -1;
     }
 
-    seafile_generate_enc_key (passwd, strlen(passwd), repo->enc_version,
-                              crypt_key->key, crypt_key->iv);
+    if (seafile_decrypt_repo_enc_key (repo->enc_version, passwd, repo->random_key,
+                                      crypt_key->key, crypt_key->iv) < 0) {
+        seaf_repo_unref (repo);
+        g_free (crypt_key);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Incorrect password");
+        return -1;
+    }
     crypt_key->passwd = g_strdup(passwd);
     crypt_key->expire_time = (guint64)time(NULL) + REAP_THRESHOLD;
+    crypt_key->enc_version = repo->enc_version;
 
     hash_key = g_string_new (NULL);
     g_string_printf (hash_key, "%s.%s", repo_id, user);
@@ -158,7 +212,7 @@ seaf_passwd_manager_get_decrypt_key (SeafPasswdManager *mgr,
     GString *hash_key;
     DecryptKey *crypt_key;
     SeafileCryptKey *ret;
-    char key_hex[33], iv_hex[33];
+    char key_hex[65], iv_hex[65];
 
     hash_key = g_string_new (NULL);
     g_string_printf (hash_key, "%s.%s", repo_id, user);
@@ -171,8 +225,13 @@ seaf_passwd_manager_get_decrypt_key (SeafPasswdManager *mgr,
         return NULL;
     }
 
-    rawdata_to_hex (crypt_key->key, key_hex, 16);
-    rawdata_to_hex (crypt_key->iv, iv_hex, 16);
+    if (crypt_key->enc_version == 2) {
+        rawdata_to_hex (crypt_key->key, key_hex, 32);
+        rawdata_to_hex (crypt_key->iv, iv_hex, 16);
+    } else if (crypt_key->enc_version == 1) {
+        rawdata_to_hex (crypt_key->key, key_hex, 16);
+        rawdata_to_hex (crypt_key->iv, iv_hex, 16);
+    }
 
     ret = seafile_crypt_key_new ();
     g_object_set (ret, "key", key_hex, "iv", iv_hex, NULL);
@@ -201,8 +260,13 @@ seaf_passwd_manager_get_decrypt_key_raw (SeafPasswdManager *mgr,
     }
     g_string_free (hash_key, TRUE);
 
-    memcpy (key_out, crypt_key->key, 16);
-    memcpy (iv_out, crypt_key->iv, 16);
+    if (crypt_key->enc_version == 1) {
+        memcpy (key_out, crypt_key->key, 16);
+        memcpy (iv_out, crypt_key->iv, 16);
+    } else if (crypt_key->enc_version == 2) {
+        memcpy (key_out, crypt_key->key, 32);
+        memcpy (iv_out, crypt_key->iv, 16);
+    }
 
     return 0;
 }

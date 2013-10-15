@@ -80,7 +80,7 @@ seaf_fs_manager_new (SeafileSession *seaf,
     }
 
     mgr->priv = g_new0(SeafFSManagerPriv, 1);
-    
+
     return mgr;
 }
 
@@ -124,7 +124,7 @@ checkout_block (const char *block_id,
     /* first stat the block to get its size */
     bmd = seaf_block_manager_stat_block_by_handle (block_mgr, handle);
     if (!bmd) {
-        g_warning ("can't stat block %s.\n", block_id);    
+        g_warning ("can't stat block %s.\n", block_id);
         goto checkout_blk_error;
     }
 
@@ -138,12 +138,12 @@ checkout_block (const char *block_id,
     blk_content = (char *)malloc (bmd->size * sizeof(char));
 
     /* read the block to prepare decryption */
-    if (seaf_block_manager_read_block (block_mgr, handle, 
+    if (seaf_block_manager_read_block (block_mgr, handle,
                                        blk_content, bmd->size) != bmd->size) {
         g_warning ("Error when reading from block %s.\n", block_id);
         goto checkout_blk_error;
     }
-    
+
     if (crypt != NULL) {
 
         /* An encrypted block size must be a multiple of
@@ -153,12 +153,12 @@ checkout_block (const char *block_id,
             g_warning ("Error: An invalid encrypted block, %s \n", block_id);
             goto checkout_blk_error;
         }
-        
+
         /* decrypt the block */
         int ret = seafile_decrypt (&dec_out,
                                    &dec_out_len,
                                    blk_content,
-                                   bmd->size, 
+                                   bmd->size,
                                    crypt);
 
         if (ret != 0) {
@@ -178,7 +178,7 @@ checkout_block (const char *block_id,
 
         g_free (blk_content);
         g_free (dec_out);
-        
+
     } else {
         /* not an encrypted block */
         if (writen(wfd, blk_content, bmd->size) != bmd->size) {
@@ -195,7 +195,7 @@ checkout_block (const char *block_id,
     return 0;
 
 checkout_blk_error:
-    
+
     if (blk_content)
         free (blk_content);
     if (dec_out)
@@ -208,9 +208,9 @@ checkout_blk_error:
     return -1;
 }
 
-int 
-seaf_fs_manager_checkout_file (SeafFSManager *mgr, 
-                               const char *file_id, 
+int
+seaf_fs_manager_checkout_file (SeafFSManager *mgr,
+                               const char *file_id,
                                const char *file_path,
                                guint32 mode,
                                SeafileCrypt *crypt,
@@ -237,7 +237,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
 
     wfd = g_open (tmp_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY, mode & ~S_IFMT);
     if (wfd < 0) {
-        g_warning ("Failed to open file %s for checkout: %s.\n", 
+        g_warning ("Failed to open file %s for checkout: %s.\n",
                    tmp_path, strerror(errno));
         goto bad;
     }
@@ -466,6 +466,135 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
     return 0;
 }
 
+static int
+check_and_write_block (const char *path, unsigned char *sha1, const char *block_id)
+{
+    char *content;
+    gsize len;
+    GError *error = NULL;
+    int ret = 0;
+
+    if (!g_file_get_contents (path, &content, &len, &error)) {
+        if (error) {
+            seaf_warning ("Failed to read %s: %s.\n", path, error->message);
+            g_clear_error (&error);
+            return -1;
+        }
+    }
+
+    SHA_CTX block_ctx;
+    unsigned char checksum[20];
+
+    SHA1_Init (&block_ctx);
+    SHA1_Update (&block_ctx, content, len);
+    SHA1_Final (checksum, &block_ctx);
+
+    if (memcmp (checksum, sha1, 20) != 0) {
+        seaf_warning ("Block id %s doesn't match content.\n", block_id);
+        ret = -1;
+        goto out;
+    }
+
+    if (do_write_chunk (sha1, content, len) < 0) {
+        ret = -1;
+        goto out;
+    }
+
+out:
+    g_free (content);
+    return ret;
+}
+
+static int
+check_and_write_file_blocks (CDCFileDescriptor *cdc, GList *paths, GList *blockids)
+{
+    GList *ptr, *q;
+    SHA_CTX file_ctx;
+    int ret = 0;
+
+    SHA1_Init (&file_ctx);
+    for (ptr = paths, q = blockids; ptr; ptr = ptr->next, q = q->next) {
+        char *path = ptr->data;
+        char *blk_id = q->data;
+        unsigned char sha1[20];
+
+        hex_to_rawdata (blk_id, sha1, 20);
+        ret = check_and_write_block (path, sha1, blk_id);
+        if (ret < 0)
+            goto out;
+
+        memcpy (cdc->blk_sha1s + cdc->block_nr * CHECKSUM_LENGTH,
+                sha1, CHECKSUM_LENGTH);
+        cdc->block_nr++;
+
+        SHA1_Update (&file_ctx, sha1, 20);
+    }
+
+    SHA1_Final (cdc->file_sum, &file_ctx);
+
+out:
+    return ret;
+}
+
+static int
+init_file_cdc (CDCFileDescriptor *cdc, int block_nr, gint64 file_size)
+{
+    memset (cdc, 0, sizeof(CDCFileDescriptor));
+
+    cdc->file_size = file_size;
+
+    cdc->blk_sha1s =  (uint8_t *)calloc (sizeof(uint8_t), block_nr * CHECKSUM_LENGTH);
+    if (!cdc->blk_sha1s) {
+        seaf_warning ("Failed to alloc block sha1 array.\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+int
+seaf_fs_manager_index_file_blocks (SeafFSManager *mgr,
+                                   GList *paths,
+                                   GList *blockids,
+                                   unsigned char sha1[],
+                                   gint64 file_size)
+{
+    int ret = 0;
+    CDCFileDescriptor cdc;
+
+    if (!paths) {
+        /* handle empty file. */
+        memset (sha1, 0, 20);
+        create_cdc_for_empty_file (&cdc);
+    } else {
+        int block_nr = g_list_length (paths);
+
+        if (init_file_cdc (&cdc, block_nr, file_size) < 0) {
+            ret = -1;
+            goto out;
+        }
+
+        if (check_and_write_file_blocks (&cdc, paths, blockids) < 0) {
+            seaf_warning ("Failed to check and write file blocks.\n");
+            ret = -1;
+            goto out;
+        }
+        memcpy (sha1, cdc.file_sum, CHECKSUM_LENGTH);
+    }
+
+    if (write_seafile (mgr, &cdc) < 0) {
+        seaf_warning ("Failed to write seafile.\n");
+        ret = -1;
+        goto out;
+    }
+
+out:
+    if (cdc.blk_sha1s)
+        free (cdc.blk_sha1s);
+
+    return ret;
+}
+
 Seafile *
 seafile_from_data (const char *id, const void *data, int len)
 {
@@ -636,9 +765,9 @@ seaf_dir_new (const char *id, GList *entries, gint64 ctime)
     dir->entries = entries;
 
     return dir;
-} 
+}
 
-void 
+void
 seaf_dir_free (SeafDir *dir)
 {
     if (dir == NULL)
@@ -699,7 +828,7 @@ seaf_dir_from_data (const char *dir_id, const uint8_t *data, int len)
             g_free (dent);
             goto bad;
         }
-        
+
         root->entries = g_list_prepend (root->entries, dent);
     }
 
@@ -765,7 +894,7 @@ seaf_dir_to_data (SeafDir *dir, int *len)
     return (void *)ondisk;
 }
 
-int 
+int
 seaf_dir_save (SeafFSManager *fs_mgr, SeafDir *dir)
 {
     void *data;
@@ -903,7 +1032,7 @@ block_list_free (BlockList *bl)
     g_free (bl);
 }
 
-/** 
+/**
  * Determine which blocks exist in local.
  */
 void
@@ -979,8 +1108,8 @@ block_list_difference (BlockList *bl1, BlockList *bl2)
 }
 
 static int
-traverse_file (SeafFSManager *mgr, 
-               const char *id, 
+traverse_file (SeafFSManager *mgr,
+               const char *id,
                TraverseFSTreeCallback callback,
                void *user_data,
                gboolean skip_errors)
@@ -998,8 +1127,8 @@ traverse_file (SeafFSManager *mgr,
 }
 
 static int
-traverse_dir (SeafFSManager *mgr, 
-              const char *id, 
+traverse_dir (SeafFSManager *mgr,
+              const char *id,
               TraverseFSTreeCallback callback,
               void *user_data,
               gboolean skip_errors)
@@ -1059,7 +1188,7 @@ seaf_fs_manager_traverse_tree (SeafFSManager *mgr,
     if (strcmp (root_id, EMPTY_SHA1) == 0) {
 #if 0
         g_debug ("[fs-mgr] populate blocklist for empty root id\n");
-#endif        
+#endif
         return 0;
     }
     return traverse_dir (mgr, root_id, callback, user_data, skip_errors);
@@ -1094,7 +1223,7 @@ seaf_fs_manager_populate_blocklist (SeafFSManager *mgr,
                                     const char *root_id,
                                     BlockList *bl)
 {
-    return seaf_fs_manager_traverse_tree (mgr, root_id, 
+    return seaf_fs_manager_traverse_tree (mgr, root_id,
                                           fill_blocklist,
                                           bl, FALSE);
 }
@@ -1237,7 +1366,7 @@ seaf_fs_manager_get_seafdir_by_path (SeafFSManager *mgr,
         GList *l;
         for (l = dir->entries; l != NULL; l = l->next) {
             dent = l->data;
-            
+
             if (strcmp(dent->name, name) == 0 && S_ISDIR(dent->mode)) {
                 dir_id = dent->id;
                 break;
@@ -1257,7 +1386,7 @@ seaf_fs_manager_get_seafdir_by_path (SeafFSManager *mgr,
         seaf_dir_free (prev);
 
         if (!dir) {
-            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_DIR_MISSING, 
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_DIR_MISSING,
                          "directory is missing");
             break;
         }

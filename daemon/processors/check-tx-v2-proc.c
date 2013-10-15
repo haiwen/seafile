@@ -92,11 +92,11 @@ encrypt_token (CcnetProcessor *processor, const char *token)
         goto out;
     }
 
-    seafile_generate_enc_key (peer->session_key,
-                              strlen(peer->session_key),
-                              CURRENT_ENC_VERSION, key, iv);
+    seafile_derive_key (peer->session_key,
+                        strlen(peer->session_key),
+                        1, key, iv);
                               
-    crypt = seafile_crypt_new (CURRENT_ENC_VERSION, key, iv);
+    crypt = seafile_crypt_new (1, key, iv);
     
     /* encrypt the token with session key, including the trailing null byte */
     if (seafile_encrypt (&enc_out, &len, token, strlen(token) + 1, crypt) < 0) {

@@ -21,7 +21,7 @@
 
 struct SeafileCrypt {
     int version;
-    unsigned char key[16];   /* set when enc_version >= 1 */
+    unsigned char key[32];   /* set when enc_version >= 1 */
     unsigned char iv[16];
 };
 
@@ -30,7 +30,10 @@ typedef struct SeafileCrypt SeafileCrypt;
 SeafileCrypt *
 seafile_crypt_new (int version, unsigned char *key, unsigned char *iv);
 
-/*  
+/*
+  Derive key and iv used by AES encryption from @data_in.
+  key and iv is 16 bytes for version 1, and 32 bytes for version 2.
+
   @data_out: pointer to the output of the encrpyted/decrypted data,
   whose content must be freed by g_free when not used.
 
@@ -47,18 +50,33 @@ seafile_crypt_new (int version, unsigned char *key, unsigned char *iv);
   On success, 0 is returned, and the encrpyted/decrypted data is in
   *data_out, with out_len set to its length. On failure, -1 is returned
   and *data_out is set to NULL, with out_len set to -1;
-
-  NOTE:
-
-  In AES, padding is always used, so the output length of
-  seafile_encrypt is always a multiple of BLK_SIZE(16 Bytes), and the
-  input length of seafile_decrypt *must* be a multiple of BLK_SIZE.
-  
 */
 
 int
-seafile_generate_enc_key (const char *data_in, int in_len, int version,
-                          unsigned char *key, unsigned char *iv);
+seafile_derive_key (const char *data_in, int in_len, int version,
+                    unsigned char *key, unsigned char *iv);
+
+/*
+ * Generate the real key used to encrypt data.
+ * The key 32 bytes long and encrpted with @passwd.
+ */
+void
+seafile_generate_random_key (const char *passwd, char *random_key);
+
+void
+seafile_generate_magic (int version, const char *repo_id,
+                        const char *passwd, char *magic);
+
+int
+seafile_verify_repo_passwd (const char *repo_id,
+                            const char *passwd,
+                            const char *magic,
+                            int version);
+
+int
+seafile_decrypt_repo_enc_key (int enc_version,
+                               const char *passwd, const char *random_key,
+                               unsigned char *key_out, unsigned char *iv_out);
 
 int
 seafile_encrypt (char **data_out,

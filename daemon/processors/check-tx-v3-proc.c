@@ -103,7 +103,7 @@ encrypt_token (CcnetProcessor *processor, const char *token)
                     key, /* the derived key */
                     iv); /* IV, initial vector */
 
-    crypt = seafile_crypt_new (CURRENT_ENC_VERSION, key, iv);
+    crypt = seafile_crypt_new (1, key, iv);
     
     /* encrypt the token with session key, including the trailing null byte */
     if (seafile_encrypt (&enc_out, &len, token, strlen(token) + 1, crypt) < 0) {

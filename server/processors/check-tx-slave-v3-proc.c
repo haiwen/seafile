@@ -183,7 +183,7 @@ decrypt_token (CcnetProcessor *processor)
                     key, /* the derived key */
                     iv); /* IV, initial vector */
 
-    crypt = seafile_crypt_new (CURRENT_ENC_VERSION, key, iv);
+    crypt = seafile_crypt_new (1, key, iv);
     
     if (seafile_decrypt (&token, &token_len, encrypted_token,
                          encrypted_len, crypt) < 0) {

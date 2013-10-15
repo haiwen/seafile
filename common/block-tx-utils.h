@@ -109,7 +109,7 @@ typedef int (*FrameFragmentCB) (char *, int, int, void *);
 typedef struct _FrameParser {
     int enc_frame_len;
 
-    unsigned char key[ENC_BLOCK_SIZE];
+    unsigned char key[ENC_KEY_SIZE];
     unsigned char iv[ENC_BLOCK_SIZE];
     gboolean enc_init;
     EVP_CIPHER_CTX ctx;
