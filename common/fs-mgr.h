@@ -152,6 +152,13 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
  * Returns sha1 id for the seafile/symlink object in @sha1 parameter.
  */
 int
+seaf_fs_manager_index_file_blocks (SeafFSManager *mgr,
+                                   GList *paths,
+                                   GList *blockids,
+                                   unsigned char sha1[],
+                                   gint64 file_size);
+
+int
 seaf_fs_manager_index_blocks (SeafFSManager *mgr,
                               const char *file_path,
                               unsigned char sha1[],
@@ -207,6 +214,10 @@ seafile_write_chunk (CDCDescriptor *chunk,
                      SeafileCrypt *crypt,
                      uint8_t *checksum,
                      gboolean write_data);
+int
+seafile_check_write_chunk (CDCDescriptor *chunk,
+                           uint8_t *sha1,
+                           gboolean write_data);
 #endif /* SEAFILE_SERVER */
 
 uint32_t
@@ -238,5 +249,22 @@ seaf_fs_manager_get_seafdir_id_by_path (SeafFSManager *mgr,
                                         const char *root_id,
                                         const char *path,
                                         GError **error);
+
+/* Check object integrity. */
+
+gboolean
+seaf_fs_manager_verify_seafdir (SeafFSManager *mgr,
+                                const char *dir_id,
+                                gboolean *io_error);
+
+gboolean
+seaf_fs_manager_verify_seafile (SeafFSManager *mgr,
+                                const char *file_id,
+                                gboolean *io_error);
+
+gboolean
+seaf_fs_manager_verify_object (SeafFSManager *mgr,
+                               const char *obj_id,
+                               gboolean *io_error);
 
 #endif

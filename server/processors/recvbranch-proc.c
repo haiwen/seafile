@@ -104,6 +104,7 @@ start (CcnetProcessor *processor, int argc, char **argv)
     session_token = argv[3];
 
     if (seaf_token_manager_verify_token (seaf->token_mgr,
+                                         NULL,
                                          processor->peer_id,
                                          session_token, NULL) < 0) {
         ccnet_processor_send_response (processor, 
@@ -201,6 +202,9 @@ update_repo (void *vprocessor)
         priv->rsp_msg = g_strdup (SS_NOT_FF);
         goto out;
     }
+
+    seaf_repo_manager_cleanup_virtual_repos (seaf->repo_mgr, repo_id);
+    seaf_repo_manager_merge_virtual_repo (seaf->repo_mgr, repo_id, NULL);
 
 out:
     if (repo)   seaf_repo_unref (repo);

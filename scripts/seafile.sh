@@ -87,10 +87,9 @@ function validate_already_running () {
         exit 1;
     fi
 
-    check_component_running "ccnet-server" "ccnet-server -c"
-    check_component_running "seaf-server" "seaf-server -c"
-    check_component_running "seaf-mon" "seaf-mon -c"
-    check_component_running "httpserver" "httpserver -c"
+    check_component_running "ccnet-server" "ccnet-server -c ${default_ccnet_conf_dir}"
+    check_component_running "seaf-server" "seaf-server -c ${default_ccnet_conf_dir}"
+    check_component_running "httpserver" "httpserver -c ${default_ccnet_conf_dir}"
 }
 
 function start_seafile_server () {
@@ -123,10 +122,9 @@ function stop_seafile_server () {
 
     echo "Stopping seafile server ..."
     pkill -SIGTERM -f "seafile-controller -c ${default_ccnet_conf_dir}"
-    pkill ccnet-server
-    pkill seaf-server
-    pkill seaf-mon
-    pkill httpserver
+    pkill -f "ccnet-server -c ${default_ccnet_conf_dir}"
+    pkill -f "seaf-server -c ${default_ccnet_conf_dir}"
+    pkill -f "httpserver -c ${default_ccnet_conf_dir}"
     return 0
 }
 

@@ -19,6 +19,8 @@
             <input type="hidden" name="relay_port" value="${relay_port}" />
             <input type="hidden" name="token" value="${token}" />
             <input type="hidden" name="email" value="${email}" />
+            <input type="hidden" name="enc_ver" value="${enc_version}" />
+            <input type="hidden" name="key" value="${random_key}" />
             <p><em>${repo_name}</em> ${_("will be downloaded to:")}</p>
             <input type="text" name="wt_parent" value="${wt_parent}" class="text-input" />
             % if encrypted:

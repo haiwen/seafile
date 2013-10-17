@@ -357,6 +357,10 @@ wt_status_collect_changes_index (struct index_state *index,
     fs_mgr = repo->manager->seaf->fs_mgr;
     head = seaf_commit_manager_get_commit (seaf->commit_mgr,
             repo->head->commit_id);
+    if (!head) {
+        seaf_warning ("Failed to get commit %s.\n", repo->head->commit_id);
+        return;
+    }
 
     mark_all_ce_unused (index);
 
@@ -366,6 +370,12 @@ wt_status_collect_changes_index (struct index_state *index,
 
         /* call diff_index to get status */
         root = seaf_fs_manager_get_seafdir (fs_mgr, head->root_id);
+        if (!root) {
+            seaf_warning ("Failed to get root %s.\n", head->root_id);
+            seaf_commit_unref (head);
+            return;
+        }
+
         if (diff_index(index, root, results) < 0)
             g_warning("diff index failed\n");
         seaf_dir_free (root);

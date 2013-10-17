@@ -103,7 +103,7 @@ encrypt_token (CcnetProcessor *processor, const char *token)
                     key, /* the derived key */
                     iv); /* IV, initial vector */
 
-    crypt = seafile_crypt_new (CURRENT_ENC_VERSION, key, iv);
+    crypt = seafile_crypt_new (1, key, iv);
     
     /* encrypt the token with session key, including the trailing null byte */
     if (seafile_encrypt (&enc_out, &len, token, strlen(token) + 1, crypt) < 0) {
@@ -252,7 +252,12 @@ handle_response (CcnetProcessor *processor,
         ccnet_processor_send_update (processor, SC_GET_VERSION, SS_GET_VERSION,
                                      NULL, 0);
     } else if (strncmp (code, SC_VERSION, 3) == 0) {
-        task->protocol_version = atoi(content);
+        int server_version = atoi(content);
+        /* There is a bug in block transfer in version 4, so it's not supported. */
+        if (server_version == 4)
+            server_version = 3;
+        task->protocol_version = MIN (server_version, CURRENT_PROTO_VERSION);
+        seaf_message ("protocol version is %d.\n", task->protocol_version);
         ccnet_processor_done (processor, TRUE);
     } else {
         g_warning ("[check tx v3] Bad response: %s %s", code, code_msg);

@@ -151,6 +151,7 @@ seaf_commit_free (SeafCommit *commit)
     if (commit->repo_name) g_free (commit->repo_name);
     if (commit->repo_desc) g_free (commit->repo_desc);
     g_free (commit->magic);
+    g_free (commit->random_key);
     g_free (commit);
 }
 
@@ -233,7 +234,7 @@ seaf_commit_manager_add_commit (SeafCommitManager *mgr, SeafCommit *commit)
 void
 seaf_commit_manager_del_commit (SeafCommitManager *mgr, const char *id)
 {
-    g_assert (id != NULL);
+    g_return_if_fail (id != NULL);
 
 #if 0
     commit = g_hash_table_lookup(mgr->priv->commit_cache, id);
@@ -657,6 +658,8 @@ commit_to_json_node (SeafCommit *commit)
         json_object_set_int_member (object, "enc_version", commit->enc_version);
         if (commit->enc_version >= 1)
             json_object_set_string_member (object, "magic", commit->magic);
+        if (commit->enc_version == 2)
+            json_object_set_string_member (object, "key", commit->random_key);
     }
     if (commit->no_local_history)
         json_object_set_int_member (object, "no_local_history", 1);
@@ -684,6 +687,7 @@ commit_from_json_node (const char *commit_id, JsonNode *node)
     const char *encrypted = NULL;
     int enc_version = 0;
     const char *magic = NULL;
+    const char *random_key = NULL;
     int no_local_history = 0;
 
     object = json_node_get_object (node);
@@ -713,6 +717,10 @@ commit_from_json_node (const char *commit_id, JsonNode *node)
         enc_version = json_object_get_int_member (object, "enc_version");
         magic = json_object_get_string_member (object, "magic");
     }
+
+    if (enc_version == 2)
+        random_key = json_object_get_string_member (object, "key");
+
     if (json_object_has_member (object, "no_local_history"))
         no_local_history = json_object_get_int_member (object, "no_local_history");
 
@@ -722,12 +730,31 @@ commit_from_json_node (const char *commit_id, JsonNode *node)
         !creator || strlen(creator) != 40 ||
         (parent_id && strlen(parent_id) != 40) ||
         (second_parent_id && strlen(second_parent_id) != 40) ||
-        (enc_version >= 1 && magic == NULL) ||
-        (magic && strlen(magic) != 32))
+        (enc_version >= 1 && magic == NULL))
         return commit;
 
+    switch (enc_version) {
+    case 0:
+        break;
+    case 1:
+        if (!magic || strlen(magic) != 32)
+            return NULL;
+        break;
+    case 2:
+        if (!magic || strlen(magic) != 64)
+            return NULL;
+        if (!random_key || strlen(random_key) != 96)
+            return NULL;
+        break;
+    default:
+        g_warning ("Unknown encryption version %d.\n", enc_version);
+        return NULL;
+    }
+
+    char *creator_name_l = g_ascii_strdown (creator_name, -1);
     commit = seaf_commit_new (commit_id, repo_id, root_id,
                               creator_name, creator, desc, ctime);
+    g_free (creator_name_l);
 
     commit->parent_id = parent_id ? g_strdup(parent_id) : NULL;
     commit->second_parent_id = second_parent_id ? g_strdup(second_parent_id) : NULL;
@@ -745,6 +772,8 @@ commit_from_json_node (const char *commit_id, JsonNode *node)
         commit->enc_version = enc_version;
         if (enc_version >= 1)
             commit->magic = g_strdup(magic);
+        if (enc_version == 2)
+            commit->random_key = g_strdup (random_key);
     }
     if (no_local_history)
         commit->no_local_history = TRUE;
@@ -817,11 +846,19 @@ save_commit (SeafCommitManager *manager, SeafCommit *commit)
     json_node_free (root);
     g_object_unref (gen);
 
+#ifdef SEAFILE_SERVER
     if (seaf_obj_store_write_obj (manager->obj_store, commit->commit_id,
-                                  data, (int)len) < 0) {
+                                  data, (int)len, TRUE) < 0) {
         g_free (data);
         return -1;
     }
+#else
+    if (seaf_obj_store_write_obj (manager->obj_store, commit->commit_id,
+                                  data, (int)len, FALSE) < 0) {
+        g_free (data);
+        return -1;
+    }
+#endif
     g_free (data);
 
     return 0;

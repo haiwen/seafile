@@ -90,6 +90,15 @@ seafile_set_download_rate_limit (int limit, GError **error);
  */
 int seafile_destroy_repo (const gchar *repo_id, GError **error);
 
+int
+seafile_unsync_repos_by_server (const char *server_addr, GError **error);
+
+int
+seafile_get_download_rate(GError **error);
+
+int
+seafile_get_upload_rate(GError **error);
+
 /**
  * seafile_edit_repo:
  * @repo_id: repository id.
@@ -162,8 +171,20 @@ int seafile_is_auto_sync_enabled (GError **error);
  * List a directory.
  *
  * Returns: a list of dirents.
+ * 
+ * @limit: if limit <= 0, all dirents start from @offset will be returned.
  */
-GList * seafile_list_dir (const char *dir_id, GError **error);
+GList * seafile_list_dir (const char *dir_id, int offset, int limit, GError **error);
+
+/**
+ * seafile_list_file:
+ * List the blocks of a file.
+ *
+ * Returns: a list of block ids speprated by '\n'.
+ * 
+ * @limit: if limit <= 0, all blocks start from @offset will be returned.
+ */
+char * seafile_list_file (const char *file_id, int offset, int limit, GError **error);
 
 /**
  * seafile_list_dir_by_path:
@@ -208,6 +229,8 @@ seafile_clone (const char *repo_id,
                const char *peer_addr,
                const char *peer_port,
                const char *email,
+               const char *random_key,
+               int enc_version,
                GError **error);
 
 char *
@@ -221,6 +244,8 @@ seafile_download (const char *repo_id,
                   const char *peer_addr,
                   const char *peer_port,
                   const char *email,
+                  const char *random_key,
+                  int enc_version,
                   GError **error);
 
 int
@@ -346,12 +371,16 @@ seafile_branch_gets (const char *repo_id, GError **error);
 int
 seafile_is_repo_owner (const char *email, const char *repo_id,
                        GError **error);
+
+int
+seafile_set_repo_owner(const char *repo_id, const char *email,
+                       GError **error);
+
 /**
  * Return owner id of repo
  */
 char *
 seafile_get_repo_owner(const char *repo_id, GError **error);
-
 
 GList *
 seafile_list_owned_repos (const char *email, GError **error);
@@ -487,6 +516,11 @@ seafile_get_repo_history_limit (const char *repo_id,
                                 GError **error);
 
 int
+seafile_check_passwd (const char *repo_id,
+                      const char *magic,
+                      GError **error);
+
+int
 seafile_set_passwd (const char *repo_id,
                     const char *user,
                     const char *passwd,
@@ -530,13 +564,30 @@ seafile_post_file (const char *repo_id, const char *temp_file_path,
  * @filenames_json: json array of filenames
  * @paths_json: json array of temp file paths
  */
-int
+char *
 seafile_post_multi_files (const char *repo_id,
                           const char *parent_dir,
                           const char *filenames_json,
                           const char *paths_json,
                           const char *user,
                           GError **error);
+
+/**
+ * Add file blocks at once.
+ *
+ * @blocks_json: json array of block ids
+ * @paths_json: json array of temp file paths
+ */
+char *
+seafile_post_file_blocks (const char *repo_id,
+                          const char *parent_dir,
+                          const char *file_name,
+                          const char *blockids_json,
+                          const char *paths_json,
+                          const char *user,
+                          gint64 file_size,
+                          GError **error);
+
 
 int
 seafile_post_empty_file (const char *repo_id, const char *parent_dir,
@@ -555,6 +606,19 @@ seafile_put_file (const char *repo_id, const char *temp_file_path,
                   const char *parent_dir, const char *file_name,
                   const char *user, const char *head_id,
                   GError **error);
+
+/**
+ * Add file blocks at once.
+ *
+ * @blocks_json: json array of block ids
+ * @paths_json: json array of temp file paths
+ */
+char *
+seafile_put_file_blocks (const char *repo_id, const char *parent_dir,
+                         const char *file_name, const char *blockids_json,
+                         const char *paths_json, const char *user,
+                         const char *head_id, gint64 file_size, GError **error);
+
 
 int
 seafile_post_dir (const char *repo_id, const char *parent_dir,
@@ -721,6 +785,27 @@ seafile_create_org_repo (const char *repo_name,
                          int org_id,
                          GError **error);
 
+char *
+seafile_create_enc_repo (const char *repo_id,
+                         const char *repo_name,
+                         const char *repo_desc,
+                         const char *owner_email,
+                         const char *magic,
+                         const char *random_key,
+                         int enc_version,
+                         GError **error);
+
+char *
+seafile_create_org_enc_repo (const char *repo_id,
+                             const char *repo_name,
+                             const char *repo_desc,
+                             const char *user,
+                             const char *magic,
+                             const char *random_key,
+                             int enc_version,
+                             int org_id,
+                             GError **error);
+
 int
 seafile_get_org_id_by_repo_id (const char *repo_id, GError **error);
 
@@ -817,7 +902,26 @@ seafile_get_file_id_by_commit_and_path(const char *commit_id,
                                        const char *path,
                                        GError **error);
 
-/* ------------------ Public RPC calls. ------------ */
+/* virtual repo related */
+
+char *
+seafile_create_virtual_repo (const char *origin_repo_id,
+                             const char *path,
+                             const char *repo_name,
+                             const char *repo_desc,
+                             const char *owner,
+                             GError **error);
+
+GList *
+seafile_get_virtual_repos_by_owner (const char *owner, GError **error);
+
+GObject *
+seafile_get_virtual_repo (const char *origin_repo,
+                          const char *path,
+                          const char *owner,
+                          GError **error);
+
+/* ------------------ public RPC calls. ------------ */
 
 GList* seafile_get_repo_list_pub (int start, int limit, GError **error);
 

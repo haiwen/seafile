@@ -37,6 +37,7 @@ conf = {}
 CONF_VERSION            = 'version'
 CONF_LIBSEARPC_VERSION  = 'libsearpc_version'
 CONF_CCNET_VERSION      = 'ccnet_version'
+CONF_SEAFILE_VERSION    = 'seafile_version'
 CONF_SRCDIR             = 'srcdir'
 CONF_KEEP               = 'keep'
 CONF_BUILDDIR           = 'builddir'
@@ -177,14 +178,25 @@ def gen_tarball():
     print '---------------------------------------------'
 
 def uncompress_seafile():
-    tarball = os.path.join(conf[CONF_SRCDIR], 'seafile-%s.tar.gz' % conf[CONF_VERSION])
+    src = os.path.join(conf[CONF_BUILDDIR], 'seafile-%s' % conf[CONF_SEAFILE_VERSION])
+    dst = os.path.join(conf[CONF_BUILDDIR], 'seafile-%s' % conf[CONF_VERSION])
+
+    if os.path.exists(src):
+        error('dir %s already exists' % src)
+    if os.path.exists(dst):
+        error('dir %s already exists' % dst)
+
+    tarball = os.path.join(conf[CONF_SRCDIR], 'seafile-%s.tar.gz' % conf[CONF_SEAFILE_VERSION])
     argv = [ 'tar', 'xf',
              tarball,
              '-C', conf[CONF_BUILDDIR],
          ]
 
     if run_argv(argv) != 0:
-        error('failed to uncompress libsearpc')
+        error('failed to uncompress seafile')
+
+    if conf[CONF_VERSION] != conf[CONF_SEAFILE_VERSION]:
+        shutil.move(src, dst)
 
 def uncompress_libsearpc():
     tarball = os.path.join(conf[CONF_SRCDIR], 'libsearpc-%s.tar.gz' % conf[CONF_LIBSEARPC_VERSION])
@@ -226,6 +238,11 @@ def parse_args():
 
     parser.add_option(long_opt(CONF_VERSION),
                       dest=CONF_VERSION,
+                      nargs=1,
+                      help='the version of seafile source. Must be digits delimited by dots, like 1.3.0')
+
+    parser.add_option(long_opt(CONF_SEAFILE_VERSION),
+                      dest=CONF_SEAFILE_VERSION,
                       nargs=1,
                       help='the version of seafile. Must be digits delimited by dots, like 1.3.0')
 
@@ -271,6 +288,7 @@ def parse_args():
 def validate_args(usage, options):
     required_args = [
         CONF_VERSION,
+        CONF_SEAFILE_VERSION,
         CONF_LIBSEARPC_VERSION,
         CONF_CCNET_VERSION,
         CONF_SRCDIR,
@@ -293,16 +311,18 @@ def validate_args(usage, options):
     version = get_option(CONF_VERSION)
     libsearpc_version = get_option(CONF_LIBSEARPC_VERSION)
     ccnet_version = get_option(CONF_CCNET_VERSION)
+    seafile_version = get_option(CONF_SEAFILE_VERSION)
 
     check_project_version(version)
     check_project_version(libsearpc_version)
     check_project_version(ccnet_version)
+    check_project_version(seafile_version)
 
     # [ srcdir ]
     srcdir = get_option(CONF_SRCDIR)
     check_targz_src('libsearpc', libsearpc_version, srcdir)
     check_targz_src('ccnet', ccnet_version, srcdir)
-    check_targz_src('seafile', version, srcdir)
+    check_targz_src('seafile', seafile_version, srcdir)
 
     # [ builddir ]
     builddir = get_option(CONF_BUILDDIR)
@@ -322,6 +342,7 @@ def validate_args(usage, options):
     conf[CONF_VERSION] = version
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
     conf[CONF_CCNET_VERSION] = ccnet_version
+    conf[CONF_SEAFILE_VERSION] = seafile_version
 
     conf[CONF_BUILDDIR] = builddir
     conf[CONF_SRCDIR] = srcdir
@@ -346,9 +367,9 @@ def prepare_builddir(builddir):
 def show_build_info():
     '''Print all conf information. Confirm before continue.'''
     info('------------------------------------------')
-    info('Seafile debian source tarball:')
+    info('Seafile debian source tarball %s:' % conf[CONF_VERSION])
     info('------------------------------------------')
-    info('seafile:          %s' % conf[CONF_VERSION])
+    info('seafile:          %s' % conf[CONF_SEAFILE_VERSION])
     info('ccnet:            %s' % conf[CONF_CCNET_VERSION])
     info('libsearpc:        %s' % conf[CONF_LIBSEARPC_VERSION])
     info('builddir:         %s' % conf[CONF_BUILDDIR])

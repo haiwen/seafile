@@ -54,9 +54,6 @@ int
 BitfieldAdd( Bitfield * bitfield,
                 size_t        nth )
 {
-    assert( bitfield );
-    assert( bitfield->bits );
-
     if( nth >= bitfield->bitCount )
         return -1;
 
@@ -102,9 +99,6 @@ int
 BitfieldRem( Bitfield * bitfield,
                 size_t        nth )
 {
-    assert( bitfield );
-    assert( bitfield->bits );
-
     if( nth >= bitfield->bitCount )
         return -1;
 

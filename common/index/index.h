@@ -412,7 +412,8 @@ int add_to_index(struct index_state *istate,
 
 int
 add_empty_dir_to_index (struct index_state *istate,
-                        const char *path);
+                        const char *path,
+                        SeafStat *st);
 
 extern int add_file_to_index(struct index_state *, const char *path, int flags);
 extern struct cache_entry *make_cache_entry(unsigned int mode, const unsigned char *sha1, const char *path, const char *full_path, int stage, int refresh);

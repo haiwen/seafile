@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 
 
 AC_PREREQ(2.61)
-AC_INIT([seafile], [1.7.1], [freeplant@gmail.com])
+AC_INIT([seafile], [1.8.0], [freeplant@gmail.com])
 AC_CONFIG_HEADER([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -91,6 +91,9 @@ if test "$blinux" = true; then
 
    AC_ARG_ENABLE(ceph, AC_HELP_STRING([--enable-ceph], [enable ceph backend]),
       [compile_ceph=$enableval],[compile_ceph="no"])
+
+   AC_ARG_ENABLE(gnome-keyring, AC_HELP_STRING([--enable-gnome-keyring], [enable gnome keyring support]),
+      [compile_gnome_keyring=$enableval],[compile_gnome_keyring="no"])
 fi
 
 AC_ARG_ENABLE(client, AC_HELP_STRING([--enable-client], [enable client]),
@@ -101,13 +104,6 @@ AC_ARG_ENABLE(gui, AC_HELP_STRING([--enable-gui], [enable gui]),
 
 AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
    [compile_server=$enableval],[compile_server="no"])
-
-# default compile mysql, but only check it for server.
-AC_ARG_ENABLE(mysql, AC_HELP_STRING([--enable-mysql], [enable mysql]),
-   [compile_mysql=$enableval],[compile_mysql="yes"])
-
-AC_ARG_ENABLE(pgsql, AC_HELP_STRING([--enable-pgsql], [enable postgresql]),
-   [compile_pgsql=$enableval],[compile_pgsql="no"])
 
 AC_ARG_ENABLE(python,
               AC_HELP_STRING([--enable-python],[build ccnet python binding]),
@@ -156,8 +152,6 @@ AM_CONDITIONAL([COMPILE_SERVER], [test "${compile_server}" = "yes"])
 #AM_CONDITIONAL([COMPILE_SEABLOCK], [test "${compile_seablock}" = "yes"])
 AM_CONDITIONAL([COMPILE_RIAK], [test "${compile_riak}" = "yes"])
 AM_CONDITIONAL([COMPILE_CEPH], [test "${compile_ceph}" = "yes"])
-AM_CONDITIONAL([COMPILE_MYSQL], [test "${compile_mysql}" = "yes"])
-AM_CONDITIONAL([COMPILE_PGSQL], [test "${compile_pgsql}" = "yes"])
 
 AM_CONDITIONAL([WIN32], [test "$bwin32" = "true"])
 AM_CONDITIONAL([MACOS], [test "$bmac" = "true"])
@@ -354,46 +348,6 @@ if test "${compile_server}" = "yes"; then
    AC_SUBST(ZDB_CFLAGS)
    AC_SUBST(ZDB_LIBS)
 
-   if test "$compile_mysql" = "yes"; then
-     MYSQL_CFLAGS=$(mysql_config --include)
-     MYSQL_LIBS=$(mysql_config --libs_r)
-
-     # On CentOS, libmysqlclient is in /usr/lib64/mysql/, not /usr/lib, so we
-     # need to adjust CPPFLAGS and LDFLAGS before check it
-     saved_CPPFLAGS=$CPPFLAGS
-     saved_LDFLAGS=$LDFLAGS
-     CPPFLAGS="$MYSQL_CFLAGS $CPPFLAGS"
-     LDFLAGS="$MYSQL_LIBS $LDFLAGS"
-
-     AC_CHECK_LIB(mysqlclient, mysql_init, [echo "found library mysqlclient"],
-     AC_MSG_ERROR([*** Unable to find mysql client library]), )
-
-     CPPFLAGS=$saved_CPPFLAGS
-     LDFLAGS=$saved_LDFLAGS
-
-     AC_SUBST(MYSQL_LIBS)
-     AC_SUBST(MYSQL_CFLAGS)
-
-   fi
-
-   # check postgresql if compile_pgsql is set
-   if test "${compile_pgsql}" = "yes"; then
-     saved_CPPFLAGS=$CPPFLAGS
-     saved_LDFLAGS=$LDFLAGS
-     PGSQL_CFLAGS="-I`pg_config --includedir` $CPPFLAGS"
-     PGSQL_LIBS="-L`pg_config --libdir` $LDFLAGS"
-
-     CPPFLAGS="$PGSQL_CFLAGS $CPPFLAGS"
-     LDFLAGS="$PGSQL_LIBS $LDFLAGS"
-
-     AC_CHECK_HEADERS([libpq-fe.h], [], [compile_pgsql="no"])
-
-     CPPFLAGS=$saved_CPPFLAGS
-     LDFLAGS=$saved_LDFLAGS
-
-     AC_SUBST(PGSQL_LIBS)
-     AC_SUBST(PGSQL_CFLAGS)
-   fi
 fi
 
 if test x${compile_server} = xyes; then
@@ -421,6 +375,14 @@ if test "${compile_ceph}" = "yes"; then
    AC_DEFINE([HAVE_RADOS], [1], ["define if have rados"])
 fi
 
+AM_CONDITIONAL([HAVE_KEYSTORAGE_GK], [test "${compile_gnome_keyring}" = "yes"])
+if test "${compile_gnome_keyring}" = "yes"; then
+   PKG_CHECK_MODULES(GNOME_KEYRING, [gnome-keyring-1])
+   AC_SUBST(GNOME_KEYRING_CFLAGS)
+   AC_SUBST(GNOME_KEYRING_LIBS)
+   AC_DEFINE(HAVE_KEYSTORAGE_GK, 1, [Have Gnome-Keyring support])
+fi
+
 ac_configure_args="$ac_configure_args -q"
 
 AC_CONFIG_FILES(
@@ -434,7 +396,10 @@ AC_CONFIG_FILES(
     data/icons/24x24/Makefile
     data/icons/32x32/Makefile
     data/icons/48x48/Makefile
+    data/icons/128x128/Makefile
+    data/icons/scalable/Makefile
     lib/Makefile
+    lib/libseafile.pc
     gui/Makefile
     gui/gtk/Makefile
     common/Makefile
@@ -449,7 +414,6 @@ AC_CONFIG_FILES(
     python/seaserv/Makefile
     controller/Makefile
     httpserver/Makefile
-    monitor/Makefile
     tools/Makefile
     tests/Makefile
     tests/common-conf.sh

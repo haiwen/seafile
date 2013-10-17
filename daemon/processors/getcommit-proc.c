@@ -168,7 +168,8 @@ save_commit (ObjectPack *pack, int len)
     return seaf_obj_store_write_obj (seaf->commit_mgr->obj_store,
                                      pack->id,
                                      pack->object,
-                                     len - 41);
+                                     len - 41,
+                                     FALSE);
 }
 
 static void
@@ -294,6 +295,6 @@ static void handle_response (CcnetProcessor *processor,
         }
         break;
     default:
-        g_assert (0);
+        g_return_if_reached ();
     }
 }

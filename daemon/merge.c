@@ -113,7 +113,7 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
     int ret = 0;
     SeafRepoMergeInfo minfo;
 
-    g_assert (repo && remote_branch && error);
+    g_return_val_if_fail (repo && remote_branch && error, -1);
 
     *real_merge = FALSE;
 

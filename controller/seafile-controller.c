@@ -24,7 +24,7 @@ SeafileController *ctl;
 
 static char *controller_pidfile = NULL;
 
-static const char *short_opts = "hvftCc:d:l:g:G:P:";
+static const char *short_opts = "hvftCc:d:L:g:G:P:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -33,7 +33,7 @@ static const struct option long_opts[] = {
     { "cloud-mode", no_argument, NULL, 'C', },
     { "config-dir", required_argument, NULL, 'c', },
     { "seafile-dir", required_argument, NULL, 'd', },
-    { "logfile", required_argument, NULL, 'l', },
+    { "logdir", required_argument, NULL, 'L', },
     { "ccnet-debug-level", required_argument, NULL, 'g' },
     { "seafile-debug-level", required_argument, NULL, 'G' },
     { "pidfile", required_argument, NULL, 'P' },
@@ -142,9 +142,15 @@ start_ccnet_server ()
 
     seaf_message ("starting ccnet-server ...\n");
 
+    static char *logfile = NULL;
+    if (logfile == NULL) {
+        logfile = g_build_filename (ctl->logdir, "ccnet.log", NULL);
+    }
+
     char *argv[] = {
         "ccnet-server",
         "-c", ctl->config_dir,
+        "-f", logfile,
         "-d",
         "-P", ctl->pidfile[PID_CCNET],
         NULL};
@@ -165,17 +171,22 @@ start_seaf_server ()
         return -1;
 
     seaf_message ("starting seaf-server ...\n");
+    static char *logfile = NULL;
+    if (logfile == NULL) {
+        logfile = g_build_filename (ctl->logdir, "seafile.log", NULL);
+    }
 
     char *argv[] = {
         "seaf-server",
         "-c", ctl->config_dir,
         "-d", ctl->seafile_dir,
+        "-l", logfile,
         "-P", ctl->pidfile[PID_SERVER],
         "-C",
         NULL};
 
     if (!ctl->cloud_mode) {
-        argv[7] = NULL;
+        argv[9] = NULL;
     }
 
     int pid = spawn_process (argv);
@@ -189,10 +200,16 @@ start_seaf_server ()
 
 static int
 start_httpserver() {
+    static char *logfile = NULL;
+    if (logfile == NULL) {
+        logfile = g_build_filename (ctl->logdir, "http.log", NULL);
+    }
+
     char *argv[] = {
         "httpserver",
         "-c", ctl->config_dir,
         "-d", ctl->seafile_dir,
+        "-l", logfile,
         "-P", ctl->pidfile[PID_HTTPSERVER],
         NULL
     };
@@ -417,6 +434,7 @@ static int
 seaf_controller_init (SeafileController *ctl,
                       char *config_dir,
                       char *seafile_dir,
+                      char *logdir,
                       gboolean cloud_mode)
 {
     if (!g_file_test (config_dir, G_FILE_TEST_IS_DIR)) {
@@ -442,8 +460,20 @@ seaf_controller_init (SeafileController *ctl,
         return -1;
     }
 
+    if (logdir == NULL) {
+        char *topdir = g_path_get_dirname(config_dir);
+        logdir = g_build_filename (topdir, "logs", NULL);
+        if (checkdir_with_mkdir(logdir) < 0) {
+            fprintf (stderr, "failed to create log folder \"%s\": %s\n",
+                     logdir, strerror(errno));
+            return -1;
+        }
+        g_free (topdir);
+    }
+
     ctl->config_dir = config_dir;
     ctl->seafile_dir = seafile_dir;
+    ctl->logdir = logdir;
     ctl->cloud_mode = cloud_mode;
 
     init_pidfile_path(ctl);
@@ -484,7 +514,7 @@ write_controller_pidfile ()
     if (fputs(buf, pidfile) < 0) {
         seaf_warning ("Failed to write pidfile %s: %s\n",
                       controller_pidfile, strerror(errno));
-        fclose(pidfile);
+        fclose (pidfile);
         return -1;
     }
 
@@ -589,7 +619,7 @@ int main (int argc, char **argv)
 
     char *config_dir = DEFAULT_CONFIG_DIR;
     char *seafile_dir = NULL;
-    char *logfile = NULL;
+    char *logdir = NULL;
     char *ccnet_debug_level_str = "info";
     char *seafile_debug_level_str = "debug";
     int daemon_mode = 1;
@@ -620,8 +650,8 @@ int main (int argc, char **argv)
         case 'f':
             daemon_mode = 0;
             break;
-        case 'l':
-            logfile = g_strdup(optarg);
+        case 'L':
+            logdir = g_strdup(optarg);
             break;
         case 'C':
             cloud_mode = TRUE;
@@ -659,14 +689,11 @@ int main (int argc, char **argv)
     }
 
     ctl = g_new0 (SeafileController, 1);
-    if (seaf_controller_init (ctl, config_dir, seafile_dir, cloud_mode) < 0) {
+    if (seaf_controller_init (ctl, config_dir, seafile_dir, logdir, cloud_mode) < 0) {
         controller_exit(1);
     }
 
-    if (!logfile) {
-        logfile = g_build_filename (seafile_dir, "controller.log", NULL);
-    }
-
+    char *logfile = g_build_filename (ctl->logdir, "controller.log", NULL);
     if (seafile_log_init (logfile, ccnet_debug_level_str,
                           seafile_debug_level_str) < 0) {
         seaf_warning ("Failed to init log.\n");

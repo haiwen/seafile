@@ -90,8 +90,8 @@ class SeafileRpcClient(ccnet.RpcClientBase):
         pass
     get_commit_list = seafile_get_commit_list
 
-    @searpc_func("objlist", ["string"])
-    def seafile_list_dir(dir_id):
+    @searpc_func("objlist", ["string", "int", "int"])
+    def seafile_list_dir(dir_id, offset, limit):
         pass
     list_dir = seafile_list_dir
 
@@ -120,13 +120,13 @@ class SeafileRpcClient(ccnet.RpcClientBase):
     def gen_default_worktree(worktree_parent, repo_name):
         pass
 
-    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "string", "string", "string"])
-    def seafile_clone(repo_id, peer_id, repo_name, worktree, token, password, magic, peer_addr, peer_port, email):
+    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int"])
+    def seafile_clone(repo_id, peer_id, repo_name, worktree, token, password, magic, peer_addr, peer_port, email, random_key, enc_version):
         pass
     clone = seafile_clone
 
-    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "string", "string", "string"])
-    def seafile_download(repo_id, peer_id, repo_name, wt_parent, token, password, magic, peer_addr, peer_port, email):
+    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int"])
+    def seafile_download(repo_id, peer_id, repo_name, wt_parent, token, password, magic, peer_addr, peer_port, email, random_key, enc_version):
         pass
     download = seafile_download
 
@@ -321,6 +321,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     create_repo = seafile_create_repo
 
+    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "int"])
+    def seafile_create_enc_repo(repo_id, name, desc, owner_email, magic, random_key, enc_version):
+        pass
+    create_enc_repo = seafile_create_enc_repo
+
     @searpc_func("object", ["string"])
     def seafile_get_repo(repo_id):
         pass
@@ -346,6 +351,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     is_repo_owner = seafile_is_repo_owner
 
+    @searpc_func("int", ["string", "string"])
+    def seafile_set_repo_owner(email, repo_id):
+        pass
+    set_repo_owner = seafile_set_repo_owner
+    
     @searpc_func("string", ["string"])
     def seafile_get_repo_owner(repo_id):
         pass
@@ -430,6 +440,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_get_commit(commit_id):
         pass
     get_commit = seafile_get_commit
+
+    @searpc_func("string", ["string", "int", "int"])
+    def seafile_list_file(file_id, offset, limit):
+        pass
+    list_file = seafile_list_file
 
     @searpc_func("objlist", ["string"])
     def seafile_list_dir(dir_id):
@@ -658,6 +673,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
 
     # password management
+    @searpc_func("int", ["string", "string"])
+    def seafile_check_passwd(repo_id, magic):
+        pass
+    check_passwd = seafile_check_passwd
+
     @searpc_func("int", ["string", "string", "string"])
     def seafile_set_passwd(repo_id, user, passwd):
         pass
@@ -674,8 +694,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
 
     # org repo
-    @searpc_func("string", ["string", "string", "string", "string", "int"])
-    def seafile_create_org_repo(name, desc, user, passwd, org_id):
+    @searpc_func("string", ["string", "string", "string", "string", "string", "int", "int"])
+    def seafile_create_org_repo(name, desc, user, passwd, magic, random_key, enc_version, org_id):
         pass
     create_org_repo = seafile_create_org_repo
 
@@ -779,4 +799,17 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
 
     @searpc_func("int", ["string"])
     def get_repo_history_limit(repo_id):
+        pass
+
+    # virtual repo
+    @searpc_func("string", ["string", "string", "string", "string", "string"])
+    def create_virtual_repo(origin_repo_id, path, repo_name, repo_desc, owner):
+        pass
+
+    @searpc_func("objlist", ["string"])
+    def get_virtual_repos_by_owner(owner):
+        pass
+
+    @searpc_func("object", ["string", "string", "string"])
+    def get_virtual_repo(origin_repo, path, owner):
         pass

@@ -37,6 +37,7 @@ load_filesystem_block_backend(GKeyFile *config)
     return bend;
 }
 
+#if 0
 #ifdef SEAFILE_SERVER
 BlockBackend*
 load_ceph_block_backend(GKeyFile *config)
@@ -65,6 +66,7 @@ load_ceph_block_backend(GKeyFile *config)
     return bend;
 }
 #endif
+#endif
 
 BlockBackend*
 load_block_backend (GKeyFile *config)
@@ -82,12 +84,15 @@ load_block_backend (GKeyFile *config)
         g_free (backend);
         return bend;
     }
+
+#if 0
 #ifdef SEAFILE_SERVER
     else if (strcmp(backend, "ceph") == 0) {
         bend = load_ceph_block_backend(config);
         g_free(backend);
         return bend;
     }
+#endif
 #endif
 
     g_warning ("Unknown backend\n");

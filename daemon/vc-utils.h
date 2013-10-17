@@ -33,6 +33,9 @@ update_worktree (struct unpack_trees_options *o,
                  const char *default_conflict_suffix,
                  int *finished_entries);
 
+int
+seaf_remove_empty_dir (const char *path);
+
 gboolean
 files_locked_on_windows (struct index_state *index, const char *worktree);
 

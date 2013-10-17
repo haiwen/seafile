@@ -2,6 +2,10 @@
 
 #include "common.h"
 
+#ifdef WIN32
+#include <windows.h>
+#endif
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,6 +33,13 @@
 #include "processors/check-tx-slave-proc.h"
 #include "processors/putcommit-proc.h"
 #include "processors/putfs-proc.h"
+
+#include "cdc/cdc.h"
+
+#ifndef SEAFILE_CLIENT_VERSION
+#define SEAFILE_CLIENT_VERSION PACKAGE_VERSION
+#endif
+
 
 SeafileSession *seaf;
 SearpcClient *ccnetrpc_client;
@@ -110,6 +121,21 @@ start_rpc_service (CcnetClient *client)
                                      searpc_signature_int__int());
 
     searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_unsync_repos_by_server,
+                                     "seafile_unsync_repos_by_server",
+                                     searpc_signature_int__string());
+
+    searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_get_upload_rate,
+                                     "seafile_get_upload_rate",
+                                     searpc_signature_int__void());
+
+    searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_get_download_rate,
+                                     "seafile_get_download_rate",
+                                     searpc_signature_int__void());
+
+    searpc_server_register_function ("seafile-rpcserver",
                                      seafile_destroy_repo,
                                      "seafile_destroy_repo",
                                      searpc_signature_int__string());
@@ -164,11 +190,11 @@ start_rpc_service (CcnetClient *client)
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_clone,
                                      "seafile_clone",
-        searpc_signature_string__string_string_string_string_string_string_string_string_string_string());
+        searpc_signature_string__string_string_string_string_string_string_string_string_string_string_string_int());
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_download,
                                      "seafile_download",
-        searpc_signature_string__string_string_string_string_string_string_string_string_string_string());
+        searpc_signature_string__string_string_string_string_string_string_string_string_string_string_string_int());
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_cancel_clone_task,
                                      "seafile_cancel_clone_task",
@@ -329,6 +355,8 @@ main (int argc, char **argv)
     char *seafile_debug_level_str = "debug";
 
 #ifdef WIN32
+    LoadLibraryA ("exchndl.dll");
+
     argv = get_argv_utf8 (&argc);
 #endif
 
@@ -385,6 +413,8 @@ main (int argc, char **argv)
 
 #endif
 
+    cdc_init ();
+
     g_type_init ();
 #if !GLIB_CHECK_VERSION(2,32,0)
     g_thread_init (NULL);
@@ -431,7 +461,10 @@ main (int argc, char **argv)
     seaf->ccnetrpc_client = ccnetrpc_client;
     seaf->appletrpc_client = appletrpc_client;
 
-    seaf_message ("starting seaf-daemon "PACKAGE_VERSION"\n");
+    seaf_message ("starting seafile client "SEAFILE_CLIENT_VERSION"\n");
+#if defined(SEAFILE_SOURCE_COMMIT_ID)
+    seaf_message ("seafile source code version "SEAFILE_SOURCE_COMMIT_ID"\n");
+#endif
 
     g_free (seafile_dir);
     g_free (worktree_dir);

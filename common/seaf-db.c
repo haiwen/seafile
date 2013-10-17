@@ -276,7 +276,7 @@ seaf_db_foreach_selected_row (SeafDB *db, const char *sql,
 const char *
 seaf_db_row_get_column_text (SeafDBRow *row, guint32 idx)
 {
-    g_assert (idx < ResultSet_getColumnCount(row->res));
+    g_return_val_if_fail (idx < ResultSet_getColumnCount(row->res), NULL);
 
     return ResultSet_getString (row->res, idx+1);
 }
@@ -284,7 +284,7 @@ seaf_db_row_get_column_text (SeafDBRow *row, guint32 idx)
 int
 seaf_db_row_get_column_int (SeafDBRow *row, guint32 idx)
 {
-    g_assert (idx < ResultSet_getColumnCount(row->res));
+    g_return_val_if_fail (idx < ResultSet_getColumnCount(row->res), -1);
 
     return ResultSet_getInt (row->res, idx+1);
 }
@@ -292,7 +292,7 @@ seaf_db_row_get_column_int (SeafDBRow *row, guint32 idx)
 gint64
 seaf_db_row_get_column_int64 (SeafDBRow *row, guint32 idx)
 {
-    g_assert (idx < ResultSet_getColumnCount(row->res));
+    g_return_val_if_fail (idx < ResultSet_getColumnCount(row->res), -1);
 
     return ResultSet_getLLong (row->res, idx+1);
 }

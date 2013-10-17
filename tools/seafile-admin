@@ -239,7 +239,6 @@ def check_seafile_install():
         'ccnet-init',
         'seaf-server-init',
         'seaf-server',
-        'seaf-mon',
         'ccnet-server',
         'httpserver',
         'seafile-controller',

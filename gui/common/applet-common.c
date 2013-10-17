@@ -28,6 +28,10 @@
 #define SEAFILE_OFFICIAL_ADDR "cloud.seafile.com.cn:10001"
 #define SEAFILE_INI "seafile.ini"
 
+#if !defined(SEAFILE_CLIENT_VERSION)
+#define SEAFILE_CLIENT_VERSION PACKAGE_VERSION
+#endif
+
 static gboolean first_use = FALSE;
 
 void 
@@ -103,7 +107,7 @@ init_ccnet ()
     applet_log_init(config_dir);
     
     applet_message ("Load config dir %s success\n", config_dir);
-    applet_message ("starting seafile-applet "PACKAGE_VERSION"\n");
+    applet_message ("starting seafile-applet "SEAFILE_CLIENT_VERSION"\n");
     g_setenv("CCNET_CONF_DIR", config_dir, 1);
     
     g_free (config_file);
@@ -652,7 +656,6 @@ int is_repo_path_allowed(const char *path) {
         snprintf(buf, 4095, "%s/", path);
 
     len = strlen(applet->seafile_dir);
-    g_assert(applet->seafile_dir[len-1] != '/');
     snprintf(buf2, 4095, "%s/", applet->seafile_dir);
 
     if (strncmp(buf2, buf, strlen(buf)) == 0)

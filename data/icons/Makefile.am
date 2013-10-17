@@ -1,4 +1,4 @@
-SUBDIRS = 16x16 22x22 24x24 32x32 48x48
+SUBDIRS = 16x16 22x22 24x24 32x32 48x48 128x128 scalable
 
 icons = ccnet_daemon_up.png ccnet_daemon_down.png \
 	seafile_transfer_1.png seafile_transfer_2.png \

@@ -278,7 +278,7 @@ def validate_args(usage, options):
     # [ version ]
     def check_project_version(version):
         '''A valid version must be like 1.2.2, 1.3'''
-        if not re.match('^[0-9]\.[0-9](\.[0-9])?$', version):
+        if not re.match('^[0-9](\.[0-9])+$', version):
             error('%s is not a valid version' % version, usage=usage)
 
     version = get_option(CONF_VERSION)
@@ -495,6 +495,10 @@ def copy_scripts_and_libs():
     serverdir = os.path.join(builddir, 'seafile-server')
 
     must_copy(os.path.join(scripts_srcdir, 'setup-seafile.sh'),
+              serverdir)
+    must_copy(os.path.join(scripts_srcdir, 'setup-seafile-mysql.sh'),
+              serverdir)
+    must_copy(os.path.join(scripts_srcdir, 'setup-seafile-mysql.py'),
               serverdir)
     must_copy(os.path.join(scripts_srcdir, 'seafile.sh'),
               serverdir)

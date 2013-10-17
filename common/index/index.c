@@ -442,6 +442,7 @@ static int ce_match_stat_basic(struct cache_entry *ce, SeafStat *st)
     return changed;
 }
 
+#if 0
 static int is_racy_timestamp(const struct index_state *istate, struct cache_entry *ce)
 {
     return (!S_ISGITLINK(ce->ce_mode) &&
@@ -456,6 +457,7 @@ static int is_racy_timestamp(const struct index_state *istate, struct cache_entr
 #endif
         );
 }
+#endif
 
 #if 0
 static int ce_compare_data(struct cache_entry *ce, SeafStat *st)
@@ -850,7 +852,7 @@ int add_to_index(struct index_state *istate,
                  SeafileCrypt *crypt,
                  IndexCB index_cb)
 {
-    int size, namelen, was_same;
+    int size, namelen;
     mode_t st_mode = st->st_mode;
     struct cache_entry *ce, *alias;
     unsigned char sha1[20];
@@ -884,29 +886,55 @@ int add_to_index(struct index_state *istate,
         alias->ce_flags |= CE_ADDED;
         return 0;
     }
+    /* Skip index file errors. */
     if (index_cb (full_path, sha1, crypt) < 0)
-        return -1;
+        return 0;
     memcpy (ce->sha1, sha1, 20);
 
     ce->ce_flags |= CE_ADDED;
-
-    /* It was suspected to be racily clean, but it turns out to be Ok */
-    was_same = (alias &&
-                !ce_stage(alias) &&
-                !hashcmp(alias->sha1, ce->sha1) &&
-                ce->ce_mode == alias->ce_mode);
 
     if (add_index_entry(istate, ce, add_option)) {
         g_warning("unable to add %s to index\n",path);
         return -1;
     }
-    /* if (!was_same) */
-    /*     g_debug("add '%s'\n", path); */
+    return 0;
+}
+
+/*
+ * Check whether the empty dir is left by file checkout error.
+ */
+static int is_garbage_empty_dir (struct index_state *istate, struct cache_entry *ce)
+{
+    int pos = index_name_pos (istate, ce->name, ce->ce_flags);
+
+    /* Empty folder already exists in the index. */
+    if (pos >= 0)
+        return 0;
+
+    /* -pos = (the position this entry *should* be) + 1.
+     * So -pos-1 is the first entry larger than this entry.
+     */
+    pos = -pos-1;
+
+    struct cache_entry *next;
+    int this_len = strlen (ce->name);
+    while (pos < istate->cache_nr) {
+        next = istate->cache[pos];
+        /* If file under this "empty dir" exists and mtime is 0,
+         * then this empty dir is left by a file checkout failure.
+         */
+        if (strncmp (ce->name, next->name, this_len) != 0)
+            break;
+        if (next->ce_mtime.sec == 0)
+            return 1;
+        ++pos;
+    }
+
     return 0;
 }
 
 int
-add_empty_dir_to_index (struct index_state *istate, const char *path)
+add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *st)
 {
     int namelen, size;
     struct cache_entry *ce;
@@ -918,11 +946,19 @@ add_empty_dir_to_index (struct index_state *istate, const char *path)
     memcpy(ce->name, path, namelen);
     ce->ce_flags = namelen;
 
+    ce->ce_mtime.sec = (unsigned int)st->st_mtime;
+
     ce->ce_mode = S_IFDIR;
     /* sha1 is all-zero. */
 
+    if (is_garbage_empty_dir (istate, ce)) {
+        free (ce);
+        return 0;
+    }
+
     if (add_index_entry(istate, ce, add_option)) {
         g_warning("unable to add %s to index\n",path);
+        free (ce);
         return -1;
     }
 
@@ -1178,6 +1214,7 @@ static int ce_flush(WriteIndexInfo *info, int fd)
     return (writen(fd, info->write_buffer, left) != left) ? -1 : 0;
 }
 
+#if 0
 static void ce_smudge_racily_clean_entry(struct cache_entry *ce)
 {
     /*
@@ -1225,6 +1262,7 @@ static void ce_smudge_racily_clean_entry(struct cache_entry *ce)
      */
     ce->ce_size = 0;
 }
+#endif
 
 static int ce_write_entry(WriteIndexInfo *info, int fd, struct cache_entry *ce)
 {

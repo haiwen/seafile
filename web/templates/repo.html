@@ -48,13 +48,6 @@
                 </li>
                 % endif
 
-                % if repo.props.passwd:
-                <li>
-                <span class="item-name">${_("Password: ")}</span><span id="repo-passwd">*****</span>
-                <input type="checkbox" id="show-passwd-value" name="show-passwd-value" /><label for="show-passwd-value">${_("Show")}</label>
-                </li>
-                % endif
-
                 <li>
                 % if repo.props.auto_sync:
                 <span class="item-name">${_("Auto Sync: ")}</span><input type="checkbox" checked="checked" data="set-manual-sync" id="set-sync-btn" />
@@ -341,17 +334,6 @@ show_sync_status();
 
 $('#do-sync-link').click(function() {
     set_sync_status('initializing');
-});
-% endif
-
-% if repo.props.passwd:
-// for passwd display
-$('#show-passwd-value').click(function() {
-    if ($(this).attr('checked')) {
-        $('#repo-passwd').html('${repo.props.passwd.replace("'", "\\'")}');
-    } else {
-        $('#repo-passwd').html('*****');
-    }
 });
 % endif
 

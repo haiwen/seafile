@@ -166,7 +166,7 @@ diff_commits (SeafCommit *commit1, SeafCommit *commit2, GList **results)
     struct unpack_trees_options opts;
     struct index_state istate;
 
-    g_assert (*results == NULL);
+    g_return_val_if_fail (*results == NULL, -1);
 
     if (strcmp (commit1->commit_id, commit2->commit_id) == 0)
         return 0;
@@ -273,8 +273,10 @@ diff_merge (SeafCommit *merge, GList **results)
     struct unpack_trees_options opts;
     struct index_state istate;
 
-    g_assert (*results == NULL);
-    g_assert (merge->parent_id != NULL && merge->second_parent_id != NULL);
+    g_return_val_if_fail (*results == NULL, -1);
+    g_return_val_if_fail (merge->parent_id != NULL &&
+                          merge->second_parent_id != NULL,
+                          -1);
 
     parent1 = seaf_commit_manager_get_commit (seaf->commit_mgr,
                                               merge->parent_id);

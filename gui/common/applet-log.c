@@ -30,7 +30,7 @@ applet_log (const gchar *log_domain, GLogLevelFlags log_level,
     t = time(NULL);
     tm = localtime(&t);
     len = strftime (buf, 1024, "[%x %X] ", tm);
-    g_assert(len < 1024);
+    g_return_if_fail (len < 1024);
     fputs (buf, logfp);
     fputs (message, logfp);
     fflush (logfp);

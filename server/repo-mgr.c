@@ -6,6 +6,7 @@
 
 #include <json-glib/json-glib.h>
 #include <openssl/sha.h>
+#include <openssl/rand.h>
 
 #include <ccnet.h>
 #include <ccnet/ccnet-object.h>
@@ -50,12 +51,7 @@ static const char *ignore_table[] = {
     "*.tmp",
     "*.TMP",
     /* ms office tmp files */
-    "~$*.doc",
-    "~$*.docx",
-    "~$*.xls",
-    "~$*.xlsx",
-    "~$*.ppt",
-    "~$*.pptx",
+    "~$*",
     /* windows image cache */
     "Thumbs.db",
     NULL,
@@ -107,8 +103,9 @@ seaf_repo_free (SeafRepo *repo)
 {
     if (repo->name) g_free (repo->name);
     if (repo->desc) g_free (repo->desc);
-    if (repo->category) g_free (repo->category);
     if (repo->head) seaf_branch_unref (repo->head);
+    if (repo->virtual_info)
+        seaf_virtual_repo_info_free (repo->virtual_info);
     g_free (repo);
 }
 
@@ -154,8 +151,12 @@ seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit)
     repo->encrypted = commit->encrypted;
     if (repo->encrypted) {
         repo->enc_version = commit->enc_version;
-        if (repo->enc_version >= 1)
-            memcpy (repo->magic, commit->magic, 33);
+        if (repo->enc_version == 1)
+            memcpy (repo->magic, commit->magic, 32);
+        else if (repo->enc_version == 2) {
+            memcpy (repo->magic, commit->magic, 64);
+            memcpy (repo->random_key, commit->random_key, 96);
+        }
     }
     repo->no_local_history = commit->no_local_history;
 }
@@ -168,8 +169,12 @@ seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit)
     commit->encrypted = repo->encrypted;
     if (commit->encrypted) {
         commit->enc_version = repo->enc_version;
-        if (commit->enc_version >= 1)
+        if (commit->enc_version == 1)
             commit->magic = g_strdup (repo->magic);
+        else if (commit->enc_version == 2) {
+            commit->magic = g_strdup (repo->magic);
+            commit->random_key = g_strdup (repo->random_key);
+        }
     }
     commit->no_local_history = repo->no_local_history;
 }
@@ -222,27 +227,6 @@ out:
         seaf_branch_unref ((SeafBranch *)ptr->data);
     }
     return commits;
-}
-
-int
-seaf_repo_verify_passwd (SeafRepo *repo, const char *passwd)
-{
-    GString *buf = g_string_new (NULL);
-    unsigned char key[16], iv[16];
-    char hex[33];
-
-    /* Recompute the magic and compare it with the one comes with the repo. */
-    g_string_append_printf (buf, "%s%s", repo->id, passwd);
-
-    seafile_generate_enc_key (buf->str, buf->len, repo->enc_version, key, iv);
-
-    g_string_free (buf, TRUE);
-    rawdata_to_hex (key, hex, 16);
-
-    if (strcmp (hex, repo->magic) == 0)
-        return 0;
-    else
-        return -1;
 }
 
 static inline gboolean
@@ -343,6 +327,11 @@ seaf_repo_manager_init (SeafRepoManager *mgr)
         return -1;
     }
 
+    if (seaf_repo_manager_init_merge_scheduler() < 0) {
+        seaf_warning ("Failed to init merge scheduler.\n");
+        return -1;
+    }
+
     return 0;
 }
 
@@ -428,14 +417,26 @@ remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
               repo_id);
     seaf_db_query (db, sql);
 
+    /* Remove virtual repos when origin repo is deleted. */
+    GList *vrepos, *ptr;
+    vrepos = seaf_repo_manager_get_virtual_repo_ids_by_origin (mgr, repo_id);
+    for (ptr = vrepos; ptr != NULL; ptr = ptr->next)
+        remove_repo_ondisk (mgr, (char *)ptr->data);
+    string_list_free (vrepos);
+
+    snprintf (sql, sizeof(sql),
+              "DELETE FROM VirtualRepo WHERE repo_id='%s' OR origin_repo='%s'",
+              repo_id, repo_id);
+    seaf_db_query (db, sql);
+
     return 0;
 }
 
 int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr,
-                            SeafRepo *repo)
+                            const char *repo_id)
 {
-    if (remove_repo_ondisk (mgr, repo->id) < 0)
+    if (remove_repo_ondisk (mgr, repo_id) < 0)
         return -1;
 
     return 0;
@@ -590,10 +591,16 @@ load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt)
         seaf_branch_unref (branch);
     }
 
-    if (repo->is_corrupted && !ret_corrupt) {
-        seaf_repo_free (repo);
-        return NULL;
+    if (repo->is_corrupted) {
+        if (!ret_corrupt) {
+            seaf_repo_free (repo);
+            return NULL;
+        }
+        return repo;
     }
+
+    /* Load virtual repo info if any. */
+    repo->virtual_info = seaf_repo_manager_get_virtual_repo_info (manager, repo_id);
 
     return repo;
 }
@@ -708,6 +715,12 @@ create_tables_mysql (SeafRepoManager *mgr)
 
     sql = "CREATE TABLE IF NOT EXISTS WebAP (repo_id CHAR(37) PRIMARY KEY, "
         "access_property CHAR(10))"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS VirtualRepo (repo_id CHAR(36) PRIMARY KEY,"
+        "origin_repo CHAR(36), path TEXT, base_commit CHAR(40), INDEX(origin_repo))"
         "ENGINE=INNODB";
     if (seaf_db_query (db, sql) < 0)
         return -1;
@@ -877,6 +890,16 @@ create_tables_sqlite (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
+    sql = "CREATE TABLE IF NOT EXISTS VirtualRepo (repo_id CHAR(36) PRIMARY KEY,"
+        "origin_repo CHAR(36), path TEXT, base_commit CHAR(40))";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE INDEX IF NOT EXISTS virtualrepo_origin_repo_idx "
+        "ON VirtualRepo (origin_repo)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
     return 0;
 }
 
@@ -1025,6 +1048,17 @@ create_tables_pgsql (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
+    sql = "CREATE TABLE IF NOT EXISTS VirtualRepo (repo_id CHAR(36) PRIMARY KEY,"
+        "origin_repo CHAR(36), path TEXT, base_commit CHAR(40))";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    if (!pgsql_index_exists (db, "virtualrepo_origin_repo_idx")) {
+        sql = "CREATE INDEX virtualrepo_origin_repo_idx ON VirtualRepo (origin_repo)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
+
     return 0;
 }
 
@@ -1041,8 +1075,7 @@ create_db_tables_if_not_exist (SeafRepoManager *mgr)
     else if (db_type == SEAF_DB_TYPE_PGSQL)
         return create_tables_pgsql (mgr);
 
-    g_assert (0);
-    return -1;
+    g_return_val_if_reached (-1);
 }
 
 /*
@@ -1218,11 +1251,14 @@ collect_repo_token (SeafDBRow *row, void *data)
     peer_name = seaf_db_row_get_column_text (row, 6);
     sync_time = seaf_db_row_get_column_int64 (row, 7);
 
+    char *owner_l = g_ascii_strdown (repo_owner, -1);
+    char *email_l = g_ascii_strdown (email, -1);
+
     SeafileRepoTokenInfo *repo_token_info;
     repo_token_info = g_object_new (SEAFILE_TYPE_REPO_TOKEN_INFO,
                                     "repo_id", repo_id,
-                                    "repo_owner", repo_owner,
-                                    "email", email,
+                                    "repo_owner", owner_l,
+                                    "email", email_l,
                                     "token", token,
                                     "peer_id", peer_id,
                                     "peer_ip", peer_ip,
@@ -1332,7 +1368,8 @@ get_email_by_token_cb (SeafDBRow *row, void *data)
 {
     char **email_ptr = data;
 
-    *email_ptr = g_strdup(seaf_db_row_get_column_text (row, 0));
+    const char *email = (const char *) seaf_db_row_get_column_text (row, 0);
+    *email_ptr = g_ascii_strdown (email, -1);
     /* There should be only one result. */
     return FALSE;
 }
@@ -1357,7 +1394,7 @@ seaf_repo_manager_get_email_by_token (SeafRepoManager *manager,
                                   get_email_by_token_cb, &email);
 
     g_string_free (buf, TRUE);
-    
+
     return email;
 }
 
@@ -1392,8 +1429,15 @@ seaf_repo_manager_set_repo_history_limit (SeafRepoManager *mgr,
                                           const char *repo_id,
                                           int days)
 {
+    SeafVirtRepo *vinfo;
     SeafDB *db = mgr->seaf->db;
     char sql[256];
+
+    vinfo = seaf_repo_manager_get_virtual_repo_info (mgr, repo_id);
+    if (vinfo) {
+        seaf_virtual_repo_info_free (vinfo);
+        return 0;
+    }
 
     if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
         gboolean err;
@@ -1426,13 +1470,21 @@ int
 seaf_repo_manager_get_repo_history_limit (SeafRepoManager *mgr,
                                           const char *repo_id)
 {
+    SeafVirtRepo *vinfo;
+    const char *r_repo_id = repo_id;
     char sql[256];
     int per_repo_days;
 
+    vinfo = seaf_repo_manager_get_virtual_repo_info (mgr, repo_id);
+    if (vinfo)
+        r_repo_id = vinfo->origin_repo_id;
+
     snprintf (sql, sizeof(sql),
               "SELECT days FROM RepoHistoryLimit WHERE repo_id='%s'",
-              repo_id);
+              r_repo_id);
     per_repo_days = seaf_db_get_int (mgr->seaf->db, sql);
+
+    seaf_virtual_repo_info_free (vinfo);
 
     /* If per repo value is not set or DB error, return the global one. */
     if (per_repo_days < 0)
@@ -1554,7 +1606,8 @@ get_owner (SeafDBRow *row, void *data)
 {
     char **owner_id = data;
 
-    *owner_id = g_strdup(seaf_db_row_get_column_text (row, 0));
+    const char *owner = (const char *) seaf_db_row_get_column_text (row, 0);
+    *owner_id = g_ascii_strdown (owner, -1);
     /* There should be only one result. */
     return FALSE;
 }
@@ -1893,13 +1946,16 @@ get_group_repos_cb (SeafDBRow *row, void *data)
     const char *user_name = seaf_db_row_get_column_text (row, 2);
     const char *permission = seaf_db_row_get_column_text (row, 3);
 
+    char *user_name_l = g_ascii_strdown (user_name, -1);
+
     srepo = g_object_new (SEAFILE_TYPE_SHARED_REPO,
                           "share_type", "group",
                           "repo_id", repo_id,
                           "group_id", group_id,
-                          "user", user_name,
+                          "user", user_name_l,
                           "permission", permission,
                           NULL);
+    g_free (user_name_l);
     if (srepo != NULL) {
         *p_list = g_list_prepend (*p_list, srepo);
     }
@@ -1962,7 +2018,8 @@ get_group_repo_owner (SeafDBRow *row, void *data)
 {
     char **share_from = data;
 
-    *share_from = g_strdup (seaf_db_row_get_column_text (row, 0));
+    const char *owner = (const char *) seaf_db_row_get_column_text (row, 0);
+    *share_from = g_ascii_strdown (owner, -1);
     /* There should be only one result. */
     return FALSE;
 }
@@ -2078,12 +2135,15 @@ collect_public_repos (SeafDBRow *row, void *data)
     owner = seaf_db_row_get_column_text (row, 1);
     permission = seaf_db_row_get_column_text (row, 2);
 
+    char *owner_l = g_ascii_strdown (owner, -1);
+
     srepo = g_object_new (SEAFILE_TYPE_SHARED_REPO,
                           "share_type", "public",
                           "repo_id", repo_id,
                           "permission", permission,
-                          "user", owner,
+                          "user", owner_l,
                           NULL);
+    g_free (owner_l);
     *ret = g_list_prepend (*ret, srepo);
 
     return TRUE;
@@ -2184,7 +2244,10 @@ seaf_repo_manager_get_org_repo_owner (SeafRepoManager *mgr,
     snprintf (sql, sizeof(sql),
               "SELECT user FROM OrgRepo WHERE repo_id = '%s'",
               repo_id);
-    return seaf_db_get_string (mgr->seaf->db, sql);
+    char *owner = seaf_db_get_string (mgr->seaf->db, sql);
+    char *owner_l = g_ascii_strdown (owner, -1);
+    g_free (owner);
+    return owner_l;
 }
 
 int
@@ -2599,48 +2662,52 @@ seaf_repo_manager_is_valid_filename (SeafRepoManager *mgr,
         return 1;
 }
 
-void
-seaf_repo_generate_magic (SeafRepo *repo, const char *passwd)
-{
-    GString *buf = g_string_new (NULL);
-    unsigned char key[16], iv[16];
-
-    /* Compute a "magic" string from repo_id and passwd.
-     * This is used to verify the password given by user before decrypting
-     * data.
-     * We use large iteration times to defense against brute-force attack.
-     */
-    g_string_append_printf (buf, "%s%s", repo->id, passwd);
-
-    seafile_generate_enc_key (buf->str, buf->len, CURRENT_ENC_VERSION, key, iv);
-
-    g_string_free (buf, TRUE);
-    rawdata_to_hex (key, repo->magic, 16);
-}
-
-static char *
+static int
 create_repo_common (SeafRepoManager *mgr,
+                    const char *repo_id,
                     const char *repo_name,
                     const char *repo_desc,
                     const char *user,
-                    const char *passwd,
+                    const char *magic,
+                    const char *random_key,
+                    int enc_version,
                     GError **error)
 {
     SeafRepo *repo = NULL;
     SeafCommit *commit = NULL;
     SeafBranch *master = NULL;
-    char *repo_id = NULL;
-    char *ret = NULL;
+    int ret = -1;
 
-    repo_id = gen_uuid ();
+    if (enc_version != 2 && enc_version != -1) {
+        seaf_warning ("Unsupported enc version %d.\n", enc_version);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Unsupported encryption version");
+        return -1;
+    }
+
+    if (enc_version == 2) {
+        if (!magic || strlen(magic) != 64) {
+            seaf_warning ("Bad magic.\n");
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                         "Bad magic");
+            return -1;
+        }
+        if (!random_key || strlen(random_key) != 96) {
+            seaf_warning ("Bad random key.\n");
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                         "Bad random key");
+            return -1;
+        }
+    }
+
     repo = seaf_repo_new (repo_id, repo_name, repo_desc);
-    g_free (repo_id);
 
     repo->no_local_history = TRUE;
-    if (passwd != NULL && passwd[0] != '\0') {
+    if (enc_version == 2) {
         repo->encrypted = TRUE;
-        repo->enc_version = CURRENT_ENC_VERSION;
-        seaf_repo_generate_magic (repo, passwd);
+        repo->enc_version = enc_version;
+        memcpy (repo->magic, magic, 64);
+        memcpy (repo->random_key, random_key, 96);
     }
 
     commit = seaf_commit_new (NULL, repo->id,
@@ -2680,7 +2747,7 @@ create_repo_common (SeafRepoManager *mgr,
         goto out;
     }
 
-    ret = g_strdup(repo->id);
+    ret = 0;
 out:
     if (repo)
         seaf_repo_unref (repo);
@@ -2701,20 +2768,35 @@ seaf_repo_manager_create_new_repo (SeafRepoManager *mgr,
                                    GError **error)
 {
     char *repo_id = NULL;
+    char magic[65], random_key[97];
 
-    repo_id = create_repo_common (mgr, repo_name, repo_desc, owner_email,
-                                  passwd, error);
+    repo_id = gen_uuid ();
+
+    if (passwd && passwd[0] != 0) {
+        seafile_generate_magic (2, repo_id, passwd, magic);
+        seafile_generate_random_key (passwd, random_key);
+    }
+
+    int rc;
+    if (passwd)
+        rc = create_repo_common (mgr, repo_id, repo_name, repo_desc, owner_email,
+                                 magic, random_key, CURRENT_ENC_VERSION, error);
+    else
+        rc = create_repo_common (mgr, repo_id, repo_name, repo_desc, owner_email,
+                                 NULL, NULL, -1, error);
+    if (rc < 0)
+        goto bad;
 
     if (seaf_repo_manager_set_repo_owner (mgr, repo_id, owner_email) < 0) {
         seaf_warning ("Failed to set repo owner.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to set repo owner.");
-        goto out;
+        goto bad;
     }
 
     return repo_id;
     
-out:
+bad:
     if (repo_id)
         g_free (repo_id);
     return NULL;
@@ -2730,23 +2812,119 @@ seaf_repo_manager_create_org_repo (SeafRepoManager *mgr,
                                    GError **error)
 {
     char *repo_id = NULL;
+    char magic[65], random_key[97];
 
-    repo_id = create_repo_common (mgr, repo_name, repo_desc, user, passwd,
-                                  error);
+    repo_id = gen_uuid ();
+
+    if (passwd && passwd[0] != 0) {
+        seafile_generate_magic (2, repo_id, passwd, magic);
+        seafile_generate_random_key (passwd, random_key);
+    }
+
+    int rc;
+    if (passwd)
+        rc = create_repo_common (mgr, repo_id, repo_name, repo_desc, user,
+                                 magic, random_key, CURRENT_ENC_VERSION,
+                                 error);
+    else
+        rc = create_repo_common (mgr, repo_id, repo_name, repo_desc, user,
+                                 NULL, NULL, -1,
+                                 error);
+    if (rc < 0)
+        goto bad;
 
     if (seaf_repo_manager_set_org_repo (mgr, org_id, repo_id, user) < 0) {
         seaf_warning ("Failed to set org repo.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to set org repo.");
-        goto out;
+        goto bad;
     }
 
     return repo_id;
 
-out:
+bad:
     if (repo_id)
         g_free (repo_id);
     return NULL;
+}
+
+char *
+seaf_repo_manager_create_enc_repo (SeafRepoManager *mgr,
+                                   const char *repo_id,
+                                   const char *repo_name,
+                                   const char *repo_desc,
+                                   const char *owner_email,
+                                   const char *magic,
+                                   const char *random_key,
+                                   int enc_version,
+                                   GError **error)
+{
+    if (!repo_id || !is_uuid_valid (repo_id)) {
+        seaf_warning ("Invalid repo_id.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid repo id");
+        return NULL;
+    }
+
+    if (seaf_repo_manager_repo_exists (mgr, repo_id)) {
+        seaf_warning ("Repo %s exists, refuse to create.\n", repo_id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Repo already exists");
+        return NULL;
+    }
+
+    if (create_repo_common (mgr, repo_id, repo_name, repo_desc, owner_email,
+                            magic, random_key, enc_version, error) < 0)
+        return NULL;
+
+    if (seaf_repo_manager_set_repo_owner (mgr, repo_id, owner_email) < 0) {
+        seaf_warning ("Failed to set repo owner.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to set repo owner.");
+        return NULL;
+    }
+
+    return g_strdup (repo_id);
+}
+
+char *
+seaf_repo_manager_create_org_enc_repo (SeafRepoManager *mgr,
+                                       const char *repo_id,
+                                       const char *repo_name,
+                                       const char *repo_desc,
+                                       const char *user,
+                                       const char *magic,
+                                       const char *random_key,
+                                       int enc_version,
+                                       int org_id,
+                                       GError **error)
+{
+    if (!repo_id || !is_uuid_valid (repo_id)) {
+        seaf_warning ("Invalid repo_id.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid repo id");
+        return NULL;
+    }
+
+    if (seaf_repo_manager_repo_exists (mgr, repo_id)) {
+        seaf_warning ("Repo %s exists, refuse to create.\n", repo_id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Repo already exists");
+        return NULL;
+    }
+
+    if (create_repo_common (mgr, repo_id, repo_name, repo_desc, user,
+                            magic, random_key, enc_version, error) < 0)
+        return NULL;
+
+    if (seaf_repo_manager_set_org_repo (mgr, org_id, repo_id, user) < 0) {
+        seaf_warning ("Failed to set org repo.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to set org repo.");
+        return NULL;
+    }
+
+    return g_strdup(repo_id);
 }
 
 static int reap_token (void *data)

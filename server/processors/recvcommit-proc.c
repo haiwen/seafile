@@ -238,6 +238,6 @@ static void handle_update (CcnetProcessor *processor,
         }
         break;
     default:
-        g_assert (0);
+        g_return_if_reached ();
     }
 }

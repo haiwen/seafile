@@ -160,7 +160,7 @@ wt_monitor_job (void *vmonitor)
 
 static int handle_add_repo (SeafWTMonitorPriv *priv, const char *repo_id, long *handle)
 {
-    g_assert (handle);
+    g_return_val_if_fail (handle, -1);
     FSEventStreamRef stream = add_watch (priv, repo_id);
     if (!stream)
         return -1;

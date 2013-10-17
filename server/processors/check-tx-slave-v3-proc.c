@@ -183,7 +183,7 @@ decrypt_token (CcnetProcessor *processor)
                     key, /* the derived key */
                     iv); /* IV, initial vector */
 
-    crypt = seafile_crypt_new (CURRENT_ENC_VERSION, key, iv);
+    crypt = seafile_crypt_new (1, key, iv);
     
     if (seafile_decrypt (&token, &token_len, encrypted_token,
                          encrypted_len, crypt) < 0) {
@@ -316,6 +316,16 @@ start (CcnetProcessor *processor, int argc, char **argv)
         priv->type = CHECK_TX_TYPE_DOWNLOAD;
     } else {
         ccnet_processor_send_response (processor, SC_BAD_ARGS, SS_BAD_ARGS, NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+        return -1;
+    }
+
+    int client_version = atoi(argv[1]);
+    if (client_version == 4) {
+        seaf_debug ("Client protocol version is 4, not supported.\n");
+        ccnet_processor_send_response (processor,
+                                       SC_PROTOCOL_MISMATCH, SS_PROTOCOL_MISMATCH,
+                                       NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return -1;
     }

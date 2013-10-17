@@ -53,7 +53,7 @@ CONF_SRCDIR             = 'srcdir'
 CONF_KEEP               = 'keep'
 CONF_BUILDDIR           = 'builddir'
 CONF_OUTPUTDIR          = 'outputdir'
-CONF_NO_STRIP           = 'nostrip'
+CONF_DEBUG              = 'debug'
 CONF_ONLY_CHINESE       = 'onlychinese'
 
 ####################
@@ -165,7 +165,7 @@ def run(cmdline, cwd=None, env=None, suppress_stdout=False, suppress_stderr=Fals
 def must_mkdir(path):
     '''Create a directory, exit on failure'''
     try:
-        os.mkdir(path)
+        os.makedirs(path)
     except OSError, e:
         error('failed to create directory %s:%s' % (path, e))
 
@@ -211,6 +211,23 @@ class Project(object):
         # libsearpc and ccnet can have different versions from seafile.
         raise NotImplementedError
 
+    def get_source_commit_id(self):
+        '''By convetion, we record the commit id of the source code in the
+        file "<projdir>/latest_commit"
+
+        '''
+        latest_commit_file = os.path.join(self.projdir, 'latest_commit')
+        with open(latest_commit_file, 'r') as fp:
+            commit_id = fp.read().strip('\n\r\t ')
+
+        return commit_id
+
+    def append_cflags(self, macros):
+        cflags = ' '.join([ '-D%s=%s' % (k, macros[k]) for k in macros ])
+        prepend_env_value('CPPFLAGS',
+                          cflags,
+                          seperator=' ')
+
     def uncompress(self):
         '''Uncompress the source from the tarball'''
         info('Uncompressing %s' % self.name)
@@ -219,8 +236,13 @@ class Project(object):
         if run('tar xf %s' % tarball) != 0:
             error('failed to uncompress source of %s' % self.name)
 
+    def before_build(self):
+        '''Hook method to do project-specific stuff before running build commands'''
+        pass
+
     def build(self):
         '''Build the source'''
+        self.before_build()
         info('Building %s' % self.name)
         for cmd in self.build_commands:
             if run(cmd, cwd=self.projdir) != 0:
@@ -254,6 +276,13 @@ class Ccnet(Project):
     def get_version(self):
         return conf[CONF_CCNET_VERSION]
 
+    def before_build(self):
+        macros = {}
+        # SET CCNET_SOURCE_COMMIT_ID, so it can be printed in the log
+        macros['CCNET_SOURCE_COMMIT_ID'] = '\\"%s\\"' % self.get_source_commit_id()
+
+        self.append_cflags(macros)
+
 class Seafile(Project):
     name = 'seafile'
     def __init__(self):
@@ -266,6 +295,12 @@ class Seafile(Project):
 
     def get_version(self):
         return conf[CONF_SEAFILE_VERSION]
+
+    def before_build(self):
+        macros = {}
+        # SET SEAFILE_SOURCE_COMMIT_ID, so it can be printed in the log
+        macros['SEAFILE_SOURCE_COMMIT_ID'] = '\\"%s\\"' % self.get_source_commit_id()
+        self.append_cflags(macros)
 
 def check_targz_src(proj, version, srcdir):
     src_tarball = os.path.join(srcdir, '%s-%s.tar.gz' % (proj, version))
@@ -292,7 +327,7 @@ def validate_args(usage, options):
     # [ version ]
     def check_project_version(version):
         '''A valid version must be like 1.2.2, 1.3'''
-        if not re.match('^[0-9]\.[0-9](\.[0-9])?$', version):
+        if not re.match('^[0-9](\.[0-9])+$', version):
             error('%s is not a valid version' % version, usage=usage)
 
     version = get_option(CONF_VERSION)
@@ -327,7 +362,7 @@ def validate_args(usage, options):
     keep = get_option(CONF_KEEP)
 
     # [ no strip]
-    nostrip = get_option(CONF_NO_STRIP)
+    debug = get_option(CONF_DEBUG)
 
     # [only chinese]
     onlychinese = get_option(CONF_ONLY_CHINESE)
@@ -341,7 +376,7 @@ def validate_args(usage, options):
     conf[CONF_SRCDIR] = srcdir
     conf[CONF_OUTPUTDIR] = outputdir
     conf[CONF_KEEP] = keep
-    conf[CONF_NO_STRIP] = nostrip
+    conf[CONF_DEBUG] = debug
     conf[CONF_ONLY_CHINESE] = onlychinese
 
     prepare_builddir(builddir)
@@ -359,7 +394,7 @@ def show_build_info():
     info('builddir:                 %s' % conf[CONF_BUILDDIR])
     info('outputdir:                %s' % conf[CONF_OUTPUTDIR])
     info('source dir:               %s' % conf[CONF_SRCDIR])
-    info('strip symbols:            %s' % (not conf[CONF_NO_STRIP]))
+    info('debug:                    %s' % conf[CONF_DEBUG])
     info('build english version:    %s' % (not conf[CONF_ONLY_CHINESE]))
     info('clean on exit:            %s' % (not conf[CONF_KEEP]))
     info('------------------------------------------')
@@ -426,10 +461,10 @@ def parse_args():
                       action='store_true',
                       help='''keep the build directory after the script exits. By default, the script would delete the build directory at exit.''')
 
-    parser.add_option(long_opt(CONF_NO_STRIP),
-                      dest=CONF_NO_STRIP,
+    parser.add_option(long_opt(CONF_DEBUG),
+                      dest=CONF_DEBUG,
                       action='store_true',
-                      help='''do not strip debug symbols''')
+                      help='''compile in debug mode''')
 
     parser.add_option(long_opt(CONF_ONLY_CHINESE),
                       dest=CONF_ONLY_CHINESE,
@@ -450,10 +485,15 @@ def setup_build_env():
                      '-I%s' % to_mingw_path(os.path.join(prefix, 'include')),
                      seperator=' ')
 
-    if conf[CONF_NO_STRIP]:
-        prepend_env_value('CPPFLAGS',
-                         '-g -O0',
-                         seperator=' ')
+    prepend_env_value('CPPFLAGS',
+                     '-DSEAFILE_CLIENT_VERSION=\\"%s\\"' % conf[CONF_VERSION],
+                     seperator=' ')
+
+    prepend_env_value('CPPFLAGS',
+                      '-g -fno-omit-frame-pointer',
+                      seperator=' ')
+    if conf[CONF_DEBUG]:
+        prepend_env_value('CPPFLAGS', '-O0', seperator=' ')
 
     prepend_env_value('LDFLAGS',
                      '-L%s' % to_mingw_path(os.path.join(prefix, 'lib')),
@@ -597,13 +637,17 @@ def prepare_msi():
     web_py2exe()
     copy_dll_exe()
 
-    if not conf[CONF_NO_STRIP]:
-        strip_symbols()
-
-    # copy seafile-applet mo file
-    src_mo = os.path.join(Seafile().prefix, 'share', 'locale', 'zh_CN', 'LC_MESSAGES', 'seafile.mo')
-    dst_mo = os.path.join(pack_dir, 'bin', 'i18n', 'zh_CN', 'LC_MESSAGES', 'seafile.mo')
-    must_copy(src_mo, dst_mo)
+    # copy each translation file (*.mo) to bin/i18n/LANG_CODE/LC_MESSAGES/seafile.mo)
+    src_mos_pattern = os.path.join(Seafile().prefix, 'share', 'locale', '*', 'LC_MESSAGES', 'seafile.mo')
+    d = os.path.dirname
+    b = os.path.basename
+    for src_mo in glob.glob(src_mos_pattern):
+        lang_code = b(d(d(src_mo)))
+        dst_mo = os.path.join(pack_dir, 'bin', 'i18n', lang_code, 'LC_MESSAGES', 'seafile.mo')
+        dst_dir = os.path.dirname(dst_mo)
+        if not os.path.exists(dst_dir):
+            must_mkdir(dst_dir)
+        must_copy(src_mo, dst_mo)
 
 def strip_symbols():
     bin_dir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin')
@@ -676,10 +720,6 @@ def build_english_msi():
 
     if run('make en', cwd=gui_win) != 0:
         error('Failed to run make en in gui/win')
-
-    if not conf[CONF_NO_STRIP]:
-        if run('strip %s' % applet_en_name, cwd=gui_win) != 0:
-            error('Failed to strip seafile-applet.en.exe')
 
     applet_en = os.path.join(gui_win, applet_en_name)
     dst_applet_en = os.path.join(pack_bin_dir, 'seafile-applet.exe')

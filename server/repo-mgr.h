@@ -21,23 +21,31 @@
 struct _SeafRepoManager;
 typedef struct _SeafRepo SeafRepo;
 
+typedef struct SeafVirtRepo {
+    char        repo_id[37];
+    char        origin_repo_id[37];
+    char        *path;
+    char        base_commit[41];
+} SeafVirtRepo;
+
 struct _SeafRepo {
     struct _SeafRepoManager *manager;
 
     gchar       id[37];
     gchar      *name;
     gchar      *desc;
-    gchar      *category;       /* not used yet */
     gboolean    encrypted;
     int         enc_version;
-    gchar       magic[33];       /* hash(repo_id + passwd), key stretched. */
+    gchar       magic[65];       /* hash(repo_id + passwd), key stretched. */
+    gchar       random_key[97];
     gboolean    no_local_history;
 
     SeafBranch *head;
 
     gboolean    is_corrupted;
-    gboolean    delete_pending;
     int         ref_cnt;
+
+    SeafVirtRepo *virtual_info;
 };
 
 gboolean is_repo_id_valid (const char *id);
@@ -74,9 +82,6 @@ seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit);
 GList *
 seaf_repo_get_commits (SeafRepo *repo);
 
-int
-seaf_repo_verify_passwd (SeafRepo *repo, const char *passwd);
-
 GList *
 seaf_repo_diff (SeafRepo *repo, const char *arg1, const char *arg2, char **error);
 
@@ -106,7 +111,7 @@ int
 seaf_repo_manager_add_repo (SeafRepoManager *mgr, SeafRepo *repo);
 
 int
-seaf_repo_manager_del_repo (SeafRepoManager *mgr, SeafRepo *repo);
+seaf_repo_manager_del_repo (SeafRepoManager *mgr, const char *repo_id);
 
 SeafRepo* 
 seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id);
@@ -256,6 +261,19 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
                                     const char *filenames_json,
                                     const char *paths_json,
                                     const char *user,
+                                    char **new_ids,
+                                    GError **error);
+
+int
+seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
+                                    const char *repo_id,
+                                    const char *parent_dir,
+                                    const char *file_name,
+                                    const char *blockids_json,
+                                    const char *paths_json,
+                                    const char *user,
+                                    gint64 file_size,
+                                    char **new_id,
                                     GError **error);
 
 int
@@ -291,6 +309,19 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
                             const char *head_id,
                             char **new_file_id,                            
                             GError **error);
+
+int
+seaf_repo_manager_put_file_blocks (SeafRepoManager *mgr,
+                                   const char *repo_id,
+                                   const char *parent_dir,
+                                   const char *file_name,
+                                   const char *blockids_json,
+                                   const char *paths_json,
+                                   const char *user,
+                                   const char *head_id,
+                                   gint64 file_size,
+                                   char **new_file_id,
+                                   GError **error);
 
 int
 seaf_repo_manager_del_file (SeafRepoManager *mgr,
@@ -354,6 +385,29 @@ seaf_repo_manager_create_org_repo (SeafRepoManager *mgr,
                                    int org_id,
                                    GError **error);
 
+char *
+seaf_repo_manager_create_enc_repo (SeafRepoManager *mgr,
+                                   const char *repo_id,
+                                   const char *repo_name,
+                                   const char *repo_desc,
+                                   const char *owner_email,
+                                   const char *magic,
+                                   const char *random_key,
+                                   int enc_version,
+                                   GError **error);
+
+char *
+seaf_repo_manager_create_org_enc_repo (SeafRepoManager *mgr,
+                                       const char *repo_id,
+                                       const char *repo_name,
+                                       const char *repo_desc,
+                                       const char *user,
+                                       const char *magic,
+                                       const char *random_key,
+                                       int enc_version,
+                                       int org_id,
+                                       GError **error);
+
 /* Give a repo and a path in this repo, returns a list of commits, where every
  * commit contains a unique version of the file. The commits are sorted in
  * ascending order of commit time. */
@@ -396,6 +450,20 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
                                        const char *repo_id,
                                        int show_days,
                                        GError **error);
+
+/*
+ * Set the dir_id of @dir_path to @new_dir_id.
+ * @new_commit_id: The new head commit id after the update.
+ */
+int
+seaf_repo_manager_update_dir (SeafRepoManager *mgr,
+                              const char *repo_id,
+                              const char *dir_path,
+                              const char *new_dir_id,
+                              const char *user,
+                              const char *head_id,
+                              char *new_commit_id,
+                              GError **error);
 
 /*
  * Permission related functions.
@@ -658,5 +726,65 @@ char *
 seaf_repo_manager_get_decrypted_token (SeafRepoManager *mgr,
                                        const char *encrypted_token,
                                        const char *session_key);
+
+/* Virtual repo related. */
+
+char *
+seaf_repo_manager_create_virtual_repo (SeafRepoManager *mgr,
+                                       const char *origin_repo_id,
+                                       const char *path,
+                                       const char *repo_name,
+                                       const char *repo_desc,
+                                       const char *owner,
+                                       GError **error);
+
+SeafVirtRepo *
+seaf_repo_manager_get_virtual_repo_info (SeafRepoManager *mgr,
+                                         const char *repo_id);
+
+GList *
+seaf_repo_manager_get_virtual_info_by_origin (SeafRepoManager *mgr,
+                                              const char *origin_repo);
+
+void
+seaf_virtual_repo_info_free (SeafVirtRepo *vinfo);
+
+gboolean
+seaf_repo_manager_is_virtual_repo (SeafRepoManager *mgr, const char *repo_id);
+
+char *
+seaf_repo_manager_get_virtual_repo_id (SeafRepoManager *mgr,
+                                       const char *origin_repo,
+                                       const char *path,
+                                       const char *owner);
+
+GList *
+seaf_repo_manager_get_virtual_repos_by_owner (SeafRepoManager *mgr,
+                                              const char *owner,
+                                              GError **error);
+
+GList *
+seaf_repo_manager_get_virtual_repo_ids_by_origin (SeafRepoManager *mgr,
+                                                  const char *origin_repo);
+
+/*
+ * if @repo_id is a virtual repo, try to merge with origin;
+ * if not, try to merge with its virtual repos.
+ */
+int
+seaf_repo_manager_merge_virtual_repo (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      const char *exclude_repo);
+
+/*
+ * Check each virtual repo of @origin_repo_id, if the path corresponds to it
+ * doesn't exist, delete the virtual repo.
+ */
+void
+seaf_repo_manager_cleanup_virtual_repos (SeafRepoManager *mgr,
+                                         const char *origin_repo_id);
+
+int
+seaf_repo_manager_init_merge_scheduler ();
 
 #endif

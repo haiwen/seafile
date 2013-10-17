@@ -157,7 +157,7 @@ static void calcU(int size)
         U[i] = polymmult (i, sizeshift, poly);
 }
 
-static void __init(int len)
+void rabin_init(int len)
 {
     calcT(poly);
     calcU(len);
@@ -169,11 +169,6 @@ static void __init(int len)
 unsigned int rabin_checksum(char *buf, int len)
 {
     int i;
-    static int first = 0;
-    if (first == 0) {
-        first = 1;
-        __init(len);
-    }
     unsigned int sum = 0;
     for (i = 0; i < len; ++i) {
         sum = rabin_rolling_checksum (sum, len, 0, buf[i]);

@@ -79,7 +79,6 @@ static char *get_peer_name ()
     gethostname (computer_name, sizeof(computer_name));
 
     ret = snprintf (buf, 255, "%s@%s", user_name, computer_name);
-    g_assert (ret < 256);
     return g_strdup(buf);
 }
 
@@ -149,8 +148,6 @@ static int make_config_dir()
 int create_new (void)
 {
     SSLeay_add_all_algorithms();
-
-    g_assert (RAND_status() == 1);
 
     if (bits == 0)
         bits = DEFAULT_BITS;

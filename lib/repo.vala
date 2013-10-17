@@ -37,8 +37,9 @@ public class Repo : Object {
     }
 
     public bool encrypted { get; set; }
-    public string passwd { get; set; }
     public string magic { get; set; }
+    public int enc_version { get; set; }
+    public string random_key { get; set; }
 
     public bool worktree_changed { get; set; }
     public bool worktree_invalid { get; set; }
@@ -61,6 +62,14 @@ public class Repo : Object {
     public string share_permission { get; set; }
 
     public bool no_local_history { get; set; }
+
+    // virutal repo related
+    public bool is_virtual { get; set; }
+    public string origin_repo_id { get; set; }
+    public string origin_repo_name { get; set; }
+    public string origin_path { get; set; }
+    public bool is_original_owner { get; set; }
+    public string virtual_perm { get; set; }
 }
 
 
@@ -109,6 +118,7 @@ public class SharedRepo : Object {
     public string repo_name { get; set; }
     public string repo_desc { get; set; }
     public bool encrypted { get; set; }
+    public bool enc_version { get; set; }
     public string permission { get; set; }
 
     public string user { get; set; } // share from or share to

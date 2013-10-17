@@ -56,7 +56,7 @@ commit_trees_cb (struct cache_tree *it, struct cache_entry **cache,
         if (slash) {
             entlen = slash - (path + baselen);
             sub = cache_tree_find_subtree(it, path + baselen, entlen, 0);
-            g_assert (sub != NULL);
+            g_return_val_if_fail (sub != NULL, -1);
             /* Skip cache entries in the sub level. */
             i += sub->cache_tree->entry_count - 1;
 
@@ -135,6 +135,33 @@ update_index (struct index_state *istate, const char *index_path)
     return 0;
 }
 
+int
+seaf_remove_empty_dir (const char *path)
+{
+    SeafStat st;
+    char *ds_store, *thumbs_db;
+
+    if (seaf_stat (path, &st) < 0 || !S_ISDIR(st.st_mode))
+        return 0;
+
+    if (g_rmdir (path) < 0) {
+        ds_store = g_build_filename (path, ".DS_Store", NULL);
+        g_unlink (ds_store);
+        g_free (ds_store);
+
+        thumbs_db = g_build_filename (path, "Thumbs.db", NULL);
+        g_unlink (thumbs_db);
+        g_free (thumbs_db);
+
+        if (g_rmdir (path) < 0) {
+            g_warning ("Failed to remove %s: %s.\n", path, strerror(errno));
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 static int
 unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
 {
@@ -170,13 +197,8 @@ unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
             return -1;
         }
     } else {
-        if (seaf_stat (path, &st) < 0 || !S_ISDIR(st.st_mode))
-            return 0;
-
-        if (g_rmdir (path) < 0) {
-            g_warning ("Failed to remove %s: %s.\n", path, strerror(errno));
+        if (seaf_remove_empty_dir (path) < 0)
             return -1;
-        }
     }
 
     /* then remove all empty directories upwards. */
@@ -521,16 +543,12 @@ checkout_entry (struct cache_entry *ce,
             }
         }
     } else {
-        /* For simplicity, we just don't checkout the empty dir if there is
-         * already a file with the same name in the worktree.
-         * This implies, you can't remove a file then create an empty directory
-         * with the same name. But it's a rare requirement.
-         */
         if (g_mkdir (path, 0777) < 0) {
-            g_warning ("Failed to create empty dir %s.\n", path);
+            g_warning ("Failed to create empty dir %s in checkout.\n", path);
+            g_free (path);
+            return -1;
         }
-        g_free (path);
-        return 0;
+        goto update_cache;
     }
 
     if (!o->reset && seaf_stat (path, &st) == 0 && S_ISREG(st.st_mode) &&

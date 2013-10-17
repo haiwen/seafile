@@ -46,6 +46,9 @@ class SeafileAPI(object):
     def create_repo(self, name, desc, username, passwd):
         return seafserv_threaded_rpc.create_repo(name, desc, username, passwd)
 
+    def create_enc_repo(self, repo_id, name, desc, username, magic, random_key, enc_version):
+        return seafserv_threaded_rpc.create_enc_repo(repo_id, name, desc, username, magic, random_key, enc_version)
+
     def get_repo(self, repo_id):
         return seafserv_threaded_rpc.get_repo(repo_id)
 
@@ -60,6 +63,9 @@ class SeafileAPI(object):
 
     def is_repo_owner(self, username, repo_id):
         return seafserv_threaded_rpc.is_repo_owner(username, repo_id)
+
+    def set_repo_owner(self, email, repo_id):
+        return seafserv_threaded_rpc.set_repo_owner(email, repo_id)
 
     def get_repo_owner(self, repo_id):
         return seafserv_threaded_rpc.get_repo_owner(repo_id)
@@ -148,27 +154,30 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.calc_files_last_modified(repo_id,
                                                               parent_dir, limit)
 
-    def list_dir_by_dir_id(self, dir_id):
-        return seafserv_threaded_rpc.list_dir(dir_id)
-
     def post_dir(self, repo_id, parent_dir, dirname, username):
         """Add a directory"""
         return seafserv_threaded_rpc.post_dir(repo_id, parent_dir, dirname, username)
+
+    def list_file_by_file_id(self, file_id, offset=-1, limit=-1):
+        return seafserv_threaded_rpc.list_file(file_id, offset, limit)
     
     def get_dir_id_by_path(self, repo_id, path):
         return seafserv_threaded_rpc.get_dir_id_by_path(repo_id, path)
     
-    def list_dir_by_path(self, repo_id, path):
+    def list_dir_by_dir_id(self, dir_id, offset=-1, limit=-1):
+        return seafserv_threaded_rpc.list_dir(dir_id, offset, limit)
+
+    def list_dir_by_path(self, repo_id, path, offset=-1, limit=-1):
         dir_id = seafserv_threaded_rpc.get_dir_id_by_path(repo_id, path)
-        return seafserv_threaded_rpc.list_dir(dir_id)
+        return seafserv_threaded_rpc.list_dir(dir_id, offset, limit)
+
+    def list_dir_by_commit_and_path(self, commit_id, path, offset=-1, limit=-1):
+        dir_id = seafserv_threaded_rpc.get_dirid_by_path(commit_id, path)
+        return seafserv_threaded_rpc.list_dir(dir_id, offset, limit)
     
     def get_dir_id_by_commit_and_path(self, commit_id, path):
         return seafserv_threaded_rpc.get_dirid_by_path(commit_id, path)
 
-    def list_dir_by_commit_and_path(self, commit_id, path):
-        dir_id = seafserv_threaded_rpc.get_dirid_by_path(commit_id, path)
-        return seafserv_threaded_rpc.list_dir(dir_id)
-    
     def revert_file(self, repo_id, commit_id, path, username):
         return seafserv_threaded_rpc.revert_file(repo_id, commit_id, path, username)
 
@@ -273,6 +282,9 @@ class SeafileAPI(object):
         pass
 
     # password management
+    def check_passwd(self, repo_id, magic):
+        return seafserv_threaded_rpc.check_passwd(repo_id, magic)
+
     def set_passwd(self, repo_id, user, passwd):
         return seafserv_threaded_rpc.set_passwd(repo_id, user, passwd)
 
@@ -295,5 +307,20 @@ class SeafileAPI(object):
     def is_inner_pub_repo(self, repo_id):
         return seafserv_threaded_rpc.is_inner_pub_repo(repo_id)
 
+
+    # virtual repo
+    def create_virtual_repo(self, origin_repo_id, path, repo_name, repo_desc, owner):
+        return seafserv_threaded_rpc.create_virtual_repo(origin_repo_id,
+                                                         path,
+                                                         repo_name,
+                                                         repo_desc,
+                                                         owner)
+
+    def get_virtual_repos_by_owner(self, owner):
+        return seafserv_threaded_rpc.get_virtual_repos_by_owner(owner)
+
+    # @path must begin with '/', e.g. '/example'
+    def get_virtual_repo(self, origin_repo, path, owner):
+        return seafserv_threaded_rpc.get_virtual_repo(origin_repo, path, owner)
 
 seafile_api = SeafileAPI()

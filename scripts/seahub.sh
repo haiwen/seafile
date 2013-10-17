@@ -123,11 +123,22 @@ else
 fi
 
 function warning_if_seafile_not_running () {
-    if ! pgrep -f "seafile-controller -c" 2>/dev/null 1>&2; then
+    if ! pgrep -f "seafile-controller -c ${default_ccnet_conf_dir}" 2>/dev/null 1>&2; then
         echo
         echo "Warning: seafile-controller not running. Have you run \"./seafile.sh start\" ?"
         echo
     fi
+}
+
+function prepare_seahub_log_dir() {
+    logdir=${TOPDIR}/logs
+    if ! [[ -d ${logsdir} ]]; then
+        if ! mkdir -p "${logdir}"; then
+            echo "ERROR: failed to create logs dir \"${logdir}\""
+            exit 1
+        fi
+    fi
+    export SEAHUB_LOG_DIR=${logdir}
 }
 
 function before_start() {
@@ -137,6 +148,7 @@ function before_start() {
 
     warning_if_seafile_not_running;
     validate_seahub_running;
+    prepare_seahub_log_dir;
 
     export CCNET_CONF_DIR=${default_ccnet_conf_dir}
     export SEAFILE_CONF_DIR=${seafile_data_dir}
@@ -153,7 +165,7 @@ function start_seahub () {
     sleep 5
     if ! pgrep -f "${manage_py}" 2>/dev/null 1>&2; then
         printf "\033[33mError:Seahub failed to start.\033[m\n"
-        echo "Please try to run \"./seafile.sh start\" again"
+        echo "Please try to run \"./seahub.sh start\" again"
         exit 1;
     fi
 }

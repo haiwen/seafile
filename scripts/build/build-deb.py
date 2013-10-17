@@ -75,6 +75,19 @@ def exist_in_path(prog):
 
     return False
 
+def prepend_env_value(name, value, seperator=':'):
+    '''append a new value to a list'''
+    try:
+        current_value = os.environ[name]
+    except KeyError:
+        current_value = ''
+
+    new_value = value
+    if current_value:
+        new_value += seperator + current_value
+
+    os.environ[name] = new_value
+
 def error(msg=None, usage=None):
     if msg:
         print highlight('[ERROR] ') + msg
@@ -159,6 +172,23 @@ class Project(object):
         # libsearpc and ccnet can have different versions from seafile.
         raise NotImplementedError
 
+    def get_source_commit_id(self):
+        '''By convetion, we record the commit id of the source code in the
+        file "<projdir>/latest_commit"
+
+        '''
+        latest_commit_file = os.path.join(self.projdir, 'latest_commit')
+        with open(latest_commit_file, 'r') as fp:
+            commit_id = fp.read().strip('\n\r\t ')
+
+        return commit_id
+
+    def append_cflags(self, macros):
+        cflags = ' '.join([ '-D%s=%s' % (k, macros[k]) for k in macros ])
+        prepend_env_value('DEB_CPPFLAGS_APPEND',
+                          cflags,
+                          seperator=' ')
+
     def uncompress(self):
         '''Uncompress the source from the tarball'''
         info('Uncompressing %s' % self.name)
@@ -166,8 +196,13 @@ class Project(object):
         if run('tar xf %s' % self.src_tarball) < 0:
             error('failed to uncompress source of %s' % self.name)
 
+    def before_build(self):
+        '''Hook method to do project-specific stuff before running build commands'''
+        pass
+
     def build(self):
         '''Build the source'''
+        self.before_build()
         info('Building %s' % self.name)
         for cmd in self.build_commands:
             if run(cmd, cwd=self.projdir) != 0:
@@ -185,6 +220,13 @@ class Ccnet(Project):
     def get_version(self):
         return conf[CONF_CCNET_VERSION]
 
+    def before_build(self):
+        macros = {}
+        # SET CCNET_SOURCE_COMMIT_ID, so it can be printed in the log
+        macros['CCNET_SOURCE_COMMIT_ID'] = '\\"%s\\"' % self.get_source_commit_id()
+
+        self.append_cflags(macros)
+
 class Seafile(Project):
     name = 'seafile'
     def __init__(self):
@@ -195,6 +237,12 @@ class Seafile(Project):
 
     def get_version(self):
         return conf[CONF_SEAFILE_VERSION]
+
+    def before_build(self):
+        macros = {}
+        # SET SEAFILE_SOURCE_COMMIT_ID, so it can be printed in the log
+        macros['SEAFILE_SOURCE_COMMIT_ID'] = '\\"%s\\"' % self.get_source_commit_id()
+        self.append_cflags(macros)
 
 def check_targz_src(proj, version, srcdir):
     src_tarball = os.path.join(srcdir, '%s-%s.tar.gz' % (proj, version))
@@ -221,7 +269,7 @@ def validate_args(usage, options):
     # [ version ]
     def check_project_version(version):
         '''A valid version must be like 1.2.2, 1.3'''
-        if not re.match('^[0-9]\.[0-9](\.[0-9])?$', version):
+        if not re.match('^[0-9](\.[0-9])+$', version):
             error('%s is not a valid version' % version, usage=usage)
 
     version = get_option(CONF_VERSION)
@@ -366,18 +414,10 @@ def parse_args():
 def setup_build_env():
     '''Setup environment variables, such as export PATH=$BUILDDDIR/bin:$PATH'''
     prefix = os.path.join(Seafile().projdir, 'debian', 'seafile', 'usr')
-    def prepend_env_value(name, value, seperator=':'):
-        '''append a new value to a list'''
-        try:
-            current_value = os.environ[name]
-        except KeyError:
-            current_value = ''
 
-        new_value = value
-        if current_value:
-            new_value += seperator + current_value
-
-        os.environ[name] = new_value
+    prepend_env_value('DEB_CPPFLAGS_APPEND',
+                     '-DSEAFILE_CLIENT_VERSION=\\"%s\\"' % conf[CONF_VERSION],
+                     seperator=' ')
 
     if conf[CONF_NO_STRIP]:
         prepend_env_value('DEB_CPPFLAGS_APPEND',

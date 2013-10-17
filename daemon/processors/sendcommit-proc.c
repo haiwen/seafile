@@ -113,7 +113,7 @@ send_commit_start (CcnetProcessor *processor, int argc, char **argv)
         ccnet_processor_done (processor, FALSE);
         return -1;
     }
-    g_assert (object_list_length(ol) != 0);
+    g_return_val_if_fail (object_list_length(ol) != 0, -1);
     task->commits = ol;
 
     /* Send to_branch to the relay. */
@@ -257,6 +257,6 @@ static void handle_response (CcnetProcessor *processor,
         }
         break;
     default:
-        g_assert (0);
+        g_return_if_reached ();
     }
 }

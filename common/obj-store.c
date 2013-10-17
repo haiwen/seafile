@@ -15,6 +15,7 @@ typedef struct AsyncTask {
     char    obj_id[41];
     void    *data;
     int     len;
+    gboolean need_sync;
     gboolean success;
 } AsyncTask;
 
@@ -51,15 +52,6 @@ typedef struct SeafObjStore SeafObjStore;
 #ifdef SEAFILE_SERVER
 static ObjBackend*
 load_obj_backend (GKeyFile *config, const char *obj_type);
-
-static ObjBackend*
-load_riak_obj_backend(GKeyFile *config, const char *bend_group);
-
-extern ObjBackend *
-obj_backend_riak_new (const char *host,
-                      const char *port,
-                      const char *bucket,
-                      const char *write_policy);
 #endif
 
 static void
@@ -192,11 +184,12 @@ int
 seaf_obj_store_write_obj (struct SeafObjStore *obj_store,
                           const char *obj_id,
                           void *data,
-                          int len)
+                          int len,
+                          gboolean need_sync)
 {
     ObjBackend *bend = obj_store->bend;
 
-    return bend->write (bend, obj_id, data, len);
+    return bend->write (bend, obj_id, data, len, need_sync);
 }
 
 gboolean
@@ -215,6 +208,16 @@ seaf_obj_store_delete_obj (struct SeafObjStore *obj_store,
     ObjBackend *bend = obj_store->bend;
 
     return bend->delete (bend, obj_id);
+}
+
+int
+seaf_obj_store_foreach_obj (struct SeafObjStore *obj_store,
+                            SeafObjFunc process,
+                            void *user_data)
+{
+    ObjBackend *bend = obj_store->bend;
+
+    return bend->foreach_obj (bend, process, user_data);
 }
 
 #ifdef SEAFILE_SERVER
@@ -237,6 +240,7 @@ load_filesystem_obj_backend(GKeyFile *config, const char *bend_group)
     return bend;
 }
 
+#if 0
 static ObjBackend*
 load_riak_obj_backend(GKeyFile *config, const char *bend_group)
 {
@@ -279,6 +283,7 @@ load_riak_obj_backend(GKeyFile *config, const char *bend_group)
     g_free (write_policy);
     return bend;
 }
+#endif
 
 static ObjBackend*
 load_obj_backend (GKeyFile *config, const char *obj_type)
@@ -292,7 +297,7 @@ load_obj_backend (GKeyFile *config, const char *obj_type)
     else if (strcmp (obj_type, "fs") == 0)
         bend_group = "fs_object_backend";
     else
-        g_assert (0);
+        g_return_val_if_reached (NULL);
 
     backend = g_key_file_get_string (config, bend_group, "name", NULL);
     if (!backend) {
@@ -303,11 +308,14 @@ load_obj_backend (GKeyFile *config, const char *obj_type)
         bend = load_filesystem_obj_backend (config, bend_group);
         g_free (backend);
         return bend;
-    } else if (strcmp (backend, "riak") == 0) {
+    } 
+#if 0
+    else if (strcmp (backend, "riak") == 0) {
         bend = load_riak_obj_backend (config, bend_group);
         g_free (backend);
         return bend;
     }
+#endif
 
     g_warning ("Unknown backend\n");
     return NULL;
@@ -355,7 +363,7 @@ writer_thread (void *data, void *user_data)
 
     task->success = TRUE;
 
-    if (bend->write (bend, task->obj_id, task->data, task->len) < 0)
+    if (bend->write (bend, task->obj_id, task->data, task->len, task->need_sync) < 0)
         task->success = FALSE;
 
     cevent_manager_add_event (obj_store->ev_mgr, obj_store->write_ev_id,
@@ -548,7 +556,8 @@ seaf_obj_store_async_write (struct SeafObjStore *obj_store,
                             guint32 writer_id,
                             const char *obj_id,
                             const void *obj_data,
-                            int data_len)
+                            int data_len,
+                            gboolean need_sync)
 {
     AsyncTask *task = g_new0 (AsyncTask, 1);
     GError *error = NULL;
@@ -557,6 +566,7 @@ seaf_obj_store_async_write (struct SeafObjStore *obj_store,
     memcpy (task->obj_id, obj_id, 41);
     task->data = g_memdup (obj_data, data_len);
     task->len = data_len;
+    task->need_sync = need_sync;
 
     g_thread_pool_push (obj_store->write_tpool, task, &error);
     if (error) {

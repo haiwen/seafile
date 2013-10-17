@@ -20,6 +20,18 @@ int
 seaf_passwd_manager_start (SeafPasswdManager *mgr);
 
 /**
+ * Check password @magic to access contents of @repo_id.
+ * This function:
+ * 1. check whether @magic is correct;
+ *
+ * Returns 0 if password @magic is correct, -1 otherwise.
+ */
+int
+seaf_passwd_manager_check_passwd (SeafPasswdManager *mgr,
+                                  const char *repo_id,
+                                  const char *magic,
+                                  GError **error);
+/**
  * Set @passwd for @user to access contents of @repo_id.
  * This function:
  * 1. check whether @passwd is correct;
@@ -66,5 +78,10 @@ seaf_passwd_manager_get_decrypt_key_raw (SeafPasswdManager *mgr,
                                          const char *user,
                                          unsigned char *key_out,
                                          unsigned char *iv_out);
+
+char *
+seaf_passwd_manager_get_repo_passwd (SeafPasswdManager *mgr,
+                                     const char *repo_id,
+                                     const char *user);
 
 #endif

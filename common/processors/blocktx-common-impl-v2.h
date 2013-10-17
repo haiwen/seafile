@@ -532,7 +532,7 @@ write_decrypted_data (const char *buf, int len,
     if (fsm->remain == 0) {
         if (EVP_DecryptFinal_ex (&fsm->ctx, (unsigned char *)out_buf, &out_len) == 0)
         {
-            seaf_warning ("Failed to encrypt data.\n");
+            seaf_warning ("Failed to decrypt data.\n");
             return -1;
         }
 
@@ -723,8 +723,7 @@ recv_blocks (ThreadData *tdata)
              * This means the processor was done.
              */
             char buf[1];
-            int n = piperead (tdata->task_pipe[0], buf, sizeof(buf));
-            g_assert (n == 0);
+            piperead (tdata->task_pipe[0], buf, sizeof(buf));
             seaf_debug ("Task pipe closed. Worker thread exits now.\n");
             goto error;
         }
@@ -1015,6 +1014,7 @@ verify_session_token (CcnetProcessor *processor, char *ret_repo_id,
 
     char *session_token = argv[0];
     if (seaf_token_manager_verify_token (seaf->token_mgr,
+                                         NULL,
                                          processor->peer_id,
                                          session_token, ret_repo_id) < 0) {
         return -1;

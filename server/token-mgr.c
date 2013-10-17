@@ -60,6 +60,7 @@ seaf_token_manager_generate_token (SeafTokenManager *mgr,
 
 int
 seaf_token_manager_verify_token (SeafTokenManager *mgr,
+                                 SearpcClient *rpc_client,
                                  const char *peer_id,
                                  char *token,
                                  char *ret_repo_id)
@@ -95,10 +96,13 @@ seaf_token_manager_verify_token (SeafTokenManager *mgr,
     sep = strrchr (token, '\n');
     sep[0] = '\0';
 
+    if (!rpc_client)
+        rpc_client = seaf->ccnetrpc_client;
+
     /* Verify signature.
      * TODO: we should first check whether master_id is a master server.
      */
-    if (ccnet_verify_message (seaf->ccnetrpc_client,
+    if (ccnet_verify_message (rpc_client,
                               token, signature, master_id) < 0) {
         ret = -1;
         goto out;
@@ -107,7 +111,7 @@ seaf_token_manager_verify_token (SeafTokenManager *mgr,
     sep[0] = '\n';
 
     /* Check whether this token is assigned to the peer. */
-    if (strcmp (peer_id, client_id) != 0) {
+    if (peer_id && strcmp (peer_id, client_id) != 0) {
         ret = -1;
         goto out;
     }

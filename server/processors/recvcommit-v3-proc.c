@@ -86,6 +86,7 @@ recv_commit_start (CcnetProcessor *processor, int argc, char **argv)
 
     session_token = argv[1];
     if (seaf_token_manager_verify_token (seaf->token_mgr,
+                                         NULL,
                                          processor->peer_id,
                                          session_token, NULL) == 0) {
         ccnet_processor_send_response (processor, SC_OK, SS_OK, NULL, 0);
@@ -129,7 +130,8 @@ save_commit (CcnetProcessor *processor, ObjectPack *pack, int len)
                                        priv->writer_id,
                                        pack->id,
                                        pack->object,
-                                       len - 41);
+                                       len - 41,
+                                       TRUE);
 }
 
 static void
@@ -177,6 +179,6 @@ static void handle_update (CcnetProcessor *processor,
         }
         break;
     default:
-        g_assert (0);
+        g_return_if_reached ();
     }
 }

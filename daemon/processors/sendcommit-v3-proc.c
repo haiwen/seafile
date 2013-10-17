@@ -353,7 +353,7 @@ static void handle_response (CcnetProcessor *processor,
         }
         break;
     default:
-        g_assert (0);
+        g_return_if_reached ();
     }
 
     g_warning ("Bad response: %s %s.\n", code, code_msg);

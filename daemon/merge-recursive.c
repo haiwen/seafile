@@ -118,10 +118,10 @@ char *write_tree_from_memory(struct merge_options *o)
         for (i = 0; i < o->index->cache_nr; i++) {
             struct cache_entry *ce = o->index->cache[i];
             if (ce_stage(ce))
-                g_warning("BUG: %d %.*s", ce_stage(ce),
+                g_warning("%d %.*s\n", ce_stage(ce),
                         (int)ce_namelen(ce), ce->name);
         }
-        g_assert(0);
+        return NULL;
     }
 
     /* if (!active_cache_tree) */
@@ -322,7 +322,7 @@ remove_path (const char *worktree, const char *name, unsigned int ctime, unsigne
         /* file has been changed. */
         if (ctime != st.st_ctime || mtime != st.st_mtime) {
             g_free (path);
-            return 0;
+            return -1;
         }
 
         if (g_unlink(path) && errno != ENOENT) {
@@ -330,7 +330,7 @@ remove_path (const char *worktree, const char *name, unsigned int ctime, unsigne
             return -1;
         }
     } else if (S_ISDIR (st.st_mode)) {
-        if (g_rmdir (path) < 0) {
+        if (seaf_remove_empty_dir (path) < 0) {
             g_free (path);
             return -1;
         }
@@ -367,7 +367,7 @@ static int remove_file(struct merge_options *o, int clean,
             return -1;
     }
     if (update_working_directory) {
-        if (remove_path(o->worktree, path, ctime, mtime))
+        if (remove_path(o->worktree, path, ctime, mtime) < 0)
             return -1;
     }
     return 0;
@@ -541,7 +541,7 @@ static int update_file_flags(struct merge_options *o,
         /* Checkout an empty dir. */
         if (S_ISDIR (mode)) {
             if (g_mkdir (real_path, 0777) < 0) {
-                g_warning ("Failed to create empty dir %s.\n", real_path);
+                g_warning ("Failed to create empty dir %s in merge.\n", real_path);
                 g_free (real_path);
                 return 0;
             }

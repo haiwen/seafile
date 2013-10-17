@@ -6,6 +6,7 @@
 #include "utils.h"
 #include "seaf-utils.h"
 #include "block-mgr.h"
+#include "log.h"
 
 #include <stdio.h>
 #include <errno.h>
@@ -163,3 +164,46 @@ seaf_block_manager_get_block_number (SeafBlockManager *mgr)
     return n_blocks;
 }
 
+gboolean
+seaf_block_manager_verify_block (SeafBlockManager *mgr,
+                                 const char *block_id,
+                                 gboolean *io_error)
+{
+    BlockHandle *h;
+    char buf[10240];
+    int n;
+    SHA_CTX ctx;
+    guint8 sha1[20];
+    char check_id[41];
+
+    h = seaf_block_manager_open_block (mgr, block_id, BLOCK_READ);
+    if (!h) {
+        seaf_warning ("Failed to open block %.8s.\n", block_id);
+        *io_error = TRUE;
+        return FALSE;
+    }
+
+    SHA1_Init (&ctx);
+    while (1) {
+        n = seaf_block_manager_read_block (mgr, h, buf, sizeof(buf));
+        if (n < 0) {
+            seaf_warning ("Failed to read block %.8s.\n", block_id);
+            *io_error = TRUE;
+            return FALSE;
+        }
+        if (n == 0)
+            break;
+
+        SHA1_Update (&ctx, buf, n);
+    }
+
+    seaf_block_manager_close_block (mgr, h);
+
+    SHA1_Final (sha1, &ctx);
+    rawdata_to_hex (sha1, check_id, 20);
+
+    if (strcmp (check_id, block_id) == 0)
+        return TRUE;
+    else
+        return FALSE;
+}

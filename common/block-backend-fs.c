@@ -47,7 +47,7 @@ block_backend_fs_open_block (BlockBackend *bend,
 
     g_return_val_if_fail (block_id != NULL, NULL);
     g_return_val_if_fail (strlen(block_id) == 40, NULL);
-    g_assert (rw_type == BLOCK_READ || rw_type == BLOCK_WRITE);
+    g_return_val_if_fail (rw_type == BLOCK_READ || rw_type == BLOCK_WRITE, NULL);
 
     if (rw_type == BLOCK_READ) {
         char path[SEAF_PATH_MAX];
@@ -122,7 +122,7 @@ block_backend_fs_commit_block (BlockBackend *bend,
 {
     char path[SEAF_PATH_MAX];
 
-    g_assert (handle->rw_type == BLOCK_WRITE);
+    g_return_val_if_fail (handle->rw_type == BLOCK_WRITE, -1);
 
     get_block_path (bend, handle->block_id, path);
     if (ccnet_rename (handle->tmp_file, path) < 0) {
@@ -211,7 +211,7 @@ block_backend_fs_foreach_block (BlockBackend *bend,
 
     dir1 = g_dir_open (block_dir, 0, NULL);
     if (!dir1) {
-        g_warning ("Failed to open object dir %s.\n", block_dir);
+        g_warning ("Failed to open block dir %s.\n", block_dir);
         return -1;
     }
 
@@ -223,7 +223,7 @@ block_backend_fs_foreach_block (BlockBackend *bend,
 
         dir2 = g_dir_open (path, 0, NULL);
         if (!dir2) {
-            g_warning ("Failed to open object dir %s.\n", path);
+            g_warning ("Failed to open block dir %s.\n", path);
             continue;
         }
 

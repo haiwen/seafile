@@ -10,11 +10,12 @@ if COMPILE_GUI
   MAKE_PO = po
 endif
 
-MAKE_CONTROLLER = controller
 
 if WIN32
   MAKE_data =
   MAKE_CONTROLLER =
+else
+  MAKE_CONTROLLER = controller
 endif
 
 if COMPILE_SERVER
@@ -25,7 +26,7 @@ SUBDIRS = include lib common app python tests doc \
 	$(MAKE_CLIENT) $(MAKE_SERVER) $(MAKE_PO) $(MAKE_data)
 
 DIST_SUBDIRS = include lib common app python tests \
-	daemon gui server tools monitor httpserver controller \
+	daemon gui server tools httpserver controller \
 	po data doc
 
 INTLTOOL = \
@@ -43,7 +44,9 @@ web_mos = \
 	web/i18n/en_US/LC_MESSAGES/messages.mo \
 	web/i18n/zh_CN/LC_MESSAGES/messages.mo \
 	web/i18n/fr/LC_MESSAGES/messages.mo \
-	web/i18n/sk_SK/LC_MESSAGES/messages.mo
+	web/i18n/sk_SK/LC_MESSAGES/messages.mo \
+	web/i18n/pt_BR/LC_MESSAGES/messages.mo \
+	web/i18n/de_DE/LC_MESSAGES/messages.mo
 
 CLEANFILES = $(web_mos)
 
@@ -63,6 +66,13 @@ web/i18n/sk_SK/LC_MESSAGES/messages.mo: $(top_srcdir)/web/i18n/sk_SK/LC_MESSAGES
 	mkdir -p `dirname $@`
 	msgfmt -o $@ $<
 
+web/i18n/pt_BR/LC_MESSAGES/messages.mo: $(top_srcdir)/web/i18n/pt_BR/LC_MESSAGES/messages.po
+	mkdir -p `dirname $@`
+	msgfmt -o $@ $<
+
+web/i18n/de_DE/LC_MESSAGES/messages.mo: $(top_srcdir)/web/i18n/de_DE/LC_MESSAGES/messages.po
+	mkdir -p `dirname $@`
+	msgfmt -o $@ $<
 
 install-web:
 	$(INSTALL) -d $(DESTDIR)$(pkgdatadir)
@@ -76,7 +86,7 @@ uninstall-web:
 	-rm -rf $(DESTDIR)$(pkgdatadir)/web
 
 dist-hook:
-	git log -1 > $(distdir)/latest_commit
+	git log --format='%H' -1 > $(distdir)/latest_commit
 	find $(distdir)/web -name '*.pyc' -o \
 	-name '*.sh' -o \
 	-name '*~' -o \
@@ -97,4 +107,3 @@ endif
 all-local: $(make_web_mos)
 install-data-local: $(install_web)
 uninstall-local: $(uninstall_web)
-

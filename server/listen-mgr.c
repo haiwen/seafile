@@ -7,6 +7,7 @@
 #include "utils.h"
 #include "net.h"
 #include "listen-mgr.h"
+#include "block-tx-server.h"
 
 #define DEBUG_FLAG SEAFILE_DEBUG_OTHER
 #include "log.h"
@@ -147,6 +148,21 @@ read_cb (struct bufferevent *bufev, void *user_data)
     }
 
     token = (char *)(EVBUFFER_DATA (bufev->input));
+
+    /* Switch to new block protocol */
+    if (strcmp (token, BLOCK_PROTOCOL_SIGNATURE) == 0) {
+        if (ccnet_net_make_socket_blocking (connfd) < 0) {
+            seaf_warning ("[listen mgr] Failed to set socket blocking.\n");
+            goto error;
+        }        
+        if (block_tx_server_start (connfd) < 0) {
+            seaf_warning ("Failed to start block tx server.\n");
+            goto error;
+        }
+        bufferevent_free (bufev);
+        return;
+    }
+
     cbstruct = g_hash_table_lookup (mgr->priv->token_hash, token);
     if (!cbstruct) {
         seaf_warning ("[listen mgr] unknown token received: %s\n", token);
