@@ -81,6 +81,10 @@ static struct spanhash_top *spanhash_rehash(struct spanhash_top *orig)
     int sz = osz << 1;
 
     new = malloc(sizeof(*orig) + sizeof(struct spanhash) * sz);
+    if (new == NULL) {
+      free(orig);
+      return NULL;
+    }
     new->alloc_log2 = orig->alloc_log2 + 1;
     new->free = INITIAL_FREE(new->alloc_log2);
     memset(new->data, 0, sizeof(struct spanhash) * sz);
@@ -158,6 +162,10 @@ static struct spanhash_top *hash_chars(struct diff_filespec *one)
 
     i = INITIAL_HASH_SIZE;
     hash = malloc(sizeof(*hash) + sizeof(struct spanhash) * (1<<i));
+    if (hash == NULL) {
+      return NULL;
+    }
+
     hash->alloc_log2 = i;
     hash->free = INITIAL_FREE(i);
     memset(hash->data, 0, sizeof(struct spanhash) * (1<<i));
@@ -179,7 +187,11 @@ static struct spanhash_top *hash_chars(struct diff_filespec *one)
         if (++n < 64 && c != '\n')
             continue;
         hashval = (accum1 + accum2 * 0x61) % HASHBASE;
+        struct spanhash_top* tmp;
         hash = add_spanhash(hash, hashval, n);
+        if (hash == NULL) { /* spanhash_rehash allocation failed, orig freed */
+          return NULL;
+        }
         n = 0;
         accum1 = accum2 = 0;
     }
@@ -386,8 +398,12 @@ static struct diff_rename_dst *locate_rename_dst(struct diff_filespec *two,
     /* insert to make it at "first" */
     if (rename_dst_alloc <= rename_dst_nr) {
         rename_dst_alloc = alloc_nr(rename_dst_alloc);
-        rename_dst = realloc(rename_dst,
-                rename_dst_alloc * sizeof(*rename_dst));
+        struct diff_rename_dst* tmp = realloc(rename_dst, rename_dst_alloc * sizeof(*rename_dst));
+        if (tmp == NULL) {
+          free(rename_dst);
+          return NULL;
+        }
+        rename_dst = tmp;
     }
     rename_dst_nr++;
     if (first < rename_dst_nr)
@@ -429,8 +445,12 @@ static struct diff_rename_src *register_rename_src(struct diff_filepair *p)
     /* insert to make it at "first" */
     if (rename_src_alloc <= rename_src_nr) {
         rename_src_alloc = alloc_nr(rename_src_alloc);
-        rename_src = realloc(rename_src,
-                rename_src_alloc * sizeof(*rename_src));
+        struct diff_rename_src* tmp = realloc(rename_src, rename_src_alloc * sizeof(*rename_src));
+        if (tmp == NULL) {
+          free(rename_src);
+          return NULL;
+        }
+        rename_src = tmp;
     }
     rename_src_nr++;
     if (first < rename_src_nr)
@@ -454,6 +474,9 @@ static void insert_file_table(struct hash_table *table, int src_dst, int index, 
     void **pos;
     unsigned int hash;
     struct file_similarity *entry = malloc(sizeof(*entry));
+    if (entry == NULL) {
+      return NULL;
+    }
 
     entry->src_dst = src_dst;
     entry->index = index;
@@ -1025,6 +1048,9 @@ struct diff_filespec *alloc_filespec(const char *path)
 {
     int namelen = strlen(path);
     struct diff_filespec *spec = malloc(sizeof(*spec) + namelen + 1);
+    if (spec == NULL) {
+      return NULL;
+    }
 
     memset(spec, 0, sizeof(*spec));
     spec->path = (char *)(spec + 1);
@@ -1437,7 +1463,7 @@ static int show_modified(struct diff_options *diffopt,
         int report_missing,
         int cached, int match_missing)
 {
-    struct diff_filepair *pair;
+    struct diff_filepair *pair = NULL;
     unsigned int mode, oldmode;
     const unsigned char *sha1;
     unsigned dirty_submodule = 0;
@@ -1447,7 +1473,9 @@ static int show_modified(struct diff_options *diffopt,
         if (report_missing)
             pair = diff_addremove(diffopt, '-', old->ce_mode,
                     old->sha1, old->name, 0);
-        pair->stage = STAGE_COMMIT;
+        if (pair != NULL) {
+          pair->stage = STAGE_COMMIT;
+        }
         return -1;
     }
 
@@ -1458,7 +1486,9 @@ static int show_modified(struct diff_options *diffopt,
 
     pair = diff_change(diffopt, oldmode, mode,
             old->sha1, sha1, old->name, 0, dirty_submodule);
-    pair->stage = STAGE_COMMIT;
+    if (pair != NULL) {
+      pair->stage = STAGE_COMMIT;
+    }
     return 0;
 }
 

@@ -82,6 +82,7 @@ get_seafile_dir(const char *config_dir)
             fclose(fp);
             return g_strdup(buf);
         }
+        fclose(fp);
     }
     return NULL;
 }
