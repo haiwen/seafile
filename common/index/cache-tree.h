@@ -21,8 +21,8 @@ struct cache_tree {
 
 typedef int (*CommitCB) (struct cache_tree *,
         struct cache_entry **, int, const char *, int);
-inline struct cache_tree_sub *cache_tree_find_subtree(struct cache_tree *,
-        const char *, int, int);
+struct cache_tree_sub *cache_tree_find_subtree(struct cache_tree *,
+                                               const char *, int, int);
 
 struct cache_tree *cache_tree(void);
 void cache_tree_free(struct cache_tree **);

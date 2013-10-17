@@ -112,7 +112,9 @@ int main (int argc, char *argv[])
 {
 	struct cmd *c;
 
-    g_type_init ();
+#if !GLIB_CHECK_VERSION(2, 35, 0)
+    g_type_init();
+#endif
 	config_dir = DEFAULT_CONFIG_DIR;
 
     if (argc == 1) {

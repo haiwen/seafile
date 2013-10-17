@@ -671,7 +671,9 @@ int main (int argc, char **argv)
         }
     }
 
-    g_type_init ();
+#if !GLIB_CHECK_VERSION(2, 35, 0)
+    g_type_init();
+#endif
 #if !GLIB_CHECK_VERSION(2,32,0)
     g_thread_init (NULL);
 #endif
@@ -702,11 +704,13 @@ int main (int argc, char **argv)
 
     set_signal_handlers ();
 
-    if (seaf_controller_start (ctl) < 0)
+    if (seaf_controller_start () < 0)
         controller_exit (1);
 
+#if !defined(WIN32) && !defined(__APPLE__)
     if (daemon_mode)
         daemon (1, 0);
+#endif
 
     if (controller_pidfile == NULL) {
         controller_pidfile = g_strdup(g_getenv ("SEAFILE_PIDFILE"));

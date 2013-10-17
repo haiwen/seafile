@@ -53,6 +53,10 @@ convert_repo_list (GList *inner_repos)
                       "enc_version", r->enc_version,
                       NULL);
 
+        if (r->encrypted && r->enc_version == 2)
+            g_object_set (repo, "magic", r->magic,
+                          "random_key", r->random_key, NULL);
+
 #ifndef SEAFILE_SERVER
     g_object_set (repo, "worktree-changed", r->wt_changed,
                   "worktree-checktime", r->wt_check_time,
@@ -1072,7 +1076,7 @@ seafile_get_repo (const char *repo_id, GError **error)
     return (GObject *)repo;
 }
 
-inline SeafileCommit *
+SeafileCommit *
 convert_to_seafile_commit (SeafCommit *c)
 {
     SeafileCommit *commit = seafile_commit_new ();
@@ -1628,6 +1632,10 @@ seafile_list_owned_repos (const char *email, GError **error)
                       "head_cmmt_id", r->head ? r->head->commit_id : NULL,
                       "is_virtual", (r->virtual_info != NULL),
                       "enc_version", r->enc_version, NULL);
+        if (r->encrypted && r->enc_version == 2)
+            g_object_set (repo, "magic", r->magic,
+                          "random_key", r->random_key, NULL);
+
         ret = g_list_prepend (ret, repo);
         seaf_repo_unref (r);
         ptr = ptr->next;
@@ -3165,6 +3173,10 @@ seafile_list_org_repos_by_owner (int org_id, const char *user, GError **error)
         g_object_set (repo, "id", r->id, "name", r->name,
                       "desc", r->desc, "encrypted", r->encrypted,
                       "enc_version", r->enc_version, NULL);
+        if (r->encrypted && r->enc_version == 2)
+            g_object_set (repo, "magic", r->magic,
+                          "random_key", r->random_key, NULL);
+
         ret = g_list_prepend (ret, repo);
         seaf_repo_unref (r);
         ptr = ptr->next;

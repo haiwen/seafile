@@ -847,14 +847,16 @@ main (int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-#ifndef WIN32
+#if !defined(WIN32) && !defined(__APPLE__)
     if (daemon_mode)
         daemon (1, 0);
 #endif
 
     cdc_init ();
 
-    g_type_init ();
+#if !GLIB_CHECK_VERSION(2, 35, 0)
+    g_type_init();
+#endif
 #if !GLIB_CHECK_VERSION(2,32,0)
     g_thread_init (NULL);
 #endif

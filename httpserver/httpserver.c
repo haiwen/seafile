@@ -283,15 +283,18 @@ main(int argc, char *argv[])
         }
     }
 
-#ifndef WIN32
+#if !defined(WIN32) && !defined(__APPLE__)
     if (daemon_mode)
         daemon(1, 0);
-#else
+#endif
+#ifdef WIN32
     WSADATA     wsadata;
     WSAStartup(0x0101, &wsadata);
 #endif
 
+#if !GLIB_CHECK_VERSION(2, 35, 0)
     g_type_init();
+#endif
 
     if (!debug_str)
         debug_str = g_getenv("SEAFILE_DEBUG");

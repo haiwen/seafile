@@ -121,7 +121,9 @@ main(int argc, char *argv[])
         }
     }
 
+#if !GLIB_CHECK_VERSION(2, 35, 0)
     g_type_init();
+#endif
 
     if (seafile_log_init ("-", "info", "debug") < 0) {
         seaf_warning ("Failed to init log.\n");

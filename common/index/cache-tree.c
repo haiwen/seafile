@@ -105,8 +105,8 @@ static struct cache_tree_sub *find_subtree(struct cache_tree *it,
     return down;
 }
 
-inline struct cache_tree_sub *cache_tree_find_subtree(struct cache_tree *it,
-                                                      const char *path, int pathlen, int create)
+struct cache_tree_sub *cache_tree_find_subtree(struct cache_tree *it,
+                                               const char *path, int pathlen, int create)
 {
     return find_subtree(it, path, pathlen, create);
 }

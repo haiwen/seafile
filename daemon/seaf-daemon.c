@@ -415,10 +415,13 @@ main (int argc, char **argv)
 
     cdc_init ();
 
-    g_type_init ();
-#if !GLIB_CHECK_VERSION(2,32,0)
-    g_thread_init (NULL);
+#if !GLIB_CHECK_VERSION(2, 35, 0)
+    g_type_init();
 #endif
+#if !GLIB_CHECK_VERSION(2, 31, 0)
+    g_thread_init(NULL);
+#endif
+
     if (!debug_str)
         debug_str = g_getenv("SEAFILE_DEBUG");
     seafile_debug_set_flags_string (debug_str);
