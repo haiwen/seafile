@@ -117,3 +117,5 @@ tests/test-cdc
 tests/test-index
 tests/test-seafile-fmt
 *.pc
+seaf-fsck
+*.tar.gz

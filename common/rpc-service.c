@@ -1285,9 +1285,9 @@ int do_unsync_repo(SeafRepo *repo)
 }
 
 int
-seafile_unsync_repos_by_server (const char *server_addr, GError **error)
+seafile_unsync_repos_by_account (const char *server_addr, const char *email, GError **error)
 {
-    if (!server_addr) {
+    if (!server_addr || !email) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
         return -1;
     }
@@ -1305,7 +1305,7 @@ seafile_unsync_repos_by_server (const char *server_addr, GError **error)
                                               &addr, /* addr */
                                               NULL); /* port */
 
-        if (g_strcmp0(addr, server_addr) == 0) {
+        if (g_strcmp0(addr, server_addr) == 0 && g_strcmp0(repo->email, email) == 0) {
             if (do_unsync_repo(repo) < 0) {
                 return -1;
             }
