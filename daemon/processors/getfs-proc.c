@@ -157,7 +157,7 @@ check_seafdir (CcnetProcessor *processor, SeafDir *dir, int *processed_objects)
              */
             gboolean ok;
             gboolean err = FALSE;
-            ok = seaf_fs_manager_verify_seafile (seaf->fs_mgr, dent->id, &err);
+            ok = seaf_fs_manager_verify_seafile (seaf->fs_mgr, dent->id, TRUE, &err);
             if (!ok && !err) {
                 seaf_warning ("File object %.8s is corrupt, recover from server.\n",
                               dent->id);

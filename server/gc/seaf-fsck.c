@@ -16,13 +16,14 @@ static char *seafile_dir = NULL;
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvc:d:D";
+static const char *short_opts = "hvc:d:Ds";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
     { "config-file", required_argument, NULL, 'c', },
     { "seafdir", required_argument, NULL, 'd', },
     { "dry-run", no_argument, NULL, 'D' },
+    { "strict", no_argument, NULL, 's' },
 };
 
 static void usage ()
@@ -31,7 +32,8 @@ static void usage ()
              "usage: seaf-fsck [-c config_dir] [-d seafile_dir] "
              "[repo_id_1 [repo_id_2 ...]]\n"
              "Additional options:\n"
-             "-D, --dry-run: check fs objects and blocks, but don't remove them.\n");
+             "-D, --dry-run: check fs objects and blocks, but don't remove them.\n"
+             "-s, --strict: check whether fs object id consistent with content.\n");
 }
 
 #ifdef WIN32
@@ -64,7 +66,8 @@ int
 main(int argc, char *argv[])
 {
     int c;
-    int dry_run = 0;
+    gboolean dry_run = FALSE;
+    gboolean strict = FALSE;
 
 #ifdef WIN32
     argv = get_argv_utf8 (&argc);
@@ -88,7 +91,10 @@ main(int argc, char *argv[])
             seafile_dir = strdup(optarg);
             break;
         case 'D':
-            dry_run = 1;
+            dry_run = TRUE;
+            break;
+        case 's':
+            strict = TRUE;
             break;
         default:
             usage();
@@ -125,7 +131,7 @@ main(int argc, char *argv[])
     for (i = optind; i < argc; i++)
         repo_id_list = g_list_append (repo_id_list, g_strdup(argv[i]));
 
-    seaf_fsck (repo_id_list, dry_run);
+    seaf_fsck (repo_id_list, dry_run, strict);
 
     return 0;
 }

@@ -1519,7 +1519,7 @@ seaf_fs_manager_get_seafdir_id_by_path (SeafFSManager *mgr,
 }
 
 gboolean
-verify_seafdir (const char *dir_id, const uint8_t *data, int len)
+verify_seafdir (const char *dir_id, const uint8_t *data, int len, gboolean verify_id)
 {
     guint32 meta_type;
     guint32 mode;
@@ -1534,7 +1534,7 @@ verify_seafdir (const char *dir_id, const uint8_t *data, int len)
     char check_id[41];
 
     if (len < sizeof(SeafdirOndisk)) {
-        g_warning ("[fs mgr] Corrupt seafdir object %s.\n", dir_id);
+        seaf_warning ("[fs mgr] Corrupt seafdir object %s.\n", dir_id);
         return FALSE;
     }
 
@@ -1544,11 +1544,12 @@ verify_seafdir (const char *dir_id, const uint8_t *data, int len)
     meta_type = get32bit (&ptr);
     remain -= 4;
     if (meta_type != SEAF_METADATA_TYPE_DIR) {
-        g_warning ("Data does not contain a directory.\n");
+        seaf_warning ("Data does not contain a directory.\n");
         return FALSE;
     }
 
-    SHA1_Init (&ctx);
+    if (verify_id)
+        SHA1_Init (&ctx);
 
     dirent_base_size = 2 * sizeof(guint32) + 40;
     while (remain > dirent_base_size) {
@@ -1564,18 +1565,23 @@ verify_seafdir (const char *dir_id, const uint8_t *data, int len)
             ptr += name_len;
             remain -= name_len;
         } else {
-            g_warning ("Bad data format for dir objcet %s.\n", dir_id);
+            seaf_warning ("Bad data format for dir objcet %s.\n", dir_id);
             return FALSE;
         }
 
-        /* Convert mode to little endian before compute. */
-        if (G_BYTE_ORDER == G_BIG_ENDIAN)
-            mode = GUINT32_SWAP_LE_BE (mode);
+        if (verify_id) {
+            /* Convert mode to little endian before compute. */
+            if (G_BYTE_ORDER == G_BIG_ENDIAN)
+                mode = GUINT32_SWAP_LE_BE (mode);
 
-        SHA1_Update (&ctx, id, 40);
-        SHA1_Update (&ctx, name, name_len);
-        SHA1_Update (&ctx, &mode, sizeof(mode));
+            SHA1_Update (&ctx, id, 40);
+            SHA1_Update (&ctx, name, name_len);
+            SHA1_Update (&ctx, &mode, sizeof(mode));
+        }
     }
+
+    if (!verify_id)
+        return TRUE;
 
     SHA1_Final (sha1, &ctx);
     rawdata_to_hex (sha1, check_id, 20);
@@ -1589,6 +1595,7 @@ verify_seafdir (const char *dir_id, const uint8_t *data, int len)
 gboolean
 seaf_fs_manager_verify_seafdir (SeafFSManager *mgr,
                                 const char *dir_id,
+                                gboolean verify_id,
                                 gboolean *io_error)
 {
     void *data;
@@ -1599,19 +1606,19 @@ seaf_fs_manager_verify_seafdir (SeafFSManager *mgr,
     }
 
     if (seaf_obj_store_read_obj (mgr->obj_store, dir_id, &data, &len) < 0) {
-        g_warning ("[fs mgr] Failed to read dir %s.\n", dir_id);
+        seaf_warning ("[fs mgr] Failed to read dir %s.\n", dir_id);
         *io_error = TRUE;
         return FALSE;
     }
 
-    gboolean ret = verify_seafdir (dir_id, data, len);
+    gboolean ret = verify_seafdir (dir_id, data, len, verify_id);
     g_free (data);
 
     return ret;
 }
 
 gboolean
-verify_seafile (const char *id, const void *data, int len)
+verify_seafile (const char *id, const void *data, int len, gboolean verify_id)
 {
     const SeafileOndisk *ondisk = data;
     SHA_CTX ctx;
@@ -1619,14 +1626,23 @@ verify_seafile (const char *id, const void *data, int len)
     char check_id[41];
 
     if (len < sizeof(SeafileOndisk)) {
-        g_warning ("[fs mgr] Corrupt seafile object %s.\n", id);
+        seaf_warning ("[fs mgr] Corrupt seafile object %s.\n", id);
         return FALSE;
     }
 
     if (ntohl(ondisk->type) != SEAF_METADATA_TYPE_FILE) {
-        g_warning ("[fd mgr] %s is not a file.\n", id);
+        seaf_warning ("[fd mgr] %s is not a file.\n", id);
         return FALSE;
     }
+
+    int id_list_length = len - sizeof(SeafileOndisk);
+    if (id_list_length % 20 != 0) {
+        seaf_warning ("[fs mgr] Bad seafile id list length %d.\n", id_list_length);
+        return FALSE;
+    }
+
+    if (!verify_id)
+        return TRUE;
 
     SHA1_Init (&ctx);
     SHA1_Update (&ctx, ondisk->block_ids, len - sizeof(SeafileOndisk));
@@ -1643,6 +1659,7 @@ verify_seafile (const char *id, const void *data, int len)
 gboolean
 seaf_fs_manager_verify_seafile (SeafFSManager *mgr,
                                 const char *file_id,
+                                gboolean verify_id,
                                 gboolean *io_error)
 {
     void *data;
@@ -1653,12 +1670,12 @@ seaf_fs_manager_verify_seafile (SeafFSManager *mgr,
     }
 
     if (seaf_obj_store_read_obj (mgr->obj_store, file_id, &data, &len) < 0) {
-        g_warning ("[fs mgr] Failed to read file %s.\n", file_id);
+        seaf_warning ("[fs mgr] Failed to read file %s.\n", file_id);
         *io_error = TRUE;
         return FALSE;
     }
 
-    gboolean ret = verify_seafile (file_id, data, len);
+    gboolean ret = verify_seafile (file_id, data, len, verify_id);
     g_free (data);
 
     return ret;
@@ -1667,6 +1684,7 @@ seaf_fs_manager_verify_seafile (SeafFSManager *mgr,
 gboolean
 seaf_fs_manager_verify_object (SeafFSManager *mgr,
                                const char *obj_id,
+                               gboolean verify_id,
                                gboolean *io_error)
 {
     void *data;
@@ -1678,7 +1696,7 @@ seaf_fs_manager_verify_object (SeafFSManager *mgr,
     }
 
     if (seaf_obj_store_read_obj (mgr->obj_store, obj_id, &data, &len) < 0) {
-        g_warning ("[fs mgr] Failed to read object %s.\n", obj_id);
+        seaf_warning ("[fs mgr] Failed to read object %s.\n", obj_id);
         *io_error = TRUE;
         return FALSE;
     }
@@ -1686,10 +1704,10 @@ seaf_fs_manager_verify_object (SeafFSManager *mgr,
     int type = seaf_metadata_type_from_data (data, len);
     switch (type) {
     case SEAF_METADATA_TYPE_FILE:
-        ret = verify_seafile (obj_id, data, len);
+        ret = verify_seafile (obj_id, data, len, verify_id);
         break;
     case SEAF_METADATA_TYPE_DIR:
-        ret = verify_seafdir (obj_id, data, len);
+        ret = verify_seafdir (obj_id, data, len, verify_id);
         break;
     default:
         seaf_warning ("Invalid meta data type: %d.\n", type);

@@ -5,16 +5,21 @@
 
 #include "fsck.h"
 
+typedef struct FsckOpt {
+    gboolean dry_run;
+    gboolean strict;
+} FsckOpt;
+
 static gboolean
 remove_corrupt_fs_object (const char *obj_id, void *user_data)
 {
-    gboolean *dry_run = user_data;
+    FsckOpt *opt = user_data;
     gboolean io_error = FALSE;
     gboolean ok = TRUE;
 
-    ok = seaf_fs_manager_verify_object (seaf->fs_mgr, obj_id, &io_error);
+    ok = seaf_fs_manager_verify_object (seaf->fs_mgr, obj_id, opt->strict, &io_error);
     if (!ok && !io_error) {
-        if (*dry_run) {
+        if (opt->dry_run) {
             seaf_message ("Fs object %s is corrupted.\n", obj_id);
         } else {
             seaf_message ("Fs object %s is corrupted, remove it.\n", obj_id);
@@ -26,11 +31,17 @@ remove_corrupt_fs_object (const char *obj_id, void *user_data)
 }
 
 static int
-remove_corrupt_fs_objects (gboolean dry_run)
+remove_corrupt_fs_objects (gboolean dry_run, gboolean strict)
 {
+    FsckOpt opt;
+
+    memset (&opt, 0, sizeof(opt));
+    opt.dry_run = dry_run;
+    opt.strict = strict;
+
     return seaf_obj_store_foreach_obj (seaf->fs_mgr->obj_store,
                                        remove_corrupt_fs_object,
-                                       &dry_run);
+                                       &opt);
 }
 
 static gboolean
@@ -186,11 +197,11 @@ check_and_reset_consistent_state (SeafRepo *repo)
 }
 
 int
-seaf_fsck (GList *repo_id_list, gboolean dry_run)
+seaf_fsck (GList *repo_id_list, gboolean dry_run, gboolean strict)
 {
     seaf_message ("Checking fs objects...\n");
 
-    if (remove_corrupt_fs_objects (dry_run) < 0) {
+    if (remove_corrupt_fs_objects (dry_run, strict) < 0) {
         seaf_warning ("Failed to check fs objects.\n");
         return -1;
     }
