@@ -360,6 +360,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_get_repo_owner(repo_id):
         pass
     get_repo_owner = seafile_get_repo_owner
+
+    @searpc_func("objlist", [])
+    def seafile_get_orphan_repo_list():
+        pass
+    get_orphan_repo_list = seafile_get_orphan_repo_list
     
     @searpc_func("objlist", ["string"])
     def seafile_list_owned_repos(user_id):

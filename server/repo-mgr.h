@@ -480,6 +480,9 @@ char *
 seaf_repo_manager_get_repo_owner (SeafRepoManager *mgr,
                                   const char *repo_id);
 
+GList *
+seaf_repo_manager_get_orphan_repo_list (SeafRepoManager *mgr);
+
 /* TODO: add start and limit. */
 /* Get repos owned by this user.
  */

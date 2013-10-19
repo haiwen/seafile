@@ -1644,6 +1644,33 @@ collect_repo_id (SeafDBRow *row, void *data)
 }
 
 GList *
+seaf_repo_manager_get_orphan_repo_list (SeafRepoManager *mgr)
+{
+    GList *id_list = NULL, *ptr;
+    GList *ret = NULL;
+    char sql[256];
+
+    snprintf (sql, sizeof(sql), "SELECT Repo.repo_id FROM Repo LEFT JOIN "
+              "RepoOwner ON Repo.repo_id = RepoOwner.repo_id WHERE "
+              "RepoOwner.owner_id is NULL");
+
+    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
+                                      collect_repo_id, &id_list) < 0)
+        return NULL;
+
+    for (ptr = id_list; ptr; ptr = ptr->next) {
+        char *repo_id = ptr->data;
+        SeafRepo *repo = seaf_repo_manager_get_repo (mgr, repo_id);
+        if (repo != NULL)
+            ret = g_list_prepend (ret, repo);
+    }
+
+    string_list_free (id_list);
+
+    return ret;
+}
+
+GList *
 seaf_repo_manager_get_repos_by_owner (SeafRepoManager *mgr,
                                       const char *email)
 {

@@ -1612,6 +1612,38 @@ seafile_get_repo_owner (const char *repo_id, GError **error)
     return owner;
 }
 
+GList *
+seafile_get_orphan_repo_list(GError **error)
+{
+    GList *ret = NULL;
+    GList *repos, *ptr;
+    SeafRepo *r;
+    SeafileRepo *repo;
+    
+    repos = seaf_repo_manager_get_orphan_repo_list(seaf->repo_mgr);
+    ptr = repos;
+    while (ptr) {
+        r = ptr->data;
+
+        repo = seafile_repo_new ();
+        g_object_set (repo, "id", r->id, "name", r->name,
+                      "desc", r->desc, "encrypted", r->encrypted,
+                      "head_cmmt_id", r->head ? r->head->commit_id : NULL,
+                      "is_virtual", (r->virtual_info != NULL),
+                      "enc_version", r->enc_version, NULL);
+        if (r->encrypted && r->enc_version == 2)
+            g_object_set (repo, "magic", r->magic,
+                          "random_key", r->random_key, NULL);
+
+        ret = g_list_prepend (ret, repo);
+        seaf_repo_unref (r);
+        ptr = ptr->next;
+    }
+    g_list_free (repos);
+    ret = g_list_reverse (ret);
+
+    return ret;
+}
 
 GList *
 seafile_list_owned_repos (const char *email, GError **error)

@@ -383,6 +383,9 @@ char *
 seafile_get_repo_owner(const char *repo_id, GError **error);
 
 GList *
+seafile_get_orphan_repo_list(GError **error);
+
+GList *
 seafile_list_owned_repos (const char *email, GError **error);
 
 /**

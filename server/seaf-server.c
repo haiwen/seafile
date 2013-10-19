@@ -135,6 +135,10 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_get_repo_owner,
                                      "seafile_get_repo_owner",
                                      searpc_signature_string__string());
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_orphan_repo_list,
+                                     "seafile_get_orphan_repo_list",
+                                     searpc_signature_objlist__void());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_edit_repo,
