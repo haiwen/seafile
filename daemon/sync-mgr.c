@@ -674,15 +674,6 @@ merge_job_done (void *vresult)
         return;
     }
 
-    if (repo->auto_sync && res->task->force_upload) {
-        if (seaf_wt_monitor_refresh_repo (seaf->wt_monitor, 
-                                          repo->id) < 0) {
-            seaf_warning ("[sync mgr] failed to refresh worktree "
-                          "watch for repo %s(%.8s).\n",
-                          repo->name, repo->id);
-        }
-    }
-
     if (res->success) {
         SeafBranch *master = seaf_branch_manager_get_branch (seaf->branch_mgr,
                                                              repo->id,
@@ -966,15 +957,6 @@ commit_job_done (void *vres)
         return;
     }
 
-    if (repo->auto_sync && res->task->force_upload) {
-        if (seaf_wt_monitor_refresh_repo (seaf->wt_monitor, 
-                                          repo->id) < 0) {
-            seaf_warning ("[sync mgr] failed to refresh worktree "
-                          "watch for repo %s(%.8s).\n",
-                          repo->name, repo->id);
-        }
-    }
-
     if (!res->success) {
         seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_COMMIT);
         g_free (res);
@@ -1224,7 +1206,12 @@ add_auto_sync_tasks (SeafSyncManager *manager)
         if (manager->n_running_tasks >= MAX_RUNNING_SYNC_TASKS)
             break;
 
-        if (repo->last_sync_time > timeline)
+        /* If last_sync_time == 0, the repo hasn't been scheduled to sync before.
+         * That means the first commit/sync after the reop was added haven't
+         * finished yet. Periodic sync should only be scheduled after the first
+         * commit/sync is done.
+         */
+        if (repo->last_sync_time == 0 || repo->last_sync_time > timeline)
             continue;
 
         if (repo->delete_pending)
@@ -1274,8 +1261,6 @@ check_sync_pulse (void *vmanager)
     if (!manager->priv->auto_sync_enabled) {
         return TRUE;
     }
-
-    add_auto_sync_tasks (manager);
     
     /* Here we perform tasks queued by auto-commit.
      * These tasks should be performed as soon as possible.
@@ -1293,6 +1278,7 @@ check_sync_pulse (void *vmanager)
         }
     }
 
+    add_auto_sync_tasks (manager);
 
     return TRUE;
 }
@@ -1345,7 +1331,7 @@ enqueue_sync_task (SeafSyncManager *manager, SeafRepo *repo, gboolean quiet)
 
     info = get_sync_info (manager, repo->id);
     task = create_sync_task (manager, info, repo,
-                             FALSE, FALSE, TRUE);
+                             FALSE, TRUE, TRUE);
     task->quiet = quiet;
     g_queue_push_tail (manager->sync_tasks, task);
 }
@@ -1388,18 +1374,18 @@ auto_commit_pulse (void *vmanager)
                                                           repo->id);
             if (status) {
                 last_changed = g_atomic_int_get (&status->last_changed);
-                if (last_changed != 0 && status->last_check <= last_changed) {
-                    /* Do not set the wt_changed variable since we will
-                       commit it soon. */
-                    /* repo->wt_changed = TRUE; */
+                if (status->last_check == 0) {
+                    /* Force commit and sync after a new repo is added. */
+                    enqueue_sync_task (manager, repo, TRUE);
+                    status->last_check = now;
+                } else if (last_changed != 0 && status->last_check <= last_changed) {
+                    /* Commit and sync if the repo has been updated after the
+                     * last check and is not updated for the last 2 seconds.
+                     */
                     if (now - last_changed >= 2) {
                         enqueue_sync_task (manager, repo, FALSE);
                         status->last_check = now;
                     }
-                } else if (now - status->last_check >= manager->wt_interval) {
-                    /* Try to commit if no change has been detected in 10 mins. */
-                    enqueue_sync_task (manager, repo, TRUE);
-                    status->last_check = now;
                 }
             }
         }

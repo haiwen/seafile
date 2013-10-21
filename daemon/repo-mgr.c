@@ -937,6 +937,23 @@ commit_tree (SeafRepo *repo, struct cache_tree *it,
     return 0;
 }
 
+static gboolean
+need_handle_unmerged_index (SeafRepo *repo, struct index_state *istate)
+{
+    if (!unmerged_index (istate))
+        return FALSE;
+
+    /* Syncing with an existing directory may require a real merge.
+     * If the merge produced conflicts, the index will be unmerged.
+     * But we don't want to generate a merge commit in this case.
+     * An "index" branch should exist in this case.
+     */
+    if (seaf_branch_manager_branch_exists (seaf->branch_mgr, repo->id, "index"))
+        return FALSE;
+
+    return TRUE;
+}
+
 char *
 seaf_repo_index_commit (SeafRepo *repo, const char *desc, GError **error)
 {
@@ -958,7 +975,7 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, GError **error)
         return NULL;
     }
 
-    if (unmerged_index (&istate))
+    if (need_handle_unmerged_index (repo, &istate))
         unmerged = TRUE;
 
     if (index_add (repo, &istate, "") < 0) {

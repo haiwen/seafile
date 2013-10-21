@@ -1167,6 +1167,7 @@ real_merge (SeafRepo *repo, SeafCommit *head, CloneTask *task)
     struct index_state istate;
     char *root_id = NULL;
     int clean;
+    int ret = 0;
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
@@ -1198,16 +1199,16 @@ real_merge (SeafRepo *repo, SeafCommit *head, CloneTask *task)
                      &clean, &root_id);
     g_free (root_id);
 
-    /* Don't update index. If it was an unclean merge, updating the index
-     * will generate a merge commit later. We don't want a merge commit.
-     * We just want to "apply" the local changes to the remote head.
-     */
+    if (update_index (&istate, index_path) < 0) {
+        seaf_warning ("Failed to update index.\n");
+        ret = -1;
+    }
 
     discard_index (&istate);
     g_free (opts.crypt);
     clear_merge_options (&opts);
 
-    return 0;
+    return ret;
 }
 
 static int
