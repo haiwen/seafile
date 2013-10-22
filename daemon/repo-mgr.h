@@ -178,6 +178,9 @@ seaf_repo_manager_mark_repo_deleted (SeafRepoManager *mgr, SeafRepo *repo);
 int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr, SeafRepo *repo);
 
+void
+seaf_repo_manager_remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id);
+
 SeafRepo* 
 seaf_repo_manager_create_new_repo (SeafRepoManager *mgr,
                                    const char *name,

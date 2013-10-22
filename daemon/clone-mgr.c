@@ -922,6 +922,10 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         return NULL;
     }
 
+    /* Delete orphan information in the db in case the repo was corrupt. */
+    if (!repo)
+        seaf_repo_manager_remove_repo_ondisk (seaf->repo_mgr, repo_id);
+
     ret = add_task_common (mgr, repo, repo_id, peer_id, repo_name, token, passwd,
                            enc_version, random_key,
                            worktree, peer_addr, peer_port, email, error);
@@ -1008,6 +1012,10 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         g_free (wt_tmp);
         return NULL;
     }
+
+    /* Delete orphan information in the db in case the repo was corrupt. */
+    if (!repo)
+        seaf_repo_manager_remove_repo_ondisk (seaf->repo_mgr, repo_id);
 
     ret = add_task_common (mgr, repo, repo_id, peer_id, repo_name, token, passwd,
                            enc_version, random_key,
@@ -1435,6 +1443,35 @@ error:
 }
 
 static void
+setup_repo_without_checkout (SeafRepo *repo, SeafBranch *local, CloneTask *task)
+{
+    seaf_repo_manager_set_repo_worktree (repo->manager,
+                                         repo,
+                                         task->worktree);
+
+    /* Set repo head to mark checkout done. */
+    seaf_repo_set_head (repo, local);
+
+    if (repo->auto_sync) {
+        if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id) < 0) {
+            seaf_warning ("failed to watch repo %s(%.10s).\n", repo->name, repo->id);
+        }
+    }
+
+    /* Save head id for GC. */
+    seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                         repo->id,
+                                         REPO_REMOTE_HEAD,
+                                         local->commit_id);
+    seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                         repo->id,
+                                         REPO_LOCAL_HEAD,
+                                         local->commit_id);
+
+    transition_state (task, CLONE_STATE_DONE);
+}
+
+static void
 start_checkout (SeafRepo *repo, CloneTask *task)
 {
     if (repo->encrypted && task->passwd != NULL) {
@@ -1459,6 +1496,37 @@ start_checkout (SeafRepo *repo, CloneTask *task)
         transition_to_error (task, CLONE_ERROR_CHECKOUT);
         return;
     }
+
+    SeafBranch *local;
+    SeafCommit *commit;
+
+    local = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "local");
+    if (!local) {
+        seaf_warning ("Cannot get branch local for repo %s(%.10s).\n",
+                      repo->name, repo->id);
+        transition_to_error (task, CLONE_ERROR_CHECKOUT);
+        return;
+    }
+
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, local->commit_id);
+    if (!commit) {
+        seaf_warning ("Failed to get commit %.8s.\n", local->commit_id);
+        transition_to_error (task, CLONE_ERROR_CHECKOUT);
+        return;
+    }
+
+    /* If remote head's tree is empty, we don't need to checkout or merge.
+     * The result would be the current state of worktree anyway.
+     */
+    if (strcmp (commit->root_id, EMPTY_SHA1) == 0) {
+        setup_repo_without_checkout (repo, local, task);
+        seaf_branch_unref (local);
+        seaf_commit_unref (commit);
+        return;
+    }
+
+    seaf_branch_unref (local);
+    seaf_commit_unref (commit);
 
     if (!is_non_empty_directory (task->worktree)) {
         transition_state (task, CLONE_STATE_CHECKOUT);

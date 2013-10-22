@@ -1376,7 +1376,7 @@ auto_commit_pulse (void *vmanager)
                 last_changed = g_atomic_int_get (&status->last_changed);
                 if (status->last_check == 0) {
                     /* Force commit and sync after a new repo is added. */
-                    enqueue_sync_task (manager, repo, TRUE);
+                    enqueue_sync_task (manager, repo, FALSE);
                     status->last_check = now;
                 } else if (last_changed != 0 && status->last_check <= last_changed) {
                     /* Commit and sync if the repo has been updated after the

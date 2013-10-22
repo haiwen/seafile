@@ -1509,8 +1509,8 @@ seaf_repo_manager_mark_repo_deleted (SeafRepoManager *mgr, SeafRepo *repo)
     return 0;
 }
 
-static void
-remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
+void
+seaf_repo_manager_remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
 {
     char sql[256];
 
@@ -1575,7 +1575,7 @@ int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr,
                             SeafRepo *repo)
 {
-    remove_repo_ondisk (mgr, repo->id);
+    seaf_repo_manager_remove_repo_ondisk (mgr, repo->id);
 
     if (pthread_rwlock_wrlock (&mgr->priv->lock) < 0) {
         g_warning ("[repo mgr] failed to lock repo cache.\n");
@@ -2150,7 +2150,7 @@ remove_deleted_repo (sqlite3_stmt *stmt, void *vmanager)
 
     repo_id = (const char *) sqlite3_column_text (stmt, 0);
 
-    remove_repo_ondisk (manager, repo_id);
+    seaf_repo_manager_remove_repo_ondisk (manager, repo_id);
 
     return TRUE;
 }
