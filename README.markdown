@@ -1,27 +1,42 @@
 Introduction
 ============
 
-Dropbox is good for file syncing and sharing, but is not an ideal place for collaboration. So we build Seafile, a better place for managing documents together. 
+Seafile is a professional and reliable private cloud storage. Compared to other cloud storage system, Seafile puts more attention to privacy protection and teamwork.
 
-In Seafile, you can create groups with file syncing, wiki, discussion and tasks. It enables you to easily collaborate around documents within a team. In addition, it is open source. So you can build a private cloud freely for your organization.
+Seafile managing files into libraries. Each library can be synced separately. A library can be encrypted with a user chosen password. This password is not stored in the server, so even the server admin can't view your file contents.
+
+In Seafile, you can create groups with file syncing, wiki, discussion. It enables you to easily collaborate around documents within a team. 
 
 Feature Summary
 ===============
 
-Seafile is a full-fledged document collaboration platform. It has following features:
+Seafile is a full-fledged cloud storage platform. It has following features:
 
-1. Groups with file syncing, wiki, discussion and tasks.
-2. Managing files into libraries. Each library can be synced separately.
-3. Sync with existing folders.
-4. File revisions.
-5. Library encryption with a user chosen password.
+### Complete and Advanced File Syncing
 
-Compared to other open-source Dropbox-like projects, such as
-<https://github.com/hbons/SparkleShare>, Seafile has several advantages:
+1. Selective sync. Manage files into libraries. Each library can be synced separately.
+2. Correctly handling file conflicts based on history instead of timestamp.
+3. Efficient bandwidth usage. Only transfer contents not in the server and transfer can be resumed.
+4. Sync with two or more servers.
+5. Sync with existing folders.
+6. Sync a sub-folder.
+7. Full version control while the number of revisions is configurable.
 
-1. Mature, reliable, production-ready file syncing algorithm.
-2. Doesn't depend on Git.
-3. Not a Dropbox-clone, but a newly designed product for teamwork. 
+
+### Full team collaboration support
+
+1. Groups with file syncing, wiki, discussion.
+2. Online file editing and comments.
+3. Sharing sub-folders to users/groups
+4. Sharing single file between users
+5. Sharing link.
+6. Personal Message.
+
+### Advanced Privacy Protection
+
+1. Library encryption with a user chosen password.
+2. Client side encryption.
+3. Can never send password to the server.
 
 Internal
 ========
@@ -42,7 +57,7 @@ Differences to GIT:
 4. File transfer can be resumed.
 5. Support different storage backends on the server side.
 6. Support downloading from multiple block servers for accelerating file transfer.
-7. More user-friendly file conflicts handling similar to Dropbox (Add user's name as suffix to conflicted file).
+7. More user-friendly file conflicts handling (Add user's name as suffix to conflicted file).
 8. Gracefully handles corner cases that user modifies files when auto-sync is running. GIT is not designed to work in these cases.
 
 Build and Run
