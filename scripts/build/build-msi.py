@@ -636,8 +636,11 @@ def copy_qt_plugins():
     must_mkdir(destdir)
 
     qt_plugins_srcdir = os.path.join(conf[CONF_QT_ROOT], 'plugins', 'imageformats')
-    src = os.path.join(qt_plugins_srcdir, 'qico4.dll')
 
+    src = os.path.join(qt_plugins_srcdir, 'qico4.dll')
+    must_copy(src, destdir)
+
+    src = os.path.join(qt_plugins_srcdir, 'qgif4.dll')
     must_copy(src, destdir)
 
 
