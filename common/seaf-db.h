@@ -14,11 +14,13 @@ typedef struct SeafDBTrans SeafDBTrans;
 typedef gboolean (*SeafDBRowFunc) (SeafDBRow *, void *);
 
 SeafDB *
-seaf_db_new_mysql (const char *host, 
+seaf_db_new_mysql (const char *host,
+                   const char *port,
                    const char *user, 
                    const char *passwd,
                    const char *db,
-                   const char *unix_socket);
+                   const char *unix_socket,
+                   gboolean use_ssl);
 
 SeafDB *
 seaf_db_new_pgsql (const char *host,

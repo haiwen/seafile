@@ -41,16 +41,24 @@ sqlite_db_start (SeafileSession *session)
     return 0;
 }
 
+#define MYSQL_DEFAULT_PORT "3306"
+
 static int
 mysql_db_start (SeafileSession *session)
 {
-    char *host, *user, *passwd, *db, *unix_socket;
+    char *host, *port, *user, *passwd, *db, *unix_socket;
+    gboolean use_ssl = FALSE;
     GError *error = NULL;
 
     host = g_key_file_get_string (session->config, "database", "host", &error);
     if (!host) {
         g_warning ("DB host not set in config.\n");
         return -1;
+    }
+
+    port = g_key_file_get_string (session->config, "database", "port", &error);
+    if (!port) {
+        port = g_strdup(MYSQL_DEFAULT_PORT);
     }
 
     user = g_key_file_get_string (session->config, "database", "user", &error);
@@ -72,15 +80,19 @@ mysql_db_start (SeafileSession *session)
     }
 
     unix_socket = g_key_file_get_string (session->config, 
-                                         "database", "unix_socket", &error);
+                                         "database", "unix_socket", NULL);
 
-    session->db = seaf_db_new_mysql (host, user, passwd, db, unix_socket);
+    use_ssl = g_key_file_get_boolean (session->config,
+                                      "database", "use_ssl", NULL);
+
+    session->db = seaf_db_new_mysql (host, port, user, passwd, db, unix_socket, use_ssl);
     if (!session->db) {
         g_warning ("Failed to start mysql db.\n");
         return -1;
     }
 
     g_free (host);
+    g_free (port);
     g_free (user);
     g_free (passwd);
     g_free (db);

@@ -25,11 +25,13 @@ struct SeafDBTrans {
 };
 
 SeafDB *
-seaf_db_new_mysql (const char *host, 
+seaf_db_new_mysql (const char *host,
+                   const char *port,
                    const char *user, 
                    const char *passwd,
                    const char *db_name,
-                   const char *unix_socket)
+                   const char *unix_socket,
+                   gboolean use_ssl)
 {
     SeafDB *db;
     GString *url;
@@ -41,12 +43,18 @@ seaf_db_new_mysql (const char *host,
         return NULL;
     }
 
+    char *passwd_esc = g_uri_escape_string (passwd, NULL, FALSE);
+
     url = g_string_new ("");
-    g_string_append_printf (url, "mysql://%s:%s@%s/", user, passwd, host);
+    g_string_append_printf (url, "mysql://%s:%s@%s:%s/", user, passwd_esc, host, port);
     if (db_name)
         g_string_append (url, db_name);
     if (unix_socket)
         g_string_append_printf (url, "?unix-socket=%s", unix_socket);
+    if (use_ssl)
+        g_string_append (url, "&use-ssl=true");
+
+    g_free (passwd_esc);
 
     zdb_url = URL_new (url->str);
     db->pool = ConnectionPool_new (zdb_url);
