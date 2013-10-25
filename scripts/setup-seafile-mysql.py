@@ -395,7 +395,7 @@ Please choose a way to initialize seafile databases:
             if host == 'localhost':
                 host = '127.0.0.1'
 
-            question = 'What is the host of mysql server?'
+            question = 'What is the port of mysql server?'
             key = 'mysql server port'
             default = '3306'
             port = Utils.ask_question(question,
