@@ -465,16 +465,6 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "seafile_list_chunk_servers",
                                      searpc_signature_string__void());
 
-    /* set monitor */
-    searpc_server_register_function ("seafserv-rpcserver",
-                                     seafile_set_monitor,
-                                     "seafile_set_monitor",
-                                     searpc_signature_int__string());
-    searpc_server_register_function ("seafserv-rpcserver",
-                                     seafile_get_monitor,
-                                     "seafile_get_monitor",
-                                     searpc_signature_string__void());
-
     /* password management */
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_check_passwd,

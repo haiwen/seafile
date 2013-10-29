@@ -47,8 +47,6 @@ struct _SeafileSession {
 
     char                *seaf_dir;
     char                *tmp_file_dir;
-    /* Config that can be changed in run-time. */
-    sqlite3             *config_db;
     /* Config that's only loaded on start */
     GKeyFile            *config;
     SeafDB              *db;
@@ -75,7 +73,6 @@ struct _SeafileSession {
     SizeScheduler       *size_sched;
 
     int                  is_master;
-    const char          *monitor_id;
 
     int                  cloud_mode;
     int                  keep_history_days;

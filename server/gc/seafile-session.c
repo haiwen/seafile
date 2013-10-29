@@ -8,7 +8,6 @@
 #include <utils.h>
 
 #include "seafile-session.h"
-#include "seafile-config.h"
 #include "seaf-utils.h"
 
 SeafileSession *

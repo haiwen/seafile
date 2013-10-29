@@ -411,10 +411,6 @@ int seafile_del_chunk_server (const char *server, GError **error);
  */
 char *seafile_list_chunk_servers (GError **error);
 
-int seafile_set_monitor (const char *monitor, GError **error);
-
-char *seafile_get_monitor (GError **error);
-
 gint64 seafile_get_user_quota_usage (const char *email, GError **error);
 
 gint64 seafile_get_user_share_usage (const char *email, GError **error);

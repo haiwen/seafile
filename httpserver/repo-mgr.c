@@ -9,7 +9,6 @@
 #include "log.h"
 
 #include "seafile-session.h"
-#include "seafile-config.h"
 #include "commit-mgr.h"
 #include "branch-mgr.h"
 #include "repo-mgr.h"

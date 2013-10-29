@@ -14,7 +14,6 @@
 #include "repo-mgr.h"
 #include "seafile-error.h"
 #include "seafile-rpc.h"
-#include "seafile-config.h"
 
 #ifdef SEAFILE_SERVER
 #include "monitor-rpc-wrappers.h"
@@ -22,6 +21,7 @@
 #endif
 
 #ifndef SEAFILE_SERVER
+#include "seafile-config.h"
 #include "gc.h"
 #endif
 
@@ -1749,34 +1749,6 @@ seafile_list_chunk_servers (GError **error)
     g_list_free (servers);
 
     return (g_string_free (buf, FALSE));
-}
-
-int
-seafile_set_monitor (const char *monitor_id, GError **error)
-{
-    CcnetPeer *peer;
-
-    peer = ccnet_get_peer (seaf->ccnetrpc_client, monitor_id);
-    if (!peer) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid peer id %s",
-                     monitor_id);
-        return -1;
-    }
-    g_object_unref (peer);
-
-    if (seafile_session_set_monitor (seaf, monitor_id) < 0) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Failed to set monitor to %s",
-                     monitor_id);
-        return -1;
-    }
-
-    return 0;
-}
-
-char *
-seafile_get_monitor (GError **error)
-{
-    return g_strdup (seaf->monitor_id);
 }
 
 gint64

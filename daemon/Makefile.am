@@ -62,6 +62,7 @@ noinst_HEADERS = \
 	wt-monitor-common.h \
 	../common/sync-repo-common.h \
 	block-tx-client.h \
+	seafile-config.h \
 	$(proc_headers)
 
 if LINUX
@@ -87,7 +88,7 @@ common_src = \
 	status.c sync-mgr.c seafile-session.c \
 	../common/seafile-crypt.c ../common/diff-simple.c $(wt_monitor_src) \
 	clone-mgr.c \
-	../common/seafile-config.c ../common/bitfield.c \
+	seafile-config.c ../common/bitfield.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \
 	repo-mgr.c ../common/commit-mgr.c \
 	../common/log.c ../common/avl/avl.c ../common/object-list.c \

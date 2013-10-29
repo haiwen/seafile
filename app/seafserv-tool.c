@@ -23,8 +23,6 @@ struct cmd {
 static int add_server   (int, char **);
 static int del_server   (int, char **);
 static int list_servers (int, char **);
-static int set_monitor  (int, char **);
-static int get_monitor  (int, char **);
 static int put_file     (int, char **);
 static int set_user_quota (int, char **);
 static int set_org_quota (int, char **);
@@ -34,8 +32,6 @@ static struct cmd cmdtab[] =  {
     { "add-server",     add_server  },
     { "del-server",     del_server  },
     { "list-servers",   list_servers  },
-    { "set-monitor",    set_monitor },
-    { "get-monitor",    get_monitor },
     { "put-file",       put_file },
     { "set-user-quota", set_user_quota },
     { "set-org-quota",  set_org_quota },
@@ -231,43 +227,6 @@ static int list_servers (int argc, char **argv)
 
     printf ("%s", list);
 
-    return 0;
-}
-
-static int set_monitor (int argc, char **argv)
-{
-    char *monitor_id;
-    GError *error = NULL;
-
-    if (argc != 1) {
-        fprintf (stderr, "seafserv-tool set-monitor <peer id>\n");
-        return -1;
-    }
-
-    monitor_id = argv[0];
-
-    if (seafile_set_monitor (rpc_client, monitor_id, &error) < 0) {
-        fprintf (stderr, "Failed to set monitor to %s.\n", monitor_id);
-        return -1;
-    }
-
-    printf ("Set monitor to %s.\n", monitor_id);
-
-    return 0;
-}
-
-static int get_monitor (int argc, char **argv)
-{
-    char *monitor_id;
-    GError *error = NULL;
-
-    monitor_id = seafile_get_monitor (rpc_client, &error);
-    if (!monitor_id) {
-        printf ("Monitor is not set.\n");
-        return 0;
-    }
-
-    printf ("Monitor is %s.\n", monitor_id);
     return 0;
 }
 

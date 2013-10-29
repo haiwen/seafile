@@ -60,7 +60,7 @@ seaf_server_SOURCES = \
 	size-sched.c \
 	virtual-repo.c \
 	monitor-rpc-wrappers.c ../common/seaf-db.c \
-	../common/seafile-config.c ../common/bitfield.c \
+	../common/bitfield.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \
 	repo-mgr.c ../common/commit-mgr.c \
 	../common/log.c ../common/avl/avl.c ../common/object-list.c \

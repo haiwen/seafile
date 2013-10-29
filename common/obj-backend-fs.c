@@ -68,9 +68,16 @@ static int
 fsync_obj_contents (int fd)
 {
 #ifdef __linux__
+    /* Some file systems may not support fsync().
+     * In this case, just skip the error.
+     */
     if (fsync (fd) < 0) {
-        seaf_warning ("Failed to fsync: %s.\n", strerror(errno));
-        return -1;
+        if (errno == EINVAL)
+            return 0;
+        else {
+            seaf_warning ("Failed to fsync: %s.\n", strerror(errno));
+            return -1;
+        }
     }
     return 0;
 #endif
@@ -126,19 +133,24 @@ rename_and_sync (const char *tmp_path, const char *obj_path)
     int dir_fd = open (parent_dir, O_RDONLY);
     if (dir_fd < 0) {
         seaf_warning ("Failed to open dir %s: %s.\n", parent_dir, strerror(errno));
-        ret = -1;
         goto out;
     }
 
+    /* Some file systems don't support fsyncing a directory. Just ignore the error.
+     */
     if (fsync (dir_fd) < 0) {
-        seaf_warning ("Failed to fsync dir %s: %s.\n", parent_dir, strerror(errno));
-        ret = -1;
+        if (errno != EINVAL) {
+            seaf_warning ("Failed to fsync dir %s: %s.\n",
+                          parent_dir, strerror(errno));
+            ret = -1;
+        }
         goto out;
     }
 
 out:
     g_free (parent_dir);
-    close (dir_fd);
+    if (dir_fd >= 0)
+        close (dir_fd);
     return ret;
 #endif
 

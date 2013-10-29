@@ -15,13 +15,13 @@ seaf_cs_manager_new (SeafileSession *seaf)
 {
     SeafCSManager *mgr = g_new0 (SeafCSManager, 1);
 
-    char *db_path = g_build_filename (seaf->seaf_dir, CHUNKSERVER_DB, NULL);
-    if (sqlite_open_db (db_path, &mgr->db) < 0) {
-        g_critical ("Failed to open chunk server db\n");
-        g_free (db_path);
-        g_free (mgr);
-        return NULL;
-    }
+    /* char *db_path = g_build_filename (seaf->seaf_dir, CHUNKSERVER_DB, NULL); */
+    /* if (sqlite_open_db (db_path, &mgr->db) < 0) { */
+    /*     g_critical ("Failed to open chunk server db\n"); */
+    /*     g_free (db_path); */
+    /*     g_free (mgr); */
+    /*     return NULL; */
+    /* } */
 
     mgr->seaf = seaf;
     mgr->chunk_servers = g_hash_table_new_full (g_str_hash, g_str_equal,
@@ -33,32 +33,32 @@ seaf_cs_manager_new (SeafileSession *seaf)
 static int
 load_chunk_servers (SeafCSManager *mgr)
 {
-    char             sql[256];
-    sqlite3_stmt    *stmt;
-    int              result;
-    char            *cs_id;
+    /* char             sql[256]; */
+    /* sqlite3_stmt    *stmt; */
+    /* int              result; */
+    /* char            *cs_id; */
 
-    snprintf (sql, 256, "SELECT cs_id FROM chunkservers;");
+    /* snprintf (sql, 256, "SELECT cs_id FROM chunkservers;"); */
 
-    stmt = sqlite_query_prepare (mgr->db, sql);
-    if (!stmt)
-        return -1;
+    /* stmt = sqlite_query_prepare (mgr->db, sql); */
+    /* if (!stmt) */
+    /*     return -1; */
 
-    while ((result = sqlite3_step (stmt)) == SQLITE_ROW) {
-        cs_id = (char *) sqlite3_column_text (stmt, 0);
-        g_hash_table_insert (mgr->chunk_servers, g_strdup(cs_id), NULL);
-    }
+    /* while ((result = sqlite3_step (stmt)) == SQLITE_ROW) { */
+    /*     cs_id = (char *) sqlite3_column_text (stmt, 0); */
+    /*     g_hash_table_insert (mgr->chunk_servers, g_strdup(cs_id), NULL); */
+    /* } */
 
-    if (result == SQLITE_ERROR) {
-        const gchar *str = sqlite3_errmsg (mgr->db);
+    /* if (result == SQLITE_ERROR) { */
+    /*     const gchar *str = sqlite3_errmsg (mgr->db); */
 
-        g_warning ("Couldn't execute query, error: %d->'%s'\n", 
-                   result, str ? str : "no error given");
-        sqlite3_finalize (stmt);
+    /*     g_warning ("Couldn't execute query, error: %d->'%s'\n",  */
+    /*                result, str ? str : "no error given"); */
+    /*     sqlite3_finalize (stmt); */
 
-        return -1;
-    }
-    sqlite3_finalize (stmt);
+    /*     return -1; */
+    /* } */
+    /* sqlite3_finalize (stmt); */
 
     /* Add myself as chunk server by default. */
     g_hash_table_insert (mgr->chunk_servers, 
@@ -80,14 +80,14 @@ register_processors (SeafCSManager *mgr)
 int
 seaf_cs_manager_start (SeafCSManager *mgr)
 {
-    const char *sql;
+    /* const char *sql; */
 
     register_processors (mgr);
 
-    sql = "CREATE TABLE IF NOT EXISTS chunkservers "
-        "(id INTEGER PRIMARY KEY, cs_id TEXT);";
-    if (sqlite_query_exec (mgr->db, sql) < 0)
-        return -1;
+    /* sql = "CREATE TABLE IF NOT EXISTS chunkservers " */
+    /*     "(id INTEGER PRIMARY KEY, cs_id TEXT);"; */
+    /* if (sqlite_query_exec (mgr->db, sql) < 0) */
+    /*     return -1; */
 
     return (load_chunk_servers (mgr));
 }

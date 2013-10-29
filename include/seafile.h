@@ -72,8 +72,6 @@ int seafile_add_chunk_server (SearpcClient *client, const char *server_id,
 int seafile_del_chunk_server (SearpcClient *client, const char *server_id,
                               GError **error);
 char *seafile_list_chunk_servers (SearpcClient *client, GError **error);
-int seafile_set_monitor (SearpcClient *client, const char *peer_id, GError **error);
-char *seafile_get_monitor (SearpcClient *client, GError **error);
 
 char *
 seafile_repo_query_access_property (SearpcClient *client,

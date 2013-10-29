@@ -12,7 +12,6 @@ noinst_HEADERS = \
 	seaf-tree-walk.h \
 	diff-simple.h \
 	seafile-crypt.h \
-	seafile-config.h \
 	common.h \
 	bitfield.h \
 	branch-mgr.h \

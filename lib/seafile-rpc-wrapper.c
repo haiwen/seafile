@@ -223,27 +223,6 @@ seafile_list_chunk_servers (SearpcClient *client, GError **error)
         0);
 }
 
-int
-seafile_set_monitor (SearpcClient *client, const char *peer_id,
-                     GError **error)
-{
-    if (!peer_id)
-        return -1;
-
-    return searpc_client_call__int (
-        client, "seafile_set_monitor", error, 
-        1, "string", peer_id);
-}
-
-char *
-seafile_get_monitor (SearpcClient *client, GError **error)
-{
-    return searpc_client_call__string (
-        client, "seafile_get_monitor", error,
-        0);
-}
-
-
 char *
 seafile_repo_query_access_property (SearpcClient *client,
                                     const char *repo_id,

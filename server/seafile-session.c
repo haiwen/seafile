@@ -20,7 +20,6 @@
 #include <utils.h>
 
 #include "seafile-session.h"
-#include "seafile-config.h"
 
 #include "monitor-rpc-wrappers.h"
 
@@ -30,9 +29,6 @@
 #define CONNECT_INTERVAL_MSEC 10 * 1000
 
 #define DEFAULT_THREAD_POOL_SIZE 50
-
-static void
-load_monitor_id (SeafileSession *session);
 
 static int
 load_thread_pool_config (SeafileSession *session);
@@ -44,8 +40,6 @@ seafile_session_new(const char *seafile_dir,
     char *abs_seafile_dir;
     char *tmp_file_dir;
     char *config_file_path;
-    char *db_path;
-    sqlite3 *config_db;
     GKeyFile *config;
     SeafileSession *session = NULL;
 
@@ -55,7 +49,6 @@ seafile_session_new(const char *seafile_dir,
     abs_seafile_dir = ccnet_expand_path (seafile_dir);
     tmp_file_dir = g_build_filename (abs_seafile_dir, "tmpfiles", NULL);
     config_file_path = g_build_filename (abs_seafile_dir, "seafile.conf", NULL);
-    db_path = g_build_filename (abs_seafile_dir, "config.db", NULL);
 
     if (checkdir_with_mkdir (abs_seafile_dir) < 0) {
         g_warning ("Config dir %s does not exist and is unable to create\n",
@@ -66,12 +59,6 @@ seafile_session_new(const char *seafile_dir,
     if (checkdir_with_mkdir (tmp_file_dir) < 0) {
         g_warning ("Temp file dir %s does not exist and is unable to create\n",
                    tmp_file_dir);
-        goto onerror;
-    }
-
-    config_db = seafile_session_config_open_db (db_path);
-    if (!config_db) {
-        g_warning ("Failed to open config db.\n");
         goto onerror;
     }
 
@@ -88,10 +75,7 @@ seafile_session_new(const char *seafile_dir,
     session->seaf_dir = abs_seafile_dir;
     session->tmp_file_dir = tmp_file_dir;
     session->session = ccnet_session;
-    session->config_db = config_db;
     session->config = config;
-
-    load_monitor_id (session);
 
     if (load_database_config (session) < 0) {
         g_warning ("Failed to load database config.\n");
@@ -166,7 +150,6 @@ onerror:
     free (abs_seafile_dir);
     g_free (tmp_file_dir);
     g_free (config_file_path);
-    g_free (db_path);
     g_free (session);
     return NULL;    
 }
@@ -240,36 +223,6 @@ seafile_session_start (SeafileSession *session)
     }
 
     return 0;
-}
-
-int
-seafile_session_set_monitor (SeafileSession *session, const char *peer_id)
-{
-    if (seafile_session_config_set_string (session, 
-                                           KEY_MONITOR_ID,
-                                           peer_id) < 0) {
-        g_warning ("Failed to set monitor id.\n");
-        return -1;
-    }
-
-    session->monitor_id = g_strdup(peer_id);
-    return 0;
-}
-
-static void
-load_monitor_id (SeafileSession *session)
-{
-    char *monitor_id;
-
-    monitor_id = seafile_session_config_get_string (session, 
-                                                    KEY_MONITOR_ID);
-
-    if (monitor_id) {
-        session->monitor_id = monitor_id;
-    } else {
-        /* Set monitor to myself if not set by user. */
-        session->monitor_id = g_strdup(session->session->base.id);
-    }
 }
 
 static int
