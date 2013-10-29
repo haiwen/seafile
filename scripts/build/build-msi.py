@@ -34,9 +34,6 @@ import optparse
 import atexit
 import csv
 
-from distutils.core import setup as dist_setup
-import py2exe
-
 ####################
 ### Global variables
 ####################
@@ -49,12 +46,14 @@ CONF_VERSION            = 'version'
 CONF_LIBSEARPC_VERSION  = 'libsearpc_version'
 CONF_CCNET_VERSION      = 'ccnet_version'
 CONF_SEAFILE_VERSION    = 'seafile_version'
+CONF_SEAFILE_CLIENT_VERSION  = 'seafile_client_version'
 CONF_SRCDIR             = 'srcdir'
 CONF_KEEP               = 'keep'
 CONF_BUILDDIR           = 'builddir'
 CONF_OUTPUTDIR          = 'outputdir'
 CONF_DEBUG              = 'debug'
 CONF_ONLY_CHINESE       = 'onlychinese'
+CONF_QT_ROOT            = 'qt_root'
 
 ####################
 ### Common helper functions
@@ -248,6 +247,9 @@ class Project(object):
             if run(cmd, cwd=self.projdir) != 0:
                 error('error when running command:\n\t%s\n' % cmd)
 
+def get_make_path():
+    return find_in_path('make.exe')
+
 class Libsearpc(Project):
     name = 'libsearpc'
 
@@ -255,8 +257,8 @@ class Libsearpc(Project):
         Project.__init__(self)
         self.build_commands = [
             'sh ./configure --prefix=%s --disable-compile-demo' % to_mingw_path(self.prefix),
-            'make',
-            'make install',
+            get_make_path(),
+            '%s install' % get_make_path(),
         ]
 
     def get_version(self):
@@ -269,8 +271,8 @@ class Ccnet(Project):
         Project.__init__(self)
         self.build_commands = [
             'sh ./configure --prefix=%s --disable-compile-demo' % to_mingw_path(self.prefix),
-            'make',
-            'make install',
+            get_make_path(),
+            '%s install' % get_make_path(),
         ]
 
     def get_version(self):
@@ -289,8 +291,8 @@ class Seafile(Project):
         Project.__init__(self)
         self.build_commands = [
             'sh ./configure --prefix=%s' % to_mingw_path(self.prefix),
-            'make',
-            'make install',
+            get_make_path(),
+            '%s install' % get_make_path(),
         ]
 
     def get_version(self):
@@ -301,6 +303,22 @@ class Seafile(Project):
         # SET SEAFILE_SOURCE_COMMIT_ID, so it can be printed in the log
         macros['SEAFILE_SOURCE_COMMIT_ID'] = '\\"%s\\"' % self.get_source_commit_id()
         self.append_cflags(macros)
+
+class SeafileClient(Project):
+    name = 'seafile-client'
+    def __init__(self):
+        Project.__init__(self)
+        self.build_commands = [
+            'cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%s .' % to_mingw_path(self.prefix),
+            get_make_path(),
+            '%s install' % get_make_path(),
+        ]
+
+    def get_version(self):
+        return conf[CONF_SEAFILE_CLIENT_VERSION]
+
+    def before_build(self):
+        pass
 
 def check_targz_src(proj, version, srcdir):
     src_tarball = os.path.join(srcdir, '%s-%s.tar.gz' % (proj, version))
@@ -313,7 +331,9 @@ def validate_args(usage, options):
         CONF_LIBSEARPC_VERSION,
         CONF_CCNET_VERSION,
         CONF_SEAFILE_VERSION,
+        CONF_SEAFILE_CLIENT_VERSION,
         CONF_SRCDIR,
+        CONF_QT_ROOT,
     ]
 
     # fist check required args
@@ -334,17 +354,20 @@ def validate_args(usage, options):
     libsearpc_version = get_option(CONF_LIBSEARPC_VERSION)
     ccnet_version = get_option(CONF_CCNET_VERSION)
     seafile_version = get_option(CONF_SEAFILE_VERSION)
+    seafile_client_version = get_option(CONF_SEAFILE_CLIENT_VERSION)
 
     check_project_version(version)
     check_project_version(libsearpc_version)
     check_project_version(ccnet_version)
     check_project_version(seafile_version)
+    check_project_version(seafile_client_version)
 
     # [ srcdir ]
     srcdir = to_win_path(get_option(CONF_SRCDIR))
     check_targz_src('libsearpc', libsearpc_version, srcdir)
     check_targz_src('ccnet', ccnet_version, srcdir)
     check_targz_src('seafile', seafile_version, srcdir)
+    check_targz_src('seafile-client', seafile_client_version, srcdir)
 
     # [ builddir ]
     builddir = to_win_path(get_option(CONF_BUILDDIR))
@@ -367,10 +390,18 @@ def validate_args(usage, options):
     # [only chinese]
     onlychinese = get_option(CONF_ONLY_CHINESE)
 
+    # [ qt root]
+    qt_root = get_option(CONF_QT_ROOT)
+    def check_qt_root(qt_root):
+        if not os.path.exists(os.path.join(qt_root, 'plugins')):
+            error('%s is not a valid qt root' % qt_root)
+    check_qt_root(qt_root)
+
     conf[CONF_VERSION] = version
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
     conf[CONF_CCNET_VERSION] = ccnet_version
     conf[CONF_SEAFILE_VERSION] = seafile_version
+    conf[CONF_SEAFILE_CLIENT_VERSION] = seafile_client_version
 
     conf[CONF_BUILDDIR] = builddir
     conf[CONF_SRCDIR] = srcdir
@@ -378,6 +409,7 @@ def validate_args(usage, options):
     conf[CONF_KEEP] = keep
     conf[CONF_DEBUG] = debug
     conf[CONF_ONLY_CHINESE] = onlychinese
+    conf[CONF_QT_ROOT] = qt_root
 
     prepare_builddir(builddir)
     show_build_info()
@@ -391,6 +423,8 @@ def show_build_info():
     info('libsearpc:                %s' % conf[CONF_LIBSEARPC_VERSION])
     info('ccnet:                    %s' % conf[CONF_CCNET_VERSION])
     info('seafile:                  %s' % conf[CONF_SEAFILE_VERSION])
+    info('seafile-client:           %s' % conf[CONF_SEAFILE_CLIENT_VERSION])
+    info('qt-root:                  %s' % conf[CONF_QT_ROOT])
     info('builddir:                 %s' % conf[CONF_BUILDDIR])
     info('outputdir:                %s' % conf[CONF_OUTPUTDIR])
     info('source dir:               %s' % conf[CONF_SRCDIR])
@@ -439,6 +473,11 @@ def parse_args():
                       nargs=1,
                       help='the version of seafile as specified in its "configure.ac". Must be digits delimited by dots, like 1.3.0')
 
+    parser.add_option(long_opt(CONF_SEAFILE_CLIENT_VERSION),
+                      dest=CONF_SEAFILE_CLIENT_VERSION,
+                      nargs=1,
+                      help='the version of seafile-client. Must be digits delimited by dots, like 1.3.0')
+
     parser.add_option(long_opt(CONF_BUILDDIR),
                       dest=CONF_BUILDDIR,
                       nargs=1,
@@ -455,6 +494,11 @@ def parse_args():
                       dest=CONF_SRCDIR,
                       nargs=1,
                       help='''Source tarballs must be placed in this directory.''')
+
+    parser.add_option(long_opt(CONF_QT_ROOT),
+                      dest=CONF_QT_ROOT,
+                      nargs=1,
+                      help='''qt root directory.''')
 
     parser.add_option(long_opt(CONF_KEEP),
                       dest=CONF_KEEP,
@@ -500,59 +544,18 @@ def setup_build_env():
                      seperator=' ')
 
     prepend_env_value('PATH',
-                      to_mingw_path(os.path.join(prefix, 'bin')))
+                      os.path.join(prefix, 'bin'),
+                      seperator=';')
 
     prepend_env_value('PKG_CONFIG_PATH',
-                      to_mingw_path(os.path.join(prefix, 'lib', 'pkgconfig')))
+                      os.path.join(prefix, 'lib', 'pkgconfig'))
+                      # to_mingw_path(os.path.join(prefix, 'lib', 'pkgconfig')))
 
     # specifiy the directory for wix temporary files
     wix_temp_dir = os.path.join(conf[CONF_BUILDDIR], 'wix-temp')
     os.environ['WIX_TEMP'] = wix_temp_dir
 
     must_mkdir(wix_temp_dir)
-
-def web_py2exe():
-    webdir = os.path.join(Seafile().projdir, 'web')
-    os.chdir(webdir)
-
-    original_argv = sys.argv
-    sys.argv = [sys.argv[0], 'py2exe']
-    sys.path.insert(0, webdir)
-
-    targetname = 'seafile-web'
-    targetfile = targetname + '.py'
-    must_copy('main.py', targetfile)
-
-    packages=["mako.cache", "utils"]
-    ex_files=[]
-    option = {"py2exe":
-              {"includes" :[targetname],
-               "packages" : packages,
-               "bundle_files" : 3}}
-
-    prepend_env_value('PATH',
-                      os.path.join(Seafile().prefix, 'bin'),
-                      seperator=';')
-    try:
-        dist_setup(name=targetname,
-                   options = option,
-                   windows=[{"script":targetfile}],
-                   data_files=ex_files)
-    except Exception as e:
-        error('Error when calling py2exe: %s' % e)
-
-    pack_bin_dir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin')
-
-    for name in glob.glob('dist/*'):
-        must_copy(name, pack_bin_dir)
-
-    must_copytree('i18n', os.path.join(pack_bin_dir, 'i18n'))
-    must_copytree('static', os.path.join(pack_bin_dir, 'static'))
-    must_copytree('templates', os.path.join(pack_bin_dir, 'templates'))
-
-    sys.path.pop(0)
-    sys.argv = original_argv
-    os.chdir(conf[CONF_BUILDDIR])
 
 def parse_depends_csv(path):
     '''parse the output of dependency walker'''
@@ -586,7 +589,7 @@ def copy_shared_libs():
     '''
 
     output = os.path.join(conf[CONF_BUILDDIR], 'depends.csv')
-    applet = os.path.join(Seafile().projdir, 'gui', 'win', 'seafile-applet.exe')
+    applet = os.path.join(SeafileClient().projdir, 'seafile-applet.exe')
     cmd = 'depends.exe -c -f 1 -oc %s %s' % (output, applet)
 
     # See the manual of Dependency walker
@@ -604,6 +607,9 @@ def copy_shared_libs():
     # libsqlite3 can not be found automatically
     libsqlite3 = find_in_path('libsqlite3-0.dll')
     must_copy(libsqlite3, pack_bin_dir)
+    # ssleay32
+    ssleay32 = find_in_path('ssleay32.dll')
+    must_copy(ssleay32, pack_bin_dir)
 
 def copy_dll_exe():
     prefix = Seafile().prefix
@@ -616,13 +622,27 @@ def copy_dll_exe():
         os.path.join(prefix, 'bin', 'libseafile-0.dll'),
         os.path.join(prefix, 'bin', 'ccnet.exe'),
         os.path.join(prefix, 'bin', 'seaf-daemon.exe'),
-        os.path.join(Seafile().projdir, 'gui', 'win', 'seafile-applet.exe')
+        os.path.join(SeafileClient().projdir, 'seafile-applet.exe')
     ]
 
     for name in filelist:
         must_copy(name, destdir)
 
     copy_shared_libs()
+    copy_qt_plugins()
+
+def copy_qt_plugins():
+    destdir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin', 'imageformats')
+    must_mkdir(destdir)
+
+    qt_plugins_srcdir = os.path.join(conf[CONF_QT_ROOT], 'plugins', 'imageformats')
+
+    src = os.path.join(qt_plugins_srcdir, 'qico4.dll')
+    must_copy(src, destdir)
+
+    src = os.path.join(qt_plugins_srcdir, 'qgif4.dll')
+    must_copy(src, destdir)
+
 
 def prepare_msi():
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
@@ -634,46 +654,18 @@ def prepare_msi():
     if run('make', cwd=os.path.join(pack_dir, 'custom')) != 0:
         error('Error when compiling seafile msi custom dlls')
 
-    web_py2exe()
     copy_dll_exe()
-
-    # copy each translation file (*.mo) to bin/i18n/LANG_CODE/LC_MESSAGES/seafile.mo)
-    src_mos_pattern = os.path.join(Seafile().prefix, 'share', 'locale', '*', 'LC_MESSAGES', 'seafile.mo')
-    d = os.path.dirname
-    b = os.path.basename
-    for src_mo in glob.glob(src_mos_pattern):
-        lang_code = b(d(d(src_mo)))
-        dst_mo = os.path.join(pack_dir, 'bin', 'i18n', lang_code, 'LC_MESSAGES', 'seafile.mo')
-        dst_dir = os.path.dirname(dst_mo)
-        if not os.path.exists(dst_dir):
-            must_mkdir(dst_dir)
-        must_copy(src_mo, dst_mo)
 
 def strip_symbols():
     bin_dir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin')
-    ignored = []
     def do_strip(fn):
         run('strip "%s"' % fn)
         info('stripping: %s' % fn)
 
-    def should_ignore(path):
-        '''Do not strip python.dll and msvc*.dll '''
-        name = os.path.basename(path).lower()
-        return name.startswith('python') or name.startswith('msvc')
-
     for dll in glob.glob(os.path.join(bin_dir, '*.dll')):
-        if should_ignore(dll):
-            ignored.append(dll)
-        else:
+        name = os.path.basename(dll).lower()
+        if 'qt' in name:
             do_strip(dll)
-
-    for exe in glob.glob(os.path.join(bin_dir, '*.exe')):
-        do_strip(exe)
-
-    info('----------------------------')
-    info('ignored:')
-    for name in ignored:
-        info('>> %s' % name)
 
 def edit_fragment_wxs():
     '''In the main wxs file(seafile.wxs) we need to reference to the id of
@@ -699,6 +691,7 @@ def edit_fragment_wxs():
 
 def build_msi():
     prepare_msi()
+    strip_symbols()
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
     if run('make fragment.wxs', cwd=pack_dir) != 0:
         error('Error when make fragement.wxs')
@@ -710,21 +703,7 @@ def build_msi():
 
 def build_english_msi():
     '''The extra work to build the English msi.'''
-    gui_win = os.path.join(Seafile().projdir, 'gui', 'win')
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
-    pack_bin_dir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin')
-
-    applet_en_name = 'seafile-applet.en.exe'
-    if run('make clean', cwd=gui_win) != 0:
-        error('Failed to run make clean in gui/win')
-
-    if run('make en', cwd=gui_win) != 0:
-        error('Failed to run make en in gui/win')
-
-    applet_en = os.path.join(gui_win, applet_en_name)
-    dst_applet_en = os.path.join(pack_bin_dir, 'seafile-applet.exe')
-
-    must_copy(applet_en, dst_applet_en)
 
     if run('make en', cwd=pack_dir) != 0:
         error('Error when make seafile-en.msi')
@@ -769,6 +748,7 @@ def main():
     libsearpc = Libsearpc()
     ccnet = Ccnet()
     seafile = Seafile()
+    seafile_client = SeafileClient()
 
     libsearpc.uncompress()
     libsearpc.build()
@@ -778,6 +758,9 @@ def main():
 
     seafile.uncompress()
     seafile.build()
+
+    seafile_client.uncompress()
+    seafile_client.build()
 
     build_msi()
     if not conf[CONF_ONLY_CHINESE]:
