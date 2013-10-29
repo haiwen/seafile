@@ -31,8 +31,8 @@ sed -r 's/(CREATE TABLE `Group`.*)`creator_name` VARCHAR\(255\),(.*)/\1`creator_
 sed -r 's/(CREATE TABLE `GroupUser`.*)`user_name` VARCHAR\(255\),(.*)/\1`user_name` VARCHAR\(255\) COLLATE NOCASE,\2/I' ${GROUP_DB} > ${GROUP_DB}.tmp && mv ${GROUP_DB}.tmp ${GROUP_DB}
 
 # backup & restore
-mv ${USER_MGR_DB} ${USER_MGR_DB}.`date +"%Y%m%d%H%k%M"`
-mv ${GRP_MGR_DB} ${GRP_MGR_DB}.`date +"%Y%m%d%H%k%M"`
+mv ${USER_MGR_DB} ${USER_MGR_DB}.`date +"%Y%m%d%H%M%S"`
+mv ${GRP_MGR_DB} ${GRP_MGR_DB}.`date +"%Y%m%d%H%M%S"`
 sqlite3 ${USER_MGR_DB} < ${USER_DB}
 sqlite3 ${GRP_MGR_DB} < ${GROUP_DB}
 
@@ -50,7 +50,7 @@ sed -r 's/(CREATE TABLE UserQuota.*)user VARCHAR\(255\),(.*)/\1user VARCHAR\(255
 sed -r 's/(CREATE TABLE SharedRepo.*)from_email VARCHAR\(512\), to_email VARCHAR\(512\),(.*)/\1from_email VARCHAR\(512\), to_email VARCHAR\(512\) COLLATE NOCASE,\2/I' ${SEAFILE_DB} > ${SEAFILE_DB}.tmp && mv ${SEAFILE_DB}.tmp ${SEAFILE_DB}
 
 # backup & restore
-mv ${SEAFILE_DB_FILE} ${SEAFILE_DB_FILE}.`date +"%Y%m%d%H%k%M"`
+mv ${SEAFILE_DB_FILE} ${SEAFILE_DB_FILE}.`date +"%Y%m%d%H%M%S"`
 sqlite3 ${SEAFILE_DB_FILE} < ${SEAFILE_DB}
 
 ########## seahub
@@ -69,8 +69,7 @@ sed -r 's/(CREATE TABLE "message_usermessage".*)"from_email" varchar\(75\) NOT N
 sed -r 's/(CREATE TABLE "avatar_avatar".*)"emailuser" varchar\(255\) NOT NULL,(.*)/\1"emailuser" varchar\(255\) NOT NULL COLLATE NOCASE,\2/I' ${SEAHUB_DB} > ${SEAHUB_DB}.tmp && mv ${SEAHUB_DB}.tmp ${SEAHUB_DB}
 
 # backup & restore
-mv ${SEAHUB_DB_FILE} ${SEAHUB_DB_FILE}.`date +"%Y%m%d%H%k%M"`
+mv ${SEAHUB_DB_FILE} ${SEAHUB_DB_FILE}.`date +"%Y%m%d%H%M%S"`
 sqlite3 ${SEAHUB_DB_FILE} < ${SEAHUB_DB}
 
 rm -rf ${USER_DB} ${GROUP_DB} ${SEAFILE_DB} ${SEAHUB_DB}
-
