@@ -886,11 +886,30 @@ int add_to_index(struct index_state *istate,
         alias->ce_flags |= CE_ADDED;
         return 0;
     }
-    /* Skip index file errors. */
-    if (index_cb (full_path, sha1, crypt) < 0)
-        return 0;
-    memcpy (ce->sha1, sha1, 20);
 
+#ifdef WIN32
+    /* Fix daylight saving time bug on Windows.
+     * See http://www.codeproject.com/Articles/1144/Beating-the-Daylight-Savings-Time-bug-and-getting
+     * If ce and wt timestamp has a 1 hour gap, it may be affected by the bug.
+     * We then compare the file's id with the id in ce. If they're the same,
+     * we don't need to copy the blocks again. Only update the index.
+     */
+    if (alias && !ce_stage(alias) &&
+        (ABS(alias->ce_mtime.sec - st->st_mtime) == 3600 ||
+         ABS(alias->ce_ctime.sec - st->st_ctime) == 3600)) {
+        if (index_cb (full_path, sha1, crypt, FALSE) < 0)
+            return 0;
+        if (memcmp (alias->sha1, sha1, 20) == 0)
+            goto update_index;
+    }
+#endif
+
+    /* Skip index file errors. */
+    if (index_cb (full_path, sha1, crypt, TRUE) < 0)
+        return 0;
+
+update_index:
+    memcpy (ce->sha1, sha1, 20);
     ce->ce_flags |= CE_ADDED;
 
     if (add_index_entry(istate, ce, add_option)) {

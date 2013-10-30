@@ -162,7 +162,8 @@ int
 seaf_fs_manager_index_blocks (SeafFSManager *mgr,
                               const char *file_path,
                               unsigned char sha1[],
-                              SeafileCrypt *crypt);
+                              SeafileCrypt *crypt,
+                              gboolean write_data);
 
 uint32_t
 seaf_fs_manager_get_type (SeafFSManager *mgr, const char *id);

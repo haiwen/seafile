@@ -426,7 +426,8 @@ int
 seaf_fs_manager_index_blocks (SeafFSManager *mgr,
                               const char *file_path,
                               unsigned char sha1[],
-                              SeafileCrypt *crypt)
+                              SeafileCrypt *crypt,
+                              gboolean write_data)
 {
     SeafStat sb;
     CDCFileDescriptor cdc;
@@ -448,14 +449,14 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
         cdc.block_min_sz = cdc.block_sz >> 2;
         cdc.block_max_sz = cdc.block_sz << 2;
         cdc.write_block = seafile_write_chunk;
-        if (filename_chunk_cdc (file_path, &cdc, crypt, TRUE) < 0) {
+        if (filename_chunk_cdc (file_path, &cdc, crypt, write_data) < 0) {
             g_warning ("Failed to chunk file with CDC.\n");
             return -1;
         }
         memcpy (sha1, cdc.file_sum, 20);
     }
 
-    if (write_seafile (mgr, &cdc) < 0) {
+    if (write_data && write_seafile (mgr, &cdc) < 0) {
         g_warning ("Failed to write seafile for %s.\n", file_path);
         return -1;
     }

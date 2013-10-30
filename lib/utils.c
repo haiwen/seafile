@@ -21,7 +21,6 @@
 #endif
 
 #include <unistd.h>
-#include <sys/time.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -189,19 +188,117 @@ objstore_get_path (char *path, const char *base, const char *obj_id)
     strcpy(path+len+4, obj_id+2);
 }
 
+#ifdef WIN32
+
+/* UNIX epoch expressed in Windows time, the unit is 100 nanoseconds.
+ * See http://msdn.microsoft.com/en-us/library/ms724228
+ */
+#define UNIX_EPOCH 116444736000000000ULL
+
+inline static __time64_t
+file_time_to_unix_time (FILETIME *ftime)
+{
+    guint64 win_time, unix_time;
+
+    win_time = (guint64)ftime->dwLowDateTime + (((guint64)ftime->dwHighDateTime)<<32);
+    unix_time = (win_time - UNIX_EPOCH)/10000000;
+
+    return (__time64_t)unix_time;
+}
+
+static int
+get_utc_file_time (const char *path, const wchar_t *wpath,
+                   __time64_t *mtime, __time64_t *ctime)
+{
+    HANDLE handle;
+    FILETIME write_time, create_time;
+
+    handle = CreateFileW (wpath,
+                          GENERIC_READ,
+                          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                          NULL,
+                          OPEN_EXISTING,
+                          FILE_FLAG_BACKUP_SEMANTICS,
+                          NULL);
+    if (handle == INVALID_HANDLE_VALUE) {
+        g_warning ("Failed to open %s: %lu.\n", path, GetLastError());
+        return -1;
+    }
+
+    if (!GetFileTime (handle, &create_time, NULL, &write_time)) {
+        g_warning ("Failed to get file time for %s: %lu.\n", path, GetLastError());
+        CloseHandle (handle);
+        return -1;
+    }
+    CloseHandle (handle);
+
+    *mtime = file_time_to_unix_time (&write_time);
+    *ctime = file_time_to_unix_time (&create_time);
+
+    return 0;
+}
+
+static int
+get_utc_file_time_fd (int fd, __time64_t *mtime, __time64_t *ctime)
+{
+    HANDLE handle;
+    FILETIME write_time, create_time;
+
+    handle = (HANDLE)_get_osfhandle (fd);
+    if (handle == INVALID_HANDLE_VALUE) {
+        g_warning ("Failed to get handle from fd: %lu.\n", GetLastError());
+        return -1;
+    }
+
+    if (!GetFileTime (handle, &create_time, NULL, &write_time)) {
+        g_warning ("Failed to get file time: %lu.\n", GetLastError());
+        return -1;
+    }
+
+    *mtime = file_time_to_unix_time (&write_time);
+    *ctime = file_time_to_unix_time (&create_time);
+
+    return 0;
+}
+
+#endif
+
 int
 seaf_stat (const char *path, SeafStat *st)
 {
 #ifdef WIN32
     wchar_t *wpath = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
-    int ret;
+    int ret = 0;
 
-    ret = _wstat64 (wpath, st);
+    if (_wstat64 (wpath, st) < 0) {
+        ret = -1;
+        goto out;
+    }
+
+    if (get_utc_file_time (path, wpath, &st->st_mtime, &st->st_ctime) < 0)
+        ret = -1;
+out:
     g_free (wpath);
 
     return ret;
 #else
     return stat (path, st);
+#endif
+}
+
+int
+seaf_fstat (int fd, SeafStat *st)
+{
+#ifdef WIN32
+    if (_fstat64 (fd, st) < 0)
+        return -1;
+
+    if (get_utc_file_time_fd (fd, &st->st_mtime, &st->st_ctime) < 0)
+        return -1;
+
+    return 0;
+#else
+    return fstat (fd, st);
 #endif
 }
 
