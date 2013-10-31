@@ -153,7 +153,7 @@ def remove_unused_files():
         run('rm -f %s' % f)
 
 def gen_tarball():
-    output = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-latest.tar.gz')
+    output = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-client-latest.tar.gz')
     dirname = 'seafile-%s' % conf[CONF_VERSION]
 
     ignored_patterns = [
