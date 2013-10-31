@@ -944,6 +944,8 @@ commit_job_done (void *vres)
     struct CommitResult *res = vres;
     SeafRepo *repo = res->task->repo;
 
+    res->task->mgr->commit_job_running = FALSE;
+
     if (repo->delete_pending) {
         transition_sync_state (res->task, SYNC_STATE_CANCELED);
         seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
@@ -988,15 +990,41 @@ commit_job_done (void *vres)
     g_free (res);
 }
 
+static int check_commit_state (void *data);
+
 static void
 commit_repo (SyncTask *task)
 {
+    /* In order not to eat too much CPU power, only one commit job can be run
+     * at the same time. Other sync tasks have to check every 1 second.
+     */
+    if (task->mgr->commit_job_running) {
+        task->commit_timer = ccnet_timer_new (check_commit_state, task, 1000);
+        return;
+    }
+
+    task->mgr->commit_job_running = TRUE;
+
     transition_sync_state (task, SYNC_STATE_COMMIT);
 
     ccnet_job_manager_schedule_job (seaf->job_mgr, 
                                     commit_job, 
                                     commit_job_done,
                                     task);
+}
+
+static int
+check_commit_state (void *data)
+{
+    SyncTask *task = data;
+
+    if (!task->mgr->commit_job_running) {
+        ccnet_timer_free (&task->commit_timer);
+        commit_repo (task);
+        return 0;
+    }
+
+    return 1;
 }
 
 #define GET_EMAIL_TOKEN_IN_PROGRESS 1

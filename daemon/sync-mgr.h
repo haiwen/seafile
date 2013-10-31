@@ -76,6 +76,7 @@ struct _SyncTask {
     int              error;
     char            *tx_id;
     char            *token;
+    struct CcnetTimer *commit_timer;
     struct CcnetTimer *conn_timer;
 
     SeafRepo        *repo;  /* for convenience, only valid when in_sync. */
@@ -89,6 +90,7 @@ struct _SeafSyncManager {
     GHashTable *sync_infos;
     GQueue     *sync_tasks;
     int         n_running_tasks;
+    gboolean    commit_job_running;
     int         sync_interval;
 
     int         wt_interval;
