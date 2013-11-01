@@ -2,10 +2,10 @@ MAKE_CLIENT =
 
 if COMPILE_CLIENT
   MAKE_CLIENT += daemon
+  MAKE_data = data # Caution: don't use MAKE_DATA
 endif
 
 if COMPILE_GUI
-  MAKE_data = data # Caution: don't use MAKE_DATA
   MAKE_CLIENT += gui
   MAKE_PO = po
 endif
