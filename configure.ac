@@ -100,7 +100,7 @@ AC_ARG_ENABLE(client, AC_HELP_STRING([--enable-client], [enable client]),
    [compile_client=$enableval],[compile_client="yes"])
 
 AC_ARG_ENABLE(gui, AC_HELP_STRING([--enable-gui], [enable gui]),
-   [compile_gui=$enableval],[compile_gui="yes"])
+   [compile_gui=$enableval],[compile_gui="no"])
 
 AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
    [compile_server=$enableval],[compile_server="no"])
