@@ -20,11 +20,11 @@ msgstr ""
 
 #: ../gui/common/applet-common.c:174
 msgid "Uploading"
-msgstr "Lade hoch"
+msgstr "am hochladen"
 
 #: ../gui/common/applet-common.c:174
 msgid "Downloading"
-msgstr "Lade herunter"
+msgstr "am herunterladen"
 
 #: ../gui/common/applet-common.c:175
 msgid "Speed"
@@ -36,7 +36,7 @@ msgid ""
 "Reason: Deleted on server"
 msgstr ""
 "ist nicht synchronisiert. \n"
-"Grund: Gelöscht auf dem Server"
+"Grund: Auf dem Server gelöscht"
 
 #: ../gui/common/applet-common.c:233
 msgid "is synchronized"
@@ -60,72 +60,72 @@ msgstr ""
 
 #: ../gui/common/translate-commit-desc.c:114
 msgid "files"
-msgstr ""
+msgstr "Dateien"
 
 #: ../gui/common/translate-commit-desc.c:116
 msgid "directories"
-msgstr ""
+msgstr "Ordner"
 
 #: ../gui/common/translate-commit-desc.c:119
 #, c-format
 msgid "and %s more"
-msgstr ""
+msgstr "und %s weitere"
 
 #: ../gui/common/translate-commit-desc.c:155
 msgid "Added"
-msgstr ""
+msgstr "hinzugefügt"
 
 #: ../gui/common/translate-commit-desc.c:156
 msgid "Deleted"
-msgstr ""
+msgstr "gelöscht"
 
 #: ../gui/common/translate-commit-desc.c:157
 msgid "Removed"
-msgstr ""
+msgstr "entfernt"
 
 #: ../gui/common/translate-commit-desc.c:158
 msgid "Modified"
-msgstr ""
+msgstr "verändert"
 
 #: ../gui/common/translate-commit-desc.c:159
 msgid "Renamed"
-msgstr ""
+msgstr "umbenannt"
 
 #: ../gui/common/translate-commit-desc.c:160
 msgid "Moved"
-msgstr ""
+msgstr "verschoben"
 
 #: ../gui/common/translate-commit-desc.c:161
 msgid "Added directory"
-msgstr ""
+msgstr "Verzeichnis hinzugefügt"
 
 #: ../gui/common/translate-commit-desc.c:162
 msgid "Removed directory"
-msgstr ""
+msgstr "Verzeichnis entfernt"
 
 #: ../gui/common/translate-commit-desc.c:163
 msgid "Renamed directory"
-msgstr ""
+msgstr "Verzeichnis umbenannt"
 
 #: ../gui/common/translate-commit-desc.c:164
 msgid "Moved directory"
-msgstr ""
+msgstr "Verzeichnis verschoben"
 
 #: ../gui/common/translate-commit-desc.c:169
 msgid "Reverted repo to status at"
-msgstr ""
+msgstr "Repo status zurückgesetzt auf"
 
 #: ../gui/common/translate-commit-desc.c:172
 msgid "Reverted file to status at"
-msgstr ""
+msgstr "Datei zurückgesetzt auf"
 
 #: ../gui/common/translate-commit-desc.c:175
 msgid "Recovered deleted directory"
-msgstr ""
+msgstr "Gelöschtes Verzeichnis wiederhergestellt"
 
 #: ../gui/common/translate-commit-desc.c:177
 msgid "Auto merge by seafile system"
-msgstr ""
+msgstr "Automatisch zusammgeführt durch das Seafile System"
 
 #: ../gui/gtk/seafile-applet.c:161
 #, c-format
@@ -151,15 +151,15 @@ msgstr "Seafile Hilfe.txt"
 #: ../gui/win/init-ccnet.c:316
 #, fuzzy
 msgid "Choose a folder"
-msgstr "Wählen die eine Platte"
+msgstr "Wählen Sie ein Verzeichnis"
 
 #: ../gui/win/init-ccnet.c:381
 msgid "Please choose a folder first"
-msgstr ""
+msgstr "Bitte erst ein Verzeichnis wählen"
 
 #: ../gui/win/init-ccnet.c:406 ../gui/win/init-ccnet.c:416
 msgid "Initialzation is not finished. Really quit?"
-msgstr "Die Initialisierung ist nicht abgeschlossen. Wirklich beenden?"
+msgstr "Die Initialisierung ist noch nicht abgeschlossen. Wirklich beenden?"
 
 #: ../gui/win/seafile-applet.c:60
 msgid "Seafile is started"
@@ -167,7 +167,7 @@ msgstr "Seafile ist gestartet"
 
 #: ../gui/win/seafile-applet.c:60
 msgid "Click the icon to open admin console"
-msgstr "Klicken sie auf das Symbol um das Administrationsinterface zu öffnen"
+msgstr "Klicken sie auf das Symbol um das Admin-Oberfläche zu öffnen"
 
 #: ../gui/win/seafile-applet.c:357
 msgid "Failed to disable auto sync"
