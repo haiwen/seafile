@@ -9,7 +9,7 @@
 #include <event.h>
 #include <evhtp.h>
 
-#include <json-glib/json-glib.h>
+#include <jansson.h>
 
 #include <pthread.h>
 
@@ -228,30 +228,25 @@ check_tmp_file_list (GList *tmp_files, int *error_code)
 static char *
 file_list_to_json (GList *files)
 {
-    JsonNode *root;
-    JsonArray *array;
+    json_t *array;
     GList *ptr;
     char *file;
-    JsonGenerator *gen;
     char *json_data;
-    gsize len;
+    char *ret;
 
-    root = json_node_new (JSON_NODE_ARRAY);
-    array = json_array_new ();
+    array = json_array ();
 
     for (ptr = files; ptr; ptr = ptr->next) {
         file = ptr->data;
-        json_array_add_string_element (array, file);
+        json_array_append_new (array, json_string(file));
     }
-    json_node_set_array (root, array);
 
-    gen = json_generator_new ();
-    json_generator_set_root (gen, root);
-    json_data = json_generator_to_data (gen, &len);
-    json_node_free (root);
-    g_object_unref (gen);
+    json_data = json_dumps (array, 0);
+    json_decref (array);
 
-    return json_data;
+    ret = g_strdup (json_data);
+    free (json_data);
+    return ret;
 }
 
 static void

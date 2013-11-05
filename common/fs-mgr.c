@@ -12,7 +12,6 @@
     #include <arpa/inet.h>
 #endif
 
-#include <json-glib/json-glib.h>
 #include <openssl/sha.h>
 #include <searpc-utils.h>
 

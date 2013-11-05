@@ -2,7 +2,7 @@
 
 #include "common.h"
 
-#include <json-glib/json-glib.h>
+#include <jansson.h>
 #include <openssl/sha.h>
 
 #include "utils.h"
@@ -16,9 +16,6 @@
 #define MAX_TIME_SKEW 259200    /* 3 days */
 
 struct _SeafCommitManagerPriv {
-    /* GHashTable *commit_cache; */
-    /* JsonGenerator   *gen; */
-    /* JsonParser      *parser; */
     int dummy;
 };
 
@@ -28,10 +25,10 @@ static int
 save_commit (SeafCommitManager *manager, SeafCommit *commit);
 static void
 delete_commit (SeafCommitManager *mgr, const char *id);
-static JsonNode *
-commit_to_json_node (SeafCommit *commit);
+static json_t *
+commit_to_json_object (SeafCommit *commit);
 static SeafCommit *
-commit_from_json_node (const char *id, JsonNode *node);
+commit_from_json_object (const char *id, json_t *object);
 
 static void compute_commit_id (SeafCommit* commit)
 {
@@ -103,40 +100,40 @@ seaf_commit_new (const char *commit_id,
 char *
 seaf_commit_to_data (SeafCommit *commit, gsize *len)
 {
-    JsonGenerator *gen = json_generator_new ();
-    JsonNode *root;
+    json_t *object;
     char *json_data;
+    char *ret;
 
-    root = commit_to_json_node (commit);
+    object = commit_to_json_object (commit);
 
-    json_generator_set_root (gen, root);
+    json_data = json_dumps (object, 0);
+    *len = strlen (json_data);
+    json_decref (object);
 
-    json_data = json_generator_to_data (gen, len);
-    json_node_free (root);
-    g_object_unref (gen);
-
-    return json_data;
+    ret = g_strdup (json_data);
+    free (json_data);
+    return ret;
 }
 
 SeafCommit *
 seaf_commit_from_data (const char *id, const char *data, gsize len)
 {
-    JsonParser *parser = json_parser_new ();
-    JsonNode *root;
+    json_t *object;
     SeafCommit *commit;
-    GError *error = NULL;
+    json_error_t jerror;
 
-    if (!json_parser_load_from_data (parser, data, len, &error)) {
-        g_warning ("Failed to parse commit data: %s.\n", error->message);
-        g_object_unref (parser);
+    object = json_loadb (data, len, 0, &jerror);
+    if (!object) {
+        if (jerror.text)
+            g_warning ("Failed to load commit json: %s.\n", jerror.text);
+        else
+            g_warning ("Failed to load commit json.\n");
         return NULL;
     }
 
-    root = json_parser_get_root (parser);
+    commit = commit_from_json_object (id, object);
 
-    commit = commit_from_json_node (id, root);
-
-    g_object_unref (parser);
+    json_decref (object);
 
     return commit;
 }
@@ -622,14 +619,12 @@ seaf_commit_manager_commit_exists (SeafCommitManager *mgr, const char *id)
     return seaf_obj_store_obj_exists (mgr->obj_store, id);
 }
 
-static JsonNode *
-commit_to_json_node (SeafCommit *commit)
+static json_t *
+commit_to_json_object (SeafCommit *commit)
 {
-    JsonNode *root;
-    JsonObject *object;
+    json_t *object;
     
-    root = json_node_new (JSON_NODE_OBJECT);
-    object = json_object_new ();
+    object = json_object ();
  
     json_object_set_string_member (object, "commit_id", commit->commit_id);
     json_object_set_string_member (object, "root_id", commit->root_id);
@@ -664,15 +659,12 @@ commit_to_json_node (SeafCommit *commit)
     if (commit->no_local_history)
         json_object_set_int_member (object, "no_local_history", 1);
 
-    json_node_take_object (root, object);
-
-    return root;
+    return object;
 }
 
 static SeafCommit *
-commit_from_json_node (const char *commit_id, JsonNode *node)
+commit_from_json_object (const char *commit_id, json_t *object)
 {
-    JsonObject *object;
     SeafCommit *commit = NULL;
     const char *root_id;
     const char *repo_id;
@@ -689,12 +681,6 @@ commit_from_json_node (const char *commit_id, JsonNode *node)
     const char *magic = NULL;
     const char *random_key = NULL;
     int no_local_history = 0;
-
-    object = json_node_get_object (node);
-    if (!object) {
-        g_warning ("Commit %.10s corrupted.\n", commit_id);
-        return NULL;
-    }
 
     root_id = json_object_get_string_member (object, "root_id");
     repo_id = json_object_get_string_member (object, "repo_id");
@@ -784,11 +770,11 @@ commit_from_json_node (const char *commit_id, JsonNode *node)
 static SeafCommit *
 load_commit (SeafCommitManager *mgr, const char *commit_id)
 {
-    char *data;
+    char *data = NULL;
     int len;
     SeafCommit *commit = NULL;
-    JsonParser *parser;
-    GError *error = NULL;
+    json_t *object = NULL;
+    json_error_t jerror;
 
     if (!commit_id || strlen(commit_id) != 40)
         return NULL;
@@ -796,29 +782,21 @@ load_commit (SeafCommitManager *mgr, const char *commit_id)
     if (seaf_obj_store_read_obj (mgr->obj_store, commit_id, (void **)&data, &len) < 0)
         return NULL;
 
-    parser = json_parser_new ();
-    json_parser_load_from_data (parser, data, len, &error);
-    if (error) {
-        g_warning ("Unable to parse commit %s: %s\n", commit_id,
-                   error->message);
-        g_error_free (error);
+    object = json_loadb (data, len, 0, &jerror);
+    if (!object) {
+        if (jerror.text)
+            g_warning ("Failed to load commit json object: %s.\n", jerror.text);
+        else
+            g_warning ("Failed to load commit json object.\n");
         goto out;
     }
 
-    JsonNode *root;
-
-    root = json_parser_get_root (parser);
-    if (!root) {
-        g_warning ("Commit %.10s corrupted.\n", commit_id);
-        goto out;
-    }
-
-    commit = commit_from_json_node (commit_id, root);
+    commit = commit_from_json_object (commit_id, object);
     if (commit)
         commit->manager = mgr;
 
 out:
-    g_object_unref (parser);
+    if (object) json_decref (object);
     g_free (data);
 
     return commit;
@@ -827,24 +805,16 @@ out:
 static int
 save_commit (SeafCommitManager *manager, SeafCommit *commit)
 {
-    JsonGenerator *gen = json_generator_new ();
-    JsonNode *root;
+    json_t *object = NULL;
     char *data;
     gsize len;
 
-    root = commit_to_json_node (commit);
+    object = commit_to_json_object (commit);
 
-    json_generator_set_root (gen, root);
+    data = json_dumps (object, 0);
+    len = strlen (data);
 
-    data = json_generator_to_data (gen, &len);
-    if (!data) {
-        g_warning("Generate commit json failed.\n");
-        json_node_free (root);
-        g_object_unref (gen);
-        return -1;
-    }
-    json_node_free (root);
-    g_object_unref (gen);
+    json_decref (object);
 
 #ifdef SEAFILE_SERVER
     if (seaf_obj_store_write_obj (manager->obj_store, commit->commit_id,
@@ -859,7 +829,7 @@ save_commit (SeafCommitManager *manager, SeafCommit *commit)
         return -1;
     }
 #endif
-    g_free (data);
+    free (data);
 
     return 0;
 }

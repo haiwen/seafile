@@ -4,7 +4,7 @@
 
 #include <glib/gstdio.h>
 
-#include <json-glib/json-glib.h>
+#include <jansson.h>
 #include <openssl/sha.h>
 
 #include <ccnet.h>
@@ -747,36 +747,31 @@ do_post_multi_files (const char *root_id,
     return post_multi_files_recursive(root_id, parent_dir, filenames, id_list);
 }
 
-static void
-convert_file_list (JsonArray *array, guint index, JsonNode *element, gpointer data)
-{
-    GList **files = data;
-
-    *files = g_list_prepend (*files, json_node_dup_string (element));
-}
-
 static GList *
 json_to_file_list (const char *files_json)
 {
-    JsonParser *parser = json_parser_new ();
-    JsonNode *root;
-    JsonArray *array;
+    json_t *array;
     GList *files = NULL;
-    GError *error = NULL;
+    json_error_t jerror;
+    size_t index;
+    json_t *value;
 
-    json_parser_load_from_data (parser, files_json, strlen(files_json), &error);
-    if (error) {
-        seaf_warning ("Failed to load file list from json.\n");
-        g_error_free (error);
+    array = json_loadb (files_json, strlen(files_json), 0, &jerror);
+    if (!array) {
+        seaf_warning ("Failed to load json file list: %s.\n", jerror.text);
         return NULL;
     }
 
-    root = json_parser_get_root (parser);
-    array = json_node_get_array (root);
+    size_t n = json_array_size (array);
+    for (index = 0; index < n; index++) {
+        value = json_array_get (array, index);
+        const char *file = json_string_value (value);
+        if (!file)
+            continue;
+        files = g_list_prepend (files, g_strdup (file));
+    }
 
-    json_array_foreach_element (array, convert_file_list, &files);
-
-    g_object_unref (parser);
+    json_decref (array);
     return files;
 }
 

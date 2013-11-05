@@ -4,7 +4,6 @@
 
 #include <glib/gstdio.h>
 
-#include <json-glib/json-glib.h>
 #include <openssl/sha.h>
 #include <openssl/rand.h>
 

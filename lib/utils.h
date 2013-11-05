@@ -177,24 +177,6 @@ gboolean string_list_sorted_is_equal (GList *list1, GList *list2);
 char** ncopy_string_array (char **orig, int n);
 void nfree_string_array (char **array, int n);
 
-
-gchar *
-key_value_list_to_json(const char *first, ...) G_GNUC_NULL_TERMINATED;
-
-gchar *
-key_value_list_to_json_v(const char *first, va_list args);
-
-/* format char:
-     i   integer (gint64)
-     s   string (const char *) or NULL
- */
-gchar *
-json_printf(const char *format, ...);
-
-gchar *
-json_vprintf(const char *format, va_list args);
-
-
 /* 64bit time */
 gint64 get_current_time();
 
@@ -327,5 +309,21 @@ gint64 ccnet_calc_directory_size (const char *path, GError **error);
 char * strtok_r(char *s, const char *delim, char **save_ptr);
 #endif
 
+#include <jansson.h>
+
+const char *
+json_object_get_string_member (json_t *object, const char *key);
+
+gboolean
+json_object_has_member (json_t *object, const char *key);
+
+gint64
+json_object_get_int_member (json_t *object, const char *key);
+
+void
+json_object_set_string_member (json_t *object, const char *key, const char *value);
+
+void
+json_object_set_int_member (json_t *object, const char *key, gint64 value);
 
 #endif
