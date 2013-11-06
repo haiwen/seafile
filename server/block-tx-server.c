@@ -2,6 +2,8 @@
 #define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
 #include "log.h"
 
+#include "net.h"
+
 #ifndef WIN32
 #include <sys/select.h>
 #endif
