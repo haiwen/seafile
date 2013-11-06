@@ -654,6 +654,10 @@ block_tx_server_start (evutil_socket_t data_fd)
     BlockTxServer *server = g_new0 (BlockTxServer, 1);
     int ret = 0;
 
+    int val = 1;
+    ev_socklen_t optlen = sizeof(int);
+    setsockopt (data_fd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, optlen);
+
     server->data_fd = data_fd;
 
     ret = ccnet_job_manager_schedule_job (seaf->job_mgr,
