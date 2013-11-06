@@ -1,10 +1,12 @@
 # coding: UTF-8
 
 from upgrade_common import upgrade_db
+from add_collate import upgrade_collate
 
 def main():
     try:
-        upgrade_db('1.8.0')
+        upgrade_db('2.0.0')
+        upgrade_collate()
     except Exception, e:
         print 'Error:\n', e
     else:
