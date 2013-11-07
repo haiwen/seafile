@@ -123,6 +123,7 @@ update_index (struct index_state *istate, const char *index_path)
 
     if (write_index (istate, index_fd) < 0) {
         g_warning ("Failed to write shadow index: %s.\n", strerror(errno));
+        close (index_fd);
         return -1;
     }
     close (index_fd);
