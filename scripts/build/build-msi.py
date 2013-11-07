@@ -650,6 +650,7 @@ def prepare_msi():
     msi_dir = os.path.join(Seafile().projdir, 'msi')
 
     must_copytree(msi_dir, pack_dir)
+    must_mkdir(os.path.join(pack_dir, 'bin'))
 
     if run('make', cwd=os.path.join(pack_dir, 'custom')) != 0:
         error('Error when compiling seafile msi custom dlls')
