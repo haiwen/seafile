@@ -28,10 +28,6 @@ function welcome () {
     echo
 }
 
-welcome;
-exit 0;
-
-
 function err_and_quit () {
     printf "\n\n\033[33mError occured during setup. \nPlease fix possible problems and run the script again.\033[m\n\n"
     exit 1;
