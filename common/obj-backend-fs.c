@@ -187,7 +187,7 @@ out:
 }
 
 static int
-save_obj_contents (const char *path, const void *data, int len)
+save_obj_contents (const char *path, const void *data, int len, gboolean need_sync)
 {
     char tmp_path[SEAF_PATH_MAX];
     int fd;
@@ -206,13 +206,21 @@ save_obj_contents (const char *path, const void *data, int len)
         return -1;
     }
 
-    if (fsync_obj_contents (fd) < 0)
+    if (need_sync && fsync_obj_contents (fd) < 0)
         return -1;
 
     close (fd);
 
-    if (rename_and_sync (tmp_path, path) < 0)
-        return -1;
+    if (need_sync) {
+        if (rename_and_sync (tmp_path, path) < 0)
+            return -1;
+    } else {
+        if (g_rename (tmp_path, path) < 0) {
+            seaf_warning ("[obj backend] Failed to rename %s: %s.\n",
+                          path, strerror(errno));
+            return -1;
+        }
+    }
 
     return 0;
 }
@@ -232,20 +240,9 @@ obj_backend_fs_write (ObjBackend *bend,
 
     /* g_get_current_time (&s); */
 
-    if (need_sync) {
-        /* seaf_message ("need sync.\n"); */
-        if (save_obj_contents (path, data, len) < 0) {
-            seaf_warning ("[obj backend] Failed to write obj %s.\n", obj_id);
-            return -1;
-        }
-    } else {
-        GError *error = NULL;
-        if (!g_file_set_contents (path, data, len, &error) < 0) {
-            seaf_warning ("[obj backend] Failed to write obj %s: %s.\n",
-                          obj_id, error->message);
-            g_clear_error (&error);
-            return -1;
-        }
+    if (save_obj_contents (path, data, len, need_sync) < 0) {
+        seaf_warning ("[obj backend] Failed to write obj %s.\n", obj_id);
+        return -1;
     }
 
     /* g_get_current_time (&e); */

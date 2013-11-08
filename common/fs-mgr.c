@@ -87,13 +87,22 @@ seaf_fs_manager_new (SeafileSession *seaf,
 int
 seaf_fs_manager_init (SeafFSManager *mgr)
 {
-#if defined SEAFILE_SERVER && defined FULL_FEATURE
+#ifdef SEAFILE_SERVER
+
+#ifdef FULL_FEATURE
     if (seaf_obj_store_init (mgr->obj_store, TRUE, seaf->ev_mgr) < 0) {
         g_warning ("[fs mgr] Failed to init fs object store.\n");
         return -1;
     }
 #else
     if (seaf_obj_store_init (mgr->obj_store, FALSE, NULL) < 0) {
+        g_warning ("[fs mgr] Failed to init fs object store.\n");
+        return -1;
+    }
+#endif
+
+#else
+    if (seaf_obj_store_init (mgr->obj_store, TRUE, seaf->ev_mgr) < 0) {
         g_warning ("[fs mgr] Failed to init fs object store.\n");
         return -1;
     }

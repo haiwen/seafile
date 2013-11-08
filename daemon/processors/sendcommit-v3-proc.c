@@ -43,6 +43,7 @@ typedef struct  {
     GList       *id_list;
     GHashTable  *commit_hash;
     gboolean    fast_forward;
+    gboolean    compute_success;
 } SeafileSendcommitProcPriv;
 
 #define GET_PRIV(o)  \
@@ -276,9 +277,6 @@ compute_delta_commits (CcnetProcessor *processor, const char *head)
                                                     traverse_commit_remote,
                                                     processor, FALSE);
     if (!ret) {
-        ccnet_processor_send_update (processor, SC_NOT_FOUND, SS_NOT_FOUND,
-                                     NULL, 0);
-        ccnet_processor_done (processor, FALSE);
         return -1;
     }
 
@@ -287,44 +285,71 @@ compute_delta_commits (CcnetProcessor *processor, const char *head)
                                                     compute_delta,
                                                     processor, FALSE);
     if (!ret) {
-        ccnet_processor_send_update (processor, SC_NOT_FOUND, SS_NOT_FOUND,
-                                     NULL, 0);
-        ccnet_processor_done (processor, FALSE);
         return -1;
     }
 
     return 0;
 }
 
-static void
-send_commits (CcnetProcessor *processor, const char *head)
+static void *
+compute_upload_commits_thread (void *vdata)
 {
-    gboolean ret;
+    CcnetProcessor *processor = vdata;
+    SeafileSendcommitV3Proc *proc = (SeafileSendcommitV3Proc *)processor;
+    TransferTask *task = proc->tx_task;
     USE_PRIV;
+    gboolean ret;
 
     priv->fast_forward = TRUE;
     ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
-                                                    head,
+                                                    task->head,
                                                     traverse_commit_fast_forward,
                                                     processor, FALSE);
     if (!ret) {
-        ccnet_processor_send_update (processor, SC_NOT_FOUND, SS_NOT_FOUND,
+        priv->compute_success = FALSE;
+        return vdata;
+    }
+
+    if (priv->fast_forward) {
+        priv->compute_success = TRUE;
+        seaf_debug ("[sendcommt] Send commit after a fast forward merge.\n");
+        return vdata;
+    }
+
+    seaf_debug ("[sendcommit] Send commit after a real merge.\n");
+    if (compute_delta_commits (processor, task->head) < 0) {
+        priv->compute_success = FALSE;
+        return vdata;
+    }
+
+    priv->compute_success = TRUE;
+    return vdata;
+}
+
+static void
+compute_upload_commits_done (void *vdata)
+{
+    CcnetProcessor *processor = vdata;
+    USE_PRIV;
+
+    if (!priv->compute_success) {
+        ccnet_processor_send_update (processor, SC_NOT_FOUND, SS_NOT_FOUND, 
                                      NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
     }
 
-    if (priv->fast_forward) {
-        seaf_debug ("[sendcommt] Send commit after a fast forward merge.\n");
-        send_one_commit (processor);
-        return;
-    }
-
-    seaf_debug ("[sendcommit] Send commit after a real merge.\n");
-    if (compute_delta_commits (processor, head) < 0)
-        return;
-
     send_one_commit (processor);
+}
+
+static void
+send_commits (CcnetProcessor *processor, const char *head)
+{
+    ccnet_processor_thread_create (processor,
+                                   seaf->job_mgr,
+                                   compute_upload_commits_thread,
+                                   compute_upload_commits_done,
+                                   processor);
 }
 
 static void handle_response (CcnetProcessor *processor,

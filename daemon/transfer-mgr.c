@@ -61,6 +61,8 @@
 static int schedule_task_pulse (void *vmanager);
 static void free_task_resources (TransferTask *task);
 static void state_machine_tick (TransferTask *task);
+static void
+transition_state (TransferTask *task, int state, int rt_state);
 
 /**
  * transfer task states:
@@ -432,6 +434,64 @@ seaf_transfer_task_load_blocklist (TransferTask *task)
     }
 
     return 0;
+}
+
+/*
+ * Loading block list may take a lot of disk I/O, so do it in a thread.
+ */
+
+typedef void (*LoadBLCB) (TransferTask *); 
+
+typedef struct LoadBLData {
+    TransferTask *task;
+    gboolean success;
+    LoadBLCB callback;
+} LoadBLData;
+
+static void
+load_block_list_done (void *vdata)
+{
+    LoadBLData *data = vdata;
+    TransferTask *task = data->task;
+
+    if (task->state == TASK_STATE_CANCELED) {
+        transition_state (task, task->state, TASK_RT_STATE_FINISHED);
+        g_free (data);
+        return;
+    }
+
+    if (data->success)
+        data->callback (task);
+    else
+        transition_state_to_error (task, TASK_ERR_LOAD_BLOCK_LIST);
+
+    g_free (data);
+}
+
+static void *
+load_block_list_thread (void *vdata)
+{
+    LoadBLData *data = vdata;
+
+    if (seaf_transfer_task_load_blocklist (data->task) < 0)
+        data->success = FALSE;
+    else
+        data->success = TRUE;
+
+    return data;
+}
+
+static int
+start_load_block_list_thread (TransferTask *task, LoadBLCB callback)
+{
+    LoadBLData *data = g_new0 (LoadBLData, 1);
+    data->task = task;
+    data->callback = callback;
+
+    return ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                           load_block_list_thread,
+                                           load_block_list_done,
+                                           data);
 }
 
 static int remove_task_state (TransferTask *task)
@@ -1401,11 +1461,6 @@ copy_block_ids_for_download (TransferTask *task)
 static void
 start_block_download (TransferTask *task)
 {
-    if (seaf_transfer_task_load_blocklist (task) < 0) {
-        transition_state_to_error (task, TASK_ERR_LOAD_BLOCK_LIST);
-        return;
-    }
-
     if (task->protocol_version <= 3) {
         transition_state (task, task->state, TASK_RT_STATE_DATA);
         state_machine_tick (task);
@@ -1434,7 +1489,7 @@ on_fs_downloaded (CcnetProcessor *processor, gboolean success, void *data)
     }
 
     if (success) {
-        start_block_download (task);
+        start_load_block_list_thread (task, start_block_download);
     } else if (task->state != TASK_STATE_ERROR
                && task->runtime_state == TASK_RT_STATE_FS) {
         transfer_task_with_proc_failure (
@@ -1909,13 +1964,10 @@ start_check_block_list_proc (TransferTask *task)
 static void
 start_block_upload (TransferTask *task)
 {
-    if (seaf_transfer_task_load_blocklist (task) < 0) {
-        transition_state_to_error (task, TASK_ERR_LOAD_BLOCK_LIST);
-        return;
-    } else if (task->block_list->n_valid_blocks != task->block_list->n_blocks) {
+    if (task->block_list->n_valid_blocks != task->block_list->n_blocks) {
         seaf_warning ("Some blocks are missing locally, stop upload.\n");
         transition_state_to_error (task, TASK_ERR_LOAD_BLOCK_LIST); 
-       return;
+        return;
     }
 
     if (task->protocol_version <= 3) {
@@ -1943,7 +1995,7 @@ on_fs_uploaded (CcnetProcessor *processor, gboolean success, void *data)
     }
 
     if (success) {
-        start_block_upload (task);
+        start_load_block_list_thread (task, start_block_upload);
     } else if (task->state != TASK_STATE_ERROR
                && task->runtime_state == TASK_RT_STATE_FS) {
         transfer_task_with_proc_failure (

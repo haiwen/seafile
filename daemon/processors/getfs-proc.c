@@ -20,9 +20,35 @@
 #include "getfs-proc.h"
 #include "transfer-mgr.h"
 
-#define CHECK_INTERVAL 100      /* 100ms */
+/*
+ * Implementation Notes:
+ *
+ * Checking and writing of fs objects are completely asynchronous in this processor.
+ * - FS object checking is done by a worker thread.
+ * - Writing of received fs objects is done with the async obj-store API.
+ *
+ * At the beginning, all root object id is put into inspect queue. And then
+ * We start a worker thread to check the first object in the inspect queue.
+ *
+ * After the worker thread is done, we send object requests in the main thread.
+ * And then we start a worker to check the next object in the inspect queue.
+ *
+ * After an object is received and store asynchronously into disk, and if the object
+ * is a directory, we put it into the inspect queue. And then we start a worker
+ * to check the next object in the inspect queue, if no worker is running.
+ * This means only 1 worker can be running at the same time. Because we use thread
+ * pool, there will be no performance problem of creating threads.
+ *
+ * The end condition is checked after:
+ * - worker thread is done
+ * - an object is written
+ * The end condition is
+ * - inspect queue is empty, and
+ * - no object request is pending, and
+ * - no worker is running
+ */
+
 #define MAX_NUM_BATCH  64
-#define MAX_NUM_PROCESSED 1000
 
 enum {
     REQUEST_SENT,
@@ -30,13 +56,19 @@ enum {
 };
 
 typedef struct  {
+    gboolean worker_running;
     GQueue *inspect_queue;      /* objects to check exists */
+    GHashTable  *fs_objects;
     int pending_objects;
+    guint32 writer_id;
+
+    /* Used by worker thread */
     char root_id[41];
+    GList *fetch_objs;
+
     char buf[4096];
     char *bufptr;
     int  n_batch;
-    GHashTable  *fs_objects;
 
     char *obj_seg;
     int  obj_seg_len;
@@ -63,6 +95,9 @@ release_resource(CcnetProcessor *processor)
     g_queue_free (priv->inspect_queue);
     g_hash_table_destroy (priv->fs_objects);
     g_free (priv->obj_seg);
+    if (priv->fetch_objs)
+        string_list_free (priv->fetch_objs);
+    seaf_obj_store_unregister_async_write (seaf->fs_mgr->obj_store, priv->writer_id);
 
     CCNET_PROCESSOR_CLASS (seafile_getfs_proc_parent_class)->release_resource (processor);
 }
@@ -124,31 +159,42 @@ request_object_batch (CcnetProcessor *processor,
     ++priv->pending_objects;
 }
 
+/*
+ * Recursively check fs tree rooted at @dir_id. This function returns when
+ * all non-existent or invalid objects have been put into data->fetch_objs.
+ */
 static void
-check_seafdir (CcnetProcessor *processor, SeafDir *dir, int *processed_objects)
+check_seafdir (CcnetProcessor *processor, const char *dir_id)
 {
     SeafileGetfsProc *proc = (SeafileGetfsProc *)processor;
     USE_PRIV;
+    SeafDir *dir = NULL;
     GList *ptr;
     SeafDirent *dent;
+
+    dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr, dir_id);
+    if (!dir) {
+        /* corrupt dir object */
+        priv->fetch_objs = g_list_prepend (priv->fetch_objs, g_strdup(dir_id));
+        return;
+    }
 
     for (ptr = dir->entries; ptr; ptr = ptr->next) {
         dent = ptr->data;
 
         /* Don't check objects that have been checked before. */
-        if (priv->fs_objects && g_hash_table_lookup (priv->fs_objects, dent->id))
+        if (g_hash_table_lookup (priv->fs_objects, dent->id))
             continue;
 
-        if (priv->fs_objects)
-            g_hash_table_insert (priv->fs_objects, g_strdup(dent->id), (gpointer)1);
+        g_hash_table_insert (priv->fs_objects, g_strdup(dent->id), (gpointer)1);
 
         if (!seaf_fs_manager_object_exists(seaf->fs_mgr, dent->id)) {
-            request_object_batch (processor, priv, dent->id);
+            priv->fetch_objs = g_list_prepend (priv->fetch_objs, g_strdup(dent->id));
             continue;
         }
 
         if (S_ISDIR(dent->mode)) {
-            g_queue_push_tail (priv->inspect_queue, g_strdup(dent->id));
+            check_seafdir (processor, dent->id);
         } else if (S_ISREG (dent->mode) && proc->tx_task->is_clone) {
             /* Only check seafile object integrity when clone.
              * This is for the purpose of recovery.
@@ -161,100 +207,143 @@ check_seafdir (CcnetProcessor *processor, SeafDir *dir, int *processed_objects)
             if (!ok && !err) {
                 seaf_warning ("File object %.8s is corrupt, recover from server.\n",
                               dent->id);
-                request_object_batch (processor, priv, dent->id);
+                priv->fetch_objs = g_list_prepend (priv->fetch_objs, g_strdup(dent->id));
             }
-            ++(*processed_objects);
         }
     }
+
+    seaf_dir_free (dir);
+}
+
+static gboolean
+check_end_condition (SeafileGetfsProcPriv *priv)
+{
+    return (g_queue_get_length (priv->inspect_queue) == 0 &&
+            priv->pending_objects == 0 &&
+            !priv->worker_running);
 }
 
 static int
-check_object (CcnetProcessor *processor)
+check_fs_tree_from (CcnetProcessor *processor, const char *root_id);
+
+static void
+end_or_check_next_dir (CcnetProcessor *processor, SeafileGetfsProcPriv *priv)
 {
-    USE_PRIV;
-    char *obj_id;
-    SeafDir *dir;
-    static int i = 0;
-    /* Number of objects whose *content* are checked. */
-    int processed_objects = 0;
-
-    request_object_batch_begin(priv);
-
-    /* process inspect queue */
-    /* Limit the number of objects whose content are checked, but not the
-     * number of object requests sent. We usually don't have a large number of
-     * requests since sub-dir objects can't be checked until they're returned
-     * from the server. But we do have a large number of objects to scanned
-     * locally if the library is large.
-     */
-    while (processed_objects < MAX_NUM_PROCESSED) {
-        obj_id = (char *) g_queue_pop_head (priv->inspect_queue);
-        if (obj_id == NULL)
-            break;
-        if (!seaf_fs_manager_object_exists(seaf->fs_mgr, obj_id)) {
-            request_object_batch (processor, priv, obj_id);
-        } else {
-            dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr, obj_id);
-            if (!dir) {
-                /* corrupt dir object */
-                request_object_batch (processor, priv, obj_id);
-            } else {
-                check_seafdir(processor, dir, &processed_objects);
-                seaf_dir_free (dir);
-            }
-            ++processed_objects;
-        }
-        g_free (obj_id);        /* free the memory */
-    }
-
-    request_object_batch_flush (processor, priv);
-
-    /* check end condition */
-    if (i%10 == 0)
-        seaf_debug ("[getfs] pending objects num: %d\n", priv->pending_objects);
-    ++i;
-
-    if (priv->pending_objects == 0 && g_queue_is_empty(priv->inspect_queue)) {
+    if (check_end_condition (priv)) {
+        seaf_debug ("Get fs end.\n");
         ccnet_processor_send_update (processor, SC_END, SS_END, NULL, 0);
         ccnet_processor_done (processor, TRUE);
-        return FALSE;
-    } else
-        return TRUE;
+        return;
+    }
+
+    if (priv->worker_running) {
+        return;
+    }
+
+    /* Trigger checking the next dir. */
+    char *next_dir_id = g_queue_pop_head (priv->inspect_queue);
+    if (next_dir_id) {
+        if (check_fs_tree_from (processor, next_dir_id) < 0) {
+            transfer_task_set_error (((SeafileGetfsProc *)processor)->tx_task,
+                                     TASK_ERR_DOWNLOAD_FS);
+            ccnet_processor_send_update (processor, SC_SHUTDOWN, SS_SHUTDOWN, NULL, 0);
+            ccnet_processor_done (processor, FALSE);
+        }
+        g_free (next_dir_id);
+    }
 }
 
+static void *
+check_objects_thread (void *vdata)
+{
+    CcnetProcessor *processor = vdata;
+    USE_PRIV;
+
+    check_seafdir (processor, priv->root_id);
+
+    return vdata;
+}
+
+static void
+check_objects_done (void *vdata)
+{
+    CcnetProcessor *processor = vdata;
+    USE_PRIV;
+    GList *ptr;
+    char *obj_id;
+
+    priv->worker_running = FALSE;
+
+    request_object_batch_begin (priv);
+    for (ptr = priv->fetch_objs; ptr; ptr = ptr->next) {
+        obj_id = ptr->data;
+        request_object_batch (processor, priv, obj_id);
+        g_free (obj_id);
+    }
+    request_object_batch_flush (processor, priv);
+    g_list_free (priv->fetch_objs);
+    priv->fetch_objs = NULL;
+
+    end_or_check_next_dir (processor, priv);
+}
 
 static int
-start (CcnetProcessor *processor, int argc, char **argv)
+check_fs_tree_from (CcnetProcessor *processor, const char *root_id)
 {
     USE_PRIV;
-    TransferTask *task = ((SeafileGetfsProc *)processor)->tx_task;
-    GString *buf = g_string_new (NULL);
 
-    if (task->session_token)
-        g_string_printf (buf, "remote %s seafile-putfs %s", 
-                         processor->peer_id, task->session_token);
-    else
-        g_string_printf (buf, "remote %s seafile-putfs", 
-                         processor->peer_id);
-    ccnet_processor_send_request (processor, buf->str);
-    g_string_free (buf, TRUE);
+    memcpy (priv->root_id, root_id, 40);
+    priv->fetch_objs = NULL;
 
-    processor->state = REQUEST_SENT;
-    priv->inspect_queue = g_queue_new ();
-    priv->fs_objects = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                              g_free, NULL);
+    int rc = ccnet_processor_thread_create (processor,
+                                            seaf->job_mgr,
+                                            check_objects_thread,
+                                            check_objects_done,
+                                            processor);
+    if (rc < 0) {
+        seaf_warning ("Failed to start worker thread.\n");
+        return -1;
+    }
 
+    priv->worker_running = TRUE;
     return 0;
 }
 
-static int
-save_fs_object (ObjectPack *pack, int len)
+static void
+fs_object_write_cb (OSAsyncResult *res, void *data)
 {
-    return seaf_obj_store_write_obj (seaf->fs_mgr->obj_store,
-                                     pack->id,
-                                     pack->object,
-                                     len - 41,
-                                     FALSE);
+    CcnetProcessor *processor = data;
+    USE_PRIV;
+
+    if (!res->success) {
+        seaf_warning ("Failed to write object %.8s.\n", res->obj_id);
+        transfer_task_set_error (((SeafileGetfsProc *)processor)->tx_task,
+                                 TASK_ERR_DOWNLOAD_FS);
+        ccnet_processor_send_update (processor, SC_SHUTDOWN, SS_SHUTDOWN, NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+        return;
+    }
+
+    seaf_debug ("Written object %.8s.\n", res->obj_id);
+
+    --(priv->pending_objects);
+
+    int type = seaf_metadata_type_from_data (res->data, res->len);
+    if (type == SEAF_METADATA_TYPE_DIR)
+        g_queue_push_tail (priv->inspect_queue, g_strdup(res->obj_id));
+
+    end_or_check_next_dir (processor, priv);
+}
+
+static int
+save_fs_object (SeafileGetfsProcPriv *priv, ObjectPack *pack, int len)
+{
+    return seaf_obj_store_async_write (seaf->fs_mgr->obj_store,
+                                       priv->writer_id,
+                                       pack->id,
+                                       pack->object,
+                                       len - 41,
+                                       FALSE);
 }
 
 static int
@@ -270,8 +359,6 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
         goto bad;
     }
 
-    --priv->pending_objects;
-
     type = seaf_metadata_type_from_data(pack->object, clen);
     if (type == SEAF_METADATA_TYPE_DIR) {
         SeafDir *dir;
@@ -280,7 +367,6 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
             g_warning ("[getfs] Bad directory object %s.\n", pack->id);
             goto bad;
         }
-        g_queue_push_tail (priv->inspect_queue, g_strdup(dir->dir_id));
         seaf_dir_free (dir);
     } else if (type == SEAF_METADATA_TYPE_FILE) {
         /* TODO: check seafile format. */
@@ -295,11 +381,10 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
         goto bad;
     }
 
-    if (save_fs_object (pack, clen) < 0) {
+    if (save_fs_object (priv, pack, clen) < 0) {
         goto bad;
     }
 
-    g_hash_table_remove (priv->fs_objects, pack->id);
     return 0;
 
 bad:
@@ -321,7 +406,7 @@ recv_fs_object_seg (CcnetProcessor *processor, char *content, int clen)
     priv->obj_seg = g_realloc (priv->obj_seg, priv->obj_seg_len + clen);
     memcpy (priv->obj_seg + priv->obj_seg_len, content, clen);
 
-    seaf_debug ("[recvfs] Get obj seg: <id= %40s, offset= %d, lenth= %d>\n",
+    seaf_debug ("Get obj seg: <id= %40s, offset= %d, lenth= %d>\n",
                 priv->obj_seg, priv->obj_seg_len, clen);
 
     priv->obj_seg_len += clen;
@@ -352,6 +437,9 @@ load_fsroot_list (CcnetProcessor *processor)
         g_queue_push_tail (priv->inspect_queue,
                            g_strdup(g_ptr_array_index(ol->obj_ids, i)));
     }
+
+    /* Kick start fs object checking. */
+    end_or_check_next_dir (processor, priv);
 }
 
 static void
@@ -366,8 +454,6 @@ handle_response (CcnetProcessor *processor,
     case REQUEST_SENT:
         if (strncmp(code, SC_OK, 3) == 0) {
             load_fsroot_list (processor);
-            processor->timer = ccnet_timer_new (
-                (TimerCB)check_object, processor, CHECK_INTERVAL);
             processor->state = FETCH_OBJECT;
             return;
         }
@@ -395,4 +481,32 @@ handle_response (CcnetProcessor *processor,
     if (memcmp (code, SC_ACCESS_DENIED, 3) == 0)
         transfer_task_set_error (task, TASK_ERR_ACCESS_DENIED);
     ccnet_processor_done (processor, FALSE);
+}
+
+static int
+start (CcnetProcessor *processor, int argc, char **argv)
+{
+    USE_PRIV;
+    TransferTask *task = ((SeafileGetfsProc *)processor)->tx_task;
+    GString *buf = g_string_new (NULL);
+
+    if (task->session_token)
+        g_string_printf (buf, "remote %s seafile-putfs %s", 
+                         processor->peer_id, task->session_token);
+    else
+        g_string_printf (buf, "remote %s seafile-putfs", 
+                         processor->peer_id);
+    ccnet_processor_send_request (processor, buf->str);
+    g_string_free (buf, TRUE);
+
+    processor->state = REQUEST_SENT;
+    priv->inspect_queue = g_queue_new ();
+    priv->fs_objects = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                              g_free, NULL);
+
+    priv->writer_id = seaf_obj_store_register_async_write (seaf->fs_mgr->obj_store,
+                                                           fs_object_write_cb,
+                                                           processor);
+
+    return 0;
 }
