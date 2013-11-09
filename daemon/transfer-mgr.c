@@ -1521,7 +1521,8 @@ start_fs_download (TransferTask *task, const char *peer_id)
     }
 
     if (object_list_length(task->fs_roots) == 0) {
-        start_block_download (task);
+        if (update_local_repo (task) == 0)
+            transition_state (task, TASK_STATE_FINISHED, TASK_RT_STATE_FINISHED);
         return;
     }
 
@@ -2027,7 +2028,7 @@ start_fs_upload (TransferTask *task, const char *peer_id)
     }
 
     if (object_list_length(task->fs_roots) == 0) {
-        start_block_upload (task);
+        update_remote_branch (task);
         return;
     }
 
