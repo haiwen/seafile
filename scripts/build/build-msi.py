@@ -630,6 +630,7 @@ def copy_dll_exe():
 
     copy_shared_libs()
     copy_qt_plugins()
+    copy_qt_translations()
 
 def copy_qt_plugins():
     destdir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin', 'imageformats')
@@ -643,6 +644,21 @@ def copy_qt_plugins():
     src = os.path.join(qt_plugins_srcdir, 'qgif4.dll')
     must_copy(src, destdir)
 
+def copy_qt_translations():
+    destdir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin')
+
+    qt_translation_dir = os.path.join(conf[CONF_QT_ROOT], 'translations')
+
+    langs = [
+        ('zh_CN', 'zh_CN'),
+        ('de', 'de_DE'),
+        ('fr', 'fr_FR'),
+        ('hu', 'hu_HU'),
+    ]
+    for lang in langs:
+        src = os.path.join(qt_translation_dir, 'qt_%s.qm' % lang[0])
+        dst = os.path.join(destdir, 'qt_%s.qm' % lang[1])
+        must_copy(src, dst)
 
 def prepare_msi():
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
