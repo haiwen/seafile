@@ -172,6 +172,11 @@ check_seafdir (CcnetProcessor *processor, const char *dir_id)
     GList *ptr;
     SeafDirent *dent;
 
+    if (!seaf_fs_manager_object_exists(seaf->fs_mgr, dir_id)) {
+        priv->fetch_objs = g_list_prepend (priv->fetch_objs, g_strdup(dir_id));
+        return;
+    }
+
     dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr, dir_id);
     if (!dir) {
         /* corrupt dir object */
