@@ -548,7 +548,8 @@ def setup_build_env():
                       seperator=';')
 
     prepend_env_value('PKG_CONFIG_PATH',
-                      os.path.join(prefix, 'lib', 'pkgconfig'))
+                      os.path.join(prefix, 'lib', 'pkgconfig'),
+                      seperator=';')
                       # to_mingw_path(os.path.join(prefix, 'lib', 'pkgconfig')))
 
     # specifiy the directory for wix temporary files
