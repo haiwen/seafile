@@ -18,7 +18,7 @@ CFLAGS += -I$(top_srcdir) \
 
 LDFLAGS += -L${top_srcdir}/lib/.libs/   \
 	-lseafile -lseafile_common -lccnet\
-	-lcrypto -lgdi32 -levent  \
+	-lcrypto -lgdi32 -levent -ljansson \
 	-lRpcrt4 -lpthread -lws2_32 -lpsapi -lshlwapi \
 	$(GLIB_LDFLAGS)
 
