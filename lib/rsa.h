@@ -25,7 +25,7 @@ unsigned char* public_key_encrypt(RSA *key, unsigned char *data,
 
 char *id_from_pubkey (RSA *pubkey);
 
-RSA* generate_private_key(u_int bits);
+RSA* generate_private_key(int bits);
 
 
 #endif
