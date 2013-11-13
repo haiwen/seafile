@@ -216,7 +216,7 @@ check_tmp_file_list (GList *tmp_files, int *error_code)
         total_size += (gint64)st.st_size;
     }
 
-    if (total_size > seaf->max_upload_size) {
+    if (seaf->max_upload_size != -1 && total_size > seaf->max_upload_size) {
         seaf_warning ("[upload] File size is too large.\n");
         *error_code = ERROR_SIZE;
         return FALSE;

@@ -18,7 +18,6 @@
 #include "utils.h"
 
 #define DEFAULT_BIND_PORT  8082
-#define DEFAULT_MAX_UPLOAD_SIZE 100 * ((gint64)1 << 20) /* 100MB */
 #define DEFAULT_MAX_DOWNLOAD_DIR_SIZE 100 * ((gint64)1 << 20) /* 100MB */
 
 static char *config_dir = NULL;
@@ -169,11 +168,11 @@ load_httpserver_config (SeafileSession *session)
                                                  "max_upload_size",
                                                  &error);
     if (error) {
-        session->max_upload_size = DEFAULT_MAX_UPLOAD_SIZE;
+        session->max_upload_size = -1; /* no limit */
         g_clear_error (&error);
     } else {
         if (max_upload_size_mb <= 0)
-            session->max_upload_size = DEFAULT_MAX_UPLOAD_SIZE;
+            session->max_upload_size = -1; /* no limit */
         else
             session->max_upload_size = max_upload_size_mb * ((gint64)1 << 20);
     }
