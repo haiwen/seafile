@@ -62,7 +62,6 @@ fi
 
 if test "$bwin32" = true; then
    compile_client=yes
-   compile_gui=yes
    compile_cli=no
    compile_tools=no
    compile_server=no
@@ -70,7 +69,6 @@ fi
 
 if test "$bmac" = true; then
    compile_client=yes
-   compile_gui=yes
    compile_cli=no
    compile_tools=no
    compile_server=no
@@ -98,9 +96,6 @@ fi
 
 AC_ARG_ENABLE(client, AC_HELP_STRING([--enable-client], [enable client]),
    [compile_client=$enableval],[compile_client="yes"])
-
-AC_ARG_ENABLE(gui, AC_HELP_STRING([--enable-gui], [enable gui]),
-   [compile_gui=$enableval],[compile_gui="no"])
 
 AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
    [compile_server=$enableval],[compile_server="no"])
@@ -147,7 +142,6 @@ AM_CONDITIONAL([COMPILE_CLI], [test "${compile_cli}" = "yes"])
 AM_CONDITIONAL([COMPILE_TOOLS], [test "${compile_tools}" = "yes"])
 AM_CONDITIONAL([COMPILE_PYTHON], [test "${compile_python}" = "yes"])
 AM_CONDITIONAL([COMPILE_CLIENT], [test "${compile_client}" = "yes"])
-AM_CONDITIONAL([COMPILE_GUI], [test "${compile_client}" = "yes" -a "${compile_gui}" = "yes"])
 AM_CONDITIONAL([COMPILE_SERVER], [test "${compile_server}" = "yes"])
 #AM_CONDITIONAL([COMPILE_SEABLOCK], [test "${compile_seablock}" = "yes"])
 AM_CONDITIONAL([COMPILE_RIAK], [test "${compile_riak}" = "yes"])
@@ -281,52 +275,6 @@ fi
 
 AM_CONDITIONAL(HAVE_APP_INDICATOR, [test x"$enable_appindicator" = xyes])
 
-if test "$blinux" = true -a x${compile_client} = xyes -a x${compile_gui} = xyes; then
-   dnl on linux, check GTK if client and gui is enabled
-   PKG_CHECK_MODULES(GTK, [gtk+-2.0 >= $GTK_REQUIRED])
-   AC_SUBST(GTK_CFLAGS)
-   AC_SUBST(GTK_LIBS)
-
-   #if test x$enable_appindicator = xauto ; then
-   #  PKG_CHECK_EXISTS([appindicator-0.1 >= $APPINDICATOR_REQUIRED],
-   #                   enable_appindicator="yes",
-   #                   enable_appindicator="no")
-   #fi
-
-   # Is libnotify available?
-   LIBNOTIFY_REQUIRED=0.4.0
-   PKG_CHECK_MODULES(LIBNOTIFY, libnotify >= $LIBNOTIFY_REQUIRED)
-   AC_SUBST(LIBNOTIFY_CFLAGS)
-   AC_SUBST(LIBNOTIFY_LIBS)
-
-   # check whether the version of libnotify >= 0.7.0
-   PKG_CHECK_MODULES(LIBNOTIFY7, [libnotify >= 0.7.0],
-                    [AC_DEFINE(LIBNOTIFY_GREAT_THAN_7, 1,[Libnotify > 0.7])],
-                    [echo "libnotify version is less 0.7.0"]
-                    )
-
-   # check libnautilus-extension
-   #PKG_CHECK_MODULES(LIBNAUTILUS_EXTENSION, [libnautilus-extension >= $LIBNAUTILUS_EXTENSION_REQUIRED])
-   #AC_SUBST(LIBNAUTILUS_EXTENSION_CFLAGS)
-   #AC_SUBST(LIBNAUTILUS_EXTENSION_LIBS)
-fi
-
-# check for intltool if compile gui
-if test x${compile_client} = xyes -a x${compile_gui} = xyes; then
-
-   m4_ifdef([IT_PROG_INTLTOOL],
-        [IT_PROG_INTLTOOL([0.35.0],[no-xml])],
-        [AC_MSG_ERROR("--enable-nls requires intltool to be installed.")])
-   AC_CHECK_HEADERS([libintl.h])
-   GETTEXT_PACKAGE=seafile
-   AC_SUBST(GETTEXT_PACKAGE)
-   AC_DEFINE_UNQUOTED([GETTEXT_PACKAGE],["$GETTEXT_PACKAGE"],[Gettext package])
-   AM_GLIB_GNU_GETTEXT
-   seafilelocaledir='${prefix}/${DATADIRNAME}/locale'
-   AC_SUBST(seafilelocaledir)
-   AC_SUBST(INTLLIBS)
-fi
-
 if test x${compile_python} = xyes; then
    AM_PATH_PYTHON([2.6])
 
@@ -386,7 +334,6 @@ fi
 ac_configure_args="$ac_configure_args -q"
 
 AC_CONFIG_FILES(
-    seafile-web
     Makefile
     include/Makefile
     data/Makefile
@@ -400,8 +347,6 @@ AC_CONFIG_FILES(
     data/icons/scalable/Makefile
     lib/Makefile
     lib/libseafile.pc
-    gui/Makefile
-    gui/gtk/Makefile
     common/Makefile
     common/cdc/Makefile
     common/index/Makefile
@@ -429,9 +374,6 @@ echo "The following modules will be built:"
 echo
 if test x${compile_client} = xyes; then
     echo "seaf-daemon"
-    if test x${compile_gui} = xyes; then
-        echo "seafile-applet"
-    fi
 fi
 if test x${compile_server} = xyes; then
    echo    "seaf-server"
