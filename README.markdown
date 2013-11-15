@@ -1,7 +1,7 @@
 Introduction
 ============
 
-Seafile is a professional and reliable private cloud storage. Compared to other cloud storage systems, Seafile focuses on privacy protection and teamwork.
+Seafile is a new generation open source cloud storage, providing advanced features on file syncing, privacy protection and teamwork.
 
 Collections of files are called libraries, and each library can be synced separately. A library can be encrypted with a user chosen password. This password is not stored on the server, so even the server admin can't view your file contents.
 
