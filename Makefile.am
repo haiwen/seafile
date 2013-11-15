@@ -17,11 +17,11 @@ if COMPILE_SERVER
 endif
 
 SUBDIRS = include lib common app python tests doc \
-	$(MAKE_CLIENT) $(MAKE_SERVER) $(MAKE_PO) $(MAKE_data)
+	$(MAKE_CLIENT) $(MAKE_SERVER) $(MAKE_data)
 
 DIST_SUBDIRS = include lib common app python tests \
 	daemon server tools httpserver controller \
-	po data doc
+	data doc
 
 INTLTOOL = \
 	intltool-extract.in \
@@ -36,10 +36,3 @@ ACLOCAL_AMFLAGS = -I m4
 
 dist-hook:
 	git log --format='%H' -1 > $(distdir)/latest_commit
-
-clean-local:
-	rm -f po/*.gmo
-
-all-local:
-install-data-local:
-uninstall-local:
