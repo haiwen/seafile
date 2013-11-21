@@ -362,7 +362,6 @@ AC_CONFIG_FILES(
     tools/Makefile
     tests/Makefile
     tests/common-conf.sh
-    po/Makefile.in
     doc/Makefile
 )
 
