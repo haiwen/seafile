@@ -760,6 +760,7 @@ class CcnetConfigurator(AbstractConfigurator):
         config.set(db_section, 'USER', db_config.seafile_mysql_user)
         config.set(db_section, 'PASSWD', db_config.seafile_mysql_password)
         config.set(db_section, 'DB', db_config.ccnet_db_name)
+        config.set(db_section, 'CONNECTION_CHARSET', 'utf8')
 
         Utils.write_config(config, ccnet_conf)
 
@@ -853,6 +854,7 @@ class SeafileConfigurator(AbstractConfigurator):
         config.set(db_section, 'user', db_config.seafile_mysql_user)
         config.set(db_section, 'password', db_config.seafile_mysql_password)
         config.set(db_section, 'db_name', db_config.seafile_db_name)
+        config.set(db_section, 'connection_charset', 'utf8')
 
         Utils.write_config(config, seafile_conf)
 
