@@ -93,3 +93,5 @@ Contact
 Twitter: @seafile <https://twitter.com/seafile>
 
 Google Group: <https://groups.google.com/forum/?fromgroups#!forum/seafile>
+
+IRC: #seafile on freenode
