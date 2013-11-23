@@ -546,6 +546,22 @@ if [[ ! -d ${dest_avatar_dir} ]]; then
     ln -s ../../../seahub-data/avatars ${media_dir}
 fi
 
+# Make a seafile-server symlink, like this:
+# /data/haiwen/
+#            -- seafile-server-2.0.4
+#            -- seafile-server-latest # symlink to 2.0.4
+seafile_server_symlink=${TOPDIR}/seafile-server-latest
+echo
+echo -n "creating seafile-server-latest symbolic link ... "
+if ! ln -s $(basename ${INSTALLPATH}) ${seafile_server_symlink}; then
+    echo
+    echo
+    echo "Failed to create symbolic link ${seafile_server_symlink}"
+    err_and_quit;
+fi
+echo "done"
+echo
+
 # -------------------------------------------
 # final message
 # -------------------------------------------

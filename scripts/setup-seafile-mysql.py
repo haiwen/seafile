@@ -1111,6 +1111,17 @@ def report_config():
     raw_input()
 
 
+def create_seafile_server_symlink():
+    print '\ncreating seafile-server-latest symbolic link ... ',
+    seafile_server_symlink = os.path.join(env_mgr.top_dir, 'seafile-server-latest')
+    try:
+        os.symlink(os.path.basename(env_mgr.install_path), seafile_server_symlink)
+    except Exception, e:
+        print '\n'
+        Utils.error('Failed to create symbolic link %s: %s' % (seafile_server_symlink, e))
+    else:
+        print 'done\n\n'
+
 env_mgr = EnvManager()
 ccnet_config = CcnetConfigurator()
 seafile_config = SeafileConfigurator()
@@ -1149,6 +1160,7 @@ def main():
     seahub_config.do_syncdb()
     seahub_config.prepare_avatar_dir()
     db_config.create_seahub_admin()
+    create_seafile_server_symlink()
 
     report_success()
 
