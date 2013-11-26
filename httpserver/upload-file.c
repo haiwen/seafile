@@ -655,22 +655,22 @@ error:
 
     switch (error_code) {
     case ERROR_FILENAME:
-        evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"Invalid filename.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
         break;
     case ERROR_EXISTS:
-        evbuffer_add_printf(req->buffer_out, "File already exists.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"File already exists.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
         break;
     case ERROR_SIZE:
-        evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"File size is too large.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
         break;
     case ERROR_QUOTA:
-        evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"Out of quota.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
         break;
@@ -695,6 +695,9 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
     char *filenames_json, *tmp_files_json;
+    GString *res_buf = g_string_new (NULL);
+    GList *ptr;
+    
 
     evhtp_headers_add_header (req->headers_out,
                               evhtp_header_new("Access-Control-Allow-Headers",
@@ -783,8 +786,6 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     g_free (new_file_ids);
     ccnet_rpc_client_free (rpc_client);
 
-    GString *res_buf = g_string_new (NULL);
-    GList *ptr;
 
     g_string_append (res_buf, "[");
     for (ptr = fsm->filenames; ptr; ptr = ptr->next) {
@@ -809,22 +810,22 @@ error:
 
     switch (error_code) {
     case ERROR_FILENAME:
-        evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"Invalid filename.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
         break;
     case ERROR_EXISTS:
-        evbuffer_add_printf(req->buffer_out, "File already exists.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"File already exists.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
         break;
     case ERROR_SIZE:
-        evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"File size is too large.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
         break;
     case ERROR_QUOTA:
-        evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"Out of quota.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
         break;
