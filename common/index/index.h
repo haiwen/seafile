@@ -400,7 +400,8 @@ extern int remove_file_from_index(struct index_state *, const char *path);
 
 typedef int (*IndexCB) (const char *path,
                         unsigned char sha1[],
-                        struct SeafileCrypt *crypt);
+                        struct SeafileCrypt *crypt,
+                        gboolean write_data);
 
 int add_to_index(struct index_state *istate,
                  const char *path,

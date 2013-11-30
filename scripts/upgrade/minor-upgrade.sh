@@ -34,6 +34,26 @@ elif [[ ! -L ${orig_avatar_dir}} ]]; then
     ln -s ../../../seahub-data/avatars ${media_dir}
 fi
 
+# update the symlink seafile-server to the new server version
+seafile_server_symlink=${TOPDIR}/seafile-server-latest
+if [[ -L ${seafile_server_symlink} ]]; then
+    echo
+    echo "updating seafile-server-latest symbolic link to ${INSTALLPATH} ..."
+    echo
+    if ! rm -f ${seafile_server_symlink}; then
+        echo "Failed to remove ${seafile_server_symlink}"
+        echo
+        exit 1;
+    fi
+
+    if ! ln -s $(basename ${INSTALLPATH}) ${seafile_server_symlink}; then
+        echo "Failed to update ${seafile_server_symlink} symbolic link."
+        echo
+        exit 1;
+    fi
+
+fi
+
 echo "DONE"
 echo "------------------------------"
 echo

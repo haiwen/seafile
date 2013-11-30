@@ -808,7 +808,7 @@ client_thread_loop (BlockTxClient *client)
 
         if (FD_ISSET (info->cmd_pipe[0], &fds)) {
             int cmd;
-            readn (info->cmd_pipe[0], &cmd, sizeof(int));
+            piperead (info->cmd_pipe[0], &cmd, sizeof(int));
             info->result = BLOCK_CLIENT_CANCELED;
             break;
         }
@@ -890,5 +890,5 @@ block_tx_client_cancel (BlockTxInfo *info)
 {
     int cmd = BLOCK_CLIENT_CMD_CANCEL;
 
-    writen (info->cmd_pipe[1], &cmd, sizeof(int));
+    pipewrite (info->cmd_pipe[1], &cmd, sizeof(int));
 }

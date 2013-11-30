@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="zh-cn" xmlns="http://schemas.microsoft.com/wix/2006/localization">
   
+  <String Id="AppName">Seafile</String>
   <String Id="PackageDescription">Seafile 安装包</String>
   <String Id="PackageComments">Seafile 安装包</String>
   <String Id="Manufacturer">北京海文互知网络技术有限公司</String>

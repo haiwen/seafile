@@ -46,7 +46,7 @@ sqlite_db_start (SeafileSession *session)
 static int
 mysql_db_start (SeafileSession *session)
 {
-    char *host, *port, *user, *passwd, *db, *unix_socket;
+    char *host, *port, *user, *passwd, *db, *unix_socket, *charset;
     gboolean use_ssl = FALSE;
     GError *error = NULL;
 
@@ -85,7 +85,10 @@ mysql_db_start (SeafileSession *session)
     use_ssl = g_key_file_get_boolean (session->config,
                                       "database", "use_ssl", NULL);
 
-    session->db = seaf_db_new_mysql (host, port, user, passwd, db, unix_socket, use_ssl);
+    charset = g_key_file_get_string (session->config,
+                                     "database", "connection_charset", NULL);
+
+    session->db = seaf_db_new_mysql (host, port, user, passwd, db, unix_socket, use_ssl, charset);
     if (!session->db) {
         g_warning ("Failed to start mysql db.\n");
         return -1;
@@ -97,6 +100,7 @@ mysql_db_start (SeafileSession *session)
     g_free (passwd);
     g_free (db);
     g_free (unix_socket);
+    g_free (charset);
 
     return 0;
 }

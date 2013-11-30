@@ -16,14 +16,17 @@ server_manual_http="https://github.com/haiwen/seafile/wiki"
 
 function welcome () {
     echo "-----------------------------------------------------------------"
-    echo "This script will guide you through the configuration of your seafile server."
-    echo -e "\nPlease make sure to read the seafile server manual at \n\n\t${server_manual_http}\n"
+    echo "This script will guide you to config and setup your seafile server."
+    echo -e "\nMake sure you have read seafile server manual at \n\n\t${server_manual_http}\n"
+    echo -e "Note: This script will guide your to setup seafile server using sqlite3,"
+    echo "which may have problems if your disk is on a NFS/CIFS/USB."
+    echo "In these cases, we sugguest you setup seafile server using MySQL."
+    echo
     echo "Press [ENTER] to continue"
     echo "-----------------------------------------------------------------"
     read dummy
     echo
 }
-
 
 function err_and_quit () {
     printf "\n\n\033[33mError occured during setup. \nPlease fix possible issues and run the script again.\033[m\n\n"
@@ -542,6 +545,22 @@ if [[ ! -d ${dest_avatar_dir} ]]; then
     mv "${orig_avatar_dir}" "${dest_avatar_dir}"
     ln -s ../../../seahub-data/avatars ${media_dir}
 fi
+
+# Make a seafile-server symlink, like this:
+# /data/haiwen/
+#            -- seafile-server-2.0.4
+#            -- seafile-server-latest # symlink to 2.0.4
+seafile_server_symlink=${TOPDIR}/seafile-server-latest
+echo
+echo -n "creating seafile-server-latest symbolic link ... "
+if ! ln -s $(basename ${INSTALLPATH}) ${seafile_server_symlink}; then
+    echo
+    echo
+    echo "Failed to create symbolic link ${seafile_server_symlink}"
+    err_and_quit;
+fi
+echo "done"
+echo
 
 # -------------------------------------------
 # final message

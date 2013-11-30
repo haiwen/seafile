@@ -51,6 +51,16 @@ enum {
     SEND_OBJECT
 };
 
+typedef struct {
+    guint32 reader_id;
+} SeafileSendfsProcPriv;
+
+#define GET_PRIV(o)  \
+   (G_TYPE_INSTANCE_GET_PRIVATE ((o), SEAFILE_TYPE_SENDFS_PROC, SeafileSendfsProcPriv))
+
+#define USE_PRIV \
+    SeafileSendfsProcPriv *priv = GET_PRIV(processor);
+
 G_DEFINE_TYPE (SeafileSendfsProc, seafile_sendfs_proc, CCNET_TYPE_PROCESSOR)
 
 static int start (CcnetProcessor *processor, int argc, char **argv);
@@ -61,7 +71,10 @@ static void handle_response (CcnetProcessor *processor,
 static void
 release_resource(CcnetProcessor *processor)
 {
-    /* FILL IT */
+    USE_PRIV;
+
+    seaf_obj_store_unregister_async_read (seaf->fs_mgr->obj_store,
+                                          priv->reader_id);
 
     CCNET_PROCESSOR_CLASS (seafile_sendfs_proc_parent_class)->release_resource (processor);
 }
@@ -76,6 +89,8 @@ seafile_sendfs_proc_class_init (SeafileSendfsProcClass *klass)
     proc_class->start = start;
     proc_class->handle_response = handle_response;
     proc_class->release_resource = release_resource;
+
+    g_type_class_add_private (klass, sizeof(SeafileSendfsProcPriv));
 }
 
 static void
@@ -83,10 +98,13 @@ seafile_sendfs_proc_init (SeafileSendfsProc *processor)
 {
 }
 
+static void
+fs_object_read_cb (OSAsyncResult *res, void *data);
 
 static int
 start (CcnetProcessor *processor, int argc, char **argv)
 {
+    USE_PRIV;
     GString *buf;
     SeafileSendfsProc *proc = (SeafileSendfsProc *)processor;
     TransferTask *task = proc->tx_task;
@@ -100,22 +118,19 @@ start (CcnetProcessor *processor, int argc, char **argv)
     processor->state = SEND_ROOT;
     proc->last_idx = 0;
 
+    priv->reader_id = seaf_obj_store_register_async_read (seaf->fs_mgr->obj_store,
+                                                          fs_object_read_cb,
+                                                          processor);
+
     return 0;
 }
 
-static gboolean
-send_fs_object (CcnetProcessor *processor, char *object_id)
+static void
+send_fs_object (CcnetProcessor *processor,
+                const char *object_id, char *data, int len)
 {
-    char *data;
-    int len;
     ObjectPack *pack = NULL;
     int pack_size;
-
-    if (seaf_obj_store_read_obj (seaf->fs_mgr->obj_store,
-                                 object_id, (void**)&data, &len) < 0) {
-        g_warning ("Failed to read fs object %s.\n", object_id);
-        goto fail;
-    }
 
     pack_size = sizeof(ObjectPack) + len;
     pack = malloc (pack_size);
@@ -151,15 +166,33 @@ send_fs_object (CcnetProcessor *processor, char *object_id)
 
     seaf_debug ("Send fs object %.8s.\n", object_id);
 
-    g_free (data);
     free (pack);
-    return TRUE;
+}
 
-fail:
-    ccnet_processor_send_update (processor, SC_NOT_FOUND, SS_NOT_FOUND,
-                                 object_id, 41);
-    ccnet_processor_done (processor, FALSE);
-    return FALSE;
+static void
+fs_object_read_cb (OSAsyncResult *res, void *data)
+{
+    CcnetProcessor *processor = data;
+
+    if (!res->success) {
+        seaf_warning ("Failed to read fs object %.8s.\n", res->obj_id);
+        ccnet_processor_send_update (processor, SC_NOT_FOUND, SS_NOT_FOUND,
+                                     res->obj_id, 41);
+        ccnet_processor_done (processor, FALSE);
+        return;
+    }
+
+    send_fs_object (processor, res->obj_id, res->data, res->len);
+}
+
+static void
+read_fs_object (CcnetProcessor *processor, const char *obj_id)
+{
+    USE_PRIV;
+
+    seaf_obj_store_async_read (seaf->fs_mgr->obj_store,
+                               priv->reader_id,
+                               obj_id);
 }
 
 static void
@@ -181,8 +214,7 @@ send_fs_objects (CcnetProcessor *processor, char *content, int clen)
     object_id = content;
     for (i = 0; i < n_objects; ++i) {
         object_id[40] = '\0';
-        if (send_fs_object (processor, object_id) == FALSE)
-            return;
+        read_fs_object (processor, object_id);
         object_id += 41;
     }
 }

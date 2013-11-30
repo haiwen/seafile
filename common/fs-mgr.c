@@ -86,13 +86,22 @@ seaf_fs_manager_new (SeafileSession *seaf,
 int
 seaf_fs_manager_init (SeafFSManager *mgr)
 {
-#if defined SEAFILE_SERVER && defined FULL_FEATURE
+#ifdef SEAFILE_SERVER
+
+#ifdef FULL_FEATURE
     if (seaf_obj_store_init (mgr->obj_store, TRUE, seaf->ev_mgr) < 0) {
         g_warning ("[fs mgr] Failed to init fs object store.\n");
         return -1;
     }
 #else
     if (seaf_obj_store_init (mgr->obj_store, FALSE, NULL) < 0) {
+        g_warning ("[fs mgr] Failed to init fs object store.\n");
+        return -1;
+    }
+#endif
+
+#else
+    if (seaf_obj_store_init (mgr->obj_store, TRUE, seaf->ev_mgr) < 0) {
         g_warning ("[fs mgr] Failed to init fs object store.\n");
         return -1;
     }
@@ -425,7 +434,8 @@ int
 seaf_fs_manager_index_blocks (SeafFSManager *mgr,
                               const char *file_path,
                               unsigned char sha1[],
-                              SeafileCrypt *crypt)
+                              SeafileCrypt *crypt,
+                              gboolean write_data)
 {
     SeafStat sb;
     CDCFileDescriptor cdc;
@@ -447,14 +457,14 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
         cdc.block_min_sz = cdc.block_sz >> 2;
         cdc.block_max_sz = cdc.block_sz << 2;
         cdc.write_block = seafile_write_chunk;
-        if (filename_chunk_cdc (file_path, &cdc, crypt, TRUE) < 0) {
+        if (filename_chunk_cdc (file_path, &cdc, crypt, write_data) < 0) {
             g_warning ("Failed to chunk file with CDC.\n");
             return -1;
         }
         memcpy (sha1, cdc.file_sum, 20);
     }
 
-    if (write_seafile (mgr, &cdc) < 0) {
+    if (write_data && write_seafile (mgr, &cdc) < 0) {
         g_warning ("Failed to write seafile for %s.\n", file_path);
         return -1;
     }

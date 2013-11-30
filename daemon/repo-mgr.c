@@ -366,10 +366,11 @@ should_ignore(const char *basepath, const char *filename, void *data)
 static int
 index_cb (const char *path,
           unsigned char sha1[],
-          SeafileCrypt *crypt)
+          SeafileCrypt *crypt,
+          gboolean write_data)
 {
     /* Check in blocks and get object ID. */
-    if (seaf_fs_manager_index_blocks (seaf->fs_mgr, path, sha1, crypt) < 0) {
+    if (seaf_fs_manager_index_blocks (seaf->fs_mgr, path, sha1, crypt, write_data) < 0) {
         g_warning ("Failed to index file %s.\n", path);
         return -1;
     }

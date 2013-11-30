@@ -31,11 +31,13 @@ seaf_db_new_mysql (const char *host,
                    const char *passwd,
                    const char *db_name,
                    const char *unix_socket,
-                   gboolean use_ssl)
+                   gboolean use_ssl,
+                   const char *charset)
 {
     SeafDB *db;
     GString *url;
     URL_T zdb_url;
+    gboolean has_param = FALSE;
 
     db = g_new0 (SeafDB, 1);
     if (!db) {
@@ -49,10 +51,18 @@ seaf_db_new_mysql (const char *host,
     g_string_append_printf (url, "mysql://%s:%s@%s:%s/", user, passwd_esc, host, port);
     if (db_name)
         g_string_append (url, db_name);
-    if (unix_socket)
+    if (unix_socket) {
         g_string_append_printf (url, "?unix-socket=%s", unix_socket);
-    if (use_ssl)
-        g_string_append (url, "&use-ssl=true");
+        has_param = TRUE;
+    }
+    if (use_ssl) {
+        g_string_append_printf (url, "%suse-ssl=true", has_param?"&":"?");
+        has_param = TRUE;
+    }
+    if (charset) {
+        g_string_append_printf (url, "%scharset=%s", has_param?"&":"?", charset);
+        has_param = TRUE;
+    }
 
     g_free (passwd_esc);
 

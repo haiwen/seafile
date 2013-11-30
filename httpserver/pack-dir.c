@@ -43,7 +43,7 @@ do_iconv (char *fromcode, char *tocode, char *in)
     char *pout = out;
     
     conv = iconv_open (tocode, fromcode);
-    if (conv < 0) {
+    if (conv == (iconv_t)-1) {
         return NULL;
     }
 
