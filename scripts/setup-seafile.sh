@@ -6,6 +6,7 @@ TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
 default_seafile_data_dir=${TOPDIR}/seafile-data
 default_seahub_db=${TOPDIR}/seahub.db
+default_conf_dir=${TOPDIR}/conf
 
 export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
 
@@ -323,6 +324,23 @@ function get_seafile_data_dir () {
     echo
 }
 
+function gen_seafdav_conf () {
+    mkdir -p ${default_conf_dir}
+    seafdav_conf=${default_conf_dir}/seafdav.conf
+    if ! $(cat > ${seafdav_conf} <<EOF
+[WEBDAV]
+enabled = false
+port = 8080
+fastcgi = false
+share_name = /
+EOF
+); then
+    echo "failed to generate seafdav.conf";
+    err_and_quit
+fi
+}
+
+
 
 # -------------------------------------------
 # Main workflow of this script 
@@ -414,6 +432,12 @@ fi
 echo "${seafile_data_dir}" > "${default_ccnet_conf_dir}/seafile.ini"
 
 # -------------------------------------------
+# Generate seafevents.conf
+# -------------------------------------------
+
+gen_seafdav_conf;
+
+# -------------------------------------------
 # generate seahub/settings.py
 # -------------------------------------------
 dest_settings_py=${TOPDIR}/seahub_settings.py
@@ -497,7 +521,7 @@ if [[ "${use_existing_ccnet}" != "true" ]]; then
         err_and_quit;
     fi
     
-    sql="CREATE TABLE IF NOT EXISTS EmailUser (id INTEGER NOT NULL PRIMARY KEY, email TEXT, passwd TEXT, is_staff bool NOT NULL, is_active bool NOT NULL, ctime INTEGER)";
+    sql="CREATE TABLE IF NOT EXISTS EmailUser (id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, email TEXT, passwd TEXT, is_staff bool NOT NULL, is_active bool NOT NULL, ctime INTEGER)";
 
     if ! sqlite3 "${usermgr_db}" "${sql}" ; then
         rm -f "${usermgr_db}"

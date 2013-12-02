@@ -1056,6 +1056,28 @@ DATABASES = {
         except Exception, e:
             Utils.error('Failed to prepare seahub avatars dir: %s' % e)
 
+class SeafDavConfigurator(AbstractConfigurator):
+    def __init__(self):
+        AbstractConfigurator.__init__(self)
+        self.seafile_dir = os.path.join(env_mgr.top_dir, 'seafile-data')
+        self.seafdav_conf = os.path.join(self.seafile_dir, 'seafdav.conf')
+
+    def ask_questions(self):
+        pass
+
+    def generate(self):
+        text = '''
+[WEBDAV]
+enabled = false
+port = 8080
+fastcgi = false
+share_name = /
+'''
+
+        with open(self.seafdav_conf, 'w') as fp:
+            fp.write(text)
+
+
 def report_config():
     print
     print '---------------------------------'
@@ -1125,6 +1147,7 @@ def create_seafile_server_symlink():
 env_mgr = EnvManager()
 ccnet_config = CcnetConfigurator()
 seafile_config = SeafileConfigurator()
+seafdav_config = SeafDavConfigurator()
 seahub_config = SeahubConfigurator()
 # Would be created after AbstractDBConfigurator.ask_use_existing_db()
 db_config = None
@@ -1155,6 +1178,7 @@ def main():
     db_config.generate()
     ccnet_config.generate()
     seafile_config.generate()
+    seafdav_config.generate()
     seahub_config.generate()
 
     seahub_config.do_syncdb()

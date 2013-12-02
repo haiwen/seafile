@@ -70,17 +70,17 @@ def highlight(content, is_error=False):
 def info(msg):
     print highlight('[INFO] ') + msg
 
-def exist_in_path(prog):
-    '''Test whether prog exists in system path'''
+def find_in_path(prog):
+    '''Find a file in system path'''
     dirs = os.environ['PATH'].split(':')
     for d in dirs:
         if d == '':
             continue
         path = os.path.join(d, prog)
         if os.path.exists(path):
-            return True
+            return path
 
-    return False
+    return None
 
 def error(msg=None, usage=None):
     if msg:
@@ -243,7 +243,18 @@ def check_seahub_thirdpart(thirdpartdir):
     we can copy it to seahub/thirdpart
 
     '''
-    thirdpart_libs = ['Django', 'Djblets', 'gunicorn', 'flup', 'chardet']
+    thirdpart_libs = [
+        'Django',
+        'Djblets',
+        'gunicorn',
+        'flup',
+        'chardet',
+        # 'SQLAlchemy',
+        'python_daemon',
+        'lockfile',
+        'WsgiDAV',
+        'six',
+    ]
     def check_thirdpart_lib(name):
         name += '*/'
         if not glob.glob(os.path.join(thirdpartdir, name)):
@@ -256,6 +267,16 @@ def check_targz_src(proj, version, srcdir):
     src_tarball = os.path.join(srcdir, '%s-%s.tar.gz' % (proj, version))
     if not os.path.exists(src_tarball):
         error('%s not exists' % src_tarball)
+
+def check_targz_src_no_version(proj, srcdir):
+    src_tarball = os.path.join(srcdir, '%s.tar.gz' % proj)
+    if not os.path.exists(src_tarball):
+        error('%s not exists' % src_tarball)
+
+def check_pdf2htmlEX():
+    pdf2htmlEX_executable = find_in_path('pdf2htmlEX')
+    if pdf2htmlEX_executable is None:
+        error('pdf2htmlEX not found')
 
 def validate_args(usage, options):
     required_args = [
@@ -297,6 +318,8 @@ def validate_args(usage, options):
     check_targz_src('ccnet', ccnet_version, srcdir)
     check_targz_src('seafile', seafile_version, srcdir)
     check_targz_src('seahub', seafile_version, srcdir)
+
+    check_pdf2htmlEX()
 
     # [ builddir ]
     builddir = get_option(CONF_BUILDDIR)
@@ -464,6 +487,10 @@ def setup_build_env():
                      '-I%s' % os.path.join(prefix, 'include'),
                      seperator=' ')
 
+    prepend_env_value('CPPFLAGS',
+                     '-DLIBICONV_PLUG',
+                     seperator=' ')
+
     if conf[CONF_NO_STRIP]:
         prepend_env_value('CPPFLAGS',
                          '-g -O0',
@@ -533,8 +560,35 @@ def copy_scripts_and_libs():
     seahub_thirdpart = os.path.join(dst_seahubdir, 'thirdpart')
     copy_seahub_thirdpart_libs(seahub_thirdpart)
 
+    copy_pdf2htmlex()
+
     # copy shared c libs
     copy_shared_libs()
+
+def copy_pdf2htmlex():
+    '''Copy pdf2htmlEX exectuable and its dependent libs'''
+    pdf2htmlEX_executable = find_in_path('pdf2htmlEX')
+    libs = get_dependent_libs(pdf2htmlEX_executable)
+
+    builddir = conf[CONF_BUILDDIR]
+    dst_lib_dir = os.path.join(builddir,
+                               'seafile-server',
+                               'seafile',
+                               'lib')
+
+    dst_bin_dir = os.path.join(builddir,
+                               'seafile-server',
+                               'seafile',
+                               'bin')
+
+    for lib in libs:
+        dst_file = os.path.join(dst_lib_dir, os.path.basename(lib))
+        if os.path.exists(dst_file):
+            continue
+        info('Copying %s' % lib)
+        must_copy(lib, dst_lib_dir)
+
+    must_copy(pdf2htmlEX_executable, dst_bin_dir)
 
 def get_dependent_libs(executable):
     syslibs = ['libsearpc', 'libccnet', 'libseafile', 'libpthread.so', 'libc.so', 'libm.so', 'librt.so', 'libdl.so', 'libselinux.so', 'libresolv.so' ]
@@ -587,6 +641,9 @@ def copy_shared_libs():
             libs.append(lib)
 
     for lib in libs:
+        dst_file = os.path.join(dst_dir, os.path.basename(lib))
+        if os.path.exists(dst_file):
+            continue
         info('Copying %s' % lib)
         shutil.copy(lib, dst_dir)
 

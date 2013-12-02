@@ -27,8 +27,16 @@ enum {
     PID_CCNET = 0,
     PID_SERVER,
     PID_HTTPSERVER,
+    PID_SEAFDAV,
     N_PID
 };
+
+typedef struct SeafDavConfig {
+    gboolean enabled;
+    gboolean fastcgi;
+    int port;
+
+} SeafDavConfig;
 
 struct _SeafileController {
     char *config_dir;
@@ -46,5 +54,7 @@ struct _SeafileController {
 
     int                 pid[N_PID];
     char                *pidfile[N_PID];
+
+    SeafDavConfig       seafdav_config;
 };
 #endif
