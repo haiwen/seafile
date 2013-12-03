@@ -42,12 +42,14 @@ sqlite_db_start (SeafileSession *session)
 }
 
 #define MYSQL_DEFAULT_PORT "3306"
+#define DEFAULT_MAX_CONNECTIONS 100
 
 static int
 mysql_db_start (SeafileSession *session)
 {
     char *host, *port, *user, *passwd, *db, *unix_socket, *charset;
     gboolean use_ssl = FALSE;
+    int max_connections = 0;
     GError *error = NULL;
 
     host = g_key_file_get_string (session->config, "database", "host", &error);
@@ -88,7 +90,13 @@ mysql_db_start (SeafileSession *session)
     charset = g_key_file_get_string (session->config,
                                      "database", "connection_charset", NULL);
 
-    session->db = seaf_db_new_mysql (host, port, user, passwd, db, unix_socket, use_ssl, charset);
+    max_connections = g_key_file_get_integer (session->config,
+                                              "database", "max_connections",
+                                              NULL);
+    if (max_connections <= 0)
+        max_connections = DEFAULT_MAX_CONNECTIONS;
+
+    session->db = seaf_db_new_mysql (host, port, user, passwd, db, unix_socket, use_ssl, charset, max_connections);
     if (!session->db) {
         g_warning ("Failed to start mysql db.\n");
         return -1;

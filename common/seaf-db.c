@@ -32,7 +32,8 @@ seaf_db_new_mysql (const char *host,
                    const char *db_name,
                    const char *unix_socket,
                    gboolean use_ssl,
-                   const char *charset)
+                   const char *charset,
+                   int max_connections)
 {
     SeafDB *db;
     GString *url;
@@ -75,6 +76,7 @@ seaf_db_new_mysql (const char *host,
         return NULL;
     }
 
+    ConnectionPool_setMaxConnections (db->pool, max_connections);
     ConnectionPool_start (db->pool);
     db->type = SEAF_DB_TYPE_MYSQL;
 
@@ -169,26 +171,11 @@ static Connection_T
 get_db_connection (SeafDB *db)
 {
     Connection_T conn;
-    int retries = 0;
 
     conn = ConnectionPool_getConnection (db->pool);
-    /* If max_connections of the pool has been reached, retry 3 times
-     * and then return NULL.
-     */
-    while (!conn) {
-        if (retries++ == MAX_GET_CONNECTION_RETRIES) {
-            g_warning ("Too many concurrent connections. "
-                       "Failed to create new connection.\n");
-            goto out;
-        }
-        sleep (1);
-        conn = ConnectionPool_getConnection (db->pool);
-    }
-
     if (!conn)
         g_warning ("Failed to create new connection.\n");
 
-out:
     return conn;
 }
 

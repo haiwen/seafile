@@ -21,7 +21,8 @@ seaf_db_new_mysql (const char *host,
                    const char *db,
                    const char *unix_socket,
                    gboolean use_ssl,
-                   const char *charset);
+                   const char *charset,
+                   int max_connections);
 
 SeafDB *
 seaf_db_new_pgsql (const char *host,

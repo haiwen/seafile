@@ -10,6 +10,9 @@
 #include "sync-repo-slave-proc.h"
 #include "sync-repo-common.h"
 
+#include "seaf-db.h"
+#include "log.h"
+
 typedef struct {
     char repo_id[41];
     char *branch_name;
@@ -97,41 +100,48 @@ sync_repo_slave_start (CcnetProcessor *processor, int argc, char **argv)
     return 0;
 }
 
+static gboolean
+get_branch (SeafDBRow *row, void *vid)
+{
+    char *ret = vid;
+    const char *commit_id;
+
+    commit_id = seaf_db_row_get_column_text (row, 0);
+    memcpy (ret, commit_id, 41);
+
+    return FALSE;
+}
+
 static void *
 send_repo_branch_info (void *vprocessor)                       
 {
     CcnetProcessor *processor = vprocessor;
-    SeafRepo *repo;
-    SeafBranch *seaf_branch;
+    char commit_id[41];
+    char sql[256];
     USE_PRIV;
-    
-    repo = seaf_repo_manager_get_repo_ex (seaf->repo_mgr, priv->repo_id);
-    if (!repo) {
-        priv->rsp_code = g_strdup (SC_NO_REPO);
-        priv->rsp_msg = g_strdup (SS_NO_REPO);
-        return vprocessor;
-    } else if (repo->is_corrupted) {
+
+    commit_id[0] = 0;
+
+    snprintf (sql, sizeof(sql),
+              "SELECT commit_id FROM Branch WHERE name='master' AND repo_id='%s'",
+              priv->repo_id);
+    if (seaf_db_foreach_selected_row (seaf->db, sql, 
+                                      get_branch, commit_id) < 0) {
+        seaf_warning ("DB error when get branch %s.\n", priv->branch_name);
         priv->rsp_code = g_strdup (SC_REPO_CORRUPT);
         priv->rsp_msg = g_strdup (SS_REPO_CORRUPT);
         return vprocessor;
     }
 
-    seaf_branch = seaf_branch_manager_get_branch (seaf->branch_mgr,
-                                                  priv->repo_id,
-                                                  priv->branch_name);
-    if (!seaf_branch) {
-        seaf_repo_unref (repo);
-        priv->rsp_code = g_strdup (SC_NO_BRANCH);
-        priv->rsp_msg = g_strdup (SS_NO_BRANCH);
+    if (commit_id[0] == 0) {
+        priv->rsp_code = g_strdup (SC_NO_REPO);
+        priv->rsp_msg = g_strdup (SS_NO_REPO);
         return vprocessor;
     }
 
     priv->rsp_code = g_strdup (SC_COMMIT_ID);
     priv->rsp_msg = g_strdup (SS_COMMIT_ID);
-    memcpy (priv->commit_id, seaf_branch->commit_id, 41);
-
-    seaf_repo_unref (repo);
-    seaf_branch_unref (seaf_branch);
+    memcpy (priv->commit_id, commit_id, 41);    
 
     return vprocessor;
 }
