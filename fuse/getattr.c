@@ -37,39 +37,39 @@ int getattr_root(SeafileSession *seaf, const char *path, struct stat *stbuf)
 
 int getattr_repo(SeafileSession *seaf, const char *path, struct stat *stbuf)
 {
-    SeafRepo *repo;
+    char *repo_id, *repo_path;
+    SeafRepo *repo = NULL;
     SeafBranch *branch;
-    SeafCommit *commit;
-    GError *error = NULL;
+    SeafCommit *commit = NULL;
     guint32 mode = 0;
-    char *p, *id;
+    char *id = NULL;
+    int ret = 0;
 
-    /* the length of path should always greater than 36 */
-    /* FIXME: filter invalid path firstly */
-    if (strlen(path) < 36)
+    if (parse_fuse_path (path, &repo_id, &repo_path) < 0)
         return -ENOENT;
 
-    /* Trim repo id */
-    p = strchr(path, '/');
-    if (p)
-        *p = '\0';
+    repo = seaf_repo_manager_get_repo(seaf->repo_mgr, repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %s.\n", repo_id);
+        ret = -ENOENT;
+        goto out;
+    }
 
-    repo = seaf_repo_manager_get_repo(seaf->repo_mgr, path);
-    if (!repo)
-        return -ENOENT;
     branch = repo->head;
     commit = seaf_commit_manager_get_commit(seaf->commit_mgr, branch->commit_id);
-    if (!commit)
-        return -ENOENT;
+    if (!commit) {
+        seaf_warning ("Failed to get commit %.8s.\n", branch->commit_id);
+        ret = -ENOENT;
+        goto out;
+    }
 
-    if (p)
-        path = ++p;
-    else
-        path = "/";
     id = seaf_fs_manager_path_to_obj_id(seaf->fs_mgr, commit->root_id,
-                                        path, &mode, &error);
-    if (!id)
-        return -ENOENT;
+                                        repo_path, &mode, NULL);
+    if (!id) {
+        seaf_warning ("Path %s doesn't exist in repo %s.\n", repo_path, repo_id);
+        ret = -ENOENT;
+        goto out;
+    }
 
     if (S_ISDIR(mode)) {
         SeafDir *dir;
@@ -98,5 +98,11 @@ int getattr_repo(SeafileSession *seaf, const char *path, struct stat *stbuf)
         return -ENOENT;
     }
 
-    return 0;
+out:
+    g_free (repo_id);
+    g_free (repo_path);
+    g_free (id);
+    seaf_repo_unref (repo);
+    seaf_commit_unref (commit);
+    return ret;
 }

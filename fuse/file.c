@@ -20,7 +20,8 @@ int read_file(SeafileSession *seaf, Seafile *file, char *buf, size_t size,
 {
     BlockHandle *handle = NULL;;
     BlockMetadata *bmd;
-    char *blkid, *tmp;
+    char *blkid;
+    char *ptr;
     off_t off = 0, nleft;
     int i, n, ret = -EIO;
 
@@ -31,50 +32,72 @@ int read_file(SeafileSession *seaf, Seafile *file, char *buf, size_t size,
         if (!bmd)
             return -EIO;
 
-        if (offset <= off + bmd->size)
+        if (offset < off + bmd->size) {
+            g_free (bmd);
             break;
+        }
 
         off += bmd->size;
+        g_free (bmd);
     }
 
-    /* beyond the i_size */
+    /* beyond the file size */
     if (i == file->n_blocks)
         return 0;
 
-    handle = seaf_block_manager_open_block(seaf->block_mgr, blkid, BLOCK_READ);
-    if (!handle)
-        return -EIO;
-
-    /* trim the offset in a block */
-    if (offset > off) {
-        tmp = (char *)malloc(sizeof(char) * (offset - off));
-        if (!tmp)
-            return -ENOMEM;
-
-        n = seaf_block_manager_read_block(seaf->block_mgr, handle, tmp, offset-off);
-        if (n != offset - off)
-            goto out;
-
-        free(tmp);
-    }
-
-    tmp = buf;
     nleft = size;
-    while (nleft > 0) {
+    ptr = buf;
+    while (nleft > 0 && i < file->n_blocks) {
+        blkid = file->blk_sha1s[i];
+
+        handle = seaf_block_manager_open_block(seaf->block_mgr, blkid, BLOCK_READ);
+        if (!handle) {
+            seaf_warning ("Failed to open block %s.\n", blkid);
+            return -EIO;
+        }
+
+        /* trim the offset in a block */
+        if (offset > off) {
+            char *tmp = (char *)malloc(sizeof(char) * (offset - off));
+            if (!tmp)
+                return -ENOMEM;
+
+            n = seaf_block_manager_read_block(seaf->block_mgr, handle,
+                                              tmp, offset-off);
+            if (n != offset - off) {
+                seaf_warning ("Failed to read block %s.\n", blkid);
+                free (tmp);
+                goto out;
+            }
+
+            off += n;
+            free(tmp);
+        }
+
         if ((n = seaf_block_manager_read_block(seaf->block_mgr,
-                                               handle, tmp, nleft)) < 0)
+                                               handle, ptr, nleft)) < 0) {
+            seaf_warning ("Failed to read block %s.\n", blkid);
             goto out;
-        else if (n == 0)
-            break;
+        }
 
         nleft -= n;
-        tmp += n;
+        ptr += n;
+        off += n;
+        ++i;
+
+        /* At this point we should have read all the content of the block or
+         * have read up to @size bytes. So it's safe to close the block.
+         */
+        seaf_block_manager_close_block(seaf->block_mgr, handle);
+        seaf_block_manager_block_handle_free (seaf->block_mgr, handle);
     }
 
     return size - nleft;
 
 out:
-    if (handle)
+    if (handle) {
         seaf_block_manager_close_block(seaf->block_mgr, handle);
+        seaf_block_manager_block_handle_free (seaf->block_mgr, handle);
+    }
     return ret;
 }

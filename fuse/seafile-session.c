@@ -9,7 +9,6 @@
 #include <locale.h>
 
 #include "seafile-session.h"
-#include "seafile-config.h"
 #include "seaf-utils.h"
 
 

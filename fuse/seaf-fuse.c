@@ -22,6 +22,37 @@
 CcnetClient *ccnet_client = NULL;
 SeafileSession *seaf = NULL;
 
+int parse_fuse_path (const char *path, char **repo_id, char **repo_path)
+{
+    const char *p;
+
+    if (*path == '/')
+        ++path;
+
+    p = strchr (path, '/');
+    if (!p) {
+        if (strlen(path) < 36) {
+            seaf_warning ("Invalid input path: %s.\n", path);
+            return -1;
+        }
+        *repo_id = g_strndup(path, 36);
+        *repo_path = g_strdup("/");
+        return 0;
+    }
+
+    if (p - path < 36) {
+        seaf_warning ("Invalid input path: %s.\n", path);
+        return -1;
+    }
+
+    *repo_id = g_strndup(path, 36);
+
+    ++p;
+    *repo_path = g_strdup(p);
+
+    return 0;
+}
+
 static int seaf_fuse_getattr(const char *path, struct stat *stbuf)
 {
     memset(stbuf, 0, sizeof(struct stat));
@@ -52,81 +83,111 @@ static int seaf_fuse_readdir(const char *path, void *buf,
 
 static int seaf_fuse_open(const char *path, struct fuse_file_info *info)
 {
-    SeafRepo *repo;
-    SeafBranch *branch;
-    SeafCommit *commit;
-    GError *error = NULL;
+    char *repo_id, *repo_path;
+    SeafRepo *repo = NULL;
+    SeafBranch *branch = NULL;
+    SeafCommit *commit = NULL;
     guint32 mode = 0;
-    char *p;
+    int ret = 0;
 
     /* Now we only support read-only mode */
     if ((info->flags & 3) != O_RDONLY)
         return -EACCES;
 
-    /* trim the first '/' */
-    path++;
-    p = strchr(path, '/');
-    *p = '\0';
-
-    repo = seaf_repo_manager_get_repo(seaf->repo_mgr, path);
-    if (!repo)
+    if (parse_fuse_path (path, &repo_id, &repo_path) < 0)
         return -ENOENT;
+
+    repo = seaf_repo_manager_get_repo(seaf->repo_mgr, repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %s.\n", repo_id);
+        ret = -ENOENT;
+        goto out;
+    }
 
     branch = repo->head;
     commit = seaf_commit_manager_get_commit(seaf->commit_mgr, branch->commit_id);
-    if (!commit)
-        return -ENOENT;
+    if (!commit) {
+        seaf_warning ("Failed to get commit %.8s.\n", branch->commit_id);
+        ret = -ENOENT;
+        goto out;
+    }
 
-    path = ++p;
-    if (!seaf_fs_manager_path_to_obj_id(seaf->fs_mgr, commit->root_id,
-                                        path, &mode, &error))
-        return -ENOENT;
+    char *id = seaf_fs_manager_path_to_obj_id(seaf->fs_mgr, commit->root_id,
+                                              repo_path, &mode, NULL);
+    if (!id) {
+        seaf_warning ("Path %s doesn't exist in repo %s.\n", repo_path, repo_id);
+        ret = -ENOENT;
+        goto out;
+    }
+    g_free (id);
 
     if (!S_ISREG(mode))
         return -EACCES;
 
-    return 0;
+out:
+    g_free (repo_id);
+    g_free (repo_path);
+    seaf_repo_unref (repo);
+    seaf_commit_unref (commit);
+    return ret;
 }
 
 static int seaf_fuse_read(const char *path, char *buf, size_t size,
                           off_t offset, struct fuse_file_info *info)
 {
-    SeafRepo *repo;
-    SeafBranch *branch;
-    SeafCommit *commit;
-    Seafile *file;
-    GError *error = NULL;
-    char *p, *id;
+    char *repo_id, *repo_path;
+    SeafRepo *repo = NULL;
+    SeafBranch *branch = NULL;
+    SeafCommit *commit = NULL;
+    Seafile *file = NULL;
+    char *file_id = NULL;
+    int ret = 0;
 
     /* Now we only support read-only mode */
     if ((info->flags & 3) != O_RDONLY)
         return -EACCES;
 
-    /* trim the first '/' */
-    path++;
-    p = strchr(path, '/');
-    *p = '\0';
-
-    repo = seaf_repo_manager_get_repo(seaf->repo_mgr, path);
-    if (!repo)
+    if (parse_fuse_path (path, &repo_id, &repo_path) < 0)
         return -ENOENT;
+
+    repo = seaf_repo_manager_get_repo(seaf->repo_mgr, repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %s.\n", repo_id);
+        ret = -ENOENT;
+        goto out;
+    }
 
     branch = repo->head;
     commit = seaf_commit_manager_get_commit(seaf->commit_mgr, branch->commit_id);
-    if (!commit)
-        return -ENOENT;
+    if (!commit) {
+        seaf_warning ("Failed to get commit %.8s.\n", branch->commit_id);
+        ret = -ENOENT;
+        goto out;
+    }
 
-    path = ++p;
-    id = seaf_fs_manager_get_seafile_id_by_path(seaf->fs_mgr, commit->root_id,
-                                                path, &error);
-    if (!id)
-        return -ENOENT;
+    file_id = seaf_fs_manager_get_seafile_id_by_path(seaf->fs_mgr, commit->root_id,
+                                                     repo_path, NULL);
+    if (!file_id) {
+        seaf_warning ("Path %s doesn't exist in repo %s.\n", repo_path, repo_id);
+        ret = -ENOENT;
+        goto out;
+    }
 
-    file = seaf_fs_manager_get_seafile(seaf->fs_mgr, id);
-    if (!file)
-        return -ENOENT;
+    file = seaf_fs_manager_get_seafile(seaf->fs_mgr, file_id);
+    if (!file) {
+        ret = -ENOENT;
+        goto out;
+    }
 
-    return read_file(seaf, file, buf, size, offset, info);
+    ret = read_file(seaf, file, buf, size, offset, info);
+
+out:
+    g_free (repo_id);
+    g_free (repo_path);
+    g_free (file_id);
+    seaf_repo_unref (repo);
+    seaf_commit_unref (commit);
+    return ret;
 }
 
 struct options {
@@ -144,7 +205,7 @@ enum {
 static struct fuse_opt seaf_fuse_opts[] = {
     SEAF_FUSE_OPT_KEY("-c %s", config_dir, 0),
     SEAF_FUSE_OPT_KEY("--config %s", config_dir, 0),
-    SEAF_FUSE_OPT_KEY("-s %s", seafile_dir, 0),
+    SEAF_FUSE_OPT_KEY("-d %s", seafile_dir, 0),
     SEAF_FUSE_OPT_KEY("--seafdir %s", seafile_dir, 0),
 
     FUSE_OPT_KEY("-V", KEY_VERSION),
@@ -192,7 +253,7 @@ int main(int argc, char *argv[])
     else
         seafile_dir = options.seafile_dir;
     if (!logfile)
-        logfile = g_build_filename(seafile_dir, "seafile.log", NULL);
+        logfile = g_build_filename(seafile_dir, "seaf-fuse.log", NULL);
 
     if (seafile_log_init(logfile, ccnet_debug_level_str,
                          seafile_debug_level_str) < 0) {
