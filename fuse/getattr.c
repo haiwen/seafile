@@ -108,6 +108,8 @@ static int getattr_repo(SeafileSession *seaf,
         stbuf->st_size += cnt * sizeof(SeafDirent);
         stbuf->st_mode = mode | 0755;
         stbuf->st_nlink = 2;
+
+        seaf_dir_free (dir);
     } else if (S_ISREG(mode)) {
         Seafile *file;
 
@@ -117,6 +119,8 @@ static int getattr_repo(SeafileSession *seaf,
 
         stbuf->st_mode = mode | 0644;
         stbuf->st_nlink = 1;
+
+        seafile_unref (file);
     } else {
         return -ENOENT;
     }

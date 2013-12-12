@@ -218,6 +218,7 @@ static int seaf_fuse_read(const char *path, char *buf, size_t size,
     }
 
     ret = read_file(seaf, file, buf, size, offset, info);
+    seafile_unref (file);
 
 out:
     g_free (user);
