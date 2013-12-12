@@ -98,4 +98,8 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit);
 GList *
 seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr);
 
+GList *
+seaf_repo_manager_get_repos_by_owner (SeafRepoManager *mgr,
+                                      const char *email);
+
 #endif

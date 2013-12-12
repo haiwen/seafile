@@ -7,6 +7,7 @@
 #include <glib-object.h>
 
 #include <ccnet.h>
+#include <ccnet/ccnet-object.h>
 #include <seaf-db.h>
 
 #include "log.h"
@@ -27,14 +28,98 @@ static char *replace_slash (const char *repo_name)
     return ret;
 }
 
-int readdir_root(SeafileSession *seaf, const char *path, void *buf,
-                 fuse_fill_dir_t filler, off_t offset,
-                 struct fuse_file_info *info)
+static GList *get_users_from_ccnet (SearpcClient *client, const char *source)
 {
+    return searpc_client_call__objlist (client,
+                                        "get_emailusers", CCNET_TYPE_EMAIL_USER, NULL,
+                                        3, "string", source, "int", -1, "int", -1);
+}
+
+static CcnetEmailUser *get_user_from_ccnet (SearpcClient *client, const char *user)
+{
+    return (CcnetEmailUser *)searpc_client_call__object (client,
+                                       "get_emailuser", CCNET_TYPE_EMAIL_USER, NULL,
+                                       1, "string", user);
+}
+
+static int readdir_root(SeafileSession *seaf,
+                        void *buf, fuse_fill_dir_t filler, off_t offset,
+                        struct fuse_file_info *info)
+{
+    SearpcClient *client = NULL;
+    GList *users, *p;
+    CcnetEmailUser *user;
+    const char *email;
+    GHashTable *user_hash;
+    int dummy;
+
+    client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                             NULL,
+                                             "ccnet-threaded-rpcserver");
+    if (!client) {
+        seaf_warning ("Failed to alloc rpc client.\n");
+        return -ENOMEM;
+    }
+
+    user_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+
+    users = get_users_from_ccnet (client, "DB");
+    for (p = users; p; p = p->next) {
+        user = p->data;
+        email = ccnet_email_user_get_email (user);
+        g_hash_table_insert (user_hash, g_strdup(email), &dummy);
+        g_object_unref (user);
+    }
+    g_list_free (users);
+
+    users = get_users_from_ccnet (client, "LDAP");
+    for (p = users; p; p = p->next) {
+        user = p->data;
+        email = ccnet_email_user_get_email (user);
+        g_hash_table_insert (user_hash, g_strdup(email), &dummy);
+        g_object_unref (user);
+    }
+    g_list_free (users);
+
+    users = g_hash_table_get_keys (user_hash);
+    for (p = users; p; p = p->next) {
+        email = p->data;
+        filler (buf, email, NULL, 0);
+    }
+    g_list_free (users);
+
+    g_hash_table_destroy (user_hash);
+    ccnet_rpc_client_free (client);
+
+    return 0;
+}
+
+static int readdir_user(SeafileSession *seaf, const char *user,
+                        void *buf, fuse_fill_dir_t filler, off_t offset,
+                        struct fuse_file_info *info)
+{
+    SearpcClient *client;
+    CcnetEmailUser *emailuser;
     GList *list = NULL, *p;
     GString *name;
 
-    list = seaf_repo_manager_get_repo_list(seaf->repo_mgr, -1, -1);
+    client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                             NULL,
+                                             "ccnet-threaded-rpcserver");
+    if (!client) {
+        seaf_warning ("Failed to alloc rpc client.\n");
+        return -ENOMEM;
+    }
+
+    emailuser = get_user_from_ccnet (client, user);
+    if (!emailuser) {
+        ccnet_rpc_client_free (client);
+        return -ENOENT;
+    }
+    g_object_unref (emailuser);
+    ccnet_rpc_client_free (client);
+
+    list = seaf_repo_manager_get_repos_by_owner (seaf->repo_mgr, user);
     if (!list)
         return 0;
 
@@ -48,25 +133,26 @@ int readdir_root(SeafileSession *seaf, const char *path, void *buf,
         filler(buf, name->str, NULL, 0);
         g_string_free (name, TRUE);
         g_free (clean_repo_name);
+
+        seaf_repo_unref (repo);
     }
+
+    g_list_free (list);
 
     return 0;
 }
 
-int readdir_repo(SeafileSession *seaf, const char *path, void *buf,
-                 fuse_fill_dir_t filler, off_t offset,
-                 struct fuse_file_info *info)
+static int readdir_repo(SeafileSession *seaf,
+                        const char *user, const char *repo_id, const char *repo_path,
+                        void *buf, fuse_fill_dir_t filler, off_t offset,
+                        struct fuse_file_info *info)
 {
-    char *repo_id, *repo_path;
     SeafRepo *repo = NULL;
     SeafBranch *branch;
     SeafCommit *commit = NULL;
     SeafDir *dir = NULL;
     GList *l;
     int ret = 0;
-
-    if (parse_fuse_path (path, &repo_id, &repo_path) < 0)
-        return -ENOENT;
 
     repo = seaf_repo_manager_get_repo(seaf->repo_mgr, repo_id);
     if (!repo) {
@@ -98,9 +184,39 @@ int readdir_repo(SeafileSession *seaf, const char *path, void *buf,
     }
 
 out:
-    g_free (repo_id);
-    g_free (repo_path);
     seaf_repo_unref (repo);
     seaf_commit_unref (commit);
+    seaf_dir_free (dir);
+    return ret;
+}
+
+int do_readdir(SeafileSession *seaf, const char *path, void *buf,
+               fuse_fill_dir_t filler, off_t offset,
+               struct fuse_file_info *info)
+{
+    int n_parts;
+    char *user, *repo_id, *repo_path;
+    int ret = 0;
+
+    if (parse_fuse_path (path, &n_parts, &user, &repo_id, &repo_path) < 0) {
+        return -ENOENT;
+    }
+
+    switch (n_parts) {
+    case 0:
+        ret = readdir_root(seaf, buf, filler, offset, info);
+        break;
+    case 1:
+        ret = readdir_user(seaf, user, buf, filler, offset, info);
+        break;
+    case 2:
+    case 3:
+        ret = readdir_repo(seaf, user, repo_id, repo_path, buf, filler, offset, info);
+        break;
+    }
+
+    g_free (user);
+    g_free (repo_id);
+    g_free (repo_path);
     return ret;
 }

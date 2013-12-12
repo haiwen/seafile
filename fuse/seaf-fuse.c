@@ -22,47 +22,72 @@
 CcnetClient *ccnet_client = NULL;
 SeafileSession *seaf = NULL;
 
-int parse_fuse_path (const char *path, char **repo_id, char **repo_path)
+static char *parse_repo_id (const char *repo_id_name)
 {
-    const char *p;
+    if (strlen(repo_id_name) < 36)
+        return NULL;
+    return g_strndup(repo_id_name, 36);
+}
+
+/*
+ * Path format can be:
+ * 1. / --> list all users
+ * 2. /user --> list libraries owned by user
+ * 3. /user/repo-id_name --> list root of the library
+ * 4. /user/repo-id_name/repo_path --> list library content
+ */
+int parse_fuse_path (const char *path,
+                     int *n_parts, char **user, char **repo_id, char **repo_path)
+{
+    char **tokens;
+    int n;
+    int ret = 0;
+
+    *user = NULL;
+    *repo_id = NULL;
+    *repo_path = NULL;
 
     if (*path == '/')
         ++path;
 
-    p = strchr (path, '/');
-    if (!p) {
-        if (strlen(path) < 36) {
-            seaf_warning ("Invalid input path: %s.\n", path);
-            return -1;
+    tokens = g_strsplit (path, "/", 3);
+    n = g_strv_length (tokens);
+    *n_parts = n;
+
+    switch (n) {
+    case 0:
+        break;
+    case 1:
+        *user = g_strdup(tokens[0]);
+        break;
+    case 2:
+        *repo_id = parse_repo_id(tokens[1]);
+        if (*repo_id == NULL) {
+            ret = -1;
+            break;
         }
-        *repo_id = g_strndup(path, 36);
+        *user = g_strdup(tokens[0]);
         *repo_path = g_strdup("/");
-        return 0;
+        break;
+    case 3:
+        *repo_id = parse_repo_id(tokens[1]);
+        if (*repo_id == NULL) {
+            ret = -1;
+            break;
+        }
+        *user = g_strdup(tokens[0]);
+        *repo_path = g_strdup(tokens[2]);
+        break;
     }
 
-    if (p - path < 36) {
-        seaf_warning ("Invalid input path: %s.\n", path);
-        return -1;
-    }
-
-    *repo_id = g_strndup(path, 36);
-
-    ++p;
-    *repo_path = g_strdup(p);
-
-    return 0;
+    g_strfreev (tokens);
+    return ret;
 }
 
 static int seaf_fuse_getattr(const char *path, struct stat *stbuf)
 {
     memset(stbuf, 0, sizeof(struct stat));
-    if (strcmp(path, "/") == 0) {
-        return getattr_root(seaf, path, stbuf);
-    } else {
-        return getattr_repo(seaf, path+1, stbuf);
-    }
-
-    return 0;
+    return do_getattr(seaf, path, stbuf);
 }
 
 static int seaf_fuse_readdir(const char *path, void *buf,
@@ -72,18 +97,13 @@ static int seaf_fuse_readdir(const char *path, void *buf,
     filler(buf, ".", NULL, 0);
     filler(buf, "..", NULL, 0);
 
-    /* root dir: we display all libraries in root dir */
-    if (strcmp(path, "/") == 0)
-        return readdir_root(seaf, path, buf, filler, offset, info);
-    else
-        return readdir_repo(seaf, path+1, buf, filler, offset, info);
-
-    return 0;
+    return do_readdir(seaf, path, buf, filler, offset, info);
 }
 
 static int seaf_fuse_open(const char *path, struct fuse_file_info *info)
 {
-    char *repo_id, *repo_path;
+    int n_parts;
+    char *user, *repo_id, *repo_path;
     SeafRepo *repo = NULL;
     SeafBranch *branch = NULL;
     SeafCommit *commit = NULL;
@@ -94,8 +114,16 @@ static int seaf_fuse_open(const char *path, struct fuse_file_info *info)
     if ((info->flags & 3) != O_RDONLY)
         return -EACCES;
 
-    if (parse_fuse_path (path, &repo_id, &repo_path) < 0)
+    if (parse_fuse_path (path, &n_parts, &user, &repo_id, &repo_path) < 0) {
+        seaf_warning ("Invalid input path %s.\n", path);
         return -ENOENT;
+    }
+
+    if (n_parts != 2 && n_parts != 3) {
+        seaf_warning ("Invalid input path for open: %s.\n", path);
+        ret = -EACCES;
+        goto out;
+    }
 
     repo = seaf_repo_manager_get_repo(seaf->repo_mgr, repo_id);
     if (!repo) {
@@ -125,6 +153,7 @@ static int seaf_fuse_open(const char *path, struct fuse_file_info *info)
         return -EACCES;
 
 out:
+    g_free (user);
     g_free (repo_id);
     g_free (repo_path);
     seaf_repo_unref (repo);
@@ -135,7 +164,8 @@ out:
 static int seaf_fuse_read(const char *path, char *buf, size_t size,
                           off_t offset, struct fuse_file_info *info)
 {
-    char *repo_id, *repo_path;
+    int n_parts;
+    char *user, *repo_id, *repo_path;
     SeafRepo *repo = NULL;
     SeafBranch *branch = NULL;
     SeafCommit *commit = NULL;
@@ -147,8 +177,16 @@ static int seaf_fuse_read(const char *path, char *buf, size_t size,
     if ((info->flags & 3) != O_RDONLY)
         return -EACCES;
 
-    if (parse_fuse_path (path, &repo_id, &repo_path) < 0)
+    if (parse_fuse_path (path, &n_parts, &user, &repo_id, &repo_path) < 0) {
+        seaf_warning ("Invalid input path %s.\n", path);
         return -ENOENT;
+    }
+
+    if (n_parts != 2 && n_parts != 3) {
+        seaf_warning ("Invalid input path for open: %s.\n", path);
+        ret = -EACCES;
+        goto out;
+    }
 
     repo = seaf_repo_manager_get_repo(seaf->repo_mgr, repo_id);
     if (!repo) {
@@ -182,6 +220,7 @@ static int seaf_fuse_read(const char *path, char *buf, size_t size,
     ret = read_file(seaf, file, buf, size, offset, info);
 
 out:
+    g_free (user);
     g_free (repo_id);
     g_free (repo_path);
     g_free (file_id);
@@ -243,6 +282,7 @@ int main(int argc, char *argv[])
     g_type_init();
 
     config_dir = options.config_dir ? : DEFAULT_CONFIG_DIR;
+    config_dir = ccnet_expand_path (config_dir);
 
     if (!debug_str)
         debug_str = g_getenv("SEAFILE_DEBUG");
@@ -252,6 +292,7 @@ int main(int argc, char *argv[])
         seafile_dir = g_build_filename(config_dir, "seafile", NULL);
     else
         seafile_dir = options.seafile_dir;
+
     if (!logfile)
         logfile = g_build_filename(seafile_dir, "seaf-fuse.log", NULL);
 

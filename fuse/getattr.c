@@ -7,6 +7,7 @@
 #include <glib-object.h>
 
 #include <ccnet.h>
+#include <ccnet/ccnet-object.h>
 #include <seaf-db.h>
 
 #include "log.h"
@@ -15,38 +16,60 @@
 #include "seaf-fuse.h"
 #include "seafile-session.h"
 
-int getattr_root(SeafileSession *seaf, const char *path, struct stat *stbuf)
+static CcnetEmailUser *get_user_from_ccnet (SearpcClient *client, const char *user)
 {
-    GList *list = NULL, *p;
-    int cnt = 2;
+    return (CcnetEmailUser *)searpc_client_call__object (client,
+                                       "get_emailuser", CCNET_TYPE_EMAIL_USER, NULL,
+                                       1, "string", user);
+}
 
+static int getattr_root(SeafileSession *seaf, struct stat *stbuf)
+{
     stbuf->st_mode = S_IFDIR | 0755;
     stbuf->st_nlink = 2;
-
-    list = seaf_repo_manager_get_repo_list(seaf->repo_mgr, -1, -1);
-    if (!list)
-        return 0;
-
-    for (p = list; p; p = p->next)
-        cnt++;
-
-    stbuf->st_size = cnt * sizeof(SeafDirent);
+    stbuf->st_size = 4096;
 
     return 0;
 }
 
-int getattr_repo(SeafileSession *seaf, const char *path, struct stat *stbuf)
+static int getattr_user(SeafileSession *seaf, const char *user, struct stat *stbuf)
 {
-    char *repo_id, *repo_path;
+    SearpcClient *client;
+    CcnetEmailUser *emailuser;
+
+    client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                             NULL,
+                                             "ccnet-threaded-rpcserver");
+    if (!client) {
+        seaf_warning ("Failed to alloc rpc client.\n");
+        return -ENOMEM;
+    }
+
+    emailuser = get_user_from_ccnet (client, user);
+    if (!emailuser) {
+        ccnet_rpc_client_free (client);
+        return -ENOENT;
+    }
+    g_object_unref (emailuser);
+    ccnet_rpc_client_free (client);
+
+    stbuf->st_mode = S_IFDIR | 0755;
+    stbuf->st_nlink = 2;
+    stbuf->st_size = 4096;
+
+    return 0;
+}
+
+static int getattr_repo(SeafileSession *seaf,
+                        const char *user, const char *repo_id, const char *repo_path,
+                        struct stat *stbuf)
+{
     SeafRepo *repo = NULL;
     SeafBranch *branch;
     SeafCommit *commit = NULL;
     guint32 mode = 0;
     char *id = NULL;
     int ret = 0;
-
-    if (parse_fuse_path (path, &repo_id, &repo_path) < 0)
-        return -ENOENT;
 
     repo = seaf_repo_manager_get_repo(seaf->repo_mgr, repo_id);
     if (!repo) {
@@ -99,10 +122,37 @@ int getattr_repo(SeafileSession *seaf, const char *path, struct stat *stbuf)
     }
 
 out:
-    g_free (repo_id);
-    g_free (repo_path);
     g_free (id);
     seaf_repo_unref (repo);
     seaf_commit_unref (commit);
+    return ret;
+}
+
+int do_getattr(SeafileSession *seaf, const char *path, struct stat *stbuf)
+{
+    int n_parts;
+    char *user, *repo_id, *repo_path;
+    int ret = 0;
+
+    if (parse_fuse_path (path, &n_parts, &user, &repo_id, &repo_path) < 0) {
+        return -ENOENT;
+    }
+
+    switch (n_parts) {
+    case 0:
+        ret = getattr_root(seaf, stbuf);
+        break;
+    case 1:
+        ret = getattr_user(seaf, user, stbuf);
+        break;
+    case 2:
+    case 3:
+        ret = getattr_repo(seaf, user, repo_id, repo_path, stbuf);
+        break;
+    }
+
+    g_free (user);
+    g_free (repo_id);
+    g_free (repo_path);
     return ret;
 }
