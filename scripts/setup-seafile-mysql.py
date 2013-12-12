@@ -939,7 +939,7 @@ class SeahubConfigurator(AbstractConfigurator):
             self.write_database_config(fp)
 
     def write_secret_key(self, fp):
-        text = 'SECREC_KEY = "%s"\n\n' % self.gen_secret_key()
+        text = 'SECRECT_KEY = "%s"\n\n' % self.gen_secret_key()
         fp.write(text)
 
     def write_database_config(self, fp):
