@@ -617,7 +617,6 @@ def copy_dll_exe():
 
     filelist = [
         os.path.join(prefix, 'bin', 'libsearpc-1.dll'),
-        os.path.join(prefix, 'bin', 'libsearpc-json-glib-0.dll'),
         os.path.join(prefix, 'bin', 'libccnet-0.dll'),
         os.path.join(prefix, 'bin', 'libseafile-0.dll'),
         os.path.join(prefix, 'bin', 'ccnet.exe'),
@@ -667,9 +666,6 @@ def prepare_msi():
 
     must_copytree(msi_dir, pack_dir)
     must_mkdir(os.path.join(pack_dir, 'bin'))
-
-    if run('make', cwd=os.path.join(pack_dir, 'custom')) != 0:
-        error('Error when compiling seafile msi custom dlls')
 
     copy_dll_exe()
 
