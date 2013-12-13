@@ -102,4 +102,7 @@ GList *
 seaf_repo_manager_get_repos_by_owner (SeafRepoManager *mgr,
                                       const char *email);
 
+gboolean
+seaf_repo_manager_is_virtual_repo (SeafRepoManager *mgr, const char *repo_id);
+
 #endif

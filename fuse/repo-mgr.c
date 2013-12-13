@@ -456,3 +456,14 @@ seaf_repo_manager_get_repos_by_owner (SeafRepoManager *mgr,
 
     return ret;
 }
+
+gboolean
+seaf_repo_manager_is_virtual_repo (SeafRepoManager *mgr, const char *repo_id)
+{
+    char sql[256];
+    gboolean db_err;
+
+    snprintf (sql, 256,
+              "SELECT 1 FROM VirtualRepo WHERE repo_id = '%s'", repo_id);
+    return seaf_db_check_for_existence (seaf->db, sql, &db_err);
+}

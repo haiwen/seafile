@@ -126,6 +126,12 @@ static int readdir_user(SeafileSession *seaf, const char *user,
     for (p = list; p; p = p->next) {
         SeafRepo *repo = (SeafRepo *)p->data;
 
+        /* Don't list virtual repos. */
+        if (seaf_repo_manager_is_virtual_repo(seaf->repo_mgr, repo->id)) {
+            seaf_repo_unref (repo);
+            continue;
+        }
+
         char *clean_repo_name = replace_slash (repo->name);
 
         name = g_string_new ("");
