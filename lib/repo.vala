@@ -125,6 +125,7 @@ public class SharedRepo : Object {
     public int group_id { get; set; } // used when shared to group
 
     public int last_modified { get; set; }
+    public bool is_virtual { get; set; }
 }
 
 public class DiffEntry : Object {

@@ -114,13 +114,22 @@ collect_repos (SeafDBRow *row, void *data)
 {
     GList **p_repos = data;
     const char *repo_id;
+    const char *vrepo_id;
     const char *email;
     const char *permission;
+    const char *commit_id;
     SeafileSharedRepo *srepo;
-    
+    SeafCommit *commit;
+
     repo_id = seaf_db_row_get_column_text (row, 0);
-    email = seaf_db_row_get_column_text (row, 1);
-    permission = seaf_db_row_get_column_text (row, 2);
+    vrepo_id = seaf_db_row_get_column_text (row, 1);
+    email = seaf_db_row_get_column_text (row, 2);
+    permission = seaf_db_row_get_column_text (row, 3);
+    commit_id = seaf_db_row_get_column_text (row, 4);
+
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
+    if (!commit)
+        return TRUE;
 
     char *email_l = g_ascii_strdown (email, -1);
 
@@ -129,42 +138,18 @@ collect_repos (SeafDBRow *row, void *data)
                           "repo_id", repo_id,
                           "user", email_l,
                           "permission", permission,
+                          "repo_name", commit->repo_name,
+                          "repo_desc", commit->repo_desc,
+                          "encrypted", commit->encrypted,
+                          "last_modified", commit->ctime,
+                          "is_virtual", (vrepo_id != NULL),
                           NULL);
     g_free (email_l);
+    seaf_commit_unref (commit);
+
     *p_repos = g_list_prepend (*p_repos, srepo);
 
     return TRUE;
-}
-
-static void
-fill_in_repo_info (GList *shared_repos)
-{
-    SeafileSharedRepo *srepo;
-    GList *ptr;
-    SeafRepo *repo = NULL;
-    SeafCommit *commit = NULL;
-
-    for (ptr = shared_repos; ptr; ptr = ptr->next) {
-        srepo = ptr->data;
-        repo = seaf_repo_manager_get_repo (seaf->repo_mgr,
-                                           seafile_shared_repo_get_repo_id(srepo));
-        if (!repo)
-            continue;
-        commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                                 repo->head->commit_id);
-        if (!commit) {
-            seaf_repo_unref (repo);
-            continue;
-        }
-        g_object_set (srepo,
-                      "repo_name", repo->name,
-                      "repo_desc", repo->desc,
-                      "encrypted", repo->encrypted,
-                      "last_modified", commit->ctime,
-                      NULL);
-        seaf_repo_unref (repo);
-        seaf_commit_unref (commit);
-    }
 }
 
 GList*
@@ -177,17 +162,22 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
     if (start == -1 && limit == -1) {
         if (g_strcmp0 (type, "from_email") == 0) {
             snprintf (sql, sizeof(sql),
-                      "SELECT SharedRepo.repo_id, to_email, permission FROM "
-                      "SharedRepo, RepoOwner "
+                      "SELECT SharedRepo.repo_id, VirtualRepo.repo_id, "
+                      "to_email, permission, commit_id FROM "
+                      "SharedRepo LEFT JOIN VirtualRepo ON "
+                      "SharedRepo.repo_id=VirtualRepo.repo_id, Branch "
                       "WHERE from_email='%s' AND "
-                      "SharedRepo.repo_id=RepoOwner.repo_id",
+                      "SharedRepo.repo_id = Branch.repo_id AND "
+                      "Branch.name = 'master'",
                       email);
         } else if (g_strcmp0 (type, "to_email") == 0) {
             snprintf (sql, sizeof(sql),
-                      "SELECT SharedRepo.repo_id, from_email, permission FROM "
-                      "SharedRepo, RepoOwner "
+                      "SELECT SharedRepo.repo_id, NULL, "
+                      "from_email, permission, commit_id FROM "
+                      "SharedRepo, Branch "
                       "WHERE to_email='%s' AND "
-                      "SharedRepo.repo_id=RepoOwner.repo_id",
+                      "SharedRepo.repo_id = Branch.repo_id AND "
+                      "Branch.name = 'master'",
                       email);
         } else {
             /* should never reach here */
@@ -198,19 +188,24 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
     else {
         if (g_strcmp0 (type, "from_email") == 0) {
             snprintf (sql, sizeof(sql),
-                      "SELECT SharedRepo.repo_id, to_email, permission FROM "
-                      "SharedRepo, RepoOwner WHERE "
-                      "from_email='%s' AND "
-                      "SharedRepo.repo_id=RepoOwner.repo_id "
+                      "SELECT SharedRepo.repo_id, VirtualRepo.repo_id, "
+                      "to_email, permission, commit_id FROM "
+                      "SharedRepo LEFT JOIN VirtualRepo ON "
+                      "SharedRepo.repo_id=VirtualRepo.repo_id, Branch "
+                      "WHERE from_email='%s' "
+                      "AND SharedRepo.repo_id = Branch.repo_id "
+                      "AND Branch.name = 'master' "
                       "ORDER BY SharedRepo.repo_id "
                       "LIMIT %d OFFSET %d",
                       email, limit, start);
         } else if (g_strcmp0 (type, "to_email") == 0) {
             snprintf (sql, sizeof(sql),
-                      "SELECT SharedRepo.repo_id, from_email, permission FROM "
-                      "SharedRepo, RepoOwner WHERE "
-                      "to_email='%s' AND "
-                      "SharedRepo.repo_id=RepoOwner.repo_id "
+                      "SELECT SharedRepo.repo_id, NULL, "
+                      "from_email, permission, commit_id FROM "
+                      "SharedRepo, Branch WHERE "
+                      "to_email='%s' "
+                      "AND SharedRepo.repo_id = Branch.repo_id "
+                      "AND Branch.name = 'master' "
                       "ORDER BY SharedRepo.repo_id "
                       "LIMIT %d OFFSET %d",
                       email, limit, start);
@@ -230,8 +225,6 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
         g_list_free (ret);
         return NULL;
     }
-
-    fill_in_repo_info (ret);
 
     return g_list_reverse (ret);
 }
@@ -249,19 +242,27 @@ seaf_share_manager_list_org_share_repos (SeafShareManager *mgr,
     if (start == -1 && limit == -1) {
         if (g_strcmp0 (type, "from_email") == 0) {
             snprintf (sql, sizeof(sql),
-                      "SELECT SharedRepo.repo_id, to_email, permission FROM "
-                      "SharedRepo, OrgRepo "
+                      "SELECT SharedRepo.repo_id, VirtualRepo.repo_id, "
+                      "to_email, permission, commit_id FROM "
+                      "SharedRepo LEFT JOIN VirtualRepo ON "
+                      "SharedRepo.repo_id = VirtualRepo.repo_id, "
+                      "OrgRepo, Branch "
                       "WHERE from_email='%s' AND "
                       "OrgRepo.org_id=%d AND "
-                      "SharedRepo.repo_id=OrgRepo.repo_id",
+                      "SharedRepo.repo_id=OrgRepo.repo_id AND "
+                      "SharedRepo.repo_id = Branch.repo_id AND "
+                      "Branch.name = 'master'",
                       email, org_id);
         } else if (g_strcmp0 (type, "to_email") == 0) {
             snprintf (sql, sizeof(sql),
-                      "SELECT SharedRepo.repo_id, from_email, permission FROM "
-                      "SharedRepo, OrgRepo "
+                      "SELECT SharedRepo.repo_id, NULL, "
+                      "from_email, permission, commit_id FROM "
+                      "SharedRepo, OrgRepo, Branch "
                       "WHERE to_email='%s' AND "
                       "OrgRepo.org_id=%d AND "
-                      "SharedRepo.repo_id=OrgRepo.repo_id",
+                      "SharedRepo.repo_id=OrgRepo.repo_id AND "
+                      "SharedRepo.repo_id = Branch.repo_id AND "
+                      "Branch.name = 'master'",
                       email, org_id);
         } else {
             /* should never reach here */
@@ -272,21 +273,29 @@ seaf_share_manager_list_org_share_repos (SeafShareManager *mgr,
     else {
         if (g_strcmp0 (type, "from_email") == 0) {
             snprintf (sql, sizeof(sql),
-                      "SELECT SharedRepo.repo_id, to_email, permission FROM "
-                      "SharedRepo, OrgRepo WHERE "
-                      "from_email='%s' AND "
+                      "SELECT SharedRepo.repo_id, VirtualRepo.repo_id, "
+                      "to_email, permission, commit_id FROM "
+                      "SharedRepo LEFT JOIN VirtualRepo ON "
+                      "SharedRepo.repo_id = VirtualRepo.repo_id, "
+                      "OrgRepo, Branch "
+                      "WHERE from_email='%s' AND "
                       "OrgRepo.org_id=%d AND "
-                      "SharedRepo.repo_id=OrgRepo.repo_id "
+                      "SharedRepo.repo_id=OrgRepo.repo_id AND "
+                      "SharedRepo.repo_id = Branch.repo_id AND "
+                      "Branch.name = 'master' "
                       "ORDER BY SharedRepo.repo_id "
                       "LIMIT %d OFFSET %d",
                       email, org_id, limit, start);
         } else if (g_strcmp0 (type, "to_email") == 0) {
             snprintf (sql, sizeof(sql),
-                      "SELECT SharedRepo.repo_id, from_email, permission FROM "
-                      "SharedRepo, OrgRepo WHERE "
+                      "SELECT SharedRepo.repo_id, NULL, "
+                      "from_email, permission FROM "
+                      "SharedRepo, OrgRepo, Branch WHERE "
                       "to_email='%s' AND "
                       "OrgRepo.org_id=%d AND "
                       "SharedRepo.repo_id=OrgRepo.repo_id "
+                      "SharedRepo.repo_id = Branch.repo_id AND "
+                      "Branch.name = 'master' "
                       "ORDER BY SharedRepo.repo_id "
                       "LIMIT %d OFFSET %d",
                       email, org_id, limit, start);
@@ -306,8 +315,6 @@ seaf_share_manager_list_org_share_repos (SeafShareManager *mgr,
         g_list_free (ret);
         return NULL;
     }
-
-    fill_in_repo_info (ret);
 
     return g_list_reverse (ret);
 }

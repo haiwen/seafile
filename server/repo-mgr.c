@@ -385,6 +385,10 @@ remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
               repo_id);
     seaf_db_query (db, sql);
 
+    snprintf (sql, sizeof(sql), "DELETE FROM SharedRepo WHERE repo_id = '%s'", 
+              repo_id);
+    seaf_db_query (db, sql);
+
     snprintf (sql, sizeof(sql), "DELETE FROM RepoGroup WHERE repo_id = '%s'", 
               repo_id);
     seaf_db_query (db, sql);
@@ -1966,11 +1970,18 @@ get_group_repos_cb (SeafDBRow *row, void *data)
 {
     GList **p_list = data;
     SeafileSharedRepo *srepo = NULL;
+    SeafCommit *commit;
     
     const char *repo_id = seaf_db_row_get_column_text (row, 0);
-    int group_id = seaf_db_row_get_column_int (row, 1);
-    const char *user_name = seaf_db_row_get_column_text (row, 2);
-    const char *permission = seaf_db_row_get_column_text (row, 3);
+    const char *vrepo_id = seaf_db_row_get_column_text (row, 1);
+    int group_id = seaf_db_row_get_column_int (row, 2);
+    const char *user_name = seaf_db_row_get_column_text (row, 3);
+    const char *permission = seaf_db_row_get_column_text (row, 4);
+    const char *commit_id = seaf_db_row_get_column_text (row, 5);
+
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
+    if (!commit)
+        return TRUE;
 
     char *user_name_l = g_ascii_strdown (user_name, -1);
 
@@ -1980,8 +1991,15 @@ get_group_repos_cb (SeafDBRow *row, void *data)
                           "group_id", group_id,
                           "user", user_name_l,
                           "permission", permission,
+                          "repo_name", commit->repo_name,
+                          "repo_desc", commit->repo_desc,
+                          "encrypted", commit->encrypted,
+                          "last_modified", commit->ctime,
+                          "is_virtual", (vrepo_id != NULL),
                           NULL);
     g_free (user_name_l);
+    seaf_commit_unref (commit);
+
     if (srepo != NULL) {
         *p_list = g_list_prepend (*p_list, srepo);
     }
@@ -1989,52 +2007,27 @@ get_group_repos_cb (SeafDBRow *row, void *data)
     return TRUE;
 }
 
-static void
-fill_in_repo_info (GList *shared_repos)
-{
-    SeafileSharedRepo *srepo;
-    GList *ptr;
-    SeafRepo *repo = NULL;
-    SeafCommit *commit = NULL;
-
-    for (ptr = shared_repos; ptr; ptr = ptr->next) {
-        srepo = ptr->data;
-        repo = seaf_repo_manager_get_repo (seaf->repo_mgr,
-                                           seafile_shared_repo_get_repo_id(srepo));
-        if (!repo)
-            continue;
-        commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                                 repo->head->commit_id);
-        if (!commit) {
-            seaf_repo_unref (repo);
-            continue;
-        }
-        g_object_set (srepo,
-                      "repo_name", repo->name,
-                      "repo_desc", repo->desc,
-                      "encrypted", repo->encrypted,
-                      "last_modified", commit->ctime,
-                      NULL);
-        seaf_repo_unref (repo);
-        seaf_commit_unref (commit);
-    }
-}
-
 GList *
 seaf_repo_manager_get_group_repos_by_owner (SeafRepoManager *mgr,
                                             const char *owner,
                                             GError **error)
 {
-    char sql[512];
+    char sql[1024];
     GList *repos = NULL;
 
-    snprintf (sql, sizeof(sql), "SELECT repo_id, group_id, user_name, permission "
-              "FROM RepoGroup WHERE user_name = '%s'", owner);
+    snprintf (sql, sizeof(sql),
+              "SELECT RepoGroup.repo_id, VirtualRepo.repo_id, "
+              "group_id, user_name, permission, commit_id "
+              "FROM RepoGroup LEFT JOIN VirtualRepo ON "
+              "RepoGroup.repo_id = VirtualRepo.repo_id, "
+              "Branch "
+              "WHERE user_name = '%s' AND "
+              "RepoGroup.repo_id = Branch.repo_id AND "
+              "Branch.name = 'master'",
+              owner);
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_repos_cb,
                                       &repos) < 0)
         return NULL;
-
-    fill_in_repo_info (repos);
 
     return g_list_reverse (repos);
 }
@@ -2155,11 +2148,18 @@ collect_public_repos (SeafDBRow *row, void *data)
 {
     GList **ret = (GList **)data;
     SeafileSharedRepo *srepo;
-    const char *repo_id, *owner, *permission;
+    const char *repo_id, *vrepo_id, *owner, *permission, *commit_id;
+    SeafCommit *commit;
 
     repo_id = seaf_db_row_get_column_text (row, 0);
-    owner = seaf_db_row_get_column_text (row, 1);
-    permission = seaf_db_row_get_column_text (row, 2);
+    vrepo_id = seaf_db_row_get_column_text (row, 1);
+    owner = seaf_db_row_get_column_text (row, 2);
+    permission = seaf_db_row_get_column_text (row, 3);
+    commit_id = seaf_db_row_get_column_text (row, 4);
+
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
+    if (!commit)
+        return TRUE;
 
     char *owner_l = g_ascii_strdown (owner, -1);
 
@@ -2168,8 +2168,15 @@ collect_public_repos (SeafDBRow *row, void *data)
                           "repo_id", repo_id,
                           "permission", permission,
                           "user", owner_l,
+                          "repo_name", commit->repo_name,
+                          "repo_desc", commit->repo_desc,
+                          "encrypted", commit->encrypted,
+                          "last_modified", commit->ctime,
+                          "is_virtual", (vrepo_id != NULL),
                           NULL);
     g_free (owner_l);
+    seaf_commit_unref (commit);
+
     *ret = g_list_prepend (*ret, srepo);
 
     return TRUE;
@@ -2179,12 +2186,15 @@ GList *
 seaf_repo_manager_list_inner_pub_repos (SeafRepoManager *mgr)
 {
     GList *ret = NULL, *p;
-    char sql[256];
+    char sql[1024];
 
-    snprintf (sql, 256,
-              "SELECT InnerPubRepo.repo_id, owner_id, permission "
-              "FROM InnerPubRepo, RepoOwner "
-              "WHERE InnerPubRepo.repo_id=RepoOwner.repo_id");
+    snprintf (sql, sizeof(sql),
+              "SELECT InnerPubRepo.repo_id, VirtualRepo.repo_id, "
+              "owner_id, permission, commit_id "
+              "FROM InnerPubRepo LEFT JOIN VirtualRepo ON "
+              "InnerPubRepo.repo_id=VirtualRepo.repo_id, RepoOwner, Branch "
+              "WHERE InnerPubRepo.repo_id=RepoOwner.repo_id AND "
+              "InnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'");
 
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
                                       collect_public_repos, &ret) < 0) {
@@ -2193,8 +2203,6 @@ seaf_repo_manager_list_inner_pub_repos (SeafRepoManager *mgr)
         g_list_free (ret);
         return NULL;
     }
-
-    fill_in_repo_info (ret);
 
     return g_list_reverse (ret);    
 }
@@ -2214,12 +2222,15 @@ seaf_repo_manager_list_inner_pub_repos_by_owner (SeafRepoManager *mgr,
                                                  const char *user)
 {
     GList *ret = NULL, *p;
-    char sql[256];
+    char sql[1024];
 
-    snprintf (sql, 256,
-              "SELECT InnerPubRepo.repo_id, owner_id, permission "
-              "FROM InnerPubRepo, RepoOwner "
-              "WHERE InnerPubRepo.repo_id=RepoOwner.repo_id AND owner_id='%s'",
+    snprintf (sql, sizeof(sql),
+              "SELECT InnerPubRepo.repo_id, VirtualRepo.repo_id, "
+              "owner_id, permission, commit_id "
+              "FROM InnerPubRepo LEFT JOIN VirtualRepo ON "
+              "InnerPubRepo.repo_id=VirtualRepo.repo_id, RepoOwner, Branch "
+              "WHERE InnerPubRepo.repo_id=RepoOwner.repo_id AND owner_id='%s' "
+              "AND InnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'",
               user);
 
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
@@ -2229,8 +2240,6 @@ seaf_repo_manager_list_inner_pub_repos_by_owner (SeafRepoManager *mgr,
         g_list_free (ret);
         return NULL;
     }
-
-    fill_in_repo_info (ret);
 
     return g_list_reverse (ret);    
 }
@@ -2528,16 +2537,21 @@ seaf_repo_manager_get_org_group_repos_by_owner (SeafRepoManager *mgr,
                                                 const char *owner,
                                                 GError **error)
 {
-    char sql[512];
+    char sql[1024];
     GList *repos = NULL;
 
-    snprintf (sql, sizeof(sql), "SELECT repo_id, group_id, owner, permission "
-              "FROM OrgGroupRepo WHERE owner = '%s'", owner);
+    snprintf (sql, sizeof(sql),
+              "SELECT OrgGroupRepo.repo_id, VirtualRepo.repo_id, "
+              "group_id, owner, permission, commit_id "
+              "FROM OrgGroupRepo LEFT JOIN VirtualRepo ON "
+              "OrgGroupRepo.repo_id = VirtualRepo.repo_id, "
+              "Branch "
+              "WHERE owner = '%s' AND "
+              "OrgGroupRepo.repo_id = Branch.repo_id AND Branch.name = 'master'",
+              owner);
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_repos_cb,
                                       &repos) < 0)
         return NULL;
-
-    fill_in_repo_info (repos);
 
     return g_list_reverse (repos);
 }
@@ -2612,21 +2626,22 @@ seaf_repo_manager_list_org_inner_pub_repos (SeafRepoManager *mgr,
                                             int org_id)
 {
     GList *ret = NULL;
-    char sql[256];
+    char sql[1024];
 
-    snprintf (sql, 256,
-              "SELECT OrgInnerPubRepo.repo_id, user, permission "
-              "FROM OrgInnerPubRepo, OrgRepo "
+    snprintf (sql, sizeof(sql),
+              "SELECT OrgInnerPubRepo.repo_id, VirtualRepo.repo_id, "
+              "user, permission, commit_id "
+              "FROM OrgInnerPubRepo LEFT JOIN VirtualRepo ON "
+              "OrgInnerPubRepo.repo_id = VirtualRepo.repo_id, OrgRepo, Branch "
               "WHERE OrgInnerPubRepo.org_id=%d AND "
               "OrgInnerPubRepo.repo_id=OrgRepo.repo_id AND "
-              "OrgInnerPubRepo.org_id=OrgRepo.org_id",
+              "OrgInnerPubRepo.org_id=OrgRepo.org_id AND "
+              "OrgInnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'",
               org_id);
 
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
                                       collect_public_repos, &ret) < 0)
         return NULL;
-
-    fill_in_repo_info (ret);
 
     return g_list_reverse (ret);    
 }
@@ -2637,14 +2652,17 @@ seaf_repo_manager_list_org_inner_pub_repos_by_owner (SeafRepoManager *mgr,
                                                      const char *user)
 {
     GList *ret = NULL, *p;
-    char sql[256];
+    char sql[102];
 
-    snprintf (sql, 256,
-              "SELECT OrgInnerPubRepo.repo_id, user, permission "
-              "FROM OrgInnerPubRepo, OrgRepo "
+    snprintf (sql, sizeof(sql),
+              "SELECT OrgInnerPubRepo.repo_id, VirtualRepo.repo_id, "
+              "user, permission, commit_id "
+              "FROM OrgInnerPubRepo LEFT JOIN VirtualRepo ON "
+              "OrgInnerPubRepo.repo_id = VirtualRepo.repo_id, OrgRepo, Branch "
               "WHERE OrgInnerPubRepo.org_id=%d AND user='%s' AND "
               "OrgInnerPubRepo.repo_id=OrgRepo.repo_id AND "
-              "OrgInnerPubRepo.org_id=OrgRepo.org_id",
+              "OrgInnerPubRepo.org_id=OrgRepo.org_id AND "
+              "OrgInnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'",
               org_id, user);
 
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
@@ -2654,8 +2672,6 @@ seaf_repo_manager_list_org_inner_pub_repos_by_owner (SeafRepoManager *mgr,
         g_list_free (ret);
         return NULL;
     }
-
-    fill_in_repo_info (ret);
 
     return g_list_reverse (ret);    
 }

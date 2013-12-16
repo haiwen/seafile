@@ -548,7 +548,6 @@ seaf_repo_manager_cleanup_virtual_repos (SeafRepoManager *mgr,
             if (error->code == SEAF_ERR_PATH_NO_EXIST) {
                 seaf_debug ("Delete virtual repo %.10s.\n", vinfo->repo_id);
                 seaf_repo_manager_del_repo (mgr, vinfo->repo_id);
-                seaf_share_manager_remove_repo (seaf->share_mgr, vinfo->repo_id);
             }
             g_clear_error (&error);
         } else
