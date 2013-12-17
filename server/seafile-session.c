@@ -26,6 +26,8 @@
 #include "seaf-db.h"
 #include "seaf-utils.h"
 
+#include "log.h"
+
 #define CONNECT_INTERVAL_MSEC 10 * 1000
 
 #define DEFAULT_THREAD_POOL_SIZE 500
@@ -249,4 +251,76 @@ load_thread_pool_config (SeafileSession *session)
         session->sync_thread_pool_size = DEFAULT_THREAD_POOL_SIZE;
 
     return 0;
+}
+
+char *
+get_system_default_repo_id (SeafileSession *session)
+{
+    char *sql = "SELECT value FROM SystemInfo WHERE key='default_repo_id'";
+    return seaf_db_get_string (session->db, sql);
+}
+
+int
+set_system_default_repo_id (SeafileSession *session, const char *repo_id)
+{
+    char sql[256];
+    snprintf (sql, sizeof(sql),
+              "INSERT INTO SystemInfo VALUES ('default_repo_id', '%s')",
+              repo_id);
+    return seaf_db_query (session->db, sql);
+}
+
+#define DEFAULT_TUTORIAL_NAME "seafile-tutorial.pdf"
+
+static void *
+create_system_default_repo (void *data)
+{
+    SeafileSession *session = data;
+    char *repo_id;
+    char *tutorial_path;
+
+    /* If it already exists, don't need to create. */
+    repo_id = get_system_default_repo_id (session);
+    if (repo_id != NULL)
+        return data;
+
+    repo_id = seaf_repo_manager_create_new_repo (session->repo_mgr,
+                                                 "System Default Library",
+                                                 "System Default Library",
+                                                 "System",
+                                                 NULL, NULL);
+    if (!repo_id) {
+        seaf_warning ("Failed to create system default repo.\n");
+        return data;
+    }
+
+    set_system_default_repo_id (session, repo_id);
+
+    tutorial_path = g_build_filename (session->seaf_dir, DEFAULT_TUTORIAL_NAME, NULL);
+    int rc = seaf_repo_manager_post_file (session->repo_mgr,
+                                          repo_id,
+                                          tutorial_path,
+                                          "/",
+                                          DEFAULT_TUTORIAL_NAME,
+                                          "System",
+                                          NULL);
+    if (rc < 0)
+        seaf_warning ("Failed to add tutorial file %s.\n", tutorial_path);
+
+    g_free (repo_id);
+    g_free (tutorial_path);
+    return data;
+}
+
+void
+schedule_create_system_default_repo (SeafileSession *session)
+{
+    char *sql = "CREATE TABLE IF NOT EXISTS SystemInfo "
+        "(key VARCHAR(256), value VARCHAR(1024))";
+    if (seaf_db_query (session->db, sql) < 0)
+        return;
+
+    ccnet_job_manager_schedule_job (session->job_mgr,
+                                    create_system_default_repo,
+                                    NULL, session);
 }

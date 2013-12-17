@@ -818,3 +818,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("object", ["string", "string", "string"])
     def get_virtual_repo(origin_repo, path, owner):
         pass
+
+    # system default library
+    @searpc_func("string", [])
+    def get_system_default_repo_id():
+        pass

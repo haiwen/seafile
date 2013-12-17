@@ -3798,4 +3798,12 @@ seafile_get_virtual_repo (const char *origin_repo,
     return repo_obj;
 }
 
+/* System default library */
+
+char *
+seafile_get_system_default_repo_id (GError **error)
+{
+    return get_system_default_repo_id(seaf);
+}
+
 #endif  /* SEAFILE_SERVER */

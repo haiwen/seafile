@@ -647,6 +647,12 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_get_repo_history_limit,
                                      "get_repo_history_limit",
                                      searpc_signature_int__string());
+
+    /* System default library */
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_system_default_repo_id,
+                                     "get_system_default_repo_id",
+                                     searpc_signature_string__void());
 }
 
 static void
@@ -916,6 +922,9 @@ main (int argc, char **argv)
         }
     }
     atexit (on_seaf_server_exit);
+
+    /* Create a system default repo to contain the tutorial file. */
+    schedule_create_system_default_repo (seaf);
 
     ccnet_main (client);
 

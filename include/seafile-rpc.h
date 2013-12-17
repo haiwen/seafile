@@ -920,6 +920,9 @@ seafile_get_virtual_repo (const char *origin_repo,
                           const char *owner,
                           GError **error);
 
+char *
+seafile_get_system_default_repo_id (GError **error);
+
 /* ------------------ public RPC calls. ------------ */
 
 GList* seafile_get_repo_list_pub (int start, int limit, GError **error);
