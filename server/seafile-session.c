@@ -256,7 +256,7 @@ load_thread_pool_config (SeafileSession *session)
 char *
 get_system_default_repo_id (SeafileSession *session)
 {
-    char *sql = "SELECT value FROM SystemInfo WHERE key='default_repo_id'";
+    char *sql = "SELECT info_value FROM SystemInfo WHERE info_key='default_repo_id'";
     return seaf_db_get_string (session->db, sql);
 }
 
@@ -316,7 +316,7 @@ void
 schedule_create_system_default_repo (SeafileSession *session)
 {
     char *sql = "CREATE TABLE IF NOT EXISTS SystemInfo "
-        "(key VARCHAR(256), value VARCHAR(1024))";
+        "(info_key VARCHAR(256), info_value VARCHAR(1024))";
     if (seaf_db_query (session->db, sql) < 0)
         return;
 
