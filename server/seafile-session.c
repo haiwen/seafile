@@ -285,8 +285,8 @@ create_system_default_repo (void *data)
         return data;
 
     repo_id = seaf_repo_manager_create_new_repo (session->repo_mgr,
-                                                 "System Default Library",
-                                                 "System Default Library",
+                                                 "My Library Template",
+                                                 "Template for creating 'My Libray' for users",
                                                  "System",
                                                  NULL, NULL);
     if (!repo_id) {
