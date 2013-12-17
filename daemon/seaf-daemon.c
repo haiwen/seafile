@@ -188,6 +188,10 @@ start_rpc_service (CcnetClient *client)
                                      "gen_default_worktree",
                                      searpc_signature_string__string_string());
     searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_check_path_for_clone,
+                                     "seafile_check_path_for_clone",
+                                     searpc_signature_int__string());
+    searpc_server_register_function ("seafile-rpcserver",
                                      seafile_clone,
                                      "seafile_clone",
         searpc_signature_string__string_string_string_string_string_string_string_string_string_string_string_int());

@@ -212,6 +212,8 @@ char *
 seafile_gen_default_worktree (const char *worktree_parent,
                               const char *repo_name,
                               GError **error);
+int
+seafile_check_path_for_clone(const char *path, GError **error);
 
 /**
  * seafile_clone:

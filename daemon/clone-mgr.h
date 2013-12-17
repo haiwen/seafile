@@ -135,4 +135,7 @@ seaf_clone_manager_get_task (SeafCloneManager *mgr,
 GList *
 seaf_clone_manager_get_tasks (SeafCloneManager *mgr);
 
+gboolean
+seaf_clone_manager_check_worktree_path (SeafCloneManager *mgr, const char *path, GError **error);
+
 #endif

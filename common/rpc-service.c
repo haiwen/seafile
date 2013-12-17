@@ -351,6 +351,16 @@ seafile_gen_default_worktree (const char *worktree_parent,
                                                     repo_name);
 }
 
+int
+seafile_check_path_for_clone (const char *path, GError **error)
+{
+    if (!seaf_clone_manager_check_worktree_path(seaf->clone_mgr, path, error)) {
+        return -1;
+    }
+
+    return 0;
+}
+
 char *
 seafile_clone (const char *repo_id,
                const char *relay_id,

@@ -731,8 +731,8 @@ out:
     return ret;
 }
 
-static gboolean
-check_worktree_path (SeafCloneManager *mgr, const char *path, GError **error)
+gboolean
+seaf_clone_manager_check_worktree_path (SeafCloneManager *mgr, const char *path, GError **error)
 {
     GList *repos, *ptr;
     SeafRepo *repo;
@@ -911,7 +911,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         return NULL;
     }
 
-    if (!check_worktree_path (mgr, worktree_in, error))
+    if (!seaf_clone_manager_check_worktree_path (mgr, worktree_in, error))
         return NULL;
 
     /* Return error if worktree_in conflicts with another repo or
@@ -947,7 +947,7 @@ make_worktree_for_download (SeafCloneManager *mgr,
         worktree = g_strdup(wt_tmp);
     }
 
-    if (!check_worktree_path (mgr, worktree, error)) {
+    if (!seaf_clone_manager_check_worktree_path (mgr, worktree, error)) {
         g_free (worktree);
         return NULL;
     }
