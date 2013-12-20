@@ -2353,8 +2353,12 @@ seaf_repo_manager_get_org_repos_by_owner (SeafRepoManager *mgr,
     GList *ret = NULL;
     char sql[512];
 
-    snprintf (sql, sizeof(sql), "SELECT repo_id FROM OrgRepo "
-              "WHERE org_id=%d AND user='%s'", org_id, user);
+    if (seaf_db_type(mgr->seaf->db) != SEAF_DB_TYPE_PGSQL)
+        snprintf (sql, sizeof(sql), "SELECT repo_id FROM OrgRepo "
+                  "WHERE org_id=%d AND user='%s'", org_id, user);
+    else
+        snprintf (sql, sizeof(sql), "SELECT repo_id FROM OrgRepo "
+                  "WHERE org_id=%d AND \"user\"='%s'", org_id, user);
 
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
                                       collect_repo_id, &id_list) < 0)
@@ -2652,18 +2656,30 @@ seaf_repo_manager_list_org_inner_pub_repos_by_owner (SeafRepoManager *mgr,
                                                      const char *user)
 {
     GList *ret = NULL, *p;
-    char sql[102];
+    char sql[1024];
 
-    snprintf (sql, sizeof(sql),
-              "SELECT OrgInnerPubRepo.repo_id, VirtualRepo.repo_id, "
-              "user, permission, commit_id "
-              "FROM OrgInnerPubRepo LEFT JOIN VirtualRepo ON "
-              "OrgInnerPubRepo.repo_id = VirtualRepo.repo_id, OrgRepo, Branch "
-              "WHERE OrgInnerPubRepo.org_id=%d AND user='%s' AND "
-              "OrgInnerPubRepo.repo_id=OrgRepo.repo_id AND "
-              "OrgInnerPubRepo.org_id=OrgRepo.org_id AND "
-              "OrgInnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'",
-              org_id, user);
+    if (seaf_db_type(mgr->seaf->db) != SEAF_DB_TYPE_PGSQL)
+        snprintf (sql, sizeof(sql),
+                  "SELECT OrgInnerPubRepo.repo_id, VirtualRepo.repo_id, "
+                  "user, permission, commit_id "
+                  "FROM OrgInnerPubRepo LEFT JOIN VirtualRepo ON "
+                  "OrgInnerPubRepo.repo_id = VirtualRepo.repo_id, OrgRepo, Branch "
+                  "WHERE OrgInnerPubRepo.org_id=%d AND user='%s' AND "
+                  "OrgInnerPubRepo.repo_id=OrgRepo.repo_id AND "
+                  "OrgInnerPubRepo.org_id=OrgRepo.org_id AND "
+                  "OrgInnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'",
+                  org_id, user);
+    else
+        snprintf (sql, sizeof(sql),
+                  "SELECT OrgInnerPubRepo.repo_id, VirtualRepo.repo_id, "
+                  "user, permission, commit_id "
+                  "FROM OrgInnerPubRepo LEFT JOIN VirtualRepo ON "
+                  "OrgInnerPubRepo.repo_id = VirtualRepo.repo_id, OrgRepo, Branch "
+                  "WHERE OrgInnerPubRepo.org_id=%d AND \"user\"='%s' AND "
+                  "OrgInnerPubRepo.repo_id=OrgRepo.repo_id AND "
+                  "OrgInnerPubRepo.org_id=OrgRepo.org_id AND "
+                  "OrgInnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'",
+                  org_id, user);
 
     if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
                                       collect_public_repos, &ret) < 0) {

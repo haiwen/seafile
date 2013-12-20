@@ -116,11 +116,11 @@ seaf_quota_manager_set_user_quota (SeafQuotaManager *mgr,
     if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
         gboolean err;
         snprintf(sql, sizeof(sql),
-                 "SELECT 1 FROM UserQuota WHERE user='%s'", user);
+                 "SELECT 1 FROM UserQuota WHERE \"user\"='%s'", user);
         if (seaf_db_check_for_existence(db, sql, &err))
             snprintf(sql, sizeof(sql),
                      "UPDATE UserQuota SET quota=%"G_GINT64_FORMAT
-                     " WHERE user='%s'", quota, user);
+                     " WHERE \"user\"='%s'", quota, user);
         else
             snprintf(sql, sizeof(sql),
                      "INSERT INTO UserQuota VALUES "
@@ -143,9 +143,15 @@ seaf_quota_manager_get_user_quota (SeafQuotaManager *mgr,
     char sql[512];
     gint64 quota;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT quota FROM UserQuota WHERE user='%s'",
-              user);
+    if (seaf_db_type(mgr->session->db) != SEAF_DB_TYPE_PGSQL)
+        snprintf (sql, sizeof(sql),
+                  "SELECT quota FROM UserQuota WHERE user='%s'",
+                  user);
+    else
+        snprintf (sql, sizeof(sql),
+                  "SELECT quota FROM UserQuota WHERE \"user\"='%s'",
+                  user);
+
     quota = seaf_db_get_int64 (mgr->session->db, sql);
     if (quota <= 0)
         quota = mgr->default_quota;
@@ -213,12 +219,12 @@ seaf_quota_manager_set_org_user_quota (SeafQuotaManager *mgr,
     if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
         gboolean err;
         snprintf(sql, sizeof(sql),
-                 "SELECT 1 FROM OrgUserQuota WHERE org_id=%d AND user='%s'",
+                 "SELECT 1 FROM OrgUserQuota WHERE org_id=%d AND \"user\"='%s'",
                  org_id, user);
         if (seaf_db_check_for_existence(db, sql, &err))
             snprintf(sql, sizeof(sql),
                      "UPDATE OrgUserQuota SET quota=%"G_GINT64_FORMAT
-                     " WHERE org_id=%d AND user='%s'", quota, org_id, user);
+                     " WHERE org_id=%d AND \"user\"='%s'", quota, org_id, user);
         else
             snprintf(sql, sizeof(sql),
                      "INSERT INTO OrgQuota VALUES "
@@ -242,9 +248,15 @@ seaf_quota_manager_get_org_user_quota (SeafQuotaManager *mgr,
     char sql[512];
     gint64 quota;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT quota FROM OrgUserQuota WHERE org_id='%d' AND user='%s'",
-              org_id, user);
+    if (seaf_db_type(mgr->session->db) != SEAF_DB_TYPE_PGSQL)
+        snprintf (sql, sizeof(sql),
+                  "SELECT quota FROM OrgUserQuota WHERE org_id='%d' AND user='%s'",
+                  org_id, user);
+    else
+        snprintf (sql, sizeof(sql),
+                  "SELECT quota FROM OrgUserQuota WHERE org_id='%d' AND \"user\"='%s'",
+                  org_id, user);
+
     quota = seaf_db_get_int64 (mgr->session->db, sql);
     /* return org quota if per user quota is not set. */
     if (quota <= 0)
