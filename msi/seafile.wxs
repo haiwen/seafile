@@ -94,10 +94,8 @@
                   Execute="immediate" Impersonate="yes" Return="ignore" />
 
     <InstallExecuteSequence>
-      <!-- Ask seafile-applet to quit before uninstall -->
-      <Custom Action="StopSeafileClient" Before="InstallValidate">
-        Installed
-      </Custom>
+      <!-- Ask seafile-applet to quit before upgrade/uninstall -->
+      <Custom Action="StopSeafileClient" Before="InstallValidate"></Custom>
       <!-- Remove User data, as well as seafile QSettings in registry -->
       <Custom Action="RemoveSeafileUserData" Before="RemoveRegistryValues">
         (NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")
