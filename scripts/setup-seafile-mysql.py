@@ -7,6 +7,7 @@ import os
 import time
 import re
 import shutil
+import glob
 import subprocess
 import hashlib
 import getpass
@@ -127,6 +128,14 @@ Press ENTER to continue
             os.mkdir(path)
         except OSError, e:
             Utils.error('failed to create directory %s:%s' % (path, e))
+
+    @staticmethod
+    def must_copy(src, dst):
+        '''Copy src to dst, exit on failure'''
+        try:
+            shutil.copy(src, dst)
+        except Exception, e:
+            Utils.error('failed to copy %s to %s: %s' % (src, dst, e))
 
     @staticmethod
     def find_in_path(prog):
@@ -1059,13 +1068,18 @@ DATABASES = {
 class SeafDavConfigurator(AbstractConfigurator):
     def __init__(self):
         AbstractConfigurator.__init__(self)
-        self.seafile_dir = os.path.join(env_mgr.top_dir, 'seafile-data')
-        self.seafdav_conf = os.path.join(self.seafile_dir, 'seafdav.conf')
+        self.conf_dir = None
+        self.seafdav_conf = None
 
     def ask_questions(self):
         pass
 
     def generate(self):
+        self.conf_dir = os.path.join(env_mgr.top_dir, 'conf')
+        if not os.path.exists('conf'):
+            Utils.must_mkdir(self.conf_dir)
+
+        self.seafdav_conf = os.path.join(self.conf_dir, 'seafdav.conf')
         text = '''
 [WEBDAV]
 enabled = false
@@ -1077,6 +1091,19 @@ share_name = /
         with open(self.seafdav_conf, 'w') as fp:
             fp.write(text)
 
+class UserManualHandler(object):
+    def __init__(self):
+        self.src_docs_dir = os.path.join(env_mgr.install_path, 'seafile', 'docs')
+        self.library_template_dir = None
+
+    def copy_user_manuals(self):
+        self.library_template_dir = os.path.join(seafile_config.seafile_dir, 'library-template')
+        Utils.must_mkdir(self.library_template_dir)
+
+        pattern = os.path.join(self.src_docs_dir, '*.doc')
+
+        for doc in glob.glob(pattern):
+            Utils.must_copy(doc, self.library_template_dir)
 
 def report_config():
     print
@@ -1149,6 +1176,7 @@ ccnet_config = CcnetConfigurator()
 seafile_config = SeafileConfigurator()
 seafdav_config = SeafDavConfigurator()
 seahub_config = SeahubConfigurator()
+user_manuals_handler = UserManualHandler()
 # Would be created after AbstractDBConfigurator.ask_use_existing_db()
 db_config = None
 
@@ -1184,6 +1212,7 @@ def main():
     seahub_config.do_syncdb()
     seahub_config.prepare_avatar_dir()
     db_config.create_seahub_admin()
+    user_manuals_handler.copy_user_manuals()
     create_seafile_server_symlink()
 
     report_success()

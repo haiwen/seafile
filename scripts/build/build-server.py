@@ -512,6 +512,16 @@ def setup_build_env():
     prepend_env_value('PKG_CONFIG_PATH', os.path.join(prefix, 'lib', 'pkgconfig'))
     prepend_env_value('PKG_CONFIG_PATH', os.path.join(prefix, 'lib64', 'pkgconfig'))
 
+def copy_user_manuals():
+    builddir = conf[CONF_BUILDDIR]
+    src_pattern = os.path.join(builddir, Seafile().projdir, 'doc', '*.doc')
+    dst_dir = os.path.join(builddir, 'seafile-server', 'seafile', 'docs')
+
+    must_mkdir(dst_dir)
+
+    for path in glob.glob(src_pattern):
+        must_copy(path, dst_dir)
+
 def copy_scripts_and_libs():
     '''Copy server release scripts and shared libs, as well as seahub
     thirdpart libs
@@ -564,6 +574,7 @@ def copy_scripts_and_libs():
 
     # copy shared c libs
     copy_shared_libs()
+    copy_user_manuals()
 
 def copy_pdf2htmlex():
     '''Copy pdf2htmlEX exectuable and its dependent libs'''

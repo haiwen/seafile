@@ -119,3 +119,4 @@ tests/test-seafile-fmt
 *.pc
 seaf-fsck
 *.tar.gz
+fuse/seaf-fuse

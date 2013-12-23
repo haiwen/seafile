@@ -340,6 +340,12 @@ EOF
 fi
 }
 
+function copy_user_manuals() {
+    src_docs_dir=${INSTALLPATH}/seafile/docs/
+    library_template_dir=${seafile_data_dir}/library-template
+    mkdir -p ${library_template_dir}
+    cp -f ${src_docs_dir}/*.doc ${library_template_dir}
+}
 
 
 # -------------------------------------------
@@ -585,6 +591,11 @@ if ! ln -s $(basename ${INSTALLPATH}) ${seafile_server_symlink}; then
 fi
 echo "done"
 echo
+
+# -------------------------------------------
+# copy user manuals to library template
+# -------------------------------------------
+copy_user_manuals;
 
 # -------------------------------------------
 # final message

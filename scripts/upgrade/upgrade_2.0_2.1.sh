@@ -119,27 +119,38 @@ echo "------------------------------"
 echo "Updating seafile/seahub database ..."
 echo
 
-# seahub_db=${TOPDIR}/seahub.db
-# seahub_sql=${UPGRADE_DIR}/sql/2.1.0/sqlite3/seahub.sql
-# if ! sqlite3 "${seahub_db}" < "${seahub_sql}"; then
-#     echo "Failed to update seahub database"
-#     exit 1
-# fi
+seahub_db=${TOPDIR}/seahub.db
+seahub_sql=${UPGRADE_DIR}/sql/2.1.0/sqlite3/seahub.sql
+if ! sqlite3 "${seahub_db}" < "${seahub_sql}"; then
+    echo "Failed to update seahub database"
+    exit 1
+fi
 
-seafdav_conf=${default_conf_dir}/seafdav.conf
-mkdir -p ${default_conf_dir}
-if ! $(cat > ${seafdav_conf} <<EOF
+function gen_seafdav_conf() {
+    seafdav_conf=${default_conf_dir}/seafdav.conf
+    mkdir -p ${default_conf_dir}
+    if ! $(cat > ${seafdav_conf} <<EOF
 [WEBDAV]
 enabled = false
 port = 8080
 fastcgi = false
 share_name = /
 EOF
-); then
-    echo "failed to generate seafdav.conf";
-    exit 1
-fi
+    ); then
+        echo "failed to generate seafdav.conf";
+        exit 1
+    fi
+}
 
+function copy_user_manuals() {
+    src_docs_dir=${INSTALLPATH}/seafile/docs/
+    library_template_dir=${seafile_data_dir}/library-template
+    mkdir -p ${library_template_dir}
+    cp -f ${src_docs_dir}/*.doc ${library_template_dir}
+}
+
+gen_seafdav_conf;
+copy_user_manuals;
 
 echo "DONE"
 echo "------------------------------"
