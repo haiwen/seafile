@@ -37,3 +37,17 @@ CREATE TABLE IF NOT EXISTS `profile_detailedprofile` (
   `telephone` varchar(100) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+CREATE TABLE IF NOT EXISTS `share_uploadlinkshare` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `username` varchar(255) NOT NULL,
+  `repo_id` varchar(36) NOT NULL,
+  `path` longtext NOT NULL,
+  `token` varchar(10) NOT NULL,
+  `ctime` datetime NOT NULL,
+  `view_cnt` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `token` (`token`),
+  KEY `share_uploadlinkshare_ee0cafa2` (`username`),
+  KEY `share_uploadlinkshare_2059abe4` (`repo_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;

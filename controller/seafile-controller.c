@@ -818,7 +818,7 @@ read_seafdav_config()
     char *seafdav_conf = NULL;
     GKeyFile *key_file = NULL;
 
-    seafdav_conf = g_build_filename(ctl->seafile_dir, "seafdav.conf", NULL);
+    seafdav_conf = g_build_filename(topdir, "conf", "seafdav.conf", NULL);
     if (!g_file_test(seafdav_conf, G_FILE_TEST_EXISTS)) {
         goto out;
     }
