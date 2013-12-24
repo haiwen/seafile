@@ -233,6 +233,7 @@ out:
 struct options {
     char *config_dir;
     char *seafile_dir;
+    char *log_file;
 } options;
 
 #define SEAF_FUSE_OPT_KEY(t, p, v) { t, offsetof(struct options, p), v }
@@ -247,6 +248,8 @@ static struct fuse_opt seaf_fuse_opts[] = {
     SEAF_FUSE_OPT_KEY("--config %s", config_dir, 0),
     SEAF_FUSE_OPT_KEY("-d %s", seafile_dir, 0),
     SEAF_FUSE_OPT_KEY("--seafdir %s", seafile_dir, 0),
+    SEAF_FUSE_OPT_KEY("-l %s", log_file, 0),
+    SEAF_FUSE_OPT_KEY("--logfile %s", log_file, 0),
 
     FUSE_OPT_KEY("-V", KEY_VERSION),
     FUSE_OPT_KEY("--version", KEY_VERSION),
@@ -294,8 +297,10 @@ int main(int argc, char *argv[])
     else
         seafile_dir = options.seafile_dir;
 
-    if (!logfile)
+    if (!options.log_file)
         logfile = g_build_filename(seafile_dir, "seaf-fuse.log", NULL);
+    else
+        logfile = options.log_file;
 
     if (seafile_log_init(logfile, ccnet_debug_level_str,
                          seafile_debug_level_str) < 0) {

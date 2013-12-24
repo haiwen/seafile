@@ -543,6 +543,8 @@ def copy_scripts_and_libs():
               serverdir)
     must_copy(os.path.join(scripts_srcdir, 'reset-admin.sh'),
               serverdir)
+    must_copy(os.path.join(scripts_srcdir, 'seaf-fuse.sh'),
+              serverdir)
 
     # copy update scripts
     update_scriptsdir = os.path.join(scripts_srcdir, 'upgrade')
@@ -610,7 +612,7 @@ def get_dependent_libs(executable):
         return False
 
     ldd_output = commands.getoutput('ldd %s' % executable)
-    ret = []
+    ret = set()
     for line in ldd_output.splitlines():
         tokens = line.split()
         if len(tokens) != 4:
@@ -618,7 +620,7 @@ def get_dependent_libs(executable):
         if is_syslib(tokens[0]):
             continue
 
-        ret.append(tokens[2])
+        ret.add(tokens[2])
 
     return ret
 
@@ -643,13 +645,16 @@ def copy_shared_libs():
                                      'bin',
                                      'ccnet-server')
 
-    httpserver_libs = get_dependent_libs(httpserver_path)
-    ccnet_server_libs = get_dependent_libs(ccnet_server_path)
+    seaf_fuse_path = os.path.join(builddir,
+                                  'seafile-server',
+                                  'seafile',
+                                  'bin',
+                                  'seaf-fuse')
 
-    libs = httpserver_libs
-    for lib in ccnet_server_libs:
-        if lib not in libs:
-            libs.append(lib)
+    libs = set()
+    libs.update(get_dependent_libs(ccnet_server_path))
+    libs.update(get_dependent_libs(httpserver_path))
+    libs.update(get_dependent_libs(seaf_fuse_path))
 
     for lib in libs:
         dst_file = os.path.join(dst_dir, os.path.basename(lib))
