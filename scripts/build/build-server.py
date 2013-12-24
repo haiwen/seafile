@@ -319,7 +319,7 @@ def validate_args(usage, options):
     check_targz_src('seafile', seafile_version, srcdir)
     check_targz_src('seahub', seafile_version, srcdir)
 
-    check_pdf2htmlEX()
+    # check_pdf2htmlEX()
 
     # [ builddir ]
     builddir = get_option(CONF_BUILDDIR)
@@ -570,7 +570,7 @@ def copy_scripts_and_libs():
     seahub_thirdpart = os.path.join(dst_seahubdir, 'thirdpart')
     copy_seahub_thirdpart_libs(seahub_thirdpart)
 
-    copy_pdf2htmlex()
+    # copy_pdf2htmlex()
 
     # copy shared c libs
     copy_shared_libs()
