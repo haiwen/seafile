@@ -339,7 +339,7 @@ remove_path (const char *worktree, const char *name, unsigned int ctime, unsigne
         do {
             *slash = '\0';
         } while (strcmp (worktree, path) != 0 &&
-                 g_rmdir (path) == 0 &&
+                 seaf_remove_empty_dir (path) == 0 &&
                  (slash = strrchr (path, '/')));
     }
 

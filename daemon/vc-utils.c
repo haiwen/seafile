@@ -207,12 +207,9 @@ unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
     do {
         if (path[offset] == '/') {
             path[offset] = '\0';
-            int ret = g_rmdir (path);
-            if (ret < 0 && errno == ENOTEMPTY) {
+            int ret = seaf_remove_empty_dir (path);
+            if (ret < 0) {
                 break;
-            } else if (ret < 0) {
-                g_warning ("Failed to remove %s: %s.\n", path, strerror(errno));
-                return -1;
             }
         }
     } while (--offset > base_len);

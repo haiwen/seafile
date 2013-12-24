@@ -979,7 +979,8 @@ seaf_transfer_manager_remove_task (SeafTransferManager *manager,
 static void
 cancel_task (TransferTask *task)
 {
-    if (task->runtime_state == TASK_RT_STATE_NETDOWN) {
+    if (task->runtime_state == TASK_RT_STATE_NETDOWN ||
+        task->runtime_state == TASK_RT_STATE_INIT) {
         transition_state (task, TASK_STATE_CANCELED, TASK_RT_STATE_FINISHED);
     } else {
         /*
