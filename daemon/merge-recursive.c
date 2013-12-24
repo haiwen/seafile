@@ -507,6 +507,7 @@ static int update_file_flags(struct merge_options *o,
     char *real_path;
     char file_id[41];
     int clean = 1;
+    int refresh = update_wd;
 
     if (update_wd && o->collect_blocks_only) {
         fill_seafile_blocks (sha, o->bl);
@@ -528,7 +529,8 @@ static int update_file_flags(struct merge_options *o,
         if (make_room_for_path(o->index, path, real_path, 
                                &new_path, o->branch2, &clean) < 0) {
             g_free (real_path);
-            return clean;
+            refresh = 0;
+            goto update_cache;
         }
         g_free (real_path);
         real_path = new_path;
@@ -537,9 +539,8 @@ static int update_file_flags(struct merge_options *o,
         if (S_ISDIR (mode)) {
             if (g_mkdir (real_path, 0777) < 0) {
                 g_warning ("Failed to create empty dir %s in merge.\n", real_path);
-                g_free (real_path);
-                return 0;
             }
+            refresh = 0;
             goto update_cache;
         }
 
@@ -575,16 +576,16 @@ static int update_file_flags(struct merge_options *o,
                                           FALSE,
                                           &conflicted) < 0) {
             g_warning("Failed to checkout file %s.\n", file_id);
-            g_free(real_path);
             g_free (conflict_suffix);
-            return clean;
+            refresh = 0;
+            goto update_cache;
         }
         g_free (conflict_suffix);
     }
 
 update_cache:
     if (update_cache)
-        add_cacheinfo(o->index, mode, sha, path, real_path, 0, update_wd, ADD_CACHE_OK_TO_ADD);
+        add_cacheinfo(o->index, mode, sha, path, real_path, 0, refresh, ADD_CACHE_OK_TO_ADD);
     g_free(real_path);
 
     return clean;
@@ -606,9 +607,10 @@ static void handle_delete_modify(struct merge_options *o,
                                  unsigned char *b_sha, int b_mode)
 {
     /* Only need to checkout other's version if I deleted the file. */
-    if (!a_sha) {
+    if (!a_sha)
         update_file(o, 0, b_sha, b_mode, new_path);
-    }
+    else
+        update_file_flags (o, a_sha, a_mode, path, 1, 0);
 }
 
 /* Per entry merge function */
@@ -652,7 +654,7 @@ static int process_entry(struct merge_options *o,
         } else {
             /* Deleted in one and changed in the other */
             /* or directory -> (file, directory), directory side */
-            clean_merge = 0;
+            /* Don't consider as unclean. */
             handle_delete_modify(o, path, path,
                                  a_sha, a_mode, b_sha, b_mode);
         }
@@ -682,8 +684,6 @@ static int process_entry(struct merge_options *o,
             char *conflict_suffix = NULL;
 
             clean_merge = 0;
-            if (S_ISDIR (b_mode))
-                goto out;
 
             if (!o->collect_blocks_only) {
                 conflict_suffix = get_last_changer_of_file (o->remote_head, path);
@@ -709,12 +709,44 @@ static int process_entry(struct merge_options *o,
     } else
         g_error("Fatal merge failure, shouldn't happen.");
 
-out:
     return clean_merge;
 }
 
+static int is_garbage_empty_dir (struct index_state *index, const char *name)
+{
+    int pos = index_name_pos (index, name, strlen(name));
+
+    /*
+     * If pos >= 0, ++pos to the next entry in the index.
+     * If pos < 0, -pos = (the position this entry *should* be) + 1.
+     * So -pos-1 is the first entry larger than this entry.
+     */
+    if (pos >= 0)
+        pos++;
+    else
+        pos = -pos-1;
+
+    struct cache_entry *next;
+    int this_len = strlen (name);
+    while (pos < index->cache_nr) {
+        next = index->cache[pos];
+
+        /* If 'name' is the prefix of next->name but they are unequal,
+         * it means there are entries under this empty dir. So this "emtpy dir"
+         * is useless.
+         */
+        if (strncmp (name, next->name, this_len) != 0)
+            break;
+        if (strcmp (name, next->name) != 0)
+            return 1;
+        ++pos;
+    }
+
+    return 0;
+}
+
 /*
- * Per entry merge function for D/F (and/or rename) conflicts.  In the
+ * per entry merge function for D/F (and/or rename) conflicts.  In the
  * cases we can cleanly resolve D/F conflicts, process_entry() can
  * clean out all the files below the directory for us.  All D/F
  * conflict cases must be handled here at the end to make sure any
@@ -738,14 +770,11 @@ static int process_df_entry(struct merge_options *o,
 
     entry->processed = 1;
     if (o_sha && (!a_sha || !b_sha)) {
-        clean_merge = 0;
         /* Modify/delete; deleted side may have put a directory in the way */
         if (b_sha) {
             if (seaf_stat (real_path, &st) == 0 && S_ISDIR(st.st_mode)) {
                 /* D/F conflict. */
-                /* If b is an empty dir, don't check it out. */
-                if (S_ISDIR(b_mode))
-                    goto out;
+                clean_merge = 0;
 
                 if (!o->collect_blocks_only) {
                     conflict_suffix = get_last_changer_of_file (o->remote_head,
@@ -759,23 +788,41 @@ static int process_df_entry(struct merge_options *o,
                 g_free (new_path);
                 g_free (conflict_suffix);
             } else {
-                /* Modify/Delete conflict. */
+                /* Modify/Delete conflict. Don't consider as unclean. */
                 update_file(o, 0, b_sha, b_mode, path);
             }
+        } else {
+            if (seaf_stat (real_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+                clean_merge = 0;
+            } else {
+                /* Clean merge. Just need to update index. */
+                update_file_flags (o, a_sha, a_mode, path, 1, 0);
+            }
         }
-        /* If the conflicting file is mine, it's already in the work tree.
-         * And the conflicting dir should have proper suffix.
-         * So nothing need to be processed here.
-         */
     } else if (!o_sha && !!a_sha != !!b_sha) {
+        unsigned char *sha = a_sha ? a_sha : b_sha;
+        unsigned mode = a_sha ? a_mode : b_mode;
+
+        /* directory -> (directory, empty dir) or
+         * directory -> (empty dir, directory) */
+        if (S_ISDIR(mode)) {
+            /* Merge is always clean. If the merge result is non empty dir,
+             * remove the empty dir entry from the index.
+             */
+            if (is_garbage_empty_dir (o->index, path))
+                remove_file_from_index (o->index, path);
+            else if (a_sha)
+                update_file_flags (o, sha, mode, path, 1, 0);
+            else
+                update_file_flags (o, sha, mode, path, 1, 1);
+            goto out;
+        }
+
         /* directory -> (directory, file) */
         if (b_sha) {
             if (seaf_stat (real_path, &st) == 0 && S_ISDIR(st.st_mode)) {
                 /* D/F conflict. */
                 clean_merge = 0;
-
-                if (S_ISDIR (b_mode))
-                    goto out;
 
                 if (!o->collect_blocks_only) {
                     conflict_suffix = get_last_changer_of_file (o->remote_head,
@@ -791,6 +838,13 @@ static int process_df_entry(struct merge_options *o,
             } else {
                 /* Clean merge. */
                 clean_merge = update_file(o, 1, b_sha, b_mode, path);
+            }
+        } else {
+            if (seaf_stat (real_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+                clean_merge = 0;
+            } else {
+                /* Clean merge. Just need to update index. */
+                update_file_flags (o, a_sha, a_mode, path, 1, 0);
             }
         }
     } else {
@@ -808,13 +862,13 @@ out:
 static void
 print_index (struct index_state *istate)
 {
-    printf ("Totally %u entries in index.\n", istate->cache_nr);
+    g_message ("Totally %u entries in index.\n", istate->cache_nr);
     int i;
     char id[41];
     for (i = 0; i < istate->cache_nr; ++i) {
         struct cache_entry *ce = istate->cache[i];
         rawdata_to_hex (ce->sha1, id, 20);
-        printf ("%s\t%s\t%o\t%d\t%d\t%d\n", ce->name, id, ce->ce_mode, ce_stage(ce),
+        g_message ("%s\t%s\t%o\t%d\t%d\t%d\n", ce->name, id, ce->ce_mode, ce_stage(ce),
                 ce->ce_ctime.sec, ce->ce_mtime.sec);
     }
 

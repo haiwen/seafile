@@ -203,31 +203,6 @@ void wt_status_collect_untracked(struct index_state *index,
     free(dir.entries);
 }
 
-#if 0
-static gboolean
-is_empty_dir (const char *path, IgnoreFunc should_ignore)
-{
-    GDir *dir;
-    const char *dname;
-
-    dir = g_dir_open (path, 0, NULL);
-    if (!dir) {
-        g_warning ("Failed to open dir %s: %s.\n", path, strerror(errno));
-        return FALSE;
-    }
-
-    int n = 0;
-    while ((dname = g_dir_read_name(dir)) != NULL) {
-        if (should_ignore(dname, NULL))
-            continue;
-        ++n;
-    }
-    g_dir_close (dir);
-
-    return (n == 0);
-}
-#endif
-
 void wt_status_collect_changes_worktree(struct index_state *index,
                                         GList **results,
                                         const char *worktree)

@@ -944,7 +944,7 @@ static int is_garbage_empty_dir (struct index_state *istate, struct cache_entry 
          */
         if (strncmp (ce->name, next->name, this_len) != 0)
             break;
-        if (next->ce_mtime.sec == 0)
+        if (next->ce_mtime.sec == 0 && ce_stage(next) == 0)
             return 1;
         ++pos;
     }
