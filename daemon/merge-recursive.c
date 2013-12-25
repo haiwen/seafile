@@ -326,6 +326,7 @@ remove_path (const char *worktree, const char *name, unsigned int ctime, unsigne
         }
     } else if (S_ISDIR (st.st_mode)) {
         if (seaf_remove_empty_dir (path) < 0) {
+            g_warning ("Failed to remove %s: %s.\n", path, strerror(errno));
             g_free (path);
             return -1;
         }

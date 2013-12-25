@@ -155,7 +155,6 @@ seaf_remove_empty_dir (const char *path)
         g_free (thumbs_db);
 
         if (g_rmdir (path) < 0) {
-            g_warning ("Failed to remove %s: %s.\n", path, strerror(errno));
             return -1;
         }
     }
@@ -198,8 +197,10 @@ unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
             return -1;
         }
     } else {
-        if (seaf_remove_empty_dir (path) < 0)
+        if (seaf_remove_empty_dir (path) < 0) {
+            g_warning ("Failed to remove dir %s: %s.\n", path, strerror(errno));
             return -1;
+        }
     }
 
     /* then remove all empty directories upwards. */
