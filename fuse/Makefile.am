@@ -26,7 +26,6 @@ seaf_fuse_SOURCES = seaf-fuse.c \
                     ../common/block-mgr.c \
                     ../common/block-backend.c \
                     ../common/block-backend-fs.c \
-                    ../common/block-backend-ceph.c \
                     ../common/branch-mgr.c \
                     ../common/commit-mgr.c \
                     ../common/fs-mgr.c \
