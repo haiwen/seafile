@@ -311,6 +311,10 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.is_inner_pub_repo(repo_id)
 
 
+    # permission
+    def check_permission(self, repo_id, user):
+        return seafserv_threaded_rpc.check_permission(repo_id, user)
+
     # virtual repo
     def create_virtual_repo(self, origin_repo_id, path, repo_name, repo_desc, owner):
         return seafserv_threaded_rpc.create_virtual_repo(origin_repo_id,
