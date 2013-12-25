@@ -87,9 +87,6 @@ if test "$blinux" = true; then
    AC_ARG_ENABLE(riak, AC_HELP_STRING([--enable-riak], [enable riak backend]),
       [compile_riak=$enableval],[compile_riak="no"])
 
-   AC_ARG_ENABLE(ceph, AC_HELP_STRING([--enable-ceph], [enable ceph backend]),
-      [compile_ceph=$enableval],[compile_ceph="no"])
-
    AC_ARG_ENABLE(fuse, AC_HELP_STRING([--enable-fuse], [enable fuse virtual file system]),
       [compile_fuse=$enableval],[compile_fuse="yes"])
 fi
@@ -145,7 +142,6 @@ AM_CONDITIONAL([COMPILE_CLIENT], [test "${compile_client}" = "yes"])
 AM_CONDITIONAL([COMPILE_SERVER], [test "${compile_server}" = "yes"])
 #AM_CONDITIONAL([COMPILE_SEABLOCK], [test "${compile_seablock}" = "yes"])
 AM_CONDITIONAL([COMPILE_RIAK], [test "${compile_riak}" = "yes"])
-AM_CONDITIONAL([COMPILE_CEPH], [test "${compile_ceph}" = "yes"])
 AM_CONDITIONAL([COMPILE_FUSE], [test "${compile_fuse}" = "yes"])
 
 AM_CONDITIONAL([WIN32], [test "$bwin32" = "true"])
@@ -319,15 +315,6 @@ if test "${compile_riak}" = "yes"; then
    AC_SUBST(CURL_CFLAGS)
    AC_SUBST(CURL_LIBS)
    AC_DEFINE([RIAK_BACKEND], [1], ["define if support Riak backend"])
-fi
-
-if test "${compile_ceph}" = "yes"; then
-   AC_CHECK_LIB(rados, rados_create, [with_rados=yes],
-       AC_MSG_ERROR([*** Unable to find librados]), )
-   echo "found rados"
-   RADOS_LIBS="-lrados"
-   AC_SUBST(RADOS_LIBS)
-   AC_DEFINE([HAVE_RADOS], [1], ["define if have rados"])
 fi
 
 AM_CONDITIONAL([HAVE_KEYSTORAGE_GK], [test "${compile_gnome_keyring}" = "yes"])
