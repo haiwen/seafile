@@ -12,8 +12,14 @@ else
   MAKE_CONTROLLER = controller
 endif
 
+if COMPILE_FUSE
+  MAKE_FUSE = fuse
+else
+  MAKE_FUSE =
+endif
+
 if COMPILE_SERVER
-  MAKE_SERVER = server tools httpserver $(MAKE_CONTROLLER) fuse
+  MAKE_SERVER = server tools httpserver $(MAKE_CONTROLLER) $(MAKE_FUSE)
 endif
 
 SUBDIRS = include lib common app python tests doc \

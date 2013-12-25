@@ -90,8 +90,8 @@ if test "$blinux" = true; then
    AC_ARG_ENABLE(ceph, AC_HELP_STRING([--enable-ceph], [enable ceph backend]),
       [compile_ceph=$enableval],[compile_ceph="no"])
 
-   AC_ARG_ENABLE(gnome-keyring, AC_HELP_STRING([--enable-gnome-keyring], [enable gnome keyring support]),
-      [compile_gnome_keyring=$enableval],[compile_gnome_keyring="no"])
+   AC_ARG_ENABLE(fuse, AC_HELP_STRING([--enable-fuse], [enable fuse virtual file system]),
+      [compile_fuse=$enableval],[compile_fuse="yes"])
 fi
 
 AC_ARG_ENABLE(client, AC_HELP_STRING([--enable-client], [enable client]),
@@ -146,6 +146,7 @@ AM_CONDITIONAL([COMPILE_SERVER], [test "${compile_server}" = "yes"])
 #AM_CONDITIONAL([COMPILE_SEABLOCK], [test "${compile_seablock}" = "yes"])
 AM_CONDITIONAL([COMPILE_RIAK], [test "${compile_riak}" = "yes"])
 AM_CONDITIONAL([COMPILE_CEPH], [test "${compile_ceph}" = "yes"])
+AM_CONDITIONAL([COMPILE_FUSE], [test "${compile_fuse}" = "yes"])
 
 AM_CONDITIONAL([WIN32], [test "$bwin32" = "true"])
 AM_CONDITIONAL([MACOS], [test "$bmac" = "true"])
@@ -296,7 +297,9 @@ if test "${compile_server}" = "yes"; then
    PKG_CHECK_MODULES(ZDB, [zdb >= $ZDB_REQUIRED])
    AC_SUBST(ZDB_CFLAGS)
    AC_SUBST(ZDB_LIBS)
+fi
 
+if test "${compile_fuse}" = "yes"; then
    PKG_CHECK_MODULES(FUSE, [fuse >= $FUSE_REQUIRED])
    AC_SUBST(FUSE_CFLAGS)
    AC_SUBST(FUSE_LIBS)
