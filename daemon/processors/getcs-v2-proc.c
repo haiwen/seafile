@@ -59,6 +59,7 @@ static int
 add_chunk_server (CcnetProcessor *processor, TransferTask *task, char *cs_str)
 {
     char **tokens;
+    CcnetPeer *peer;
     ChunkServer *cs;
 
     tokens = g_strsplit (cs_str, ":", -1);
@@ -68,13 +69,28 @@ add_chunk_server (CcnetProcessor *processor, TransferTask *task, char *cs_str)
         return -1;
     }
 
+    peer = ccnet_get_peer (seaf->ccnetrpc_client, processor->peer_id);
+    if (!peer) {
+        g_warning ("[getcs] Invalid peer %s.\n", processor->peer_id);
+        g_strfreev (tokens);
+        return -1;
+    }
+
+    if (!peer->addr_str) {
+        g_warning ("[getcs] Peer doesn't have an address.\n");
+        g_object_unref (peer);
+        g_strfreev (tokens);
+        return -1;
+    }
+
     cs = g_new0 (ChunkServer, 1);
-    cs->addr = g_strdup (tokens[0]);
+    cs->addr = g_strdup (peer->addr_str);
     cs->port = atoi (tokens[1]);
 
     task->chunk_servers = g_list_prepend (task->chunk_servers, cs);
 
     g_strfreev (tokens);
+    g_object_unref (peer);
     return 0;
 }
 
