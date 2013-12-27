@@ -585,7 +585,7 @@ static int update_file_flags(struct merge_options *o,
     }
 
 update_cache:
-    if (update_cache)
+    if (update_cache && clean)
         add_cacheinfo(o->index, mode, sha, path, real_path, 0, refresh, ADD_CACHE_OK_TO_ADD);
     g_free(real_path);
 
@@ -609,7 +609,7 @@ static void handle_delete_modify(struct merge_options *o,
 {
     /* Only need to checkout other's version if I deleted the file. */
     if (!a_sha)
-        update_file(o, 0, b_sha, b_mode, new_path);
+        update_file(o, 1, b_sha, b_mode, new_path);
     else
         update_file_flags (o, a_sha, a_mode, path, 1, 0);
 }
@@ -790,7 +790,7 @@ static int process_df_entry(struct merge_options *o,
                 g_free (conflict_suffix);
             } else {
                 /* Modify/Delete conflict. Don't consider as unclean. */
-                update_file(o, 0, b_sha, b_mode, path);
+                update_file(o, 1, b_sha, b_mode, path);
             }
         } else {
             if (seaf_stat (real_path, &st) == 0 && S_ISDIR(st.st_mode)) {
