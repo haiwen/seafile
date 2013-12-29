@@ -90,12 +90,7 @@
     <CustomAction Id="RemoveSeafileUserData" FileKey="seafileapplet.exe" ExeCommand="--remove-user-data"
                   Execute="immediate" Impersonate="yes" Return="ignore" />
 
-    <CustomAction Id="StopSeafileClient" FileKey="seafileapplet.exe" ExeCommand="--stop"
-                  Execute="immediate" Impersonate="yes" Return="ignore" />
-
     <InstallExecuteSequence>
-      <!-- Ask seafile-applet to quit before upgrade/uninstall -->
-      <Custom Action="StopSeafileClient" Before="InstallValidate"></Custom>
       <!-- Remove User data, as well as seafile QSettings in registry -->
       <Custom Action="RemoveSeafileUserData" Before="RemoveRegistryValues">
         (NOT UPGRADINGPRODUCTCODE) AND (REMOVE="ALL")
