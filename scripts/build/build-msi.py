@@ -649,10 +649,15 @@ def copy_qt_translations():
     qt_translation_dir = os.path.join(conf[CONF_QT_ROOT], 'translations')
 
     langs = [
-        ('zh_CN', 'zh_CN'),
         ('de', 'de_DE'),
+        ('es', 'es'),
         ('fr', 'fr_FR'),
-        ('hu', 'hu_HU'),
+        ('he', 'he_IL'),
+        ('pt', 'pt_BR'),
+        ('ru', 'ru'),
+        ('sk', 'sk_SK'),
+        ('uk', 'uk'),
+        ('zh_CN', 'zh_CN'),
     ]
     for lang in langs:
         src = os.path.join(qt_translation_dir, 'qt_%s.qm' % lang[0])
