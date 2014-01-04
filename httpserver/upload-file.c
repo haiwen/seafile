@@ -299,15 +299,16 @@ upload_cb(evhtp_request_t *req, void *arg)
     filenames_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
 
-    char *new_file_ids = seafile_post_multi_files (rpc_client,
-                                                   fsm->repo_id,
-                                                   parent_dir,
-                                                   filenames_json,
-                                                   tmp_files_json,
-                                                   fsm->user,
-                                                   &error);
+    char *ret_json = seafile_post_multi_files (rpc_client,
+                                               fsm->repo_id,
+                                               parent_dir,
+                                               filenames_json,
+                                               tmp_files_json,
+                                               fsm->user,
+                                               &error);
     g_free (filenames_json);
     g_free (tmp_files_json);
+    g_free (ret_json);
     if (error) {
         if (error->code == POST_FILE_ERR_FILENAME) {
             error_code = ERROR_FILENAME;
@@ -317,7 +318,6 @@ upload_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    g_free (new_file_ids);
     ccnet_rpc_client_free (rpc_client);
 
     /* Redirect to repo dir page after upload finishes. */
@@ -331,6 +331,35 @@ error:
     redirect_to_upload_error (req, fsm->repo_id, parent_dir,
                               err_file, error_code);
     g_free (err_file);
+}
+
+static char *
+file_id_list_from_json (const char *ret_json)
+{
+    json_t *array, *obj, *value;
+    json_error_t err;
+    size_t index;
+    GString *id_list;
+
+    array = json_loadb (ret_json, strlen(ret_json), 0, &err);
+    if (!array) {
+        seaf_warning ("Failed to load ret_json: %s.\n", err.text);
+        return NULL;
+    }
+
+    id_list = g_string_new (NULL);
+    size_t n = json_array_size (array);
+    for (index = 0; index < n; index++) {
+        obj = json_array_get (array, index);
+        value = json_object_get (obj, "id");
+        const char *id = json_string_value (value);
+        g_string_append (id_list, id);
+        if (index != n - 1)
+            g_string_append (id_list, "\t");
+    }
+
+    json_decref (array);
+    return g_string_free (id_list, FALSE);
 }
 
 static void
@@ -382,13 +411,13 @@ upload_api_cb(evhtp_request_t *req, void *arg)
     filenames_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
 
-    char *new_file_ids = seafile_post_multi_files (rpc_client,
-                                              fsm->repo_id,
-                                              parent_dir,
-                                              filenames_json,
-                                              tmp_files_json,
-                                              fsm->user,
-                                              &error);
+    char *ret_json = seafile_post_multi_files (rpc_client,
+                                               fsm->repo_id,
+                                               parent_dir,
+                                               filenames_json,
+                                               tmp_files_json,
+                                               fsm->user,
+                                               &error);
     g_free (filenames_json);
     g_free (tmp_files_json);
     if (error) {
@@ -402,8 +431,17 @@ upload_api_cb(evhtp_request_t *req, void *arg)
 
     ccnet_rpc_client_free (rpc_client);
 
-    evbuffer_add (req->buffer_out, new_file_ids, strlen(new_file_ids));
-    g_free (new_file_ids);
+    const char *use_json = evhtp_kv_find (req->uri->query, "ret-json");
+    if (use_json) {
+        evbuffer_add (req->buffer_out, ret_json, strlen(ret_json));
+    } else {
+        char *new_ids = file_id_list_from_json (ret_json);
+        if (new_ids)
+            evbuffer_add (req->buffer_out, new_ids, strlen(new_ids));
+        g_free (new_ids);
+    }
+    g_free (ret_json);
+
     set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_OK);
     return;
@@ -695,9 +733,6 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
     char *filenames_json, *tmp_files_json;
-    GString *res_buf = g_string_new (NULL);
-    GList *ptr;
-    
 
     evhtp_headers_add_header (req->headers_out,
                               evhtp_header_new("Access-Control-Allow-Headers",
@@ -765,13 +800,13 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     filenames_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
 
-    char *new_file_ids = seafile_post_multi_files (rpc_client,
-                                                   fsm->repo_id,
-                                                   parent_dir,
-                                                   filenames_json,
-                                                   tmp_files_json,
-                                                   fsm->user,
-                                                   &error);
+    char *ret_json = seafile_post_multi_files (rpc_client,
+                                               fsm->repo_id,
+                                               parent_dir,
+                                               filenames_json,
+                                               tmp_files_json,
+                                               fsm->user,
+                                               &error);
     g_free (filenames_json);
     g_free (tmp_files_json);
     if (error) {
@@ -783,22 +818,10 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    g_free (new_file_ids);
     ccnet_rpc_client_free (rpc_client);
 
-
-    g_string_append (res_buf, "[");
-    for (ptr = fsm->filenames; ptr; ptr = ptr->next) {
-        char *filename = ptr->data;
-        if (ptr->next)
-            g_string_append_printf (res_buf, "{\"name\": \"%s\"}, ", filename);
-        else
-            g_string_append_printf (res_buf, "{\"name\": \"%s\"}", filename);
-    }
-    g_string_append (res_buf, "]");
-
-    evbuffer_add (req->buffer_out, res_buf->str, res_buf->len);
-    g_string_free (res_buf, TRUE);
+    evbuffer_add (req->buffer_out, ret_json, strlen(ret_json));
+    g_free (ret_json);
 
     set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_OK);

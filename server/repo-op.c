@@ -625,7 +625,7 @@ out:
 }
 
 static int
-add_new_entries (GList **entries, GList *filenames, GList *id_list)
+add_new_entries (GList **entries, GList *filenames, GList *id_list, GList **name_list)
 {
     GList *ptr1, *ptr2;
     char *file, *id;
@@ -644,7 +644,8 @@ add_new_entries (GList **entries, GList *filenames, GList *id_list)
         if (unique_name != NULL) {
             newdent = seaf_dirent_new (id, S_IFREG, unique_name);
             *entries = g_list_insert_sorted (*entries, newdent, compare_dirents);
-            g_free (unique_name);
+            *name_list = g_list_append (*name_list, unique_name);
+            /* No need to free unique_name */
         } else {
             return -1;
         }
@@ -657,7 +658,8 @@ static char *
 post_multi_files_recursive (const char *dir_id,
                             const char *to_path,
                             GList *filenames,
-                            GList *id_list)
+                            GList *id_list,
+                            GList **name_list)
 {
     SeafDir *olddir, *newdir;
     SeafDirent *dent;
@@ -677,7 +679,7 @@ post_multi_files_recursive (const char *dir_id,
 
         newentries = dup_seafdir_entries (olddir->entries);
 
-        if (add_new_entries (&newentries, filenames, id_list) < 0)
+        if (add_new_entries (&newentries, filenames, id_list, name_list) < 0)
             goto out;
 
         newdir = seaf_dir_new (NULL, newentries, 0);
@@ -705,7 +707,7 @@ post_multi_files_recursive (const char *dir_id,
         if (strcmp(dent->name, to_path_dup) != 0)
             continue;
 
-        id = post_multi_files_recursive (dent->id, remain, filenames, id_list);
+        id = post_multi_files_recursive (dent->id, remain, filenames, id_list, name_list);
         if (id != NULL) {
             memcpy(dent->id, id, 40);
             dent->id[40] = '\0';
@@ -738,13 +740,15 @@ static char *
 do_post_multi_files (const char *root_id,
                      const char *parent_dir,
                      GList *filenames,
-                     GList *id_list)
+                     GList *id_list,
+                     GList **name_list)
 {
     /* if parent_dir is a absolutely path, we will remove the first '/' */
     if (*parent_dir == '/')
         parent_dir = parent_dir + 1;
 
-    return post_multi_files_recursive(root_id, parent_dir, filenames, id_list);
+    return post_multi_files_recursive(root_id, parent_dir, filenames,
+                                      id_list, name_list);
 }
 
 static GList *
@@ -775,6 +779,39 @@ json_to_file_list (const char *files_json)
     return files;
 }
 
+/*
+ * Return [{'name': 'file1', 'id': 'id1'}, {'name': 'file2', 'id': 'id2'}]
+ */
+static char *
+format_json_ret (GList *name_list, GList *id_list)
+{
+    json_t *array, *obj;
+    GList *ptr, *ptr2;
+    char *filename, *id;
+    char *json_data;
+    char *ret;
+
+    array = json_array ();
+
+    for (ptr = name_list, ptr2 = id_list;
+         ptr && ptr2;
+         ptr = ptr->next, ptr2 = ptr2->next) {
+        filename = ptr->data;
+        id = ptr2->data;
+        obj = json_object ();
+        json_object_set_string_member (obj, "name", filename);
+        json_object_set_string_member (obj, "id", id);
+        json_array_append_new (array, obj);
+    }
+
+    json_data = json_dumps (array, 0);
+    json_decref (array);
+
+    ret = g_strdup (json_data);
+    free (json_data);
+    return ret;
+}
+
 int
 seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
                                     const char *repo_id,
@@ -782,13 +819,13 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
                                     const char *filenames_json,
                                     const char *paths_json,
                                     const char *user,
-                                    char **new_ids,
+                                    char **ret_json,
                                     GError **error)
 {
     SeafRepo *repo = NULL;
     SeafCommit *head_commit = NULL;
     char *canon_path = NULL;
-    GList *filenames = NULL, *paths = NULL, *id_list = NULL, *ptr;
+    GList *filenames = NULL, *paths = NULL, *id_list = NULL, *name_list = NULL, *ptr;
     char *filename, *path;
     unsigned char sha1[20];
     GString *buf = g_string_new (NULL);
@@ -864,7 +901,7 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
 
     /* Add the files to parent dir and commit. */
     root_id = do_post_multi_files (head_commit->root_id, canon_path,
-                                   filenames, id_list);
+                                   filenames, id_list, &name_list);
     if (!root_id) {
         seaf_warning ("[post file] Failed to put file.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
@@ -888,11 +925,7 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
 
     seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
-    GString *new_ids_buf = g_string_new(NULL);
-    const char *id_sep = "\t";
-
-    string_list_join (id_list, new_ids_buf, id_sep);
-    *new_ids = g_string_free (new_ids_buf, FALSE);
+    *ret_json = format_json_ret (name_list, id_list);
 
 out:
     if (repo)
@@ -902,6 +935,7 @@ out:
     string_list_free (filenames);
     string_list_free (paths);
     string_list_free (id_list);
+    string_list_free (name_list);
     g_string_free (buf, TRUE);
     g_free (root_id);
     g_free (canon_path);

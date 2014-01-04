@@ -2826,19 +2826,19 @@ seafile_post_multi_files (const char *repo_id,
         return NULL;
     }
 
-    char *new_ids = NULL;
+    char *ret_json = NULL;
     if (seaf_repo_manager_post_multi_files (seaf->repo_mgr,
                                             repo_id,
                                             parent_dir,
                                             filenames_json,
                                             paths_json,
                                             user,
-                                            &new_ids,
+                                            &ret_json,
                                             error) < 0) {
         return NULL;
     }
 
-    return new_ids;
+    return ret_json;
 }
 
 char *
