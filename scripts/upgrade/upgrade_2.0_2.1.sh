@@ -62,71 +62,75 @@ function read_seafile_data_dir () {
         echo ""
         exit 1;
     fi
+
+    export SEAFILE_CONF_DIR=$seafile_data_dir
 }
 
-check_python_executable
-read_seafile_data_dir
+function ensure_server_not_running() {
+    # test whether seafile server has been stopped.
+    if pgrep seaf-server 2>/dev/null 1>&2 ; then
+        echo
+        echo "seafile server is still running !"
+        echo "stop it using scripts before upgrade."
+        echo
+        exit 1
+    elif pgrep -f "${manage_py} run_gunicorn" 2>/dev/null 1>&2 ; then
+        echo
+        echo "seahub server is still running !"
+        echo "stop it before upgrade."
+        echo
+        exit 1
+    elif pgrep -f "${manage_py} run_fcgi" 2>/dev/null 1>&2 ; then
+        echo
+        echo "seahub server is still running !"
+        echo "stop it before upgrade."
+        echo
+        exit 1
+    fi
+}
 
-export SEAFILE_CONF_DIR=$seafile_data_dir
-
-# test whether seafile server has been stopped.
-if pgrep seaf-server 2>/dev/null 1>&2 ; then
+function migrate_avatars() {
     echo
-    echo "seafile server is still running !"
-    echo "stop it using scripts before upgrade."
+    echo "migrating avatars ..."
     echo
-    exit 1
-elif pgrep -f "${manage_py} run_gunicorn" 2>/dev/null 1>&2 ; then
+    media_dir=${INSTALLPATH}/seahub/media
+    orig_avatar_dir=${INSTALLPATH}/seahub/media/avatars
+    dest_avatar_dir=${TOPDIR}/seahub-data/avatars
+
+    # move "media/avatars" directory outside
+    if [[ ! -d ${dest_avatar_dir} ]]; then
+        mkdir -p "${TOPDIR}/seahub-data"
+        mv "${orig_avatar_dir}" "${dest_avatar_dir}" 2>/dev/null 1>&2
+        ln -s ../../../seahub-data/avatars ${media_dir}
+
+    elif [[ ! -L ${orig_avatar_dir} ]]; then
+        mv ${orig_avatar_dir}/* "${dest_avatar_dir}" 2>/dev/null 1>&2
+        rm -rf "${orig_avatar_dir}"
+        ln -s ../../../seahub-data/avatars ${media_dir}
+    fi
+    echo "Done"
+}
+
+function update_database() {
     echo
-    echo "seahub server is still running !"
-    echo "stop it before upgrade."
+    echo "Updating seafile/seahub database ..."
     echo
-    exit 1
-elif pgrep -f "${manage_py} run_fcgi" 2>/dev/null 1>&2 ; then
-    echo
-    echo "seahub server is still running !"
-    echo "stop it before upgrade."
-    echo
-    exit 1
-fi
 
-echo
-echo "------------------------------"
-echo "migrating avatars ..."
-echo
-media_dir=${INSTALLPATH}/seahub/media
-orig_avatar_dir=${INSTALLPATH}/seahub/media/avatars
-dest_avatar_dir=${TOPDIR}/seahub-data/avatars
+    db_update_helper=${UPGRADE_DIR}/db_update_helper.py
+    if ! $PYTHON ${db_update_helper} 2.1.0; then
+        echo
+        echo "Failed to upgrade your database"
+        echo
+        exit 1
+    fi
+    echo "Done"
+}
 
-# move "media/avatars" directory outside
-if [[ ! -d ${dest_avatar_dir} ]]; then
-    mkdir -p "${TOPDIR}/seahub-data"
-    mv "${orig_avatar_dir}" "${dest_avatar_dir}" 2>/dev/null 1>&2
-    ln -s ../../../seahub-data/avatars ${media_dir}
-
-elif [[ ! -L ${orig_avatar_dir}} ]]; then
-    mv ${orig_avatar_dir}/* "${dest_avatar_dir}" 2>/dev/null 1>&2
-    rm -rf "${orig_avatar_dir}"
-    ln -s ../../../seahub-data/avatars ${media_dir}
-fi
-
-echo "DONE"
-echo "------------------------------"
-echo
-
-echo
-echo "------------------------------"
-echo "Updating seafile/seahub database ..."
-echo
-
-seahub_db=${TOPDIR}/seahub.db
-seahub_sql=${UPGRADE_DIR}/sql/2.1.0/sqlite3/seahub.sql
-if ! sqlite3 "${seahub_db}" < "${seahub_sql}"; then
-    echo "Failed to update seahub database"
-    exit 1
-fi
 
 function gen_seafdav_conf() {
+    echo
+    echo "generating seafdav.conf ..."
+    echo
     seafdav_conf=${default_conf_dir}/seafdav.conf
     mkdir -p ${default_conf_dir}
     if ! $(cat > ${seafdav_conf} <<EOF
@@ -140,18 +144,41 @@ EOF
         echo "failed to generate seafdav.conf";
         exit 1
     fi
+    echo "Done"
 }
 
 function copy_user_manuals() {
+    echo
+    echo "copying user manuals ..."
+    echo
     src_docs_dir=${INSTALLPATH}/seafile/docs/
     library_template_dir=${seafile_data_dir}/library-template
     mkdir -p ${library_template_dir}
     cp -f ${src_docs_dir}/*.doc ${library_template_dir}
+    echo "Done"
 }
 
+#################
+# The main execution flow of the script
+################
+
+check_python_executable;
+read_seafile_data_dir;
+ensure_server_not_running;
+
+export SEAFILE_CONF_DIR=$seafile_data_dir
+
+migrate_avatars;
+
+update_database;
+
 gen_seafdav_conf;
+
 copy_user_manuals;
 
-echo "DONE"
-echo "------------------------------"
+
+echo
+echo "-----------------------------------------------------------------"
+echo "Upgraded your seafile server successfully."
+echo "-----------------------------------------------------------------"
 echo
