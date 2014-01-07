@@ -127,6 +127,10 @@ class DBUpdater(object):
         if not config.has_section(db_section):
             return None
 
+        type = config.get(db_section, 'ENGINE')
+        if type != 'mysql':
+            return None
+
         try:
             host = config.get(db_section, 'HOST')
             port = config.getint(db_section, 'PORT')
@@ -150,6 +154,10 @@ class DBUpdater(object):
         db_section = 'database'
 
         if not config.has_section(db_section):
+            return None
+
+        type = config.get(db_section, 'type')
+        if type != 'mysql':
             return None
 
         try:
