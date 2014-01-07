@@ -16,6 +16,11 @@ try:
 except ImportError:
     HAS_SQLITE3 = False
 
+if sys.version_info[1] == 6:
+    IS_PYTHON26 = True
+else:
+    IS_PYTHON26 = False
+
 class EnvManager(object):
     def __init__(self):
         self.upgrade_dir = os.path.dirname(__file__)
@@ -116,10 +121,17 @@ class DBUpdater(object):
     @staticmethod
     def get_ccnet_mysql_info():
         ccnet_conf = os.path.join(env_mgr.ccnet_dir, 'ccnet.conf')
-        defaults = {
-            'HOST': ['127.0.0.1',],
-            'PORT': ['3306',],
-        }
+        if IS_PYTHON26:
+            defaults = {
+                'HOST': '127.0.0.1',
+                'PORT': '3306',
+            }
+        else:
+            defaults = {
+                'HOST': ['127.0.0.1',],
+                'PORT': ['3306',],
+            }
+
         config = Utils.read_config(ccnet_conf, defaults)
         db_section = 'Database'
 
@@ -141,10 +153,16 @@ class DBUpdater(object):
     @staticmethod
     def get_seafile_mysql_info():
         seafile_conf = os.path.join(env_mgr.seafile_dir, 'seafile.conf')
-        defaults = {
-            'HOST': ['127.0.0.1',],
-            'PORT': ['3306',],
-        }
+        if IS_PYTHON26:
+            defaults = {
+                'HOST': '127.0.0.1',
+                'PORT': '3306',
+            }
+        else:
+            defaults = {
+                'HOST': ['127.0.0.1',],
+                'PORT': ['3306',],
+            }
         config = Utils.read_config(seafile_conf, defaults)
         db_section = 'database'
 
