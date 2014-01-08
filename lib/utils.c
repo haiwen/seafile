@@ -1045,7 +1045,7 @@ pgpipe (ccnet_pipe_t handles[2])
 
     if ( ( s = socket( AF_INET, SOCK_STREAM, 0 ) ) == INVALID_SOCKET )
     {
-        g_debug("pgpipe failed to create socket: %d\n", WSAGetLastError());
+        g_warning("pgpipe failed to create socket: %d\n", WSAGetLastError());
         return -1;
     }
 
@@ -1055,38 +1055,38 @@ pgpipe (ccnet_pipe_t handles[2])
     serv_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     if (bind(s, (SOCKADDR *) & serv_addr, len) == SOCKET_ERROR)
     {
-        g_debug("pgpipe failed to bind: %d\n", WSAGetLastError());
+        g_warning("pgpipe failed to bind: %d\n", WSAGetLastError());
         closesocket(s);
         return -1;
     }
     if (listen(s, 1) == SOCKET_ERROR)
     {
-        g_debug("pgpipe failed to listen: %d\n", WSAGetLastError());
+        g_warning("pgpipe failed to listen: %d\n", WSAGetLastError());
         closesocket(s);
         return -1;
     }
     if (getsockname(s, (SOCKADDR *) & serv_addr, &len) == SOCKET_ERROR)
     {
-        g_debug("pgpipe failed to getsockname: %d\n", WSAGetLastError());
+        g_warning("pgpipe failed to getsockname: %d\n", WSAGetLastError());
         closesocket(s);
         return -1;
     }
     if ((handles[1] = socket(PF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
     {
-        g_debug("pgpipe failed to create socket 2: %d\n", WSAGetLastError());
+        g_warning("pgpipe failed to create socket 2: %d\n", WSAGetLastError());
         closesocket(s);
         return -1;
     }
 
     if (connect(handles[1], (SOCKADDR *) & serv_addr, len) == SOCKET_ERROR)
     {
-        g_debug("pgpipe failed to connect socket: %d\n", WSAGetLastError());
+        g_warning("pgpipe failed to connect socket: %d\n", WSAGetLastError());
         closesocket(s);
         return -1;
     }
     if ((handles[0] = accept(s, (SOCKADDR *) & serv_addr, &len)) == INVALID_SOCKET)
     {
-        g_debug("pgpipe failed to accept socket: %d\n", WSAGetLastError());
+        g_warning("pgpipe failed to accept socket: %d\n", WSAGetLastError());
         closesocket(handles[1]);
         handles[1] = INVALID_SOCKET;
         closesocket(s);

@@ -40,9 +40,8 @@ enum {
 
 typedef struct  {
     char        remote_id[41];
+    char        last_uploaded_id[41];
     GList       *id_list;
-    GHashTable  *commit_hash;
-    gboolean    fast_forward;
     gboolean    compute_success;
 } SeafileSendcommitProcPriv;
 
@@ -67,8 +66,6 @@ release_resource (CcnetProcessor *processor)
 
     if (priv->id_list != NULL)
         string_list_free (priv->id_list);
-    if (priv->commit_hash)
-        g_hash_table_destroy (priv->commit_hash);
 
     CCNET_PROCESSOR_CLASS (seafile_sendcommit_v3_proc_parent_class)->release_resource (processor);
 }
@@ -172,18 +169,8 @@ send_one_commit (CcnetProcessor *processor)
     g_free (commit_id);
 }
 
-/* Traverse the commit graph until remote_id is met or a merged commit
- * (commit with two parents) is met.
- *
- * If a merged commit is met before remote_id, that implies that
- * we did a real merge when merged with the branch headed by remote_id.
- * In this case we'll need more computation to find out the "delta" commits
- * between these two branches. Otherwise, if the merge was a fast-forward
- * one, it's enough to just send all the commits between our head commit
- * and remote_id.
- */
 static gboolean
-traverse_commit_fast_forward (SeafCommit *commit, void *data, gboolean *stop)
+collect_upload_commit_ids (SeafCommit *commit, void *data, gboolean *stop)
 {
     CcnetProcessor *processor = data;
     TransferTask *task = ((SeafileSendcommitV3Proc *)processor)->tx_task;
@@ -195,9 +182,8 @@ traverse_commit_fast_forward (SeafCommit *commit, void *data, gboolean *stop)
         return TRUE;
     }
 
-    if (commit->second_parent_id != NULL) {
+    if (strcmp (priv->last_uploaded_id, commit->commit_id) == 0) {
         *stop = TRUE;
-        priv->fast_forward = FALSE;
         return TRUE;
     }
 
@@ -213,84 +199,6 @@ traverse_commit_fast_forward (SeafCommit *commit, void *data, gboolean *stop)
     return TRUE;
 }
 
-static gboolean
-traverse_commit_remote (SeafCommit *commit, void *data, gboolean *stop)
-{
-    CcnetProcessor *processor = data;
-    USE_PRIV;
-    char *key;
-
-    if (g_hash_table_lookup (priv->commit_hash, commit->commit_id))
-        return TRUE;
-
-    key = g_strdup(commit->commit_id);
-    g_hash_table_insert (priv->commit_hash, key, key);
-    return TRUE;
-}
-
-static gboolean
-compute_delta (SeafCommit *commit, void *data, gboolean *stop)
-{
-    CcnetProcessor *processor = data;
-    TransferTask *task = ((SeafileSendcommitV3Proc *)processor)->tx_task;
-    USE_PRIV;
-
-    if (!g_hash_table_lookup (priv->commit_hash, commit->commit_id)) {
-        priv->id_list = g_list_prepend (priv->id_list,
-                                        g_strdup(commit->commit_id));
-
-        if (strcmp (commit->root_id, EMPTY_SHA1) != 0)
-            object_list_insert (task->fs_roots, commit->root_id);
-
-        object_list_insert (task->commits, commit->commit_id);
-    } else {
-        /* Stop traversing down from this commit if it already exists
-         * in the remote branch.
-         */
-        *stop = TRUE;
-    }
-
-    return TRUE;
-}
-
-static int
-compute_delta_commits (CcnetProcessor *processor, const char *head)
-{
-    gboolean ret;
-    TransferTask *task = ((SeafileSendcommitV3Proc *)processor)->tx_task;
-    USE_PRIV;
-
-    string_list_free (priv->id_list);
-    priv->id_list = NULL;
-
-    object_list_free (task->fs_roots);
-    task->fs_roots = object_list_new ();
-
-    object_list_free (task->commits);
-    task->commits = object_list_new ();
-
-    priv->commit_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                               g_free, NULL);
-
-    ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
-                                                    priv->remote_id,
-                                                    traverse_commit_remote,
-                                                    processor, FALSE);
-    if (!ret) {
-        return -1;
-    }
-
-    ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
-                                                    head,
-                                                    compute_delta,
-                                                    processor, FALSE);
-    if (!ret) {
-        return -1;
-    }
-
-    return 0;
-}
-
 static void *
 compute_upload_commits_thread (void *vdata)
 {
@@ -300,24 +208,11 @@ compute_upload_commits_thread (void *vdata)
     USE_PRIV;
     gboolean ret;
 
-    priv->fast_forward = TRUE;
     ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                     task->head,
-                                                    traverse_commit_fast_forward,
+                                                    collect_upload_commit_ids,
                                                     processor, FALSE);
     if (!ret) {
-        priv->compute_success = FALSE;
-        return vdata;
-    }
-
-    if (priv->fast_forward) {
-        priv->compute_success = TRUE;
-        seaf_debug ("[sendcommt] Send commit after a fast forward merge.\n");
-        return vdata;
-    }
-
-    seaf_debug ("[sendcommit] Send commit after a real merge.\n");
-    if (compute_delta_commits (processor, task->head) < 0) {
         priv->compute_success = FALSE;
         return vdata;
     }
@@ -345,6 +240,22 @@ compute_upload_commits_done (void *vdata)
 static void
 send_commits (CcnetProcessor *processor, const char *head)
 {
+    SeafileSendcommitV3Proc *proc = (SeafileSendcommitV3Proc *)processor;
+    USE_PRIV;
+    char *last_uploaded;
+
+    last_uploaded = seaf_repo_manager_get_repo_property (seaf->repo_mgr,
+                                                         proc->tx_task->repo_id,
+                                                         REPO_LOCAL_HEAD);
+    if (!last_uploaded || strlen(last_uploaded) != 40) {
+        seaf_warning ("Last uploaded commit id is not found in db or invalid.\n");
+        ccnet_processor_send_update (processor, SC_SHUTDOWN, SS_SHUTDOWN, NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+        return;
+    }
+    memcpy (priv->last_uploaded_id, last_uploaded, 40);
+    g_free (last_uploaded);
+
     ccnet_processor_thread_create (processor,
                                    seaf->job_mgr,
                                    compute_upload_commits_thread,

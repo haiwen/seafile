@@ -43,7 +43,9 @@ proc_headers = $(addprefix processors/, \
 	sendcommit-v3-proc.h \
 	getrepoemailtoken-proc.h \
 	getcs-v2-proc.h \
-	checkbl-proc.h)
+	checkbl-proc.h \
+	getcommit-v3-proc.h \
+	checkff-proc.h)
 
 proc_headers += ../common/processors/objecttx-common.h \
 				../common/processors/blocktx-common.h \
@@ -129,7 +131,9 @@ common_src = \
 	processors/sendcommit-v3-proc.c \
 	processors/getrepoemailtoken-proc.c \
 	processors/getcs-v2-proc.c \
-	processors/checkbl-proc.c
+	processors/checkbl-proc.c \
+	processors/getcommit-v3-proc.c \
+	processors/checkff-proc.c
 
 
 seaf_daemon_SOURCES = seaf-daemon.c $(common_src)

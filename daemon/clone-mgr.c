@@ -14,6 +14,8 @@
 
 #include "utils.h"
 
+#include "processors/checkff-proc.h"
+
 #define CLONE_DB "clone.db"
 
 #define CHECK_CONNECT_INTERVAL 5 /* 5s */
@@ -214,13 +216,16 @@ restart_task (sqlite3_stmt *stmt, void *data)
              * The task will be removed from db but still left in memory.
              */
             transition_state (task, CLONE_STATE_DONE);
-            g_hash_table_insert (mgr->tasks, g_strdup(task->repo_id), task);
-        } else {
+        } else if (!ccnet_peer_is_ready (seaf->ccnetrpc_client, task->peer_id)) {
             /* If head is not set, we haven't finished checkout.
+             * But we first have to wait for server since in checkout we'll check
+             * fast forward with the server.
              */
-            g_hash_table_insert (mgr->tasks, g_strdup(task->repo_id), task);
+            start_connect_task_relay (task, NULL);
+        } else {
             start_checkout (repo, task);
         }
+        g_hash_table_insert (mgr->tasks, g_strdup(task->repo_id), task);
     } else {
         /* Repo was not created last time. In this case, we just
          * restart from the very beginning.
@@ -262,7 +267,11 @@ static void
 continue_task_when_peer_connected (CloneTask *task)
 {
     if (ccnet_peer_is_ready (seaf->ccnetrpc_client, task->peer_id)) {
-        start_index_or_transfer (task->manager, task, NULL);
+        SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, task->repo_id);
+        if (!repo)
+            start_index_or_transfer (task->manager, task, NULL);
+        else if (repo->head == NULL)
+            start_checkout (repo, task);
     }
 }
 
@@ -287,6 +296,10 @@ static int check_connect_pulse (void *vmanager)
 int
 seaf_clone_manager_start (SeafCloneManager *mgr)
 {
+    ccnet_proc_factory_register_processor (seaf->session->proc_factory,
+                                           "seafile-checkff",
+                                           SEAFILE_TYPE_CHECKFF_PROC);
+
     mgr->check_timer = ccnet_timer_new (check_connect_pulse, mgr,
                                         CHECK_CONNECT_INTERVAL * 1000);
 
@@ -393,7 +406,7 @@ transition_to_error (CloneTask *task, int error)
 }
 
 static int
-add_transfer_task (SeafCloneManager *mgr, CloneTask *task, GError **error)
+add_transfer_task (CloneTask *task, GError **error)
 {
     task->tx_id = seaf_transfer_manager_add_download (seaf->transfer_mgr,
                                                       task->repo_id,
@@ -409,7 +422,6 @@ add_transfer_task (SeafCloneManager *mgr, CloneTask *task, GError **error)
 }
 
 typedef struct {
-    SeafCloneManager *mgr;
     CloneTask *task;
     gboolean success;
 } IndexAux;
@@ -445,7 +457,7 @@ index_files_done (void *result)
         goto out;
     }
 
-    if (add_transfer_task (aux->mgr, task, NULL) < 0) {
+    if (add_transfer_task (task, NULL) < 0) {
         transition_to_error (task, CLONE_ERROR_FETCH);
         goto out;
     }
@@ -483,7 +495,6 @@ start_index_or_transfer (SeafCloneManager *mgr, CloneTask *task, GError **error)
         transition_state (task, CLONE_STATE_INDEX);
 
         aux = g_new0 (IndexAux, 1);
-        aux->mgr = mgr;
         aux->task = task;
 
         ccnet_job_manager_schedule_job (seaf->job_mgr,
@@ -491,7 +502,7 @@ start_index_or_transfer (SeafCloneManager *mgr, CloneTask *task, GError **error)
                                         index_files_done,
                                         aux);
     } else {
-        ret = add_transfer_task (mgr, task, error);
+        ret = add_transfer_task (task, error);
         if (ret == 0)
             transition_state (task, CLONE_STATE_FETCH);
         else
@@ -814,16 +825,17 @@ add_task_common (SeafCloneManager *mgr,
         return NULL;
     }
 
-    if (repo != NULL && repo->head == NULL) {
+    if (!ccnet_peer_is_ready(seaf->ccnetrpc_client, task->peer_id)) {
+        /* the relay is not connected yet.
+         * We need relay connected even before checkout.
+         */
+        start_connect_task_relay (task, error);
+    } else if (repo != NULL && repo->head == NULL) {
         /* Repo was downloaded but not checked out.
          * This can happen when the last checkout failed, the user
          * can then clone the repo again.
          */
         start_checkout (repo, task);
-    } else if (!ccnet_peer_is_ready(seaf->ccnetrpc_client, task->peer_id)) {
-        /* the relay is not connected yet */
-        start_connect_task_relay (task, error);
-        
     } else {
         start_index_or_transfer (mgr, task, error);
     }
@@ -1118,6 +1130,8 @@ seaf_clone_manager_get_tasks (SeafCloneManager *mgr)
 }
 
 typedef struct {
+    gboolean is_fast_forward;
+    gboolean check_ff_in_thread;
     CloneTask *task;
     SeafRepo *repo;
     gboolean success;
@@ -1335,17 +1349,7 @@ merge_job (void *data)
     SeafRepo *repo = aux->repo;
     SeafBranch *local = NULL;
     SeafCommit *head = NULL;
-
-    /* If we haven't indexed files in the worktree, index them now. */
-    if (task->root_id[0] == 0) {
-        if (seaf_repo_index_worktree_files (task->repo_id,
-                                            task->worktree,
-                                            task->passwd,
-                                            task->enc_version,
-                                            task->random_key,
-                                            task->root_id) < 0)
-            return aux;
-    }
+    gboolean is_ff;
 
     local = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "local");
     if (!local) {
@@ -1359,7 +1363,12 @@ merge_job (void *data)
         goto out;
     }
 
-    if (check_fast_forward (head, task->root_id)) {
+    if (aux->check_ff_in_thread)
+        is_ff = check_fast_forward (head, task->root_id);
+    else
+        is_ff = aux->is_fast_forward;
+
+    if (is_ff) {
         seaf_debug ("[clone mgr] Fast forward.\n");
         if (fast_forward_checkout (repo, head, task) < 0)
             goto out;
@@ -1472,6 +1481,96 @@ setup_repo_without_checkout (SeafRepo *repo, SeafBranch *local, CloneTask *task)
 }
 
 static void
+checkff_done (CcnetProcessor *processor, gboolean success, void *data)
+{
+    SeafileCheckffProc *proc = (SeafileCheckffProc *)processor;
+    CloneTask *task = data;
+
+    if (task->state == CLONE_STATE_CANCEL_PENDING) {
+        transition_state (task, CLONE_STATE_CANCELED);
+        return;
+    }
+
+    SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, task->repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %s.\n", task->repo_id);
+        transition_to_error (task, CLONE_ERROR_MERGE);
+        return;
+    }
+
+    MergeAux *aux = g_new0 (MergeAux, 1);
+    aux->task = task;
+    aux->repo = repo;
+
+    /* If checkff proc fails, we're talking to an older server which doesn't support
+     * this processor. In that case transfer manager should have downloaded
+     * all history commits from the server. So we can still check ff locally in the
+     * merge thread.
+     */
+    if (success) {
+        aux->is_fast_forward = proc->is_fast_forward;
+        aux->check_ff_in_thread = FALSE;
+    } else {
+        aux->is_fast_forward = FALSE;
+        aux->check_ff_in_thread = TRUE;
+    }
+
+    ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                    merge_job,
+                                    merge_job_done,
+                                    aux);
+}
+
+static int
+start_checkff_proc (CloneTask *task)
+{
+    CcnetProcessor *processor;
+
+    processor = ccnet_proc_factory_create_remote_master_processor (
+        seaf->session->proc_factory, "seafile-checkff", task->peer_id);
+    if (!processor) {
+        seaf_warning ("failed to create checkff proc.\n");
+        return -1;
+    }
+
+    g_signal_connect (processor, "done", (GCallback)checkff_done, task);
+
+    seaf_debug ("repo_id: %s, root_id: %s.\n", task->repo_id, task->root_id);
+
+    if (ccnet_processor_startl (processor, task->repo_id, task->root_id, NULL) < 0) {
+        seaf_warning ("failed to start checkff proc.\n");
+        return -1;
+    }
+
+    return 0;
+}
+
+static void
+index_files_before_merge_done (void *result)
+{
+    IndexAux *aux = result;
+    CloneTask *task = aux->task;
+
+    if (!aux->success) {
+        transition_to_error (task, CLONE_ERROR_MERGE);
+        goto out;
+    }
+
+    if (task->state == CLONE_STATE_CANCEL_PENDING) {
+        transition_state (task, CLONE_STATE_CANCELED);
+        goto out;
+    }
+
+    if (start_checkff_proc (task) < 0) {
+        transition_to_error (task, CLONE_ERROR_MERGE);
+        goto out;
+    }
+
+out:
+    g_free (aux);
+}
+
+static void
 start_checkout (SeafRepo *repo, CloneTask *task)
 {
     if (repo->encrypted && task->passwd != NULL) {
@@ -1536,15 +1635,27 @@ start_checkout (SeafRepo *repo, CloneTask *task)
                                              on_checkout_done,
                                              task->manager);
     } else {
-        MergeAux *aux = g_new0 (MergeAux, 1);
-        aux->task = task;
-        aux->repo = repo;
-
         transition_state (task, CLONE_STATE_MERGE);
-        ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                        merge_job,
-                                        merge_job_done,
-                                        aux);
+
+        if (task->root_id[0] == 0) {
+            /* If the task is restarted, root_id may not be calculated yet. */
+            IndexAux *aux = g_new0 (IndexAux, 1);
+            aux->task = task;
+
+            ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                            index_files_job,
+                                            index_files_before_merge_done,
+                                            aux);
+        } else {
+            /* Since we don't have complete history on the client, start a 
+             * processor to check if task->root_id exist in the history on the server.
+             * That means there is no change in the worktree after the last unsync.
+             */
+            if (start_checkff_proc (task) < 0) {
+                transition_to_error (task, CLONE_ERROR_MERGE);
+                return;
+            }
+        }
     }
 }
 

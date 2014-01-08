@@ -691,6 +691,25 @@ merge_job_done (void *vresult)
                                              REPO_REMOTE_HEAD,
                                              master->commit_id);
         seaf_branch_unref (master);
+
+        /* If it's a ff merge, also update REPO_LOCAL_HEAD. */
+        if (!res->real_merge) {
+            SeafBranch *local = seaf_branch_manager_get_branch (seaf->branch_mgr,
+                                                                 repo->id,
+                                                                 "local");
+            if (!local) {
+                seaf_warning ("[sync mgr] local branch doesn't exist.\n");
+                seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_DATA_CORRUPT);
+                goto out;
+            }
+
+            seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                                 repo->id,
+                                                 REPO_LOCAL_HEAD,
+                                                 local->commit_id);
+            seaf_branch_unref (local);
+        }
+
     }
 
     if (res->success && res->real_merge)
@@ -724,12 +743,63 @@ merge_branches_if_necessary (SyncTask *task)
                                     task);
 }
 
+typedef struct {
+    char remote_id[41];
+    char base_id[41];
+    gboolean result;
+} CheckFFData;
+
+static gboolean
+check_fast_forward (SeafCommit *commit, void *vdata, gboolean *stop)
+{
+    CheckFFData *data = vdata;
+
+    if (strcmp (commit->commit_id, data->remote_id) == 0) {
+        *stop = TRUE;
+        data->result = TRUE;
+        return TRUE;
+    }
+
+    if (strcmp (commit->commit_id, data->base_id) == 0) {
+        *stop = TRUE;
+        return TRUE;
+    }
+
+    return TRUE;
+}
+
+static gboolean
+check_fast_forward_with_base (const char *local_id,
+                              const char *remote_id,
+                              const char *base_id,
+                              gboolean *error)
+{
+    CheckFFData data;
+
+    memset (&data, 0, sizeof(data));
+    memcpy (data.remote_id, remote_id, 40);
+    memcpy (data.base_id, base_id, 40);
+    *error = FALSE;
+
+    if (!seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                   local_id,
+                                                   check_fast_forward,
+                                                   &data, FALSE)) {
+        seaf_warning ("Failed to traverse commit tree from %s.\n", local_id);
+        *error = TRUE;
+        return FALSE;
+    }
+
+    return data.result;
+}
+
 static void
 update_sync_status (SyncTask *task)
 {
     SyncInfo *info = task->info;
     SeafRepo *repo = task->repo;
     SeafBranch *master, *local;
+    char *last_uploaded = NULL;
 
     local = seaf_branch_manager_get_branch (
         seaf->branch_mgr, info->repo_id, "local");
@@ -741,6 +811,17 @@ update_sync_status (SyncTask *task)
     }
     master = seaf_branch_manager_get_branch (
         seaf->branch_mgr, info->repo_id, "master");
+
+    last_uploaded = seaf_repo_manager_get_repo_property (seaf->repo_mgr,
+                                                         repo->id,
+                                                         REPO_LOCAL_HEAD);
+    if (!last_uploaded) {
+        seaf_warning ("Last uploaded commit id is not found in db.\n");
+        seaf_branch_unref (local);
+        seaf_branch_unref (master);
+        seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
+        return;
+    }
 
     if (info->repo_corrupted) {
         seaf_sync_manager_set_task_error (task, SYNC_ERROR_REPO_CORRUPT);
@@ -760,12 +841,33 @@ update_sync_status (SyncTask *task)
                                                   repo->name);
             seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
         }
-    } else if (info->branch_deleted_on_relay || /* branch deleted on relay */
-               is_fast_forward (local->commit_id, info->head_commit)) {
-        /* fast-forward upload */
-        start_upload_if_necessary (task);
     } else {
-        if (!master || !is_up_to_date (info->head_commit, master->commit_id)) {
+        /* branch deleted on relay */
+        if (info->branch_deleted_on_relay) {
+            start_upload_if_necessary (task);
+            goto out;
+        }
+
+        if (strcmp (local->commit_id, last_uploaded) != 0) {
+            gboolean error = FALSE;
+            gboolean is_ff = check_fast_forward_with_base (local->commit_id,
+                                                           info->head_commit,
+                                                           last_uploaded,
+                                                           &error);
+            if (error) {
+                seaf_warning ("Failed to check fast forward.\n");
+                seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
+                goto out;
+            }
+
+            /* fast-forward upload */
+            if (is_ff) {
+                start_upload_if_necessary (task);
+                goto out;
+            }
+        }
+
+        if (!master || strcmp (info->head_commit, master->commit_id) != 0) {
             start_fetch_if_necessary (task);
         } else if (strcmp (local->commit_id, master->commit_id) != 0) {
             /* Try to merge even if we don't need to fetch. */
@@ -777,9 +879,11 @@ update_sync_status (SyncTask *task)
         }
     }
 
+out:
     seaf_branch_unref (local);
     if (master)
         seaf_branch_unref (master);
+    g_free (last_uploaded);
 }
 
 static void

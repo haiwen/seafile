@@ -239,7 +239,10 @@ on_start_cleanup_job (void *vdata)
 {
     recover_interrupted_merges ();
 
-    gc_core_run (0, 0);
+    /* If some metadata objects are corrupt, the blocks they reference are
+     * useless anyway. So just ignore errors.
+     */
+    gc_core_run (0, 1);
 
     return vdata;
 }

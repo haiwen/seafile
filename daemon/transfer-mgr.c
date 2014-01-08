@@ -44,6 +44,7 @@
 #include "processors/getcs-proc.h"
 #include "processors/sendbranch-proc.h"
 #include "processors/getcommit-v2-proc.h"
+#include "processors/getcommit-v3-proc.h"
 #include "processors/sendcommit-v2-proc.h"
 #include "processors/sendcommit-v3-proc.h"
 #include "processors/checkbl-proc.h"
@@ -757,6 +758,10 @@ static void register_processors (CcnetClient *client)
                                            SEAFILE_TYPE_GETCOMMIT_V2_PROC);
 
     ccnet_proc_factory_register_processor (client->proc_factory,
+                                           "seafile-getcommit-v3",
+                                           SEAFILE_TYPE_GETCOMMIT_V3_PROC);
+
+    ccnet_proc_factory_register_processor (client->proc_factory,
                                            "seafile-sendcommit-v2",
                                            SEAFILE_TYPE_SENDCOMMIT_V2_PROC);
     ccnet_proc_factory_register_processor (client->proc_factory,
@@ -1312,9 +1317,12 @@ start_getcommit_proc (TransferTask *task, const char *peer_id, GCallback done_cb
     if (task->protocol_version == 1)
         processor = ccnet_proc_factory_create_remote_master_processor (
                     seaf->session->proc_factory, "seafile-getcommit", peer_id);
-    else
+    else if (task->protocol_version <= 5)
         processor = ccnet_proc_factory_create_remote_master_processor (
                     seaf->session->proc_factory, "seafile-getcommit-v2", peer_id);
+    else
+        processor = ccnet_proc_factory_create_remote_master_processor (
+                    seaf->session->proc_factory, "seafile-getcommit-v3", peer_id);
     if (!processor) {
         seaf_warning ("failed to create getcommit proc.\n");
         return -1;

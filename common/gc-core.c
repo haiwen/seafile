@@ -258,6 +258,8 @@ populate_gc_index_for_head (const char *head_id, Bloom *index)
     GCData *data;
     gboolean ret;
 
+    seaf_message ("Populating index for clone head %s.\n", head_id);
+
     /* We just need to traverse the head for clone tasks. */
     head = seaf_commit_manager_get_commit (seaf->commit_mgr, head_id);
     if (!head) {
@@ -273,7 +275,50 @@ populate_gc_index_for_head (const char *head_id, Bloom *index)
                                          fs_callback,
                                          data, FALSE);
 
+    seaf_message ("Traversed %"G_GINT64_FORMAT" blocks.\n", data->traversed_blocks);
+
     g_free (data);
+    seaf_commit_unref (head);
+    return ret;
+}
+
+static int
+populate_gc_index_for_precheckout_repo (SeafRepo *repo, Bloom *index)
+{
+    SeafBranch *master;
+    SeafCommit *head;
+    GCData *data;
+    gboolean ret;
+
+    seaf_message ("Populating index for precheckout repo %s.\n", repo->id);
+
+    /* For repos that are cloned but not checked out yet, it's sufficient
+     * to traverse the head commit of master branch.
+     */
+    master = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "master");
+    if (!master) {
+        seaf_warning ("Failed to get master branch.\n");
+        return -1;
+    }
+    head = seaf_commit_manager_get_commit (seaf->commit_mgr, master->commit_id);
+    if (!head) {
+        seaf_warning ("Failed to get commit %s.\n", master->commit_id);
+        seaf_branch_unref (master);
+        return -1;
+    }
+
+    data = g_new0 (GCData, 1);
+    data->index = index;
+
+    ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
+                                         head->root_id,
+                                         fs_callback,
+                                         data, FALSE);
+
+    seaf_message ("Traversed %"G_GINT64_FORMAT" blocks.\n", data->traversed_blocks);
+
+    g_free (data);
+    seaf_branch_unref (master);
     seaf_commit_unref (head);
     return ret;
 }
@@ -343,9 +388,14 @@ gc_core_run (int dry_run, int ignore_errors)
 #endif
 
     for (ptr = repos; ptr != NULL; ptr = ptr->next) {
-        ret = populate_gc_index_for_repo ((SeafRepo *)ptr->data, index,
-                                          ignore_errors);
-#ifdef SEAFILE_SERVER
+        SeafRepo *repo = ptr->data;
+#ifndef SEAFILE_SERVER
+        if (repo->head)
+            ret = populate_gc_index_for_repo (repo, index, ignore_errors);
+        else
+            ret = populate_gc_index_for_precheckout_repo (repo, index);
+#else
+        ret = populate_gc_index_for_repo (repo, index, ignore_errors);
         seaf_repo_unref ((SeafRepo *)ptr->data);
 #endif
         if (ret < 0 && !ignore_errors)

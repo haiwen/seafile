@@ -32,9 +32,11 @@
 #include "processors/recvbranch-proc.h"
 #include "processors/sync-repo-slave-proc.h"
 #include "processors/putcommit-v2-proc.h"
+#include "processors/putcommit-v3-proc.h"
 #include "processors/recvcommit-v3-proc.h"
 #include "processors/putcs-v2-proc.h"
 #include "processors/checkbl-proc.h"
+#include "processors/checkff-proc.h"
 
 #include "cdc/cdc.h"
 
@@ -88,12 +90,16 @@ static void register_processors (CcnetClient *client)
                             SEAFILE_TYPE_SYNC_REPO_SLAVE_PROC, NULL);
     ccnet_register_service (client, "seafile-putcommit-v2", "basic",
                             SEAFILE_TYPE_PUTCOMMIT_V2_PROC, NULL);
+    ccnet_register_service (client, "seafile-putcommit-v3", "basic",
+                            SEAFILE_TYPE_PUTCOMMIT_V3_PROC, NULL);
     ccnet_register_service (client, "seafile-recvcommit-v3", "basic",
                             SEAFILE_TYPE_RECVCOMMIT_V3_PROC, NULL);
     ccnet_register_service (client, "seafile-putcs-v2", "basic",
                             SEAFILE_TYPE_PUTCS_V2_PROC, NULL);
     ccnet_register_service (client, "seafile-checkbl", "basic",
                             SEAFILE_TYPE_CHECKBL_PROC, NULL);
+    ccnet_register_service (client, "seafile-checkff", "basic",
+                            SEAFILE_TYPE_CHECKFF_PROC, NULL);
 }
 
 #include <searpc.h>

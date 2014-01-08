@@ -475,7 +475,7 @@ get_last_changer_of_file (const char *head, const char *path)
 }
 
 char *
-gen_conflict_path (const char *origin_path, const char *suffix)
+gen_conflict_path (const char *origin_path)
 {
     char time_buf[64];
     time_t t = time(NULL);
@@ -490,11 +490,11 @@ gen_conflict_path (const char *origin_path, const char *suffix)
     if (dot != NULL) {
         *dot = '\0';
         ext = dot + 1;
-        g_string_printf (conflict_path, "%s (%s %s).%s",
-                         copy, suffix, time_buf, ext);
+        g_string_printf (conflict_path, "%s (%s).%s",
+                         copy, time_buf, ext);
     } else {
-        g_string_printf (conflict_path, "%s (%s %s)",
-                         copy, suffix, time_buf);
+        g_string_printf (conflict_path, "%s (%s)",
+                         copy, time_buf);
     }
 
     g_free (copy);

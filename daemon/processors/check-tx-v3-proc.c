@@ -185,17 +185,23 @@ handle_upload_ok (CcnetProcessor *processor, TransferTask *task,
         ccnet_processor_done (processor, FALSE);
         return;
     }
-    memcpy (task->remote_head, content, 41);
 
-    /* Check fast-forward here. */
-    if (strcmp (task->head, task->remote_head) != 0 &&
-        !is_fast_forward (task->head, task->remote_head)) {
-        g_warning ("Upload is not fast-forward.\n");
-        transfer_task_set_error (task, TASK_ERR_NOT_FAST_FORWARD);
+    /* Ignore the returned remote head id, just use the head of master branch.
+     * For protocol version >= 6, the complete hitstory is not downloaded, so
+     * there is no way to check fast forward on the client. For protocol version
+     * < 6, the server will check fast forward anyway.
+     */
+    SeafBranch *master = seaf_branch_manager_get_branch (seaf->branch_mgr,
+                                                         task->repo_id, "master");
+    if (!master) {
+        g_warning ("Cannot find branch master for repo %s.\n", task->repo_id);
         ccnet_processor_send_update (processor, SC_SHUTDOWN, SS_SHUTDOWN, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
     }
+    memcpy (task->remote_head, master->commit_id, 40);
+    seaf_branch_unref (master);
+
     ccnet_processor_send_update (processor,
                                  SC_GET_TOKEN, SS_GET_TOKEN,
                                  NULL, 0);

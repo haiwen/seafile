@@ -439,7 +439,7 @@ static int create_leading_directories(int base_len,
 
             strftime(time_buf, 64, "%Y-%m-%d-%H-%M-%S", localtime(&t));
             n = snprintf (&buf[my_offset], SEAF_PATH_MAX - my_offset,
-                          " (%s %s)", conflict_suffix, time_buf);
+                          " (%s)", time_buf);
             my_offset += n;
             if (seaf_stat (buf, &st) == 0 && S_ISDIR(st.st_mode))
                 continue;
@@ -520,7 +520,6 @@ static int update_file_flags(struct merge_options *o,
     if (update_wd) {
         char *new_path;
         SeafStat st;
-        char *conflict_suffix;
 
         /* When creating a conflict directory, we use o->branch2 as conflict
          * suffix instead of the last changer name of path.
@@ -562,10 +561,6 @@ static int update_file_flags(struct merge_options *o,
             return clean;
         }
 
-        conflict_suffix = get_last_changer_of_file (o->remote_head, path);
-        if (!conflict_suffix)
-            conflict_suffix = g_strdup(o->branch2);
-
         gboolean conflicted;
         rawdata_to_hex(sha, file_id, 20);
         if (seaf_fs_manager_checkout_file(seaf->fs_mgr, 
@@ -573,15 +568,13 @@ static int update_file_flags(struct merge_options *o,
                                           real_path,
                                           mode,
                                           o->crypt,
-                                          conflict_suffix,
+                                          NULL,
                                           FALSE,
                                           &conflicted) < 0) {
             g_warning("Failed to checkout file %s.\n", file_id);
-            g_free (conflict_suffix);
             refresh = 0;
             goto update_cache;
         }
-        g_free (conflict_suffix);
     }
 
 update_cache:
@@ -682,22 +675,17 @@ static int process_entry(struct merge_options *o,
         /* case D: Modified in both, but differently. */
         if (memcmp(a_sha, b_sha, 20) != 0 || a_mode != b_mode) {
             char *new_path = NULL;
-            char *conflict_suffix = NULL;
 
             clean_merge = 0;
 
             if (!o->collect_blocks_only) {
-                conflict_suffix = get_last_changer_of_file (o->remote_head, path);
-                if (!conflict_suffix)
-                    conflict_suffix = g_strdup(o->branch2);
-                new_path = gen_conflict_path (path, conflict_suffix);
+                new_path = gen_conflict_path (path);
             }
 
             /* Dont update index. */
             /* Keep my version, rename other's version. */
             update_file_flags(o, b_sha, b_mode, new_path, 0, 1);
             g_free (new_path);
-            g_free (conflict_suffix);
         } else {
             update_file_flags (o, a_sha, b_mode, path, 1, 0);
         }
@@ -767,7 +755,6 @@ static int process_df_entry(struct merge_options *o,
     SeafStat st;
     char *real_path = g_build_path(PATH_SEPERATOR, o->worktree, path, NULL);
     char *new_path = NULL;
-    char *conflict_suffix = NULL;
 
     entry->processed = 1;
     if (o_sha && (!a_sha || !b_sha)) {
@@ -778,16 +765,11 @@ static int process_df_entry(struct merge_options *o,
                 clean_merge = 0;
 
                 if (!o->collect_blocks_only) {
-                    conflict_suffix = get_last_changer_of_file (o->remote_head,
-                                                                path);
-                    if (!conflict_suffix)
-                        conflict_suffix = g_strdup(o->branch2);
-                    new_path = gen_conflict_path (path, conflict_suffix);
+                    new_path = gen_conflict_path (path);
                 }
 
                 update_file(o, 0, b_sha, b_mode, new_path);
                 g_free (new_path);
-                g_free (conflict_suffix);
             } else {
                 /* Modify/Delete conflict. Don't consider as unclean. */
                 update_file(o, 1, b_sha, b_mode, path);
@@ -826,16 +808,11 @@ static int process_df_entry(struct merge_options *o,
                 clean_merge = 0;
 
                 if (!o->collect_blocks_only) {
-                    conflict_suffix = get_last_changer_of_file (o->remote_head,
-                                                                path);
-                    if (!conflict_suffix)
-                        conflict_suffix = g_strdup(o->branch2);
-                    new_path = gen_conflict_path (path, conflict_suffix);
+                    new_path = gen_conflict_path (path);
                 }
 
                 update_file(o, 0, b_sha, b_mode, new_path);
                 g_free (new_path);
-                g_free (conflict_suffix);
             } else {
                 /* Clean merge. */
                 clean_merge = update_file(o, 1, b_sha, b_mode, path);

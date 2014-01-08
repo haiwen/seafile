@@ -104,6 +104,26 @@ out:
     return ret;
 }
 
+static SeafCommit *
+get_last_uploaded_commit (const char *repo_id)
+{
+    char *last_uploaded;
+    SeafCommit *commit;
+
+    last_uploaded = seaf_repo_manager_get_repo_property (seaf->repo_mgr,
+                                                         repo_id,
+                                                         REPO_LOCAL_HEAD);
+    if (!last_uploaded) {
+        g_warning ("Last uploaded commit id is not found in db.\n");
+        return NULL;
+    }
+
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, last_uploaded);
+
+    g_free (last_uploaded);
+    return commit;
+}
+
 int
 merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
                 gboolean *real_merge)
@@ -156,7 +176,7 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
     /* Set in_merge state. */
     seaf_repo_manager_set_merge (repo->manager, repo->id, remote_branch->commit_id);
 
-    common = get_merge_base (head, remote);
+    common = get_last_uploaded_commit (repo->id);
 
     if (!common) {
         g_warning ("Cannot find common ancestor\n");
@@ -330,7 +350,7 @@ merge_get_new_block_list (SeafRepo *repo, SeafCommit *remote, BlockList **bl)
         return -1;
     }
 
-    common = get_merge_base (head, remote);
+    common = get_last_uploaded_commit (repo->id);
 
     if (!common) {
         g_warning ("Cannot find common ancestor\n");

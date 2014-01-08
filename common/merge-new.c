@@ -15,27 +15,10 @@ merge_conflict_filename (const char *remote_head,
                          const char *basedir,
                          const char *filename)
 {
-    char *path = NULL, *conflict_suffix = NULL, *conflict_name = NULL;
-    SeafCommit *commit;
+    char *conflict_name = NULL;
 
-    path = g_strconcat (basedir, filename, NULL);
+    conflict_name = gen_conflict_path (filename);
 
-    conflict_suffix = get_last_changer_of_file (remote_head, path);
-    if (!conflict_suffix) {
-        commit = seaf_commit_manager_get_commit (seaf->commit_mgr, remote_head);
-        if (!commit) {
-            seaf_warning ("Failed to find remote head %s.\n", remote_head);
-            goto out;
-        }
-        conflict_suffix = g_strdup(commit->creator_name);
-        seaf_commit_unref (commit);
-    }
-
-    conflict_name = gen_conflict_path (filename, conflict_suffix);
-
-out:
-    g_free (path);
-    g_free (conflict_suffix);
     return conflict_name;
 }
 
@@ -44,21 +27,10 @@ merge_conflict_dirname (const char *remote_head,
                         const char *basedir,
                         const char *dirname)
 {
-    char *conflict_suffix = NULL, *conflict_name = NULL;
-    SeafCommit *commit;
+    char *conflict_name = NULL;
 
-    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, remote_head);
-    if (!commit) {
-        seaf_warning ("Failed to find remote head %s.\n", remote_head);
-        goto out;
-    }
-    conflict_suffix = g_strdup(commit->creator_name);
-    seaf_commit_unref (commit);
+    conflict_name = gen_conflict_path (dirname);
 
-    conflict_name = gen_conflict_path (dirname, conflict_suffix);
-
-out:
-    g_free (conflict_suffix);
     return conflict_name;
 }
 

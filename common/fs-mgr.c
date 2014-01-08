@@ -262,8 +262,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
     /* The caller has detected conflict. */
     if (force_conflict) {
         *conflicted = TRUE;
-        conflict_path = gen_conflict_path (file_path,
-                                           conflict_suffix);
+        conflict_path = gen_conflict_path (file_path);
         if (ccnet_rename (tmp_path, conflict_path) < 0) {
             g_free (conflict_path);
             goto bad;
@@ -272,8 +271,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
     } else if (ccnet_rename (tmp_path, file_path) < 0) {
         if (conflict_suffix) {
             *conflicted = TRUE;
-            conflict_path = gen_conflict_path (file_path,
-                                               conflict_suffix);
+            conflict_path = gen_conflict_path (file_path);
             if (ccnet_rename (tmp_path, conflict_path) < 0) {
                 g_free (conflict_path);
                 goto bad;

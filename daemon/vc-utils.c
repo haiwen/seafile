@@ -623,7 +623,6 @@ update_worktree (struct unpack_trees_options *o,
     struct index_state *result = &o->result;
     int i;
     struct cache_entry *ce;
-    char *conflict_suffix = NULL;
     int errs = 0;
     GHashTable *conflict_hash, *no_conflict_hash;
 
@@ -641,16 +640,9 @@ update_worktree (struct unpack_trees_options *o,
     for (i = 0; i < result->cache_nr; ++i) {
         ce = result->cache[i];
         if (ce->ce_flags & CE_UPDATE) {
-            if (conflict_head_id) {
-                conflict_suffix = get_last_changer_of_file (conflict_head_id,
-                                                            ce->name);
-                if (!conflict_suffix)
-                    conflict_suffix = g_strdup(default_conflict_suffix);
-            }
             errs |= checkout_entry (ce, o, recover_merge,
-                                    conflict_suffix,
+                                    NULL,
                                     conflict_hash, no_conflict_hash);
-            g_free (conflict_suffix);
         }
         if (finished_entries)
             *finished_entries = *finished_entries + 1;
