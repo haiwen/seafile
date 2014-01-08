@@ -13,7 +13,6 @@
 #include "utils.h"
 
 #include "seaf-fuse.h"
-#include "seafile-session.h"
 
 int read_file(SeafileSession *seaf, Seafile *file, char *buf, size_t size,
               off_t offset, struct fuse_file_info *info)

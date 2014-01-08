@@ -1,8 +1,7 @@
 #ifndef SEAF_FUSE_H
 #define SEAF_FUSE_H
 
-typedef struct _SeafileSession SeafileSession;
-typedef struct _Seafile Seafile;
+#include "seafile-session.h"
 
 int parse_fuse_path (const char *path,
                      int *n_parts, char **user, char **repo_id, char **repo_path);
