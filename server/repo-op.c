@@ -3300,7 +3300,10 @@ seaf_repo_manager_calc_files_last_modified (SeafRepoManager *mgr,
                                                         repo->head->commit_id,
                                 (CommitTraverseFunc)collect_files_last_modified,
                                                               limit, &data)) {
-        seaf_warning ("error when travsersing commits: %s\n", (*error)->message);
+        if (*error)
+            seaf_warning ("error when traversing commits: %s\n", (*error)->message);
+        else
+            seaf_warning ("error when traversing commits.\n");
         g_clear_error (error);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "failed to traverse commit of repo %s", repo_id);
