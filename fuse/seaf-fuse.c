@@ -16,7 +16,6 @@
 #include "log.h"
 #include "utils.h"
 
-#include "seafile-session.h"
 #include "seaf-fuse.h"
 
 CcnetClient *ccnet_client = NULL;
