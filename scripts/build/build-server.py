@@ -238,6 +238,20 @@ class Seahub(Project):
     def get_version(self):
         return conf[CONF_SEAFILE_VERSION]
 
+    def build(self):
+        self.write_version_to_settings_py()
+
+        Project.build(self)
+
+    def write_version_to_settings_py(self):
+        '''Write the version of current seafile server to seahub'''
+        settings_py = os.path.join(self.projdir, 'seahub', 'settings.py')
+
+        line = '\nSEAFILE_VERSION = "%s"\n' % conf[CONF_VERSION]
+        with open(settings_py, 'a+') as fp:
+            fp.write(line)
+
+
 def check_seahub_thirdpart(thirdpartdir):
     '''The ${thirdpartdir} must have django/djblets/gunicorn pre-installed. So
     we can copy it to seahub/thirdpart
