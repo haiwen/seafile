@@ -648,21 +648,27 @@ def copy_qt_translations():
 
     qt_translation_dir = os.path.join(conf[CONF_QT_ROOT], 'translations')
 
-    langs = [
-        ('de', 'de_DE'),
-        ('es', 'es'),
-        ('fr', 'fr_FR'),
-        ('he', 'he_IL'),
-        ('pt', 'pt_BR'),
-        ('ru', 'ru'),
-        ('sk', 'sk_SK'),
-        ('uk', 'uk'),
-        ('zh_CN', 'zh_CN'),
-    ]
-    for lang in langs:
-        src = os.path.join(qt_translation_dir, 'qt_%s.qm' % lang[0])
-        dst = os.path.join(destdir, 'qt_%s.qm' % lang[1])
-        must_copy(src, dst)
+    i18n_dir = os.path.join(SeafileClient().projdir, 'i18n')
+    qm_pattern = os.path.join(i18n_dir, 'seafile_*.qm')
+
+    qt_qms = set()
+    def add_lang(lang):
+        if not lang:
+            return
+        qt_qm = os.path.join(qt_translation_dir, 'qt_%s.qm' % lang)
+        if os.path.exists(qt_qm):
+            qt_qms.add(qt_qm)
+        elif '_' in lang:
+            add_lang(lang[:lang.index('_')])
+
+    for fn in glob.glob(qm_pattern):
+        name = os.path.basename(fn)
+        m = re.match(r'seafile_(.*)\.qm', name)
+        lang = m.group(1)
+        add_lang(lang)
+
+    for src in qt_qms:
+        must_copy(src, destdir)
 
 def prepare_msi():
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
