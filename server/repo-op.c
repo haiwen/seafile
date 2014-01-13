@@ -367,6 +367,8 @@ check_file_exists (const char *root_id,
         }                                                               \
     } while (0);
 
+#define STD_FILE_MODE (S_IFREG | 0644)
+
 static int
 gen_new_commit (const char *repo_id,
                 SeafCommit *base,
@@ -587,7 +589,7 @@ seaf_repo_manager_post_file (SeafRepoManager *mgr,
     }
         
     rawdata_to_hex(sha1, hex, 20);
-    new_dent = seaf_dirent_new (hex, S_IFREG, file_name);
+    new_dent = seaf_dirent_new (hex, STD_FILE_MODE, file_name);
 
     root_id = do_post_file (head_commit->root_id, canon_path, new_dent);
     if (!root_id) {
@@ -642,7 +644,7 @@ add_new_entries (GList **entries, GList *filenames, GList *id_list, GList **name
 
         unique_name = generate_unique_filename (file, *entries);
         if (unique_name != NULL) {
-            newdent = seaf_dirent_new (id, S_IFREG, unique_name);
+            newdent = seaf_dirent_new (id, STD_FILE_MODE, unique_name);
             *entries = g_list_insert_sorted (*entries, newdent, compare_dirents);
             *name_list = g_list_append (*name_list, unique_name);
             /* No need to free unique_name */
@@ -1024,7 +1026,7 @@ seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
     }
 
     rawdata_to_hex(sha1, hex, 20);
-    new_dent = seaf_dirent_new (hex, S_IFREG, file_name);
+    new_dent = seaf_dirent_new (hex, STD_FILE_MODE, file_name);
 
     root_id = do_post_file (head_commit->root_id, canon_path, new_dent);
     if (!root_id) {
@@ -1678,7 +1680,7 @@ seaf_repo_manager_post_empty_file (SeafRepoManager *mgr,
     FAIL_IF_FILE_EXISTS(head_commit->root_id, canon_path, new_file_name, NULL);
 
     if (!new_dent) {
-        new_dent = seaf_dirent_new (EMPTY_SHA1, S_IFREG, new_file_name);
+        new_dent = seaf_dirent_new (EMPTY_SHA1, STD_FILE_MODE, new_file_name);
     }
 
     root_id = do_post_file (head_commit->root_id, canon_path, new_dent);
@@ -2076,7 +2078,7 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
     }
         
     rawdata_to_hex(sha1, hex, 20);
-    new_dent = seaf_dirent_new (hex, S_IFREG, file_name);
+    new_dent = seaf_dirent_new (hex, STD_FILE_MODE, file_name);
 
     if (!fullpath)
         fullpath = g_build_filename(parent_dir, file_name, NULL);
@@ -2283,7 +2285,7 @@ seaf_repo_manager_put_file_blocks (SeafRepoManager *mgr,
     }
 
     rawdata_to_hex(sha1, hex, 20);
-    new_dent = seaf_dirent_new (hex, S_IFREG, file_name);
+    new_dent = seaf_dirent_new (hex, STD_FILE_MODE, file_name);
 
     if (!fullpath)
         fullpath = g_build_filename(parent_dir, file_name, NULL);
@@ -2412,7 +2414,7 @@ revert_file_to_root (const char *root_id,
             break;
     }
 
-    newdent = seaf_dirent_new (file_id, S_IFREG, new_file_name);
+    newdent = seaf_dirent_new (file_id, STD_FILE_MODE, new_file_name);
     new_root_id = do_post_file (root_id, "/", newdent);
 
 out:
@@ -2484,7 +2486,7 @@ revert_file_to_parent_dir (const char *root_id,
     }
 
 do_revert:    
-    newdent = seaf_dirent_new (file_id, S_IFREG, new_file_name);
+    newdent = seaf_dirent_new (file_id, STD_FILE_MODE, new_file_name);
     if (is_overwrite) {
         new_root_id = do_put_file (root_id, parent_dir, newdent);
     } else {
