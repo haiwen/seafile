@@ -6,9 +6,15 @@ ifeq (${MAKECMDGOALS}, en)
 	LANG_FILE = en_US.wxl
 	TARGET = seafile-en.msi
 endif
+ifeq (${MAKECMDGOALS}, de)
+	CULTURE = de-de
+	LANG_FILE = de_DE.wxl
+	TARGET = seafile-de.msi
+endif
 
 all : $(TARGET)
 en: all
+de: all
 
 CC=candle.exe
 LD=light.exe
@@ -38,4 +44,4 @@ $(TARGET) : $(OBJECTS) $(LANG_FILE)
 clean :
 	rm -f $(OBJECTS) *.msi fragment.*
 
-.PHONY: all en clean
+.PHONY: all en de clean
