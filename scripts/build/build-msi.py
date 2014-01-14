@@ -726,6 +726,13 @@ def build_english_msi():
     if run('make en', cwd=pack_dir) != 0:
         error('Error when make seafile-en.msi')
 
+def build_german_msi():
+    '''The extra work to build the German msi.'''
+    pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
+
+    if run('make de', cwd=pack_dir) != 0:
+        error('Error when make seafile-de.msi')
+
 def move_msi():
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
     src_msi = os.path.join(pack_dir, 'seafile.msi')
@@ -738,12 +745,16 @@ def move_msi():
         src_msi_en = os.path.join(pack_dir, 'seafile-en.msi')
         dst_msi_en = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-en.msi' % conf[CONF_VERSION])
         must_copy(src_msi_en, dst_msi_en)
+        src_msi_de = os.path.join(pack_dir, 'seafile-de.msi')
+        dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-de.msi' % conf[CONF_VERSION])
+        must_copy(src_msi_de, dst_msi_de)
 
     print '---------------------------------------------'
     print 'The build is successfully. Output is:'
     print '>>\t%s' % dst_msi
     if not conf[CONF_ONLY_CHINESE]:
         print '>>\t%s' % dst_msi_en
+        print '>>\t%s' % dst_msi_de
     print '---------------------------------------------'
 
 def check_tools():
@@ -783,6 +794,8 @@ def main():
     build_msi()
     if not conf[CONF_ONLY_CHINESE]:
         build_english_msi()
+        build_german_msi()
+
     move_msi()
 
 if __name__ == '__main__':
