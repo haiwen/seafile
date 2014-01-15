@@ -101,12 +101,12 @@ function migrate_avatars() {
     if [[ ! -d ${dest_avatar_dir} ]]; then
         mkdir -p "${TOPDIR}/seahub-data"
         mv "${orig_avatar_dir}" "${dest_avatar_dir}" 2>/dev/null 1>&2
-        ln -s ../../../seahub-data/avatars ${media_dir}
+        ln -s ../../../seahub-data/avatars "${media_dir}"
 
     elif [[ ! -L ${orig_avatar_dir} ]]; then
-        mv ${orig_avatar_dir}/* "${dest_avatar_dir}" 2>/dev/null 1>&2
+        mv "${orig_avatar_dir}"/* "${dest_avatar_dir}" 2>/dev/null 1>&2
         rm -rf "${orig_avatar_dir}"
-        ln -s ../../../seahub-data/avatars ${media_dir}
+        ln -s ../../../seahub-data/avatars "${media_dir}"
     fi
     echo "Done"
 }
@@ -117,7 +117,7 @@ function update_database() {
     echo
 
     db_update_helper=${UPGRADE_DIR}/db_update_helper.py
-    if ! $PYTHON ${db_update_helper} 2.1.0; then
+    if ! $PYTHON "${db_update_helper}" 2.1.0; then
         echo
         echo "Failed to upgrade your database"
         echo
@@ -126,14 +126,34 @@ function update_database() {
     echo "Done"
 }
 
+function upgrade_seafile_server_latest_symlink() {
+    # update the symlink seafile-server to the new server version
+    seafile_server_symlink=${TOPDIR}/seafile-server-latest
+    if [[ -L "${seafile_server_symlink}" ]]; then
+        echo
+        printf "updating \033[33m${seafile_server_symlink}\033[m symbolic link to \033[33m${INSTALLPATH}\033[m ...\n\n"
+        echo
+        if ! rm -f "${seafile_server_symlink}"; then
+            echo "Failed to remove ${seafile_server_symlink}"
+            echo
+            exit 1;
+        fi
+
+        if ! ln -s "$(basename ${INSTALLPATH})" "${seafile_server_symlink}"; then
+            echo "Failed to update ${seafile_server_symlink} symbolic link."
+            echo
+            exit 1;
+        fi
+    fi
+}
 
 function gen_seafdav_conf() {
     echo
     echo "generating seafdav.conf ..."
     echo
     seafdav_conf=${default_conf_dir}/seafdav.conf
-    mkdir -p ${default_conf_dir}
-    if ! $(cat > ${seafdav_conf} <<EOF
+    mkdir -p "${default_conf_dir}"
+    if ! $(cat > "${seafdav_conf}" <<EOF
 [WEBDAV]
 enabled = false
 port = 8080
@@ -153,8 +173,8 @@ function copy_user_manuals() {
     echo
     src_docs_dir=${INSTALLPATH}/seafile/docs/
     library_template_dir=${seafile_data_dir}/library-template
-    mkdir -p ${library_template_dir}
-    cp -f ${src_docs_dir}/*.doc ${library_template_dir}
+    mkdir -p "${library_template_dir}"
+    cp -f "${src_docs_dir}"/*.doc "${library_template_dir}"
     echo "Done"
 }
 
@@ -175,6 +195,8 @@ update_database;
 gen_seafdav_conf;
 
 copy_user_manuals;
+
+upgrade_seafile_server_latest_symlink;
 
 
 echo
