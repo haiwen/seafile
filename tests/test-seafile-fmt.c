@@ -93,6 +93,8 @@ int main (int argc, char **argv)
         blocks += 20;
     }
 
+    fclose(fp);
+
     printf ("Check OK\n");
     return 0;
 }
