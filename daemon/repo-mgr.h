@@ -144,7 +144,7 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
 
 int
 seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
-                 gboolean *real_merge);
+                 gboolean *real_merge, gboolean calculate_ca);
 
 GList *
 seaf_repo_diff (SeafRepo *repo, const char *arg1, const char *arg2, char **error);
@@ -310,6 +310,19 @@ int
 seaf_repo_manager_get_merge_info (SeafRepoManager *manager,
                                   const char *repo_id,
                                   SeafRepoMergeInfo *info);
+
+int
+seaf_repo_manager_get_common_ancestor (SeafRepoManager *manager,
+                                       const char *repo_id,
+                                       char *common_ancestor,
+                                       char *head_id);
+
+int
+seaf_repo_manager_set_common_ancestor (SeafRepoManager *manager,
+                                       const char *repo_id,
+                                       const char *common_ancestor,
+                                       const char *head_id);
+
 typedef struct {
     char repo_id[41];
     char worktree[SEAF_PATH_MAX];

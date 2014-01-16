@@ -105,43 +105,44 @@ out:
 }
 
 static SeafCommit *
-get_last_uploaded_commit (const char *repo_id)
+get_common_ancestor_commit (const char *repo_id)
 {
-    char *last_uploaded;
+    char ca_id[41], head_id[41];
     SeafCommit *commit;
 
-    last_uploaded = seaf_repo_manager_get_repo_property (seaf->repo_mgr,
-                                                         repo_id,
-                                                         REPO_LOCAL_HEAD);
-    if (!last_uploaded) {
-        g_warning ("Last uploaded commit id is not found in db.\n");
+    if (seaf_repo_manager_get_common_ancestor (seaf->repo_mgr,
+                                               repo_id, ca_id, head_id) < 0) {
+        g_warning ("Common ancestor commit id is not found in db.\n");
         return NULL;
     }
 
-    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, last_uploaded);
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, ca_id);
 
-    g_free (last_uploaded);
     return commit;
 }
 
 int
 merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
-                gboolean *real_merge)
+                gboolean *real_merge, gboolean calculate_ca)
 {
     SeafCommit *common = NULL;
-    SeafCommit *head, *remote;
+    SeafCommit *head = NULL, *remote = NULL;
     int ret = 0;
+#if 0
     SeafRepoMergeInfo minfo;
+#endif
 
     g_return_val_if_fail (repo && remote_branch && error, -1);
 
     *real_merge = FALSE;
 
+#if 0
     memset (&minfo, 0, sizeof(minfo));
     if (seaf_repo_manager_get_merge_info (repo->manager, repo->id, &minfo) < 0) {
         g_warning ("Failed to get merge status of repo %s.\n", repo->id);
         return -1;
     }
+#endif
 
     head = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->head->commit_id);
     if (!head) {
@@ -153,9 +154,10 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
     if (!remote) {
         *error = g_strdup("Invalid remote branch.\n");
         ret = -1;
-        goto free_head;
+        goto free_commits;
     }
 
+#if 0
     /* Are we going to recover from the last interrupted merge? */
     if (minfo.in_merge) {
         /* We don't need to recover 2 cases, since the last merge was actually finished.
@@ -167,23 +169,31 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
         if (strcmp (head->commit_id, remote->commit_id) == 0 ||
             seaf_repo_is_index_unmerged (repo)) {
             seaf_repo_manager_clear_merge (repo->manager, repo->id);
-            goto free_head;
+            goto free_commits;
         }
+    }
+#endif
+
+    /* If not all commits are downloaded, find common ancestor from db;
+     * otherwise we'll use the old method to calculate
+     * common ancestor from local history.
+     */
+    if (!calculate_ca)
+        common = get_common_ancestor_commit (repo->id);
+    else
+        common = get_merge_base (head, remote);
+
+    if (!common) {
+        g_warning ("Cannot find common ancestor\n");
+        *error = g_strdup ("Cannot find common ancestor\n");
+        ret = -1;
+        goto free_commits;
     }
 
     /* We use the same logic for normal merge and recover. */
 
     /* Set in_merge state. */
     seaf_repo_manager_set_merge (repo->manager, repo->id, remote_branch->commit_id);
-
-    common = get_last_uploaded_commit (repo->id);
-
-    if (!common) {
-        g_warning ("Cannot find common ancestor\n");
-        *error = g_strdup ("Cannot find common ancestor\n");
-        ret = -1;
-        goto free_remote;
-    }
 
     /* printf ("common commit id is %s.\n", common->commit_id); */
 
@@ -192,7 +202,7 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
         g_debug ("Already up to date.\n");
     } else if (strcmp(common->commit_id, head->commit_id) == 0) {
         /* Fast forward. */
-        if (seaf_repo_checkout_commit (repo, remote, minfo.in_merge, error) < 0) {
+        if (seaf_repo_checkout_commit (repo, remote, FALSE, error) < 0) {
             ret = -1;
             goto out;
         }
@@ -212,7 +222,7 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
         ret = do_real_merge (repo, 
                              repo->head, head, 
                              remote_branch, remote, common, 
-                             minfo.in_merge,
+                             FALSE,
                              error);
     }
 
@@ -220,10 +230,9 @@ out:
     /* Clear in_merge state, no matter clean or not. */
     seaf_repo_manager_clear_merge (repo->manager, repo->id);
 
+free_commits:
     seaf_commit_unref (common);
-free_remote:
     seaf_commit_unref (remote);
-free_head:
     seaf_commit_unref (head);
 
     return ret;
@@ -338,10 +347,11 @@ get_new_blocks_merge (SeafRepo *repo,
  * otherwise it's set to the block list.
  */
 int
-merge_get_new_block_list (SeafRepo *repo, SeafCommit *remote, BlockList **bl)
+merge_get_new_block_list (SeafRepo *repo, SeafCommit *remote, BlockList **bl,
+                          gboolean calculate_ca)
 {
     SeafCommit *common = NULL;
-    SeafCommit *head;
+    SeafCommit *head = NULL;
     int ret = 0;
 
     head = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->head->commit_id);
@@ -350,12 +360,19 @@ merge_get_new_block_list (SeafRepo *repo, SeafCommit *remote, BlockList **bl)
         return -1;
     }
 
-    common = get_last_uploaded_commit (repo->id);
+    /* If not all commits are downloaded, get common ancestor from db;
+     * otherwise we'll use the old method to calculate
+     * common ancestor from local history.
+     */
+    if (!calculate_ca)
+        common = get_common_ancestor_commit (repo->id);
+    else
+        common = get_merge_base (head, remote);
 
     if (!common) {
         g_warning ("Cannot find common ancestor\n");
         ret = -1;
-        goto free_head;
+        goto out;
     }
 
     if (strcmp(common->commit_id, remote->commit_id) == 0) {
@@ -369,8 +386,8 @@ merge_get_new_block_list (SeafRepo *repo, SeafCommit *remote, BlockList **bl)
         ret = get_new_blocks_merge (repo, head, remote, common, bl);
     }
 
+out:
     seaf_commit_unref (common);
-free_head:
     seaf_commit_unref (head);
 
     return ret;

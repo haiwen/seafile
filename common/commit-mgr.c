@@ -293,7 +293,8 @@ compare_commit_by_time (gconstpointer a, gconstpointer b, gpointer unused)
 }
 
 inline static int
-insert_parent_commit (GList **list, GHashTable *hash, const char *parent_id)
+insert_parent_commit (GList **list, GHashTable *hash,
+                      const char *parent_id, gboolean allow_truncate)
 {
     SeafCommit *p;
     char *key;
@@ -304,6 +305,8 @@ insert_parent_commit (GList **list, GHashTable *hash, const char *parent_id)
     p = seaf_commit_manager_get_commit (seaf->commit_mgr,
                                         parent_id);
     if (!p) {
+        if (allow_truncate)
+            return 0;
         g_warning ("Failed to find commit %s\n", parent_id);
         return -1;
     }
@@ -373,14 +376,16 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
         }
 
         if (commit->parent_id) {
-            if (insert_parent_commit (&list, commit_hash, commit->parent_id) < 0) {
+            if (insert_parent_commit (&list, commit_hash,
+                                      commit->parent_id, FALSE) < 0) {
                 seaf_commit_unref (commit);
                 ret = FALSE;
                 goto out;
             }
         }
         if (commit->second_parent_id) {
-            if (insert_parent_commit (&list, commit_hash, commit->second_parent_id) < 0) {
+            if (insert_parent_commit (&list, commit_hash,
+                                      commit->second_parent_id, FALSE) < 0) {
                 seaf_commit_unref (commit);
                 ret = FALSE;
                 goto out;
@@ -399,12 +404,13 @@ out:
     return ret;
 }
 
-gboolean
-seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
-                                          const char *head,
-                                          CommitTraverseFunc func,
-                                          void *data,
-                                          gboolean skip_errors)
+static gboolean
+traverse_commit_tree_common (SeafCommitManager *mgr,
+                             const char *head,
+                             CommitTraverseFunc func,
+                             void *data,
+                             gboolean skip_errors,
+                             gboolean allow_truncate)
 {
     SeafCommit *commit;
     GList *list = NULL;
@@ -452,7 +458,8 @@ seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
         }
 
         if (commit->parent_id) {
-            if (insert_parent_commit (&list, commit_hash, commit->parent_id) < 0) {
+            if (insert_parent_commit (&list, commit_hash,
+                                      commit->parent_id, allow_truncate) < 0) {
                 g_warning("[comit-mgr] insert parent commit failed\n");
 
                 /* If skip errors, try insert second parent. */
@@ -464,7 +471,8 @@ seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
             }
         }
         if (commit->second_parent_id) {
-            if (insert_parent_commit (&list, commit_hash, commit->second_parent_id) < 0) {
+            if (insert_parent_commit (&list, commit_hash,
+                                      commit->second_parent_id, allow_truncate) < 0) {
                 g_warning("[comit-mgr]insert second parent commit failed\n");
 
                 if (!skip_errors) {
@@ -485,6 +493,26 @@ out:
         list = g_list_delete_link (list, list);
     }
     return ret;
+}
+
+gboolean
+seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
+                                          const char *head,
+                                          CommitTraverseFunc func,
+                                          void *data,
+                                          gboolean skip_errors)
+{
+    return traverse_commit_tree_common (mgr, head, func, data, skip_errors, FALSE);
+}
+
+gboolean
+seaf_commit_manager_traverse_commit_tree_truncated (SeafCommitManager *mgr,
+                                                    const char *head,
+                                                    CommitTraverseFunc func,
+                                                    void *data,
+                                                    gboolean skip_errors)
+{
+    return traverse_commit_tree_common (mgr, head, func, data, skip_errors, TRUE);
 }
 
 typedef struct FindingHelp {

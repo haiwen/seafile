@@ -127,6 +127,17 @@ seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
                                           void *data,
                                           gboolean skip_errors);
 
+/*
+ * The same as the above function, but stops traverse down if parent commit
+ * doesn't exists, instead of returning error.
+ */
+gboolean
+seaf_commit_manager_traverse_commit_tree_truncated (SeafCommitManager *mgr,
+                                                    const char *head,
+                                                    CommitTraverseFunc func,
+                                                    void *data,
+                                                    gboolean skip_errors);
+
 /**
  * Works the same as seaf_commit_manager_traverse_commit_tree, but stops
  * traversing when a total number of _limit_ commits is reached. If

@@ -32,7 +32,8 @@ proc_headers = $(addprefix processors/, \
 	recvcommit-v3-proc.h \
 	putcs-v2-proc.h \
 	checkbl-proc.h \
-	checkff-proc.h)
+	checkff-proc.h \
+	putca-proc.h)
 
 proc_headers += ../common/processors/putblock-v2-proc.h
 
@@ -96,7 +97,8 @@ seaf_server_SOURCES = \
 	processors/recvcommit-v3-proc.c \
 	processors/putcs-v2-proc.c \
 	processors/checkbl-proc.c \
-	processors/checkff-proc.c
+	processors/checkff-proc.c \
+	processors/putca-proc.c
 
 seaf_server_LDADD = @CCNET_LIBS@ \
 	$(top_builddir)/lib/libseafile_common.la \

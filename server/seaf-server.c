@@ -37,6 +37,7 @@
 #include "processors/putcs-v2-proc.h"
 #include "processors/checkbl-proc.h"
 #include "processors/checkff-proc.h"
+#include "processors/putca-proc.h"
 
 #include "cdc/cdc.h"
 
@@ -100,6 +101,8 @@ static void register_processors (CcnetClient *client)
                             SEAFILE_TYPE_CHECKBL_PROC, NULL);
     ccnet_register_service (client, "seafile-checkff", "basic",
                             SEAFILE_TYPE_CHECKFF_PROC, NULL);
+    ccnet_register_service (client, "seafile-putca", "basic",
+                            SEAFILE_TYPE_PUTCA_PROC, NULL);
 }
 
 #include <searpc.h>

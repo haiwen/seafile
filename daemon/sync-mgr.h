@@ -78,6 +78,7 @@ struct _SyncTask {
     char            *token;
     struct CcnetTimer *commit_timer;
     struct CcnetTimer *conn_timer;
+    gboolean         calculate_ca; /* need calculate common ancestor from history */
 
     SeafRepo        *repo;  /* for convenience, only valid when in_sync. */
 };

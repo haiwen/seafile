@@ -1387,11 +1387,13 @@ seaf_repo_manager_get_email_by_token (SeafRepoManager *manager,
     
     char *email = NULL;
     GString *buf = g_string_new(NULL);
+    char *esc_token = seaf_db_escape_string (seaf->db, token);
 
     g_string_append_printf (
         buf, "SELECT email FROM RepoUserToken "
         "WHERE repo_id = '%s' AND token = '%s'",
-        repo_id, token);
+        repo_id, esc_token);
+    g_free (esc_token);
 
     seaf_db_foreach_selected_row (seaf->db, buf->str,
                                   get_email_by_token_cb, &email);

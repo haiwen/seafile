@@ -202,42 +202,42 @@ seafile_session_prepare (SeafileSession *session)
                                         "seafile.heartbeat");
 }
 
-static void
-recover_interrupted_merges ()
-{
-    GList *repos, *ptr;
-    SeafRepo *repo;
-    SeafRepoMergeInfo info;
-    char *err_msg = NULL;
-    gboolean unused;
+/* static void */
+/* recover_interrupted_merges () */
+/* { */
+/*     GList *repos, *ptr; */
+/*     SeafRepo *repo; */
+/*     SeafRepoMergeInfo info; */
+/*     char *err_msg = NULL; */
+/*     gboolean unused; */
 
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
-    for (ptr = repos; ptr; ptr = ptr->next) {
-        repo = ptr->data;
+/*     repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1); */
+/*     for (ptr = repos; ptr; ptr = ptr->next) { */
+/*         repo = ptr->data; */
 
-        if (seaf_repo_manager_get_merge_info (seaf->repo_mgr, repo->id, &info) < 0) {
-            g_warning ("Failed to get merge info for repo %s.\n", repo->id);
-            continue;
-        }
+/*         if (seaf_repo_manager_get_merge_info (seaf->repo_mgr, repo->id, &info) < 0) { */
+/*             g_warning ("Failed to get merge info for repo %s.\n", repo->id); */
+/*             continue; */
+/*         } */
 
-        if (info.in_merge) {
-            seaf_message ("Recovering merge for repo %.8s.\n", repo->id);
+/*         if (info.in_merge) { */
+/*             seaf_message ("Recovering merge for repo %.8s.\n", repo->id); */
 
-            /* No one else is holding the lock. */
-            pthread_mutex_lock (&repo->lock);
-            if (seaf_repo_merge (repo, "master", &err_msg, &unused) < 0) {
-                g_free (err_msg);
-            }
-            pthread_mutex_unlock (&repo->lock);
-        }
-    }
-    g_list_free (repos);
-}
+/*             /\* No one else is holding the lock. *\/ */
+/*             pthread_mutex_lock (&repo->lock); */
+/*             if (seaf_repo_merge (repo, "master", &err_msg, &unused) < 0) { */
+/*                 g_free (err_msg); */
+/*             } */
+/*             pthread_mutex_unlock (&repo->lock); */
+/*         } */
+/*     } */
+/*     g_list_free (repos); */
+/* } */
 
 static void *
 on_start_cleanup_job (void *vdata)
 {
-    recover_interrupted_merges ();
+    /* recover_interrupted_merges (); */
 
     /* If some metadata objects are corrupt, the blocks they reference are
      * useless anyway. So just ignore errors.

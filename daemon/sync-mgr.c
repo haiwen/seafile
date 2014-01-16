@@ -13,6 +13,7 @@
 #include "processors/sync-repo-proc.h"
 #include "processors/notifysync-proc.h"
 #include "processors/getrepoemailtoken-proc.h"
+#include "processors/getca-proc.h"
 #include "vc-common.h"
 #include "seafile-error.h"
 #include "status.h"
@@ -194,6 +195,9 @@ seaf_sync_manager_start (SeafSyncManager *mgr)
     ccnet_proc_factory_register_processor (mgr->seaf->session->proc_factory,
                                            "seafile-get-repo-email-token",
                                            SEAFILE_TYPE_GETREPOEMAILTOKEN_PROC);
+    ccnet_proc_factory_register_processor (mgr->seaf->session->proc_factory,
+                                           "seafile-getca",
+                                           SEAFILE_TYPE_GETCA_PROC);
     g_signal_connect (seaf, "repo-fetched",
                       (GCallback)on_repo_fetched, mgr);
     g_signal_connect (seaf, "repo-uploaded",
@@ -467,7 +471,7 @@ static const char *sync_error_str[] = {
     "Server has been removed",
     "You have not login to the server",
     "Remote service is not available",
-    "You do not have permission to access this repo",
+    "You do not have permission to access this library",
     "The storage space of the repo owner has been used up",
     "Access denied to service. Please check your registration on relay.",
     "Internal data corrupted.",
@@ -639,7 +643,8 @@ merge_job (void *vtask)
      * For 2 and 4, the errors are ignored by the merge routine (return 0).
      * For 3, just wait another merge retry.
      * */
-    if (seaf_repo_merge (repo, "master", &err_msg, &res->real_merge) < 0) {
+    if (seaf_repo_merge (repo, "master", &err_msg, &res->real_merge,
+                         task->calculate_ca) < 0) {
         seaf_message ("[Sync mgr] Merge of repo %s(%.8s) is not clean.\n",
                    repo->name, repo->id);
         res->success = FALSE;
@@ -745,7 +750,8 @@ merge_branches_if_necessary (SyncTask *task)
 
 typedef struct {
     char remote_id[41];
-    char base_id[41];
+    char last_uploaded[41];
+    char last_checkout[41];
     gboolean result;
 } CheckFFData;
 
@@ -760,7 +766,8 @@ check_fast_forward (SeafCommit *commit, void *vdata, gboolean *stop)
         return TRUE;
     }
 
-    if (strcmp (commit->commit_id, data->base_id) == 0) {
+    if (strcmp (commit->commit_id, data->last_uploaded) == 0 ||
+        strcmp (commit->commit_id, data->last_checkout) == 0) {
         *stop = TRUE;
         return TRUE;
     }
@@ -769,22 +776,24 @@ check_fast_forward (SeafCommit *commit, void *vdata, gboolean *stop)
 }
 
 static gboolean
-check_fast_forward_with_base (const char *local_id,
-                              const char *remote_id,
-                              const char *base_id,
-                              gboolean *error)
+check_fast_forward_with_limit (const char *local_id,
+                               const char *remote_id,
+                               const char *last_uploaded,
+                               const char *last_checkout,
+                               gboolean *error)
 {
     CheckFFData data;
 
     memset (&data, 0, sizeof(data));
     memcpy (data.remote_id, remote_id, 40);
-    memcpy (data.base_id, base_id, 40);
+    memcpy (data.last_uploaded, last_uploaded, 40);
+    memcpy (data.last_checkout, last_checkout, 40);
     *error = FALSE;
 
-    if (!seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
-                                                   local_id,
-                                                   check_fast_forward,
-                                                   &data, FALSE)) {
+    if (!seaf_commit_manager_traverse_commit_tree_truncated (seaf->commit_mgr,
+                                                             local_id,
+                                                             check_fast_forward,
+                                                             &data, FALSE)) {
         seaf_warning ("Failed to traverse commit tree from %s.\n", local_id);
         *error = TRUE;
         return FALSE;
@@ -794,12 +803,145 @@ check_fast_forward_with_base (const char *local_id,
 }
 
 static void
+getca_done_cb (CcnetProcessor *processor, gboolean success, void *data)
+{
+    SyncTask *task = data;
+    SyncInfo *info = task->info;
+    SeafRepo *repo = task->repo;
+    SeafileGetcaProc *proc = (SeafileGetcaProc *)processor;
+    SeafBranch *master;
+
+    if (repo->delete_pending) {
+        transition_sync_state (task, SYNC_STATE_CANCELED);
+        seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
+        return;
+    }
+
+    if (task->state == SYNC_STATE_CANCEL_PENDING) {
+        transition_sync_state (task, SYNC_STATE_CANCELED);
+        return;
+    }
+
+    if (!success) {
+        switch (processor->failure) {
+        case PROC_NO_SERVICE:
+            /* If the server doesn't provide this processor, it's running the
+             * old protocol. We can then assume all commits will be downloaded.
+             */
+            seaf_debug ("Server doesn't support putca-proc.\n");
+            task->calculate_ca = TRUE;
+            goto continue_sync;
+        case GETCA_PROC_ACCESS_DENIED:
+            seaf_warning ("No permission to access repo %.8s.\n", repo->id);
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_ACCESS_DENIED);
+            break;
+        case GETCA_PROC_NO_CA:
+            seaf_warning ("Compute common ancestor failed for %.8s.\n", repo->id);
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_UNKNOWN);
+            break;
+        case PROC_REMOTE_DEAD:
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_SERVICE_DOWN);
+            break;
+        case PROC_PERM_ERR:
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_PROC_PERM_ERR);
+            break;
+        case PROC_DONE:
+            /* It can never happen */
+            g_return_if_reached ();
+        case PROC_BAD_RESP:
+        case PROC_NOTSET:
+        default:
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_UNKNOWN);
+        }
+        return;
+    }
+
+    seaf_repo_manager_set_common_ancestor (seaf->repo_mgr,
+                                           repo->id,
+                                           proc->ca_id,
+                                           repo->head->commit_id);
+
+continue_sync:
+    master = seaf_branch_manager_get_branch (seaf->branch_mgr,
+                                             info->repo_id,
+                                             "master");
+
+    if (!master || strcmp (info->head_commit, master->commit_id) != 0) {
+        start_fetch_if_necessary (task);
+    } else if (strcmp (repo->head->commit_id, master->commit_id) != 0) {
+        /* Try to merge even if we don't need to fetch. */
+        merge_branches_if_necessary (task);
+    }
+
+    seaf_branch_unref (master);
+}
+
+static int
+start_get_ca_proc (SyncTask *task, const char *repo_id)
+{
+    CcnetProcessor *processor;
+
+    processor = ccnet_proc_factory_create_remote_master_processor (
+        seaf->session->proc_factory, "seafile-getca", task->dest_id);
+    if (!processor) {
+        seaf_warning ("[sync-mgr] failed to create getca proc.\n");
+        seaf_sync_manager_set_task_error (task, SYNC_ERROR_UNKNOWN);
+        return -1;
+    }
+
+    if (ccnet_processor_startl (processor, repo_id, task->token, NULL) < 0) {
+        seaf_warning ("[sync-mgr] failed to start getca proc.\n");
+        seaf_sync_manager_set_task_error (task, SYNC_ERROR_UNKNOWN);
+        return -1;
+    }
+
+    g_signal_connect (processor, "done", (GCallback)getca_done_cb, task);
+    return 0;
+}
+
+/* Return TURE if we started a processor, otherwise return FALSE. */
+static gboolean
+update_common_ancestor (SyncTask *task,
+                        const char *last_uploaded,
+                        const char *last_checkout)
+{
+    SeafRepo *repo = task->repo;
+    char *local_head = repo->head->commit_id;
+    char ca_id[41], cached_head_id[41];
+
+    /* If common ancestor result is not cached, we need to compute it. */
+    if (seaf_repo_manager_get_common_ancestor (seaf->repo_mgr, repo->id,
+                                               ca_id, cached_head_id) < 0)
+        goto update_common_ancestor;
+
+    /* If the head id is unchanged, use the cached common ancestor id directly.
+     * Common ancestor won't change if the local head is not updated.
+     */
+    if (strcmp (cached_head_id, local_head) == 0) {
+        seaf_debug ("Use cached common ancestor.\n");
+        return FALSE;
+    }
+
+update_common_ancestor:
+    if (strcmp (last_uploaded, local_head) == 0 ||
+        strcmp (last_checkout, local_head) == 0) {
+        seaf_debug ("Use local head as common ancestor.\n");
+        seaf_repo_manager_set_common_ancestor (seaf->repo_mgr, repo->id,
+                                               local_head, local_head);
+        return FALSE;
+    }
+
+    start_get_ca_proc (task, repo->id);
+    return TRUE;
+}
+
+static void
 update_sync_status (SyncTask *task)
 {
     SyncInfo *info = task->info;
     SeafRepo *repo = task->repo;
     SeafBranch *master, *local;
-    char *last_uploaded = NULL;
+    char *last_uploaded = NULL, *last_checkout = NULL;
 
     local = seaf_branch_manager_get_branch (
         seaf->branch_mgr, info->repo_id, "local");
@@ -819,6 +961,18 @@ update_sync_status (SyncTask *task)
         seaf_warning ("Last uploaded commit id is not found in db.\n");
         seaf_branch_unref (local);
         seaf_branch_unref (master);
+        seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
+        return;
+    }
+
+    last_checkout = seaf_repo_manager_get_repo_property (seaf->repo_mgr,
+                                                         repo->id,
+                                                         REPO_REMOTE_HEAD);
+    if (!last_checkout) {
+        seaf_warning ("Last checked out commit id is not found in db.\n");
+        seaf_branch_unref (local);
+        seaf_branch_unref (master);
+        g_free (last_uploaded);
         seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
         return;
     }
@@ -848,34 +1002,48 @@ update_sync_status (SyncTask *task)
             goto out;
         }
 
-        if (strcmp (local->commit_id, last_uploaded) != 0) {
-            gboolean error = FALSE;
-            gboolean is_ff = check_fast_forward_with_base (local->commit_id,
-                                                           info->head_commit,
-                                                           last_uploaded,
-                                                           &error);
-            if (error) {
-                seaf_warning ("Failed to check fast forward.\n");
-                seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
-                goto out;
-            }
-
-            /* fast-forward upload */
-            if (is_ff) {
-                start_upload_if_necessary (task);
-                goto out;
-            }
+        /* If local head is the same as remote head, already in sync. */
+        if (strcmp (local->commit_id, info->head_commit) == 0) {
+            transition_sync_state (task, SYNC_STATE_DONE);
+            goto out;
         }
+
+        /* This checking is done in the main thread. But it usually doesn't take
+         * much time, because the traversing is limited by last_uploaded and
+         * last_checkout commits.
+         */
+        gboolean error = FALSE;
+        gboolean is_ff = check_fast_forward_with_limit (local->commit_id,
+                                                        info->head_commit,
+                                                        last_uploaded,
+                                                        last_checkout,
+                                                        &error);
+        if (error) {
+            seaf_warning ("Failed to check fast forward.\n");
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
+            goto out;
+        }
+
+        /* fast-forward upload */
+        if (is_ff) {
+            start_upload_if_necessary (task);
+            goto out;
+        }
+
+        /*
+         * We have to compute the common ancestor before doing merge.
+         * The last result of computation is cached in local db.
+         * Check if we need to re-compute the common ancestor.
+         * If so we'll start a processor to do that on the server.
+         */
+        if (update_common_ancestor (task, last_uploaded, last_checkout))
+            goto out;
 
         if (!master || strcmp (info->head_commit, master->commit_id) != 0) {
             start_fetch_if_necessary (task);
         } else if (strcmp (local->commit_id, master->commit_id) != 0) {
             /* Try to merge even if we don't need to fetch. */
             merge_branches_if_necessary (task);
-        } else {
-            /* seaf_debug ("[sync-mgr] The repo %s is already uptodate\n", */
-            /*             info->repo_id); */
-            transition_sync_state (task, SYNC_STATE_DONE);
         }
     }
 
