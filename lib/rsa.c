@@ -32,7 +32,7 @@ GString* public_key_to_gstring(const RSA *rsa)
     char *coded;
 
     gsize len = BN_num_bytes(rsa->n);
-    temp = malloc(len);
+    temp = g_malloc0(len);
     BN_bn2bin(rsa->n, temp);
     coded = g_base64_encode(temp, len);
     g_string_append (buf, coded);
@@ -40,13 +40,13 @@ GString* public_key_to_gstring(const RSA *rsa)
     g_free(coded);
     
     len = BN_num_bytes(rsa->e);
-    temp = realloc(temp, len);
+    temp = g_realloc(temp, len);
     BN_bn2bin(rsa->e, temp);
     coded = g_base64_encode(temp, len);
     g_string_append (buf, coded);
     g_free(coded);
 
-    free(temp);
+    g_free(temp);
     
     return buf;
 }
@@ -58,7 +58,7 @@ public_key_append_to_gstring(const RSA *rsa, GString *buf)
     char *coded;
 
     gsize len = BN_num_bytes(rsa->n);
-    temp = malloc(len);
+    temp = g_malloc0(len);
     BN_bn2bin(rsa->n, temp);
     coded = g_base64_encode(temp, len);
     g_string_append (buf, coded);
@@ -66,13 +66,13 @@ public_key_append_to_gstring(const RSA *rsa, GString *buf)
     g_free(coded);
     
     len = BN_num_bytes(rsa->e);
-    temp = realloc(temp, len);
+    temp = g_realloc(temp, len);
     BN_bn2bin(rsa->e, temp);
     coded = g_base64_encode(temp, len);
     g_string_append (buf, coded);
     g_free(coded);
 
-    free(temp);
+    g_free(temp);
 }
 
 RSA* public_key_from_string(char *str)
