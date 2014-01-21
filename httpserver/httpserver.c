@@ -34,7 +34,7 @@ static char *pidfile = NULL;
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvfc:d:t:l:g:G:D:k:P:";
+static const char *short_opts = "hvfc:d:t:l:g:G:D:k:P:b:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -48,6 +48,7 @@ static const struct option long_opts[] = {
     { "debug", required_argument, NULL, 'D' },
     { "temp-file-dir", required_argument, NULL, 'k' },
     { "pidfile", required_argument, NULL, 'P' },
+    { "bindaddress", required_argument, NULL, 'b' },
 };
 
 static void usage ()
@@ -276,6 +277,9 @@ main(int argc, char *argv[])
         case 'P':
             pidfile = optarg;
             break;
+        case 'b':
+            bind_addr = optarg;
+            break;
         default:
             usage();
             exit(-1);
@@ -364,6 +368,9 @@ main(int argc, char *argv[])
     evhtp_set_gencb(htp, default_cb, NULL);
 
     evhtp_use_threads(htp, NULL, num_threads, NULL);
+    
+    if(!bind_addr)
+        bind_addr = "0.0.0.0";
 
     if (evhtp_bind_socket(htp, bind_addr, bind_port, 128) < 0) {
         g_warning ("Could not bind socket: %s\n", strerror(errno));
