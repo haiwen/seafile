@@ -697,6 +697,8 @@ commit_from_json_object (const char *commit_id, json_t *object)
         creator_name = json_object_get_string_or_null_member (object, "creator_name");
     creator = json_object_get_string_member (object, "creator");
     desc = json_object_get_string_member (object, "description");
+    if (!desc)
+        desc = "";
     ctime = (guint64) json_object_get_int_member (object, "ctime");
     parent_id = json_object_get_string_or_null_member (object, "parent_id");
     second_parent_id = json_object_get_string_or_null_member (object, "second_parent_id");
@@ -793,11 +795,20 @@ load_commit (SeafCommitManager *mgr, const char *commit_id)
 
     object = json_loadb (data, len, 0, &jerror);
     if (!object) {
-        if (jerror.text)
-            g_warning ("Failed to load commit json object: %s.\n", jerror.text);
+        /* Perhaps the commit object contains invalid UTF-8 character. */
+        if (data[len-1] == 0)
+            clean_utf8_data (data, len - 1);
         else
-            g_warning ("Failed to load commit json object.\n");
-        goto out;
+            clean_utf8_data (data, len);
+
+        object = json_loadb (data, len, 0, &jerror);
+        if (!object) {
+            if (jerror.text)
+                g_warning ("Failed to load commit json object: %s.\n", jerror.text);
+            else
+                g_warning ("Failed to load commit json object.\n");
+            goto out;
+        }
     }
 
     commit = commit_from_json_object (commit_id, object);

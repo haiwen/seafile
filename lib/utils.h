@@ -326,4 +326,8 @@ json_object_set_string_member (json_t *object, const char *key, const char *valu
 void
 json_object_set_int_member (json_t *object, const char *key, gint64 value);
 
+/* Replace invalid UTF-8 bytes with '?' */
+void
+clean_utf8_data (char *data, int len);
+
 #endif
