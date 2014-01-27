@@ -197,6 +197,47 @@ seafile_decrypt_repo_enc_key (int enc_version,
 }
 
 int
+seafile_update_random_key (const char *old_passwd, const char *old_random_key,
+                           const char *new_passwd, char *new_random_key)
+{
+    unsigned char key[32], iv[16];
+    unsigned char random_key_raw[48], *secret_key, *new_random_key_raw;
+    int secret_key_len, random_key_len;
+    SeafileCrypt *crypt;
+
+    /* First, use old_passwd to decrypt secret key from old_random_key. */
+    seafile_derive_key (old_passwd, strlen(old_passwd), 2, key, iv);
+
+    hex_to_rawdata (old_random_key, random_key_raw, 48);
+
+    crypt = seafile_crypt_new (2, key, iv);
+    if (seafile_decrypt ((char **)&secret_key, &secret_key_len,
+                         (char *)random_key_raw, 48,
+                         crypt) < 0) {
+        seaf_warning ("Failed to decrypt random key.\n");
+        g_free (crypt);
+        return -1;
+    }
+    g_free (crypt);
+
+    /* Second, use new_passwd to encrypt secret key. */
+    seafile_derive_key (new_passwd, strlen(new_passwd), 2, key, iv);
+
+    crypt = seafile_crypt_new (2, key, iv);
+
+    seafile_encrypt ((char **)&new_random_key_raw, &random_key_len,
+                     (char *)secret_key, secret_key_len, crypt);
+
+    rawdata_to_hex (new_random_key_raw, new_random_key, 48);
+
+    g_free (secret_key);
+    g_free (new_random_key_raw);
+    g_free (crypt);
+
+    return 0;
+}
+
+int
 seafile_encrypt (char **data_out,
                  int *out_len,
                  const char *data_in,

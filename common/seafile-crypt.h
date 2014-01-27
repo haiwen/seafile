@@ -79,6 +79,10 @@ seafile_decrypt_repo_enc_key (int enc_version,
                                unsigned char *key_out, unsigned char *iv_out);
 
 int
+seafile_update_random_key (const char *old_passwd, const char *old_random_key,
+                           const char *new_passwd, char *new_random_key);
+
+int
 seafile_encrypt (char **data_out,
                  int *out_len,
                  const char *data_in,
