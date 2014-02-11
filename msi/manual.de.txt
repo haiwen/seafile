@@ -1,11 +1,11 @@
-EditierenWillkommen beim Seafile-Client.
+Willkommen beim Seafile-Client.
 
-Der Seafile-Client lädt sogenannte "Bibliothek" von der Seafile Website herunter, dies unterscheidet sich von anderen Datei-Synchronisationsdiensten wie z.B. Dropbox.
+Der Seafile-Client lädt sogenannte "Bibliotheken" von der Seafile Website herunter, dies unterscheidet sich von anderen Datei-Synchronisationsdiensten wie z.B. Dropbox.
 
 1. Erstellen Sie eine Bibliothek auf Seafile Website.
 
 2. Laden Sie die Bibliothek von der Seafile Website herunter.
 
-3. Zu der Bibliothek hinzugefügte Dateien erscheinen automatisch auf der Seafile Website.
+3. Zu der Bibliothek hinzugefŸgte Dateien erscheinen automatisch auf der Seafile Website.
 
-Legen Sie keine Dateien in dem "Seafile"-Ordner. Diese werden nicht automatisch auf der Website angezeigt.
+Legen Sie keine Dateien in den "Seafile"-Ordner. Diese werden nicht automatisch auf der Website angezeigt.
