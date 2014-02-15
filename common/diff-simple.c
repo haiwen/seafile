@@ -4,6 +4,209 @@
 #include "utils.h"
 #include "log.h"
 
+typedef int (*DiffFileCB) (int n,
+                             const char *basedir,
+                             SeafDirent *files[],
+                             void *data);
+
+typedef int (*DiffDirCB) (int n,
+                          const char *basedir,
+                          SeafDirent *dirs[],
+                          void *data,
+                          gboolean *recurse);
+
+typedef struct DiffOptions {
+    DiffFileCB file_cb;
+    DiffDirCB dir_cb;
+    void *data;
+} DiffOptions;
+
+inline static gboolean
+dirent_same (SeafDirent *denta, SeafDirent *dentb)
+{
+    return (strcmp (dentb->id, denta->id) == 0 && denta->mode == dentb->mode);
+}
+
+static int
+diff_files (int n, SeafDirent *dents[], const char *basedir, DiffOptions *opt)
+{
+    SeafDirent *files[3];
+    int i, n_files = 0;
+
+    memset (files, 0, sizeof(files[0])*n);
+    for (i = 0; i < n; ++i) {
+        if (dents[i] && S_ISREG(dents[i]->mode)) {
+            files[i] = dents[i];
+            ++n_files;
+        }
+    }
+
+    if (n_files == 0)
+        return 0;
+
+    return opt->file_cb (n, basedir, files, opt->data);
+}
+
+static int
+diff_trees_recursive (int n, SeafDir *trees[],
+                      const char *basedir, DiffOptions *opt);
+
+static int
+diff_directories (int n, SeafDirent *dents[], const char *basedir, DiffOptions *opt)
+{
+    SeafDirent *dirs[3];
+    int i, n_dirs = 0;
+    char *dirname;
+    int ret;
+    SeafDir *sub_dirs[3], *dir;
+
+    memset (dirs, 0, sizeof(dirs[0])*n);
+    for (i = 0; i < n; ++i) {
+        if (dents[i] && S_ISDIR(dents[i]->mode)) {
+            dirs[i] = dents[i];
+            ++n_dirs;
+        }
+    }
+
+    if (n_dirs == 0)
+        return 0;
+
+    gboolean recurse = TRUE;
+    ret = opt->dir_cb (n, basedir, dirs, opt->data, &recurse);
+    if (ret < 0)
+        return ret;
+
+    if (!recurse)
+        return 0;
+
+    memset (sub_dirs, 0, sizeof(sub_dirs[0])*n);
+    for (i = 0; i < n; ++i) {
+        if (dents[i] != NULL && S_ISDIR(dents[i]->mode)) {
+            dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr, dents[i]->id);
+            if (!dir) {
+                seaf_warning ("Failed to find dir %s.\n", dents[i]->id);
+                ret = -1;
+                goto free_sub_dirs;
+            }
+            sub_dirs[i] = dir;
+
+            dirname = dents[i]->name;
+        }
+    }
+
+    char *new_basedir = g_strconcat (basedir, dirname, "/", NULL);
+
+    ret = diff_trees_recursive (n, sub_dirs, new_basedir, opt);
+
+    g_free (new_basedir);
+
+free_sub_dirs:
+    for (i = 0; i < n; ++i)
+        seaf_dir_free (sub_dirs[i]);
+    return ret;
+}
+
+static int
+diff_trees_recursive (int n, SeafDir *trees[],
+                      const char *basedir, DiffOptions *opt)
+{
+    GList *ptrs[3];
+    SeafDirent *dents[3];
+    int i;
+    SeafDirent *dent;
+    char *first_name;
+    gboolean done;
+    int ret = 0;
+
+    for (i = 0; i < n; ++i) {
+        if (trees[i])
+            ptrs[i] = trees[i]->entries;
+        else
+            ptrs[i] = NULL;
+    }
+
+    while (1) {
+        first_name = NULL;
+        memset (dents, 0, sizeof(dents[0])*n);
+        done = TRUE;
+
+        /* Find the "largest" name, assuming dirents are sorted. */
+        for (i = 0; i < n; ++i) {
+            if (ptrs[i] != NULL) {
+                done = FALSE;
+                dent = ptrs[i]->data;
+                if (!first_name)
+                    first_name = dent->name;
+                else if (strcmp(dent->name, first_name) > 0)
+                    first_name = dent->name;
+            }
+        }
+
+        if (done)
+            break;
+
+        /*
+         * Setup dir entries for all names that equal to first_name
+         */
+        for (i = 0; i < n; ++i) {
+            if (ptrs[i] != NULL) {
+                dent = ptrs[i]->data;
+                if (strcmp(first_name, dent->name) == 0) {
+                    dents[i] = dent;
+                    ptrs[i] = ptrs[i]->next;
+                }
+            }
+        }
+
+        if (n == 2 && dents[0] && dents[1] && dirent_same(dents[0], dents[1]))
+            continue;
+
+        if (n == 3 && dents[0] && dents[1] && dents[2] &&
+            dirent_same(dents[0], dents[1]) && dirent_same(dents[0], dents[2]))
+            continue;
+
+        /* Diff files of this level. */
+        ret = diff_files (n, dents, basedir, opt);
+        if (ret < 0)
+            return ret;
+
+        /* Recurse into sub level. */
+        ret = diff_directories (n, dents, basedir, opt);
+        if (ret < 0)
+            return ret;
+    }
+
+    return ret;
+}
+
+static int
+diff_trees (int n, const char *roots[], DiffOptions *opt)
+{
+    SeafDir **trees, *root;
+    int i, ret;
+
+    g_return_val_if_fail (n == 2 || n == 3, -1);
+
+    trees = g_new0 (SeafDir *, n);
+    for (i = 0; i < n; ++i) {
+        root = seaf_fs_manager_get_seafdir (seaf->fs_mgr, roots[i]);
+        if (!root) {
+            seaf_warning ("Failed to find dir %s.\n", roots[i]);
+            g_free (trees);
+            return -1;
+        }
+        trees[i] = root;
+    }
+
+    ret = diff_trees_recursive (n, trees, "", opt);
+
+    for (i = 0; i < n; ++i)
+        seaf_dir_free (trees[i]);
+    g_free (trees);
+
+    return ret;
+}
+
 DiffEntry *
 diff_entry_new (char type, char status, unsigned char *sha1, const char *name)
 {
@@ -13,6 +216,25 @@ diff_entry_new (char type, char status, unsigned char *sha1, const char *name)
     de->status = status;
     memcpy (de->sha1, sha1, 20);
     de->name = g_strdup(name);
+
+    return de;
+}
+
+DiffEntry *
+diff_entry_new_from_dirent (char type, char status,
+                            SeafDirent *dent, const char *basedir)
+{
+    DiffEntry *de = g_new0 (DiffEntry, 1);
+    unsigned char sha1[20];
+    char *path;
+
+    hex_to_rawdata (dent->id, sha1, 20);
+    path = g_strconcat (basedir, dent->name, NULL);
+
+    de->type = type;
+    de->status = status;
+    memcpy (de->sha1, sha1, 20);
+    de->name = path;
 
     return de;
 }
@@ -120,140 +342,137 @@ int diff_index(struct index_state *istate, SeafDir *root, GList **results)
     return ret;
 }
 
-inline static gboolean
-ce_same (struct cache_entry *ce1, struct cache_entry *ce2)
+static int
+twoway_diff_files (int n, const char *basedir, SeafDirent *files[], void *data)
 {
-    return (ce1->ce_mode == ce2->ce_mode &&
-            hashcmp(ce1->sha1, ce2->sha1) == 0);
-}
+    GList **results = data;
+    DiffEntry *de;
+    SeafDirent *tree1 = files[0];
+    SeafDirent *tree2 = files[1];
 
-static int 
-twoway_diff(struct cache_entry **src, struct unpack_trees_options *o)
-{
-    struct cache_entry *tree1 = src[1];
-    struct cache_entry *tree2 = src[2];
-    GList **results = o->unpack_data;
+    if (!tree1) {
+        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_ADDED,
+                                         tree2, basedir);
+        *results = g_list_prepend (*results, de);
+        return 0;
+    }
 
-    if (tree1 == o->df_conflict_entry)
-        tree1 = NULL;
-    if (tree2 == o->df_conflict_entry)
-        tree2 = NULL;
+    if (!tree2) {
+        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_DELETED,
+                                         tree1, basedir);
+        *results = g_list_prepend (*results, de);
+        return 0;
+    }
 
-    diff_two_cache_entries (tree1, tree2, DIFF_TYPE_COMMITS, results);
+    if (!dirent_same (tree1, tree2)) {
+        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_MODIFIED,
+                                         tree2, basedir);
+        *results = g_list_prepend (*results, de);
+    }
 
     return 0;
 }
 
-#ifdef DEBUG
-static void
-print_results (GList *results)
+static int
+twoway_diff_dirs (int n, const char *basedir, SeafDirent *dirs[], void *data,
+                  gboolean *recurse)
 {
-    GList *p;
+    GList **results = data;
     DiffEntry *de;
+    SeafDirent *tree1 = dirs[0];
+    SeafDirent *tree2 = dirs[1];
 
-    g_debug ("diff results:\n");
-    for (p = results; p != NULL; p = p->next) {
-        de = p->data;
-        g_debug ("%c %s\n", de->status, de->name);
+    /* If a dir is added or deleted (including files inside it), only add
+     * one diff entry for the dir. Don't need to recursively add diff entries
+     * for the files inside it.
+     */
+
+    if (!tree1) {
+        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_DIR_ADDED,
+                                         tree2, basedir);
+        *results = g_list_prepend (*results, de);
+        *recurse = FALSE;
+        return 0;
     }
+
+    if (!tree2) {
+        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_DIR_DELETED,
+                                         tree1, basedir);
+        *results = g_list_prepend (*results, de);
+        *recurse = FALSE;
+        return 0;
+    }
+
+    return 0;
 }
-#endif
 
 int
 diff_commits (SeafCommit *commit1, SeafCommit *commit2, GList **results)
 {
-    struct tree_desc t[2];
-    struct unpack_trees_options opts;
-    struct index_state istate;
+    DiffOptions opt;
+    const char *roots[2];
 
-    g_return_val_if_fail (*results == NULL, -1);
+    opt.file_cb = twoway_diff_files;
+    opt.dir_cb = twoway_diff_dirs;
+    opt.data = results;
 
-    if (strcmp (commit1->commit_id, commit2->commit_id) == 0)
-        return 0;
+    roots[0] = commit1->root_id;
+    roots[1] = commit2->root_id;
 
-    if (strcmp (commit1->root_id, EMPTY_SHA1) != 0) {
-        fill_tree_descriptor(&t[0], commit1->root_id);
-    } else {
-        fill_tree_descriptor(&t[0], NULL);
-    }
-
-    if (strcmp (commit2->root_id, EMPTY_SHA1) != 0) {
-        fill_tree_descriptor(&t[1], commit2->root_id);
-    } else {
-        fill_tree_descriptor(&t[1], NULL);
-    }
-
-    /* Empty index */
-    memset(&istate, 0, sizeof(istate));
-    memset(&opts, 0, sizeof(opts));
-
-    opts.head_idx = -1;
-    opts.index_only = 1;
-    opts.merge = 1;
-    opts.fn = twoway_diff;
-    opts.unpack_data = results;
-    opts.src_index = &istate;
-    opts.dst_index = NULL;
-
-    if (unpack_trees(2, t, &opts) < 0) {
-        seaf_warning ("failed to unpack trees.\n");
-        return -1;
-    }
-
-    if (results != NULL)
-        diff_resolve_empty_dirs (results);
-
-    if (*results != NULL)
-        diff_resolve_renames (results);
-
-    tree_desc_free (&t[0]);
-    tree_desc_free (&t[1]);
-
-    return 0;
+    return diff_trees (2, roots, &opt);
 }
 
-static int 
-threeway_diff(struct cache_entry **src, struct unpack_trees_options *o)
+int
+diff_commit_roots (const char *root1, const char *root2, GList **results)
 {
-    struct cache_entry *m = src[1];
-    struct cache_entry *p1 = src[2];
-    struct cache_entry *p2 = src[3];
-    GList **results = o->unpack_data;
+    DiffOptions opt;
+    const char *roots[2];
+
+    opt.file_cb = twoway_diff_files;
+    opt.dir_cb = twoway_diff_dirs;
+    opt.data = results;
+
+    roots[0] = root1;
+    roots[1] = root2;
+
+    return diff_trees (2, roots, &opt);
+}
+
+static int
+threeway_diff_files (int n, const char *basedir, SeafDirent *files[], void *data)
+{
+    SeafDirent *m = files[0];
+    SeafDirent *p1 = files[1];
+    SeafDirent *p2 = files[2];
+    GList **results = data;
     DiffEntry *de;
 
-    if (m == o->df_conflict_entry)
-        m = NULL;
-    if (p1 == o->df_conflict_entry)
-        p1 = NULL;
-    if (p2 == o->df_conflict_entry)
-        p2 = NULL;
-
-    /* diff m from both p1 and p2. */
+    /* diff m with both p1 and p2. */
     if (m && p1 && p2) {
-        if (!ce_same(m, p1) && !ce_same (m, p2)) {
-            de = diff_entry_new (DIFF_TYPE_COMMITS, DIFF_STATUS_MODIFIED,
-                                 m->sha1, m->name);
+        if (!dirent_same(m, p1) && !dirent_same (m, p2)) {
+            de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_MODIFIED,
+                                             m, basedir);
             *results = g_list_prepend (*results, de);
         }
     } else if (!m && p1 && p2) {
-        de = diff_entry_new (DIFF_TYPE_COMMITS, DIFF_STATUS_DELETED,
-                             p1->sha1, p1->name);
+        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_DELETED,
+                                         p1, basedir);
         *results = g_list_prepend (*results, de);
     } else if (m && !p1 && p2) {
-        if (!ce_same (m, p2)) {
-            de = diff_entry_new (DIFF_TYPE_COMMITS, DIFF_STATUS_MODIFIED,
-                                 m->sha1, m->name);
+        if (!dirent_same (m, p2)) {
+            de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_MODIFIED,
+                                             m, basedir);
             *results = g_list_prepend (*results, de);
         }
     } else if (m && p1 && !p2) {
-        if (!ce_same (m, p1)) {
-            de = diff_entry_new (DIFF_TYPE_COMMITS, DIFF_STATUS_MODIFIED,
-                                 m->sha1, m->name);
+        if (!dirent_same (m, p1)) {
+            de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_MODIFIED,
+                                             m, basedir);
             *results = g_list_prepend (*results, de);
         }
     } else if (m && !p1 && !p2) {
-        de = diff_entry_new (DIFF_TYPE_COMMITS, DIFF_STATUS_ADDED,
-                             m->sha1, m->name);
+        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_ADDED,
+                                         m, basedir);
         *results = g_list_prepend (*results, de);
     }
     /* Nothing to do for:
@@ -265,13 +484,37 @@ threeway_diff(struct cache_entry **src, struct unpack_trees_options *o)
     return 0;
 }
 
+static int
+threeway_diff_dirs (int n, const char *basedir, SeafDirent *dirs[], void *data,
+                    gboolean *recurse)
+{
+    SeafDirent *m = dirs[0];
+    SeafDirent *p1 = dirs[1];
+    SeafDirent *p2 = dirs[2];
+    GList **results = data;
+    DiffEntry *de;
+
+    if (!m && p1 && p2) {
+        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_DIR_DELETED,
+                                         p1, basedir);
+        *results = g_list_prepend (*results, de);
+        *recurse = FALSE;
+    } else if (m && !p1 && !p2) {
+        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_DIR_ADDED,
+                                         m, basedir);
+        *results = g_list_prepend (*results, de);
+        *recurse = FALSE;
+    }
+
+    return 0;
+}
+
 int
 diff_merge (SeafCommit *merge, GList **results)
 {
+    DiffOptions opt;
+    const char *roots[3];
     SeafCommit *parent1, *parent2;
-    struct tree_desc t[3];
-    struct unpack_trees_options opts;
-    struct index_state istate;
 
     g_return_val_if_fail (*results == NULL, -1);
     g_return_val_if_fail (merge->parent_id != NULL &&
@@ -293,38 +536,40 @@ diff_merge (SeafCommit *merge, GList **results)
         return -1;
     }
 
-    fill_tree_descriptor(&t[0], merge->root_id);
-    fill_tree_descriptor(&t[1], parent1->root_id);
-    fill_tree_descriptor(&t[2], parent2->root_id);
+    opt.file_cb = threeway_diff_files;
+    opt.dir_cb = threeway_diff_dirs;
+    opt.data = results;
+
+    roots[0] = merge->root_id;
+    roots[1] = parent1->root_id;
+    roots[2] = parent2->root_id;
+
+    int ret = diff_trees (3, roots, &opt);
 
     seaf_commit_unref (parent1);
     seaf_commit_unref (parent2);
 
-    /* Empty index */
-    memset(&istate, 0, sizeof(istate));
-    memset(&opts, 0, sizeof(opts));
+    return ret;
+}
 
-    opts.head_idx = -1;
-    opts.index_only = 1;
-    opts.merge = 1;
-    opts.fn = threeway_diff;
-    opts.unpack_data = results;
-    opts.src_index = &istate;
-    opts.dst_index = NULL;
+int
+diff_merge_roots (const char *merged_root, const char *p1_root, const char *p2_root,
+                  GList **results)
+{
+    DiffOptions opt;
+    const char *roots[3];
 
-    if (unpack_trees(3, t, &opts) < 0) {
-        seaf_warning ("failed to unpack trees.\n");
-        return -1;
-    }
+    g_return_val_if_fail (*results == NULL, -1);
 
-    if (*results != NULL)
-        diff_resolve_renames (results);
+    opt.file_cb = threeway_diff_files;
+    opt.dir_cb = threeway_diff_dirs;
+    opt.data = results;
 
-    tree_desc_free (&t[0]);
-    tree_desc_free (&t[1]);
-    tree_desc_free (&t[2]);
+    roots[0] = merged_root;
+    roots[1] = p1_root;
+    roots[2] = p2_root;
 
-    return 0;
+    return diff_trees (3, roots, &opt);
 }
 
 /* This function only resolve "strict" rename, i.e. two files must be
@@ -492,4 +737,106 @@ format_diff_results(GList *results)
     }
 
     return g_string_free(fmt_status, FALSE);
+}
+
+inline static char *
+get_basename (char *path)
+{
+    char *slash;
+    slash = strrchr (path, '/');
+    if (!slash)
+        return path;
+    return (slash + 1);
+}
+
+char *
+diff_results_to_description (GList *results)
+{
+    GList *p;
+    DiffEntry *de;
+    char *new_file = NULL, *removed_file = NULL;
+    char *renamed_file = NULL, *modified_file = NULL;
+    char *new_dir = NULL, *removed_dir = NULL;
+    int n_new = 0, n_removed = 0, n_renamed = 0, n_modified = 0;
+    int n_new_dir = 0, n_removed_dir = 0;
+    GString *desc;
+
+    if (results == NULL)
+        return NULL;
+
+    for (p = results; p != NULL; p = p->next) {
+        de = p->data;
+        switch (de->status) {
+        case DIFF_STATUS_ADDED:
+            if (n_new == 0)
+                new_file = get_basename(de->name);
+            n_new++;
+            break;
+        case DIFF_STATUS_DELETED:
+            if (n_removed == 0)
+                removed_file = get_basename(de->name);
+            n_removed++;
+            break;
+        case DIFF_STATUS_RENAMED:
+            if (n_renamed == 0)
+                renamed_file = get_basename(de->name);
+            n_renamed++;
+            break;
+        case DIFF_STATUS_MODIFIED:
+            if (n_modified == 0)
+                modified_file = get_basename(de->name);
+            n_modified++;
+            break;
+        case DIFF_STATUS_DIR_ADDED:
+            if (n_new_dir == 0)
+                new_dir = get_basename(de->name);
+            n_new_dir++;
+            break;
+        case DIFF_STATUS_DIR_DELETED:
+            if (n_removed_dir == 0)
+                removed_dir = get_basename(de->name);
+            n_removed_dir++;
+            break;
+        }
+    }
+
+    desc = g_string_new ("");
+
+    if (n_new == 1)
+        g_string_append_printf (desc, "Added \"%s\".\n", new_file);
+    else if (n_new > 1)
+        g_string_append_printf (desc, "Added \"%s\" and %d more files.\n",
+                                new_file, n_new - 1);
+
+    if (n_removed == 1)
+        g_string_append_printf (desc, "Deleted \"%s\".\n", removed_file);
+    else if (n_removed > 1)
+        g_string_append_printf (desc, "Deleted \"%s\" and %d more files.\n",
+                                removed_file, n_removed - 1);
+
+    if (n_renamed == 1)
+        g_string_append_printf (desc, "Renamed \"%s\".\n", renamed_file);
+    else if (n_renamed > 1)
+        g_string_append_printf (desc, "Renamed \"%s\" and %d more files.\n",
+                                renamed_file, n_renamed - 1);
+
+    if (n_modified == 1)
+        g_string_append_printf (desc, "Modified \"%s\".\n", modified_file);
+    else if (n_modified > 1)
+        g_string_append_printf (desc, "Modified \"%s\" and %d more files.\n",
+                                modified_file, n_modified - 1);
+
+    if (n_new_dir == 1)
+        g_string_append_printf (desc, "Added directory \"%s\".\n", new_dir);
+    else if (n_new_dir > 1)
+        g_string_append_printf (desc, "Added \"%s\" and %d more directories.\n",
+                                new_dir, n_new_dir - 1);
+
+    if (n_removed_dir == 1)
+        g_string_append_printf (desc, "Removed directory \"%s\".\n", removed_dir);
+    else if (n_removed_dir > 1)
+        g_string_append_printf (desc, "Removed \"%s\" and %d more directories.\n",
+                                removed_dir, n_removed_dir - 1);
+
+    return g_string_free (desc, FALSE);
 }

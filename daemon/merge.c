@@ -71,11 +71,12 @@ do_real_merge (SeafRepo *repo,
                                   repo->email ? repo->email
                                   : seaf->session->base.user_name,
                                   seaf->session->base.id,
-                                  "Auto merge by seafile system",
+                                  "Auto merge by system",
                                   0);
 
         merged->parent_id = g_strdup(head->commit_id);
         merged->second_parent_id = g_strdup(remote->commit_id);
+        merged->new_merge = TRUE;
 
         seaf_repo_to_commit (repo, merged);
 

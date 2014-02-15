@@ -129,6 +129,8 @@ merge_entries (int n, SeafDirent *dents[],
 
             *dents_out = g_list_prepend (*dents_out, seaf_dirent_dup(head));
             *dents_out = g_list_prepend (*dents_out, seaf_dirent_dup(remote));
+
+            opt->conflict = TRUE;
         }
     } else if (base && !head && remote) {
         if (strcmp (base->id, remote->id) != 0) {
@@ -152,6 +154,8 @@ merge_entries (int n, SeafDirent *dents[],
                 g_free (conflict_name);
 
                 *dents_out = g_list_prepend (*dents_out, seaf_dirent_dup(remote));
+
+                opt->conflict = TRUE;
             } else {
                 /* Deleted in head and changed in remote. */
 
@@ -191,6 +195,8 @@ merge_entries (int n, SeafDirent *dents[],
                 g_free (conflict_name);
 
                 *dents_out = g_list_prepend (*dents_out, seaf_dirent_dup(head));
+
+                opt->conflict = TRUE;
             } else {
                 /* Deleted in remote and changed in head. */
 
@@ -243,6 +249,8 @@ merge_entries (int n, SeafDirent *dents[],
             g_free (conflict_name);
 
             *dents_out = g_list_prepend (*dents_out, seaf_dirent_dup(remote));
+
+            opt->conflict = TRUE;
         }
     } else if (!base && head && !remote) {
         if (!dents[2]) {
@@ -279,6 +287,8 @@ merge_entries (int n, SeafDirent *dents[],
             g_free (conflict_name);
 
             *dents_out = g_list_prepend (*dents_out, seaf_dirent_dup(head));
+
+            opt->conflict = TRUE;
         }
     } else if (base && !head && !remote) {
         /* Don't need to add anything to dents_out. */

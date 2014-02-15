@@ -34,6 +34,8 @@ struct _SeafCommit {
     char       *magic;
     char       *random_key;
     gboolean    no_local_history;
+    gboolean    new_merge;
+    gboolean    conflict;
 };
 
 

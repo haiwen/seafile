@@ -667,6 +667,10 @@ commit_to_json_object (SeafCommit *commit)
     }
     if (commit->no_local_history)
         json_object_set_int_member (object, "no_local_history", 1);
+    if (commit->conflict)
+        json_object_set_int_member (object, "conflict", 1);
+    if (commit->new_merge)
+        json_object_set_int_member (object, "new_merge", 1);
 
     return object;
 }
@@ -690,6 +694,7 @@ commit_from_json_object (const char *commit_id, json_t *object)
     const char *magic = NULL;
     const char *random_key = NULL;
     int no_local_history = 0;
+    int conflict = 0, new_merge = 0;
 
     root_id = json_object_get_string_member (object, "root_id");
     repo_id = json_object_get_string_member (object, "repo_id");
@@ -720,6 +725,12 @@ commit_from_json_object (const char *commit_id, json_t *object)
 
     if (json_object_has_member (object, "no_local_history"))
         no_local_history = json_object_get_int_member (object, "no_local_history");
+
+    if (json_object_has_member (object, "new_merge"))
+        new_merge = json_object_get_int_member (object, "new_merge");
+
+    if (json_object_has_member (object, "conflict"))
+        conflict = json_object_get_int_member (object, "conflict");
 
     /* sanity check for incoming values. */
     if (!repo_id || strlen(repo_id) != 36 ||
@@ -774,6 +785,10 @@ commit_from_json_object (const char *commit_id, json_t *object)
     }
     if (no_local_history)
         commit->no_local_history = TRUE;
+    if (new_merge)
+        commit->new_merge = TRUE;
+    if (conflict)
+        commit->conflict = TRUE;
 
     return commit;
 }

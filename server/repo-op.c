@@ -369,6 +369,29 @@ check_file_exists (const char *root_id,
 
 #define STD_FILE_MODE (S_IFREG | 0644)
 
+static char *
+gen_merge_description (const char *merged_root,
+                       const char *p1_root,
+                       const char *p2_root)
+{
+    GList *p;
+    GList *results = NULL;
+    char *desc;
+    
+    diff_merge_roots (merged_root, p1_root, p2_root, &results);
+    diff_resolve_renames (&results);
+
+    desc = diff_results_to_description (results);
+
+    for (p = results; p; p = p->next) {
+        DiffEntry *de = p->data;
+        diff_entry_free (de);
+    }
+    g_list_free (results);
+
+    return desc;
+}
+
 static int
 gen_new_commit (const char *repo_id,
                 SeafCommit *base,
@@ -422,6 +445,7 @@ retry:
     if (strcmp (base->commit_id, current_head->commit_id) != 0) {
         MergeOptions opt;
         const char *roots[3];
+        char *desc = NULL;
 
         memset (&opt, 0, sizeof(opt));
         opt.n_ways = 3;
@@ -443,13 +467,27 @@ retry:
         seaf_debug ("Number of dirs visted in merge %.8s: %d.\n",
                     repo_id, opt.visit_dirs);
 
+        if (!opt.conflict)
+            desc = g_strdup("Auto merge by system");
+        else {
+            desc = gen_merge_description (opt.merged_tree_root,
+                                          current_head->root_id,
+                                          new_root);
+            if (!desc)
+                desc = g_strdup("Auto merge by system");
+        }
+
         merged_commit = seaf_commit_new(NULL, repo->id, opt.merged_tree_root,
                                         user, EMPTY_SHA1,
-                                        "Auto merge by seafile system",
+                                        desc,
                                         0);
+        g_free (desc);
 
         merged_commit->parent_id = g_strdup (current_head->commit_id);
         merged_commit->second_parent_id = g_strdup (new_commit->commit_id);
+        merged_commit->new_merge = TRUE;
+        if (opt.conflict)
+            merged_commit->conflict = TRUE;
         seaf_repo_to_commit (repo, merged_commit);
 
         if (seaf_commit_manager_add_commit (seaf->commit_mgr, merged_commit) < 0) {
@@ -2132,6 +2170,28 @@ out:
     return ret;
 }
 
+static char *
+gen_commit_description (const char *root,
+                        const char *parent_root)
+{
+    GList *p;
+    GList *results = NULL;
+    char *desc;
+    
+    diff_commit_roots (parent_root, root, &results);
+    diff_resolve_renames (&results);
+
+    desc = diff_results_to_description (results);
+
+    for (p = results; p; p = p->next) {
+        DiffEntry *de = p->data;
+        diff_entry_free (de);
+    }
+    g_list_free (results);
+
+    return desc;
+}
+
 int
 seaf_repo_manager_update_dir (SeafRepoManager *mgr,
                               const char *repo_id,
@@ -2148,7 +2208,7 @@ seaf_repo_manager_update_dir (SeafRepoManager *mgr,
     char *parent = NULL, *dirname = NULL;
     SeafDirent *new_dent = NULL;
     char *root_id = NULL;
-    char *commit_desc = "Auto merge by Seafile system";
+    char *commit_desc = NULL;
     int ret = 0;
 
     GET_REPO_OR_FAIL(repo, repo_id);
@@ -2157,9 +2217,14 @@ seaf_repo_manager_update_dir (SeafRepoManager *mgr,
 
     /* Are we updating the root? */
     if (strcmp (dir_path, "/") == 0) {
+        commit_desc = gen_commit_description (new_dir_id, head_commit->root_id);
+        if (!commit_desc)
+            commit_desc = g_strdup("Auto merge by system");
+
         if (gen_new_commit (repo_id, head_commit, new_dir_id,
                             user, commit_desc, new_commit_id, error) < 0)
             ret = -1;
+        g_free (commit_desc);
         goto out;
     }
 
@@ -2182,11 +2247,17 @@ seaf_repo_manager_update_dir (SeafRepoManager *mgr,
         goto out;
     }
 
+    commit_desc = gen_commit_description (root_id, head_commit->root_id);
+    if (!commit_desc)
+        commit_desc = g_strdup("Auto merge by system");
+
     if (gen_new_commit (repo_id, head_commit, root_id,
                         user, commit_desc, new_commit_id, error) < 0) {
         ret = -1;
+        g_free (commit_desc);
         goto out;
     }
+    g_free (commit_desc);
 
 out:
     seaf_repo_unref (repo);

@@ -55,7 +55,14 @@ int
 diff_commits (SeafCommit *commit1, SeafCommit *commit2, GList **results);
 
 int
+diff_commit_roots (const char *root1, const char *root2, GList **results);
+
+int
 diff_merge (SeafCommit *merge, GList **results);
+
+int
+diff_merge_roots (const char *merged_root, const char *p1_root, const char *p2_root,
+                  GList **results);
 
 void
 diff_resolve_renames (GList **diff_entries);
@@ -68,5 +75,8 @@ diff_unmerged_state(int mask);
 
 char *
 format_diff_results(GList *results);
+
+char *
+diff_results_to_description (GList *results);
 
 #endif

@@ -722,108 +722,6 @@ error:
     return FALSE;
 }
 
-inline static char *
-get_basename (char *path)
-{
-    char *slash;
-    slash = strrchr (path, '/');
-    if (!slash)
-        return path;
-    return (slash + 1);
-}
-
-static char *
-status_to_description (GList *results)
-{
-    GList *p;
-    DiffEntry *de;
-    char *new_file = NULL, *removed_file = NULL;
-    char *renamed_file = NULL, *modified_file = NULL;
-    char *new_dir = NULL, *removed_dir = NULL;
-    int n_new = 0, n_removed = 0, n_renamed = 0, n_modified = 0;
-    int n_new_dir = 0, n_removed_dir = 0;
-    GString *desc;
-
-    if (results == NULL)
-        return NULL;
-
-    for (p = results; p != NULL; p = p->next) {
-        de = p->data;
-        switch (de->status) {
-        case DIFF_STATUS_ADDED:
-            if (n_new == 0)
-                new_file = get_basename(de->name);
-            n_new++;
-            break;
-        case DIFF_STATUS_DELETED:
-            if (n_removed == 0)
-                removed_file = get_basename(de->name);
-            n_removed++;
-            break;
-        case DIFF_STATUS_RENAMED:
-            if (n_renamed == 0)
-                renamed_file = get_basename(de->name);
-            n_renamed++;
-            break;
-        case DIFF_STATUS_MODIFIED:
-            if (n_modified == 0)
-                modified_file = get_basename(de->name);
-            n_modified++;
-            break;
-        case DIFF_STATUS_DIR_ADDED:
-            if (n_new_dir == 0)
-                new_dir = get_basename(de->name);
-            n_new_dir++;
-            break;
-        case DIFF_STATUS_DIR_DELETED:
-            if (n_removed_dir == 0)
-                removed_dir = get_basename(de->name);
-            n_removed_dir++;
-            break;
-        }
-    }
-
-    desc = g_string_new ("");
-
-    if (n_new == 1)
-        g_string_append_printf (desc, "Added \"%s\".\n", new_file);
-    else if (n_new > 1)
-        g_string_append_printf (desc, "Added \"%s\" and %d more files.\n",
-                                new_file, n_new - 1);
-
-    if (n_removed == 1)
-        g_string_append_printf (desc, "Deleted \"%s\".\n", removed_file);
-    else if (n_removed > 1)
-        g_string_append_printf (desc, "Deleted \"%s\" and %d more files.\n",
-                                removed_file, n_removed - 1);
-
-    if (n_renamed == 1)
-        g_string_append_printf (desc, "Renamed \"%s\".\n", renamed_file);
-    else if (n_renamed > 1)
-        g_string_append_printf (desc, "Renamed \"%s\" and %d more files.\n",
-                                renamed_file, n_renamed - 1);
-
-    if (n_modified == 1)
-        g_string_append_printf (desc, "Modified \"%s\".\n", modified_file);
-    else if (n_modified > 1)
-        g_string_append_printf (desc, "Modified \"%s\" and %d more files.\n",
-                                modified_file, n_modified - 1);
-
-    if (n_new_dir == 1)
-        g_string_append_printf (desc, "Added directory \"%s\".\n", new_dir);
-    else if (n_new_dir > 1)
-        g_string_append_printf (desc, "Added \"%s\" and %d more directories.\n",
-                                new_dir, n_new_dir - 1);
-
-    if (n_removed_dir == 1)
-        g_string_append_printf (desc, "Removed directory \"%s\".\n", removed_dir);
-    else if (n_removed_dir > 1)
-        g_string_append_printf (desc, "Removed \"%s\" and %d more directories.\n",
-                                removed_dir, n_removed_dir - 1);
-
-    return g_string_free (desc, FALSE);
-}
-
 /*
  * Generate commit description based on files to be commited.
  * It only checks index status, not worktree status.
@@ -843,7 +741,7 @@ gen_commit_description (SeafRepo *repo, struct index_state *istate)
     diff_resolve_empty_dirs (&results);
     diff_resolve_renames (&results);
 
-    desc = status_to_description (results);
+    desc = diff_results_to_description (results);
     if (!desc)
         return NULL;
 
@@ -891,20 +789,11 @@ commit_tree (SeafRepo *repo, struct cache_tree *it,
 
     rawdata_to_hex (it->sha1, root_id, 20);
 
-    if (!unmerged) {
-        commit = seaf_commit_new (NULL, repo->id, root_id,
-                                  repo->email ? repo->email
-                                  : seaf->session->base.user_name,
-                                  seaf->session->base.id,
-                                  desc, 0);
-    } else {
-        commit = seaf_commit_new (NULL, repo->id, root_id,
-                                  repo->email ? repo->email
-                                  : seaf->session->base.user_name,
-                                  seaf->session->base.id,
-                                  "Auto merge by seafile system",
-                                  0);
-    }
+    commit = seaf_commit_new (NULL, repo->id, root_id,
+                              repo->email ? repo->email
+                              : seaf->session->base.user_name,
+                              seaf->session->base.id,
+                              desc, 0);
 
     if (repo->head)
         commit->parent_id = g_strdup (repo->head->commit_id);
@@ -922,6 +811,8 @@ commit_tree (SeafRepo *repo, struct cache_tree *it,
         }
 
         commit->second_parent_id = g_strdup (minfo.remote_head);
+        commit->new_merge = TRUE;
+        commit->conflict = TRUE;
     }
 
     seaf_repo_to_commit (repo, commit);
@@ -987,7 +878,7 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, GError **error)
     /* Commit before updating the index, so that new blocks won't be GC'ed. */
 
     char *my_desc = g_strdup(desc);
-    if (!unmerged && my_desc[0] == '\0') {
+    if (my_desc[0] == '\0') {
         char *gen_desc = gen_commit_description (repo, &istate);
         if (!gen_desc) {
             /* error not set. */
