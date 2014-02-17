@@ -52,6 +52,9 @@ public class Commit : Object {
 		get { return _root_id; }
 		set { _root_id = value; }
 	}
+
+	public bool new_merge { get; set; }
+	public bool conflict { get; set; }
 }
 
 } // namespace

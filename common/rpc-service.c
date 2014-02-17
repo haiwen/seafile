@@ -1100,6 +1100,8 @@ convert_to_seafile_commit (SeafCommit *c)
                   "root_id", c->root_id,
                   "parent_id", c->parent_id,
                   "second_parent_id", c->second_parent_id,
+                  "new_merge", c->new_merge,
+                  "conflict", c->conflict,
                   NULL);
     return commit;
 }
