@@ -51,18 +51,26 @@ diff_entry_free (DiffEntry *de);
 int
 diff_index (struct index_state *istate, SeafDir *root, GList **results);
 
+/*
+ * @fold_dir_diff: if TRUE, only the top level directory will be included
+ *                 in the diff result if a directory with files is added or removed.
+ *                 Otherwise all the files in the direcotory will be recursively
+ *                 included in the diff result.
+ */
 int
-diff_commits (SeafCommit *commit1, SeafCommit *commit2, GList **results);
+diff_commits (SeafCommit *commit1, SeafCommit *commit2, GList **results,
+              gboolean fold_dir_diff);
 
 int
-diff_commit_roots (const char *root1, const char *root2, GList **results);
+diff_commit_roots (const char *root1, const char *root2, GList **results,
+                   gboolean fold_dir_diff);
 
 int
-diff_merge (SeafCommit *merge, GList **results);
+diff_merge (SeafCommit *merge, GList **results, gboolean fold_dir_diff);
 
 int
 diff_merge_roots (const char *merged_root, const char *p1_root, const char *p2_root,
-                  GList **results);
+                  GList **results, gboolean fold_dir_diff);
 
 void
 diff_resolve_renames (GList **diff_entries);

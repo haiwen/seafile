@@ -14,6 +14,7 @@
 #define DEBUG_FLAG SEAFILE_DEBUG_OTHER
 #include "log.h"
 #include "seafile.h"
+#include "seafile-object.h"
 
 #include "seafile-session.h"
 #include "commit-mgr.h"
@@ -378,8 +379,7 @@ gen_merge_description (const char *merged_root,
     GList *results = NULL;
     char *desc;
     
-    diff_merge_roots (merged_root, p1_root, p2_root, &results);
-    diff_resolve_renames (&results);
+    diff_merge_roots (merged_root, p1_root, p2_root, &results, TRUE);
 
     desc = diff_results_to_description (results);
 
@@ -2178,8 +2178,7 @@ gen_commit_description (const char *root,
     GList *results = NULL;
     char *desc;
     
-    diff_commit_roots (parent_root, root, &results);
-    diff_resolve_renames (&results);
+    diff_commit_roots (parent_root, root, &results, TRUE);
 
     desc = diff_results_to_description (results);
 
@@ -2951,7 +2950,10 @@ typedef struct CollectRevisionParam CollectRevisionParam;
 
 struct CollectRevisionParam {
     const char *path;
-    GHashTable *wanted_commits;
+    GList *wanted_commits;
+    GList *file_id_list;
+    GList *file_size_list;
+    int n_commits;
     GHashTable *file_id_cache;
     
     /* 
@@ -3003,13 +3005,25 @@ get_file_id_with_cache (SeafCommit *commit,
     return NULL;
 }
 
+static void
+add_revision_info (CollectRevisionParam *data,
+                   SeafCommit *commit, const char *file_id, gint64 file_size)
+{
+    seaf_commit_ref (commit);
+    data->wanted_commits = g_list_prepend (data->wanted_commits, commit);
+    data->file_id_list = g_list_prepend (data->file_id_list, g_strdup(file_id));
+    gint64 *size = g_malloc(sizeof(gint64));
+    *size = file_size;
+    data->file_size_list = g_list_prepend (data->file_size_list, size);
+    ++(data->n_commits);
+}
+
 static gboolean
 collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
 {
     CollectRevisionParam *data = vdata;
     const char *path = data->path;
     GError **error = data->error;
-    GHashTable *wanted_commits = data->wanted_commits;
     GHashTable *file_id_cache = data->file_id_cache;
 
     SeafCommit *parent_commit = NULL;
@@ -3017,6 +3031,7 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
     char *file_id = NULL;
     char *parent_file_id = NULL;
     char *parent_file_id2 = NULL;
+    gint64 file_size;
 
     gboolean ret = TRUE;
 
@@ -3034,8 +3049,7 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
         return TRUE;
     }
 
-    if (data->max_revision > 0
-        && g_hash_table_size(wanted_commits) > data->max_revision) {
+    if (data->max_revision > 0 && data->n_commits > data->max_revision) {
         *stop = TRUE;
         return TRUE;
     }
@@ -3052,10 +3066,11 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
         goto out;
     }
 
+    file_size = seaf_fs_manager_get_file_size (seaf->fs_mgr, file_id);
+
     if (!commit->parent_id) {
         /* Initial commit */
-        seaf_commit_ref (commit);
-        g_hash_table_insert (wanted_commits, commit->commit_id, commit);
+        add_revision_info (data, commit, file_id, file_size);
         goto out;
     }
 
@@ -3107,8 +3122,7 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
     if (!data->got_latest)
         data->got_latest = TRUE;
 
-    seaf_commit_ref (commit);
-    g_hash_table_insert (wanted_commits, commit->commit_id, commit);
+    add_revision_info (data, commit, file_id, file_size);
 
 out:
     g_free (file_id);
@@ -3121,24 +3135,172 @@ out:
     return ret;
 }
 
-static int
-compare_commit_by_time (const SeafCommit *a, const SeafCommit *b)
+static gboolean
+path_exists_in_commit (const char *commit_id, const char *path)
 {
-    /* Latest commit comes first in the list. */
-    return (b->ctime - a->ctime);
+    SeafCommit *c = NULL;
+    char *obj_id;
+    guint32 mode;
+
+    c = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
+    if (!c) {
+        seaf_warning ("Failed to get commit %.8s.\n", commit_id);
+        return FALSE;
+    }
+    obj_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
+                                             c->root_id,
+                                             path,
+                                             &mode,
+                                             NULL);
+    seaf_commit_unref (c);
+    if (!obj_id)
+        return FALSE;
+    g_free (obj_id);
+    return TRUE;
+}
+
+static gboolean
+detect_rename_revision (SeafCommit *commit,
+                        const char *path,
+                        char **parent_id,
+                        char **old_path)
+{
+    GList *diff_res = NULL;
+    SeafCommit *p1 = NULL;
+    int rc;
+    gboolean is_renamed = FALSE;
+
+    while (*path == '/' && *path != 0)
+        ++path;
+
+    if (!commit->second_parent_id) {
+        p1 = seaf_commit_manager_get_commit (seaf->commit_mgr, commit->parent_id);
+        if (!p1) {
+            seaf_warning ("Failed to get commit %.8s.\n", commit->parent_id);
+            return FALSE;
+        }
+        /* Don't fold diff results for directories. We need to know a file was
+         * renamed when its parent folder was renamed.
+         */
+        rc = diff_commits (p1, commit, &diff_res, FALSE);
+        seaf_commit_unref (p1);
+        if (rc < 0) {
+            seaf_warning ("Failed to diff.\n");
+            return FALSE;
+        }
+    } else {
+        rc = diff_merge (commit, &diff_res, FALSE);
+        if (rc < 0) {
+            seaf_warning ("Failed to diff merge.\n");
+            return FALSE;
+        }
+    }
+
+    GList *ptr;
+    DiffEntry *de;
+    for (ptr = diff_res; ptr; ptr = ptr->next) {
+        de = ptr->data;
+        if (de->status == DIFF_STATUS_RENAMED && strcmp (de->new_name, path) == 0) {
+            *old_path = g_strdup(de->name);
+            is_renamed = TRUE;
+            break;
+        }
+    }
+    for (ptr = diff_res; ptr; ptr = ptr->next)
+        diff_entry_free ((DiffEntry *)ptr->data);
+    g_list_free (diff_res);
+
+    if (!is_renamed)
+        return FALSE;
+
+    /* Determine parent commit containing the old path. */
+    if (!commit->second_parent_id)
+        *parent_id = g_strdup(commit->parent_id);
+    else {
+        if (path_exists_in_commit (commit->parent_id, *old_path))
+            *parent_id = g_strdup(commit->parent_id);
+        else if (path_exists_in_commit (commit->second_parent_id, *old_path))
+            *parent_id = g_strdup(commit->second_parent_id);
+        else {
+            g_free (*old_path);
+            *old_path = NULL;
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static SeafileCommit *
+convert_to_seafile_commit (SeafCommit *c)
+{
+    SeafileCommit *commit = seafile_commit_new ();
+    g_object_set (commit,
+                  "id", c->commit_id,
+                  "creator_name", c->creator_name,
+                  "creator", c->creator_id,
+                  "desc", c->desc,
+                  "ctime", c->ctime,
+                  "repo_id", c->repo_id,
+                  "root_id", c->root_id,
+                  "parent_id", c->parent_id,
+                  "second_parent_id", c->second_parent_id,
+                  "new_merge", c->new_merge,
+                  "conflict", c->conflict,
+                  NULL);
+    return commit;
+}
+
+static GList *
+convert_rpc_commit_list (GList *commit_list,
+                         GList *file_id_list,
+                         GList *file_size_list,
+                         gboolean is_renamed,
+                         const char *renamed_old_path)
+{
+    GList *ret = NULL;
+    GList *ptr1, *ptr2, *ptr3;
+    SeafCommit *c;
+    char *file_id;
+    gint64 *file_size;
+    SeafileCommit *commit;
+
+    for (ptr1 = commit_list, ptr2 = file_id_list, ptr3 = file_size_list;
+         ptr1 && ptr2 && ptr3;
+         ptr1 = ptr1->next, ptr2 = ptr2->next, ptr3 = ptr3->next) {
+        c = ptr1->data;
+        file_id = ptr2->data;
+        file_size = ptr3->data;
+        commit = convert_to_seafile_commit (c);
+        g_object_set (commit, "rev_file_id", file_id, "rev_file_size", *file_size,
+                      NULL);
+        if (ptr1->next == NULL && is_renamed)
+            g_object_set (commit, "rev_renamed_old_path", renamed_old_path, NULL);
+        ret = g_list_prepend (ret, commit);
+    }
+
+    ret = g_list_reverse (ret);
+    return ret;
 }
 
 GList *
 seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
                                        const char *repo_id,
+                                       const char *start_commit_id,
                                        const char *path,
                                        int max_revision,
                                        int limit,
                                        GError **error)
 {
     SeafRepo *repo = NULL;
-    GList *commit_list = NULL;
+    GList *commit_list = NULL, *file_id_list = NULL, *file_size_list = NULL;
+    GList *ret = NULL, *ptr;
     CollectRevisionParam data = {0};
+    SeafCommit *last_commit = NULL;
+    const char *head_id;
+    gboolean is_renamed = FALSE;
+    char *parent_id = NULL, *old_path = NULL;
+    GList *old_revisions = NULL;
 
     repo = seaf_repo_manager_get_repo (mgr, repo_id);
     if (!repo) {
@@ -3147,25 +3309,27 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
         goto out;
     }
 
+    if (!start_commit_id)
+        head_id = repo->head->commit_id;
+    else
+        head_id = start_commit_id;
+
     data.path = path;
     data.error = error;
     data.max_revision = max_revision;
 
     data.truncate_time = seaf_repo_manager_get_repo_truncate_time (mgr, repo_id);
-
-    /* A (commit id, commit) hash table. We specify a value destroy
-     * function, so that even if we fail in half way of traversing, we can
-     * free all commits in the hashtbl.*/
-    data.wanted_commits = g_hash_table_new_full (g_str_hash, g_str_equal,
-                            NULL, (GDestroyNotify)seaf_commit_unref);
+    data.wanted_commits = NULL;
+    data.file_id_list = NULL;
+    data.file_size_list = NULL;
 
     /* A hash table to cache caculated file id of <path> in <commit> */
     data.file_id_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                 g_free, g_free);
 
     if (!seaf_commit_manager_traverse_commit_tree_with_limit (seaf->commit_mgr,
-                                                        repo->head->commit_id,
-                                                        (CommitTraverseFunc)collect_file_revisions,
+                                                              head_id,
+                                                              (CommitTraverseFunc)collect_file_revisions,
                                                               limit, &data)) {
         g_clear_error (error);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
@@ -3173,26 +3337,45 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
         goto out;
     }
 
-    GHashTableIter iter;
-    gpointer key, value;
+    if (!data.wanted_commits)
+        goto out;
 
-    g_hash_table_iter_init (&iter, data.wanted_commits);
-    while (g_hash_table_iter_next (&iter, &key, &value)) {
-        SeafCommit *commit = value;
-        seaf_commit_ref (commit);
-        commit_list = g_list_insert_sorted (commit_list, commit,
-                                            (GCompareFunc)compare_commit_by_time);
+    /* commit list in descending commit time order. */
+    last_commit = data.wanted_commits->data;
+
+    is_renamed = detect_rename_revision (last_commit, path, &parent_id, &old_path);
+
+    commit_list = g_list_reverse (data.wanted_commits);
+    file_id_list = g_list_reverse (data.file_id_list);
+    file_size_list = g_list_reverse (data.file_size_list);
+
+    ret = convert_rpc_commit_list (commit_list, file_id_list, file_size_list,
+                                   is_renamed, old_path);
+
+    if (is_renamed) {
+        /* Get the revisions of the old path, starting from parent commit. */
+        old_revisions = seaf_repo_manager_list_file_revisions (mgr, repo_id,
+                                                               parent_id, old_path,
+                                                               -1, -1, error);
+        ret = g_list_concat (ret, old_revisions);
+        g_free (parent_id);
+        g_free (old_path);
     }
 
 out:
     if (repo)
         seaf_repo_unref (repo);
-    if (data.wanted_commits)
-        g_hash_table_destroy (data.wanted_commits);
+    for (ptr = commit_list; ptr; ptr = ptr->next)
+        seaf_commit_unref ((SeafCommit *)ptr->data);
+    g_list_free (commit_list);
+    string_list_free (file_id_list);
+    for (ptr = file_size_list; ptr; ptr = ptr->next)
+        g_free (ptr->data);
+    g_list_free (file_size_list);
     if (data.file_id_cache)
         g_hash_table_destroy (data.file_id_cache);
 
-    return commit_list;
+    return ret;
 }
 
 typedef struct CalcFilesLastModifiedParam CalcFilesLastModifiedParam;
@@ -3821,7 +4004,7 @@ seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, char **error)
     
     if (old == NULL || old[0] == '\0') {
         if (c2->parent_id && c2->second_parent_id) {
-            ret = diff_merge (c2, &diff_entries);
+            ret = diff_merge (c2, &diff_entries, TRUE);
             if (ret < 0) {
                 *error = g_strdup("Failed to do diff");
                 seaf_commit_unref (c2);
@@ -3848,7 +4031,7 @@ seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, char **error)
     }
 
     /* do diff */
-    ret = diff_commits (c1, c2, &diff_entries);
+    ret = diff_commits (c1, c2, &diff_entries, TRUE);
     if (ret < 0)
         *error = g_strdup("Failed to do diff");
 

@@ -71,13 +71,15 @@ diff_directories (int n, SeafDirent *dents[], const char *basedir, DiffOptions *
     if (n_dirs == 0)
         return 0;
 
-    gboolean recurse = TRUE;
-    ret = opt->dir_cb (n, basedir, dirs, opt->data, &recurse);
-    if (ret < 0)
-        return ret;
+    if (opt->dir_cb != NULL) {
+        gboolean recurse = TRUE;
+        ret = opt->dir_cb (n, basedir, dirs, opt->data, &recurse);
+        if (ret < 0)
+            return ret;
 
-    if (!recurse)
-        return 0;
+        if (!recurse)
+            return 0;
+    }
 
     memset (sub_dirs, 0, sizeof(sub_dirs[0])*n);
     for (i = 0; i < n; ++i) {
@@ -407,35 +409,47 @@ twoway_diff_dirs (int n, const char *basedir, SeafDirent *dirs[], void *data,
 }
 
 int
-diff_commits (SeafCommit *commit1, SeafCommit *commit2, GList **results)
+diff_commits (SeafCommit *commit1, SeafCommit *commit2, GList **results,
+              gboolean fold_dir_diff)
 {
     DiffOptions opt;
     const char *roots[2];
 
+    memset (&opt, 0, sizeof(opt));
     opt.file_cb = twoway_diff_files;
-    opt.dir_cb = twoway_diff_dirs;
+    if (fold_dir_diff)
+        opt.dir_cb = twoway_diff_dirs;
     opt.data = results;
 
     roots[0] = commit1->root_id;
     roots[1] = commit2->root_id;
 
-    return diff_trees (2, roots, &opt);
+    diff_trees (2, roots, &opt);
+    diff_resolve_renames (results);
+
+    return 0;
 }
 
 int
-diff_commit_roots (const char *root1, const char *root2, GList **results)
+diff_commit_roots (const char *root1, const char *root2, GList **results,
+                   gboolean fold_dir_diff)
 {
     DiffOptions opt;
     const char *roots[2];
 
+    memset (&opt, 0, sizeof(opt));
     opt.file_cb = twoway_diff_files;
-    opt.dir_cb = twoway_diff_dirs;
+    if (fold_dir_diff)
+        opt.dir_cb = twoway_diff_dirs;
     opt.data = results;
 
     roots[0] = root1;
     roots[1] = root2;
 
-    return diff_trees (2, roots, &opt);
+    diff_trees (2, roots, &opt);
+    diff_resolve_renames (results);
+
+    return 0;
 }
 
 static int
@@ -510,7 +524,7 @@ threeway_diff_dirs (int n, const char *basedir, SeafDirent *dirs[], void *data,
 }
 
 int
-diff_merge (SeafCommit *merge, GList **results)
+diff_merge (SeafCommit *merge, GList **results, gboolean fold_dir_diff)
 {
     DiffOptions opt;
     const char *roots[3];
@@ -536,8 +550,10 @@ diff_merge (SeafCommit *merge, GList **results)
         return -1;
     }
 
+    memset (&opt, 0, sizeof(opt));
     opt.file_cb = threeway_diff_files;
-    opt.dir_cb = threeway_diff_dirs;
+    if (fold_dir_diff)
+        opt.dir_cb = threeway_diff_dirs;
     opt.data = results;
 
     roots[0] = merge->root_id;
@@ -545,6 +561,7 @@ diff_merge (SeafCommit *merge, GList **results)
     roots[2] = parent2->root_id;
 
     int ret = diff_trees (3, roots, &opt);
+    diff_resolve_renames (results);
 
     seaf_commit_unref (parent1);
     seaf_commit_unref (parent2);
@@ -554,22 +571,27 @@ diff_merge (SeafCommit *merge, GList **results)
 
 int
 diff_merge_roots (const char *merged_root, const char *p1_root, const char *p2_root,
-                  GList **results)
+                  GList **results, gboolean fold_dir_diff)
 {
     DiffOptions opt;
     const char *roots[3];
 
     g_return_val_if_fail (*results == NULL, -1);
 
+    memset (&opt, 0, sizeof(opt));
     opt.file_cb = threeway_diff_files;
-    opt.dir_cb = threeway_diff_dirs;
+    if (fold_dir_diff)
+        opt.dir_cb = threeway_diff_dirs;
     opt.data = results;
 
     roots[0] = merged_root;
     roots[1] = p1_root;
     roots[2] = p2_root;
 
-    return diff_trees (3, roots, &opt);
+    diff_trees (3, roots, &opt);
+    diff_resolve_renames (results);
+
+    return 0;
 }
 
 /* This function only resolve "strict" rename, i.e. two files must be
@@ -623,6 +645,9 @@ diff_resolve_renames (GList **diff_entries)
             *diff_entries = g_list_prepend (*diff_entries, de_rename);
 
             g_hash_table_remove (deleted, de_add->sha1);
+
+            diff_entry_free (de_add);
+            diff_entry_free (de_del);
         }
 
         p = g_list_delete_link (p, p);

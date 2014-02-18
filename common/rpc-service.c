@@ -3512,23 +3512,10 @@ seafile_list_file_revisions (const char *repo_id,
 
     GList *commit_list;
     commit_list = seaf_repo_manager_list_file_revisions (seaf->repo_mgr,
-                                                         repo_id, path,
+                                                         repo_id, NULL, path,
                                                          max_revision,
                                                          limit, error);
-    GList *l = NULL;
-    if (commit_list) {
-        GList *p;
-        for (p = commit_list; p; p = p->next) {
-            SeafCommit *commit = p->data;
-            SeafileCommit *c = convert_to_seafile_commit(commit);
-            l = g_list_prepend (l, c);
-            seaf_commit_unref (commit);
-        }
-        g_list_free (commit_list);
-        l = g_list_reverse (l);
-    }
-
-    return l;
+    return commit_list;
 }
 
 GList *

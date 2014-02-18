@@ -55,6 +55,12 @@ public class Commit : Object {
 
 	public bool new_merge { get; set; }
 	public bool conflict { get; set; }
+
+	// Used for returning file revision
+	public string rev_file_id { get; set; }
+	public int64 rev_file_size { get; set; }
+	// Set if this commit renames a revision of a file
+	public string rev_renamed_old_path { get; set; }
 }
 
 } // namespace
