@@ -106,7 +106,7 @@ read_directory_recursive(struct dir_struct *dir,
             int len = 0;
 
 #ifdef __APPLE__
-            nfc_dname = g_utf8_normalize (dname, -1, G_NORMALIZE_NFD);
+            nfc_dname = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
 #else
             nfc_dname = g_strdup(dname);
 #endif

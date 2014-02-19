@@ -291,7 +291,7 @@ case_conflict_exists (const char *dir_path, const char *new_dname)
             break;
 
 #ifdef __APPLE__
-        char *norm_dname = g_utf8_normalize (dname, -1, G_NORMALIZE_NFD);
+        char *norm_dname = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
         if (case_conflict_utf8 (norm_dname, new_dname)) {
             is_case_conflict = TRUE;
             g_free (norm_dname);
