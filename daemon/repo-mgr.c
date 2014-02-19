@@ -429,7 +429,7 @@ add_recursive (struct index_state *istate,
             ++n;
 
 #ifdef __APPLE__
-            char *norm_dname = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
+            char *norm_dname = g_utf8_normalize (dname, -1, G_NORMALIZE_NFD);
             subpath = g_build_path (PATH_SEPERATOR, path, norm_dname, NULL);
             g_free (norm_dname);
 #else
