@@ -528,7 +528,8 @@ def setup_build_env():
 
 def copy_user_manuals():
     builddir = conf[CONF_BUILDDIR]
-    src_pattern = os.path.join(builddir, Seafile().projdir, 'doc', '*.doc')
+    # src_pattern = os.path.join(builddir, Seafile().projdir, 'doc', '*.doc')
+    src_pattern = os.path.join(builddir, Seafile().projdir, 'doc', 'seafile-tutorial.doc')
     dst_dir = os.path.join(builddir, 'seafile-server', 'seafile', 'docs')
 
     must_mkdir(dst_dir)
