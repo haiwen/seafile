@@ -435,6 +435,8 @@ transition_sync_state (SyncTask *task, int new_state)
         {
             SeafCommit *head;
             head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                   task->repo->id,
+                                                   task->repo->version,
                                                    task->repo->head->commit_id);
             if (head) {
                 GString *buf = g_string_new (NULL);
@@ -536,6 +538,7 @@ start_upload_if_necessary (SyncTask *task)
 
     char *tx_id = seaf_transfer_manager_add_upload (seaf->transfer_mgr,
                                                     repo_id,
+                                                    task->repo->version,
                                                     task->dest_id,
                                                     "local",
                                                     "master",
@@ -559,6 +562,7 @@ start_fetch_if_necessary (SyncTask *task)
 
     tx_id = seaf_transfer_manager_add_download (seaf->transfer_mgr,
                                                 repo_id,
+                                                task->repo->version,
                                                 task->dest_id,
                                                 "fetch_head",
                                                 "master",
@@ -776,7 +780,8 @@ check_fast_forward (SeafCommit *commit, void *vdata, gboolean *stop)
 }
 
 static gboolean
-check_fast_forward_with_limit (const char *local_id,
+check_fast_forward_with_limit (SeafRepo *repo,
+                               const char *local_id,
                                const char *remote_id,
                                const char *last_uploaded,
                                const char *last_checkout,
@@ -791,6 +796,8 @@ check_fast_forward_with_limit (const char *local_id,
     *error = FALSE;
 
     if (!seaf_commit_manager_traverse_commit_tree_truncated (seaf->commit_mgr,
+                                                             repo->id,
+                                                             repo->version,
                                                              local_id,
                                                              check_fast_forward,
                                                              &data, FALSE)) {
@@ -1013,7 +1020,8 @@ update_sync_status (SyncTask *task)
          * last_checkout commits.
          */
         gboolean error = FALSE;
-        gboolean is_ff = check_fast_forward_with_limit (local->commit_id,
+        gboolean is_ff = check_fast_forward_with_limit (repo,
+                                                        local->commit_id,
                                                         info->head_commit,
                                                         last_uploaded,
                                                         last_checkout,

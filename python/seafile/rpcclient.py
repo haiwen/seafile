@@ -80,8 +80,8 @@ class SeafileRpcClient(ccnet.RpcClientBase):
         pass
     get_diff = seafile_diff
 
-    @searpc_func("object", ["string"])
-    def seafile_get_commit(commit_id):
+    @searpc_func("object", ["string", "int", "string"])
+    def seafile_get_commit(repo_id, version, commit_id):
         pass
     get_commit = seafile_get_commit
 
@@ -89,21 +89,6 @@ class SeafileRpcClient(ccnet.RpcClientBase):
     def seafile_get_commit_list():
         pass
     get_commit_list = seafile_get_commit_list
-
-    @searpc_func("objlist", ["string", "int", "int"])
-    def seafile_list_dir(dir_id, offset, limit):
-        pass
-    list_dir = seafile_list_dir
-
-    @searpc_func("objlist", ["string", "string"])
-    def seafile_list_dir_by_path(commit_id, path):
-        pass
-    list_dir_by_path = seafile_list_dir_by_path
-
-    @searpc_func("string", ["string", "string"])
-    def seafile_get_dirid_by_path(commit_id, path):
-        pass
-    get_dirid_by_path = seafile_get_dirid_by_path
 
     @searpc_func("objlist", ["string"])
     def seafile_branch_gets(repo_id):
@@ -120,13 +105,13 @@ class SeafileRpcClient(ccnet.RpcClientBase):
     def gen_default_worktree(worktree_parent, repo_name):
         pass
 
-    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int"])
-    def seafile_clone(repo_id, peer_id, repo_name, worktree, token, password, magic, peer_addr, peer_port, email, random_key, enc_version):
+    @searpc_func("string", ["string", "int", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int"])
+    def seafile_clone(repo_id, repo_version, peer_id, repo_name, worktree, token, password, magic, peer_addr, peer_port, email, random_key, enc_version):
         pass
     clone = seafile_clone
 
-    @searpc_func("string", ["string", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int"])
-    def seafile_download(repo_id, peer_id, repo_name, wt_parent, token, password, magic, peer_addr, peer_port, email, random_key, enc_version):
+    @searpc_func("string", ["string", "int", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int"])
+    def seafile_download(repo_id, repo_version, peer_id, repo_name, wt_parent, token, password, magic, peer_addr, peer_port, email, random_key, enc_version):
         pass
     download = seafile_download
 
@@ -441,38 +426,38 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     is_valid_filename = seafile_is_valid_filename 
 
-    @searpc_func("object", ["string"])
-    def seafile_get_commit(commit_id):
+    @searpc_func("object", ["string", "int", "string"])
+    def seafile_get_commit(repo_id, version, commit_id):
         pass
     get_commit = seafile_get_commit
 
-    @searpc_func("string", ["string", "int", "int"])
-    def seafile_list_file(file_id, offset, limit):
+    @searpc_func("string", ["string", "string", "int", "int"])
+    def seafile_list_file(repo_id, file_id, offset, limit):
         pass
     list_file = seafile_list_file
 
-    @searpc_func("objlist", ["string"])
-    def seafile_list_dir(dir_id):
+    @searpc_func("objlist", ["string", "string", "int", "int"])
+    def seafile_list_dir(repo_id, dir_id, offset, limit):
         pass
     list_dir = seafile_list_dir
 
-    @searpc_func("int64", ["string"])
-    def seafile_get_file_size(file_id):
+    @searpc_func("int64", ["string", "int", "string"])
+    def seafile_get_file_size(store_id, version, file_id):
         pass
     get_file_size = seafile_get_file_size
 
-    @searpc_func("int64", ["string"])
-    def seafile_get_dir_size(dir_id):
+    @searpc_func("int64", ["string", "int", "string"])
+    def seafile_get_dir_size(store_id, version, dir_id):
         pass
     get_dir_size = seafile_get_dir_size
 
-    @searpc_func("objlist", ["string", "string"])
-    def seafile_list_dir_by_path(commit_id, path):
+    @searpc_func("objlist", ["string", "string", "string"])
+    def seafile_list_dir_by_path(repo_id, commit_id, path):
         pass
     list_dir_by_path = seafile_list_dir_by_path
 
-    @searpc_func("string", ["string", "string"])
-    def seafile_get_dirid_by_path(commit_id, path):
+    @searpc_func("string", ["string", "string", "string"])
+    def seafile_get_dirid_by_path(repo_id, commit_id, path):
         pass
     get_dirid_by_path = seafile_get_dirid_by_path
 
@@ -486,8 +471,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     get_dir_id_by_path = seafile_get_dir_id_by_path
 
-    @searpc_func("string", ["string", "string"])
-    def seafile_get_file_id_by_commit_and_path(commit_id, path):
+    @searpc_func("string", ["string", "string", "string"])
+    def seafile_get_file_id_by_commit_and_path(repo_id, commit_id, path):
         pass
     get_file_id_by_commit_and_path = seafile_get_file_id_by_commit_and_path
 

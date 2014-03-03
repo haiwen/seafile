@@ -505,10 +505,10 @@ def get_org_repo_owner(repo_id):
     return owner
 
 # commit
-def get_commit(cmt_id):
+def get_commit(repo_id, repo_version, cmt_id):
     """ Get a commit. """
     try:
-        ret = seafserv_threaded_rpc.get_commit(cmt_id)
+        ret = seafserv_threaded_rpc.get_commit(repo_id, repo_version, cmt_id)
     except SearpcError:
         ret = None
     return ret
@@ -793,9 +793,9 @@ def list_org_shared_repos(org_id, user, user_type, start, limit):
     return share_repos
 
 # dir
-def list_dir_by_path(commit_id, path):
+def list_dir_by_path(repo_id, commit_id, path):
     try:
-        ret = seafserv_threaded_rpc.list_dir_by_path(commit_id, path)
+        ret = seafserv_threaded_rpc.list_dir_by_path(repo_id, commit_id, path)
     except SearpcError:
         ret = None
     return ret
@@ -837,9 +837,9 @@ def is_valid_filename(file_or_dir):
 
     return ret
 
-def get_file_size(file_id):
+def get_file_size(store_id, version, file_id):
     try:
-        fs = seafserv_threaded_rpc.get_file_size(file_id)
+        fs = seafserv_threaded_rpc.get_file_size(store_id, version, file_id)
     except SearpcError, e:
         fs = 0
     return fs

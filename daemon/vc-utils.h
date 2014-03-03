@@ -20,7 +20,8 @@ static inline int readlink(const char *path, char *buf, size_t bufsiz)
 #endif
 
 int
-commit_trees_cb (struct cache_tree *it, struct cache_entry **cache,
+commit_trees_cb (const char *repo_id, int version,
+                 struct cache_tree *it, struct cache_entry **cache,
                  int entries, const char *base, int baselen);
 
 int
@@ -45,9 +46,11 @@ compare_file_content (const char *path, SeafStat *st,
                       struct SeafileCrypt *crypt);
 
 void
-fill_seafile_blocks (const unsigned char *sha1, BlockList *bl);
+fill_seafile_blocks (const char *repo_id, int version,
+                     const unsigned char *sha1, BlockList *bl);
 
 void
-collect_new_blocks_from_index (struct index_state *index, BlockList *bl);
+collect_new_blocks_from_index (const char *repo_id, int version,
+                               struct index_state *index, BlockList *bl);
 
 #endif

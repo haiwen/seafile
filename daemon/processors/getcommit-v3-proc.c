@@ -89,6 +89,8 @@ get_commit_start (CcnetProcessor *processor, int argc, char **argv)
     task->fs_roots = object_list_new ();
 
     priv->writer_id = seaf_obj_store_register_async_write (seaf->commit_mgr->obj_store,
+                                                           task->repo_id,
+                                                           task->repo_version,
                                                            commit_write_cb, processor);
 
     g_string_printf (buf, "remote %s seafile-putcommit-v3 %s %s",

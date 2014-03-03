@@ -247,6 +247,7 @@ static int traverse_trees_recursive(int n, unsigned long dirmask, unsigned long 
     struct tree_desc t[MAX_UNPACK_TREES];
     struct traverse_info newinfo;
     struct name_entry *p;
+    struct unpack_trees_options *o = info->data;
 
     p = names;
     while (!p->mode)
@@ -262,9 +263,9 @@ static int traverse_trees_recursive(int n, unsigned long dirmask, unsigned long 
         char root_id[41];
         if (dirmask & 1) {
             rawdata_to_hex(names[i].sha1, root_id, 20);
-            fill_tree_descriptor(t+i, root_id);
+            fill_tree_descriptor(o->repo_id, o->version, t+i, root_id);
         } else {
-            fill_tree_descriptor(t+i, NULL);
+            fill_tree_descriptor(o->repo_id, o->version, t+i, NULL);
         }
     }
 

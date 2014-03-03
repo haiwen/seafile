@@ -398,12 +398,16 @@ extern int remove_file_from_index(struct index_state *, const char *path);
 #define ADD_CACHE_IGNORE_REMOVAL 8
 #define ADD_CACHE_INTENT 16
 
-typedef int (*IndexCB) (const char *path,
+typedef int (*IndexCB) (const char *repo_id,
+                        int version,
+                        const char *path,
                         unsigned char sha1[],
                         struct SeafileCrypt *crypt,
                         gboolean write_data);
 
-int add_to_index(struct index_state *istate,
+int add_to_index(const char *repo_id,
+                 int version,
+                 struct index_state *istate,
                  const char *path,
                  const char *full_path,
                  SeafStat *st,

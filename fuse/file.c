@@ -14,7 +14,10 @@
 
 #include "seaf-fuse.h"
 
-int read_file(SeafileSession *seaf, Seafile *file, char *buf, size_t size,
+int read_file(SeafileSession *seaf,
+              const char *store_id, int version,
+              Seafile *file,
+              char *buf, size_t size,
               off_t offset, struct fuse_file_info *info)
 {
     BlockHandle *handle = NULL;;
@@ -27,7 +30,7 @@ int read_file(SeafileSession *seaf, Seafile *file, char *buf, size_t size,
     for (i = 0; i < file->n_blocks; i++) {
         blkid = file->blk_sha1s[i];
 
-        bmd = seaf_block_manager_stat_block(seaf->block_mgr, blkid);
+        bmd = seaf_block_manager_stat_block(seaf->block_mgr, store_id, version, blkid);
         if (!bmd)
             return -EIO;
 
@@ -49,7 +52,9 @@ int read_file(SeafileSession *seaf, Seafile *file, char *buf, size_t size,
     while (nleft > 0 && i < file->n_blocks) {
         blkid = file->blk_sha1s[i];
 
-        handle = seaf_block_manager_open_block(seaf->block_mgr, blkid, BLOCK_READ);
+        handle = seaf_block_manager_open_block(seaf->block_mgr,
+                                               store_id, version,
+                                               blkid, BLOCK_READ);
         if (!handle) {
             seaf_warning ("Failed to open block %s.\n", blkid);
             return -EIO;

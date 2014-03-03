@@ -52,6 +52,9 @@ public class Commit : Object {
 		get { return _root_id; }
 		set { _root_id = value; }
 	}
+
+	// Repo data-format version of this commit
+	public int version { get; set; }
 }
 
 } // namespace

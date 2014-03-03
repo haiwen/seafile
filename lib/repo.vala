@@ -70,6 +70,11 @@ public class Repo : Object {
     public string origin_path { get; set; }
     public bool is_original_owner { get; set; }
     public string virtual_perm { get; set; }
+
+    // data format version
+    public int version { get; set; }
+    // Used to access fs objects
+    public string store_id { get; set; }
 }
 
 

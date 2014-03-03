@@ -34,7 +34,9 @@ struct _CDCFileDescriptor;
 struct _CDCDescriptor;
 struct SeafileCrypt;
 
-typedef int (*WriteblockFunc)(struct _CDCDescriptor *chunk_descr,
+typedef int (*WriteblockFunc)(const char *repo_id,
+                              int version,
+                              struct _CDCDescriptor *chunk_descr,
                               struct SeafileCrypt *crypt,
                               uint8_t *checksum,
                               gboolean write_data);
@@ -52,6 +54,9 @@ typedef struct _CDCFileDescriptor {
     uint8_t  file_sum[CHECKSUM_LENGTH];
 
     WriteblockFunc write_block;
+
+    char repo_id[37];
+    int version;
 } CDCFileDescriptor;
 
 typedef struct _CDCDescriptor {

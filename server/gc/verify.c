@@ -2,17 +2,22 @@
 #include "log.h"
 
 typedef struct VerifyData {
+    SeafRepo *repo;
     gint64 truncate_time;
     gboolean traversed_head;
 } VerifyData;
 
 static int
-check_blocks (SeafFSManager *mgr, const char *file_id)
+check_blocks (VerifyData *data, const char *file_id)
 {
+    SeafRepo *repo = data->repo;
     Seafile *seafile;
     int i;
 
-    seafile = seaf_fs_manager_get_seafile (mgr, file_id);
+    seafile = seaf_fs_manager_get_seafile (seaf->fs_mgr,
+                                           repo->store_id,
+                                           repo->version,
+                                           file_id);
     if (!seafile) {
         seaf_warning ("Failed to find file %s.\n", file_id);
         return -1;
@@ -20,6 +25,8 @@ check_blocks (SeafFSManager *mgr, const char *file_id)
 
     for (i = 0; i < seafile->n_blocks; ++i) {
         if (!seaf_block_manager_block_exists (seaf->block_mgr,
+                                              repo->store_id,
+                                              repo->version,
                                               seafile->blk_sha1s[i]))
             g_message ("Block %s is missing.\n", seafile->blk_sha1s[i]);
     }
@@ -31,12 +38,16 @@ check_blocks (SeafFSManager *mgr, const char *file_id)
 
 static gboolean
 fs_callback (SeafFSManager *mgr,
+             const char *store_id,
+             int version,
              const char *obj_id,
              int type,
              void *user_data,
              gboolean *stop)
 {
-    if (type == SEAF_METADATA_TYPE_FILE && check_blocks (mgr, obj_id) < 0)
+    VerifyData *data = user_data;
+
+    if (type == SEAF_METADATA_TYPE_FILE && check_blocks (data, obj_id) < 0)
         return FALSE;
 
     return TRUE;
@@ -46,6 +57,7 @@ static gboolean
 traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
 {
     VerifyData *data = vdata;
+    SeafRepo *repo = data->repo;
     int ret;
 
     if (data->truncate_time == 0)
@@ -65,6 +77,8 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
         data->traversed_head = TRUE;
 
     ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
+                                         repo->store_id,
+                                         repo->version,
                                          commit->root_id,
                                          fs_callback,
                                          vdata, FALSE);
@@ -82,6 +96,7 @@ verify_repo (SeafRepo *repo)
     int ret = 0;
     VerifyData data = {0};
 
+    data.repo = repo;
     data.truncate_time = seaf_repo_manager_get_repo_truncate_time (repo->manager,
                                                                    repo->id);
 
@@ -94,6 +109,8 @@ verify_repo (SeafRepo *repo)
     for (ptr = branches; ptr != NULL; ptr = ptr->next) {
         branch = ptr->data;
         gboolean res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                                 repo->id,
+                                                                 repo->version,
                                                                  branch->commit_id,
                                                                  traverse_commit,
                                                                  &data, FALSE);
@@ -114,8 +131,9 @@ verify_repos ()
 {
     GList *repos = NULL, *ptr;
     int ret = 0;
+    gboolean error = FALSE;
 
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, FALSE);
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, FALSE, &error);
     for (ptr = repos; ptr != NULL; ptr = ptr->next) {
         ret = verify_repo ((SeafRepo *)ptr->data);
         seaf_repo_unref ((SeafRepo *)ptr->data);

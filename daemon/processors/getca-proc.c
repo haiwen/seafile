@@ -176,6 +176,8 @@ list_commits_thread (void *data)
      */
     priv->success = 
         seaf_commit_manager_traverse_commit_tree_truncated (seaf->commit_mgr,
+                                                            repo->id,
+                                                            repo->version,
                                                             repo->head->commit_id,
                                                             traverse_commits_cb,
                                                             processor, FALSE);

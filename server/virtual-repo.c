@@ -68,6 +68,7 @@ save_virtual_repo_info (SeafRepoManager *mgr,
 
 static int
 do_create_virtual_repo (SeafRepoManager *mgr,
+                        SeafRepo *origin_repo,
                         const char *repo_id,
                         const char *repo_name,
                         const char *repo_desc,
@@ -89,6 +90,12 @@ do_create_virtual_repo (SeafRepoManager *mgr,
         repo->enc_version = 1;
         seafile_generate_magic (1, repo_id, passwd, repo->magic);
     }
+
+    /* Virtual repos share fs and block store with origin repo and
+     * have the same version as the origin.
+     */
+    repo->version = origin_repo->version;
+    memcpy (repo->store_id, origin_repo->id, 36);
 
     commit = seaf_commit_new (NULL, repo->id,
                               root_id, /* root id */
@@ -230,6 +237,8 @@ seaf_repo_manager_create_virtual_repo (SeafRepoManager *mgr,
     }
 
     origin_head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                  origin_repo->id,
+                                                  origin_repo->version,
                                                   origin_repo->head->commit_id);
     if (!origin_head) {
         seaf_warning ("Failed to get head commit %.8s.\n",
@@ -240,6 +249,8 @@ seaf_repo_manager_create_virtual_repo (SeafRepoManager *mgr,
     }
 
     dir_id = seaf_fs_manager_get_seafdir_id_by_path (seaf->fs_mgr,
+                                                     origin_repo->store_id,
+                                                     origin_repo->version,
                                                      origin_head->root_id,
                                                      path, NULL);
     if (!dir_id) {
@@ -261,7 +272,7 @@ seaf_repo_manager_create_virtual_repo (SeafRepoManager *mgr,
         goto error;
     }
 
-    if (do_create_virtual_repo (mgr, repo_id, repo_name, repo_desc,
+    if (do_create_virtual_repo (mgr, origin_repo, repo_id, repo_name, repo_desc,
                                 dir_id, owner, passwd, error) < 0)
         goto error;
 
@@ -530,7 +541,10 @@ seaf_repo_manager_cleanup_virtual_repos (SeafRepoManager *mgr,
         goto out;
     }
 
-    head = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->head->commit_id);
+    head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                           repo->id,
+                                           repo->version,
+                                           repo->head->commit_id);
     if (!head) {
         seaf_warning ("Failed to get commit %.8s.\n", repo->head->commit_id);
         goto out;
@@ -541,13 +555,15 @@ seaf_repo_manager_cleanup_virtual_repos (SeafRepoManager *mgr,
     for (ptr = vinfo_list; ptr; ptr = ptr->next) {
         vinfo = ptr->data;
         dir = seaf_fs_manager_get_seafdir_by_path (seaf->fs_mgr,
+                                                   repo->store_id,
+                                                   repo->version,
                                                    head->root_id,
                                                    vinfo->path,
                                                    &error);
         if (error) {
             if (error->code == SEAF_ERR_PATH_NO_EXIST) {
                 seaf_debug ("Delete virtual repo %.10s.\n", vinfo->repo_id);
-                seaf_repo_manager_del_repo (mgr, vinfo->repo_id);
+                seaf_repo_manager_del_repo (mgr, vinfo->repo_id, FALSE);
             }
             g_clear_error (&error);
         } else
@@ -591,7 +607,9 @@ static void *merge_virtual_repo (void *vtask)
     }
 
     /* commits */
-    head = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->head->commit_id);
+    head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                           repo->id, repo->version,
+                                           repo->head->commit_id);
     if (!head) {
         seaf_warning ("Failed to get commit %.8s.\n", repo->head->commit_id);
         ret = -1;
@@ -599,6 +617,7 @@ static void *merge_virtual_repo (void *vtask)
     }
 
     orig_head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                orig_repo->id, orig_repo->version,
                                                 orig_repo->head->commit_id);
     if (!orig_head) {
         seaf_warning ("Failed to get commit %.8s.\n", orig_repo->head->commit_id);
@@ -606,7 +625,9 @@ static void *merge_virtual_repo (void *vtask)
         goto out;
     }
 
-    base = seaf_commit_manager_get_commit (seaf->commit_mgr, vinfo->base_commit);
+    base = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                           orig_repo->id, orig_repo->version,
+                                           vinfo->base_commit);
     if (!base) {
         seaf_warning ("Failed to get commit %.8s.\n", vinfo->base_commit);
         ret = -1;
@@ -617,6 +638,8 @@ static void *merge_virtual_repo (void *vtask)
     root = head->root_id;
 
     base_root = seaf_fs_manager_get_seafdir_id_by_path (seaf->fs_mgr,
+                                                        orig_repo->store_id,
+                                                        orig_repo->version,
                                                         base->root_id,
                                                         vinfo->path,
                                                         NULL);
@@ -628,6 +651,8 @@ static void *merge_virtual_repo (void *vtask)
     }
 
     orig_root = seaf_fs_manager_get_seafdir_id_by_path (seaf->fs_mgr,
+                                                        orig_repo->store_id,
+                                                        orig_repo->version,
                                                         orig_head->root_id,
                                                         vinfo->path,
                                                         NULL);
@@ -702,7 +727,8 @@ static void *merge_virtual_repo (void *vtask)
         roots[2] = root;  /* remote */
 
         /* Merge virtual into origin */
-        if (seaf_merge_trees (3, roots, &opt) < 0) {
+        if (seaf_merge_trees (orig_repo->store_id, orig_repo->version,
+                              3, roots, &opt) < 0) {
             seaf_warning ("Failed to merge virtual repo %.10s.\n", repo_id);
             ret = -1;
             goto out;

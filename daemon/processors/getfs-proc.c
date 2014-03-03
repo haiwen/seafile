@@ -64,6 +64,8 @@ typedef struct ThreadData {
     char root_id[41];
     GHashTable  *fs_objects;
     GList *fetch_objs;
+    char repo_id[37];
+    int repo_version;
 } ThreadData;
 
 typedef struct  {
@@ -205,12 +207,18 @@ check_seafdir (ThreadData *tdata, const char *dir_id)
     GList *ptr;
     SeafDirent *dent;
 
-    if (!seaf_fs_manager_object_exists(seaf->fs_mgr, dir_id)) {
+    if (!seaf_fs_manager_object_exists(seaf->fs_mgr,
+                                       tdata->repo_id,
+                                       tdata->repo_version,
+                                       dir_id)) {
         tdata->fetch_objs = g_list_prepend (tdata->fetch_objs, g_strdup(dir_id));
         return;
     }
 
-    dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr, dir_id);
+    dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr,
+                                       tdata->repo_id,
+                                       tdata->repo_version,
+                                       dir_id);
     if (!dir) {
         /* corrupt dir object */
         tdata->fetch_objs = g_list_prepend (tdata->fetch_objs, g_strdup(dir_id));
@@ -226,7 +234,10 @@ check_seafdir (ThreadData *tdata, const char *dir_id)
 
         g_hash_table_insert (tdata->fs_objects, g_strdup(dent->id), (gpointer)1);
 
-        if (!seaf_fs_manager_object_exists(seaf->fs_mgr, dent->id)) {
+        if (!seaf_fs_manager_object_exists(seaf->fs_mgr,
+                                           tdata->repo_id,
+                                           tdata->repo_version,
+                                           dent->id)) {
             tdata->fetch_objs = g_list_prepend (tdata->fetch_objs, g_strdup(dent->id));
             continue;
         }
@@ -241,7 +252,10 @@ check_seafdir (ThreadData *tdata, const char *dir_id)
              */
             gboolean ok;
             gboolean err = FALSE;
-            ok = seaf_fs_manager_verify_seafile (seaf->fs_mgr, dent->id, TRUE, &err);
+            ok = seaf_fs_manager_verify_seafile (seaf->fs_mgr,
+                                                 tdata->repo_id,
+                                                 tdata->repo_version,
+                                                 dent->id, TRUE, &err);
             if (!ok && !err) {
                 seaf_warning ("File object %.8s is corrupt, recover from server.\n",
                               dent->id);
@@ -497,6 +511,8 @@ start_worker_thread (CcnetProcessor *processor)
     tdata->is_clone = proc->tx_task->is_clone;
     tdata->fs_objects = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                g_free, NULL);
+    memcpy (tdata->repo_id, proc->tx_task->repo_id, 36);
+    tdata->repo_version = proc->tx_task->repo_version;
 
     /* Hold one reference for the main thread. */
     thread_data_ref (tdata);
@@ -597,6 +613,8 @@ start (CcnetProcessor *processor, int argc, char **argv)
     priv->inspect_queue = g_queue_new ();
 
     priv->writer_id = seaf_obj_store_register_async_write (seaf->fs_mgr->obj_store,
+                                                           task->repo_id,
+                                                           task->repo_version,
                                                            fs_object_write_cb,
                                                            processor);
 

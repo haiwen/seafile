@@ -146,14 +146,6 @@ update_repo (void *vprocessor)
     branch_name = priv->branch_name;
     new_head = priv->new_head;
 
-    /* Since this is the last step of upload procedure, commit should exist. */
-    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, new_head);
-    if (!commit) {
-        priv->rsp_code = g_strdup (SC_BAD_COMMIT);
-        priv->rsp_msg = g_strdup (SS_BAD_COMMIT);
-        goto out;
-    }
-
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
         /* repo is deleted on server */
@@ -161,6 +153,16 @@ update_repo (void *vprocessor)
         priv->rsp_msg = g_strdup (SC_BAD_REPO);
         goto out;
 
+    }
+
+    /* Since this is the last step of upload procedure, commit should exist. */
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             repo->id, repo->version,
+                                             new_head);
+    if (!commit) {
+        priv->rsp_code = g_strdup (SC_BAD_COMMIT);
+        priv->rsp_msg = g_strdup (SS_BAD_COMMIT);
+        goto out;
     }
 
     if (seaf_quota_manager_check_quota (seaf->quota_mgr, repo_id) < 0) {
@@ -178,7 +180,7 @@ update_repo (void *vprocessor)
 
     /* If branch exists, check fast forward. */
     if (strcmp (new_head, branch->commit_id) != 0 &&
-        !is_fast_forward (new_head, branch->commit_id)) {
+        !is_fast_forward (repo->id, repo->version, new_head, branch->commit_id)) {
         g_warning ("Upload is not fast forward. Refusing.\n");
 
         seaf_repo_unref (repo);

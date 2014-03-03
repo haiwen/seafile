@@ -462,6 +462,8 @@ handle_block_header_content_cb (char *content, int clen, void *cbarg)
         switch (hdr->status) {
         case STATUS_OK:
             client->block = seaf_block_manager_open_block (seaf->block_mgr,
+                                                           task->repo_id,
+                                                           task->repo_version,
                                                            client->curr_block_id,
                                                            BLOCK_WRITE);
             if (!client->block) {
@@ -598,10 +600,13 @@ out:
 static int
 send_block_content (BlockTxClient *client)
 {
+    TransferTask *task = client->info->task;
     BlockHandle *handle = NULL;
     int ret = 0;
 
     handle = seaf_block_manager_open_block (seaf->block_mgr,
+                                            task->repo_id,
+                                            task->repo_version,
                                             client->curr_block_id,
                                             BLOCK_READ);
     if (!handle) {

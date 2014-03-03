@@ -118,12 +118,14 @@ send_commit_start (CcnetProcessor *processor, int argc, char **argv)
 static void
 send_commit (CcnetProcessor *processor, const char *object_id)
 {
+    TransferTask *task = ((SeafileSendcommitV3Proc *)processor)->tx_task;
     char *data;
     int len;
     ObjectPack *pack = NULL;
     int pack_size;
 
     if (seaf_obj_store_read_obj (seaf->commit_mgr->obj_store,
+                                 task->repo_id, task->repo_version,
                                  object_id, (void**)&data, &len) < 0) {
         g_warning ("Failed to read commit %s.\n", object_id);
         goto fail;
@@ -209,6 +211,8 @@ compute_upload_commits_thread (void *vdata)
     gboolean ret;
 
     ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                    task->repo_id,
+                                                    task->repo_version,
                                                     task->head,
                                                     collect_upload_commit_ids,
                                                     processor, FALSE);

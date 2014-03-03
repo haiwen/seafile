@@ -48,6 +48,8 @@ commit_tree_to_hash (SeafCommit *head)
     hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
     res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                    head->repo_id,
+                                                    head->version,
                                                     head->commit_id,
                                                     add_to_commit_hash,
                                                     hash, FALSE);
@@ -171,6 +173,8 @@ merge_bases_many (SeafCommit *one, int n, SeafCommit **twos)
 
     for (i = 0; i < n; i++) {
         res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                        twos[i]->repo_id,
+                                                        twos[i]->version,
                                                         twos[i]->commit_id,
                                                         get_merge_bases,
                                                         &data, FALSE);
@@ -253,27 +257,19 @@ done:
  * Returns true if src_head is ahead of dst_head.
  */
 gboolean
-is_fast_forward (const char *src_head, const char *dst_head)
+is_fast_forward (const char *repo_id, int version,
+                 const char *src_head, const char *dst_head)
 {
     VCCompareResult res;
 
-    res = vc_compare_commits (src_head, dst_head);
+    res = vc_compare_commits (repo_id, version, src_head, dst_head);
 
     return (res == VC_FAST_FORWARD);
 }
 
-gboolean
-is_up_to_date (const char *src_head, const char *dst_head)
-{
-    VCCompareResult res;
-
-    res = vc_compare_commits (src_head, dst_head);
-
-    return (res == VC_UP_TO_DATE);
-}
-
 VCCompareResult
-vc_compare_commits (const char *c1, const char *c2)
+vc_compare_commits (const char *repo_id, int version,
+                    const char *c1, const char *c2)
 {
     SeafCommit *commit1, *commit2, *ca;
     VCCompareResult ret;
@@ -282,11 +278,11 @@ vc_compare_commits (const char *c1, const char *c2)
     if (strcmp (c1, c2) == 0)
         return VC_UP_TO_DATE;
 
-    commit1 = seaf_commit_manager_get_commit (seaf->commit_mgr, c1);
+    commit1 = seaf_commit_manager_get_commit (seaf->commit_mgr, repo_id, version, c1);
     if (!commit1)
         return VC_INDEPENDENT;
 
-    commit2 = seaf_commit_manager_get_commit (seaf->commit_mgr, c2);
+    commit2 = seaf_commit_manager_get_commit (seaf->commit_mgr, repo_id, version, c2);
     if (!commit2) {
         seaf_commit_unref (commit1);
         return VC_INDEPENDENT;
@@ -329,7 +325,10 @@ diff_parents_with_path (SeafCommit *commit,
     char *file_id_p1 = NULL, *file_id_p2 = NULL;
     int ret = 0;
 
-    p1 = seaf_commit_manager_get_commit (seaf->commit_mgr, commit->parent_id);
+    p1 = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                         commit->repo_id,
+                                         commit->version,
+                                         commit->parent_id);
     if (!p1) {
         g_warning ("Failed to find commit %s.\n", commit->parent_id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, " ");
@@ -343,6 +342,8 @@ diff_parents_with_path (SeafCommit *commit,
 
     if (commit->second_parent_id) {
         p2 = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             commit->repo_id,
+                                             commit->version,
                                              commit->second_parent_id);
         if (!p2) {
             g_warning ("Failed to find commit %s.\n", commit->second_parent_id);
@@ -354,9 +355,11 @@ diff_parents_with_path (SeafCommit *commit,
 
     if (!p2) {
         file_id_p1 = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
-                                                      p1->root_id, path,
-                                                      NULL,
-                                                      error);
+                                                     commit->repo_id,
+                                                     commit->version,
+                                                     p1->root_id, path,
+                                                     NULL,
+                                                     error);
         if (*error)
             goto out;
         if (!file_id_p1 || strcmp (file_id, file_id_p1) != 0)
@@ -365,13 +368,17 @@ diff_parents_with_path (SeafCommit *commit,
             memcpy (parent, p1->commit_id, 41);
     } else {
         file_id_p1 = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
-                                                      p1->root_id, path,
-                                                      NULL, error);
+                                                     commit->repo_id,
+                                                     commit->version,
+                                                     p1->root_id, path,
+                                                     NULL, error);
         if (*error)
             goto out;
         file_id_p2 = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
-                                                      p2->root_id, path,
-                                                      NULL, error);
+                                                     commit->repo_id,
+                                                     commit->version,
+                                                     p2->root_id, path,
+                                                     NULL, error);
         if (*error)
             goto out;
 
@@ -416,7 +423,8 @@ out:
  * @path: path of the file.
  */
 char *
-get_last_changer_of_file (const char *head, const char *path)
+get_last_changer_of_file (const char *repo_id, int version,
+                          const char *head, const char *path)
 {
     char commit_id[41];
     SeafCommit *commit = NULL;
@@ -428,7 +436,9 @@ get_last_changer_of_file (const char *head, const char *path)
     memcpy (commit_id, head, 41);
 
     while (1) {
-        commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
+        commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                 repo_id, version,
+                                                 commit_id);
         if (!commit)
             break;
 
@@ -437,10 +447,11 @@ get_last_changer_of_file (const char *head, const char *path)
             break;
 
         file_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
-                                                   commit->root_id,
-                                                   path,
-                                                   NULL,
-                                                   &error);
+                                                  repo_id, version,
+                                                  commit->root_id,
+                                                  path,
+                                                  NULL,
+                                                  &error);
         if (error) {
             g_clear_error (&error);
             break;

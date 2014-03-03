@@ -22,7 +22,6 @@ noinst_HEADERS = \
 	log.h \
 	avl/avl.h \
 	object-list.h \
-	gc-core.h \
 	vc-common.h \
 	seaf-utils.h \
 	obj-store.h \

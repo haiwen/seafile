@@ -30,7 +30,8 @@ typedef struct {
     const char *top_dir_name;
     gboolean is_windows;
     time_t mtime;
-
+    char store_id[37];
+    int repo_version;
 } PackDirData;
 
 static char *
@@ -91,7 +92,9 @@ add_file_to_archive (PackDirData *data,
 
     pathname = g_build_filename (top_dir_name, parent_dir, dent->name, NULL);
 
-    file = seaf_fs_manager_get_seafile (seaf->fs_mgr, dent->id);
+    file = seaf_fs_manager_get_seafile (seaf->fs_mgr,
+                                        data->store_id, data->repo_version,
+                                        dent->id);
     if (!file) {
         ret = -1;
         goto out;
@@ -130,6 +133,8 @@ add_file_to_archive (PackDirData *data,
     while (idx < file->n_blocks) {
         blk_id = file->blk_sha1s[idx];
         handle = seaf_block_manager_open_block (seaf->block_mgr,
+                                                data->store_id,
+                                                data->repo_version,
                                                 blk_id, BLOCK_READ);
         if (!handle) {
             seaf_warning ("Failed to open block %s\n", blk_id);
@@ -272,7 +277,9 @@ archive_dir (PackDirData *data,
     char *subpath = NULL;
     int ret = 0;
 
-    dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr, root_id);
+    dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr,
+                                       data->store_id, data->repo_version,
+                                       root_id);
     if (!dir) {
         seaf_warning ("failed to get dir %s\n", root_id);
         goto out;
@@ -308,7 +315,9 @@ out:
     return ret;
 }
 
-char *pack_dir (const char *dirname,
+char *pack_dir (const char *store_id,
+                int repo_version,
+                const char *dirname,
                 const char *root_id,
                 SeafileCrypt *crypt,
                 gboolean is_windows)
@@ -335,6 +344,8 @@ char *pack_dir (const char *dirname,
     data->a = a;
     data->top_dir_name = dirname;
     data->mtime = time(NULL);
+    memcpy (data->store_id, store_id, 36);
+    data->repo_version = repo_version;
 
     if (archive_dir (data, root_id, "") < 0) {
         g_debug ("failed to archive_dir\n");

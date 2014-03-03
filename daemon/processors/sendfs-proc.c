@@ -119,6 +119,8 @@ start (CcnetProcessor *processor, int argc, char **argv)
     proc->last_idx = 0;
 
     priv->reader_id = seaf_obj_store_register_async_read (seaf->fs_mgr->obj_store,
+                                                          task->repo_id,
+                                                          task->repo_version,
                                                           fs_object_read_cb,
                                                           processor);
 

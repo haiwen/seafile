@@ -27,12 +27,16 @@ seaf_block_manager_new (struct _SeafileSession *seaf,
 /*
  * Open a block for read or write.
  *
+ * @store_id: id for the block store
+ * @version: data format version for the repo
  * @block_id: ID of block.
  * @rw_type: BLOCK_READ or BLOCK_WRITE.
  * Returns: A handle for the block.
  */
 BlockHandle *
 seaf_block_manager_open_block (SeafBlockManager *mgr,
+                               const char *store_id,
+                               int version,
                                const char *block_id,
                                int rw_type);
 
@@ -95,14 +99,20 @@ seaf_block_manager_block_handle_free (SeafBlockManager *mgr,
 
 gboolean 
 seaf_block_manager_block_exists (SeafBlockManager *mgr,
+                                 const char *store_id,
+                                 int version,
                                  const char *block_id);
 
 int
 seaf_block_manager_remove_block (SeafBlockManager *mgr,
+                                 const char *store_id,
+                                 int version,
                                  const char *block_id);
 
 BlockMetadata *
 seaf_block_manager_stat_block (SeafBlockManager *mgr,
+                               const char *store_id,
+                               int version,
                                const char *block_id);
 
 BlockMetadata *
@@ -111,14 +121,25 @@ seaf_block_manager_stat_block_by_handle (SeafBlockManager *mgr,
 
 int
 seaf_block_manager_foreach_block (SeafBlockManager *mgr,
+                                  const char *store_id,
+                                  int version,
                                   SeafBlockFunc process,
                                   void *user_data);
 
+/* Remove all blocks for a repo. Only valid for version 1 repo. */
+int
+seaf_block_manager_remove_store (SeafBlockManager *mgr,
+                                 const char *store_id);
+
 guint64
-seaf_block_manager_get_block_number (SeafBlockManager *mgr);
+seaf_block_manager_get_block_number (SeafBlockManager *mgr,
+                                     const char *store_id,
+                                     int version);
 
 gboolean
 seaf_block_manager_verify_block (SeafBlockManager *mgr,
+                                 const char *store_id,
+                                 int version,
                                  const char *block_id,
                                  gboolean *io_error);
 

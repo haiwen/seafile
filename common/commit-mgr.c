@@ -20,11 +20,17 @@ struct _SeafCommitManagerPriv {
 };
 
 static SeafCommit *
-load_commit (SeafCommitManager *mgr, const char *commit_id);
+load_commit (SeafCommitManager *mgr,
+             const char *repo_id, int version,
+             const char *commit_id);
 static int
-save_commit (SeafCommitManager *manager, SeafCommit *commit);
+save_commit (SeafCommitManager *manager,
+             const char *repo_id, int version,
+             SeafCommit *commit);
 static void
-delete_commit (SeafCommitManager *mgr, const char *id);
+delete_commit (SeafCommitManager *mgr,
+               const char *repo_id, int version,
+               const char *id);
 static json_t *
 commit_to_json_object (SeafCommit *commit);
 static SeafCommit *
@@ -226,19 +232,23 @@ remove_commit_from_cache (SeafCommitManager *mgr, SeafCommit *commit)
 #endif
 
 int
-seaf_commit_manager_add_commit (SeafCommitManager *mgr, SeafCommit *commit)
+seaf_commit_manager_add_commit (SeafCommitManager *mgr,
+                                SeafCommit *commit)
 {
     int ret;
 
     /* add_commit_to_cache (mgr, commit); */
-    if ((ret = save_commit (mgr, commit)) < 0)
+    if ((ret = save_commit (mgr, commit->repo_id, commit->version, commit)) < 0)
         return -1;
     
     return 0;
 }
 
 void
-seaf_commit_manager_del_commit (SeafCommitManager *mgr, const char *id)
+seaf_commit_manager_del_commit (SeafCommitManager *mgr,
+                                const char *repo_id,
+                                int version,
+                                const char *id)
 {
     g_return_if_fail (id != NULL);
 
@@ -257,11 +267,14 @@ seaf_commit_manager_del_commit (SeafCommitManager *mgr, const char *id)
 delete:
 #endif
 
-    delete_commit (mgr, id);
+    delete_commit (mgr, repo_id, version, id);
 }
 
 SeafCommit* 
-seaf_commit_manager_get_commit (SeafCommitManager *mgr, const char *id)
+seaf_commit_manager_get_commit (SeafCommitManager *mgr,
+                                const char *repo_id,
+                                int version,
+                                const char *id)
 {
     SeafCommit *commit;
 
@@ -273,12 +286,29 @@ seaf_commit_manager_get_commit (SeafCommitManager *mgr, const char *id)
     }
 #endif
 
-    commit = load_commit (mgr, id);
+    commit = load_commit (mgr, repo_id, version, id);
     if (!commit)
         return NULL;
 
     /* add_commit_to_cache (mgr, commit); */
 
+    return commit;
+}
+
+SeafCommit *
+seaf_commit_manager_get_commit_compatible (SeafCommitManager *mgr,
+                                           const char *repo_id,
+                                           const char *id)
+{
+    SeafCommit *commit;
+
+    /* First try version 1 layout. */
+    commit = seaf_commit_manager_get_commit (mgr, repo_id, 1, id);
+    if (commit)
+        return commit;
+
+    /* For compatibility with version 0. */
+    commit = seaf_commit_manager_get_commit (mgr, repo_id, 0, id);
     return commit;
 }
 
@@ -294,6 +324,7 @@ compare_commit_by_time (gconstpointer a, gconstpointer b, gpointer unused)
 
 inline static int
 insert_parent_commit (GList **list, GHashTable *hash,
+                      const char *repo_id, int version,
                       const char *parent_id, gboolean allow_truncate)
 {
     SeafCommit *p;
@@ -303,6 +334,7 @@ insert_parent_commit (GList **list, GHashTable *hash,
         return 0;
 
     p = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                        repo_id, version,
                                         parent_id);
     if (!p) {
         if (allow_truncate)
@@ -323,6 +355,8 @@ insert_parent_commit (GList **list, GHashTable *hash,
 
 gboolean
 seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
+                                                     const char *repo_id,
+                                                     int version,
                                                      const char *head,
                                                      CommitTraverseFunc func,
                                                      int limit,
@@ -336,7 +370,7 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
     /* A hash table for recording id of traversed commits. */
     commit_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
-    commit = seaf_commit_manager_get_commit (mgr, head);
+    commit = seaf_commit_manager_get_commit (mgr, repo_id, version, head);
     if (!commit) {
         g_warning ("Failed to find commit %s.\n", head);
         return FALSE;
@@ -376,7 +410,7 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
         }
 
         if (commit->parent_id) {
-            if (insert_parent_commit (&list, commit_hash,
+            if (insert_parent_commit (&list, commit_hash, repo_id, version,
                                       commit->parent_id, FALSE) < 0) {
                 seaf_commit_unref (commit);
                 ret = FALSE;
@@ -384,7 +418,7 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
             }
         }
         if (commit->second_parent_id) {
-            if (insert_parent_commit (&list, commit_hash,
+            if (insert_parent_commit (&list, commit_hash, repo_id, version,
                                       commit->second_parent_id, FALSE) < 0) {
                 seaf_commit_unref (commit);
                 ret = FALSE;
@@ -406,6 +440,8 @@ out:
 
 static gboolean
 traverse_commit_tree_common (SeafCommitManager *mgr,
+                             const char *repo_id,
+                             int version,
                              const char *head,
                              CommitTraverseFunc func,
                              void *data,
@@ -417,7 +453,7 @@ traverse_commit_tree_common (SeafCommitManager *mgr,
     GHashTable *commit_hash;
     gboolean ret = TRUE;
 
-    commit = seaf_commit_manager_get_commit (mgr, head);
+    commit = seaf_commit_manager_get_commit (mgr, repo_id, version, head);
     if (!commit) {
         g_warning ("Failed to find commit %s.\n", head);
         if (!skip_errors)
@@ -458,7 +494,7 @@ traverse_commit_tree_common (SeafCommitManager *mgr,
         }
 
         if (commit->parent_id) {
-            if (insert_parent_commit (&list, commit_hash,
+            if (insert_parent_commit (&list, commit_hash, repo_id, version,
                                       commit->parent_id, allow_truncate) < 0) {
                 g_warning("[comit-mgr] insert parent commit failed\n");
 
@@ -471,7 +507,7 @@ traverse_commit_tree_common (SeafCommitManager *mgr,
             }
         }
         if (commit->second_parent_id) {
-            if (insert_parent_commit (&list, commit_hash,
+            if (insert_parent_commit (&list, commit_hash, repo_id, version,
                                       commit->second_parent_id, allow_truncate) < 0) {
                 g_warning("[comit-mgr]insert second parent commit failed\n");
 
@@ -497,155 +533,35 @@ out:
 
 gboolean
 seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
+                                          const char *repo_id,
+                                          int version,
                                           const char *head,
                                           CommitTraverseFunc func,
                                           void *data,
                                           gboolean skip_errors)
 {
-    return traverse_commit_tree_common (mgr, head, func, data, skip_errors, FALSE);
+    return traverse_commit_tree_common (mgr, repo_id, version, head,
+                                        func, data, skip_errors, FALSE);
 }
 
 gboolean
 seaf_commit_manager_traverse_commit_tree_truncated (SeafCommitManager *mgr,
+                                                    const char *repo_id,
+                                                    int version,
                                                     const char *head,
                                                     CommitTraverseFunc func,
                                                     void *data,
                                                     gboolean skip_errors)
 {
-    return traverse_commit_tree_common (mgr, head, func, data, skip_errors, TRUE);
-}
-
-typedef struct FindingHelp {
-    SeafCommit *to_find;
-    gboolean result;
-} FindingHelp;
-
-static gboolean
-find_commit(SeafCommit *commit, FindingHelp *f, gboolean *stop)
-{
-    if (f->result == TRUE) {
-        *stop = TRUE;
-        return TRUE;
-    }
-
-    if (strcmp(commit->commit_id, f->to_find->commit_id) == 0) {
-        f->result = TRUE;
-        *stop = TRUE;
-    } else {
-        if (commit->ctime < f->to_find->ctime - MAX_TIME_SKEW) {
-            /* searched deep enough */
-            f->result= FALSE;
-            *stop = TRUE;
-        } else
-            *stop = FALSE;
-    }
-
-    return TRUE;
-}
-
-int
-seaf_commit_manager_compare_commit (SeafCommitManager *mgr,
-                                    const char *commit1,
-                                    const char *commit2)
-{
-    SeafCommit *c1, *c2;
-    int ret = 0;
-
-    if (!commit1 || !commit2)
-        return -2;
-
-    if (strlen(commit1) != 40 || strlen(commit2) != 40) {
-        g_warning ("Invalid commit\n");
-        return -2;
-    }
-
-    if (strcmp(commit1, commit2) == 0)
-        return 0;
-
-    c1 = seaf_commit_manager_get_commit (mgr, commit1);
-    if (!c1) {
-        g_warning ("Failed to find commit %s.\n", commit1);
-        return -2;
-    }
-    c2 = seaf_commit_manager_get_commit (mgr, commit2);
-    if (!c2) {
-        g_warning ("Failed to find commit %s.\n", commit2);
-        return -2;
-    }
-
-    if (c1->ctime > c2->ctime) {
-        FindingHelp f;
-        f.to_find = c2;
-        f.result = FALSE;
-        if (!seaf_commit_manager_traverse_commit_tree (
-                 mgr, c1->commit_id, (CommitTraverseFunc)find_commit, &f, FALSE))
-            ret = -2;
-        if (f.result == TRUE)
-            ret = 1;
-        else
-            ret = 0;
-    } else {
-        FindingHelp f;
-        f.to_find = c1;
-        f.result = FALSE;
-        if (!seaf_commit_manager_traverse_commit_tree (
-                 mgr, c2->commit_id, (CommitTraverseFunc)find_commit, &f, FALSE))
-            ret = -2;
-        if (f.result == TRUE)
-            ret = -1;
-        else
-            ret = 0;
-    }
-
-    seaf_commit_unref (c1);
-    seaf_commit_unref (c2);
-    return ret;
-}
-
-GList* 
-seaf_commit_manager_get_repo_commits (SeafCommitManager *mgr, const char *repo_id)
-{
-    sqlite3 *db = mgr->db;
-    
-    int result;
-    sqlite3_stmt *stmt;
-    char sql[256];
-    char *commit_id;
-    GList *ret = NULL;
-    SeafCommit *commit;
-
-    snprintf (sql, 256, "SELECT commit_id FROM commits"
-              " WHERE repo_id='%s' ORDER BY ctime DESC",
-              repo_id);
-
-    if ( !(stmt = sqlite_query_prepare(db, sql)) )
-        return NULL;
-    while (1) {
-        result = sqlite3_step (stmt);
-        if (result == SQLITE_ROW) {
-            commit_id = (char *)sqlite3_column_text(stmt, 0);
-            commit = seaf_commit_manager_get_commit (mgr, commit_id);
-            if (commit)
-                ret = g_list_prepend(ret, commit);
-        }
-        if (result == SQLITE_DONE)
-            break;
-        if (result == SQLITE_ERROR) {
-            const gchar *str = sqlite3_errmsg (db);
-            g_warning ("Couldn't prepare query, error: %d->'%s'\n", 
-                       result, str ? str : "no error given");
-            sqlite3_finalize (stmt);
-            goto end;
-        }
-    }
-    sqlite3_finalize (stmt);
-
-end:
-    return g_list_reverse(ret);
+    return traverse_commit_tree_common (mgr, repo_id, version, head,
+                                        func, data, skip_errors, TRUE);
 }
 
 gboolean
-seaf_commit_manager_commit_exists (SeafCommitManager *mgr, const char *id)
+seaf_commit_manager_commit_exists (SeafCommitManager *mgr,
+                                   const char *repo_id,
+                                   int version,
+                                   const char *id)
 {
 #if 0
     commit = g_hash_table_lookup (mgr->priv->commit_cache, id);
@@ -653,7 +569,7 @@ seaf_commit_manager_commit_exists (SeafCommitManager *mgr, const char *id)
         return TRUE;
 #endif
 
-    return seaf_obj_store_obj_exists (mgr->obj_store, id);
+    return seaf_obj_store_obj_exists (mgr->obj_store, repo_id, version, id);
 }
 
 static json_t *
@@ -695,6 +611,8 @@ commit_to_json_object (SeafCommit *commit)
     }
     if (commit->no_local_history)
         json_object_set_int_member (object, "no_local_history", 1);
+    if (commit->version != 0)
+        json_object_set_int_member (object, "version", commit->version);
 
     return object;
 }
@@ -718,6 +636,7 @@ commit_from_json_object (const char *commit_id, json_t *object)
     const char *magic = NULL;
     const char *random_key = NULL;
     int no_local_history = 0;
+    int version = 0;
 
     root_id = json_object_get_string_member (object, "root_id");
     repo_id = json_object_get_string_member (object, "repo_id");
@@ -746,6 +665,9 @@ commit_from_json_object (const char *commit_id, json_t *object)
 
     if (json_object_has_member (object, "no_local_history"))
         no_local_history = json_object_get_int_member (object, "no_local_history");
+
+    if (json_object_has_member (object, "version"))
+        version = json_object_get_int_member (object, "version");
 
     /* sanity check for incoming values. */
     if (!repo_id || strlen(repo_id) != 36 ||
@@ -800,12 +722,16 @@ commit_from_json_object (const char *commit_id, json_t *object)
     }
     if (no_local_history)
         commit->no_local_history = TRUE;
+    commit->version = version;
 
     return commit;
 }
 
 static SeafCommit *
-load_commit (SeafCommitManager *mgr, const char *commit_id)
+load_commit (SeafCommitManager *mgr,
+             const char *repo_id,
+             int version,
+             const char *commit_id)
 {
     char *data = NULL;
     int len;
@@ -816,7 +742,8 @@ load_commit (SeafCommitManager *mgr, const char *commit_id)
     if (!commit_id || strlen(commit_id) != 40)
         return NULL;
 
-    if (seaf_obj_store_read_obj (mgr->obj_store, commit_id, (void **)&data, &len) < 0)
+    if (seaf_obj_store_read_obj (mgr->obj_store, repo_id, version,
+                                 commit_id, (void **)&data, &len) < 0)
         return NULL;
 
     object = json_loadb (data, len, 0, &jerror);
@@ -840,7 +767,10 @@ out:
 }
 
 static int
-save_commit (SeafCommitManager *manager, SeafCommit *commit)
+save_commit (SeafCommitManager *manager,
+             const char *repo_id,
+             int version,
+             SeafCommit *commit)
 {
     json_t *object = NULL;
     char *data;
@@ -854,13 +784,17 @@ save_commit (SeafCommitManager *manager, SeafCommit *commit)
     json_decref (object);
 
 #ifdef SEAFILE_SERVER
-    if (seaf_obj_store_write_obj (manager->obj_store, commit->commit_id,
+    if (seaf_obj_store_write_obj (manager->obj_store,
+                                  repo_id, version,
+                                  commit->commit_id,
                                   data, (int)len, TRUE) < 0) {
         g_free (data);
         return -1;
     }
 #else
-    if (seaf_obj_store_write_obj (manager->obj_store, commit->commit_id,
+    if (seaf_obj_store_write_obj (manager->obj_store,
+                                  repo_id, version,
+                                  commit->commit_id,
                                   data, (int)len, FALSE) < 0) {
         g_free (data);
         return -1;
@@ -872,7 +806,10 @@ save_commit (SeafCommitManager *manager, SeafCommit *commit)
 }
 
 static void
-delete_commit (SeafCommitManager *mgr, const char *id)
+delete_commit (SeafCommitManager *mgr,
+               const char *repo_id,
+               int version,
+               const char *id)
 {
-    seaf_obj_store_delete_obj (mgr->obj_store, id);
+    seaf_obj_store_delete_obj (mgr->obj_store, repo_id, version, id);
 }

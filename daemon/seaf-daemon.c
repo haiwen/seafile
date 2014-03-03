@@ -194,11 +194,11 @@ start_rpc_service (CcnetClient *client)
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_clone,
                                      "seafile_clone",
-        searpc_signature_string__string_string_string_string_string_string_string_string_string_string_string_int());
+        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int());
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_download,
                                      "seafile_download",
-        searpc_signature_string__string_string_string_string_string_string_string_string_string_string_string_int());
+        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int());
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_cancel_clone_task,
                                      "seafile_cancel_clone_task",
@@ -242,7 +242,7 @@ start_rpc_service (CcnetClient *client)
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_get_commit,
                                      "seafile_get_commit",
-                                     searpc_signature_object__string());
+                                     searpc_signature_object__string_int_string());
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_get_commit_list,
                                      "seafile_get_commit_list",

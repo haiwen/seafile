@@ -72,7 +72,7 @@ block_proc_start (CcnetProcessor *processor, int argc, char **argv)
         return -1;
     }
     
-    prepare_thread_data(processor, recv_blocks, recv_block_cb);
+    prepare_thread_data(processor, recv_blocks, recv_block_cb, priv->repo_id);
     ccnet_processor_send_response (processor, "200", "OK", NULL, 0);
 
     return 0;

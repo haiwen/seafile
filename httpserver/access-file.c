@@ -38,6 +38,9 @@ typedef struct SendBlockData {
     uint32_t bsize;
     uint32_t remain;
 
+    char store_id[37];
+    int repo_version;
+
     bufferevent_data_cb saved_read_cb;
     bufferevent_data_cb saved_write_cb;
     bufferevent_event_cb saved_event_cb;
@@ -53,6 +56,9 @@ typedef struct SendfileData {
     BlockHandle *handle;
     size_t remain;
     int idx;
+
+    char store_id[37];
+    int repo_version;
 
     bufferevent_data_cb saved_read_cb;
     bufferevent_data_cb saved_write_cb;
@@ -138,6 +144,8 @@ write_block_data_cb (struct bufferevent *bev, void *ctx)
 
     if (!data->handle) {
         data->handle = seaf_block_manager_open_block(seaf->block_mgr,
+                                                     data->store_id,
+                                                     data->repo_version,
                                                      blk_id, BLOCK_READ);
         if (!data->handle) {
             seaf_warning ("Failed to open block %s\n", blk_id);
@@ -199,6 +207,8 @@ next:
 
     if (!data->handle) {
         data->handle = seaf_block_manager_open_block(seaf->block_mgr,
+                                                     data->store_id,
+                                                     data->repo_version,
                                                      blk_id, BLOCK_READ);
         if (!data->handle) {
             seaf_warning ("Failed to open block %s\n", blk_id);
@@ -458,7 +468,8 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     SeafileCrypt *crypt = NULL;
     SendfileData *data;
 
-    file = seaf_fs_manager_get_seafile(seaf->fs_mgr, file_id);
+    file = seaf_fs_manager_get_seafile(seaf->fs_mgr,
+                                       repo->store_id, repo->version, file_id);
     if (file == NULL)
         return -1;
 
@@ -533,6 +544,9 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     data->file = file;
     data->crypt = crypt;
 
+    memcpy (data->store_id, repo->store_id, 36);
+    data->repo_version = repo->version;
+
     /* We need to overwrite evhtp's callback functions to
      * write file data piece by piece.
      */
@@ -579,7 +593,9 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
     gint64 dir_size = 0;
 
     /* ensure file size does not exceed limit */
-    dir_size = seaf_fs_manager_get_fs_size (seaf->fs_mgr, dir_id);
+    dir_size = seaf_fs_manager_get_fs_size (seaf->fs_mgr,
+                                            repo->store_id, repo->version,
+                                            dir_id);
     if (dir_size < 0 || dir_size > seaf->max_download_dir_size) {
         seaf_warning ("invalid dir size: %"G_GINT64_FORMAT"\n", dir_size);
         ret = -1;
@@ -609,7 +625,8 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
         g_free (iv_hex);
     }
 
-    zipfile = pack_dir (filename_escaped, dir_id, crypt, test_windows(req));
+    zipfile = pack_dir (repo->store_id, repo->version,
+                        filename_escaped, dir_id, crypt, test_windows(req));
     if (!zipfile) {
         ret = -1;
         goto out;
@@ -783,7 +800,8 @@ access_cb(evhtp_request_t *req, void *arg)
         }
     }
 
-    if (!seaf_fs_manager_object_exists (seaf->fs_mgr, id)) {
+    if (!seaf_fs_manager_object_exists (seaf->fs_mgr,
+                                        repo->store_id, repo->version, id)) {
         error = "Invalid file id\n";
         goto bad_req;
     }
@@ -842,13 +860,17 @@ do_block(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     char cont_filename[SEAF_PATH_MAX];
     SendBlockData *data;
 
-    file = seaf_fs_manager_get_seafile(seaf->fs_mgr, file_id);
+    file = seaf_fs_manager_get_seafile(seaf->fs_mgr,
+                                       repo->store_id, repo->version, file_id);
     if (file == NULL)
         return -1;
 
     for (i = 0; i < file->n_blocks; i++) {
         if (memcmp(file->blk_sha1s[i], blk_id, 40) == 0) {
-            BlockMetadata *bm = seaf_block_manager_stat_block (seaf->block_mgr, blk_id);
+            BlockMetadata *bm = seaf_block_manager_stat_block (seaf->block_mgr,
+                                                               repo->store_id,
+                                                               repo->version,
+                                                               blk_id);
             if (bm && bm->size >= 0) {
                 bsize = bm->size;
                 found = TRUE;
@@ -888,6 +910,9 @@ do_block(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     data = g_new0 (SendBlockData, 1);
     data->req = req;
     data->block_id = g_strdup(blk_id);
+
+    memcpy (data->store_id, repo->store_id, 36);
+    data->repo_version = repo->version;
 
     /* We need to overwrite evhtp's callback functions to
      * write file data piece by piece.
@@ -993,7 +1018,8 @@ access_blks_cb(evhtp_request_t *req, void *arg)
         goto bad_req;
     }
 
-    if (!seaf_fs_manager_object_exists (seaf->fs_mgr, id)) {
+    if (!seaf_fs_manager_object_exists (seaf->fs_mgr,
+                                        repo->store_id, repo->version, id)) {
         error = "Invalid file id\n";
         goto bad_req;
     }

@@ -26,7 +26,8 @@ compare_dirents (gconstpointer a, gconstpointer b)
 }
 
 int
-commit_trees_cb (struct cache_tree *it, struct cache_entry **cache,
+commit_trees_cb (const char *repo_id, int version,
+                 struct cache_tree *it, struct cache_entry **cache,
                  int entries, const char *base, int baselen)
 {
     SeafDir *seaf_dir;
@@ -94,7 +95,7 @@ commit_trees_cb (struct cache_tree *it, struct cache_entry **cache,
     seaf_dir = seaf_dir_new (NULL, dirents, 0);
     hex_to_rawdata (seaf_dir->dir_id, it->sha1, 20);
 
-    seaf_dir_save (seaf->fs_mgr, seaf_dir);
+    seaf_dir_save (seaf->fs_mgr, repo_id, version, seaf_dir);
 
 #if DEBUG
     for (p = dirents; p; p = p->next) {
@@ -574,7 +575,10 @@ checkout_entry (struct cache_entry *ce,
     /* then checkout the file. */
     gboolean conflicted = FALSE;
     rawdata_to_hex (ce->sha1, file_id, 20);
-    if (seaf_fs_manager_checkout_file (seaf->fs_mgr, file_id,
+    if (seaf_fs_manager_checkout_file (seaf->fs_mgr,
+                                       o->repo_id,
+                                       o->version,
+                                       file_id,
                                        path, ce->ce_mode,
                                        o->crypt,
                                        conflict_suffix,
@@ -737,14 +741,15 @@ files_locked_on_windows (struct index_state *index, const char *worktree)
 #endif  /* WIN32 */
 
 void
-fill_seafile_blocks (const unsigned char *sha1, BlockList *bl)
+fill_seafile_blocks (const char *repo_id, int version,
+                     const unsigned char *sha1, BlockList *bl)
 {
     char file_id[41];
     Seafile *seafile;
     int i;
 
     rawdata_to_hex (sha1, file_id, 20);
-    seafile = seaf_fs_manager_get_seafile (seaf->fs_mgr, file_id);
+    seafile = seaf_fs_manager_get_seafile (seaf->fs_mgr, repo_id, version, file_id);
     if (!seafile) {
         g_warning ("Failed to find file %s.\n", file_id);
         return;
@@ -757,7 +762,8 @@ fill_seafile_blocks (const unsigned char *sha1, BlockList *bl)
 }
 
 void
-collect_new_blocks_from_index (struct index_state *index, BlockList *bl)
+collect_new_blocks_from_index (const char *repo_id, int version,
+                               struct index_state *index, BlockList *bl)
 {
     int i;
     struct cache_entry *ce;
@@ -765,6 +771,6 @@ collect_new_blocks_from_index (struct index_state *index, BlockList *bl)
     for (i = 0; i < index->cache_nr; ++i) {
         ce = index->cache[i];
         if (ce->ce_flags & CE_UPDATE)
-            fill_seafile_blocks (ce->sha1, bl);
+            fill_seafile_blocks (repo_id, version, ce->sha1, bl);
     }
 }

@@ -20,6 +20,8 @@ typedef struct AsyncTask {
 } AsyncTask;
 
 typedef struct OSCallbackStruct {
+    char repo_id[37];
+    int version;
     OSAsyncCallback cb;
     void *cb_data;
 } OSCallbackStruct;
@@ -49,11 +51,6 @@ struct SeafObjStore {
 };
 typedef struct SeafObjStore SeafObjStore;
 
-#ifdef SEAFILE_SERVER
-static ObjBackend*
-load_obj_backend (GKeyFile *config, const char *obj_type);
-#endif
-
 static void
 reader_thread (void *data, void *user_data);
 static void
@@ -69,7 +66,7 @@ static void
 on_stat_done (CEvent *event, void *data);
 
 extern ObjBackend *
-obj_backend_fs_new (const char *obj_dir);
+obj_backend_fs_new (const char *seaf_dir, const char *obj_type);
 
 struct SeafObjStore *
 seaf_obj_store_new (SeafileSession *seaf, const char *obj_type)
@@ -79,19 +76,11 @@ seaf_obj_store_new (SeafileSession *seaf, const char *obj_type)
     if (!store)
         return NULL;
 
-#ifdef SEAFILE_SERVER
-    store->bend = load_obj_backend (seaf->config, obj_type);
-#endif
+    store->bend = obj_backend_fs_new (seaf->seaf_dir, obj_type);
     if (!store->bend) {
-        char *obj_dir;
-        obj_dir = g_build_filename (seaf->seaf_dir, obj_type, NULL);
-        store->bend = obj_backend_fs_new (obj_dir);
-        g_free (obj_dir);
-        if (!store->bend) {
-            g_warning ("[Object store] Failed to load backend.\n");
-            g_free (store);
-            return NULL;
-        }
+        g_warning ("[Object store] Failed to load backend.\n");
+        g_free (store);
+        return NULL;
     }
 
     return store;
@@ -171,17 +160,21 @@ seaf_obj_store_init (SeafObjStore *obj_store,
 
 int
 seaf_obj_store_read_obj (struct SeafObjStore *obj_store,
+                         const char *repo_id,
+                         int version,
                          const char *obj_id,
                          void **data,
                          int *len)
 {
     ObjBackend *bend = obj_store->bend;
 
-    return bend->read (bend, obj_id, data, len);
+    return bend->read (bend, repo_id, version, obj_id, data, len);
 }
 
 int
 seaf_obj_store_write_obj (struct SeafObjStore *obj_store,
+                          const char *repo_id,
+                          int version,
                           const char *obj_id,
                           void *data,
                           int len,
@@ -189,138 +182,42 @@ seaf_obj_store_write_obj (struct SeafObjStore *obj_store,
 {
     ObjBackend *bend = obj_store->bend;
 
-    return bend->write (bend, obj_id, data, len, need_sync);
+    return bend->write (bend, repo_id, version, obj_id, data, len, need_sync);
 }
 
 gboolean
 seaf_obj_store_obj_exists (struct SeafObjStore *obj_store,
+                           const char *repo_id,
+                           int version,
                            const char *obj_id)
 {
     ObjBackend *bend = obj_store->bend;
 
-    return bend->exists (bend, obj_id);
+    return bend->exists (bend, repo_id, version, obj_id);
 }
 
 void
 seaf_obj_store_delete_obj (struct SeafObjStore *obj_store,
+                           const char *repo_id,
+                           int version,
                            const char *obj_id)
 {
     ObjBackend *bend = obj_store->bend;
 
-    return bend->delete (bend, obj_id);
+    return bend->delete (bend, repo_id, version, obj_id);
 }
 
 int
 seaf_obj_store_foreach_obj (struct SeafObjStore *obj_store,
+                            const char *repo_id,
+                            int version,
                             SeafObjFunc process,
                             void *user_data)
 {
     ObjBackend *bend = obj_store->bend;
 
-    return bend->foreach_obj (bend, process, user_data);
+    return bend->foreach_obj (bend, repo_id, version, process, user_data);
 }
-
-#ifdef SEAFILE_SERVER
-static ObjBackend*
-load_filesystem_obj_backend(GKeyFile *config, const char *bend_group)
-{
-    ObjBackend *bend;
-    char *obj_dir;
-    
-    obj_dir = g_key_file_get_string (config, bend_group, "object_dir", NULL);
-    if (!obj_dir) {
-        g_warning ("[Object store] Object dir not set in config for %s.\n",
-                   bend_group);
-        return NULL;
-    }
-
-    bend = obj_backend_fs_new (obj_dir);
-
-    g_free (obj_dir);
-    return bend;
-}
-
-#if 0
-static ObjBackend*
-load_riak_obj_backend(GKeyFile *config, const char *bend_group)
-{
-    ObjBackend *bend;
-    char *host, *port, *bucket, *write_policy;
-    
-    host = g_key_file_get_string (config, bend_group, "host", NULL);
-    if (!host) {
-        g_warning ("[Object store] Riak host not set in config for %s.\n",
-                   bend_group);
-        return NULL;
-    }
-
-    port = g_key_file_get_string (config, bend_group, "port", NULL);
-    if (!port) {
-        g_warning ("[Object store] Riak port not set in config for %s.\n",
-                   bend_group);
-        return NULL;
-    }
-
-    bucket = g_key_file_get_string (config, bend_group, "bucket", NULL);
-    if (!bucket) {
-        g_warning ("[Object store] Riak bucket not set in config for %s.\n",
-                   bend_group);
-        return NULL;
-    }
-
-    write_policy = g_key_file_get_string (config, bend_group, "write_policy", NULL);
-    if (!write_policy) {
-        g_warning ("[Object store] Riak write policy not set in config for %s.\n",
-                   bend_group);
-        return NULL;
-    }
-
-    bend = obj_backend_riak_new (host, port, bucket, write_policy);
-
-    g_free (host);
-    g_free (port);
-    g_free (bucket);
-    g_free (write_policy);
-    return bend;
-}
-#endif
-
-static ObjBackend*
-load_obj_backend (GKeyFile *config, const char *obj_type)
-{
-    char *bend_group;
-    char *backend;
-    ObjBackend *bend;
-
-    if (strcmp (obj_type, "commits") == 0)
-        bend_group = "commit_object_backend";
-    else if (strcmp (obj_type, "fs") == 0)
-        bend_group = "fs_object_backend";
-    else
-        g_return_val_if_reached (NULL);
-
-    backend = g_key_file_get_string (config, bend_group, "name", NULL);
-    if (!backend) {
-        return NULL;
-    }
-
-    if (strcmp(backend, "filesystem") == 0) {
-        bend = load_filesystem_obj_backend (config, bend_group);
-        g_free (backend);
-        return bend;
-    } 
-#if 0
-    else if (strcmp (backend, "riak") == 0) {
-        bend = load_riak_obj_backend (config, bend_group);
-        g_free (backend);
-        return bend;
-    }
-#endif
-
-    g_warning ("Unknown backend\n");
-    return NULL;
-}
-#endif
 
 static void
 reader_thread (void *data, void *user_data)
@@ -328,11 +225,17 @@ reader_thread (void *data, void *user_data)
     AsyncTask *task = data;
     SeafObjStore *obj_store = user_data;
     ObjBackend *bend = obj_store->bend;
+    OSCallbackStruct *callback;
 
-    task->success = TRUE;
+    callback = g_hash_table_lookup (obj_store->readers,
+                                    (gpointer)(long)(task->rw_id));
+    if (callback) {
+        task->success = TRUE;
 
-    if (bend->read (bend, task->obj_id, &task->data, &task->len) < 0)
-        task->success = FALSE;
+        if (bend->read (bend, callback->repo_id, callback->version,
+                        task->obj_id, &task->data, &task->len) < 0)
+            task->success = FALSE;
+    }
 
     cevent_manager_add_event (obj_store->ev_mgr, obj_store->read_ev_id,
                               task);
@@ -344,11 +247,16 @@ stat_thread (void *data, void *user_data)
     AsyncTask *task = data;
     SeafObjStore *obj_store = user_data;
     ObjBackend *bend = obj_store->bend;
+    OSCallbackStruct *callback;
 
-    task->success = TRUE;
+    callback = g_hash_table_lookup (obj_store->stats,
+                                    (gpointer)(long)(task->rw_id));
+    if (callback) {
+        task->success = TRUE;
 
-    if (!bend->exists (bend, task->obj_id))
-        task->success = FALSE;
+        if (!bend->exists (bend, callback->repo_id, callback->version, task->obj_id))
+            task->success = FALSE;
+    }
 
     cevent_manager_add_event (obj_store->ev_mgr, obj_store->stat_ev_id,
                               task);
@@ -360,11 +268,17 @@ writer_thread (void *data, void *user_data)
     AsyncTask *task = data;
     SeafObjStore *obj_store = user_data;
     ObjBackend *bend = obj_store->bend;
+    OSCallbackStruct *callback;
 
-    task->success = TRUE;
+    callback = g_hash_table_lookup (obj_store->writers,
+                                    (gpointer)(long)(task->rw_id));
+    if (callback) {
+        task->success = TRUE;
 
-    if (bend->write (bend, task->obj_id, task->data, task->len, task->need_sync) < 0)
-        task->success = FALSE;
+        if (bend->write (bend, callback->repo_id, callback->version,
+                         task->obj_id, task->data, task->len, task->need_sync) < 0)
+            task->success = FALSE;
+    }
 
     cevent_manager_add_event (obj_store->ev_mgr, obj_store->write_ev_id,
                               task);
@@ -444,12 +358,16 @@ on_write_done (CEvent *event, void *user_data)
 
 guint32
 seaf_obj_store_register_async_read (struct SeafObjStore *obj_store,
+                                    const char *repo_id,
+                                    int version,
                                     OSAsyncCallback callback,
                                     void *cb_data)
 {
     guint32 id = obj_store->next_rd_id++;
     OSCallbackStruct *cb_struct = g_new0 (OSCallbackStruct, 1);
 
+    memcpy (cb_struct->repo_id, repo_id, 36);
+    cb_struct->version = version;
     cb_struct->cb = callback;
     cb_struct->cb_data = cb_data;
 
@@ -487,12 +405,16 @@ seaf_obj_store_async_read (struct SeafObjStore *obj_store,
 
 guint32
 seaf_obj_store_register_async_stat (struct SeafObjStore *obj_store,
+                                    const char *repo_id,
+                                    int version,
                                     OSAsyncCallback callback,
                                     void *cb_data)
 {
     guint32 id = obj_store->next_st_id++;
     OSCallbackStruct *cb_struct = g_new0 (OSCallbackStruct, 1);
 
+    memcpy (cb_struct->repo_id, repo_id, 36);
+    cb_struct->version = version;
     cb_struct->cb = callback;
     cb_struct->cb_data = cb_data;
 
@@ -530,12 +452,16 @@ seaf_obj_store_async_stat (struct SeafObjStore *obj_store,
 
 guint32
 seaf_obj_store_register_async_write (struct SeafObjStore *obj_store,
+                                     const char *repo_id,
+                                     int version,
                                      OSAsyncCallback callback,
                                      void *cb_data)
 {
     guint32 id = obj_store->next_rd_id++;
     OSCallbackStruct *cb_struct = g_new0 (OSCallbackStruct, 1);
 
+    memcpy (cb_struct->repo_id, repo_id, 36);
+    cb_struct->version = version;
     cb_struct->cb = callback;
     cb_struct->cb_data = cb_data;
 

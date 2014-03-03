@@ -180,15 +180,6 @@ handle_upload_ok (CcnetProcessor *processor, TransferTask *task,
     }
     memcpy (task->remote_head, content, 41);
 
-    /* Check fast-forward here. */
-    if (strcmp (task->head, task->remote_head) != 0 &&
-        !is_fast_forward (task->head, task->remote_head)) {
-        g_warning ("Upload is not fast-forward.\n");
-        transfer_task_set_error (task, TASK_ERR_NOT_FAST_FORWARD);
-        ccnet_processor_send_update (processor, SC_SHUTDOWN, SS_SHUTDOWN, NULL, 0);
-        ccnet_processor_done (processor, FALSE);
-        return;
-    }
     ccnet_processor_send_update (processor,
                                  SC_GET_TOKEN, SS_GET_TOKEN,
                                  NULL, 0);
@@ -246,6 +237,14 @@ handle_response (CcnetProcessor *processor,
                                      NULL, 0);
     } else if (strncmp (code, SC_VERSION, 3) == 0) {
         task->protocol_version = atoi(content);
+
+        if (task->protocol_version < 5) {
+            seaf_warning ("Deprecated server version %d.\n", task->protocol_version);
+            transfer_task_set_error (task, TASK_ERR_DEPRECATED_SERVER);
+            ccnet_processor_done (processor, FALSE);
+            return;
+        }
+
         ccnet_processor_done (processor, TRUE);
     } else {
         g_warning ("[check tx v2] Bad response: %s %s", code, code_msg);

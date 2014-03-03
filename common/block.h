@@ -21,6 +21,9 @@ enum {
     BLOCK_WRITE,
 };
 
-typedef gboolean (*SeafBlockFunc) (const char *block_id, void *user_data);
+typedef gboolean (*SeafBlockFunc) (const char *store_id,
+                                   int version,
+                                   const char *block_id,
+                                   void *user_data);
 
 #endif

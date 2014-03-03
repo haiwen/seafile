@@ -99,6 +99,8 @@ struct ThreadData {
     Bitfield             bitmap;
     GQueue              *bl_queue;
     gboolean             checking_bl;
+
+    char                 repo_id[37];
 };
 
 typedef struct {
@@ -146,7 +148,8 @@ thread_data_unref (ThreadData *tdata)
 static void
 prepare_thread_data (CcnetProcessor *processor,
                      TransferFunc tranfer_func,
-                     ThreadEventHandler handler)
+                     ThreadEventHandler handler,
+                     const char *repo_id)
 {
     USE_PRIV;
 
@@ -157,6 +160,7 @@ prepare_thread_data (CcnetProcessor *processor,
     priv->tdata->task_pipe[1] = -1;
     priv->tdata->transfer_func = tranfer_func;
     priv->tdata->processor = processor;
+    memcpy (priv->tdata->repo_id, repo_id, 36);
 
     priv->tdata->cevent_id = cevent_manager_register (seaf->ev_mgr,
                                                       handler,
@@ -402,6 +406,9 @@ out:
 static int
 send_blocks (ThreadData *tdata)
 {
+    SeafRepo *repo;
+    char store_id[37];
+    int repo_version;
     SeafBlockManager *block_mgr = seaf->block_mgr;
     BlockRequest blk_req;
     BlockHandle *handle;
@@ -410,6 +417,18 @@ send_blocks (ThreadData *tdata)
     fd_set      fds;
     int max_fd = tdata->task_pipe[0];
     struct timeval tv = { BLOCKTX_TIMEOUT, 0 };
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, tdata->repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %.8s.\n", tdata->repo_id);
+        return -1;
+    }
+    memcpy (store_id, repo->store_id, 36);
+    repo_version = repo->version;
+
+#ifdef PUTBLOCK_PROC
+    seaf_repo_unref (repo);
+#endif
 
     while (1) {
         FD_ZERO (&fds);
@@ -447,7 +466,8 @@ send_blocks (ThreadData *tdata)
             return -1;
         }
 
-        handle = seaf_block_manager_open_block (block_mgr, 
+        handle = seaf_block_manager_open_block (block_mgr,
+                                                store_id, repo_version,
                                                 blk_req.block_id, BLOCK_READ);
         if (!handle) {
             seaf_warning ("[send block] failed to open block %s.\n", 
@@ -486,6 +506,8 @@ typedef struct {
     uint32_t cevent_id;
     EVP_CIPHER_CTX ctx;
     gboolean enc_init;
+    char store_id[37];
+    int repo_version;
 } RecvFSM;
 
 static int
@@ -578,7 +600,8 @@ recv_tick (RecvFSM *fsm, evutil_socket_t sockfd)
             block_id = fsm->hdr.block_id;
             block_id[40] = 0;
 
-            handle = seaf_block_manager_open_block (block_mgr, 
+            handle = seaf_block_manager_open_block (block_mgr,
+                                                    fsm->store_id, fsm->repo_version,
                                                     block_id, BLOCK_WRITE);
             if (!handle) {
                 seaf_warning ("failed to open block %s.\n", block_id);
@@ -683,6 +706,19 @@ recv_blocks (ThreadData *tdata)
     fsm->remain = sizeof (BlockPacket);
     fsm->cevent_id = tdata->cevent_id;
     fsm->tdata = tdata;
+
+    SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, tdata->repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %.8s.\n", tdata->repo_id);
+        g_free (fsm);
+        return -1;
+    }
+    memcpy (fsm->store_id, repo->store_id, 36);
+    fsm->repo_version = repo->version;
+
+#ifdef PUTBLOCK_PROC
+    seaf_repo_unref (repo);
+#endif
 
     while (1) {
         FD_ZERO (&fds);

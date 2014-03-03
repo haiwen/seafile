@@ -321,8 +321,8 @@ start (CcnetProcessor *processor, int argc, char **argv)
     }
 
     int client_version = atoi(argv[1]);
-    if (client_version == 4) {
-        seaf_debug ("Client protocol version is 4, not supported.\n");
+    if (client_version < 5) {
+        seaf_debug ("Client protocol version lower than 5, not supported.\n");
         ccnet_processor_send_response (processor,
                                        SC_PROTOCOL_MISMATCH, SS_PROTOCOL_MISMATCH,
                                        NULL, 0);

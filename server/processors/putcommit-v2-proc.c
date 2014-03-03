@@ -25,6 +25,9 @@ typedef struct  {
 
     guint32     reader_id;
     gboolean    registered;
+
+    char        repo_id[37];
+    int         repo_version;
 } SeafilePutcommitProcPriv;
 
 #define GET_PRIV(o)  \
@@ -214,6 +217,8 @@ compute_delta_commits (CcnetProcessor *processor, const char *head)
 
     /* When putting commits, the remote head commit must exists. */
     ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                    priv->repo_id,
+                                                    priv->repo_version,
                                                     priv->remote_commit_id,
                                                     collect_id_remote,
                                                     processor,
@@ -226,6 +231,8 @@ compute_delta_commits (CcnetProcessor *processor, const char *head)
     }
 
     ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                    priv->repo_id,
+                                                    priv->repo_version,
                                                     head,
                                                     compute_delta,
                                                     processor,
@@ -245,9 +252,20 @@ collect_commit_id_thread (void *vprocessor)
 {
     CcnetProcessor *processor = vprocessor;
     USE_PRIV;
+    SeafRepo *repo;
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, priv->repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %s.\n", priv->repo_id);
+        priv->id_list = NULL;
+        return vprocessor;
+    }
+    priv->repo_version = repo->version;
 
     priv->fast_forward = TRUE;
     if (seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                  repo->id,
+                                                  repo->version,
                                                   priv->head_commit_id,
                                                   collect_id_fast_forward,
                                                   processor,
@@ -255,18 +273,20 @@ collect_commit_id_thread (void *vprocessor)
         g_warning ("[putcommit] Failed to collect commit id.\n");
         string_list_free (priv->id_list);
         priv->id_list = NULL;
-        return vprocessor;
+        goto out;
     }
 
     if (priv->fast_forward) {
         seaf_debug ("Send commits after a fast-forward merge.\n");
-        return vprocessor;
+        goto out;
     }
 
     seaf_debug ("Send commits after a real merge.\n");
 
     compute_delta_commits (processor, priv->head_commit_id);
 
+out:
+    seaf_repo_unref (repo);
     return vprocessor;
 }
 
@@ -282,6 +302,14 @@ collect_commit_id_done (void *vprocessor)
         ccnet_processor_done (processor, FALSE);
         return;
     }
+
+    priv->reader_id =
+        seaf_obj_store_register_async_read (seaf->commit_mgr->obj_store,
+                                            priv->repo_id,
+                                            priv->repo_version,
+                                            read_done_cb,
+                                            processor);
+    priv->registered = TRUE;
 
     read_and_send_commit (processor);
 }
@@ -317,7 +345,7 @@ put_commit_start (CcnetProcessor *processor, int argc, char **argv)
     if (seaf_token_manager_verify_token (seaf->token_mgr,
                                          NULL,
                                          processor->peer_id,
-                                         session_token, NULL) < 0) {
+                                         session_token, priv->repo_id) < 0) {
         ccnet_processor_send_response (processor, 
                                        SC_ACCESS_DENIED, SS_ACCESS_DENIED,
                                        NULL, 0);
@@ -329,12 +357,6 @@ put_commit_start (CcnetProcessor *processor, int argc, char **argv)
     if (remote_id != NULL)
         memcpy (priv->remote_commit_id, remote_id, 41);
     ccnet_processor_send_response (processor, SC_OK, SS_OK, NULL, 0);
-
-    priv->reader_id =
-        seaf_obj_store_register_async_read (seaf->commit_mgr->obj_store,
-                                            read_done_cb,
-                                            processor);
-    priv->registered = TRUE;
 
     ccnet_processor_thread_create (processor,
                                    seaf->job_mgr,

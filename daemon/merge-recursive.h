@@ -10,6 +10,8 @@
 #include "seafile-crypt.h"
 
 struct merge_options {
+    char repo_id[37];
+    int version;
     const char *ancestor;
     const char *branch1;
     const char *branch2;

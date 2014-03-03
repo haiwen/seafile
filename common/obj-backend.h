@@ -8,25 +8,35 @@ typedef struct ObjBackend ObjBackend;
 
 struct ObjBackend {
     int         (*read) (ObjBackend *bend,
+                         const char *repo_id,
+                         int version,
                          const char *obj_id,
                          void **data,
                          int *len);
 
     int         (*write) (ObjBackend *bend,
+                          const char *repo_id,
+                          int version,
                           const char *obj_id,
                           void *data,
                           int len,
                           gboolean need_sync);
 
     gboolean    (*exists) (ObjBackend *bend,
+                           const char *repo_id,
+                           int version,
                            const char *obj_id);
 
     void        (*delete) (ObjBackend *bend,
+                           const char *repo_id,
+                           int version,
                            const char *obj_id);
 
     int         (*foreach_obj) (ObjBackend *bend,
-                               SeafObjFunc process,
-                               void *user_data);
+                                const char *repo_id,
+                                int version,
+                                SeafObjFunc process,
+                                void *user_data);
 
     void *priv;
 };

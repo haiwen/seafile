@@ -136,14 +136,15 @@ class SeafileAPI(object):
     def is_valid_filename(self, repo_id, filename):
         return seafserv_threaded_rpc.is_valid_filename(repo_id, filename)
 
-    def get_file_size(self, file_id):
-        return seafserv_threaded_rpc.get_file_size(file_id)
+    def get_file_size(self, store_id, version, file_id):
+        return seafserv_threaded_rpc.get_file_size(store_id, version, file_id)
 
     def get_file_id_by_path(self, repo_id, path):
         return seafserv_threaded_rpc.get_file_id_by_path(repo_id, path)
 
-    def get_file_id_by_commit_and_path(self, commit_id, path):
-        return seafserv_threaded_rpc.get_file_id_by_commit_and_path(commit_id, path)
+    def get_file_id_by_commit_and_path(self, repo_id, commit_id, path):
+        return seafserv_threaded_rpc.get_file_id_by_commit_and_path(repo_id,
+                                                                    commit_id, path)
 
     def get_file_revisions(self, repo_id, path, max_revision, limit):
         return seafserv_threaded_rpc.list_file_revisions(repo_id, path,
@@ -161,25 +162,26 @@ class SeafileAPI(object):
         """Add a directory"""
         return seafserv_threaded_rpc.post_dir(repo_id, parent_dir, dirname, username)
 
-    def list_file_by_file_id(self, file_id, offset=-1, limit=-1):
-        return seafserv_threaded_rpc.list_file(file_id, offset, limit)
+    def list_file_by_file_id(self, repo_id, file_id, offset=-1, limit=-1):
+        return seafserv_threaded_rpc.list_file(repo_id, file_id, offset, limit)
     
     def get_dir_id_by_path(self, repo_id, path):
         return seafserv_threaded_rpc.get_dir_id_by_path(repo_id, path)
     
-    def list_dir_by_dir_id(self, dir_id, offset=-1, limit=-1):
-        return seafserv_threaded_rpc.list_dir(dir_id, offset, limit)
+    def list_dir_by_dir_id(self, repo_id, dir_id, offset=-1, limit=-1):
+        return seafserv_threaded_rpc.list_dir(repo_id, dir_id, offset, limit)
 
     def list_dir_by_path(self, repo_id, path, offset=-1, limit=-1):
         dir_id = seafserv_threaded_rpc.get_dir_id_by_path(repo_id, path)
-        return seafserv_threaded_rpc.list_dir(dir_id, offset, limit)
+        return seafserv_threaded_rpc.list_dir(repo_id, dir_id, offset, limit)
 
-    def list_dir_by_commit_and_path(self, commit_id, path, offset=-1, limit=-1):
-        dir_id = seafserv_threaded_rpc.get_dirid_by_path(commit_id, path)
-        return seafserv_threaded_rpc.list_dir(dir_id, offset, limit)
+    def list_dir_by_commit_and_path(self, repo_id,
+                                    commit_id, path, offset=-1, limit=-1):
+        dir_id = seafserv_threaded_rpc.get_dirid_by_path(repo_id, commit_id, path)
+        return seafserv_threaded_rpc.list_dir(repo_id, dir_id, offset, limit)
     
-    def get_dir_id_by_commit_and_path(self, commit_id, path):
-        return seafserv_threaded_rpc.get_dirid_by_path(commit_id, path)
+    def get_dir_id_by_commit_and_path(self, repo_id, commit_id, path):
+        return seafserv_threaded_rpc.get_dirid_by_path(repo_id, commit_id, path)
 
     def revert_file(self, repo_id, commit_id, path, username):
         return seafserv_threaded_rpc.revert_file(repo_id, commit_id, path, username)

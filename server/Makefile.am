@@ -21,7 +21,6 @@ bin_PROGRAMS = seaf-server
 proc_headers = $(addprefix processors/, \
 	recvfs-proc.h \
 	recvbranch-proc.h \
-	recvblock-v2-proc.h \
 	putcs-proc.h \
 	sync-repo-slave-proc.h \
 	check-tx-slave-v2-proc.h \
@@ -34,8 +33,6 @@ proc_headers = $(addprefix processors/, \
 	checkbl-proc.h \
 	checkff-proc.h \
 	putca-proc.h)
-
-proc_headers += ../common/processors/putblock-v2-proc.h
 
 noinst_HEADERS = web-accesstoken-mgr.h chunkserv-mgr.h seafile-session.h \
 	repo-mgr.h \
@@ -84,14 +81,12 @@ seaf_server_SOURCES = \
 	block-tx-server.c \
 	../common/block-tx-utils.c \
 	processors/recvfs-proc.c \
-	processors/recvblock-v2-proc.c \
 	processors/recvbranch-proc.c \
 	processors/putcs-proc.c \
 	processors/sync-repo-slave-proc.c \
 	processors/check-tx-slave-v2-proc.c \
 	processors/check-tx-slave-v3-proc.c \
 	processors/putfs-proc.c \
-	../common/processors/putblock-v2-proc.c \
 	processors/putcommit-v2-proc.c \
 	processors/putcommit-v3-proc.c \
 	processors/recvcommit-v3-proc.c \

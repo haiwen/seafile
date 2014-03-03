@@ -127,7 +127,9 @@ collect_repos (SeafDBRow *row, void *data)
     permission = seaf_db_row_get_column_text (row, 3);
     commit_id = seaf_db_row_get_column_text (row, 4);
 
-    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
+    commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
+                                                        repo_id,
+                                                        commit_id);
     if (!commit)
         return TRUE;
 

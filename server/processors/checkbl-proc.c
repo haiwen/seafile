@@ -11,12 +11,22 @@
 #define SC_BLOCK_LIST_END "303"
 #define SS_BLOCK_LIST_END "Block list end"
 
+#define SC_ACCESS_DENIED "401"
+#define SS_ACCESS_DENIED "Access denied"
+
 typedef struct  {
     gboolean processing;
     char *block_list;
     int len;
     GString *buf;
     gboolean success;
+
+    gboolean no_repo_info;
+
+    /* Used for getting repo info */
+    char        repo_id[37];
+    char        store_id[37];
+    int         repo_version;
 } SeafileCheckblProcPriv;
 
 #define GET_PRIV(o)  \
@@ -63,11 +73,81 @@ seafile_checkbl_proc_init (SeafileCheckblProc *processor)
 {
 }
 
+static void *
+get_repo_info_thread (void *data)
+{
+    CcnetProcessor *processor = data;
+    USE_PRIV;
+    SeafRepo *repo;
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, priv->repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %s.\n", priv->repo_id);
+        priv->success = FALSE;
+        return data;
+    }
+
+    memcpy (priv->store_id, repo->store_id, 36);
+    priv->repo_version = repo->version;
+    priv->success = TRUE;
+
+    seaf_repo_unref (repo);
+    return data;
+}
+
+static void
+get_repo_info_done (void *data)
+{
+    CcnetProcessor *processor = data;
+    USE_PRIV;
+
+    if (priv->success) {
+        ccnet_processor_send_response (processor, SC_OK, SS_OK, NULL, 0);
+    } else {
+        ccnet_processor_send_response (processor, SC_SHUTDOWN, SS_SHUTDOWN,
+                                       NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+    }
+
+    priv->success = FALSE;
+}
 
 static int
 start (CcnetProcessor *processor, int argc, char **argv)
 {
-    ccnet_processor_send_response (processor, SC_OK, SS_OK, NULL, 0);
+    USE_PRIV;
+
+    if (argc == 0) {
+        /* To be compatible with older clients (protocol version < 6).
+         * However older clients can only sync repos with version 0.
+         * So there is no need to know the repo id.
+         */
+        priv->no_repo_info = TRUE;
+        ccnet_processor_send_response (processor, SC_OK, SS_OK, NULL, 0);
+        return 0;
+    } else {
+        priv->no_repo_info = FALSE;
+
+        char *session_token = argv[0];
+
+        if (seaf_token_manager_verify_token (seaf->token_mgr,
+                                             NULL,
+                                             processor->peer_id,
+                                             session_token, priv->repo_id) < 0) {
+            ccnet_processor_send_response (processor, 
+                                           SC_ACCESS_DENIED, SS_ACCESS_DENIED,
+                                           NULL, 0);
+            ccnet_processor_done (processor, FALSE);
+            return -1;
+        }
+
+        ccnet_processor_thread_create (processor,
+                                       seaf->job_mgr,
+                                       get_repo_info_thread,
+                                       get_repo_info_done,
+                                       processor);
+    }
+
     return 0;
 }
 
@@ -84,8 +164,18 @@ check_bl (void *vprocessor)
         memcpy (block_id, &priv->block_list[offset], 40);
         block_id[40] = 0;
 
-        if (!seaf_block_manager_block_exists(seaf->block_mgr, block_id))
-            g_string_append (priv->buf, block_id);
+        if (priv->no_repo_info) {
+            if (!seaf_block_manager_block_exists(seaf->block_mgr,
+                                                 NULL, 0,
+                                                 block_id))
+                g_string_append (priv->buf, block_id);
+        } else {
+            if (!seaf_block_manager_block_exists(seaf->block_mgr,
+                                                 priv->store_id,
+                                                 priv->repo_version,
+                                                 block_id))
+                g_string_append (priv->buf, block_id);
+        }
 
         offset += 40;
     }

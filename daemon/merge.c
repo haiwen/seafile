@@ -39,6 +39,8 @@ do_real_merge (SeafRepo *repo,
     }
 
     init_merge_options (&opts);
+    memcpy (opts.repo_id, repo->id, 36);
+    opts.version = repo->version;
     opts.index = &istate;
     opts.worktree = repo->worktree;
     opts.ancestor = "common ancestor";
@@ -105,7 +107,7 @@ out:
 }
 
 static SeafCommit *
-get_common_ancestor_commit (const char *repo_id)
+get_common_ancestor_commit (const char *repo_id, int version)
 {
     char ca_id[41], head_id[41];
     SeafCommit *commit;
@@ -116,7 +118,9 @@ get_common_ancestor_commit (const char *repo_id)
         return NULL;
     }
 
-    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, ca_id);
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             repo_id, version,
+                                             ca_id);
 
     return commit;
 }
@@ -144,13 +148,17 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
     }
 #endif
 
-    head = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->head->commit_id);
+    head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                           repo->id, repo->version,
+                                           repo->head->commit_id);
     if (!head) {
         *error = g_strdup("Internal error: current branch corrupted.\n");
         return -1;
     }
 
-    remote = seaf_commit_manager_get_commit (seaf->commit_mgr, remote_branch->commit_id);
+    remote = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             repo->id, repo->version,
+                                             remote_branch->commit_id);
     if (!remote) {
         *error = g_strdup("Invalid remote branch.\n");
         ret = -1;
@@ -179,7 +187,7 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
      * common ancestor from local history.
      */
     if (!calculate_ca)
-        common = get_common_ancestor_commit (repo->id);
+        common = get_common_ancestor_commit (repo->id, repo->version);
     else
         common = get_merge_base (head, remote);
 
@@ -261,10 +269,12 @@ get_new_blocks_ff (SeafRepo *repo,
         return -1;
     }
 
-    fill_tree_descriptor (&trees[0], head->root_id);
-    fill_tree_descriptor (&trees[1], remote->root_id);
+    fill_tree_descriptor (repo->id, repo->version, &trees[0], head->root_id);
+    fill_tree_descriptor (repo->id, repo->version, &trees[1], remote->root_id);
 
     memset(&topts, 0, sizeof(topts));
+    memcpy (topts.repo_id, repo->id, 36);
+    topts.version = repo->version;
     topts.base = repo->worktree;
     topts.head_idx = -1;
     topts.src_index = &istate;
@@ -280,7 +290,7 @@ get_new_blocks_ff (SeafRepo *repo,
     }
 
     *bl = block_list_new ();
-    collect_new_blocks_from_index (&topts.result, *bl);
+    collect_new_blocks_from_index (repo->id, repo->version, &topts.result, *bl);
 
 out:
     tree_desc_free (&trees[0]);
@@ -314,6 +324,8 @@ get_new_blocks_merge (SeafRepo *repo,
     }
 
     init_merge_options (&opts);
+    memcpy (opts.repo_id, repo->id, 36);
+    opts.version = repo->version;
     opts.index = &istate;
     opts.worktree = repo->worktree;
     opts.ancestor = "common ancestor";
@@ -354,7 +366,9 @@ merge_get_new_block_list (SeafRepo *repo, SeafCommit *remote, BlockList **bl,
     SeafCommit *head = NULL;
     int ret = 0;
 
-    head = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->head->commit_id);
+    head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                           repo->id, repo->version,
+                                           repo->head->commit_id);
     if (!head) {
         g_warning ("current branch corrupted.\n");
         return -1;
@@ -365,7 +379,7 @@ merge_get_new_block_list (SeafRepo *repo, SeafCommit *remote, BlockList **bl,
      * common ancestor from local history.
      */
     if (!calculate_ca)
-        common = get_common_ancestor_commit (repo->id);
+        common = get_common_ancestor_commit (repo->id, repo->version);
     else
         common = get_merge_base (head, remote);
 

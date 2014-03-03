@@ -103,6 +103,7 @@ seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit)
             memcpy (repo->magic, commit->magic, 33);
     }
     repo->no_local_history = commit->no_local_history;
+    repo->version = commit->version;
 }
 
 void
@@ -117,6 +118,7 @@ seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit)
             commit->magic = g_strdup (repo->magic);
     }
     commit->no_local_history = repo->no_local_history;
+    commit->version = repo->version;
 }
 
 static gboolean
@@ -148,6 +150,8 @@ seaf_repo_get_commits (SeafRepo *repo)
     for (ptr = branches; ptr != NULL; ptr = ptr->next) {
         branch = ptr->data;
         gboolean res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                                 repo->id,
+                                                                 repo->version,
                                                                  branch->commit_id,
                                                                  collect_commit,
                                                                  &commits,
@@ -316,8 +320,9 @@ load_repo_commit (SeafRepoManager *manager,
 {
     SeafCommit *commit;
 
-    commit = seaf_commit_manager_get_commit (manager->seaf->commit_mgr,
-                                             branch->commit_id);
+    commit = seaf_commit_manager_get_commit_compatible (manager->seaf->commit_mgr,
+                                                        repo->id,
+                                                        branch->commit_id);
     if (!commit) {
         g_warning ("Commit %s is missing\n", branch->commit_id);
         repo->is_corrupted = TRUE;
@@ -328,6 +333,37 @@ load_repo_commit (SeafRepoManager *manager,
     seaf_repo_from_commit (repo, commit);
 
     seaf_commit_unref (commit);
+}
+
+static gboolean
+load_virtual_info (SeafDBRow *row, void *vrepo_id)
+{
+    char *ret_repo_id = vrepo_id;
+    const char *origin_repo_id;
+
+    origin_repo_id = seaf_db_row_get_column_text (row, 0);
+    memcpy (ret_repo_id, origin_repo_id, 37);
+
+    return FALSE;
+}
+
+char *
+get_origin_repo_id (SeafRepoManager *mgr, const char *repo_id)
+{
+    char sql[256];
+    char origin_repo_id[37];
+
+    memset (origin_repo_id, 0, 37);
+
+    snprintf (sql, 256,
+              "SELECT origin_repo FROM VirtualRepo "
+              "WHERE repo_id = '%s'", repo_id);
+    seaf_db_foreach_selected_row (seaf->db, sql, load_virtual_info, origin_repo_id);
+
+    if (origin_repo_id[0] != 0)
+        return g_strdup(origin_repo_id);
+    else
+        return NULL;
 }
 
 static SeafRepo *
@@ -358,6 +394,13 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
         seaf_repo_free (repo);
         return NULL;
     }
+
+    char *origin_repo_id = get_origin_repo_id (manager, repo->id);
+    if (origin_repo_id)
+        memcpy (repo->store_id, origin_repo_id, 36);
+    else
+        memcpy (repo->store_id, repo->id, 36);
+    g_free (origin_repo_id);
 
 #if 0
     if (pthread_rwlock_wrlock (&manager->priv->lock) < 0) {

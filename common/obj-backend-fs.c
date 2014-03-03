@@ -17,18 +17,27 @@
 #include "log.h"
 
 typedef struct FsPriv {
+    char *v0_obj_dir;
+    int v0_dir_len;
     char *obj_dir;
     int   dir_len;
 } FsPriv;
 
 static void
-id_to_path (FsPriv *priv, const char *obj_id, char path[])
+id_to_path (FsPriv *priv, const char *obj_id, char path[],
+            const char *repo_id, int version)
 {
     char *pos = path;
+    int n;
 
-    memcpy (pos, priv->obj_dir, priv->dir_len);
-    pos[priv->dir_len] = '/';
-    pos += priv->dir_len + 1;
+    if (version > 0) {
+        n = snprintf (path, SEAF_PATH_MAX, "%s/%s/", priv->obj_dir, repo_id);
+        pos += n;
+    } else {
+        memcpy (pos, priv->v0_obj_dir, priv->v0_dir_len);
+        pos[priv->v0_dir_len] = '/';
+        pos += priv->v0_dir_len + 1;
+    }
 
     memcpy (pos, obj_id, 2);
     pos[2] = '/';
@@ -39,6 +48,8 @@ id_to_path (FsPriv *priv, const char *obj_id, char path[])
 
 static int
 obj_backend_fs_read (ObjBackend *bend,
+                     const char *repo_id,
+                     int version,
                      const char *obj_id,
                      void **data,
                      int *len)
@@ -47,7 +58,9 @@ obj_backend_fs_read (ObjBackend *bend,
     gsize tmp_len;
     GError *error = NULL;
 
-    id_to_path (bend->priv, obj_id, path);
+    id_to_path (bend->priv, obj_id, path, repo_id, version);
+
+    /* seaf_debug ("object path: %s\n", path); */
 
     g_file_get_contents (path, (gchar**)data, &tmp_len, &error);
     if (error) {
@@ -226,7 +239,26 @@ save_obj_contents (const char *path, const void *data, int len, gboolean need_sy
 }
 
 static int
+create_parent_path (const char *path)
+{
+    char *dir = g_path_get_dirname (path);
+    if (!dir)
+        return -1;
+
+    if (g_mkdir_with_parents (dir, 0777) < 0) {
+        seaf_warning ("Failed to create object parent path: %s.\n", dir);
+        g_free (dir);
+        return -1;
+    }
+
+    g_free (dir);
+    return 0;
+}
+
+static int
 obj_backend_fs_write (ObjBackend *bend,
+                      const char *repo_id,
+                      int version,
                       const char *obj_id,
                       void *data,
                       int len,
@@ -234,7 +266,12 @@ obj_backend_fs_write (ObjBackend *bend,
 {
     char path[SEAF_PATH_MAX];
 
-    id_to_path (bend->priv, obj_id, path);
+    id_to_path (bend->priv, obj_id, path, repo_id, version);
+
+    if (create_parent_path (path) < 0) {
+        seaf_warning ("[obj backend] Failed to create path for obj %s.\n", obj_id);
+        return -1;
+    }
 
     /* GTimeVal s, e; */
 
@@ -255,12 +292,14 @@ obj_backend_fs_write (ObjBackend *bend,
 
 static gboolean
 obj_backend_fs_exists (ObjBackend *bend,
+                       const char *repo_id,
+                       int version,
                        const char *obj_id)
 {
     char path[SEAF_PATH_MAX];
     SeafStat st;
 
-    id_to_path (bend->priv, obj_id, path);
+    id_to_path (bend->priv, obj_id, path, repo_id, version);
 
     if (seaf_stat (path, &st) == 0)
         return TRUE;
@@ -270,32 +309,43 @@ obj_backend_fs_exists (ObjBackend *bend,
 
 static void
 obj_backend_fs_delete (ObjBackend *bend,
+                       const char *repo_id,
+                       int version,
                        const char *obj_id)
 {
     char path[SEAF_PATH_MAX];
 
-    id_to_path (bend->priv, obj_id, path);
+    id_to_path (bend->priv, obj_id, path, repo_id, version);
     g_unlink (path);
 }
 
 static int
 obj_backend_fs_foreach_obj (ObjBackend *bend,
+                            const char *repo_id,
+                            int version,
                             SeafObjFunc process,
                             void *user_data)
 {
     FsPriv *priv = bend->priv;
-    char *obj_dir = priv->obj_dir;
-    int dir_len = priv->dir_len;
-    GDir *dir1, *dir2;
+    char *obj_dir = NULL;
+    int dir_len;
+    GDir *dir1 = NULL, *dir2;
     const char *dname1, *dname2;
     char obj_id[128];
     char path[SEAF_PATH_MAX], *pos;
     int ret = 0;
 
+    if (version > 0)
+        obj_dir = g_build_filename (priv->obj_dir, repo_id, NULL);
+    else
+        obj_dir = g_strdup(priv->v0_obj_dir);
+    dir_len = strlen (obj_dir);
+
     dir1 = g_dir_open (obj_dir, 0, NULL);
     if (!dir1) {
         g_warning ("Failed to open object dir %s.\n", obj_dir);
-        return -1;
+        ret = -1;
+        goto out;
     }
 
     memcpy (path, obj_dir, dir_len);
@@ -312,7 +362,7 @@ obj_backend_fs_foreach_obj (ObjBackend *bend,
 
         while ((dname2 = g_dir_read_name(dir2)) != NULL) {
             snprintf (obj_id, sizeof(obj_id), "%s%s", dname1, dname2);
-            if (!process (obj_id, user_data)) {
+            if (!process (repo_id, version, obj_id, user_data)) {
                 g_dir_close (dir2);
                 goto out;
             }
@@ -321,35 +371,15 @@ obj_backend_fs_foreach_obj (ObjBackend *bend,
     }
 
 out:
-    g_dir_close (dir1);
+    if (dir1)
+        g_dir_close (dir1);
+    g_free (obj_dir);
 
     return ret;
 }
 
-static void
-init_obj_dir (ObjBackend *bend)
-{
-    FsPriv *priv = bend->priv;
-    int i;
-    int len = priv->dir_len;
-    char path[SEAF_PATH_MAX];
-    char *pos;
-
-    memcpy (path, priv->obj_dir, len);
-    pos = path + len;
-
-    /*
-     * Create 256 sub-directories.
-     */
-    for (i = 0; i < 256; ++i) {
-        snprintf (pos, sizeof(path) - len, "/%02x", i);
-        if (g_access (path, F_OK) != 0)
-            g_mkdir (path, 0777);
-    }
-}
-
 ObjBackend *
-obj_backend_fs_new (const char *obj_dir)
+obj_backend_fs_new (const char *seaf_dir, const char *obj_type)
 {
     ObjBackend *bend;
     FsPriv *priv;
@@ -358,16 +388,23 @@ obj_backend_fs_new (const char *obj_dir)
     priv = g_new0(FsPriv, 1);
     bend->priv = priv;
 
-    priv->obj_dir = g_strdup (obj_dir);
-    priv->dir_len = strlen (obj_dir);
+    priv->v0_obj_dir = g_build_filename (seaf_dir, obj_type, NULL);
+    priv->v0_dir_len = strlen(priv->v0_obj_dir);
 
-    if (g_mkdir_with_parents (obj_dir, 0777) < 0) {
-        g_warning ("[Obj Backend] Objects dir %s does not exist and"
-                   " is unable to create\n", obj_dir);
+    priv->obj_dir = g_build_filename (seaf_dir, "storage", obj_type, NULL);
+    priv->dir_len = strlen (priv->obj_dir);
+
+    if (g_mkdir_with_parents (priv->v0_obj_dir, 0777) < 0) {
+        seaf_warning ("[Obj Backend] Objects dir %s does not exist and"
+                   " is unable to create\n", priv->v0_obj_dir);
         goto onerror;
     }
 
-    init_obj_dir (bend);
+    if (g_mkdir_with_parents (priv->obj_dir, 0777) < 0) {
+        seaf_warning ("[Obj Backend] Objects dir %s does not exist and"
+                   " is unable to create\n", priv->obj_dir);
+        goto onerror;
+    }
 
     bend->read = obj_backend_fs_read;
     bend->write = obj_backend_fs_write;
@@ -378,8 +415,10 @@ obj_backend_fs_new (const char *obj_dir)
     return bend;
 
 onerror:
+    g_free (priv->v0_obj_dir);
+    g_free (priv->obj_dir);
+    g_free (priv);
     g_free (bend);
-    g_free (bend->priv);
 
     return NULL;
 }

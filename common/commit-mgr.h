@@ -34,6 +34,8 @@ struct _SeafCommit {
     char       *magic;
     char       *random_key;
     gboolean    no_local_history;
+
+    int         version;
 };
 
 
@@ -105,7 +107,10 @@ seaf_commit_manager_add_commit (SeafCommitManager *mgr, SeafCommit *commit);
  * Not MT safe.
  */
 void
-seaf_commit_manager_del_commit (SeafCommitManager *mgr, const char *id);
+seaf_commit_manager_del_commit (SeafCommitManager *mgr,
+                                const char *repo_id,
+                                int version,
+                                const char *id);
 
 /**
  * Find a commit object.
@@ -113,7 +118,22 @@ seaf_commit_manager_del_commit (SeafCommitManager *mgr, const char *id);
  * Not MT safe.
  */
 SeafCommit* 
-seaf_commit_manager_get_commit (SeafCommitManager *mgr, const char *id);
+seaf_commit_manager_get_commit (SeafCommitManager *mgr,
+                                const char *repo_id,
+                                int version,
+                                const char *id);
+
+/**
+ * Get a commit object, with compatibility between version 0 and version 1.
+ * It will first try to get commit with version 1 layout; if fails, will
+ * try version 0 layout for compatibility.
+ * This is useful for loading a repo. In that case, we don't know the version
+ * of the repo before loading its head commit.
+ */
+SeafCommit *
+seaf_commit_manager_get_commit_compatible (SeafCommitManager *mgr,
+                                           const char *repo_id,
+                                           const char *id);
 
 /**
  * Traverse the commits DAG start from head in topological order.
@@ -122,6 +142,8 @@ seaf_commit_manager_get_commit (SeafCommitManager *mgr, const char *id);
  */
 gboolean
 seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
+                                          const char *repo_id,
+                                          int version,
                                           const char *head,
                                           CommitTraverseFunc func,
                                           void *data,
@@ -133,6 +155,8 @@ seaf_commit_manager_traverse_commit_tree (SeafCommitManager *mgr,
  */
 gboolean
 seaf_commit_manager_traverse_commit_tree_truncated (SeafCommitManager *mgr,
+                                                    const char *repo_id,
+                                                    int version,
                                                     const char *head,
                                                     CommitTraverseFunc func,
                                                     void *data,
@@ -145,30 +169,17 @@ seaf_commit_manager_traverse_commit_tree_truncated (SeafCommitManager *mgr,
  */
 gboolean
 seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
+                                                     const char *repo_id,
+                                                     int version,
                                                      const char *head,
                                                      CommitTraverseFunc func,
                                                      int limit,
                                                      void *data);
-/**
- * Returns:
- *    -1  if commit1 is ancestor of commit2
- *     1  if commit2 is ancestor of commit1
- *    -2  if error occured
- *     0  if commit1 is equal to commit2, or not comparable
- */
-int
-seaf_commit_manager_compare_commit (SeafCommitManager *mgr,
-                                    const char *commit1,
-                                    const char *commit2);
-
-
-/**
- * Get commits belong to a repo
- */
-GList* 
-seaf_commit_manager_get_repo_commits (SeafCommitManager *mgr, const char *repo_id);
 
 gboolean
-seaf_commit_manager_commit_exists (SeafCommitManager *mgr, const char *id);
+seaf_commit_manager_commit_exists (SeafCommitManager *mgr,
+                                   const char *repo_id,
+                                   int version,
+                                   const char *id);
 
 #endif

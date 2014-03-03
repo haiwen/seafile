@@ -27,8 +27,6 @@
 #include "processors/check-tx-slave-v3-proc.h"
 #include "processors/recvfs-proc.h"
 #include "processors/putfs-proc.h"
-#include "processors/putblock-v2-proc.h"
-#include "processors/recvblock-v2-proc.h"
 #include "processors/recvbranch-proc.h"
 #include "processors/sync-repo-slave-proc.h"
 #include "processors/putcommit-v2-proc.h"
@@ -77,10 +75,6 @@ static void register_processors (CcnetClient *client)
                             SEAFILE_TYPE_CHECK_TX_SLAVE_V2_PROC, NULL);
     ccnet_register_service (client, "seafile-check-tx-slave-v3", "basic",
                             SEAFILE_TYPE_CHECK_TX_SLAVE_V3_PROC, NULL);
-    ccnet_register_service (client, "seafile-putblock-v2", "basic",
-                            SEAFILE_TYPE_PUTBLOCK_V2_PROC, NULL);
-    ccnet_register_service (client, "seafile-recvblock-v2", "basic",
-                            SEAFILE_TYPE_RECVBLOCK_V2_PROC, NULL);
     ccnet_register_service (client, "seafile-recvfs", "basic",
                             SEAFILE_TYPE_RECVFS_PROC, NULL);
     ccnet_register_service (client, "seafile-putfs", "basic",
@@ -258,37 +252,37 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_commit,
                                      "seafile_get_commit",
-                                     searpc_signature_object__string());
+                                     searpc_signature_object__string_int_string());
     
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_list_dir,
                                      "seafile_list_dir",
-                                     searpc_signature_objlist__string_int_int());
+                                     searpc_signature_objlist__string_string_int_int());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_list_file,
                                      "seafile_list_file",
-                                     searpc_signature_string__string_int_int());
+                                     searpc_signature_string__string_string_int_int());
     
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_file_size,
                                      "seafile_get_file_size",
-                                     searpc_signature_int64__string());
+                                     searpc_signature_int64__string_int_string());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_dir_size,
                                      "seafile_get_dir_size",
-                                     searpc_signature_int64__string());
+                                     searpc_signature_int64__string_int_string());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_list_dir_by_path,
                                      "seafile_list_dir_by_path",
-                                     searpc_signature_objlist__string_string());
+                                     searpc_signature_objlist__string_string_string());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_dirid_by_path,
                                      "seafile_get_dirid_by_path",
-                                     searpc_signature_string__string_string());
+                                     searpc_signature_string__string_string_string());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_file_id_by_path,
@@ -535,7 +529,7 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_file_id_by_commit_and_path,
                                      "seafile_get_file_id_by_commit_and_path",
-                                     searpc_signature_string__string_string());
+                                     searpc_signature_string__string_string_string());
 
     if (!cloud_mode) {
         searpc_server_register_function ("seafserv-threaded-rpcserver",

@@ -116,14 +116,6 @@ handle_upload_ok (CcnetProcessor *processor, TransferTask *task,
     }
     memcpy (task->remote_head, content, 41);
 
-    /* Check fast-forward here. */
-    if (strcmp (task->head, task->remote_head) != 0 &&
-        !is_fast_forward (task->head, task->remote_head)) {
-        g_warning ("Upload is not fast-forward.\n");
-        transfer_task_set_error (task, TASK_ERR_NOT_FAST_FORWARD);
-        ccnet_processor_done (processor, FALSE);
-        return;
-    }
     ccnet_processor_send_update (processor,
                                  SC_GET_TOKEN, SS_GET_TOKEN,
                                  NULL, 0);

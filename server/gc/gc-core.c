@@ -5,6 +5,7 @@
 #include "seafile-session.h"
 #include "bloom-filter.h"
 #include "gc-core.h"
+#include "utils.h"
 
 #define DEBUG_FLAG SEAFILE_DEBUG_OTHER
 #include "log.h"
@@ -48,22 +49,16 @@ alloc_gc_index ()
 }
 
 typedef struct {
+    SeafRepo *repo;
     Bloom *index;
     GHashTable *visited;
-#ifndef SEAFILE_SERVER
-    gboolean no_history;
-    char remote_end_commit[41];
-    char local_end_commit[41];
-#endif
 
-#ifdef SEAFILE_SERVER
     /* > 0: keep a period of history;
      * == 0: only keep data in head commit;
      * < 0: keep all history data.
      */
     gint64 truncate_time;
     gboolean traversed_head;
-#endif
 
     int traversed_commits;
     gint64 traversed_blocks;
@@ -73,11 +68,12 @@ typedef struct {
 static int
 add_blocks_to_index (SeafFSManager *mgr, GCData *data, const char *file_id)
 {
+    SeafRepo *repo = data->repo;
     Bloom *index = data->index;
     Seafile *seafile;
     int i;
 
-    seafile = seaf_fs_manager_get_seafile (mgr, file_id);
+    seafile = seaf_fs_manager_get_seafile (mgr, repo->store_id, repo->version, file_id);
     if (!seafile) {
         seaf_warning ("Failed to find file %s.\n", file_id);
         return -1;
@@ -95,6 +91,8 @@ add_blocks_to_index (SeafFSManager *mgr, GCData *data, const char *file_id)
 
 static gboolean
 fs_callback (SeafFSManager *mgr,
+             const char *store_id,
+             int version,
              const char *obj_id,
              int type,
              void *user_data,
@@ -125,16 +123,6 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
     GCData *data = vdata;
     int ret;
 
-#ifndef SEAFILE_SERVER
-    if (data->no_history && 
-        (strcmp (commit->commit_id, data->local_end_commit) == 0 ||
-         strcmp (commit->commit_id, data->remote_end_commit) == 0)) {
-        *stop = TRUE;
-        return TRUE;
-    }
-#endif
-
-#ifdef SEAFILE_SERVER
     if (data->truncate_time == 0)
     {
         *stop = TRUE;
@@ -150,12 +138,12 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
 
     if (!data->traversed_head)
         data->traversed_head = TRUE;
-#endif
 
     seaf_debug ("Traversed commit %.8s.\n", commit->commit_id);
     ++data->traversed_commits;
 
     ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
+                                         data->repo->store_id, data->repo->version,
                                          commit->root_id,
                                          fs_callback,
                                          data, data->ignore_errors);
@@ -182,28 +170,10 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index, gboolean ignore_errors
     }
 
     data = g_new0(GCData, 1);
+    data->repo = repo;
     data->index = index;
     data->visited = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-#ifndef SEAFILE_SERVER
-    data->no_history = TRUE;
-    if (data->no_history) {
-        char *remote_head = seaf_repo_manager_get_repo_property (repo->manager,
-                                                                 repo->id,
-                                                                 REPO_REMOTE_HEAD);
-        if (remote_head)
-            memcpy (data->remote_end_commit, remote_head, 41);
-        g_free (remote_head);
 
-        char *local_head = seaf_repo_manager_get_repo_property (repo->manager,
-                                                                repo->id,
-                                                                REPO_LOCAL_HEAD);
-        if (local_head)
-            memcpy (data->local_end_commit, local_head, 41);
-        g_free (local_head);
-    }
-#endif
-
-#ifdef SEAFILE_SERVER
     gint64 truncate_time = seaf_repo_manager_get_repo_truncate_time (repo->manager,
                                                                      repo->id);
     if (truncate_time > 0) {
@@ -213,6 +183,7 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index, gboolean ignore_errors
     } else if (truncate_time == 0) {
         /* Only the head commit is valid after GC if no history is kept. */
         SeafCommit *head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                           repo->id, repo->version,
                                                            repo->head->commit_id);
         if (head)
             seaf_repo_manager_set_repo_valid_since (repo->manager,
@@ -223,11 +194,12 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index, gboolean ignore_errors
 
     data->truncate_time = truncate_time;
     data->ignore_errors = ignore_errors;
-#endif
 
     for (ptr = branches; ptr != NULL; ptr = ptr->next) {
         branch = ptr->data;
         gboolean res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                                 repo->id,
+                                                                 repo->version,
                                                                  branch->commit_id,
                                                                  traverse_commit,
                                                                  data,
@@ -250,87 +222,14 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index, gboolean ignore_errors
     return ret;
 }
 
-#ifndef SEAFILE_SERVER
-static int
-populate_gc_index_for_head (const char *head_id, Bloom *index)
-{
-    SeafCommit *head;
-    GCData *data;
-    gboolean ret;
-
-    seaf_message ("Populating index for clone head %s.\n", head_id);
-
-    /* We just need to traverse the head for clone tasks. */
-    head = seaf_commit_manager_get_commit (seaf->commit_mgr, head_id);
-    if (!head) {
-        seaf_warning ("Failed to find clone head %s.\n", head_id);
-        return -1;
-    }
-
-    data = g_new0 (GCData, 1);
-    data->index = index;
-
-    ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
-                                         head->root_id,
-                                         fs_callback,
-                                         data, FALSE);
-
-    seaf_message ("Traversed %"G_GINT64_FORMAT" blocks.\n", data->traversed_blocks);
-
-    g_free (data);
-    seaf_commit_unref (head);
-    return ret;
-}
-
-static int
-populate_gc_index_for_precheckout_repo (SeafRepo *repo, Bloom *index)
-{
-    SeafBranch *master;
-    SeafCommit *head;
-    GCData *data;
-    gboolean ret;
-
-    seaf_message ("Populating index for precheckout repo %s.\n", repo->id);
-
-    /* For repos that are cloned but not checked out yet, it's sufficient
-     * to traverse the head commit of master branch.
-     */
-    master = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "master");
-    if (!master) {
-        seaf_warning ("Failed to get master branch.\n");
-        return -1;
-    }
-    head = seaf_commit_manager_get_commit (seaf->commit_mgr, master->commit_id);
-    if (!head) {
-        seaf_warning ("Failed to get commit %s.\n", master->commit_id);
-        seaf_branch_unref (master);
-        return -1;
-    }
-
-    data = g_new0 (GCData, 1);
-    data->index = index;
-
-    ret = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
-                                         head->root_id,
-                                         fs_callback,
-                                         data, FALSE);
-
-    seaf_message ("Traversed %"G_GINT64_FORMAT" blocks.\n", data->traversed_blocks);
-
-    g_free (data);
-    seaf_branch_unref (master);
-    seaf_commit_unref (head);
-    return ret;
-}
-#endif
-
 typedef struct {
     Bloom *index;
     int dry_run;
 } CheckBlocksData;
 
 static gboolean
-check_block_liveness (const char *block_id, void *vdata)
+check_block_liveness (const char *store_id, int version,
+                      const char *block_id, void *vdata)
 {
     CheckBlocksData *data = vdata;
     Bloom *index = data->index;
@@ -338,20 +237,22 @@ check_block_liveness (const char *block_id, void *vdata)
     if (!bloom_test (index, block_id)) {
         ++removed_blocks;
         if (!data->dry_run)
-            seaf_block_manager_remove_block (seaf->block_mgr, block_id);
+            seaf_block_manager_remove_block (seaf->block_mgr,
+                                             store_id, version,
+                                             block_id);
     }
 
     return TRUE;
 }
 
 int
-gc_core_run (int dry_run, int ignore_errors)
+gc_v0_repos (GList *repos, int dry_run, int ignore_errors)
 {
     Bloom *index;
-    GList *repos = NULL, *clone_heads = NULL, *ptr;
+    GList *ptr;
     int ret;
 
-    total_blocks = seaf_block_manager_get_block_number (seaf->block_mgr);
+    total_blocks = seaf_block_manager_get_block_number (seaf->block_mgr, NULL, 0);
     removed_blocks = 0;
 
     if (total_blocks == 0) {
@@ -375,47 +276,13 @@ gc_core_run (int dry_run, int ignore_errors)
 
     seaf_message ("Populating index.\n");
 
-    /* If we meet any error when filling in the index, we should bail out.
-     */
-#ifdef SEAFILE_SERVER
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, ignore_errors);
-    if (!repos) {
-        seaf_warning ("Failed to get repo list or no repos.\n");
-        return -1;
-    }
-#else
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
-#endif
-
     for (ptr = repos; ptr != NULL; ptr = ptr->next) {
         SeafRepo *repo = ptr->data;
-#ifndef SEAFILE_SERVER
-        if (repo->head)
-            ret = populate_gc_index_for_repo (repo, index, ignore_errors);
-        else
-            ret = populate_gc_index_for_precheckout_repo (repo, index);
-#else
         ret = populate_gc_index_for_repo (repo, index, ignore_errors);
         seaf_repo_unref ((SeafRepo *)ptr->data);
-#endif
         if (ret < 0 && !ignore_errors)
             goto out;
     }
-
-#ifndef SEAFILE_SERVER
-    /* If seaf-daemon exits while downloading a new repo, the downloaded new
-     * blocks for that repo won't be refered by any repo_id. So after restart
-     * those blocks will be GC'ed. To prevent this, we get a list of commit
-     * head ids for thoes new repos.
-     */
-    clone_heads = seaf_transfer_manager_get_clone_heads (seaf->transfer_mgr);
-    for (ptr = clone_heads; ptr != NULL; ptr = ptr->next) {
-        ret = populate_gc_index_for_head ((char *)ptr->data, index);
-        g_free (ptr->data);
-        if (ret < 0)
-            goto out;
-    }
-#endif
 
     if (!dry_run)
         seaf_message ("Scanning and deleting unused blocks.\n");
@@ -427,6 +294,7 @@ gc_core_run (int dry_run, int ignore_errors)
     data.dry_run = dry_run;
 
     ret = seaf_block_manager_foreach_block (seaf->block_mgr,
+                                            NULL, 0,
                                             check_block_liveness,
                                             &data);
     if (ret < 0) {
@@ -447,7 +315,170 @@ gc_core_run (int dry_run, int ignore_errors)
 
 out:
     bloom_destroy (index);
-    g_list_free (repos);
-    g_list_free (clone_heads);
     return ret;
+}
+
+static int
+populate_gc_index_for_virtual_repos (SeafRepo *repo, Bloom *index, int ignore_errors)
+{
+    GList *vrepo_ids = NULL, *ptr;
+    char *repo_id;
+    SeafRepo *vrepo;
+    int ret = 0;
+
+    vrepo_ids = seaf_repo_manager_get_virtual_repo_ids_by_origin (seaf->repo_mgr,
+                                                                  repo->id);
+    for (ptr = vrepo_ids; ptr; ptr = ptr->next) {
+        repo_id = ptr->data;
+        vrepo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+        if (!vrepo) {
+            seaf_warning ("Failed to get repo %s.\n", repo_id);
+            if (!ignore_errors)
+                goto out;
+            else
+                continue;
+        }
+
+        ret = populate_gc_index_for_repo (vrepo, index, ignore_errors);
+        seaf_repo_unref (vrepo);
+        if (ret < 0 && !ignore_errors)
+            goto out;
+    }
+
+out:
+    string_list_free (vrepo_ids);
+    return ret;
+}
+
+int
+gc_v1_repo (SeafRepo *repo, int dry_run, int ignore_errors)
+{
+    Bloom *index;
+    int ret;
+
+    total_blocks = seaf_block_manager_get_block_number (seaf->block_mgr,
+                                                        repo->store_id, repo->version);
+    removed_blocks = 0;
+
+    if (total_blocks == 0) {
+        seaf_message ("No blocks. Skip GC.\n");
+        return 0;
+    }
+
+    seaf_message ("GC started. Total block number is %"G_GUINT64_FORMAT".\n", total_blocks);
+
+    /*
+     * Store the index of live blocks in bloom filter to save memory.
+     * Since bloom filters only have false-positive, we
+     * may skip some garbage blocks, but we won't delete
+     * blocks that are still alive.
+     */
+    index = alloc_gc_index ();
+    if (!index) {
+        seaf_warning ("GC: Failed to allocate index.\n");
+        return -1;
+    }
+
+    seaf_message ("Populating index.\n");
+
+    ret = populate_gc_index_for_repo (repo, index, ignore_errors);
+    if (ret < 0 && !ignore_errors)
+        goto out;
+
+    /* Since virtual repos share fs and block store with the origin repo,
+     * it's necessary to do GC for them together.
+     */
+    ret = populate_gc_index_for_virtual_repos (repo, index, ignore_errors);
+    if (ret < 0 && !ignore_errors)
+        goto out;
+
+    if (!dry_run)
+        seaf_message ("Scanning and deleting unused blocks.\n");
+    else
+        seaf_message ("Scanning unused blocks.\n");
+
+    CheckBlocksData data;
+    data.index = index;
+    data.dry_run = dry_run;
+
+    ret = seaf_block_manager_foreach_block (seaf->block_mgr,
+                                            repo->store_id, repo->version,
+                                            check_block_liveness,
+                                            &data);
+    if (ret < 0) {
+        seaf_warning ("GC: Failed to clean dead blocks.\n");
+        goto out;
+    }
+
+    if (!dry_run)
+        seaf_message ("GC finished. %"G_GUINT64_FORMAT" blocks total, "
+                      "about %"G_GUINT64_FORMAT" reachable blocks, "
+                      "%"G_GUINT64_FORMAT" blocks are removed.\n",
+                      total_blocks, reachable_blocks, removed_blocks);
+    else
+        seaf_message ("GC finished. %"G_GUINT64_FORMAT" blocks total, "
+                      "about %"G_GUINT64_FORMAT" reachable blocks, "
+                      "%"G_GUINT64_FORMAT" blocks can be removed.\n",
+                      total_blocks, reachable_blocks, removed_blocks);
+
+out:
+    bloom_destroy (index);
+    return ret;
+}
+
+int
+gc_core_run (int dry_run, int ignore_errors)
+{
+    GList *repos = NULL, *v0_repos = NULL, *del_repos = NULL, *ptr;
+    SeafRepo *repo;
+    gboolean error = FALSE;
+
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1,
+                                             ignore_errors, &error);
+    if (error && !ignore_errors) {
+        seaf_warning ("Failed to load repo list.\n");
+        return -1;
+    }
+
+    seaf_message ("=== GC version 1 repos ===\n");
+
+    for (ptr = repos; ptr; ptr = ptr->next) {
+        repo = ptr->data;
+        if (repo->version > 0) {
+            if (!repo->is_virtual) {
+                seaf_message ("GC version %d repo %s(%.8s)\n",
+                              repo->version, repo->name, repo->id);
+                gc_v1_repo (repo, dry_run, ignore_errors);
+            }
+        } else
+            v0_repos = g_list_prepend (v0_repos, repo);
+    }
+    g_list_free (repos);
+
+    seaf_message ("=== GC version 0 repos ===\n");
+    gc_v0_repos (v0_repos, dry_run, ignore_errors);
+    g_list_free (v0_repos);
+
+    seaf_message ("=== GC deleted version 1 repos ===\n");
+    del_repos = seaf_repo_manager_list_garbage_repos (seaf->repo_mgr);
+    for (ptr = del_repos; ptr; ptr = ptr->next) {
+        char *repo_id = ptr->data;
+
+        /* Confirm repo doesn't exist before removing blocks. */
+        if (!seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id)) {
+            if (!dry_run) {
+                seaf_message ("GC deleted repo %.8s.\n", repo_id);
+                seaf_block_manager_remove_store (seaf->block_mgr, repo_id);
+            } else {
+                seaf_message ("Repo %.8s can be GC'ed.\n", repo_id);
+            }
+        }
+
+        if (!dry_run)
+            seaf_repo_manager_remove_garbage_repo (seaf->repo_mgr, repo_id);
+        g_free (repo_id);
+    }
+    g_list_free (del_repos);
+
+    return 0;
 }

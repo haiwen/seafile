@@ -24,6 +24,11 @@ enum {
 typedef struct {
     guint32 writer_id;
     gboolean registered;
+
+    /* Used for getting repo info */
+    char        repo_id[37];
+    int         repo_version;
+    gboolean    success;
 } RecvcommitPriv;
 
 #define GET_PRIV(o)  \
@@ -72,6 +77,50 @@ seafile_recvcommit_v3_proc_init (SeafileRecvcommitV3Proc *processor)
 {
 }
 
+static void *
+get_repo_info_thread (void *data)
+{
+    CcnetProcessor *processor = data;
+    USE_PRIV;
+    SeafRepo *repo;
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, priv->repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %s.\n", priv->repo_id);
+        priv->success = FALSE;
+        return data;
+    }
+
+    priv->repo_version = repo->version;
+    priv->success = TRUE;
+
+    seaf_repo_unref (repo);
+    return data;
+}
+
+static void
+get_repo_info_done (void *data)
+{
+    CcnetProcessor *processor = data;
+    USE_PRIV;
+
+    if (priv->success) {
+        ccnet_processor_send_response (processor, SC_OK, SS_OK, NULL, 0);
+        processor->state = RECV_OBJECT;
+        priv->writer_id =
+            seaf_obj_store_register_async_write (seaf->commit_mgr->obj_store,
+                                                 priv->repo_id,
+                                                 priv->repo_version,
+                                                 write_done_cb,
+                                                 processor);
+        priv->registered = TRUE;
+    } else {
+        ccnet_processor_send_response (processor, SC_SHUTDOWN, SS_SHUTDOWN,
+                                       NULL, 0);
+        ccnet_processor_done (processor, FALSE);
+    }
+}
+
 static int
 recv_commit_start (CcnetProcessor *processor, int argc, char **argv)
 {
@@ -88,14 +137,12 @@ recv_commit_start (CcnetProcessor *processor, int argc, char **argv)
     if (seaf_token_manager_verify_token (seaf->token_mgr,
                                          NULL,
                                          processor->peer_id,
-                                         session_token, NULL) == 0) {
-        ccnet_processor_send_response (processor, SC_OK, SS_OK, NULL, 0);
-        processor->state = RECV_OBJECT;
-        priv->writer_id =
-            seaf_obj_store_register_async_write (seaf->commit_mgr->obj_store,
-                                                 write_done_cb,
-                                                 processor);
-        priv->registered = TRUE;
+                                         session_token, priv->repo_id) == 0) {
+        ccnet_processor_thread_create (processor,
+                                       seaf->job_mgr,
+                                       get_repo_info_thread,
+                                       get_repo_info_done,
+                                       processor);
         return 0;
     } else {
         ccnet_processor_send_response (processor, 

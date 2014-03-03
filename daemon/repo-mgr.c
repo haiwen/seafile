@@ -224,6 +224,7 @@ seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit)
         }
     }
     repo->no_local_history = commit->no_local_history;
+    repo->version = commit->version;
 }
 
 void
@@ -242,6 +243,7 @@ seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit)
         }
     }
     commit->no_local_history = repo->no_local_history;
+    commit->version = repo->version;
 }
 
 static gboolean
@@ -273,6 +275,8 @@ seaf_repo_get_commits (SeafRepo *repo)
     for (ptr = branches; ptr != NULL; ptr = ptr->next) {
         branch = ptr->data;
         gboolean res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                                 repo->id,
+                                                                 repo->version,
                                                                  branch->commit_id,
                                                                  collect_commit,
                                                                  &commits, FALSE);
@@ -364,13 +368,16 @@ should_ignore(const char *basepath, const char *filename, void *data)
 }
 
 static int
-index_cb (const char *path,
+index_cb (const char *repo_id,
+          int version,
+          const char *path,
           unsigned char sha1[],
           SeafileCrypt *crypt,
           gboolean write_data)
 {
     /* Check in blocks and get object ID. */
-    if (seaf_fs_manager_index_blocks (seaf->fs_mgr, path, sha1, crypt, write_data) < 0) {
+    if (seaf_fs_manager_index_blocks (seaf->fs_mgr, repo_id, version,
+                                      path, sha1, crypt, write_data) < 0) {
         g_warning ("Failed to index file %s.\n", path);
         return -1;
     }
@@ -378,7 +385,9 @@ index_cb (const char *path,
 }
 
 static int
-add_recursive (struct index_state *istate, 
+add_recursive (const char *repo_id,
+               int version,
+               struct index_state *istate, 
                const char *worktree,
                const char *path,
                SeafileCrypt *crypt,
@@ -408,7 +417,7 @@ add_recursive (struct index_state *istate,
     }
 
     if (S_ISREG(st.st_mode)) {
-        ret = add_to_index (istate, path, full_path,
+        ret = add_to_index (repo_id, version, istate, path, full_path,
                             &st, 0, crypt, index_cb);
         g_free (full_path);
         return ret;
@@ -435,7 +444,7 @@ add_recursive (struct index_state *istate,
 #else
             subpath = g_build_path (PATH_SEPERATOR, path, dname, NULL);
 #endif
-            ret = add_recursive (istate, worktree, subpath,
+            ret = add_recursive (repo_id, version, istate, worktree, subpath,
                                  crypt, ignore_empty_dir, ignore_list);
             g_free (subpath);
             if (ret < 0)
@@ -536,7 +545,8 @@ index_add (SeafRepo *repo, struct index_state *istate, const char *path)
 
     ignore_list = seaf_repo_load_ignore_files (repo->worktree);
 
-    if (add_recursive (istate, repo->worktree, path, crypt, FALSE, ignore_list) < 0)
+    if (add_recursive (repo->id, repo->version,
+                       istate, repo->worktree, path, crypt, FALSE, ignore_list) < 0)
         goto error;
 
     remove_deleted (istate, repo->worktree, path, ignore_list);
@@ -557,6 +567,7 @@ error:
  */
 int
 seaf_repo_index_worktree_files (const char *repo_id,
+                                int repo_version,
                                 const char *worktree,
                                 const char *passwd,
                                 int enc_version,
@@ -598,13 +609,15 @@ seaf_repo_index_worktree_files (const char *repo_id,
     /* Add empty dir to index. Otherwise if the repo on relay contains an empty
      * dir, we'll fail to detect fast-forward relationship later.
      */
-    if (add_recursive (&istate, worktree, "", crypt, FALSE, ignore_list) < 0)
+    if (add_recursive (repo_id, repo_version,
+                       &istate, worktree, "", crypt, FALSE, ignore_list) < 0)
         goto error;
 
     remove_deleted (&istate, worktree, "", ignore_list);
 
     it = cache_tree ();
-    if (cache_tree_update (it, istate.cache, istate.cache_nr,
+    if (cache_tree_update (repo_id, repo_version,
+                           it, istate.cache, istate.cache_nr,
                            0, 0, commit_trees_cb) < 0) {
         g_warning ("Failed to build cache tree");
         goto error;
@@ -1004,8 +1017,8 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, GError **error)
     }
 
     it = cache_tree ();
-    if (cache_tree_update (it, istate.cache,
-                istate.cache_nr, 0, 0, commit_trees_cb) < 0) {
+    if (cache_tree_update (repo->id, repo->version, it, istate.cache,
+                           istate.cache_nr, 0, 0, commit_trees_cb) < 0) {
         g_warning ("Failed to build cache tree");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal data structure error");
         cache_tree_free (&it);
@@ -1104,21 +1117,24 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
         }
         SeafCommit *head =
             seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                            repo->id, repo->version,
                                             repo->head->commit_id);
         if (!head) {
             seaf_warning ("Failed to get commit %s.\n", repo->head->commit_id);
             discard_index (&istate);
             return -1;
         }
-        fill_tree_descriptor (&trees[0], head->root_id);
+        fill_tree_descriptor (repo->id, repo->version, &trees[0], head->root_id);
         seaf_commit_unref (head);
     } else {
-        fill_tree_descriptor (&trees[0], NULL);
+        fill_tree_descriptor (repo->id, repo->version, &trees[0], NULL);
     }
-    fill_tree_descriptor (&trees[1], commit->root_id);
+    fill_tree_descriptor (repo->id, repo->version, &trees[1], commit->root_id);
 
     /* 2-way merge to the new branch */
     memset(&topts, 0, sizeof(topts));
+    memcpy (topts.repo_id, repo->id, 36);
+    topts.version = repo->version;
     topts.base = repo->worktree;
     topts.head_idx = -1;
     topts.src_index = &istate;
@@ -1214,7 +1230,10 @@ seaf_repo_checkout (SeafRepo *repo, const char *worktree, char **error)
     }
     commit_id = branch->commit_id;
         
-    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             repo->id,
+                                             repo->version,
+                                             commit_id);
     if (!commit) {
         err_msgs = g_string_new ("");
         g_string_append_printf (err_msgs, "Commit %s does not exist.\n",
@@ -1243,7 +1262,9 @@ seaf_repo_checkout (SeafRepo *repo, const char *worktree, char **error)
         seaf_warning ("No checkout task found for repo %.10s.\n", repo->id);
         goto error;
     }
-    task->total_files = seaf_fs_manager_count_fs_files (seaf->fs_mgr, commit->root_id);
+    task->total_files = seaf_fs_manager_count_fs_files (seaf->fs_mgr,
+                                                        repo->id, repo->version,
+                                                        commit->root_id);
 
     if (task->total_files < 0) {
         seaf_warning ("Failed to count files for repo %.10s .\n", repo->id);
@@ -1473,6 +1494,11 @@ seaf_repo_manager_add_repo (SeafRepoManager *manager,
 
     pthread_mutex_unlock (&manager->priv->db_lock);
 
+    /* There may be a "deletion record" for this repo when it was deleted
+     * last time.
+     */
+    seaf_repo_manager_remove_garbage_repo (manager, repo->id);
+
     repo->manager = manager;
 
     if (pthread_rwlock_wrlock (&manager->priv->lock) < 0) {
@@ -1510,14 +1536,64 @@ seaf_repo_manager_mark_repo_deleted (SeafRepoManager *mgr, SeafRepo *repo)
     return 0;
 }
 
+static gboolean
+get_garbage_repo_id (sqlite3_stmt *stmt, void *vid_list)
+{
+    GList **ret = vid_list;
+    char *repo_id;
+
+    repo_id = g_strdup((const char *)sqlite3_column_text (stmt, 0));
+    *ret = g_list_prepend (*ret, repo_id);
+
+    return TRUE;
+}
+
+GList *
+seaf_repo_manager_list_garbage_repos (SeafRepoManager *mgr)
+{
+    GList *repo_ids = NULL;
+
+    pthread_mutex_lock (&mgr->priv->db_lock);
+
+    sqlite_foreach_selected_row (mgr->priv->db,
+                                 "SELECT repo_id FROM GarbageRepos",
+                                 get_garbage_repo_id, &repo_ids);
+    pthread_mutex_unlock (&mgr->priv->db_lock);
+
+    return repo_ids;
+}
+
 void
-seaf_repo_manager_remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
+seaf_repo_manager_remove_garbage_repo (SeafRepoManager *mgr, const char *repo_id)
+{
+    char sql[256];
+
+    pthread_mutex_lock (&mgr->priv->db_lock);
+
+    snprintf (sql, sizeof(sql), "DELETE FROM GarbageRepos WHERE repo_id='%s'",
+              repo_id);
+    sqlite_query_exec (mgr->priv->db, sql);
+
+    pthread_mutex_unlock (&mgr->priv->db_lock);
+}
+
+void
+seaf_repo_manager_remove_repo_ondisk (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      gboolean add_deleted_record)
 {
     char sql[256];
 
     /* We don't need to care about I/O errors here, since we can
      * GC any unreferenced repo data later.
      */
+
+    if (add_deleted_record) {
+        snprintf (sql, sizeof(sql), "REPLACE INTO GarbageRepos VALUES ('%s')",
+                  repo_id);
+        if (sqlite_query_exec (mgr->priv->db, sql) < 0)
+            goto out;
+    }
 
     /* Once the item in Repo table is deleted, the repo is gone.
      * This is the "commit point".
@@ -1576,7 +1652,8 @@ int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr,
                             SeafRepo *repo)
 {
-    seaf_repo_manager_remove_repo_ondisk (mgr, repo->id);
+    seaf_repo_manager_remove_repo_ondisk (mgr, repo->id,
+                                          (repo->version > 0) ? TRUE : FALSE);
 
     if (pthread_rwlock_wrlock (&mgr->priv->lock) < 0) {
         g_warning ("[repo mgr] failed to lock repo cache.\n");
@@ -1859,8 +1936,9 @@ load_repo_commit (SeafRepoManager *manager,
 {
     SeafCommit *commit;
 
-    commit = seaf_commit_manager_get_commit (manager->seaf->commit_mgr,
-                                             branch->commit_id);
+    commit = seaf_commit_manager_get_commit_compatible (manager->seaf->commit_mgr,
+                                                        repo->id,
+                                                        branch->commit_id);
     if (!commit) {
         g_warning ("Commit %s is missing\n", branch->commit_id);
         repo->is_corrupted = TRUE;
@@ -2011,8 +2089,10 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
         if (branch != NULL) {
              SeafCommit *commit;
 
-             commit = seaf_commit_manager_get_commit (manager->seaf->commit_mgr,
-                                                      branch->commit_id);
+             commit =
+                 seaf_commit_manager_get_commit_compatible (manager->seaf->commit_mgr,
+                                                            repo->id,
+                                                            branch->commit_id);
              if (commit) {
                  seaf_repo_from_commit (repo, commit);
                  seaf_commit_unref (commit);
@@ -2131,6 +2211,12 @@ open_db (SeafRepoManager *manager, const char *seaf_dir)
         "repo_id TEXT PRIMARY KEY, ca_id TEXT, head_id TEXT);";
     sqlite_query_exec (db, sql);
 
+    /* Version 1 repos will be added to this table after deletion.
+     * GC will scan this table and remove the objects and blocks for the repos.
+     */
+    sql = "CREATE TABLE IF NOT EXISTS GarbageRepos (repo_id TEXT PRIMARY KEY);";
+    sqlite_query_exec (db, sql);
+
     return db;
 }
 
@@ -2155,7 +2241,7 @@ remove_deleted_repo (sqlite3_stmt *stmt, void *vmanager)
 
     repo_id = (const char *) sqlite3_column_text (stmt, 0);
 
-    seaf_repo_manager_remove_repo_ondisk (manager, repo_id);
+    seaf_repo_manager_remove_repo_ondisk (manager, repo_id, TRUE);
 
     return TRUE;
 }

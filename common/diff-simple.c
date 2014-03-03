@@ -97,12 +97,15 @@ static int oneway_diff(struct cache_entry **src, struct unpack_trees_options *o)
     return 0;
 }
 
-int diff_index(struct index_state *istate, SeafDir *root, GList **results)
+int diff_index(const char *repo_id, int version,
+               struct index_state *istate, SeafDir *root, GList **results)
 {
     struct tree_desc t;
     struct unpack_trees_options opts;
 
     memset(&opts, 0, sizeof(opts));
+    memcpy (opts.repo_id, repo_id, 36);
+    opts.version = version;
     opts.head_idx = 1;
     opts.index_only = 1;
     /* Unmerged entries are handled in diff worktree. */
@@ -113,7 +116,7 @@ int diff_index(struct index_state *istate, SeafDir *root, GList **results)
     opts.src_index = istate;
     opts.dst_index = NULL;
 
-    fill_tree_descriptor(&t, root->dir_id);
+    fill_tree_descriptor(repo_id, version, &t, root->dir_id);
     int ret = unpack_trees(1, &t, &opts);
 
     tree_desc_free (&t);
@@ -172,21 +175,27 @@ diff_commits (SeafCommit *commit1, SeafCommit *commit2, GList **results)
         return 0;
 
     if (strcmp (commit1->root_id, EMPTY_SHA1) != 0) {
-        fill_tree_descriptor(&t[0], commit1->root_id);
+        fill_tree_descriptor(commit1->repo_id, commit1->version,
+                             &t[0], commit1->root_id);
     } else {
-        fill_tree_descriptor(&t[0], NULL);
+        fill_tree_descriptor(commit1->repo_id, commit1->version,
+                             &t[0], NULL);
     }
 
     if (strcmp (commit2->root_id, EMPTY_SHA1) != 0) {
-        fill_tree_descriptor(&t[1], commit2->root_id);
+        fill_tree_descriptor(commit2->repo_id, commit2->version,
+                             &t[1], commit2->root_id);
     } else {
-        fill_tree_descriptor(&t[1], NULL);
+        fill_tree_descriptor(commit2->repo_id, commit2->version,
+                             &t[1], NULL);
     }
 
     /* Empty index */
     memset(&istate, 0, sizeof(istate));
     memset(&opts, 0, sizeof(opts));
 
+    memcpy (opts.repo_id, commit1->repo_id, 36);
+    opts.version = commit1->version;
     opts.head_idx = -1;
     opts.index_only = 1;
     opts.merge = 1;
@@ -279,6 +288,8 @@ diff_merge (SeafCommit *merge, GList **results)
                           -1);
 
     parent1 = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                              merge->repo_id,
+                                              merge->version,
                                               merge->parent_id);
     if (!parent1) {
         seaf_warning ("failed to find commit %s.\n", merge->parent_id);
@@ -286,6 +297,8 @@ diff_merge (SeafCommit *merge, GList **results)
     }
 
     parent2 = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                              merge->repo_id,
+                                              merge->version,
                                               merge->second_parent_id);
     if (!parent2) {
         seaf_warning ("failed to find commit %s.\n", merge->second_parent_id);
@@ -293,9 +306,9 @@ diff_merge (SeafCommit *merge, GList **results)
         return -1;
     }
 
-    fill_tree_descriptor(&t[0], merge->root_id);
-    fill_tree_descriptor(&t[1], parent1->root_id);
-    fill_tree_descriptor(&t[2], parent2->root_id);
+    fill_tree_descriptor(merge->repo_id, merge->version, &t[0], merge->root_id);
+    fill_tree_descriptor(merge->repo_id, merge->version, &t[1], parent1->root_id);
+    fill_tree_descriptor(merge->repo_id, merge->version, &t[2], parent2->root_id);
 
     seaf_commit_unref (parent1);
     seaf_commit_unref (parent2);
@@ -304,6 +317,8 @@ diff_merge (SeafCommit *merge, GList **results)
     memset(&istate, 0, sizeof(istate));
     memset(&opts, 0, sizeof(opts));
 
+    memcpy (opts.repo_id, merge->repo_id, 36);
+    opts.version = merge->version;
     opts.head_idx = -1;
     opts.index_only = 1;
     opts.merge = 1;

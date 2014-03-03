@@ -844,7 +844,9 @@ int add_index_entry(struct index_state *istate, struct cache_entry *ce, int opti
     return 0;
 }
 
-int add_to_index(struct index_state *istate,
+int add_to_index(const char *repo_id,
+                 int version,
+                 struct index_state *istate,
                  const char *path,
                  const char *full_path,
                  SeafStat *st,
@@ -897,7 +899,7 @@ int add_to_index(struct index_state *istate,
     if (alias && !ce_stage(alias) &&
         (ABS(alias->ce_mtime.sec - st->st_mtime) == 3600 ||
          ABS(alias->ce_ctime.sec - st->st_ctime) == 3600)) {
-        if (index_cb (full_path, sha1, crypt, FALSE) < 0)
+        if (index_cb (repo_id, version, full_path, sha1, crypt, FALSE) < 0)
             return 0;
         if (memcmp (alias->sha1, sha1, 20) == 0)
             goto update_index;
@@ -905,7 +907,7 @@ int add_to_index(struct index_state *istate,
 #endif
 
     /* Skip index file errors. */
-    if (index_cb (full_path, sha1, crypt, TRUE) < 0)
+    if (index_cb (repo_id, version, full_path, sha1, crypt, TRUE) < 0)
         return 0;
 
 update_index:

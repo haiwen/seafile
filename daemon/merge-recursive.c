@@ -73,6 +73,8 @@ static int seafile_merge_trees(struct merge_options *o,
     struct tree_desc t[3];
 
     memset(opts, 0, sizeof(*opts));
+    memcpy (opts->repo_id, o->repo_id, 36);
+    opts->version = o->version;
     if (o->call_depth)
         opts->index_only = 1;
     else
@@ -86,9 +88,9 @@ static int seafile_merge_trees(struct merge_options *o,
     if (o->crypt)
         opts->crypt = o->crypt;
 
-    fill_tree_descriptor(t+0, common->dir_id);
-    fill_tree_descriptor(t+1, head->dir_id);
-    fill_tree_descriptor(t+2, merge->dir_id);
+    fill_tree_descriptor(o->repo_id, o->version, t+0, common->dir_id);
+    fill_tree_descriptor(o->repo_id, o->version, t+1, head->dir_id);
+    fill_tree_descriptor(o->repo_id, o->version, t+2, merge->dir_id);
 
     rc = unpack_trees(3, t, opts);
 
@@ -97,7 +99,7 @@ static int seafile_merge_trees(struct merge_options *o,
         *(o->index) = opts->result;
 
         if (o->collect_blocks_only)
-            collect_new_blocks_from_index (o->index, o->bl);
+            collect_new_blocks_from_index (o->repo_id, o->version, o->index, o->bl);
     }
 
     tree_desc_free (t);
@@ -127,7 +129,8 @@ char *write_tree_from_memory(struct merge_options *o)
     /* if (!active_cache_tree) */
     it = cache_tree();
 
-    if (cache_tree_update(it, o->index->cache, o->index->cache_nr, 
+    if (cache_tree_update(o->repo_id, o->version,
+                          it, o->index->cache, o->index->cache_nr, 
                           0, 0, commit_trees_cb) < 0) {
         g_warning("error building trees");
         cache_tree_free (&it);
@@ -170,7 +173,9 @@ static int get_files_dirs_recursive(struct merge_options *o, SeafDir *tree,
 
             snprintf(base + baselen, SEAF_PATH_MAX, "%s/", dent->name);
             new_baselen = baselen + dent->name_len + 1;
-            subdir = seaf_fs_manager_get_seafdir(seaf->fs_mgr, dent->id);
+            subdir = seaf_fs_manager_get_seafdir(seaf->fs_mgr,
+                                                 o->repo_id, o->version,
+                                                 dent->id);
             if (!subdir) {
                 g_warning("Failed to get dir %s\n", dent->id);
                 return -1;
@@ -511,7 +516,7 @@ static int update_file_flags(struct merge_options *o,
     int refresh = update_wd;
 
     if (update_wd && o->collect_blocks_only) {
-        fill_seafile_blocks (sha, o->bl);
+        fill_seafile_blocks (o->repo_id, o->version, sha, o->bl);
         return clean;
     }
 
@@ -564,6 +569,8 @@ static int update_file_flags(struct merge_options *o,
         gboolean conflicted;
         rawdata_to_hex(sha, file_id, 20);
         if (seaf_fs_manager_checkout_file(seaf->fs_mgr, 
+                                          o->repo_id,
+                                          o->version,
                                           file_id,
                                           real_path,
                                           mode,
@@ -916,9 +923,9 @@ int merge_recursive(struct merge_options *o,
 
     *clean = 1;
 
-    head = seaf_fs_manager_get_seafdir (seaf->fs_mgr, h1_root);
-    remote = seaf_fs_manager_get_seafdir (seaf->fs_mgr, h2_root);
-    common = seaf_fs_manager_get_seafdir (seaf->fs_mgr, ca_root);
+    head = seaf_fs_manager_get_seafdir (seaf->fs_mgr, o->repo_id, o->version, h1_root);
+    remote = seaf_fs_manager_get_seafdir (seaf->fs_mgr, o->repo_id, o->version, h2_root);
+    common = seaf_fs_manager_get_seafdir (seaf->fs_mgr, o->repo_id, o->version, ca_root);
     if (!head || !remote || !common) {
         g_warning ("Invalid commits!\n");
         return -1;

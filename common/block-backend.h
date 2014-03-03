@@ -9,7 +9,9 @@ typedef struct BlockBackend BlockBackend;
 
 struct BlockBackend {
     
-    BHandle* (*open_block) (BlockBackend *bend, const char *block_id, int rw_type);
+    BHandle* (*open_block) (BlockBackend *bend,
+                            const char *store_id, int version,
+                            const char *block_id, int rw_type);
 
     int      (*read_block) (BlockBackend *bend, BHandle *handle, void *buf, int len);
     
@@ -19,17 +21,31 @@ struct BlockBackend {
 
     int      (*close_block) (BlockBackend *bend, BHandle *handle);
 
-    int      (*exists) (BlockBackend *bend, const char *block_id);
+    int      (*exists) (BlockBackend *bend,
+                        const char *store_id, int version,
+                        const char *block_id);
 
-    int      (*remove_block) (BlockBackend *bend, const char *block_id);
+    int      (*remove_block) (BlockBackend *bend,
+                              const char *store_id, int version,
+                              const char *block_id);
 
-    BMetadata* (*stat_block) (BlockBackend *bend, const char *block_id);
+    BMetadata* (*stat_block) (BlockBackend *bend,
+                              const char *store_id, int version,
+                              const char *block_id);
     
     BMetadata* (*stat_block_by_handle) (BlockBackend *bend, BHandle *handle);
 
     void     (*block_handle_free) (BlockBackend *bend, BHandle *handle);
 
-    int      (*foreach_block) (BlockBackend *bend, SeafBlockFunc process, void *user_data);
+    int      (*foreach_block) (BlockBackend *bend,
+                               const char *store_id,
+                               int version,
+                               SeafBlockFunc process,
+                               void *user_data);
+
+    /* Only valid for version 1 repo. Remove all blocks for the repo. */
+    int      (*remove_store) (BlockBackend *bend,
+                              const char *store_id);
 
     void*    be_priv;           /* backend private field */
 

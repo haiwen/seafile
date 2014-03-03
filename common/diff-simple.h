@@ -49,7 +49,8 @@ void
 diff_entry_free (DiffEntry *de);
 
 int
-diff_index (struct index_state *istate, SeafDir *root, GList **results);
+diff_index (const char *repo_id, int version,
+            struct index_state *istate, SeafDir *root, GList **results);
 
 int
 diff_commits (SeafCommit *commit1, SeafCommit *commit2, GList **results);

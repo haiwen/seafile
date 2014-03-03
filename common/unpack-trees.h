@@ -39,6 +39,8 @@ struct unpack_trees_options {
         skip_sparse_checkout,
         gently,
         show_all_errors;
+    char repo_id[37];
+    int version;
     const char *prefix;
     const char *base;
     int cache_bottom;

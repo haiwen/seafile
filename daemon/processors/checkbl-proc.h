@@ -22,6 +22,7 @@ struct _SeafileCheckblProc {
     CcnetProcessor parent_instance;
 
     TransferTask *task;
+    gboolean send_session_token;
 };
 
 struct _SeafileCheckblProcClass {

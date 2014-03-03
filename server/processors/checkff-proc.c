@@ -75,13 +75,15 @@ compare_root (SeafCommit *commit, void *data, gboolean *stop)
 }
 
 static gboolean
-check_fast_forward (const char *head_id, const char *root_id)
+check_fast_forward (SeafRepo *repo, const char *head_id, const char *root_id)
 {
     CompareAux *aux = g_new0 (CompareAux, 1);
     gboolean ret;
 
     memcpy (aux->root_id, root_id, 41);
     if (!seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                   repo->id,
+                                                   repo->version,
                                                    head_id,
                                                    compare_root,
                                                    aux, FALSE)) {
@@ -108,7 +110,7 @@ check_fast_forward_thread (void *vdata)
         return vdata;
     }
 
-    priv->result = check_fast_forward (repo->head->commit_id, priv->root_id);
+    priv->result = check_fast_forward (repo, repo->head->commit_id, priv->root_id);
 
     seaf_repo_unref (repo);
     return vdata;

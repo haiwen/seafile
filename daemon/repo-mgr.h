@@ -69,6 +69,8 @@ struct _SeafRepo {
     unsigned int  net_browsable : 1;
     unsigned int  quota_full_notified : 1;
     unsigned int  access_denied_notified : 1;
+
+    int version;
 };
 
 
@@ -108,6 +110,7 @@ seaf_repo_index_add (SeafRepo *repo, const char *path);
 
 int
 seaf_repo_index_worktree_files (const char *repo_id,
+                                int version,
                                 const char *worktree,
                                 const char *passwd,
                                 int enc_version,
@@ -179,7 +182,8 @@ int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr, SeafRepo *repo);
 
 void
-seaf_repo_manager_remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id);
+seaf_repo_manager_remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id,
+                                      gboolean add_deleted_record);
 
 SeafRepo* 
 seaf_repo_manager_create_new_repo (SeafRepoManager *mgr,
@@ -200,6 +204,12 @@ seaf_repo_manager_repo_exists_prefix (SeafRepoManager *manager, const gchar *id)
 
 GList* 
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit);
+
+GList *
+seaf_repo_manager_list_garbage_repos (SeafRepoManager *mgr);
+
+void
+seaf_repo_manager_remove_garbage_repo (SeafRepoManager *mgr, const char *repo_id);
 
 #define MAX_REPO_TOKEN 64
 #define DEFAULT_REPO_TOKEN "default"

@@ -42,6 +42,7 @@ struct _CloneTask {
     int                  state;
     int                  error;
     char                 repo_id[37];
+    int                  repo_version;
     char                 peer_id[41];
     char                *peer_addr;
     char                *peer_port; 
@@ -86,6 +87,7 @@ seaf_clone_manager_gen_default_worktree (SeafCloneManager *mgr,
 char *
 seaf_clone_manager_add_task (SeafCloneManager *mgr, 
                              const char *repo_id,
+                             int repo_version,
                              const char *peer_id,
                              const char *repo_name,
                              const char *token,
@@ -107,6 +109,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
 char *
 seaf_clone_manager_add_download_task (SeafCloneManager *mgr, 
                                       const char *repo_id,
+                                      int repo_version,
                                       const char *peer_id,
                                       const char *repo_name,
                                       const char *token,

@@ -255,7 +255,9 @@ int cache_tree_fully_valid(struct cache_tree *it)
 }
 #endif
 
-static int update_one(struct cache_tree *it,
+static int update_one(const char *repo_id,
+                      int version,
+                      struct cache_tree *it,
                       struct cache_entry **cache,
                       int entries,
                       const char *base,
@@ -303,7 +305,8 @@ static int update_one(struct cache_tree *it,
         sub = find_subtree(it, path + baselen, sublen, 1);
         if (!sub->cache_tree)
             sub->cache_tree = cache_tree();
-        subcnt = update_one(sub->cache_tree,
+        subcnt = update_one(repo_id, version,
+                            sub->cache_tree,
                             cache + i, entries - i,
                             path,
                             baselen + sublen + 1,
@@ -319,7 +322,7 @@ static int update_one(struct cache_tree *it,
 
     discard_unused_subtrees(it);
 
-    if (commit_cb (it, cache, entries, base, baselen) < 0) {
+    if (commit_cb (repo_id, version, it, cache, entries, base, baselen) < 0) {
         g_warning ("save seafile dirent failed");
         return -1;
     }
@@ -327,7 +330,9 @@ static int update_one(struct cache_tree *it,
     return i;
 }
 
-int cache_tree_update(struct cache_tree *it,
+int cache_tree_update(const char *repo_id,
+                      int repo_version,
+                      struct cache_tree *it,
                       struct cache_entry **cache,
                       int entries,
                       int missing_ok,
@@ -338,7 +343,8 @@ int cache_tree_update(struct cache_tree *it,
     i = verify_cache(cache, entries);
     if (i)
         return i;
-    i = update_one(it, cache, entries, "", 0, missing_ok, dryrun, commit_cb);
+    i = update_one(repo_id, repo_version,
+                   it, cache, entries, "", 0, missing_ok, dryrun, commit_cb);
     if (i < 0)
         return i;
     return 0;

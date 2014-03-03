@@ -4,6 +4,8 @@
 
 #include "utils.h"
 
+#include "log.h"
+
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -13,6 +15,8 @@
 
 
 struct _BHandle {
+    char    *store_id;
+    int     version;
     char    block_id[41];
     int     fd;
     int     rw_type;
@@ -20,6 +24,8 @@ struct _BHandle {
 };
 
 typedef struct {
+    char          *v0_block_dir;
+    int            v0_block_dir_len;
     char          *block_dir;
     int            block_dir_len;
     char          *tmp_dir;
@@ -29,7 +35,9 @@ typedef struct {
 static char *
 get_block_path (BlockBackend *bend,
                 const char *block_sha1,
-                char path[]);
+                char path[],
+                const char *store_id,
+                int version);
 
 static int
 open_tmp_file (BlockBackend *bend,
@@ -38,6 +46,8 @@ open_tmp_file (BlockBackend *bend,
 
 static BHandle *
 block_backend_fs_open_block (BlockBackend *bend,
+                             const char *store_id,
+                             int version,
                              const char *block_id,
                              int rw_type)
 {
@@ -51,7 +61,7 @@ block_backend_fs_open_block (BlockBackend *bend,
 
     if (rw_type == BLOCK_READ) {
         char path[SEAF_PATH_MAX];
-        get_block_path (bend, block_id, path);
+        get_block_path (bend, block_id, path, store_id, version);
         fd = g_open (path, O_RDONLY | O_BINARY, 0);
         if (fd < 0) {
             ccnet_warning ("[block bend] failed to open block %s for read: %s\n",
@@ -73,6 +83,9 @@ block_backend_fs_open_block (BlockBackend *bend,
     handle->rw_type = rw_type;
     if (rw_type == BLOCK_WRITE)
         handle->tmp_file = tmp_file;
+    if (store_id)
+        handle->store_id = g_strdup(store_id);
+    handle->version = version;
 
     return handle;
 }
@@ -113,7 +126,25 @@ block_backend_fs_block_handle_free (BlockBackend *bend,
         g_unlink (handle->tmp_file);
         g_free (handle->tmp_file);
     }
+    g_free (handle->store_id);
     g_free (handle);
+}
+
+static int
+create_parent_path (const char *path)
+{
+    char *dir = g_path_get_dirname (path);
+    if (!dir)
+        return -1;
+
+    if (g_mkdir_with_parents (dir, 0777) < 0) {
+        seaf_warning ("Failed to create object parent path: %s.\n", dir);
+        g_free (dir);
+        return -1;
+    }
+
+    g_free (dir);
+    return 0;
 }
 
 static int
@@ -124,9 +155,15 @@ block_backend_fs_commit_block (BlockBackend *bend,
 
     g_return_val_if_fail (handle->rw_type == BLOCK_WRITE, -1);
 
-    get_block_path (bend, handle->block_id, path);
+    get_block_path (bend, handle->block_id, path, handle->store_id, handle->version);
+
+    if (create_parent_path (path) < 0) {
+        seaf_warning ("Failed to create path for block %s.\n", handle->block_id);
+        return -1;
+    }
+
     if (ccnet_rename (handle->tmp_file, path) < 0) {
-        g_warning ("[block bend] failed to commit block %s: %s\n",
+        seaf_warning ("[block bend] failed to commit block %s: %s\n",
                    handle->block_id, strerror(errno));
         return -1;
     }
@@ -135,11 +172,14 @@ block_backend_fs_commit_block (BlockBackend *bend,
 }
     
 static gboolean
-block_backend_fs_block_exists (BlockBackend *bend, const char *block_sha1)
+block_backend_fs_block_exists (BlockBackend *bend,
+                               const char *store_id,
+                               int version,
+                               const char *block_sha1)
 {
     char block_path[SEAF_PATH_MAX];
 
-    get_block_path (bend, block_sha1, block_path);
+    get_block_path (bend, block_sha1, block_path, store_id, version);
     if (g_access (block_path, F_OK) == 0)
         return TRUE;
     else
@@ -148,26 +188,30 @@ block_backend_fs_block_exists (BlockBackend *bend, const char *block_sha1)
 
 static int
 block_backend_fs_remove_block (BlockBackend *bend,
-                                 const char *block_id)
+                               const char *store_id,
+                               int version,
+                               const char *block_id)
 {
     char path[SEAF_PATH_MAX];
 
-    get_block_path (bend, block_id, path);
+    get_block_path (bend, block_id, path, store_id, version);
 
     return g_unlink (path);
 }
 
 static BMetadata *
 block_backend_fs_stat_block (BlockBackend *bend,
+                             const char *store_id,
+                             int version,
                              const char *block_id)
 {
     char path[SEAF_PATH_MAX];
     SeafStat st;
     BMetadata *block_md;
 
-    get_block_path (bend, block_id, path);
+    get_block_path (bend, block_id, path, store_id, version);
     if (seaf_stat (path, &st) < 0) {
-        g_warning ("[block bend] Failed to stat block %s.\n", block_id);
+        seaf_warning ("[block bend] Failed to stat block %s.\n", block_id);
         return NULL;
     }
     block_md = g_new0(BMetadata, 1);
@@ -185,7 +229,7 @@ block_backend_fs_stat_block_by_handle (BlockBackend *bend,
     BMetadata *block_md;
 
     if (seaf_fstat (handle->fd, &st) < 0) {
-        g_warning ("[block bend] Failed to stat block %s.\n", handle->block_id);
+        seaf_warning ("[block bend] Failed to stat block %s.\n", handle->block_id);
         return NULL;
     }
     block_md = g_new0(BMetadata, 1);
@@ -197,22 +241,31 @@ block_backend_fs_stat_block_by_handle (BlockBackend *bend,
 
 static int
 block_backend_fs_foreach_block (BlockBackend *bend,
+                                const char *store_id,
+                                int version,
                                 SeafBlockFunc process,
                                 void *user_data)
 {
     FsPriv *priv = bend->be_priv;
-    char *block_dir = priv->block_dir;
-    int dir_len = priv->block_dir_len;
-    GDir *dir1, *dir2;
+    char *block_dir = NULL;
+    int dir_len;
+    GDir *dir1 = NULL, *dir2;
     const char *dname1, *dname2;
     char block_id[128];
     char path[SEAF_PATH_MAX], *pos;
     int ret = 0;
 
+    if (version > 0)
+        block_dir = g_build_filename (priv->block_dir, store_id, NULL);
+    else
+        block_dir = g_strdup(priv->v0_block_dir);
+    dir_len = strlen (block_dir);
+
     dir1 = g_dir_open (block_dir, 0, NULL);
     if (!dir1) {
-        g_warning ("Failed to open block dir %s.\n", block_dir);
-        return -1;
+        seaf_warning ("Failed to open block dir %s.\n", block_dir);
+        ret = -1;
+        goto out;
     }
 
     memcpy (path, block_dir, dir_len);
@@ -223,13 +276,13 @@ block_backend_fs_foreach_block (BlockBackend *bend,
 
         dir2 = g_dir_open (path, 0, NULL);
         if (!dir2) {
-            g_warning ("Failed to open block dir %s.\n", path);
+            seaf_warning ("Failed to open block dir %s.\n", path);
             continue;
         }
 
         while ((dname2 = g_dir_read_name(dir2)) != NULL) {
             snprintf (block_id, sizeof(block_id), "%s%s", dname1, dname2);
-            if (!process (block_id, user_data)) {
+            if (!process (store_id, version, block_id, user_data)) {
                 g_dir_close (dir2);
                 goto out;
             }
@@ -238,22 +291,79 @@ block_backend_fs_foreach_block (BlockBackend *bend,
     }
 
 out:
-    g_dir_close (dir1);
+    if (dir1)
+        g_dir_close (dir1);
+    g_free (block_dir);
 
     return ret;
+}
+
+static int
+block_backend_fs_remove_store (BlockBackend *bend, const char *store_id)
+{
+    FsPriv *priv = bend->be_priv;
+    char *block_dir = NULL;
+    GDir *dir1, *dir2;
+    const char *dname1, *dname2;
+    char *path1, *path2;
+
+    block_dir = g_build_filename (priv->block_dir, store_id, NULL);
+
+    dir1 = g_dir_open (block_dir, 0, NULL);
+    if (!dir1) {
+        seaf_warning ("Failed to open block dir %s.\n", block_dir);
+        g_free (block_dir);
+        return -1;
+    }
+
+    while ((dname1 = g_dir_read_name(dir1)) != NULL) {
+        path1 = g_build_filename (block_dir, dname1, NULL);
+
+        dir2 = g_dir_open (path1, 0, NULL);
+        if (!dir2) {
+            seaf_warning ("Failed to open block dir %s.\n", path1);
+            g_dir_close (dir1);
+            g_free (path1);
+            return -1;
+        }
+
+        while ((dname2 = g_dir_read_name(dir2)) != NULL) {
+            path2 = g_build_filename (path1, dname2, NULL);
+            g_unlink (path2);
+            g_free (path2);
+        }
+        g_dir_close (dir2);
+
+        g_rmdir (path1);
+        g_free (path1);
+    }
+
+    g_dir_close (dir1);
+    g_rmdir (block_dir);
+    g_free (block_dir);
+
+    return 0;
 }
 
 static char *
 get_block_path (BlockBackend *bend,
                 const char *block_sha1,
-                char path[])
+                char path[],
+                const char *store_id,
+                int version)
 {
     FsPriv *priv = bend->be_priv;
     char *pos = path;
+    int n;
 
-    memcpy (pos, priv->block_dir, priv->block_dir_len);
-    pos[priv->block_dir_len] = '/';
-    pos += priv->block_dir_len + 1;
+    if (version > 0) {
+        n = snprintf (path, SEAF_PATH_MAX, "%s/%s/", priv->block_dir, store_id);
+        pos += n;
+    } else {
+        memcpy (pos, priv->v0_block_dir, priv->v0_block_dir_len);
+        pos[priv->v0_block_dir_len] = '/';
+        pos += priv->v0_block_dir_len + 1;
+    }
 
     memcpy (pos, block_sha1, 2);
     pos[2] = '/';
@@ -280,30 +390,8 @@ open_tmp_file (BlockBackend *bend,
     return fd;
 }
 
-static void
-init_block_dir (BlockBackend *bend)
-{
-    FsPriv *priv = bend->be_priv;
-    int i;
-    int len = priv->block_dir_len;
-    char path[SEAF_PATH_MAX];
-    char *pos;
-
-    memcpy (path, priv->block_dir, len);
-    pos = path + len;
-
-    /*
-     * Create 256 sub-directories.
-     */
-    for (i = 0; i < 256; ++i) {
-        snprintf (pos, sizeof(path) - len, "/%02x", i);
-        if (g_access (path, F_OK) != 0)
-            g_mkdir (path, 0777);
-    }
-}
-
 BlockBackend *
-block_backend_fs_new (const char *block_dir, const char *tmp_dir)
+block_backend_fs_new (const char *seaf_dir, const char *tmp_dir)
 {
     BlockBackend *bend;
     FsPriv *priv;
@@ -312,24 +400,32 @@ block_backend_fs_new (const char *block_dir, const char *tmp_dir)
     priv = g_new0(FsPriv, 1);
     bend->be_priv = priv;
 
-    priv->block_dir = g_strdup (block_dir);
+    priv->v0_block_dir = g_build_filename (seaf_dir, "blocks", NULL);
+    priv->v0_block_dir_len = strlen(priv->v0_block_dir);
+
+    priv->block_dir = g_build_filename (seaf_dir, "storage", "blocks", NULL);
+    priv->block_dir_len = strlen (priv->block_dir);
+
     priv->tmp_dir = g_strdup (tmp_dir);
-    priv->block_dir_len = strlen (block_dir);
     priv->tmp_dir_len = strlen (tmp_dir);
 
-    if (checkdir_with_mkdir (block_dir) < 0) {
-        g_warning ("[Block Backend] Blocks dir %s does not exist and"
-                   " is unable to create\n", block_dir);
+    if (g_mkdir_with_parents (priv->v0_block_dir, 0777) < 0) {
+        seaf_warning ("Block dir %s does not exist and"
+                   " is unable to create\n", priv->v0_block_dir);
         goto onerror;
     }
 
-    if (checkdir_with_mkdir (tmp_dir) < 0) {
-        g_warning ("[Block Backend] Blocks tmp dir %s does not exist and"
-                   " is unable to create\n", block_dir);
+    if (g_mkdir_with_parents (priv->block_dir, 0777) < 0) {
+        seaf_warning ("Block dir %s does not exist and"
+                   " is unable to create\n", priv->block_dir);
         goto onerror;
     }
 
-    init_block_dir (bend);
+    if (g_mkdir_with_parents (tmp_dir, 0777) < 0) {
+        seaf_warning ("Blocks tmp dir %s does not exist and"
+                   " is unable to create\n", tmp_dir);
+        goto onerror;
+    }
 
     bend->open_block = block_backend_fs_open_block;
     bend->read_block = block_backend_fs_read_block;
@@ -342,6 +438,7 @@ block_backend_fs_new (const char *block_dir, const char *tmp_dir)
     bend->stat_block_by_handle = block_backend_fs_stat_block_by_handle;
     bend->block_handle_free = block_backend_fs_block_handle_free;
     bend->foreach_block = block_backend_fs_foreach_block;
+    bend->remove_store = block_backend_fs_remove_store;
 
     return bend;
 

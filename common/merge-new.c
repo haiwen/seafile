@@ -6,7 +6,8 @@
 #include "log.h"
 
 static int
-merge_trees_recursive (int n, SeafDir *trees[],
+merge_trees_recursive (const char *repo_id, int version,
+                       int n, SeafDir *trees[],
                        const char *basedir,
                        MergeOptions *opt);
 
@@ -261,7 +262,8 @@ merge_entries (int n, SeafDirent *dents[],
 }
 
 static int
-merge_directories (int n, SeafDirent *dents[],
+merge_directories (const char *repo_id, int version,
+                   int n, SeafDirent *dents[],
                    const char *basedir,
                    GList **dents_out,
                    MergeOptions *opt)
@@ -348,7 +350,9 @@ merge_directories (int n, SeafDirent *dents[],
     memset (sub_dirs, 0, sizeof(sub_dirs[0])*n);
     for (i = 0; i < n; ++i) {
         if (dents[i] != NULL && S_ISDIR(dents[i]->mode)) {
-            dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr, dents[i]->id);
+            dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr,
+                                               repo_id, version,
+                                               dents[i]->id);
             if (!dir) {
                 seaf_warning ("Failed to find dir %s.\n", dents[i]->id);
                 ret = -1;
@@ -363,7 +367,7 @@ merge_directories (int n, SeafDirent *dents[],
 
     new_basedir = g_strconcat (basedir, dirname, "/", NULL);
 
-    ret = merge_trees_recursive (n, sub_dirs, new_basedir, opt);
+    ret = merge_trees_recursive (repo_id, version, n, sub_dirs, new_basedir, opt);
 
     g_free (new_basedir);
 
@@ -395,7 +399,8 @@ compare_dirents (gconstpointer a, gconstpointer b)
 }
 
 static int
-merge_trees_recursive (int n, SeafDir *trees[],
+merge_trees_recursive (const char *repo_id, int version,
+                       int n, SeafDir *trees[],
                        const char *basedir,
                        MergeOptions *opt)
 {
@@ -464,7 +469,8 @@ merge_trees_recursive (int n, SeafDir *trees[],
 
         /* Recurse into sub level. */
         if (n_dirs > 0) {
-            ret = merge_directories (n, dents, basedir, &merged_dents, opt);
+            ret = merge_directories (repo_id, version,
+                                     n, dents, basedir, &merged_dents, opt);
             if (ret < 0)
                 return ret;
         }
@@ -480,7 +486,7 @@ merge_trees_recursive (int n, SeafDir *trees[],
             (trees[2] && strcmp (trees[2]->dir_id, merged_tree->dir_id) == 0)) {
             seaf_dir_free (merged_tree);
         } else {
-            ret = seaf_dir_save (seaf->fs_mgr, merged_tree);
+            ret = seaf_dir_save (seaf->fs_mgr, repo_id, version, merged_tree);
             seaf_dir_free (merged_tree);
             if (ret < 0) {
                 seaf_warning ("Failed to save merged tree %s.\n", basedir);
@@ -492,7 +498,8 @@ merge_trees_recursive (int n, SeafDir *trees[],
 }
 
 int
-seaf_merge_trees (int n, const char *roots[], MergeOptions *opt)
+seaf_merge_trees (const char *repo_id, int version,
+                  int n, const char *roots[], MergeOptions *opt)
 {
     SeafDir **trees, *root;
     int i, ret;
@@ -501,7 +508,7 @@ seaf_merge_trees (int n, const char *roots[], MergeOptions *opt)
 
     trees = g_new0 (SeafDir *, n);
     for (i = 0; i < n; ++i) {
-        root = seaf_fs_manager_get_seafdir (seaf->fs_mgr, roots[i]);
+        root = seaf_fs_manager_get_seafdir (seaf->fs_mgr, repo_id, version, roots[i]);
         if (!root) {
             seaf_warning ("Failed to find dir %s.\n", roots[i]);
             g_free (trees);
@@ -510,7 +517,7 @@ seaf_merge_trees (int n, const char *roots[], MergeOptions *opt)
         trees[i] = root;
     }
 
-    ret = merge_trees_recursive (n, trees, "", opt);
+    ret = merge_trees_recursive (repo_id, version, n, trees, "", opt);
 
     for (i = 0; i < n; ++i)
         seaf_dir_free (trees[i]);

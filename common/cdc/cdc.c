@@ -90,7 +90,9 @@ do {                                                         \
     int _block_sz = (block_sz);                              \
     chunk_descr.len = _block_sz;                             \
     chunk_descr.offset = offset;                             \
-    ret = file_descr->write_block (&chunk_descr,             \
+    ret = file_descr->write_block (file_descr->repo_id,      \
+                                   file_descr->version,      \
+                                   &chunk_descr,             \
             crypt, chunk_descr.checksum,                     \
                                    (write_data));            \
     if (ret < 0) {                                           \

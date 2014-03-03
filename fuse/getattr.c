@@ -79,14 +79,18 @@ static int getattr_repo(SeafileSession *seaf,
     }
 
     branch = repo->head;
-    commit = seaf_commit_manager_get_commit(seaf->commit_mgr, branch->commit_id);
+    commit = seaf_commit_manager_get_commit(seaf->commit_mgr,
+                                            repo->id, repo->version,
+                                            branch->commit_id);
     if (!commit) {
         seaf_warning ("Failed to get commit %.8s.\n", branch->commit_id);
         ret = -ENOENT;
         goto out;
     }
 
-    id = seaf_fs_manager_path_to_obj_id(seaf->fs_mgr, commit->root_id,
+    id = seaf_fs_manager_path_to_obj_id(seaf->fs_mgr,
+                                        repo->store_id, repo->version,
+                                        commit->root_id,
                                         repo_path, &mode, NULL);
     if (!id) {
         seaf_warning ("Path %s doesn't exist in repo %s.\n", repo_path, repo_id);
@@ -99,7 +103,8 @@ static int getattr_repo(SeafileSession *seaf,
         GList *l;
         int cnt = 2; /* '.' and '..' */
 
-        dir = seaf_fs_manager_get_seafdir(seaf->fs_mgr, id);
+        dir = seaf_fs_manager_get_seafdir(seaf->fs_mgr,
+                                          repo->store_id, repo->version, id);
         if (dir) {
             for (l = dir->entries; l; l = l->next)
                 cnt++;
@@ -113,7 +118,8 @@ static int getattr_repo(SeafileSession *seaf,
     } else if (S_ISREG(mode)) {
         Seafile *file;
 
-        file = seaf_fs_manager_get_seafile(seaf->fs_mgr, id);
+        file = seaf_fs_manager_get_seafile(seaf->fs_mgr,
+                                           repo->store_id, repo->version, id);
         if (file)
             stbuf->st_size = file->file_size;
 

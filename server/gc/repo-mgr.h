@@ -46,6 +46,16 @@ struct _SeafRepo {
     gboolean    is_corrupted;
     gboolean    delete_pending;
     int         ref_cnt;
+
+    int version;
+    /* Used to access fs and block sotre.
+     * This id is different from repo_id when this repo is virtual.
+     * Virtual repos share fs and block store with its origin repo.
+     * However, commit store for each repo is always independent.
+     * So always use repo_id to access commit store.
+     */
+    gchar       store_id[37];
+    gboolean    is_virtual;
 };
 
 gboolean is_repo_id_valid (const char *id);
@@ -104,7 +114,8 @@ seaf_repo_manager_repo_exists_prefix (SeafRepoManager *manager, const gchar *id)
 GList* 
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
                                  int start, int limit,
-                                 gboolean ignore_errors);
+                                 gboolean ignore_errors,
+                                 gboolean *error);
 
 GList *
 seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr);
@@ -143,5 +154,15 @@ seaf_repo_manager_get_virtual_repo_info (SeafRepoManager *mgr,
 
 void
 seaf_virtual_repo_info_free (SeafVirtRepo *vinfo);
+
+GList *
+seaf_repo_manager_get_virtual_repo_ids_by_origin (SeafRepoManager *mgr,
+                                                  const char *origin_repo);
+
+GList *
+seaf_repo_manager_list_garbage_repos (SeafRepoManager *mgr);
+
+void
+seaf_repo_manager_remove_garbage_repo (SeafRepoManager *mgr, const char *repo_id);
 
 #endif

@@ -35,7 +35,8 @@ struct traverse_info {
 	int show_all_errors;
 };
 
-void fill_tree_descriptor(struct tree_desc *desc, const char *root_id);
+void fill_tree_descriptor(const char *repo_id, int version,
+                          struct tree_desc *desc, const char *root_id);
 int traverse_trees(int n, struct tree_desc *t, struct traverse_info *info);
 char *make_traverse_path(char *path, const struct traverse_info *info, const struct name_entry *n);
 

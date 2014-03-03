@@ -158,6 +158,7 @@ seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit)
         }
     }
     repo->no_local_history = commit->no_local_history;
+    repo->version = commit->version;
 }
 
 void
@@ -176,6 +177,7 @@ seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit)
         }
     }
     commit->no_local_history = repo->no_local_history;
+    commit->version = repo->version;
 }
 
 static gboolean
@@ -207,6 +209,8 @@ seaf_repo_get_commits (SeafRepo *repo)
     for (ptr = branches; ptr != NULL; ptr = ptr->next) {
         branch = ptr->data;
         gboolean res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                                 repo->id,
+                                                                 repo->version,
                                                                  branch->commit_id,
                                                                  collect_commit,
                                                                  &commits,
@@ -357,10 +361,39 @@ seaf_repo_manager_add_repo (SeafRepoManager *manager,
 }
 
 static int
-remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
+add_deleted_repo_record (SeafRepoManager *mgr, const char *repo_id)
+{
+    char sql[256];
+
+    if (seaf_db_type(seaf->db) == SEAF_DB_TYPE_PGSQL) {
+        gboolean err;
+        snprintf (sql, sizeof(sql),
+                  "SELECT repo_id FROM GarbageRepos WHERE repo_id='%s'",
+                  repo_id);
+        if (!seaf_db_check_for_existence (seaf->db, sql, &err))
+            snprintf(sql, sizeof(sql),
+                     "INSERT INTO GarbageRepos VALUES ('%s')",
+                     repo_id);
+        if (err)
+            return -1;
+        return seaf_db_query(seaf->db, sql);
+    } else {
+        snprintf (sql, sizeof(sql), "REPLACE INTO GarbageRepos VALUES ('%s')",
+                  repo_id);
+        return seaf_db_query (seaf->db, sql);
+    }
+}
+
+static int
+remove_repo_ondisk (SeafRepoManager *mgr,
+                    const char *repo_id,
+                    gboolean add_deleted_record)
 {
     char sql[256];
     SeafDB *db = mgr->seaf->db;
+
+    if (add_deleted_record)
+        add_deleted_repo_record (mgr, repo_id);
 
     /* Remove record in repo table first.
      * Once this is commited, we can gc the other tables later even if
@@ -424,7 +457,7 @@ remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
     GList *vrepos, *ptr;
     vrepos = seaf_repo_manager_get_virtual_repo_ids_by_origin (mgr, repo_id);
     for (ptr = vrepos; ptr != NULL; ptr = ptr->next)
-        remove_repo_ondisk (mgr, (char *)ptr->data);
+        remove_repo_ondisk (mgr, (char *)ptr->data, FALSE);
     string_list_free (vrepos);
 
     snprintf (sql, sizeof(sql),
@@ -437,9 +470,10 @@ remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id)
 
 int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr,
-                            const char *repo_id)
+                            const char *repo_id,
+                            gboolean add_deleted_record)
 {
-    if (remove_repo_ondisk (mgr, repo_id) < 0)
+    if (remove_repo_ondisk (mgr, repo_id, add_deleted_record) < 0)
         return -1;
 
     return 0;
@@ -525,7 +559,7 @@ save_branch_repo_map (SeafRepoManager *manager, SeafBranch *branch)
                      branch->name, branch->repo_id);
         else
             snprintf(sql, sizeof(sql),
-                     "INSERT INTO RepoHEAD VALUES ('%s', '%s')",
+                     "INSERT INTO RepoHead VALUES ('%s', '%s')",
                      branch->repo_id, branch->name);
         if (err)
             return -1;
@@ -557,8 +591,9 @@ load_repo_commit (SeafRepoManager *manager,
 {
     SeafCommit *commit;
 
-    commit = seaf_commit_manager_get_commit (manager->seaf->commit_mgr,
-                                             branch->commit_id);
+    commit = seaf_commit_manager_get_commit_compatible (manager->seaf->commit_mgr,
+                                                        repo->id,
+                                                        branch->commit_id);
     if (!commit) {
         seaf_warning ("Commit %s is missing\n", branch->commit_id);
         repo->is_corrupted = TRUE;
@@ -604,6 +639,10 @@ load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt)
 
     /* Load virtual repo info if any. */
     repo->virtual_info = seaf_repo_manager_get_virtual_repo_info (manager, repo_id);
+    if (repo->virtual_info)
+        memcpy (repo->store_id, repo->virtual_info->origin_repo_id, 36);
+    else
+        memcpy (repo->store_id, repo->id, 36);
 
     return repo;
 }
@@ -725,6 +764,10 @@ create_tables_mysql (SeafRepoManager *mgr)
     sql = "CREATE TABLE IF NOT EXISTS VirtualRepo (repo_id CHAR(36) PRIMARY KEY,"
         "origin_repo CHAR(36), path TEXT, base_commit CHAR(40), INDEX(origin_repo))"
         "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS GarbageRepos (repo_id CHAR(36) PRIMARY KEY)";
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
@@ -903,6 +946,10 @@ create_tables_sqlite (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
+    sql = "CREATE TABLE IF NOT EXISTS GarbageRepos (repo_id CHAR(36) PRIMARY KEY)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
     return 0;
 }
 
@@ -1061,6 +1108,10 @@ create_tables_pgsql (SeafRepoManager *mgr)
         if (seaf_db_query (db, sql) < 0)
             return -1;
     }
+
+    sql = "CREATE TABLE IF NOT EXISTS GarbageRepos (repo_id CHAR(36) PRIMARY KEY)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
 
     return 0;
 }
@@ -1981,7 +2032,9 @@ get_group_repos_cb (SeafDBRow *row, void *data)
     const char *permission = seaf_db_row_get_column_text (row, 4);
     const char *commit_id = seaf_db_row_get_column_text (row, 5);
 
-    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
+    commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
+                                                        repo_id,
+                                                        commit_id);
     if (!commit)
         return TRUE;
 
@@ -2159,7 +2212,9 @@ collect_public_repos (SeafDBRow *row, void *data)
     permission = seaf_db_row_get_column_text (row, 3);
     commit_id = seaf_db_row_get_column_text (row, 4);
 
-    commit = seaf_commit_manager_get_commit (seaf->commit_mgr, commit_id);
+    commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
+                                                        repo_id,
+                                                        commit_id);
     if (!commit)
         return TRUE;
 
@@ -2769,6 +2824,9 @@ create_repo_common (SeafRepoManager *mgr,
         memcpy (repo->magic, magic, 64);
         memcpy (repo->random_key, random_key, 96);
     }
+
+    repo->version = CURRENT_REPO_VERSION;
+    memcpy (repo->store_id, repo_id, 36);
 
     commit = seaf_commit_new (NULL, repo->id,
                               EMPTY_SHA1, /* root id */

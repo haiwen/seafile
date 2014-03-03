@@ -42,7 +42,8 @@ GList* seafile_get_commit_list (const gchar *repo,
  *
  * Returns: the commit object.
  */
-GObject* seafile_get_commit (const gchar *id, GError **error);
+GObject* seafile_get_commit (const char *repo_id, int version,
+                             const gchar *id, GError **error);
 
 /**
  * seafile_get_repo:
@@ -174,7 +175,8 @@ int seafile_is_auto_sync_enabled (GError **error);
  * 
  * @limit: if limit <= 0, all dirents start from @offset will be returned.
  */
-GList * seafile_list_dir (const char *dir_id, int offset, int limit, GError **error);
+GList * seafile_list_dir (const char *repo_id,
+                          const char *dir_id, int offset, int limit, GError **error);
 
 /**
  * seafile_list_file:
@@ -184,7 +186,8 @@ GList * seafile_list_dir (const char *dir_id, int offset, int limit, GError **er
  * 
  * @limit: if limit <= 0, all blocks start from @offset will be returned.
  */
-char * seafile_list_file (const char *file_id, int offset, int limit, GError **error);
+char * seafile_list_file (const char *repo_id,
+                          const char *file_id, int offset, int limit, GError **error);
 
 /**
  * seafile_list_dir_by_path:
@@ -192,7 +195,8 @@ char * seafile_list_file (const char *file_id, int offset, int limit, GError **e
  *
  * Returns: a list of dirents.
  */
-GList * seafile_list_dir_by_path (const char *commit_id, const char *path, GError **error);
+GList * seafile_list_dir_by_path (const char *repo_id,
+                                  const char *commit_id, const char *path, GError **error);
 
 /**
  * seafile_get_dirid_by_path:
@@ -200,7 +204,8 @@ GList * seafile_list_dir_by_path (const char *commit_id, const char *path, GErro
  *
  * Returns: the dir_id of the path
  */
-char * seafile_get_dirid_by_path (const char *commit_id, const char *path, GError **error);
+char * seafile_get_dirid_by_path (const char *repo_id,
+                                  const char *commit_id, const char *path, GError **error);
 
 /**
  * seafile_revert:
@@ -222,6 +227,7 @@ seafile_check_path_for_clone(const char *path, GError **error);
  */
 char *
 seafile_clone (const char *repo_id, 
+               int repo_version,
                const char *peer_id,
                const char *repo_name,
                const char *worktree,
@@ -237,6 +243,7 @@ seafile_clone (const char *repo_id,
 
 char *
 seafile_download (const char *repo_id, 
+                  int repo_version,
                   const char *peer_id,
                   const char *repo_name,
                   const char *wt_parent,
@@ -502,10 +509,12 @@ char *
 seafile_get_org_repo_owner (const char *repo_id, GError **error);
 
 gint64
-seafile_get_file_size (const char *file_id, GError **error);
+seafile_get_file_size (const char *store_id, int version,
+                       const char *file_id, GError **error);
 
 gint64
-seafile_get_dir_size (const char *dir_id, GError **error);
+seafile_get_dir_size (const char *store_id, int version,
+                      const char *dir_id, GError **error);
 
 int
 seafile_set_repo_history_limit (const char *repo_id,
@@ -899,7 +908,8 @@ seafile_set_org_group_repo_permission (int org_id,
                                        const char *permission,
                                        GError **error);
 char *
-seafile_get_file_id_by_commit_and_path(const char *commit_id,
+seafile_get_file_id_by_commit_and_path(const char *repo_id,
+                                       const char *commit_id,
                                        const char *path,
                                        GError **error);
 

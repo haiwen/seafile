@@ -93,7 +93,8 @@ block_proc_start (CcnetProcessor *processor, int argc, char **argv)
         return -1;
     }
 
-    prepare_thread_data (processor, recv_blocks, got_block_cb);
+    prepare_thread_data (processor, recv_blocks, got_block_cb,
+                         proc->tx_task->repo_id);
     priv->tdata->task = proc->tx_task;
 
     return 0;

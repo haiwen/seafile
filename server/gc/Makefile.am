@@ -20,7 +20,8 @@ noinst_HEADERS = \
 	seafile-session.h \
 	repo-mgr.h \
 	verify.h \
-	fsck.h
+	fsck.h \
+	gc-core.h
 
 common_sources = \
 	seafile-session.c \
@@ -43,7 +44,7 @@ common_sources = \
 seafserv_gc_SOURCES = \
 	seafserv-gc.c \
 	verify.c \
-	../../common/gc-core.c \
+	gc-core.c \
 	$(common_sources)
 
 seafserv_gc_LDADD = @CCNET_LIBS@ \

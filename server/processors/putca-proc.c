@@ -206,6 +206,8 @@ compute_common_ancestor_thread (void *vprocessor)
      * is the common ancestor.
      */
     if (seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                  repo->id,
+                                                  repo->version,
                                                   repo->head->commit_id,
                                                   find_common_ancestor,
                                                   processor,

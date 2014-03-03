@@ -7,7 +7,8 @@ int parse_fuse_path (const char *path,
                      int *n_parts, char **user, char **repo_id, char **repo_path);
 
 /* file.c */
-int read_file(SeafileSession *seaf, Seafile *file, char *buf, size_t size,
+int read_file(SeafileSession *seaf, const char *store_id, int version,
+              Seafile *file, char *buf, size_t size,
               off_t offset, struct fuse_file_info *info);
 
 /* getattr.c */

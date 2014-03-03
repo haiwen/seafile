@@ -263,6 +263,15 @@ handle_response (CcnetProcessor *processor,
         if (server_version == 4)
             server_version = 3;
         task->protocol_version = MIN (server_version, CURRENT_PROTO_VERSION);
+
+        if (task->protocol_version < 5) {
+            seaf_warning ("Deprecated server protocol version %d.\n",
+                          task->protocol_version);
+            transfer_task_set_error (task, TASK_ERR_DEPRECATED_SERVER);
+            ccnet_processor_done (processor, FALSE);
+            return;
+        }
+
         seaf_message ("protocol version is %d.\n", task->protocol_version);
         ccnet_processor_done (processor, TRUE);
     } else {

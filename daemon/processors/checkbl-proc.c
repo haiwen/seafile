@@ -83,11 +83,17 @@ seafile_checkbl_proc_init (SeafileCheckblProc *processor)
 static int
 start (CcnetProcessor *processor, int argc, char **argv)
 {
-    char buf[256];
+    SeafileCheckblProc *proc = (SeafileCheckblProc *)processor;
+    TransferTask *task = proc->task;
+    GString *buf = g_string_new ("");
 
-    snprintf (buf, sizeof(buf),
-              "remote %s seafile-checkbl", processor->peer_id);
-    ccnet_processor_send_request (processor, buf);
+    if (!proc->send_session_token)
+        g_string_printf (buf, "remote %s seafile-checkbl", processor->peer_id);
+    else
+        g_string_printf (buf, "remote %s seafile-checkbl %s",
+                         processor->peer_id, task->session_token);
+    ccnet_processor_send_request (processor, buf->str);
+    g_string_free (buf, TRUE);
 
     return 0;
 }

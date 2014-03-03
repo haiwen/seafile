@@ -168,14 +168,18 @@ static int readdir_repo(SeafileSession *seaf,
     }
 
     branch = repo->head;
-    commit = seaf_commit_manager_get_commit(seaf->commit_mgr, branch->commit_id);
+    commit = seaf_commit_manager_get_commit(seaf->commit_mgr,
+                                            repo->id, repo->version,
+                                            branch->commit_id);
     if (!commit) {
         seaf_warning ("Failed to get commit %.8s.\n", branch->commit_id);
         ret = -ENOENT;
         goto out;
     }
 
-    dir = seaf_fs_manager_get_seafdir_by_path(seaf->fs_mgr, commit->root_id,
+    dir = seaf_fs_manager_get_seafdir_by_path(seaf->fs_mgr,
+                                              repo->store_id, repo->version,
+                                              commit->root_id,
                                               repo_path, NULL);
     if (!dir) {
         seaf_warning ("Path %s doesn't exist in repo %s.\n", repo_path, repo_id);

@@ -48,6 +48,9 @@ struct _BlockTxServer {
     gboolean break_loop;
 
     int version;
+
+    char store_id[37];
+    int repo_version;
 };
 
 typedef struct _BlockTxServer BlockTxServer;
@@ -245,6 +248,8 @@ handle_auth_req_content_cb (char *content, int clen, void *cbarg)
     BlockTxServer *server = cbarg;
     char *session_token = content;
     SearpcClient *client = NULL;
+    char repo_id[37];
+    SeafRepo *repo;
 
     if (session_token[clen - 1] != '\0') {
         seaf_warning ("Invalid session token format.\n");
@@ -262,7 +267,7 @@ handle_auth_req_content_cb (char *content, int clen, void *cbarg)
     }
 
     if (seaf_token_manager_verify_token (seaf->token_mgr, client, NULL,
-                                         session_token, NULL) < 0) {
+                                         session_token, repo_id) < 0) {
         seaf_warning ("Session token check failed.\n");
         send_auth_response (server, STATUS_ACCESS_DENIED);
         ccnet_rpc_client_free (client);
@@ -270,6 +275,15 @@ handle_auth_req_content_cb (char *content, int clen, void *cbarg)
     }
 
     ccnet_rpc_client_free (client);
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %.8s.\n", repo_id);
+        return -1;
+    }
+    memcpy (server->store_id, repo->store_id, 36);
+    server->repo_version = repo->version;
+    seaf_repo_unref (repo);
 
     if (send_auth_response (server, STATUS_OK) < 0)
         return -1;
@@ -369,7 +383,10 @@ handle_block_header_content_cb (char *content, int clen, void *cbarg)
 
         seaf_debug ("Received GET request for block %s.\n", server->curr_block_id);
 
-        md = seaf_block_manager_stat_block (seaf->block_mgr, server->curr_block_id);
+        md = seaf_block_manager_stat_block (seaf->block_mgr,
+                                            server->store_id,
+                                            server->repo_version,
+                                            server->curr_block_id);
         if (!md) {
             seaf_warning ("Failed to stat block %s.\n", server->curr_block_id);
             send_block_response_header (server, STATUS_NOT_FOUND);
@@ -391,6 +408,8 @@ handle_block_header_content_cb (char *content, int clen, void *cbarg)
         seaf_debug ("Received PUT request for block %s.\n", server->curr_block_id);
 
         server->block = seaf_block_manager_open_block (seaf->block_mgr,
+                                                       server->store_id,
+                                                       server->repo_version,
                                                        server->curr_block_id,
                                                        BLOCK_WRITE);
         if (!server->block) {
@@ -481,6 +500,8 @@ send_block_content (BlockTxServer *server, int block_size)
     int ret = 0;
 
     handle = seaf_block_manager_open_block (seaf->block_mgr,
+                                            server->store_id,
+                                            server->repo_version,
                                             server->curr_block_id,
                                             BLOCK_READ);
     if (!handle) {

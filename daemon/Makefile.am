@@ -21,14 +21,8 @@ proc_headers = $(addprefix processors/, \
 	check-tx-proc.h \
 	check-tx-v2-proc.h \
 	check-tx-v3-proc.h \
-	getcommit-proc.h \
-	sendcommit-proc.h \
 	sendfs-proc.h \
 	getfs-proc.h \
-	getblock-proc.h \
-	getblock-v2-proc.h \
-	sendblock-proc.h \
-	sendblock-v2-proc.h \
 	sendbranch-proc.h \
 	getcs-proc.h \
 	sync-repo-proc.h \
@@ -36,10 +30,7 @@ proc_headers = $(addprefix processors/, \
 	notifysync-slave-proc.h \
 	sync-repo-slave-proc.h \
 	check-tx-slave-proc.h \
-	putcommit-proc.h  \
-	putfs-proc.h \
 	getcommit-v2-proc.h \
-	sendcommit-v2-proc.h \
 	sendcommit-v3-proc.h \
 	getrepoemailtoken-proc.h \
 	getcs-v2-proc.h \
@@ -61,11 +52,11 @@ noinst_HEADERS = \
 	merge.h merge-recursive.h vc-utils.h seafile-session.h \
 	clone-mgr.h \
 	share-mgr.h \
-	gc.h \
 	wt-monitor-common.h \
 	../common/sync-repo-common.h \
 	block-tx-client.h \
 	seafile-config.h \
+	gc-core.h \
 	$(proc_headers)
 
 if LINUX
@@ -96,7 +87,7 @@ common_src = \
 	repo-mgr.c ../common/commit-mgr.c \
 	../common/log.c ../common/avl/avl.c ../common/object-list.c \
 	../common/rpc-service.c \
-	gc.c ../common/gc-core.c ../common/vc-common.c \
+	gc-core.c ../common/vc-common.c \
 	../common/seaf-utils.c \
 	../common/obj-store.c \
 	../common/obj-backend-fs.c \
@@ -110,14 +101,8 @@ common_src = \
 	processors/check-tx-proc.c \
 	processors/check-tx-v2-proc.c \
 	processors/check-tx-v3-proc.c \
-	processors/getcommit-proc.c \
-	processors/sendcommit-proc.c \
 	processors/sendfs-proc.c \
 	processors/getfs-proc.c \
-	processors/getblock-proc.c \
-	processors/getblock-v2-proc.c \
-	processors/sendblock-proc.c \
-	processors/sendblock-v2-proc.c \
 	processors/sendbranch-proc.c \
 	processors/getcs-proc.c \
 	processors/notifysync-proc.c \
@@ -125,10 +110,7 @@ common_src = \
 	processors/sync-repo-proc.c \
 	processors/sync-repo-slave-proc.c \
 	processors/check-tx-slave-proc.c \
-	processors/putcommit-proc.c \
-	processors/putfs-proc.c \
 	processors/getcommit-v2-proc.c \
-	processors/sendcommit-v2-proc.c \
 	processors/sendcommit-v3-proc.c \
 	processors/getrepoemailtoken-proc.c \
 	processors/getcs-v2-proc.c \
