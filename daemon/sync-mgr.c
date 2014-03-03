@@ -1417,11 +1417,27 @@ auto_commit_pulse (void *vmanager)
         /* If repo has been checked out and the worktree doesn't exist,
          * we'll delete the repo automatically.
          */
-        if (repo->head != NULL && seaf_repo_check_worktree (repo) < 0) {
-            seaf_repo_manager_invalidate_repo_worktree (seaf->repo_mgr, repo);
-            auto_delete_repo (manager, repo);
-            continue;
+
+        if (repo->head != NULL) {
+            if (seaf_repo_check_worktree (repo) < 0) {
+                if (!repo->worktree_invalid) {
+                    // The repo worktree was valid, but now it's invalid
+                    seaf_repo_manager_invalidate_repo_worktree (seaf->repo_mgr, repo);
+                    if (!seafile_session_config_get_allow_invalid_worktree(seaf)) {
+                        auto_delete_repo (manager, repo);
+                    }
+                }
+                continue;
+            } else {
+                if (repo->worktree_invalid) {
+                    // The repo worktree was invalid, but now it's valid again,
+                    // so we start watch it
+                    seaf_repo_manager_validate_repo_worktree (seaf->repo_mgr, repo);
+                    continue;
+                }
+            }
         }
+
         repo->worktree_invalid = FALSE;
 
         if (manager->priv->auto_sync_enabled && repo->auto_sync) {

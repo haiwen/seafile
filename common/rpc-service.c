@@ -43,7 +43,10 @@ convert_repo_list (GList *inner_repos)
         SeafRepo *r = ptr->data;
 #ifndef SEAFILE_SERVER
         /* Don't display repos without worktree. */
-        if (r->head == NULL || r->worktree_invalid)
+        if (r->head == NULL)
+            continue;
+
+        if (r->worktree_invalid && !seafile_session_config_get_allow_invalid_worktree(seaf))
             continue;
 #endif
 
@@ -1034,7 +1037,10 @@ seafile_get_repo (const char *repo_id, GError **error)
         return NULL;
 
 #ifndef SEAFILE_SERVER
-    if (r->head == NULL || r->worktree_invalid)
+    if (r->head == NULL)
+        return NULL;
+
+    if (r->worktree_invalid && !seafile_session_config_get_allow_invalid_worktree(seaf))
         return NULL;
 #endif
 

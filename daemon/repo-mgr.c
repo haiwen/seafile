@@ -1956,10 +1956,16 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     repo->token = load_repo_property (manager, repo->id, REPO_PROP_TOKEN);
     
     if (repo->head != NULL && seaf_repo_check_worktree (repo) < 0) {
-        seaf_message ("Worktree for repo \"%s\" is invalid, delte it.\n",
-                      repo->name);
-        seaf_repo_manager_del_repo (manager, repo);
-        return NULL;
+        if (seafile_session_config_get_allow_invalid_worktree(seaf)) {
+            seaf_warning ("Worktree for repo \"%s\" is invalid, but still keep it.\n",
+                          repo->name);
+            repo->worktree_invalid = TRUE;
+        } else {
+            seaf_message ("Worktree for repo \"%s\" is invalid, delete it.\n",
+                          repo->name);
+            seaf_repo_manager_del_repo (manager, repo);
+            return NULL;
+        }
     }
 
     avl_insert (manager->priv->repo_tree, repo);

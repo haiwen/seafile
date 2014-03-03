@@ -21,7 +21,7 @@ config_get_string (sqlite3 *config_db, const char *key)
     char sql[256];
     char *value = NULL;
 
-    snprintf (sql, sizeof(sql), 
+    snprintf (sql, sizeof(sql),
               "SELECT value FROM Config WHERE key='%s';",
               key);
     if (sqlite_foreach_selected_row (config_db, sql,
@@ -111,4 +111,18 @@ seafile_session_config_open_db (const char *db_path)
     sqlite_query_exec (db, sql);
 
     return db;
+}
+
+int
+seafile_session_config_set_allow_invalid_worktree(SeafileSession *session, gboolean val)
+{
+    return seafile_session_config_set_string(session, KEY_ALLOW_INVALID_WORKTREE,
+                                             val ? "true" : "false");
+}
+
+gboolean
+seafile_session_config_get_allow_invalid_worktree(SeafileSession *session)
+{
+    return g_strcmp0(seafile_session_config_get_string(session, \
+                        KEY_ALLOW_INVALID_WORKTREE), "true") == 0;
 }
