@@ -46,7 +46,7 @@ SearpcClient *ccnetrpc_client;
 SearpcClient *appletrpc_client;
 CcnetClient *bind_client;
 
-static const char *short_options = "hvc:d:w:l:D:bg:G:";
+static const char *short_options = "hvc:d:w:l:D:bg:G:R";
 static struct option long_options[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -58,6 +58,7 @@ static struct option long_options[] = {
     { "log", required_argument, NULL, 'l' },
     { "ccnet-debug-level", required_argument, NULL, 'g' },
     { "seafile-debug-level", required_argument, NULL, 'G' },
+    { "log-rotate", no_argument, NULL, 'R' },
     { NULL, 0, NULL, 0, },
 };
 
@@ -398,6 +399,9 @@ main (int argc, char **argv)
             break;
         case 'G':
             seafile_debug_level_str = optarg;
+            break;
+        case 'R':
+            seafile_log_set_option(SEAFILE_LOG_ROTATE);
             break;
         default:
             usage ();
