@@ -14,6 +14,7 @@
 #define KEY_DB_NAME "db_name"
 #define KEY_UPLOAD_LIMIT "upload_limit"
 #define KEY_DOWNLOAD_LIMIT "download_limit"
+#define KEY_ALLOW_INVALID_WORKTREE "allow_invalid_worktree"
 
 /*
  * Returns: config value in string. The string should be freed by caller. 
@@ -42,7 +43,14 @@ seafile_session_config_set_int (SeafileSession *session,
                                 const char *key,
                                 int value);
 
+int
+seafile_session_config_set_allow_invalid_worktree(SeafileSession *session, gboolean val);
+
+gboolean
+seafile_session_config_get_allow_invalid_worktree(SeafileSession *session);
+
 sqlite3 *
 seafile_session_config_open_db (const char *db_path);
+
 
 #endif

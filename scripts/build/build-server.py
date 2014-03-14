@@ -238,6 +238,20 @@ class Seahub(Project):
     def get_version(self):
         return conf[CONF_SEAFILE_VERSION]
 
+    def build(self):
+        self.write_version_to_settings_py()
+
+        Project.build(self)
+
+    def write_version_to_settings_py(self):
+        '''Write the version of current seafile server to seahub'''
+        settings_py = os.path.join(self.projdir, 'seahub', 'settings.py')
+
+        line = '\nSEAFILE_VERSION = "%s"\n' % conf[CONF_VERSION]
+        with open(settings_py, 'a+') as fp:
+            fp.write(line)
+
+
 def check_seahub_thirdpart(thirdpartdir):
     '''The ${thirdpartdir} must have django/djblets/gunicorn pre-installed. So
     we can copy it to seahub/thirdpart
@@ -318,6 +332,7 @@ def validate_args(usage, options):
     check_targz_src('ccnet', ccnet_version, srcdir)
     check_targz_src('seafile', seafile_version, srcdir)
     check_targz_src('seahub', seafile_version, srcdir)
+    check_targz_src_no_version('seafdav', srcdir)
 
     # check_pdf2htmlEX()
 
@@ -514,13 +529,20 @@ def setup_build_env():
 
 def copy_user_manuals():
     builddir = conf[CONF_BUILDDIR]
-    src_pattern = os.path.join(builddir, Seafile().projdir, 'doc', '*.doc')
+    # src_pattern = os.path.join(builddir, Seafile().projdir, 'doc', '*.doc')
+    src_pattern = os.path.join(builddir, Seafile().projdir, 'doc', 'seafile-tutorial.doc')
     dst_dir = os.path.join(builddir, 'seafile-server', 'seafile', 'docs')
 
     must_mkdir(dst_dir)
 
     for path in glob.glob(src_pattern):
         must_copy(path, dst_dir)
+        
+def copy_seafdav():
+    dst_dir = os.path.join(conf[CONF_BUILDDIR], 'seafile-server', 'seahub', 'thirdpart')
+    tarball = os.path.join(conf[CONF_SRCDIR], 'seafdav.tar.gz')
+    if run('tar xf %s -C %s' % (tarball, dst_dir)) != 0:
+        error('failed to uncompress %s' % tarball)
 
 def copy_scripts_and_libs():
     '''Copy server release scripts and shared libs, as well as seahub
@@ -571,6 +593,8 @@ def copy_scripts_and_libs():
     # copy seahub thirdpart libs
     seahub_thirdpart = os.path.join(dst_seahubdir, 'thirdpart')
     copy_seahub_thirdpart_libs(seahub_thirdpart)
+    copy_seafdav()
+
 
     # copy_pdf2htmlex()
 

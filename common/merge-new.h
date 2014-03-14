@@ -23,6 +23,7 @@ typedef struct MergeOptions {
                                       * and handle conflicts */
     char                merged_tree_root[41]; /* merge result */
     int                 visit_dirs;
+    gboolean            conflict;
 } MergeOptions;
 
 int

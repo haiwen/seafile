@@ -414,6 +414,48 @@ static const char *sync_state_str[] = {
     "cancel pending"
 };
 
+static gboolean
+find_meaningful_commit (SeafCommit *commit, void *data, gboolean *stop)
+{
+    SeafCommit **p_head = data;
+
+    if (commit->second_parent_id && commit->new_merge && !commit->conflict)
+        return TRUE;
+
+    *stop = TRUE;
+    seaf_commit_ref (commit);
+    *p_head = commit;
+    return TRUE;
+}
+
+static void
+notify_sync (SeafRepo *repo)
+{
+    SeafCommit *head = NULL;
+
+    if (!seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+                                                   repo->id, repo->version,
+                                                   repo->head->commit_id,
+                                                   find_meaningful_commit,
+                                                   &head, FALSE)) {
+        seaf_warning ("Failed to traverse commit tree of %.8s.\n", repo->id);
+        return;
+    }
+    if (!head)
+        return;
+
+    GString *buf = g_string_new (NULL);
+    g_string_append_printf (buf, "%s\t%s\t%s",
+                            repo->name,
+                            repo->id,
+                            head->desc);
+    seaf_mq_manager_publish_notification (seaf->mq_mgr,
+                                          "sync.done",
+                                          buf->str);
+    g_string_free (buf, TRUE);
+    seaf_commit_unref (head);
+}
+
 static inline void
 transition_sync_state (SyncTask *task, int new_state)
 {
@@ -433,23 +475,7 @@ transition_sync_state (SyncTask *task, int new_state)
             new_state == SYNC_STATE_DONE &&
             need_notify_sync(task->repo))
         {
-            SeafCommit *head;
-            head = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                                   task->repo->id,
-                                                   task->repo->version,
-                                                   task->repo->head->commit_id);
-            if (head) {
-                GString *buf = g_string_new (NULL);
-                g_string_append_printf (buf, "%s\t%s\t%s",
-                                        task->repo->name,
-                                        task->repo->id,
-                                        head->desc);
-                seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                                      "sync.done",
-                                                      buf->str);
-                g_string_free (buf, TRUE);
-                seaf_commit_unref (head);
-            }
+            notify_sync (task->repo);
         }
 
         task->state = new_state;
@@ -1670,11 +1696,27 @@ auto_commit_pulse (void *vmanager)
         /* If repo has been checked out and the worktree doesn't exist,
          * we'll delete the repo automatically.
          */
-        if (repo->head != NULL && seaf_repo_check_worktree (repo) < 0) {
-            seaf_repo_manager_invalidate_repo_worktree (seaf->repo_mgr, repo);
-            auto_delete_repo (manager, repo);
-            continue;
+
+        if (repo->head != NULL) {
+            if (seaf_repo_check_worktree (repo) < 0) {
+                if (!repo->worktree_invalid) {
+                    // The repo worktree was valid, but now it's invalid
+                    seaf_repo_manager_invalidate_repo_worktree (seaf->repo_mgr, repo);
+                    if (!seafile_session_config_get_allow_invalid_worktree(seaf)) {
+                        auto_delete_repo (manager, repo);
+                    }
+                }
+                continue;
+            } else {
+                if (repo->worktree_invalid) {
+                    // The repo worktree was invalid, but now it's valid again,
+                    // so we start watch it
+                    seaf_repo_manager_validate_repo_worktree (seaf->repo_mgr, repo);
+                    continue;
+                }
+            }
         }
+
         repo->worktree_invalid = FALSE;
 
         if (manager->priv->auto_sync_enabled && repo->auto_sync) {

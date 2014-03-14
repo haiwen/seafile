@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 
 
 AC_PREREQ(2.61)
-AC_INIT([seafile], [2.0.8], [freeplant@gmail.com])
+AC_INIT([seafile], [2.1.2], [freeplant@gmail.com])
 AC_CONFIG_HEADER([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -233,10 +233,8 @@ AC_SUBST(LIB_MAC)
 AC_SUBST(MSVC_CFLAGS)
 
 
-# gtk and glib
-APPINDICATOR_REQUIRED=0.0.7
+LIBEVENT_REQUIRED=2.0
 GLIB_REQUIRED=2.16.0
-GTK_REQUIRED=2.16.0
 CCNET_REQUIRED=0.9.3
 SEARPC_REQUIRED=1.0
 ZDB_REQUIRED=2.10
@@ -260,22 +258,10 @@ PKG_CHECK_MODULES(SEARPC, [libsearpc >= $SEARPC_REQUIRED])
 AC_SUBST(SEARPC_CFLAGS)
 AC_SUBST(SEARPC_LIBS)
 
-AC_ARG_ENABLE(appindicator,
-   AC_HELP_STRING([--enable-appindicator[=@<:@no/auto/yes@:>@]],[Build support for application indicators ]),
-   [enable_appindicator=$enableval],
-   [enable_appindicator="auto"])
+PKG_CHECK_MODULES(LIBEVENT, [libevent >= $LIBEVENT_REQUIRED])
+AC_SUBST(LIBEVENT_CFLAGS)
+AC_SUBST(LIBEVENT_LIBS)
 
-if test x$enable_appindicator = xyes ; then
-   PKG_CHECK_EXISTS([appindicator-0.1 >= $APPINDICATOR_REQUIRED],,
-                   AC_MSG_ERROR([appindicator-0.1 is not installed]))
-   PKG_CHECK_MODULES(APP_INDICATOR,
-                    appindicator-0.1 >= $APPINDICATOR_REQUIRED)
-   AC_SUBST(APP_INDICATOR_CFLAGS)
-   AC_SUBST(APP_INDICATOR_LIBS)
-   AC_DEFINE(HAVE_APP_INDICATOR, 1, [Have AppIndicator])
-fi
-
-AM_CONDITIONAL(HAVE_APP_INDICATOR, [test x"$enable_appindicator" = xyes])
 
 if test x${compile_python} = xyes; then
    AM_PATH_PYTHON([2.6])

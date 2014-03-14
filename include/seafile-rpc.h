@@ -112,6 +112,13 @@ int seafile_edit_repo (const gchar *repo_id,
                        const gchar *user,
 		       GError **error);
 
+int
+seafile_change_repo_passwd (const char *repo_id,
+                            const char *old_passwd,
+                            const char *new_passwd,
+                            const char *user,
+                            GError **error);
+
 /**
  * seafile_repo_size:
  * 

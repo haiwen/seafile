@@ -613,6 +613,10 @@ commit_to_json_object (SeafCommit *commit)
         json_object_set_int_member (object, "no_local_history", 1);
     if (commit->version != 0)
         json_object_set_int_member (object, "version", commit->version);
+    if (commit->conflict)
+        json_object_set_int_member (object, "conflict", 1);
+    if (commit->new_merge)
+        json_object_set_int_member (object, "new_merge", 1);
 
     return object;
 }
@@ -637,6 +641,7 @@ commit_from_json_object (const char *commit_id, json_t *object)
     const char *random_key = NULL;
     int no_local_history = 0;
     int version = 0;
+    int conflict = 0, new_merge = 0;
 
     root_id = json_object_get_string_member (object, "root_id");
     repo_id = json_object_get_string_member (object, "repo_id");
@@ -644,6 +649,8 @@ commit_from_json_object (const char *commit_id, json_t *object)
         creator_name = json_object_get_string_or_null_member (object, "creator_name");
     creator = json_object_get_string_member (object, "creator");
     desc = json_object_get_string_member (object, "description");
+    if (!desc)
+        desc = "";
     ctime = (guint64) json_object_get_int_member (object, "ctime");
     parent_id = json_object_get_string_or_null_member (object, "parent_id");
     second_parent_id = json_object_get_string_or_null_member (object, "second_parent_id");
@@ -668,6 +675,11 @@ commit_from_json_object (const char *commit_id, json_t *object)
 
     if (json_object_has_member (object, "version"))
         version = json_object_get_int_member (object, "version");
+    if (json_object_has_member (object, "new_merge"))
+        new_merge = json_object_get_int_member (object, "new_merge");
+
+    if (json_object_has_member (object, "conflict"))
+        conflict = json_object_get_int_member (object, "conflict");
 
     /* sanity check for incoming values. */
     if (!repo_id || strlen(repo_id) != 36 ||
@@ -723,6 +735,10 @@ commit_from_json_object (const char *commit_id, json_t *object)
     if (no_local_history)
         commit->no_local_history = TRUE;
     commit->version = version;
+    if (new_merge)
+        commit->new_merge = TRUE;
+    if (conflict)
+        commit->conflict = TRUE;
 
     return commit;
 }
@@ -748,11 +764,20 @@ load_commit (SeafCommitManager *mgr,
 
     object = json_loadb (data, len, 0, &jerror);
     if (!object) {
-        if (jerror.text)
-            g_warning ("Failed to load commit json object: %s.\n", jerror.text);
+        /* Perhaps the commit object contains invalid UTF-8 character. */
+        if (data[len-1] == 0)
+            clean_utf8_data (data, len - 1);
         else
-            g_warning ("Failed to load commit json object.\n");
-        goto out;
+            clean_utf8_data (data, len);
+
+        object = json_loadb (data, len, 0, &jerror);
+        if (!object) {
+            if (jerror.text)
+                g_warning ("Failed to load commit json object: %s.\n", jerror.text);
+            else
+                g_warning ("Failed to load commit json object.\n");
+            goto out;
+        }
     }
 
     commit = commit_from_json_object (commit_id, object);

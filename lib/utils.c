@@ -1925,3 +1925,26 @@ json_object_set_int_member (json_t *object, const char *key, gint64 value)
 {
     json_object_set_new (object, key, json_integer (value));
 }
+
+void
+clean_utf8_data (char *data, int len)
+{
+    const char *s, *e;
+    char *p;
+    gboolean is_valid;
+
+    s = data;
+    p = data;
+
+    while ((s - data) != len) {
+        is_valid = g_utf8_validate (s, len - (s - data), &e);
+        if (is_valid)
+            break;
+
+        if (s != e)
+            p += (e - s);
+        *p = '?';
+        ++p;
+        s = e + 1;
+    }
+}

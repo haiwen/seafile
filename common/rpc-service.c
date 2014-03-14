@@ -43,7 +43,10 @@ convert_repo_list (GList *inner_repos)
         SeafRepo *r = ptr->data;
 #ifndef SEAFILE_SERVER
         /* Don't display repos without worktree. */
-        if (r->head == NULL || r->worktree_invalid)
+        if (r->head == NULL)
+            continue;
+
+        if (r->worktree_invalid && !seafile_session_config_get_allow_invalid_worktree(seaf))
             continue;
 #endif
 
@@ -856,7 +859,10 @@ seafile_get_repo (const char *repo_id, GError **error)
         return NULL;
 
 #ifndef SEAFILE_SERVER
-    if (r->head == NULL || r->worktree_invalid)
+    if (r->head == NULL)
+        return NULL;
+
+    if (r->worktree_invalid && !seafile_session_config_get_allow_invalid_worktree(seaf))
         return NULL;
 #endif
 
@@ -926,6 +932,8 @@ convert_to_seafile_commit (SeafCommit *c)
                   "parent_id", c->parent_id,
                   "second_parent_id", c->second_parent_id,
                   "version", c->version,
+                  "new_merge", c->new_merge,
+                  "conflict", c->conflict,
                   NULL);
     return commit;
 }
@@ -1416,6 +1424,118 @@ retry:
         parent = NULL;
         goto retry;
     }
+
+out:
+    seaf_commit_unref (commit);
+    seaf_commit_unref (parent);
+    seaf_repo_unref (repo);
+
+    return ret;
+}
+
+int
+seafile_change_repo_passwd (const char *repo_id,
+                            const char *old_passwd,
+                            const char *new_passwd,
+                            const char *user,
+                            GError **error)
+{
+    SeafRepo *repo = NULL;
+    SeafCommit *commit = NULL, *parent = NULL;
+    int ret = 0;
+
+    if (!user) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "No user given");
+        return -1;
+    }
+
+    if (!old_passwd || old_passwd[0] == 0 || !new_passwd || new_passwd[0] == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Empty passwd");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
+retry:
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such library");
+        return -1;
+    }
+
+    if (!repo->encrypted) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Repo not encrypted");
+        return -1;
+    }
+
+    if (repo->enc_version < 2) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Unsupported enc version");
+        return -1;
+    }
+
+    if (seafile_verify_repo_passwd (repo_id, old_passwd, repo->magic, 2) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Incorrect password");
+        return -1;
+    }
+
+    parent = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             repo->id, repo->version,
+                                             repo->head->commit_id);
+    if (!parent) {
+        seaf_warning ("Failed to get commit %s.\n", repo->head->commit_id);
+        ret = -1;
+        goto out;
+    }
+
+    char new_magic[65], new_random_key[97];
+
+    seafile_generate_magic (2, repo_id, new_passwd, new_magic);
+    if (seafile_update_random_key (old_passwd, repo->random_key,
+                                   new_passwd, new_random_key) < 0) {
+        ret = -1;
+        goto out;
+    }
+
+    memcpy (repo->magic, new_magic, 64);
+    memcpy (repo->random_key, new_random_key, 98);
+
+    commit = seaf_commit_new (NULL,
+                              repo->id,
+                              parent->root_id,
+                              user,
+                              EMPTY_SHA1,
+                              "Changed library password",
+                              0);
+    commit->parent_id = g_strdup(parent->commit_id);
+    seaf_repo_to_commit (repo, commit);
+
+    if (seaf_commit_manager_add_commit (seaf->commit_mgr, commit) < 0) {
+        ret = -1;
+        goto out;
+    }
+
+    seaf_branch_set_commit (repo->head, commit->commit_id);
+    if (seaf_branch_manager_test_and_update_branch (seaf->branch_mgr,
+                                                    repo->head,
+                                                    parent->commit_id) < 0) {
+        seaf_repo_unref (repo);
+        seaf_commit_unref (commit);
+        seaf_commit_unref (parent);
+        repo = NULL;
+        commit = NULL;
+        parent = NULL;
+        goto retry;
+    }
+
+    if (seaf_passwd_manager_is_passwd_set (seaf->passwd_mgr, repo_id, user))
+        seaf_passwd_manager_set_passwd (seaf->passwd_mgr, repo_id,
+                                        user, new_passwd, error);
 
 out:
     seaf_commit_unref (commit);
@@ -3465,23 +3585,10 @@ seafile_list_file_revisions (const char *repo_id,
 
     GList *commit_list;
     commit_list = seaf_repo_manager_list_file_revisions (seaf->repo_mgr,
-                                                         repo_id, path,
+                                                         repo_id, NULL, path,
                                                          max_revision,
                                                          limit, error);
-    GList *l = NULL;
-    if (commit_list) {
-        GList *p;
-        for (p = commit_list; p; p = p->next) {
-            SeafCommit *commit = p->data;
-            SeafileCommit *c = convert_to_seafile_commit(commit);
-            l = g_list_prepend (l, c);
-            seaf_commit_unref (commit);
-        }
-        g_list_free (commit_list);
-        l = g_list_reverse (l);
-    }
-
-    return l;
+    return commit_list;
 }
 
 GList *

@@ -332,4 +332,8 @@ class SeafileAPI(object):
     def get_virtual_repo(self, origin_repo, path, owner):
         return seafserv_threaded_rpc.get_virtual_repo(origin_repo, path, owner)
 
+    def change_repo_passwd(self, repo_id, old_passwd, new_passwd, user):
+        return seafserv_threaded_rpc.change_repo_passwd(repo_id, old_passwd,
+                                                        new_passwd, user)
+
 seafile_api = SeafileAPI()

@@ -808,3 +808,9 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("string", [])
     def get_system_default_repo_id():
         pass
+
+    # Change password
+    @searpc_func("int", ["string", "string", "string", "string"])
+    def seafile_change_repo_passwd(repo_id, old_passwd, new_passwd, user):
+        pass
+    change_repo_passwd = seafile_change_repo_passwd

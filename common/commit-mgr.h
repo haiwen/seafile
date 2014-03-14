@@ -36,6 +36,8 @@ struct _SeafCommit {
     gboolean    no_local_history;
 
     int         version;
+    gboolean    new_merge;
+    gboolean    conflict;
 };
 
 

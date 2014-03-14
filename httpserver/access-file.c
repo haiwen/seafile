@@ -86,10 +86,23 @@ extern SeafileSession *seaf;
 static struct file_type_map ftmap[] = {
     { "txt", "text/plain" },
     { "html", "text/html" },
-    { "doc", "application/word" },
-    { "docx", "application/word" },
-    { "mp3", "audio/mp3" },
+    { "doc", "application/vnd.ms-word" },
+    { "docx", "application/vnd.ms-word" },
+    { "ppt", "application/vnd.ms-powerpoint" },
+    { "pptx", "application/vnd.ms-powerpoint" },
+    { "xls", "application/vnd.ms-excel" },
+    { "xlsx", "application/vnd.ms-excel" },
     { "pdf", "application/pdf" },
+    { "zip", "application/zip"},
+    { "mp3", "audio/mp3" },
+    { "mpeg", "video/mpeg" },
+    { "mp4", "video/mp4" },
+    { "jpg", "image/jpg" },
+    { "JPG", "image/jpg" },
+    { "png", "image/png" },
+    { "PNG", "image/png" },
+    { "gif", "image/gif" },
+    { "GIF", "image/gif" },
     { NULL, NULL },
 };
 
@@ -505,7 +518,10 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
                                  evhtp_header_new("Content-Type",
                                                   content_type, 1, 1));
         g_free (content_type);
-    }
+    } else
+        evhtp_headers_add_header (req->headers_out,
+                                  evhtp_header_new("Content-Type",
+                                                   "application/octet-stream", 1, 1));
 
     snprintf(file_size, sizeof(file_size), "%"G_GINT64_FORMAT"", file->file_size);
     evhtp_headers_add_header (req->headers_out,

@@ -648,21 +648,27 @@ def copy_qt_translations():
 
     qt_translation_dir = os.path.join(conf[CONF_QT_ROOT], 'translations')
 
-    langs = [
-        ('de', 'de_DE'),
-        ('es', 'es'),
-        ('fr', 'fr_FR'),
-        ('he', 'he_IL'),
-        ('pt', 'pt_BR'),
-        ('ru', 'ru'),
-        ('sk', 'sk_SK'),
-        ('uk', 'uk'),
-        ('zh_CN', 'zh_CN'),
-    ]
-    for lang in langs:
-        src = os.path.join(qt_translation_dir, 'qt_%s.qm' % lang[0])
-        dst = os.path.join(destdir, 'qt_%s.qm' % lang[1])
-        must_copy(src, dst)
+    i18n_dir = os.path.join(SeafileClient().projdir, 'i18n')
+    qm_pattern = os.path.join(i18n_dir, 'seafile_*.qm')
+
+    qt_qms = set()
+    def add_lang(lang):
+        if not lang:
+            return
+        qt_qm = os.path.join(qt_translation_dir, 'qt_%s.qm' % lang)
+        if os.path.exists(qt_qm):
+            qt_qms.add(qt_qm)
+        elif '_' in lang:
+            add_lang(lang[:lang.index('_')])
+
+    for fn in glob.glob(qm_pattern):
+        name = os.path.basename(fn)
+        m = re.match(r'seafile_(.*)\.qm', name)
+        lang = m.group(1)
+        add_lang(lang)
+
+    for src in qt_qms:
+        must_copy(src, destdir)
 
 def prepare_msi():
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
@@ -726,6 +732,13 @@ def build_english_msi():
     if run('make en', cwd=pack_dir) != 0:
         error('Error when make seafile-en.msi')
 
+def build_german_msi():
+    '''The extra work to build the German msi.'''
+    pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
+
+    if run('make de', cwd=pack_dir) != 0:
+        error('Error when make seafile-de.msi')
+
 def move_msi():
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
     src_msi = os.path.join(pack_dir, 'seafile.msi')
@@ -738,12 +751,16 @@ def move_msi():
         src_msi_en = os.path.join(pack_dir, 'seafile-en.msi')
         dst_msi_en = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-en.msi' % conf[CONF_VERSION])
         must_copy(src_msi_en, dst_msi_en)
+        src_msi_de = os.path.join(pack_dir, 'seafile-de.msi')
+        dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-de.msi' % conf[CONF_VERSION])
+        must_copy(src_msi_de, dst_msi_de)
 
     print '---------------------------------------------'
     print 'The build is successfully. Output is:'
     print '>>\t%s' % dst_msi
     if not conf[CONF_ONLY_CHINESE]:
         print '>>\t%s' % dst_msi_en
+        print '>>\t%s' % dst_msi_de
     print '---------------------------------------------'
 
 def check_tools():
@@ -783,6 +800,8 @@ def main():
     build_msi()
     if not conf[CONF_ONLY_CHINESE]:
         build_english_msi()
+        build_german_msi()
+
     move_msi()
 
 if __name__ == '__main__':
