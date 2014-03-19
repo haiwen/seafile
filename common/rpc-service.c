@@ -3760,6 +3760,36 @@ seafile_list_repo_tokens_by_email (const char *email,
     return ret_list;
 }
 
+int
+seafile_delete_repo_tokens_by_peer_id(const char *email,
+                                      const char *peer_id,
+                                      GError **error)
+{
+    if (!email || !peer_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return -1;
+    }
+
+    /* check the peer id */
+    if (strlen(peer_id) != 40) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "invalid peer id");
+        return -1;
+    }
+    const char *c = peer_id;
+    while (*c) {
+        char v = *c;
+        if ((v >= '0' && v <= '9') || (v >= 'a' && v <= 'z')) {
+            c++;
+            continue;
+        } else {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "invalid peer id");
+            return -1;
+        }
+    }
+
+    return seaf_repo_manager_delete_repo_tokens_by_peer_id (seaf->repo_mgr, email, peer_id, error);
+}
+
 
 char *
 seafile_check_permission (const char *repo_id, const char *user, GError **error)

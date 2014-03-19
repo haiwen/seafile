@@ -413,6 +413,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_list_repo_tokens_by_email,
                                      "seafile_list_repo_tokens_by_email",
                                      searpc_signature_objlist__string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_delete_repo_tokens_by_peer_id,
+                                     "seafile_delete_repo_tokens_by_peer_id",
+                                     searpc_signature_int__string_string());
     
     /* quota */
     searpc_server_register_function ("seafserv-threaded-rpcserver",

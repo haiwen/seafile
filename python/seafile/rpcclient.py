@@ -612,6 +612,10 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     list_repo_tokens_by_email = seafile_list_repo_tokens_by_email
 
+    @searpc_func("int", ["string", "string"])
+    def seafile_delete_repo_tokens_by_peer_id(email, user_id):
+        pass
+    delete_repo_tokens_by_peer_id = seafile_delete_repo_tokens_by_peer_id
 
     ###### quota ##########
     @searpc_func("int64", ["string"])

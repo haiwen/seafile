@@ -199,6 +199,11 @@ GList *
 seaf_repo_manager_list_repo_tokens_by_email (SeafRepoManager *mgr,
                                              const char *email,
                                              GError **error);
+int
+seaf_repo_manager_delete_repo_tokens_by_peer_id (SeafRepoManager *mgr,
+                                                 const char *email,
+                                                 const char *peer_id,
+                                                 GError **error);
 
 gint64
 seaf_repo_manager_get_repo_size (SeafRepoManager *mgr, const char *repo_id);

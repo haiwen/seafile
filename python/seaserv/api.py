@@ -336,4 +336,7 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.change_repo_passwd(repo_id, old_passwd,
                                                         new_passwd, user)
 
+    def delete_repo_tokens_by_peer_id(self, username, device_id):
+        return seafserv_threaded_rpc.delete_repo_tokens_by_peer_id(username, device_id)
+
 seafile_api = SeafileAPI()

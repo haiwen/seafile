@@ -1417,6 +1417,58 @@ seaf_repo_manager_list_repo_tokens_by_email (SeafRepoManager *mgr,
     return g_list_reverse(ret_list);
 }
 
+/**
+ * Delete all repo tokens for a given user on a given client
+ */
+int
+seaf_repo_manager_delete_repo_tokens_by_peer_id (SeafRepoManager *mgr,
+                                                 const char *email,
+                                                 const char *peer_id,
+                                                 GError **error)
+{
+    int ret = 0;
+    GString *sql = g_string_new (NULL);
+    const char *template;
+
+    if (seaf_db_type(mgr->seaf->db) == SEAF_DB_TYPE_MYSQL) {
+        /* MySQL does not allow us to delete from a table which is used in the subquery,
+         * This work around is from http://stackoverflow.com/a/14302701/1467959
+         */
+        template = \
+            "DELETE FROM RepoUserToken WHERE "
+            "token in ( "
+            "  SELECT u.token "
+            "  FROM (SELECT * FROM RepoUserToken WHERE email = '%s') as u, RepoTokenPeerInfo as p "
+            "  WHERE u.token = p.token "
+            "  AND u.email = '%s' AND p.peer_id = '%s' "
+            ")";
+
+        g_string_printf (sql, template, email, email, peer_id);
+
+    } else {
+        template =
+            "DELETE FROM RepoUserToken WHERE "
+            "token in ( "
+            "  SELECT u.token "
+            "  FROM RepoUserToken as u, RepoTokenPeerInfo as p "
+            "  WHERE u.token = p.token "
+            "  AND u.email = '%s' AND p.peer_id = '%s' "
+            ")";
+
+        g_string_printf (sql, template, email, peer_id);
+    }
+
+
+    if (seaf_db_query (mgr->seaf->db, sql->str) < 0) {
+        ret = -1;
+    }
+
+    g_string_free (sql, TRUE);
+
+    return ret;
+}
+
+
 static gboolean
 get_email_by_token_cb (SeafDBRow *row, void *data)
 {
