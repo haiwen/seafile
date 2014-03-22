@@ -13,12 +13,30 @@
 #include "cdc/cdc.h"
 #include "../common/seafile-crypt.h"
 
+#define CURRENT_DIR_OBJ_VERSION 1
+#define CURRENT_SEAFILE_OBJ_VERSION 1
+
 typedef struct _SeafFSManager SeafFSManager;
+typedef struct _SeafFSObject SeafFSObject;
 typedef struct _Seafile Seafile;
 typedef struct _SeafDir SeafDir;
 typedef struct _SeafDirent SeafDirent;
 
+typedef enum {
+    SEAF_METADATA_TYPE_INVALID,
+    SEAF_METADATA_TYPE_FILE,
+    SEAF_METADATA_TYPE_LINK,
+    SEAF_METADATA_TYPE_DIR,
+} SeafMetadataType;
+
+/* Common to seafile and seafdir objects. */
+struct _SeafFSObject {
+    int type;
+};
+
 struct _Seafile {
+    SeafFSObject object;
+    int         version;
     char        file_id[41];
     guint64     file_size;
     guint32     n_blocks;
@@ -32,36 +50,44 @@ seafile_ref (Seafile *seafile);
 void
 seafile_unref (Seafile *seafile);
 
-typedef enum {
-    SEAF_METADATA_TYPE_INVALID,
-    SEAF_METADATA_TYPE_FILE,
-    SEAF_METADATA_TYPE_LINK,
-    SEAF_METADATA_TYPE_DIR,
-} SeafMetadataType;
-
 #define SEAF_DIR_NAME_LEN 256
 
-
 struct _SeafDirent {
+    int        version;
     guint32    mode;
     char       id[41];
     guint32    name_len;
-    char       name[SEAF_DIR_NAME_LEN];
+    char       *name;
+
+    /* attributes for version > 0 */
+    gint64     mtime;
+    char       *modifier;       /* for files only */
+    gint64     size;            /* for files only */
 };
 
 struct _SeafDir {
+    SeafFSObject object;
+    int    version;
     char   dir_id[41];
     GList *entries;
+
+    /* data in on-disk format. */
+    void  *ondisk;
+    int    ondisk_size;
 };
 
 SeafDir *
-seaf_dir_new (const char *id, GList *entries, gint64 ctime);
+seaf_dir_new (const char *id, GList *entries, int version);
 
 void 
 seaf_dir_free (SeafDir *dir);
 
 SeafDir *
-seaf_dir_from_data (const char *dir_id, const uint8_t *data, int len);
+seaf_dir_from_data (const char *dir_id, const uint8_t *data, int len,
+                    gboolean is_json);
+
+void *
+seaf_dir_to_data (SeafDir *dir, int *len);
 
 int 
 seaf_dir_save (SeafFSManager *fs_mgr,
@@ -69,14 +95,27 @@ seaf_dir_save (SeafFSManager *fs_mgr,
                int version,
                SeafDir *dir);
 
-int
-seaf_metadata_type_from_data (const uint8_t *data, int len);
-
 SeafDirent *
-seaf_dirent_new (const char *sha1, int mode, const char *name);
+seaf_dirent_new (int version, const char *sha1, int mode, const char *name,
+                 gint64 mtime, const char *modifier, gint64 size);
+
+void
+seaf_dirent_free (SeafDirent *dent);
 
 SeafDirent *
 seaf_dirent_dup (SeafDirent *dent);
+
+int
+seaf_metadata_type_from_data (const uint8_t *data, int len, gboolean is_json);
+
+/* Parse an fs object without knowing its type. */
+SeafFSObject *
+seaf_fs_object_from_data (const char *obj_id,
+                          const uint8_t *data, int len,
+                          gboolean is_json);
+
+void
+seaf_fs_object_free (SeafFSObject *obj);
 
 typedef struct {
     /* TODO: GHashTable may be inefficient when we have large number of IDs. */
@@ -136,8 +175,10 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
                                const char *file_id, 
                                const char *file_path,
                                guint32 mode,
+                               guint64 mtime,
                                struct SeafileCrypt *crypt,
-                               const char *conflict_suffix,
+                               const char *in_repo_path,
+                               const char *conflict_head_id,
                                gboolean force_conflict,
                                gboolean *conflicted);
 
@@ -162,6 +203,7 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
                               int version,
                               const char *file_path,
                               unsigned char sha1[],
+                              gint64 *size,
                               SeafileCrypt *crypt,
                               gboolean write_data);
 
@@ -310,5 +352,11 @@ seaf_fs_manager_verify_object (SeafFSManager *mgr,
                                const char *obj_id,
                                gboolean verify_id,
                                gboolean *io_error);
+
+int
+dir_version_from_repo_version (int repo_version);
+
+int
+seafile_version_from_repo_version (int repo_version);
 
 #endif

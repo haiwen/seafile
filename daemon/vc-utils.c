@@ -27,16 +27,17 @@ compare_dirents (gconstpointer a, gconstpointer b)
 
 int
 commit_trees_cb (const char *repo_id, int version,
+                 const char *worktree,
                  struct cache_tree *it, struct cache_entry **cache,
                  int entries, const char *base, int baselen)
 {
     SeafDir *seaf_dir;
-    GList *dirents = NULL;
+    GList *dirents = NULL, *ptr;
     int i;
 
     for (i = 0; i < entries; i++) {
         SeafDirent *seaf_dent;
-        char *dirname;
+        char *name;
         struct cache_entry *ce = cache[i];
         struct cache_tree_sub *sub;
         const char *path, *slash;
@@ -44,6 +45,9 @@ commit_trees_cb (const char *repo_id, int version,
         const unsigned char *sha1;
         char hex[41];
         unsigned mode;
+        guint64 mtime;
+        gint64 size;
+        char *modifier;
 
         if (ce->ce_flags & CE_REMOVE)
             continue; /* entry being removed */
@@ -62,23 +66,35 @@ commit_trees_cb (const char *repo_id, int version,
             i += sub->cache_tree->entry_count - 1;
 
             sha1 = sub->cache_tree->sha1;
+            mtime = sub->cache_tree->mtime;
             mode = S_IFDIR;
-            dirname = g_strndup(path + baselen, entlen);
+            name = g_strndup(path + baselen, entlen);
 
             rawdata_to_hex (sha1, hex, 20);
-            seaf_dent = seaf_dirent_new (hex, mode, dirname);
-            g_free(dirname);
+            seaf_dent = seaf_dirent_new (dir_version_from_repo_version(version),
+                                         hex, mode, name, mtime, NULL, -1);
+            g_free(name);
 
             dirents = g_list_prepend (dirents, seaf_dent);
         } else {
             sha1 = ce->sha1;
             mode = ce->ce_mode;
+            mtime = ce->ce_mtime.sec;
+            size = ce->ce_size;
+            modifier = ce->modifier;
             entlen = pathlen - baselen;
-
-            dirname = g_strndup(path + baselen, entlen);
+            name = g_strndup(path + baselen, entlen);
             rawdata_to_hex (sha1, hex, 20);
-            seaf_dent = seaf_dirent_new (hex, mode, dirname);
-            g_free(dirname);
+
+            if (version > 0) {
+                seaf_dent =
+                    seaf_dirent_new (dir_version_from_repo_version(version),
+                                     hex, mode, name, mtime, modifier, size);
+            } else {
+                seaf_dent = seaf_dirent_new (0, hex, mode, name, 0, NULL, -1);
+            }
+
+            g_free(name);
 
             dirents = g_list_prepend (dirents, seaf_dent);
         }
@@ -92,10 +108,23 @@ commit_trees_cb (const char *repo_id, int version,
     /* Sort dirents in descending order. */
     dirents = g_list_sort (dirents, compare_dirents);
 
-    seaf_dir = seaf_dir_new (NULL, dirents, 0);
+    seaf_dir = seaf_dir_new (NULL, dirents, dir_version_from_repo_version(version));
     hex_to_rawdata (seaf_dir->dir_id, it->sha1, 20);
 
-    seaf_dir_save (seaf->fs_mgr, repo_id, version, seaf_dir);
+    /* Dir's mtime is the latest of all dir entires. */
+    guint64 dir_mtime = 0;
+    SeafDirent *dent;
+    for (ptr = dirents; ptr; ptr = ptr->next) {
+        dent = ptr->data;
+        if (dent->mtime > dir_mtime)
+            dir_mtime = dent->mtime;
+    }
+    it->mtime = dir_mtime;
+
+    if (!seaf_fs_manager_object_exists (seaf->fs_mgr,
+                                        repo_id, version,
+                                        seaf_dir->dir_id))
+        seaf_dir_save (seaf->fs_mgr, repo_id, version, seaf_dir);
 
 #if DEBUG
     for (p = dirents; p; p = p->next) {
@@ -187,7 +216,7 @@ unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
 
         /* file has been changed. */
         if (!o->reset &&
-            (ce->ce_ctime.sec != st.st_ctime || ce->ce_mtime.sec != st.st_mtime)) {
+            (ce->current_mtime != st.st_mtime)) {
             g_warning ("File %s is changed. Skip removing the file.\n", path);
             return -1;
         }
@@ -509,7 +538,7 @@ static int
 checkout_entry (struct cache_entry *ce,
                 struct unpack_trees_options *o,
                 gboolean recover_merge,
-                const char *conflict_suffix,
+                const char *conflict_head_id,
                 GHashTable *conflict_hash,
                 GHashTable *no_conflict_hash)
 {
@@ -548,11 +577,15 @@ checkout_entry (struct cache_entry *ce,
             g_free (path);
             return -1;
         }
+        if (ce->ce_mtime.sec != 0 &&
+            seaf_set_file_time (path, ce->ce_mtime.sec) < 0) {
+            g_warning ("Failed to set mtime for %s.\n", path);
+        }
         goto update_cache;
     }
 
     if (!o->reset && seaf_stat (path, &st) == 0 && S_ISREG(st.st_mode) &&
-        (ce->ce_ctime.sec != st.st_ctime || ce->ce_mtime.sec != st.st_mtime))
+        (ce->current_mtime != st.st_mtime))
     {
         /* If we're recovering an interrupted merge, we don't know whether
          * the file was changed by checkout or by the user. So we have to
@@ -579,9 +612,12 @@ checkout_entry (struct cache_entry *ce,
                                        o->repo_id,
                                        o->version,
                                        file_id,
-                                       path, ce->ce_mode,
+                                       path,
+                                       ce->ce_mode,
+                                       ce->ce_mtime.sec,
                                        o->crypt,
-                                       conflict_suffix,
+                                       ce->name,
+                                       conflict_head_id,
                                        force_conflict,
                                        &conflicted) < 0) {
         g_warning ("Failed to checkout file %s.\n", path);
@@ -645,7 +681,7 @@ update_worktree (struct unpack_trees_options *o,
         ce = result->cache[i];
         if (ce->ce_flags & CE_UPDATE) {
             errs |= checkout_entry (ce, o, recover_merge,
-                                    NULL,
+                                    conflict_head_id,
                                     conflict_hash, no_conflict_hash);
         }
         if (finished_entries)

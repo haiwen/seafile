@@ -21,6 +21,7 @@ static inline int readlink(const char *path, char *buf, size_t bufsiz)
 
 int
 commit_trees_cb (const char *repo_id, int version,
+                 const char *modifier,
                  struct cache_tree *it, struct cache_entry **cache,
                  int entries, const char *base, int baselen);
 

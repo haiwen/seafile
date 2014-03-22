@@ -68,6 +68,7 @@ typedef struct {
     char *session_key;
     char *peer_addr;
     char *peer_name;
+    int client_version;
 
     char *rsp_code;
     char *rsp_msg;
@@ -212,10 +213,21 @@ check_tx (void *vprocessor)
 
     char *user = NULL;
     char *repo_id = priv->repo_id;
+    SeafRepo *repo = NULL;
 
-    if (!seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id)) {
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
         priv->rsp_code = g_strdup(SC_BAD_REPO);
         priv->rsp_msg = g_strdup(SS_BAD_REPO);
+        goto out;
+    }
+
+    if (repo->version > 0 && priv->client_version < 6) {
+        seaf_warning ("Client protocol version is %d, "
+                      "cannot sync version %d repo %s.\n",
+                      prov->client_version, repo->version, repo_id);
+        priv->rsp_code = g_strdup(SC_PROTOCOL_MISMATCH);
+        priv->rsp_msg = g_strdup(SS_PROTOCOL_MISMATCH);
         goto out;
     }
 
@@ -272,6 +284,7 @@ check_tx (void *vprocessor)
     get_branch_head (processor);
 
 out:
+    seaf_repo_unref (repo);
     g_free (user);
     return vprocessor;    
 }
@@ -351,6 +364,7 @@ start (CcnetProcessor *processor, int argc, char **argv)
     priv->branch_name = g_strdup(branch_name);
 
     priv->token = g_strdup(token);
+    priv->client_version = client_version;
 
     CcnetPeer *peer = ccnet_get_peer (seaf->ccnetrpc_client, processor->peer_id);
     if (!peer || !peer->session_key) {

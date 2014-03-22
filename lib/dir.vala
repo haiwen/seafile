@@ -13,6 +13,7 @@ namespace Seafile {
 		}
 		
 		public List<Dirent> entries;
+		public int version { set; get; }
 	}
 
 } // namespace

@@ -1263,6 +1263,9 @@ seafile_list_dir_by_path(const char *repo_id,
                           "obj_id", dent->id,
                           "obj_name", dent->name,
                           "mode", dent->mode,
+                          "version", dent->version,
+                          "mtime", dent->mtime,
+                          "size", dent->size,
                           NULL);
         res = g_list_prepend (res, d);
     }
@@ -3555,7 +3558,11 @@ seafile_list_dir (const char *repo_id,
                           "obj_id", dent->id,
                           "obj_name", dent->name,
                           "mode", dent->mode,
+                          "version", dent->version,
+                          "mtime", dent->mtime,
+                          "size", dent->size,
                           NULL);
+        seaf_message ("%"G_GUINT64_FORMAT"\n", dent->mtime);
         res = g_list_prepend (res, d);
     }
 

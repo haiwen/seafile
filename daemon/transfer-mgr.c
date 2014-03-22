@@ -404,8 +404,7 @@ seaf_transfer_task_load_blocklist (TransferTask *task)
         if (!task->is_clone) {
             /* If we're merging, only get new blocks that need to be checked out.
              */
-            gboolean calculate_ca = (task->protocol_version < 6);
-            if (merge_get_new_block_list (repo, remote, &bl, calculate_ca) < 0) {
+            if (merge_get_new_block_list (repo, remote, &bl) < 0) {
                 seaf_warning ("[tr-mgr] Failed to get new blocks for merge.\n");
                 seaf_commit_unref (remote);
                 return -1;

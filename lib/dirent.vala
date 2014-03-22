@@ -11,6 +11,10 @@ public class Dirent : Object {
 	public string obj_name { set; get; }
 
 	public int mode { set; get; }
+
+	public int version { set; get; }
+	public int64 mtime { set; get; }
+	public int64 size { set; get; }
 }
 
 public class FileLastModifiedInfo : Object {

@@ -42,6 +42,8 @@
 
 #include <jansson.h>
 
+#include <utime.h>
+
 extern int inet_pton(int af, const char *src, void *dst);
 
 
@@ -261,6 +263,48 @@ get_utc_file_time_fd (int fd, __time64_t *mtime, __time64_t *ctime)
     return 0;
 }
 
+#define EPOCH_DIFF 11644473600ULL
+
+inline static void
+unix_time_to_file_time (guint64 unix_time, FILETIME *ftime)
+{
+    guint64 win_time;
+
+    win_time = (unix_time + EPOCH_DIFF) * 10000000;
+    ftime->dwLowDateTime = win_time & 0xFFFFFFFF;
+    ftime->dwHighDateTime = (win_time >> 32) & 0xFFFFFFFF;
+}
+
+static int
+set_utc_file_time (const char *path, const wchar_t *wpath, guint64 mtime)
+{
+    HANDLE handle;
+    FILETIME write_time;
+
+    handle = CreateFileW (wpath,
+                          GENERIC_WRITE,
+                          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                          NULL,
+                          OPEN_EXISTING,
+                          FILE_FLAG_BACKUP_SEMANTICS,
+                          NULL);
+    if (handle == INVALID_HANDLE_VALUE) {
+        g_warning ("Failed to open %s: %lu.\n", path, GetLastError());
+        return -1;
+    }
+
+    unix_time_to_file_time (mtime, &write_time);
+
+    if (!SetFileTime (handle, NULL, NULL, &write_time)) {
+        g_warning ("Failed to set file time for %s: %lu.\n", path, GetLastError());
+        CloseHandle (handle);
+        return -1;
+    }
+    CloseHandle (handle);
+
+    return 0;
+}
+
 #endif
 
 int
@@ -299,6 +343,34 @@ seaf_fstat (int fd, SeafStat *st)
     return 0;
 #else
     return fstat (fd, st);
+#endif
+}
+
+int
+seaf_set_file_time (const char *path, guint64 mtime)
+{
+#ifndef WIN32
+    struct stat st;
+    struct utimbuf times;
+
+    if (stat (path, &st) < 0) {
+        g_warning ("Failed to stat %s: %s.\n", path, strerror(errno));
+        return -1;
+    }
+
+    times.actime = st.st_atime;
+    times.modtime = (time_t)mtime;
+
+    return utime (path, &times);
+#else
+    wchar_t *wpath = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
+    int ret = 0;
+
+    if (set_utc_file_time (path, wpath, mtime) < 0)
+        ret = -1;
+
+    g_free (wpath);
+    return ret;
 #endif
 }
 
@@ -562,12 +634,15 @@ ccnet_expand_path (const char *src)
 
 
 int
-calculate_sha1 (unsigned char *sha1, const char *msg)
+calculate_sha1 (unsigned char *sha1, const char *msg, int len)
 {
     SHA_CTX c;
 
+    if (len < 0)
+        len = strlen(msg);
+
     SHA1_Init(&c);
-    SHA1_Update(&c, msg, strlen(msg));    
+    SHA1_Update(&c, msg, len);    
 	SHA1_Final(sha1, &c);
     return 0;
 }

@@ -512,6 +512,7 @@ static const char *sync_error_str[] = {
     "Failed to index files.",
     "Conflict in merge.",
     "Files changed in local folder, skip merge.",
+    "Server version is too old.",
     "Unknown error.",
 };
 
@@ -673,8 +674,7 @@ merge_job (void *vtask)
      * For 2 and 4, the errors are ignored by the merge routine (return 0).
      * For 3, just wait another merge retry.
      * */
-    if (seaf_repo_merge (repo, "master", &err_msg, &res->real_merge,
-                         task->calculate_ca) < 0) {
+    if (seaf_repo_merge (repo, "master", &err_msg, &res->real_merge) < 0) {
         seaf_message ("[Sync mgr] Merge of repo %s(%.8s) is not clean.\n",
                    repo->name, repo->id);
         res->success = FALSE;
@@ -858,12 +858,9 @@ getca_done_cb (CcnetProcessor *processor, gboolean success, void *data)
     if (!success) {
         switch (processor->failure) {
         case PROC_NO_SERVICE:
-            /* If the server doesn't provide this processor, it's running the
-             * old protocol. We can then assume all commits will be downloaded.
-             */
-            seaf_debug ("Server doesn't support putca-proc.\n");
-            task->calculate_ca = TRUE;
-            goto continue_sync;
+            seaf_warning ("Server doesn't support putca-proc.\n");
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_DEPRECATED_SERVER);
+            break;
         case GETCA_PROC_ACCESS_DENIED:
             seaf_warning ("No permission to access repo %.8s.\n", repo->id);
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_ACCESS_DENIED);
@@ -894,7 +891,6 @@ getca_done_cb (CcnetProcessor *processor, gboolean success, void *data)
                                            proc->ca_id,
                                            repo->head->commit_id);
 
-continue_sync:
     master = seaf_branch_manager_get_branch (seaf->branch_mgr,
                                              info->repo_id,
                                              "master");
@@ -1069,8 +1065,11 @@ update_sync_status (SyncTask *task)
          * The last result of computation is cached in local db.
          * Check if we need to re-compute the common ancestor.
          * If so we'll start a processor to do that on the server.
+         * For repo version == 0, we download all commits so there is no
+         * need to check.
          */
-        if (update_common_ancestor (task, last_uploaded, last_checkout))
+        if (repo->version > 0 &&
+            update_common_ancestor (task, last_uploaded, last_checkout))
             goto out;
 
         if (!master || strcmp (info->head_commit, master->commit_id) != 0) {

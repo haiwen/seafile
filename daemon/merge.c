@@ -13,6 +13,27 @@
 #include "vc-utils.h"
 #include "vc-common.h"
 
+#if 0
+static int 
+print_index (struct index_state *istate)
+{
+    int i;
+    struct cache_entry *ce;
+    char id[41];
+    g_message ("Totally %u entries in index, version %u.\n",
+               istate->cache_nr, istate->version);
+    for (i = 0; i < istate->cache_nr; ++i) {
+        ce = istate->cache[i];
+        rawdata_to_hex (ce->sha1, id, 20);
+        g_message ("%s, %s, %o, %"G_GUINT64_FORMAT", %s, %d\n",
+                   ce->name, id, ce->ce_mode, 
+                   ce->ce_mtime.sec, ce->modifier, ce_stage(ce));
+    }
+
+    return 0;
+}
+#endif
+
 static int
 do_real_merge (SeafRepo *repo, 
                SeafBranch *head_branch,
@@ -32,7 +53,7 @@ do_real_merge (SeafRepo *repo,
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
+    if (read_index_from (&istate, index_path, repo->version) < 0) {
         g_warning ("Failed to load index.\n");
         *error = g_strdup ("Internal error.\n");
         return -1;
@@ -128,7 +149,7 @@ get_common_ancestor_commit (const char *repo_id, int version)
 
 int
 merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
-                gboolean *real_merge, gboolean calculate_ca)
+                gboolean *real_merge)
 {
     SeafCommit *common = NULL;
     SeafCommit *head = NULL, *remote = NULL;
@@ -187,7 +208,7 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
      * otherwise we'll use the old method to calculate
      * common ancestor from local history.
      */
-    if (!calculate_ca)
+    if (repo->version > 0)
         common = get_common_ancestor_commit (repo->id, repo->version);
     else
         common = get_merge_base (head, remote);
@@ -265,7 +286,7 @@ get_new_blocks_ff (SeafRepo *repo,
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
+    if (read_index_from (&istate, index_path, repo->version) < 0) {
         g_warning ("Failed to load index.\n");
         return -1;
     }
@@ -319,7 +340,7 @@ get_new_blocks_merge (SeafRepo *repo,
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
+    if (read_index_from (&istate, index_path, repo->version) < 0) {
         g_warning ("Failed to load index.\n");
         return -1;
     }
@@ -360,8 +381,7 @@ get_new_blocks_merge (SeafRepo *repo,
  * otherwise it's set to the block list.
  */
 int
-merge_get_new_block_list (SeafRepo *repo, SeafCommit *remote, BlockList **bl,
-                          gboolean calculate_ca)
+merge_get_new_block_list (SeafRepo *repo, SeafCommit *remote, BlockList **bl)
 {
     SeafCommit *common = NULL;
     SeafCommit *head = NULL;
@@ -379,7 +399,7 @@ merge_get_new_block_list (SeafRepo *repo, SeafCommit *remote, BlockList **bl,
      * otherwise we'll use the old method to calculate
      * common ancestor from local history.
      */
-    if (!calculate_ca)
+    if (repo->version > 0)
         common = get_common_ancestor_commit (repo->id, repo->version);
     else
         common = get_merge_base (head, remote);

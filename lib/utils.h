@@ -77,6 +77,8 @@ static inline int ccnet_rename(const char *oldfile, const char *newfile)
 int seaf_stat (const char *path, SeafStat *st);
 int seaf_fstat (int fd, SeafStat *st);
 
+int seaf_set_file_time (const char *path, guint64 mtime);
+
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
@@ -108,7 +110,8 @@ int hex_to_rawdata (const char *hex_str, unsigned char *rawdata, int n_bytes);
 #define sha1_to_hex(sha1, hex) rawdata_to_hex((sha1), (hex), 20)
 #define hex_to_sha1(hex, sha1) hex_to_rawdata((hex), (sha1), 20)
 
-int calculate_sha1 (unsigned char *sha1, const char *msg);
+/* If msg is NULL-terminated, set len to -1 */
+int calculate_sha1 (unsigned char *sha1, const char *msg, int len);
 int ccnet_sha1_equal (const void *v1, const void *v2);
 unsigned int ccnet_sha1_hash (const void *v);
 

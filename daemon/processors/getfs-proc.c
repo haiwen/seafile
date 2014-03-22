@@ -380,12 +380,12 @@ static void
 fs_object_write_cb (OSAsyncResult *res, void *data)
 {
     CcnetProcessor *processor = data;
+    TransferTask *task = ((SeafileGetfsProc *)processor)->tx_task;
     USE_PRIV;
 
     if (!res->success) {
         seaf_warning ("Failed to write object %.8s.\n", res->obj_id);
-        transfer_task_set_error (((SeafileGetfsProc *)processor)->tx_task,
-                                 TASK_ERR_DOWNLOAD_FS);
+        transfer_task_set_error (task, TASK_ERR_DOWNLOAD_FS);
         ccnet_processor_send_update (processor, SC_SHUTDOWN, SS_SHUTDOWN, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
@@ -395,7 +395,8 @@ fs_object_write_cb (OSAsyncResult *res, void *data)
 
     --(priv->pending_objects);
 
-    int type = seaf_metadata_type_from_data (res->data, res->len);
+    int type = seaf_metadata_type_from_data (res->data, res->len,
+                                             (task->repo_version > 0));
     if (type == SEAF_METADATA_TYPE_DIR)
         g_queue_push_tail (priv->inspect_queue, g_strdup(res->obj_id));
 
@@ -418,7 +419,6 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
 {
     USE_PRIV;
     ObjectPack *pack = (ObjectPack *)content;
-    uint32_t type;
     /* TransferTask *task = ((SeafileGetfsProc *)processor)->tx_task; */
 
     if (clen < sizeof(ObjectPack)) {
@@ -426,27 +426,7 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
         goto bad;
     }
 
-    type = seaf_metadata_type_from_data(pack->object, clen);
-    if (type == SEAF_METADATA_TYPE_DIR) {
-        SeafDir *dir;
-        dir = seaf_dir_from_data (pack->id, pack->object, clen - 41);
-        if (!dir) {
-            g_warning ("[getfs] Bad directory object %s.\n", pack->id);
-            goto bad;
-        }
-        seaf_dir_free (dir);
-    } else if (type == SEAF_METADATA_TYPE_FILE) {
-        /* TODO: check seafile format. */
-#if 0
-        int ret = seafile_check_data_format (pack->object, clen - 41);
-        if (ret < 0) {
-            goto bad;
-        }
-#endif
-    } else {
-        g_warning ("[getfs] Invalid object type.\n");
-        goto bad;
-    }
+    /* TODO: check fs object integrity. */
 
     if (save_fs_object (priv, pack, clen) < 0) {
         goto bad;

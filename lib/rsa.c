@@ -144,7 +144,7 @@ id_from_pubkey (RSA *pubkey)
     char *id = g_malloc(41);
 
     buf = public_key_to_gstring (pubkey);
-    calculate_sha1 (sha1, buf->str);
+    calculate_sha1 (sha1, buf->str, -1);
     sha1_to_hex (sha1, id);
     g_string_free (buf, TRUE);
 

@@ -61,6 +61,7 @@ enum {
     SYNC_ERROR_MERGE,
     SYNC_ERROR_WORKTREE_DIRTY,
     SYNC_ERROR_UNKNOWN,
+    SYNC_ERROR_DEPRECATED_SERVER,
     SYNC_ERROR_NUM,
 };
 
@@ -78,7 +79,6 @@ struct _SyncTask {
     char            *token;
     struct CcnetTimer *commit_timer;
     struct CcnetTimer *conn_timer;
-    gboolean         calculate_ca; /* need calculate common ancestor from history */
 
     SeafRepo        *repo;  /* for convenience, only valid when in_sync. */
 };

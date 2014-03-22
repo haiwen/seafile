@@ -208,6 +208,29 @@ seaf_repo_set_head (SeafRepo *repo, SeafBranch *branch)
     return 0;
 }
 
+SeafCommit *
+seaf_repo_get_head_commit (const char *repo_id)
+{
+    SeafRepo *repo;
+    SeafCommit *head;
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %s.\n", repo_id);
+        return NULL;
+    }
+
+    head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                           repo_id, repo->version,
+                                           repo->head->commit_id);
+    if (!head) {
+        seaf_warning ("Failed to get head for repo %s.\n", repo_id);
+        return NULL;
+    }
+
+    return head;
+}
+
 void
 seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit)
 {
@@ -375,9 +398,11 @@ index_cb (const char *repo_id,
           SeafileCrypt *crypt,
           gboolean write_data)
 {
+    gint64 size;
+
     /* Check in blocks and get object ID. */
     if (seaf_fs_manager_index_blocks (seaf->fs_mgr, repo_id, version,
-                                      path, sha1, crypt, write_data) < 0) {
+                                      path, sha1, &size, crypt, write_data) < 0) {
         g_warning ("Failed to index file %s.\n", path);
         return -1;
     }
@@ -387,6 +412,7 @@ index_cb (const char *repo_id,
 static int
 add_recursive (const char *repo_id,
                int version,
+               const char *modifier,
                struct index_state *istate, 
                const char *worktree,
                const char *path,
@@ -418,7 +444,7 @@ add_recursive (const char *repo_id,
 
     if (S_ISREG(st.st_mode)) {
         ret = add_to_index (repo_id, version, istate, path, full_path,
-                            &st, 0, crypt, index_cb);
+                            &st, 0, crypt, index_cb, modifier);
         g_free (full_path);
         return ret;
     }
@@ -444,7 +470,8 @@ add_recursive (const char *repo_id,
 #else
             subpath = g_build_path (PATH_SEPERATOR, path, dname, NULL);
 #endif
-            ret = add_recursive (repo_id, version, istate, worktree, subpath,
+            ret = add_recursive (repo_id, version, modifier,
+                                 istate, worktree, subpath,
                                  crypt, ignore_empty_dir, ignore_list);
             g_free (subpath);
             if (ret < 0)
@@ -513,15 +540,15 @@ remove_deleted (struct index_state *istate, const char *worktree,
         if (S_ISDIR (ce->ce_mode)) {
             if ((ret < 0 || !S_ISDIR (st.st_mode)
                  || !is_empty_dir (path, ignore_list)) &&
-                (ce->ce_mtime.sec != 0 || ce_stage(ce) != 0))
+                (ce->ce_ctime.sec != 0 || ce_stage(ce) != 0))
                 ce->ce_flags |= CE_REMOVE;
         } else {
-            /* If ce->mtime is 0 and stage is 0, it was not successfully checked out.
+            /* If ce->ctime is 0 and stage is 0, it was not successfully checked out.
              * In this case we don't want to mistakenly remove the file
              * from the repo.
              */
             if ((ret < 0 || !S_ISREG (st.st_mode)) &&
-                (ce->ce_mtime.sec != 0 || ce_stage(ce) != 0))
+                (ce->ce_ctime.sec != 0 || ce_stage(ce) != 0))
                 ce_array[i]->ce_flags |= CE_REMOVE;
         }
     }
@@ -545,7 +572,7 @@ index_add (SeafRepo *repo, struct index_state *istate, const char *path)
 
     ignore_list = seaf_repo_load_ignore_files (repo->worktree);
 
-    if (add_recursive (repo->id, repo->version,
+    if (add_recursive (repo->id, repo->version, repo->email,
                        istate, repo->worktree, path, crypt, FALSE, ignore_list) < 0)
         goto error;
 
@@ -568,6 +595,7 @@ error:
 int
 seaf_repo_index_worktree_files (const char *repo_id,
                                 int repo_version,
+                                const char *modifier,
                                 const char *worktree,
                                 const char *passwd,
                                 int enc_version,
@@ -590,7 +618,7 @@ seaf_repo_index_worktree_files (const char *repo_id,
      */
     g_unlink (index_path);
 
-    if (read_index_from (&istate, index_path) < 0) {
+    if (read_index_from (&istate, index_path, repo_version) < 0) {
         g_warning ("Failed to load index.\n");
         return -1;
     }
@@ -609,14 +637,14 @@ seaf_repo_index_worktree_files (const char *repo_id,
     /* Add empty dir to index. Otherwise if the repo on relay contains an empty
      * dir, we'll fail to detect fast-forward relationship later.
      */
-    if (add_recursive (repo_id, repo_version,
+    if (add_recursive (repo_id, repo_version, modifier,
                        &istate, worktree, "", crypt, FALSE, ignore_list) < 0)
         goto error;
 
     remove_deleted (&istate, worktree, "", ignore_list);
 
     it = cache_tree ();
-    if (cache_tree_update (repo_id, repo_version,
+    if (cache_tree_update (repo_id, repo_version, worktree,
                            it, istate.cache, istate.cache_nr,
                            0, 0, commit_trees_cb) < 0) {
         g_warning ("Failed to build cache tree");
@@ -663,7 +691,7 @@ seaf_repo_is_worktree_changed (SeafRepo *repo)
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
+    if (read_index_from (&istate, index_path, repo->version) < 0) {
         repo->index_corrupted = TRUE;
         g_warning ("Failed to load index.\n");
         goto error;
@@ -712,7 +740,7 @@ changed:
         ce = istate.cache[pos];
 
         g_message ("type: %c, status: %c, name: %s, "
-                   "ce mtime: %d, ce size: %" G_GUINT64_FORMAT ", "
+                   "ce mtime: %"G_GINT64_FORMAT", ce size: %" G_GUINT64_FORMAT ", "
                    "file mtime: %d, file size: %" G_GUINT64_FORMAT "\n",
                    de->type, de->status, de->name,
                    ce->ce_mtime.sec, ce->ce_size, (int)sb.st_mtime, sb.st_size);
@@ -780,7 +808,7 @@ seaf_repo_is_index_unmerged (SeafRepo *repo)
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
+    if (read_index_from (&istate, index_path, repo->version) < 0) {
         g_warning ("Failed to load index.\n");
         return FALSE;
     }
@@ -859,6 +887,27 @@ need_handle_unmerged_index (SeafRepo *repo, struct index_state *istate)
     return TRUE;
 }
 
+#if 0
+static int 
+print_index (struct index_state *istate)
+{
+    int i;
+    struct cache_entry *ce;
+    char id[41];
+    seaf_message ("Totally %u entries in index, version %u.\n",
+                  istate->cache_nr, istate->version);
+    for (i = 0; i < istate->cache_nr; ++i) {
+        ce = istate->cache[i];
+        rawdata_to_hex (ce->sha1, id, 20);
+        seaf_message ("%s, %s, %o, %"G_GINT64_FORMAT", %s, %"G_GINT64_FORMAT"\n",
+                      ce->name, id, ce->ce_mode, 
+                      ce->ce_mtime.sec, ce->modifier, ce->ce_size);
+    }
+
+    return 0;
+}
+#endif
+
 char *
 seaf_repo_index_commit (SeafRepo *repo, const char *desc, GError **error)
 {
@@ -874,7 +923,7 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, GError **error)
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
+    if (read_index_from (&istate, index_path, repo->version) < 0) {
         g_warning ("Failed to load index.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal data structure error");
         return NULL;
@@ -908,7 +957,9 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, GError **error)
     }
 
     it = cache_tree ();
-    if (cache_tree_update (repo->id, repo->version, it, istate.cache,
+    if (cache_tree_update (repo->id, repo->version,
+                           repo->worktree,
+                           it, istate.cache,
                            istate.cache_nr, 0, 0, commit_trees_cb) < 0) {
         g_warning ("Failed to build cache tree");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal data structure error");
@@ -993,7 +1044,7 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
+    if (read_index_from (&istate, index_path, repo->version) < 0) {
         g_warning ("Failed to load index.\n");
         return -1;
     }
@@ -1180,7 +1231,7 @@ error:
 
 int
 seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
-                 gboolean *real_merge, gboolean calculate_ca)
+                 gboolean *real_merge)
 {
     SeafBranch *remote_branch;
     int ret = 0;
@@ -1202,7 +1253,7 @@ seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
         goto error;
     }
 
-    ret = merge_branches (repo, remote_branch, error, real_merge, calculate_ca);
+    ret = merge_branches (repo, remote_branch, error, real_merge);
     seaf_branch_unref (remote_branch);
 
     return ret;

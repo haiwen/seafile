@@ -272,7 +272,24 @@ handle_response (CcnetProcessor *processor,
             return;
         }
 
-        seaf_message ("protocol version is %d.\n", task->protocol_version);
+        if (task->repo_version == 0)
+            task->protocol_version = 5;
+        else if (task->protocol_version == 5) {
+            /* Syncing version 1 reop with 2.x server is not supported.
+             * Actually version 1 repo can only be created by 3.x servers.
+             * If version 1 repos exist on 2.x server, it means a down-grade
+             * operation has been performed, which is not supported.
+             */
+            seaf_warning ("Syncing version %d repo with protocol version %d "
+                          "is not supported.\n",
+                          task->repo_version, task->protocol_version);
+            transfer_task_set_error (task, TASK_ERR_DEPRECATED_SERVER);
+            ccnet_processor_done (processor, FALSE);
+            return;
+        }
+
+        seaf_message ("repo version is %d, protocol version is %d.\n",
+                      task->repo_version, task->protocol_version);
         ccnet_processor_done (processor, TRUE);
     } else {
         g_warning ("[check tx v3] Bad response: %s %s", code, code_msg);

@@ -10,10 +10,9 @@
 
 int
 merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
-                gboolean *real_merge, gboolean calculate_ca);
+                gboolean *real_merge);
 
 int
-merge_get_new_block_list (SeafRepo *repo, SeafCommit *remote, BlockList **bl,
-                          gboolean calculate_ca);
+merge_get_new_block_list (SeafRepo *repo, SeafCommit *remote, BlockList **bl);
 
 #endif

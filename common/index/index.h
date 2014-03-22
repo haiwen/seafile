@@ -133,6 +133,25 @@ struct ondisk_cache_entry {
     char name[0]; /* more */
 } __attribute__ ((packed));
 
+struct cache_time64 {
+    guint64 sec;
+    guint64 nsec;
+};
+
+struct ondisk_cache_entry2 {
+    struct cache_time64 ctime;
+    struct cache_time64 mtime;
+    unsigned int dev;
+    unsigned int ino;
+    unsigned int mode;
+    unsigned int uid;
+    unsigned int gid;
+    uint64_t     size;
+    unsigned char sha1[20];
+    unsigned short flags;
+    char name[0]; /* more */
+} __attribute__ ((packed));
+
 /*
  * This struct is used when CE_EXTENDED bit is 1
  * The struct must match ondisk_cache_entry exactly from
@@ -153,9 +172,17 @@ struct ondisk_cache_entry_extended {
     char name[0]; /* more */
 } __attribute__ ((packed));
 
+#define CACHE_EXT_MODIFIER 1
+
+struct cache_ext_hdr {
+    unsigned int ext_name;
+    unsigned int ext_size;
+} __attribute__ ((packed));
+
 struct cache_entry {
-    struct cache_time ce_ctime;
-    struct cache_time ce_mtime;
+    struct cache_time64 ce_ctime;
+    struct cache_time64 ce_mtime;
+    guint64 current_mtime;      /* used in merge */
     unsigned int ce_dev;
     unsigned int ce_ino;
     unsigned int ce_mode;
@@ -164,6 +191,7 @@ struct cache_entry {
     uint64_t     ce_size;
     unsigned int ce_flags;
     unsigned char sha1[20];
+    char *modifier;
     struct cache_entry *next;
     char name[0]; /* more */
 };
@@ -226,8 +254,8 @@ static inline void copy_cache_entry(struct cache_entry *dst, struct cache_entry 
 {
     unsigned int state = dst->ce_flags & CE_STATE_MASK;
 
-    /* Don't copy hash chain and name */
-    memcpy(dst, src, offsetof(struct cache_entry, next));
+    /* Don't copy modifier, hash chain and name */
+    memcpy(dst, src, offsetof(struct cache_entry, modifier));
 
     /* Restore the hash state */
     dst->ce_flags = (dst->ce_flags & ~CE_STATE_MASK) | state;
@@ -249,9 +277,8 @@ static inline size_t ce_namelen(const struct cache_entry *ce)
 }
 
 #define ce_size(ce) cache_entry_size(ce_namelen(ce))
-#define ondisk_ce_size(ce) (((ce)->ce_flags & CE_EXTENDED) ? \
-                ondisk_cache_entry_extended_size(ce_namelen(ce)) : \
-                ondisk_cache_entry_size(ce_namelen(ce)))
+#define ondisk_ce_size(ce) ondisk_cache_entry_size(ce_namelen(ce))
+#define ondisk_ce_size2(ce) ondisk_cache_entry_size2(ce_namelen(ce))
 #define ce_stage(ce) ((CE_STAGEMASK & (ce)->ce_flags) >> CE_STAGESHIFT)
 #define ce_uptodate(ce) ((ce)->ce_flags & CE_UPTODATE)
 #define ce_skip_worktree(ce) ((ce)->ce_flags & CE_SKIP_WORKTREE)
@@ -296,9 +323,11 @@ static inline unsigned int canon_mode(unsigned int mode)
 #define flexible_size(STRUCT,len) ((offsetof(struct STRUCT,name) + (len) + 8) & ~7)
 #define cache_entry_size(len) flexible_size(cache_entry,len)
 #define ondisk_cache_entry_size(len) flexible_size(ondisk_cache_entry,len)
+#define ondisk_cache_entry_size2(len) flexible_size(ondisk_cache_entry2,len)
 #define ondisk_cache_entry_extended_size(len) flexible_size(ondisk_cache_entry_extended,len)
 
 struct index_state {
+    unsigned int version;
     struct cache_entry **cache;
     unsigned int cache_nr, cache_alloc, cache_changed;
     /* struct cache_tree *cache_tree; */
@@ -307,6 +336,7 @@ struct index_state {
     unsigned name_hash_initialized : 1,
          initialized : 1;
     struct hash_table name_hash;
+    int has_modifier;
 };
 
 extern struct index_state the_index;
@@ -372,7 +402,7 @@ static inline enum object_type object_type(unsigned int mode)
 /* Initialize and use the cache information */
 extern int read_index(struct index_state *);
 extern int read_index_preload(struct index_state *, const char **pathspec);
-extern int read_index_from(struct index_state *, const char *path);
+extern int read_index_from(struct index_state *, const char *path, int repo_version);
 extern int is_index_unborn(struct index_state *);
 extern int read_index_unmerged(struct index_state *);
 extern int write_index(struct index_state *, int newfd);
@@ -413,7 +443,8 @@ int add_to_index(const char *repo_id,
                  SeafStat *st,
                  int flags,
                  struct SeafileCrypt *crypt,
-                 IndexCB index_cb);
+                 IndexCB index_cb,
+                 const char *modifier);
 
 int
 add_empty_dir_to_index (struct index_state *istate,
@@ -424,6 +455,8 @@ extern int add_file_to_index(struct index_state *, const char *path, int flags);
 extern struct cache_entry *make_cache_entry(unsigned int mode, const unsigned char *sha1, const char *path, const char *full_path, int stage, int refresh);
 extern int ce_same_name(struct cache_entry *a, struct cache_entry *b);
 extern int index_name_is_other(const struct index_state *, const char *, int);
+
+void cache_entry_free (struct cache_entry *ce);
 
 /* do stat comparison even if CE_VALID is true */
 #define CE_MATCH_IGNORE_VALID        01

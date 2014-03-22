@@ -483,6 +483,7 @@ index_files_job (void *data)
     CloneTask *task = aux->task;
 
     if (seaf_repo_index_worktree_files (task->repo_id, task->repo_version,
+                                        task->email,
                                         task->worktree,
                                         task->passwd, task->enc_version,
                                         task->random_key,
@@ -1266,7 +1267,7 @@ real_merge (SeafRepo *repo, SeafCommit *head, CloneTask *task)
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
+    if (read_index_from (&istate, index_path, repo->version) < 0) {
         seaf_warning ("Failed to load index.\n");
         return -1;
     }
@@ -1323,7 +1324,7 @@ fast_forward_checkout (SeafRepo *repo, SeafCommit *head, CloneTask *task)
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path) < 0) {
+    if (read_index_from (&istate, index_path, repo->version) < 0) {
         seaf_warning ("Failed to load index.\n");
         return -1;
     }

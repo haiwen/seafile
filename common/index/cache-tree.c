@@ -257,6 +257,7 @@ int cache_tree_fully_valid(struct cache_tree *it)
 
 static int update_one(const char *repo_id,
                       int version,
+                      const char *worktree,
                       struct cache_tree *it,
                       struct cache_entry **cache,
                       int entries,
@@ -306,6 +307,7 @@ static int update_one(const char *repo_id,
         if (!sub->cache_tree)
             sub->cache_tree = cache_tree();
         subcnt = update_one(repo_id, version,
+                            worktree,
                             sub->cache_tree,
                             cache + i, entries - i,
                             path,
@@ -322,7 +324,8 @@ static int update_one(const char *repo_id,
 
     discard_unused_subtrees(it);
 
-    if (commit_cb (repo_id, version, it, cache, entries, base, baselen) < 0) {
+    if (commit_cb (repo_id, version, worktree,
+                   it, cache, entries, base, baselen) < 0) {
         g_warning ("save seafile dirent failed");
         return -1;
     }
@@ -332,6 +335,7 @@ static int update_one(const char *repo_id,
 
 int cache_tree_update(const char *repo_id,
                       int repo_version,
+                      const char *worktree,
                       struct cache_tree *it,
                       struct cache_entry **cache,
                       int entries,
@@ -343,7 +347,7 @@ int cache_tree_update(const char *repo_id,
     i = verify_cache(cache, entries);
     if (i)
         return i;
-    i = update_one(repo_id, repo_version,
+    i = update_one(repo_id, repo_version, worktree,
                    it, cache, entries, "", 0, missing_ok, dryrun, commit_cb);
     if (i < 0)
         return i;
@@ -514,6 +518,8 @@ static struct cache_tree *cache_tree_find(struct cache_tree *it, const char *pat
     return it;
 }
 
+#if 0
+
 int write_cache_as_tree(unsigned char *sha1, int flags, const char *prefix)
 {
     int entries, was_valid, newfd;
@@ -572,6 +578,8 @@ int write_cache_as_tree(unsigned char *sha1, int flags, const char *prefix)
 
     return 0;
 }
+
+#endif  /* 0 */
 
 static void prime_cache_tree_rec(struct cache_tree *it, struct tree *tree)
 {

@@ -264,7 +264,7 @@ void wt_status_collect_changes_worktree(struct index_state *index,
                 continue;
             }
 
-            if (ce->ce_mtime.sec == 0) {
+            if (ce->ce_ctime.sec == 0) {
                 g_free (realpath);
                 continue;
             }

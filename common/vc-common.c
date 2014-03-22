@@ -316,6 +316,8 @@ vc_compare_commits (const char *repo_id, int version,
  */
 static int
 diff_parents_with_path (SeafCommit *commit,
+                        const char *repo_id,
+                        int version,
                         const char *path,
                         const char *file_id,
                         char *parent,
@@ -355,8 +357,8 @@ diff_parents_with_path (SeafCommit *commit,
 
     if (!p2) {
         file_id_p1 = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
-                                                     commit->repo_id,
-                                                     commit->version,
+                                                     repo_id,
+                                                     version,
                                                      p1->root_id, path,
                                                      NULL,
                                                      error);
@@ -368,15 +370,15 @@ diff_parents_with_path (SeafCommit *commit,
             memcpy (parent, p1->commit_id, 41);
     } else {
         file_id_p1 = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
-                                                     commit->repo_id,
-                                                     commit->version,
+                                                     repo_id,
+                                                     version,
                                                      p1->root_id, path,
                                                      NULL, error);
         if (*error)
             goto out;
         file_id_p2 = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
-                                                     commit->repo_id,
-                                                     commit->version,
+                                                     repo_id,
+                                                     version,
                                                      p2->root_id, path,
                                                      NULL, error);
         if (*error)
@@ -417,21 +419,20 @@ out:
     return ret;
 }
 
-/**
- * Get the user who last changed a file.
- * @head: head commit to start the search.
- * @path: path of the file.
- */
-char *
-get_last_changer_of_file (const char *repo_id, int version,
-                          const char *head, const char *path)
+static int
+get_file_modifier_mtime_v0 (const char *repo_id, int version,
+                            const char *head, const char *path,
+                            char **modifier, gint64 *mtime)
 {
     char commit_id[41];
     SeafCommit *commit = NULL;
     char *file_id = NULL;
     int changed;
-    char *ret = NULL;
+    int ret = 0;
     GError *error = NULL;
+
+    *modifier = NULL;
+    *mtime = 0;
 
     memcpy (commit_id, head, 41);
 
@@ -439,8 +440,10 @@ get_last_changer_of_file (const char *repo_id, int version,
         commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
                                                  repo_id, version,
                                                  commit_id);
-        if (!commit)
+        if (!commit) {
+            ret = -1;
             break;
+        }
 
         /* We hit the initial commit. */
         if (!commit->parent_id)
@@ -454,21 +457,28 @@ get_last_changer_of_file (const char *repo_id, int version,
                                                   &error);
         if (error) {
             g_clear_error (&error);
+            ret = -1;
             break;
         }
         /* We expect commit to have this file. */
-        if (!file_id)
+        if (!file_id) {
+            ret = -1;
             break;
+        }
 
-        changed = diff_parents_with_path (commit, path, file_id,
+        changed = diff_parents_with_path (commit,
+                                          repo_id, version,
+                                          path, file_id,
                                           commit_id, &error);
         if (error) {
             g_clear_error (&error);
+            ret = -1;
             break;
         }
 
         if (changed) {
-            ret = g_strdup (commit->creator_name);
+            *modifier = g_strdup (commit->creator_name);
+            *mtime = commit->ctime;
             break;
         } else {
             /* If this commit doesn't change the file, commit_id will be set
@@ -485,11 +495,94 @@ get_last_changer_of_file (const char *repo_id, int version,
     return ret;
 }
 
+static int
+get_file_modifier_mtime_v1 (const char *repo_id, int version,
+                            const char *head, const char *path,
+                            char **modifier, gint64 *mtime)
+{
+    SeafCommit *commit = NULL;
+    SeafDir *dir = NULL;
+    SeafDirent *dent = NULL;
+    int ret = 0;
+
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             repo_id, version,
+                                             head);
+    if (!commit) {
+        seaf_warning ("Failed to get commit %s.\n", head);
+        return -1;
+    }
+
+    char *parent = g_path_get_dirname (path);
+    if (strcmp(parent, ".") == 0) {
+        g_free (parent);
+        parent = g_strdup("");
+    }
+    char *filename = g_path_get_basename (path);
+
+    dir = seaf_fs_manager_get_seafdir_by_path (seaf->fs_mgr,
+                                               repo_id, version,
+                                               commit->root_id,
+                                               parent, NULL);
+    if (!dir) {
+        seaf_warning ("dir %s doesn't exist in repo %s.\n", parent, repo_id);
+        ret = -1;
+        goto out;
+    }
+
+    GList *p;
+    for (p = dir->entries; p; p = p->next) {
+        SeafDirent *d = p->data;
+        if (S_ISREG(d->mode) &&
+            strcmp (d->name, filename) == 0) {
+            dent = d;
+            break;
+        }
+    }
+
+    if (!dent) {
+        goto out;
+    }
+
+    *modifier = g_strdup(dent->modifier);
+    *mtime = dent->mtime;
+
+out:
+    g_free (parent);
+    g_free (filename);
+    seaf_commit_unref (commit);
+    seaf_dir_free (dir);
+
+    return ret;
+}
+
+/**
+ * Get the user who last changed a file and the mtime.
+ * @head: head commit to start the search.
+ * @path: path of the file.
+ */
+int
+get_file_modifier_mtime (const char *repo_id, int version,
+                         const char *head, const char *path,
+                         char **modifier, gint64 *mtime)
+{
+    if (version > 0)
+        return get_file_modifier_mtime_v1 (repo_id, version,
+                                           head, path,
+                                           modifier, mtime);
+    else
+        return get_file_modifier_mtime_v0 (repo_id, version,
+                                           head, path,
+                                           modifier, mtime);
+}
+
 char *
-gen_conflict_path (const char *origin_path)
+gen_conflict_path (const char *origin_path,
+                   const char *modifier,
+                   gint64 mtime)
 {
     char time_buf[64];
-    time_t t = time(NULL);
+    time_t t = (time_t)mtime;
     char *copy = g_strdup (origin_path);
     GString *conflict_path = g_string_new (NULL);
     char *dot, *ext;
@@ -501,13 +594,28 @@ gen_conflict_path (const char *origin_path)
     if (dot != NULL) {
         *dot = '\0';
         ext = dot + 1;
-        g_string_printf (conflict_path, "%s (%s).%s",
-                         copy, time_buf, ext);
+        g_string_printf (conflict_path, "%s (%s %s).%s",
+                         copy, modifier, time_buf, ext);
     } else {
-        g_string_printf (conflict_path, "%s (%s)",
-                         copy, time_buf);
+        g_string_printf (conflict_path, "%s (%s %s)",
+                         copy, modifier, time_buf);
     }
 
     g_free (copy);
     return g_string_free (conflict_path, FALSE);
+}
+
+char *
+gen_conflict_path_wrapper (const char *repo_id, int version,
+                           const char *head, const char *in_repo_path,
+                           const char *original_path)
+{
+    char *modifier;
+    gint64 mtime;
+
+    if (get_file_modifier_mtime (repo_id, version, head, in_repo_path,
+                                 &modifier, &mtime) < 0)
+        return NULL;
+
+    return gen_conflict_path (original_path, modifier, mtime);
 }

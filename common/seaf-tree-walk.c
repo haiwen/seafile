@@ -111,6 +111,10 @@ traverse_trees(int n, struct tree_desc *t, struct traverse_info *info)
                     entries[i].path = dent->name;
                     entries[i].pathlen = dent->name_len;
                     entries[i].mode = dent->mode;
+                    entries[i].mtime = dent->mtime;
+                    if (S_ISREG(dent->mode)) {
+                        entries[i].modifier = dent->modifier;
+                    }
 
                     ptrs[i] = ptrs[i]->next;
                 }

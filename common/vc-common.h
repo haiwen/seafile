@@ -33,10 +33,19 @@ vc_compare_commits (const char *repo_id, int version,
                     const char *c1, const char *c2);
 
 char *
-gen_conflict_path (const char *origin_path);
+gen_conflict_path (const char *original_path,
+                   const char *modifier,
+                   gint64 mtime);
 
+int
+get_file_modifier_mtime (const char *repo_id, int version,
+                         const char *head, const char *path,
+                         char **modifier, gint64 *mtime);
+
+/* Wrapper around the above two functions */
 char *
-get_last_changer_of_file (const char *repo_id, int version,
-                          const char *head, const char *path);
+gen_conflict_path_wrapper (const char *repo_id, int version,
+                           const char *head, const char *in_repo_path,
+                           const char *original_path);
 
 #endif

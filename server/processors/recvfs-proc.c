@@ -228,7 +228,8 @@ on_seafdir_read (OSAsyncResult *res, void *cb_data)
     seaf_debug ("[recvfs] Read seafdir %s.\n", res->obj_id);
 #endif
 
-    dir = seaf_dir_from_data (res->obj_id, res->data, res->len);
+    dir = seaf_dir_from_data (res->obj_id, res->data, res->len,
+                              (priv->repo_version > 0));
     if (!dir) {
         g_warning ("[recvfs] Corrupt dir object %s.\n", res->obj_id);
         request_object_batch (processor, priv, res->obj_id);
@@ -435,7 +436,7 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
 {
     USE_PRIV;
     ObjectPack *pack = (ObjectPack *)content;
-    uint32_t type;
+    SeafFSObject *fs_obj = NULL;
 
     if (clen < sizeof(ObjectPack)) {
         g_warning ("invalid object id.\n");
@@ -446,19 +447,20 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
 
     --priv->pending_objects;
 
-    type = seaf_metadata_type_from_data(pack->object, clen);
-    if (type == SEAF_METADATA_TYPE_DIR) {
-        SeafDir *dir;
-        dir = seaf_dir_from_data (pack->id, pack->object, clen - 41);
-        if (!dir) {
-            g_warning ("Bad directory object %s.\n", pack->id);
-            goto bad;
-        }
+    fs_obj = seaf_fs_object_from_data(pack->id,
+                                      pack->object, clen - sizeof(ObjectPack),
+                                      (priv->repo_version > 0));
+    if (!fs_obj) {
+        g_warning ("Bad fs object %s.\n", pack->id);
+        goto bad;
+    }
+
+    if (fs_obj->type == SEAF_METADATA_TYPE_DIR) {
+        SeafDir *dir = (SeafDir *)fs_obj;
         int ret = check_seafdir (processor, dir);
-        seaf_dir_free (dir);
         if (ret < 0)
             goto bad;
-    } else if (type == SEAF_METADATA_TYPE_FILE) {
+    } else if (fs_obj->type == SEAF_METADATA_TYPE_FILE) {
         /* TODO: check seafile format. */
 #if 0
         int ret = seafile_check_data_format (pack->object, clen - 41);
@@ -466,10 +468,9 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
             goto bad;
         }
 #endif
-    } else {
-        g_warning ("Invalid object type.\n");
-        goto bad;
     }
+
+    seaf_fs_object_free (fs_obj);
 
     if (save_fs_object (processor, pack, clen) < 0) {
         goto bad;
@@ -482,6 +483,8 @@ bad:
                                    SS_BAD_OBJECT, NULL, 0);
     g_warning ("[recvfs] Bad fs object received.\n");
     ccnet_processor_done (processor, FALSE);
+
+    seaf_fs_object_free (fs_obj);
 
     return -1;
 }

@@ -12,31 +12,69 @@ merge_trees_recursive (const char *repo_id, int version,
                        MergeOptions *opt);
 
 static char *
-merge_conflict_filename (const char *remote_head,
+merge_conflict_filename (const char *repo_id, int version,
+                         const char *remote_head,
                          const char *basedir,
                          const char *filename)
 {
-    char *conflict_name = NULL;
+    char *path = NULL, *modifier = NULL, *conflict_name = NULL;
+    gint64 mtime;
+    SeafCommit *commit;
 
-    conflict_name = gen_conflict_path (filename);
+    path = g_strconcat (basedir, filename, NULL);
 
+    int rc = get_file_modifier_mtime (repo_id, version, remote_head, path,
+                                      &modifier, &mtime);
+    if (rc < 0) {
+        commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                 repo_id, version,
+                                                 remote_head);
+        if (!commit) {
+            seaf_warning ("Failed to find remote head %s.\n", remote_head);
+            goto out;
+        }
+        modifier = g_strdup(commit->creator_name);
+        mtime = (gint64)time(NULL);
+        seaf_commit_unref (commit);
+    }
+
+    conflict_name = gen_conflict_path (filename, modifier, mtime);
+
+out:
+    g_free (path);
+    g_free (modifier);
     return conflict_name;
 }
 
 static char *
-merge_conflict_dirname (const char *remote_head,
+merge_conflict_dirname (const char *repo_id, int version,
+                        const char *remote_head,
                         const char *basedir,
                         const char *dirname)
 {
-    char *conflict_name = NULL;
+    char *modifier = NULL, *conflict_name = NULL;
+    SeafCommit *commit;
 
-    conflict_name = gen_conflict_path (dirname);
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             repo_id, version,
+                                             remote_head);
+    if (!commit) {
+        seaf_warning ("Failed to find remote head %s.\n", remote_head);
+        goto out;
+    }
+    modifier = g_strdup(commit->creator_name);
+    seaf_commit_unref (commit);
 
+    conflict_name = gen_conflict_path (dirname, modifier, (gint64)time(NULL));
+
+out:
+    g_free (modifier);
     return conflict_name;
 }
 
 static int
-merge_entries (int n, SeafDirent *dents[],
+merge_entries (const char *repo_id, int version,
+               int n, SeafDirent *dents[],
                const char *basedir,
                GList **dents_out,
                MergeOptions *opt)
@@ -87,7 +125,8 @@ merge_entries (int n, SeafDirent *dents[],
 
             seaf_debug ("%s%s: files conflict\n", basedir, head->name);
 
-            conflict_name = merge_conflict_filename(opt->remote_head,
+            conflict_name = merge_conflict_filename(repo_id, version,
+                                                    opt->remote_head,
                                                     basedir,
                                                     head->name);
             if (!conflict_name)
@@ -114,7 +153,8 @@ merge_entries (int n, SeafDirent *dents[],
                 seaf_debug ("%s%s: DFC, file -> dir, file\n",
                             basedir, remote->name);
 
-                conflict_name = merge_conflict_filename(opt->remote_head,
+                conflict_name = merge_conflict_filename(repo_id, version,
+                                                        opt->remote_head,
                                                         basedir,
                                                         remote->name);
                 if (!conflict_name)
@@ -157,7 +197,8 @@ merge_entries (int n, SeafDirent *dents[],
                 /* We use remote head commit author name as conflict
                  * suffix of a dir.
                  */
-                conflict_name = merge_conflict_dirname (opt->remote_head,
+                conflict_name = merge_conflict_dirname (repo_id, version,
+                                                        opt->remote_head,
                                                         basedir, dents[2]->name);
                 if (!conflict_name)
                     return -1;
@@ -211,7 +252,8 @@ merge_entries (int n, SeafDirent *dents[],
 
             seaf_debug ("%s%s: DFC, dir -> dir, file\n", basedir, remote->name);
 
-            conflict_name = merge_conflict_filename(opt->remote_head,
+            conflict_name = merge_conflict_filename(repo_id, version,
+                                                    opt->remote_head,
                                                     basedir,
                                                     remote->name);
             if (!conflict_name)
@@ -250,7 +292,8 @@ merge_entries (int n, SeafDirent *dents[],
 
             seaf_debug ("%s%s: DFC, dir -> file, dir\n", basedir, head->name);
 
-            conflict_name = merge_conflict_dirname (opt->remote_head,
+            conflict_name = merge_conflict_dirname (repo_id, version,
+                                                    opt->remote_head,
                                                     basedir, dents[2]->name);
             if (!conflict_name)
                 return -1;
@@ -472,7 +515,8 @@ merge_trees_recursive (const char *repo_id, int version,
 
         /* Merge entries of this level. */
         if (n_files > 0) {
-            ret = merge_entries (n, dents, basedir, &merged_dents, opt);
+            ret = merge_entries (repo_id, version,
+                                 n, dents, basedir, &merged_dents, opt);
             if (ret < 0)
                 return ret;
         }
@@ -488,7 +532,8 @@ merge_trees_recursive (const char *repo_id, int version,
 
     if (n == 3 && opt->do_merge) {
         merged_dents = g_list_sort (merged_dents, compare_dirents);
-        merged_tree = seaf_dir_new (NULL, merged_dents, 0);
+        merged_tree = seaf_dir_new (NULL, merged_dents,
+                                    dir_version_from_repo_version(version));
 
         memcpy (opt->merged_tree_root, merged_tree->dir_id, 40);
 

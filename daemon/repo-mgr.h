@@ -85,6 +85,9 @@ seaf_repo_free (SeafRepo *repo);
 int
 seaf_repo_set_head (SeafRepo *repo, SeafBranch *branch);
 
+SeafCommit *
+seaf_repo_get_head_commit (const char *repo_id);
+
 int
 seaf_repo_checkdir (SeafRepo *repo);
 
@@ -111,6 +114,7 @@ seaf_repo_index_add (SeafRepo *repo, const char *path);
 int
 seaf_repo_index_worktree_files (const char *repo_id,
                                 int version,
+                                const char *modifier,
                                 const char *worktree,
                                 const char *passwd,
                                 int enc_version,
@@ -147,7 +151,7 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
 
 int
 seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
-                 gboolean *real_merge, gboolean calculate_ca);
+                 gboolean *real_merge);
 
 GList *
 seaf_repo_diff (SeafRepo *repo, const char *arg1, const char *arg2, char **error);

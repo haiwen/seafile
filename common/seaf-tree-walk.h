@@ -4,14 +4,16 @@
 #include "fs-mgr.h"
 
 struct name_entry {
-	unsigned char sha1[20];
-	const char *path;
-	int pathlen;
-	unsigned int mode;
+    unsigned char sha1[20];
+    const char *path;
+    int pathlen;
+    unsigned int mode;
+    char *modifier;
+    guint64 mtime;
 };
 
 struct tree_desc {
-	SeafDir *tree;
+    SeafDir *tree;
 };
 
 inline static void tree_desc_free (struct tree_desc *t)
