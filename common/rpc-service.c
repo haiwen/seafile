@@ -3562,7 +3562,6 @@ seafile_list_dir (const char *repo_id,
                           "mtime", dent->mtime,
                           "size", dent->size,
                           NULL);
-        seaf_message ("%"G_GUINT64_FORMAT"\n", dent->mtime);
         res = g_list_prepend (res, d);
     }
 

@@ -83,7 +83,7 @@ void
 seaf_dir_free (SeafDir *dir);
 
 SeafDir *
-seaf_dir_from_data (const char *dir_id, const uint8_t *data, int len,
+seaf_dir_from_data (const char *dir_id, uint8_t *data, int len,
                     gboolean is_json);
 
 void *
@@ -106,12 +106,13 @@ SeafDirent *
 seaf_dirent_dup (SeafDirent *dent);
 
 int
-seaf_metadata_type_from_data (const uint8_t *data, int len, gboolean is_json);
+seaf_metadata_type_from_data (const char *obj_id,
+                              uint8_t *data, int len, gboolean is_json);
 
 /* Parse an fs object without knowing its type. */
 SeafFSObject *
 seaf_fs_object_from_data (const char *obj_id,
-                          const uint8_t *data, int len,
+                          uint8_t *data, int len,
                           gboolean is_json);
 
 void

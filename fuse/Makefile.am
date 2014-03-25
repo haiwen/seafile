@@ -43,6 +43,6 @@ seaf_fuse_LDADD = @CCNET_LIBS@ \
 				  @GLIB2_LIBS@ @GOBJECT_LIBS@ -lssl @LIB_RT@ @LIB_UUID@ \
                   -lsqlite3 -levent \
 				  $(top_builddir)/common/cdc/libcdc.la \
-				  @SEARPC_LIBS@ @ZDB_LIBS@ @FUSE_LIBS@
+				  @SEARPC_LIBS@ @ZDB_LIBS@ @FUSE_LIBS@ @ZLIB_LIBS@
 
 seaf_fuse_LDFLAGS = @STATIC_COMPILE@ @SERVER_PKG_RPATH@

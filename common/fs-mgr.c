@@ -374,16 +374,32 @@ write_seafile (SeafFSManager *fs_mgr,
     void *ondisk;
     int ondisk_size;
 
-    if (version > 0)
+    if (version > 0) {
         ondisk = create_seafile_json (version, cdc, &ondisk_size, seafile_id);
-    else
+
+        guint8 *compressed;
+        int outlen;
+
+        if (seaf_compress (ondisk, ondisk_size, &compressed, &outlen) < 0) {
+            seaf_warning ("Failed to compress seafile obj %s.\n", seafile_id);
+            ret = -1;
+            goto out;
+        }
+
+        if (seaf_obj_store_write_obj (fs_mgr->obj_store, repo_id, version, seafile_id,
+                                      compressed, outlen, FALSE) < 0)
+            ret = -1;
+        g_free (compressed);
+    } else {
         ondisk = create_seafile_v0 (cdc, &ondisk_size, seafile_id);
 
-    if (seaf_obj_store_write_obj (fs_mgr->obj_store, repo_id, version, seafile_id,
-                                  ondisk, ondisk_size, FALSE) < 0)
-        ret = -1;
-    g_free (ondisk);
+        if (seaf_obj_store_write_obj (fs_mgr->obj_store, repo_id, version, seafile_id,
+                                      ondisk, ondisk_size, FALSE) < 0)
+            ret = -1;
+    }
 
+out:
+    g_free (ondisk);
     if (ret == 0)
         hex_to_rawdata (seafile_id, obj_sha1, 20);
 
@@ -823,13 +839,21 @@ seafile_from_json_object (const char *id, json_t *object)
 }
 
 static Seafile *
-seafile_from_json (const char *id, const void *data, int len)
+seafile_from_json (const char *id, void *data, int len)
 {
+    guint8 *decompressed;
+    int outlen;
     json_t *object = NULL;
     json_error_t error;
     Seafile *seafile;
 
-    object = json_loadb (data, len, 0, &error);
+    if (seaf_decompress (data, len, &decompressed, &outlen) < 0) {
+        seaf_warning ("Failed to decompress seafile object %s.\n", id);
+        return NULL;
+    }
+
+    object = json_loadb ((const char *)decompressed, outlen, 0, &error);
+    g_free (decompressed);
     if (!object) {
         if (error.text)
             g_warning ("Failed to load seafile json object: %s.\n", error.text);
@@ -845,7 +869,7 @@ seafile_from_json (const char *id, const void *data, int len)
 }
 
 static Seafile *
-seafile_from_data (const char *id, const void *data, int len, gboolean is_json)
+seafile_from_data (const char *id, void *data, int len, gboolean is_json)
 {
     if (is_json)
         return seafile_from_json (id, data, len);
@@ -1176,13 +1200,21 @@ seaf_dir_from_json_object (const char *dir_id, json_t *object)
 }
 
 static SeafDir *
-seaf_dir_from_json (const char *dir_id, const uint8_t *data, int len)
+seaf_dir_from_json (const char *dir_id, uint8_t *data, int len)
 {
+    guint8 *decompressed;
+    int outlen;
     json_t *object = NULL;
     json_error_t error;
     SeafDir *dir;
 
-    object = json_loadb ((const char *)data, len, 0, &error);
+    if (seaf_decompress (data, len, &decompressed, &outlen) < 0) {
+        seaf_warning ("Failed to decompress dir object %s.\n", dir_id);
+        return NULL;
+    }
+
+    object = json_loadb ((const char *)decompressed, outlen, 0, &error);
+    g_free (decompressed);
     if (!object) {
         if (error.text)
             g_warning ("Failed to load seafdir json object: %s.\n", error.text);
@@ -1198,7 +1230,7 @@ seaf_dir_from_json (const char *dir_id, const uint8_t *data, int len)
 }
 
 SeafDir *
-seaf_dir_from_data (const char *dir_id, const uint8_t *data, int len,
+seaf_dir_from_data (const char *dir_id, uint8_t *data, int len,
                     gboolean is_json)
 {
     if (is_json)
@@ -1314,15 +1346,23 @@ seaf_dir_save (SeafFSManager *fs_mgr,
                SeafDir *dir)
 {
     int ret = 0;
+    guint8 *compressed;
+    int outlen;
 
     /* Don't need to save empty dir on disk. */
     if (memcmp (dir->dir_id, EMPTY_SHA1, 40) == 0)
         return 0;
 
+    if (seaf_compress (dir->ondisk, dir->ondisk_size, &compressed, &outlen) < 0) {
+        seaf_warning ("Failed to compress dir object %s.\n", dir->dir_id);
+        return -1;
+    }
+
     if (seaf_obj_store_write_obj (fs_mgr->obj_store, repo_id, version, dir->dir_id,
-                                  dir->ondisk, dir->ondisk_size, FALSE) < 0)
+                                  compressed, outlen, FALSE) < 0)
         ret = -1;
 
+    g_free (compressed);
     return ret;
 }
 
@@ -1398,6 +1438,10 @@ seaf_fs_manager_get_seafdir_sorted (SeafFSManager *mgr,
     if (!dir)
         return NULL;
 
+    /* Only some very old dir objects are not sorted. */
+    if (version > 0)
+        return dir;
+
     if (!is_dirents_sorted (dir->entries))
         dir->entries = g_list_sort (dir->entries, compare_dirents);
 
@@ -1416,13 +1460,21 @@ parse_metadata_type_v0 (const uint8_t *data, int len)
 }
 
 static int
-parse_metadata_type_json (const uint8_t *data, int len)
+parse_metadata_type_json (const char *obj_id, uint8_t *data, int len)
 {
+    guint8 *decompressed;
+    int outlen;
     json_t *object;
     json_error_t error;
     int type;
 
-    object = json_loadb ((const char *)data, len, 0, &error);
+    if (seaf_decompress (data, len, &decompressed, &outlen) < 0) {
+        seaf_warning ("Failed to decompress fs object %s.\n", obj_id);
+        return SEAF_METADATA_TYPE_INVALID;
+    }
+
+    object = json_loadb ((const char *)decompressed, outlen, 0, &error);
+    g_free (decompressed);
     if (!object) {
         if (error.text)
             g_warning ("Failed to load fs json object: %s.\n", error.text);
@@ -1438,10 +1490,11 @@ parse_metadata_type_json (const uint8_t *data, int len)
 }
 
 int
-seaf_metadata_type_from_data (const uint8_t *data, int len, gboolean is_json)
+seaf_metadata_type_from_data (const char *obj_id,
+                              uint8_t *data, int len, gboolean is_json)
 {
     if (is_json)
-        return parse_metadata_type_json (data, len);
+        return parse_metadata_type_json (obj_id, data, len);
     else
         return parse_metadata_type_v0 (data, len);
 }
@@ -1462,14 +1515,22 @@ fs_object_from_v0_data (const char *obj_id, const uint8_t *data, int len)
 }
 
 SeafFSObject *
-fs_object_from_json (const char *obj_id, const uint8_t *data, int len)
+fs_object_from_json (const char *obj_id, uint8_t *data, int len)
 {
+    guint8 *decompressed;
+    int outlen;
     json_t *object;
     json_error_t error;
     int type;
     SeafFSObject *fs_obj;
 
-    object = json_loadb ((const char *)data, len, 0, &error);
+    if (seaf_decompress (data, len, &decompressed, &outlen) < 0) {
+        seaf_warning ("Failed to decompress fs object %s.\n", obj_id);
+        return NULL;
+    }
+
+    object = json_loadb ((const char *)decompressed, outlen, 0, &error);
+    g_free (decompressed);
     if (!object) {
         if (error.text)
             g_warning ("Failed to load fs json object: %s.\n", error.text);
@@ -1497,7 +1558,7 @@ fs_object_from_json (const char *obj_id, const uint8_t *data, int len)
 
 SeafFSObject *
 seaf_fs_object_from_data (const char *obj_id,
-                          const uint8_t *data, int len,
+                          uint8_t *data, int len,
                           gboolean is_json)
 {
     if (is_json)
@@ -2136,19 +2197,27 @@ verify_seafdir_v0 (const char *dir_id, const uint8_t *data, int len,
 }
 
 static gboolean
-verify_fs_object_json (const char *obj_id, const uint8_t *data, int len)
+verify_fs_object_json (const char *obj_id, uint8_t *data, int len)
 {
+    guint8 *decompressed;
+    int outlen;
     unsigned char sha1[20];
     char hex[41];
 
-    calculate_sha1 (sha1, (const char *)data, len);
+    if (seaf_decompress (data, len, &decompressed, &outlen) < 0) {
+        seaf_warning ("Failed to decompress fs object %s.\n", obj_id);
+        return FALSE;
+    }
+
+    calculate_sha1 (sha1, (const char *)decompressed, outlen);
     rawdata_to_hex (sha1, hex, 20);
 
+    g_free (decompressed);
     return (strcmp(hex, obj_id) == 0);
 }
 
 static gboolean
-verify_seafdir (const char *dir_id, const uint8_t *data, int len,
+verify_seafdir (const char *dir_id, uint8_t *data, int len,
                 gboolean verify_id, gboolean is_json)
 {
     if (is_json)
@@ -2225,7 +2294,7 @@ verify_seafile_v0 (const char *id, const void *data, int len, gboolean verify_id
 }
 
 static gboolean
-verify_seafile (const char *id, const void *data, int len,
+verify_seafile (const char *id, void *data, int len,
                 gboolean verify_id, gboolean is_json)
 {
     if (is_json)
@@ -2264,13 +2333,13 @@ seaf_fs_manager_verify_seafile (SeafFSManager *mgr,
 
 static gboolean
 verify_fs_object_v0 (const char *obj_id,
-                     const uint8_t *data,
+                     uint8_t *data,
                      int len,
                      gboolean verify_id)
 {
     gboolean ret = TRUE;
 
-    int type = seaf_metadata_type_from_data (data, len, FALSE);
+    int type = seaf_metadata_type_from_data (obj_id, data, len, FALSE);
     switch (type) {
     case SEAF_METADATA_TYPE_FILE:
         ret = verify_seafile_v0 (obj_id, data, len, verify_id);

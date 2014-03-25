@@ -395,7 +395,7 @@ fs_object_write_cb (OSAsyncResult *res, void *data)
 
     --(priv->pending_objects);
 
-    int type = seaf_metadata_type_from_data (res->data, res->len,
+    int type = seaf_metadata_type_from_data (res->obj_id, res->data, res->len,
                                              (task->repo_version > 0));
     if (type == SEAF_METADATA_TYPE_DIR)
         g_queue_push_tail (priv->inspect_queue, g_strdup(res->obj_id));

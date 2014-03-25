@@ -225,7 +225,7 @@ check_tx (void *vprocessor)
     if (repo->version > 0 && priv->client_version < 6) {
         seaf_warning ("Client protocol version is %d, "
                       "cannot sync version %d repo %s.\n",
-                      prov->client_version, repo->version, repo_id);
+                      priv->client_version, repo->version, repo_id);
         priv->rsp_code = g_strdup(SC_PROTOCOL_MISMATCH);
         priv->rsp_msg = g_strdup(SS_PROTOCOL_MISMATCH);
         goto out;

@@ -333,4 +333,12 @@ json_object_set_int_member (json_t *object, const char *key, gint64 value);
 void
 clean_utf8_data (char *data, int len);
 
+/* zlib related functions. */
+
+int
+seaf_compress (guint8 *input, int inlen, guint8 **output, int *outlen);
+
+int
+seaf_decompress (guint8 *input, int inlen, guint8 **output, int *outlen);
+
 #endif

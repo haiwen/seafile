@@ -44,6 +44,8 @@
 
 #include <utime.h>
 
+#include <zlib.h>
+
 extern int inet_pton(int af, const char *src, void *dst);
 
 
@@ -2021,5 +2023,103 @@ clean_utf8_data (char *data, int len)
         *p = '?';
         ++p;
         s = e + 1;
+    }
+}
+
+/* zlib related wrapper functions. */
+
+#define ZLIB_BUF_SIZE 16384
+
+int
+seaf_compress (guint8 *input, int inlen, guint8 **output, int *outlen)
+{
+    int ret;
+    unsigned have;
+    z_stream strm;
+    guint8 out[ZLIB_BUF_SIZE];
+    GByteArray *barray;
+
+    /* allocate deflate state */
+    strm.zalloc = Z_NULL;
+    strm.zfree = Z_NULL;
+    strm.opaque = Z_NULL;
+    ret = deflateInit(&strm, Z_DEFAULT_COMPRESSION);
+    if (ret != Z_OK) {
+        g_warning ("deflateInit failed.\n");
+        return -1;
+    }
+
+    strm.avail_in = inlen;
+    strm.next_in = input;
+    barray = g_byte_array_new ();
+
+    do {
+        strm.avail_out = ZLIB_BUF_SIZE;
+        strm.next_out = out;
+        ret = deflate(&strm, Z_FINISH);    /* no bad return value */
+        have = ZLIB_BUF_SIZE - strm.avail_out;
+        g_byte_array_append (barray, out, have);
+    } while (ret != Z_STREAM_END);
+
+    *outlen = barray->len;
+    *output = g_byte_array_free (barray, FALSE);
+
+    /* clean up and return */
+    (void)deflateEnd(&strm);
+    return 0;
+}
+
+int
+seaf_decompress (guint8 *input, int inlen, guint8 **output, int *outlen)
+{
+    int ret;
+    unsigned have;
+    z_stream strm;
+    unsigned char out[ZLIB_BUF_SIZE];
+    GByteArray *barray;
+
+    /* allocate inflate state */
+    strm.zalloc = Z_NULL;
+    strm.zfree = Z_NULL;
+    strm.opaque = Z_NULL;
+    strm.avail_in = 0;
+    strm.next_in = Z_NULL;
+    ret = inflateInit(&strm);
+    if (ret != Z_OK) {
+        g_warning ("inflateInit failed.\n");
+        return -1;
+    }
+
+    strm.avail_in = inlen;
+    strm.next_in = input;
+    barray = g_byte_array_new ();
+
+    do {
+        strm.avail_out = ZLIB_BUF_SIZE;
+        strm.next_out = out;
+        ret = inflate(&strm, Z_FINISH);
+        switch (ret) {
+        case Z_NEED_DICT:
+            ret = Z_DATA_ERROR;     /* and fall through */
+        case Z_DATA_ERROR:
+        case Z_MEM_ERROR:
+            g_warning ("Failed to inflate.\n");
+            goto out;
+        }
+        have = ZLIB_BUF_SIZE - strm.avail_out;
+        g_byte_array_append (barray, out, have);
+    } while (ret != Z_STREAM_END);
+
+out:
+    /* clean up and return */
+    (void)inflateEnd(&strm);
+
+    if (ret == Z_STREAM_END) {
+        *outlen = barray->len;
+        *output = g_byte_array_free (barray, FALSE);
+        return 0;
+    } else {
+        g_byte_array_free (barray, TRUE);
+        return -1;
     }
 }

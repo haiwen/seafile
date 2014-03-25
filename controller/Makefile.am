@@ -18,6 +18,6 @@ seafile_controller_SOURCES = seafile-controller.c ../common/log.c
 seafile_controller_LDADD = @CCNET_LIBS@ \
 	$(top_builddir)/lib/libseafile_common.la \
 	@GLIB2_LIBS@  @GOBJECT_LIBS@ -lssl @LIB_RT@ @LIB_UUID@ -levent \
-	@SEARPC_LIBS@
+	@SEARPC_LIBS@ @ZLIB_LIBS@
 
 seafile_controller_LDFLAGS = @STATIC_COMPILE@ @SERVER_PKG_RPATH@

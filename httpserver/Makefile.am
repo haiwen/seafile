@@ -51,6 +51,6 @@ httpserver_LDADD = -levent -levhtp -lssl -levent_openssl \
 	$(top_builddir)/lib/libseafile.la \
 	$(top_builddir)/common/cdc/libcdc.la \
 	@SEARPC_LIBS@ @ZDB_LIBS@ @CURL_LIBS@ \
-	@LIBARCHIVE_LIBS@ ${LIB_WS32}
+	@LIBARCHIVE_LIBS@ ${LIB_WS32} @ZLIB_LIBS@
 
 httpserver_LDFLAGS = @STATIC_COMPILE@
