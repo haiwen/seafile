@@ -31,8 +31,6 @@
 #include "processors/notifysync-slave-proc.h"
 #include "processors/sync-repo-slave-proc.h"
 #include "processors/check-tx-slave-proc.h"
-#include "processors/putcommit-proc.h"
-#include "processors/putfs-proc.h"
 
 #include "cdc/cdc.h"
 

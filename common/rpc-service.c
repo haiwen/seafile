@@ -22,7 +22,6 @@
 
 #ifndef SEAFILE_SERVER
 #include "seafile-config.h"
-#include "gc.h"
 #endif
 
 #include "log.h"

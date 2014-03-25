@@ -27,7 +27,6 @@
 #include "sync-mgr.h"
 #include "clone-mgr.h"
 #include "vc-utils.h"
-#include "gc.h"
 #include "mq-mgr.h"
 #include "seafile-config.h"
 
