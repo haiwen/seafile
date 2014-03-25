@@ -557,15 +557,38 @@ def setup_build_env():
 
     must_mkdir(wix_temp_dir)
 
+def dependency_walk(applet):
+    output = os.path.join(conf[CONF_BUILDDIR], 'depends.csv')
+    cmd = 'depends.exe -c -f 1 -oc %s %s' % (output, applet)
+
+    # See the manual of Dependency walker
+    if run(cmd) > 0x100:
+        error('failed to run dependency walker for %s' % applet)
+
+    if not os.path.exists(output):
+        error('failed to run dependency walker for %s' % applet)
+
+    shared_libs = parse_depends_csv(output)
+    return shared_libs
+
 def parse_depends_csv(path):
     '''parse the output of dependency walker'''
-    libs = []
+    libs = set()
+    our_libs = ['libsearpc', 'libccnet', 'libseafile']
     def should_ignore_lib(lib):
+        lib = lib.lower()
         if not os.path.exists(lib):
             return True
 
-        if lib.lower().startswith('c:\\windows'):
+        if lib.startswith('c:\\windows'):
             return True
+
+        if lib.endswith('exe'):
+            return True
+
+        for name in our_libs:
+            if name in lib:
+                return True
 
         return False
 
@@ -576,11 +599,11 @@ def parse_depends_csv(path):
                 continue
             lib = row[1]
             if not should_ignore_lib(lib):
-                libs.append(lib)
+                libs.add(lib)
 
-    return libs
+    return set(libs)
 
-def copy_shared_libs():
+def copy_shared_libs(exes):
     '''Copy shared libs need by seafile-applet.exe, such as libccnet,
     libseafile, etc. First we use Dependency walker to analyse
     seafile-applet.exe, and get an output file in csv format. Then we parse
@@ -588,26 +611,14 @@ def copy_shared_libs():
 
     '''
 
-    output = os.path.join(conf[CONF_BUILDDIR], 'depends.csv')
-    applet = os.path.join(SeafileClient().projdir, 'seafile-applet.exe')
-    cmd = 'depends.exe -c -f 1 -oc %s %s' % (output, applet)
+    shared_libs = set()
+    for exectuable in exes:
+        shared_libs.update(dependency_walk(exectuable))
 
-    # See the manual of Dependency walker
-    if run(cmd) > 0x100:
-        error('failed to run dependency walker for seafile-applet.exe')
-
-    if not os.path.exists(output):
-        error('failed to run dependency walker for seafile-applet.exe')
-
-    shared_libs = parse_depends_csv(output)
     pack_bin_dir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin')
     for lib in shared_libs:
         must_copy(lib, pack_bin_dir)
 
-    # libsqlite3 can not be found automatically
-    libsqlite3 = find_in_path('libsqlite3-0.dll')
-    must_copy(libsqlite3, pack_bin_dir)
-    # ssleay32
     ssleay32 = find_in_path('ssleay32.dll')
     must_copy(ssleay32, pack_bin_dir)
 
@@ -627,7 +638,7 @@ def copy_dll_exe():
     for name in filelist:
         must_copy(name, destdir)
 
-    copy_shared_libs()
+    copy_shared_libs([ f for f in filelist if f.endswith('.exe') ])
     copy_qt_plugins()
     copy_qt_translations()
 
