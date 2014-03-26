@@ -231,6 +231,10 @@ static int read_modifiers (struct index_state *istate, void *data, unsigned int 
         ++sep;
     }
 
+    while (idx < istate->cache_nr &&
+           S_ISDIR(istate->cache[idx]->ce_mode))
+        ++idx;
+
     if (idx != istate->cache_nr) {
         g_warning ("Less modifiers than cached entries.\n");
         return -1;
