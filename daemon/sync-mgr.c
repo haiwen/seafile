@@ -1085,6 +1085,7 @@ out:
     if (master)
         seaf_branch_unref (master);
     g_free (last_uploaded);
+    g_free (last_checkout);
 }
 
 static void

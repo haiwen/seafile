@@ -496,7 +496,7 @@ get_file_modifier_mtime_v0 (const char *repo_id, int version,
 }
 
 static int
-get_file_modifier_mtime_v1 (const char *repo_id, int version,
+get_file_modifier_mtime_v1 (const char *repo_id, const char *store_id, int version,
                             const char *head, const char *path,
                             char **modifier, gint64 *mtime)
 {
@@ -521,7 +521,7 @@ get_file_modifier_mtime_v1 (const char *repo_id, int version,
     char *filename = g_path_get_basename (path);
 
     dir = seaf_fs_manager_get_seafdir_by_path (seaf->fs_mgr,
-                                               repo_id, version,
+                                               store_id, version,
                                                commit->root_id,
                                                parent, NULL);
     if (!dir) {
@@ -562,15 +562,20 @@ out:
  * @path: path of the file.
  */
 int
-get_file_modifier_mtime (const char *repo_id, int version,
-                         const char *head, const char *path,
-                         char **modifier, gint64 *mtime)
+get_file_modifier_mtime (const char *repo_id,
+                         const char *store_id,
+                         int version,
+                         const char *head,
+                         const char *path,
+                         char **modifier,
+                         gint64 *mtime)
 {
     if (version > 0)
-        return get_file_modifier_mtime_v1 (repo_id, version,
+        return get_file_modifier_mtime_v1 (repo_id, store_id, version,
                                            head, path,
                                            modifier, mtime);
     else
+        /* for version 0, repo_id and store_id are always the same. */
         return get_file_modifier_mtime_v0 (repo_id, version,
                                            head, path,
                                            modifier, mtime);
@@ -613,7 +618,11 @@ gen_conflict_path_wrapper (const char *repo_id, int version,
     char *modifier;
     gint64 mtime;
 
-    if (get_file_modifier_mtime (repo_id, version, head, in_repo_path,
+    /* XXX: this function is only used in client, so store_id is always
+     * the same as repo_id. This can be changed if it's also called in
+     * server.
+     */
+    if (get_file_modifier_mtime (repo_id, repo_id, version, head, in_repo_path,
                                  &modifier, &mtime) < 0)
         return NULL;
 

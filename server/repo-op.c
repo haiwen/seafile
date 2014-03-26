@@ -460,6 +460,7 @@ retry:
 
         memset (&opt, 0, sizeof(opt));
         opt.n_ways = 3;
+        memcpy (opt.remote_repo_id, repo_id, 36);
         memcpy (opt.remote_head, new_commit->commit_id, 40);
         opt.do_merge = TRUE;
 
@@ -670,8 +671,7 @@ out:
         seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref(head_commit);
-    if (new_dent)
-        g_free (new_dent);
+    seaf_dirent_free (new_dent);
     g_free (root_id);
     g_free (canon_path);
     g_free (crypt);
@@ -1147,8 +1147,7 @@ out:
         seaf_commit_unref(head_commit);
     string_list_free (blockids);
     string_list_free (paths);
-    if (new_dent)
-        g_free (new_dent);
+    seaf_dirent_free (new_dent);
     g_free (root_id);
     g_free (canon_path);
 
@@ -1533,9 +1532,9 @@ out:
     if (dst_canon_path)
         g_free (dst_canon_path);
     if (src_dent)
-        g_free(src_dent);
+        seaf_dirent_free(src_dent);
     if (dst_dent)
-        g_free(dst_dent);
+        seaf_dirent_free(dst_dent);
 
     if (ret == 0) {
         update_repo_size (dst_repo_id);
@@ -1701,8 +1700,8 @@ out:
     if (src_canon_path) g_free (src_canon_path);
     if (dst_canon_path) g_free (dst_canon_path);
     
-    if (src_dent) g_free(src_dent);
-    if (dst_dent) g_free(dst_dent);
+    seaf_dirent_free(src_dent);
+    seaf_dirent_free(dst_dent);
 
     if (ret == 0) {
         update_repo_size (dst_repo_id);
@@ -1774,8 +1773,7 @@ out:
         seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref(head_commit);
-    if (new_dent)
-        g_free (new_dent);
+    seaf_dirent_free (new_dent);
     g_free (root_id);
     g_free (canon_path);
 
@@ -1847,8 +1845,7 @@ out:
         seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref(head_commit);
-    if (new_dent)
-        g_free (new_dent);
+    seaf_dirent_free (new_dent);
     g_free (root_id);
     g_free (canon_path);
 
@@ -2282,8 +2279,7 @@ out:
         seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref(head_commit);
-    if (new_dent)
-        g_free (new_dent);
+    seaf_dirent_free (new_dent);
     g_free (root_id);
     g_free (canon_path);
     g_free (crypt);
@@ -2393,7 +2389,7 @@ seaf_repo_manager_update_dir (SeafRepoManager *mgr,
 out:
     seaf_repo_unref (repo);
     seaf_commit_unref (head_commit);
-    g_free (new_dent);
+    seaf_dirent_free (new_dent);
     g_free (canon_path);
     g_free (dirname);
     g_free (root_id);
@@ -2532,8 +2528,7 @@ out:
         seaf_commit_unref(head_commit);
     string_list_free (blockids);
     string_list_free (paths);
-    if (new_dent)
-        g_free (new_dent);
+    seaf_dirent_free (new_dent);
     g_free (root_id);
     g_free (canon_path);
     g_free (old_file_id);
@@ -2634,7 +2629,7 @@ out:
 
     g_free (basename);
     g_free (ext);
-    g_free (newdent);
+    seaf_dirent_free (newdent);
 
     return new_root_id;
 }
@@ -2715,7 +2710,7 @@ out:
 
     g_free (basename);
     g_free (ext);
-    g_free (newdent);
+    seaf_dirent_free (newdent);
 
     return new_root_id;
 }
@@ -2956,7 +2951,7 @@ out:
     if (dir)
         seaf_dir_free (dir);
 
-    g_free (newdent);
+    seaf_dirent_free (newdent);
 
     return new_root_id;
 }
@@ -3903,6 +3898,7 @@ add_deleted_entry (SeafRepo *repo,
             return;
         }
         g_object_set (entry, "file_size", file->file_size, NULL);
+        seafile_unref (file);
     }
 
     g_hash_table_insert (entries, path, entry);
@@ -4178,6 +4174,7 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
     g_hash_table_foreach_steal (entries, hash_to_list, &ret);
     g_hash_table_destroy (entries);
 
+    seaf_repo_unref (repo);
     return ret;
 }
 

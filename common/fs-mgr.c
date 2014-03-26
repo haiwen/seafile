@@ -554,11 +554,11 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
             g_warning ("Failed to chunk file with CDC.\n");
             return -1;
         }
-    }
 
-    if (write_data && write_seafile (mgr, repo_id, version, &cdc, sha1) < 0) {
-        g_warning ("Failed to write seafile for %s.\n", file_path);
-        return -1;
+        if (write_data && write_seafile (mgr, repo_id, version, &cdc, sha1) < 0) {
+            g_warning ("Failed to write seafile for %s.\n", file_path);
+            return -1;
+        }
     }
 
     *size = (gint64)sb.st_size;
@@ -690,12 +690,12 @@ seaf_fs_manager_index_file_blocks (SeafFSManager *mgr,
             ret = -1;
             goto out;
         }
-    }
 
-    if (write_seafile (mgr, repo_id, version, &cdc, sha1) < 0) {
-        seaf_warning ("Failed to write seafile.\n");
-        ret = -1;
-        goto out;
+        if (write_seafile (mgr, repo_id, version, &cdc, sha1) < 0) {
+            seaf_warning ("Failed to write seafile.\n");
+            ret = -1;
+            goto out;
+        }
     }
 
 out:
@@ -1019,6 +1019,8 @@ seaf_dirent_new (int version, const char *sha1, int mode, const char *name,
 void 
 seaf_dirent_free (SeafDirent *dent)
 {
+    if (!dent)
+        return;
     g_free (dent->name);
     g_free (dent->modifier);
     g_free (dent);
@@ -1333,9 +1335,24 @@ seaf_dir_to_json (SeafDir *dir, int *len)
 void *
 seaf_dir_to_data (SeafDir *dir, int *len)
 {
-    if (dir->version > 0)
-        return seaf_dir_to_json (dir, len);
-    else
+    if (dir->version > 0) {
+        guint8 *data;
+        int orig_len;
+        guint8 *compressed;
+
+        data = seaf_dir_to_json (dir, &orig_len);
+        if (!data)
+            return NULL;
+
+        if (seaf_compress (data, orig_len, &compressed, len) < 0) {
+            seaf_warning ("Failed to compress dir object %s.\n", dir->dir_id);
+            g_free (data);
+            return NULL;
+        }
+
+        g_free (data);
+        return compressed;
+    } else
         return seaf_dir_to_v0_data (dir, len);
 }
 
@@ -1346,23 +1363,15 @@ seaf_dir_save (SeafFSManager *fs_mgr,
                SeafDir *dir)
 {
     int ret = 0;
-    guint8 *compressed;
-    int outlen;
 
     /* Don't need to save empty dir on disk. */
     if (memcmp (dir->dir_id, EMPTY_SHA1, 40) == 0)
         return 0;
 
-    if (seaf_compress (dir->ondisk, dir->ondisk_size, &compressed, &outlen) < 0) {
-        seaf_warning ("Failed to compress dir object %s.\n", dir->dir_id);
-        return -1;
-    }
-
     if (seaf_obj_store_write_obj (fs_mgr->obj_store, repo_id, version, dir->dir_id,
-                                  compressed, outlen, FALSE) < 0)
+                                  dir->ondisk, dir->ondisk_size, FALSE) < 0)
         ret = -1;
 
-    g_free (compressed);
     return ret;
 }
 

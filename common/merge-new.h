@@ -18,6 +18,7 @@ typedef struct MergeOptions {
     void *              data;
 
     /* options only used in 3-way merge. */
+    char                remote_repo_id[37];
     char                remote_head[41];
     gboolean            do_merge;    /* really merge the contents
                                       * and handle conflicts */
@@ -27,7 +28,7 @@ typedef struct MergeOptions {
 } MergeOptions;
 
 int
-seaf_merge_trees (const char *repo_id, int version,
+seaf_merge_trees (const char *store_id, int version,
                   int n, const char *roots[], MergeOptions *opt);
 
 #endif

@@ -38,7 +38,7 @@ gen_conflict_path (const char *original_path,
                    gint64 mtime);
 
 int
-get_file_modifier_mtime (const char *repo_id, int version,
+get_file_modifier_mtime (const char *repo_id, const char *store_id, int version,
                          const char *head, const char *path,
                          char **modifier, gint64 *mtime);
 

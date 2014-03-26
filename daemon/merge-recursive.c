@@ -189,6 +189,7 @@ static int get_files_dirs_recursive(struct merge_options *o, SeafDir *tree,
             }
             ret = get_files_dirs_recursive(o, subdir, base, new_baselen);
             base[baselen] = 0;
+            seaf_dir_free (subdir);
             break;
         case S_IFLNK:
             break;

@@ -719,6 +719,7 @@ static void *merge_virtual_repo (void *vtask)
 
         memset (&opt, 0, sizeof(opt));
         opt.n_ways = 3;
+        memcpy (opt.remote_repo_id, repo_id, 36);
         memcpy (opt.remote_head, head->commit_id, 40);
         opt.do_merge = TRUE;
 
