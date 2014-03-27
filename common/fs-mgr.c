@@ -969,7 +969,10 @@ seaf_dir_new (const char *id, GList *entries, int version)
     }
     dir->entries = entries;
 
-    dir->ondisk = seaf_dir_to_data (dir, &dir->ondisk_size);
+    if (dir->entries != NULL)
+        dir->ondisk = seaf_dir_to_data (dir, &dir->ondisk_size);
+    else
+        memcpy (dir->dir_id, EMPTY_SHA1, 40);
 
     return dir;
 }

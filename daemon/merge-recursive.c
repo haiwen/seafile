@@ -620,23 +620,6 @@ static int update_file(struct merge_options *o,
     return update_file_flags(o, sha, mode, modifier, mtime, path, clean, 1);
 }
 
-static void handle_delete_modify(struct merge_options *o,
-                                 const char *path,
-                                 const char *new_path,
-                                 unsigned char *a_sha, int a_mode,
-                                 const char *a_modifier,
-                                 guint64 a_mtime,
-                                 unsigned char *b_sha, int b_mode,
-                                 const char *b_modifier,
-                                 guint64 b_mtime)
-{
-    /* Only need to checkout other's version if I deleted the file. */
-    if (!a_sha)
-        update_file(o, 1, b_sha, b_mode, b_modifier, b_mtime, new_path);
-    else
-        update_file_flags (o, a_sha, a_mode, a_modifier, a_mtime, path, 1, 0);
-}
-
 /* Per entry merge function */
 static int process_entry(struct merge_options *o,
                          const char *path,
@@ -682,9 +665,10 @@ static int process_entry(struct merge_options *o,
             /* Deleted in one and changed in the other */
             /* or directory -> (file, directory), directory side */
             /* Don't consider as unclean. */
-            handle_delete_modify(o, path, path,
-                                 a_sha, a_mode, a_modifier, a_mtime,
-                                 b_sha, b_mode, b_modifier, b_mtime);
+            if (!a_sha)
+                clean_merge = update_file(o, 1, b_sha, b_mode, b_modifier, b_mtime, path);
+            else
+                update_file_flags (o, a_sha, a_mode, a_modifier, a_mtime, path, 1, 0);
         }
 
     } else if ((!o_sha && a_sha && !b_sha) ||
@@ -822,7 +806,7 @@ static int process_df_entry(struct merge_options *o,
                 g_free (new_path);
             } else {
                 /* Modify/Delete conflict. Don't consider as unclean. */
-                update_file(o, 1, b_sha, b_mode, b_modifier, b_mtime, path);
+                clean_merge = update_file(o, 1, b_sha, b_mode, b_modifier, b_mtime, path);
             }
         } else {
             if (seaf_stat (real_path, &st) == 0 && S_ISDIR(st.st_mode)) {
