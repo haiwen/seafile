@@ -533,8 +533,7 @@ get_file_modifier_mtime_v1 (const char *repo_id, const char *store_id, int versi
     GList *p;
     for (p = dir->entries; p; p = p->next) {
         SeafDirent *d = p->data;
-        if (S_ISREG(d->mode) &&
-            strcmp (d->name, filename) == 0) {
+        if (strcmp (d->name, filename) == 0) {
             dent = d;
             break;
         }
@@ -599,11 +598,19 @@ gen_conflict_path (const char *origin_path,
     if (dot != NULL) {
         *dot = '\0';
         ext = dot + 1;
-        g_string_printf (conflict_path, "%s (%s %s).%s",
-                         copy, modifier, time_buf, ext);
+        if (modifier)
+            g_string_printf (conflict_path, "%s (%s %s).%s",
+                             copy, modifier, time_buf, ext);
+        else
+            g_string_printf (conflict_path, "%s (%s).%s",
+                             copy, time_buf, ext);
     } else {
-        g_string_printf (conflict_path, "%s (%s %s)",
-                         copy, modifier, time_buf);
+        if (modifier)
+            g_string_printf (conflict_path, "%s (%s %s)",
+                             copy, modifier, time_buf);
+        else
+            g_string_printf (conflict_path, "%s (%s)",
+                             copy, time_buf);
     }
 
     g_free (copy);
