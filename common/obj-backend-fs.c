@@ -378,6 +378,47 @@ out:
     return ret;
 }
 
+static int
+obj_backend_fs_copy (ObjBackend *bend,
+                     const char *src_repo_id,
+                     int src_version,
+                     const char *dst_repo_id,
+                     int dst_version,
+                     const char *obj_id)
+{
+    char src_path[SEAF_PATH_MAX];
+    char dst_path[SEAF_PATH_MAX];
+
+    id_to_path (bend->priv, obj_id, src_path, src_repo_id, src_version);
+    id_to_path (bend->priv, obj_id, dst_path, dst_repo_id, dst_version);
+
+    if (g_file_test (dst_path, G_FILE_TEST_EXISTS))
+        return 0;
+
+    if (create_parent_path (dst_path) < 0) {
+        seaf_warning ("Failed to create dst path %s for obj %s.\n",
+                      dst_path, obj_id);
+        return -1;
+    }
+
+#ifdef WIN32
+    if (!CreateHardLink (dst_path, src_path, NULL)) {
+        seaf_warning ("Failed to link %s to %s: %d.\n",
+                      src_path, dst_path, GetLastError());
+        return -1;
+    }
+    return 0;
+#else
+    int ret = link (src_path, dst_path);
+    if (ret < 0 && errno != EEXIST) {
+        seaf_warning ("Failed to link %s to %s: %s.\n",
+                      src_path, dst_path, strerror(errno));
+        return -1;
+    }
+    return ret;
+#endif
+}
+
 ObjBackend *
 obj_backend_fs_new (const char *seaf_dir, const char *obj_type)
 {
@@ -411,6 +452,7 @@ obj_backend_fs_new (const char *seaf_dir, const char *obj_type)
     bend->exists = obj_backend_fs_exists;
     bend->delete = obj_backend_fs_delete;
     bend->foreach_obj = obj_backend_fs_foreach_obj;
+    bend->copy = obj_backend_fs_copy;
 
     return bend;
 

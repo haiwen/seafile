@@ -43,6 +43,13 @@ struct BlockBackend {
                                SeafBlockFunc process,
                                void *user_data);
 
+    int         (*copy) (BlockBackend *bend,
+                         const char *src_store_id,
+                         int src_version,
+                         const char *dst_store_id,
+                         int dst_version,
+                         const char *block_id);
+
     /* Only valid for version 1 repo. Remove all blocks for the repo. */
     int      (*remove_store) (BlockBackend *bend,
                               const char *store_id);

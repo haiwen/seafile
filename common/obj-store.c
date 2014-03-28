@@ -219,6 +219,22 @@ seaf_obj_store_foreach_obj (struct SeafObjStore *obj_store,
     return bend->foreach_obj (bend, repo_id, version, process, user_data);
 }
 
+int
+seaf_obj_store_copy_obj (struct SeafObjStore *obj_store,
+                         const char *src_repo_id,
+                         int src_version,
+                         const char *dst_repo_id,
+                         int dst_version,
+                         const char *obj_id)
+{
+    ObjBackend *bend = obj_store->bend;
+
+    if (strcmp (obj_id, EMPTY_SHA1) == 0)
+        return 0;
+
+    return bend->copy (bend, src_repo_id, src_version, dst_repo_id, dst_version, obj_id);
+}
+
 static void
 reader_thread (void *data, void *user_data)
 {

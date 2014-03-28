@@ -38,6 +38,13 @@ struct ObjBackend {
                                 SeafObjFunc process,
                                 void *user_data);
 
+    int         (*copy) (ObjBackend *bend,
+                         const char *src_repo_id,
+                         int src_version,
+                         const char *dst_repo_id,
+                         int dst_version,
+                         const char *obj_id);
+
     void *priv;
 };
 

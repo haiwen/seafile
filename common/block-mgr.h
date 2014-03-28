@@ -126,6 +126,14 @@ seaf_block_manager_foreach_block (SeafBlockManager *mgr,
                                   SeafBlockFunc process,
                                   void *user_data);
 
+int
+seaf_block_manager_copy_block (SeafBlockManager *mgr,
+                               const char *src_store_id,
+                               int src_version,
+                               const char *dst_store_id,
+                               int dst_version,
+                               const char *block_id);
+
 /* Remove all blocks for a repo. Only valid for version 1 repo. */
 int
 seaf_block_manager_remove_store (SeafBlockManager *mgr,

@@ -1391,19 +1391,17 @@ out:
 }
 
 static int
-put_dirent_and_commit (const char *repo_id,
+put_dirent_and_commit (SeafRepo *repo,
                        const char *path,
                        SeafDirent *dent,
                        const char *user,
                        GError **error)
 {
-    SeafRepo *repo = NULL;
     SeafCommit *head_commit = NULL;
     char *root_id = NULL;
     char buf[SEAF_PATH_MAX];
     int ret = 0;
 
-    GET_REPO_OR_FAIL(repo, repo_id);
     GET_COMMIT_OR_FAIL(head_commit, repo->id, repo->version, repo->head->commit_id);
 
     root_id = do_post_file (repo,
@@ -1423,19 +1421,137 @@ put_dirent_and_commit (const char *repo_id,
         snprintf(buf, sizeof(buf), "Added \"%s\"", dent->name);
     }
 
-    if (gen_new_commit (repo_id, head_commit, root_id,
+    if (gen_new_commit (repo->id, head_commit, root_id,
                         user, buf, NULL, error) < 0)
         ret = -1;
 
 out:
-    if (repo)
-        seaf_repo_unref (repo);
     if (head_commit)
         seaf_commit_unref (head_commit);
     if (root_id)
         g_free (root_id);
     
     return ret;
+}
+
+static char *
+copy_seafile (SeafRepo *src_repo, SeafRepo *dst_repo, const char *file_id)
+{
+    Seafile *file;
+
+    file = seaf_fs_manager_get_seafile (seaf->fs_mgr,
+                                        src_repo->store_id, src_repo->version,
+                                        file_id);
+    if (!file) {
+        seaf_warning ("Failed to get file object %s from repo %s.\n",
+                      file_id, src_repo->id);
+        return NULL;
+    }
+
+    /* We may be copying from v0 repo to v1 repo or vise versa. */
+    file->version = seafile_version_from_repo_version(dst_repo->version);
+
+    if (seafile_save (seaf->fs_mgr,
+                      dst_repo->store_id,
+                      dst_repo->version,
+                      file) < 0) {
+        seaf_warning ("Failed to copy file object %s from repo %s to %s.\n",
+                      file_id, src_repo->id, dst_repo->id);
+        seafile_unref (file);
+        return NULL;
+    }
+
+    int i;
+    char *block_id;
+    for (i = 0; i < file->n_blocks; ++i) {
+        block_id = file->blk_sha1s[i];
+        if (seaf_block_manager_copy_block (seaf->block_mgr,
+                                           src_repo->store_id, src_repo->version,
+                                           dst_repo->store_id, dst_repo->version,
+                                           block_id) < 0) {
+            seaf_warning ("Failed to copy block %s from repo %s to %s.\n",
+                          block_id, src_repo->id, dst_repo->id);
+            seafile_unref (file);
+            return NULL;
+        }
+    }
+
+    seafile_unref (file);
+    return g_strdup(file_id);
+}
+
+static char *
+copy_recursive (SeafRepo *src_repo, SeafRepo *dst_repo,
+                const char *obj_id, guint32 mode, const char *modifier)
+{
+    if (S_ISREG(mode)) {
+        return copy_seafile (src_repo, dst_repo, obj_id);
+    } else if (S_ISDIR(mode)) {
+        SeafDir *src_dir = NULL, *dst_dir = NULL;
+        GList *dst_ents = NULL, *ptr;
+        char *new_id = NULL;
+        SeafDirent *dent, *new_dent = NULL;
+
+        src_dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr,
+                                               src_repo->store_id,
+                                               src_repo->version,
+                                               obj_id);
+        if (!src_dir) {
+            seaf_warning ("Seafdir %s doesn't exist in repo %s.\n",
+                          obj_id, src_repo->id);
+            return NULL;
+        }
+
+        for (ptr = src_dir->entries; ptr; ptr = ptr->next) {
+            dent = ptr->data;
+
+            seaf_message ("Copying %s.\n", dent->name);
+
+            new_id = copy_recursive (src_repo, dst_repo,
+                                     dent->id, dent->mode, modifier);
+            if (!new_id) {
+                seaf_dir_free (src_dir);
+                return NULL;
+            }
+
+            new_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
+                                        new_id, dent->mode, dent->name,
+                                        (gint64)time(NULL), modifier, dent->size);
+            dst_ents = g_list_prepend (dst_ents, new_dent);
+            g_free (new_id);
+        }
+        dst_ents = g_list_reverse (dst_ents);
+
+        seaf_dir_free (src_dir);
+
+        dst_dir = seaf_dir_new (NULL, dst_ents,
+                                dir_version_from_repo_version(dst_repo->version));
+        if (seaf_dir_save (seaf->fs_mgr,
+                           dst_repo->store_id, dst_repo->version,
+                           dst_dir) < 0) {
+            seaf_warning ("Failed to save new dir.\n");
+            seaf_dir_free (dst_dir);
+            return NULL;
+        }
+
+        char *ret = g_strdup(dst_dir->dir_id);
+        seaf_dir_free (dst_dir);
+        return ret;
+    }
+
+    return NULL;
+}
+
+static gboolean
+is_virtual_repo_and_origin (SeafRepo *repo1, SeafRepo *repo2)
+{
+    if (repo1->virtual_info &&
+        strcmp (repo1->virtual_info->origin_repo_id, repo2->id) == 0)
+        return TRUE;
+    if (repo2->virtual_info &&
+        strcmp (repo2->virtual_info->origin_repo_id, repo1->id) == 0)
+        return TRUE;
+    return FALSE;
 }
 
 /**
@@ -1501,12 +1617,29 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
 
     gint64 file_size = (src_dent->version > 0) ? src_dent->size : -1;
 
-    /* duplicate src dirent with new name */
-    dst_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
-                                src_dent->id, src_dent->mode, dst_filename,
-                                (gint64)time(NULL), user, file_size);
+    if (strcmp (src_repo_id, dst_repo_id) == 0 ||
+        is_virtual_repo_and_origin (src_repo, dst_repo) ||
+        (src_repo->version == 0 && dst_repo->version == 0)) {
 
-    if (put_dirent_and_commit (dst_repo_id,
+        /* duplicate src dirent with new name */
+        dst_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
+                                    src_dent->id, src_dent->mode, dst_filename,
+                                    (gint64)time(NULL), user, file_size);
+    } else {
+        char *new_id = copy_recursive (src_repo, dst_repo,
+                                       src_dent->id, src_dent->mode, user);
+        if (!new_id) {
+            ret = -1;
+            goto out;
+        }
+
+        dst_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
+                                    new_id, src_dent->mode, dst_filename,
+                                    (gint64)time(NULL), user, file_size);
+        g_free (new_id);
+    }
+
+    if (put_dirent_and_commit (dst_repo,
                                dst_canon_path,
                                dst_dent,
                                user,
@@ -1514,8 +1647,8 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
         if (!error)
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                          "failed to put dirent");
-            ret = -1;
-            goto out;
+        ret = -1;
+        goto out;
     }
 
     seaf_repo_manager_merge_virtual_repo (mgr, dst_repo_id, NULL);
@@ -1649,12 +1782,12 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
 
     gint64 file_size = (src_dent->version > 0) ? src_dent->size : -1;
 
-    /* duplicate src dirent with new name */
-    dst_dent = seaf_dirent_new (dir_version_from_repo_version (dst_repo->version),
-                                src_dent->id, src_dent->mode, dst_filename,
-                                (gint64)time(NULL), user, file_size);
-
     if (src_repo == dst_repo) {
+        /* duplicate src dirent with new name */
+        dst_dent = seaf_dirent_new (dir_version_from_repo_version (dst_repo->version),
+                                    src_dent->id, src_dent->mode, dst_filename,
+                                    (gint64)time(NULL), user, file_size);
+
         /* move file within the same repo */
         if (move_file_same_repo (src_repo_id,
                                  src_canon_path, src_dent,
@@ -1669,8 +1802,28 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
     } else {
         /* move between different repos */
 
+        if (is_virtual_repo_and_origin (src_repo, dst_repo) ||
+            (src_repo->version == 0 && dst_repo->version == 0)) {
+            /* duplicate src dirent with new name */
+            dst_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
+                                        src_dent->id, src_dent->mode, dst_filename,
+                                        (gint64)time(NULL), user, file_size);
+        } else {
+            char *new_id = copy_recursive (src_repo, dst_repo,
+                                           src_dent->id, src_dent->mode, user);
+            if (!new_id) {
+                ret = -1;
+                goto out;
+            }
+
+            dst_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
+                                        new_id, src_dent->mode, dst_filename,
+                                        (gint64)time(NULL), user, file_size);
+            g_free (new_id);
+        }
+
         /* add this dirent to dst repo */
-        if (put_dirent_and_commit (dst_repo_id,
+        if (put_dirent_and_commit (dst_repo,
                                    dst_canon_path,
                                    dst_dent,
                                    user,
@@ -1689,6 +1842,9 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
             ret = -1;
             goto out;
         }
+
+        seaf_repo_manager_cleanup_virtual_repos (mgr, src_repo_id);
+        seaf_repo_manager_merge_virtual_repo (mgr, src_repo_id, NULL);
     }
 
 out:

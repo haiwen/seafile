@@ -50,6 +50,12 @@ seafile_ref (Seafile *seafile);
 void
 seafile_unref (Seafile *seafile);
 
+int
+seafile_save (SeafFSManager *fs_mgr,
+              const char *repo_id,
+              int version,
+              Seafile *file);
+
 #define SEAF_DIR_NAME_LEN 256
 
 struct _SeafDirent {

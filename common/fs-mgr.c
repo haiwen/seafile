@@ -761,6 +761,8 @@ seafile_from_v0_data (const char *id, const void *data, int len)
 
     seafile = g_new0 (Seafile, 1);
 
+    seafile->object.type = SEAF_METADATA_TYPE_FILE;
+    seafile->version = 0;
     memcpy (seafile->file_id, id, 41);
     seafile->file_size = ntoh64 (ondisk->file_size);
     seafile->n_blocks = n_blocks;
@@ -920,6 +922,98 @@ seaf_fs_manager_get_seafile (SeafFSManager *mgr,
 #endif
 
     return seafile;
+}
+
+static guint8 *
+seafile_to_v0_data (Seafile *file, int *len)
+{
+    SeafileOndisk *ondisk;
+
+    *len = sizeof(SeafileOndisk) + file->n_blocks * 20;
+    ondisk = (SeafileOndisk *)g_new0 (char, *len);
+
+    ondisk->type = htonl(SEAF_METADATA_TYPE_FILE);
+    ondisk->file_size = hton64 (file->file_size);
+
+    guint8 *ptr = ondisk->block_ids;
+    int i;
+    for (i = 0; i < file->n_blocks; ++i) {
+        hex_to_rawdata (file->blk_sha1s[i], ptr, 20);
+        ptr += 20;
+    }
+
+    return (guint8 *)ondisk;
+}
+
+static guint8 *
+seafile_to_json (Seafile *file, int *len)
+{
+    json_t *object, *block_id_array;
+
+    object = json_object ();
+
+    json_object_set_int_member (object, "type", SEAF_METADATA_TYPE_FILE);
+    json_object_set_int_member (object, "version", file->version);
+
+    json_object_set_int_member (object, "size", file->file_size);
+
+    block_id_array = json_array ();
+    int i;
+    for (i = 0; i < file->n_blocks; ++i) {
+        json_array_append_new (block_id_array, json_string(file->blk_sha1s[i]));
+    }
+    json_object_set_new (object, "block_ids", block_id_array);
+
+    char *data = json_dumps (object, 0);
+    *len = strlen(data);
+
+    json_decref (object);
+    return (guint8 *)data;
+}
+
+static guint8 *
+seafile_to_data (Seafile *file, int *len)
+{
+    if (file->version > 0) {
+        guint8 *data;
+        int orig_len;
+        guint8 *compressed;
+
+        data = seafile_to_json (file, &orig_len);
+        if (!data)
+            return NULL;
+
+        if (seaf_compress (data, orig_len, &compressed, len) < 0) {
+            seaf_warning ("Failed to compress file object %s.\n", file->file_id);
+            g_free (data);
+            return NULL;
+        }
+        g_free (data);
+        return compressed;
+    } else
+        return seafile_to_v0_data (file, len);
+}
+
+int
+seafile_save (SeafFSManager *fs_mgr,
+              const char *repo_id,
+              int version,
+              Seafile *file)
+{
+    guint8 *data;
+    int len;
+    int ret = 0;
+
+    data = seafile_to_data (file, &len);
+    if (!data)
+        return -1;
+
+    if (seaf_obj_store_write_obj (fs_mgr->obj_store, repo_id, version, file->file_id,
+                                  data, len, FALSE) < 0)
+        ret = -1;
+
+    g_free (data);
+    return ret;
 }
 
 static void compute_dir_id_v0 (SeafDir *dir, GList *entries)

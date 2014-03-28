@@ -150,6 +150,25 @@ seaf_block_manager_foreach_block (SeafBlockManager *mgr,
                                         process, user_data);
 }
 
+int
+seaf_block_manager_copy_block (SeafBlockManager *mgr,
+                               const char *src_store_id,
+                               int src_version,
+                               const char *dst_store_id,
+                               int dst_version,
+                               const char *block_id)
+{
+    if (strcmp (block_id, EMPTY_SHA1) == 0)
+        return 0;
+
+    return mgr->backend->copy (mgr->backend,
+                               src_store_id,
+                               src_version,
+                               dst_store_id,
+                               dst_version,
+                               block_id);
+}
+
 static gboolean
 get_block_number (const char *store_id,
                   int version,

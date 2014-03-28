@@ -59,6 +59,14 @@ seaf_obj_store_foreach_obj (struct SeafObjStore *obj_store,
                             SeafObjFunc process,
                             void *user_data);
 
+int
+seaf_obj_store_copy_obj (struct SeafObjStore *obj_store,
+                         const char *src_store_id,
+                         int src_version,
+                         const char *dst_store_id,
+                         int dst_version,
+                         const char *obj_id);
+
 /* Asynchronous I/O interface. */
 
 typedef struct OSAsyncResult {

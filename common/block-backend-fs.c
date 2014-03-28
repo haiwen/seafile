@@ -299,6 +299,47 @@ out:
 }
 
 static int
+block_backend_fs_copy (BlockBackend *bend,
+                       const char *src_store_id,
+                       int src_version,
+                       const char *dst_store_id,
+                       int dst_version,
+                       const char *block_id)
+{
+    char src_path[SEAF_PATH_MAX];
+    char dst_path[SEAF_PATH_MAX];
+
+    get_block_path (bend, block_id, src_path, src_store_id, src_version);
+    get_block_path (bend, block_id, dst_path, dst_store_id, dst_version);
+
+    if (g_file_test (dst_path, G_FILE_TEST_EXISTS))
+        return 0;
+
+    if (create_parent_path (dst_path) < 0) {
+        seaf_warning ("Failed to create dst path %s for block %s.\n",
+                      dst_path, block_id);
+        return -1;
+    }
+
+#ifdef WIN32
+    if (!CreateHardLink (dst_path, src_path, NULL)) {
+        seaf_warning ("Failed to link %s to %s: %d.\n",
+                      src_path, dst_path, GetLastError());
+        return -1;
+    }
+    return 0;
+#else
+    int ret = link (src_path, dst_path);
+    if (ret < 0 && errno != EEXIST) {
+        seaf_warning ("Failed to link %s to %s: %s.\n",
+                      src_path, dst_path, strerror(errno));
+        return -1;
+    }
+    return ret;
+#endif
+}
+
+static int
 block_backend_fs_remove_store (BlockBackend *bend, const char *store_id)
 {
     FsPriv *priv = bend->be_priv;
@@ -439,6 +480,7 @@ block_backend_fs_new (const char *seaf_dir, const char *tmp_dir)
     bend->block_handle_free = block_backend_fs_block_handle_free;
     bend->foreach_block = block_backend_fs_foreach_block;
     bend->remove_store = block_backend_fs_remove_store;
+    bend->copy = block_backend_fs_copy;
 
     return bend;
 
