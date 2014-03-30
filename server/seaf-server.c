@@ -66,7 +66,35 @@ static struct option long_options[] = {
 
 static void usage ()
 {
-    fprintf (stderr, "usage: seaf-server [-c config_dir] [-d seafile_dir]\n");
+    fputs(
+"usage: seaf-server [OPTIONS]\n\n"
+"Supported OPTIONS are:\n"
+"    -c CONFDIR\n"
+"        Specify the seafile configuration directory. Default is @sysconfdir@/seafile\n"
+"    -d SEAFILE_DATADIR\n"
+"        Specify the seafile data directory. Default is /srv/seafile\n"
+"    -l LOG_FILE\n"
+"        Log file path. Default is @localstatedir@/log/seafile\n"
+"    -D FLAGS\n"
+"        Specify debug flags for logging, for example\n"
+"             Peer,Processor\n"
+"        supported flags are\n"
+"             Peer,Processor,Netio,\n"
+"             Message,Connection,Other\n"
+"        or ALL to enable all debug flags\n"
+"    -f\n"
+"        Do NOT run as a daemon\n"
+"    -g CCNET Debug Level\n"
+"        same options as for '-D'\n"
+"    -G SEAFILE Debug Level\n"
+"        same options as for '-D'\n"
+"    -m\n"
+"        run as 'master' seafile server\n"
+"    -P PIDFILE\n"
+"        Specify the file to store pid\n"
+"    -C\n"
+"        run in cloud-mode\n",
+        stdout);
 }
 
 static void register_processors (CcnetClient *client)
