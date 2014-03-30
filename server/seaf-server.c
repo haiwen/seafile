@@ -842,11 +842,11 @@ main (int argc, char **argv)
 #endif
 
     while ((c = getopt_long (argc, argv, short_options, 
-                             long_options, NULL)) != EOF)
-    {
+                             long_options, NULL)) != EOF) {
         switch (c) {
         case 'h':
-            exit (1);
+            usage();
+            exit (0);
             break;
         case 'v':
             exit (1);
@@ -881,6 +881,7 @@ main (int argc, char **argv)
             cloud_mode = 1;
             break;
         default:
+	    fprintf (stderr, "unknown option \"-%c\"\n", (char)c);
             usage ();
             exit (1);
         }
@@ -888,6 +889,11 @@ main (int argc, char **argv)
 
     argc -= optind;
     argv += optind;
+
+    if (config_dir == NULL) {
+        fprintf (stderr, "Missing config dir\n");
+        exit (1);
+    }
 
 #if !defined(WIN32) && !defined(__APPLE__)
     if (daemon_mode)
