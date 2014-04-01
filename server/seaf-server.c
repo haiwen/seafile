@@ -227,12 +227,12 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_copy_file,
                                      "seafile_copy_file",
-       searpc_signature_int__string_string_string_string_string_string_string());
+       searpc_signature_object__string_string_string_string_string_string_string_int());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_move_file,
                                      "seafile_move_file",
-       searpc_signature_int__string_string_string_string_string_string_string());
+       searpc_signature_object__string_string_string_string_string_string_string_int());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_rename_file,
@@ -463,6 +463,18 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_web_query_access_token,
                                      "seafile_web_query_access_token",
                                      searpc_signature_object__string());
+
+    /* Copy task related. */
+
+    searpc_server_register_function ("seafserv-rpcserver",
+                                     seafile_get_copy_task,
+                                     "get_copy_task",
+                                     searpc_signature_object__string());
+
+    searpc_server_register_function ("seafserv-rpcserver",
+                                     seafile_cancel_copy_task,
+                                     "cancel_copy_task",
+                                     searpc_signature_int__string());
 
     /* chunk server manipulation */
     searpc_server_register_function ("seafserv-rpcserver",

@@ -134,6 +134,10 @@ seafile_session_new(const char *seafile_dir,
     if (!session->listen_mgr)
         goto onerror;
 
+    session->copy_mgr = seaf_copy_manager_new (session);
+    if (!session->copy_mgr)
+        goto onerror;
+
     session->job_mgr = ccnet_job_manager_new (session->sync_thread_pool_size);
     ccnet_session->job_mgr = ccnet_job_manager_new (session->rpc_thread_pool_size);
 
@@ -222,6 +226,11 @@ seafile_session_start (SeafileSession *session)
 
     if (size_scheduler_start (session->size_sched) < 0) {
         g_error ("Failed to start size scheduler.\n");
+        return -1;
+    }
+
+    if (seaf_copy_manager_start (session->copy_mgr) < 0) {
+        g_error ("Failed to start copy manager.\n");
         return -1;
     }
 

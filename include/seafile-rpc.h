@@ -658,7 +658,7 @@ seafile_del_file (const char *repo_id,
 /**
  * copy a file/directory from a repo to another on server.
  */
-int
+GObject *
 seafile_copy_file (const char *src_repo_id,
                    const char *src_dir,
                    const char *src_filename,
@@ -666,10 +666,11 @@ seafile_copy_file (const char *src_repo_id,
                    const char *dst_dir,
                    const char *dst_filename,
                    const char *user,
+                   int need_progress,
                    GError **error);
 
 
-int
+GObject *
 seafile_move_file (const char *src_repo_id,
                    const char *src_dir,
                    const char *src_filename,
@@ -677,7 +678,14 @@ seafile_move_file (const char *src_repo_id,
                    const char *dst_dir,
                    const char *dst_filename,
                    const char *user,
+                   int need_progress,
                    GError **error);
+
+GObject *
+seafile_get_copy_task (const char *task_id, GError **error);
+
+int
+seafile_cancel_copy_task (const char *task_id, GError **error);
 
 int
 seafile_rename_file (const char *repo_id,

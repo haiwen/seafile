@@ -292,6 +292,16 @@ class SeafServerRpcClient(ccnet.RpcClientBase):
     def seafile_get_decrypt_key(repo_id, user):
         pass
     get_decrypt_key = seafile_get_decrypt_key
+
+    # Copy tasks
+
+    @searpc_func("object", ["string"])
+    def get_copy_task(task_id):
+        pass
+
+    @searpc_func("int", ["string"])
+    def cancel_copy_task(task_id):
+        pass
     
 class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
 
@@ -406,13 +416,13 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     del_file = seafile_del_file 
 
-    @searpc_func("int", ["string", "string", "string", "string", "string", "string", "string"])
-    def seafile_copy_file(src_repo, src_dir, src_filename, dst_repo, dst_dir, dst_filename, user):
+    @searpc_func("object", ["string", "string", "string", "string", "string", "string", "string", "int"])
+    def seafile_copy_file(src_repo, src_dir, src_filename, dst_repo, dst_dir, dst_filename, user, need_progress):
         pass
     copy_file = seafile_copy_file 
 
-    @searpc_func("int", ["string", "string", "string", "string", "string", "string", "string"])
-    def seafile_move_file(src_repo, src_dir, src_filename, dst_repo, dst_dir, dst_filename, user):
+    @searpc_func("object", ["string", "string", "string", "string", "string", "string", "string", "int"])
+    def seafile_move_file(src_repo, src_dir, src_filename, dst_repo, dst_dir, dst_filename, user, need_progress):
         pass
     move_file = seafile_move_file
 

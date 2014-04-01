@@ -14,7 +14,7 @@ BUILT_SOURCES = gensource
 
 ## source file rules
 seafile_object_define = repo.vala commit.vala dirent.vala dir.vala \
-	task.vala branch.vala crypt.vala webaccess.vala
+	task.vala branch.vala crypt.vala webaccess.vala copy-task.vala
 
 seafile_object_gen = $(seafile_object_define:.vala=.c)
 

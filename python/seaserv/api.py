@@ -118,16 +118,22 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.del_file(repo_id, parent_dir, filename, username)
 
     def copy_file(self, src_repo, src_dir, src_filename, dst_repo,
-                  dst_dir, dst_filename, username):
+                  dst_dir, dst_filename, username, need_progress):
         return seafserv_threaded_rpc.copy_file(src_repo, src_dir, src_filename,
                                                dst_repo, dst_dir, dst_filename,
-                                               username)
+                                               username, need_progress)
 
     def move_file(self, src_repo, src_dir, src_filename, dst_repo, dst_dir,
-                  dst_filename, username):
+                  dst_filename, username, need_progress):
         return seafserv_threaded_rpc.move_file(src_repo, src_dir, src_filename,
                                                dst_repo, dst_dir, dst_filename,
-                                               username)
+                                               username, need_progress)
+
+    def get_copy_task(self, task_id):
+        return seafserv_rpc.get_copy_task(task_id)
+
+    def cancel_copy_task(self, task_id):
+        return seafserv_rpc.cancel_copy_task(task_id)
     
     def rename_file(self, repo_id, parent_dir, oldname, newname, username):
         return seafserv_threaded_rpc.rename_file(repo_id, parent_dir,

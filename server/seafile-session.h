@@ -23,6 +23,7 @@
 #include "quota-mgr.h"
 #include "listen-mgr.h"
 #include "size-sched.h"
+#include "copy-mgr.h"
 
 #include "mq-mgr.h"
 
@@ -62,6 +63,7 @@ struct _SeafileSession {
     SeafPasswdManager   *passwd_mgr;
     SeafQuotaManager    *quota_mgr;
     SeafListenManager   *listen_mgr;
+    SeafCopyManager     *copy_mgr;
     
     SeafWebAccessTokenManager	*web_at_mgr;
 

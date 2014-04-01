@@ -347,7 +347,7 @@ seaf_repo_manager_del_file (SeafRepoManager *mgr,
                             const char *user,
                             GError **error);
 
-int
+SeafileCopyResult *
 seaf_repo_manager_copy_file (SeafRepoManager *mgr,
                              const char *src_repo_id,
                              const char *src_dir,
@@ -356,9 +356,10 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
                              const char *dst_dir,
                              const char *dst_filename,
                              const char *user,
+                             int need_progress,
                              GError **error);
 
-int
+SeafileCopyResult *
 seaf_repo_manager_move_file (SeafRepoManager *mgr,
                              const char *src_repo_id,
                              const char *src_dir,
@@ -367,6 +368,7 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
                              const char *dst_dir,
                              const char *dst_filename,
                              const char *user,
+                             int need_progress,
                              GError **error);
 
 int

@@ -1966,10 +1966,17 @@ get_dir_size (SeafFSManager *mgr, const char *repo_id, int version, const char *
         seaf_dent = (SeafDirent *)p->data;
 
         if (S_ISREG(seaf_dent->mode)) {
-            result = seaf_fs_manager_get_file_size (mgr, repo_id, version, seaf_dent->id);
-            if (result < 0) {
-                seaf_dir_free (dir);
-                return result;
+            if (dir->version > 0)
+                result = seaf_dent->size;
+            else {
+                result = seaf_fs_manager_get_file_size (mgr,
+                                                        repo_id,
+                                                        version,
+                                                        seaf_dent->id);
+                if (result < 0) {
+                    seaf_dir_free (dir);
+                    return result;
+                }
             }
             size += result;
         } else if (S_ISDIR(seaf_dent->mode)) {

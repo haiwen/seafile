@@ -3059,7 +3059,7 @@ seafile_del_file (const char *repo_id, const char *parent_dir,
     return 0;
 }
 
-int
+GObject *
 seafile_copy_file (const char *src_repo_id,
                    const char *src_dir,
                    const char *src_filename,
@@ -3067,30 +3067,30 @@ seafile_copy_file (const char *src_repo_id,
                    const char *dst_dir,
                    const char *dst_filename,
                    const char *user,
+                   int need_progress,
                    GError **error)
 {
+    GObject *ret = NULL;
+
     if (!src_repo_id || !src_dir || !src_filename ||
         !dst_repo_id || !dst_dir || !dst_filename || !user) {
         g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Argument should not be null");
-        return -1;
+        return NULL;
     }
 
     if (!is_uuid_valid (src_repo_id) || !is_uuid_valid(dst_repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
-        return -1;
+        return NULL;
     }
 
-    if (seaf_repo_manager_copy_file (seaf->repo_mgr,
-                                     src_repo_id, src_dir, src_filename,
-                                     dst_repo_id, dst_dir, dst_filename,
-                                     user, error) < 0) {
-        return -1;
-    }
-
-    return 0;
+    ret = (GObject *)seaf_repo_manager_copy_file (seaf->repo_mgr,
+                                                  src_repo_id, src_dir, src_filename,
+                                                  dst_repo_id, dst_dir, dst_filename,
+                                                  user, need_progress, error);
+    return ret;
 }
 
-int
+GObject *
 seafile_move_file (const char *src_repo_id,
                    const char *src_dir,
                    const char *src_filename,
@@ -3098,26 +3098,39 @@ seafile_move_file (const char *src_repo_id,
                    const char *dst_dir,
                    const char *dst_filename,
                    const char *user,
+                   int need_progress,
                    GError **error)
 {
+    GObject *ret = NULL;
+
     if (!src_repo_id || !src_dir || !src_filename ||
         !dst_repo_id || !dst_dir || !dst_filename || !user) {
         g_set_error (error, 0, SEAF_ERR_BAD_ARGS, "Argument should not be null");
-        return -1;
+        return NULL;
     }
 
     if (!is_uuid_valid (src_repo_id) || !is_uuid_valid(dst_repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
-        return -1;
+        return NULL;
     }
 
-    if (seaf_repo_manager_move_file (seaf->repo_mgr,
-                                     src_repo_id, src_dir, src_filename,
-                                     dst_repo_id, dst_dir, dst_filename,
-                                     user, error) < 0) {
-        return -1;
-    }
+    ret = (GObject *)seaf_repo_manager_move_file (seaf->repo_mgr,
+                                                  src_repo_id, src_dir, src_filename,
+                                                  dst_repo_id, dst_dir, dst_filename,
+                                                  user, need_progress, error);
+    return ret;
+}
 
+GObject *
+seafile_get_copy_task (const char *task_id, GError **error)
+{
+    return (GObject *)seaf_copy_manager_get_task (seaf->copy_mgr, task_id);
+}
+
+int
+seafile_cancel_copy_task (const char *task_id, GError **error)
+{
+    seaf_copy_manager_cancel_task (seaf->copy_mgr, task_id);
     return 0;
 }
 
