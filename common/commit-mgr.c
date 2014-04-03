@@ -307,9 +307,11 @@ seaf_commit_manager_get_commit_compatible (SeafCommitManager *mgr,
     if (commit)
         return commit;
 
+#if defined MIGRATION || defined SEAFILE_CLIENT
     /* For compatibility with version 0. */
     commit = seaf_commit_manager_get_commit (mgr, repo_id, 0, id);
     return commit;
+#endif
 }
 
 static gint

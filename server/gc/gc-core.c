@@ -245,79 +245,6 @@ check_block_liveness (const char *store_id, int version,
     return TRUE;
 }
 
-int
-gc_v0_repos (GList *repos, int dry_run, int ignore_errors)
-{
-    Bloom *index;
-    GList *ptr;
-    int ret;
-
-    total_blocks = seaf_block_manager_get_block_number (seaf->block_mgr, NULL, 0);
-    removed_blocks = 0;
-
-    if (total_blocks == 0) {
-        seaf_message ("No blocks. Skip GC.\n");
-        return 0;
-    }
-
-    seaf_message ("GC started. Total block number is %"G_GUINT64_FORMAT".\n", total_blocks);
-
-    /*
-     * Store the index of live blocks in bloom filter to save memory.
-     * Since bloom filters only have false-positive, we
-     * may skip some garbage blocks, but we won't delete
-     * blocks that are still alive.
-     */
-    index = alloc_gc_index ();
-    if (!index) {
-        seaf_warning ("GC: Failed to allocate index.\n");
-        return -1;
-    }
-
-    seaf_message ("Populating index.\n");
-
-    for (ptr = repos; ptr != NULL; ptr = ptr->next) {
-        SeafRepo *repo = ptr->data;
-        ret = populate_gc_index_for_repo (repo, index, ignore_errors);
-        seaf_repo_unref ((SeafRepo *)ptr->data);
-        if (ret < 0 && !ignore_errors)
-            goto out;
-    }
-
-    if (!dry_run)
-        seaf_message ("Scanning and deleting unused blocks.\n");
-    else
-        seaf_message ("Scanning unused blocks.\n");
-
-    CheckBlocksData data;
-    data.index = index;
-    data.dry_run = dry_run;
-
-    ret = seaf_block_manager_foreach_block (seaf->block_mgr,
-                                            NULL, 0,
-                                            check_block_liveness,
-                                            &data);
-    if (ret < 0) {
-        seaf_warning ("GC: Failed to clean dead blocks.\n");
-        goto out;
-    }
-
-    if (!dry_run)
-        seaf_message ("GC finished. %"G_GUINT64_FORMAT" blocks total, "
-                      "about %"G_GUINT64_FORMAT" reachable blocks, "
-                      "%"G_GUINT64_FORMAT" blocks are removed.\n",
-                      total_blocks, reachable_blocks, removed_blocks);
-    else
-        seaf_message ("GC finished. %"G_GUINT64_FORMAT" blocks total, "
-                      "about %"G_GUINT64_FORMAT" reachable blocks, "
-                      "%"G_GUINT64_FORMAT" blocks can be removed.\n",
-                      total_blocks, reachable_blocks, removed_blocks);
-
-out:
-    bloom_destroy (index);
-    return ret;
-}
-
 static int
 populate_gc_index_for_virtual_repos (SeafRepo *repo, Bloom *index, int ignore_errors)
 {
@@ -359,6 +286,7 @@ gc_v1_repo (SeafRepo *repo, int dry_run, int ignore_errors)
     total_blocks = seaf_block_manager_get_block_number (seaf->block_mgr,
                                                         repo->store_id, repo->version);
     removed_blocks = 0;
+    reachable_blocks = 0;
 
     if (total_blocks == 0) {
         seaf_message ("No blocks. Skip GC.\n");
@@ -429,7 +357,7 @@ out:
 int
 gc_core_run (int dry_run, int ignore_errors)
 {
-    GList *repos = NULL, *v0_repos = NULL, *del_repos = NULL, *ptr;
+    GList *repos = NULL, *del_repos = NULL, *ptr;
     SeafRepo *repo;
     gboolean error = FALSE;
 
@@ -440,26 +368,18 @@ gc_core_run (int dry_run, int ignore_errors)
         return -1;
     }
 
-    seaf_message ("=== GC version 1 repos ===\n");
-
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
-        if (repo->version > 0) {
-            if (!repo->is_virtual) {
-                seaf_message ("GC version %d repo %s(%.8s)\n",
-                              repo->version, repo->name, repo->id);
-                gc_v1_repo (repo, dry_run, ignore_errors);
-            }
-        } else
-            v0_repos = g_list_prepend (v0_repos, repo);
+        if (!repo->is_virtual) {
+            seaf_message ("GC version %d repo %s(%.8s)\n",
+                          repo->version, repo->name, repo->id);
+            gc_v1_repo (repo, dry_run, ignore_errors);
+        }
+
     }
     g_list_free (repos);
 
-    seaf_message ("=== GC version 0 repos ===\n");
-    gc_v0_repos (v0_repos, dry_run, ignore_errors);
-    g_list_free (v0_repos);
-
-    seaf_message ("=== GC deleted version 1 repos ===\n");
+    seaf_message ("=== GC deleted repos ===\n");
     del_repos = seaf_repo_manager_list_garbage_repos (seaf->repo_mgr);
     for (ptr = del_repos; ptr; ptr = ptr->next) {
         char *repo_id = ptr->data;

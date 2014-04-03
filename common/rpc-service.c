@@ -1210,7 +1210,7 @@ seafile_destroy_repo (const char *repo_id, GError **error)
     return do_unsync_repo(repo);
 #else
     seaf_repo_manager_del_repo (seaf->repo_mgr, repo->id,
-                                (repo->version > 0) ? TRUE : FALSE);
+                                (repo->virtual_info != NULL) ? FALSE : TRUE);
     seaf_repo_unref (repo);
 
     return 0;

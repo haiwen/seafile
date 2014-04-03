@@ -324,6 +324,7 @@ gc_v0_repos (GList *repos, int dry_run, int ignore_errors)
     total_blocks = seaf_block_manager_get_block_number (seaf->block_mgr,
                                                         NULL, 0);
     removed_blocks = 0;
+    reachable_blocks = 0;
 
     if (total_blocks == 0) {
         seaf_message ("No blocks. Skip GC.\n");
@@ -417,6 +418,7 @@ gc_v1_repo (SeafRepo *repo, int dry_run, int ignore_errors)
     total_blocks = seaf_block_manager_get_block_number (seaf->block_mgr,
                                                         repo->id, repo->version);
     removed_blocks = 0;
+    reachable_blocks = 0;
 
     if (total_blocks == 0) {
         seaf_message ("No blocks. Skip GC.\n");

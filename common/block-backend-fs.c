@@ -255,10 +255,14 @@ block_backend_fs_foreach_block (BlockBackend *bend,
     char path[SEAF_PATH_MAX], *pos;
     int ret = 0;
 
+#if defined MIGRATION || defined SEAFILE_CLIENT
     if (version > 0)
         block_dir = g_build_filename (priv->block_dir, store_id, NULL);
     else
         block_dir = g_strdup(priv->v0_block_dir);
+#else
+    block_dir = g_build_filename (priv->block_dir, store_id, NULL);
+#endif
     dir_len = strlen (block_dir);
 
     dir1 = g_dir_open (block_dir, 0, NULL);
@@ -397,6 +401,7 @@ get_block_path (BlockBackend *bend,
     char *pos = path;
     int n;
 
+#if defined MIGRATION || defined SEAFILE_CLIENT
     if (version > 0) {
         n = snprintf (path, SEAF_PATH_MAX, "%s/%s/", priv->block_dir, store_id);
         pos += n;
@@ -405,6 +410,10 @@ get_block_path (BlockBackend *bend,
         pos[priv->v0_block_dir_len] = '/';
         pos += priv->v0_block_dir_len + 1;
     }
+#else
+    n = snprintf (path, SEAF_PATH_MAX, "%s/%s/", priv->block_dir, store_id);
+    pos += n;
+#endif
 
     memcpy (pos, block_sha1, 2);
     pos[2] = '/';
