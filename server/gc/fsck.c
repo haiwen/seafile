@@ -223,8 +223,8 @@ check_and_reset_consistent_state (SeafRepo *repo)
 static int
 check_fs_block_objects_for_repo (SeafRepo *repo, gboolean dry_run, gboolean strict)
 {
-    seaf_message ("Checking fs objects for v1 repo %s(%.8s)...\n",
-                  repo->name, repo->id);
+    seaf_message ("Checking fs objects for version %d repo %s(%.8s)...\n",
+                  repo->version, repo->name, repo->id);
 
     if (remove_corrupt_fs_objects (repo->store_id, repo->version,
                                    dry_run, strict) < 0) {
@@ -246,20 +246,6 @@ check_fs_block_objects_for_repo (SeafRepo *repo, gboolean dry_run, gboolean stri
 int
 seaf_fsck (GList *repo_id_list, gboolean dry_run, gboolean strict)
 {
-    seaf_message ("Checking fs objects for version 0 libraries...\n");
-
-    if (remove_corrupt_fs_objects (NULL, 0, dry_run, strict) < 0) {
-        seaf_warning ("Failed to check fs objects.\n");
-        return -1;
-    }
-
-    seaf_message ("Checking blocks for version 0 libraries...\n");
-
-    if (remove_corrupt_blocks (NULL, 0, dry_run) < 0) {
-        seaf_warning ("Failed to check blocks.\n");
-        return -1;
-    }
-
     if (!repo_id_list)
         repo_id_list = seaf_repo_manager_get_repo_id_list (seaf->repo_mgr);
 
@@ -280,8 +266,7 @@ seaf_fsck (GList *repo_id_list, gboolean dry_run, gboolean strict)
             continue;
         }
 
-        if (repo->version > 0 &&
-            check_fs_block_objects_for_repo (repo, dry_run, strict) < 0) {
+        if (check_fs_block_objects_for_repo (repo, dry_run, strict) < 0) {
             seaf_warning ("Failed to check fs and blocks for repo %.8s.\n",
                           repo->id);
             continue;

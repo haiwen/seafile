@@ -967,6 +967,10 @@ seafile_to_json (Seafile *file, int *len)
     char *data = json_dumps (object, 0);
     *len = strlen(data);
 
+    unsigned char sha1[20];
+    calculate_sha1 (sha1, data, *len);
+    rawdata_to_hex (sha1, file->file_id, 20);
+
     json_decref (object);
     return (guint8 *)data;
 }

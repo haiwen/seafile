@@ -1436,7 +1436,7 @@ out:
 
 static char *
 copy_seafile (SeafRepo *src_repo, SeafRepo *dst_repo, const char *file_id,
-              CopyTask *task)
+              CopyTask *task, guint64 *size)
 {
     Seafile *file;
 
@@ -1486,17 +1486,20 @@ copy_seafile (SeafRepo *src_repo, SeafRepo *dst_repo, const char *file_id,
     if (task)
         ++(task->done);
 
+    *size = file->file_size;
+    char *ret = g_strdup(file->file_id);
+
     seafile_unref (file);
-    return g_strdup(file_id);
+    return ret;
 }
 
 static char *
 copy_recursive (SeafRepo *src_repo, SeafRepo *dst_repo,
                 const char *obj_id, guint32 mode, const char *modifier,
-                CopyTask *task)
+                CopyTask *task, guint64 *size)
 {
     if (S_ISREG(mode)) {
-        return copy_seafile (src_repo, dst_repo, obj_id, task);
+        return copy_seafile (src_repo, dst_repo, obj_id, task, size);
     } else if (S_ISDIR(mode)) {
         SeafDir *src_dir = NULL, *dst_dir = NULL;
         GList *dst_ents = NULL, *ptr;
@@ -1518,8 +1521,9 @@ copy_recursive (SeafRepo *src_repo, SeafRepo *dst_repo,
 
             seaf_message ("Copying %s.\n", dent->name);
 
+            guint64 new_size = 0;
             new_id = copy_recursive (src_repo, dst_repo,
-                                     dent->id, dent->mode, modifier, task);
+                                     dent->id, dent->mode, modifier, task, &new_size);
             if (!new_id) {
                 seaf_dir_free (src_dir);
                 return NULL;
@@ -1527,7 +1531,7 @@ copy_recursive (SeafRepo *src_repo, SeafRepo *dst_repo,
 
             new_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
                                         new_id, dent->mode, dent->name,
-                                        (gint64)time(NULL), modifier, dent->size);
+                                        (gint64)time(NULL), modifier, new_size);
             dst_ents = g_list_prepend (dst_ents, new_dent);
             g_free (new_id);
         }
@@ -1546,6 +1550,7 @@ copy_recursive (SeafRepo *src_repo, SeafRepo *dst_repo,
         }
 
         char *ret = g_strdup(dst_dir->dir_id);
+        *size = 0;
         seaf_dir_free (dst_dir);
         return ret;
     }
@@ -1586,8 +1591,10 @@ cross_repo_copy (const char *src_repo_id,
         goto out;
     }
 
+    guint64 new_size = 0;
     char *new_id = copy_recursive (src_repo, dst_repo,
-                                   src_dent->id, src_dent->mode, modifier, task);
+                                   src_dent->id, src_dent->mode, modifier, task,
+                                   &new_size);
     if (!new_id) {
         if (!task->canceled)
             task->failed = TRUE;
@@ -1595,10 +1602,9 @@ cross_repo_copy (const char *src_repo_id,
         goto out;
     }
 
-    gint64 file_size = (src_dent->version > 0) ? src_dent->size : -1;
     dst_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
                                 new_id, src_dent->mode, dst_filename,
-                                (gint64)time(NULL), modifier, file_size);
+                                (gint64)time(NULL), modifier, new_size);
     g_free (new_id);
 
     if (put_dirent_and_commit (dst_repo,
@@ -1639,6 +1645,49 @@ is_virtual_repo_and_origin (SeafRepo *repo1, SeafRepo *repo2)
         strcmp (repo2->virtual_info->origin_repo_id, repo1->id) == 0)
         return TRUE;
     return FALSE;
+}
+
+static gboolean
+check_file_count_and_size (SeafRepo *repo, SeafDirent *dent, gint64 total_files,
+                           GError **error)
+{
+    if (seaf->copy_mgr->max_files > 0 &&
+        total_files > seaf->copy_mgr->max_files) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Too many files");
+        return FALSE;
+    }
+
+    if (seaf->copy_mgr->max_size > 0) {
+        gint64 size = -1;
+
+        if (S_ISREG(dent->mode)) {
+            if (repo->version > 0)
+                size = dent->size;
+            else
+                size = seaf_fs_manager_get_file_size (seaf->fs_mgr,
+                                                      repo->store_id,
+                                                      repo->version,
+                                                      dent->id);
+        } else {
+            size = seaf_fs_manager_get_fs_size (seaf->fs_mgr,
+                                                repo->store_id,
+                                                repo->version,
+                                                dent->id);
+        }
+        if (size < 0) {
+            seaf_warning ("Failed to get dir size.\n");
+            return FALSE;
+        }
+
+        if (size > seaf->copy_mgr->max_size) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "Folder or file size is too large");
+            return FALSE;
+        }
+    }
+
+    return TRUE;
 }
 
 /**
@@ -1735,41 +1784,23 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
     } else {
         background = TRUE;
 
-        gint64 total_files = seaf_fs_manager_count_fs_files (seaf->fs_mgr,
-                                                             src_repo->store_id,
-                                                             src_repo->version,
-                                                             src_dent->id);
+        gint64 total_files = -1;
+        if (S_ISDIR(src_dent->mode))
+            total_files = seaf_fs_manager_count_fs_files (seaf->fs_mgr,
+                                                          src_repo->store_id,
+                                                          src_repo->version,
+                                                          src_dent->id);
+        else
+            total_files = 1;
         if (total_files < 0) {
             seaf_warning ("Failed to get file count.\n");
             ret = -1;
             goto out;
         }
 
-        if (seaf->copy_mgr->max_files > 0 &&
-            total_files > seaf->copy_mgr->max_files) {
-            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                         "Too many files to copy");
+        if (!check_file_count_and_size (src_repo, src_dent, total_files, error)) {
             ret = -1;
             goto out;
-        }
-
-        if (seaf->copy_mgr->max_size > 0) {
-            gint64 size = seaf_fs_manager_get_fs_size (seaf->fs_mgr,
-                                                       src_repo->store_id,
-                                                       src_repo->version,
-                                                       src_dent->id);
-            if (size < 0) {
-                seaf_warning ("Failed to get dir size.\n");
-                ret = -1;
-                goto out;
-            }
-
-            if (size > seaf->copy_mgr->max_size) {
-                g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                             "Folder or file size is too large to copy");
-                ret = -1;
-                goto out;
-            }
         }
 
         task_id = seaf_copy_manager_add_task (seaf->copy_mgr,
@@ -1903,8 +1934,10 @@ cross_repo_move (const char *src_repo_id,
         goto out;
     }
 
+    guint64 new_size = 0;
     char *new_id = copy_recursive (src_repo, dst_repo,
-                                   src_dent->id, src_dent->mode, modifier, task);
+                                   src_dent->id, src_dent->mode, modifier, task,
+                                   &new_size);
     if (!new_id) {
         if (!task->canceled)
             task->failed = TRUE;
@@ -1912,10 +1945,9 @@ cross_repo_move (const char *src_repo_id,
         goto out;
     }
 
-    gint64 file_size = (src_dent->version > 0) ? src_dent->size : -1;
     dst_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
                                 new_id, src_dent->mode, dst_filename,
-                                (gint64)time(NULL), modifier, file_size);
+                                (gint64)time(NULL), modifier, new_size);
     g_free (new_id);
 
     if (put_dirent_and_commit (dst_repo,
@@ -2069,41 +2101,23 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
         } else {
             background = TRUE;
 
-            gint64 total_files = seaf_fs_manager_count_fs_files (seaf->fs_mgr,
-                                                                 src_repo->store_id,
-                                                                 src_repo->version,
-                                                                 src_dent->id);
+            gint64 total_files = -1;
+            if (S_ISDIR(src_dent->mode))
+                total_files = seaf_fs_manager_count_fs_files (seaf->fs_mgr,
+                                                              src_repo->store_id,
+                                                              src_repo->version,
+                                                              src_dent->id);
+            else
+                total_files = 1;
             if (total_files < 0) {
                 seaf_warning ("Failed to get file count.\n");
                 ret = -1;
                 goto out;
             }
 
-            if (seaf->copy_mgr->max_files > 0 &&
-                total_files > seaf->copy_mgr->max_files) {
-                g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                             "Too many files to move");
+            if (!check_file_count_and_size (src_repo, src_dent, total_files, error)) {
                 ret = -1;
                 goto out;
-            }
-
-            if (seaf->copy_mgr->max_size > 0) {
-                gint64 size = seaf_fs_manager_get_fs_size (seaf->fs_mgr,
-                                                           src_repo->store_id,
-                                                           src_repo->version,
-                                                           src_dent->id);
-                if (size < 0) {
-                    seaf_warning ("Failed to get dir size.\n");
-                    ret = -1;
-                    goto out;
-                }
-
-                if (size > seaf->copy_mgr->max_size) {
-                    g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                                 "Folder or file size is too large to move");
-                    ret = -1;
-                    goto out;
-                }
             }
 
             task_id = seaf_copy_manager_add_task (seaf->copy_mgr,
