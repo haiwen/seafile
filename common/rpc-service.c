@@ -1144,6 +1144,8 @@ cancel_clone_tasks_by_account (const char *account_server, const char *account_e
             seaf_clone_manager_cancel_task (seaf->clone_mgr, task->repo_id);
         }
     }
+
+    g_list_free (tasks);
 }
 
 int
