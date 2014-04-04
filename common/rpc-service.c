@@ -1129,6 +1129,23 @@ int do_unsync_repo(SeafRepo *repo)
     return 0;
 }
 
+static void
+cancel_clone_tasks_by_account (const char *account_server, const char *account_email)
+{
+    GList *ptr, *tasks;
+    CloneTask *task;
+
+    tasks = seaf_clone_manager_get_tasks (seaf->clone_mgr);
+    for (ptr = tasks; ptr != NULL; ptr = ptr->next) {
+        task = ptr->data;
+
+        if (g_strcmp0(account_server, task->peer_addr) == 0
+            && g_strcmp0(account_email, task->email) == 0) {
+            seaf_clone_manager_cancel_task (seaf->clone_mgr, task->repo_id);
+        }
+    }
+}
+
 int
 seafile_unsync_repos_by_account (const char *server_addr, const char *email, GError **error)
 {
@@ -1160,6 +1177,8 @@ seafile_unsync_repos_by_account (const char *server_addr, const char *email, GEr
     }
 
     g_list_free (repos);
+
+    cancel_clone_tasks_by_account (server_addr, email);
 
     return 0;
 }
