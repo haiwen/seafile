@@ -667,6 +667,7 @@ seafile_copy_file (const char *src_repo_id,
                    const char *dst_filename,
                    const char *user,
                    int need_progress,
+                   int synchronous,
                    GError **error);
 
 
@@ -679,6 +680,7 @@ seafile_move_file (const char *src_repo_id,
                    const char *dst_filename,
                    const char *user,
                    int need_progress,
+                   int synchronous,
                    GError **error);
 
 GObject *

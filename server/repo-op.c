@@ -1596,8 +1596,6 @@ cross_repo_copy (const char *src_repo_id,
                                    src_dent->id, src_dent->mode, modifier, task,
                                    &new_size);
     if (!new_id) {
-        if (!task->canceled)
-            task->failed = TRUE;
         ret = -1;
         goto out;
     }
@@ -1616,6 +1614,9 @@ cross_repo_copy (const char *src_repo_id,
         goto out;
     }
 
+    if (task)
+        task->successful = TRUE;
+
     seaf_repo_manager_merge_virtual_repo (seaf->repo_mgr, dst_repo_id, NULL);
 
 out:
@@ -1630,6 +1631,9 @@ out:
 
     if (ret == 0) {
         update_repo_size (dst_repo_id);
+    } else {
+        if (task && !task->canceled)
+            task->failed = TRUE;
     }
 
     return ret;
@@ -1708,6 +1712,7 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
                              const char *dst_filename,
                              const char *user,
                              int need_progress,
+                             int synchronous,
                              GError **error)
 {
     SeafRepo *src_repo = NULL, *dst_repo = NULL;
@@ -1756,8 +1761,7 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
     }
 
     if (strcmp (src_repo_id, dst_repo_id) == 0 ||
-        is_virtual_repo_and_origin (src_repo, dst_repo) ||
-        (src_repo->version == 0 && dst_repo->version == 0)) {
+        is_virtual_repo_and_origin (src_repo, dst_repo)) {
 
         gint64 file_size = (src_dent->version > 0) ? src_dent->size : -1;
 
@@ -1781,7 +1785,7 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
         seaf_repo_manager_merge_virtual_repo (mgr, dst_repo_id, NULL);
 
         update_repo_size (dst_repo_id);
-    } else {
+    } else if (!synchronous) {
         background = TRUE;
 
         gint64 total_files = -1;
@@ -1818,6 +1822,21 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
             seaf_warning ("Failed to start copy task.\n");
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                          "failed to start copy task");
+            ret = -1;
+            goto out;
+        }
+    } else {
+        /* Synchronous for cross-repo move */
+        if (cross_repo_copy (src_repo_id,
+                             src_canon_path,
+                             src_filename,
+                             dst_repo_id,
+                             dst_canon_path,
+                             dst_filename,
+                             user,
+                             NULL) < 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "Failed to move");
             ret = -1;
             goto out;
         }
@@ -1939,8 +1958,6 @@ cross_repo_move (const char *src_repo_id,
                                    src_dent->id, src_dent->mode, modifier, task,
                                    &new_size);
     if (!new_id) {
-        if (!task->canceled)
-            task->failed = TRUE;
         ret = -1;
         goto out;
     }
@@ -1967,6 +1984,9 @@ cross_repo_move (const char *src_repo_id,
         goto out;
     }
 
+    if (task)
+        task->successful = TRUE;
+
     seaf_repo_manager_cleanup_virtual_repos (seaf->repo_mgr, src_repo_id);
     seaf_repo_manager_merge_virtual_repo (seaf->repo_mgr, src_repo_id, NULL);
 
@@ -1982,6 +2002,9 @@ out:
 
     if (ret == 0) {
         update_repo_size (dst_repo_id);
+    } else {
+        if (task && !task->canceled)
+            task->failed = TRUE;
     }
 
     return ret;
@@ -1997,6 +2020,7 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
                              const char *dst_filename,
                              const char *user,
                              int need_progress,
+                             int synchronous,
                              GError **error)
 {
     SeafRepo *src_repo = NULL, *dst_repo = NULL;
@@ -2066,8 +2090,7 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
     } else {
         /* move between different repos */
 
-        if (is_virtual_repo_and_origin (src_repo, dst_repo) ||
-            (src_repo->version == 0 && dst_repo->version == 0)) {
+        if (is_virtual_repo_and_origin (src_repo, dst_repo)) {
             /* duplicate src dirent with new name */
             dst_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
                                         src_dent->id, src_dent->mode, dst_filename,
@@ -2098,7 +2121,7 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
             seaf_repo_manager_merge_virtual_repo (mgr, src_repo_id, NULL);
 
             update_repo_size (dst_repo_id);
-        } else {
+        } else if (!synchronous) {
             background = TRUE;
 
             gint64 total_files = -1;
@@ -2135,6 +2158,21 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
                 seaf_warning ("Failed to start copy task.\n");
                 g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                              "failed to start copy task");
+                ret = -1;
+                goto out;
+            }
+        } else {
+            /* Synchronous for cross-repo move */
+            if (cross_repo_move (src_repo_id,
+                                 src_canon_path,
+                                 src_filename,
+                                 dst_repo_id,
+                                 dst_canon_path,
+                                 dst_filename,
+                                 user,
+                                 NULL) < 0) {
+                g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                             "Failed to move");
                 ret = -1;
                 goto out;
             }

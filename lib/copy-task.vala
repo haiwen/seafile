@@ -5,6 +5,7 @@ public class CopyTask : Object {
        public int64 total { set; get; }
        public bool canceled { set; get; }
        public bool failed { set; get; }
+       public bool successful { set; get; }
 }
 
 public class CopyResult : Object {

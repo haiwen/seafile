@@ -23,6 +23,7 @@ struct CopyTask {
     gint64 total;
     gint canceled;
     gboolean failed;
+    gboolean successful;
 };
 typedef struct CopyTask CopyTask;
 
@@ -53,7 +54,7 @@ struct _SeafileCopyTask *
 seaf_copy_manager_get_task (SeafCopyManager *mgr,
                             const char * id);
 
-void
+int
 seaf_copy_manager_cancel_task (SeafCopyManager *mgr, const char *task_id);
 
 #endif

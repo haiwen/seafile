@@ -75,7 +75,9 @@ seaf_copy_manager_get_task (SeafCopyManager *mgr,
     if (task) {
         t = seafile_copy_task_new ();
         g_object_set (t, "done", task->done, "total", task->total,
-                      "canceled", task->canceled, "failed", task->failed, NULL);
+                      "canceled", task->canceled, "failed", task->failed,
+                      "successful", task->successful,
+                      NULL);
     }
 
     pthread_mutex_unlock (&priv->lock);
@@ -170,7 +172,7 @@ seaf_copy_manager_add_task (SeafCopyManager *mgr,
     return task_id;
 }
 
-void
+int
 seaf_copy_manager_cancel_task (SeafCopyManager *mgr, const char *task_id)
 {
     SeafCopyManagerPriv *priv = mgr->priv;
@@ -182,6 +184,11 @@ seaf_copy_manager_cancel_task (SeafCopyManager *mgr, const char *task_id)
 
     pthread_mutex_unlock (&priv->lock);
 
-    if (task)
+    if (task) {
+        if (task->canceled || task->failed || task->successful)
+            return -1;
         g_atomic_int_set (&task->canceled, 1);
+    }
+
+    return 0;
 }

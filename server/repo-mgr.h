@@ -357,6 +357,7 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
                              const char *dst_filename,
                              const char *user,
                              int need_progress,
+                             int synchronous,
                              GError **error);
 
 SeafileCopyResult *
@@ -369,6 +370,7 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
                              const char *dst_filename,
                              const char *user,
                              int need_progress,
+                             int synchronous,
                              GError **error);
 
 int

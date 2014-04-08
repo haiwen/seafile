@@ -416,13 +416,13 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     del_file = seafile_del_file 
 
-    @searpc_func("object", ["string", "string", "string", "string", "string", "string", "string", "int"])
-    def seafile_copy_file(src_repo, src_dir, src_filename, dst_repo, dst_dir, dst_filename, user, need_progress):
+    @searpc_func("object", ["string", "string", "string", "string", "string", "string", "string", "int", "int"])
+    def seafile_copy_file(src_repo, src_dir, src_filename, dst_repo, dst_dir, dst_filename, user, need_progress, synchronous):
         pass
     copy_file = seafile_copy_file 
 
-    @searpc_func("object", ["string", "string", "string", "string", "string", "string", "string", "int"])
-    def seafile_move_file(src_repo, src_dir, src_filename, dst_repo, dst_dir, dst_filename, user, need_progress):
+    @searpc_func("object", ["string", "string", "string", "string", "string", "string", "string", "int", "int"])
+    def seafile_move_file(src_repo, src_dir, src_filename, dst_repo, dst_dir, dst_filename, user, need_progress, synchronous):
         pass
     move_file = seafile_move_file
 
