@@ -32,7 +32,7 @@ seaf_db_new_pgsql (const char *host,
                    const char *unix_socket);
 
 SeafDB *
-seaf_db_new_sqlite (const char *db_path);
+seaf_db_new_sqlite (const char *db_path, int max_connections);
 
 void
 seaf_db_free (SeafDB *db);

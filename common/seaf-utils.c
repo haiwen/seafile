@@ -26,13 +26,22 @@ seafile_session_get_tmp_file_path (SeafileSession *session,
 
 #define SQLITE_DB_NAME "seafile.db"
 
+#define DEFAULT_MAX_CONNECTIONS 100
+
 static int
 sqlite_db_start (SeafileSession *session)
 {
     char *db_path;
+    int max_connections = 0;
+
+    max_connections = g_key_file_get_integer (session->config,
+                                              "database", "max_connections",
+                                              NULL);
+    if (max_connections <= 0)
+        max_connections = DEFAULT_MAX_CONNECTIONS;
 
     db_path = g_build_filename (session->seaf_dir, SQLITE_DB_NAME, NULL);
-    session->db = seaf_db_new_sqlite (db_path);
+    session->db = seaf_db_new_sqlite (db_path, max_connections);
     if (!session->db) {
         g_warning ("Failed to start sqlite db.\n");
         return -1;
@@ -42,7 +51,6 @@ sqlite_db_start (SeafileSession *session)
 }
 
 #define MYSQL_DEFAULT_PORT "3306"
-#define DEFAULT_MAX_CONNECTIONS 100
 
 static int
 mysql_db_start (SeafileSession *session)

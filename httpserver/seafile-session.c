@@ -53,13 +53,13 @@ seafile_session_new(const char *seafile_dir,
     tmp_file_dir = g_build_filename (abs_seafile_dir, "tmpfiles", NULL);
     config_file_path = g_build_filename (abs_seafile_dir, "seafile.conf", NULL);
 
-    if (g_lstat(abs_seafile_dir, &st) < 0 || !S_ISDIR(st.st_mode)) {
+    if (g_stat(abs_seafile_dir, &st) < 0 || !S_ISDIR(st.st_mode)) {
         g_warning ("Seafile data dir %s does not exist and is unable to create\n",
                    abs_seafile_dir);
         goto onerror;
     }
 
-    if (g_lstat(tmp_file_dir, &st) < 0 || !S_ISDIR(st.st_mode)) {
+    if (g_stat(tmp_file_dir, &st) < 0 || !S_ISDIR(st.st_mode)) {
         g_warning ("Seafile tmp dir %s does not exist and is unable to create\n",
                    tmp_file_dir);
         goto onerror;

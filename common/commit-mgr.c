@@ -300,7 +300,7 @@ seaf_commit_manager_get_commit_compatible (SeafCommitManager *mgr,
                                            const char *repo_id,
                                            const char *id)
 {
-    SeafCommit *commit;
+    SeafCommit *commit = NULL;
 
     /* First try version 1 layout. */
     commit = seaf_commit_manager_get_commit (mgr, repo_id, 1, id);
@@ -310,8 +310,8 @@ seaf_commit_manager_get_commit_compatible (SeafCommitManager *mgr,
 #if defined MIGRATION || defined SEAFILE_CLIENT
     /* For compatibility with version 0. */
     commit = seaf_commit_manager_get_commit (mgr, repo_id, 0, id);
-    return commit;
 #endif
+    return commit;
 }
 
 static gint

@@ -248,6 +248,9 @@ should_ignore_file(const char *filename, void *data)
 {
     GPatternSpec **spec = ignore_patterns;
 
+    if (!g_utf8_validate (filename, -1, NULL))
+        return TRUE;
+
     /* Ignore file/dir if its name is too long. */
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)
         return TRUE;

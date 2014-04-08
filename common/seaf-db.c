@@ -123,7 +123,7 @@ seaf_db_new_pgsql (const char *host,
 }
 
 SeafDB *
-seaf_db_new_sqlite (const char *db_path)
+seaf_db_new_sqlite (const char *db_path, int max_connections)
 {
     SeafDB *db;
     GString *url;
@@ -147,6 +147,7 @@ seaf_db_new_sqlite (const char *db_path)
         return NULL;
     }
 
+    ConnectionPool_setMaxConnections (db->pool, max_connections);
     ConnectionPool_start (db->pool);
     db->type = SEAF_DB_TYPE_SQLITE;
 

@@ -350,7 +350,7 @@ create_seafile_json (int repo_version,
     }
     json_object_set_new (object, "block_ids", block_id_array);
 
-    char *data = json_dumps (object, 0);
+    char *data = json_dumps (object, JSON_SORT_KEYS);
     *ondisk_size = strlen(data);
 
     /* The seafile object id is sha1 hash of the json object. */
@@ -964,7 +964,7 @@ seafile_to_json (Seafile *file, int *len)
     }
     json_object_set_new (object, "block_ids", block_id_array);
 
-    char *data = json_dumps (object, 0);
+    char *data = json_dumps (object, JSON_SORT_KEYS);
     *len = strlen(data);
 
     unsigned char sha1[20];
@@ -1421,7 +1421,7 @@ seaf_dir_to_json (SeafDir *dir, int *len)
     }
     json_object_set_new (object, "dirents", dirent_array);
 
-    char *data = json_dumps (object, 0);
+    char *data = json_dumps (object, JSON_SORT_KEYS);
     *len = strlen(data);
 
     /* The dir object id is sha1 hash of the json object. */

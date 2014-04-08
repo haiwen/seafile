@@ -1255,6 +1255,25 @@ check_fast_forward (SeafCommit *head, const char *root_id)
     return ret;
 }
 
+static int 
+print_index (struct index_state *istate)
+{
+    int i;
+    struct cache_entry *ce;
+    char id[41];
+    g_message ("Totally %u entries in index, version %u.\n",
+               istate->cache_nr, istate->version);
+    for (i = 0; i < istate->cache_nr; ++i) {
+        ce = istate->cache[i];
+        rawdata_to_hex (ce->sha1, id, 20);
+        g_message ("%s, %s, %o, %"G_GUINT64_FORMAT", %s, %d\n",
+                   ce->name, id, ce->ce_mode, 
+                   ce->ce_mtime.sec, ce->modifier, ce_stage(ce));
+    }
+
+    return 0;
+}
+
 static int
 real_merge (SeafRepo *repo, SeafCommit *head, CloneTask *task)
 {
@@ -1296,6 +1315,8 @@ real_merge (SeafRepo *repo, SeafCommit *head, CloneTask *task)
                      task->root_id, head->root_id, EMPTY_SHA1,
                      &clean, &root_id);
     g_free (root_id);
+
+    print_index (&istate);
 
     if (update_index (&istate, index_path) < 0) {
         seaf_warning ("Failed to update index.\n");
@@ -1534,6 +1555,11 @@ error:
 static void
 setup_repo_without_checkout (SeafRepo *repo, SeafBranch *local, CloneTask *task)
 {
+    if (create_index_branch (repo, task->root_id) < 0) {
+        transition_to_error (task, CLONE_ERROR_MERGE);
+        return;
+    }
+
     seaf_repo_manager_set_repo_worktree (repo->manager,
                                          repo,
                                          task->worktree);
