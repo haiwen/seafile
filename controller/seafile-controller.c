@@ -611,7 +611,7 @@ stop_ccnet_server ()
 static void
 init_pidfile_path (SeafileController *ctl)
 {
-    char *pid_dir = g_build_filename (ctl->seafile_dir, "pids", NULL);
+    char *pid_dir = g_build_filename (topdir, "pids", NULL);
     if (!g_file_test(pid_dir, G_FILE_TEST_EXISTS)) {
         if (g_mkdir(pid_dir, 0777) < 0) {
             seaf_warning("failed to create pid dir %s: %s", pid_dir, strerror(errno));
