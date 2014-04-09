@@ -364,8 +364,6 @@ obj_backend_fs_foreach_obj (ObjBackend *bend,
 
     dir1 = g_dir_open (obj_dir, 0, NULL);
     if (!dir1) {
-        g_warning ("Failed to open object dir %s.\n", obj_dir);
-        ret = -1;
         goto out;
     }
 

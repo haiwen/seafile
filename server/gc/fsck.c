@@ -232,8 +232,8 @@ check_fs_block_objects_for_repo (SeafRepo *repo, gboolean dry_run, gboolean stri
         return -1;
     }
 
-    seaf_message ("Checking blocks for v1 repo %s(%.8s)...\n",
-                  repo->name, repo->id);
+    seaf_message ("Checking blocks for version %d repo %s(%.8s)...\n",
+                  repo->version, repo->name, repo->id);
 
     if (remove_corrupt_blocks (repo->store_id, repo->version, dry_run) < 0) {
         seaf_warning ("Failed to check blocks.\n");

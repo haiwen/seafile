@@ -267,8 +267,6 @@ block_backend_fs_foreach_block (BlockBackend *bend,
 
     dir1 = g_dir_open (block_dir, 0, NULL);
     if (!dir1) {
-        seaf_warning ("Failed to open block dir %s.\n", block_dir);
-        ret = -1;
         goto out;
     }
 
@@ -356,9 +354,8 @@ block_backend_fs_remove_store (BlockBackend *bend, const char *store_id)
 
     dir1 = g_dir_open (block_dir, 0, NULL);
     if (!dir1) {
-        seaf_warning ("Failed to open block dir %s.\n", block_dir);
         g_free (block_dir);
-        return -1;
+        return 0;
     }
 
     while ((dname1 = g_dir_read_name(dir1)) != NULL) {
