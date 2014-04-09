@@ -69,10 +69,22 @@ obj_backend_fs_read (ObjBackend *bend,
 
     g_file_get_contents (path, (gchar**)data, &tmp_len, &error);
     if (error) {
+#ifdef MIGRATION
+        g_clear_error (&error);
+        id_to_path (bend->priv, obj_id, path, repo_id, 1);
+        g_file_get_contents (path, (gchar**)data, &tmp_len, &error);
+        if (error) {
+            seaf_debug ("[obj backend] Failed to read object %s: %s.\n",
+                        obj_id, error->message);
+            g_clear_error (&error);
+            return -1;
+        }
+#else
         seaf_debug ("[obj backend] Failed to read object %s: %s.\n",
                     obj_id, error->message);
         g_clear_error (&error);
         return -1;
+#endif
     }
 
     *len = (int)tmp_len;

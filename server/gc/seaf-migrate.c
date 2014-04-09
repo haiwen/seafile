@@ -148,6 +148,7 @@ typedef struct {
      */
     gint64 truncate_time;
     gboolean traversed_head;
+    gboolean stop_copy_blocks;
 } MigrationData;
 
 static int
@@ -211,6 +212,9 @@ fs_callback (SeafFSManager *mgr,
         return FALSE;
     }
 
+    if (data->stop_copy_blocks)
+        return TRUE;
+
     if (type == SEAF_METADATA_TYPE_FILE &&
         migrate_file_blocks (mgr, data, obj_id) < 0)
         return FALSE;
@@ -225,17 +229,10 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
     SeafRepo *repo = data->repo;
     int ret;
 
-    if (data->truncate_time == 0)
-    {
-        *stop = TRUE;
-        /* Stop after traversing the head commit. */
-    }
-    else if (data->truncate_time > 0 &&
-             (gint64)(commit->ctime) < data->truncate_time &&
-             data->traversed_head)
-    {
-        *stop = TRUE;
-        return TRUE;
+    if (data->truncate_time > 0 &&
+        (gint64)(commit->ctime) < data->truncate_time &&
+        data->traversed_head && !data->stop_copy_blocks) {
+        data->stop_copy_blocks = TRUE;
     }
 
     if (!data->traversed_head)
@@ -256,6 +253,11 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
                                          data, FALSE);
     if (ret < 0)
         return FALSE;
+
+    if (data->truncate_time == 0 && !data->stop_copy_blocks) {
+        data->stop_copy_blocks = TRUE;
+        /* Stop after traversing the head commit. */
+    }
 
     return TRUE;
 }
