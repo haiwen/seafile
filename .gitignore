@@ -69,6 +69,7 @@ lib/branch.c
 lib/commit.c
 lib/crypt.c
 lib/repo.c
+lib/copy-task.c
 app/seafile
 app/seafserv-tool
 daemon/seaf-daemon
@@ -120,3 +121,4 @@ tests/test-seafile-fmt
 seaf-fsck
 *.tar.gz
 fuse/seaf-fuse
+server/gc/seaf-migrate
