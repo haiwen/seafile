@@ -1,4 +1,4 @@
-CREATE TABLE "api2_tokenv2" (
+CREATE TABLE IF NOT EXISTS "api2_tokenv2" (
     "key" varchar(40) NOT NULL PRIMARY KEY,
     "user" varchar(255) NOT NULL,
     "platform" varchar(32) NOT NULL,

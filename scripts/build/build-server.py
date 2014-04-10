@@ -266,7 +266,6 @@ def check_seahub_thirdpart(thirdpartdir):
         # 'SQLAlchemy',
         'python_daemon',
         'lockfile',
-        'WsgiDAV',
         'six',
     ]
     def check_thirdpart_lib(name):
@@ -537,7 +536,7 @@ def copy_user_manuals():
 
     for path in glob.glob(src_pattern):
         must_copy(path, dst_dir)
-        
+
 def copy_seafdav():
     dst_dir = os.path.join(conf[CONF_BUILDDIR], 'seafile-server', 'seahub', 'thirdpart')
     tarball = os.path.join(conf[CONF_SRCDIR], 'seafdav.tar.gz')

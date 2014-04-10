@@ -14,6 +14,7 @@ manage_py=${INSTALLPATH}/seahub/manage.py
 export CCNET_CONF_DIR=${default_ccnet_conf_dir}
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seafile/lib64/python2.7/site-packages:$PYTHONPATH
+export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
 
 prev_version=2.1
 current_version=3.0
@@ -152,7 +153,8 @@ function migrate_seafile_data_format() {
     echo
     echo "now migrating seafile data to 3.0 format"
     echo
-    if ! ${seaf_migrate} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"; then
+    if ! LD_LIBRARY_PATH=${SEAFILE_LD_LIBRARY_PATH} ${seaf_migrate} \
+            -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"; then
         echo
         echo "Failed to migrate seafile data to 3.0 format"
         echo
