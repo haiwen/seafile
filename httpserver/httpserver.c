@@ -17,12 +17,13 @@
 
 #include "utils.h"
 
+#define DEFAULT_BIND_HOST  "0.0.0.0"
 #define DEFAULT_BIND_PORT  8082
 #define DEFAULT_MAX_DOWNLOAD_DIR_SIZE 100 * ((gint64)1 << 20) /* 100MB */
 
 static char *config_dir = NULL;
 static char *seafile_dir = NULL;
-static char *bind_addr = "0.0.0.0";
+static char *bind_addr = NULL;
 static gboolean use_https = FALSE;
 static uint16_t bind_port = 0;
 static int num_threads = 10;
@@ -111,9 +112,24 @@ static void
 load_httpserver_config (SeafileSession *session)
 {
     GError *error = NULL;
+    char *host = NULL;
     int port = 0;
     int max_upload_size_mb;
     int max_download_dir_size_mb;
+
+    host = g_key_file_get_string (session->config, "httpserver", "host", &error);
+    if (!error) {
+        bind_addr = host;
+    } else {
+        if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND &&
+            error->code != G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
+            seaf_warning ("[conf] Error: failed to read the value of 'host'\n");
+            exit (1);
+        }
+
+        bind_addr = DEFAULT_BIND_HOST;
+        g_clear_error (&error);
+    }
 
     port = g_key_file_get_integer (session->config, "httpserver", "port", &error);
     if (!error) {
@@ -333,10 +349,10 @@ main(int argc, char *argv[])
 
     load_httpserver_config (seaf);
     if (use_https) {
-        seaf_message ("port = %d, https = true, pemfile = %s, privkey = %s\n",
-                      bind_port, pemfile, privkey);
+        seaf_message ("host = %s, port = %d, https = true, pemfile = %s, privkey = %s\n",
+                      bind_addr, bind_port, pemfile, privkey);
     } else {
-        seaf_message ("port = %d, https = false\n", bind_port);
+        seaf_message ("host = %s, port = %d, https = false\n", bind_addr, bind_port);
     }
 
     evbase = event_base_new();
