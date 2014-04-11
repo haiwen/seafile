@@ -248,8 +248,10 @@ should_ignore_file(const char *filename, void *data)
 {
     GPatternSpec **spec = ignore_patterns;
 
-    if (!g_utf8_validate (filename, -1, NULL))
+    if (!g_utf8_validate (filename, -1, NULL)) {
+        seaf_warning ("File name %s contains non-UTF8 characters, skip.\n", filename);
         return TRUE;
+    }
 
     /* Ignore file/dir if its name is too long. */
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)

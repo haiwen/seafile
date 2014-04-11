@@ -122,7 +122,7 @@ seaf_commit_to_data (SeafCommit *commit, gsize *len)
 }
 
 SeafCommit *
-seaf_commit_from_data (const char *id, const char *data, gsize len)
+seaf_commit_from_data (const char *id, char *data, gsize len)
 {
     json_t *object;
     SeafCommit *commit;
@@ -130,11 +130,20 @@ seaf_commit_from_data (const char *id, const char *data, gsize len)
 
     object = json_loadb (data, len, 0, &jerror);
     if (!object) {
-        if (jerror.text)
-            g_warning ("Failed to load commit json: %s.\n", jerror.text);
+        /* Perhaps the commit object contains invalid UTF-8 character. */
+        if (data[len-1] == 0)
+            clean_utf8_data (data, len - 1);
         else
-            g_warning ("Failed to load commit json.\n");
-        return NULL;
+            clean_utf8_data (data, len);
+
+        object = json_loadb (data, len, 0, &jerror);
+        if (!object) {
+            if (jerror.text)
+                g_warning ("Failed to load commit json: %s.\n", jerror.text);
+            else
+                g_warning ("Failed to load commit json.\n");
+            return NULL;
+        }
     }
 
     commit = commit_from_json_object (id, object);

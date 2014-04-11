@@ -60,7 +60,7 @@ char *
 seaf_commit_to_data (SeafCommit *commit, gsize *len);
 
 SeafCommit *
-seaf_commit_from_data (const char *id, const char *data, gsize len);
+seaf_commit_from_data (const char *id, char *data, gsize len);
 
 void
 seaf_commit_ref (SeafCommit *commit);
