@@ -93,7 +93,7 @@ start (CcnetProcessor *processor, int argc, char **argv)
         return -1;
     }
 
-    if (strlen(argv[0]) != 36 || strlen(argv[2]) != 40) {
+    if (!is_uuid_valid(argv[0]) || strlen(argv[2]) != 40) {
         ccnet_processor_send_response (processor, SC_BAD_ARGS, SS_BAD_ARGS, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return -1;
@@ -136,14 +136,13 @@ update_repo (void *vprocessor)
 {
     CcnetProcessor *processor = vprocessor;
     USE_PRIV;
-    char *repo_id, *branch_name, *new_head;
+    char *repo_id, *new_head;
     SeafRepo *repo = NULL;
     SeafBranch *branch = NULL;
     SeafCommit *commit = NULL;
     char old_commit_id[41];
 
     repo_id = priv->repo_id;
-    branch_name = priv->branch_name;
     new_head = priv->new_head;
 
     /* Since this is the last step of upload procedure, commit should exist. */
@@ -169,7 +168,7 @@ update_repo (void *vprocessor)
         goto out;
     }
 
-    branch = seaf_branch_manager_get_branch (seaf->branch_mgr, repo_id, branch_name);
+    branch = seaf_branch_manager_get_branch (seaf->branch_mgr, repo_id, "master");
     if (!branch) {
         priv->rsp_code = g_strdup (SC_BAD_BRANCH);
         priv->rsp_msg = g_strdup (SS_BAD_BRANCH);

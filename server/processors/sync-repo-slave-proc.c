@@ -80,6 +80,12 @@ sync_repo_slave_start (CcnetProcessor *processor, int argc, char **argv)
         return -1;
     }
 
+    if (!is_uuid_valid(argv[0])) {
+        seaf_warning ("Invalid repo_id %s.\n", argv[0]);
+        ccnet_processor_done (processor, FALSE);
+        return -1;
+    }
+
     memcpy (priv->repo_id, argv[0], 37);
     priv->branch_name = g_strdup (argv[1]);
 
