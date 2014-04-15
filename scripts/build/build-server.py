@@ -266,7 +266,6 @@ def check_seahub_thirdpart(thirdpartdir):
         # 'SQLAlchemy',
         'python_daemon',
         'lockfile',
-        'WsgiDAV',
         'six',
     ]
     def check_thirdpart_lib(name):
@@ -332,6 +331,7 @@ def validate_args(usage, options):
     check_targz_src('ccnet', ccnet_version, srcdir)
     check_targz_src('seafile', seafile_version, srcdir)
     check_targz_src('seahub', seafile_version, srcdir)
+    check_targz_src_no_version('seafdav', srcdir)
 
     # check_pdf2htmlEX()
 
@@ -537,6 +537,12 @@ def copy_user_manuals():
     for path in glob.glob(src_pattern):
         must_copy(path, dst_dir)
 
+def copy_seafdav():
+    dst_dir = os.path.join(conf[CONF_BUILDDIR], 'seafile-server', 'seahub', 'thirdpart')
+    tarball = os.path.join(conf[CONF_SRCDIR], 'seafdav.tar.gz')
+    if run('tar xf %s -C %s' % (tarball, dst_dir)) != 0:
+        error('failed to uncompress %s' % tarball)
+
 def copy_scripts_and_libs():
     '''Copy server release scripts and shared libs, as well as seahub
     thirdpart libs
@@ -586,6 +592,8 @@ def copy_scripts_and_libs():
     # copy seahub thirdpart libs
     seahub_thirdpart = os.path.join(dst_seahubdir, 'thirdpart')
     copy_seahub_thirdpart_libs(seahub_thirdpart)
+    copy_seafdav()
+
 
     # copy_pdf2htmlex()
 
