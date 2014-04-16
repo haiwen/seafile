@@ -566,6 +566,8 @@ def copy_scripts_and_libs():
               serverdir)
     must_copy(os.path.join(scripts_srcdir, 'seaf-fuse.sh'),
               serverdir)
+    must_copy(os.path.join(scripts_srcdir, 'check_init_admin.py'),
+              serverdir)
 
     # copy update scripts
     update_scriptsdir = os.path.join(scripts_srcdir, 'upgrade')
