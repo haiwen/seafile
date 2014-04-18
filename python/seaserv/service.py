@@ -89,6 +89,8 @@ else:
     CCNET_SERVER_PORT = None
     SERVICE_URL = None
 
+SERVER_ID = config.get('General', 'ID')
+
 '''seafile'''
 try:
     SEAFILE_CONF_DIR = os.environ[ENVIRONMENT_VARIABLES[1]]
