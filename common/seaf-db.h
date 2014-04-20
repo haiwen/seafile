@@ -83,16 +83,18 @@ int
 seaf_db_rollback (SeafDBTrans *trans);
 
 int
-seaf_db_trans_query (SeafDBTrans *trans, const char *sql);
+seaf_db_trans_query (SeafDBTrans *trans, const char *sql, int n, ...);
 
 gboolean
 seaf_db_trans_check_for_existence (SeafDBTrans *trans,
                                    const char *sql,
-                                   gboolean *db_err);
+                                   gboolean *db_err,
+                                   int n, ...);
 
 int
 seaf_db_trans_foreach_selected_row (SeafDBTrans *trans, const char *sql,
-                                    SeafDBRowFunc callback, void *data);
+                                    SeafDBRowFunc callback, void *data,
+                                    int n, ...);
 
 /* Escape a string contant by doubling '\" characters.
  */
@@ -101,5 +103,27 @@ seaf_db_escape_string (SeafDB *db, const char *from);
 
 gboolean
 pgsql_index_exists (SeafDB *db, const char *index_name);
+
+/* Prepared Statements */
+
+int
+seaf_db_statement_query (SeafDB *db, const char *sql, int n, ...);
+
+gboolean
+seaf_db_statement_exists (SeafDB *db, const char *sql, gboolean *db_err, int n, ...);
+
+int
+seaf_db_statement_foreach_row (SeafDB *db, const char *sql,
+                                SeafDBRowFunc callback, void *data,
+                                int n, ...);
+
+int
+seaf_db_statement_get_int (SeafDB *db, const char *sql, int n, ...);
+
+gint64
+seaf_db_statement_get_int64 (SeafDB *db, const char *sql, int n, ...);
+
+char *
+seaf_db_statement_get_string (SeafDB *db, const char *sql, int n, ...);
 
 #endif

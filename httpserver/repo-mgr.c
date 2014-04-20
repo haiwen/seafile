@@ -210,12 +210,11 @@ seaf_repo_manager_start (SeafRepoManager *mgr)
 static gboolean
 repo_exists_in_db (SeafDB *db, const char *id)
 {
-    char sql[256];
     gboolean db_err = FALSE;
 
-    snprintf (sql, sizeof(sql), "SELECT repo_id FROM Repo WHERE repo_id = '%s'",
-              id);
-    return seaf_db_check_for_existence (db, sql, &db_err);
+    return seaf_db_statement_exists (db,
+                                     "SELECT repo_id FROM Repo WHERE repo_id = ?",
+                                     &db_err, 1, "string", id);
 }
 
 SeafRepo*
@@ -350,15 +349,15 @@ load_virtual_info (SeafDBRow *row, void *vrepo_id)
 char *
 get_origin_repo_id (SeafRepoManager *mgr, const char *repo_id)
 {
-    char sql[256];
+    char *sql;
     char origin_repo_id[37];
 
     memset (origin_repo_id, 0, 37);
 
-    snprintf (sql, 256,
-              "SELECT origin_repo FROM VirtualRepo "
-              "WHERE repo_id = '%s'", repo_id);
-    seaf_db_foreach_selected_row (seaf->db, sql, load_virtual_info, origin_repo_id);
+    sql = "SELECT origin_repo FROM VirtualRepo WHERE repo_id = ?";
+    seaf_db_statement_foreach_row (seaf->db, sql,
+                                   load_virtual_info, origin_repo_id,
+                                   1, "string", repo_id);
 
     if (origin_repo_id[0] != 0)
         return g_strdup(origin_repo_id);
@@ -451,15 +450,20 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
     GList *id_list = NULL, *ptr;
     GList *ret = NULL;
     SeafRepo *repo;
-    char sql[256];
+    int rc;
 
     if (start == -1 && limit == -1)
-        snprintf (sql, 256, "SELECT repo_id FROM Repo");
+        rc = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                            "SELECT repo_id FROM Repo",
+                                            collect_repo_id, &id_list,
+                                            0);
     else
-        snprintf (sql, 256, "SELECT repo_id FROM Repo LIMIT %d, %d", start, limit);
+        rc = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                            "SELECT repo_id FROM Repo LIMIT ?, ?",
+                                            collect_repo_id, &id_list,
+                                            2, "int", start, "int", limit);
 
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
-                                      collect_repo_id, &id_list) < 0)
+    if (rc < 0)
         return NULL;
 
     for (ptr = id_list; ptr; ptr = ptr->next) {

@@ -411,6 +411,422 @@ seaf_db_get_string (SeafDB *db, const char *sql)
     return ret;
 }
 
+char *
+seaf_db_escape_string (SeafDB *db, const char *from)
+{
+    const char *p = from;
+    char *to, *q;
+
+    to = g_malloc0 (2*strlen(from)+1);
+    q = to;
+
+    while (*p != '\0') {
+        if (*p == '\'' || *p == '\\' || *p == '"') {
+            *q = *p;
+            *(++q) = *p;
+        } else
+            *q = *p;
+        ++p;
+        ++q;
+    }
+
+    return to;
+}
+
+gboolean
+pgsql_index_exists (SeafDB *db, const char *index_name)
+{
+    char sql[256];
+    gboolean db_err = FALSE;
+
+    snprintf (sql, sizeof(sql),
+              "SELECT 1 FROM pg_class WHERE relname='%s'",
+              index_name);
+    return seaf_db_check_for_existence (db, sql, &db_err);
+}
+
+/* Prepared Statements */
+
+struct SeafDBStatement {
+    PreparedStatement_T p;
+    Connection_T conn;
+};
+typedef struct SeafDBStatement SeafDBStatement;
+
+SeafDBStatement *
+seaf_db_prepare_statement (SeafDB *db, const char *sql)
+{
+    PreparedStatement_T p;
+    SeafDBStatement *ret = g_new0 (SeafDBStatement, 1);
+
+    Connection_T conn = get_db_connection (db);
+    if (!conn) {
+        g_free (ret);
+        return NULL;
+    }
+
+    TRY
+        p = Connection_prepareStatement (conn, "%s", sql);
+        ret->p = p;
+        ret->conn = conn;
+        RETURN (ret);
+    CATCH (SQLException)
+        g_warning ("Error prepare statement %s: %s.\n", sql, Exception_frame.message);
+        g_free (ret);
+        Connection_close (conn);
+        return NULL;
+    END_TRY;
+
+    /* Should not be reached. */
+    return NULL;
+}
+
+void
+seaf_db_statement_free (SeafDBStatement *p)
+{
+    Connection_close (p->conn);
+    g_free (p);
+}
+
+int
+seaf_db_statement_set_int (PreparedStatement_T p, int idx, int x)
+{
+    TRY
+        PreparedStatement_setInt (p, idx, x);
+        RETURN (0);
+    CATCH (SQLException)
+        g_warning ("Error set int in prep stmt: %s.\n", Exception_frame.message);
+        return -1;
+    END_TRY;
+
+    return -1;
+}
+
+int
+seaf_db_statement_set_string (PreparedStatement_T p,
+                              int idx, const char *s)
+{
+    TRY
+        PreparedStatement_setString (p, idx, s);
+        RETURN (0);
+    CATCH (SQLException)
+        g_warning ("Error set string in prep stmt: %s.\n", Exception_frame.message);
+        return -1;
+    END_TRY;
+
+    return -1;
+}
+
+int
+seaf_db_statement_set_int64 (PreparedStatement_T p,
+                             int idx, gint64 x)
+{
+    TRY
+        PreparedStatement_setLLong (p, idx, (long long)x);
+        RETURN (0);
+    CATCH (SQLException)
+        g_warning ("Error set int64 in prep stmt: %s.\n", Exception_frame.message);
+        return -1;
+    END_TRY;
+
+    return -1;
+}
+
+static int
+set_parameters_va (PreparedStatement_T p, int n, va_list args)
+{
+    int i;
+    const char *type;
+
+    for (i = 0; i < n; ++i) {
+        type = va_arg (args, const char *);
+        if (strcmp(type, "int") == 0) {
+            int x = va_arg (args, int);
+            if (seaf_db_statement_set_int (p, i+1, x) < 0)
+                return -1;
+        } else if (strcmp (type, "int64") == 0) {
+            gint64 x = va_arg (args, gint64);
+            if (seaf_db_statement_set_int64 (p, i+1, x) < 0)
+                return -1;
+        } else if (strcmp (type, "string") == 0) {
+            const char *s = va_arg (args, const char *);
+            if (seaf_db_statement_set_string (p, i+1, s) < 0)
+                return -1;
+        } else {
+            g_warning ("BUG: invalid prep stmt parameter type %s.\n", type);
+            g_return_val_if_reached (-1);
+        }
+    }
+
+    return 0;
+}
+
+int
+seaf_db_statement_query (SeafDB *db, const char *sql, int n, ...)
+{
+    SeafDBStatement *p;
+    volatile int ret = 0;
+
+    p = seaf_db_prepare_statement (db, sql);
+    if (!p)
+        return -1;
+
+    va_list args;
+    va_start (args, n);
+    if (set_parameters_va (p->p, n, args) < 0) {
+        seaf_db_statement_free (p);
+        va_end (args);
+        return -1;
+    }
+    va_end (args);
+
+    TRY
+        PreparedStatement_execute (p->p);
+    CATCH (SQLException)
+        g_warning ("Error execute prep stmt: %s.\n", Exception_frame.message);
+        ret = -1;
+    END_TRY;
+
+    seaf_db_statement_free (p);
+    return ret;
+}
+
+gboolean
+seaf_db_statement_exists (SeafDB *db, const char *sql, gboolean *db_err, int n, ...)
+{
+    SeafDBStatement *p;
+    ResultSet_T result;
+    volatile gboolean ret = TRUE;
+
+    *db_err = FALSE;
+
+    p = seaf_db_prepare_statement (db, sql);
+    if (!p)
+        return FALSE;
+
+    va_list args;
+    va_start (args, n);
+    if (set_parameters_va (p->p, n, args) < 0) {
+        seaf_db_statement_free (p);
+        va_end (args);
+        return FALSE;
+    }
+    va_end (args);
+
+    TRY
+        result = PreparedStatement_executeQuery (p->p);
+    CATCH (SQLException)
+        g_warning ("Error exec prep stmt: %s.\n", Exception_frame.message);
+        seaf_db_statement_free (p);
+        *db_err = TRUE;
+        return FALSE;
+    END_TRY;
+
+    TRY
+        if (!ResultSet_next (result))
+            ret = FALSE;
+    CATCH (SQLException)
+        g_warning ("Error get next result from prep stmt: %s.\n",
+                   Exception_frame.message);
+        *db_err = TRUE;
+        ret = FALSE;
+    END_TRY;
+
+    seaf_db_statement_free (p);
+
+    return ret;
+}
+
+int
+seaf_db_statement_foreach_row (SeafDB *db,
+                                const char *sql,
+                                SeafDBRowFunc callback, void *data,
+                                int n, ...)
+{
+    SeafDBStatement *p;
+    ResultSet_T result;
+    SeafDBRow seaf_row;
+    volatile int n_rows = 0;
+
+    p = seaf_db_prepare_statement (db, sql);
+    if (!p)
+        return -1;
+
+    va_list args;
+    va_start (args, n);
+    if (set_parameters_va (p->p, n, args) < 0) {
+        seaf_db_statement_free (p);
+        va_end (args);
+        return -1;
+    }
+    va_end (args);
+
+    TRY
+        result = PreparedStatement_executeQuery (p->p);
+    CATCH (SQLException)
+        g_warning ("Error exec prep stmt: %s.\n", Exception_frame.message);
+        seaf_db_statement_free (p);
+        return -1;
+    END_TRY;
+
+    seaf_row.res = result;
+    TRY
+        while (ResultSet_next (result)) {
+            n_rows++;
+            if (!callback (&seaf_row, data))
+                break;
+        }
+    CATCH (SQLException)
+        g_warning ("Error get next result for prep stmt: %s.\n",
+                   Exception_frame.message);
+        seaf_db_statement_free (p);
+        return -1;
+    END_TRY;
+
+    seaf_db_statement_free (p);
+    return n_rows;
+}
+
+int
+seaf_db_statement_get_int (SeafDB *db, const char *sql, int n, ...)
+{
+    SeafDBStatement *p;
+    volatile int ret = -1;
+    ResultSet_T result;
+    SeafDBRow seaf_row;
+
+    p = seaf_db_prepare_statement (db, sql);
+    if (!p)
+        return -1;
+
+    va_list args;
+    va_start (args, n);
+    if (set_parameters_va (p->p, n, args) < 0) {
+        seaf_db_statement_free (p);
+        va_end (args);
+        return -1;
+    }
+    va_end (args);
+
+    TRY
+        result = PreparedStatement_executeQuery (p->p);
+    CATCH (SQLException)
+        g_warning ("Error exec prep stmt: %s.\n", Exception_frame.message);
+        seaf_db_statement_free (p);
+        return -1;
+    END_TRY;
+
+    seaf_row.res = result;
+
+    TRY
+        if (ResultSet_next (result))
+            ret = seaf_db_row_get_column_int (&seaf_row, 0);
+    CATCH (SQLException)
+        g_warning ("Error get next result for prep stmt: %s.\n",
+                   Exception_frame.message);
+        seaf_db_statement_free (p);
+        return -1;
+    END_TRY;
+
+    seaf_db_statement_free (p);
+    return ret;
+}
+
+gint64
+seaf_db_statement_get_int64 (SeafDB *db, const char *sql, int n, ...)
+{
+    SeafDBStatement *p;
+    volatile gint64 ret = -1;
+    ResultSet_T result;
+    SeafDBRow seaf_row;
+
+    p = seaf_db_prepare_statement (db, sql);
+    if (!p)
+        return -1;
+
+    va_list args;
+    va_start (args, n);
+    if (set_parameters_va (p->p, n, args) < 0) {
+        seaf_db_statement_free (p);
+        va_end (args);
+        return -1;
+    }
+    va_end (args);
+
+    TRY
+        result = PreparedStatement_executeQuery (p->p);
+    CATCH (SQLException)
+        g_warning ("Error exec prep stmt: %s.\n", Exception_frame.message);
+        seaf_db_statement_free (p);
+        return -1;
+    END_TRY;
+
+    seaf_row.res = result;
+
+    TRY
+        if (ResultSet_next (result))
+            ret = seaf_db_row_get_column_int64 (&seaf_row, 0);
+    CATCH (SQLException)
+        g_warning ("Error get next result for prep stmt: %s.\n",
+                   Exception_frame.message);
+        seaf_db_statement_free (p);
+        return -1;
+    END_TRY;
+
+    seaf_db_statement_free (p);
+    return ret;
+}
+
+char *
+seaf_db_statement_get_string (SeafDB *db, const char *sql, int n, ...)
+{
+    SeafDBStatement *p;
+    char *ret = NULL;
+    const char *s;
+    ResultSet_T result;
+    SeafDBRow seaf_row;
+
+    p = seaf_db_prepare_statement (db, sql);
+    if (!p)
+        return NULL;
+
+    va_list args;
+    va_start (args, n);
+    if (set_parameters_va (p->p, n, args) < 0) {
+        seaf_db_statement_free (p);
+        va_end (args);
+        return NULL;
+    }
+    va_end (args);
+
+    TRY
+        result = PreparedStatement_executeQuery (p->p);
+    CATCH (SQLException)
+        g_warning ("Error exec prep stmt: %s.\n", Exception_frame.message);
+        seaf_db_statement_free (p);
+        return NULL;
+    END_TRY;
+
+    seaf_row.res = result;
+    
+    TRY
+        if (ResultSet_next (result)) {
+            s = seaf_db_row_get_column_text (&seaf_row, 0);
+            ret = g_strdup(s);
+        }
+    CATCH (SQLException)
+        g_warning ("Error get next result for prep stmt: %s.\n",
+                   Exception_frame.message);
+        seaf_db_statement_free (p);
+        return NULL;
+    END_TRY;
+
+    seaf_db_statement_free (p);
+    return ret;
+}
+
+/* Transaction */
+
 SeafDBTrans *
 seaf_db_begin_transaction (SeafDB *db)
 {
@@ -477,15 +893,46 @@ seaf_db_rollback (SeafDBTrans *trans)
     return 0;
 }
 
-int
-seaf_db_trans_query (SeafDBTrans *trans, const char *sql)
+static PreparedStatement_T
+trans_prepare_statement (Connection_T conn, const char *sql)
 {
+    PreparedStatement_T p;
+
+    TRY
+        p = Connection_prepareStatement (conn, "%s", sql);
+        RETURN (p);
+    CATCH (SQLException)
+        g_warning ("Error prepare statement %s: %s.\n", sql, Exception_frame.message);
+        return NULL;
+    END_TRY;
+
+    /* Should not be reached. */
+    return NULL;
+}
+
+int
+seaf_db_trans_query (SeafDBTrans *trans, const char *sql, int n, ...)
+{
+    PreparedStatement_T p;
+
+    p = trans_prepare_statement (trans->conn, sql);
+    if (!p)
+        return -1;
+
+    va_list args;
+    va_start (args, n);
+    if (set_parameters_va (p, n, args) < 0) {
+        va_end (args);
+        return -1;
+    }
+    va_end (args);
+
     /* Handle zdb "exception"s. */
     TRY
-        Connection_execute (trans->conn, "%s", sql);
+        PreparedStatement_execute (p);
         RETURN (0);
     CATCH (SQLException)
-        g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
+        g_warning ("Error exec prep stmt: %s.\n", Exception_frame.message);
         return -1;
     END_TRY;
 
@@ -496,17 +943,32 @@ seaf_db_trans_query (SeafDBTrans *trans, const char *sql)
 gboolean
 seaf_db_trans_check_for_existence (SeafDBTrans *trans,
                                    const char *sql,
-                                   gboolean *db_err)
+                                   gboolean *db_err,
+                                   int n, ...)
 {
     ResultSet_T result;
     gboolean ret = TRUE;
 
     *db_err = FALSE;
 
+    PreparedStatement_T p;
+
+    p = trans_prepare_statement (trans->conn, sql);
+    if (!p)
+        return FALSE;
+
+    va_list args;
+    va_start (args, n);
+    if (set_parameters_va (p, n, args) < 0) {
+        va_end (args);
+        return -1;
+    }
+    va_end (args);
+
     TRY
-        result = Connection_executeQuery (trans->conn, "%s", sql);
+        result = PreparedStatement_executeQuery (p);
     CATCH (SQLException)
-        g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
+        g_warning ("Error exec prep stmt: %s.\n", Exception_frame.message);
         *db_err = TRUE;
         return FALSE;
     END_TRY;
@@ -515,7 +977,8 @@ seaf_db_trans_check_for_existence (SeafDBTrans *trans,
         if (!ResultSet_next (result))
             ret = FALSE;
     CATCH (SQLException)
-        g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
+        g_warning ("Error get next result for prep stmt: %s.\n",
+                   Exception_frame.message);
         *db_err = TRUE;
         return FALSE;
     END_TRY;
@@ -525,16 +988,31 @@ seaf_db_trans_check_for_existence (SeafDBTrans *trans,
 
 int
 seaf_db_trans_foreach_selected_row (SeafDBTrans *trans, const char *sql, 
-                              SeafDBRowFunc callback, void *data)
+                                    SeafDBRowFunc callback, void *data,
+                                    int n, ...)
 {
     ResultSet_T result;
     SeafDBRow seaf_row;
     int n_rows = 0;
 
+    PreparedStatement_T p;
+
+    p = trans_prepare_statement (trans->conn, sql);
+    if (!p)
+        return FALSE;
+
+    va_list args;
+    va_start (args, n);
+    if (set_parameters_va (p, n, args) < 0) {
+        va_end (args);
+        return -1;
+    }
+    va_end (args);
+
     TRY
-        result = Connection_executeQuery (trans->conn, "%s", sql);
+        result = PreparedStatement_executeQuery (p);
     CATCH (SQLException)
-        g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
+        g_warning ("Error exec prep stmt: %s.\n", Exception_frame.message);
         return -1;
     END_TRY;
 
@@ -546,43 +1024,10 @@ seaf_db_trans_foreach_selected_row (SeafDBTrans *trans, const char *sql,
             break;
     }
     CATCH (SQLException)
-        g_warning ("Error exec query %s: %s.\n", sql, Exception_frame.message);
+        g_warning ("Error get next result for prep stmt: %s.\n",
+                   Exception_frame.message);
         return -1;
     END_TRY;
 
     return n_rows;
-}
-
-char *
-seaf_db_escape_string (SeafDB *db, const char *from)
-{
-    const char *p = from;
-    char *to, *q;
-
-    to = g_malloc0 (2*strlen(from)+1);
-    q = to;
-
-    while (*p != '\0') {
-        if (*p == '\'' || *p == '\\' || *p == '"') {
-            *q = *p;
-            *(++q) = *p;
-        } else
-            *q = *p;
-        ++p;
-        ++q;
-    }
-
-    return to;
-}
-
-gboolean
-pgsql_index_exists (SeafDB *db, const char *index_name)
-{
-    char sql[256];
-    gboolean db_err = FALSE;
-
-    snprintf (sql, sizeof(sql),
-              "SELECT 1 FROM pg_class WHERE relname='%s'",
-              index_name);
-    return seaf_db_check_for_existence (db, sql, &db_err);
 }

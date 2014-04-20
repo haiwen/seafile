@@ -50,19 +50,14 @@ save_virtual_repo_info (SeafRepoManager *mgr,
                         const char *path,
                         const char *base_commit)
 {
-    GString *sql = g_string_new (NULL);
     int ret = 0;
 
-    char *esc_path = seaf_db_escape_string (mgr->seaf->db, path);
-    g_string_printf (sql,
-                     "INSERT INTO VirtualRepo VALUES ('%s', '%s', '%s', '%s')",
-                     repo_id, origin_repo_id, esc_path, base_commit);
-    g_free (esc_path);
-
-    if (seaf_db_query (mgr->seaf->db, sql->str) < 0)
+    if (seaf_db_statement_query (mgr->seaf->db,
+                       "INSERT INTO VirtualRepo VALUES (?, ?, ?, ?)",
+                       4, "string", repo_id, "string", origin_repo_id,
+                       "string", path, "string", base_commit) < 0)
         ret = -1;
 
-    g_string_free (sql, TRUE);
     return ret;
 }
 
@@ -161,20 +156,16 @@ is_virtual_repo_duplicated (SeafRepoManager *mgr,
                             const char *path,
                             const char *owner)
 {
-    GString *sql = g_string_new (NULL);
-    char *esc_path = seaf_db_escape_string (mgr->seaf->db, path);
     gboolean db_err;
     gboolean ret;
 
-    g_string_printf (sql,
-                     "SELECT 1 FROM VirtualRepo v, RepoOwner o WHERE"
-                     " v.origin_repo = '%s' AND v.path = '%s' AND o.owner_id = '%s'"
-                     " AND o.repo_id = v.repo_id",
-                     origin_repo_id, esc_path, owner);
-    g_free (esc_path);
+    char *sql = "SELECT 1 FROM VirtualRepo v, RepoOwner o WHERE"
+        " v.origin_repo = ? AND v.path = ? AND o.owner_id = ?"
+        " AND o.repo_id = v.repo_id";
 
-    ret = seaf_db_check_for_existence (mgr->seaf->db, sql->str, &db_err);
-    g_string_free (sql, TRUE);
+    ret = seaf_db_statement_exists (mgr->seaf->db, sql, &db_err,
+                                    3, "string", origin_repo_id, "string", path,
+                                    "string", owner);
 
     return ret;
 }
@@ -325,13 +316,13 @@ SeafVirtRepo *
 seaf_repo_manager_get_virtual_repo_info (SeafRepoManager *mgr,
                                          const char *repo_id)
 {
-    char sql[256];
+    char *sql;
     SeafVirtRepo *vinfo = NULL;
 
-    snprintf (sql, 256,
-              "SELECT repo_id, origin_repo, path, base_commit FROM VirtualRepo "
-              "WHERE repo_id = '%s'", repo_id);
-    seaf_db_foreach_selected_row (seaf->db, sql, load_virtual_info, &vinfo);
+    sql = "SELECT repo_id, origin_repo, path, base_commit FROM VirtualRepo "
+        "WHERE repo_id = ?";
+    seaf_db_statement_foreach_row (seaf->db, sql, load_virtual_info, &vinfo,
+                                   1, "string", repo_id);
 
     return vinfo;
 }
@@ -348,12 +339,11 @@ seaf_virtual_repo_info_free (SeafVirtRepo *vinfo)
 gboolean
 seaf_repo_manager_is_virtual_repo (SeafRepoManager *mgr, const char *repo_id)
 {
-    char sql[256];
     gboolean db_err;
 
-    snprintf (sql, 256,
-              "SELECT 1 FROM VirtualRepo WHERE repo_id = '%s'", repo_id);
-    return seaf_db_check_for_existence (seaf->db, sql, &db_err);
+    char *sql = "SELECT 1 FROM VirtualRepo WHERE repo_id = ?";
+    return seaf_db_statement_exists (seaf->db, sql, &db_err,
+                                     1, "string", repo_id);
 }
 
 char *
@@ -362,20 +352,17 @@ seaf_repo_manager_get_virtual_repo_id (SeafRepoManager *mgr,
                                        const char *path,
                                        const char *owner)
 {
-    GString *sql = g_string_new (NULL);
+    char *sql;
     char *ret;
 
-    char *esc_path = seaf_db_escape_string (mgr->seaf->db, path);
-    g_string_printf (sql,
-                     "SELECT RepoOwner.repo_id FROM RepoOwner, VirtualRepo "
-                     "WHERE owner_id='%s' AND origin_repo='%s' AND path='%s' "
-                     "AND RepoOwner.repo_id = VirtualRepo.repo_id",
-                     owner, origin_repo, esc_path);
-    g_free (esc_path);
+    sql = "SELECT RepoOwner.repo_id FROM RepoOwner, VirtualRepo "
+        "WHERE owner_id=? AND origin_repo=? AND path=? "
+        "AND RepoOwner.repo_id = VirtualRepo.repo_id";
 
-    ret = seaf_db_get_string (mgr->seaf->db, sql->str);
+    ret = seaf_db_statement_get_string (mgr->seaf->db, sql,
+                                        3, "string", owner, "string", origin_repo,
+                                        "string", path);
 
-    g_string_free (sql, TRUE);
     return ret;
 }
 
@@ -398,16 +385,15 @@ seaf_repo_manager_get_virtual_repos_by_owner (SeafRepoManager *mgr,
 {
     GList *id_list = NULL, *ptr;
     GList *ret = NULL;
-    char sql[256];
+    char *sql;
 
-    snprintf (sql, 256,
-              "SELECT RepoOwner.repo_id FROM RepoOwner, VirtualRepo "
-              "WHERE owner_id='%s' "
-              "AND RepoOwner.repo_id = VirtualRepo.repo_id",
-              owner);
+    sql = "SELECT RepoOwner.repo_id FROM RepoOwner, VirtualRepo "
+        "WHERE owner_id=? "
+        "AND RepoOwner.repo_id = VirtualRepo.repo_id";
 
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
-                                      collect_virtual_repo_ids, &id_list) < 0) {
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, 
+                                       collect_virtual_repo_ids, &id_list,
+                                       1, "string", owner) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
         return NULL;
     }
@@ -430,13 +416,12 @@ seaf_repo_manager_get_virtual_repo_ids_by_origin (SeafRepoManager *mgr,
                                                   const char *origin_repo)
 {
     GList *ret = NULL;
-    char sql[256];
+    char *sql;
 
-    snprintf (sql, 256,
-              "SELECT repo_id FROM VirtualRepo WHERE origin_repo='%s'",
-              origin_repo);
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
-                                      collect_virtual_repo_ids, &ret) < 0) {
+    sql = "SELECT repo_id FROM VirtualRepo WHERE origin_repo=?";
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, 
+                                       collect_virtual_repo_ids, &ret,
+                                       1, "string", origin_repo) < 0) {
         return NULL;
     }
 
@@ -471,14 +456,13 @@ seaf_repo_manager_get_virtual_info_by_origin (SeafRepoManager *mgr,
                                               const char *origin_repo)
 {
     GList *ret = NULL;
-    char sql[256];
+    char *sql;
 
-    snprintf (sql, 256,
-              "SELECT repo_id, origin_repo, path, base_commit "
-              "FROM VirtualRepo WHERE origin_repo='%s'",
-              origin_repo);
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
-                                      collect_virtual_info, &ret) < 0) {
+    sql = "SELECT repo_id, origin_repo, path, base_commit "
+        "FROM VirtualRepo WHERE origin_repo=?";
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, 
+                                       collect_virtual_info, &ret,
+                                       1, "string", origin_repo) < 0) {
         return NULL;
     }
 
@@ -488,12 +472,9 @@ seaf_repo_manager_get_virtual_info_by_origin (SeafRepoManager *mgr,
 static void
 set_virtual_repo_base_commit (SeafRepo *repo, const char *base_commit_id)
 {
-    char sql[256];
-
-    snprintf (sql, 256,
-              "UPDATE VirtualRepo SET base_commit='%s' WHERE repo_id='%s'",
-              base_commit_id, repo->id);
-    seaf_db_query (seaf->db, sql);
+    seaf_db_statement_query (seaf->db,
+                   "UPDATE VirtualRepo SET base_commit=? WHERE repo_id=?",
+                   2, "string", base_commit_id, "string", repo->id);
 }
 
 int

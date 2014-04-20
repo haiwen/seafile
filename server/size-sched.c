@@ -128,7 +128,7 @@ set_repo_size (SeafDB *db,
                gint64 size)
 {
     SeafDBTrans *trans;
-    char sql[256];
+    char *sql;
     char cached_head_id[41] = {0};
     int ret = 0;
 
@@ -139,20 +139,19 @@ set_repo_size (SeafDB *db,
     switch (seaf_db_type (db)) {
     case SEAF_DB_TYPE_MYSQL:
     case SEAF_DB_TYPE_PGSQL:
-        snprintf (sql, sizeof(sql),
-                  "SELECT head_id FROM RepoSize WHERE repo_id='%s' FOR UPDATE",
-                  repo_id);
+        sql = "SELECT head_id FROM RepoSize WHERE repo_id=? FOR UPDATE";
         break;
     case SEAF_DB_TYPE_SQLITE:
-        snprintf (sql, sizeof(sql),
-                  "SELECT head_id FROM RepoSize WHERE repo_id='%s'",
-                  repo_id);
+        sql = "SELECT head_id FROM RepoSize WHERE repo_id=?";
         break;
+    default:
+        g_return_val_if_reached (-1);
     }
 
     int n = seaf_db_trans_foreach_selected_row (trans, sql,
                                                 get_head_id,
-                                                cached_head_id);
+                                                cached_head_id,
+                                                1, "string", repo_id);
     if (n < 0) {
         ret = SET_SIZE_ERROR;
         goto rollback;
@@ -160,10 +159,9 @@ set_repo_size (SeafDB *db,
 
     if (n == 0) {
         /* Size not set before. */
-        snprintf (sql, sizeof(sql),
-                  "INSERT INTO RepoSize VALUES ('%s', %"G_GINT64_FORMAT", '%s')",
-                  repo_id, size, new_head_id);
-        if (seaf_db_trans_query (trans, sql) < 0) {
+        sql = "INSERT INTO RepoSize VALUES (?, ?, ?)";
+        if (seaf_db_trans_query (trans, sql, 3, "string", repo_id, "int64", size,
+                                 "string", new_head_id) < 0) {
             ret = SET_SIZE_ERROR;
             goto rollback;
         }
@@ -175,11 +173,9 @@ set_repo_size (SeafDB *db,
             goto rollback;
         }
 
-        snprintf (sql, sizeof(sql), 
-                  "UPDATE RepoSize SET size = %"G_GINT64_FORMAT", head_id = '%s' "
-                  "WHERE repo_id = '%s'",
-                  size, new_head_id, repo_id);
-        if (seaf_db_trans_query (trans, sql) < 0) {
+        sql = "UPDATE RepoSize SET size = ?, head_id = ? WHERE repo_id = ?";
+        if (seaf_db_trans_query (trans, sql, 3, "int64", size, "string", new_head_id,
+                                 "string", repo_id) < 0) {
             ret = SET_SIZE_ERROR;
             goto rollback;
         }
@@ -203,11 +199,10 @@ rollback:
 static char *
 get_cached_head_id (SeafDB *db, const char *repo_id)
 {
-    char sql[256];
+    char *sql;
 
-    snprintf (sql, sizeof(sql), "SELECT head_id FROM RepoSize WHERE repo_id='%s'",
-              repo_id);
-    return seaf_db_get_string (db, sql);
+    sql = "SELECT head_id FROM RepoSize WHERE repo_id=?";
+    return seaf_db_statement_get_string (db, sql, 1, "string", repo_id);
 }
 
 static void*

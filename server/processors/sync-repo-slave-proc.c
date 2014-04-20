@@ -117,16 +117,15 @@ send_repo_branch_info (void *vprocessor)
 {
     CcnetProcessor *processor = vprocessor;
     char commit_id[41];
-    char sql[256];
+    char *sql;
     USE_PRIV;
 
     commit_id[0] = 0;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT commit_id FROM Branch WHERE name='master' AND repo_id='%s'",
-              priv->repo_id);
-    if (seaf_db_foreach_selected_row (seaf->db, sql, 
-                                      get_branch, commit_id) < 0) {
+    sql = "SELECT commit_id FROM Branch WHERE name='master' AND repo_id=?";
+    if (seaf_db_statement_foreach_row (seaf->db, sql, 
+                                       get_branch, commit_id,
+                                       1, "string", priv->repo_id) < 0) {
         seaf_warning ("DB error when get branch %s.\n", priv->branch_name);
         priv->rsp_code = g_strdup (SC_REPO_CORRUPT);
         priv->rsp_msg = g_strdup (SS_REPO_CORRUPT);

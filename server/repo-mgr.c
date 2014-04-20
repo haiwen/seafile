@@ -353,11 +353,10 @@ int
 seaf_repo_manager_add_repo (SeafRepoManager *manager,
                             SeafRepo *repo)
 {
-    char sql[256];
     SeafDB *db = manager->seaf->db;
 
-    snprintf (sql, sizeof(sql), "INSERT INTO Repo VALUES ('%s')", repo->id);
-    if (seaf_db_query (db, sql) < 0)
+    if (seaf_db_statement_query (db, "INSERT INTO Repo VALUES (?)",
+                                 1, "string", repo->id) < 0)
         return -1;
 
     repo->manager = manager;
@@ -368,24 +367,27 @@ seaf_repo_manager_add_repo (SeafRepoManager *manager,
 static int
 add_deleted_repo_record (SeafRepoManager *mgr, const char *repo_id)
 {
-    char sql[256];
-
     if (seaf_db_type(seaf->db) == SEAF_DB_TYPE_PGSQL) {
-        gboolean err;
-        snprintf (sql, sizeof(sql),
-                  "SELECT repo_id FROM GarbageRepos WHERE repo_id='%s'",
-                  repo_id);
-        if (!seaf_db_check_for_existence (seaf->db, sql, &err))
-            snprintf(sql, sizeof(sql),
-                     "INSERT INTO GarbageRepos VALUES ('%s')",
-                     repo_id);
+        gboolean exists, err;
+
+        exists = seaf_db_statement_exists (seaf->db,
+                                           "SELECT repo_id FROM GarbageRepos "
+                                           "WHERE repo_id=?",
+                                           &err, 1, "string", repo_id);
         if (err)
             return -1;
-        return seaf_db_query(seaf->db, sql);
+
+        if (!exists) {
+            return seaf_db_statement_query(seaf->db,
+                                           "INSERT INTO GarbageRepos VALUES (?)",
+                                           1, "string", repo_id);
+        }
+
+        return 0;
     } else {
-        snprintf (sql, sizeof(sql), "REPLACE INTO GarbageRepos VALUES ('%s')",
-                  repo_id);
-        return seaf_db_query (seaf->db, sql);
+        return seaf_db_statement_query (seaf->db,
+                                        "REPLACE INTO GarbageRepos VALUES (?)",
+                                        1, "string", repo_id);
     }
 }
 
@@ -394,7 +396,6 @@ remove_repo_ondisk (SeafRepoManager *mgr,
                     const char *repo_id,
                     gboolean add_deleted_record)
 {
-    char sql[256];
     SeafDB *db = mgr->seaf->db;
 
     if (add_deleted_record)
@@ -404,8 +405,8 @@ remove_repo_ondisk (SeafRepoManager *mgr,
      * Once this is commited, we can gc the other tables later even if
      * we're interrupted.
      */
-    snprintf (sql, sizeof(sql), "DELETE FROM Repo WHERE repo_id = '%s'", repo_id);
-    if (seaf_db_query (db, sql) < 0)
+    if (seaf_db_statement_query (db, "DELETE FROM Repo WHERE repo_id = ?",
+                                 1, "string", repo_id) < 0)
         return -1;
 
     /* remove branch */
@@ -419,44 +420,33 @@ remove_repo_ondisk (SeafRepoManager *mgr,
     }
     seaf_branch_list_free (branch_list);
 
-    snprintf (sql, sizeof(sql), "DELETE FROM RepoOwner WHERE repo_id = '%s'", 
-              repo_id);
-    seaf_db_query (db, sql);
+    seaf_db_statement_query (db, "DELETE FROM RepoOwner WHERE repo_id = ?",
+                   1, "string", repo_id);
 
-    snprintf (sql, sizeof(sql), "DELETE FROM SharedRepo WHERE repo_id = '%s'", 
-              repo_id);
-    seaf_db_query (db, sql);
+    seaf_db_statement_query (db, "DELETE FROM SharedRepo WHERE repo_id = ?",
+                   1, "string", repo_id);
 
-    snprintf (sql, sizeof(sql), "DELETE FROM RepoGroup WHERE repo_id = '%s'", 
-              repo_id);
-    seaf_db_query (db, sql);
+    seaf_db_statement_query (db, "DELETE FROM RepoGroup WHERE repo_id = ?",
+                   1, "string", repo_id);
 
     if (!seaf->cloud_mode) {
-        snprintf (sql, sizeof(sql), "DELETE FROM InnerPubRepo WHERE repo_id = '%s'", 
-                  repo_id);
-        seaf_db_query (db, sql);
+        seaf_db_statement_query (db, "DELETE FROM InnerPubRepo WHERE repo_id = ?",
+                                 1, "string", repo_id);
     }
 
     if (seaf->cloud_mode) {
-        snprintf (sql, sizeof(sql),
-                  "DELETE FROM OrgRepo WHERE repo_id = '%s'", 
-                  repo_id);
-        seaf_db_query (db, sql);
+        seaf_db_statement_query (db, "DELETE FROM OrgRepo WHERE repo_id = ?",
+                                 1, "string", repo_id);
 
-        snprintf (sql, sizeof(sql),
-                  "DELETE FROM OrgGroupRepo WHERE repo_id = '%s'", 
-                  repo_id);
-        seaf_db_query (db, sql);
+        seaf_db_statement_query (db, "DELETE FROM OrgGroupRepo WHERE repo_id = ?",
+                                 1, "string", repo_id);
 
-        snprintf (sql, sizeof(sql),
-                  "DELETE FROM OrgInnerPubRepo WHERE repo_id = '%s'", 
-                  repo_id);
-        seaf_db_query (db, sql);
+        seaf_db_statement_query (db, "DELETE FROM OrgInnerPubRepo WHERE repo_id = ?",
+                                 1, "string", repo_id);
     }
 
-    snprintf (sql, sizeof(sql), "DELETE FROM RepoUserToken WHERE repo_id = '%s'", 
-              repo_id);
-    seaf_db_query (db, sql);
+    seaf_db_statement_query (db, "DELETE FROM RepoUserToken WHERE repo_id = ?",
+                             1, "string", repo_id);
 
     /* Remove virtual repos when origin repo is deleted. */
     GList *vrepos, *ptr;
@@ -465,10 +455,9 @@ remove_repo_ondisk (SeafRepoManager *mgr,
         remove_repo_ondisk (mgr, (char *)ptr->data, FALSE);
     string_list_free (vrepos);
 
-    snprintf (sql, sizeof(sql),
-              "DELETE FROM VirtualRepo WHERE repo_id='%s' OR origin_repo='%s'",
-              repo_id, repo_id);
-    seaf_db_query (db, sql);
+    seaf_db_statement_query (db, "DELETE FROM VirtualRepo "
+                             "WHERE repo_id=? OR origin_repo=?",
+                             2, "string", repo_id, "string", repo_id);
 
     return 0;
 }
@@ -487,11 +476,9 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
 static gboolean
 repo_exists_in_db (SeafDB *db, const char *id, gboolean *db_err)
 {
-    char sql[256];
-
-    snprintf (sql, sizeof(sql), "SELECT repo_id FROM Repo WHERE repo_id = '%s'",
-              id);
-    return seaf_db_check_for_existence (db, sql, db_err);
+    return seaf_db_statement_exists (db,
+                                     "SELECT repo_id FROM Repo WHERE repo_id = ?",
+                                     db_err, 1, "string", id);
 }
 
 SeafRepo*
@@ -550,29 +537,33 @@ seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id)
 static int
 save_branch_repo_map (SeafRepoManager *manager, SeafBranch *branch)
 {
-    char sql[256];
-
     if (seaf_db_type(seaf->db) == SEAF_DB_TYPE_PGSQL) {
-        gboolean err;
-        snprintf (sql, sizeof(sql),
-                  "SELECT repo_id FROM RepoHead WHERE repo_id='%s'",
-                  branch->repo_id);
-        if (seaf_db_check_for_existence (seaf->db, sql, &err))
-            snprintf(sql, sizeof(sql),
-                     "UPDATE RepoHead SET branch_name='%s' "
-                     "WHERE repo_id='%s'",
-                     branch->name, branch->repo_id);
-        else
-            snprintf(sql, sizeof(sql),
-                     "INSERT INTO RepoHead VALUES ('%s', '%s')",
-                     branch->repo_id, branch->name);
+        gboolean exists, err;
+        int rc;
+
+        exists = seaf_db_statement_exists (seaf->db,
+                                           "SELECT repo_id FROM RepoHead WHERE repo_id=?",
+                                           &err, 1, "string", branch->repo_id);
         if (err)
             return -1;
-        return seaf_db_query(seaf->db, sql);
+
+        if (exists)
+            rc = seaf_db_statement_query (seaf->db,
+                                          "UPDATE RepoHead SET branch_name=? "
+                                          "WHERE repo_id=?",
+                                          2, "string", branch->name,
+                                          "string", branch->repo_id);
+        else
+            rc = seaf_db_statement_query (seaf->db,
+                                          "INSERT INTO RepoHead VALUES (?, ?)",
+                                          2, "string", branch->repo_id,
+                                          "string", branch->name);
+        return rc;
     } else {
-        snprintf (sql, sizeof(sql), "REPLACE INTO RepoHead VALUES ('%s', '%s')",
-                  branch->repo_id, branch->name);
-        return seaf_db_query (seaf->db, sql);
+        return seaf_db_statement_query (seaf->db,
+                                        "REPLACE INTO RepoHead VALUES (?, ?)",
+                                        2, "string", branch->repo_id,
+                                        "string", branch->name);
     }
 
     return -1;
@@ -581,12 +572,11 @@ save_branch_repo_map (SeafRepoManager *manager, SeafBranch *branch)
 int
 seaf_repo_manager_branch_repo_unmap (SeafRepoManager *manager, SeafBranch *branch)
 {
-    char sql[256];
-
-    snprintf (sql, sizeof(sql), "DELETE FROM RepoHead WHERE branch_name = '%s'"
-              " AND repo_id = '%s'",
-              branch->name, branch->repo_id);
-    return seaf_db_query (seaf->db, sql);
+    return seaf_db_statement_query (seaf->db,
+                                    "DELETE FROM RepoHead WHERE branch_name = ?"
+                                    " AND repo_id = ?",
+                                    2, "string", branch->name,
+                                    "string", branch->repo_id);
 }
 
 static void
@@ -1167,13 +1157,12 @@ add_repo_token (SeafRepoManager *mgr,
                 const char *token,
                 GError **error)
 {
-    char sql[512];
+    int rc = seaf_db_statement_query (mgr->seaf->db,
+                                      "INSERT INTO RepoUserToken VALUES (?, ?, ?)",
+                                      3, "string", repo_id, "string", email,
+                                      "string", token);
 
-    snprintf (sql, sizeof(sql),
-              "INSERT INTO RepoUserToken VALUES ('%s', '%s', '%s')",
-              repo_id, email, token);
-
-    if (seaf_db_query (mgr->seaf->db, sql) < 0) {
+    if (rc < 0) {
         seaf_warning ("failed to add repo token. repo = %s, email = %s\n",
                       repo_id, email);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
@@ -1206,19 +1195,18 @@ seaf_repo_manager_add_token_peer_info (SeafRepoManager *mgr,
                                        const char *peer_name,
                                        gint64 sync_time)
 {
-    GString *sql = g_string_new (NULL);
     int ret = 0;
 
-    char *esc_peer_name = seaf_db_escape_string (mgr->seaf->db, peer_name);
-    g_string_printf (sql,
-                     "INSERT INTO RepoTokenPeerInfo VALUES ("
-                     "'%s', '%s', '%s', '%s', %"G_GINT64_FORMAT")",
-                     token, peer_id, peer_ip, esc_peer_name, sync_time);
-    g_free (esc_peer_name);
-    if (seaf_db_query (mgr->seaf->db, sql->str) < 0)
+    if (seaf_db_statement_query (mgr->seaf->db,
+                                 "INSERT INTO RepoTokenPeerInfo VALUES ("
+                                 "?, ?, ?, ?, ?)",
+                                 5, "string", token,
+                                 "string", peer_id,
+                                 "string", peer_ip,
+                                 "string", peer_name,
+                                 "int64", sync_time) < 0)
         ret = -1;
 
-    g_string_free (sql, TRUE);
     return ret;
 }
 
@@ -1228,17 +1216,16 @@ seaf_repo_manager_update_token_peer_info (SeafRepoManager *mgr,
                                           const char *peer_ip,
                                           gint64 sync_time)
 {
-    GString *sql = g_string_new (NULL);
     int ret = 0;
 
-    g_string_printf (sql,
-                     "UPDATE RepoTokenPeerInfo SET "
-                     "peer_ip='%s', sync_time=%"G_GINT64_FORMAT" WHERE token='%s'",
-                     peer_ip, sync_time, token);
-    if (seaf_db_query (mgr->seaf->db, sql->str) < 0)
+    if (seaf_db_statement_query (mgr->seaf->db,
+                                 "UPDATE RepoTokenPeerInfo SET "
+                                 "peer_ip=?, sync_time=? WHERE token=?",
+                                 3, "string", peer_ip,
+                                 "int64", sync_time,
+                                 "string", token) < 0)
         ret = -1;
 
-    g_string_free (sql, TRUE);
     return ret;
 }
 
@@ -1246,13 +1233,11 @@ gboolean
 seaf_repo_manager_token_peer_info_exists (SeafRepoManager *mgr,
                                           const char *token)
 {
-    char sql[256];
     gboolean db_error = FALSE;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT token FROM RepoTokenPeerInfo WHERE token='%s'",
-              token);
-    return seaf_db_check_for_existence (mgr->seaf->db, sql, &db_error);
+    return seaf_db_statement_exists (mgr->seaf->db,
+                                     "SELECT token FROM RepoTokenPeerInfo WHERE token=?",
+                                     &db_error, 1, "string", token);
 }
 
 int
@@ -1262,7 +1247,6 @@ seaf_repo_manager_delete_token (SeafRepoManager *mgr,
                                 const char *user,
                                 GError **error)
 {
-    char sql[256];
     char *token_owner;
 
     token_owner = seaf_repo_manager_get_email_by_token (mgr, repo_id, token);
@@ -1273,18 +1257,17 @@ seaf_repo_manager_delete_token (SeafRepoManager *mgr,
         return -1;
     }
 
-    snprintf (sql, sizeof(sql),
-              "DELETE FROM RepoUserToken WHERE repo_id='%s' and token='%s'",
-              repo_id, token);
-    if (seaf_db_query (mgr->seaf->db, sql) < 0) {
+    if (seaf_db_statement_query (mgr->seaf->db,
+                                 "DELETE FROM RepoUserToken "
+                                 "WHERE repo_id=? and token=?",
+                                 2, "string", repo_id, "string", token) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
         return -1;
     }
 
-    snprintf (sql, sizeof(sql),
-              "DELETE FROM RepoTokenPeerInfo WHERE token='%s'",
-              token);
-    if (seaf_db_query (mgr->seaf->db, sql) < 0) {
+    if (seaf_db_statement_query (mgr->seaf->db,
+                                 "DELETE FROM RepoTokenPeerInfo WHERE token=?",
+                                 1, "string", token) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
         return -1;
     }
@@ -1359,7 +1342,7 @@ seaf_repo_manager_list_repo_tokens (SeafRepoManager *mgr,
                                     GError **error)
 {
     GList *ret_list = NULL;
-    GString *sql;
+    char *sql;
     gboolean db_err = FALSE;
 
     if (!repo_exists_in_db (mgr->seaf->db, repo_id, &db_err)) {
@@ -1369,17 +1352,16 @@ seaf_repo_manager_list_repo_tokens (SeafRepoManager *mgr,
         return NULL;
     }
 
-    sql = g_string_new (NULL);
-    g_string_printf (sql,
-                     "SELECT u.repo_id, o.owner_id, u.email, u.token, "
-                     "p.peer_id, p.peer_ip, p.peer_name, p.sync_time "
-                     "FROM RepoUserToken u LEFT JOIN RepoTokenPeerInfo p "
-                     "ON u.token = p.token, RepoOwner o "
-                     "WHERE u.repo_id = '%s' and o.repo_id = '%s' ",
-                     repo_id, repo_id);
+    sql = "SELECT u.repo_id, o.owner_id, u.email, u.token, "
+        "p.peer_id, p.peer_ip, p.peer_name, p.sync_time "
+        "FROM RepoUserToken u LEFT JOIN RepoTokenPeerInfo p "
+        "ON u.token = p.token, RepoOwner o "
+        "WHERE u.repo_id = ? and o.repo_id = ? ";
 
-    int n_row = seaf_db_foreach_selected_row (mgr->seaf->db, sql->str,
-                                              collect_repo_token, &ret_list);
+    int n_row = seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                              collect_repo_token, &ret_list,
+                                              2, "string", repo_id,
+                                              "string", repo_id);
     if (n_row < 0) {
         seaf_warning ("DB error when get token info for repo %.10s.\n",
                       repo_id);
@@ -1388,7 +1370,6 @@ seaf_repo_manager_list_repo_tokens (SeafRepoManager *mgr,
 
     fill_in_token_info (ret_list);
 
-    g_string_free (sql, TRUE);
     return g_list_reverse(ret_list);
 }
 
@@ -1398,18 +1379,17 @@ seaf_repo_manager_list_repo_tokens_by_email (SeafRepoManager *mgr,
                                              GError **error)
 {
     GList *ret_list = NULL;
-    GString *sql = g_string_new (NULL);
+    char *sql;
 
-    g_string_printf (sql,
-                     "SELECT u.repo_id, o.owner_id, u.email, u.token, "
-                     "p.peer_id, p.peer_ip, p.peer_name, p.sync_time "
-                     "FROM RepoUserToken u LEFT JOIN RepoTokenPeerInfo p "
-                     "ON u.token = p.token, RepoOwner o "
-                     "WHERE u.email = '%s' and u.repo_id = o.repo_id",
-                     email);
+    sql = "SELECT u.repo_id, o.owner_id, u.email, u.token, "
+        "p.peer_id, p.peer_ip, p.peer_name, p.sync_time "
+        "FROM RepoUserToken u LEFT JOIN RepoTokenPeerInfo p "
+        "ON u.token = p.token, RepoOwner o "
+        "WHERE u.email = ? and u.repo_id = o.repo_id";
 
-    int n_row = seaf_db_foreach_selected_row (mgr->seaf->db, sql->str,
-                                              collect_repo_token, &ret_list);
+    int n_row = seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                              collect_repo_token, &ret_list,
+                                              1, "string", email);
     if (n_row < 0) {
         seaf_warning ("DB error when get token info for email %s.\n",
                       email);
@@ -1418,7 +1398,6 @@ seaf_repo_manager_list_repo_tokens_by_email (SeafRepoManager *mgr,
 
     fill_in_token_info (ret_list);
 
-    g_string_free (sql, TRUE);
     return g_list_reverse(ret_list);
 }
 
@@ -1432,8 +1411,8 @@ seaf_repo_manager_delete_repo_tokens_by_peer_id (SeafRepoManager *mgr,
                                                  GError **error)
 {
     int ret = 0;
-    GString *sql = g_string_new (NULL);
     const char *template;
+    int rc;
 
     if (seaf_db_type(mgr->seaf->db) == SEAF_DB_TYPE_MYSQL) {
         /* MySQL does not allow us to delete from a table which is used in the subquery,
@@ -1443,12 +1422,14 @@ seaf_repo_manager_delete_repo_tokens_by_peer_id (SeafRepoManager *mgr,
             "DELETE FROM RepoUserToken WHERE "
             "token in ( "
             "  SELECT u.token "
-            "  FROM (SELECT * FROM RepoUserToken WHERE email = '%s') as u, RepoTokenPeerInfo as p "
+            "  FROM (SELECT * FROM RepoUserToken WHERE email = ?) as u, RepoTokenPeerInfo as p "
             "  WHERE u.token = p.token "
-            "  AND u.email = '%s' AND p.peer_id = '%s' "
+            "  AND u.email = ? AND p.peer_id = ? "
             ")";
 
-        g_string_printf (sql, template, email, email, peer_id);
+        rc = seaf_db_statement_query (mgr->seaf->db, template,
+                                      3, "string", email, "string", email,
+                                      "string", peer_id);
 
     } else {
         template =
@@ -1457,18 +1438,17 @@ seaf_repo_manager_delete_repo_tokens_by_peer_id (SeafRepoManager *mgr,
             "  SELECT u.token "
             "  FROM RepoUserToken as u, RepoTokenPeerInfo as p "
             "  WHERE u.token = p.token "
-            "  AND u.email = '%s' AND p.peer_id = '%s' "
+            "  AND u.email = ? AND p.peer_id = ? "
             ")";
 
-        g_string_printf (sql, template, email, peer_id);
+        rc = seaf_db_statement_query (mgr->seaf->db, template,
+                                      2, "string", email, "string", peer_id);
     }
 
 
-    if (seaf_db_query (mgr->seaf->db, sql->str) < 0) {
+    if (rc < 0) {
         ret = -1;
     }
-
-    g_string_free (sql, TRUE);
 
     return ret;
 }
@@ -1494,19 +1474,14 @@ seaf_repo_manager_get_email_by_token (SeafRepoManager *manager,
         return NULL;
     
     char *email = NULL;
-    GString *buf = g_string_new(NULL);
-    char *esc_token = seaf_db_escape_string (seaf->db, token);
+    char *sql;
 
-    g_string_append_printf (
-        buf, "SELECT email FROM RepoUserToken "
-        "WHERE repo_id = '%s' AND token = '%s'",
-        repo_id, esc_token);
-    g_free (esc_token);
+    sql = "SELECT email FROM RepoUserToken "
+        "WHERE repo_id = ? AND token = ?";
 
-    seaf_db_foreach_selected_row (seaf->db, buf->str,
-                                  get_email_by_token_cb, &email);
-
-    g_string_free (buf, TRUE);
+    seaf_db_statement_foreach_row (seaf->db, sql,
+                                   get_email_by_token_cb, &email,
+                                   2, "string", repo_id, "string", token);
 
     return email;
 }
@@ -1525,13 +1500,13 @@ gint64
 seaf_repo_manager_get_repo_size (SeafRepoManager *mgr, const char *repo_id)
 {
     gint64 size = 0;
-    char sql[256];
+    char *sql;
 
-    snprintf (sql, sizeof(sql), "SELECT size FROM RepoSize WHERE repo_id='%s'",
-              repo_id);
+    sql = "SELECT size FROM RepoSize WHERE repo_id=?";
 
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      get_repo_size, &size) < 0)
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                       get_repo_size, &size,
+                                       1, "string", repo_id) < 0)
         return -1;
 
     return size;
@@ -1544,7 +1519,6 @@ seaf_repo_manager_set_repo_history_limit (SeafRepoManager *mgr,
 {
     SeafVirtRepo *vinfo;
     SeafDB *db = mgr->seaf->db;
-    char sql[256];
 
     vinfo = seaf_repo_manager_get_virtual_repo_info (mgr, repo_id);
     if (vinfo) {
@@ -1553,26 +1527,31 @@ seaf_repo_manager_set_repo_history_limit (SeafRepoManager *mgr,
     }
 
     if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
-        gboolean err;
-        snprintf(sql, sizeof(sql),
-                 "SELECT repo_id FROM RepoHistoryLimit "
-                 "WHERE repo_id='%s'", repo_id);
-        if (seaf_db_check_for_existence(db, sql, &err))
-            snprintf(sql, sizeof(sql),
-                     "UPDATE RepoHistoryLimit SET days=%d"
-                     "WHERE repo_id='%s'", days, repo_id);
-        else
-            snprintf(sql, sizeof(sql),
-                     "INSERT INTO RepoHistoryLimit VALUES "
-                     "('%s', %d)", repo_id, days);
+        gboolean exists, err;
+        int rc;
+
+        exists = seaf_db_statement_exists (db,
+                                           "SELECT repo_id FROM RepoHistoryLimit "
+                                           "WHERE repo_id=?",
+                                           &err, 1, "string", repo_id);
         if (err)
             return -1;
-        return seaf_db_query(db, sql);
+
+        if (exists)
+            rc = seaf_db_statement_query (db,
+                                          "UPDATE RepoHistoryLimit SET days=%d"
+                                          "WHERE repo_id=?",
+                                          2, "int", days, "string", repo_id);
+        else
+            rc = seaf_db_statement_query (db,
+                                          "INSERT INTO RepoHistoryLimit VALUES "
+                                          "(?, ?)",
+                                          2, "string", repo_id, "int", days);
+        return rc;
     } else {
-        snprintf (sql, sizeof(sql),
-                  "REPLACE INTO RepoHistoryLimit VALUES ('%s', %d)",
-                  repo_id, days);
-        if (seaf_db_query (db, sql) < 0)
+        if (seaf_db_statement_query (db,
+                                     "REPLACE INTO RepoHistoryLimit VALUES (?, ?)",
+                                     2, "string", repo_id, "int", days) < 0)
             return -1;
     }
 
@@ -1585,17 +1564,16 @@ seaf_repo_manager_get_repo_history_limit (SeafRepoManager *mgr,
 {
     SeafVirtRepo *vinfo;
     const char *r_repo_id = repo_id;
-    char sql[256];
+    char *sql;
     int per_repo_days;
 
     vinfo = seaf_repo_manager_get_virtual_repo_info (mgr, repo_id);
     if (vinfo)
         r_repo_id = vinfo->origin_repo_id;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT days FROM RepoHistoryLimit WHERE repo_id='%s'",
-              r_repo_id);
-    per_repo_days = seaf_db_get_int (mgr->seaf->db, sql);
+    sql = "SELECT days FROM RepoHistoryLimit WHERE repo_id=?";
+    per_repo_days = seaf_db_statement_get_int (mgr->seaf->db, sql,
+                                               1, "string", r_repo_id);
 
     seaf_virtual_repo_info_free (vinfo);
 
@@ -1612,30 +1590,33 @@ seaf_repo_manager_set_repo_valid_since (SeafRepoManager *mgr,
                                         gint64 timestamp)
 {
     SeafDB *db = mgr->seaf->db;
-    char sql[256];
 
     if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
-        gboolean err;
-        snprintf(sql, sizeof(sql),
-                 "SELECT repo_id FROM RepoValidSince WHERE "
-                 "repo_id='%s'", repo_id);
-        if (seaf_db_check_for_existence(db, sql, &err))
-            snprintf(sql, sizeof(sql),
-                     "UPDATE RepoValidSince SET timestamp=%"G_GINT64_FORMAT
-                     " WHERE repo_id='%s'", timestamp, repo_id);
-        else
-            snprintf(sql, sizeof(sql),
-                     "INSERT INTO RepoValidSince VALUES "
-                     "('%s', %"G_GINT64_FORMAT")", repo_id, timestamp);
+        gboolean exists, err;
+        int rc;
+
+        exists = seaf_db_statement_exists (db,
+                                           "SELECT repo_id FROM RepoValidSince WHERE "
+                                           "repo_id=?", &err, 1, "string", repo_id);
         if (err)
             return -1;
-        if (seaf_db_query (db, sql) < 0)
+
+        if (exists)
+            rc = seaf_db_statement_query (db,
+                                          "UPDATE RepoValidSince SET timestamp=?"
+                                          " WHERE repo_id=?",
+                                          2, "int64", timestamp, "string", repo_id);
+        else
+            rc = seaf_db_statement_query (db,
+                                          "INSERT INTO RepoValidSince VALUES "
+                                          "(?, ?)", 2, "string", repo_id,
+                                          "int64", timestamp);
+        if (rc < 0)
             return -1;
     } else {
-        snprintf (sql, sizeof(sql),
-                  "REPLACE INTO RepoValidSince VALUES ('%s', %"G_GINT64_FORMAT")",
-                  repo_id, timestamp);
-        if (seaf_db_query (db, sql) < 0)
+        if (seaf_db_statement_query (db,
+                           "REPLACE INTO RepoValidSince VALUES (?, ?)",
+                           2, "string", repo_id, "int64", timestamp) < 0)
             return -1;
     }
 
@@ -1646,13 +1627,11 @@ gint64
 seaf_repo_manager_get_repo_valid_since (SeafRepoManager *mgr,
                                         const char *repo_id)
 {
-    char sql[256];
+    char *sql;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT timestamp FROM RepoValidSince WHERE repo_id='%s'",
-              repo_id);
+    sql = "SELECT timestamp FROM RepoValidSince WHERE repo_id=?";
     /* Also return -1 if doesn't exist. */
-    return seaf_db_get_int64 (mgr->seaf->db, sql);
+    return seaf_db_statement_get_int64 (mgr->seaf->db, sql, 1, "string", repo_id);
 }
 
 gint64
@@ -1705,9 +1684,8 @@ seaf_repo_manager_set_repo_owner (SeafRepoManager *mgr,
         if (seaf_db_query (db, sql) < 0)
             return -1;
     } else {
-        snprintf (sql, sizeof(sql), "REPLACE INTO RepoOwner VALUES ('%s', '%s')",
-                  repo_id, email);
-        if (seaf_db_query (db, sql) < 0)
+        if (seaf_db_statement_query (db, "REPLACE INTO RepoOwner VALUES (?, ?)",
+                                     2, "string", repo_id, "string", email) < 0)
             return -1;
     }
 
@@ -1729,14 +1707,13 @@ char *
 seaf_repo_manager_get_repo_owner (SeafRepoManager *mgr,
                                   const char *repo_id)
 {
-    char sql[256];
+    char *sql;
     char *ret = NULL;
 
-    snprintf (sql, sizeof(sql), 
-              "SELECT owner_id FROM RepoOwner WHERE repo_id='%s'",
-              repo_id);
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      get_owner, &ret) < 0) {
+    sql = "SELECT owner_id FROM RepoOwner WHERE repo_id=?";
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                       get_owner, &ret,
+                                       1, "string", repo_id) < 0) {
         seaf_warning ("Failed to get owner id for repo %s.\n", repo_id);
         return NULL;
     }
@@ -1789,13 +1766,13 @@ seaf_repo_manager_get_repos_by_owner (SeafRepoManager *mgr,
 {
     GList *id_list = NULL, *ptr;
     GList *ret = NULL;
-    char sql[256];
+    char *sql;
 
-    snprintf (sql, 256, "SELECT repo_id FROM RepoOwner WHERE owner_id='%s'",
-              email);
+    sql = "SELECT repo_id FROM RepoOwner WHERE owner_id=?";
 
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
-                                      collect_repo_id, &id_list) < 0)
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, 
+                                       collect_repo_id, &id_list,
+                                       1, "string", email) < 0)
         return NULL;
 
     for (ptr = id_list; ptr; ptr = ptr->next) {
@@ -1831,17 +1808,21 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
     GList *id_list = NULL, *ptr;
     GList *ret = NULL;
     SeafRepo *repo;
-    char sql[256];
+    int rc;
 
     if (start == -1 && limit == -1)
-        snprintf (sql, 256, "SELECT repo_id FROM Repo");
+        rc = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                       "SELECT repo_id FROM Repo",
+                                       collect_repo_id, &id_list,
+                                       0);
     else
-        snprintf (sql, 256,
-                  "SELECT repo_id FROM Repo ORDER BY repo_id LIMIT %d OFFSET %d",
-                  limit, start);
+        rc = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                            "SELECT repo_id FROM Repo "
+                                            "ORDER BY repo_id LIMIT ? OFFSET ?",
+                                            collect_repo_id, &id_list,
+                                            2, "int", limit, "int", start);
 
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
-                                      collect_repo_id, &id_list) < 0)
+    if (rc < 0)
         return NULL;
 
     for (ptr = id_list; ptr; ptr = ptr->next) {
@@ -1861,13 +1842,13 @@ seaf_repo_manager_get_repo_ids_by_owner (SeafRepoManager *mgr,
                                          const char *email)
 {
     GList *ret = NULL;
-    char sql[256];
+    char *sql;
 
-    snprintf (sql, 256, "SELECT repo_id FROM RepoOwner WHERE owner_id='%s'",
-              email);
+    sql = "SELECT repo_id FROM RepoOwner WHERE owner_id=?";
 
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
-                                      collect_repo_id, &ret) < 0) {
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, 
+                                       collect_repo_id, &ret,
+                                       1, "string", email) < 0) {
         string_list_free (ret);
         return NULL;
     }
@@ -1881,17 +1862,20 @@ int
 seaf_repo_manager_set_access_property (SeafRepoManager *mgr, const char *repo_id,
                                        const char *ap)
 {
-    char sql[256];
+    int rc;
 
     if (seaf_repo_manager_query_access_property (mgr, repo_id) == NULL) {
-        snprintf (sql, sizeof(sql), "INSERT INTO WebAP VALUES ('%s', '%s')",
-                  repo_id, ap);
+        rc = seaf_db_statement_query (mgr->seaf->db,
+                                      "INSERT INTO WebAP VALUES (?, ?)",
+                                      2, "string", repo_id, "string", ap);
     } else {
-        snprintf (sql, sizeof(sql), "UPDATE WebAP SET access_property='%s' "
-                  "WHERE repo_id='%s'", ap, repo_id);
+        rc = seaf_db_statement_query (mgr->seaf->db,
+                                      "UPDATE WebAP SET access_property=? "
+                                      "WHERE repo_id=?",
+                                      2, "string", ap, "string", repo_id);
     }
 
-    if (seaf_db_query (mgr->seaf->db, sql) < 0) {
+    if (rc < 0) {
         seaf_warning ("DB error when set access property for repo %s, %s.\n", repo_id, ap);
         return -1;
     }
@@ -1912,13 +1896,13 @@ get_ap (SeafDBRow *row, void *data)
 char *
 seaf_repo_manager_query_access_property (SeafRepoManager *mgr, const char *repo_id)
 {
-    char sql[256];
+    char *sql;
     char *ret = NULL;
 
-    snprintf (sql, sizeof(sql), "SELECT access_property FROM WebAP WHERE repo_id='%s'",
-              repo_id);
+    sql =  "SELECT access_property FROM WebAP WHERE repo_id=?";
  
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_ap, &ret) < 0) {
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_ap, &ret,
+                                       1, "string", repo_id) < 0) {
         seaf_warning ("DB error when get access property for repo %s.\n", repo_id);
         return NULL;
     }
@@ -1936,12 +1920,10 @@ seaf_repo_manager_add_group_repo (SeafRepoManager *mgr,
                                   const char *permission,
                                   GError **error)
 {
-    char sql[512];
-    
-    snprintf (sql, sizeof(sql), "INSERT INTO RepoGroup VALUES ('%s', %d, '%s', '%s')",
-              repo_id, group_id, owner, permission);
-    
-    if (seaf_db_query (mgr->seaf->db, sql) < 0)
+    if (seaf_db_statement_query (mgr->seaf->db,
+                                 "INSERT INTO RepoGroup VALUES (?, ?, ?, ?)",
+                                 4, "string", repo_id, "int", group_id,
+                                 "string", owner, "string", permission) < 0)
         return -1;
 
     return 0;
@@ -1953,12 +1935,10 @@ seaf_repo_manager_del_group_repo (SeafRepoManager *mgr,
                                   int group_id,
                                   GError **error)
 {
-    char sql[512];
-    
-    snprintf (sql, sizeof(sql), "DELETE FROM RepoGroup WHERE group_id=%d "
-              "AND repo_id='%s'", group_id, repo_id);
-
-    return seaf_db_query (mgr->seaf->db, sql);
+    return seaf_db_statement_query (mgr->seaf->db,
+                                    "DELETE FROM RepoGroup WHERE group_id=? "
+                                    "AND repo_id=?",
+                                    2, "int", group_id, "string", repo_id);
 }
 
 static gboolean
@@ -1978,14 +1958,13 @@ seaf_repo_manager_get_groups_by_repo (SeafRepoManager *mgr,
                                       const char *repo_id,
                                       GError **error)
 {
-    char sql[512];
+    char *sql;
     GList *group_ids = NULL;
     
-    snprintf (sql, sizeof(sql), "SELECT group_id FROM RepoGroup "
-              "WHERE repo_id = '%s'", repo_id);
+    sql =  "SELECT group_id FROM RepoGroup WHERE repo_id = ?";
     
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_ids_cb,
-                                       &group_ids) < 0) {
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_group_ids_cb,
+                                       &group_ids, 1, "string", repo_id) < 0) {
         g_list_free (group_ids);
         return NULL;
     }
@@ -2013,14 +1992,13 @@ seaf_repo_manager_get_group_perm_by_repo (SeafRepoManager *mgr,
                                           const char *repo_id,
                                           GError **error)
 {
-    char sql[512];
+    char *sql;
     GList *group_perms = NULL, *p;
     
-    snprintf (sql, sizeof(sql), "SELECT group_id, permission FROM RepoGroup "
-              "WHERE repo_id = '%s'", repo_id);
+    sql = "SELECT group_id, permission FROM RepoGroup WHERE repo_id = ?";
     
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_perms_cb,
-                                      &group_perms) < 0) {
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_group_perms_cb,
+                                       &group_perms, 1, "string", repo_id) < 0) {
         for (p = group_perms; p != NULL; p = p->next)
             g_free (p->data);
         g_list_free (group_perms);
@@ -2037,13 +2015,11 @@ seaf_repo_manager_set_group_repo_perm (SeafRepoManager *mgr,
                                        const char *permission,
                                        GError **error)
 {
-    char sql[512];
-
-    snprintf (sql, sizeof(sql),
-              "UPDATE RepoGroup SET permission='%s' WHERE "
-              "repo_id='%s' AND group_id=%d",
-              permission, repo_id, group_id);
-    return seaf_db_query (mgr->seaf->db, sql);
+    return seaf_db_statement_query (mgr->seaf->db,
+                                    "UPDATE RepoGroup SET permission=? WHERE "
+                                    "repo_id=? AND group_id=?",
+                                    3, "string", permission, "string", repo_id,
+                                    "int", group_id);
 }
 
 static gboolean
@@ -2063,13 +2039,12 @@ seaf_repo_manager_get_group_repoids (SeafRepoManager *mgr,
                                      int group_id,
                                      GError **error)
 {
-    char sql[512];
+    char *sql;
     GList *repo_ids = NULL;
 
-    snprintf (sql, sizeof(sql), "SELECT repo_id FROM RepoGroup "
-              "WHERE group_id = %d", group_id);
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_repoids_cb,
-                                      &repo_ids) < 0)
+    sql =  "SELECT repo_id FROM RepoGroup WHERE group_id = ?";
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_group_repoids_cb,
+                                       &repo_ids, 1, "int", group_id) < 0)
         return NULL;
 
     return g_list_reverse (repo_ids);
@@ -2124,21 +2099,19 @@ seaf_repo_manager_get_group_repos_by_owner (SeafRepoManager *mgr,
                                             const char *owner,
                                             GError **error)
 {
-    char sql[1024];
+    char *sql;
     GList *repos = NULL;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT RepoGroup.repo_id, VirtualRepo.repo_id, "
-              "group_id, user_name, permission, commit_id "
-              "FROM RepoGroup LEFT JOIN VirtualRepo ON "
-              "RepoGroup.repo_id = VirtualRepo.repo_id, "
-              "Branch "
-              "WHERE user_name = '%s' AND "
-              "RepoGroup.repo_id = Branch.repo_id AND "
-              "Branch.name = 'master'",
-              owner);
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_repos_cb,
-                                      &repos) < 0)
+    sql = "SELECT RepoGroup.repo_id, VirtualRepo.repo_id, "
+        "group_id, user_name, permission, commit_id "
+        "FROM RepoGroup LEFT JOIN VirtualRepo ON "
+        "RepoGroup.repo_id = VirtualRepo.repo_id, "
+        "Branch "
+        "WHERE user_name = ? AND "
+        "RepoGroup.repo_id = Branch.repo_id AND "
+        "Branch.name = 'master'";
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_group_repos_cb,
+                                       &repos, 1, "string", owner) < 0)
         return NULL;
 
     return g_list_reverse (repos);
@@ -2160,13 +2133,13 @@ seaf_repo_manager_get_group_repo_owner (SeafRepoManager *mgr,
                                         const char *repo_id,
                                         GError **error)
 {
-    char sql[512];
+    char *sql;
     char *ret = NULL;
 
-    snprintf (sql, sizeof(sql), "SELECT user_name FROM RepoGroup "
-              "WHERE repo_id = '%s'", repo_id);
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      get_group_repo_owner, &ret) < 0) {
+    sql = "SELECT user_name FROM RepoGroup WHERE repo_id = ?";
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                       get_group_repo_owner, &ret,
+                                       1, "string", repo_id) < 0) {
         seaf_warning ("DB error when get repo share from for repo %s.\n",
                    repo_id);
         return NULL;
@@ -2181,17 +2154,20 @@ seaf_repo_manager_remove_group_repos (SeafRepoManager *mgr,
                                       const char *owner,
                                       GError **error)
 {
-    char sql[512];
+    SeafDB *db = mgr->seaf->db;
+    int rc;
 
     if (!owner) {
-        snprintf (sql, sizeof(sql), "DELETE FROM RepoGroup WHERE group_id=%d",
-                  group_id);
+        rc = seaf_db_statement_query (db, "DELETE FROM RepoGroup WHERE group_id=?",
+                                      1, "int", group_id);
     } else {
-        snprintf (sql, sizeof(sql), "DELETE FROM RepoGroup WHERE group_id=%d AND "
-                  "user_name = '%s'", group_id, owner);
+        rc = seaf_db_statement_query (db,
+                                      "DELETE FROM RepoGroup WHERE group_id=? AND "
+                                      "user_name = ?",
+                                      2, "int", group_id, "string", owner);
     }
 
-    return seaf_db_query (mgr->seaf->db, sql);
+    return rc;
 }
 
 /* Inner public repos */
@@ -2221,10 +2197,9 @@ seaf_repo_manager_set_inner_pub_repo (SeafRepoManager *mgr,
             return -1;
         return seaf_db_query (db, sql);
     } else {
-        snprintf (sql, sizeof(sql),
-                  "REPLACE INTO InnerPubRepo VALUES ('%s', '%s')",
-                  repo_id, permission);
-        return seaf_db_query (db, sql);
+        return seaf_db_statement_query (db,
+                                        "REPLACE INTO InnerPubRepo VALUES (?, ?)",
+                                        2, "string", repo_id, "string", permission);
     }
 
     return -1;
@@ -2234,25 +2209,20 @@ int
 seaf_repo_manager_unset_inner_pub_repo (SeafRepoManager *mgr,
                                         const char *repo_id)
 {
-    char sql[256];
-
-    snprintf (sql, sizeof(sql),
-              "DELETE FROM InnerPubRepo WHERE repo_id = '%s'",
-              repo_id);
-    return seaf_db_query (mgr->seaf->db, sql);
+    return seaf_db_statement_query (mgr->seaf->db,
+                                    "DELETE FROM InnerPubRepo WHERE repo_id = ?",
+                                    1, "string", repo_id);
 }
 
 gboolean
 seaf_repo_manager_is_inner_pub_repo (SeafRepoManager *mgr,
                                      const char *repo_id)
 {
-    char sql[256];
     gboolean db_err = FALSE;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT repo_id FROM InnerPubRepo WHERE repo_id='%s'",
-              repo_id);
-    return seaf_db_check_for_existence (mgr->seaf->db, sql, &db_err);
+    return seaf_db_statement_exists (mgr->seaf->db,
+                                     "SELECT repo_id FROM InnerPubRepo WHERE repo_id=?",
+                                     &db_err, 1, "string", repo_id);
 }
 
 static gboolean
@@ -2300,18 +2270,18 @@ GList *
 seaf_repo_manager_list_inner_pub_repos (SeafRepoManager *mgr)
 {
     GList *ret = NULL, *p;
-    char sql[1024];
+    char *sql;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT InnerPubRepo.repo_id, VirtualRepo.repo_id, "
-              "owner_id, permission, commit_id "
-              "FROM InnerPubRepo LEFT JOIN VirtualRepo ON "
-              "InnerPubRepo.repo_id=VirtualRepo.repo_id, RepoOwner, Branch "
-              "WHERE InnerPubRepo.repo_id=RepoOwner.repo_id AND "
-              "InnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'");
+    sql = "SELECT InnerPubRepo.repo_id, VirtualRepo.repo_id, "
+        "owner_id, permission, commit_id "
+        "FROM InnerPubRepo LEFT JOIN VirtualRepo ON "
+        "InnerPubRepo.repo_id=VirtualRepo.repo_id, RepoOwner, Branch "
+        "WHERE InnerPubRepo.repo_id=RepoOwner.repo_id AND "
+        "InnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'";
 
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      collect_public_repos, &ret) < 0) {
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                       collect_public_repos, &ret,
+                                       0) < 0) {
         for (p = ret; p != NULL; p = p->next)
             g_object_unref (p->data);
         g_list_free (ret);
@@ -2336,19 +2306,18 @@ seaf_repo_manager_list_inner_pub_repos_by_owner (SeafRepoManager *mgr,
                                                  const char *user)
 {
     GList *ret = NULL, *p;
-    char sql[1024];
+    char *sql;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT InnerPubRepo.repo_id, VirtualRepo.repo_id, "
-              "owner_id, permission, commit_id "
-              "FROM InnerPubRepo LEFT JOIN VirtualRepo ON "
-              "InnerPubRepo.repo_id=VirtualRepo.repo_id, RepoOwner, Branch "
-              "WHERE InnerPubRepo.repo_id=RepoOwner.repo_id AND owner_id='%s' "
-              "AND InnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'",
-              user);
+    sql = "SELECT InnerPubRepo.repo_id, VirtualRepo.repo_id, "
+        "owner_id, permission, commit_id "
+        "FROM InnerPubRepo LEFT JOIN VirtualRepo ON "
+        "InnerPubRepo.repo_id=VirtualRepo.repo_id, RepoOwner, Branch "
+        "WHERE InnerPubRepo.repo_id=RepoOwner.repo_id AND owner_id=? "
+        "AND InnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'";
 
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      collect_public_repos, &ret) < 0) {
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                       collect_public_repos, &ret,
+                                       1, "string", user) < 0) {
         for (p = ret; p != NULL; p = p->next)
             g_object_unref (p->data);
         g_list_free (ret);
@@ -2362,12 +2331,10 @@ char *
 seaf_repo_manager_get_inner_pub_repo_perm (SeafRepoManager *mgr,
                                            const char *repo_id)
 {
-    char sql[256];
+    char *sql;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT permission FROM InnerPubRepo WHERE repo_id='%s'",
-              repo_id);
-    return seaf_db_get_string(mgr->seaf->db, sql);
+    sql = "SELECT permission FROM InnerPubRepo WHERE repo_id=?";
+    return seaf_db_statement_get_string(mgr->seaf->db, sql, 1, "string", repo_id);
 }
 
 /* Org repos. */
@@ -2376,24 +2343,21 @@ int
 seaf_repo_manager_get_repo_org (SeafRepoManager *mgr,
                                 const char *repo_id)
 {
-    char sql[256];
+    char *sql;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT org_id FROM OrgRepo WHERE repo_id = '%s'",
-              repo_id);
-    return seaf_db_get_int (mgr->seaf->db, sql);
+    sql = "SELECT org_id FROM OrgRepo WHERE repo_id = ?";
+    return seaf_db_statement_get_int (mgr->seaf->db, sql, 1, "string", repo_id);
 }
 
 char *
 seaf_repo_manager_get_org_repo_owner (SeafRepoManager *mgr,
                                       const char *repo_id)
 {
-    char sql[256];
+    char *sql;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT user FROM OrgRepo WHERE repo_id = '%s'",
-              repo_id);
-    char *owner = seaf_db_get_string (mgr->seaf->db, sql);
+    sql = "SELECT user FROM OrgRepo WHERE repo_id = ?";
+    char *owner = seaf_db_statement_get_string (mgr->seaf->db, sql,
+                                                1, "string", repo_id);
     char *owner_l = g_ascii_strdown (owner, -1);
     g_free (owner);
     return owner_l;
@@ -2405,13 +2369,11 @@ seaf_repo_manager_set_org_repo (SeafRepoManager *mgr,
                                 const char *repo_id,
                                 const char *user)
 {
-    char sql[256];
-
-    snprintf (sql, sizeof(sql), "INSERT INTO OrgRepo VALUES (%d, '%s', '%s')",
-              org_id, repo_id, user);
-    if (seaf_db_query (mgr->seaf->db, sql) < 0)
+    if (seaf_db_statement_query (mgr->seaf->db,
+                                 "INSERT INTO OrgRepo VALUES (?, ?, ?)",
+                                 3, "int", org_id, "string", repo_id,
+                                 "string", user) < 0)
         return -1;
-
     return 0;
 }
 
@@ -2421,16 +2383,16 @@ seaf_repo_manager_get_org_repo_list (SeafRepoManager *mgr,
                                      int start,
                                      int limit)
 {
-    char sql[512];
+    char *sql;
     GList *id_list = NULL, *ptr;
     GList *ret = NULL;
     
-    snprintf (sql, sizeof(sql),
-              "SELECT repo_id FROM OrgRepo "
-              "WHERE org_id = %d ORDER BY repo_id LIMIT %d OFFSET %d",
-              org_id, limit, start);
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      collect_repo_id, &id_list) < 0) {
+    sql = "SELECT repo_id FROM OrgRepo "
+        "WHERE org_id = ? ORDER BY repo_id LIMIT ? OFFSET ?";
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                       collect_repo_id, &id_list,
+                                       3, "int", org_id, "int", limit,
+                                       "int", start) < 0) {
         return NULL;
     }
 
@@ -2450,12 +2412,9 @@ int
 seaf_repo_manager_remove_org_repo_by_org_id (SeafRepoManager *mgr,
                                              int org_id)
 {
-    char sql[512];
-
-    snprintf (sql, sizeof(sql), "DELETE FROM OrgRepo WHERE org_id = %d",
-              org_id);
-
-    return seaf_db_query (mgr->seaf->db, sql);
+    return seaf_db_statement_query (mgr->seaf->db,
+                                    "DELETE FROM OrgRepo WHERE org_id = ?",
+                                    1, "int", org_id);
 }
 
 GList *
@@ -2465,17 +2424,22 @@ seaf_repo_manager_get_org_repos_by_owner (SeafRepoManager *mgr,
 {
     GList *id_list = NULL, *ptr;
     GList *ret = NULL;
-    char sql[512];
+    int rc;
 
     if (seaf_db_type(mgr->seaf->db) != SEAF_DB_TYPE_PGSQL)
-        snprintf (sql, sizeof(sql), "SELECT repo_id FROM OrgRepo "
-                  "WHERE org_id=%d AND user='%s'", org_id, user);
+        rc = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                            "SELECT repo_id FROM OrgRepo "
+                                            "WHERE org_id=? AND user=?",
+                                            collect_repo_id, &id_list,
+                                            2, "int", org_id, "string", user);
     else
-        snprintf (sql, sizeof(sql), "SELECT repo_id FROM OrgRepo "
-                  "WHERE org_id=%d AND \"user\"='%s'", org_id, user);
+        rc = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                            "SELECT repo_id FROM OrgRepo "
+                                            "WHERE org_id=? AND \"user\"=?",
+                                            collect_repo_id, &id_list,
+                                            2, "int", org_id, "string", user);
 
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, 
-                                      collect_repo_id, &id_list) < 0)
+    if (rc < 0)
         return NULL;
 
     for (ptr = id_list; ptr; ptr = ptr->next) {
@@ -2495,12 +2459,11 @@ seaf_repo_manager_get_org_id_by_repo_id (SeafRepoManager *mgr,
                                          const char *repo_id,
                                          GError **error)
 {
-    char sql[256];
+    char *sql;
 
-    snprintf (sql, sizeof(sql), "SELECT org_id FROM OrgRepo "
-              "WHERE repo_id = '%s'", repo_id);
+    sql = "SELECT org_id FROM OrgRepo WHERE repo_id = ?";
 
-    return seaf_db_get_int (mgr->seaf->db, sql);
+    return seaf_db_statement_get_int (mgr->seaf->db, sql, 1, "string", repo_id);
 }
 
 
@@ -2515,13 +2478,11 @@ seaf_repo_manager_add_org_group_repo (SeafRepoManager *mgr,
                                       const char *permission,
                                       GError **error)
 {
-    char sql[512];
-    
-    snprintf (sql, sizeof(sql),
-              "INSERT INTO OrgGroupRepo VALUES (%d, '%s', %d, '%s', '%s')",
-              org_id, repo_id, group_id, owner, permission);
-    
-    if (seaf_db_query (mgr->seaf->db, sql) < 0)
+    if (seaf_db_statement_query (mgr->seaf->db,
+                                 "INSERT INTO OrgGroupRepo VALUES (?, ?, ?, ?, ?)",
+                                 5, "int", org_id, "string", repo_id,
+                                 "int", group_id, "string", owner,
+                                 "string", permission) < 0)
         return -1;
 
     return 0;
@@ -2534,14 +2495,11 @@ seaf_repo_manager_del_org_group_repo (SeafRepoManager *mgr,
                                       int group_id,
                                       GError **error)
 {
-    char sql[512];
-    
-    snprintf (sql, sizeof(sql),
-              "DELETE FROM OrgGroupRepo WHERE "
-              "org_id=%d AND group_id=%d AND repo_id='%s'",
-              org_id, group_id, repo_id);
-
-    return seaf_db_query (mgr->seaf->db, sql);
+    return seaf_db_statement_query (mgr->seaf->db,
+                                    "DELETE FROM OrgGroupRepo WHERE "
+                                    "org_id=? AND group_id=? AND repo_id=?",
+                                    3, "int", org_id, "int", group_id,
+                                    "string", repo_id);
 }
 
 GList *
@@ -2550,14 +2508,14 @@ seaf_repo_manager_get_org_group_repoids (SeafRepoManager *mgr,
                                          int group_id,
                                          GError **error)
 {
-    char sql[512];
+    char *sql;
     GList *repo_ids = NULL;
 
-    snprintf (sql, sizeof(sql), "SELECT repo_id FROM OrgGroupRepo "
-              "WHERE org_id = %d AND group_id = %d",
-              org_id, group_id);
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_repoids_cb,
-                                      &repo_ids) < 0)
+    sql = "SELECT repo_id FROM OrgGroupRepo "
+        "WHERE org_id = ? AND group_id = ?";
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_group_repoids_cb,
+                                       &repo_ids,
+                                       2, "int", org_id, "int", group_id) < 0)
         return NULL;
 
     return g_list_reverse (repo_ids);
@@ -2569,15 +2527,15 @@ seaf_repo_manager_get_org_groups_by_repo (SeafRepoManager *mgr,
                                           const char *repo_id,
                                           GError **error)
 {
-    char sql[512];
+    char *sql;
     GList *group_ids = NULL;
     
-    snprintf (sql, sizeof(sql), "SELECT group_id FROM OrgGroupRepo "
-              "WHERE org_id = %d AND repo_id = '%s'",
-              org_id, repo_id);
+    sql = "SELECT group_id FROM OrgGroupRepo "
+        "WHERE org_id = %d AND repo_id = ?";
     
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_ids_cb,
-                                       &group_ids) < 0) {
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_group_ids_cb,
+                                       &group_ids,
+                                       2, "int", org_id, "string", repo_id) < 0) {
         g_list_free (group_ids);
         return NULL;
     }
@@ -2591,15 +2549,15 @@ seaf_repo_manager_get_org_group_perm_by_repo (SeafRepoManager *mgr,
                                               const char *repo_id,
                                               GError **error)
 {
-    char sql[512];
+    char *sql;
     GList *group_perms = NULL, *p;
     
-    snprintf (sql, sizeof(sql), "SELECT group_id, permission FROM OrgGroupRepo "
-              "WHERE org_id = %d AND repo_id = '%s'",
-              org_id, repo_id);
+    sql = "SELECT group_id, permission FROM OrgGroupRepo "
+        "WHERE org_id = ? AND repo_id = ?";
     
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_perms_cb,
-                                      &group_perms) < 0) {
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_group_perms_cb,
+                                       &group_perms,
+                                       2, "int", org_id, "string", repo_id) < 0) {
         for (p = group_perms; p != NULL; p = p->next)
             g_free (p->data);
         g_list_free (group_perms);
@@ -2617,13 +2575,11 @@ seaf_repo_manager_set_org_group_repo_perm (SeafRepoManager *mgr,
                                            const char *permission,
                                            GError **error)
 {
-    char sql[512];
-
-    snprintf (sql, sizeof(sql),
-              "UPDATE OrgGroupRepo SET permission='%s' WHERE "
-              "repo_id='%s' AND org_id=%d AND group_id=%d",
-              permission, repo_id, org_id, group_id);
-    return seaf_db_query (mgr->seaf->db, sql);
+    return seaf_db_statement_query (mgr->seaf->db,
+                                    "UPDATE OrgGroupRepo SET permission=? WHERE "
+                                    "repo_id=? AND org_id=? AND group_id=?",
+                                    4, "string", permission, "string", repo_id,
+                                    "int", org_id, "int", group_id);
 }
 
 char *
@@ -2633,14 +2589,15 @@ seaf_repo_manager_get_org_group_repo_owner (SeafRepoManager *mgr,
                                             const char *repo_id,
                                             GError **error)
 {
-    char sql[512];
+    char *sql;
     char *ret = NULL;
 
-    snprintf (sql, sizeof(sql), "SELECT owner FROM OrgGroupRepo WHERE "
-              "org_id =%d AND group_id = %d AND repo_id = '%s'",
-              org_id, group_id, repo_id);
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      get_group_repo_owner, &ret) < 0) {
+    sql = "SELECT owner FROM OrgGroupRepo WHERE "
+        "org_id =? AND group_id = ? AND repo_id = ?";
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                       get_group_repo_owner, &ret,
+                                       3, "int", org_id, "int", group_id,
+                                       "string", repo_id) < 0) {
         seaf_warning ("DB error when get repo owner from for org repo %s.\n",
                    repo_id);
         return NULL;
@@ -2655,20 +2612,18 @@ seaf_repo_manager_get_org_group_repos_by_owner (SeafRepoManager *mgr,
                                                 const char *owner,
                                                 GError **error)
 {
-    char sql[1024];
+    char *sql;
     GList *repos = NULL;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT OrgGroupRepo.repo_id, VirtualRepo.repo_id, "
-              "group_id, owner, permission, commit_id "
-              "FROM OrgGroupRepo LEFT JOIN VirtualRepo ON "
-              "OrgGroupRepo.repo_id = VirtualRepo.repo_id, "
-              "Branch "
-              "WHERE owner = '%s' AND "
-              "OrgGroupRepo.repo_id = Branch.repo_id AND Branch.name = 'master'",
-              owner);
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql, get_group_repos_cb,
-                                      &repos) < 0)
+    sql = "SELECT OrgGroupRepo.repo_id, VirtualRepo.repo_id, "
+        "group_id, owner, permission, commit_id "
+        "FROM OrgGroupRepo LEFT JOIN VirtualRepo ON "
+        "OrgGroupRepo.repo_id = VirtualRepo.repo_id, "
+        "Branch "
+        "WHERE owner = ? AND "
+        "OrgGroupRepo.repo_id = Branch.repo_id AND Branch.name = 'master'";
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_group_repos_cb,
+                                       &repos, 1, "string", owner) < 0)
         return NULL;
 
     return g_list_reverse (repos);
@@ -2702,10 +2657,10 @@ seaf_repo_manager_set_org_inner_pub_repo (SeafRepoManager *mgr,
             return -1;
         return seaf_db_query (db, sql);
     } else {
-        snprintf (sql, sizeof(sql),
-                  "REPLACE INTO OrgInnerPubRepo VALUES (%d, '%s', '%s')",
-                  org_id, repo_id, permission);
-        return seaf_db_query (db, sql);
+        return seaf_db_statement_query (db,
+                              "REPLACE INTO OrgInnerPubRepo VALUES (?, ?, ?)",
+                              3, "int", org_id, "string", repo_id,
+                              "string", permission);
     }
 
     return -1;
@@ -2716,12 +2671,10 @@ seaf_repo_manager_unset_org_inner_pub_repo (SeafRepoManager *mgr,
                                             int org_id,
                                             const char *repo_id)
 {
-    char sql[256];
-
-    snprintf (sql, sizeof(sql),
-              "DELETE FROM OrgInnerPubRepo WHERE org_id = %d AND repo_id = '%s'",
-              org_id, repo_id);
-    return seaf_db_query (mgr->seaf->db, sql);
+    return seaf_db_statement_query (mgr->seaf->db,
+                                    "DELETE FROM OrgInnerPubRepo "
+                                    "WHERE org_id = ? AND repo_id = ?",
+                                    2, "int", org_id, "string", repo_id);
 }
 
 gboolean
@@ -2729,14 +2682,12 @@ seaf_repo_manager_is_org_inner_pub_repo (SeafRepoManager *mgr,
                                          int org_id,
                                          const char *repo_id)
 {
-    char sql[256];
     gboolean db_err = FALSE;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT repo_id FROM OrgInnerPubRepo WHERE "
-              "org_id = %d AND repo_id='%s'",
-              org_id, repo_id);
-    return seaf_db_check_for_existence (mgr->seaf->db, sql, &db_err);
+    return seaf_db_statement_exists (mgr->seaf->db,
+                                     "SELECT repo_id FROM OrgInnerPubRepo WHERE "
+                                     "org_id = ? AND repo_id=?", &db_err,
+                                     2, "int", org_id, "string", repo_id);
 }
 
 GList *
@@ -2744,21 +2695,20 @@ seaf_repo_manager_list_org_inner_pub_repos (SeafRepoManager *mgr,
                                             int org_id)
 {
     GList *ret = NULL;
-    char sql[1024];
+    char *sql;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT OrgInnerPubRepo.repo_id, VirtualRepo.repo_id, "
-              "user, permission, commit_id "
-              "FROM OrgInnerPubRepo LEFT JOIN VirtualRepo ON "
-              "OrgInnerPubRepo.repo_id = VirtualRepo.repo_id, OrgRepo, Branch "
-              "WHERE OrgInnerPubRepo.org_id=%d AND "
-              "OrgInnerPubRepo.repo_id=OrgRepo.repo_id AND "
-              "OrgInnerPubRepo.org_id=OrgRepo.org_id AND "
-              "OrgInnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'",
-              org_id);
+    sql = "SELECT OrgInnerPubRepo.repo_id, VirtualRepo.repo_id, "
+        "user, permission, commit_id "
+        "FROM OrgInnerPubRepo LEFT JOIN VirtualRepo ON "
+        "OrgInnerPubRepo.repo_id = VirtualRepo.repo_id, OrgRepo, Branch "
+        "WHERE OrgInnerPubRepo.org_id=? AND "
+        "OrgInnerPubRepo.repo_id=OrgRepo.repo_id AND "
+        "OrgInnerPubRepo.org_id=OrgRepo.org_id AND "
+        "OrgInnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'";
 
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      collect_public_repos, &ret) < 0)
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                       collect_public_repos, &ret,
+                                       1, "int", org_id) < 0)
         return NULL;
 
     return g_list_reverse (ret);    
@@ -2770,33 +2720,30 @@ seaf_repo_manager_list_org_inner_pub_repos_by_owner (SeafRepoManager *mgr,
                                                      const char *user)
 {
     GList *ret = NULL, *p;
-    char sql[1024];
+    char *sql;
 
     if (seaf_db_type(mgr->seaf->db) != SEAF_DB_TYPE_PGSQL)
-        snprintf (sql, sizeof(sql),
-                  "SELECT OrgInnerPubRepo.repo_id, VirtualRepo.repo_id, "
-                  "user, permission, commit_id "
-                  "FROM OrgInnerPubRepo LEFT JOIN VirtualRepo ON "
-                  "OrgInnerPubRepo.repo_id = VirtualRepo.repo_id, OrgRepo, Branch "
-                  "WHERE OrgInnerPubRepo.org_id=%d AND user='%s' AND "
-                  "OrgInnerPubRepo.repo_id=OrgRepo.repo_id AND "
-                  "OrgInnerPubRepo.org_id=OrgRepo.org_id AND "
-                  "OrgInnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'",
-                  org_id, user);
+        sql = "SELECT OrgInnerPubRepo.repo_id, VirtualRepo.repo_id, "
+            "user, permission, commit_id "
+            "FROM OrgInnerPubRepo LEFT JOIN VirtualRepo ON "
+            "OrgInnerPubRepo.repo_id = VirtualRepo.repo_id, OrgRepo, Branch "
+            "WHERE OrgInnerPubRepo.org_id=%d AND user=? AND "
+            "OrgInnerPubRepo.repo_id=OrgRepo.repo_id AND "
+            "OrgInnerPubRepo.org_id=OrgRepo.org_id AND "
+            "OrgInnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'";
     else
-        snprintf (sql, sizeof(sql),
-                  "SELECT OrgInnerPubRepo.repo_id, VirtualRepo.repo_id, "
-                  "user, permission, commit_id "
-                  "FROM OrgInnerPubRepo LEFT JOIN VirtualRepo ON "
-                  "OrgInnerPubRepo.repo_id = VirtualRepo.repo_id, OrgRepo, Branch "
-                  "WHERE OrgInnerPubRepo.org_id=%d AND \"user\"='%s' AND "
-                  "OrgInnerPubRepo.repo_id=OrgRepo.repo_id AND "
-                  "OrgInnerPubRepo.org_id=OrgRepo.org_id AND "
-                  "OrgInnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'",
-                  org_id, user);
+        sql = "SELECT OrgInnerPubRepo.repo_id, VirtualRepo.repo_id, "
+            "user, permission, commit_id "
+            "FROM OrgInnerPubRepo LEFT JOIN VirtualRepo ON "
+            "OrgInnerPubRepo.repo_id = VirtualRepo.repo_id, OrgRepo, Branch "
+            "WHERE OrgInnerPubRepo.org_id=%d AND \"user\"=? AND "
+            "OrgInnerPubRepo.repo_id=OrgRepo.repo_id AND "
+            "OrgInnerPubRepo.org_id=OrgRepo.org_id AND "
+            "OrgInnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'";
 
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      collect_public_repos, &ret) < 0) {
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                       collect_public_repos, &ret,
+                                       2, "int", org_id, "string", user) < 0) {
         for (p = ret; p != NULL; p = p->next)
             g_object_unref (p->data);
         g_list_free (ret);
@@ -2811,13 +2758,12 @@ seaf_repo_manager_get_org_inner_pub_repo_perm (SeafRepoManager *mgr,
                                                int org_id,
                                                const char *repo_id)
 {
-    char sql[256];
+    char *sql;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT permission FROM OrgInnerPubRepo WHERE "
-              "org_id=%d AND repo_id='%s'",
-              org_id, repo_id);
-    return seaf_db_get_string(mgr->seaf->db, sql);
+    sql = "SELECT permission FROM OrgInnerPubRepo WHERE "
+        "org_id=? AND repo_id=?";
+    return seaf_db_statement_get_string(mgr->seaf->db, sql,
+                                        2, "int", org_id, "string", repo_id);
 }
 
 
