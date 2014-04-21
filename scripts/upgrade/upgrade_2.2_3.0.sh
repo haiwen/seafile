@@ -16,7 +16,7 @@ export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPA
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seafile/lib64/python2.7/site-packages:$PYTHONPATH
 export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
 
-prev_version=2.1
+prev_version=2.2
 current_version=3.0
 
 echo
@@ -130,7 +130,7 @@ function update_database() {
 function upgrade_seafile_server_latest_symlink() {
     # update the symlink seafile-server to the new server version
     seafile_server_symlink=${TOPDIR}/seafile-server-latest
-    if [[ -L "${seafile_server_symlink}" ]]; then
+    if [[ -L "${seafile_server_symlink}" || ! -e "${seafile_server_symlink}" ]]; then
         echo
         printf "updating \033[33m${seafile_server_symlink}\033[m symbolic link to \033[33m${INSTALLPATH}\033[m ...\n\n"
         echo
