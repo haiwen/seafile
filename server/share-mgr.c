@@ -356,7 +356,7 @@ seaf_share_manager_list_shared_to (SeafShareManager *mgr,
     GList *ret = NULL;
 
     sql = "SELECT to_email FROM SharedRepo WHERE "
-        "from_email='%s' AND repo_id='%s'";
+        "from_email=? AND repo_id=?";
     if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
                                        collect_shared_to, &ret,
                                        2, "string", owner, "string", repo_id) < 0) {
