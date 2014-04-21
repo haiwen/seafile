@@ -42,6 +42,7 @@ typedef struct  {
     char        remote_id[41];
     char        last_uploaded_id[41];
     GList       *id_list;
+    gboolean    visited_last_uploaded;
     gboolean    compute_success;
 } SeafileSendcommitProcPriv;
 
@@ -178,13 +179,30 @@ collect_upload_commit_ids (SeafCommit *commit, void *data, gboolean *stop)
     TransferTask *task = ((SeafileSendcommitV3Proc *)processor)->tx_task;
     USE_PRIV;
 
+    if (strcmp (priv->last_uploaded_id, commit->commit_id) == 0) {
+        priv->visited_last_uploaded = TRUE;
+        *stop = TRUE;
+        return TRUE;
+    }
+
     if (priv->remote_id[0] != 0 &&
         strcmp (priv->remote_id, commit->commit_id) == 0) {
         *stop = TRUE;
         return TRUE;
     }
 
-    if (strcmp (priv->last_uploaded_id, commit->commit_id) == 0) {
+    if (commit->parent_id &&
+        !seaf_commit_manager_commit_exists (seaf->commit_mgr,
+                                            commit->repo_id, commit->version,
+                                            commit->parent_id)) {
+        *stop = TRUE;
+        return TRUE;
+    }
+
+    if (commit->second_parent_id &&
+        !seaf_commit_manager_commit_exists (seaf->commit_mgr,
+                                            commit->repo_id, commit->version,
+                                            commit->second_parent_id)) {
         *stop = TRUE;
         return TRUE;
     }
@@ -210,13 +228,23 @@ compute_upload_commits_thread (void *vdata)
     USE_PRIV;
     gboolean ret;
 
-    ret = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
-                                                    task->repo_id,
-                                                    task->repo_version,
-                                                    task->head,
-                                                    collect_upload_commit_ids,
-                                                    processor, FALSE);
+    ret = seaf_commit_manager_traverse_commit_tree_truncated (seaf->commit_mgr,
+                                                              task->repo_id,
+                                                              task->repo_version,
+                                                              task->head,
+                                                              collect_upload_commit_ids,
+                                                              processor, FALSE);
     if (!ret) {
+        priv->compute_success = FALSE;
+        return vdata;
+    }
+
+    /* We have to make sure all commits that need to be uploaded are found locally.
+     * If we have traversed up to the last uploaded commit, we've traversed all
+     * needed commits.
+     */
+    if (!priv->visited_last_uploaded) {
+        seaf_warning ("Not all commit objects need to be uploaded exist locally.\n");
         priv->compute_success = FALSE;
         return vdata;
     }

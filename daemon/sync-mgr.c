@@ -433,7 +433,7 @@ notify_sync (SeafRepo *repo)
 {
     SeafCommit *head = NULL;
 
-    if (!seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+    if (!seaf_commit_manager_traverse_commit_tree_truncated (seaf->commit_mgr,
                                                    repo->id, repo->version,
                                                    repo->head->commit_id,
                                                    find_meaningful_commit,

@@ -183,7 +183,7 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index, gboolean ignore_errors
 
     for (ptr = branches; ptr != NULL; ptr = ptr->next) {
         branch = ptr->data;
-        gboolean res = seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
+        gboolean res = seaf_commit_manager_traverse_commit_tree_truncated (seaf->commit_mgr,
                                                                  repo->id,
                                                                  repo->version,
                                                                  branch->commit_id,
