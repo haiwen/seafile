@@ -375,6 +375,7 @@ def seaf_download(args):
     relay_port = tmp['relay_port']
     email = tmp['email']
     repo_name = tmp['repo_name']
+    version = tmp.get('repo_version', 0)
 
     print "Starting to download ..."
     print "Library %s will be downloaded to %s" % (repo, download_dir)
@@ -384,6 +385,7 @@ def seaf_download(args):
         repo_passwd = None
 
     seafile_rpc.download(repo,
+                         version,
                          relay_id,
                          repo_name.encode('utf-8'),
                          download_dir.encode('utf-8'),
@@ -451,6 +453,7 @@ def seaf_sync(args):
     relay_port = tmp['relay_port']
     email = tmp['email']
     repo_name = tmp['repo_name']
+    version = tmp.get('repo_version', 0)
 
     print "Starting to download ..."
     if encrypted == 1:
@@ -459,6 +462,7 @@ def seaf_sync(args):
         repo_passwd = None
 
     seafile_rpc.clone(repo,
+                      version,
                       relay_id,
                       repo_name.encode('utf-8'),
                       folder,
