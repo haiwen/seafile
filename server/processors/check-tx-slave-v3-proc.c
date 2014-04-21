@@ -314,7 +314,7 @@ thread_done (void *result)
 static int
 start (CcnetProcessor *processor, int argc, char **argv)
 {
-    char *repo_id, *branch_name, *token;
+    char *repo_id, *token;
     USE_PRIV;
 
     if (argc != 5) {
@@ -344,24 +344,16 @@ start (CcnetProcessor *processor, int argc, char **argv)
     }
 
     repo_id = argv[2];
-    branch_name = argv[3];
     token = argv[4];
 
-    if (strlen(repo_id) != 36) {
-        ccnet_processor_send_response (processor, SC_BAD_ARGS, SS_BAD_ARGS, NULL, 0);
-        ccnet_processor_done (processor, FALSE);
-        return -1;
-    }
-
-    if (priv->type == CHECK_TX_TYPE_UPLOAD &&
-        strcmp (branch_name, "master") != 0) {
+    if (!is_uuid_valid(repo_id)) {
         ccnet_processor_send_response (processor, SC_BAD_ARGS, SS_BAD_ARGS, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return -1;
     }
 
     memcpy (priv->repo_id, repo_id, 37);
-    priv->branch_name = g_strdup(branch_name);
+    priv->branch_name = g_strdup("master");
 
     priv->token = g_strdup(token);
     priv->client_version = client_version;

@@ -935,8 +935,9 @@ class SeahubConfigurator(AbstractConfigurator):
         return hashlib.sha1(self.admin_password).hexdigest() # pylint: disable=E1101
 
     def ask_questions(self):
-        self.ask_admin_email()
-        self.ask_admin_password()
+        pass
+        # self.ask_admin_email()
+        # self.ask_admin_password()
 
     def generate(self):
         '''Generating seahub_settings.py'''
@@ -1121,9 +1122,6 @@ def report_config():
     seafile port:           %(seafile_port)s
     httpserver port:        %(httpserver_port)s
 
-    admin email:            %(admin_email)s
-    admin password:         ******
-
     database:               %(use_existing_db)s
     ccnet database:         %(ccnet_db_name)s
     seafile database:       %(seafile_db_name)s
@@ -1211,7 +1209,7 @@ def main():
 
     seahub_config.do_syncdb()
     seahub_config.prepare_avatar_dir()
-    db_config.create_seahub_admin()
+    # db_config.create_seahub_admin()
     user_manuals_handler.copy_user_manuals()
     create_seafile_server_symlink()
 
