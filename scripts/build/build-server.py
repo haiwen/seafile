@@ -36,6 +36,7 @@ import re
 import subprocess
 import optparse
 import atexit
+import platform
 
 ####################
 ### Global variables
@@ -797,7 +798,9 @@ def gen_tarball():
     # 32-bit: seafile-server_1.2.2_i386.tar.gz
     version = conf[CONF_VERSION]
     arch = os.uname()[-1].replace('_', '-')
-    if arch != 'x86-64':
+    if 'arm' in platform.machine():
+        arch = 'pi'
+    elif arch != 'x86-64':
         arch = 'i386'
 
     dbg = ''
