@@ -4,6 +4,7 @@ import os
 import sys
 import sqlite3
 import subprocess
+import ccnet
 
 # Directory layout:
 #
@@ -87,6 +88,7 @@ def apply_sqls(db_path, sql_path):
                 conn.execute(line)
 
 def upgrade_db(version):
+    ensure_server_not_running()
     print 'upgrading databases ...'
     ccnet_db = os.path.join(ccnet_dir, 'ccnet.db')
     seafile_db = os.path.join(seafile_dir, 'seafile.db')
@@ -111,5 +113,15 @@ def upgrade_db(version):
     if os.path.exists(seahub_sql):
         print '    upgrading seahub databases ...'
         apply_sqls(seahub_db, seahub_sql)
+
+def ensure_server_not_running():
+    client = ccnet.SyncClient(ccnet_dir)
+    try:
+        client.connect_daemon()
+    except ccnet.NetworkError:
+        pass
+    else:
+        raise Exception('Seafile server is running! You must turn it off before gc!')
+
 
 read_seafserv_dir()
