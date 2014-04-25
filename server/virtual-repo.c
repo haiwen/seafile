@@ -22,6 +22,7 @@
 #include "seafile-error.h"
 
 #include "seaf-db.h"
+#include "diff-simple.h"
 
 #define MAX_RUNNING_TASKS 5
 #define SCHEDULE_INTERVAL 1000  /* 1s */
@@ -470,11 +471,13 @@ seaf_repo_manager_get_virtual_info_by_origin (SeafRepoManager *mgr,
 }
 
 static void
-set_virtual_repo_base_commit (SeafRepo *repo, const char *base_commit_id)
+set_virtual_repo_base_commit_path (const char *vrepo_id, const char *base_commit_id,
+                                   const char *new_path)
 {
     seaf_db_statement_query (seaf->db,
-                   "UPDATE VirtualRepo SET base_commit=? WHERE repo_id=?",
-                   2, "string", base_commit_id, "string", repo->id);
+                             "UPDATE VirtualRepo SET base_commit=?, path=? WHERE repo_id=?",
+                             3, "string", base_commit_id, "string", new_path,
+                             "string", vrepo_id);
 }
 
 int
@@ -503,6 +506,85 @@ seaf_repo_manager_merge_virtual_repo (SeafRepoManager *mgr,
 
     string_list_free (vrepos);
     return ret;
+}
+
+/*
+ * If the missing virtual repo is renamed, update database entry;
+ * otherwise delete the virtual repo.
+ */
+static void
+handle_missing_virtual_repo (SeafRepoManager *mgr,
+                             SeafRepo *repo, SeafCommit *head, SeafVirtRepo *vinfo)
+{
+    SeafCommit *parent = NULL;
+    char *old_dir_id = NULL;
+    GList *diff_res = NULL, *ptr;
+    DiffEntry *de;
+
+    parent = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             head->repo_id, head->version,
+                                             head->parent_id);
+    if (!parent) {
+        seaf_warning ("Failed to find commit %s.\n", head->parent_id);
+        return;
+    }
+
+    GError *error = NULL;
+    old_dir_id = seaf_fs_manager_get_seafdir_id_by_path (seaf->fs_mgr,
+                                                         repo->store_id, repo->version,
+                                                         parent->root_id,
+                                                         vinfo->path, &error);
+    if (error) {
+        if (error->code == SEAF_ERR_PATH_NO_EXIST) {
+            seaf_warning ("Failed to find %s under commit %s.\n",
+                          vinfo->path, parent->commit_id);
+            seaf_debug ("Delete virtual repo %.10s.\n", vinfo->repo_id);
+            seaf_repo_manager_del_repo (mgr, vinfo->repo_id, FALSE);
+        }
+        g_clear_error (&error);
+        seaf_commit_unref (parent);
+        return;
+    }
+
+    int rc = diff_commits (parent, head, &diff_res, TRUE);
+    if (rc < 0) {
+        seaf_warning ("Failed to diff commit %s to %s.\n",
+                      parent->commit_id, head->commit_id);
+        seaf_commit_unref (parent);
+        return;
+    }
+
+    char de_id[41];
+    char *new_path;
+    gboolean is_renamed = FALSE;
+
+    for (ptr = diff_res; ptr; ptr = ptr->next) {
+        de = ptr->data;
+        if (de->status == DIFF_STATUS_DIR_ADDED) {
+            rawdata_to_hex (de->sha1, de_id, 20);
+            if (strcmp (de_id, old_dir_id) == 0) {
+                new_path = g_strconcat ("/", de->name, NULL);
+                seaf_debug ("Updating path of virtual repo %s to %s.\n",
+                            vinfo->repo_id, new_path);
+                set_virtual_repo_base_commit_path (vinfo->repo_id,
+                                                   head->commit_id, new_path);
+                is_renamed = TRUE;
+                break;
+            }
+        }
+    }
+
+    for (ptr = diff_res; ptr; ptr = ptr->next)
+        diff_entry_free ((DiffEntry *)ptr->data);
+    g_list_free (diff_res);
+
+    if (!is_renamed) {
+        seaf_debug ("Delete virtual repo %.10s.\n", vinfo->repo_id);
+        seaf_repo_manager_del_repo (mgr, vinfo->repo_id, FALSE);
+    }
+
+    seaf_commit_unref (parent);
+    g_free (old_dir_id);
 }
 
 void
@@ -543,8 +625,7 @@ seaf_repo_manager_cleanup_virtual_repos (SeafRepoManager *mgr,
                                                    &error);
         if (error) {
             if (error->code == SEAF_ERR_PATH_NO_EXIST) {
-                seaf_debug ("Delete virtual repo %.10s.\n", vinfo->repo_id);
-                seaf_repo_manager_del_repo (mgr, vinfo->repo_id, FALSE);
+                handle_missing_virtual_repo (mgr, repo, head, vinfo);
             }
             g_clear_error (&error);
         } else
@@ -664,7 +745,8 @@ static void *merge_virtual_repo (void *vtask)
             goto out;
         }
 
-        set_virtual_repo_base_commit (repo, orig_repo->head->commit_id);
+        set_virtual_repo_base_commit_path (repo->id, orig_repo->head->commit_id,
+                                           vinfo->path);
     } else if (strcmp (base_root, orig_root) == 0) {
         /* Origin not changed, virutal repo changed. */
         seaf_debug ("Origin not changed, virutal repo changed.\n");
@@ -682,7 +764,7 @@ static void *merge_virtual_repo (void *vtask)
             goto out;
         }
 
-        set_virtual_repo_base_commit (repo, new_base_commit);
+        set_virtual_repo_base_commit_path (repo->id, new_base_commit, vinfo->path);
 
         /* Since origin repo is updated, we have to merge it with other
          * virtual repos if necessary. But we don't need to merge with
@@ -748,7 +830,7 @@ static void *merge_virtual_repo (void *vtask)
             goto out;
         }
 
-        set_virtual_repo_base_commit (repo, new_base_commit);
+        set_virtual_repo_base_commit_path (repo->id, new_base_commit, vinfo->path);
 
         seaf_repo_manager_cleanup_virtual_repos (mgr, vinfo->origin_repo_id);
         seaf_repo_manager_merge_virtual_repo (mgr,
