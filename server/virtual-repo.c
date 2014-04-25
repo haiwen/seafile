@@ -529,23 +529,6 @@ handle_missing_virtual_repo (SeafRepoManager *mgr,
         return;
     }
 
-    GError *error = NULL;
-    old_dir_id = seaf_fs_manager_get_seafdir_id_by_path (seaf->fs_mgr,
-                                                         repo->store_id, repo->version,
-                                                         parent->root_id,
-                                                         vinfo->path, &error);
-    if (error) {
-        if (error->code == SEAF_ERR_PATH_NO_EXIST) {
-            seaf_warning ("Failed to find %s under commit %s.\n",
-                          vinfo->path, parent->commit_id);
-            seaf_debug ("Delete virtual repo %.10s.\n", vinfo->repo_id);
-            seaf_repo_manager_del_repo (mgr, vinfo->repo_id, FALSE);
-        }
-        g_clear_error (&error);
-        seaf_commit_unref (parent);
-        return;
-    }
-
     int rc = diff_commits (parent, head, &diff_res, TRUE);
     if (rc < 0) {
         seaf_warning ("Failed to diff commit %s to %s.\n",
@@ -554,37 +537,81 @@ handle_missing_virtual_repo (SeafRepoManager *mgr,
         return;
     }
 
-    char de_id[41];
-    char *new_path;
+    char *path = vinfo->path, *sub_path, *p, *par_path;
     gboolean is_renamed = FALSE;
+    p = &path[strlen(path)];
+    par_path = g_strdup(path);
+    sub_path = NULL;
 
-    for (ptr = diff_res; ptr; ptr = ptr->next) {
-        de = ptr->data;
-        if (de->status == DIFF_STATUS_DIR_ADDED) {
-            rawdata_to_hex (de->sha1, de_id, 20);
-            if (strcmp (de_id, old_dir_id) == 0) {
-                new_path = g_strconcat ("/", de->name, NULL);
-                seaf_debug ("Updating path of virtual repo %s to %s.\n",
-                            vinfo->repo_id, new_path);
-                set_virtual_repo_base_commit_path (vinfo->repo_id,
-                                                   head->commit_id, new_path);
-                is_renamed = TRUE;
-                break;
+    while (1) {
+        GError *error = NULL;
+        old_dir_id = seaf_fs_manager_get_seafdir_id_by_path (seaf->fs_mgr,
+                                                             repo->store_id,
+                                                             repo->version,
+                                                             parent->root_id,
+                                                             par_path, &error);
+        if (error) {
+            if (error->code == SEAF_ERR_PATH_NO_EXIST) {
+                seaf_warning ("Failed to find %s under commit %s.\n",
+                              par_path, parent->commit_id);
+                seaf_debug ("Delete virtual repo %.10s.\n", vinfo->repo_id);
+                seaf_repo_manager_del_repo (mgr, vinfo->repo_id, FALSE);
+            }
+            g_clear_error (&error);
+            goto out;
+        }
+
+        char de_id[41];
+        char *new_path;
+
+        for (ptr = diff_res; ptr; ptr = ptr->next) {
+            de = ptr->data;
+            if (de->status == DIFF_STATUS_DIR_ADDED) {
+                rawdata_to_hex (de->sha1, de_id, 20);
+                if (strcmp (de_id, old_dir_id) == 0) {
+                    if (sub_path != NULL)
+                        new_path = g_strconcat ("/", de->name, "/", sub_path, NULL);
+                    else
+                        new_path = g_strconcat ("/", de->name, NULL);
+                    seaf_debug ("Updating path of virtual repo %s to %s.\n",
+                                vinfo->repo_id, new_path);
+                    set_virtual_repo_base_commit_path (vinfo->repo_id,
+                                                       head->commit_id, new_path);
+                    is_renamed = TRUE;
+                    break;
+                }
             }
         }
-    }
+        g_free (old_dir_id);
 
-    for (ptr = diff_res; ptr; ptr = ptr->next)
-        diff_entry_free ((DiffEntry *)ptr->data);
-    g_list_free (diff_res);
+        if (is_renamed)
+            break;
+
+        while (--p != path && *p != '/');
+
+        if (p == path)
+            break;
+
+        g_free (par_path);
+        g_free (sub_path);
+        par_path = g_strndup (path, p - path);
+        sub_path = g_strdup (p + 1);
+    }
 
     if (!is_renamed) {
         seaf_debug ("Delete virtual repo %.10s.\n", vinfo->repo_id);
         seaf_repo_manager_del_repo (mgr, vinfo->repo_id, FALSE);
     }
 
+out:
+    g_free (par_path);
+    g_free (sub_path);
+
+    for (ptr = diff_res; ptr; ptr = ptr->next)
+        diff_entry_free ((DiffEntry *)ptr->data);
+    g_list_free (diff_res);
+
     seaf_commit_unref (parent);
-    g_free (old_dir_id);
 }
 
 void

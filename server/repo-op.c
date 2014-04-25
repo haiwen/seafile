@@ -1987,7 +1987,6 @@ cross_repo_move (const char *src_repo_id,
     if (task)
         task->successful = TRUE;
 
-    seaf_repo_manager_cleanup_virtual_repos (seaf->repo_mgr, src_repo_id);
     seaf_repo_manager_merge_virtual_repo (seaf->repo_mgr, src_repo_id, NULL);
 
 out:
@@ -2117,7 +2116,6 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
                 goto out;
             }
 
-            seaf_repo_manager_cleanup_virtual_repos (mgr, src_repo_id);
             seaf_repo_manager_merge_virtual_repo (mgr, src_repo_id, NULL);
 
             update_repo_size (dst_repo_id);
