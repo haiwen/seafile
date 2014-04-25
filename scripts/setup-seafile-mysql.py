@@ -401,6 +401,9 @@ Please choose a way to initialize seafile databases:
             if not re.match(r'^[a-zA-Z0-9_\-\.]+$', host):
                 raise InvalidAnswer('%s is not a valid host' % Utils.highlight(host))
 
+            if host == 'localhost':
+                host = '127.0.0.1'
+
             question = 'What is the port of mysql server?'
             key = 'mysql server port'
             default = '3306'
