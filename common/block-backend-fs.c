@@ -215,7 +215,8 @@ block_backend_fs_stat_block (BlockBackend *bend,
 
     get_block_path (bend, block_id, path, store_id, version);
     if (seaf_stat (path, &st) < 0) {
-        seaf_warning ("[block bend] Failed to stat block %s.\n", block_id);
+        seaf_warning ("[block bend] Failed to stat block %s at %s: %s.\n",
+                      block_id, path, strerror(errno));
         return NULL;
     }
     block_md = g_new0(BMetadata, 1);

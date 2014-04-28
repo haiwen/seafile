@@ -901,7 +901,6 @@ do_block(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
     /* block not found. */
     if (!found) {
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
-        seafile_unref (file);
         return 0;
     }
     evhtp_headers_add_header(req->headers_out,
