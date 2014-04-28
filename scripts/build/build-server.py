@@ -333,6 +333,7 @@ def validate_args(usage, options):
     check_targz_src('seafile', seafile_version, srcdir)
     check_targz_src('seahub', seafile_version, srcdir)
     check_targz_src_no_version('seafdav', srcdir)
+    check_targz_src_no_version('seafobj', srcdir)
 
     # check_pdf2htmlEX()
 
@@ -541,6 +542,11 @@ def copy_user_manuals():
 def copy_seafdav():
     dst_dir = os.path.join(conf[CONF_BUILDDIR], 'seafile-server', 'seahub', 'thirdpart')
     tarball = os.path.join(conf[CONF_SRCDIR], 'seafdav.tar.gz')
+    if run('tar xf %s -C %s' % (tarball, dst_dir)) != 0:
+        error('failed to uncompress %s' % tarball)
+
+    dst_dir = os.path.join(conf[CONF_BUILDDIR], 'seafile-server', 'seahub', 'thirdpart')
+    tarball = os.path.join(conf[CONF_SRCDIR], 'seafobj.tar.gz')
     if run('tar xf %s -C %s' % (tarball, dst_dir)) != 0:
         error('failed to uncompress %s' % tarball)
 
