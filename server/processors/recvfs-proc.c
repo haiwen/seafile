@@ -262,6 +262,7 @@ static void
 on_fs_write (OSAsyncResult *res, void *cb_data)
 {
     CcnetProcessor *processor = cb_data;
+    USE_PRIV;
 
     if (!res->success) {
         g_warning ("[recvfs] Failed to write %s.\n", res->obj_id);
@@ -270,6 +271,8 @@ on_fs_write (OSAsyncResult *res, void *cb_data)
         ccnet_processor_done (processor, FALSE);
         return;
     }
+
+    --priv->pending_objects;
 
 #ifdef DEBUG
     seaf_debug ("[recvfs] Wrote fs object %s.\n", res->obj_id);
@@ -444,8 +447,6 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
     }
 
     seaf_debug ("[recvfs] Recv fs object %.8s.\n", pack->id);
-
-    --priv->pending_objects;
 
     fs_obj = seaf_fs_object_from_data(pack->id,
                                       pack->object, clen - sizeof(ObjectPack),
