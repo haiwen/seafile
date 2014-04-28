@@ -655,7 +655,7 @@ init_file_cdc (CDCFileDescriptor *cdc,
         return -1;
     }
 
-    memcpy (cdc->repo_id, repo_id, 26);
+    memcpy (cdc->repo_id, repo_id, 36);
     cdc->version = version;
 
     return 0;
