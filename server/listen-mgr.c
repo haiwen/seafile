@@ -52,7 +52,7 @@ get_listen_port (SeafileSession *session)
         port = atoi(port_str);
     }
 
-    if (port < 1024 || port > 65535)
+    if (port <= 0 || port > 65535)
         port = DEFAULT_SERVER_PORT;
 
     g_free(port_str);
