@@ -254,7 +254,24 @@ class Seafile(Project):
     def get_version(self):
         return conf[CONF_SEAFILE_VERSION]
 
+    def update_cli_version(self):
+        '''Substitute the version number in seaf-cli'''
+        cli_py = os.path.join(self.projdir, 'app', 'seaf-cli')
+        with open(cli_py, 'r') as fp:
+            lines = fp.readlines()
+
+        ret = []
+        for line in lines:
+            old = '''SEAF_CLI_VERSION = ""'''
+            new = '''SEAF_CLI_VERSION = "%s"''' % conf[CONF_VERSION]
+            line = line.replace(old, new)
+            ret.append(line)
+
+        with open(cli_py, 'w') as fp:
+            fp.writelines(ret)
+
     def before_build(self):
+        self.update_cli_version()
         macros = {}
         # SET SEAFILE_SOURCE_COMMIT_ID, so it can be printed in the log
         macros['SEAFILE_SOURCE_COMMIT_ID'] = '\\"%s\\"' % self.get_source_commit_id()

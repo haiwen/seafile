@@ -183,8 +183,29 @@ def urlopen(url, data=None, headers=None):
 
     return resp.read()
 
-def get_token(url, username, password):
-    data = { 'username': username, 'password': password }
+SEAF_CLI_VERSION = ""
+
+def get_peer_id(conf_dir):
+    pool = ccnet.ClientPool(conf_dir)
+    ccnet_rpc = ccnet.CcnetRpcClient(pool)
+    info = ccnet_rpc.get_session_info()
+    return info.id
+
+def get_token(url, username, password, conf_dir):
+    platform = 'linux'
+    device_id = get_peer_id(conf_dir)
+    device_name = 'terminal-' + os.uname()[1]
+    client_version = SEAF_CLI_VERSION
+    platform_version = ''
+    data = {
+        'username': username,
+        'password': password,
+        'platform': platform,
+        'device_id': device_id,
+        'device_name': device_name,
+        'client_version': client_version,
+        'platform_version': platform_version,
+    }
     token_json = urlopen("%s/api2/auth-token/" % url, data=data)
     tmp = json.loads(token_json)
     token = tmp['token']
@@ -360,7 +381,7 @@ def seaf_download(args):
         password = getpass.getpass("Enter password for user %s : " % username)
 
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
-    token = get_token("%s/api2/auth-token/" % url, username, password)
+    token = get_token(url, username, password, conf_dir)
 
     tmp = get_repo_downlod_info("%s/api2/repos/%s/download-info/" % (url, repo), token)
 
@@ -439,7 +460,7 @@ def seaf_sync(args):
     if not password:
         password = getpass.getpass("Enter password for user %s : " % username)
 
-    token = get_token(url, username, password)
+    token = get_token(url, username, password, conf_dir)
     tmp = get_repo_downlod_info("%s/api2/repos/%s/download-info/" % (url, repo), token)
 
     encrypted = tmp['encrypted']
@@ -587,9 +608,12 @@ def create_repo(url, token, args):
     repo_info = json.loads(repo_info_json)
     return repo_info['repo_id']
 
-
 def seaf_create(args):
     '''Create a library'''
+    conf_dir = DEFAULT_CONF_DIR
+    if args.confdir:
+        conf_dir = args.confdir
+    conf_dir = os.path.abspath(conf_dir)
 
     # check username and password
     username = args.username
@@ -606,7 +630,7 @@ def seaf_create(args):
         sys.exit(1)
 
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
-    token = get_token("%s/api2/auth-token/" % url, username, password)
+    token = get_token(url, username, password, conf_dir)
 
     repo_id = create_repo("%s/api2/repos/" % (url), token, args)
     print repo_id
@@ -688,6 +712,7 @@ def main():
     parser_create.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_create.add_argument('-u', '--username', help='username', type=str)
     parser_create.add_argument('-p', '--password', help='password', type=str)
+    parser_create.add_argument('-c', '--confdir', help='the config directory', type=str)
 
     if len(sys.argv) == 1:
         print parser.format_help()
