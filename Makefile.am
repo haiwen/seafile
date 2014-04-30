@@ -2,11 +2,9 @@ MAKE_CLIENT =
 
 if COMPILE_CLIENT
   MAKE_CLIENT += daemon
-  MAKE_data = data # Caution: don't use MAKE_DATA
 endif
 
 if WIN32
-  MAKE_data =
   MAKE_CONTROLLER =
 else
   MAKE_CONTROLLER = controller
@@ -23,11 +21,11 @@ if COMPILE_SERVER
 endif
 
 SUBDIRS = include lib common app python tests doc \
-	$(MAKE_CLIENT) $(MAKE_SERVER) $(MAKE_data)
+	$(MAKE_CLIENT) $(MAKE_SERVER)
 
 DIST_SUBDIRS = include lib common app python tests \
 	daemon server tools httpserver controller \
-	data doc fuse
+	doc fuse
 
 INTLTOOL = \
 	intltool-extract.in \
