@@ -39,6 +39,7 @@
 #include "processors/getcommit-v2-proc.h"
 #include "processors/getcommit-v3-proc.h"
 #include "processors/sendcommit-v3-proc.h"
+#include "processors/sendcommit-v3-new-proc.h"
 #include "processors/checkbl-proc.h"
 #include "processors/getcs-v2-proc.h"
 
@@ -774,6 +775,11 @@ static void register_processors (CcnetClient *client)
     ccnet_proc_factory_register_processor (client->proc_factory,
                                            "seafile-sendcommit-v3",
                                            SEAFILE_TYPE_SENDCOMMIT_V3_PROC);
+
+    ccnet_proc_factory_register_processor (client->proc_factory,
+                                           "seafile-sendcommit-v3-new",
+                                           SEAFILE_TYPE_SENDCOMMIT_V3_NEW_PROC);
+
     ccnet_proc_factory_register_processor (client->proc_factory,
                                            "seafile-checkbl",
                                            SEAFILE_TYPE_CHECKBL_PROC);
@@ -1847,8 +1853,12 @@ start_sendcommit_proc (TransferTask *task, const char *peer_id, GCallback done_c
 {
     CcnetProcessor *processor;
 
-    processor = ccnet_proc_factory_create_remote_master_processor (
+    if (task->protocol_version <= 5)
+        processor = ccnet_proc_factory_create_remote_master_processor (
                     seaf->session->proc_factory, "seafile-sendcommit-v3", peer_id);
+    else
+        processor = ccnet_proc_factory_create_remote_master_processor (
+                    seaf->session->proc_factory, "seafile-sendcommit-v3-new", peer_id);
     if (!processor) {
         seaf_warning ("failed to create sendcommit proc.\n");
         return -1;

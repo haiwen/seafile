@@ -33,6 +33,7 @@ proc_headers = $(addprefix processors/, \
 	check-tx-slave-proc.h \
 	getcommit-v2-proc.h \
 	sendcommit-v3-proc.h \
+	sendcommit-v3-new-proc.h \
 	getrepoemailtoken-proc.h \
 	getcs-v2-proc.h \
 	checkbl-proc.h \
@@ -113,6 +114,7 @@ common_src = \
 	processors/check-tx-slave-proc.c \
 	processors/getcommit-v2-proc.c \
 	processors/sendcommit-v3-proc.c \
+	processors/sendcommit-v3-new-proc.c \
 	processors/getrepoemailtoken-proc.c \
 	processors/getcs-v2-proc.c \
 	processors/checkbl-proc.c \
