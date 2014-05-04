@@ -44,7 +44,7 @@ Stop seafile client.
     seaf-cli stop [-c <config-dir>]
 
 
-Download
+download
 --------
 Download a library from seafile server
 
@@ -83,6 +83,7 @@ import time
 import getpass
 import urllib
 import urllib2
+import re
 
 import ccnet
 import seafile
@@ -355,7 +356,15 @@ def clone_from_server(clone_command, args, clone_dir):
         print "Invalid config directory"
         sys.exit(1)
 
-    repo = args.library
+    # example of id: "cbb03d4a-85d0-4b68-9a5e-29b2c2b06465"
+    library_id_re = "[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}"
+    if re.match(library_id_re, args.library):
+        repo = args.library
+    else:
+        match = re.search("/repo/(%s)" % library_id_re, args.library)
+        if match:
+            args.server = args.library[:match.start()]
+            repo = match.group(1)
     if not repo:
         print "Library id is required"
         sys.exit(1)
@@ -622,7 +631,7 @@ def main():
                                          help='Download a library from seafile server')
     parser_download.set_defaults(func=seaf_download)
     parser_download.add_argument('-c', '--confdir', help='the config directory', type=str)
-    parser_download.add_argument('-l', '--library', help='library id', type=str)
+    parser_download.add_argument('-l', '--library', help='library id or url', type=str)
     parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
     parser_download.add_argument('-u', '--username', help='username', type=str)
@@ -634,7 +643,7 @@ def main():
                                         help='Sync a library with an existing foler')
     parser_sync.set_defaults(func=seaf_sync)
     parser_sync.add_argument('-c', '--confdir', help='the config directory', type=str)
-    parser_sync.add_argument('-l', '--library', help='library id', type=str)
+    parser_sync.add_argument('-l', '--library', help='library id or url', type=str)
     parser_sync.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_sync.add_argument('-u', '--username', help='username', type=str)
     parser_sync.add_argument('-p', '--password', help='password', type=str)
