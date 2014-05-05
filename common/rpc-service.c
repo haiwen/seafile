@@ -2675,9 +2675,9 @@ seafile_get_file_size (const char *store_id, int version,
 {
     gint64 file_size;
 
-    if (!file_id) {
+    if (!store_id || !is_uuid_valid(store_id) || !file_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
-                     "File id can not be NULL");
+                     "Store id and file id can not be NULL");
         return -1;
     }
 
@@ -2697,9 +2697,9 @@ seafile_get_dir_size (const char *store_id, int version,
 {
     gint64 dir_size;
 
-    if (!dir_id) {
+    if (!store_id || !is_uuid_valid (store_id) || !dir_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
-                     "Dir id can not be NULL");
+                     "Store id and dir id can not be NULL");
         return -1;
     }
 
