@@ -29,33 +29,9 @@ gint64
 seaf_quota_manager_get_user_quota (SeafQuotaManager *mgr,
                                    const char *user);
 
-/* Set/get quota for a business acount. */
-int
-seaf_quota_manager_set_org_quota (SeafQuotaManager *mgr,
-                                  int org_id,
-                                  gint64 quota);
-
-gint64
-seaf_quota_manager_get_org_quota (SeafQuotaManager *mgr,
-                                  int org_id);
-
 gint64
 seaf_quota_manager_get_user_share_usage (SeafQuotaManager *mgr,
                                          const char *user);
-
-/* Set/get quota for a user in a business account.
- * The caller should make sure the user is a member of the organization.
- */
-int
-seaf_quota_manager_set_org_user_quota (SeafQuotaManager *mgr,
-                                       int org_id,
-                                       const char *user,
-                                       gint64 quota);
-
-gint64
-seaf_quota_manager_get_org_user_quota (SeafQuotaManager *mgr,
-                                       int org_id,
-                                       const char *user);
 
 /*
  * Check if @repo_id still has free space for upload.
@@ -66,13 +42,5 @@ seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
 
 gint64
 seaf_quota_manager_get_user_usage (SeafQuotaManager *mgr, const char *user);
-
-gint64
-seaf_quota_manager_get_org_usage (SeafQuotaManager *mgr, int org_id);
-
-gint64
-seaf_quota_manager_get_org_user_usage (SeafQuotaManager *mgr,
-                                       int org_id,
-                                       const char *user);
 
 #endif

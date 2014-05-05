@@ -397,15 +397,6 @@ seaf_repo_manager_create_new_repo (SeafRepoManager *mgr,
                                    GError **error);
 
 char *
-seaf_repo_manager_create_org_repo (SeafRepoManager *mgr,
-                                   const char *repo_name,
-                                   const char *repo_desc,
-                                   const char *user,
-                                   const char *passwd,
-                                   int org_id,
-                                   GError **error);
-
-char *
 seaf_repo_manager_create_enc_repo (SeafRepoManager *mgr,
                                    const char *repo_id,
                                    const char *repo_name,
@@ -415,18 +406,6 @@ seaf_repo_manager_create_enc_repo (SeafRepoManager *mgr,
                                    const char *random_key,
                                    int enc_version,
                                    GError **error);
-
-char *
-seaf_repo_manager_create_org_enc_repo (SeafRepoManager *mgr,
-                                       const char *repo_id,
-                                       const char *repo_name,
-                                       const char *repo_desc,
-                                       const char *user,
-                                       const char *magic,
-                                       const char *random_key,
-                                       int enc_version,
-                                       int org_id,
-                                       GError **error);
 
 /* Give a repo and a path in this repo, returns a list of commits, where every
  * commit contains a unique version of the file. The commits are sorted in
@@ -601,123 +580,6 @@ seaf_repo_manager_list_inner_pub_repos_by_owner (SeafRepoManager *mgr,
 char *
 seaf_repo_manager_get_inner_pub_repo_perm (SeafRepoManager *mgr,
                                            const char *repo_id);
-
-/* Org repos */
-
-int
-seaf_repo_manager_get_repo_org (SeafRepoManager *mgr,
-                                const char *repo_id);
-
-char *
-seaf_repo_manager_get_org_repo_owner (SeafRepoManager *mgr,
-                                      const char *repo_id);
-
-GList *
-seaf_repo_manager_get_org_repo_list (SeafRepoManager *mgr,
-                                     int org_id,
-                                     int start,
-                                     int limit);
-
-int
-seaf_repo_manager_remove_org_repo_by_org_id (SeafRepoManager *mgr,
-                                             int org_id);
-
-GList *
-seaf_repo_manager_get_org_repos_by_owner (SeafRepoManager *mgr,
-                                          int org_id,
-                                          const char *user);
-
-int
-seaf_repo_manager_get_org_id_by_repo_id (SeafRepoManager *mgr,
-                                         const char *repo_id,
-                                         GError **error);
-
-/* Org group repos */
-
-int
-seaf_repo_manager_add_org_group_repo (SeafRepoManager *mgr,
-                                      const char *repo_id,
-                                      int org_id,
-                                      int group_id,
-                                      const char *owner,
-                                      const char *permission,
-                                      GError **error);
-int
-seaf_repo_manager_del_org_group_repo (SeafRepoManager *mgr,
-                                      const char *repo_id,
-                                      int org_id,
-                                      int group_id,
-                                      GError **error);
-
-GList *
-seaf_repo_manager_get_org_group_repoids (SeafRepoManager *mgr,
-                                         int org_id,
-                                         int group_id,
-                                         GError **error);
-
-GList *
-seaf_repo_manager_get_org_groups_by_repo (SeafRepoManager *mgr,
-                                          int org_id,
-                                          const char *repo_id,
-                                          GError **error);
-
-GList *
-seaf_repo_manager_get_org_group_perm_by_repo (SeafRepoManager *mgr,
-                                              int org_id,
-                                              const char *repo_id,
-                                              GError **error);
-
-int
-seaf_repo_manager_set_org_group_repo_perm (SeafRepoManager *mgr,
-                                           const char *repo_id,
-                                           int org_id,
-                                           int group_id,
-                                           const char *permission,
-                                           GError **error);
-
-char *
-seaf_repo_manager_get_org_group_repo_owner (SeafRepoManager *mgr,
-                                            int org_id,
-                                            int group_id,
-                                            const char *repo_id,
-                                            GError **error);
-
-GList *
-seaf_repo_manager_get_org_group_repos_by_owner (SeafRepoManager *mgr,
-                                                int org_id,
-                                                const char *owner,
-                                                GError **error);
-
-/* Org inner public repos */
-
-int
-seaf_repo_manager_set_org_inner_pub_repo (SeafRepoManager *mgr,
-                                          int org_id,
-                                          const char *repo_id,
-                                          const char *permission);
-
-int
-seaf_repo_manager_unset_org_inner_pub_repo (SeafRepoManager *mgr,
-                                            int org_id,
-                                            const char *repo_id);
-
-gboolean
-seaf_repo_manager_is_org_inner_pub_repo (SeafRepoManager *mgr,
-                                         int org_id,
-                                         const char *repo_id);
-
-GList *
-seaf_repo_manager_list_org_inner_pub_repos (SeafRepoManager *mgr, int org_id);
-
-GList *
-seaf_repo_manager_list_org_inner_pub_repos_by_owner (SeafRepoManager *mgr,
-                                                     int org_id,
-                                                     const char *user);
-
-char *
-seaf_repo_manager_get_org_inner_pub_repo_perm (SeafRepoManager *mgr,
-                                               int org_id,
-                                               const char *repo_id);
 
 /*
  * Comprehensive repo permission checker.
