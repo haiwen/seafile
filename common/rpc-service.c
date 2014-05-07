@@ -3362,6 +3362,9 @@ seafile_check_permission (const char *repo_id, const char *user, GError **error)
         return NULL;
     }
 
+    if (strlen(user) == 0)
+        return NULL;
+
     return seaf_repo_manager_check_permission (seaf->repo_mgr,
                                                repo_id, user, error);
 }
