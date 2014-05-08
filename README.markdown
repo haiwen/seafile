@@ -54,7 +54,7 @@ Differences from Git:
 4. File transfer can be paused and resumed.
 5. Support for different storage backends on the server side.
 6. Support for downloading from multiple block servers to accelerate file transfer.
-7. More user-friendly file conflict handling. (Seafile adds the user's name as a suffix to conflicted files.)
+7. More user-friendly file conflict handling. (Seafile adds the user's name as a suffix to conflicting files.)
 8. Graceful handling of files the user modifies while auto-sync is running. Git is not designed to work in these cases.
 
 Build and Run
