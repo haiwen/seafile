@@ -5,7 +5,7 @@ Seafile is a next-generation open source cloud storage system, with advanced sup
 
 Collections of files are called libraries, and each library can be synced separately. A library can be encrypted with a user chosen password. This password is not stored on the server, so even the server admin can't view a file's contents.
 
-Seafile lets you create groups with file syncing, wiki, and discussion to enable easy collaboration around documents within a team. 
+Seafile allows users to create groups with file syncing, wiki, and discussion to enable easy collaboration around documents within a team. 
 
 Feature Summary
 ===============
