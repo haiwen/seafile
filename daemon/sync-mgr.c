@@ -609,7 +609,7 @@ start_fetch_if_necessary (SyncTask *task)
 struct MergeResult {
     SyncTask *task;
     gboolean success;
-    gboolean real_merge;
+    int merge_status;
     gboolean worktree_dirty;
 };
 
@@ -674,7 +674,7 @@ merge_job (void *vtask)
      * For 2 and 4, the errors are ignored by the merge routine (return 0).
      * For 3, just wait another merge retry.
      * */
-    if (seaf_repo_merge (repo, "master", &err_msg, &res->real_merge) < 0) {
+    if (seaf_repo_merge (repo, "master", &err_msg, &res->merge_status) < 0) {
         seaf_message ("[Sync mgr] Merge of repo %s(%.8s) is not clean.\n",
                    repo->name, repo->id);
         res->success = FALSE;
@@ -728,7 +728,7 @@ merge_job_done (void *vresult)
         seaf_branch_unref (master);
 
         /* If it's a ff merge, also update REPO_LOCAL_HEAD. */
-        if (!res->real_merge) {
+        if (res->merge_status == MERGE_STATUS_FAST_FORWARD) {
             SeafBranch *local = seaf_branch_manager_get_branch (seaf->branch_mgr,
                                                                  repo->id,
                                                                  "local");
@@ -747,7 +747,7 @@ merge_job_done (void *vresult)
 
     }
 
-    if (res->success && res->real_merge)
+    if (res->success && res->merge_status == MERGE_STATUS_REAL_MERGE)
         start_upload_if_necessary (res->task);
     else if (res->success)
         transition_sync_state (res->task, SYNC_STATE_DONE);

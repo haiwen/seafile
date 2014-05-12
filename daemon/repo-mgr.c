@@ -1235,7 +1235,7 @@ error:
 
 int
 seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
-                 gboolean *real_merge)
+                 int *merge_status)
 {
     SeafBranch *remote_branch;
     int ret = 0;
@@ -1257,7 +1257,7 @@ seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
         goto error;
     }
 
-    ret = merge_branches (repo, remote_branch, error, real_merge);
+    ret = merge_branches (repo, remote_branch, error, merge_status);
     seaf_branch_unref (remote_branch);
 
     return ret;

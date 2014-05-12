@@ -149,9 +149,16 @@ int
 seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_merge,
                            char **error);
 
+enum {
+    MERGE_STATUS_UNKNOWN = 0,
+    MERGE_STATUS_UPTODATE,
+    MERGE_STATUS_FAST_FORWARD,
+    MERGE_STATUS_REAL_MERGE,
+};
+
 int
 seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
-                 gboolean *real_merge);
+                 int *merge_status);
 
 GList *
 seaf_repo_diff (SeafRepo *repo, const char *arg1, const char *arg2, char **error);
