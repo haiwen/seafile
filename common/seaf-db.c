@@ -172,10 +172,17 @@ static Connection_T
 get_db_connection (SeafDB *db)
 {
     Connection_T conn;
+    int n_retries = 0;
 
-    conn = ConnectionPool_getConnection (db->pool);
+    /* Wait for at most 30 seconds before getting a connection from pool. */
+    do {
+        conn = ConnectionPool_getConnection (db->pool);
+        if (!conn)
+            g_usleep (100000);
+    } while (!conn && ++n_retries < 300);
+
     if (!conn)
-        g_warning ("Failed to create new connection.\n");
+        g_warning ("Failed to get database connection.\n");
 
     return conn;
 }

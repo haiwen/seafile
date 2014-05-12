@@ -36,13 +36,6 @@ GList*
 seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
                                      const char *type, int start, int limit);
 
-GList*
-seaf_share_manager_list_org_share_repos (SeafShareManager *mgr,
-                                         int org_id,
-                                         const char *email,
-                                         const char *type,
-                                         int start, int limit);
-
 GList *
 seaf_share_manager_list_shared_to (SeafShareManager *mgr,
                                    const char *owner,

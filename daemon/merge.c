@@ -149,7 +149,7 @@ get_common_ancestor_commit (const char *repo_id, int version)
 
 int
 merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
-                gboolean *real_merge)
+                int *merge_status)
 {
     SeafCommit *common = NULL;
     SeafCommit *head = NULL, *remote = NULL;
@@ -160,7 +160,7 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
 
     g_return_val_if_fail (repo && remote_branch && error, -1);
 
-    *real_merge = FALSE;
+    *merge_status = MERGE_STATUS_UNKNOWN;
 
 #if 0
     memset (&minfo, 0, sizeof(minfo));
@@ -230,7 +230,10 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
     if (strcmp(common->commit_id, remote->commit_id) == 0) {
         /* We are already up to date. */
         g_debug ("Already up to date.\n");
+        *merge_status = MERGE_STATUS_UPTODATE;
     } else if (strcmp(common->commit_id, head->commit_id) == 0) {
+        *merge_status = MERGE_STATUS_FAST_FORWARD;
+
         /* Fast forward. */
         if (seaf_repo_checkout_commit (repo, remote, FALSE, error) < 0) {
             ret = -1;
@@ -248,7 +251,7 @@ merge_branches (SeafRepo *repo, SeafBranch *remote_branch, char **error,
         g_debug ("Fast forward.\n");
     } else {
         /* Not up-to-date and ff, we need a real merge. */
-        *real_merge = TRUE;
+        *merge_status = MERGE_STATUS_REAL_MERGE;
         ret = do_real_merge (repo, 
                              repo->head, head, 
                              remote_branch, remote, common, 
