@@ -3,7 +3,14 @@
 #define DEBUG_FLAG SEAFILE_DEBUG_HTTP
 #include "log.h"
 
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#include <event2/event.h>
+#include <event2/bufferevent.h>
+#include <event2/bufferevent_struct.h>
+#else
 #include <event.h>
+#endif
+
 #include <evhtp.h>
 
 #include <sys/stat.h>

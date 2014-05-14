@@ -11,11 +11,20 @@
 #include <glib.h>
 #include <glib-object.h>
 #include <stdlib.h>
-#include <evutil.h>
 #include <sys/stat.h>
+
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#include <event2/util.h>
+#else
+#include <evutil.h>
+#endif
 
 #ifdef __linux__
 #include <endian.h>
+#endif
+
+#ifdef __OpenBSD__
+#include <machine/endian.h>
 #endif
 
 #ifdef WIN32

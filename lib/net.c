@@ -31,7 +31,11 @@
 
 #include <fcntl.h>
 
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#include <event2/util.h>
+#else
 #include <evutil.h>
+#endif
 
 #include "net.h"
 
