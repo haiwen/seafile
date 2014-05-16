@@ -221,10 +221,19 @@ class SeafileAPI(object):
 
     # share repo to group
     def group_share_repo(self, repo_id, group_id, username, permission):
+        # deprecated, use ``set_group_repo``
+        return seafserv_threaded_rpc.group_share_repo(repo_id, group_id,
+                                                      username, permission)
+
+    def set_group_repo(self, repo_id, group_id, username, permission):
         return seafserv_threaded_rpc.group_share_repo(repo_id, group_id,
                                                       username, permission)
 
     def group_unshare_repo(self, repo_id, group_id, username):
+        # deprecated, use ``unset_group_repo``
+        return seafserv_threaded_rpc.group_unshare_repo(repo_id, group_id, username)
+
+    def unset_group_repo(self, repo_id, group_id, username):
         return seafserv_threaded_rpc.group_unshare_repo(repo_id, group_id, username)
 
     def get_shared_groups_by_repo(self, repo_id):
