@@ -22,10 +22,7 @@ import re
 import shutil
 import subprocess
 import argparse
-import sqlite3
 import uuid
-import hashlib
-import getpass
 
 try:
     import readline
@@ -433,79 +430,6 @@ accesslog = os.path.join(runtime_dir, 'access.log')
     except:
         error('Failed to write seahub config')
 
-def get_admin_email_password():
-    info('')
-    info("Now let\'s create the admin account of seahub")
-    info('')
-    def validate(email):
-        # whitespace is not allowed
-        if re.match(r'[\s]', email):
-            return False
-        # must be a valid email address
-        if not re.match(r'^.+@.*\..+$', email):
-            return False
-        return True
-
-    key = 'admin email'
-    question = 'What is the ' + highlight('email') + ' for the admin account'
-    admin_email = ask_question(question,
-                               key=key,
-                               validate=validate)
-
-    key = 'admin password'
-    question = 'What is the ' + highlight('password') + ' for the admin account'
-    admin_password = ask_question(question,
-                                  key=key)
-
-    key = 'admin password again'
-    question = 'Enter the password again'
-    invalidate_msg = 'Password mismatch'
-    def validate_again(password):
-        return password == admin_password
-    ask_question(question,
-                 key=key,
-                 validate=validate_again,
-                 invalidate_msg=invalidate_msg)
-
-    info('This is your admin account email/password:\n')
-    info('------------------------------------------')
-    info('admin email:         %s' % admin_email)
-    info('admin password:      %s' % admin_password)
-    info('------------------------------------------')
-    info('Press ENTER if the config is right, or anything else to re-config admin account')
-
-    if raw_input() != '':
-        get_admin_email_password()
-    else:
-        sha1 = hashlib.sha1(admin_password)
-        conf[CONF_ADMIN_EMAIL] = admin_email
-        conf[CONF_ADMIN_PASSWORD] = sha1.hexdigest()
-
-def create_seahub_admin():
-
-    peermgr_dir = os.path.join(conf[CONF_CCNET_DIR], 'PeerMgr')
-    usermgr_db = os.path.join(peermgr_dir, 'usermgr.db')
-
-    if os.path.exists(usermgr_db):
-        return
-
-    if not os.path.exists(peermgr_dir):
-        os.mkdir(peermgr_dir)
-
-    get_admin_email_password()
-
-    conn = sqlite3.connect(usermgr_db)
-    c = conn.cursor()
-
-    sql = 'CREATE TABLE IF NOT EXISTS EmailUser (id INTEGER NOT NULL PRIMARY KEY, email TEXT, passwd TEXT, is_staff bool NOT NULL, is_active bool NOT NULL, ctime INTEGER)'
-    c.execute(sql)
-    sql = r'INSERT INTO EmailUser(email, passwd, is_staff, is_active, ctime) VALUES ("%s", "%s", 1, 1, 0)' \
-          % (conf[CONF_ADMIN_EMAIL], conf[CONF_ADMIN_PASSWORD])
-    c.execute(sql)
-    conn.commit()
-
-    info('Successfully created your admin account')
-
 def gen_seahub_secret_key():
     data = str(uuid.uuid4()) + str(uuid.uuid4())
     return data[:40]
@@ -555,7 +479,6 @@ def init_seahub():
 
     info('done')
 
-    create_seahub_admin()
     move_avatar()
     create_gunicorn_conf()
 
@@ -739,7 +662,7 @@ def read_seafile_data_dir(ccnet_conf_dir):
 
     return seafile_data_dir
 
-def check_config(args):
+def check_layout(args):
     def error_not_found(path):
         error('%s not found' % path)
     ccnet_conf_dir = os.path.join(cwd, 'ccnet')
@@ -767,6 +690,17 @@ def check_config(args):
     if not os.path.exists(seahub_conf):
         error_not_found(seahub_dir)
 
+    conf[CONF_CCNET_DIR]        = ccnet_conf_dir
+    conf[CONF_SEAFILE_DIR]      = seafile_data_dir
+    conf[CONF_SEAHUB_DIR]       = seahub_dir
+    conf[CONF_SEAHUB_CONF]      = seahub_conf
+    conf[CONF_SEAHUB_PIDFILE]   = os.path.join(runtime_dir, 'seahub.pid')
+    conf[CONF_SEAHUB_OUTLOG]    = os.path.join(runtime_dir, 'access.log')
+    conf[CONF_SEAHUB_ERRLOG]    = os.path.join(runtime_dir, 'error.log')
+
+def check_config(args):
+    check_layout(args)
+
     try:
         port = int(args.port)
     except ValueError:
@@ -775,14 +709,7 @@ def check_config(args):
         if port <= 0 or port > 65535:
             error('invalid port: %s' % args.port)
 
-    conf[CONF_CCNET_DIR]        = ccnet_conf_dir
-    conf[CONF_SEAFILE_DIR]      = seafile_data_dir
-    conf[CONF_SEAHUB_DIR]       = seahub_dir
-    conf[CONF_SEAHUB_CONF]      = seahub_conf
     conf[CONF_SEAHUB_PORT]      = port
-    conf[CONF_SEAHUB_PIDFILE]   = os.path.join(runtime_dir, 'seahub.pid')
-    conf[CONF_SEAHUB_OUTLOG]    = os.path.join(runtime_dir, 'access.log')
-    conf[CONF_SEAHUB_ERRLOG]    = os.path.join(runtime_dir, 'error.log')
 
 def check_directory_layout():
     seaf_server_dir = os.path.join(cwd, 'seafile-server')
@@ -888,71 +815,16 @@ def stop_seafile(dummy):
 
     info('done')
 
-def reset_admin(dummy):
+def reset_admin(args):
     '''reset seafile admin account'''
-    # Get .ccnet directory from argument or user input
-    ccnet_dir = os.path.join(cwd, 'ccnet')
+    check_layout(args)
+    env = get_seahub_env()
 
-    # Test usermgr.db exists
-    usermgr_db = os.path.join(ccnet_dir, 'PeerMgr/usermgr.db')
-    if not os.path.exists(usermgr_db):
-        error('%s NOT exists. FAILED' % usermgr_db)
+    argv = [PYTHON, 'manage.py', 'createsuperuser']
 
-    conn = sqlite3.connect(usermgr_db)
-    c = conn.cursor()
-
-    # Check whether admin user exists
-    sql = 'SELECT email FROM EmailUser WHERE is_staff = 1'
-    try:
-        c.execute(sql)
-    except sqlite3.Error, e:
-        error('An error orrured: %s' % e.args[0])
-
-    staff_list = c.fetchall()
-    if staff_list:
-        print 'Admin is already in database. Email as follows: '
-        print '--------------------'
-        for e in staff_list:
-            print e[0]
-        print '--------------------'
-        choice = raw_input('Previous admin would be deleted, would you like to continue?[y/n] ')
-        if choice == 'y':
-            sql = 'DELETE FROM EmailUser WHERE is_staff = 1'
-            try:
-                c.execute(sql)
-            except sqlite3.Error, e:
-                error('An error orrured: %s' % e.args[0])
-            else:
-                info('Previous admin is deleted')
-        else:
-            conn.close()
-            sys.exit(0)
-
-    # Create admin user
-    choice = raw_input('Would you like to create admin user?[y/n]')
-    if choice != 'y':
-        conn.close()
-        sys.exit(0)
-
-    username = raw_input('E-mail address:')
-    passwd = getpass.getpass('Password:')
-    passwd2 = getpass.getpass('Password (again):')
-    if passwd != passwd2:
-        error('Two passwords are not the same')
-
-    enc_passwd = hashlib.sha1(passwd).hexdigest()
-    sql = "INSERT INTO EmailUser(email, passwd, is_staff, is_active, ctime) VALUES ('%s', '%s', 1, 1, '%d');" % (username, enc_passwd, time.time()*1000000)
-    try:
-        c = conn.cursor()
-        c.execute(sql)
-        conn.commit()
-    except sqlite3.Error, e:
-        error('An error orrured: %s' % e.args[0])
-    else:
-        info('Admin user created successfully')
-
-    # Close db
-    conn.close()
+    env = get_seahub_env()
+    seahub_dir = conf[CONF_SEAHUB_DIR]
+    run_argv(argv, cwd=seahub_dir, env=env)
 
 def main():
     check_seafile_install()
@@ -979,6 +851,9 @@ def main():
 
     parser_reset_admin = subparsers.add_parser('reset-admin', help='reset seafile admin account')
     parser_reset_admin.set_defaults(func=reset_admin)
+
+    parser_create_admin = subparsers.add_parser('create-admin', help='create seafile admin account')
+    parser_create_admin.set_defaults(func=reset_admin)
 
     args = parser.parse_args()
     args.func(args)
