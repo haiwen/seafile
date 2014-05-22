@@ -1,12 +1,12 @@
-Welcome to use Seafile client.
+Welcome to the DataDupe client.
 
-Seafile client is used to download a "library" from a Seafile website, which is
-different from other file sync service like dropbox.
+The DataDupe client is used to download a "library" from the DataDupe website, which is
+different from other file sync services such as Dropbox.
 
-1. Create a library on Seafile website;
+1. Create a library on the DataDupe website.
 
-2. Download the library from Seafile website;
+2. Download the library from the DataDupe website.
 
-3. Files added to this donwloaded library will automatically appear on Seafile website.
+3. Files added to this donwloaded library will automatically appear on the DataDupe website.
 
-Don't add files to the "Seafile" folder. That would not make it appear on the website.
+Don't add files to the "DataDupe" folder. That will not make them appear on the website.
