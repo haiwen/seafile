@@ -177,9 +177,14 @@ function start_seahub () {
 
 function start_seahub_fastcgi () {
     before_start;
-    echo "Starting seahub (fastcgi) at port ${port} ..."
+
+    # Returns 127.0.0.1 if SEAFILE_FASTCGI_HOST is unset or hasn't got any value,
+    # otherwise returns value of SEAFILE_FASTCGI_HOST environment variable
+    address=`(test -z "$SEAFILE_FASTCGI_HOST" && echo "127.0.0.1") || echo $SEAFILE_FASTCGI_HOST`
+
+    echo "Starting seahub (fastcgi) at ${address}:${port} ..."
     check_init_admin;
-    $PYTHON "${manage_py}" runfcgi host=127.0.0.1 port=$port pidfile=$pidfile \
+    $PYTHON "${manage_py}" runfcgi host=$address port=$port pidfile=$pidfile \
         outlog=${accesslog} errlog=${errorlog}
 
     # Ensure seahub is started successfully
