@@ -566,6 +566,7 @@ seafile_post_multi_files (const char *repo_id,
                           const char *filenames_json,
                           const char *paths_json,
                           const char *user,
+                          int replace,
                           GError **error);
 
 /**
@@ -582,6 +583,7 @@ seafile_post_file_blocks (const char *repo_id,
                           const char *paths_json,
                           const char *user,
                           gint64 file_size,
+                          int replace_existed,
                           GError **error);
 
 

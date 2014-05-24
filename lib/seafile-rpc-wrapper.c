@@ -322,16 +322,18 @@ seafile_post_file_blocks (SearpcClient *client,
                           const char *paths_json,
                           const char *user,
                           gint64 file_size,
+                          int replace_existed,
                           GError **error)
 {
     return searpc_client_call__string (client, "seafile_post_file_blocks", error,
-                                       7, "string", repo_id,
+                                       8, "string", repo_id,
                                        "string", parent_dir,
                                        "string", file_name,
                                        "string", blockids_json,
                                        "string", paths_json,
                                        "string", user,
-                                       "int64", &file_size);
+                                       "int64", &file_size,
+                                       "int", replace_existed);
 }
 
 char *
@@ -341,14 +343,16 @@ seafile_post_multi_files (SearpcClient *client,
                           const char *filenames_json,
                           const char *paths_json,
                           const char *user,
+                          int replace_existed,
                           GError **error)
 {
     return searpc_client_call__string (client, "seafile_post_multi_files", error,
-                                       5, "string", repo_id,
+                                       6, "string", repo_id,
                                        "string", parent_dir,
                                        "string", filenames_json,
                                        "string", paths_json,
-                                       "string", user);
+                                       "string", user,
+                                       "int", replace_existed);
 }
 
 int
