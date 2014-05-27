@@ -141,6 +141,11 @@ create_parent_path (const char *path)
     if (!dir)
         return -1;
 
+    if (g_file_test (dir, G_FILE_TEST_EXISTS)) {
+        g_free (dir);
+        return 0;
+    }
+
     if (g_mkdir_with_parents (dir, 0777) < 0) {
         seaf_warning ("Failed to create object parent path: %s.\n", dir);
         g_free (dir);

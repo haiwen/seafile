@@ -161,7 +161,7 @@ function start_seahub () {
     before_start;
     echo "Starting seahub at port ${port} ..."
     check_init_admin;
-    $PYTHON "${manage_py}" run_gunicorn -c "${gunicorn_conf}" -b "0.0.0.0:${port}"
+    $PYTHON "${manage_py}" run_gunicorn -c "${gunicorn_conf}" -b "0.0.0.0:${port}" --preload
 
     # Ensure seahub is started successfully
     sleep 5
