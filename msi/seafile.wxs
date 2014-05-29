@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
-  <?include Includes.wxi?>
+  <?include Includes.maxerdriver.wxi?>
   <Product Id="$(var.ProductGuid)"
            Name='!(loc.AppName) $(var.CurrentSeafileVersion)'
            Language='1033'

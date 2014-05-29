@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Include Id="SeafileInclude">
+  <?define CurrentSeafileVersion="3.0.4" ?>
+
+  <!-- Update Guid should NEVER be changed -->
+  <?define CurrentUpdateGuid="CA90FF79-8976-473A-8CB8-39ED7461F73A" ?>
+
+  <!-- Product Guid must be changed in every version  -->
+  <!-- <?define ProductGuid="AF38B172-825F-11E3-9D5E-FFD5C0BA6FAA" ?> (2.1.1)-->
+  <?define ProductGuid="E9D22D10-4B32-446B-AD0F-41C19289AA44" ?>
+
+</Include>

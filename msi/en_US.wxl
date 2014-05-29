@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="en-us" xmlns="http://schemas.microsoft.com/wix/2006/localization">
-
-  <String Id="AppName">Seafile</String>
-  <String Id="PackageDescription">Seafile Installer</String>
-  <String Id="PackageComments">Seafile Installer</String>
-  <String Id="Manufacturer">HaiWenHuZhi ltd.</String>
-  <String Id="DowngradeErrorMessage">A more up-to-date version of Seafile is detected on your machine. The installer will now quit</String>
-  <String Id="UserManualName">Seafile help.txt</String>
+  
+  <String Id="AppName">MAXER Drive</String>
+  <String Id="PackageDescription">MAXER Drive Installer</String>
+  <String Id="PackageComments">MAXER Drive Installer</String>
+  <String Id="Manufacturer">www.maxer.hu</String>
+  <String Id="DowngradeErrorMessage">A more up-to-date version of MAXER Drive is detected on your machine. The installer will now quit</String>
+  <String Id="UserManualName">MAXER Drive help.txt</String>
   <String Id="UserManualSource">manual.en.txt</String>
-  <String Id="UninstallSeafile">Uninstall Seafile</String>
-  <String Id="StartSeafile">Start Seafile</String>
-  <String Id="AutoStartText">Start Seafile on startup</String>
+  <String Id="UninstallSeafile">Uninstall MAXER Drive</String>
+  <String Id="StartSeafile">Start MAXER Drive</String>
+  <String Id="AutoStartText">Start MAXER Drive on startup</String>
 
 </WixLocalization>
