@@ -132,6 +132,7 @@ seafile_post_file_blocks (SearpcClient *client,
                           const char *paths_json,
                           const char *user,
                           gint64 file_size,
+                          int replace_existed,
                           GError **error);
 
 char *
@@ -141,6 +142,7 @@ seafile_post_multi_files (SearpcClient *client,
                           const char *filenames_json,
                           const char *paths_json,
                           const char *user,
+                          int replace_existed,
                           GError **error);
 
 int
