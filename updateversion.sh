@@ -3,12 +3,12 @@
 if [ $# != "2" ]; then
     echo "$0 <old_version> <new_version>"
     exit
-fi 
+fi
 
 old_ver=$1
 new_ver=$2
 
-if [[ "${TERM_PROGRAM}" =~ ^Apple ]]; then
+if test "$(uname)" = "Darwin"; then
     sed -i '' -e "s|$old_ver|$new_ver|" web/setup_mac.py
     sed -i '' -e "s|VERSION=$old_ver|VERSION=$new_ver|" setupmac.sh
     sed -i '' -e "s|<string>$old_ver</string>|<string>$new_ver</string>|" gui/mac/seafile/seafile/*.plist
