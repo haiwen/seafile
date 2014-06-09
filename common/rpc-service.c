@@ -410,8 +410,7 @@ seafile_sync (const char *repo_id, const char *peer_id, GError **error)
         return -1;
     }
 
-    return seaf_sync_manager_add_sync_task (seaf->sync_mgr, repo_id, peer_id,
-                                            NULL, FALSE, error);
+    return seaf_sync_manager_add_sync_task (seaf->sync_mgr, repo_id, error);
 }
 
 static void get_task_size(TransferTask *task, gint64 *rsize, gint64 *dsize)
@@ -574,8 +573,7 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
 
     SeafileSyncTask *s_task;
     s_task = g_object_new (SEAFILE_TYPE_SYNC_TASK,
-                           "is_sync_lan", task->is_sync_lan,
-                           "force_upload", task->force_upload,
+                           "force_upload", task->is_manual_sync,
                            "state", sync_state,
                            "error", sync_error_to_str(task->error),
                            "tx_id", task->tx_id,
@@ -604,8 +602,7 @@ seafile_get_sync_task_list (GError **error)
         if (!task)
             continue;
         s_task = g_object_new (SEAFILE_TYPE_SYNC_TASK,
-                               "is_sync_lan", task->is_sync_lan,
-                               "force_upload", task->force_upload,
+                               "force_upload", task->is_manual_sync,
                                "state", sync_state_to_str(task->state),
                                "error", sync_error_to_str(task->error),
                                "dest_id", task->dest_id,

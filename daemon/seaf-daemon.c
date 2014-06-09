@@ -28,8 +28,6 @@
 #include "vc-utils.h"
 #include "seafile-config.h"
 
-#include "processors/notifysync-slave-proc.h"
-#include "processors/sync-repo-slave-proc.h"
 #include "processors/check-tx-slave-proc.h"
 
 #include "cdc/cdc.h"

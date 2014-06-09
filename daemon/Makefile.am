@@ -9,7 +9,6 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@CCNET_CFLAGS@ \
 	@SEARPC_CFLAGS@ \
 	@GLIB2_CFLAGS@ \
-	@GNOME_KEYRING_CFLAGS@ \
 	@MSVC_CFLAGS@ \
 	-Wall
 
@@ -27,14 +26,10 @@ proc_headers = $(addprefix processors/, \
 	sendbranch-proc.h \
 	getcs-proc.h \
 	sync-repo-proc.h \
-	notifysync-proc.h \
-	notifysync-slave-proc.h \
-	sync-repo-slave-proc.h \
 	check-tx-slave-proc.h \
 	getcommit-v2-proc.h \
 	sendcommit-v3-proc.h \
 	sendcommit-v3-new-proc.h \
-	getrepoemailtoken-proc.h \
 	getcs-v2-proc.h \
 	checkbl-proc.h \
 	getcommit-v3-proc.h \
@@ -54,7 +49,7 @@ noinst_HEADERS = \
 	merge.h merge-recursive.h vc-utils.h seafile-session.h \
 	clone-mgr.h \
 	share-mgr.h \
-	wt-monitor-common.h \
+	wt-monitor-structs.h \
 	../common/sync-repo-common.h \
 	block-tx-client.h \
 	seafile-config.h \
@@ -62,19 +57,15 @@ noinst_HEADERS = \
 	$(proc_headers)
 
 if LINUX
-wt_monitor_src = wt-monitor-linux.c
+wt_monitor_src = wt-monitor.c wt-monitor-linux.c wt-monitor-structs.c
 endif
 
 if WIN32
-wt_monitor_src = wt-monitor-win32.c
+wt_monitor_src = wt-monitor.c wt-monitor-win32.c wt-monitor-structs.c
 endif
 
 if MACOS
-wt_monitor_src = wt-monitor-macos.c
-endif
-
-if HAVE_KEYSTORAGE_GK
-key_storage_src = repokey/seafile-gnome-keyring.c
+wt_monitor_src = wt-monitor.c wt-monitor-macos.c wt-monitor-structs.c
 endif
 
 common_src = \
@@ -97,7 +88,6 @@ common_src = \
 	../common/block-backend.c \
 	../common/block-backend-fs.c \
 	../common/mq-mgr.c \
-	$(key_storage_src) \
 	block-tx-client.c \
 	../common/block-tx-utils.c \
 	processors/check-tx-proc.c \
@@ -107,15 +97,11 @@ common_src = \
 	processors/getfs-proc.c \
 	processors/sendbranch-proc.c \
 	processors/getcs-proc.c \
-	processors/notifysync-proc.c \
-	processors/notifysync-slave-proc.c \
 	processors/sync-repo-proc.c \
-	processors/sync-repo-slave-proc.c \
 	processors/check-tx-slave-proc.c \
 	processors/getcommit-v2-proc.c \
 	processors/sendcommit-v3-proc.c \
 	processors/sendcommit-v3-new-proc.c \
-	processors/getrepoemailtoken-proc.c \
 	processors/getcs-v2-proc.c \
 	processors/checkbl-proc.c \
 	processors/getcommit-v3-proc.c \

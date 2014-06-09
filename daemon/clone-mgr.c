@@ -1531,7 +1531,7 @@ merge_job_done (void *data)
     seaf_branch_unref (local);
 
     if (repo->auto_sync) {
-        if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id) < 0) {
+        if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
             seaf_warning ("failed to watch repo %s(%.10s).\n", repo->name, repo->id);
             goto error;
         }
@@ -1568,7 +1568,7 @@ setup_repo_without_checkout (SeafRepo *repo, SeafBranch *local, CloneTask *task)
     seaf_repo_set_head (repo, local);
 
     if (repo->auto_sync) {
-        if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id) < 0) {
+        if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
             seaf_warning ("failed to watch repo %s(%.10s).\n", repo->name, repo->id);
         }
     }
