@@ -69,10 +69,8 @@ struct _SyncTask {
     SeafSyncManager *mgr;
     SyncInfo        *info;
     char            *dest_id;
-    gboolean         is_sync_lan;
-    gboolean         force_upload;
-    gboolean         need_commit;
-    gboolean         quiet;     /* don't print log messages. */
+    gboolean         is_manual_sync;
+    gboolean         is_initial_commit;
     int              state;
     int              error;
     char            *tx_id;
@@ -89,12 +87,9 @@ struct _SeafSyncManager {
     struct _SeafileSession   *seaf;
 
     GHashTable *sync_infos;
-    GQueue     *sync_tasks;
     int         n_running_tasks;
     gboolean    commit_job_running;
     int         sync_interval;
-
-    int         wt_interval;
 
     SeafSyncManagerPriv *priv;
 };
@@ -107,9 +102,6 @@ int seaf_sync_manager_start (SeafSyncManager *mgr);
 int
 seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
                                  const char *repo_id,
-                                 const char *dest_id,
-                                 const char *token,
-                                 gboolean is_sync_lan,
                                  GError **error);
 
 void

@@ -874,6 +874,27 @@ static int add_index_entry_with_check(struct index_state *istate, struct cache_e
     pos = -pos-1;
 
     /*
+     * If an empty dir entry exsits in the index and it's the parent of
+     * the entry to be inserted, remove the empty dir entry.
+     */
+    int i = pos - 1;
+    struct cache_entry *prev;
+    if (i >= 0) {
+        prev = istate->cache[i];
+
+        if (S_ISDIR(prev->ce_mode)) {
+            char *full_name = g_strconcat (prev->name, "/", NULL);
+            int len1 = strlen(full_name);
+            int len2 = strlen(ce->name);
+            if (len1 < len2 && strncmp (ce->name, full_name, len1) == 0) {
+                remove_index_entry_at (istate, i);
+                pos = pos - 1;
+            }
+            g_free (full_name);
+        }
+    }
+
+    /*
      * Inserting a merged entry ("stage 0") into the index
      * will always replace all non-merged entries..
      */
@@ -1019,10 +1040,11 @@ update_index:
 }
 
 /*
- * Check whether the empty dir is left by file checkout error.
+ * Check whether the empty dir conflicts with existing files
  */
 static int is_garbage_empty_dir (struct index_state *istate, struct cache_entry *ce)
 {
+    int ret = 0;
     int pos = index_name_pos (istate, ce->name, ce->ce_flags);
 
     /* Empty folder already exists in the index. */
@@ -1035,20 +1057,17 @@ static int is_garbage_empty_dir (struct index_state *istate, struct cache_entry 
     pos = -pos-1;
 
     struct cache_entry *next;
-    int this_len = strlen (ce->name);
-    while (pos < istate->cache_nr) {
+    char *dir_name = g_strconcat (ce->name, "/", NULL);
+    int this_len = strlen (ce->name) + 1;
+    if (pos < istate->cache_nr) {
         next = istate->cache[pos];
-        /* If file under this "empty dir" exists and ctime is 0,
-         * then this empty dir is left by a file checkout failure.
-         */
-        if (strncmp (ce->name, next->name, this_len) != 0)
-            break;
-        if (next->ce_ctime.sec == 0 && ce_stage(next) == 0)
-            return 1;
-        ++pos;
+        int rc = strncmp (dir_name, next->name, this_len);
+        if (rc == 0)
+            ret = 1;
     }
 
-    return 0;
+    g_free (dir_name);
+    return ret;
 }
 
 int
@@ -1082,6 +1101,234 @@ add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *
     }
 
     return 0;
+}
+
+int
+remove_from_index_with_prefix (struct index_state *istate, const char *path_prefix)
+{
+    int pathlen = strlen(path_prefix);
+    int pos = index_name_pos (istate, path_prefix, pathlen);
+
+    /* Exact match, remove that entry. */
+    if (pos >= 0) {
+        remove_index_entry_at (istate, pos);
+        return 0;
+    }
+
+    /* Otherwise it may be a prefix match, remove all entries begin with this prefix.
+     */
+
+    /* -pos = (the position this entry *should* be) + 1.
+     * So -pos-1 is the first entry larger than this entry.
+     */
+    pos = -pos-1;
+
+    /* Add '/' to the end of prefix so that we won't match a partial path component.
+     * e.g. we don't want to match 'abc' with 'abcd/ef'
+     */
+    char *full_path_prefix = g_strconcat (path_prefix, "/", NULL);
+    ++pathlen;
+
+    struct cache_entry *ce;
+    int i = pos;
+    while (i < istate->cache_nr) {
+        ce = istate->cache[i];
+        if (strncmp (ce->name, full_path_prefix, pathlen) == 0) {
+            remove_name_hash(ce);
+            cache_entry_free (ce);
+            ++i;
+        } else
+            break;
+    }
+    g_free (full_path_prefix);
+
+    /* No match. */
+    if (i == pos)
+        return 0;
+
+    if (i < istate->cache_nr)
+        memmove (istate->cache + pos,
+                 istate->cache + i,
+                 (istate->cache_nr - i) * sizeof(struct cache_entry *));
+    istate->cache_nr -= (i - pos);
+    istate->cache_changed = 1;
+
+    return 0;
+}
+
+static struct cache_entry *
+create_renamed_cache_entry (struct cache_entry *ce,
+                            const char *src_path, const char *dst_path)
+{
+    struct cache_entry *new_ce;
+    char *new_ce_name;
+    int src_pathlen = strlen(src_path);
+
+    new_ce_name = g_strconcat (dst_path, &ce->name[src_pathlen], NULL);
+
+    int namelen = strlen(new_ce_name);
+    int size = cache_entry_size (namelen);
+    new_ce = calloc (size, 1);
+    memcpy (new_ce, ce, sizeof(struct cache_entry));
+    new_ce->ce_flags = namelen;
+    new_ce->current_mtime = 0;
+    new_ce->modifier = g_strdup(ce->modifier);
+    new_ce->next = NULL;
+    memcpy (new_ce->name, new_ce_name, namelen);
+    g_free (new_ce_name);
+
+    return new_ce;
+}
+
+static struct cache_entry **
+create_renamed_cache_entries (struct index_state *istate,
+                              const char *src_path, const char *dst_path,
+                              int *n_entries)
+{
+    struct cache_entry *ce, **ret = NULL;
+
+    int src_pathlen = strlen(src_path);
+    int pos = index_name_pos (istate, src_path, src_pathlen);
+
+    /* Exact match, rename that entry. */
+    if (pos >= 0) {
+        ce = istate->cache[pos];
+        ret = calloc (1, sizeof(struct cache_entry *));
+        *ret = create_renamed_cache_entry (ce, src_path, dst_path);
+        *n_entries = 1;
+
+        remove_index_entry_at (istate, pos);
+
+        return ret;
+    }
+
+    /* Otherwise it may be a prefix match, rename all entries begin with this prefix.
+     */
+
+    /* -pos = (the position this entry *should* be) + 1.
+     * So -pos-1 is the first entry larger than this entry.
+     */
+    pos = -pos-1;
+
+    /* Add '/' to the end of prefix so that we won't match a partial path component.
+     * e.g. we don't want to match 'abc' with 'abcd/ef'
+     */
+    char *full_src_path = g_strconcat (src_path, "/", NULL);
+    ++src_pathlen;
+
+    int i = pos;
+
+    while (i < istate->cache_nr) {
+        ce = istate->cache[i];
+        if (strncmp (ce->name, full_src_path, src_pathlen) == 0) {
+            ++i;
+        } else
+            break;
+    }
+    g_free (full_src_path);
+
+    if (i == pos) {
+        *n_entries = 0;
+        return NULL;
+    }
+
+    *n_entries = (i - pos);
+    ret = calloc (*n_entries, sizeof(struct cache_entry *));
+
+    for (i = pos; i < pos + *n_entries; ++i) {
+        ce = istate->cache[i];
+
+        ret[i - pos] = create_renamed_cache_entry (ce, src_path, dst_path);
+
+        remove_name_hash(ce);
+        cache_entry_free (ce);
+    }
+
+    if (i < istate->cache_nr)
+        memmove (istate->cache + pos,
+                 istate->cache + i,
+                 (istate->cache_nr - i) * sizeof(struct cache_entry *));
+    istate->cache_nr -= (i - pos);
+    istate->cache_changed = 1;
+
+    return ret;
+}
+
+int
+rename_index_entries (struct index_state *istate,
+                      const char *src_path,
+                      const char *dst_path)
+{
+    struct cache_entry **new_ces;
+    int n_entries;
+    int ret = 0;
+    int i;
+
+    new_ces = create_renamed_cache_entries (istate, src_path, dst_path, &n_entries);
+    if (n_entries == 0) {
+        return 0;
+    }
+
+    /* Remove entries under dst_path. It's necessary for the situation that
+     * one file is renamed to overwrite another file.
+     */
+    remove_from_index_with_prefix (istate, dst_path);
+
+    /* Insert the renamed entries to their position. */
+    int dst_pathlen = strlen(dst_path);
+    int pos = index_name_pos (istate, dst_path, dst_pathlen);
+    if (pos >= 0) {
+        g_warning ("BUG: %s should not exist in index after remove.\n", dst_path);
+        ret = -1;
+        goto out;
+    }
+
+    pos = -pos-1;
+
+    /* Moving a file may turn an empty dir into non-empty. */
+    if (pos > 0) {
+        struct cache_entry *prev = istate->cache[pos-1];
+        char *full_name = g_strconcat (prev->name, "/", NULL);
+
+        if (S_ISDIR(prev->ce_mode) &&
+            strncmp(full_name, dst_path, strlen(full_name)) == 0) {
+            remove_index_entry_at (istate, pos-1);
+            pos = pos - 1;
+        }
+        g_free (full_name);
+    }
+
+    /* There should be at least n_entries free room in istate->cache array,
+     * since we just removed n_entries from the index in
+     * create_renamed_cache_entires(). 
+     */
+    if (istate->cache_alloc - istate->cache_nr < n_entries) {
+        g_warning ("BUG: not enough room to insert renamed entries.\n"
+                   "cache_alloc: %u, cache_nr: %u, n_entries: %d.\n",
+                   istate->cache_alloc, istate->cache_nr, n_entries);
+        ret = -1;
+        goto out;
+    }
+
+    if (pos < istate->cache_nr)
+        memmove (istate->cache + pos + n_entries,
+                 istate->cache + pos,
+                 (istate->cache_nr - pos) * sizeof(struct cache_entry *));
+
+    memcpy (istate->cache + pos, new_ces, n_entries * sizeof(struct cache_entry *));
+    for (i = 0; i < n_entries; ++i)
+        add_name_hash (istate, new_ces[i]);
+    istate->cache_nr += n_entries;
+    istate->cache_changed = 1;
+
+out:
+    if (ret < 0) {
+        for (i = 0; i < n_entries; ++i)
+            cache_entry_free (new_ces[i]);
+    }
+    free (new_ces);
+
+    return ret;
 }
 
 static struct cache_entry *refresh_cache_entry(struct cache_entry *ce,
