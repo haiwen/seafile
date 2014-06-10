@@ -537,7 +537,9 @@ int main(int argc, char *argv[])
     }
 
     printf ("[INFO] seafile data directory is %s\n", seaf_data_dir);
+#if !GLIB_CHECK_VERSION(2, 36, 0)
     g_type_init ();
+#endif
     log_init();
 
     if (!worktree_dir)

@@ -788,10 +788,10 @@ main (int argc, char **argv)
 
     cdc_init ();
 
-#if !GLIB_CHECK_VERSION(2, 35, 0)
+#if !GLIB_CHECK_VERSION(2, 36, 0)
     g_type_init();
 #endif
-#if !GLIB_CHECK_VERSION(2,32,0)
+#if !GLIB_CHECK_VERSION(2, 32, 0)
     g_thread_init (NULL);
 #endif
 

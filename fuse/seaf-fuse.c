@@ -294,7 +294,9 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+#if !GLIB_CHECK_VERSION(2,36,0)
     g_type_init();
+#endif
 
     config_dir = options.config_dir ? : DEFAULT_CONFIG_DIR;
     config_dir = ccnet_expand_path (config_dir);
