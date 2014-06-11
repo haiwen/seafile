@@ -73,7 +73,9 @@ int test_chunks (CDCFileDescriptor *file_descriptor)
     return 0;
 }
 
-int test_write_chunk (CDCDescriptor *chunk_descr,
+int test_write_chunk (const char *repo_id,
+                      int version,
+                      CDCDescriptor *chunk_descr,
                       struct SeafileCrypt *crypt,
                       uint8_t *checksum,
                       gboolean write_data)

@@ -28,7 +28,7 @@ int main (int argc, char *argv[])
     index_file = argv[1];
 
     memset (&istate, 0, sizeof(istate));
-    if (read_index_from (&istate, index_file) < 0) {
+    if (read_index_from (&istate, index_file, 0) < 0) {
         fprintf (stderr, "Corrupt index file %s\n", index_file);
         exit (-1);
     }
