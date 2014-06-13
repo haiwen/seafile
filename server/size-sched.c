@@ -215,54 +215,57 @@ compute_repo_size (void *vjob)
     char *cached_head_id = NULL;
     gint64 size = 0;
 
-retry:
-    repo = seaf_repo_manager_get_repo (sched->seaf->repo_mgr, job->repo_id);
-    if (!repo) {
-        g_warning ("[scheduler] failed to get repo %s.\n", job->repo_id);
-        return vjob;
+    while(1)
+    {
+        repo = seaf_repo_manager_get_repo (sched->seaf->repo_mgr, job->repo_id);
+        if (!repo) {
+            g_warning ("[scheduler] failed to get repo %s.\n", job->repo_id);
+            return vjob;
+        }
+
+        cached_head_id = get_cached_head_id (sched->seaf->db, job->repo_id);
+        if (g_strcmp0 (cached_head_id, repo->head->commit_id) == 0)
+            break;
+
+        head = seaf_commit_manager_get_commit (sched->seaf->commit_mgr,
+                                               repo->id, repo->version,
+                                               repo->head->commit_id);
+        if (!head) {
+            g_warning ("[scheduler] failed to get head commit %s.\n",
+                       repo->head->commit_id);
+            break;
+        }
+
+        size = seaf_fs_manager_get_fs_size (sched->seaf->fs_mgr,
+                                            repo->store_id, repo->version,
+                                            head->root_id);
+        if (size < 0) {
+            g_warning ("[scheduler] Failed to compute size of repo %.8s.\n",
+                       repo->id);
+            break;
+        }
+
+        int ret = set_repo_size (sched->seaf->db,
+                                 job->repo_id,
+                                 cached_head_id,
+                                 repo->head->commit_id,
+                                 size);
+        if (ret == SET_SIZE_ERROR)
+            g_warning ("[scheduler] failed to store repo size %s.\n", job->repo_id);
+        else if (ret == SET_SIZE_CONFLICT) {
+            size = 0;
+            seaf_repo_unref (repo);
+            seaf_commit_unref (head);
+            g_free (cached_head_id);
+            repo = NULL;
+            head = NULL;
+            cached_head_id = NULL;
+            continue;
+        }
+
+        break;
     }
 
-    cached_head_id = get_cached_head_id (sched->seaf->db, job->repo_id);
-    if (g_strcmp0 (cached_head_id, repo->head->commit_id) == 0)
-        goto out;
-
-    head = seaf_commit_manager_get_commit (sched->seaf->commit_mgr,
-                                           repo->id, repo->version,
-                                           repo->head->commit_id);
-    if (!head) {
-        g_warning ("[scheduler] failed to get head commit %s.\n",
-                   repo->head->commit_id);
-        goto out;
-    }
-
-    size = seaf_fs_manager_get_fs_size (sched->seaf->fs_mgr,
-                                        repo->store_id, repo->version,
-                                        head->root_id);
-    if (size < 0) {
-        g_warning ("[scheduler] Failed to compute size of repo %.8s.\n",
-                   repo->id);
-        goto out;
-    }
-
-    int ret = set_repo_size (sched->seaf->db,
-                             job->repo_id,
-                             cached_head_id,
-                             repo->head->commit_id,
-                             size);
-    if (ret == SET_SIZE_ERROR)
-        g_warning ("[scheduler] failed to store repo size %s.\n", job->repo_id);
-    else if (ret == SET_SIZE_CONFLICT) {
-        size = 0;
-        seaf_repo_unref (repo);
-        seaf_commit_unref (head);
-        g_free (cached_head_id);
-        repo = NULL;
-        head = NULL;
-        cached_head_id = NULL;
-        goto retry;
-    }
-
-out:
     seaf_repo_unref (repo);
     seaf_commit_unref (head);
     g_free (cached_head_id);
