@@ -576,6 +576,7 @@ merge_job_done (void *vresult)
     }
 
     if (res->success) {
+        SeafBranch *local;
         SeafBranch *master = seaf_branch_manager_get_branch (seaf->branch_mgr,
                                                              repo->id,
                                                              "master");
@@ -594,10 +595,11 @@ merge_job_done (void *vresult)
         seaf_branch_unref (master);
 
         /* If it's a ff merge, also update REPO_LOCAL_HEAD. */
-        if (res->merge_status == MERGE_STATUS_FAST_FORWARD) {
-            SeafBranch *local = seaf_branch_manager_get_branch (seaf->branch_mgr,
-                                                                 repo->id,
-                                                                 "local");
+        switch (res->merge_status) {
+        case MERGE_STATUS_FAST_FORWARD:
+            local = seaf_branch_manager_get_branch (seaf->branch_mgr,
+                                                    repo->id,
+                                                    "local");
             if (!local) {
                 seaf_warning ("[sync mgr] local branch doesn't exist.\n");
                 seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_DATA_CORRUPT);
@@ -609,15 +611,17 @@ merge_job_done (void *vresult)
                                                  REPO_LOCAL_HEAD,
                                                  local->commit_id);
             seaf_branch_unref (local);
+
+            transition_sync_state (res->task, SYNC_STATE_DONE);
+            break;
+        case MERGE_STATUS_REAL_MERGE:
+            start_upload_if_necessary (res->task);
+            break;
+        case MERGE_STATUS_UPTODATE:
+            transition_sync_state (res->task, SYNC_STATE_DONE);
+            break;
         }
-
-    }
-
-    if (res->success && res->merge_status == MERGE_STATUS_REAL_MERGE)
-        start_upload_if_necessary (res->task);
-    else if (res->success)
-        transition_sync_state (res->task, SYNC_STATE_DONE);
-    else if (res->worktree_dirty)
+    } else if (res->worktree_dirty)
         seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_WORKTREE_DIRTY);
     else
         seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_MERGE);
@@ -830,6 +834,38 @@ update_common_ancestor:
     return TRUE;
 }
 
+static gboolean
+repo_block_store_exists (SeafRepo *repo)
+{
+    gboolean ret;
+    char *store_path = g_build_filename (seaf->seaf_dir, "storage", "blocks",
+                                         repo->id, NULL);
+    if (g_file_test (store_path, G_FILE_TEST_IS_DIR))
+        ret = TRUE;
+    else
+        ret = FALSE;
+    g_free (store_path);
+    return ret;
+}
+
+static void *
+remove_repo_blocks (void *vtask)
+{
+    SyncTask *task = vtask;
+
+    seaf_block_manager_remove_store (seaf->block_mgr, task->repo->id);
+
+    return vtask;
+}
+
+static void
+remove_blocks_done (void *vtask)
+{
+    SyncTask *task = vtask;
+
+    transition_sync_state (task, SYNC_STATE_DONE);
+}
+
 static void
 update_sync_status (SyncTask *task)
 {
@@ -899,7 +935,18 @@ update_sync_status (SyncTask *task)
 
         /* If local head is the same as remote head, already in sync. */
         if (strcmp (local->commit_id, info->head_commit) == 0) {
-            transition_sync_state (task, SYNC_STATE_DONE);
+            /* As long as the repo is synced with the server. All the local
+             * blocks are not useful any more.
+             */
+            if (repo_block_store_exists (repo)) {
+                seaf_message ("Removing blocks for repo %s(%.8s).\n",
+                              repo->name, repo->id);
+                ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                                remove_repo_blocks,
+                                                remove_blocks_done,
+                                                task);
+            } else
+                transition_sync_state (task, SYNC_STATE_DONE);
             goto out;
         }
 
@@ -1144,7 +1191,8 @@ commit_job_done (void *vres)
         seaf_branch_manager_del_branch (seaf->branch_mgr, repo->id, "index");
 
     /* If nothing committed and is not manual sync, no need to sync. */
-    if (!res->changed && !res->task->is_manual_sync) {
+    if (!res->changed &&
+        !res->task->is_manual_sync && !res->task->is_initial_commit) {
         transition_sync_state (res->task, SYNC_STATE_DONE);
         g_free (res);
         return;
@@ -1453,7 +1501,6 @@ on_repo_uploaded (SeafileSession *seaf,
                                              task->repo->id,
                                              REPO_LOCAL_HEAD,
                                              task->repo->head->commit_id);
-
         transition_sync_state (task, SYNC_STATE_DONE);
     } else if (tx_task->state == TASK_STATE_CANCELED) {
         transition_sync_state (task, SYNC_STATE_CANCELED);

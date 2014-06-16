@@ -54,6 +54,7 @@ noinst_HEADERS = \
 	block-tx-client.h \
 	seafile-config.h \
 	gc-core.h \
+	client-migrate.h \
 	$(proc_headers)
 
 if LINUX
@@ -90,6 +91,7 @@ common_src = \
 	../common/mq-mgr.c \
 	block-tx-client.c \
 	../common/block-tx-utils.c \
+	client-migrate.c \
 	processors/check-tx-proc.c \
 	processors/check-tx-v2-proc.c \
 	processors/check-tx-v3-proc.c \

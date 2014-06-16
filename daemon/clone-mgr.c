@@ -1255,6 +1255,7 @@ check_fast_forward (SeafCommit *head, const char *root_id)
     return ret;
 }
 
+#if 0
 static int 
 print_index (struct index_state *istate)
 {
@@ -1273,6 +1274,7 @@ print_index (struct index_state *istate)
 
     return 0;
 }
+#endif
 
 static int
 real_merge (SeafRepo *repo, SeafCommit *head, CloneTask *task)
@@ -1315,8 +1317,6 @@ real_merge (SeafRepo *repo, SeafCommit *head, CloneTask *task)
                      task->root_id, head->root_id, EMPTY_SHA1,
                      &clean, &root_id);
     g_free (root_id);
-
-    print_index (&istate);
 
     if (update_index (&istate, index_path) < 0) {
         seaf_warning ("Failed to update index.\n");
