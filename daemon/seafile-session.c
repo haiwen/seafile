@@ -28,6 +28,8 @@
 #include "gc-core.h"
 #include "log.h"
 
+#include "client-migrate.h"
+
 #define MAX_THREADS 50
 
 enum {
@@ -234,15 +236,61 @@ seafile_session_prepare (SeafileSession *session)
 /*     g_list_free (repos); */
 /* } */
 
+static gboolean
+is_repo_block_store_in_use (const char *repo_id)
+{
+    if (seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id))
+        return TRUE;
+
+    char sql[256];
+    snprintf (sql, sizeof(sql), "SELECT 1 FROM CloneTasks WHERE repo_id='%s'",
+              repo_id);
+    if (sqlite_check_for_existence (seaf->clone_mgr->db, sql))
+        return TRUE;
+
+    return FALSE;
+}
+
+static void
+cleanup_unused_repo_block_stores ()
+{
+    char *top_block_dir;
+    const char *repo_id;
+
+    top_block_dir = g_build_filename (seaf->seaf_dir, "storage", "blocks", NULL);
+
+    GError *error = NULL;
+    GDir *dir = g_dir_open (top_block_dir, 0, &error);
+    if (!dir) {
+        seaf_warning ("Failed to open block dir %s: %s.\n",
+                      top_block_dir, error->message);
+        g_free (top_block_dir);
+        return;
+    }
+
+    while ((repo_id = g_dir_read_name(dir)) != NULL) {
+        if (!is_repo_block_store_in_use (repo_id)) {
+            seaf_message ("Removing blocks for deleted repo %s.\n", repo_id);
+            seaf_block_manager_remove_store (seaf->block_mgr, repo_id);
+        }
+    }
+
+    g_free (top_block_dir);
+    g_dir_close (dir);
+}
+
 static void *
 on_start_cleanup_job (void *vdata)
 {
     /* recover_interrupted_merges (); */
 
-    /* If some metadata objects are corrupt, the blocks they reference are
-     * useless anyway. So just ignore errors.
+    /* Ignore migration errors. If any blocks is not migrated successfully,
+     * there will be some sync error in run time. The user has to recover the
+     * error by resyncing.
      */
-    gc_core_run (0, 1);
+    migrate_client_v0_repos ();
+
+    cleanup_unused_repo_block_stores ();
 
     return vdata;
 }
