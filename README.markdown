@@ -1,4 +1,4 @@
-Introduction
+Introduction [![Build Status](https://secure.travis-ci.org/haiwen/seafile.png?branch=master)](http://travis-ci.org/haiwen/seafile)
 ============
 
 Seafile is a next-generation open source cloud storage system with advanced support for file syncing, privacy protection and teamwork.
