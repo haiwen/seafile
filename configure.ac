@@ -43,7 +43,7 @@ else
 fi
 
 AC_MSG_CHECKING(for Mac)
-if test "$TERM_PROGRAM" = "Apple_Terminal"; then
+if test "$(uname)" = "Darwin"; then
   bmac=true
   AC_MSG_RESULT(compile in mac)
 else
