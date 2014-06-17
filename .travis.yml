@@ -18,10 +18,12 @@ before_install:
  - make -j8 && sudo make install && cd ../..
  - cd deps/ccnet && ./autogen.sh && ./configure --enable-client --enable-server
  - cd lib && python `which searpc-codegen.py` ./rpc_table.py && cd -
+ - cd lib && valac -C --pkg posix ccnetobj.vala && cd -
  - make -j8 && sudo make install && cd ../..
  - ./autogen.sh
 script:
  - cd lib && python `which searpc-codegen.py` ./rpc_table.py && cd -
+ - cd lib && valac -C --pkg posix repo.vala commit.vala dirent.vala dir.vala task.vala branch.vala crypt.vala webaccess.vala copy-task.vala && cd -
  - ./configure --disable-fuse --enable-client --enable-server
  - make -j8
 notifications:
