@@ -220,7 +220,8 @@ handle_rename (int in_fd,
         } else if (event->mask & IN_MOVED_TO) {
             /* A file/dir was moved into this repo. */
             /* Add watch and produce events. */
-            add_watch_recursive (info, in_fd, worktree, filename, TRUE);
+            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+            add_watch_recursive (info, in_fd, worktree, filename, FALSE);
         }
     } else {
         if (event->mask & IN_MOVED_FROM) {
@@ -250,7 +251,9 @@ handle_rename (int in_fd,
                  */
                 add_event_to_queue (status, WT_EVENT_DELETE,
                                     rename_info->old_path, NULL);
-                add_watch_recursive (info, in_fd, worktree, filename, TRUE);
+                add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE,
+                                    filename, NULL);
+                add_watch_recursive (info, in_fd, worktree, filename, FALSE);
             }
             unset_rename_processing_state (rename_info);
         } else {
@@ -351,7 +354,8 @@ process_one_event (int in_fd,
          * watch it. So it's safer to scan this dir. At most time we don't
          * have to scan recursively and very few new files will be found.
          */
-        add_watch_recursive (info, in_fd, worktree, filename, TRUE);
+        add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+        add_watch_recursive (info, in_fd, worktree, filename, FALSE);
     } else if (event->mask & IN_DELETE) {
         seaf_debug ("Deleted %s.\n", filename);
         add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
@@ -575,7 +579,7 @@ add_watch (SeafWTMonitorPriv *priv, const char *repo_id, const char *worktree)
     g_hash_table_insert (priv->info_hash, (gpointer)(long)inotify_fd, info);
     pthread_mutex_unlock (&priv->hash_lock);
 
-    if (add_watch_recursive (info, inotify_fd, worktree, "", TRUE) < 0) {
+    if (add_watch_recursive (info, inotify_fd, worktree, "", FALSE) < 0) {
         close (inotify_fd);
         pthread_mutex_lock (&priv->hash_lock);
         g_hash_table_remove (priv->handle_hash, repo_id);
@@ -584,13 +588,15 @@ add_watch (SeafWTMonitorPriv *priv, const char *repo_id, const char *worktree)
         return -1;
     }
 
+    /* An empty path indicates repo-mgr to scan the whole worktree. */
+    add_event_to_queue (info->status, WT_EVENT_CREATE_OR_UPDATE, "", NULL);
+
     return inotify_fd;
 }
 
 static int handle_add_repo (SeafWTMonitorPriv *priv,
                             const char *repo_id,
-                            const char *worktree,
-                            long *handle) 
+                            const char *worktree)
 {
     int inotify_fd;
 
@@ -601,7 +607,6 @@ static int handle_add_repo (SeafWTMonitorPriv *priv,
 
     FD_SET (inotify_fd, &priv->read_fds);
     priv->maxfd = MAX (inotify_fd, priv->maxfd);
-    *handle = (long)inotify_fd;
     return 0;
 }
 
@@ -661,7 +666,6 @@ static void
 handle_watch_command (SeafWTMonitor *monitor, WatchCommand *cmd)
 {
     SeafWTMonitorPriv *priv = monitor->priv;
-    long inotify_fd;
 
     if (cmd->type == CMD_ADD_WATCH) {
         if (g_hash_table_lookup_extended (priv->handle_hash, cmd->repo_id,
@@ -670,7 +674,7 @@ handle_watch_command (SeafWTMonitor *monitor, WatchCommand *cmd)
             return;
         }
 
-        if (handle_add_repo(priv, cmd->repo_id, cmd->worktree, &inotify_fd) < 0) {
+        if (handle_add_repo(priv, cmd->repo_id, cmd->worktree) < 0) {
             seaf_warning ("[wt mon] failed to watch worktree of repo %s.\n",
                           cmd->repo_id);
             reply_watch_command (monitor, -1);
