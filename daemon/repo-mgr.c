@@ -10,6 +10,7 @@
 #include <ccnet.h>
 #include "utils.h"
 #include "avl/avl.h"
+#define DEBUG_FLAG SEAFILE_DEBUG_SYNC
 #include "log.h"
 
 #include "status.h"
@@ -598,10 +599,44 @@ out:
 
 static int
 add_path_to_index (SeafRepo *repo, struct index_state *istate,
-                   SeafileCrypt *crypt, const char *path, GList *ignore_list)
+                   SeafileCrypt *crypt, const char *path, GList *ignore_list,
+                   GList **scanned_dirs)
 {
     char *full_path;
     SeafStat st;
+
+    /* When a repo is initially added, a CREATE_OR_UPDATE event will be created
+     * for the worktree root "".
+     */
+    if (path[0] == 0) {
+        add_recursive (repo->id, repo->version, repo->email, istate,
+                       repo->worktree, path,
+                       crypt, FALSE, ignore_list);
+        return 0;
+    }
+
+    /* If we've recursively scanned the parent directory, don't need to scan
+     * any files under it any more.
+     */
+    GList *ptr;
+    char *dir, *full_dir;
+    for (ptr = *scanned_dirs; ptr; ptr = ptr->next) {
+        dir = ptr->data;
+        /* exact match */
+        if (strcmp (dir, path) == 0) {
+            seaf_debug ("%s has been scanned before, skip adding.\n", path);
+            return 0;
+        }
+
+        /* prefix match. */
+        full_dir = g_strconcat (dir, "/", NULL);
+        if (strncmp (full_dir, path, strlen(full_dir)) == 0) {
+            g_free (full_dir);
+            seaf_debug ("%s has been scanned before, skip adding.\n", path);
+            return 0;
+        }
+        g_free (full_dir);
+    }
 
     if (check_full_path_ignore (repo->worktree, path, ignore_list))
         return 0;
@@ -614,13 +649,12 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
         return -1;
     }
 
-    if (S_ISDIR(st.st_mode)) {
-        if (is_empty_dir (full_path, ignore_list))
-            add_empty_dir_to_index (istate, path, &st);
-    } else if (S_ISREG(st.st_mode)) {
-        add_to_index (repo->id, repo->version, istate, path, full_path,
-                      &st, 0, crypt, index_cb, repo->email);
-    }
+    if (S_ISDIR(st.st_mode))
+        *scanned_dirs = g_list_prepend (*scanned_dirs, g_strdup(path));
+
+    /* Add is always recursive */
+    add_recursive (repo->id, repo->version, repo->email, istate, repo->worktree, path,
+                   crypt, FALSE, ignore_list);
 
     g_free (full_path);
     return 0;
@@ -664,6 +698,15 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
         return -1;
     }
 
+    GList *scanned_dirs = NULL;
+
+    WTEvent *last_event;
+    pthread_mutex_lock (&status->q_lock);
+    last_event = g_queue_peek_tail (status->event_q);
+    pthread_mutex_unlock (&status->q_lock);
+    if (!last_event)
+        goto out;
+
     while (1) {
         pthread_mutex_lock (&status->q_lock);
         event = g_queue_pop_head (status->event_q);
@@ -673,7 +716,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
 
         switch (event->ev_type) {
         case WT_EVENT_CREATE_OR_UPDATE:
-            add_path_to_index (repo, istate, crypt, event->path, ignore_list);
+            add_path_to_index (repo, istate, crypt, event->path,
+                               ignore_list, &scanned_dirs);
             break;
         case WT_EVENT_DELETE:
             remove_from_index_with_prefix (istate, event->path);
@@ -712,10 +756,16 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             break;
         }
 
-        wt_event_free (event);
+        if (event == last_event) {
+            wt_event_free (event);
+            break;
+        } else
+            wt_event_free (event);
     }
 
+out:
     wt_status_unref (status);
+    string_list_free (scanned_dirs);
 
     return 0;
 }

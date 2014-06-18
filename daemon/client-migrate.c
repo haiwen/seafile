@@ -1,4 +1,13 @@
 
+#ifdef WIN32
+
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x500
+#endif
+#include <windows.h>
+
+#endif  /* WIN32 */
+
 #include "common.h"
 
 #include "seafile-session.h"
