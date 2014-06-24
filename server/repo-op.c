@@ -168,8 +168,7 @@ post_file_recursive (SeafRepo *repo,
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 41);
-        id[40] = '\0';
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
 
         goto out;
@@ -211,9 +210,7 @@ post_file_recursive (SeafRepo *repo,
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
         
         g_free(id);
-        id = g_strndup(newdir->dir_id, 41);
-        id[40] = '\0';
-        
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
     }
 
@@ -757,8 +754,7 @@ post_multi_files_recursive (SeafRepo *repo,
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 41);
-        id[40] = '\0';
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
 
         goto out;
@@ -802,9 +798,7 @@ post_multi_files_recursive (SeafRepo *repo,
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
         
         g_free(id);
-        id = g_strndup(newdir->dir_id, 41);
-        id[40] = '\0';
-        
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
     }
 
@@ -1195,8 +1189,7 @@ del_file_recursive(SeafRepo *repo,
         newdir = seaf_dir_new(NULL, newentries,
                               dir_version_from_repo_version(repo->version));
         seaf_dir_save(seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup(newdir->dir_id, 41);
-        id[40] = '\0';
+        id = g_strndup(newdir->dir_id, 40);
         seaf_dir_free(newdir);
 
         goto out;
@@ -1237,9 +1230,7 @@ del_file_recursive(SeafRepo *repo,
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
         
         g_free(id);
-        id = g_strndup(newdir->dir_id, 41);
-        id[40] = '\0';
-        
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
     }
 
@@ -2391,8 +2382,7 @@ rename_file_recursive(SeafRepo *repo,
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 41);
-        id[40] = '\0';
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
 
         goto out;
@@ -2432,9 +2422,7 @@ rename_file_recursive(SeafRepo *repo,
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
         
         g_free(id);
-        id = g_strndup(newdir->dir_id, 41);
-        id[40] = '\0';
-        
+        id = g_strndup(newdir->dir_id, 40);
         seaf_dir_free (newdir);
     }
 
@@ -2572,8 +2560,7 @@ put_file_recursive(SeafRepo *repo,
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 41);
-        id[40] = '\0';
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
 
         goto out;
@@ -2615,9 +2602,7 @@ put_file_recursive(SeafRepo *repo,
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
         
         g_free(id);
-        id = g_strndup(newdir->dir_id, 41);
-        id[40] = '\0';
-        
+        id = g_strndup(newdir->dir_id, 40);
         seaf_dir_free (newdir);
     }
 
