@@ -478,6 +478,8 @@ set_virtual_repo_base_commit_path (const char *vrepo_id, const char *base_commit
                              "UPDATE VirtualRepo SET base_commit=?, path=? WHERE repo_id=?",
                              3, "string", base_commit_id, "string", new_path,
                              "string", vrepo_id);
+
+    seaf_repo_manager_expire_item_from_cache (seaf->repo_mgr, vrepo_id);
 }
 
 int

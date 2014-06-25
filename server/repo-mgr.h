@@ -62,6 +62,9 @@ gboolean is_repo_id_valid (const char *id);
 SeafRepo* 
 seaf_repo_new (const char *id, const char *name, const char *desc);
 
+SeafRepo*
+seaf_repo_dup(const SeafRepo *repo);
+
 void
 seaf_repo_free (SeafRepo *repo);
 
@@ -123,6 +126,9 @@ int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr,
                             const char *repo_id,
                             gboolean add_deleted_record);
+void
+seaf_repo_manager_expire_item_from_cache (SeafRepoManager *mgr,
+                                          const char *repo_id);
 
 SeafRepo* 
 seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id);

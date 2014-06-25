@@ -30,6 +30,18 @@ seaf_branch_new (const char *name, const char *repo_id, const char *commit_id)
     return branch;
 }
 
+SeafBranch*
+seaf_branch_dup (const SeafBranch *branch)
+{
+    SeafBranch *new_branch;
+    if (!branch) return NULL;
+    new_branch = g_new (SeafBranch, 1);
+    memcpy (new_branch, branch, sizeof(SeafBranch));
+    new_branch->name = g_strdup (branch->name);
+    new_branch->ref = 1;
+    return new_branch;
+}
+
 void
 seaf_branch_free (SeafBranch *branch)
 {
@@ -417,6 +429,8 @@ seaf_branch_manager_test_and_update_branch (SeafBranchManager *mgr,
     seaf_db_trans_close (trans);
 
     on_branch_updated (mgr, branch);
+
+    seaf_repo_manager_expire_item_from_cache (mgr->seaf->repo_mgr, branch->repo_id);
 
     return 0;
 }

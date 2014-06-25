@@ -16,6 +16,7 @@ struct _SeafBranch {
 SeafBranch *seaf_branch_new (const char *name,
                              const char *repo_id,
                              const char *commit_id);
+SeafBranch* seaf_branch_dup (const SeafBranch *branch);
 void seaf_branch_free (SeafBranch *branch);
 void seaf_branch_set_commit (SeafBranch *branch, const char *commit_id);
 

@@ -27,17 +27,27 @@
 
 #define REAP_TOKEN_INTERVAL 300 /* 5 mins */
 #define DECRYPTED_TOKEN_TTL 3600 /* 1 hour */
+#define CACHE_CLEANUP_INTERVAL 60 /* 1mins, in seconds */
+#define CACHE_TTL 3600 /* 60mins, in seconds */
 
 typedef struct DecryptedToken {
     char *token;
     gint64 reap_time;
 } DecryptedToken;
 
+typedef struct SeafTTLRepo {
+    SeafRepo* repo;
+    gint64 expired_time;
+} SeafTTLRepo;
+
 struct _SeafRepoManagerPriv {
     /* (encrypted_token, session_key) -> decrypted token */
     GHashTable *decrypted_tokens;
     pthread_rwlock_t lock;
     CcnetTimer *reap_token_timer;
+    GHashTable *cache;
+    pthread_rwlock_t cache_lock;
+    CcnetTimer *cache_timer;
 };
 
 static const char *ignore_table[] = {
@@ -97,6 +107,30 @@ seaf_repo_new (const char *id, const char *name, const char *desc)
     return repo;
 }
 
+SeafRepo*
+seaf_repo_dup(const SeafRepo *repo)
+{
+    SeafRepo* ret;
+    if (!repo) return NULL;
+
+    ret = g_new (SeafRepo, 1);
+    memcpy (ret, repo, sizeof (SeafRepo));
+    ret->name = g_strdup (repo->name);
+    ret->desc = g_strdup (repo->desc);
+    ret->head = seaf_branch_dup (repo->head);
+    ret->ref_cnt = 1;
+
+    if (repo->virtual_info) {
+        ret->virtual_info = g_new (SeafVirtRepo, 1);
+        memcpy (ret->virtual_info, repo->virtual_info, sizeof (SeafVirtRepo));
+        ret->virtual_info->path = g_strdup (repo->virtual_info->path);
+    } else {
+        ret->virtual_info = NULL;
+    }
+
+    return ret;
+}
+
 void
 seaf_repo_free (SeafRepo *repo)
 {
@@ -106,6 +140,36 @@ seaf_repo_free (SeafRepo *repo)
     if (repo->virtual_info)
         seaf_virtual_repo_info_free (repo->virtual_info);
     g_free (repo);
+}
+
+static inline void
+seaf_ttl_repo_free (SeafTTLRepo *ttl_repo)
+{
+    if (ttl_repo) {
+        seaf_repo_free (ttl_repo->repo);
+        g_free (ttl_repo);
+    }
+}
+
+static inline gboolean
+seaf_ttl_repo_is_expired (gpointer key, gpointer value, gpointer pctime)
+{
+    SeafTTLRepo *ttl_repo = (SeafTTLRepo *)value;
+    if (ttl_repo && (ttl_repo->expired_time < *(gint64 *)pctime))
+    {
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static int
+ttl_repo_cleanup (void* data)
+{
+    SeafRepoManager *manager = (SeafRepoManager *)data;
+    gint64 ctime = (gint64)time (NULL);
+    g_hash_table_foreach_remove (manager->priv->cache, seaf_ttl_repo_is_expired, &ctime);
+
+    return 0;
 }
 
 void
@@ -311,6 +375,14 @@ seaf_repo_manager_new (SeafileSession *seaf)
     mgr->priv->decrypted_tokens = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                          g_free,
                                                          (GDestroyNotify)decrypted_token_free);
+    /* allocate hashtable for repo cache */
+    mgr->priv->cache = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                         g_free,
+                                                         (GDestroyNotify)seaf_ttl_repo_free);
+    pthread_rwlock_init (&mgr->priv->cache_lock, NULL);
+
+    mgr->priv->cache_timer = ccnet_timer_new (ttl_repo_cleanup, mgr,
+                                                   CACHE_CLEANUP_INTERVAL * 1000);
     pthread_rwlock_init (&mgr->priv->lock, NULL);
     mgr->priv->reap_token_timer = ccnet_timer_new (reap_token, mgr,
                                                    REAP_TOKEN_INTERVAL * 1000);
@@ -459,7 +531,18 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
     if (remove_repo_ondisk (mgr, repo_id, add_deleted_record) < 0)
         return -1;
 
+    seaf_repo_manager_expire_item_from_cache (mgr, repo_id);
+
     return 0;
+}
+
+void
+seaf_repo_manager_expire_item_from_cache (SeafRepoManager *mgr,
+                                          const char *repo_id)
+{
+    pthread_rwlock_wrlock (&mgr->priv->cache_lock);
+    g_hash_table_remove (mgr->priv->cache, repo_id);
+    pthread_rwlock_unlock (&mgr->priv->cache_lock);
 }
 
 static gboolean
@@ -478,6 +561,18 @@ seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
 
     if (len >= 37)
         return NULL;
+
+    /* attempt to load repo from cache
+     * if failed, won't crash
+     * */
+    pthread_rwlock_rdlock (&manager->priv->cache_lock);
+    SeafTTLRepo *ttl_ret = (SeafTTLRepo *)g_hash_table_lookup (manager->priv->cache, id);
+    if (ttl_ret) {
+        SeafRepo *copy_repo = seaf_repo_dup (ttl_ret->repo);
+        pthread_rwlock_unlock (&manager->priv->cache_lock);
+        return copy_repo;
+    }
+    pthread_rwlock_unlock (&manager->priv->cache_lock);
 
     if (repo_exists_in_db (manager->seaf->db, id, &db_err)) {
         SeafRepo *ret = load_repo (manager, id, FALSE);
@@ -520,6 +615,15 @@ gboolean
 seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id)
 {
     gboolean db_err = FALSE;
+
+    /* search for repo in cache first */
+    pthread_rwlock_rdlock (&manager->priv->cache_lock);
+    gboolean ret = g_hash_table_contains (manager->priv->cache, id);
+    pthread_rwlock_unlock (&manager->priv->cache_lock);
+    if (ret) {
+        return ret;
+    }
+
     return repo_exists_in_db (manager->seaf->db, id, &db_err);
 }
 
@@ -627,6 +731,14 @@ load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt)
         memcpy (repo->store_id, repo->virtual_info->origin_repo_id, 36);
     else
         memcpy (repo->store_id, repo->id, 36);
+
+    /* load a copy into cache */
+    pthread_rwlock_wrlock (&manager->priv->cache_lock);
+    SeafTTLRepo *ttl_repo = (SeafTTLRepo *)malloc (sizeof (SeafTTLRepo));
+    ttl_repo->repo = seaf_repo_dup (repo);
+    ttl_repo->expired_time = (gint64)time (NULL) + CACHE_TTL * 1000;
+    g_hash_table_insert (manager->priv->cache, g_strdup (repo_id), ttl_repo);
+    pthread_rwlock_unlock (&manager->priv->cache_lock);
 
     return repo;
 }
