@@ -92,4 +92,27 @@ format_diff_results(GList *results);
 char *
 diff_results_to_description (GList *results);
 
+typedef int (*DiffFileCB) (int n,
+                           const char *basedir,
+                           SeafDirent *files[],
+                           void *data);
+
+typedef int (*DiffDirCB) (int n,
+                          const char *basedir,
+                          SeafDirent *dirs[],
+                          void *data,
+                          gboolean *recurse);
+
+typedef struct DiffOptions {
+    char store_id[37];
+    int version;
+
+    DiffFileCB file_cb;
+    DiffDirCB dir_cb;
+    void *data;
+} DiffOptions;
+
+int
+diff_trees (int n, const char *roots[], DiffOptions *opt);
+
 #endif

@@ -34,7 +34,10 @@ proc_headers = $(addprefix processors/, \
 	checkbl-proc.h \
 	getcommit-v3-proc.h \
 	checkff-proc.h \
-	getca-proc.h)
+	getca-proc.h \
+	check-protocol-proc.h \
+	sendcommit-v4-proc.h \
+	sendfs-v2-proc.h)
 
 proc_headers += ../common/processors/objecttx-common.h \
 				../common/processors/blocktx-common.h \
@@ -53,7 +56,6 @@ noinst_HEADERS = \
 	../common/sync-repo-common.h \
 	block-tx-client.h \
 	seafile-config.h \
-	gc-core.h \
 	client-migrate.h \
 	$(proc_headers)
 
@@ -81,7 +83,7 @@ common_src = \
 	repo-mgr.c ../common/commit-mgr.c \
 	../common/log.c ../common/avl/avl.c ../common/object-list.c \
 	../common/rpc-service.c \
-	gc-core.c ../common/vc-common.c \
+	../common/vc-common.c \
 	../common/seaf-utils.c \
 	../common/obj-store.c \
 	../common/obj-backend-fs.c \
@@ -108,7 +110,10 @@ common_src = \
 	processors/checkbl-proc.c \
 	processors/getcommit-v3-proc.c \
 	processors/checkff-proc.c \
-	processors/getca-proc.c
+	processors/getca-proc.c \
+	processors/check-protocol-proc.c \
+	processors/sendcommit-v4-proc.c \
+	processors/sendfs-v2-proc.c
 
 
 seaf_daemon_SOURCES = seaf-daemon.c $(common_src)

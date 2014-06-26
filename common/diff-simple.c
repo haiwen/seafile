@@ -149,28 +149,6 @@ int diff_index(const char *repo_id, int version,
 
 #endif  /* not SEAFILE_SERVER */
 
-#ifdef SEAFILE_SERVER
-
-typedef int (*DiffFileCB) (int n,
-                             const char *basedir,
-                             SeafDirent *files[],
-                             void *data);
-
-typedef int (*DiffDirCB) (int n,
-                          const char *basedir,
-                          SeafDirent *dirs[],
-                          void *data,
-                          gboolean *recurse);
-
-typedef struct DiffOptions {
-    char store_id[37];
-    int version;
-
-    DiffFileCB file_cb;
-    DiffDirCB dir_cb;
-    void *data;
-} DiffOptions;
-
 inline static gboolean
 dirent_same (SeafDirent *denta, SeafDirent *dentb)
 {
@@ -334,7 +312,7 @@ diff_trees_recursive (int n, SeafDir *trees[],
     return ret;
 }
 
-static int
+int
 diff_trees (int n, const char *roots[], DiffOptions *opt)
 {
     SeafDir **trees, *root;
@@ -364,6 +342,8 @@ diff_trees (int n, const char *roots[], DiffOptions *opt)
 
     return ret;
 }
+
+#ifdef SEAFILE_SERVER
 
 static int
 twoway_diff_files (int n, const char *basedir, SeafDirent *files[], void *data)

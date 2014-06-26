@@ -464,6 +464,7 @@ add_transfer_task (CloneTask *task, GError **error)
                                                       "fetch_head",
                                                       "master",
                                                       task->token,
+                                                      FALSE,
                                                       error);
     if (!task->tx_id)
         return -1;

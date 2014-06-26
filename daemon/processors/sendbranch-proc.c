@@ -62,9 +62,14 @@ start (CcnetProcessor *processor, int argc, char **argv)
     new_head = argv[2];
 
     buf = g_string_new (NULL);
-    g_string_printf (buf, "remote %s seafile-recvbranch %s %s %s %s",
-                     processor->peer_id, repo_id, branch, new_head,
-                     task->session_token);
+    if (task->protocol_version <= 6)
+        g_string_printf (buf, "remote %s seafile-recvbranch %s %s %s %s",
+                         processor->peer_id, repo_id, branch, new_head,
+                         task->session_token);
+    else
+        g_string_printf (buf, "remote %s seafile-recvbranch-v2 %s %s %s %s",
+                         processor->peer_id, repo_id, branch, new_head,
+                         task->session_token);
     ccnet_processor_send_request (processor, buf->str);
     g_string_free (buf, TRUE);
 

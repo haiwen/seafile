@@ -600,7 +600,7 @@ handle_update (CcnetProcessor *processor,
                 (TimerCB)check_end_condition, processor, CHECK_INTERVAL);
             processor->state = FETCH_OBJECT;
         } else {
-            g_warning ("Bad response: %s %s\n", code, code_msg);
+            g_warning ("Bad update: %s %s\n", code, code_msg);
             ccnet_processor_send_response (processor,
                                            SC_BAD_UPDATE_CODE, SS_BAD_UPDATE_CODE,
                                            NULL, 0);
@@ -617,7 +617,7 @@ handle_update (CcnetProcessor *processor,
         } else if (strncmp(code, SC_OBJECT, 3) == 0) {
             recv_fs_object (processor, content, clen);
         } else {
-            g_warning ("Bad response: %s %s\n", code, code_msg);
+            g_warning ("Bad update: %s %s\n", code, code_msg);
             ccnet_processor_send_response (processor,
                                            SC_BAD_UPDATE_CODE, SS_BAD_UPDATE_CODE,
                                            NULL, 0);

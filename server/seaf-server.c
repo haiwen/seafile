@@ -36,6 +36,9 @@
 #include "processors/checkbl-proc.h"
 #include "processors/checkff-proc.h"
 #include "processors/putca-proc.h"
+#include "processors/check-protocol-slave-proc.h"
+#include "processors/recvfs-v2-proc.h"
+#include "processors/recvbranch-v2-proc.h"
 
 #include "cdc/cdc.h"
 
@@ -97,6 +100,12 @@ static void register_processors (CcnetClient *client)
                             SEAFILE_TYPE_CHECKFF_PROC, NULL);
     ccnet_register_service (client, "seafile-putca", "basic",
                             SEAFILE_TYPE_PUTCA_PROC, NULL);
+    ccnet_register_service (client, "seafile-check-protocol-slave", "basic",
+                            SEAFILE_TYPE_CHECK_PROTOCOL_SLAVE_PROC, NULL);
+    ccnet_register_service (client, "seafile-recvfs-v2", "basic",
+                            SEAFILE_TYPE_RECVFS_V2_PROC, NULL);
+    ccnet_register_service (client, "seafile-recvbranch-v2", "basic",
+                            SEAFILE_TYPE_RECVBRANCH_V2_PROC, NULL);
 }
 
 #include <searpc.h>

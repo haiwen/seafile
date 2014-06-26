@@ -288,6 +288,9 @@ handle_response (CcnetProcessor *processor,
             return;
         }
 
+        if (task->protocol_version >= 7 && !task->server_side_merge)
+            task->protocol_version = 6;
+
         seaf_message ("repo version is %d, protocol version is %d.\n",
                       task->repo_version, task->protocol_version);
         ccnet_processor_done (processor, TRUE);

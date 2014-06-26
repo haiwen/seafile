@@ -124,6 +124,7 @@ struct _TransferTask {
     char        *token;
     char        *session_token;
     int          protocol_version;
+    gboolean     server_side_merge;
     char        *from_branch;
     char        *to_branch;
     char         head[41];
@@ -221,6 +222,7 @@ seaf_transfer_manager_add_download (SeafTransferManager *manager,
                                     const char *from_branch,
                                     const char *to_branch,
                                     const char *token,
+                                    gboolean server_side_merge,
                                     GError **error);
 
 char *
@@ -231,6 +233,7 @@ seaf_transfer_manager_add_upload (SeafTransferManager *manager,
                                   const char *from_branch,
                                   const char *to_branch,
                                   const char *token,
+                                  gboolean server_side_merge,
                                   GError **error);
 
 GList*
