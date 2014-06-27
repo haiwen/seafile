@@ -4284,7 +4284,7 @@ retry:
     strftime (desc, sizeof(desc), "Reverted repo to status at %F %T.", 
               localtime((time_t *)(&commit->ctime)));
 #else
-    strftime (desc, sizeof(desc), "Reverted repo to status at %%Y-%m-%d %H:%M:%S.", 
+    strftime (desc, sizeof(desc), "Reverted repo to status at %Y-%m-%d %H:%M:%S.",
               localtime((time_t *)(&commit->ctime)));
 #endif
 
