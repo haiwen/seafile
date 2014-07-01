@@ -253,8 +253,9 @@ handle_rename (int in_fd,
                                     rename_info->old_path, NULL);
                 add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE,
                                     filename, NULL);
-                add_watch_recursive (info, in_fd, worktree, filename, FALSE);
             }
+            /* Need to update wd -> path mapping. */
+            add_watch_recursive (info, in_fd, worktree, filename, FALSE);
             unset_rename_processing_state (rename_info);
         } else {
             /* A file/dir was moved out of this repo, followed by another
