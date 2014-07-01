@@ -267,18 +267,18 @@ function get_seafile_server_port () {
     echo
 }
 
-function get_httpserver_port () {
-    question="What tcp port do you want to use for seafile httpserver?" 
+function get_fileserver_port () {
+    question="What tcp port do you want to use for seafile fileserver?" 
     hint="8082 is the recommended port."
     default="8082"
     ask_question "${question}\n${hint}" "${default}"
-    read httpserver_port
-    if [[ "${httpserver_port}" == "" ]]; then
-        httpserver_port="${default}"
+    read fileserver_port
+    if [[ "${fileserver_port}" == "" ]]; then
+        fileserver_port="${default}"
     fi
-    if [[ ! ${httpserver_port} =~ ^[0-9]+$ ]]; then
-        echo "\"${httpserver_port}\" is not a valid port number. "
-        get_httpserver_port
+    if [[ ! ${fileserver_port} =~ ^[0-9]+$ ]]; then
+        echo "\"${fileserver_port}\" is not a valid port number. "
+        get_fileserver_port
     fi
     echo
 }
@@ -370,7 +370,7 @@ fi
 get_seafile_data_dir;
 if [[ ${use_existing_seafile} != "true" ]]; then
     get_seafile_server_port
-    get_httpserver_port
+    get_fileserver_port
 fi
 
 sleep .5
@@ -388,7 +388,7 @@ fi
 if [[ ${use_existing_seafile} != "true" ]]; then
     printf "seafile data dir:   \033[33m${seafile_data_dir}\033[m\n"
     printf "seafile port:       \033[33m${seafile_server_port}\033[m\n"
-    printf "httpserver port:    \033[33m${httpserver_port}\033[m\n"
+    printf "fileserver port:    \033[33m${fileserver_port}\033[m\n"
 else
     printf "seafile data dir:   use existing data in    \033[33m${seafile_data_dir}\033[m\n"
 fi
@@ -422,7 +422,7 @@ if [[ "${use_existing_seafile}" != "true" ]]; then
     echo "Generating seafile configuration in ${seafile_data_dir} ..."
     echo
     if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_server_init} --seafile-dir "${seafile_data_dir}" \
-        --port ${seafile_server_port} --httpserver-port ${httpserver_port}; then
+        --port ${seafile_server_port} --fileserver-port ${fileserver_port}; then
         
         echo "Failed to generate seafile configuration"
         err_and_quit;
@@ -617,7 +617,7 @@ echo "-----------------------------------------------------------------"
 echo
 echo "port of ccnet server:         ${server_port}"
 echo "port of seafile server:       ${seafile_server_port}"
-echo "port of seafile httpserver:   ${httpserver_port}"
+echo "port of seafile fileserver:   ${fileserver_port}"
 echo "port of seahub:               8000"
 echo
 echo -e "When problems occur, refer to\n"

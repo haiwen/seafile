@@ -16,9 +16,9 @@ class SeafileAPI(object):
     def __init__(self):
         pass
 
-    # httpserver token
-    def get_httpserver_access_token(self, repo_id, obj_id, op, username):
-        """Generate token for access file/dir in httpserver
+    # fileserver token
+    def get_fileserver_access_token(self, repo_id, obj_id, op, username):
+        """Generate token for access file/dir in fileserver
 
         op: the operation, 'view', 'download', 'download-dir'
 
@@ -26,7 +26,7 @@ class SeafileAPI(object):
         """
         return seafserv_rpc.web_get_access_token(repo_id, obj_id, op, username)
 
-    def query_httpserver_access_token(self, token):
+    def query_fileserver_access_token(self, token):
         """Get the WebAccess object
 
         token: the access token in string

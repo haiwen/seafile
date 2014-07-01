@@ -26,11 +26,10 @@
 #include "utils.h"
 
 #include "seafile-session.h"
-#include "httpserver.h"
+#include "fileserver.h"
 #include "access-file.h"
 #include "pack-dir.h"
 
-#define CONTENT_TYPE_FILENAME "content-type.txt"
 #define FILE_TYPE_MAP_DEFAULT_LEN 1
 
 struct file_type_map {

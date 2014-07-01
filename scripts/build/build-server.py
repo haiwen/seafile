@@ -219,7 +219,7 @@ class Seafile(Project):
             s3_support = '--enable-s3'
 
         self.build_commands = [
-            './configure --prefix=%s --disable-client --enable-server --enable-pgsql --enable-httpserver %s' \
+            './configure --prefix=%s --disable-client --enable-server --enable-pgsql %s' \
                 % (self.prefix, s3_support),
             'make',
             'make install'
@@ -665,11 +665,11 @@ def copy_shared_libs():
                            'seafile',
                            'lib')
 
-    httpserver_path = os.path.join(builddir,
+    fileserver_path = os.path.join(builddir,
                                    'seafile-server',
                                    'seafile',
                                    'bin',
-                                   'httpserver')
+                                   'fileserver')
 
     ccnet_server_path = os.path.join(builddir,
                                      'seafile-server',
@@ -685,7 +685,7 @@ def copy_shared_libs():
 
     libs = set()
     libs.update(get_dependent_libs(ccnet_server_path))
-    libs.update(get_dependent_libs(httpserver_path))
+    libs.update(get_dependent_libs(fileserver_path))
     libs.update(get_dependent_libs(seaf_fuse_path))
 
     for lib in libs:

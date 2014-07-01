@@ -12,7 +12,7 @@
 #include "utils.h"
 
 #include "seafile-session.h"
-#include "httpserver.h"
+#include "fileserver.h"
 
 #include <archive.h>
 #include <archive_entry.h>

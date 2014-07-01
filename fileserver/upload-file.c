@@ -26,7 +26,7 @@
 #include "utils.h"
 
 #include "seafile-session.h"
-#include "httpserver.h"
+#include "fileserver.h"
 #include "upload-file.h"
 
 

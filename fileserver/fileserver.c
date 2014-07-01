@@ -16,7 +16,8 @@
 #include <ccnet.h>
 
 #include "seafile-session.h"
-#include "httpserver.h"
+#include "fileserver-config.h"
+#include "fileserver.h"
 #include "access-file.h"
 #include "upload-file.h"
 
@@ -29,11 +30,8 @@
 static char *config_dir = NULL;
 static char *seafile_dir = NULL;
 static char *bind_addr = NULL;
-static gboolean use_https = FALSE;
 static uint16_t bind_port = 0;
 static int num_threads = 10;
-static char *pemfile = NULL;
-static char *privkey = NULL;
 
 static char *pidfile = NULL;
 
@@ -59,7 +57,7 @@ static const struct option long_opts[] = {
 static void usage ()
 {
     fprintf (stderr,
-             "usage: httpserver [-c config_dir] [-d seafile_dir] \n");
+             "usage: fileserver [-c config_dir] [-d seafile_dir] \n");
 }
 
 static void
@@ -107,14 +105,14 @@ write_pidfile (const char *pidfile_path)
 }
 
 static void
-on_httpserver_exit(void)
+on_fileserver_exit(void)
 {
     if (pidfile)
         remove_pidfile (pidfile);
 }
 
 static void
-load_httpserver_config (SeafileSession *session)
+load_fileserver_config (SeafileSession *session)
 {
     GError *error = NULL;
     char *host = NULL;
@@ -122,7 +120,7 @@ load_httpserver_config (SeafileSession *session)
     int max_upload_size_mb;
     int max_download_dir_size_mb;
 
-    host = g_key_file_get_string (session->config, "httpserver", "host", &error);
+    host = fileserver_config_get_string (session->config, "host", &error);
     if (!error) {
         bind_addr = host;
     } else {
@@ -136,7 +134,7 @@ load_httpserver_config (SeafileSession *session)
         g_clear_error (&error);
     }
 
-    port = g_key_file_get_integer (session->config, "httpserver", "port", &error);
+    port = fileserver_config_get_integer (session->config, "port", &error);
     if (!error) {
         bind_port = port;
     } else {
@@ -150,44 +148,9 @@ load_httpserver_config (SeafileSession *session)
         g_clear_error (&error);
     }
 
-    use_https = g_key_file_get_boolean (session->config,
-                                        "httpserver", "https",
-                                        &error);
-    if (error) {
-        if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND &&
-            error->code != G_KEY_FILE_ERROR_GROUP_NOT_FOUND) {
-            seaf_warning ("[conf] Error: failed to read the value of 'https'\n");
-            exit (1);
-        }
-
-        /* There is no <https> field in seafile.conf, so we use http. */
-        g_clear_error (&error);
-
-    } else if (use_https) {
-        /* read https config */
-        pemfile = g_key_file_get_string (session->config,
-                                         "httpserver", "pemfile",
-                                         &error);
-        if (error) {
-            seaf_warning ("[conf] Error: https is true, "
-                          "but the value of pemfile is unknown\n");
-            exit (1);
-        }
-
-        privkey = g_key_file_get_string (session->config,
-                                         "httpserver", "privkey",
-                                         &error);
-        if (error) {
-            seaf_warning ("[conf] Error: https is true, "
-                          "but the value of privkey is unknown\n");
-            exit (1);
-        }
-    }
-
-    max_upload_size_mb = g_key_file_get_integer (session->config,
-                                                 "httpserver",
-                                                 "max_upload_size",
-                                                 &error);
+    max_upload_size_mb = fileserver_config_get_integer (session->config,
+                                                        "max_upload_size",
+                                                        &error);
     if (error) {
         session->max_upload_size = -1; /* no limit */
         g_clear_error (&error);
@@ -198,10 +161,9 @@ load_httpserver_config (SeafileSession *session)
             session->max_upload_size = max_upload_size_mb * ((gint64)1 << 20);
     }
 
-    max_download_dir_size_mb = g_key_file_get_integer (session->config,
-                                                 "httpserver",
-                                                 "max_download_dir_size",
-                                                 &error);
+    max_download_dir_size_mb = fileserver_config_get_integer (session->config,
+                                                              "max_download_dir_size",
+                                                              &error);
     if (error) {
         session->max_download_dir_size = DEFAULT_MAX_DOWNLOAD_DIR_SIZE;
         g_clear_error (&error);
@@ -352,29 +314,11 @@ main(int argc, char *argv[])
 
     seaf->client_pool = ccnet_client_pool_new (config_dir);
 
-    load_httpserver_config (seaf);
-    if (use_https) {
-        seaf_message ("host = %s, port = %d, https = true, pemfile = %s, privkey = %s\n",
-                      bind_addr, bind_port, pemfile, privkey);
-    } else {
-        seaf_message ("host = %s, port = %d, https = false\n", bind_addr, bind_port);
-    }
+    load_fileserver_config (seaf);
+    seaf_message ("host = %s, port = %d\n", bind_addr, bind_port);
 
     evbase = event_base_new();
     htp = evhtp_new(evbase, NULL);
-
-    if (pemfile != NULL) {
-        evhtp_ssl_cfg_t scfg;
-
-        memset (&scfg, 0, sizeof(scfg));
-
-        scfg.pemfile        = pemfile;
-        scfg.privfile       = privkey;
-        scfg.scache_type    = evhtp_ssl_scache_type_internal;
-        scfg.scache_timeout = 5000;
-
-        evhtp_ssl_init (htp, &scfg);
-    }
 
     if (access_file_init (htp) < 0)
         exit (1);
@@ -398,7 +342,7 @@ main(int argc, char *argv[])
         }
     }
     
-    atexit (on_httpserver_exit);
+    atexit (on_fileserver_exit);
 
     event_base_loop(evbase, 0);
 
