@@ -11,6 +11,7 @@
 /* message with greater log levels will be ignored */
 static int ccnet_log_level;
 static int seafile_log_level;
+static char *logfile;
 static FILE *logfp;
 
 static void 
@@ -68,7 +69,7 @@ get_debug_level(const char *str, int default_level)
 }
 
 int
-seafile_log_init (const char *logfile, const char *ccnet_debug_level_str,
+seafile_log_init (const char *_logfile, const char *ccnet_debug_level_str,
                   const char *seafile_debug_level_str)
 {
     g_log_set_handler (NULL, G_LOG_LEVEL_MASK | G_LOG_FLAG_FATAL
@@ -80,11 +81,14 @@ seafile_log_init (const char *logfile, const char *ccnet_debug_level_str,
     ccnet_log_level = get_debug_level(ccnet_debug_level_str, G_LOG_LEVEL_INFO);
     seafile_log_level = get_debug_level(seafile_debug_level_str, G_LOG_LEVEL_DEBUG);
 
-    if (strcmp(logfile, "-") == 0)
+    if (strcmp(_logfile, "-") == 0) {
         logfp = stdout;
+        logfile = g_strdup (_logfile);
+    }
     else {
-        logfile = ccnet_expand_path(logfile);
+        logfile = ccnet_expand_path(_logfile);
         if ((logfp = g_fopen (logfile, "a+")) == NULL) {
+            seaf_message ("Failed to open file %s\n", logfile);
             return -1;
         }
     }
@@ -92,6 +96,30 @@ seafile_log_init (const char *logfile, const char *ccnet_debug_level_str,
     return 0;
 }
 
+int
+seafile_log_reopen ()
+{
+    FILE *fp, *oldfp;
+
+    if (strcmp(logfile, "-") == 0)
+        return 0;
+
+    if ((fp = fopen (logfile, "a+")) == NULL) {
+        seaf_message ("Failed to open file %s\n", logfile);
+        return -1;
+    }
+
+    //TODO: check file's health
+
+    oldfp = logfp;
+    logfp = fp;
+    if (fclose(oldfp) < 0) {
+        seaf_message ("Failed to close file %s\n", logfile);
+        return -1;
+    }
+
+    return 0;
+}
 
 static SeafileDebugFlags debug_flags = 0;
 

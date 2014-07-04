@@ -569,11 +569,22 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      searpc_signature_string__void());
 }
 
+static struct event sigusr1;
+
+static void sigusr1Handler (int fd, short event, void *user_data)
+{
+    seafile_log_reopen ();
+}
+
 static void
 set_signal_handlers (SeafileSession *session)
 {
 #ifndef WIN32
     signal (SIGPIPE, SIG_IGN);
+
+    /* design as reopen log */
+    event_set(&sigusr1, SIGUSR1, EV_SIGNAL | EV_PERSIST, sigusr1Handler, NULL);
+    event_add(&sigusr1, NULL);
 #endif
 }
 
