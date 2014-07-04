@@ -14,6 +14,7 @@
 
 int seafile_log_init (const char *logfile, const char *ccnet_debug_level_str,
                       const char *seafile_debug_level_str);
+int seafile_log_reopen ();
 
 void
 seafile_debug_set_flags_string (const gchar *flags_string);
