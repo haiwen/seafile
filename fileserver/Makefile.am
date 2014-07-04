@@ -16,18 +16,19 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@MSVC_CFLAGS@ \
 	-Wall
 
-bin_PROGRAMS = httpserver
+bin_PROGRAMS = fileserver
 
 noinst_HEADERS = seafile-session.h repo-mgr.h \
-	httpserver.h access-file.h upload-file.h pack-dir.h
+	fileserver.h access-file.h upload-file.h pack-dir.h fileserver-config.h
 
-httpserver_SOURCES = \
-	httpserver.c \
+fileserver_SOURCES = \
+	fileserver.c \
 	access-file.c \
 	upload-file.c \
 	seafile-session.c \
 	repo-mgr.c \
 	pack-dir.c \
+	fileserver-config.c \
 	../common/seaf-db.c \
 	../common/bitfield.c \
 	../common/branch-mgr.c \
@@ -45,7 +46,7 @@ httpserver_SOURCES = \
 	../common/seafile-crypt.c
 
 # XXX: -levent_openssl must be behind in -levhtp
-httpserver_LDADD = -levent -levhtp -lssl -levent_openssl \
+fileserver_LDADD = -levent -levhtp -lssl -levent_openssl \
 	@GLIB2_LIBS@ @GOBJECT_LIBS@ @LIB_RT@ \
 	@CCNET_LIBS@ \
 	$(top_builddir)/lib/libseafile.la \
@@ -53,4 +54,4 @@ httpserver_LDADD = -levent -levhtp -lssl -levent_openssl \
 	@SEARPC_LIBS@ @JANSSON_LIBS@ @ZDB_LIBS@ @CURL_LIBS@ \
 	@LIBARCHIVE_LIBS@ ${LIB_WS32} @ZLIB_LIBS@
 
-httpserver_LDFLAGS = @STATIC_COMPILE@
+fileserver_LDFLAGS = @STATIC_COMPILE@

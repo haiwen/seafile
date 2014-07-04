@@ -208,24 +208,24 @@ start_seaf_server ()
 }
 
 static int
-start_httpserver() {
+start_fileserver() {
     static char *logfile = NULL;
     if (logfile == NULL) {
-        logfile = g_build_filename (ctl->logdir, "http.log", NULL);
+        logfile = g_build_filename (ctl->logdir, "fileserver.log", NULL);
     }
 
     char *argv[] = {
-        "httpserver",
+        "fileserver",
         "-c", ctl->config_dir,
         "-d", ctl->seafile_dir,
         "-l", logfile,
-        "-P", ctl->pidfile[PID_HTTPSERVER],
+        "-P", ctl->pidfile[PID_FILESERVER],
         NULL
     };
 
     int pid = spawn_process (argv);
     if (pid <= 0) {
-        seaf_warning ("Failed to spawn httpserver\n");
+        seaf_warning ("Failed to spawn fileserver\n");
         return -1;
     }
 
@@ -440,9 +440,9 @@ check_process (void *data)
         start_seaf_server ();
     }
 
-    if (need_restart(PID_HTTPSERVER)) {
-        seaf_message ("httpserver need restart...\n");
-        start_httpserver ();
+    if (need_restart(PID_FILESERVER)) {
+        seaf_message ("fileserver need restart...\n");
+        start_fileserver ();
     }
 
     if (ctl->seafdav_config.enabled) {
@@ -547,10 +547,10 @@ on_ccnet_connected ()
     if (start_seaf_server () < 0)
         controller_exit(1);
 
-    if (need_restart(PID_HTTPSERVER)) {
-        /* Since httpserver doesn't die when ccnet server dies, when ccnet
-         * server is restarted, we don't need to start httpserver */
-        if (start_httpserver() < 0)
+    if (need_restart(PID_FILESERVER)) {
+        /* Since fileserver doesn't die when ccnet server dies, when ccnet
+         * server is restarted, we don't need to start fileserver */
+        if (start_fileserver() < 0)
             controller_exit(1);
     }
 
@@ -604,7 +604,7 @@ stop_ccnet_server ()
 
     try_kill_process(PID_CCNET);
     try_kill_process(PID_SERVER);
-    try_kill_process(PID_HTTPSERVER);
+    try_kill_process(PID_FILESERVER);
     try_kill_process(PID_SEAFDAV);
 }
 
@@ -621,7 +621,7 @@ init_pidfile_path (SeafileController *ctl)
 
     ctl->pidfile[PID_CCNET] = g_build_filename (pid_dir, "ccnet.pid", NULL);
     ctl->pidfile[PID_SERVER] = g_build_filename (pid_dir, "seaf-server.pid", NULL);
-    ctl->pidfile[PID_HTTPSERVER] = g_build_filename (pid_dir, "httpserver.pid", NULL);
+    ctl->pidfile[PID_FILESERVER] = g_build_filename (pid_dir, "fileserver.pid", NULL);
     ctl->pidfile[PID_SEAFDAV] = g_build_filename (pid_dir, "seafdav.pid", NULL);
 }
 
@@ -998,4 +998,3 @@ int main (int argc, char **argv)
 
     return 0;
 }
-

@@ -104,35 +104,38 @@ else:
 SEAFILE_CONF_DIR = os.path.normpath(os.path.expanduser(SEAFILE_CONF_DIR))
 config.read(os.path.join(SEAFILE_CONF_DIR, 'seafile.conf'))
 
+def get_fileserver_option(key, default):
+    '''
+    "fileserver" used to be "httpserver"
+    '''
+    for section in ('fileserver', 'httpserver'):
+        if config.has_option(section, key):
+            return config.get(section, key)
+
+    return default
+
 MAX_UPLOAD_FILE_SIZE = None # Defaults to no limit
-if config.has_option('httpserver', 'max_upload_size'):
-    try:
-        max_upload_size_mb = config.getint('httpserver', 'max_upload_size')
-        if max_upload_size_mb > 0:
-            MAX_UPLOAD_FILE_SIZE = max_upload_size_mb * (2 ** 20)
-    except ValueError:
-        pass
+try:
+    max_upload_size_mb = int(get_fileserver_option('max_upload_size', 0))
+    if max_upload_size_mb > 0:
+        MAX_UPLOAD_FILE_SIZE = max_upload_size_mb * (2 ** 20)
+except ValueError:
+    pass
 
 MAX_DOWNLOAD_DIR_SIZE = 100 * (2 ** 20) # Default max size of a downloadable dir
-if config.has_option('httpserver', 'max_download_dir_size'):
-    try:
-        max_download_dir_size_mb = config.getint('httpserver', 'max_download_dir_size')
-        if max_download_dir_size_mb > 0:
-            MAX_DOWNLOAD_DIR_SIZE = max_download_dir_size_mb * (2 ** 20)
-    except ValueError:
-        pass
+try:
+    max_download_dir_size_mb = int(get_fileserver_option('max_download_dir_size', 0))
+    if max_download_dir_size_mb > 0:
+        MAX_DOWNLOAD_DIR_SIZE = max_download_dir_size_mb * (2 ** 20)
+except ValueError:
+    pass
 
-HTTP_SERVER_PORT = config.get('httpserver', 'port') if \
-        config.has_option('httpserver', 'port') else '8082'
-HTTP_SERVER_HTTPS = config.getboolean('httpserver', 'https') if \
-        config.has_option('httpserver', 'https') else False
+FILE_SERVER_PORT = get_fileserver_option('port', '8082')
 
 if CCNET_SERVER_ADDR:
-    http_or_https = 'https://' if HTTP_SERVER_HTTPS else 'http://'
-    
-    HTTP_SERVER_ROOT = http_or_https + CCNET_SERVER_ADDR + ':' + HTTP_SERVER_PORT
+    FILE_SERVER_ROOT = 'http://' + CCNET_SERVER_ADDR + ':' + FILE_SERVER_PORT
 else:
-    HTTP_SERVER_ROOT = None
+    FILE_SERVER_ROOT = None
 
 CALC_SHARE_USAGE = False
 if config.has_option('quota', 'calc_share_usage'):
