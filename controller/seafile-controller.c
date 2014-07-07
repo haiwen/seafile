@@ -133,12 +133,12 @@ try_kill_process(int which)
 
     char *pidfile = ctl->pidfile[which];
     int pid = read_pid_from_pidfile(pidfile);
-	if (pid > 0) {
- 		//if SIGTERM send success, then remove related pid file
- 		if(kill((pid_t)pid, SIGTERM) == 0) {
- 			g_unlink(pidfile);
- 		}
- 	}
+    if (pid > 0) {
+    // if SIGTERM send success, then remove related pid file
+    if (kill ((pid_t)pid, SIGTERM) == 0) {
+            g_unlink (pidfile);
+        }
+    }
 }
 
 
