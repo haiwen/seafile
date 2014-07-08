@@ -26,6 +26,7 @@
 #define REPO_PROP_RELAY_ADDR  "relay-address"
 #define REPO_PROP_RELAY_PORT  "relay-port"
 #define REPO_ENCRYPTED 0x1
+#define REPO_PROP_DOWNLOAD_HEAD "download-head"
 
 struct _SeafRepoManager;
 typedef struct _SeafRepo SeafRepo;
@@ -390,5 +391,17 @@ seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath);
 
 void
 seaf_repo_free_ignore_files (GList *ignore_list);
+
+enum {
+    FETCH_CHECKOUT_SUCCESS = 0,
+    FETCH_CHECKOUT_CANCELED,
+    FETCH_CHECKOUT_FAILED,
+};
+
+struct _TransferTask;
+
+int
+seaf_repo_fetch_and_checkout (struct _TransferTask *task,
+                              const char *remote_head_id);
 
 #endif

@@ -35,7 +35,8 @@ proc_headers = $(addprefix processors/, \
 	putca-proc.h \
 	check-protocol-slave-proc.h \
 	recvfs-v2-proc.h \
-	recvbranch-v2-proc.h)
+	recvbranch-v2-proc.h \
+	putfs-v2-proc.h)
 
 noinst_HEADERS = web-accesstoken-mgr.h chunkserv-mgr.h seafile-session.h \
 	repo-mgr.h \
@@ -101,7 +102,8 @@ seaf_server_SOURCES = \
 	processors/putca-proc.c \
 	processors/check-protocol-slave-proc.c \
 	processors/recvfs-v2-proc.c \
-	processors/recvbranch-v2-proc.c
+	processors/recvbranch-v2-proc.c \
+	processors/putfs-v2-proc.c
 
 seaf_server_LDADD = @CCNET_LIBS@ \
 	$(top_builddir)/lib/libseafile_common.la \

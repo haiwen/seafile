@@ -729,16 +729,21 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
 }
 
 static void
-try_add_empty_parent_dir_entry (SeafRepo *repo, struct index_state *istate,
+try_add_empty_parent_dir_entry (const char *worktree, struct index_state *istate,
                                 GList *ignore_list, const char *path)
 {
+    if (index_name_exists (istate, path, strlen(path), 0) != NULL)
+        return;
+
     char *parent_dir = g_path_get_dirname (path);
 
     /* Parent dir is the worktree dir. */
-    if (strcmp (parent_dir, ".") == 0)
+    if (strcmp (parent_dir, ".") == 0) {
+        g_free (parent_dir);
         return;
+    }
 
-    char *full_dir = g_build_filename (repo->worktree, parent_dir, NULL);
+    char *full_dir = g_build_filename (worktree, parent_dir, NULL);
     SeafStat st;
     if (seaf_stat (full_dir, &st) < 0) {
         goto out;
@@ -827,7 +832,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             break;
         case WT_EVENT_DELETE:
             remove_from_index_with_prefix (istate, event->path);
-            try_add_empty_parent_dir_entry (repo, istate, ignore_list, event->path);
+            try_add_empty_parent_dir_entry (repo->worktree, istate,
+                                            ignore_list, event->path);
             break;
         case WT_EVENT_RENAME:
             /* If the destination path is ignored, just remove the source path. */
@@ -840,7 +846,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             rename_index_entries (istate, event->path, event->new_path);
 
             /* Moving files out of a dir may make it empty. */
-            try_add_empty_parent_dir_entry (repo, istate, ignore_list, event->path);
+            try_add_empty_parent_dir_entry (repo->worktree, istate,
+                                            ignore_list, event->path);
 
             /* We should always scan the destination to compare with the renamed
              * index entries. For example, in the following case:
@@ -1659,6 +1666,525 @@ seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
 
 error:
     return -1;
+}
+
+int
+checkout_file (const char *repo_id,
+               int repo_version,
+               const char *worktree,
+               const char *name,
+               const char *file_id,
+               gint64 mtime,
+               unsigned int mode,
+               SeafileCrypt *crypt,
+               struct cache_entry *ce,
+               TransferTask *task,
+               const char *conflict_head_id,
+               GHashTable *conflict_hash,
+               GHashTable *no_conflict_hash)
+{
+    char *path;
+    SeafStat st, st2;
+    unsigned char sha1[20];
+    gboolean path_exists = FALSE;
+    gboolean case_conflict = FALSE;
+    gboolean force_conflict = FALSE;
+
+#ifndef __linux__
+    path = build_case_conflict_free_path (worktree, name,
+                                          conflict_hash, no_conflict_hash,
+                                          &case_conflict);
+#else
+    path = build_checkout_path (worktree, name, strlen(name));
+#endif
+
+    if (!path)
+        return FETCH_CHECKOUT_FAILED;
+
+    hex_to_rawdata (file_id, sha1, 20);
+
+    path_exists = (seaf_stat (path, &st) == 0);
+
+    if (path_exists && S_ISREG(st.st_mode)) {
+        if (st.st_mtime == ce->ce_mtime.sec) {
+            /* Worktree and index are consistent. */
+            if (memcmp (sha1, ce->sha1, 20) == 0) {
+                /* Worktree and index are all uptodate, no need to checkout.
+                 * This may happen after an interrupted checkout.
+                 */
+                seaf_debug ("wt and index are consistent. no need to checkout.\n");
+                g_free (path);
+                return FETCH_CHECKOUT_SUCCESS;
+            }
+            /* otherwise we have to checkout the file. */
+        } else {
+            if (compare_file_content (path, &st, sha1, crypt, repo_version) == 0) {
+                /* This happens after the worktree file was updated,
+                 * but the index was not. Just need to update the index.
+                 */
+                seaf_debug ("update index only.\n");
+                goto update_cache;
+            } else {
+                /* Conflict. The worktree file was updated by the user. */
+                seaf_debug ("File is updated. Conflict.\n");
+                force_conflict = TRUE;
+            }
+        }
+    }
+
+    /* Download the blocks of this file. */
+    int rc = seaf_transfer_manager_download_file_blocks (seaf->transfer_mgr,
+                                                         task, file_id);
+    switch (rc) {
+    case BLOCK_CLIENT_SUCCESS:
+        break;
+    case BLOCK_CLIENT_UNKNOWN:
+    case BLOCK_CLIENT_FAILED:
+    case BLOCK_CLIENT_NET_ERROR:
+    case BLOCK_CLIENT_SERVER_ERROR:
+        g_free (path);
+        return FETCH_CHECKOUT_FAILED;
+    case BLOCK_CLIENT_CANCELED:
+        g_free (path);
+        return FETCH_CHECKOUT_CANCELED;
+    }
+
+    /* The worktree file may have been changed when we're downloading the blocks. */
+    if (path_exists && S_ISREG(st.st_mode) && !force_conflict) {
+        seaf_stat (path, &st2);
+        if (st.st_mtime != st2.st_mtime)
+            force_conflict = TRUE;
+    }
+
+    /* then checkout the file. */
+    gboolean conflicted = FALSE;
+    if (seaf_fs_manager_checkout_file (seaf->fs_mgr,
+                                       repo_id,
+                                       repo_version,
+                                       file_id,
+                                       path,
+                                       mode,
+                                       mtime,
+                                       crypt,
+                                       name,
+                                       conflict_head_id,
+                                       force_conflict,
+                                       &conflicted) < 0) {
+        seaf_warning ("Failed to checkout file %s.\n", path);
+        g_free (path);
+        return FETCH_CHECKOUT_FAILED;
+    }
+
+    /* If case conflict, this file has been checked out to another path.
+     * Remove the current entry, otherwise it won't be removed later
+     * since it's timestamp is 0.
+     */
+    if (case_conflict) {
+        ce->ce_flags |= CE_REMOVE;
+        g_free (path);
+        return FETCH_CHECKOUT_SUCCESS;
+    }
+
+    if (conflicted) {
+        g_free (path);
+        return FETCH_CHECKOUT_SUCCESS;
+    }
+
+update_cache:
+    /* finally fill cache_entry info */
+    /* Only update index if we checked out the file without any error
+     * or conflicts. The timestamp of the entry will remain 0 if error
+     * or conflicted.
+     */
+    seaf_stat (path, &st);
+    fill_stat_cache_info (ce, &st);
+
+    g_free (path);
+    return FETCH_CHECKOUT_SUCCESS;
+}
+
+int
+checkout_empty_dir (const char *worktree,
+                    const char *name,
+                    gint64 mtime,
+                    struct cache_entry *ce,
+                    GHashTable *conflict_hash,
+                    GHashTable *no_conflict_hash)
+{
+    char *path;
+    gboolean case_conflict = FALSE;
+
+#ifndef __linux__
+    path = build_case_conflict_free_path (worktree, name,
+                                          conflict_hash, no_conflict_hash,
+                                          &case_conflict);
+#else
+    path = build_checkout_path (worktree, name, strlen(name));
+#endif
+
+    if (!path)
+        return FETCH_CHECKOUT_FAILED;
+
+    if (!g_file_test (path, G_FILE_TEST_EXISTS) && g_mkdir (path, 0777) < 0) {
+        g_warning ("Failed to create empty dir %s in checkout.\n", path);
+        g_free (path);
+        return FETCH_CHECKOUT_FAILED;
+    }
+
+    if (mtime != 0 && seaf_set_file_time (path, mtime) < 0) {
+        g_warning ("Failed to set mtime for %s.\n", path);
+    }
+
+    if (case_conflict) {
+        ce->ce_flags |= CE_REMOVE;
+        g_free (path);
+        return FETCH_CHECKOUT_SUCCESS;
+    }
+
+    SeafStat st;
+    seaf_stat (path, &st);
+    fill_stat_cache_info (ce, &st);
+
+    g_free (path);
+    return FETCH_CHECKOUT_SUCCESS;
+}
+
+static struct cache_entry *
+cache_entry_from_diff_entry (DiffEntry *de)
+{
+    int size, namelen;
+    struct cache_entry *ce;
+
+    namelen = strlen(de->name);
+    size = cache_entry_size(namelen);
+    ce = calloc(1, size);
+    memcpy(ce->name, de->name, namelen);
+    ce->ce_flags = namelen;
+
+    memcpy (ce->sha1, de->sha1, 20);
+    ce->modifier = g_strdup(de->modifier);
+    ce->ce_size = de->size;
+    ce->ce_mtime.sec = de->mtime;
+
+    if (S_ISREG(de->mode))
+        ce->ce_mode = create_ce_mode (de->mode);
+    else
+        ce->ce_mode = S_IFDIR;
+
+    return ce;
+}
+
+static void
+cleanup_file_blocks (const char *repo_id, int version, const char *file_id)
+{
+    Seafile *file;
+    int i;
+
+    file = seaf_fs_manager_get_seafile (seaf->fs_mgr,
+                                        repo_id, version,
+                                        file_id);
+    for (i = 0; i < file->n_blocks; ++i)
+        seaf_block_manager_remove_block (seaf->block_mgr,
+                                         repo_id, version,
+                                         file->blk_sha1s[i]);
+
+    seafile_unref (file);
+}
+
+#define UPDATE_CACHE_SIZE_LIMIT 100 * (1 << 20) /* 100MB */
+
+int
+seaf_repo_fetch_and_checkout (TransferTask *task,
+                              const char *remote_head_id)
+{
+    SeafRepo *repo = NULL;
+    SeafBranch *master = NULL;
+    SeafCommit *remote_head = NULL, *master_head = NULL;
+    char index_path[SEAF_PATH_MAX];
+    struct index_state istate;
+    int ret = FETCH_CHECKOUT_SUCCESS;
+
+    memset (&istate, 0, sizeof(istate));
+    snprintf (index_path, SEAF_PATH_MAX, "%s/%s",
+              seaf->repo_mgr->index_dir, task->repo_id);
+    if (read_index_from (&istate, index_path, task->repo_version) < 0) {
+        g_warning ("Failed to load index.\n");
+        return FETCH_CHECKOUT_FAILED;
+    }
+
+    if (!task->is_clone) {
+        repo = seaf_repo_manager_get_repo (seaf->repo_mgr, task->repo_id);
+        if (!repo) {
+            seaf_warning ("Failed to get repo %.8s.\n", task->repo_id);
+            goto out;
+        }
+
+        master = seaf_branch_manager_get_branch (seaf->branch_mgr,
+                                                 task->repo_id, "master");
+        if (!master) {
+            seaf_warning ("Failed to get master branch for repo %.8s.\n",
+                          task->repo_id);
+            ret = FETCH_CHECKOUT_FAILED;
+            goto out;
+        }
+
+        master_head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                      task->repo_id,
+                                                      task->repo_version,
+                                                      master->commit_id);
+        if (!master_head) {
+            seaf_warning ("Failed to get master head %s of repo %.8s.\n",
+                          task->repo_id, master->commit_id);
+            ret = FETCH_CHECKOUT_FAILED;
+            goto out;
+        }
+    }
+
+    char *worktree;
+    if (!task->is_clone)
+        worktree = repo->worktree;
+    else
+        worktree = task->worktree;
+
+    remote_head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                  task->repo_id,
+                                                  task->repo_version,
+                                                  remote_head_id);
+    if (!remote_head) {
+        seaf_warning ("Failed to get remote head %s of repo %.8s.\n",
+                      task->repo_id, remote_head_id);
+        ret = FETCH_CHECKOUT_FAILED;
+        goto out;
+    }
+
+    GList *results = NULL;
+    if (diff_commit_roots (task->repo_id, task->repo_version,
+                           master_head ? master_head->root_id : EMPTY_SHA1,
+                           remote_head->root_id,
+                           &results, FALSE) < 0) {
+        seaf_warning ("Failed to diff for repo %.8s.\n", task->repo_id);
+        ret = FETCH_CHECKOUT_FAILED;
+        goto out;
+    }
+
+    SeafileCrypt *crypt = NULL;
+    if (remote_head->encrypted) {
+        if (!task->is_clone) {
+            crypt = seafile_crypt_new (repo->enc_version,
+                                       repo->enc_key,
+                                       repo->enc_iv);
+        } else {
+            unsigned char enc_key[32], enc_iv[16];
+            seafile_decrypt_repo_enc_key (remote_head->enc_version,
+                                          task->passwd,
+                                          remote_head->random_key,
+                                          enc_key, enc_iv);
+            crypt = seafile_crypt_new (remote_head->enc_version,
+                                       enc_key, enc_iv);
+        }
+    }
+
+    GHashTable *conflict_hash, *no_conflict_hash;
+    conflict_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                           g_free, g_free);
+    no_conflict_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                              g_free, NULL);
+
+    GList *ignore_list = seaf_repo_load_ignore_files (worktree);
+
+    GList *ptr;
+    DiffEntry *de;
+    struct cache_entry *ce;
+
+    for (ptr = results; ptr; ptr = ptr->next) {
+        de = ptr->data;
+        if (de->status == DIFF_STATUS_ADDED || de->status == DIFF_STATUS_MODIFIED)
+            ++(task->n_to_download);
+    }
+
+    /* Delete/rename files before deleting dirs,
+     * because we can't delete non-empty dirs.
+     */
+    for (ptr = results; ptr; ptr = ptr->next) {
+        de = ptr->data;
+        if (de->status == DIFF_STATUS_DELETED) {
+            seaf_debug ("Delete %s.\n", de->name);
+
+            ce = index_name_exists (&istate, de->name, strlen(de->name), 0);
+            if (!ce)
+                continue;
+
+            delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
+
+            remove_from_index_with_prefix (&istate, de->name);
+            try_add_empty_parent_dir_entry (worktree, &istate, ignore_list, de->name);
+        }
+    }
+
+    for (ptr = results; ptr; ptr = ptr->next) {
+        de = ptr->data;
+        if (de->status == DIFF_STATUS_RENAMED) {
+            seaf_debug ("Rename %s to %s.\n", de->name, de->new_name);
+
+            char *old_path = g_build_filename (worktree, de->name, NULL);
+
+            char *new_path;
+            gboolean case_conflict;
+#ifndef __linux__
+            new_path = build_case_conflict_free_path (worktree, de->new_name,
+                                                      conflict_hash, no_conflict_hash,
+                                                      &case_conflict);
+#else
+            new_path = build_checkout_path (worktree, de->new_name, strlen(de->new_name));
+#endif
+
+            if (g_file_test (old_path, G_FILE_TEST_EXISTS) &&
+                g_rename (old_path, new_path) < 0)
+                seaf_warning ("Failed to rename %s to %s: %s.\n",
+                              old_path, new_path, strerror(errno));
+
+            g_free (old_path);
+            g_free (new_path);
+
+            rename_index_entries (&istate, de->name, de->new_name);
+
+            /* Moving files out of a dir may make it empty. */
+            try_add_empty_parent_dir_entry (worktree, &istate, ignore_list, de->name);
+        }
+    }
+
+    for (ptr = results; ptr; ptr = ptr->next) {
+        de = ptr->data;
+        if (de->status == DIFF_STATUS_DIR_DELETED) {
+            seaf_debug ("Delete %s.\n", de->name);
+
+            ce = index_name_exists (&istate, de->name, strlen(de->name), 0);
+            if (!ce)
+                continue;
+
+            delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
+
+            remove_from_index_with_prefix (&istate, de->name);
+            try_add_empty_parent_dir_entry (worktree, &istate, ignore_list, de->name);
+        }
+    }
+
+    if (istate.cache_changed)
+        update_index (&istate, index_path);
+
+    gint64 checkout_size = 0;
+    for (ptr = results; ptr; ptr = ptr->next) {
+        de = ptr->data;
+
+        if (de->status == DIFF_STATUS_ADDED ||
+            de->status == DIFF_STATUS_MODIFIED) {
+            seaf_debug ("Checkout file %s.\n", de->name);
+
+            gboolean add_ce = FALSE;
+            char file_id[41];
+
+            rawdata_to_hex (de->sha1, file_id, 20);
+
+            ce = index_name_exists (&istate, de->name, strlen(de->name), 0);
+            if (!ce) {
+                ce = cache_entry_from_diff_entry (de);
+                add_ce = TRUE;
+            }
+
+            int rc = checkout_file (task->repo_id,
+                                    task->repo_version,
+                                    worktree,
+                                    de->name,
+                                    file_id,
+                                    de->mtime,
+                                    de->mode,
+                                    crypt,
+                                    ce,
+                                    task,
+                                    remote_head_id,
+                                    conflict_hash,
+                                    no_conflict_hash);
+            /* Even if the file failed to check out, still need to update index. */
+            if (rc == FETCH_CHECKOUT_CANCELED) {
+                seaf_debug ("Transfer canceled.\n");
+                ret = FETCH_CHECKOUT_CANCELED;
+                if (add_ce)
+                    cache_entry_free (ce);
+                goto out;
+            }
+
+            cleanup_file_blocks (task->repo_id, task->repo_version, file_id);
+
+            ++(task->n_downloaded);
+
+            if (add_ce) {
+                seaf_debug ("Add cache entry.\n");
+                add_index_entry (&istate, ce,
+                                 (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE));
+            } else {
+                ce->ce_mtime.sec = de->mtime;
+                ce->ce_size = de->size;
+                memcpy (ce->sha1, de->sha1, 20);
+                if (ce->modifier) g_free (ce->modifier);
+                ce->modifier = g_strdup(de->modifier);
+                ce->ce_mode = create_ce_mode (de->mode);
+            }
+
+            /* Save index file to disk after checking out some size of files.
+             * This way we don't need to re-compare too many files if this
+             * checkout is interrupted.
+             */
+            checkout_size += ce->ce_size;
+            if (checkout_size >= UPDATE_CACHE_SIZE_LIMIT) {
+                seaf_debug ("Save index file.\n");
+                update_index (&istate, index_path);
+                checkout_size = 0;
+            }
+        } else if (de->status == DIFF_STATUS_DIR_ADDED) {
+            seaf_debug ("Checkout empty dir %s.\n", de->name);
+
+            gboolean add_ce = FALSE;
+
+            ce = index_name_exists (&istate, de->name, strlen(de->name), 0);
+            if (!ce) {
+                ce = cache_entry_from_diff_entry (de);
+                add_ce = TRUE;
+            }
+
+            checkout_empty_dir (worktree,
+                                de->name,
+                                de->mtime,
+                                ce,
+                                conflict_hash,
+                                no_conflict_hash);
+
+            if (add_ce)
+                add_index_entry (&istate, ce,
+                                 (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE));
+            else
+                ce->ce_mtime.sec = de->mtime;
+        }
+    }
+
+    update_index (&istate, index_path);
+
+out:
+    discard_index (&istate);
+
+    seaf_branch_unref (master);
+    seaf_commit_unref (master_head);
+    seaf_commit_unref (remote_head);
+
+    for (ptr = results; ptr; ptr = ptr->next)
+        diff_entry_free ((DiffEntry *)ptr->data);
+
+    g_free (crypt);
+    g_hash_table_destroy (conflict_hash);
+    g_hash_table_destroy (no_conflict_hash);
+
+    seaf_repo_free_ignore_files (ignore_list);
+
+    return ret;
 }
 
 int

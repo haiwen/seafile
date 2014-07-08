@@ -26,11 +26,11 @@ void wt_event_free (WTEvent *event)
 {
     g_free (event->path);
     g_free (event->new_path);
-    g_free (event);
     if (event->remain_files) {
         g_queue_foreach (event->remain_files, free_path, NULL);
         g_queue_free (event->remain_files);
     }
+    g_free (event);
 }
 
 /* WTStatus */

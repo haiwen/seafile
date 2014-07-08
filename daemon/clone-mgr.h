@@ -14,6 +14,7 @@ typedef struct _SeafCloneManager SeafCloneManager;
 enum {
     CLONE_STATE_INIT,
     CLONE_STATE_CONNECT,
+    CLONE_STATE_CHECK_PROTOCOL,
     CLONE_STATE_INDEX,
     CLONE_STATE_FETCH,
     CLONE_STATE_CHECKOUT,
@@ -55,6 +56,8 @@ struct _CloneTask {
     int                  enc_version;
     char                *random_key;
     char                 root_id[41];
+
+    gboolean             server_side_merge;
 };
 
 const char *

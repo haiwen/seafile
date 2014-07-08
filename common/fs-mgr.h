@@ -366,4 +366,10 @@ dir_version_from_repo_version (int repo_version);
 int
 seafile_version_from_repo_version (int repo_version);
 
+struct _CDCFileDescriptor;
+void
+seaf_fs_manager_calculate_seafile_id_json (int repo_version,
+                                           struct _CDCFileDescriptor *cdc,
+                                           guint8 *file_id_sha1);
+
 #endif

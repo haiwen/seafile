@@ -43,9 +43,13 @@ transition_state (CloneTask *task, int new_state);
 static void
 transition_to_error (CloneTask *task, int error);
 
+static int
+add_transfer_task (CloneTask *task, GError **error);
+
 static const char *state_str[] = {
     "init",
     "connect",
+    "connect",                  /* Use "connect" for CHECK_PROTOCOL */
     "index",
     "fetch",
     "checkout",
@@ -66,6 +70,146 @@ static const char *error_str[] = {
     "merge",
     "internal",
 };
+
+static void
+start_clone (CloneTask *task)
+{
+    SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, task->repo_id);
+    if (!repo)
+        start_index_or_transfer (task->manager, task, NULL);
+    else if (repo->head == NULL)
+        start_checkout (repo, task);
+}
+
+static void
+mark_clone_done_v2 (SeafRepo *repo, CloneTask *task)
+{
+    SeafBranch *local = NULL;
+
+    seaf_repo_manager_set_repo_worktree (repo->manager,
+                                         repo,
+                                         task->worktree);
+
+    local = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "local");
+    if (!local) {
+        seaf_warning ("Cannot get branch local for repo %s(%.10s).\n",
+                      repo->name, repo->id);
+        transition_to_error (task, CLONE_ERROR_INTERNAL);
+        return;
+    }
+    /* Set repo head to mark checkout done. */
+    seaf_repo_set_head (repo, local);
+    seaf_branch_unref (local);
+
+    if (repo->encrypted) {
+        if (seaf_repo_manager_set_repo_passwd (seaf->repo_mgr,
+                                               repo,
+                                               task->passwd) < 0) {
+            seaf_warning ("[Clone mgr] failed to set passwd for %s.\n", repo->id);
+            transition_to_error (task, CLONE_ERROR_INTERNAL);
+            return;
+        }
+    }
+
+    if (repo->auto_sync) {
+        if (seaf_wt_monitor_watch_repo (seaf->wt_monitor,
+                                        repo->id, repo->worktree) < 0) {
+            seaf_warning ("failed to watch repo %s(%.10s).\n", repo->name, repo->id);
+            transition_to_error (task, CLONE_ERROR_INTERNAL);
+            return;
+        }
+    }
+
+    /* For compatibility, still set these two properties.
+     * So that if we downgrade to an old version, the syncing can still work.
+     */
+    seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                         repo->id,
+                                         REPO_REMOTE_HEAD,
+                                         repo->head->commit_id);
+    seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                         repo->id,
+                                         REPO_LOCAL_HEAD,
+                                         repo->head->commit_id);
+
+    transition_state (task, CLONE_STATE_DONE);
+}
+
+static void
+start_clone_v2 (CloneTask *task)
+{
+    GError *error = NULL;
+
+    if (g_access (task->worktree, F_OK) != 0 &&
+        g_mkdir_with_parents (task->worktree, 0777) < 0) {
+        seaf_warning ("[clone mgr] Failed to create worktree %s.\n",
+                      task->worktree);
+        transition_to_error (task, CLONE_ERROR_FETCH);
+        return;
+    }
+
+    SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, task->repo_id);
+    if (repo != NULL) {
+        seaf_repo_manager_set_repo_token (seaf->repo_mgr, repo, task->token);
+        seaf_repo_manager_set_repo_email (seaf->repo_mgr, repo, task->email);
+        seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, repo->id,
+                                               task->peer_addr, task->peer_port);
+
+        mark_clone_done_v2 (repo, task);
+        return;
+    }
+
+    if (add_transfer_task (task, &error) == 0)
+        transition_state (task, CLONE_STATE_FETCH);
+    else
+        transition_to_error (task, CLONE_ERROR_FETCH);
+}
+
+static void
+check_protocol_done_cb (CcnetProcessor *processor, gboolean success, void *data)
+{
+    CloneTask *task = data;
+
+    if (success)
+        task->server_side_merge = TRUE;
+    else if (processor->failure == PROC_NO_SERVICE)
+        /* Talking to an old server. */
+        task->server_side_merge = FALSE;
+
+    if (task->server_side_merge)
+        start_clone_v2 (task);
+    else
+        start_clone (task);
+}
+
+static int
+start_check_protocol_proc (const char *peer_id, CloneTask *task)
+{
+    CcnetProcessor *processor;
+
+    if (task->repo_version == 0) {
+        task->server_side_merge = FALSE;
+        start_clone (task);
+    }
+
+    processor = ccnet_proc_factory_create_remote_master_processor (
+        seaf->session->proc_factory, "seafile-check-protocol", peer_id);
+    if (!processor) {
+        seaf_warning ("failed to create seafile-check-protocol proc.\n");
+        return -1;
+    }
+
+    if (ccnet_processor_startl (processor, NULL) < 0) {
+        seaf_warning ("failed to start seafile-check-protocol proc.\n");
+        return -1;
+    }
+
+    g_signal_connect (processor, "done", (GCallback)check_protocol_done_cb, task);
+
+    transition_state (task, CLONE_STATE_CHECK_PROTOCOL);
+
+    return 0;
+}
 
 static CloneTask *
 clone_task_new (const char *repo_id,
@@ -239,34 +383,16 @@ restart_task (sqlite3_stmt *stmt, void *data)
     load_clone_repo_version_info (task);
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (repo != NULL) {
-        if (repo->head != NULL) {
-            /* If repo exists and its head is set, we are done actually.
-             * The task will be removed from db but still left in memory.
-             */
-            transition_state (task, CLONE_STATE_DONE);
-        } else if (!ccnet_peer_is_ready (seaf->ccnetrpc_client, task->peer_id)) {
-            /* If head is not set, we haven't finished checkout.
-             * But we first have to wait for server since in checkout we'll check
-             * fast forward with the server.
-             */
-            start_connect_task_relay (task, NULL);
-        } else {
-            start_checkout (repo, task);
-        }
-        g_hash_table_insert (mgr->tasks, g_strdup(task->repo_id), task);
-    } else {
-        /* Repo was not created last time. In this case, we just
-         * restart from the very beginning.
-         */
-        if (!ccnet_peer_is_ready (seaf->ccnetrpc_client, task->peer_id)) {
-            /* the relay is not ready yet */
-            start_connect_task_relay (task, NULL);
-        } else {
-            start_index_or_transfer (mgr, task, NULL);
-        }
-        g_hash_table_insert (mgr->tasks, g_strdup(task->repo_id), task);
-    }
+
+    if (repo != NULL && repo->head != NULL) {
+        transition_state (task, CLONE_STATE_DONE);
+        return TRUE;
+    } else if (!ccnet_peer_is_ready (seaf->ccnetrpc_client, task->peer_id))
+        start_connect_task_relay (task, NULL);
+    else
+        start_check_protocol_proc (task->peer_id, task);
+
+    g_hash_table_insert (mgr->tasks, g_strdup(task->repo_id), task);
 
     return TRUE;
 }
@@ -300,13 +426,8 @@ seaf_clone_manager_init (SeafCloneManager *mgr)
 static void
 continue_task_when_peer_connected (CloneTask *task)
 {
-    if (ccnet_peer_is_ready (seaf->ccnetrpc_client, task->peer_id)) {
-        SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, task->repo_id);
-        if (!repo)
-            start_index_or_transfer (task->manager, task, NULL);
-        else if (repo->head == NULL)
-            start_checkout (repo, task);
-    }
+    if (ccnet_peer_is_ready (seaf->ccnetrpc_client, task->peer_id))
+        start_check_protocol_proc (task->peer_id, task);
 }
 
 static int check_connect_pulse (void *vmanager)
@@ -464,7 +585,9 @@ add_transfer_task (CloneTask *task, GError **error)
                                                       "fetch_head",
                                                       "master",
                                                       task->token,
-                                                      FALSE,
+                                                      task->server_side_merge,
+                                                      task->passwd,
+                                                      task->worktree,
                                                       error);
     if (!task->tx_id)
         return -1;
@@ -885,15 +1008,8 @@ add_task_common (SeafCloneManager *mgr,
          * We need relay connected even before checkout.
          */
         start_connect_task_relay (task, error);
-    } else if (repo != NULL && repo->head == NULL) {
-        /* Repo was downloaded but not checked out.
-         * This can happen when the last checkout failed, the user
-         * can then clone the repo again.
-         */
-        start_checkout (repo, task);
-    } else {
-        start_index_or_transfer (mgr, task, error);
-    }
+    } else
+        start_check_protocol_proc (task->peer_id, task);
 
     /* The old task for this repo will be freed. */
     g_hash_table_insert (mgr->tasks, g_strdup(task->repo_id), task);
@@ -1805,7 +1921,10 @@ on_repo_fetched (SeafileSession *seaf,
     seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, repo->id,
                                            task->peer_addr, task->peer_port);
 
-    start_checkout (repo, task);
+    if (!task->server_side_merge)
+        start_checkout (repo, task);
+    else
+        mark_clone_done_v2 (repo, task);
 }
 
 static void

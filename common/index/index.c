@@ -65,7 +65,7 @@ static void replace_index_entry(struct index_state *istate, int nr, struct cache
 {
     struct cache_entry *old = istate->cache[nr];
 
-    remove_name_hash(old);
+    remove_name_hash(istate, old);
     cache_entry_free (old);
     set_index_entry(istate, nr, ce);
     istate->cache_changed = 1;
@@ -316,6 +316,8 @@ int read_index_from(struct index_state *istate, const char *path, int repo_versi
     istate->cache_nr = ntohl(hdr->hdr_entries);
     istate->cache_alloc = alloc_nr(istate->cache_nr);
     istate->cache = calloc(istate->cache_alloc, sizeof(struct cache_entry *));
+    istate->name_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                               g_free, NULL);
 
     /*
      * The disk format is actually larger than the in-memory format,
@@ -714,7 +716,7 @@ int remove_index_entry_at(struct index_state *istate, int pos)
     struct cache_entry *ce = istate->cache[pos];
 
     /* record_resolve_undo(istate, ce); */
-    remove_name_hash(ce);
+    remove_name_hash(istate, ce);
     cache_entry_free (ce);
     istate->cache_changed = 1;
     istate->cache_nr--;
@@ -738,7 +740,7 @@ void remove_marked_cache_entries(struct index_state *istate)
 
     for (i = j = 0; i < istate->cache_nr; i++) {
         if (ce_array[i]->ce_flags & CE_REMOVE) {
-            remove_name_hash(ce_array[i]);
+            remove_name_hash(istate, ce_array[i]);
             cache_entry_free (ce_array[i]);
         } else {
             ce_array[j++] = ce_array[i];
@@ -1033,7 +1035,7 @@ int add_to_index(const char *repo_id,
 update_index:
     memcpy (ce->sha1, sha1, 20);
     ce->ce_flags |= CE_ADDED;
-    ce->modifier = strdup(modifier);
+    ce->modifier = g_strdup(modifier);
 
     if (add_index_entry(istate, ce, add_option)) {
         g_warning("unable to add %s to index\n",path);
@@ -1139,7 +1141,7 @@ remove_from_index_with_prefix (struct index_state *istate, const char *path_pref
     while (i < istate->cache_nr) {
         ce = istate->cache[i];
         if (strncmp (ce->name, full_path_prefix, pathlen) == 0) {
-            remove_name_hash(ce);
+            remove_name_hash(istate, ce);
             cache_entry_free (ce);
             ++i;
         } else
@@ -1245,7 +1247,7 @@ create_renamed_cache_entries (struct index_state *istate,
 
         ret[i - pos] = create_renamed_cache_entry (ce, src_path, dst_path);
 
-        remove_name_hash(ce);
+        remove_name_hash(istate, ce);
         cache_entry_free (ce);
     }
 
@@ -1788,7 +1790,7 @@ int discard_index(struct index_state *istate)
     istate->timestamp.sec = 0;
     istate->timestamp.nsec = 0;
     istate->name_hash_initialized = 0;
-    free_hash(&istate->name_hash);
+    g_hash_table_destroy (istate->name_hash);
     /* cache_tree_free(&(istate->cache_tree)); */
     /* free(istate->alloc); */
     free(istate->cache);
@@ -1803,4 +1805,21 @@ void cache_entry_free (struct cache_entry *ce)
 {
     g_free (ce->modifier);
     free (ce);
+}
+
+void remove_name_hash(struct index_state *istate, struct cache_entry *ce)
+{
+    g_hash_table_remove (istate->name_hash, ce->name);
+}
+
+void add_name_hash(struct index_state *istate, struct cache_entry *ce)
+{
+    g_hash_table_insert (istate->name_hash, g_strdup(ce->name), ce);
+}
+
+struct cache_entry *index_name_exists(struct index_state *istate,
+                                      const char *name, int namelen,
+                                      int igncase)
+{
+    return g_hash_table_lookup (istate->name_hash, name);
 }

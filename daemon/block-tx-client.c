@@ -74,6 +74,7 @@ struct _BlockTxClient {
     FrameParser parser;
 
     gboolean break_loop;
+    gboolean canceled;
 
     int version;
 };
@@ -303,7 +304,12 @@ handle_auth_rsp_content_cb (char *content, int clen, void *cbarg)
 
     if (rsp->status == STATUS_OK) {
         seaf_debug ("Auth OK.\n");
-        return transfer_next_block (client);
+
+        g_atomic_int_set (&client->info->ready_for_transfer, 1);
+
+        /* If in interactive mode, wait for TRANSFER command to start transfer. */
+        if (client->info->transfer_once)
+            return transfer_next_block (client);
     } else if (rsp->status == STATUS_ACCESS_DENIED) {
         seaf_warning ("Authentication failed.\n");
         /* this is a hard error. */
@@ -783,6 +789,45 @@ recv_data_cb (BlockTxClient *client)
         client->break_loop = TRUE;
 }
 
+static gboolean
+handle_command (BlockTxClient *client, int command)
+{
+    gboolean ret = FALSE;
+
+    switch (command) {
+    case BLOCK_CLIENT_CMD_TRANSFER:
+        /* Ignore TRANSFER command if transfer has been canceled. */
+        if (client->canceled) {
+            seaf_debug ("Task canceled, ignore transfer command.\n");
+            break;
+        }
+
+        if (transfer_next_block (client) < 0)
+            ret = TRUE;
+        break;
+    case BLOCK_CLIENT_CMD_CANCEL:
+        client->info->result = BLOCK_CLIENT_CANCELED;
+
+        /* If in interactive mode, just set a canceled flag and send CANCELED
+         * response.
+         */
+        if (!client->info->transfer_once) {
+            seaf_debug ("Canceled command received.\n");
+            int rsp = client->info->result;
+            pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
+            client->canceled = TRUE;
+        } else
+            ret = TRUE;
+        break;
+    case BLOCK_CLIENT_CMD_END:
+        client->info->result = BLOCK_CLIENT_SUCCESS;
+        ret = TRUE;
+        break;
+    }
+
+    return ret;
+}
+
 static void
 client_thread_loop (BlockTxClient *client)
 {
@@ -805,17 +850,25 @@ client_thread_loop (BlockTxClient *client)
             break;
         }
 
-        if (FD_ISSET (client->data_fd, &fds)) {
+        /* Stopping receiving any data after canceled. */
+        if (FD_ISSET (client->data_fd, &fds) && !client->canceled) {
             recv_data_cb (client);
-            if (client->break_loop)
-                break;
+            if (client->break_loop) {
+                if (client->info->transfer_once)
+                    break;
+                else {
+                    int rsp = client->info->result;
+                    pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
+                    client->break_loop = FALSE;
+                }
+            }
         }
 
         if (FD_ISSET (info->cmd_pipe[0], &fds)) {
             int cmd;
             piperead (info->cmd_pipe[0], &cmd, sizeof(int));
-            info->result = BLOCK_CLIENT_CANCELED;
-            break;
+            if (handle_command (client, cmd))
+                break;
         }
     }
 }
@@ -886,14 +939,8 @@ block_tx_client_start (BlockTxInfo *info, BlockTxClientDoneCB cb)
     return 0;
 }
 
-enum {
-    BLOCK_CLIENT_CMD_CANCEL = 0,
-};
-
 void
-block_tx_client_cancel (BlockTxInfo *info)
+block_tx_client_run_command (BlockTxInfo *info, int command)
 {
-    int cmd = BLOCK_CLIENT_CMD_CANCEL;
-
-    pipewrite (info->cmd_pipe[1], &cmd, sizeof(int));
+    pipewrite (info->cmd_pipe[1], &command, sizeof(int));
 }

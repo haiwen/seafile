@@ -474,6 +474,8 @@ start_fetch_if_necessary (SyncTask *task)
                                                 "master",
                                                 task->token,
                                                 task->server_side_merge,
+                                                NULL,
+                                                NULL,
                                                 &error);
 
     if (error != NULL) {
@@ -1396,6 +1398,7 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
     int now = (int)time(NULL);
     SyncTask *task;
     int ret = 0;
+    char *last_download = NULL;
 
     master = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "master");
     if (!master) {
@@ -1408,6 +1411,18 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
         seaf_warning ("No local branch found for repo %s(%.8s).\n",
                       repo->name, repo->id);
         return -1;
+    }
+
+    /* If last download was interrupted in the fetch and download stage,
+     * need to resume it at exactly the same remote commit.
+     */
+    last_download = seaf_repo_manager_get_repo_property (seaf->repo_mgr,
+                                                         repo->id,
+                                                         REPO_PROP_DOWNLOAD_HEAD);
+    if (last_download && strcmp (last_download, EMPTY_SHA1) != 0) {
+        task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
+        start_fetch_if_necessary (task);
+        goto out;
     }
 
     if (strcmp (master->commit_id, local->commit_id) != 0) {
@@ -1425,13 +1440,14 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
         goto out;
 
     if ((repo->last_sync_time == 0 ||
-         repo->last_sync_time > now - manager->sync_interval) &&
+         repo->last_sync_time < now - manager->sync_interval) &&
         manager->n_running_tasks < MAX_RUNNING_SYNC_TASKS) {
         task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
         start_sync_repo_proc (manager, task);
     }
 
 out:
+    g_free (last_download);
     seaf_branch_unref (master);
     seaf_branch_unref (local);
     return ret;
@@ -1703,6 +1719,8 @@ on_repo_fetched (SeafileSession *seaf,
 
         if (!task->server_side_merge)
             merge_branches_if_necessary (task);
+        else
+            transition_sync_state (task, SYNC_STATE_DONE);
     } else if (tx_task->state == TASK_STATE_CANCELED) {
         transition_sync_state (task, SYNC_STATE_CANCELED);
     } else if (tx_task->state == TASK_STATE_ERROR) {

@@ -40,6 +40,15 @@ typedef struct DiffEntry {
     unsigned char sha1[20];     /* used for resolve rename */
     char *name;
     char *new_name;             /* only used in rename. */
+
+#ifdef SEAFILE_CLIENT
+    /* Fields only used for ADDED, DIR_ADDED, MODIFIED types,
+     * used in check out files/dirs.*/
+    gint64 mtime;
+    unsigned int mode;
+    char *modifier;
+    gint64 size;
+#endif
 } DiffEntry;
 
 DiffEntry *

@@ -362,6 +362,42 @@ create_seafile_json (int repo_version,
     return data;
 }
 
+void
+seaf_fs_manager_calculate_seafile_id_json (int repo_version,
+                                           CDCFileDescriptor *cdc,
+                                           guint8 *file_id_sha1)
+{
+    json_t *object, *block_id_array;
+
+    object = json_object ();
+
+    json_object_set_int_member (object, "type", SEAF_METADATA_TYPE_FILE);
+    json_object_set_int_member (object, "version",
+                                seafile_version_from_repo_version(repo_version));
+
+    json_object_set_int_member (object, "size", cdc->file_size);
+
+    block_id_array = json_array ();
+    int i;
+    uint8_t *ptr = cdc->blk_sha1s;
+    char block_id[41];
+    for (i = 0; i < cdc->block_nr; ++i) {
+        rawdata_to_hex (ptr, block_id, 20);
+        json_array_append_new (block_id_array, json_string(block_id));
+        ptr += 20;
+    }
+    json_object_set_new (object, "block_ids", block_id_array);
+
+    char *data = json_dumps (object, JSON_SORT_KEYS);
+    int ondisk_size = strlen(data);
+
+    /* The seafile object id is sha1 hash of the json object. */
+    calculate_sha1 (file_id_sha1, data, ondisk_size);
+
+    json_decref (object);
+    free (data);
+}
+
 static int
 write_seafile (SeafFSManager *fs_mgr,
                const char *repo_id,
@@ -383,6 +419,7 @@ write_seafile (SeafFSManager *fs_mgr,
         if (seaf_compress (ondisk, ondisk_size, &compressed, &outlen) < 0) {
             seaf_warning ("Failed to compress seafile obj %s.\n", seafile_id);
             ret = -1;
+            free (ondisk);
             goto out;
         }
 
@@ -390,16 +427,17 @@ write_seafile (SeafFSManager *fs_mgr,
                                       compressed, outlen, FALSE) < 0)
             ret = -1;
         g_free (compressed);
+        free (ondisk);
     } else {
         ondisk = create_seafile_v0 (cdc, &ondisk_size, seafile_id);
 
         if (seaf_obj_store_write_obj (fs_mgr->obj_store, repo_id, version, seafile_id,
                                       ondisk, ondisk_size, FALSE) < 0)
             ret = -1;
+        g_free (ondisk);
     }
 
 out:
-    g_free (ondisk);
     if (ret == 0)
         hex_to_rawdata (seafile_id, obj_sha1, 20);
 

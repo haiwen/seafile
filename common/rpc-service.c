@@ -439,7 +439,8 @@ convert_task (TransferTask *task)
     gint64 rsize = 0, dsize = 0;
     SeafileTask *t = seafile_task_new();
 
-    get_task_size (task, &rsize, &dsize);
+    if (task->protocol_version < 7)
+        get_task_size (task, &rsize, &dsize);
 
     g_object_set (t, "tx_id", task->tx_id,
                   "repo_id", task->repo_id,
@@ -455,9 +456,14 @@ convert_task (TransferTask *task)
     if (task->type == TASK_TYPE_DOWNLOAD) {
         g_object_set (t, "ttype", "download", NULL);
         if (task->runtime_state == TASK_RT_STATE_DATA) {
-            g_object_set (t, "block_total", task->block_list->n_blocks,
-                          "block_done", transfer_task_get_done_blocks (task),
-                          NULL);
+            if (task->protocol_version >= 7)
+                g_object_set (t, "block_total", task->n_to_download,
+                              "block_done", transfer_task_get_done_blocks (task),
+                              NULL);
+            else
+                g_object_set (t, "block_total", task->block_list->n_blocks,
+                              "block_done", transfer_task_get_done_blocks (task),
+                              NULL);
             g_object_set (t, "rate", transfer_task_get_rate(task), NULL);
         }
     } else {

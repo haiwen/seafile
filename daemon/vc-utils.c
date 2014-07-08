@@ -250,26 +250,39 @@ unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
 
 int
 compare_file_content (const char *path, SeafStat *st, const unsigned char *ce_sha1,
-                      SeafileCrypt *crypt)
+                      SeafileCrypt *crypt, int repo_version)
 {
     CDCFileDescriptor cdc;
     unsigned char sha1[20];
 
-    memset (&cdc, 0, sizeof(cdc));
-    cdc.block_sz = calculate_chunk_size (st->st_size);
-    cdc.block_min_sz = cdc.block_sz >> 2;
-    cdc.block_max_sz = cdc.block_sz << 2;
-    cdc.write_block = seafile_write_chunk;
-    if (filename_chunk_cdc (path, &cdc, crypt, FALSE) < 0) {
-        g_warning ("Failed to chunk file.\n");
-        return -1;
-    }
-    memcpy (sha1, cdc.file_sum, 20);
+    if (st->st_size == 0) {
+        memset (sha1, 0, 20);
+    } else {
+        memset (&cdc, 0, sizeof(cdc));
+        cdc.block_sz = calculate_chunk_size (st->st_size);
+        cdc.block_min_sz = cdc.block_sz >> 2;
+        cdc.block_max_sz = cdc.block_sz << 2;
+        cdc.write_block = seafile_write_chunk;
+        if (filename_chunk_cdc (path, &cdc, crypt, FALSE) < 0) {
+            g_warning ("Failed to chunk file.\n");
+            return -1;
+        }
 
+        if (repo_version > 0)
+            seaf_fs_manager_calculate_seafile_id_json (repo_version, &cdc, sha1);
+        else
+            memcpy (sha1, cdc.file_sum, 20);
+
+        if (cdc.blk_sha1s)
+            free (cdc.blk_sha1s);
+    }
+
+#if 0
     char id1[41], id2[41];
     rawdata_to_hex (sha1, id1, 20);
     rawdata_to_hex (ce_sha1, id2, 20);
-    printf ("id1: %s, id2: %s.\n", id1, id2);
+    seaf_debug ("id1: %s, id2: %s.\n", id1, id2);
+#endif
 
     return hashcmp (sha1, ce_sha1);
 }
@@ -388,7 +401,7 @@ gen_case_conflict_free_dname (const char *dir_path, const char *dname)
  * @conflict_hash: conflicting_dir_path -> conflict_free_dname
  * @no_conflict_hash: a hash table to remember dirs that have no case conflict.
  */
-static char *
+char *
 build_case_conflict_free_path (const char *worktree,
                                const char *ce_name,
                                GHashTable *conflict_hash,
@@ -491,7 +504,7 @@ error:
 
 #ifdef __linux__
 
-static char *
+char *
 build_checkout_path (const char *worktree, const char *ce_name, int len)
 {
     int base_len = strlen(worktree);
@@ -593,7 +606,7 @@ checkout_entry (struct cache_entry *ce,
          * cache entry.
          */
         if (!recover_merge || 
-            compare_file_content (path, &st, ce->sha1, o->crypt) != 0) {
+            compare_file_content (path, &st, ce->sha1, o->crypt, o->version) != 0) {
             g_warning ("File %s is changed. Checkout to conflict file.\n", path);
             force_conflict = TRUE;
         } else {
@@ -693,6 +706,60 @@ update_worktree (struct unpack_trees_options *o,
 
     if (errs != 0)
         return -1;
+    return 0;
+}
+
+int
+delete_path (const char *worktree, const char *name,
+             unsigned int mode, gint64 old_mtime)
+{
+    char path[SEAF_PATH_MAX];
+    SeafStat st;
+    int len = strlen(name);
+
+    if (!len) {
+        g_warning ("entry name should not be empty.\n");
+        return -1;
+    }
+
+    snprintf (path, SEAF_PATH_MAX, "%s/%s", worktree, name);
+
+    if (!S_ISDIR(mode)) {
+        /* file doesn't exist in work tree */
+        if (seaf_stat (path, &st) < 0 || !S_ISREG(st.st_mode)) {
+            return 0;
+        }
+
+        /* file has been changed. */
+        if (old_mtime != st.st_mtime) {
+            g_warning ("File %s is changed. Skip removing the file.\n", path);
+            return -1;
+        }
+
+        /* first unlink the file. */
+        if (g_unlink (path) < 0) {
+            g_warning ("Failed to remove %s: %s.\n", path, strerror(errno));
+            return -1;
+        }
+    } else {
+        if (seaf_remove_empty_dir (path) < 0) {
+            g_warning ("Failed to remove dir %s: %s.\n", path, strerror(errno));
+            return -1;
+        }
+    }
+
+    /* then remove all empty directories upwards. */
+    /* offset = base_len + len; */
+    /* do { */
+    /*     if (path[offset] == '/') { */
+    /*         path[offset] = '\0'; */
+    /*         int ret = seaf_remove_empty_dir (path); */
+    /*         if (ret < 0) { */
+    /*             break; */
+    /*         } */
+    /*     } */
+    /* } while (--offset > base_len); */
+
     return 0;
 }
 

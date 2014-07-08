@@ -220,9 +220,24 @@ handle_download_ok (CcnetProcessor *processor, TransferTask *task,
     }
 
     memcpy (task->head, content, 41);
+
     ccnet_processor_send_update (processor,
                                  SC_GET_TOKEN, SS_GET_TOKEN,
                                  NULL, 0);
+}
+
+static void
+set_download_head_info (TransferTask *task)
+{
+    /* If the last download was interrupted in the fetch and checkout stage,
+     * resume last download.
+     */
+    char *last_head = seaf_repo_manager_get_repo_property (seaf->repo_mgr,
+                                                           task->repo_id,
+                                                           REPO_PROP_DOWNLOAD_HEAD);
+    if (last_head && strcmp (last_head, EMPTY_SHA1) != 0)
+        memcpy (task->head, last_head, 41);
+    g_free (last_head);
 }
 
 static void
@@ -290,6 +305,9 @@ handle_response (CcnetProcessor *processor,
 
         if (task->protocol_version >= 7 && !task->server_side_merge)
             task->protocol_version = 6;
+
+        if (task->protocol_version >= 7 && task->type == TASK_TYPE_DOWNLOAD)
+            set_download_head_info (task);
 
         seaf_message ("repo version is %d, protocol version is %d.\n",
                       task->repo_version, task->protocol_version);

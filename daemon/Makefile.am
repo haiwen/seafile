@@ -37,7 +37,8 @@ proc_headers = $(addprefix processors/, \
 	getca-proc.h \
 	check-protocol-proc.h \
 	sendcommit-v4-proc.h \
-	sendfs-v2-proc.h)
+	sendfs-v2-proc.h \
+	getfs-v2-proc.h)
 
 proc_headers += ../common/processors/objecttx-common.h \
 				../common/processors/blocktx-common.h \
@@ -113,7 +114,8 @@ common_src = \
 	processors/getca-proc.c \
 	processors/check-protocol-proc.c \
 	processors/sendcommit-v4-proc.c \
-	processors/sendfs-v2-proc.c
+	processors/sendfs-v2-proc.c \
+	processors/getfs-v2-proc.c
 
 
 seaf_daemon_SOURCES = seaf-daemon.c $(common_src)

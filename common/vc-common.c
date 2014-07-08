@@ -317,6 +317,7 @@ vc_compare_commits (const char *repo_id, int version,
 static int
 diff_parents_with_path (SeafCommit *commit,
                         const char *repo_id,
+                        const char *store_id,
                         int version,
                         const char *path,
                         const char *file_id,
@@ -357,7 +358,7 @@ diff_parents_with_path (SeafCommit *commit,
 
     if (!p2) {
         file_id_p1 = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
-                                                     repo_id,
+                                                     store_id,
                                                      version,
                                                      p1->root_id, path,
                                                      NULL,
@@ -370,14 +371,14 @@ diff_parents_with_path (SeafCommit *commit,
             memcpy (parent, p1->commit_id, 41);
     } else {
         file_id_p1 = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
-                                                     repo_id,
+                                                     store_id,
                                                      version,
                                                      p1->root_id, path,
                                                      NULL, error);
         if (*error)
             goto out;
         file_id_p2 = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
-                                                     repo_id,
+                                                     store_id,
                                                      version,
                                                      p2->root_id, path,
                                                      NULL, error);
@@ -420,7 +421,7 @@ out:
 }
 
 static int
-get_file_modifier_mtime_v0 (const char *repo_id, int version,
+get_file_modifier_mtime_v0 (const char *repo_id, const char *store_id, int version,
                             const char *head, const char *path,
                             char **modifier, gint64 *mtime)
 {
@@ -450,7 +451,7 @@ get_file_modifier_mtime_v0 (const char *repo_id, int version,
             break;
 
         file_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
-                                                  repo_id, version,
+                                                  store_id, version,
                                                   commit->root_id,
                                                   path,
                                                   NULL,
@@ -467,7 +468,7 @@ get_file_modifier_mtime_v0 (const char *repo_id, int version,
         }
 
         changed = diff_parents_with_path (commit,
-                                          repo_id, version,
+                                          repo_id, store_id, version,
                                           path, file_id,
                                           commit_id, &error);
         if (error) {
@@ -574,8 +575,7 @@ get_file_modifier_mtime (const char *repo_id,
                                            head, path,
                                            modifier, mtime);
     else
-        /* for version 0, repo_id and store_id are always the same. */
-        return get_file_modifier_mtime_v0 (repo_id, version,
+        return get_file_modifier_mtime_v0 (repo_id, store_id, version,
                                            head, path,
                                            modifier, mtime);
 }

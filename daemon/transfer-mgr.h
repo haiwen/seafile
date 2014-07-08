@@ -110,8 +110,12 @@ typedef struct _BlockTxInfo {
     unsigned char *enc_session_key;      /* encrypted session_key */
     int enc_key_len;
     int cmd_pipe[2];               /* used to notify cancel */
+    int done_pipe[2];              /* notify block transfer done */
     int result;
     int n_failure;
+    /* TRUE if the client only transfer one batch of blocks and end.*/
+    gboolean transfer_once;
+    gint ready_for_transfer;
 } BlockTxInfo;
 
 struct _SeafTransferManager;
@@ -124,7 +128,6 @@ struct _TransferTask {
     char        *token;
     char        *session_token;
     int          protocol_version;
-    gboolean     server_side_merge;
     char        *from_branch;
     char        *to_branch;
     char         head[41];
@@ -155,6 +158,15 @@ struct _TransferTask {
     /* For new block transfer protocol */
     BlockTxInfo *tx_info;
     GQueue      *block_ids;
+
+    gboolean     server_side_merge;
+    /* These two fields are only used for new syncing protocol. */
+    char        *passwd;
+    char        *worktree;
+
+    /* Used to display download progress for new syncing protocol */
+    int          n_to_download;
+    int          n_downloaded;
 
     gint64       rsize;            /* size remain   */
     gint64       dsize;            /* size done     */
@@ -223,6 +235,8 @@ seaf_transfer_manager_add_download (SeafTransferManager *manager,
                                     const char *to_branch,
                                     const char *token,
                                     gboolean server_side_merge,
+                                    const char *passwd,
+                                    const char *worktree,
                                     GError **error);
 
 char *
@@ -263,5 +277,13 @@ seaf_transfer_manager_get_clone_heads (SeafTransferManager *mgr);
 char *
 seaf_transfer_manager_get_clone_head (SeafTransferManager *mgr,
                                       const char *repo_id);
+
+/*
+ * return the status code of block tx client.
+ */
+int
+seaf_transfer_manager_download_file_blocks (SeafTransferManager *manager,
+                                            TransferTask *task,
+                                            const char *file_id);
 
 #endif
