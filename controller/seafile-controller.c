@@ -248,9 +248,9 @@ get_python_executable() {
 
     int i;
     for (i = 0; i < G_N_ELEMENTS(try_list); i++) {
-        char *exectuable = g_find_program_in_path (try_list[i]);
-        if (exectuable != NULL) {
-            python = exectuable;
+        char *executable = g_find_program_in_path (try_list[i]);
+        if (executable != NULL) {
+            python = executable;
             break;
         }
     }
@@ -269,21 +269,21 @@ static void
 init_seafile_path ()
 {
     GError *error = NULL;
-    char *exectuble = g_file_read_link ("/proc/self/exe", &error);
+    char *executable = g_file_read_link ("/proc/self/exe", &error);
     char *tmp = NULL;
     if (error != NULL) {
         seaf_warning ("failed to readlink: %s\n", error->message);
         return;
     }
 
-    bin_dir = g_path_get_dirname (exectuble);
+    bin_dir = g_path_get_dirname (executable);
 
     tmp = g_path_get_dirname (bin_dir);
     installpath = g_path_get_dirname (tmp);
 
     topdir = g_path_get_dirname (installpath);
 
-    g_free (exectuble);
+    g_free (executable);
     g_free (tmp);
 }
 
