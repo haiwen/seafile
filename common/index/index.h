@@ -444,7 +444,8 @@ int add_to_index(const char *repo_id,
                  int flags,
                  struct SeafileCrypt *crypt,
                  IndexCB index_cb,
-                 const char *modifier);
+                 const char *modifier,
+                 gboolean *added);
 
 int
 add_empty_dir_to_index (struct index_state *istate,

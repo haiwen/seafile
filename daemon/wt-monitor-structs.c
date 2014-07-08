@@ -17,11 +17,20 @@ WTEvent *wt_event_new (int type, const char *path, const char *new_path)
     return event;
 }
 
+static void free_path (gpointer data, gpointer user_data)
+{
+    g_free (data);
+}
+
 void wt_event_free (WTEvent *event)
 {
     g_free (event->path);
     g_free (event->new_path);
     g_free (event);
+    if (event->remain_files) {
+        g_queue_foreach (event->remain_files, free_path, NULL);
+        g_queue_free (event->remain_files);
+    }
 }
 
 /* WTStatus */

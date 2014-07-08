@@ -15,6 +15,12 @@ typedef struct WTEvent {
     int ev_type;
     char *path;
     char *new_path;             /* only used by rename event */
+
+    /* For CREATE_OR_UPDATE events, if a partial commit was created when
+     * adding files recursively, the remaining files will be cached in
+     * this queue so that we don't have to rescan the dir from beginning.
+     */
+    GQueue *remain_files;
 } WTEvent;
 
 WTEvent *wt_event_new (int type, const char *path, const char *new_path);

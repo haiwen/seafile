@@ -1262,9 +1262,10 @@ start_sync (SeafSyncManager *manager, SeafRepo *repo,
     task->info->in_sync = TRUE;
     task->repo = repo;
 
-    if (need_commit)
+    if (need_commit) {
+        repo->create_partial_commit = FALSE;
         commit_repo (task);
-    else
+    } else
         start_sync_repo_proc (manager, task);
 }
 
@@ -1361,6 +1362,7 @@ create_commit_from_event_queue (SeafSyncManager *manager, SeafRepo *repo,
         if (status->last_check == 0) {
             /* Force commit and sync after a new repo is added. */
             task = create_sync_task_v2 (manager, repo, is_manual_sync, TRUE);
+            repo->create_partial_commit = TRUE;
             commit_repo (task);
             status->last_check = now;
             ret = TRUE;
@@ -1370,12 +1372,14 @@ create_commit_from_event_queue (SeafSyncManager *manager, SeafRepo *repo,
              */
             if (now - last_changed >= 2) {
                 task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
+                repo->create_partial_commit = TRUE;
                 commit_repo (task);
                 status->last_check = now;
                 ret = TRUE;
             }
         } else if (status->last_event != NULL) {
             task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
+            repo->create_partial_commit = TRUE;
             commit_repo (task);
             ret = TRUE;
         }

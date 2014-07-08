@@ -71,6 +71,8 @@ struct _SeafRepo {
     unsigned int  access_denied_notified : 1;
 
     int version;
+
+    gboolean create_partial_commit;
 };
 
 

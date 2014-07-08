@@ -965,7 +965,8 @@ int add_to_index(const char *repo_id,
                  int flags,
                  SeafileCrypt *crypt,
                  IndexCB index_cb,
-                 const char *modifier)
+                 const char *modifier,
+                 gboolean *added)
 {
     int size, namelen;
     mode_t st_mode = st->st_mode;
@@ -973,6 +974,8 @@ int add_to_index(const char *repo_id,
     unsigned char sha1[20];
     unsigned ce_option = CE_MATCH_IGNORE_VALID|CE_MATCH_IGNORE_SKIP_WORKTREE|CE_MATCH_RACY_IS_DIRTY;
     int add_option = (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE);
+
+    *added = FALSE;
 
     if (!S_ISREG(st_mode) && !S_ISLNK(st_mode) && !S_ISDIR(st_mode)) {
         g_warning("%s: can only add regular files, symbolic links or git-directories\n", path);
@@ -1036,6 +1039,8 @@ update_index:
         g_warning("unable to add %s to index\n",path);
         return -1;
     }
+
+    *added = TRUE;
     return 0;
 }
 
