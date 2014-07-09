@@ -66,7 +66,35 @@ static struct option long_options[] = {
 
 static void usage ()
 {
-    fprintf (stderr, "usage: seaf-server [-c config_dir] [-d seafile_dir]\n");
+    fputs(
+"usage: seaf-server [OPTIONS]\n\n"
+"Supported OPTIONS are:\n"
+"    -c CONFDIR\n"
+"        Specify the seafile configuration directory. Default is @sysconfdir@/seafile\n"
+"    -d SEAFILE_DATADIR\n"
+"        Specify the seafile data directory. Default is /srv/seafile\n"
+"    -l LOG_FILE\n"
+"        Log file path. Default is @localstatedir@/log/seafile\n"
+"    -D FLAGS\n"
+"        Specify debug flags for logging, for example\n"
+"             Peer,Processor\n"
+"        supported flags are\n"
+"             Peer,Processor,Netio,\n"
+"             Message,Connection,Other\n"
+"        or ALL to enable all debug flags\n"
+"    -f\n"
+"        Do NOT run as a daemon\n"
+"    -g CCNET Debug Level\n"
+"        same options as for '-D'\n"
+"    -G SEAFILE Debug Level\n"
+"        same options as for '-D'\n"
+"    -m\n"
+"        run as 'master' seafile server\n"
+"    -P PIDFILE\n"
+"        Specify the file to store pid\n"
+"    -C\n"
+"        run in cloud-mode\n",
+        stdout);
 }
 
 static void register_processors (CcnetClient *client)
@@ -715,11 +743,11 @@ main (int argc, char **argv)
 #endif
 
     while ((c = getopt_long (argc, argv, short_options, 
-                             long_options, NULL)) != EOF)
-    {
+                             long_options, NULL)) != EOF) {
         switch (c) {
         case 'h':
-            exit (1);
+            usage();
+            exit (0);
             break;
         case 'v':
             exit (1);
@@ -754,6 +782,7 @@ main (int argc, char **argv)
             cloud_mode = 1;
             break;
         default:
+	    fprintf (stderr, "unknown option \"-%c\"\n", (char)c);
             usage ();
             exit (1);
         }
@@ -761,6 +790,11 @@ main (int argc, char **argv)
 
     argc -= optind;
     argv += optind;
+
+    if (config_dir == NULL) {
+        fprintf (stderr, "Missing config dir\n");
+        exit (1);
+    }
 
 #if !defined(WIN32) && !defined(__APPLE__)
     if (daemon_mode)
