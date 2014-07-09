@@ -544,23 +544,16 @@ function get_seahub_admin_passwd () {
 #     fi
 # fi
 
-echo "Creating seahub database now... "
+echo "Creating seahub database now, it may take one minute, please wait... "
 echo
 
-export CCNET_CONF_DIR=$default_ccnet_conf_dir
-export SEAFILE_CONF_DIR=$seafile_data_dir
+seahub_db=${TOPDIR}/seahub.db
+seahub_sqls=${INSTALLPATH}/seahub/sql/sqlite3.sql
 
-export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
-export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seafile/lib64/python2.7/site-packages:$PYTHONPATH
-
-manage_py=${INSTALLPATH}/seahub/manage.py
-pushd "${INSTALLPATH}/seahub" 2>/dev/null 1>&2
-if ! $PYTHON manage.py syncdb; then
-    popd 2>/dev/null 1>&2
+if ! sqlite3 ${seahub_db} ".read ${seahub_sqls}" 2>/dev/null 1>&2; then
     echo "Failed to sync seahub database."
     err_and_quit;
 fi
-popd 2>/dev/null 1>&2
 echo
 echo "Done."
 
