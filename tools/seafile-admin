@@ -503,7 +503,6 @@ def check_python_dependencies(silent=False):
 
     if not silent:
         info('check python modules ...')
-    check_python_module('simplejson', 'simplejson', silent=silent)
     check_python_module('sqlite3', 'sqlite3', silent=silent)
     check_python_module('PIL', 'python imaging library(PIL)', silent=silent)
     check_python_module('django', 'django 1.5', silent=silent)
