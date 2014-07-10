@@ -77,9 +77,6 @@ function check_python () {
         hint="\nOn Debian/Ubntu: apt-get install python-setuptools\nOn CentOS/RHEL: yum install python${py26}-distribute"
         check_python_module pkg_resources setuptools "${hint}"
 
-        hint="\nOn Debian/Ubntu: apt-get install python-simplejson\nOn CentOS/RHEL: yum install python${py26}-simplejson"
-        check_python_module simplejson python-simplejson "${hint}"
-
         hint="\nOn Debian/Ubntu: apt-get install python-imaging\nOn CentOS/RHEL: yum install python${py26}-imaging"
         check_python_module PIL python-imaging "${hint}"
 

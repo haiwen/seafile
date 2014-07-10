@@ -73,10 +73,7 @@ Create a new library
 
 import argparse
 import os
-try:
-    import json
-except:
-    import simplejson as json
+import json
 import subprocess
 import sys
 import time
