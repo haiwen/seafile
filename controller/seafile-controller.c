@@ -245,14 +245,14 @@ need_restart (int which)
         seaf_warning ("failed to read pidfile %s: %s\n", ctl->pidfile[which], strerror(errno));
         return FALSE;
     } else {
-    	if (kill(pid, 0) == 0) {
-    		return FALSE;
-    	} else if (errno == ESRCH) {
-    		return TRUE;
-    	} else {
+        if (kill(pid, 0) == 0) {
+            return FALSE;
+        } else if (errno == ESRCH) {
+            return TRUE;
+        } else {
             seaf_warning ("failed to send sig 0 to process %d: %s\n", pid, strerror(errno)) ;
-    		return TRUE;
-    	}
+            return TRUE;
+        }
     }
 }
 
