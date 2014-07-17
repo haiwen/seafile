@@ -118,6 +118,9 @@
       <ComponentRef Id='comp_manual' />
       <!-- defined in fragment.wxs -->
       <ComponentGroupRef Id='group_bin' />
+      <!-- defined in shell.wxs -->
+      <ComponentRef Id='comp_shell' />
+      <ComponentRef Id='comp_shell64' />
     </Feature>
 
     <Property Id="CHECKBOX_DEL_SEAFILE_DATA" Secure="yes" />
