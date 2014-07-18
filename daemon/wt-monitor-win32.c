@@ -383,6 +383,7 @@ handle_rename (RepoWatchInfo *info,
     }
 }
 
+#if 0
 static gboolean
 handle_consecutive_duplicate_event (RepoWatchInfo *info,
                                     PFILE_NOTIFY_INFORMATION event)
@@ -400,6 +401,7 @@ handle_consecutive_duplicate_event (RepoWatchInfo *info,
 
     return duplicate;
 }
+#endif
 
 static char *
 convert_to_unix_path (const wchar_t *path, int path_len)
@@ -425,8 +427,10 @@ process_one_event (RepoWatchInfo *info,
     char *filename;
     gboolean add_to_queue = TRUE;
 
+#if 0
     if (handle_consecutive_duplicate_event (info, event))
         add_to_queue = FALSE;
+#endif
 
     filename = convert_to_unix_path (event->FileName, event->FileNameLength);
 

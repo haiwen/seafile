@@ -762,7 +762,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list)
 {
     WTStatus *status;
-    WTEvent *event;
+    WTEvent *event, *next_event;
 
     status = seaf_wt_monitor_get_worktree_status (seaf->wt_monitor, repo->id);
     if (!status) {
@@ -792,12 +792,21 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
     while (1) {
         pthread_mutex_lock (&status->q_lock);
         event = g_queue_pop_head (status->event_q);
+        next_event = g_queue_peek_head (status->event_q);
         pthread_mutex_unlock (&status->q_lock);
         if (!event)
             break;
 
         switch (event->ev_type) {
         case WT_EVENT_CREATE_OR_UPDATE:
+            /* If consecutive CREATE_OR_UPDATE events present
+               in the event queue, only process the last one.
+            */
+            if (next_event &&
+                next_event->ev_type == event->ev_type &&
+                strcmp (next_event->path, event->path) == 0)
+                break;
+
             if (!repo->create_partial_commit) {
                 add_path_to_index (repo, istate, crypt, event->path,
                                    ignore_list, &scanned_dirs,
