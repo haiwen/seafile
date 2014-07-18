@@ -317,7 +317,7 @@ collect_commit_id_done (void *vprocessor)
 static int
 put_commit_start (CcnetProcessor *processor, int argc, char **argv)
 {
-    char *head_id, *remote_id = NULL;
+    char *head_id = NULL, *remote_id = NULL;
     char *session_token;
     USE_PRIV;
 
@@ -330,7 +330,7 @@ put_commit_start (CcnetProcessor *processor, int argc, char **argv)
     if (argc == 2) {
         head_id = argv[0];
         session_token = argv[1];
-    } else if (argc >= 3) {
+    } else {
         head_id = argv[0];
         remote_id = argv[1];
         session_token = argv[2];

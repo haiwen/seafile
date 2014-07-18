@@ -10,6 +10,7 @@
 #include <openssl/sha.h>
 
 #include "utils.h"
+#include <glib/gstdio.h>
 
 /* SHA1 calculate */
 void
