@@ -893,7 +893,7 @@ do_block(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
                                                                repo->store_id,
                                                                repo->version,
                                                                blk_id);
-            if (bm && bm->size >= 0) {
+            if (bm) {
                 bsize = bm->size;
                 found = TRUE;
             }
