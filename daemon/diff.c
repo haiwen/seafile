@@ -1419,7 +1419,7 @@ static int get_stat_data(struct cache_entry *ce,
             }
             return -1;
         }
-        changed = ie_match_stat(diffopt->index, ce, &st, 0);
+        changed = ie_match_stat(ce, &st, 0);
         if (changed) {
             mode = ce_mode_from_stat(ce, st.st_mode);
             sha1 = null_sha1;

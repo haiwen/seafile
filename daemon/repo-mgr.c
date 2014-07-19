@@ -757,6 +757,30 @@ out:
     g_free (full_dir);
 }
 
+static void
+update_ce_mode (struct index_state *istate, const char *worktree, const char *path)
+{
+    char *full_path;
+    struct cache_entry *ce;
+    SeafStat st;
+
+    ce = index_name_exists (istate, path, strlen(path), 0);
+    if (!ce)
+        return;
+
+    full_path = g_build_filename (worktree, path, NULL);
+    if (seaf_stat (full_path, &st) < 0) {
+        seaf_warning ("Failed to stat %s: %s.\n", full_path, strerror(errno));
+        g_free (full_path);
+        return;
+    }
+
+    unsigned int new_mode = create_ce_mode (st.st_mode);
+    if (new_mode != ce->ce_mode)
+        ce->ce_mode = new_mode;
+    istate->cache_changed = 1;
+}
+
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list)
@@ -871,6 +895,9 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                            istate, repo->worktree, event->new_path,
                            crypt, FALSE, ignore_list,
                            NULL, NULL);
+            break;
+        case WT_EVENT_ATTRIB:
+            update_ce_mode (istate, repo->worktree, event->path);
             break;
         case WT_EVENT_OVERFLOW:
             seaf_warning ("Kernel event queue overflowed, fall back to scan.\n");
@@ -1698,6 +1725,7 @@ checkout_file (const char *repo_id,
     gboolean path_exists = FALSE;
     gboolean case_conflict = FALSE;
     gboolean force_conflict = FALSE;
+    gboolean update_mode_only = FALSE;
 
 #ifndef __linux__
     path = build_case_conflict_free_path (worktree, name,
@@ -1718,12 +1746,14 @@ checkout_file (const char *repo_id,
         if (st.st_mtime == ce->ce_mtime.sec) {
             /* Worktree and index are consistent. */
             if (memcmp (sha1, ce->sha1, 20) == 0) {
-                /* Worktree and index are all uptodate, no need to checkout.
-                 * This may happen after an interrupted checkout.
-                 */
-                seaf_debug ("wt and index are consistent. no need to checkout.\n");
-                g_free (path);
-                return FETCH_CHECKOUT_SUCCESS;
+                if (mode == ce->ce_mode) {
+                    /* Worktree and index are all uptodate, no need to checkout.
+                     * This may happen after an interrupted checkout.
+                     */
+                    seaf_debug ("wt and index are consistent. no need to checkout.\n");
+                    goto update_cache;
+                } else
+                    update_mode_only = TRUE;
             }
             /* otherwise we have to checkout the file. */
         } else {
@@ -1739,6 +1769,18 @@ checkout_file (const char *repo_id,
                 force_conflict = TRUE;
             }
         }
+    }
+
+    if (update_mode_only) {
+#ifdef WIN32
+        g_free (path);
+        return FETCH_CHECKOUT_SUCCESS;
+#else
+        chmod (path, mode & ~S_IFMT);
+        ce->ce_mode = mode;
+        g_free (path);
+        return FETCH_CHECKOUT_SUCCESS;
+#endif
     }
 
     /* Download the blocks of this file. */

@@ -456,7 +456,7 @@ void cache_entry_free (struct cache_entry *ce);
 #define CE_MATCH_RACY_IS_DIRTY        02
 /* do stat comparison even if CE_SKIP_WORKTREE is true */
 #define CE_MATCH_IGNORE_SKIP_WORKTREE    04
-extern int ie_match_stat(const struct index_state *, struct cache_entry *, SeafStat *, unsigned int);
+extern int ie_match_stat(struct cache_entry *, SeafStat *, unsigned int);
 extern int ie_modified(const struct index_state *, struct cache_entry *, SeafStat *, unsigned int);
 
 extern int ce_path_match(const struct cache_entry *ce, const char **pathspec);

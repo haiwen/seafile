@@ -42,7 +42,7 @@ typedef struct RepoWatchInfo {
     char *worktree;
 } RepoWatchInfo;
 
-#define WATCH_MASK IN_MODIFY | IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO | IN_CLOSE_WRITE
+#define WATCH_MASK IN_MODIFY | IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO | IN_CLOSE_WRITE | IN_ATTRIB
 
 struct SeafWTMonitorPriv {
     pthread_mutex_t hash_lock;
@@ -364,6 +364,9 @@ process_one_event (int in_fd,
         seaf_debug ("Close write %s.\n", filename);
         if (add_to_queue)
             add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+    } else if (event->mask & IN_ATTRIB) {
+        seaf_debug ("Attribute changed %s.\n", filename);
+        add_event_to_queue (status, WT_EVENT_ATTRIB, filename, NULL);
     }
 
 out:

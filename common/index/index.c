@@ -595,8 +595,7 @@ static int ce_modified_check_fs(struct cache_entry *ce, SeafStat *st)
 }
 #endif
 
-int ie_match_stat(const struct index_state *istate,
-                  struct cache_entry *ce, SeafStat *st,
+int ie_match_stat(struct cache_entry *ce, SeafStat *st,
                   unsigned int options)
 {
     unsigned int changed;
@@ -998,7 +997,7 @@ int add_to_index(const char *repo_id,
     ce->ce_mode = create_ce_mode(st_mode);
 
     alias = index_name_exists(istate, ce->name, ce_namelen(ce), 0);
-    if (alias && !ce_stage(alias) && !ie_match_stat(istate, alias, st, ce_option)) {
+    if (alias && !ce_stage(alias) && !ie_match_stat(alias, st, ce_option)) {
         /* Nothing changed, really */
         free(ce);
         if (!S_ISGITLINK(alias->ce_mode))
@@ -1006,6 +1005,14 @@ int add_to_index(const char *repo_id,
         alias->ce_flags |= CE_ADDED;
         return 0;
     }
+
+#ifdef WIN32
+    /* On Windows, no 'x' bit in file mode.
+     * To prevent overwriting 'x' bit, we directly use existing ce mode. 
+     */
+    if (alias)
+        ce->ce_mode = alias->ce_mode;
+#endif
 
 #ifdef WIN32
     /* Fix daylight saving time bug on Windows.
