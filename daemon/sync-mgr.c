@@ -1391,11 +1391,20 @@ create_commit_from_event_queue (SeafSyncManager *manager, SeafRepo *repo,
     return ret;
 }
 
+static gboolean
+can_schedule_repo (SeafSyncManager *manager, SeafRepo *repo)
+{
+    int now = (int)time(NULL);
+
+    return ((repo->last_sync_time == 0 ||
+             repo->last_sync_time < now - manager->sync_interval) &&
+            manager->n_running_tasks < MAX_RUNNING_SYNC_TASKS);
+}
+
 static int
 sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
 {
     SeafBranch *master, *local;
-    int now = (int)time(NULL);
     SyncTask *task;
     int ret = 0;
     char *last_download = NULL;
@@ -1420,15 +1429,15 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
                                                          repo->id,
                                                          REPO_PROP_DOWNLOAD_HEAD);
     if (last_download && strcmp (last_download, EMPTY_SHA1) != 0) {
-        task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
-        start_fetch_if_necessary (task);
+        if (can_schedule_repo (manager, repo)) {
+            task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
+            start_fetch_if_necessary (task);
+        }
         goto out;
     }
 
     if (strcmp (master->commit_id, local->commit_id) != 0) {
-        if ((repo->last_sync_time == 0 ||
-             repo->last_sync_time < now - manager->sync_interval) &&
-            manager->n_running_tasks < MAX_RUNNING_SYNC_TASKS) {
+        if (can_schedule_repo (manager, repo)) {
             task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
             start_upload_if_necessary (task);
         }
@@ -1439,9 +1448,7 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
     } else if (create_commit_from_event_queue (manager, repo, is_manual_sync))
         goto out;
 
-    if ((repo->last_sync_time == 0 ||
-         repo->last_sync_time < now - manager->sync_interval) &&
-        manager->n_running_tasks < MAX_RUNNING_SYNC_TASKS) {
+    if (can_schedule_repo (manager, repo)) {
         task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
         start_sync_repo_proc (manager, task);
     }
