@@ -1912,6 +1912,10 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
     char index_path[SEAF_PATH_MAX];
     struct index_state istate;
     int ret = FETCH_CHECKOUT_SUCCESS;
+    GList *results = NULL;
+    SeafileCrypt *crypt = NULL;
+    GHashTable *conflict_hash = NULL, *no_conflict_hash = NULL;
+    GList *ignore_list = NULL;
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s",
@@ -1966,7 +1970,6 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         goto out;
     }
 
-    GList *results = NULL;
     if (diff_commit_roots (task->repo_id, task->repo_version,
                            master_head ? master_head->root_id : EMPTY_SHA1,
                            remote_head->root_id,
@@ -1976,7 +1979,21 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         goto out;
     }
 
-    SeafileCrypt *crypt = NULL;
+    GList *ptr;
+    DiffEntry *de;
+
+#ifdef WIN32
+    for (ptr = results; ptr; ptr = ptr->next) {
+        de = ptr->data;
+        if (do_check_file_locked (de->name, worktree)) {
+            seaf_message ("File %s is locked by other program, skip checkout.\n",
+                          de->name);
+            ret = FETCH_CHECKOUT_FAILED;
+            goto out;
+        }
+    }
+#endif
+
     if (remote_head->encrypted) {
         if (!task->is_clone) {
             crypt = seafile_crypt_new (repo->enc_version,
@@ -1993,16 +2010,13 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         }
     }
 
-    GHashTable *conflict_hash, *no_conflict_hash;
     conflict_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
                                            g_free, g_free);
     no_conflict_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
                                               g_free, NULL);
 
-    GList *ignore_list = seaf_repo_load_ignore_files (worktree);
+    ignore_list = seaf_repo_load_ignore_files (worktree);
 
-    GList *ptr;
-    DiffEntry *de;
     struct cache_entry *ce;
 
     for (ptr = results; ptr; ptr = ptr->next) {
@@ -2188,10 +2202,13 @@ out:
         diff_entry_free ((DiffEntry *)ptr->data);
 
     g_free (crypt);
-    g_hash_table_destroy (conflict_hash);
-    g_hash_table_destroy (no_conflict_hash);
+    if (conflict_hash)
+        g_hash_table_destroy (conflict_hash);
+    if (no_conflict_hash)
+        g_hash_table_destroy (no_conflict_hash);
 
-    seaf_repo_free_ignore_files (ignore_list);
+    if (ignore_list)
+        seaf_repo_free_ignore_files (ignore_list);
 
     return ret;
 }

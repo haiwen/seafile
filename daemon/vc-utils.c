@@ -765,7 +765,7 @@ delete_path (const char *worktree, const char *name,
 
 #ifdef WIN32
 
-static gboolean
+gboolean
 do_check_file_locked (const char *path, const char *worktree)
 {
     char *real_path;

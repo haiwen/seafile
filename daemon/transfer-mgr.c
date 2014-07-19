@@ -1705,23 +1705,6 @@ check_download_cb (CcnetProcessor *processor, gboolean success, void *data)
 
     if (success) {
         start_commit_download (task);
-    } else if (processor->failure == PROC_NO_SERVICE) {
-        /* Talking to an old server. */
-        CcnetProcessor *v2_proc;
-
-        v2_proc = ccnet_proc_factory_create_remote_master_processor (
-            seaf->session->proc_factory, "seafile-check-tx-v2", task->dest_id);
-        if (!v2_proc) {
-            seaf_warning ("failed to create check-tx-v2 proc for download.\n");
-            transition_state_to_error (task, TASK_ERR_CHECK_DOWNLOAD_START);
-        }
-
-        g_signal_connect (v2_proc, "done", (GCallback)check_download_cb, task);
-
-        ((SeafileCheckTxV2Proc *)v2_proc)->task = task;
-        if (ccnet_processor_startl (v2_proc, "download", NULL) < 0)
-            seaf_warning ("failed to start check-tx-v2 proc for download.\n");
-
     } else if (task->state != TASK_STATE_ERROR
                && task->runtime_state == TASK_RT_STATE_CHECK) {
         transfer_task_with_proc_failure (
@@ -2186,23 +2169,6 @@ check_upload_cb (CcnetProcessor *processor, gboolean success, void *data)
 
     if (success) {
         start_commit_upload (task);
-    } else if (processor->failure == PROC_NO_SERVICE) {
-        /* Talking to an old server. */
-        CcnetProcessor *v2_proc;
-
-        v2_proc = ccnet_proc_factory_create_remote_master_processor (
-            seaf->session->proc_factory, "seafile-check-tx-v2", task->dest_id);
-        if (!v2_proc) {
-            seaf_warning ("failed to create check-tx-v2 proc for upload.\n");
-            transition_state_to_error (task, TASK_ERR_CHECK_UPLOAD_START);
-        }
-
-        g_signal_connect (v2_proc, "done", (GCallback)check_upload_cb, task);
-
-        ((SeafileCheckTxV2Proc *)v2_proc)->task = task;
-        if (ccnet_processor_startl (v2_proc, "upload", NULL) < 0)
-            seaf_warning ("failed to start check-tx-v2 proc for upload.\n");
-
     } else if (task->state != TASK_STATE_ERROR
                && task->runtime_state == TASK_RT_STATE_CHECK) {
         transfer_task_with_proc_failure (

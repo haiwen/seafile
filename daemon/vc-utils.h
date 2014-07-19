@@ -53,6 +53,9 @@ delete_path (const char *worktree, const char *name,
              unsigned int mode, gint64 old_mtime);
 
 gboolean
+do_check_file_locked (const char *path, const char *worktree);
+
+gboolean
 files_locked_on_windows (struct index_state *index, const char *worktree);
 
 int
