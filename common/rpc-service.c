@@ -2550,6 +2550,7 @@ seafile_post_file_blocks (const char *repo_id,
                           const char *paths_json,
                           const char *user,
                           gint64 file_size,
+                          int replace_existed,
                           GError **error)
 {
     if (!repo_id || !parent_dir || !file_name
@@ -2573,6 +2574,7 @@ seafile_post_file_blocks (const char *repo_id,
                                             paths_json,
                                             user,
                                             file_size,
+                                            replace_existed,
                                             &new_id,
                                             error) < 0) {
         return NULL;
@@ -2587,6 +2589,7 @@ seafile_post_multi_files (const char *repo_id,
                           const char *filenames_json,
                           const char *paths_json,
                           const char *user,
+                          int replace_existed,
                           GError **error)
 {
     if (!repo_id || !filenames_json || !parent_dir || !paths_json || !user) {
@@ -2607,6 +2610,7 @@ seafile_post_multi_files (const char *repo_id,
                                             filenames_json,
                                             paths_json,
                                             user,
+                                            replace_existed,
                                             &ret_json,
                                             error) < 0) {
         return NULL;

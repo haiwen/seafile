@@ -310,6 +310,7 @@ upload_cb(evhtp_request_t *req, void *arg)
                                                filenames_json,
                                                tmp_files_json,
                                                fsm->user,
+                                               0,
                                                &error);
     g_free (filenames_json);
     g_free (tmp_files_json);
@@ -372,10 +373,11 @@ upload_api_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
     SearpcClient *rpc_client = NULL;
-    char *parent_dir;
+    char *parent_dir, *replace_str;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
     char *filenames_json, *tmp_files_json;
+    int replace = 0;
 
     /* After upload_headers_cb() returns an error, libevhtp may still
      * receive data from the web browser and call into this cb.
@@ -391,6 +393,17 @@ upload_api_cb(evhtp_request_t *req, void *arg)
         return;
     }
 
+    replace_str = g_hash_table_lookup (fsm->form_kvs, "replace");
+    if (replace_str) {
+        replace = atoi(replace_str);
+        if (replace != 0 && replace != 1) {
+            seaf_warning ("[Upload] Invalid argument replace: %s.\n", replace_str);
+            evbuffer_add_printf(req->buffer_out, "Invalid argument.\n");
+            set_content_length_header (req);
+            evhtp_send_reply (req, EVHTP_RES_BADREQ);
+            return;
+        }
+    }
     parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
     if (!parent_dir) {
         seaf_warning ("[upload] No parent dir given.\n");
@@ -422,6 +435,7 @@ upload_api_cb(evhtp_request_t *req, void *arg)
                                                filenames_json,
                                                tmp_files_json,
                                                fsm->user,
+                                               replace,
                                                &error);
     g_free (filenames_json);
     g_free (tmp_files_json);
@@ -489,11 +503,12 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
     SearpcClient *rpc_client = NULL;
-    char *parent_dir, *file_name, *size_str;
+    char *parent_dir, *file_name, *size_str, *replace_str;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
     char *blockids_json, *tmp_files_json;
     gint64 file_size = -1;
+    int replace = 0;
 
     /* After upload_headers_cb() returns an error, libevhtp may still
      * receive data from the web browser and call into this cb.
@@ -502,6 +517,17 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
     if (!fsm || fsm->state == RECV_ERROR)
         return;
 
+    replace_str = g_hash_table_lookup (fsm->form_kvs, "replace");
+    if (replace_str) {
+        replace = atoi(replace_str);
+        if (replace != 0 && replace != 1) {
+            seaf_warning ("[Upload-blks] Invalid argument replace: %s.\n", replace_str);
+            evbuffer_add_printf(req->buffer_out, "Invalid argument.\n");
+            set_content_length_header (req);
+            evhtp_send_reply (req, EVHTP_RES_BADREQ);
+            return;
+        }
+    }
     parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
     file_name = g_hash_table_lookup (fsm->form_kvs, "file_name");
     size_str = g_hash_table_lookup (fsm->form_kvs, "file_size");
@@ -539,6 +565,7 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
                                                    tmp_files_json,
                                                    fsm->user,
                                                    file_size,
+                                                   replace,
                                                    &error);
     g_free (blockids_json);
     g_free (tmp_files_json);
@@ -673,6 +700,7 @@ upload_blks_ajax_cb(evhtp_request_t *req, void *arg)
                                                    tmp_files_json,
                                                    fsm->user,
                                                    file_size,
+                                                   0,
                                                    &error);
     g_free (blockids_json);
     g_free (tmp_files_json);
@@ -811,6 +839,7 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
                                                filenames_json,
                                                tmp_files_json,
                                                fsm->user,
+                                               0,
                                                &error);
     g_free (filenames_json);
     g_free (tmp_files_json);

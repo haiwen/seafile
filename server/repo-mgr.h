@@ -277,6 +277,7 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
                                     const char *filenames_json,
                                     const char *paths_json,
                                     const char *user,
+                                    int replace_existed,
                                     char **new_ids,
                                     GError **error);
 
@@ -289,6 +290,7 @@ seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
                                     const char *paths_json,
                                     const char *user,
                                     gint64 file_size,
+                                    int replace_existed,
                                     char **new_id,
                                     GError **error);
 

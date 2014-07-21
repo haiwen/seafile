@@ -194,11 +194,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_post_file_blocks,
                                      "seafile_post_file_blocks",
-                    searpc_signature_string__string_string_string_string_string_string_int64());
+                    searpc_signature_string__string_string_string_string_string_string_int64_int());
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_post_multi_files,
                                      "seafile_post_multi_files",
-                    searpc_signature_string__string_string_string_string_string());
+                    searpc_signature_string__string_string_string_string_string_int());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_put_file,
@@ -569,11 +569,22 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      searpc_signature_string__void());
 }
 
+static struct event sigusr1;
+
+static void sigusr1Handler (int fd, short event, void *user_data)
+{
+    seafile_log_reopen ();
+}
+
 static void
 set_signal_handlers (SeafileSession *session)
 {
 #ifndef WIN32
     signal (SIGPIPE, SIG_IGN);
+
+    /* design as reopen log */
+    event_set(&sigusr1, SIGUSR1, EV_SIGNAL | EV_PERSIST, sigusr1Handler, NULL);
+    event_add(&sigusr1, NULL);
 #endif
 }
 
