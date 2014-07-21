@@ -25,7 +25,6 @@
 #include "seafile-config.h"
 #include "vc-utils.h"
 #include "seaf-utils.h"
-#include "gc-core.h"
 #include "log.h"
 
 #include "client-migrate.h"
