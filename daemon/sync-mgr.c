@@ -51,6 +51,15 @@ transition_sync_state (SyncTask *task, int new_state);
 
 static void sync_task_free (SyncTask *task);
 
+static gboolean
+check_relay_status (SeafSyncManager *mgr, SeafRepo *repo);
+
+static gboolean
+has_old_commits_to_upload (SeafRepo *repo);
+
+static int
+sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync);
+
 SeafSyncManager*
 seaf_sync_manager_new (SeafileSession *seaf)
 {
@@ -211,12 +220,29 @@ seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
         return -1;
     }
 
-    SyncInfo *info = get_sync_info (mgr, repo_id);
+    /* If relay is not ready or protocol version is not determined,
+     * need to wait.
+     */
+    if (!check_relay_status (mgr, repo)) {
+        seaf_warning ("Relay for repo %s(%.8s) is not ready or protocol version"
+                      "is not detected.\n", repo->name, repo->id);
+        return 0;
+    }
+
+    SyncInfo *info = get_sync_info (mgr, repo->id);
 
     if (info->in_sync)
         return 0;
 
-    start_sync (mgr, repo, TRUE, TRUE, FALSE);
+    ServerState *state = g_hash_table_lookup (mgr->server_states,
+                                              repo->relay_id);
+
+    if (repo->version == 0 ||
+        state->server_side_merge == SERVER_SIDE_MERGE_UNSUPPORTED ||
+        has_old_commits_to_upload (repo))
+        start_sync (mgr, repo, TRUE, TRUE, FALSE);
+    else if (state->server_side_merge == SERVER_SIDE_MERGE_SUPPORTED)
+        sync_repo_v2 (mgr, repo, TRUE);
 
     return 0;
 }
@@ -1429,7 +1455,7 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
                                                          repo->id,
                                                          REPO_PROP_DOWNLOAD_HEAD);
     if (last_download && strcmp (last_download, EMPTY_SHA1) != 0) {
-        if (can_schedule_repo (manager, repo)) {
+        if (is_manual_sync || can_schedule_repo (manager, repo)) {
             task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
             start_fetch_if_necessary (task);
         }
@@ -1437,7 +1463,7 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
     }
 
     if (strcmp (master->commit_id, local->commit_id) != 0) {
-        if (can_schedule_repo (manager, repo)) {
+        if (is_manual_sync || can_schedule_repo (manager, repo)) {
             task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
             start_upload_if_necessary (task);
         }
@@ -1448,7 +1474,7 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
     } else if (create_commit_from_event_queue (manager, repo, is_manual_sync))
         goto out;
 
-    if (can_schedule_repo (manager, repo)) {
+    if (is_manual_sync || can_schedule_repo (manager, repo)) {
         task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
         start_sync_repo_proc (manager, task);
     }
