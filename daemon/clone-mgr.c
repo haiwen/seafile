@@ -190,6 +190,7 @@ start_check_protocol_proc (const char *peer_id, CloneTask *task)
     if (task->repo_version == 0) {
         task->server_side_merge = FALSE;
         start_clone (task);
+        return 0;
     }
 
     processor = ccnet_proc_factory_create_remote_master_processor (
@@ -1074,6 +1075,18 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         !check_encryption_args (magic, enc_version, random_key, error))
         return NULL;
 
+    /* After a repo was unsynced, the sync task may still be blocked in the
+     * network, so the repo is not actually deleted yet.
+     * In this case just return an error to the user.
+     */
+    SyncInfo *sync_info = seaf_sync_manager_get_sync_info (seaf->sync_mgr,
+                                                           repo_id);
+    if (sync_info && sync_info->in_sync) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Repo already exists");
+        return NULL;
+    }
+
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
 
     if (repo != NULL && repo->head != NULL) {
@@ -1176,6 +1189,18 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
     if (passwd &&
         !check_encryption_args (magic, enc_version, random_key, error))
         return NULL;
+
+    /* After a repo was unsynced, the sync task may still be blocked in the
+     * network, so the repo is not actually deleted yet.
+     * In this case just return an error to the user.
+     */
+    SyncInfo *sync_info = seaf_sync_manager_get_sync_info (seaf->sync_mgr,
+                                                           repo_id);
+    if (sync_info && sync_info->in_sync) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Repo already exists");
+        return NULL;
+    }
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
 
@@ -1757,8 +1782,6 @@ start_checkff_proc (CloneTask *task)
     }
 
     g_signal_connect (processor, "done", (GCallback)checkff_done, task);
-
-    seaf_debug ("repo_id: %s, root_id: %s.\n", task->repo_id, task->root_id);
 
     if (ccnet_processor_startl (processor, task->repo_id, task->root_id, NULL) < 0) {
         seaf_warning ("failed to start checkff proc.\n");

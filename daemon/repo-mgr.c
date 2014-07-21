@@ -2183,7 +2183,6 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             ++(task->n_downloaded);
 
             if (add_ce) {
-                seaf_debug ("Add cache entry.\n");
                 add_index_entry (&istate, ce,
                                  (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE));
             } else {

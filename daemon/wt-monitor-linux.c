@@ -167,6 +167,9 @@ add_event_to_queue (WTStatus *status,
     case WT_EVENT_OVERFLOW:
         name = "overflow";
         break;
+    case WT_EVENT_ATTRIB:
+        name = "attribute change";
+        break;
     default:
         name = "unknown";
     }

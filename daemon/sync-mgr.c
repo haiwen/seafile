@@ -898,8 +898,8 @@ update_sync_status (SyncTask *task)
          */
         else {
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_NOREPO);
-            seaf_debug ("remove repo %s(%.8s) since it's deleted on relay\n",
-                        repo->name, repo->id);
+            seaf_message ("remove repo %s(%.8s) since it's deleted on relay\n",
+                          repo->name, repo->id);
             seaf_mq_manager_publish_notification (seaf->mq_mgr,
                                                   "repo.deleted_on_relay",
                                                   repo->name);
@@ -1012,8 +1012,8 @@ update_sync_status_v2 (SyncTask *task)
          * it was deleted on relay. In this case we remove this repo.
          */
         seaf_sync_manager_set_task_error (task, SYNC_ERROR_NOREPO);
-        seaf_debug ("remove repo %s(%.8s) since it's deleted on relay\n",
-                    repo->name, repo->id);
+        seaf_message ("remove repo %s(%.8s) since it's deleted on relay\n",
+                      repo->name, repo->id);
         seaf_mq_manager_publish_notification (seaf->mq_mgr,
                                               "repo.deleted_on_relay",
                                               repo->name);
@@ -1662,6 +1662,10 @@ auto_sync_pulse (void *vmanager)
             seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
             continue;
         }
+
+        /* Don't sync repos not checked out yet. */
+        if (!repo->head)
+            continue;
 
         if (!manager->priv->auto_sync_enabled || !repo->auto_sync)
             continue;
