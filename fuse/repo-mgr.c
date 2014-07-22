@@ -238,25 +238,6 @@ seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
     return NULL;
 }
 
-SeafRepo*
-seaf_repo_manager_get_repo_prefix (SeafRepoManager *manager, const gchar *id)
-{
-    SeafRepo repo, *result;
-    int len = strlen(id);
-
-    if (len >= 37)
-        return NULL;
-
-    memcpy (repo.id, id, len + 1);
-
-    result = g_hash_table_lookup (manager->priv->repo_hash, repo.id);
-    if (result != NULL) {
-        if (strncmp (id, result->id, len) == 0)
-            return result;
-    }
-    return NULL;
-}
-
 gboolean
 seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id)
 {
@@ -264,19 +245,6 @@ seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id)
     memcpy (repo.id, id, 37);
 
     return repo_exists_in_db (manager->seaf->db, id);
-}
-
-gboolean
-seaf_repo_manager_repo_exists_prefix (SeafRepoManager *manager, const gchar *id)
-{
-    SeafRepo repo, *result;
-
-    memcpy (repo.id, id, 37);
-
-    result = g_hash_table_lookup (manager->priv->repo_hash, repo.id);
-    if (result != NULL)
-        return TRUE;
-    return FALSE;
 }
 
 static void
