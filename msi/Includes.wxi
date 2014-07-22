@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Include Id="SeafileInclude">
-  <?define CurrentSeafileVersion="3.0.4" ?>
+  <?define CurrentSeafileVersion="3.0.5" ?>
 
   <!-- Update Guid 不能变 -->
   <?define CurrentUpdateGuid="65DED1C8-A5F1-4C49-8E7E-B0A8A5A6535C" ?>
@@ -48,6 +48,7 @@
   <!-- <?define ProductGuid="9784787F-28AD-4B52-BCC6-34460E24D20E" ?> (3.0.1) -->
   <!-- <?define ProductGuid="2F2559B7-9B08-4386-B5CD-4466930A9EA6" ?> (3.0.2) -->
   <!-- <?define ProductGuid="CE1C40E9-F48D-495B-8F45-66C01A6F0EA7" ?> (3.0.3) -->
-  <?define ProductGuid="0D56A3F4-7600-4280-91F8-0CDC43D5BFE3" ?>
+  <!-- <?define ProductGuid="0D56A3F4-7600-4280-91F8-0CDC43D5BFE3" ?> (3.0.4) -->
+  <?define ProductGuid="FB2CB59F-15DC-41E1-AAC8-5D634A50EA40" ?>
 
 </Include>
