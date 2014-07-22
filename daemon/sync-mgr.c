@@ -1017,12 +1017,18 @@ update_sync_status (SyncTask *task)
          */
         else {
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_NOREPO);
-            seaf_debug ("remove repo %s(%.8s) since it's deleted on relay\n",
+
+            seaf_warning ("repo %s(%.8s) not found on server\n",
                         repo->name, repo->id);
-            seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                                  "repo.deleted_on_relay",
-                                                  repo->name);
-            seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
+
+            if (!seafile_session_config_get_allow_repo_not_found_on_server(seaf)) {
+                seaf_debug ("remove repo %s(%.8s) since it's deleted on relay\n",
+                            repo->name, repo->id);
+                seaf_mq_manager_publish_notification (seaf->mq_mgr,
+                                                      "repo.deleted_on_relay",
+                                                      repo->name);
+                seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
+            }
         }
     } else {
         /* branch deleted on relay */
