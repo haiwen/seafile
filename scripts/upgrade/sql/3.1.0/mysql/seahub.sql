@@ -7,7 +7,7 @@ alter table share_uploadlinkshare add column password varchar(128);
 alter table share_uploadlinkshare add column expire_date datetime;
 alter table profile_profile add column lang_code varchar(50) DEFAULT NULL;
 
-CREATE TABLE `share_orgfileshare` (
+CREATE TABLE IF NOT EXISTS `share_orgfileshare` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `org_id` int(11) NOT NULL,
   `file_share_id` int(11) NOT NULL,
