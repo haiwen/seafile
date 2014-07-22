@@ -104,7 +104,7 @@ seafile_log_reopen ()
     if (strcmp(logfile, "-") == 0)
         return 0;
 
-    if ((fp = fopen (logfile, "a+")) == NULL) {
+    if ((fp = g_fopen (logfile, "a+")) == NULL) {
         seaf_message ("Failed to open file %s\n", logfile);
         return -1;
     }
