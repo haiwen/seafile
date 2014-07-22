@@ -32,7 +32,6 @@ seaf_fuse_SOURCES = seaf-fuse.c \
                     ../common/log.c \
                     ../common/seaf-db.c \
                     ../common/seaf-utils.c \
-                    ../common/avl/avl.c \
                     ../common/obj-store.c \
                     ../common/obj-backend-fs.c \
                     ../common/obj-backend-riak.c \
