@@ -18,6 +18,8 @@ seafile_object_define = repo.vala commit.vala dirent.vala dir.vala \
 
 seafile_object_gen = $(seafile_object_define:.vala=.c)
 
+valac_gen = ${seafile_object_gen} seafile-object.h
+
 EXTRA_DIST = ${seafile_object_define} rpc_table.py $(pcfiles)
 
 utils_headers = net.h rsa.h bloom-filter.h utils.h db.h
@@ -60,16 +62,24 @@ libseafile_common_la_LIBADD = @GLIB2_LIBS@  @GOBJECT_LIBS@ -lssl -lcrypto @LIB_G
 
 searpc_gen = searpc-signature.h searpc-marshal.h
 
-gensource: ${searpc_gen}
+gensource: ${searpc_gen} ${valac_gen}
 
-${searpc_gen}: $(top_srcdir)/lib/rpc_table.py
+rpc_table.stamp: ${top_srcdir}/lib/rpc_table.py
+	@rm -f rpc_table.tmp
+	@touch rpc_table.tmp
 	@echo "[libsearpc]: generating rpc header files"
-	@PYTHON@ `which searpc-codegen.py` $(top_srcdir)/lib/rpc_table.py
+	@PYTHON@ `which searpc-codegen.py` ${top_srcdir}/lib/rpc_table.py
 	@echo "[libsearpc]: done"
+	@mv -f rpc_table.tmp $@
+
+${searpc_gen}: rpc_table.stamp
 
 clean-local:
 	rm -f ${searpc_gen}
-	rm -f $(top_srcdir)/lib/rpc_table.pyc
+	rm -f rpc_table.pyc
+	rm -f rpc_table.stamp
+	rm -f rpc_table.tmp
+	rm -f ${valac_gen}
 
 install-data-local:
 if MACOS
