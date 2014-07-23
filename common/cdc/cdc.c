@@ -16,24 +16,9 @@
 #include "cdc.h"
 #include "../seafile-crypt.h"
 
-#ifdef HAVE_ADLER
-#include "adler32.h"
-#define finger adler32_checksum
-#define rolling_finger adler32_rolling_checksum 
-
-#else
-#ifdef HAVE_SRABIN
-#include "srabin.h"
-#define finger srabin_checksum
-#define rolling_finger srabin_rolling_checksum
-
-#else
 #include "rabin.h"
 #define finger rabin_checksum
 #define rolling_finger rabin_rolling_checksum
-
-#endif
-#endif //HAVE_ADLER
 
 #define READ_SIZE 1024 * 4
 
