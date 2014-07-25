@@ -574,9 +574,6 @@ wt_monitor_job_win32 (void *vmonitor)
             } else {
                 /* A previously unwatched dir_handle's DirWatchAux buf was
                    scheduled to be freed. */
-                DirWatchAux *aux = g_hash_table_lookup (priv->buf_hash, (gconstpointer)hTriggered);
-                if (aux && aux->unused)
-                    g_free (aux);
                 g_hash_table_remove (priv->buf_hash, (gconstpointer)hTriggered);
             }
         }
@@ -663,26 +660,6 @@ static int handle_add_repo (SeafWTMonitor *monitor,
     return 0;
 }
 
-/* Free the aux buffer when a repo is unwatched. */
-static void
-rm_from_buf_hash (SeafWTMonitorPriv *priv, HANDLE dir_handle)
-{
-    DirWatchAux *aux = g_hash_table_lookup(priv->buf_hash,
-                                           (gconstpointer)dir_handle);
-
-    if (!aux)
-        return;
-
-    /* `aux' can't be freed here. Once we we close the dir_handle, its
-     *  outstanding io would cause GetQueuedCompletionStatus() to return some
-     *  information in aux->buf. If we free it here, it would cause seg fault.
-     *  So we just mark it here and scheduled it to be freed in the completion
-     *  code of GetQueuedCompletionStatus().
-     */
-    aux->unused = TRUE;
-    CloseHandle(dir_handle);
-}
-
 static int handle_rm_repo (SeafWTMonitorPriv *priv, const char *repo_id, gpointer handle)
 {
     HANDLE h = (HANDLE)handle;
@@ -690,8 +667,14 @@ static int handle_rm_repo (SeafWTMonitorPriv *priv, const char *repo_id, gpointe
     pthread_mutex_lock (&priv->hash_lock);
     g_hash_table_remove (priv->handle_hash, repo_id);
     g_hash_table_remove (priv->info_hash, handle);
-    rm_from_buf_hash(priv, h);
     pthread_mutex_unlock (&priv->hash_lock);
+
+    /* `aux' can't be freed here. Once we we close the dir_handle, its
+     *  outstanding io would cause GetQueuedCompletionStatus() to return some
+     *  information in aux->buf. If we free it here, it would cause seg fault.
+     *  It will be freed in the completion code of GetQueuedCompletionStatus().
+     */
+    CloseHandle (handle);
 
     return 0;
 }
