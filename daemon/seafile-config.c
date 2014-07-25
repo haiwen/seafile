@@ -126,3 +126,10 @@ seafile_session_config_get_allow_invalid_worktree(SeafileSession *session)
     return g_strcmp0(seafile_session_config_get_string(session, \
                         KEY_ALLOW_INVALID_WORKTREE), "true") == 0;
 }
+
+gboolean
+seafile_session_config_get_allow_repo_not_found_on_server(SeafileSession *session)
+{
+    return g_strcmp0(seafile_session_config_get_string(session, \
+                        KEY_ALLOW_REPO_NOT_FOUND_ON_SERVER), "true") == 0;
+}
