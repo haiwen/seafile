@@ -54,6 +54,8 @@ struct SeafWTMonitorPriv {
     GHashTable *buf_hash;       /* handle -> aux buf */
 
     HANDLE iocp_handle;
+
+    int cmd_bytes_read;
     WatchCommand cmd;
 };
 
@@ -243,10 +245,13 @@ start_watch_cmd_pipe (SeafWTMonitor *monitor, OVERLAPPED *ol_in)
 
     HANDLE hPipe = (HANDLE)monitor->cmd_pipe[0];
 
+    void *p = (&priv->cmd) + priv->cmd_bytes_read;
+    int to_read = sizeof(WatchCommand) - priv->cmd_bytes_read;
+
     BOOL sts = ReadFile
         (hPipe,                 /* file handle */
-         &priv->cmd,            /* buffer */
-         sizeof(WatchCommand),  /* bytes to read */
+         p,            /* buffer */
+         to_read,  /* bytes to read */
          NULL,                  /* bytes read */
          ol);                   /* overlapped */
 
@@ -536,12 +541,13 @@ wt_monitor_job_win32 (void *vmonitor)
         if (key == (ULONG_PTR)monitor->cmd_pipe[0]) {     
             /* Triggered by a cmd pipe event */
 
-            if (bytesRead != sizeof(WatchCommand)) {
-                seaf_warning ("broken cmd from pipe: get"
-                              " %d(expected: %d) bytes\n",
-                              (int)bytesRead, sizeof(WatchCommand));
+            priv->cmd_bytes_read += (int)bytesRead;
+            if (priv->cmd_bytes_read != sizeof(WatchCommand)) {
+                reset_overlapped(ol);
+                start_watch_cmd_pipe (monitor, ol);
                 continue;
-            }
+            } else
+                priv->cmd_bytes_read = 0;
 
             seaf_debug ("recevied a pipe cmd, type %d for repo %s\n",
                         priv->cmd.type, priv->cmd.repo_id);

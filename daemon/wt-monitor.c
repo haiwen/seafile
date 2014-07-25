@@ -44,6 +44,7 @@ seaf_wt_monitor_watch_repo (SeafWTMonitor *monitor,
     WatchCommand cmd;
     int res;
 
+    memset (&cmd, 0, sizeof(cmd));
     memcpy (cmd.repo_id, repo_id, 37);
     cmd.type = CMD_ADD_WATCH;
     g_strlcpy (cmd.worktree, worktree, SEAF_PATH_MAX);
@@ -72,6 +73,7 @@ seaf_wt_monitor_unwatch_repo (SeafWTMonitor *monitor, const char *repo_id)
     WatchCommand cmd;
     int res;
 
+    memset (&cmd, 0, sizeof(cmd));
     memcpy (cmd.repo_id, repo_id, 37);
     cmd.type = CMD_DELETE_WATCH;
 
@@ -99,6 +101,7 @@ seaf_wt_monitor_refresh_repo (SeafWTMonitor *monitor, const char *repo_id)
     WatchCommand cmd;
     int res;
 
+    memset (&cmd, 0, sizeof(cmd));
     memcpy (cmd.repo_id, repo_id, 37);
     cmd.type = CMD_REFRESH_WATCH;
 
