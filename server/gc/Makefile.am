@@ -50,7 +50,7 @@ seafserv_gc_SOURCES = \
 seafserv_gc_LDADD = @CCNET_LIBS@ \
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/lib/libseafile_common.la \
-	@GLIB2_LIBS@ @GOBJECT_LIBS@ -lssl @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent \
+	@GLIB2_LIBS@ @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent \
 	@SEARPC_LIBS@ @JANSSON_LIBS@ @ZDB_LIBS@ @CURL_LIBS@ ${LIB_WS32} @ZLIB_LIBS@
 
 seafserv_gc_LDFLAGS = @STATIC_COMPILE@ @SERVER_PKG_RPATH@
@@ -63,7 +63,7 @@ seaf_fsck_SOURCES = \
 seaf_fsck_LDADD = @CCNET_LIBS@ \
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/lib/libseafile_common.la \
-	@GLIB2_LIBS@ @GOBJECT_LIBS@ -lssl @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent \
+	@GLIB2_LIBS@ @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent \
 	@SEARPC_LIBS@ @JANSSON_LIBS@ @ZDB_LIBS@ @CURL_LIBS@ ${LIB_WS32} @ZLIB_LIBS@
 
 seaf_fsck_LDFLAGS = @STATIC_COMPILE@ @SERVER_PKG_RPATH@
@@ -75,7 +75,7 @@ seaf_migrate_SOURCES = \
 seaf_migrate_LDADD = @CCNET_LIBS@ \
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/lib/libseafile_common.la \
-	@GLIB2_LIBS@ @GOBJECT_LIBS@ -lssl @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent \
+	@GLIB2_LIBS@ @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent \
 	@SEARPC_LIBS@ @JANSSON_LIBS@ @ZDB_LIBS@ @CURL_LIBS@ ${LIB_WS32} @ZLIB_LIBS@
 
 seaf_migrate_LDFLAGS = @STATIC_COMPILE@ @SERVER_PKG_RPATH@
