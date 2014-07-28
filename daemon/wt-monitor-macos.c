@@ -163,7 +163,8 @@ stream_callback (ConstFSEventStreamRef streamRef,
         return;
     }
 
-    for (int i = 0; i < numEvents; i++) {
+    int i;
+    for (i = 0; i < numEvents; i++) {
 #ifdef FSEVENT_DEBUG
         seaf_debug("%ld Change %llu in %s, flags %x\n", (long)CFRunLoopGetCurrent(),
                    eventIds[i], paths[i], eventFlags[i]);
