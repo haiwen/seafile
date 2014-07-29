@@ -2183,8 +2183,9 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             ++(task->n_downloaded);
 
             if (add_ce) {
-                add_index_entry (&istate, ce,
-                                 (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE));
+                if (!(ce->ce_flags & CE_REMOVE))
+                    add_index_entry (&istate, ce,
+                                     (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE));
             } else {
                 ce->ce_mtime.sec = de->mtime;
                 ce->ce_size = de->size;
@@ -2222,10 +2223,11 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                                 conflict_hash,
                                 no_conflict_hash);
 
-            if (add_ce)
-                add_index_entry (&istate, ce,
-                                 (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE));
-            else
+            if (add_ce) {
+                if (!(ce->ce_flags & CE_REMOVE))
+                    add_index_entry (&istate, ce,
+                                     (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE));
+            } else
                 ce->ce_mtime.sec = de->mtime;
         }
     }

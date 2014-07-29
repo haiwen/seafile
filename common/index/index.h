@@ -334,6 +334,9 @@ struct index_state {
     unsigned name_hash_initialized : 1,
          initialized : 1;
     GHashTable *name_hash;
+#if defined WIN32 || defined __APPLE__
+    GHashTable *i_name_hash;    /* ignore case */
+#endif
     int has_modifier;
 };
 
