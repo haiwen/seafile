@@ -2363,10 +2363,11 @@ watch_repos (SeafRepoManager *mgr)
 {
     GHashTableIter iter;
     SeafRepo *repo;
-    void *key;
+    gpointer key, value;
 
     g_hash_table_iter_init (&iter, mgr->priv->repo_hash);
-    while (g_hash_table_iter_next (&iter, &key, (void **)&repo))
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        repo = value;
         if (repo->auto_sync && !repo->worktree_invalid) {
             if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
                 g_warning ("failed to watch repo %s.\n", repo->id);
@@ -2375,6 +2376,7 @@ watch_repos (SeafRepoManager *mgr)
                  */
             }
         }
+    }
 }
 
 int
@@ -2609,48 +2611,40 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
 SeafRepo*
 seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
 {
-    SeafRepo repo;
-    int len = strlen(id);
+    SeafRepo *res;
 
-    if (len >= 37)
-        return NULL;
-
-    memcpy (repo.id, id, len + 1);
     if (pthread_rwlock_rdlock (&manager->priv->lock) < 0) {
         g_warning ("[repo mgr] failed to lock repo cache.\n");
         return NULL;
     }
 
-    SeafRepo *res = g_hash_table_lookup (manager->priv->repo_hash, repo.id);
+    res = g_hash_table_lookup (manager->priv->repo_hash, id);
 
     pthread_rwlock_unlock (&manager->priv->lock);
 
-    if (res) {
-        if (!res->delete_pending)
-            return res;
-    }
+    if (res && !res->delete_pending)
+        return res;
+
     return NULL;
 }
 
 gboolean
 seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id)
 {
-    SeafRepo repo;
-    memcpy (repo.id, id, 37);
+    SeafRepo *res;
 
     if (pthread_rwlock_rdlock (&manager->priv->lock) < 0) {
         g_warning ("[repo mgr] failed to lock repo cache.\n");
         return FALSE;
     }
 
-    SeafRepo *res = g_hash_table_lookup (manager->priv->repo_hash, repo.id);
+    res = g_hash_table_lookup (manager->priv->repo_hash, id);
 
     pthread_rwlock_unlock (&manager->priv->lock);
 
-    if (res) {
-        if (!res->delete_pending)
-            return TRUE;
-    }
+    if (res && !res->delete_pending)
+        return TRUE;
+    
     return FALSE;
 }
 
@@ -3498,7 +3492,7 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *manager, int start, int limit)
     GList *repo_list = NULL;
     GHashTableIter iter;
     SeafRepo *repo;
-    void *key;
+    gpointer key, value;
 
     if (pthread_rwlock_rdlock (&manager->priv->lock) < 0) {
         g_warning ("[repo mgr] failed to lock repo cache.\n");
@@ -3506,9 +3500,11 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *manager, int start, int limit)
     }
     g_hash_table_iter_init (&iter, manager->priv->repo_hash);
 
-    while (g_hash_table_iter_next (&iter, &key, (void **)&repo))
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        repo = value;
         if (!repo->delete_pending)
             repo_list = g_list_prepend (repo_list, repo);
+    }
 
     pthread_rwlock_unlock (&manager->priv->lock);
 

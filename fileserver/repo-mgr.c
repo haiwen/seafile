@@ -2,7 +2,6 @@
 
 #include "common.h"
 #include <glib/gstdio.h>
-#include <glib.h>
 
 #include <ccnet.h>
 #include "utils.h"
@@ -20,8 +19,7 @@
 #define INDEX_DIR "index"
 
 struct _SeafRepoManagerPriv {
-    GHashTable *repo_hash;
-    pthread_rwlock_t lock;
+
 };
 
 static SeafRepo *
@@ -186,10 +184,6 @@ seaf_repo_manager_new (SeafileSession *seaf)
 
     mgr->priv = g_new0 (SeafRepoManagerPriv, 1);
     mgr->seaf = seaf;
-
-    mgr->priv->repo_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-
-    pthread_rwlock_init (&mgr->priv->lock, NULL);
 
     return mgr;
 }
