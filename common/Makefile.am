@@ -20,7 +20,6 @@ noinst_HEADERS = \
 	commit-mgr.h \
 	info-mgr.h \
 	log.h \
-	avl/avl.h \
 	object-list.h \
 	vc-common.h \
 	seaf-utils.h \

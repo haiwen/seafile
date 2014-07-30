@@ -69,7 +69,7 @@ seaf_server_SOURCES = \
 	../common/bitfield.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \
 	repo-mgr.c ../common/commit-mgr.c \
-	../common/log.c ../common/avl/avl.c ../common/object-list.c \
+	../common/log.c ../common/object-list.c \
 	../common/rpc-service.c \
 	../common/vc-common.c \
 	../common/seaf-utils.c \
