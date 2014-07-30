@@ -22,7 +22,6 @@ seaf_fuse_SOURCES = seaf-fuse.c \
 					getattr.c \
                     readdir.c \
                     repo-mgr.c \
-                    ../common/bitfield.c \
                     ../common/block-mgr.c \
                     ../common/block-backend.c \
                     ../common/block-backend-fs.c \

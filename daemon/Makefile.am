@@ -79,7 +79,7 @@ common_src = \
 	status.c sync-mgr.c seafile-session.c \
 	../common/seafile-crypt.c ../common/diff-simple.c $(wt_monitor_src) \
 	clone-mgr.c \
-	seafile-config.c ../common/bitfield.c \
+	seafile-config.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \
 	repo-mgr.c ../common/commit-mgr.c \
 	../common/log.c ../common/object-list.c \

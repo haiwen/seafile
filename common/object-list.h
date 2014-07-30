@@ -4,7 +4,6 @@
 #define OBJECT_LIST_H
 
 #include <glib.h>
-#include "bitfield.h"
 
 typedef struct {
     GHashTable  *obj_hash;

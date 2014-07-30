@@ -13,12 +13,10 @@ noinst_HEADERS = \
 	diff-simple.h \
 	seafile-crypt.h \
 	common.h \
-	bitfield.h \
 	branch-mgr.h \
 	fs-mgr.h \
 	block-mgr.h \
 	commit-mgr.h \
-	info-mgr.h \
 	log.h \
 	object-list.h \
 	vc-common.h \
