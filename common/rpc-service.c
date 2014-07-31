@@ -1769,7 +1769,6 @@ seafile_list_owned_repos (const char *email, GError **error)
                       "enc_version", r->enc_version,
                       "version", r->version,
                       "store_id", r->store_id,
-                      "is_corrupted", r->is_corrupted,
                       NULL);
         if (r->encrypted && r->enc_version == 2)
             g_object_set (repo, "magic", r->magic,

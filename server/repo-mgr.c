@@ -1635,7 +1635,7 @@ seaf_repo_manager_get_repos_by_owner (SeafRepoManager *mgr,
 
     for (ptr = id_list; ptr; ptr = ptr->next) {
         char *repo_id = ptr->data;
-        SeafRepo *repo = seaf_repo_manager_get_repo_ex (mgr, repo_id);
+        SeafRepo *repo = seaf_repo_manager_get_repo (mgr, repo_id);
         if (repo != NULL)
             ret = g_list_prepend (ret, repo);
     }
