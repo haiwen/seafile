@@ -61,7 +61,9 @@ convert_repo_list (GList *inner_repos)
                           "random_key", r->random_key, NULL);
 
 #ifdef SEAFILE_SERVER
-        g_object_set (repo, "store_id", r->store_id, NULL);
+        g_object_set (repo, "store_id", r->store_id,
+                      "is_corrupted", r->is_corrupted,
+                      NULL);
 #endif
 
 #ifndef SEAFILE_SERVER
@@ -1767,6 +1769,7 @@ seafile_list_owned_repos (const char *email, GError **error)
                       "enc_version", r->enc_version,
                       "version", r->version,
                       "store_id", r->store_id,
+                      "is_corrupted", r->is_corrupted,
                       NULL);
         if (r->encrypted && r->enc_version == 2)
             g_object_set (repo, "magic", r->magic,
