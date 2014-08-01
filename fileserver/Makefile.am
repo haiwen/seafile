@@ -38,7 +38,6 @@ fileserver_SOURCES = \
 	../common/block-backend-fs.c \
 	../common/commit-mgr.c \
 	../common/log.c \
-	../common/avl/avl.c \
 	../common/object-list.c \
 	../common/seaf-utils.c \
 	../common/obj-store.c \

@@ -2,10 +2,10 @@
 
 #include "common.h"
 #include <glib/gstdio.h>
+#include <glib.h>
 
 #include <ccnet.h>
 #include "utils.h"
-#include "avl/avl.h"
 #include "log.h"
 
 #include "seafile-session.h"
@@ -20,7 +20,7 @@
 #define INDEX_DIR "index"
 
 struct _SeafRepoManagerPriv {
-    avl_tree_t *repo_tree;
+    GHashTable *repo_hash;
     pthread_rwlock_t lock;
 };
 
@@ -187,8 +187,7 @@ seaf_repo_manager_new (SeafileSession *seaf)
     mgr->priv = g_new0 (SeafRepoManagerPriv, 1);
     mgr->seaf = seaf;
 
-    mgr->priv->repo_tree = avl_alloc_tree ((avl_compare_t)compare_repo,
-                                           NULL);
+    mgr->priv->repo_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
     pthread_rwlock_init (&mgr->priv->lock, NULL);
 
@@ -227,21 +226,6 @@ seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
         return NULL;
 
     memcpy (repo.id, id, len + 1);
-#if 0
-    if (pthread_rwlock_rdlock (&manager->priv->lock) < 0) {
-        g_warning ("[repo mgr] failed to lock repo cache.\n");
-        return NULL;
-    }
-
-    avl_node_t *res = avl_search (manager->priv->repo_tree, &repo);
-
-    pthread_rwlock_unlock (&manager->priv->lock);
-
-    if (res) {
-        seaf_repo_ref ((SeafRepo *)(res->item));
-        return res->item;
-    }
-#endif
 
     if (repo_exists_in_db (manager->seaf->db, id)) {
         SeafRepo *ret = load_repo (manager, id);
@@ -254,62 +238,13 @@ seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
     return NULL;
 }
 
-SeafRepo*
-seaf_repo_manager_get_repo_prefix (SeafRepoManager *manager, const gchar *id)
-{
-    avl_node_t *node;
-    SeafRepo repo, *result;
-    int len = strlen(id);
-
-    if (len >= 37)
-        return NULL;
-
-    memcpy (repo.id, id, len + 1);
-
-    avl_search_closest (manager->priv->repo_tree, &repo, &node);
-    if (node != NULL) {
-        result = node->item;
-        if (strncmp (id, result->id, len) == 0)
-            return node->item;
-    }
-    return NULL;
-}
-
 gboolean
 seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id)
 {
     SeafRepo repo;
     memcpy (repo.id, id, 37);
 
-#if 0
-    if (pthread_rwlock_rdlock (&manager->priv->lock) < 0) {
-        g_warning ("[repo mgr] failed to lock repo cache.\n");
-        return FALSE;
-    }
-
-    avl_node_t *res = avl_search (manager->priv->repo_tree, &repo);
-
-    pthread_rwlock_unlock (&manager->priv->lock);
-
-    if (res)
-        return TRUE;
-#endif
-
     return repo_exists_in_db (manager->seaf->db, id);
-}
-
-gboolean
-seaf_repo_manager_repo_exists_prefix (SeafRepoManager *manager, const gchar *id)
-{
-    avl_node_t *node;
-    SeafRepo repo;
-
-    memcpy (repo.id, id, 37);
-
-    avl_search_closest (manager->priv->repo_tree, &repo, &node);
-    if (node != NULL)
-        return TRUE;
-    return FALSE;
 }
 
 static void
@@ -400,19 +335,6 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     else
         memcpy (repo->store_id, repo->id, 36);
     g_free (origin_repo_id);
-
-#if 0
-    if (pthread_rwlock_wrlock (&manager->priv->lock) < 0) {
-        g_warning ("[repo mgr] failed to lock repo cache.\n");
-        seaf_repo_free (repo);
-        return NULL;
-    }
-    avl_insert (manager->priv->repo_tree, repo);
-    /* Don't need to increase ref count, since the ref count of
-     * a new repo object is already 1.
-     */
-    pthread_rwlock_unlock (&manager->priv->lock);
-#endif
 
     return repo;
 }

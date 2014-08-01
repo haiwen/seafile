@@ -9,7 +9,6 @@
 
 #include <ccnet.h>
 #include "utils.h"
-#include "avl/avl.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_SYNC
 #include "log.h"
 
@@ -40,7 +39,7 @@
 #endif // HAVE_KEYSTORAGE_GK
 
 struct _SeafRepoManagerPriv {
-    avl_tree_t *repo_tree;
+    GHashTable *repo_hash;
     sqlite3    *db;
     pthread_mutex_t db_lock;
     GHashTable *checkout_tasks_hash;
@@ -2335,8 +2334,7 @@ seaf_repo_manager_new (SeafileSession *seaf)
         ignore_patterns[i] = g_pattern_spec_new (ignore_table[i]);
     }
 
-    mgr->priv->repo_tree = avl_alloc_tree ((avl_compare_t)compare_repo,
-                                           NULL);
+    mgr->priv->repo_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
     pthread_rwlock_init (&mgr->priv->lock, NULL);
 
@@ -2361,11 +2359,12 @@ seaf_repo_manager_init (SeafRepoManager *mgr)
 static void
 watch_repos (SeafRepoManager *mgr)
 {
-    avl_node_t *node;
+    GHashTableIter iter;
     SeafRepo *repo;
+    void *key;
 
-    for (node = mgr->priv->repo_tree->head; node; node = node->next) {
-        repo = node->item;
+    g_hash_table_iter_init (&iter, mgr->priv->repo_hash);
+    while (g_hash_table_iter_next (&iter, &key, (void **)&repo))
         if (repo->auto_sync && !repo->worktree_invalid) {
             if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
                 g_warning ("failed to watch repo %s.\n", repo->id);
@@ -2374,7 +2373,6 @@ watch_repos (SeafRepoManager *mgr)
                  */
             }
         }
-    }
 }
 
 int
@@ -2437,7 +2435,7 @@ seaf_repo_manager_add_repo (SeafRepoManager *manager,
         return -1;
     }
 
-    avl_insert (manager->priv->repo_tree, repo);
+    g_hash_table_insert (manager->priv->repo_hash, g_strdup(repo->id), repo);
 
     pthread_rwlock_unlock (&manager->priv->lock);
     send_wktree_notification (repo, TRUE);
@@ -2595,7 +2593,7 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
         return -1;
     }
 
-    avl_delete (mgr->priv->repo_tree, repo);
+    g_hash_table_remove (mgr->priv->repo_hash, repo->id);
 
     pthread_rwlock_unlock (&mgr->priv->lock);
 
@@ -2621,35 +2619,13 @@ seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
         return NULL;
     }
 
-    avl_node_t *res = avl_search (manager->priv->repo_tree, &repo);
+    SeafRepo *res = g_hash_table_lookup (manager->priv->repo_hash, repo.id);
 
     pthread_rwlock_unlock (&manager->priv->lock);
 
     if (res) {
-        SeafRepo *ret = (SeafRepo *)res->item;
-        if (!ret->delete_pending)
-            return ret;
-    }
-    return NULL;
-}
-
-SeafRepo*
-seaf_repo_manager_get_repo_prefix (SeafRepoManager *manager, const gchar *id)
-{
-    avl_node_t *node;
-    SeafRepo repo, *result;
-    int len = strlen(id);
-
-    if (len >= 37)
-        return NULL;
-
-    memcpy (repo.id, id, len + 1);
-
-    avl_search_closest (manager->priv->repo_tree, &repo, &node);
-    if (node != NULL) {
-        result = node->item;
-        if (strncmp (id, result->id, len) == 0)
-            return node->item;
+        if (!res->delete_pending)
+            return res;
     }
     return NULL;
 }
@@ -2665,29 +2641,14 @@ seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id)
         return FALSE;
     }
 
-    avl_node_t *res = avl_search (manager->priv->repo_tree, &repo);
+    SeafRepo *res = g_hash_table_lookup (manager->priv->repo_hash, repo.id);
 
     pthread_rwlock_unlock (&manager->priv->lock);
 
     if (res) {
-        SeafRepo *ret = (SeafRepo *)res->item;
-        if (!ret->delete_pending)
+        if (!res->delete_pending)
             return TRUE;
     }
-    return FALSE;
-}
-
-gboolean
-seaf_repo_manager_repo_exists_prefix (SeafRepoManager *manager, const gchar *id)
-{
-    avl_node_t *node;
-    SeafRepo repo;
-
-    memcpy (repo.id, id, 37);
-
-    avl_search_closest (manager->priv->repo_tree, &repo, &node);
-    if (node != NULL)
-        return TRUE;
     return FALSE;
 }
 
@@ -3092,7 +3053,7 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
         }
     }
 
-    avl_insert (manager->priv->repo_tree, repo);
+    g_hash_table_insert (manager->priv->repo_hash, g_strdup(repo->id), repo);
     send_wktree_notification (repo, TRUE);
 
     return repo;
@@ -3533,29 +3494,19 @@ GList*
 seaf_repo_manager_get_repo_list (SeafRepoManager *manager, int start, int limit)
 {
     GList *repo_list = NULL;
-    avl_node_t *node, *tail;
+    GHashTableIter iter;
     SeafRepo *repo;
+    void *key;
 
     if (pthread_rwlock_rdlock (&manager->priv->lock) < 0) {
         g_warning ("[repo mgr] failed to lock repo cache.\n");
         return NULL;
     }
+    g_hash_table_iter_init (&iter, manager->priv->repo_hash);
 
-    node = manager->priv->repo_tree->head;
-    tail = manager->priv->repo_tree->tail;
-    if (!tail) {
-        pthread_rwlock_unlock (&manager->priv->lock);
-        return NULL;
-    }
-
-    for (;;) {
-        repo = node->item;
+    while (g_hash_table_iter_next (&iter, &key, (void **)&repo))
         if (!repo->delete_pending)
-            repo_list = g_list_prepend (repo_list, node->item);
-        if (node == tail)
-            break;
-        node = node->next;
-    }
+            repo_list = g_list_prepend (repo_list, repo);
 
     pthread_rwlock_unlock (&manager->priv->lock);
 

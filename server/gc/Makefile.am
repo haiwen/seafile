@@ -34,7 +34,6 @@ common_sources = \
 	../../common/block-backend.c \
 	../../common/block-backend-fs.c \
 	../../common/commit-mgr.c \
-	../../common/avl/avl.c \
 	../../common/log.c \
 	../../common/seaf-utils.c \
 	../../common/obj-store.c \
