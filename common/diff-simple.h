@@ -2,7 +2,9 @@
 #define DIFF_SIMPLE_H
 
 #include <glib.h>
+#ifndef SEAFILE_SERVER
 #include "index/index.h"
+#endif
 #include "seafile-session.h"
 
 #define DIFF_TYPE_WORKTREE              'W' /* diff from index to worktree */
