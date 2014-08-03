@@ -356,15 +356,14 @@ out:
 }
 
 int
-gc_core_run (int dry_run, int ignore_errors)
+gc_core_run (int dry_run)
 {
     GList *repos = NULL, *del_repos = NULL, *ptr;
     SeafRepo *repo;
     GList *corrupt_repos = NULL;
     gboolean error = FALSE;
 
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1,
-                                             ignore_errors, &error);
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, &error);
     if (error) {
         seaf_warning ("Failed to load repo list.\n");
         return -1;
@@ -384,7 +383,7 @@ gc_core_run (int dry_run, int ignore_errors)
             if (gc_v1_repo (repo, dry_run, FALSE) < 0)
                 corrupt_repos = g_list_prepend (corrupt_repos, g_strdup(repo->id));
         }
-
+        seaf_repo_unref (repo);
     }
     g_list_free (repos);
 
@@ -417,7 +416,9 @@ gc_core_run (int dry_run, int ignore_errors)
         for (ptr = corrupt_repos; ptr; ptr = ptr->next) {
             char *repo_id = ptr->data;
             seaf_message ("%s\n", repo_id);
+            g_free (repo_id);
         }
+        g_list_free (corrupt_repos);
     }
 
     return 0;
