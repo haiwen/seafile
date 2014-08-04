@@ -211,6 +211,16 @@ repo_exists_in_db (SeafDB *db, const char *id)
     return seaf_db_check_for_existence (db, sql, &db_err);
 }
 
+static gboolean
+repo_exists_in_db_ex (SeafDB *db, const char *id, gboolean *db_err)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql), "SELECT repo_id FROM Repo WHERE repo_id = '%s'",
+              id);
+    return seaf_db_check_for_existence (db, sql, db_err);
+}
+
 SeafRepo*
 seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
 {
@@ -223,7 +233,7 @@ seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
     memcpy (repo.id, id, len + 1);
 
     if (repo_exists_in_db (manager->seaf->db, id)) {
-        SeafRepo *ret = load_repo (manager, id);
+        SeafRepo *ret = load_repo (manager, id, FALSE);
         if (!ret)
             return NULL;
         /* seaf_repo_ref (ret); */
@@ -243,7 +253,7 @@ seaf_repo_manager_get_repo_ex (SeafRepoManager *manager, const gchar *id)
     if (len >= 37)
         return NULL;
 
-    exists = repo_exists_in_db (manager->seaf->db, id, &db_err);
+    exists = repo_exists_in_db_ex (manager->seaf->db, id, &db_err);
 
     if (db_err) {
         ret = seaf_repo_new(id, NULL, NULL);
@@ -365,7 +375,6 @@ seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr)
 GList *
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
                                  int start, int limit,
-                                 gboolean ignore_errors,
                                  gboolean *error)
 {
     char sql[256];
