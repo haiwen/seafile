@@ -78,6 +78,7 @@ struct _SyncTask {
     struct CcnetTimer *commit_timer;
 
     gboolean         server_side_merge;
+    gboolean         uploaded;
 
     SeafRepo        *repo;  /* for convenience, only valid when in_sync. */
 };

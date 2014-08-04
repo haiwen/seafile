@@ -375,11 +375,18 @@ transition_sync_state (SyncTask *task, int new_state)
                           sync_state_str[new_state]);
         }
 
-        if ((task->state == SYNC_STATE_MERGE || task->state == SYNC_STATE_UPLOAD) &&
-            new_state == SYNC_STATE_DONE &&
-            need_notify_sync(task->repo))
-        {
-            notify_sync (task->repo);
+        if (!task->server_side_merge) {
+            if ((task->state == SYNC_STATE_MERGE ||
+                 task->state == SYNC_STATE_UPLOAD) &&
+                new_state == SYNC_STATE_DONE &&
+                need_notify_sync(task->repo))
+                notify_sync (task->repo);
+        } else {
+            if (((task->state == SYNC_STATE_INIT && task->uploaded) ||
+                 task->state == SYNC_STATE_FETCH) &&
+                new_state == SYNC_STATE_DONE &&
+                need_notify_sync(task->repo))
+                notify_sync (task->repo);
         }
 
         task->state = new_state;
@@ -1798,8 +1805,10 @@ on_repo_uploaded (SeafileSession *seaf,
                                              task->repo->head->commit_id);
         if (!task->server_side_merge)
             transition_sync_state (task, SYNC_STATE_DONE);
-        else
+        else {
+            task->uploaded = TRUE;
             start_sync_repo_proc (manager, task);
+        }
     } else if (tx_task->state == TASK_STATE_CANCELED) {
         transition_sync_state (task, SYNC_STATE_CANCELED);
     } else if (tx_task->state == TASK_STATE_ERROR) {
