@@ -49,12 +49,6 @@ struct _SeafRepoManagerPriv {
 static const char *ignore_table[] = {
     "*~",
     "*#",
-    /* -------------
-     * windows tmp files
-     * -------------
-     */
-    "*.tmp",
-    "*.TMP",
     /* ms office tmp files */
     "~$*",
     /* windows image cache */
