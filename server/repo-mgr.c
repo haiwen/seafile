@@ -43,12 +43,6 @@ struct _SeafRepoManagerPriv {
 static const char *ignore_table[] = {
     "*~",
     "*#",
-    /* -------------
-     * windows tmp files
-     * -------------
-     */
-    "*.tmp",
-    "*.TMP",
     /* ms office tmp files */
     "~$*",
     /* windows image cache */
@@ -1685,7 +1679,7 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
 
     for (ptr = id_list; ptr; ptr = ptr->next) {
         char *repo_id = ptr->data;
-        repo = seaf_repo_manager_get_repo (mgr, repo_id);
+        repo = seaf_repo_manager_get_repo_ex (mgr, repo_id);
         if (repo != NULL)
             ret = g_list_prepend (ret, repo);
     }

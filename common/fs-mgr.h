@@ -4,7 +4,6 @@
 #define SEAF_FILE_MGR_H
 
 #include <glib.h>
-#include "bitfield.h"
 
 #include "seafile-object.h"
 
@@ -128,7 +127,6 @@ typedef struct {
     /* TODO: GHashTable may be inefficient when we have large number of IDs. */
     GHashTable  *block_hash;
     GPtrArray   *block_ids;
-    Bitfield     block_map;
     uint32_t     n_blocks;
     uint32_t     n_valid_blocks;
 } BlockList;
@@ -138,12 +136,6 @@ block_list_new ();
 
 void
 block_list_free (BlockList *bl);
-
-void
-block_list_generate_bitmap (BlockList *bl, const char *repo_id, int version);
-
-void
-block_list_serialize (BlockList *bl, uint8_t **buffer, uint32_t *len);
 
 void
 block_list_insert (BlockList *bl, const char *block_id);

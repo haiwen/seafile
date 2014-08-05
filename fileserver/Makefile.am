@@ -30,7 +30,6 @@ fileserver_SOURCES = \
 	pack-dir.c \
 	fileserver-config.c \
 	../common/seaf-db.c \
-	../common/bitfield.c \
 	../common/branch-mgr.c \
 	../common/fs-mgr.c \
 	../common/block-mgr.c \
@@ -38,7 +37,6 @@ fileserver_SOURCES = \
 	../common/block-backend-fs.c \
 	../common/commit-mgr.c \
 	../common/log.c \
-	../common/avl/avl.c \
 	../common/object-list.c \
 	../common/seaf-utils.c \
 	../common/obj-store.c \

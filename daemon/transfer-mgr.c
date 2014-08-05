@@ -20,7 +20,6 @@
 #include "commit-mgr.h"
 #include "fs-mgr.h"
 #include "block-mgr.h"
-#include "bitfield.h"
 #include "seafile-error.h"
 #include "vc-common.h"
 #include "merge.h"
@@ -204,8 +203,6 @@ seaf_transfer_task_new (SeafTransferManager *manager,
     task->from_branch = g_strdup(from_branch);
     task->to_branch = g_strdup(to_branch);
     task->token = g_strdup(token);
-    task->processors = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                              g_free, NULL);
     if (!tx_id) {
         uuid = gen_uuid();
         memcpy (task->tx_id, uuid, 37);
@@ -250,8 +247,6 @@ seaf_transfer_task_free (TransferTask *task)
 
     if (task->commits)
         object_list_free (task->commits);
-
-    g_hash_table_destroy (task->processors);
 
     if (task->protocol_version < 7 && task->block_ids) {
         g_queue_foreach (task->block_ids, free_block_id, NULL);
@@ -993,16 +988,7 @@ seaf_transfer_task_load_blocklist (TransferTask *task)
         g_return_val_if_fail (bl != NULL, -1);
     }
 
-    block_list_generate_bitmap (bl, task->repo_id, task->repo_version);
-
     task->block_list = bl;
-
-    if (task->protocol_version <= 3) {
-        BitfieldConstruct (&task->active, bl->n_blocks);
-
-        if (task->type == TASK_TYPE_UPLOAD)
-            BitfieldConstruct (&task->uploaded, bl->n_blocks);
-    }
 
     return 0;
 }
@@ -1550,7 +1536,7 @@ start_getfs_proc (TransferTask *task, const char *peer_id, GCallback done_cb)
 }
 
 static void
-copy_block_ids_for_download (TransferTask *task)
+check_block_ids_for_download (TransferTask *task)
 {
     int i;
     BlockList *bl = task->block_list;
@@ -1560,22 +1546,26 @@ copy_block_ids_for_download (TransferTask *task)
 
     /* Add all blocks we don't have into task->block_ids. */
     for (i = 0; i < bl->n_blocks; ++i) {
-        if (!BitfieldHasFast (&bl->block_map, i)) {
-            block_id = g_ptr_array_index (bl->block_ids, i);
+        block_id = g_ptr_array_index (bl->block_ids, i);
+        if (!seaf_block_manager_block_exists (seaf->block_mgr,
+                                              task->repo_id, task->repo_version,
+                                              block_id))
             g_queue_push_tail (task->block_ids, g_strdup(block_id));
-        }
+        else
+            ++bl->n_valid_blocks;
     }
 }
 
 static void
 start_block_download (TransferTask *task)
 {
+    check_block_ids_for_download (task);
+
     if (task->block_list->n_blocks == task->block_list->n_valid_blocks) {
         seaf_debug ("No block to download.\n");
         if (update_local_repo (task) == 0)
             transition_state (task, TASK_STATE_FINISHED, TASK_RT_STATE_FINISHED);
     } else {
-        copy_block_ids_for_download (task);
         get_chunk_server_address (task);
     }
 }

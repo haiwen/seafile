@@ -75,6 +75,8 @@ public class Repo : Object {
     public int version { get; set; }
     // Used to access fs objects
     public string store_id { get; set; }
+
+    public bool is_corrupted { get; set; }
 }
 
 

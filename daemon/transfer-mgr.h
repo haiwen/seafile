@@ -7,7 +7,6 @@
 #include <ccnet/timer.h>
 #include <ccnet/peer.h>
 
-#include "bitfield.h"
 #include "object-list.h"
 #include "repo-mgr.h"
 #include "fs-mgr.h"
@@ -145,14 +144,11 @@ struct _TransferTask {
     ObjectList  *fs_roots;      /* the root of file systems to be sent/get */
 
     GList       *chunk_servers;
-    GHashTable  *processors;
     BlockList   *block_list;
-    Bitfield     active;
     gint         tx_bytes;      /* bytes transferred in the this second. */
     gint         last_tx_bytes; /* bytes transferred in the last second. */
 
     /* Fields only used by upload task. */
-    Bitfield     uploaded;
     int          n_uploaded;
 
     /* For new block transfer protocol */

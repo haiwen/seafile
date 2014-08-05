@@ -66,18 +66,15 @@ seaf_server_SOURCES = \
 	virtual-repo.c \
 	copy-mgr.c \
 	monitor-rpc-wrappers.c ../common/seaf-db.c \
-	../common/bitfield.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \
 	repo-mgr.c ../common/commit-mgr.c \
-	../common/log.c ../common/avl/avl.c ../common/object-list.c \
+	../common/log.c ../common/object-list.c \
 	../common/rpc-service.c \
 	../common/vc-common.c \
 	../common/seaf-utils.c \
 	../common/obj-store.c \
 	../common/obj-backend-fs.c \
 	../common/seafile-crypt.c \
-	../common/unpack-trees.c \
-	../common/seaf-tree-walk.c \
 	../common/diff-simple.c \
 	../common/mq-mgr.c \
 	../common/block-mgr.c \

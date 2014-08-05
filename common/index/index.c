@@ -318,6 +318,10 @@ int read_index_from(struct index_state *istate, const char *path, int repo_versi
     istate->cache = calloc(istate->cache_alloc, sizeof(struct cache_entry *));
     istate->name_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                g_free, NULL);
+#if defined WIN32 || defined __APPLE__
+    istate->i_name_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                 g_free, NULL);
+#endif
 
     /*
      * The disk format is actually larger than the in-memory format,
@@ -997,13 +1001,26 @@ int add_to_index(const char *repo_id,
     ce->ce_mode = create_ce_mode(st_mode);
 
     alias = index_name_exists(istate, ce->name, ce_namelen(ce), 0);
-    if (alias && !ce_stage(alias) && !ie_match_stat(alias, st, ce_option)) {
-        /* Nothing changed, really */
-        free(ce);
-        if (!S_ISGITLINK(alias->ce_mode))
-            ce_mark_uptodate(alias);
-        alias->ce_flags |= CE_ADDED;
-        return 0;
+    if (alias) {
+        if (!ce_stage(alias) && !ie_match_stat(alias, st, ce_option)) {
+            /* Nothing changed, really */
+            free(ce);
+            if (!S_ISGITLINK(alias->ce_mode))
+                ce_mark_uptodate(alias);
+            alias->ce_flags |= CE_ADDED;
+            return 0;
+        }
+    } else {
+#if defined WIN32 || defined __APPLE__
+        alias = index_name_exists (istate, ce->name, ce_namelen(ce), 1);
+        /* If file exists case-insensitively but doesn't exist case-sensitively,
+         * that file is actually being renamed.
+         */
+        if (alias) {
+            remove_file_from_index (istate, alias->name);
+            alias = NULL;
+        }
+#endif
     }
 
 #ifdef WIN32
@@ -1088,7 +1105,7 @@ int
 add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *st)
 {
     int namelen, size;
-    struct cache_entry *ce;
+    struct cache_entry *ce, *alias;
     int add_option = (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE);
 
     namelen = strlen(path);
@@ -1106,6 +1123,23 @@ add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *
     if (is_garbage_empty_dir (istate, ce)) {
         free (ce);
         return 0;
+    }
+
+    alias = index_name_exists(istate, ce->name, ce_namelen(ce), 0);
+    if (alias) {
+        free (ce);
+        return 0;
+    } else {
+#if defined WIN32 || defined __APPLE__
+        alias = index_name_exists (istate, ce->name, ce_namelen(ce), 1);
+        /* If file exists case-insensitively but doesn't exist case-sensitively,
+         * that file is actually being renamed.
+         */
+        if (alias) {
+            remove_file_from_index (istate, alias->name);
+            alias = NULL;
+        }
+#endif
     }
 
     if (add_index_entry(istate, ce, add_option)) {
@@ -1798,6 +1832,9 @@ int discard_index(struct index_state *istate)
     istate->timestamp.nsec = 0;
     istate->name_hash_initialized = 0;
     g_hash_table_destroy (istate->name_hash);
+#if defined WIN32 || defined __APPLE__
+    g_hash_table_destroy (istate->i_name_hash);
+#endif
     /* cache_tree_free(&(istate->cache_tree)); */
     /* free(istate->alloc); */
     free(istate->cache);
@@ -1817,16 +1854,37 @@ void cache_entry_free (struct cache_entry *ce)
 void remove_name_hash(struct index_state *istate, struct cache_entry *ce)
 {
     g_hash_table_remove (istate->name_hash, ce->name);
+
+#if defined WIN32 || defined __APPLE__
+    char *i_name = g_utf8_strdown (ce->name, -1);
+    g_hash_table_remove (istate->i_name_hash, i_name);
+    g_free (i_name);
+#endif
 }
 
 void add_name_hash(struct index_state *istate, struct cache_entry *ce)
 {
     g_hash_table_insert (istate->name_hash, g_strdup(ce->name), ce);
+#if defined WIN32 || defined __APPLE__
+    g_hash_table_insert (istate->i_name_hash, g_utf8_strdown(ce->name, -1), ce);
+#endif
 }
 
 struct cache_entry *index_name_exists(struct index_state *istate,
                                       const char *name, int namelen,
                                       int igncase)
 {
+#if defined WIN32 || defined __APPLE__
+    if (!igncase)
+        return g_hash_table_lookup (istate->name_hash, name);
+    else {
+        struct cache_entry *ce;
+        char *i_name = g_utf8_strdown (name, -1);
+        ce = g_hash_table_lookup (istate->i_name_hash, i_name);
+        g_free (i_name);
+        return ce;
+    }
+#else
     return g_hash_table_lookup (istate->name_hash, name);
+#endif
 }

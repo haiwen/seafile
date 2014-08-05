@@ -27,14 +27,12 @@ common_sources = \
 	seafile-session.c \
 	repo-mgr.c \
 	../../common/seaf-db.c \
-	../../common/bitfield.c \
 	../../common/branch-mgr.c \
 	../../common/fs-mgr.c \
 	../../common/block-mgr.c \
 	../../common/block-backend.c \
 	../../common/block-backend-fs.c \
 	../../common/commit-mgr.c \
-	../../common/avl/avl.c \
 	../../common/log.c \
 	../../common/seaf-utils.c \
 	../../common/obj-store.c \

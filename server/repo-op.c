@@ -10,7 +10,6 @@
 #include <ccnet.h>
 #include <ccnet/ccnet-object.h>
 #include "utils.h"
-#include "avl/avl.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_OTHER
 #include "log.h"
 #include "seafile.h"
@@ -23,9 +22,6 @@
 #include "fs-mgr.h"
 #include "seafile-error.h"
 #include "seafile-crypt.h"
-#include "index/index.h"
-#include "index/cache-tree.h"
-#include "unpack-trees.h"
 #include "diff-simple.h"
 #include "merge-new.h"
 #include "monitor-rpc-wrappers.h"

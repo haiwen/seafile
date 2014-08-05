@@ -1744,53 +1744,7 @@ block_list_free (BlockList *bl)
     if (bl->block_hash)
         g_hash_table_destroy (bl->block_hash);
     g_ptr_array_free (bl->block_ids, TRUE);
-    if (bl->block_map.bits != NULL)
-        BitfieldDestruct (&bl->block_map);
     g_free (bl);
-}
-
-/**
- * Determine which blocks exist in local.
- */
-void
-block_list_generate_bitmap (BlockList *bl,
-                            const char *repo_id,
-                            int version)
-{
-    SeafBlockManager *blk_mgr = seaf->block_mgr;
-    char *block_id;
-    size_t i = 0;
-
-    BitfieldConstruct (&bl->block_map, bl->n_blocks);
-    for (i = 0; i < bl->n_blocks; ++i) {
-        block_id = g_ptr_array_index (bl->block_ids, i);
-        if (seaf_block_manager_block_exists (blk_mgr,
-                                             repo_id, version,
-                                             block_id)) {
-            BitfieldAdd (&bl->block_map, i);
-            ++bl->n_valid_blocks;
-        }
-    }
-
-    g_hash_table_destroy (bl->block_hash);
-    bl->block_hash = NULL;
-}
-
-void
-block_list_serialize (BlockList *bl, uint8_t **buffer, uint32_t *len)
-{
-    uint32_t i;
-    uint32_t offset = 0;
-    uint8_t *buf;
-
-    buf = g_new (uint8_t, 41 * bl->n_blocks);
-    for (i = 0; i < bl->n_blocks; ++i) {
-        memcpy (&buf[offset], g_ptr_array_index(bl->block_ids, i), 41);
-        offset += 41;
-    }
-
-    *buffer = buf;
-    *len = 41 * bl->n_blocks;
 }
 
 void

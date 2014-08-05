@@ -13,7 +13,6 @@
 #include "commit-mgr.h"
 #include "branch-mgr.h"
 #include "repo-mgr.h"
-#include "info-mgr.h"
 #include "clone-mgr.h"
 #include "db.h"
 
