@@ -59,7 +59,17 @@ static void
 add_event_to_queue (WTStatus *status,
                     int type, const char *path, const char *new_path)
 {
-    WTEvent *event = wt_event_new (type, path, new_path);
+    char *nfc_path = NULL, *nfc_new_path = NULL;
+
+    if (path)
+        nfc_path = g_utf8_normalize (path, -1, G_NORMALIZE_NFC);
+    if (new_path)
+        nfc_new_path = g_utf8_normalize (new_path, -1, G_NORMALIZE_NFC);
+
+    WTEvent *event = wt_event_new (type, nfc_path, nfc_new_path);
+
+    g_free (nfc_path);
+    g_free (nfc_new_path);
 
     char *name;
     switch (type) {
