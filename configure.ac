@@ -86,7 +86,9 @@ if test "$blinux" = true; then
 
    AC_ARG_ENABLE(riak, AC_HELP_STRING([--enable-riak], [enable riak backend]),
       [compile_riak=$enableval],[compile_riak="no"])
+fi
 
+if test "$bwin32" != true; then
    AC_ARG_ENABLE(fuse, AC_HELP_STRING([--enable-fuse], [enable fuse virtual file system]),
       [compile_fuse=$enableval],[compile_fuse="yes"])
 fi
@@ -241,8 +243,12 @@ JANSSON_REQUIRED=2.2.1
 ZDB_REQUIRED=2.10
 #LIBNAUTILUS_EXTENSION_REQUIRED=2.30.1
 CURL_REQUIRED=7.17
-FUSE_REQUIRED=2.8.6
+FUSE_REQUIRED=2.7.3
 ZLIB_REQUIRED=1.2.0
+
+PKG_CHECK_MODULES(SSL, [openssl])
+AC_SUBST(SSL_CFLAGS)
+AC_SUBST(SSL_LIBS)
 
 PKG_CHECK_MODULES(GLIB2, [glib-2.0 >= $GLIB_REQUIRED])
 AC_SUBST(GLIB2_CFLAGS)
