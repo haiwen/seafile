@@ -25,7 +25,6 @@ static const struct option long_opts[] = {
     { "seafdir", required_argument, NULL, 'd', },
     { "verify", no_argument, NULL, 'V' },
     { "dry-run", no_argument, NULL, 'D' },
-    { "ignore-errors", no_argument, NULL, 'i' },
 };
 
 static void usage ()
@@ -112,9 +111,6 @@ main(int argc, char *argv[])
         case 'D':
             dry_run = 1;
             break;
-        case 'i':
-            ignore_errors = 1;
-            break;
         default:
             usage();
             exit(-1);
@@ -152,7 +148,7 @@ main(int argc, char *argv[])
         return 0;
     }
 
-    gc_core_run (dry_run, ignore_errors);
+    gc_core_run (dry_run);
 
     return 0;
 }

@@ -23,7 +23,7 @@ struct _SeafRepoManagerPriv {
 };
 
 static SeafRepo *
-load_repo (SeafRepoManager *manager, const char *repo_id);
+load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt);
 
 gboolean
 is_repo_id_valid (const char *id)
@@ -211,6 +211,16 @@ repo_exists_in_db (SeafDB *db, const char *id)
     return seaf_db_check_for_existence (db, sql, &db_err);
 }
 
+static gboolean
+repo_exists_in_db_ex (SeafDB *db, const char *id, gboolean *db_err)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql), "SELECT repo_id FROM Repo WHERE repo_id = '%s'",
+              id);
+    return seaf_db_check_for_existence (db, sql, db_err);
+}
+
 SeafRepo*
 seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
 {
@@ -223,10 +233,36 @@ seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
     memcpy (repo.id, id, len + 1);
 
     if (repo_exists_in_db (manager->seaf->db, id)) {
-        SeafRepo *ret = load_repo (manager, id);
+        SeafRepo *ret = load_repo (manager, id, FALSE);
         if (!ret)
             return NULL;
         /* seaf_repo_ref (ret); */
+        return ret;
+    }
+
+    return NULL;
+}
+
+SeafRepo*
+seaf_repo_manager_get_repo_ex (SeafRepoManager *manager, const gchar *id)
+{
+    int len = strlen(id);
+    gboolean db_err = FALSE, exists;
+    SeafRepo *ret = NULL;
+
+    if (len >= 37)
+        return NULL;
+
+    exists = repo_exists_in_db_ex (manager->seaf->db, id, &db_err);
+
+    if (db_err) {
+        ret = seaf_repo_new(id, NULL, NULL);
+        ret->is_corrupted = TRUE;
+        return ret;
+    }
+
+    if (exists) {
+        ret = load_repo (manager, id, TRUE);
         return ret;
     }
 
@@ -265,7 +301,7 @@ load_repo_commit (SeafRepoManager *manager,
 }
 
 static SeafRepo *
-load_repo (SeafRepoManager *manager, const char *repo_id)
+load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt)
 {
     SeafRepo *repo;
     SeafBranch *branch;
@@ -273,7 +309,7 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
 
     repo = seaf_repo_new(repo_id, NULL, NULL);
     if (!repo) {
-        g_warning ("[repo mgr] failed to alloc repo.\n");
+        seaf_warning ("[repo mgr] failed to alloc repo.\n");
         return NULL;
     }
 
@@ -289,9 +325,11 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     }
 
     if (repo->is_corrupted) {
-        g_warning ("Repo %.8s is corrupted.\n", repo->id);
-        seaf_repo_free (repo);
-        return NULL;
+        if (!ret_corrupt) {
+            seaf_repo_free (repo);
+            return NULL;
+        }
+        return repo;
     }
 
     vinfo = seaf_repo_manager_get_virtual_repo_info (manager, repo_id);
@@ -337,7 +375,6 @@ seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr)
 GList *
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
                                  int start, int limit,
-                                 gboolean ignore_errors,
                                  gboolean *error)
 {
     char sql[256];
@@ -358,19 +395,9 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
 
     for (ptr = id_list; ptr; ptr = ptr->next) {
         char *repo_id = ptr->data;
-        repo = seaf_repo_manager_get_repo (mgr, repo_id);
-        if (!repo) {
-            /* In GC, we should be more conservative.
-             * No matter a repo is really corrupted or it's a temp error,
-             * we return error here.
-             */
-            g_warning ("Failed to get repo %.8s.\n", repo_id);
-            if (!ignore_errors)
-                goto error;
-            else
-                continue;
-        }
-        ret = g_list_prepend (ret, repo);
+        repo = seaf_repo_manager_get_repo_ex (mgr, repo_id);
+        if (repo)
+            ret = g_list_prepend (ret, repo);
     }
 
     string_list_free (id_list);
