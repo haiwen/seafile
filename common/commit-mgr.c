@@ -628,6 +628,8 @@ commit_to_json_object (SeafCommit *commit)
         json_object_set_int_member (object, "conflict", 1);
     if (commit->new_merge)
         json_object_set_int_member (object, "new_merge", 1);
+    if (commit->repaired)
+        json_object_set_int_member (object, "repaired", 1);
 
     return object;
 }
@@ -653,6 +655,7 @@ commit_from_json_object (const char *commit_id, json_t *object)
     int no_local_history = 0;
     int version = 0;
     int conflict = 0, new_merge = 0;
+    int repaired = 0;
 
     root_id = json_object_get_string_member (object, "root_id");
     repo_id = json_object_get_string_member (object, "repo_id");
@@ -691,6 +694,10 @@ commit_from_json_object (const char *commit_id, json_t *object)
 
     if (json_object_has_member (object, "conflict"))
         conflict = json_object_get_int_member (object, "conflict");
+
+    if (json_object_has_member (object, "repaired"))
+        repaired = json_object_get_int_member (object, "repaired");
+
 
     /* sanity check for incoming values. */
     if (!repo_id || strlen(repo_id) != 36 ||
@@ -750,6 +757,8 @@ commit_from_json_object (const char *commit_id, json_t *object)
         commit->new_merge = TRUE;
     if (conflict)
         commit->conflict = TRUE;
+    if (repaired)
+        commit->repaired = TRUE;
 
     return commit;
 }

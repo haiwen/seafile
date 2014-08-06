@@ -73,6 +73,9 @@ void
 seaf_repo_unref (SeafRepo *repo);
 
 void
+seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit);
+
+void
 seaf_virtual_repo_info_free (SeafVirtRepo *vinfo);
 
 typedef struct _SeafRepoManager SeafRepoManager;
