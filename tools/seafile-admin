@@ -649,7 +649,7 @@ def read_seafile_data_dir(ccnet_conf_dir):
     seafile_ini = os.path.join(ccnet_conf_dir, 'seafile.ini')
     if os.path.exists(seafile_ini):
         with open(seafile_ini, 'r') as fp:
-            seafile_data_dir = fp.read()
+            seafile_data_dir = fp.read().strip()
     else:
         # In previous seafile-admin, seafiled-data folder must be under
         # the top level directory, so we do not store the location of
