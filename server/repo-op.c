@@ -4735,7 +4735,7 @@ get_commit(SeafRepo *repo, const char *branch_or_commit)
 }
 
 GList *
-seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, char **error)
+seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, int fold_dir_diff, char **error)
 {
     SeafCommit *c1 = NULL, *c2 = NULL;
     int ret = 0;
@@ -4751,7 +4751,7 @@ seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, char **error)
     
     if (old == NULL || old[0] == '\0') {
         if (c2->parent_id && c2->second_parent_id) {
-            ret = diff_merge (c2, &diff_entries, TRUE);
+            ret = diff_merge (c2, &diff_entries, fold_dir_diff);
             if (ret < 0) {
                 *error = g_strdup("Failed to do diff");
                 seaf_commit_unref (c2);
@@ -4779,7 +4779,7 @@ seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, char **error)
     }
 
     /* do diff */
-    ret = diff_commits (c1, c2, &diff_entries, TRUE);
+    ret = diff_commits (c1, c2, &diff_entries, fold_dir_diff);
     if (ret < 0)
         *error = g_strdup("Failed to do diff");
 

@@ -1594,7 +1594,7 @@ get_diff_status_str(char status)
 }
 
 GList *
-seafile_diff (const char *repo_id, const char *arg1, const char *arg2, GError **error)
+seafile_diff (const char *repo_id, const char *arg1, const char *arg2, int fold_dir_diff, GError **error)
 {
     SeafRepo *repo;
     char *err_msgs = NULL;
@@ -1617,7 +1617,7 @@ seafile_diff (const char *repo_id, const char *arg1, const char *arg2, GError **
         return NULL;
     }
 
-    diff_entries = seaf_repo_diff (repo, arg1, arg2, &err_msgs);
+    diff_entries = seaf_repo_diff (repo, arg1, arg2, fold_dir_diff, &err_msgs);
     if (err_msgs) {
         g_set_error (error, SEAFILE_DOMAIN, -1, "%s", err_msgs);
         g_free (err_msgs);

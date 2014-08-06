@@ -82,8 +82,8 @@ class SeafileAPI(object):
     def revert_repo(self, repo_id, commit_id, username):
         return seafserv_threaded_rpc.revert_on_server(repo_id, commit_id, username)
 
-    def diff_commits(self, repo_id, old_commit, new_commit):
-        return seafserv_threaded_rpc.get_diff(repo_id, old_commit, new_commit)
+    def diff_commits(self, repo_id, old_commit, new_commit, fold_dir_diff = 1):
+        return seafserv_threaded_rpc.get_diff(repo_id, old_commit, new_commit, fold_dir_diff)
 
     def get_commit_list(self, repo_id, offset, limit):
         return seafserv_threaded_rpc.get_commit_list(repo_id, offset, limit)

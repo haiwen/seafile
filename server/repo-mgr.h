@@ -92,7 +92,7 @@ GList *
 seaf_repo_get_commits (SeafRepo *repo);
 
 GList *
-seaf_repo_diff (SeafRepo *repo, const char *arg1, const char *arg2, char **error);
+seaf_repo_diff (SeafRepo *repo, const char *arg1, const char *arg2, int fold_dir_diff, char **error);
 
 typedef struct _SeafRepoManager SeafRepoManager;
 typedef struct _SeafRepoManagerPriv SeafRepoManagerPriv;

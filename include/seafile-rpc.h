@@ -376,7 +376,7 @@ int seafile_remove_task (const char *task_id, int task_type, GError **error);
  */
 GList *
 seafile_diff (const char *repo_id, const char *old, const char *new,
-              GError **error);
+              int fold_dir_diff, GError **error);
 
 GList *
 seafile_branch_gets (const char *repo_id, GError **error);

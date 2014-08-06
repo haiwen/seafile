@@ -75,7 +75,7 @@ class SeafileRpcClient(ccnet.RpcClientBase):
         pass
     remove_repo = seafile_destroy_repo
 
-    @searpc_func("objlist", ["string", "string", "string"])
+    @searpc_func("objlist", ["string", "string", "string", "int"])
     def seafile_diff():
         pass
     get_diff = seafile_diff
