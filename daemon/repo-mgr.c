@@ -47,10 +47,13 @@ struct _SeafRepoManagerPriv {
 };
 
 static const char *ignore_table[] = {
+    /* tmp files under Linux */
     "*~",
-    "*#",
+    /* Emacs tmp files */
+    "#*#",
     /* ms office tmp files */
     "~$*",
+    "~*.tmp", /* for files like ~WRL0001.tmp */
     /* windows image cache */
     "Thumbs.db",
     /* For Mac */
