@@ -130,7 +130,7 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
                                       const char *username)
 {
     GString *key = g_string_new (NULL);
-    AccessToken *token;
+    AccessToken *token = NULL;
     AccessInfo *info;
     long now = (long)time(NULL);
     long expire;
@@ -138,7 +138,10 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
 
     g_string_printf (key, "%s %s %s %s", repo_id, obj_id, op, username);
 
-    token = g_hash_table_lookup (mgr->access_info_hash, key->str);
+    if (strcmp (op, "download") != 0
+        && strcmp (op, "download-dir") != 0) {
+        token = g_hash_table_lookup (mgr->access_info_hash, key->str);
+    }
     /* To avoid returning an almost expired token, we returns token
      * that has at least 1 minute "life time".
      */
