@@ -1070,6 +1070,7 @@ load_blocklist_v2 (TransferTask *task)
     int ret = 0;
 
     SeafBranch *local = NULL, *master = NULL;
+    SeafCommit *local_head = NULL, *master_head = NULL;
     local = seaf_branch_manager_get_branch (seaf->branch_mgr, task->repo_id, "local");
     if (!local) {
         seaf_warning ("Branch local not found for repo %.8s.\n", task->repo_id);
@@ -1083,7 +1084,6 @@ load_blocklist_v2 (TransferTask *task)
         goto out;
     }
 
-    SeafCommit *local_head = NULL, *master_head = NULL;
     local_head = seaf_commit_manager_get_commit (seaf->commit_mgr,
                                                  task->repo_id, task->repo_version,
                                                  local->commit_id);
