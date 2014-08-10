@@ -655,17 +655,17 @@ def main():
 
     # stop
     parser_stop = subparsers.add_parser('stop',
-                                         help='Start ccnet and seafile daemon')
+                                         help='Stop ccnet and seafile daemon')
     parser_stop.set_defaults(func=seaf_stop)
     parser_stop.add_argument('-c', '--confdir', help='the config directory', type=str)
 
     # list
-    parser_list = subparsers.add_parser('list', help='list local libraries')
+    parser_list = subparsers.add_parser('list', help='List local libraries')
     parser_list.set_defaults(func=seaf_list)
     parser_list.add_argument('-c', '--confdir', help='the config directory', type=str)
 
     # status
-    parser_status = subparsers.add_parser('status', help='show syncing status')
+    parser_status = subparsers.add_parser('status', help='Show syncing status')
     parser_status.set_defaults(func=seaf_status)
     parser_status.add_argument('-c', '--confdir', help='the config directory', type=str)
 
