@@ -719,7 +719,7 @@ class ExistingDBConfigurator(AbstractDBConfigurator):
 
 class CcnetConfigurator(AbstractConfigurator):
     SERVER_NAME_REGEX = r'^[a-zA-Z0-9_\-]{3,14}$'
-    SERVER_IP_OR_DOMAIN_REGEX = '^[^.].+\..+[^.]$'
+    SERVER_IP_OR_DOMAIN_REGEX = r'^[^.].+\..+[^.]$'
 
     def __init__(self):
         '''Initialize default values of ccnet configuration'''
@@ -916,9 +916,9 @@ class SeafileConfigurator(AbstractConfigurator):
         key = 'seafile fileserver port'
         default = 8082
         self.fileserver_port = Utils.ask_question(question,
-                                            key=key,
-                                            default=default,
-                                            validate=validate)
+                                                  key=key,
+                                                  default=default,
+                                                  validate=validate)
 
     def write_seafile_ini(self):
         seafile_ini = os.path.join(ccnet_config.ccnet_dir, 'seafile.ini')
@@ -1026,16 +1026,36 @@ DATABASES = {
         print '----------------------------------------'
         print 'Now creating seahub database tables ...\n'
         print '----------------------------------------'
-        env = env_mgr.get_seahub_env()
-        cwd = os.path.join(env_mgr.install_path, 'seahub')
-        argv = [
-            Utils.get_python_executable(),
-            'manage.py',
-            'syncdb',
-        ]
 
-        if Utils.run_argv(argv, cwd=cwd, env=env) != 0:
-            Utils.error("Failed to create seahub databases")
+        try:
+            conn = MySQLdb.connect(host=db_config.mysql_host,
+                                   port=db_config.mysql_port,
+                                   user=db_config.seafile_mysql_user,
+                                   passwd=db_config.seafile_mysql_password,
+                                   db=db_config.seahub_db_name)
+        except Exception, e:
+            if isinstance(e, MySQLdb.OperationalError):
+                Utils.error('Failed to connect to mysql database %s: %s' % (db_config.seahub_db_name, e.args[1]))
+            else:
+                Utils.error('Failed to connect to mysql database %s: %s' % (db_config.seahub_db_name, e))
+
+        cursor = conn.cursor()
+
+        sql_file = os.path.join(env_mgr.install_path, 'seahub', 'sql', 'mysql.sql')
+        with open(sql_file, 'r') as fp:
+            content = fp.read()
+
+        sqls = [line.strip() for line in content.split(';') if line.strip()]
+        for sql in sqls:
+            try:
+                cursor.execute(sql)
+            except Exception, e:
+                if isinstance(e, MySQLdb.OperationalError):
+                    Utils.error('Failed to init seahub database:' % e.args[1])
+                else:
+                    Utils.error('Failed to init seahub database:' % e)
+
+        conn.commit()
 
     def prepare_avatar_dir(self):
         # media_dir=${INSTALLPATH}/seahub/media
