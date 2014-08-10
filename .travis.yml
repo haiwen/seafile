@@ -5,25 +5,19 @@ compiler:
 before_install:
  - sudo apt-get update -qq
  - sudo apt-get install -qq valac uuid-dev libevent-dev libarchive-dev intltool re2c libjansson-dev
- - git clone --depth=50 --branch=release-2-11-3 https://bitbucket.org/tildeslash/libzdb.git deps/libzdb
- - git clone --depth=50 --branch=master git://github.com/haiwen/libsearpc.git deps/libsearpc
- - git clone --depth=50 --branch=master git://github.com/haiwen/ccnet.git deps/ccnet
+ - git clone --depth=1 --branch=release-2-11-3 https://bitbucket.org/tildeslash/libzdb.git deps/libzdb
+ - git clone --depth=1 --branch=master git://github.com/haiwen/libsearpc.git deps/libsearpc
+ - git clone --depth=1 --branch=master git://github.com/haiwen/ccnet.git deps/ccnet
  - curl -L -o libevhtp.tar.gz https://github.com/ellzey/libevhtp/archive/1.2.9.tar.gz
  - tar -xvf libevhtp.tar.gz -C deps
  - cd deps/libevhtp-1.2.9 && cmake . && make -j8 && sudo make install && cd -
  - cd deps/libzdb && ./bootstrap && ./configure --without-postgresql --without-mysql && make -j8 && sudo make install && cd -
  - cd deps/libsearpc && ./autogen.sh && ./configure
- - cd demo && python ../lib/searpc-codegen.py rpc_table.py && cd -
- - cd tests && python ../lib/searpc-codegen.py rpc_table.py && cd -
  - make -j8 && sudo make install && cd ../..
  - cd deps/ccnet && ./autogen.sh && ./configure --enable-client --enable-server
- - cd lib && python `which searpc-codegen.py` ./rpc_table.py && cd -
- - cd lib && valac -C --pkg posix ccnetobj.vala && cd -
  - make -j8 && sudo make install && cd ../..
  - ./autogen.sh
 script:
- - cd lib && python `which searpc-codegen.py` ./rpc_table.py && cd -
- - cd lib && valac -C --pkg posix repo.vala commit.vala dirent.vala dir.vala task.vala branch.vala crypt.vala webaccess.vala copy-task.vala && cd -
  - ./configure --disable-fuse --enable-client --enable-server
  - make -j8
 notifications:

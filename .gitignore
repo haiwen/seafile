@@ -60,6 +60,8 @@ debian/seafile
 debian/*.substvars
 lib/searpc-marshal.h
 lib/searpc-signature.h
+lib/rpc_table.stamp
+lib/rpc_table.tmp
 lib/dir.c
 lib/dirent.c
 lib/seafile-object.h
