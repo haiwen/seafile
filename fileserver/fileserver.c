@@ -266,27 +266,8 @@ main(int argc, char *argv[])
     }
 
 #ifndef WIN32
-    if (daemon_mode) {
-#ifndef __APPLE__
-        daemon (1, 0);
-#else   /* __APPLE */
-        /* daemon is deprecated under APPLE
-         * use fork() instead
-         * */
-        switch (fork ()) {
-          case -1:
-              seaf_warning ("Failed to daemonize");
-              exit (-1);
-              break;
-          case 0:
-              /* all good*/
-              break;
-          default:
-              /* kill origin process */
-              exit (0);
-        }
-#endif  /* __APPLE */
-    }
+    if (daemon_mode)
+        seaf_daemonize ();
 #endif /* !WIN32 */
 #ifdef WIN32
     WSADATA     wsadata;
