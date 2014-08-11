@@ -350,4 +350,8 @@ seaf_compress (guint8 *input, int inlen, guint8 **output, int *outlen);
 int
 seaf_decompress (guint8 *input, int inlen, guint8 **output, int *outlen);
 
+#ifndef WIN32
+void seaf_daemonize (void);
+#endif
+
 #endif

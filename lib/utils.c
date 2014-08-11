@@ -2123,3 +2123,43 @@ out:
         return -1;
     }
 }
+
+
+#ifndef WIN32
+/*
+ * daemon(3) is limited to BSD-like system
+ * using customized daemon function for own good
+ */
+void
+seaf_daemonize (void)
+{
+#if defined(__linux) || defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+    daemon (1, 0);
+#else /* other unknown OSs and Mac OS X*/
+    /* the below code is originally from libc
+     * which is shipped with 4.4BSD-Lite2
+     * */
+    int fd;
+    switch (fork ()) {
+        case -1:
+            g_error ("[fatal] failed to daemonize\n");
+            exit (-1);
+            break;
+        case 0:
+            /* child process*/
+            break;
+        default:
+            /* kill origin process */
+            exit (0);
+    }
+    if ((fd = open ("/dev/null", O_RDWR, 0)) != -1)
+    {
+        dup2 (fd, STDIN_FILENO);
+        dup2 (fd, STDOUT_FILENO);
+        dup2 (fd, STDERR_FILENO);
+        if (fd > 2)
+            close (fd);
+    }
+#endif
+}
+#endif
