@@ -133,6 +133,11 @@ start (CcnetProcessor *processor, int argc, char **argv)
 
 /* Calculate send object list */
 
+typedef struct {
+    GList **pret;
+    GHashTable *checked_objs;
+} CalcData;
+
 inline static gboolean
 dirent_same (SeafDirent *denta, SeafDirent *dentb)
 {
@@ -140,30 +145,48 @@ dirent_same (SeafDirent *denta, SeafDirent *dentb)
 }
 
 static int
-collect_file_ids (int n, const char *basedir, SeafDirent *files[], void *data)
+collect_file_ids (int n, const char *basedir, SeafDirent *files[], void *vdata)
 {
     SeafDirent *file1 = files[0];
     SeafDirent *file2 = files[1];
-    GList **pret = data;
+    CalcData *data = vdata;
+    GList **pret = data->pret;
+    int dummy;
 
-    if (file1 && (!file2 || !dirent_same (file1, file2)) &&
-        strcmp (file1->id, EMPTY_SHA1) != 0)
+    if (!file1 || strcmp (file1->id, EMPTY_SHA1) == 0)
+        return 0;
+
+    if (g_hash_table_lookup (data->checked_objs, file1->id))
+        return 0;
+
+    if (!file2 || !dirent_same (file1, file2)) {
         *pret = g_list_prepend (*pret, g_strdup(file1->id));
+        g_hash_table_insert (data->checked_objs, g_strdup(file1->id), &dummy);
+    }
 
     return 0;
 }
 
 static int
-collect_dir_ids (int n, const char *basedir, SeafDirent *dirs[], void *data,
+collect_dir_ids (int n, const char *basedir, SeafDirent *dirs[], void *vdata,
                  gboolean *recurse)
 {
     SeafDirent *dir1 = dirs[0];
     SeafDirent *dir2 = dirs[1];
-    GList **pret = data;
+    CalcData *data = vdata;
+    GList **pret = data->pret;
+    int dummy;
 
-    if (dir1 && (!dir2 || !dirent_same (dir1, dir2)) &&
-        strcmp (dir1->id, EMPTY_SHA1) != 0)
+    if (!dir1 || strcmp (dir1->id, EMPTY_SHA1) == 0)
+        return 0;
+
+    if (g_hash_table_lookup (data->checked_objs, dir1->id))
+        return 0;
+
+    if (!dir2 || !dirent_same (dir1, dir2)) {
         *pret = g_list_prepend (*pret, g_strdup(dir1->id));
+        g_hash_table_insert (data->checked_objs, g_strdup(dir1->id), &dummy);
+    }
 
     return 0;
 }
@@ -215,13 +238,18 @@ calculate_send_object_list (void *vdata)
         priv->send_obj_list = g_list_prepend (priv->send_obj_list,
                                               g_strdup(local_head->root_id));
 
+    CalcData *data = g_new0(CalcData, 1);
+    data->pret = &priv->send_obj_list;
+    data->checked_objs = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                g_free, NULL);
+
     DiffOptions opts;
     memset (&opts, 0, sizeof(opts));
     memcpy (opts.store_id, task->repo_id, 36);
     opts.version = task->repo_version;
     opts.file_cb = collect_file_ids;
     opts.dir_cb = collect_dir_ids;
-    opts.data = &priv->send_obj_list;
+    opts.data = data;
 
     const char *trees[2];
     trees[0] = local_head->root_id;
@@ -231,6 +259,9 @@ calculate_send_object_list (void *vdata)
                       task->repo_id);
         priv->calc_success = FALSE;
     }
+
+    g_hash_table_destroy (data->checked_objs);
+    g_free (data);
 
     priv->calc_success = TRUE;
 
