@@ -50,6 +50,7 @@ noinst_HEADERS = web-accesstoken-mgr.h chunkserv-mgr.h seafile-session.h \
 	size-sched.h \
 	block-tx-server.h \
 	copy-mgr.h \
+	http-server.h \
 	$(proc_headers)
 
 seaf_server_SOURCES = \
@@ -65,6 +66,7 @@ seaf_server_SOURCES = \
 	size-sched.c \
 	virtual-repo.c \
 	copy-mgr.c \
+	http-server.c \
 	monitor-rpc-wrappers.c ../common/seaf-db.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \
 	repo-mgr.c ../common/commit-mgr.c \
@@ -105,7 +107,7 @@ seaf_server_SOURCES = \
 seaf_server_LDADD = @CCNET_LIBS@ \
 	$(top_builddir)/lib/libseafile_common.la \
 	$(top_builddir)/common/index/libindex.la \
-	@GLIB2_LIBS@ @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent \
+	@GLIB2_LIBS@ @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent -levhtp -levent_openssl \
 	$(top_builddir)/common/cdc/libcdc.la \
 	@SEARPC_LIBS@ @JANSSON_LIBS@ @ZDB_LIBS@ @CURL_LIBS@ ${LIB_WS32} @ZLIB_LIBS@
 
