@@ -50,6 +50,7 @@ enum {
     RECV_STATE_AUTH,
     RECV_STATE_HEADER,
     RECV_STATE_CONTENT,
+    RECV_STATE_DONE,
 };
 
 struct _BlockTxClient {
@@ -74,7 +75,6 @@ struct _BlockTxClient {
     FrameParser parser;
 
     gboolean break_loop;
-    gboolean canceled;
 
     int version;
 };
@@ -305,7 +305,10 @@ handle_auth_rsp_content_cb (char *content, int clen, void *cbarg)
     if (rsp->status == STATUS_OK) {
         seaf_debug ("Auth OK.\n");
 
-        g_atomic_int_set (&client->info->ready_for_transfer, 1);
+        if (!client->info->transfer_once) {
+            int rsp = BLOCK_CLIENT_READY;
+            pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
+        }
 
         /* If in interactive mode, wait for TRANSFER command to start transfer. */
         if (client->info->transfer_once)
@@ -753,7 +756,7 @@ recv_data_cb (BlockTxClient *client)
     if (n == 0) {
         seaf_warning ("Data connection is closed by the server.\n");
         client->break_loop = TRUE;
-        client->info->result = BLOCK_CLIENT_SERVER_ERROR;
+        client->info->result = BLOCK_CLIENT_NET_ERROR;
         return;
     } else if (n < 0) {
         seaf_warning ("Read data connection error: %s.\n",
@@ -789,38 +792,81 @@ recv_data_cb (BlockTxClient *client)
         client->break_loop = TRUE;
 }
 
+static void
+shutdown_client (BlockTxClient *client)
+{
+    if (client->block) {
+        seaf_block_manager_close_block (seaf->block_mgr, client->block);
+        seaf_block_manager_block_handle_free (seaf->block_mgr, client->block);
+        client->block = NULL;
+    }
+
+    if (client->parser.enc_init)
+        EVP_CIPHER_CTX_cleanup (&client->parser.ctx);
+
+    evbuffer_free (client->recv_buf);
+    evutil_closesocket (client->data_fd);
+
+    client->recv_state = RECV_STATE_DONE;
+}
+
 static gboolean
 handle_command (BlockTxClient *client, int command)
 {
     gboolean ret = FALSE;
+    int rsp;
 
     switch (command) {
     case BLOCK_CLIENT_CMD_TRANSFER:
-        /* Ignore TRANSFER command if transfer has been canceled. */
-        if (client->canceled) {
-            seaf_debug ("Task canceled, ignore transfer command.\n");
+        /* Ignore TRANSFER command if client has been shutdown. */
+        if (client->recv_state == RECV_STATE_DONE) {
+            seaf_debug ("Client was shutdown, ignore transfer command.\n");
             break;
         }
 
-        if (transfer_next_block (client) < 0)
-            ret = TRUE;
+        if (transfer_next_block (client) < 0) {
+            rsp = client->info->result;
+            pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
+
+            shutdown_client (client);
+
+            client->break_loop = FALSE;
+        }
         break;
     case BLOCK_CLIENT_CMD_CANCEL:
+        if (client->recv_state == RECV_STATE_DONE) {
+            seaf_debug ("Client was shutdown, ignore cancel command.\n");
+            break;
+        }
+
+        seaf_debug ("Canceled command received.\n");
         client->info->result = BLOCK_CLIENT_CANCELED;
 
-        /* If in interactive mode, just set a canceled flag and send CANCELED
-         * response.
-         */
-        if (!client->info->transfer_once) {
-            seaf_debug ("Canceled command received.\n");
-            int rsp = client->info->result;
-            pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
-            client->canceled = TRUE;
-        } else
+        if (client->info->transfer_once) {
+            shutdown_client (client);
             ret = TRUE;
+        } else {
+            rsp = client->info->result;
+            pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
+
+            shutdown_client (client);
+
+            client->break_loop = FALSE;
+
+            ret = FALSE;
+        }
+
         break;
     case BLOCK_CLIENT_CMD_END:
-        client->info->result = BLOCK_CLIENT_SUCCESS;
+        client->info->result = BLOCK_CLIENT_ENDED;
+
+        rsp = client->info->result;
+        pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
+
+        /* Don't need to shutdown_client() here, since it's already called. */
+
+        client->break_loop = FALSE;
+
         ret = TRUE;
         break;
     }
@@ -828,18 +874,44 @@ handle_command (BlockTxClient *client, int command)
     return ret;
 }
 
-static void
+static gboolean
+do_break_loop (BlockTxClient *client)
+{
+    if (client->info->transfer_once) {
+        shutdown_client (client);
+        return TRUE;
+    } else {
+        int rsp = client->info->result;
+        pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
+
+        if (client->info->result != BLOCK_CLIENT_SUCCESS)
+            shutdown_client (client);
+
+        client->break_loop = FALSE;
+
+        return FALSE;
+    }
+}
+
+static gboolean
 client_thread_loop (BlockTxClient *client)
 {
     BlockTxInfo *info = client->info;
     fd_set fds;
     int max_fd = MAX (info->cmd_pipe[0], client->data_fd);
     int rc;
+    gboolean restart = FALSE;
 
     while (1) {
         FD_ZERO (&fds);
         FD_SET (info->cmd_pipe[0], &fds);
-        FD_SET (client->data_fd, &fds);
+
+        /* Stop receiving any data after the client was shutdown. */
+        if (client->recv_state != RECV_STATE_DONE) {
+            FD_SET (client->data_fd, &fds);
+            max_fd = MAX (info->cmd_pipe[0], client->data_fd);
+        } else
+            max_fd = info->cmd_pipe[0];
 
         rc = select (max_fd + 1, &fds, NULL, NULL, NULL);
         if (rc < 0 && errno == EINTR) {
@@ -850,27 +922,28 @@ client_thread_loop (BlockTxClient *client)
             break;
         }
 
-        /* Stopping receiving any data after canceled. */
-        if (FD_ISSET (client->data_fd, &fds) && !client->canceled) {
+        if (client->recv_state != RECV_STATE_DONE &&
+            FD_ISSET (client->data_fd, &fds)) {
             recv_data_cb (client);
-            if (client->break_loop) {
-                if (client->info->transfer_once)
-                    break;
-                else {
-                    int rsp = client->info->result;
-                    pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
-                    client->break_loop = FALSE;
-                }
-            }
+            if (client->break_loop && do_break_loop (client))
+                break;
         }
 
         if (FD_ISSET (info->cmd_pipe[0], &fds)) {
             int cmd;
             piperead (info->cmd_pipe[0], &cmd, sizeof(int));
+
+            if (cmd == BLOCK_CLIENT_CMD_RESTART) {
+                restart = TRUE;
+                break;
+            }
+
             if (handle_command (client, cmd))
                 break;
         }
     }
+
+    return restart;
 }
 
 static void *
@@ -878,32 +951,45 @@ block_tx_client_thread (void *vdata)
 {
     BlockTxClient *client = vdata;
     BlockTxInfo *info = client->info;
+    BlockTxClientDoneCB cb = client->cb;
     evutil_socket_t data_fd;
+    gboolean restart;
 
+retry:
     data_fd = connect_chunk_server (info->cs);
     if (data_fd < 0) {
         info->result = BLOCK_CLIENT_NET_ERROR;
+        if (!info->transfer_once) {
+            pipewrite (info->done_pipe[1], &info->result, sizeof(info->result));
+            /* Transfer manager always expects an ENDED response. */
+            int rsp = BLOCK_CLIENT_ENDED;
+            pipewrite (info->done_pipe[1], &rsp, sizeof(rsp));
+        }
         return vdata;
     }
     client->data_fd = data_fd;
 
-    if (send_handshake (data_fd, info) < 0)
+    if (send_handshake (data_fd, info) < 0) {
+        if (!info->transfer_once) {
+            pipewrite (info->done_pipe[1], &info->result, sizeof(info->result));
+            int rsp = BLOCK_CLIENT_ENDED;
+            pipewrite (info->done_pipe[1], &rsp, sizeof(rsp));
+        }
         return vdata;
+    }
 
     client->recv_buf = evbuffer_new ();
 
-    client_thread_loop (client);
+    restart = client_thread_loop (client);
 
-    if (client->block) {
-        seaf_block_manager_close_block (seaf->block_mgr, client->block);
-        seaf_block_manager_block_handle_free (seaf->block_mgr, client->block);
+    if (restart) {
+        seaf_message ("Restarting block tx client.\n");
+        memset (client, 0, sizeof(BlockTxClient));
+        client->info = info;
+        client->cb = cb;
+        client->info->result = BLOCK_CLIENT_UNKNOWN;
+        goto retry;
     }
-
-    if (client->parser.enc_init)
-        EVP_CIPHER_CTX_cleanup (&client->parser.ctx);
-
-    evbuffer_free (client->recv_buf);
-    evutil_closesocket (data_fd);
 
     return vdata;
 }

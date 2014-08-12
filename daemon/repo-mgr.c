@@ -1790,7 +1790,7 @@ checkout_file (const char *repo_id,
     case BLOCK_CLIENT_NET_ERROR:
     case BLOCK_CLIENT_SERVER_ERROR:
         g_free (path);
-        return FETCH_CHECKOUT_FAILED;
+        return FETCH_CHECKOUT_TRANSFER_ERROR;
     case BLOCK_CLIENT_CANCELED:
         g_free (path);
         return FETCH_CHECKOUT_CANCELED;
@@ -2165,10 +2165,18 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                                     remote_head_id,
                                     conflict_hash,
                                     no_conflict_hash);
-            /* Even if the file failed to check out, still need to update index. */
+            /* Even if the file failed to check out, still need to update index.
+             * But we have to stop after transfer errors.
+             */
             if (rc == FETCH_CHECKOUT_CANCELED) {
                 seaf_debug ("Transfer canceled.\n");
                 ret = FETCH_CHECKOUT_CANCELED;
+                if (add_ce)
+                    cache_entry_free (ce);
+                goto out;
+            } else if (rc == FETCH_CHECKOUT_TRANSFER_ERROR) {
+                seaf_warning ("Transfer failed.\n");
+                ret = FETCH_CHECKOUT_TRANSFER_ERROR;
                 if (add_ce)
                     cache_entry_free (ce);
                 goto out;

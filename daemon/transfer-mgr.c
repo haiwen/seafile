@@ -827,15 +827,28 @@ seaf_transfer_manager_download_file_blocks (SeafTransferManager *manager,
 
     seafile_unref (file);
 
+    BlockTxInfo *info = task->tx_info;
+    int rsp;
+
+retry:
     if (g_queue_get_length (task->block_ids) == 0)
         return BLOCK_CLIENT_SUCCESS;
 
-    BlockTxInfo *info = task->tx_info;
     block_tx_client_run_command (info, BLOCK_CLIENT_CMD_TRANSFER);
 
     /* Wait until block download is done. */
-    int rsp;
     piperead (info->done_pipe[0], &rsp, sizeof(rsp));
+
+    /* The server closes the socket after 30 seconds without data,
+     * so just retry if we encounter network error.
+     */
+    if (rsp == BLOCK_CLIENT_NET_ERROR) {
+        block_tx_client_run_command (info, BLOCK_CLIENT_CMD_RESTART);
+
+        piperead (info->done_pipe[0], &rsp, sizeof(rsp));
+        if (rsp == BLOCK_CLIENT_READY)
+            goto retry;
+    }
 
     while ((block_id = g_queue_pop_head(task->block_ids)) != NULL)
         g_free (block_id);
@@ -1318,13 +1331,7 @@ start_block_tx_client_run_once (TransferTask *task)
 static void
 block_tx_client_interactive_done_cb (BlockTxInfo *info)
 {
-    g_free (info->enc_session_key);
-    pipeclose (info->cmd_pipe[0]);
-    pipeclose (info->cmd_pipe[1]);
-    pipeclose (info->done_pipe[0]);
-    pipeclose (info->done_pipe[1]);
-    g_queue_free (info->task->block_ids);
-    g_free (info);
+
 }
 
 static void
@@ -1378,16 +1385,19 @@ download_and_checkout_files_thread (void *vdata)
 {
     DownloadFilesData *data = vdata;
     TransferTask *task = data->task;
-    gint ready;
+    int rsp;
 
-    do {
-        g_usleep (1000000);
-        ready = g_atomic_int_get (&task->tx_info->ready_for_transfer);
-    } while (ready == 0);
+    piperead (task->tx_info->done_pipe[0], &rsp, sizeof(rsp));
 
-    data->status = seaf_repo_fetch_and_checkout (task, task->head);
+    if (rsp == BLOCK_CLIENT_READY) {
+        data->status = seaf_repo_fetch_and_checkout (task, task->head);
 
-    block_tx_client_run_command (task->tx_info, BLOCK_CLIENT_CMD_END);
+        block_tx_client_run_command (task->tx_info, BLOCK_CLIENT_CMD_END);
+
+        piperead (task->tx_info->done_pipe[0], &rsp, sizeof(rsp));
+    } else
+        /* block-tx-client thread should have exited. */
+        data->status = FETCH_CHECKOUT_FAILED;
 
     return vdata;
 }
@@ -1397,6 +1407,15 @@ download_and_checkout_files_done (void *vdata)
 {
     DownloadFilesData *data = vdata;
     TransferTask *task = data->task;
+    BlockTxInfo *info = task->tx_info;
+
+    g_free (info->enc_session_key);
+    pipeclose (info->cmd_pipe[0]);
+    pipeclose (info->cmd_pipe[1]);
+    pipeclose (info->done_pipe[0]);
+    pipeclose (info->done_pipe[1]);
+    g_queue_free (info->task->block_ids);
+    g_free (info);
 
     switch (data->status) {
     case FETCH_CHECKOUT_SUCCESS:
@@ -1404,6 +1423,7 @@ download_and_checkout_files_done (void *vdata)
             transition_state (task, TASK_STATE_FINISHED, TASK_RT_STATE_FINISHED);
         break;
     case FETCH_CHECKOUT_FAILED:
+    case FETCH_CHECKOUT_TRANSFER_ERROR:
         transition_state_to_error (task, TASK_ERR_DOWNLOAD_BLOCKS);
         break;
     case FETCH_CHECKOUT_CANCELED:

@@ -96,6 +96,10 @@ enum {
     BLOCK_CLIENT_NET_ERROR,
     BLOCK_CLIENT_SERVER_ERROR,
     BLOCK_CLIENT_CANCELED,
+
+    /* result codes only used in interactive mode. */
+    BLOCK_CLIENT_READY,
+    BLOCK_CLIENT_ENDED,
 };
 
 #define BLOCK_TX_SESSION_KEY_LEN 32
