@@ -863,7 +863,9 @@ handle_command (BlockTxClient *client, int command)
         rsp = client->info->result;
         pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
 
-        /* Don't need to shutdown_client() here, since it's already called. */
+        /* Don't need to shutdown_client() if it's already called. */
+        if (client->recv_state != RECV_STATE_DONE)
+            shutdown_client (client);
 
         client->break_loop = FALSE;
 
@@ -975,6 +977,7 @@ retry:
             int rsp = BLOCK_CLIENT_ENDED;
             pipewrite (info->done_pipe[1], &rsp, sizeof(rsp));
         }
+        evutil_closesocket (client->data_fd);
         return vdata;
     }
 
