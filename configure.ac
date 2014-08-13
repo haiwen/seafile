@@ -22,7 +22,7 @@ AC_PROG_CC
 AC_C_CONST
 AC_PROG_MAKE_SET
 # AC_PROG_RANLIB
-AC_PROG_LIBTOOL
+LT_INIT
 
 # Checks for headers.
 #AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h libintl.h limits.h locale.h netdb.h netinet/in.h stdint.h stdlib.h string.h strings.h sys/ioctl.h sys/socket.h sys/time.h termios.h unistd.h utime.h utmp.h])
@@ -153,11 +153,13 @@ AM_CONDITIONAL([LINUX], [test "$blinux" = "true"])
 
 # check libraries
 if test "$bwin32" != true; then
+  if test "$bmac" = true; then
+  AC_CHECK_LIB(c, uuid_generate, [echo "found library uuid"],
+          AC_MSG_ERROR([*** Unable to find uuid_generate in libc]), )
+  else
   AC_CHECK_LIB(uuid, uuid_generate, [echo "found library uuid"],
-      dnl - if failed, try uuid_create
-      AC_CHECK_LIB(uuid, uuid_create,[echo "found library uuid"] ,
           AC_MSG_ERROR([*** Unable to find uuid library]), )
-      , )
+  fi
 
   AC_CHECK_LIB(event, event_init,[echo "found library event"] ,
     AC_MSG_ERROR([*** Unable to find libevent library]), )
@@ -202,7 +204,7 @@ elif test "$bmac" = true ; then
   LIB_RT=
   LIB_INTL=
   LIB_RESOLV=-lresolv
-  LIB_UUID=-luuid
+  LIB_UUID=
   LIB_IPHLPAPI=
   LIB_SHELL32=
   LIB_PSAPI=
