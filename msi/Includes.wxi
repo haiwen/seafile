@@ -53,6 +53,7 @@
   <!-- <?define ProductGuid="9F0AE791-879D-47F8-8764-C0BEF7FE670D" ?> (3.1.1) -->
   <!-- <?define ProductGuid="81BBDA6E-7F91-465D-A49B-52FBD9A07F4F" ?> (3.1.2) -->
   <!-- <?define ProductGuid="3815CFCA-FDFF-4D3C-88E7-EDBEE2560094" ?> (3.1.3) -->
-  <?define ProductGuid="248D333B-3B95-4E2C-A366-1EAD9A116F87" ?>
+  <!-- <?define ProductGuid="248D333B-3B95-4E2C-A366-1EAD9A116F87" ?> (3.1.4) -->
+  <?define ProductGuid="36B756D6-ED10-41E1-A1AF-F6FF413650DE" ?>
 
 </Include>
