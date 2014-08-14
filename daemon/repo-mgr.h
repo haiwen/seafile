@@ -377,6 +377,11 @@ seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
                                           const char *new_addr,
                                           const char *new_port);
 
+int
+seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
+                                            const char *old_host,
+                                            const char *new_host);
+
 GList *
 seaf_repo_load_ignore_files (const char *worktree);
 
