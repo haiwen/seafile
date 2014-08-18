@@ -73,6 +73,7 @@ release_resource(CcnetProcessor *processor)
                                                priv->writer_id);
     }
 
+    g_free (priv->recv_objs);
     string_list_free (priv->needed_objs);
 
     CCNET_PROCESSOR_CLASS (seafile_recvfs_v2_proc_parent_class)->release_resource (processor);
@@ -313,6 +314,9 @@ process_object_list (void *data)
         p += 40;
     }
 
+    g_free (priv->recv_objs);
+    priv->recv_objs = NULL;
+
     return data;
 }
 
@@ -369,7 +373,7 @@ handle_update (CcnetProcessor *processor,
                 return;
             }
 
-            priv->recv_objs = content;
+            priv->recv_objs = g_memdup(content, clen);
             priv->recv_len = clen;
             ccnet_processor_thread_create (processor, seaf->job_mgr,
                                            process_object_list,
