@@ -16,3 +16,5 @@ CREATE TABLE IF NOT EXISTS `share_orgfileshare` (
   KEY `share_orgfileshare_944dadb6` (`org_id`),
   CONSTRAINT `file_share_id_refs_id_bd2fd9f8` FOREIGN KEY (`file_share_id`) REFERENCES `share_fileshare` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+ALTER TABLE `base_userstarredfiles` ADD INDEX `base_userstarredfiles_email` (email);
