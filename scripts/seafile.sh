@@ -16,7 +16,6 @@ SCRIPT=$(readlink -f "$0")
 INSTALLPATH=$(dirname "${SCRIPT}")
 TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
-ccnet_pidfile=${INSTALLPATH}/runtime/ccnet.pid
 seaf_controller="${INSTALLPATH}/seafile/bin/seafile-controller"
 
 
