@@ -303,7 +303,7 @@ migrate_v0_repos_to_v1_layout ()
     SeafRepo *repo;
     gboolean error = FALSE;
 
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, TRUE, &error);
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, &error);
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
         if (repo->version == 0)

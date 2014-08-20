@@ -102,13 +102,15 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr, SeafRepo *repo);
 SeafRepo* 
 seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id);
 
+SeafRepo* 
+seaf_repo_manager_get_repo_ex (SeafRepoManager *manager, const gchar *id);
+
 gboolean
 seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id);
 
 GList* 
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
                                  int start, int limit,
-                                 gboolean ignore_errors,
                                  gboolean *error);
 
 GList *

@@ -757,6 +757,19 @@ seafile_update_repo_relay_info (const char *repo_id,
 }
 
 int
+seafile_update_repos_server_host (const char *old_host,
+                                  const char *new_host,
+                                  GError **error)
+{
+    if (!old_host || !new_host) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+
+    return seaf_repo_manager_update_repos_server_host(seaf->repo_mgr, old_host, new_host);
+}
+
+int
 seafile_calc_dir_size (const char *path, GError **error)
 {
     if (!path) {
@@ -1189,6 +1202,8 @@ seafile_unsync_repos_by_account (const char *server_addr, const char *email, GEr
 
     return 0;
 }
+
+
 #endif
 
 int

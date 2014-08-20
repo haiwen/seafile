@@ -276,9 +276,19 @@ calculate_needed_object_list (void *data)
     TransferTask *task = proc->tx_task;
     GList *ptr;
     char *obj_id;
+    GHashTable *checked_objs;
+    int dummy;
+
+    checked_objs = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
     for (ptr = priv->recv_objs; ptr; ptr = ptr->next) {
         obj_id = ptr->data;
+
+        if (g_hash_table_lookup (checked_objs, obj_id)) {
+            g_free (obj_id);
+            continue;
+        }
+        g_hash_table_insert (checked_objs, g_strdup(obj_id), &dummy);
 
         if (!seaf_obj_store_obj_exists (seaf->fs_mgr->obj_store,
                                         task->repo_id, task->repo_version,
@@ -288,6 +298,7 @@ calculate_needed_object_list (void *data)
             g_free (obj_id);
     }
 
+    g_hash_table_destroy (checked_objs);
     g_list_free (priv->recv_objs);
     priv->recv_objs = NULL;
 

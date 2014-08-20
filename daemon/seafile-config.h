@@ -15,6 +15,7 @@
 #define KEY_UPLOAD_LIMIT "upload_limit"
 #define KEY_DOWNLOAD_LIMIT "download_limit"
 #define KEY_ALLOW_INVALID_WORKTREE "allow_invalid_worktree"
+#define KEY_ALLOW_REPO_NOT_FOUND_ON_SERVER "allow_repo_not_found_on_server"
 
 /*
  * Returns: config value in string. The string should be freed by caller. 
@@ -48,6 +49,9 @@ seafile_session_config_set_allow_invalid_worktree(SeafileSession *session, gbool
 
 gboolean
 seafile_session_config_get_allow_invalid_worktree(SeafileSession *session);
+
+gboolean
+seafile_session_config_get_allow_repo_not_found_on_server(SeafileSession *session);
 
 sqlite3 *
 seafile_session_config_open_db (const char *db_path);

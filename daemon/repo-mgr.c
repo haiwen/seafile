@@ -47,10 +47,13 @@ struct _SeafRepoManagerPriv {
 };
 
 static const char *ignore_table[] = {
+    /* tmp files under Linux */
     "*~",
-    "*#",
+    /* Emacs tmp files */
+    "#*#",
     /* ms office tmp files */
     "~$*",
+    "~*.tmp", /* for files like ~WRL0001.tmp */
     /* windows image cache */
     "Thumbs.db",
     /* For Mac */
@@ -1787,7 +1790,7 @@ checkout_file (const char *repo_id,
     case BLOCK_CLIENT_NET_ERROR:
     case BLOCK_CLIENT_SERVER_ERROR:
         g_free (path);
-        return FETCH_CHECKOUT_FAILED;
+        return FETCH_CHECKOUT_TRANSFER_ERROR;
     case BLOCK_CLIENT_CANCELED:
         g_free (path);
         return FETCH_CHECKOUT_CANCELED;
@@ -2162,10 +2165,18 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                                     remote_head_id,
                                     conflict_hash,
                                     no_conflict_hash);
-            /* Even if the file failed to check out, still need to update index. */
+            /* Even if the file failed to check out, still need to update index.
+             * But we have to stop after transfer errors.
+             */
             if (rc == FETCH_CHECKOUT_CANCELED) {
                 seaf_debug ("Transfer canceled.\n");
                 ret = FETCH_CHECKOUT_CANCELED;
+                if (add_ce)
+                    cache_entry_free (ce);
+                goto out;
+            } else if (rc == FETCH_CHECKOUT_TRANSFER_ERROR) {
+                seaf_warning ("Transfer failed.\n");
+                ret = FETCH_CHECKOUT_TRANSFER_ERROR;
                 if (add_ce)
                     cache_entry_free (ce);
                 goto out;
@@ -3690,15 +3701,43 @@ seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
         r = ptr->data;
         if (g_strcmp0(r->relay_id, repo->relay_id) != 0)
             continue;
-                
+
         char *relay_addr = NULL;
         char *relay_port = NULL;
-        seaf_repo_manager_get_repo_relay_info (seaf->repo_mgr, r->id, 
+        seaf_repo_manager_get_repo_relay_info (seaf->repo_mgr, r->id,
                                                &relay_addr, &relay_port);
         if (g_strcmp0(relay_addr, new_addr) != 0 ||
             g_strcmp0(relay_port, new_port) != 0) {
             seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, r->id,
                                                    new_addr, new_port);
+        }
+
+        g_free (relay_addr);
+        g_free (relay_port);
+    }
+
+    g_list_free (repos);
+
+    return 0;
+}
+
+int
+seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
+                                            const char *old_host,
+                                            const char *new_host)
+{
+    GList *ptr, *repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, 0, -1);
+    SeafRepo *r;
+    for (ptr = repos; ptr; ptr = ptr->next) {
+        r = ptr->data;
+                
+        char *relay_addr = NULL;
+        char *relay_port = NULL;
+        seaf_repo_manager_get_repo_relay_info (seaf->repo_mgr, r->id, 
+                                               &relay_addr, &relay_port);
+        if (g_strcmp0(relay_addr, old_host) == 0) {
+            seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, r->id,
+                                                   new_host, relay_port);
         }
 
         g_free (relay_addr);

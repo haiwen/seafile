@@ -260,9 +260,10 @@ populate_gc_index_for_virtual_repos (SeafRepo *repo, Bloom *index, int ignore_er
         vrepo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
         if (!vrepo) {
             seaf_warning ("Failed to get repo %s.\n", repo_id);
-            if (!ignore_errors)
+            if (!ignore_errors) {
+                ret = -1;
                 goto out;
-            else
+            } else
                 continue;
         }
 
@@ -355,27 +356,34 @@ out:
 }
 
 int
-gc_core_run (int dry_run, int ignore_errors)
+gc_core_run (int dry_run)
 {
     GList *repos = NULL, *del_repos = NULL, *ptr;
     SeafRepo *repo;
+    GList *corrupt_repos = NULL;
     gboolean error = FALSE;
 
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1,
-                                             ignore_errors, &error);
-    if (error && !ignore_errors) {
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, &error);
+    if (error) {
         seaf_warning ("Failed to load repo list.\n");
         return -1;
     }
 
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
+
+        if (repo->is_corrupted) {
+            corrupt_repos = g_list_prepend (corrupt_repos, g_strdup(repo->id));
+            continue;
+        }
+
         if (!repo->is_virtual) {
             seaf_message ("GC version %d repo %s(%.8s)\n",
                           repo->version, repo->name, repo->id);
-            gc_v1_repo (repo, dry_run, ignore_errors);
+            if (gc_v1_repo (repo, dry_run, FALSE) < 0)
+                corrupt_repos = g_list_prepend (corrupt_repos, g_strdup(repo->id));
         }
-
+        seaf_repo_unref (repo);
     }
     g_list_free (repos);
 
@@ -399,6 +407,19 @@ gc_core_run (int dry_run, int ignore_errors)
         g_free (repo_id);
     }
     g_list_free (del_repos);
+
+    seaf_message ("=== GC is finished ===\n");
+
+    if (corrupt_repos) {
+        seaf_message ("The following repos are corrupted. "
+                      "You can run seaf-fsck to fix them.\n");
+        for (ptr = corrupt_repos; ptr; ptr = ptr->next) {
+            char *repo_id = ptr->data;
+            seaf_message ("%s\n", repo_id);
+            g_free (repo_id);
+        }
+        g_list_free (corrupt_repos);
+    }
 
     return 0;
 }

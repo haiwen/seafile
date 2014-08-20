@@ -13,3 +13,4 @@ CREATE TABLE IF NOT EXISTS "share_orgfileshare" (
 );
 CREATE INDEX IF NOT EXISTS "share_orgfileshare_944dadb6" ON "share_orgfileshare" ("org_id");
 
+CREATE INDEX IF NOT EXISTS "base_userstarredfiles_email" on "base_userstarredfiles" ("email");

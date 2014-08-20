@@ -133,7 +133,7 @@ verify_repos ()
     int ret = 0;
     gboolean error = FALSE;
 
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, FALSE, &error);
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, &error);
     for (ptr = repos; ptr != NULL; ptr = ptr->next) {
         ret = verify_repo ((SeafRepo *)ptr->data);
         seaf_repo_unref ((SeafRepo *)ptr->data);

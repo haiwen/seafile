@@ -464,6 +464,7 @@ process_object_list_segment (CcnetProcessor *processor, char *content, int clen)
     for (i = 0; i < n; ++i) {
         obj_id = g_strndup(p, 40);
         read_fs_object (processor, obj_id);
+        g_free (obj_id);
         p += 40;
     }
 }
