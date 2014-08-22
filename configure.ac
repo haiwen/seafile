@@ -316,12 +316,10 @@ if test x${compile_server} = xyes; then
    AC_SUBST(LIBARCHIVE_LIBS)
 fi
 
-# We use http to communicate with Riak, check for libcurl.
-if test "${compile_riak}" = "yes"; then
+if test "${compile_client}" = "yes"; then
    PKG_CHECK_MODULES(CURL, [libcurl >= $CURL_REQUIRED])
    AC_SUBST(CURL_CFLAGS)
    AC_SUBST(CURL_LIBS)
-   AC_DEFINE([RIAK_BACKEND], [1], ["define if support Riak backend"])
 fi
 
 AM_CONDITIONAL([HAVE_KEYSTORAGE_GK], [test "${compile_gnome_keyring}" = "yes"])
