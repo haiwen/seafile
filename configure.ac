@@ -160,12 +160,6 @@ if test "$bwin32" != true; then
   AC_CHECK_LIB(uuid, uuid_generate, [echo "found library uuid"],
           AC_MSG_ERROR([*** Unable to find uuid library]), )
   fi
-
-  AC_CHECK_LIB(event, event_init,[echo "found library event"] ,
-    AC_MSG_ERROR([*** Unable to find libevent library]), )
-else
-  AC_CHECK_LIB(event, event_init, [echo "found library event"],
-    AC_MSG_ERROR([*** Unable to find libevent library]), [-lwsock32])
 fi
 
 AC_CHECK_LIB(pthread, pthread_create, [echo "found library pthread"], AC_MSG_ERROR([*** Unable to find pthread library]), )
