@@ -251,6 +251,7 @@ seafile_clone (const char *repo_id,
                const char *email,
                const char *random_key,
                int enc_version,
+               const char *more_info,
                GError **error);
 
 char *
@@ -267,6 +268,7 @@ seafile_download (const char *repo_id,
                   const char *email,
                   const char *random_key,
                   int enc_version,
+                  const char *more_info,
                   GError **error);
 
 int

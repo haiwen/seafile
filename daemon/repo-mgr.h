@@ -27,10 +27,14 @@
 #define REPO_PROP_RELAY_PORT  "relay-port"
 #define REPO_ENCRYPTED 0x1
 #define REPO_PROP_DOWNLOAD_HEAD "download-head"
+#define REPO_PROP_IS_READONLY "is-readonly"
 
 struct _SeafRepoManager;
 typedef struct _SeafRepo SeafRepo;
 
+/* The caller can use the properties directly. But the caller should
+ * always write on repos via the API. 
+ */
 struct _SeafRepo {
     struct _SeafRepoManager *manager;
 
@@ -65,6 +69,7 @@ struct _SeafRepo {
 
     gboolean      worktree_invalid; /* true if worktree moved or deleted */
     gboolean      index_corrupted;
+    gboolean      is_readonly;
 
     unsigned int  auto_sync : 1;
     unsigned int  net_browsable : 1;
@@ -90,6 +95,12 @@ seaf_repo_set_head (SeafRepo *repo, SeafBranch *branch);
 
 SeafCommit *
 seaf_repo_get_head_commit (const char *repo_id);
+
+void
+seaf_repo_set_readonly (SeafRepo *repo);
+
+void
+seaf_repo_unset_readonly (SeafRepo *repo);
 
 int
 seaf_repo_checkdir (SeafRepo *repo);

@@ -281,6 +281,7 @@ seafile_clone (const char *repo_id,
                const char *email,
                const char *random_key,
                int enc_version,
+               const char *more_info,
                GError **error)
 {
     if (!repo_id || strlen(repo_id) != 36) {
@@ -313,7 +314,8 @@ seafile_clone (const char *repo_id,
                                         enc_version, random_key,
                                         worktree,
                                         peer_addr, peer_port,
-                                        email, error);
+                                        email, more_info,
+                                        error);
 }
 
 char *
@@ -330,6 +332,7 @@ seafile_download (const char *repo_id,
                   const char *email,
                   const char *random_key,
                   int enc_version,
+                  const char *more_info,
                   GError **error)
 {
     if (!repo_id || strlen(repo_id) != 36) {
@@ -362,7 +365,8 @@ seafile_download (const char *repo_id,
                                                  enc_version, random_key,
                                                  wt_parent,
                                                  peer_addr, peer_port,
-                                                 email, error);
+                                                 email, more_info,
+                                                 error);
 }
 
 int

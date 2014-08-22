@@ -1053,7 +1053,7 @@ update_sync_status_v2 (SyncTask *task)
                       repo->name, repo->id);
 
         if (!seafile_session_config_get_allow_repo_not_found_on_server(seaf)) {
-            seaf_debug ("remove repo %s(%.8s) since it's deleted on relay\n",
+            seaf_message ("remove repo %s(%.8s) since it's deleted on relay\n",
                         repo->name, repo->id);
             seaf_mq_manager_publish_notification (seaf->mq_mgr,
                                                   "repo.deleted_on_relay",
@@ -1126,6 +1126,9 @@ sync_done_cb (CcnetProcessor *processor, gboolean success, void *data)
         update_sync_status_v2 (task);
 }
 
+/*
+  The sync-repo processor is used to check the head commit at the server side.
+*/
 static int
 start_sync_repo_proc (SeafSyncManager *manager, SyncTask *task)
 {
@@ -1478,17 +1481,19 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
         goto out;
     }
 
-    if (strcmp (master->commit_id, local->commit_id) != 0) {
-        if (is_manual_sync || can_schedule_repo (manager, repo)) {
-            task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
-            start_upload_if_necessary (task);
-        }
-        /* Do nothing if the client still has something to upload
-         * but it's before 30-second schedule.
-         */
-        goto out;
-    } else if (create_commit_from_event_queue (manager, repo, is_manual_sync))
-        goto out;
+    if (!repo->is_readonly) {
+        if (strcmp (master->commit_id, local->commit_id) != 0) {
+            if (is_manual_sync || can_schedule_repo (manager, repo)) {
+                task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
+                start_upload_if_necessary (task);
+            }
+            /* Do nothing if the client still has something to upload
+            * but it's before 30-second schedule.
+            */
+            goto out;
+        } else if (create_commit_from_event_queue (manager, repo, is_manual_sync))
+            goto out;
+    }
 
     if (is_manual_sync || can_schedule_repo (manager, repo)) {
         task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);

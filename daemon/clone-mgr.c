@@ -11,7 +11,6 @@
 #include "merge-recursive.h"
 #include "unpack-trees.h"
 #include "vc-utils.h"
-
 #include "utils.h"
 
 #include "processors/checkff-proc.h"
@@ -111,7 +110,11 @@ mark_clone_done_v2 (SeafRepo *repo, CloneTask *task)
         }
     }
 
-    if (repo->auto_sync) {
+    if (task->is_readonly) {
+        seaf_repo_set_readonly (repo);
+    }
+
+    if (repo->auto_sync && !task->is_readonly) {
         if (seaf_wt_monitor_watch_repo (seaf->wt_monitor,
                                         repo->id, repo->worktree) < 0) {
             seaf_warning ("failed to watch repo %s(%.10s).\n", repo->name, repo->id);
@@ -350,6 +353,45 @@ load_clone_repo_version_info (CloneTask *task)
 }
 
 static gboolean
+load_more_info_cb (sqlite3_stmt *stmt, void *data)
+{
+    CloneTask *task = data;
+    json_error_t jerror;
+    json_t *object = NULL;
+    const char *more_info;
+
+    more_info = (const char *)sqlite3_column_text (stmt, 0);
+    object = json_loads (more_info, 0, &jerror);
+    if (!object) {
+        if (jerror.text)
+            seaf_warning ("Failed to load more sync info from json: %s.\n", jerror.text);
+        else
+            seaf_warning ("Failed to load more sync info from json.\n");
+
+        return FALSE;
+    }
+        
+    json_t *integer = json_object_get (object, "is_readonly");
+    task->is_readonly = json_integer_value (integer);
+    json_decref (object);
+
+    return FALSE;
+}
+
+static void
+load_clone_more_info (CloneTask *task)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "SELECT more_info FROM CloneTasksMoreInfo WHERE repo_id='%s'",
+              task->repo_id);
+
+    sqlite_foreach_selected_row (task->manager->db, sql,
+                                 load_more_info_cb, task);
+}
+
+static gboolean
 restart_task (sqlite3_stmt *stmt, void *data)
 {
     SeafCloneManager *mgr = data;
@@ -383,6 +425,8 @@ restart_task (sqlite3_stmt *stmt, void *data)
     task->repo_version = 0;
     load_clone_repo_version_info (task);
 
+    load_clone_more_info (task);
+
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
 
     if (repo != NULL && repo->head != NULL) {
@@ -408,6 +452,11 @@ seaf_clone_manager_init (SeafCloneManager *mgr)
         "token TEXT, dest_id TEXT,"
         "worktree_parent TEXT, passwd TEXT, "
         "server_addr TEXT, server_port TEXT, email TEXT);";
+    if (sqlite_query_exec (mgr->db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS CloneTasksMoreInfo "
+        "(repo_id TEXT PRIMARY KEY, more_info TEXT);";
     if (sqlite_query_exec (mgr->db, sql) < 0)
         return -1;
 
@@ -515,6 +564,27 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
     }
     sqlite3_free (sql);
 
+    if (task->is_readonly) {
+        /* need to store more info */
+        json_t *object = NULL;
+        gchar *info = NULL;
+
+        object = json_object ();
+        json_object_set_new (object, "is_readonly", json_integer (task->is_readonly));
+    
+        info = json_dumps (object, 0);
+        json_decref (object);
+        sql = sqlite3_mprintf ("REPLACE INTO CloneTasksMoreInfo VALUES "
+                           "('%q', '%q')", task->repo_id, info);
+        if (sqlite_query_exec (mgr->db, sql) < 0) {
+            sqlite3_free (sql);
+            g_free (info);
+            return -1;
+        }
+        sqlite3_free (sql);
+        g_free (info);
+    }
+
     return 0;
 }
 
@@ -537,6 +607,12 @@ remove_task_from_db (SeafCloneManager *mgr, const char *repo_id)
 
     snprintf (sql, sizeof(sql), 
               "DELETE FROM CloneVersionInfo WHERE repo_id='%s'",
+              repo_id);
+    if (sqlite_query_exec (mgr->db, sql) < 0)
+        return -1;
+
+    snprintf (sql, sizeof(sql), 
+              "DELETE FROM CloneTasksMoreInfo WHERE repo_id='%s'",
               repo_id);
     if (sqlite_query_exec (mgr->db, sql) < 0)
         return -1;
@@ -973,7 +1049,6 @@ seaf_clone_manager_check_worktree_path (SeafCloneManager *mgr, const char *path,
 
 static char *
 add_task_common (SeafCloneManager *mgr, 
-                 SeafRepo *repo,
                  const char *repo_id,
                  int repo_version,
                  const char *peer_id,
@@ -986,9 +1061,10 @@ add_task_common (SeafCloneManager *mgr,
                  const char *peer_addr,
                  const char *peer_port,
                  const char *email,
+                 const char *more_info,
                  GError **error)
 {
-    CloneTask *task;    
+    CloneTask *task;
 
     task = clone_task_new (repo_id, peer_id, repo_name,
                            token, worktree, passwd,
@@ -997,6 +1073,25 @@ add_task_common (SeafCloneManager *mgr,
     task->enc_version = enc_version;
     task->random_key = g_strdup (random_key);
     task->repo_version = repo_version;
+    if (more_info) {
+        json_error_t jerror;
+        json_t *object = NULL;
+    
+        object = json_loads (more_info, 0, &jerror);
+        if (!object) {
+            if (jerror.text)
+                seaf_warning ("Failed to load more sync info from json: %s.\n", jerror.text);
+            else
+                seaf_warning ("Failed to load more sync info from json.\n");
+
+            clone_task_free (task);
+            return NULL;
+        }
+        
+        json_t *integer = json_object_get (object, "is_readonly");
+        task->is_readonly = json_integer_value (integer);    
+        json_decref (object);
+    }
 
     if (save_task_to_db (mgr, task) < 0) {
         seaf_warning ("[Clone mgr] failed to save task.\n");
@@ -1060,6 +1155,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
                              const char *peer_addr,
                              const char *peer_port,
                              const char *email,
+                             const char *more_info,
                              GError **error)
 {
     SeafRepo *repo;
@@ -1130,10 +1226,12 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     if (!repo)
         seaf_repo_manager_remove_repo_ondisk (seaf->repo_mgr, repo_id, FALSE);
 
-    ret = add_task_common (mgr, repo, repo_id, repo_version,
+    ret = add_task_common (mgr, repo_id, repo_version,
                            peer_id, repo_name, token, passwd,
                            enc_version, random_key,
-                           worktree, peer_addr, peer_port, email, error);
+                           worktree, peer_addr, peer_port,
+                           email, more_info,
+                           error);
     g_free (worktree);
 
     return ret;
@@ -1175,6 +1273,7 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
                                       const char *peer_addr,
                                       const char *peer_port,
                                       const char *email,
+                                      const char *more_info,
                                       GError **error)
 {
     SeafRepo *repo;
@@ -1242,10 +1341,11 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
     if (!repo)
         seaf_repo_manager_remove_repo_ondisk (seaf->repo_mgr, repo_id, FALSE);
 
-    ret = add_task_common (mgr, repo, repo_id, repo_version,
+    ret = add_task_common (mgr, repo_id, repo_version,
                            peer_id, repo_name, token, passwd,
                            enc_version, random_key,
-                           worktree, peer_addr, peer_port, email, error);
+                           worktree, peer_addr, peer_port,
+                           email, more_info, error);
     g_free (worktree);
     g_free (wt_tmp);
 
@@ -1977,3 +2077,4 @@ on_checkout_done (CheckoutTask *ctask, SeafRepo *repo, void *data)
         transition_state (task, CLONE_STATE_DONE);
     }
 }
+
