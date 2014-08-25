@@ -32,7 +32,7 @@ INTLTOOL = \
 	intltool-merge.in \
 	intltool-update.in
 
-EXTRA_DIST = install-sh $(INTLTOOL) README.markdown scripts debian msi LICENCE.txt
+EXTRA_DIST = install-sh $(INTLTOOL) README.markdown scripts debian msi LICENSE.txt
 
 DISTCHECK_CONFIGURE_FLAGS = --enable-server
 

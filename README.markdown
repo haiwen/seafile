@@ -5,7 +5,7 @@ Seafile is a next-generation open source cloud storage system with advanced supp
 
 Collections of files are called libraries, and each library can be synced separately. A library can be encrypted with a user chosen password. This password is not stored on the server, so even the server admin cannot view a file's contents.
 
-Seafile allows users to create groups with file syncing, wiki, and discussion to enable easy collaboration around documents within a team. 
+Seafile allows users to create groups with file syncing, wiki, and discussion to enable easy collaboration around documents within a team.
 
 Feature Summary
 ===============
@@ -41,9 +41,9 @@ Seafile is a full-fledged cloud storage platform. It has the following features:
 Internal
 ========
 
-Seafile's version control model is based on Git, but it is simplified for automatic synchronization does not need Git installed to run Seafile. 
-Each Seafile library behaves like a Git repository. It has its own unique history, which consists of a list of commits. 
-A commit points to the root of a file system snapshot. The snapshot consists of directories and files. 
+Seafile's version control model is based on Git, but it is simplified for automatic synchronization does not need Git installed to run Seafile.
+Each Seafile library behaves like a Git repository. It has its own unique history, which consists of a list of commits.
+A commit points to the root of a file system snapshot. The snapshot consists of directories and files.
 Files are further divided into blocks for more efficient network transfer and storage usage.
 
 Differences from Git:
@@ -80,7 +80,7 @@ Our primary goal is to build a first-class product. Since we are only a small te
 
 Seafile is an open and extensible system. A library is a collection of files that could be synced. It can be presented to users as a Wiki, a set of notes, a gallery and so on. We have already written the Wiki module as an example. We need your contributions to make Seafile more versatile. Let's build an awesome system together!
 
-Licence 
+License
 =======
 
 Seafile and its desktop and mobile clients are published under the GPLv3.
