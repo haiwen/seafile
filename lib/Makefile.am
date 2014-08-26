@@ -20,7 +20,7 @@ seafile_object_gen = $(seafile_object_define:.vala=.c)
 
 valac_gen = ${seafile_object_gen} seafile-object.h
 
-EXTRA_DIST = ${seafile_object_define} rpc_table.py $(pcfiles)
+EXTRA_DIST = ${seafile_object_define} rpc_table.py $(pcfiles) vala.stamp
 
 utils_headers = net.h rsa.h bloom-filter.h utils.h db.h
 
