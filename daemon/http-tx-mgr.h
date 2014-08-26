@@ -26,17 +26,21 @@ enum HttpTaskRuntimeState {
     HTTP_TASK_RT_STATE_CHECK,
     HTTP_TASK_RT_STATE_COMMIT,
     HTTP_TASK_RT_STATE_FS,
-    HTTP_TASK_RT_STATE_CHECK_BLOCKS,
     HTTP_TASK_RT_STATE_BLOCK,
     HTTP_TASK_RT_STATE_UPDATE_BRANCH, /* Only used in upload. */
     HTTP_TASK_RT_STATE_FINISHED,
-    HTTP_TASK_RT_STATE_NETDOWN,
     N_HTTP_TASK_RT_STATE,
 };
 
 enum HttpTaskError {
     HTTP_TASK_OK = 0,
-
+    HTTP_TASK_ERR_FORBIDDEN,
+    HTTP_TASK_ERR_NET,
+    HTTP_TASK_ERR_SERVER,
+    HTTP_TASK_ERR_BAD_REQUEST,
+    HTTP_TASK_ERR_BAD_LOCAL_DATA,
+    HTTP_TASK_ERR_NOT_ENOUGH_MEMORY,
+    HTTP_TASK_ERR_UNKNOWN,
     N_HTTP_TASK_ERROR,
 };
 
@@ -77,6 +81,13 @@ struct _HttpTxTask {
     int state;
     int runtime_state;
     int error;
+
+    /* For upload progress */
+    int n_blocks;
+    int done_blocks;
+    /* For download progress */
+    int n_files;
+    int done_files;
 };
 typedef struct _HttpTxTask HttpTxTask;
 
@@ -92,6 +103,7 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               int repo_version,
                               const char *host,
                               const char *token,
+                              gboolean is_clone,
                               const char *passwd,
                               const char *worktree,
                               GError **error);
