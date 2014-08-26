@@ -38,6 +38,7 @@ struct _SeafCommit {
     int         version;
     gboolean    new_merge;
     gboolean    conflict;
+    gboolean    repaired;
 };
 
 
