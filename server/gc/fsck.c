@@ -178,6 +178,8 @@ recover_corrupted_repo_head (char *repo_id)
     FsckRes res;
     int rc = -1;
 
+    seaf_message ("Recovering corrupt head commit for repo %.8s.\n", repo_id);
+
     seaf_obj_store_foreach_obj (seaf->commit_mgr->obj_store, repo_id,
                                 1, fsck_get_repo_commit, &commit_list);
 
@@ -275,7 +277,8 @@ check_and_reset_consistent_state (SeafRepo *repo)
     SeafCommit *rep_commit;
     SeafCommit *new_commit;
 
-    seaf_message ("Checking integrity of repo %s(%.8s)...\n", repo->name, repo->id);
+    seaf_message ("Checking file system integrity of repo %s(%.8s)...\n",
+                  repo->name, repo->id);
 
     memset (&res, 0, sizeof(res));
     res.repo = repo;
@@ -336,20 +339,21 @@ seaf_fsck (GList *repo_id_list)
 
     for (ptr = repo_id_list; ptr; ptr = ptr->next) {
         repo_id = ptr->data;
+
+        seaf_message ("Running fsck for repo %.8s.\n", repo_id);
+
         repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
         if (!repo) {
             if (recover_corrupted_repo_head (repo_id) < 0) {
-                seaf_warning ("Cannot load repo %.8s.\n", repo_id);
-            }
-            continue;
-        }
-
-        if (repo->is_virtual) {
-            seaf_repo_unref (repo);
+                seaf_warning ("Failed to recover repo %.8s.\n\n", repo_id);
+            } else
+                seaf_message ("Fsck finished for repo %.8s.\n\n", repo_id);
             continue;
         }
 
         check_and_reset_consistent_state (repo);
+
+        seaf_message ("Fsck finished for repo %.8s.\n\n", repo_id);
 
         seaf_repo_unref (repo);
     }
