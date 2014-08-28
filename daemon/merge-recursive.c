@@ -237,9 +237,14 @@ static GList *get_unmerged(struct index_state *index)
 
         if (!ce_in_unmerged_list(unmerged, ce)) {
             e = (struct stage_data *)calloc(1, sizeof(struct stage_data));
+            /* TODO: if calloc faild, low memory case */
+            if (e == NULL) {
+              continue;
+            }
             e->path = g_strdup(ce->name);
             unmerged = g_list_prepend(unmerged, e);
-        }
+        } else
+          continue;
 
         e->stages[ce_stage(ce)].ctime = ce->ce_ctime.sec;
         e->stages[ce_stage(ce)].mtime = ce->ce_mtime.sec;
