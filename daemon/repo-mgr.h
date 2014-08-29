@@ -28,6 +28,7 @@
 #define REPO_ENCRYPTED 0x1
 #define REPO_PROP_DOWNLOAD_HEAD "download-head"
 #define REPO_PROP_IS_READONLY "is-readonly"
+#define REPO_PROP_SERVER_URL  "server-url"
 
 struct _SeafRepoManager;
 typedef struct _SeafRepo SeafRepo;
@@ -79,6 +80,9 @@ struct _SeafRepo {
     int version;
 
     gboolean create_partial_commit;
+
+    /* Used for http sync. */
+    char *server_url;
 };
 
 
@@ -410,9 +414,12 @@ enum {
 };
 
 struct _TransferTask;
+struct _HttpTxTask;
 
 int
 seaf_repo_fetch_and_checkout (struct _TransferTask *task,
+                              struct _HttpTxTask *http_task,
+                              gboolean is_http,
                               const char *remote_head_id);
 
 #endif

@@ -13,6 +13,7 @@ typedef struct _SeafCloneManager SeafCloneManager;
 
 enum {
     CLONE_STATE_INIT,
+    CLONE_STATE_CHECK_HTTP,
     CLONE_STATE_CONNECT,
     CLONE_STATE_CHECK_PROTOCOL,
     CLONE_STATE_INDEX,
@@ -57,6 +58,12 @@ struct _CloneTask {
     char                *random_key;
     char                 root_id[41];
     gboolean             is_readonly;
+
+    /* Http sync fields */
+    char                *server_url;
+    int                  http_protocol_version;
+    gboolean             http_sync;
+    char                 server_head_id[41];
 
     gboolean             server_side_merge;
 };

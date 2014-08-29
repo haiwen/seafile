@@ -1743,6 +1743,8 @@ checkout_file (const char *repo_id,
                SeafileCrypt *crypt,
                struct cache_entry *ce,
                TransferTask *task,
+               HttpTxTask *http_task,
+               gboolean is_http,
                const char *conflict_head_id,
                GHashTable *conflict_hash,
                GHashTable *no_conflict_hash)
@@ -1813,20 +1815,33 @@ checkout_file (const char *repo_id,
     }
 
     /* Download the blocks of this file. */
-    int rc = seaf_transfer_manager_download_file_blocks (seaf->transfer_mgr,
+    int rc;
+    if (!is_http) {
+        rc = seaf_transfer_manager_download_file_blocks (seaf->transfer_mgr,
                                                          task, file_id);
-    switch (rc) {
-    case BLOCK_CLIENT_SUCCESS:
-        break;
-    case BLOCK_CLIENT_UNKNOWN:
-    case BLOCK_CLIENT_FAILED:
-    case BLOCK_CLIENT_NET_ERROR:
-    case BLOCK_CLIENT_SERVER_ERROR:
-        g_free (path);
-        return FETCH_CHECKOUT_TRANSFER_ERROR;
-    case BLOCK_CLIENT_CANCELED:
-        g_free (path);
-        return FETCH_CHECKOUT_CANCELED;
+        switch (rc) {
+        case BLOCK_CLIENT_SUCCESS:
+            break;
+        case BLOCK_CLIENT_UNKNOWN:
+        case BLOCK_CLIENT_FAILED:
+        case BLOCK_CLIENT_NET_ERROR:
+        case BLOCK_CLIENT_SERVER_ERROR:
+            g_free (path);
+            return FETCH_CHECKOUT_TRANSFER_ERROR;
+        case BLOCK_CLIENT_CANCELED:
+            g_free (path);
+            return FETCH_CHECKOUT_CANCELED;
+        }
+    } else {
+        rc = http_tx_task_download_file_blocks (http_task, file_id);
+        if (http_task->state == HTTP_TASK_STATE_CANCELED) {
+            g_free (path);
+            return FETCH_CHECKOUT_CANCELED;
+        }
+        if (rc < 0) {
+            g_free (path);
+            return FETCH_CHECKOUT_TRANSFER_ERROR;
+        }
     }
 
     /* The worktree file may have been changed when we're downloading the blocks. */
@@ -1978,8 +1993,16 @@ cleanup_file_blocks (const char *repo_id, int version, const char *file_id)
 
 int
 seaf_repo_fetch_and_checkout (TransferTask *task,
+                              HttpTxTask *http_task,
+                              gboolean is_http,
                               const char *remote_head_id)
 {
+    char *repo_id;
+    int repo_version;
+    gboolean is_clone;
+    char *worktree;
+    char *passwd;
+
     SeafRepo *repo = NULL;
     SeafBranch *master = NULL;
     SeafCommit *remote_head = NULL, *master_head = NULL;
@@ -1991,64 +2014,75 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
     GHashTable *conflict_hash = NULL, *no_conflict_hash = NULL;
     GList *ignore_list = NULL;
 
+    if (is_http) {
+        repo_id = http_task->repo_id;
+        repo_version = http_task->repo_version;
+        is_clone = http_task->is_clone;
+        worktree = http_task->worktree;
+        passwd = http_task->passwd;
+    } else {
+        repo_id = task->repo_id;
+        repo_version = task->repo_version;
+        is_clone = task->is_clone;
+        worktree = task->worktree;
+        passwd = task->passwd;
+    }
+
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s",
-              seaf->repo_mgr->index_dir, task->repo_id);
-    if (read_index_from (&istate, index_path, task->repo_version) < 0) {
+              seaf->repo_mgr->index_dir, repo_id);
+    if (read_index_from (&istate, index_path, repo_version) < 0) {
         g_warning ("Failed to load index.\n");
         return FETCH_CHECKOUT_FAILED;
     }
 
-    if (!task->is_clone) {
-        repo = seaf_repo_manager_get_repo (seaf->repo_mgr, task->repo_id);
+    if (!is_clone) {
+        repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
         if (!repo) {
-            seaf_warning ("Failed to get repo %.8s.\n", task->repo_id);
+            seaf_warning ("Failed to get repo %.8s.\n", repo_id);
             goto out;
         }
 
         master = seaf_branch_manager_get_branch (seaf->branch_mgr,
-                                                 task->repo_id, "master");
+                                                 repo_id, "master");
         if (!master) {
             seaf_warning ("Failed to get master branch for repo %.8s.\n",
-                          task->repo_id);
+                          repo_id);
             ret = FETCH_CHECKOUT_FAILED;
             goto out;
         }
 
         master_head = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                                      task->repo_id,
-                                                      task->repo_version,
+                                                      repo_id,
+                                                      repo_version,
                                                       master->commit_id);
         if (!master_head) {
             seaf_warning ("Failed to get master head %s of repo %.8s.\n",
-                          task->repo_id, master->commit_id);
+                          repo_id, master->commit_id);
             ret = FETCH_CHECKOUT_FAILED;
             goto out;
         }
     }
 
-    char *worktree;
-    if (!task->is_clone)
+    if (!is_clone)
         worktree = repo->worktree;
-    else
-        worktree = task->worktree;
 
     remote_head = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                                  task->repo_id,
-                                                  task->repo_version,
+                                                  repo_id,
+                                                  repo_version,
                                                   remote_head_id);
     if (!remote_head) {
         seaf_warning ("Failed to get remote head %s of repo %.8s.\n",
-                      task->repo_id, remote_head_id);
+                      repo_id, remote_head_id);
         ret = FETCH_CHECKOUT_FAILED;
         goto out;
     }
 
-    if (diff_commit_roots (task->repo_id, task->repo_version,
+    if (diff_commit_roots (repo_id, repo_version,
                            master_head ? master_head->root_id : EMPTY_SHA1,
                            remote_head->root_id,
                            &results, FALSE) < 0) {
-        seaf_warning ("Failed to diff for repo %.8s.\n", task->repo_id);
+        seaf_warning ("Failed to diff for repo %.8s.\n", repo_id);
         ret = FETCH_CHECKOUT_FAILED;
         goto out;
     }
@@ -2069,14 +2103,14 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 #endif
 
     if (remote_head->encrypted) {
-        if (!task->is_clone) {
+        if (!is_clone) {
             crypt = seafile_crypt_new (repo->enc_version,
                                        repo->enc_key,
                                        repo->enc_iv);
         } else {
             unsigned char enc_key[32], enc_iv[16];
             seafile_decrypt_repo_enc_key (remote_head->enc_version,
-                                          task->passwd,
+                                          passwd,
                                           remote_head->random_key,
                                           enc_key, enc_iv);
             crypt = seafile_crypt_new (remote_head->enc_version,
@@ -2095,8 +2129,12 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 
     for (ptr = results; ptr; ptr = ptr->next) {
         de = ptr->data;
-        if (de->status == DIFF_STATUS_ADDED || de->status == DIFF_STATUS_MODIFIED)
-            ++(task->n_to_download);
+        if (de->status == DIFF_STATUS_ADDED || de->status == DIFF_STATUS_MODIFIED) {
+            if (!is_http)
+                ++(task->n_to_download);
+            else
+                ++(http_task->n_files);
+        }
     }
 
     /* Delete/rename files before deleting dirs,
@@ -2188,8 +2226,8 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                 add_ce = TRUE;
             }
 
-            int rc = checkout_file (task->repo_id,
-                                    task->repo_version,
+            int rc = checkout_file (repo_id,
+                                    repo_version,
                                     worktree,
                                     de->name,
                                     file_id,
@@ -2198,6 +2236,8 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                                     crypt,
                                     ce,
                                     task,
+                                    http_task,
+                                    is_http,
                                     remote_head_id,
                                     conflict_hash,
                                     no_conflict_hash);
@@ -2218,9 +2258,12 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                 goto out;
             }
 
-            cleanup_file_blocks (task->repo_id, task->repo_version, file_id);
+            cleanup_file_blocks (repo_id, repo_version, file_id);
 
-            ++(task->n_downloaded);
+            if (!is_http)
+                ++(task->n_downloaded);
+            else
+                ++(http_task->done_files);
 
             if (add_ce) {
                 if (!(ce->ce_flags & CE_REMOVE))
@@ -3080,7 +3123,10 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
 
     repo->email = load_repo_property (manager, repo->id, REPO_PROP_EMAIL);
     repo->token = load_repo_property (manager, repo->id, REPO_PROP_TOKEN);
-    
+
+    /* May be NULL if this property is not set in db. */
+    repo->server_url = load_repo_property (manager, repo->id, REPO_PROP_SERVER_URL);
+
     if (repo->head != NULL && seaf_repo_check_worktree (repo) < 0) {
         if (seafile_session_config_get_allow_invalid_worktree(seaf)) {
             seaf_warning ("Worktree for repo \"%s\" is invalid, but still keep it.\n",

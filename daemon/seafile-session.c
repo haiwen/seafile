@@ -150,12 +150,14 @@ seafile_session_new(const char *seafile_dir,
     session->clone_mgr = seaf_clone_manager_new (session);
     if (!session->clone_mgr)
         goto onerror;
-#ifndef SEAF_TOOL    
     session->sync_mgr = seaf_sync_manager_new (session);
     if (!session->sync_mgr)
         goto onerror;
     session->wt_monitor = seaf_wt_monitor_new (session);
     if (!session->wt_monitor)
+        goto onerror;
+    session->http_tx_mgr = http_tx_manager_new (session);
+    if (!session->http_tx_mgr)
         goto onerror;
 
     session->job_mgr = ccnet_job_manager_new (MAX_THREADS);
@@ -166,7 +168,6 @@ seafile_session_new(const char *seafile_dir,
     session->mq_mgr = seaf_mq_manager_new (session);
     if (!session->mq_mgr)
         goto onerror;
-#endif    
 
     return session;
 
@@ -310,6 +311,11 @@ cleanup_job_done (void *vdata)
 
     if (seaf_transfer_manager_start (session->transfer_mgr) < 0) {
         g_error ("Failed to start transfer manager.\n");
+        return;
+    }
+
+    if (http_tx_manager_start (session->http_tx_mgr) < 0) {
+        g_error ("Failed to start http transfer manager.\n");
         return;
     }
 
