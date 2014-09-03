@@ -404,15 +404,15 @@ out:
 static void
 put_update_branch_cb (evhtp_request_t *req, void *arg)
 {
-    int token_status = validate_token_cb (req, arg);
-    if (token_status != EVHTP_RES_OK) {
-        evhtp_send_reply (req, token_status);
-        return;
-    }
-
     const char *new_commit_id = evhtp_kv_find (req->uri->query, "head");
     if (new_commit_id == NULL || strlen (new_commit_id) != 40) {
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
+
+    int token_status = validate_token_cb (req, arg);
+    if (token_status != EVHTP_RES_OK) {
+        evhtp_send_reply (req, token_status);
         return;
     }
 
@@ -590,9 +590,9 @@ get_fs_obj_id (SeafCommit *commit, void *data, gboolean *stop)
 static void
 get_fs_obj_id_cb (evhtp_request_t *req, void *arg)
 {
-    const char *commit_id = evhtp_kv_find (req->uri->query, "client-head");
+    const char *commit_id = evhtp_kv_find (req->uri->query, "server-head");
     if (commit_id == NULL || strlen (commit_id) != 40) {
-        char *error = "Invalid client-head parameter.\n";
+        char *error = "Invalid server-head parameter.\n";
         seaf_warning ("%s", error);
         evbuffer_add (req->buffer_out, error, strlen (error));
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
@@ -605,30 +605,57 @@ get_fs_obj_id_cb (evhtp_request_t *req, void *arg)
         return;
     }
 
+    const char *client_head = evhtp_kv_find (req->uri->query, "client-head");
     SeafileSession *session = ((HttpServer *)arg)->seaf_session;
     char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
     char *repo_id = parts[1];
     GList *list = NULL;
+    GList *client_list = NULL;
 
     int ret = seaf_commit_manager_traverse_commit_tree (session->commit_mgr, repo_id, 1,
                                                         commit_id, get_fs_obj_id,
                                                         &list, FALSE);
-    g_strfreev (parts);
-
     if (ret < 0) {
         seaf_warning ("Get FS obj_id failed: commit %s is missing.\n", commit_id);
         evhtp_send_reply (req, EVHTP_RES_NOTFOUND);
         return;
     }
 
+    if (client_head && strlen (client_head) == 40) {
+        ret = seaf_commit_manager_traverse_commit_tree (session->commit_mgr, repo_id, 1,
+                                                        client_head, get_fs_obj_id,
+                                                        &client_list, FALSE);
+        if (ret < 0) {
+            seaf_warning ("Get FS obj_id failed: commit %s is missing.\n", client_head);
+            evhtp_send_reply (req, EVHTP_RES_NOTFOUND);
+            return;
+        }
+    }
+
+    g_strfreev (parts);
+
     GList *ptr = list;
+    GList *client_ptr = NULL;
     json_t *obj_array = json_array ();
 
     for (; ptr; ptr = ptr->next) {
-        json_array_append_new (obj_array, json_string (ptr->data));
+        client_ptr = client_list;
+        for (; client_ptr; client_ptr = client_ptr->next) {
+            if (strcmp ((char *)ptr->data, (char *)client_ptr->data) == 0)
+                break;
+        }
+
+        if (!client_ptr)
+            json_array_append_new (obj_array, json_string (ptr->data));
+
         g_free (ptr->data);
     }
     g_list_free (list);
+
+    client_ptr = client_list;
+    for (; client_ptr; client_ptr = client_ptr->next)
+        g_free (client_ptr->data);
+    g_list_free (client_ptr);
 
     char *obj_list = json_dumps (obj_array, JSON_COMPACT);
     evbuffer_add (req->buffer_out, obj_list, strlen (obj_list));
