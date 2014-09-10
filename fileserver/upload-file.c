@@ -2017,10 +2017,7 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
          return EVHTP_RES_OK;
     }    
-
-    if (!arg)
-        return EVHTP_RES_OK;
-
+    
     /* URL format: http://host:port/[upload|update]/<token>?X-Progress-ID=<uuid> */
     token = req->uri->path->file;
     if (!token) {
@@ -2081,16 +2078,6 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
     evhtp_set_hook (&req->hooks, evhtp_hook_on_request_fini, upload_finish_cb, fsm);
     /* Set arg for upload_cb or update_cb. */
     req->cbarg = fsm;
-
-    /* XXX: It seems there is a bug in libevhtp 1.1.6 that this headers callback
-     * will be called muliple times. So we need to unset this callback after it's
-     * called. Note that we must use callback->hooks here, using req->hooks won't
-     * work.
-     */
-    evhtp_callback_t *callback = arg;
-    evhtp_unset_hook (&callback->hooks, evhtp_hook_on_headers);
-
-    evhtp_unset_hook (&req->hooks, evhtp_hook_on_headers);
 
     ccnet_rpc_client_free (rpc_client);
 
@@ -2177,34 +2164,34 @@ upload_file_init (evhtp_t *htp)
 
     cb = evhtp_set_regex_cb (htp, "^/upload/.*", upload_cb, NULL);
     /* upload_headers_cb() will be called after evhtp parsed all http headers. */
-    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, cb);
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
     cb = evhtp_set_regex_cb (htp, "^/upload-api/.*", upload_api_cb, NULL);
-    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, cb);
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
     cb = evhtp_set_regex_cb (htp, "^/upload-blks-api/.*", upload_blks_api_cb, NULL);
-    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, cb);
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
     cb = evhtp_set_regex_cb (htp, "^/upload-blks-aj/.*", upload_blks_ajax_cb, NULL);
-    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, cb);
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
     
     cb = evhtp_set_regex_cb (htp, "^/upload-aj/.*", upload_ajax_cb, NULL);
-    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, cb);
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
     
     cb = evhtp_set_regex_cb (htp, "^/update/.*", update_cb, NULL);
-    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, cb);
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
     cb = evhtp_set_regex_cb (htp, "^/update-api/.*", update_api_cb, NULL);
-    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, cb);
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
     cb = evhtp_set_regex_cb (htp, "^/update-blks-api/.*", update_blks_api_cb, NULL);
-    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, cb);
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
     cb = evhtp_set_regex_cb (htp, "^/update-blks-aj/.*", update_blks_ajax_cb, NULL);
-    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, cb);
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
     cb = evhtp_set_regex_cb (htp, "^/update-aj/.*", update_ajax_cb, NULL);
-    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, cb);
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
     
     evhtp_set_regex_cb (htp, "^/upload_progress.*", upload_progress_cb, NULL);
 
