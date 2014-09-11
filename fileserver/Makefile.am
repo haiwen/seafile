@@ -44,7 +44,7 @@ fileserver_SOURCES = \
 	../common/seafile-crypt.c
 
 # XXX: -levent_openssl must be behind in -levhtp
-fileserver_LDADD = -levent -levhtp @SSL_LIBS@ -levent_openssl \
+fileserver_LDADD = @LIBEVENT_LIBS@ -levhtp @SSL_LIBS@ -levent_openssl \
 	@GLIB2_LIBS@ @GOBJECT_LIBS@ @LIB_RT@ \
 	@CCNET_LIBS@ \
 	$(top_builddir)/lib/libseafile.la \
