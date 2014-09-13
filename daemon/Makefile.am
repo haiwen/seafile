@@ -122,7 +122,7 @@ seaf_daemon_SOURCES = seaf-daemon.c $(common_src)
 
 seaf_daemon_LDADD = $(top_builddir)/lib/libseafile_common.la \
 	@LIB_INTL@ \
-	@GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent \
+	@GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 @LIBEVENT_LIBS@ \
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/common/index/libindex.la ${LIB_WS32} \
 	@SEARPC_LIBS@ @CCNET_LIBS@ @GNOME_KEYRING_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@
@@ -176,7 +176,7 @@ seaf_daemon_LDFLAGS = @STATIC_COMPILE@ @CONSOLE@
 #seaf_test_LDADD = @CCNET_LIBS@ \
 #	@LIB_INTL@ \
 #	$(top_builddir)/lib/libseafile_common.la \
-#	@GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent \
+#	@GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 @LIBEVENT_LIBS@ \
 #	$(top_builddir)/common/cdc/libcdc.la \
 #	$(top_builddir)/common/index/libindex.la ${LIB_WS32} \
 #	@SEARPC_LIBS@ @LIB_DIRWATCH@

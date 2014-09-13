@@ -53,7 +53,7 @@ libseafile_common_la_SOURCES = ${seafile_object_gen} ${utils_srcs}
 libseafile_common_la_LDFLAGS = -no-undefined
 libseafile_common_la_LIBADD = @GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ -lcrypto @LIB_GDI32@ \
 				     @LIB_UUID@ @LIB_WS32@ @LIB_PSAPI@ -lsqlite3 \
-					 -levent @SEARPC_LIBS@ @LIB_SHELL32@ \
+					 @LIBEVENT_LIBS@ @SEARPC_LIBS@ @LIB_SHELL32@ \
 	@ZLIB_LIBS@
 
 searpc_gen = searpc-signature.h searpc-marshal.h
