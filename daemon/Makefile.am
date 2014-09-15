@@ -9,6 +9,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@CCNET_CFLAGS@ \
 	@SEARPC_CFLAGS@ \
 	@GLIB2_CFLAGS@ \
+	@SSL_CFLAGS@ \
 	@MSVC_CFLAGS@ \
 	@CURL_CFLAGS@
 	-Wall

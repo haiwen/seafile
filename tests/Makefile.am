@@ -1,6 +1,7 @@
 AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	-DPACKAGE_DATA_DIR=\""$(pkgdatadir)"\" \
 	@CCNET_CFLAGS@ \
+	@SSL_CFLAGS@ \
 	@GLIB2_CFLAGS@
 
 check_PROGRAMS = test-seafile-fmt test-cdc test-index

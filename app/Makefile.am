@@ -5,6 +5,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	-I$(top_srcdir)/lib  \
 	@CCNET_CFLAGS@ \
 	@GLIB2_CFLAGS@ \
+	@SSL_CFLAGS@ \
 	@MSVC_CFLAGS@ \
 	-Wall
 

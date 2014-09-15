@@ -8,6 +8,7 @@ AM_CFLAGS = \
 	@CCNET_CFLAGS@ \
 	@SEARPC_CFLAGS@ \
 	@GLIB2_CFLAGS@ \
+	@SSL_CFLAGS@ \
 	@ZDB_CFLAGS@ \
 	-Wall
 
