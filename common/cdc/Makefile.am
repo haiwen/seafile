@@ -1,5 +1,5 @@
 AM_CFLAGS = -I$(top_srcdir)/common -I$(top_srcdir)/lib \
-	-Wall @GLIB2_CFLAGS@ @MSVC_CFLAGS@
+	-Wall @GLIB2_CFLAGS@ @SSL_CFLAGS@ @MSVC_CFLAGS@
 
 noinst_LTLIBRARIES = libcdc.la
 

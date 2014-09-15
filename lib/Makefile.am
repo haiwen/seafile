@@ -2,7 +2,8 @@ pcfiles = libseafile.pc
 pkgconfig_DATA = $(pcfiles)
 pkgconfigdir = $(libdir)/pkgconfig
 
-AM_CPPFLAGS = @GLIB2_CFLAGS@ -I$(top_srcdir)/include \
+AM_CPPFLAGS = @GLIB2_CFLAGS@ @SSL_CFLAGS@ \
+	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/lib \
 	-I$(top_srcdir)/common \
 	@CCNET_CFLAGS@ \
