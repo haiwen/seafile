@@ -1761,7 +1761,8 @@ checkout_file (const char *repo_id,
                 goto update_cache;
             } else {
                 /* Conflict. The worktree file was updated by the user. */
-                seaf_debug ("File is updated. Conflict.\n");
+                seaf_message ("File %s is updated by user. "
+                              "Will checkout to conflict file later.\n", path);
                 force_conflict = TRUE;
             }
         }
@@ -1799,8 +1800,11 @@ checkout_file (const char *repo_id,
     /* The worktree file may have been changed when we're downloading the blocks. */
     if (path_exists && S_ISREG(st.st_mode) && !force_conflict) {
         seaf_stat (path, &st2);
-        if (st.st_mtime != st2.st_mtime)
+        if (st.st_mtime != st2.st_mtime) {
+            seaf_message ("File %s is updated by user. "
+                          "Will checkout to conflict file later.\n", path);
             force_conflict = TRUE;
+        }
     }
 
     /* then checkout the file. */
