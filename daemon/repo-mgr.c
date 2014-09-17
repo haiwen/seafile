@@ -51,9 +51,6 @@ static const char *ignore_table[] = {
     "*~",
     /* Emacs tmp files */
     "#*#",
-    /* ms office tmp files */
-    "~$*",
-    "~*.tmp", /* for files like ~WRL0001.tmp */
     /* windows image cache */
     "Thumbs.db",
     /* For Mac */
@@ -62,6 +59,8 @@ static const char *ignore_table[] = {
 };
 
 static GPatternSpec** ignore_patterns;
+static GPatternSpec* office_temp_ignore_patterns[4];
+
 
 static SeafRepo *
 load_repo (SeafRepoManager *manager, const char *repo_id);
@@ -350,6 +349,15 @@ should_ignore(const char *basepath, const char *filename, void *data)
         if (g_pattern_match_string(*spec, filename))
             return TRUE;
         spec++;
+    }
+
+    if (!seaf->sync_extra_temp_file) {
+        spec = office_temp_ignore_patterns;
+        while (*spec) {
+            if (g_pattern_match_string(*spec, filename))
+                return TRUE;
+            spec++;
+        }
     }
     
     /*
@@ -2344,6 +2352,12 @@ seaf_repo_manager_new (SeafileSession *seaf)
     for (i = 0; ignore_table[i] != NULL; i++) {
         ignore_patterns[i] = g_pattern_spec_new (ignore_table[i]);
     }
+
+    office_temp_ignore_patterns[0] = g_pattern_spec_new("~$*");
+    /* for files like ~WRL0001.tmp */
+    office_temp_ignore_patterns[1] = g_pattern_spec_new("~*.tmp");
+    office_temp_ignore_patterns[2] = g_pattern_spec_new(".~lock*#");
+    office_temp_ignore_patterns[3] = NULL;
 
     mgr->priv->repo_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 

@@ -188,6 +188,10 @@ seafile_session_init (SeafileSession *session)
 void
 seafile_session_prepare (SeafileSession *session)
 {
+    /* load config */
+    session->sync_extra_temp_file = seafile_session_config_get_bool
+        (session, KEY_SYNC_EXTRA_TEMP_FILE);
+
     /* Start mq manager earlier, so that we can send notifications
      * when start repo manager. */
     seaf_mq_manager_init (session->mq_mgr);
