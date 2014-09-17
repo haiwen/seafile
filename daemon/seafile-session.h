@@ -67,6 +67,8 @@ struct _SeafileSession {
 
     /* Set after all components are up and running. */
     gboolean             started;
+
+    gboolean             sync_extra_temp_file;
 };
 
 struct _SeafileSessionClass

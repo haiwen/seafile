@@ -5,6 +5,7 @@
 
 #include "seafile-config.h"
 
+
 static gboolean
 get_value (sqlite3_stmt *stmt, void *data)
 {
@@ -60,6 +61,21 @@ seafile_session_config_get_int (SeafileSession *session,
     return ret;
 }
 
+gboolean
+seafile_session_config_get_bool (SeafileSession *session,
+                                 const char *key)
+{
+    char *value;
+    gboolean ret = FALSE;
+
+    value = config_get_string (session->config_db, key);
+    if (g_strcmp0(value, "true") == 0)
+        ret = TRUE;
+
+    g_free (value);
+    return ret;
+}
+
 int
 seafile_session_config_set_string (SeafileSession *session,
                                    const char *key,
@@ -72,6 +88,13 @@ seafile_session_config_set_string (SeafileSession *session,
                       key, value);
     if (sqlite_query_exec (session->config_db, sql) < 0)
         return -1;
+
+    if (g_strcmp0(key, KEY_SYNC_EXTRA_TEMP_FILE) == 0) {
+        if (g_strcmp0(value, "true") == 0)
+            session->sync_extra_temp_file = TRUE;
+        else
+            session->sync_extra_temp_file = FALSE;
+    }
 
     return 0;
 }
@@ -123,13 +146,12 @@ seafile_session_config_set_allow_invalid_worktree(SeafileSession *session, gbool
 gboolean
 seafile_session_config_get_allow_invalid_worktree(SeafileSession *session)
 {
-    return g_strcmp0(seafile_session_config_get_string(session, \
-                        KEY_ALLOW_INVALID_WORKTREE), "true") == 0;
+    return seafile_session_config_get_bool (session, KEY_ALLOW_INVALID_WORKTREE);
 }
 
 gboolean
 seafile_session_config_get_allow_repo_not_found_on_server(SeafileSession *session)
 {
-    return g_strcmp0(seafile_session_config_get_string(session, \
-                        KEY_ALLOW_REPO_NOT_FOUND_ON_SERVER), "true") == 0;
+    return seafile_session_config_get_bool (session,
+                                            KEY_ALLOW_REPO_NOT_FOUND_ON_SERVER);
 }
