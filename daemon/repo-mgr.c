@@ -845,6 +845,14 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                    ignore_list, &scanned_dirs,
                                    &total_size, &remain_files);
                 if (remain_files) {
+                    /* If one file is larger than 100MB, remain_files will be
+                     * created but without contents.
+                     */
+                    if (g_queue_get_length (remain_files) == 0) {
+                        g_queue_free (remain_files);
+                        goto out;
+                    }
+
                     /* Cache remaining files in the event structure. */
                     event->remain_files = remain_files;
 
