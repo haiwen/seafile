@@ -123,3 +123,5 @@ seaf-fsck
 *.tar.gz
 fuse/seaf-fuse
 server/gc/seaf-migrate
+/compile
+/test-driver
