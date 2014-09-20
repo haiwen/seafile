@@ -1,0 +1,32 @@
+#Allow installation as root
+use_root=yes
+#Allow using existing ccnet
+use_existing_ccnet=yes
+#Allow using existing seafile
+use_existing_seafile=yes
+#Skip dummy read on welcome
+skip_welcome=yes
+#Skip dummy read on configuration confirmation
+skip_confok=yes
+#Skip dummy read when moving to seahub configuration
+skip_seahubwelcome=yes
+#Skip dummy read on seahub configuration confirmation
+skip_seahubok=yes
+
+#Seafile server name
+server_name=seafile
+#Seafile IP/FQDN
+ip_or_domain=127.0.0.1
+#ccnet server port
+server_port=10001
+#Seafile server port
+seafile_server_port=12001
+#Seafile fileserver port
+fileserver_port=8082
+#Seafile data dir
+seafile_data_dir=/opt/seafile-data
+#Seafile admin email
+seahub_admin_email="admin@example.org"
+#Seafile admin password
+seahub_admin_passwd=abcd1234
+seahub_admin_passwd_again=abcd1234

@@ -13,7 +13,19 @@ export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafil
 use_existing_ccnet="false"
 use_existing_seafile="false"
 
+if [[ -f "$1" ]]; then
+    . "$1"
+    echo "Loaded $1"
+fi
+
 server_manual_http="https://github.com/haiwen/seafile/wiki"
+
+function read_dummy () {
+     declare skip="${!1}"
+     if [[ "$skip" != "yes" ]]; then
+         read dummy
+     fi
+}
 
 function welcome () {
     echo "-----------------------------------------------------------------"
@@ -25,7 +37,7 @@ function welcome () {
     echo
     echo "Press [ENTER] to continue"
     echo "-----------------------------------------------------------------"
-    read dummy
+    read_dummy skip_welcome
     echo
 }
 
@@ -53,13 +65,17 @@ function check_sanity () {
 }
 
 function read_yes_no () {
-    printf "[yes|no] "
-    read yesno;
-    while [[ "${yesno}" != "yes" && "${yesno}" != "no" ]]
-    do
-        printf "please answer [yes|no] "
+    yesno=""
+    declare -g yesno="${!1}"
+    if [[ "${yesno}" != "yes" && "${yesno}" != "no" ]]; then
+        printf "[yes|no] "
         read yesno;
-    done
+        while [[ "${yesno}" != "yes" && "${yesno}" != "no" ]]
+        do
+            printf "please answer [yes|no] "
+            read yesno;
+        done
+    fi
 
     if [[ "${yesno}" == "no" ]]; then
         return 1;
@@ -77,7 +93,7 @@ function check_root () {
         echo
         echo "You are running this script as ROOT. Are you sure to continue?"
 
-        if ! read_yes_no; then
+        if ! read_yes_no use_root; then
             echo "You should re-run this script as non-root user."
             echo
             exit 1;
@@ -91,7 +107,7 @@ function check_existing_ccnet () {
         echo "It seems that you have created a ccnet configuration before. "
         echo "Would you like to use the existing configuration?"
 
-        if ! read_yes_no; then
+        if ! read_yes_no use_existing_ccnet; then
             echo
             echo "Please remove the existing configuration before continuing."
             echo "You can do it by running \"rm -rf ${default_ccnet_conf_dir}\""
@@ -196,6 +212,8 @@ function ask_question () {
     question=$1
     default=$2
     key=$3
+    resultvar=$4
+    silentinput=$5
     printf "${question}"
     printf "\n"
     if [[ "${default}" != "" && "${default}" != "nodefault" ]] ; then
@@ -203,19 +221,35 @@ function ask_question () {
     elif [[ "${key}" != "" ]]; then
         printf "[${key}]: "
     fi
+    if [[ "${silentinput}" != "" && "${silentinput}" != "n" && "${silentinput}" != "no" && "${silentinput}" != "nosilentinput" ]] ; then
+        if [[ "${!resultvar}" != "" ]]; then
+            localres="${!resultvar}"
+        else
+            read -s localres
+        fi
+    else
+        if [[ "${!resultvar}" != "" ]]; then
+            localres="${!resultvar}"
+            echo $localres
+        else
+            read localres
+        fi
+    fi
+    declare -g $resultvar="$localres"
 }
     
 function get_server_name () {
     question="What would you like to use as the name of this seafile server?\nYour seafile users will be able to see the name in their seafile client."
     hint="You can use a-z, A-Z, 0-9, _ and -, and the length should be 3 ~ 15"
-    ask_question "${question}\n${hint}" "nodefault" "server name"
-    read server_name
+    ask_question "${question}\n${hint}" "nodefault" "server name" server_name
     if [[ "${server_name}" == "" ]]; then
         echo
+        server_name=""
         echo "server name cannot be empty"
         get_server_name
     elif [[ ! ${server_name} =~ ^[a-zA-Z0-9_-]{3,14}$ ]]; then
         printf "\n\033[33m${server_name}\033[m is not a valid name.\n"
+        server_name=""
         get_server_name;
     fi
     echo
@@ -223,11 +257,11 @@ function get_server_name () {
 
 function get_server_ip_or_domain () {
     question="What is the ip or domain of this server?\nFor example, www.mycompany.com, or, 192.168.1.101" 
-    ask_question "${question}\n" "nodefault" "This server's ip or domain"
-    read ip_or_domain
+    ask_question "${question}\n" "nodefault" "This server's ip or domain" ip_or_domain
     if [[ "${ip_or_domain}" == "" ]]; then
         echo
         echo "ip or domain cannot be empty"
+        ip_or_domain=""
         get_server_ip_or_domain
     fi
     echo
@@ -237,13 +271,13 @@ function get_ccnet_server_port () {
     question="What tcp port do you want to use for ccnet server?" 
     hint="10001 is the recommended port."
     default="10001"
-    ask_question "${question}\n${hint}" "${default}"
-    read server_port
+    ask_question "${question}\n${hint}" "${default}" "" server_port
     if [[ "${server_port}" == "" ]]; then
         server_port="${default}"
     fi
     if [[ ! ${server_port} =~ ^[0-9]+$ ]]; then
         echo "\"${server_port}\" is not a valid port number. "
+        server_port=""
         get_ccnet_server_port
     fi
     echo
@@ -253,13 +287,13 @@ function get_seafile_server_port () {
     question="What tcp port would you like to use for seafile server?" 
     hint="12001 is the recommended port."
     default="12001"
-    ask_question "${question}\n${hint}" "${default}"
-    read seafile_server_port
+    ask_question "${question}\n${hint}" "${default}" "" seafile_server_port
     if [[ "${seafile_server_port}" == "" ]]; then
         seafile_server_port="${default}"
     fi
     if [[ ! ${seafile_server_port} =~ ^[0-9]+$ ]]; then
         echo "\"${seafile_server_port}\" is not a valid port number. "
+        seafile_server_port=""
         get_seafile_server_port
     fi
     echo
@@ -269,13 +303,13 @@ function get_fileserver_port () {
     question="What tcp port do you want to use for seafile fileserver?" 
     hint="8082 is the recommended port."
     default="8082"
-    ask_question "${question}\n${hint}" "${default}"
-    read fileserver_port
+    ask_question "${question}\n${hint}" "${default}" "" fileserver_port
     if [[ "${fileserver_port}" == "" ]]; then
         fileserver_port="${default}"
     fi
     if [[ ! ${fileserver_port} =~ ^[0-9]+$ ]]; then
         echo "\"${fileserver_port}\" is not a valid port number. "
+        fileserver_port=""
         get_fileserver_port
     fi
     echo
@@ -286,8 +320,7 @@ function get_seafile_data_dir () {
     question="Where would you like to store your seafile data?"
     note="Please use a volume with enough free space." 
     default=${default_seafile_data_dir}
-    ask_question "${question} \n\033[33mNote: \033[m${note}" "${default}"
-    read seafile_data_dir
+    ask_question "${question} \n\033[33mNote: \033[m${note}" "${default}" "" seafile_data_dir
     if [[ "${seafile_data_dir}" == "" ]]; then
         seafile_data_dir=${default}
     fi
@@ -296,7 +329,7 @@ function get_seafile_data_dir () {
         echo
         echo "It seems that you have already existing seafile data in ${seafile_data_dir}."
         echo "Would you like to use the existing seafile data?"
-        if ! read_yes_no; then
+        if ! read_yes_no use_existing_seafile; then
             echo "You have chosen not to use existing seafile data in ${seafile_data_dir}"
             echo "You need to specify a different seafile data directory or remove ${seafile_data_dir} before continuing."
             get_seafile_data_dir
@@ -306,17 +339,20 @@ function get_seafile_data_dir () {
     elif [[ -d ${seafile_data_dir} && $(ls -A ${seafile_data_dir}) != "" ]]; then
         echo 
         echo "${seafile_data_dir} is an existing non-empty directory. Please specify a different directory"
-        echo 
+        echo
+        seafile_data_dir="" 
         get_seafile_data_dir
     elif [[ ! ${seafile_data_dir} =~ ^/ ]]; then
         echo 
         echo "\"${seafile_data_dir}\" is not an absolute path. Please specify an absolute path."
         echo 
+        seafile_data_dir=""
         get_seafile_data_dir
     elif [[ ! -d $(dirname ${seafile_data_dir}) ]]; then
         echo 
         echo "The path $(dirname ${seafile_data_dir}) does not exist."
         echo 
+        seafile_data_dir=""
         get_seafile_data_dir
     fi
     echo
@@ -393,7 +429,7 @@ fi
 
 echo
 echo "If you are OK with the configuration, press [ENTER] to continue."
-read dummy
+read_dummy skip_confok
 
 ccnet_init=${INSTALLPATH}/seafile/bin/ccnet-init
 seaf_server_init=${INSTALLPATH}/seafile/bin/seaf-server-init
@@ -461,7 +497,7 @@ echo "Seahub is the web interface for seafile server."
 echo "Now let's setup seahub configuration. Press [ENTER] to continue"
 echo "-----------------------------------------------------------------"
 echo
-read dummy
+read_dummy skip_seahubwelcome
 
 # echo "Please specify the email address and password for the seahub administrator."
 # echo "You can use them to login as admin on your seahub website."
@@ -469,13 +505,14 @@ read dummy
 
 function get_seahub_admin_email () {
     question="Please specify the email address for the seahub administrator:"
-    ask_question "${question}" "nodefault" "seahub admin email"
-    read seahub_admin_email
+    ask_question "${question}" "nodefault" "seahub admin email" seahub_admin_email
     if [[ "${seahub_admin_email}" == "" ]]; then
         echo "Seahub admin user name cannot be empty."
+        seahub_admin_email=""
         get_seahub_admin_email;
     elif [[ ! ${seahub_admin_email} =~ ^.+@.*\..+$ ]]; then
         echo "${seahub_admin_email} is not a valid email address"
+        seahub_admin_email=""
         get_seahub_admin_email;
     fi
 }
@@ -483,18 +520,20 @@ function get_seahub_admin_email () {
 function get_seahub_admin_passwd () {
     echo
     question="Please specify the password you would like to use for seahub administrator:"
-    ask_question "${question}" "nodefault" "seahub admin password"
-    read -s seahub_admin_passwd
+    ask_question "${question}" "nodefault" "seahub admin password" seahub_admin_passwd "silentread"
     echo
     question="Please enter the password again:"
-    ask_question "${question}" "nodefault" "seahub admin password again"
-    read -s seahub_admin_passwd_again
+    ask_question "${question}" "nodefault" "seahub admin password again" seahub_admin_passwd_again "silentread"
     echo
     if [[ "${seahub_admin_passwd}" != "${seahub_admin_passwd_again}" ]]; then
         printf "\033[33mThe passwords didn't match.\033[m"
+        seahub_admin_passwd=""
+        seahub_admin_passwd_again=""
         get_seahub_admin_passwd;
     elif [[ "${seahub_admin_passwd}" == "" ]]; then
         echo "Password cannot be empty."
+        seahub_admin_passwd=""
+        seahub_admin_passwd_again=""
         get_seahub_admin_passwd;
     fi
 }
@@ -513,7 +552,7 @@ function get_seahub_admin_passwd () {
 
 # echo
 # echo "If you are OK with the configuration, press [ENTER] to continue."
-# read dummy
+# read_dummy skip_seahubok
 
 # usermgr_db_dir=${default_ccnet_conf_dir}/PeerMgr/
 # usermgr_db=${usermgr_db_dir}/usermgr.db
