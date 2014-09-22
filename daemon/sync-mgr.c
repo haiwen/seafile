@@ -1410,6 +1410,11 @@ create_commit_from_event_queue (SeafSyncManager *manager, SeafRepo *repo,
             commit_repo (task);
             status->last_check = now;
             ret = TRUE;
+        } else if (status->partial_commit) {
+            task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
+            repo->create_partial_commit = TRUE;
+            commit_repo (task);
+            ret = TRUE;
         } else if (last_changed != 0 && status->last_check <= last_changed) {
             /* Commit and sync if the repo has been updated after the
              * last check and is not updated for the last 2 seconds.
@@ -1421,11 +1426,6 @@ create_commit_from_event_queue (SeafSyncManager *manager, SeafRepo *repo,
                 status->last_check = now;
                 ret = TRUE;
             }
-        } else if (status->last_event != NULL) {
-            task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
-            repo->create_partial_commit = TRUE;
-            commit_repo (task);
-            ret = TRUE;
         }
         wt_status_unref (status);
     }
