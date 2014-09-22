@@ -802,16 +802,11 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
     GList *scanned_dirs = NULL;
 
     WTEvent *last_event;
-    if (repo->create_partial_commit && status->last_event != NULL)
-        last_event = status->last_event;
-    else {
-        if (!repo->create_partial_commit)
-            status->last_event = NULL;
 
-        pthread_mutex_lock (&status->q_lock);
-        last_event = g_queue_peek_tail (status->event_q);
-        pthread_mutex_unlock (&status->q_lock);
-    }
+    pthread_mutex_lock (&status->q_lock);
+    last_event = g_queue_peek_tail (status->event_q);
+    pthread_mutex_unlock (&status->q_lock);
+
     if (!last_event)
         goto out;
 
@@ -825,6 +820,10 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
         if (!event)
             break;
 
+        seaf_message ("Processing event: %d, %s %s\n",
+                      event->ev_type, event->path,
+                      event->new_path ? event->new_path : "");
+
         switch (event->ev_type) {
         case WT_EVENT_CREATE_OR_UPDATE:
             /* If consecutive CREATE_OR_UPDATE events present
@@ -836,6 +835,10 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 break;
 
             if (!repo->create_partial_commit) {
+                /* XXX: We now use remain_files = NULL to signify not creating
+                 * partial commits. It's better to use total_size = NULL for
+                 * that purpose.
+                 */
                 add_path_to_index (repo, istate, crypt, event->path,
                                    ignore_list, &scanned_dirs,
                                    &total_size, NULL);
@@ -844,27 +847,39 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 add_path_to_index (repo, istate, crypt, event->path,
                                    ignore_list, &scanned_dirs,
                                    &total_size, &remain_files);
-                if (remain_files) {
-                    /* If one file is larger than 100MB, remain_files will be
-                     * created but without contents.
+                if (total_size >= MAX_COMMIT_SIZE) {
+                    seaf_message ("Creating partial commit after adding %s.\n",
+                                  event->path);
+
+                    status->partial_commit = TRUE;
+
+                    /* An event for a new folder may contain many files.
+                     * If the total_size become larger than 100MB after adding
+                     * some of these files, the remaining file paths will be
+                     * cached in remain files. This way we don't need to scan
+                     * the folder again next time.
                      */
-                    if (g_queue_get_length (remain_files) == 0) {
-                        g_queue_free (remain_files);
-                        goto out;
+                    if (remain_files) {
+                        if (g_queue_get_length (remain_files) == 0) {
+                            g_queue_free (remain_files);
+                            goto out;
+                        }
+
+                        seaf_message ("Remain files for %s.\n", event->path);
+
+                        /* Cache remaining files in the event structure. */
+                        event->remain_files = remain_files;
+
+                        pthread_mutex_lock (&status->q_lock);
+                        g_queue_push_head (status->event_q, event);
+                        pthread_mutex_unlock (&status->q_lock);
                     }
 
-                    /* Cache remaining files in the event structure. */
-                    event->remain_files = remain_files;
-
-                    pthread_mutex_lock (&status->q_lock);
-                    g_queue_push_head (status->event_q, event);
-                    pthread_mutex_unlock (&status->q_lock);
-
-                    /* Set status->last_event to signify partial commit. */
-                    status->last_event = last_event;
                     goto out;
                 }
             } else {
+                seaf_message ("Adding remaining files for %s.\n", event->path);
+
                 add_remain_files (repo, istate, crypt, event->remain_files,
                                   ignore_list, &total_size);
                 if (g_queue_get_length (event->remain_files) != 0) {
@@ -873,6 +888,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                     pthread_mutex_unlock (&status->q_lock);
                     goto out;
                 }
+                if (total_size >= MAX_COMMIT_SIZE)
+                    goto out;
             }
             break;
         case WT_EVENT_DELETE:
@@ -919,8 +936,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
 
         if (event == last_event) {
             wt_event_free (event);
-            if (status->last_event != NULL)
-                status->last_event = NULL;
+            seaf_message ("All events are processed for repo %s.\n", repo->id);
+            status->partial_commit = FALSE;
             break;
         } else
             wt_event_free (event);

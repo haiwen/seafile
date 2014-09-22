@@ -35,10 +35,10 @@ typedef struct WTStatus {
     gint        last_check;
     gint        last_changed;
 
-    /* If last_event is non-NULL, the last commit is partial.
+    /* If partial_commit is TRUE, the last commit is partial.
      * We need to produce another commit from the remaining events.
      */
-    WTEvent     *last_event;
+    gboolean    partial_commit;
 
     pthread_mutex_t q_lock;
     GQueue *event_q;
