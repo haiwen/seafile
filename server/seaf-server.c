@@ -143,6 +143,18 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "seafile_get_repo_list",
                                      searpc_signature_objlist__int_int());
     searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_trash_repo_list,
+                                     "seafile_get_trash_repo_list",
+                                     searpc_signature_objlist__int_int());
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_del_repo_from_trash,
+                                     "seafile_del_repo_from_trash",
+                                     searpc_signature_int__string());
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_restore_repo_from_trash,
+                                     "seafile_restore_repo_from_trash",
+                                     searpc_signature_int__string());
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_set_repo_owner,
                                      "seafile_set_repo_owner",
                                      searpc_signature_int__string_string());

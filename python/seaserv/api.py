@@ -58,6 +58,15 @@ class SeafileAPI(object):
     def get_repo_list(self, start, limit):
         return seafserv_threaded_rpc.get_repo_list(start, limit)
 
+    def get_trash_repo_list(self, start, limit):
+        return seafserv_threaded_rpc.get_trash_repo_list(start, limit)
+
+    def del_repo_from_trash(self, repo_id):
+        return seafserv_threaded_rpc.del_repo_from_trash(repo_id)
+
+    def restore_repo_from_trash(self, repo_id):
+        return seafserv_threaded_rpc.restore_repo_from_trash(repo_id)
+
     def edit_repo(self, repo_id, name, description, username):
         return seafserv_threaded_rpc.edit_repo(repo_id, name, description, username)
 

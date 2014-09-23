@@ -556,7 +556,7 @@ handle_missing_virtual_repo (SeafRepoManager *mgr,
                 seaf_warning ("Failed to find %s under commit %s.\n",
                               par_path, parent->commit_id);
                 seaf_debug ("Delete virtual repo %.10s.\n", vinfo->repo_id);
-                seaf_repo_manager_del_repo (mgr, vinfo->repo_id, FALSE);
+                seaf_repo_manager_del_virtual_repo (mgr, vinfo->repo_id);
             }
             g_clear_error (&error);
             goto out;
@@ -601,7 +601,7 @@ handle_missing_virtual_repo (SeafRepoManager *mgr,
 
     if (!is_renamed) {
         seaf_debug ("Delete virtual repo %.10s.\n", vinfo->repo_id);
-        seaf_repo_manager_del_repo (mgr, vinfo->repo_id, FALSE);
+        seaf_repo_manager_del_virtual_repo (mgr, vinfo->repo_id);
     }
 
 out:

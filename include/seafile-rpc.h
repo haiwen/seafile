@@ -20,6 +20,19 @@ seafile_get_session_info (GError **error);
 GList* seafile_get_repo_list (int start, int limit, GError **error);
 
 /**
+ * seafile_get_trash_repo_list:
+ *
+ * Returns deleted repository list.
+ */
+GList* seafile_get_trash_repo_list(int start, int limit, GError **error);
+
+int
+seafile_del_repo_from_trash (const char *repo_id, GError **error);
+
+int
+seafile_restore_repo_from_trash (const char *repo_id, GError **error);
+
+/**
  * seafile_get_commit_list:
  *
  * @limit: if limit <= 0, all commits start from @offset will be returned.
