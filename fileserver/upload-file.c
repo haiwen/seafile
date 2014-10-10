@@ -645,7 +645,7 @@ upload_blks_ajax_cb(evhtp_request_t *req, void *arg)
 
     evhtp_headers_add_header (req->headers_out,
                               evhtp_header_new("Content-Type",
-                                               "text/html; charset=utf-8", 1, 1));
+                                               "application/json; charset=utf-8", 1, 1));
 
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
@@ -782,7 +782,7 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
 
     evhtp_headers_add_header (req->headers_out,
                               evhtp_header_new("Content-Type",
-                                               "text/html; charset=utf-8", 1, 1));
+                                               "application/json; charset=utf-8", 1, 1));
 
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
@@ -1241,7 +1241,7 @@ update_blks_ajax_cb(evhtp_request_t *req, void *arg)
 
     evhtp_headers_add_header (req->headers_out,
                               evhtp_header_new("Content-Type",
-                                               "text/html; charset=utf-8", 1, 1));
+                                               "application/json; charset=utf-8", 1, 1));
 
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
@@ -1383,7 +1383,7 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
 
     evhtp_headers_add_header (req->headers_out,
                               evhtp_header_new("Content-Type",
-                                               "text/html; charset=utf-8", 1, 1));
+                                               "application/json; charset=utf-8", 1, 1));
 
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
