@@ -79,7 +79,7 @@ seafile_generate_random_key (const char *passwd, char *random_key)
     int outlen;
     unsigned char key[32], iv[16];
 
-    if (!RAND_bytes (secret_key, sizeof(secret_key))) {
+    if (RAND_bytes (secret_key, sizeof(secret_key)) != 1) {
         seaf_warning ("Failed to generate secret key for repo encryption "
                       "with RAND_bytes(), use RAND_pseudo_bytes().\n");
         RAND_pseudo_bytes (secret_key, sizeof(secret_key));
