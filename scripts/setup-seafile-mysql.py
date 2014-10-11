@@ -1051,9 +1051,9 @@ DATABASES = {
                 cursor.execute(sql)
             except Exception, e:
                 if isinstance(e, MySQLdb.OperationalError):
-                    Utils.error('Failed to init seahub database:' % e.args[1])
+                    Utils.error('Failed to init seahub database: %s' % e.args[1])
                 else:
-                    Utils.error('Failed to init seahub database:' % e)
+                    Utils.error('Failed to init seahub database: %s' % e)
 
         conn.commit()
 
