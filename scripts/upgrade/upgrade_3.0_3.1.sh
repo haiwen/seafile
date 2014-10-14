@@ -8,6 +8,8 @@ default_ccnet_conf_dir=${TOPDIR}/ccnet
 default_seafile_data_dir=${TOPDIR}/seafile-data
 default_seahub_db=${TOPDIR}/seahub.db
 default_conf_dir=${TOPDIR}/conf
+seafile_server_symlink=${TOPDIR}/seafile-server-latest
+seahub_data_dir=${TOPDIR}/seahub-data
 
 manage_py=${INSTALLPATH}/seahub/manage.py
 
@@ -129,7 +131,6 @@ function update_database() {
 
 function upgrade_seafile_server_latest_symlink() {
     # update the symlink seafile-server to the new server version
-    seafile_server_symlink=${TOPDIR}/seafile-server-latest
     if [[ -L "${seafile_server_symlink}" || ! -e "${seafile_server_symlink}" ]]; then
         echo
         printf "updating \033[33m${seafile_server_symlink}\033[m symbolic link to \033[33m${INSTALLPATH}\033[m ...\n\n"
@@ -148,6 +149,48 @@ function upgrade_seafile_server_latest_symlink() {
     fi
 }
 
+function make_media_custom_symlink() {
+    media_symlink=${INSTALLPATH}/seahub/media/custom
+    if [[ -L "${media_symlink}" ]]; then
+        return
+
+    elif [[ ! -e "${media_symlink}" ]]; then
+        ln -s ../../../seahub-data/custom "${media_symlink}"
+        return
+
+
+    elif [[ -d "${media_symlink}" ]]; then
+        cp -rf "${media_symlink}" "${seahub_data_dir}/"
+        rm -rf "${media_symlink}"
+        ln -s ../../../seahub-data/custom "${media_symlink}"
+    fi
+
+}
+
+function move_old_customdir_outside() {
+    # find the path of the latest seafile server folder
+    if [[ -L ${seafile_server_symlink} ]]; then
+        latest_server=$(readlink -f "${seafile_server_symlink}")
+    else
+        return
+    fi
+
+    old_customdir=${latest_server}/seahub/media/custom
+
+    # old customdir is already a symlink, do nothing
+    if [[ -L "${old_customdir}" ]]; then
+        return
+    fi
+
+    # old customdir does not exist, do nothing
+    if [[ ! -e "${old_customdir}" ]]; then
+        return
+    fi
+
+    # media/custom exist and is not a symlink
+    cp -rf "${old_customdir}" "${seahub_data_dir}/"
+}
+
 #################
 # The main execution flow of the script
 ################
@@ -160,6 +203,8 @@ migrate_avatars;
 
 update_database;
 
+move_old_customdir_outside;
+make_media_custom_symlink;
 upgrade_seafile_server_latest_symlink;
 
 
