@@ -421,10 +421,20 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     copy_file = seafile_copy_file 
 
+    @searpc_func("object", ["string", "string", "string", "string", "string", "string", "int", "int"])
+    def seafile_copy_multi_files(src_repo, src_dir, dst_repo, dst_dir, file_pairs, username, need_progress, synchronous):
+        pass
+    copy_multi_files = seafile_copy_multi_files
+
     @searpc_func("object", ["string", "string", "string", "string", "string", "string", "string", "int", "int"])
     def seafile_move_file(src_repo, src_dir, src_filename, dst_repo, dst_dir, dst_filename, user, need_progress, synchronous):
         pass
     move_file = seafile_move_file
+
+    @searpc_func("object", ["string", "string", "string", "string", "string", "string", "int", "int"])
+    def seafile_move_multi_files(src_repo, src_dir, dst_repo, dst_dir, file_pairs, username, need_progress, synchronous):
+        pass
+    move_multi_files = seafile_move_multi_files
 
     @searpc_func("int", ["string", "string", "string", "string", "string"])
     def seafile_rename_file(repo_id, parent_dir, oldname, newname, user):

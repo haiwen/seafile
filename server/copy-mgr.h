@@ -33,6 +33,10 @@ seaf_copy_manager_new (struct _SeafileSession *session);
 int
 seaf_copy_manager_start (SeafCopyManager *mgr);
 
+void
+seaf_copy_manager_add_task_only (SeafCopyManager *mgr,
+                                 CopyTask *task);
+
 typedef int (*CopyTaskFunc) (const char *, const char *, const char *,
                              const char *, const char *, const char *,
                              const char *, CopyTask *);
@@ -49,6 +53,17 @@ seaf_copy_manager_add_task (SeafCopyManager *mgr,
                             gint64 total_files,
                             CopyTaskFunc function,
                             gboolean need_progress);
+void
+seaf_copy_manager_schedule_job (SeafCopyManager *mgr,
+                                const char *src_repo_id,
+                                const char *src_path,
+                                const char *src_filename,
+                                const char *dst_repo_id,
+                                const char *dst_path,
+                                const char *dst_filename,
+                                const char *modifier,
+                                CopyTask *task,
+                                CopyTaskFunc function);
 
 struct _SeafileCopyTask *
 seaf_copy_manager_get_task (SeafCopyManager *mgr,

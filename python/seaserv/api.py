@@ -123,11 +123,23 @@ class SeafileAPI(object):
                                                dst_repo, dst_dir, dst_filename,
                                                username, need_progress, synchronous)
 
+    def copy_multi_files(self, src_repo, src_dir, dst_repo, dst_dir,
+                         file_pairs, username, need_progress, synchronous=0):
+        return seafserv_threaded_rpc.copy_multi_files(src_repo, src_dir, dst_repo,
+                                                      dst_dir, file_pairs, username,
+                                                      need_progress, synchronous)
+
     def move_file(self, src_repo, src_dir, src_filename, dst_repo, dst_dir,
                   dst_filename, username, need_progress, synchronous=0):
         return seafserv_threaded_rpc.move_file(src_repo, src_dir, src_filename,
                                                dst_repo, dst_dir, dst_filename,
                                                username, need_progress, synchronous)
+
+    def move_multi_files(self, src_repo, src_dir, dst_repo, dst_dir,
+                         file_pairs, username, need_progress, synchronous=0):
+        return seafserv_threaded_rpc.move_multi_files(src_repo, src_dir, dst_repo,
+                                                      dst_dir, file_pairs, username,
+                                                      need_progress, synchronous)
 
     def get_copy_task(self, task_id):
         return seafserv_rpc.get_copy_task(task_id)

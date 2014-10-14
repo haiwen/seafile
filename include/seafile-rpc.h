@@ -638,6 +638,19 @@ seafile_copy_file (const char *src_repo_id,
                    int synchronous,
                    GError **error);
 
+/**
+ * copy multi file/directory from a repo to another on server.
+ */
+GObject *
+seafile_copy_multi_files (const char *src_repo_id,
+                          const char *src_path,
+                          const char *dst_repo_id,
+                          const char *dst_path,
+                          const char *file_pairs,
+                          const char *user,
+                          int need_progress,
+                          int synchronous,
+                          GError **error);
 
 GObject *
 seafile_move_file (const char *src_repo_id,
@@ -650,6 +663,20 @@ seafile_move_file (const char *src_repo_id,
                    int need_progress,
                    int synchronous,
                    GError **error);
+
+/**
+ * move multi file/directory from a repo to another on server.
+ */
+GObject *
+seafile_move_multi_files (const char *src_repo_id,
+                          const char *src_path,
+                          const char *dst_repo_id,
+                          const char *dst_path,
+                          const char *file_pairs,
+                          const char *user,
+                          int need_progress,
+                          int synchronous,
+                          GError **error);
 
 GObject *
 seafile_get_copy_task (const char *task_id, GError **error);

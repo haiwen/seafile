@@ -124,6 +124,21 @@ copy_done (void *vdata)
     g_free (data);
 }
 
+void
+seaf_copy_manager_add_task_only (SeafCopyManager *mgr,
+                                 CopyTask *task)
+{
+    if (!mgr || !task)
+        return;
+
+    SeafCopyManagerPriv *priv = mgr->priv;
+
+    pthread_mutex_lock (&priv->lock);
+    g_hash_table_insert (priv->copy_tasks, g_strdup(task->task_id), task);
+    pthread_mutex_unlock (&priv->lock);
+
+}
+
 char *
 seaf_copy_manager_add_task (SeafCopyManager *mgr,
                             const char *src_repo_id,
@@ -137,7 +152,6 @@ seaf_copy_manager_add_task (SeafCopyManager *mgr,
                             CopyTaskFunc function,
                             gboolean need_progress)
 {
-    SeafCopyManagerPriv *priv = mgr->priv;
     char *task_id = NULL;
     CopyTask *task = NULL;
     struct CopyThreadData *data;
@@ -148,9 +162,7 @@ seaf_copy_manager_add_task (SeafCopyManager *mgr,
         memcpy (task->task_id, task_id, 36);
         task->total = total_files;
 
-        pthread_mutex_lock (&priv->lock);
-        g_hash_table_insert (priv->copy_tasks, g_strdup(task_id), task);
-        pthread_mutex_unlock (&priv->lock);
+        seaf_copy_manager_add_task_only (mgr, task);
     }
 
     data = g_new0 (CopyThreadData, 1);
@@ -170,6 +182,38 @@ seaf_copy_manager_add_task (SeafCopyManager *mgr,
                                     copy_done,
                                     data);
     return task_id;
+}
+
+void
+seaf_copy_manager_schedule_job (SeafCopyManager *mgr,
+                                const char *src_repo_id,
+                                const char *src_path,
+                                const char *src_filename,
+                                const char *dst_repo_id,
+                                const char *dst_path,
+                                const char *dst_filename,
+                                const char *modifier,
+                                CopyTask *task,
+                                CopyTaskFunc function)
+{
+    struct CopyThreadData *data;
+
+    data = g_new0 (CopyThreadData, 1);
+    data->mgr = mgr;
+    memcpy (data->src_repo_id, src_repo_id, 36);
+    data->src_path = g_strdup(src_path);
+    data->src_filename = g_strdup(src_filename);
+    memcpy (data->dst_repo_id, dst_repo_id, 36);
+    data->dst_path = g_strdup(dst_path);
+    data->dst_filename = g_strdup(dst_filename);
+    data->modifier = g_strdup(modifier);
+    data->task = task;
+    data->func = function;
+
+    ccnet_job_manager_schedule_job (mgr->priv->job_mgr,
+                                    copy_thread,
+                                    copy_done,
+                                    data);
 }
 
 int

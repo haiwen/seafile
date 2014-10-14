@@ -357,6 +357,19 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
                              GError **error);
 
 SeafileCopyResult *
+seaf_repo_manager_copy_multi_files (SeafRepoManager *mgr,
+                                    const char *src_repo_id,
+                                    const char *src_path,
+                                    const char *dst_repo_id,
+                                    const char *dst_path,
+                                    const char *file_pairs,
+                                    const char *user,
+                                    int need_progress,
+                                    int synchronous,
+                                    GError **error);
+
+
+SeafileCopyResult *
 seaf_repo_manager_move_file (SeafRepoManager *mgr,
                              const char *src_repo_id,
                              const char *src_dir,
@@ -368,6 +381,18 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
                              int need_progress,
                              int synchronous,
                              GError **error);
+
+SeafileCopyResult *
+seaf_repo_manager_move_multi_files (SeafRepoManager *mgr,
+                                    const char *src_repo_id,
+                                    const char *src_path,
+                                    const char *dst_repo_id,
+                                    const char *dst_path,
+                                    const char *file_pairs,
+                                    const char *user,
+                                    int need_progress,
+                                    int synchronous,
+                                    GError **error);
 
 int
 seaf_repo_manager_rename_file (SeafRepoManager *mgr,
