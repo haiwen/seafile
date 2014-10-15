@@ -4543,13 +4543,13 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
         seaf_warning ("Failed to find commit %s.\n", commit->parent_id);
         return FALSE;
     }
-    if ((gint64)(p1->ctime) >= truncate_time) {
-        if (find_deleted_recursive (data->repo, commit->root_id, p1->root_id, "/",
-                                    commit, p1, entries) < 0) {
-            seaf_commit_unref (p1);
-            return FALSE;
-        }
+
+    if (find_deleted_recursive (data->repo, commit->root_id, p1->root_id, "/",
+                                commit, p1, entries) < 0) {
+        seaf_commit_unref (p1);
+        return FALSE;
     }
+
     seaf_commit_unref (p1);
 
     if (commit->second_parent_id) {
@@ -4561,13 +4561,13 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
                           commit->second_parent_id);
             return FALSE;
         }
-        if ((gint64)(p2->ctime) >= truncate_time) {
-            if (find_deleted_recursive (data->repo, commit->root_id, p2->root_id, "/",
-                                        commit, p2, entries) < 0) {
-                seaf_commit_unref (p2);
-                return FALSE;
-            }
+
+        if (find_deleted_recursive (data->repo, commit->root_id, p2->root_id, "/",
+                                    commit, p2, entries) < 0) {
+            seaf_commit_unref (p2);
+            return FALSE;
         }
+
         seaf_commit_unref (p2);
     }
 

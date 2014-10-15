@@ -132,8 +132,12 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
              (gint64)(commit->ctime) < data->truncate_time &&
              data->traversed_head)
     {
+        /* Still traverse the first commit older than truncate_time.
+         * If a file in the child commit of this commit is deleted,
+         * we need to access this commit in order to restore it
+         * from trash.
+         */
         *stop = TRUE;
-        return TRUE;
     }
 
     if (!data->traversed_head)
