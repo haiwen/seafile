@@ -855,6 +855,11 @@ seafile_get_virtual_repo (const char *origin_repo,
 char *
 seafile_get_system_default_repo_id (GError **error);
 
+/* Clean trash */
+
+int
+seafile_clean_up_repo_history (const char *repo_id, int keep_days, GError **error);
+
 /* ------------------ public RPC calls. ------------ */
 
 GList* seafile_get_repo_list_pub (int start, int limit, GError **error);

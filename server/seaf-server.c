@@ -453,6 +453,13 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "get_virtual_repo",
                                      searpc_signature_object__string_string_string());
 
+    /* Clean trash */
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_clean_up_repo_history,
+                                     "clean_up_repo_history",
+                                     searpc_signature_int__string_int());
+
     /* -------- rpc services -------- */
     /* token for web access to repo */
     searpc_server_register_function ("seafserv-rpcserver",

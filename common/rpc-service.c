@@ -1006,8 +1006,13 @@ get_commit (SeafCommit *c, void *data, gboolean *stop)
         *stop = TRUE;
         /* Stop after traversing the head commit. */
     }
+    /* We use <= here. This is for handling clean trash and history.
+     * If the user cleans all history, truncate time will be equal to
+     * the commit's ctime. In such case, we don't actually want to display
+     * this commit.
+     */
     else if (cp->truncate_time > 0 &&
-             (gint64)(c->ctime) < cp->truncate_time &&
+             (gint64)(c->ctime) <= cp->truncate_time &&
              cp->traversed_head)
     {
         *stop = TRUE;
@@ -3597,6 +3602,71 @@ char *
 seafile_get_system_default_repo_id (GError **error)
 {
     return get_system_default_repo_id(seaf);
+}
+
+static int
+update_valid_since_time (SeafRepo *repo, gint64 new_time)
+{
+    int ret = 0;
+    gint64 old_time = seaf_repo_manager_get_repo_valid_since (repo->manager,
+                                                              repo->id);
+
+    if (new_time > 0) {
+        if (new_time > old_time)
+            ret = seaf_repo_manager_set_repo_valid_since (repo->manager,
+                                                          repo->id,
+                                                          new_time);
+    } else if (new_time == 0) {
+        /* Only the head commit is valid after GC if no history is kept. */
+        SeafCommit *head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                           repo->id, repo->version,
+                                                           repo->head->commit_id);
+        if (head && (old_time < 0 || head->ctime > (guint64)old_time))
+            ret = seaf_repo_manager_set_repo_valid_since (repo->manager,
+                                                          repo->id,
+                                                          head->ctime);
+        seaf_commit_unref (head);
+    }
+
+    return ret;
+}
+
+/* Clean up a repo's history.
+ * It just set valid-since time but not actually delete the data.
+ */
+int
+seafile_clean_up_repo_history (const char *repo_id, int keep_days, GError **error)
+{
+    SeafRepo *repo;
+    int ret;
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid arguments");
+        return -1;
+    }
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        g_warning ("Cannot find repo %s.\n", repo_id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid arguments");
+        return -1;
+    }
+
+    gint64 truncate_time, now;
+    if (keep_days > 0) {
+        now = (gint64)time(NULL);
+        truncate_time = now - keep_days * 24 * 3600;
+    } else
+        truncate_time = 0;
+
+    ret = update_valid_since_time (repo, truncate_time);
+    if (ret < 0) {
+        g_warning ("Failed to update valid since time for repo %.8s.\n", repo->id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Database error");
+    }
+
+    seaf_repo_unref (repo);
+    return ret;
 }
 
 #endif  /* SEAFILE_SERVER */

@@ -4528,7 +4528,12 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
     gint64 truncate_time = data->truncate_time;
     SeafCommit *p1, *p2;
 
-    if ((gint64)(commit->ctime) < truncate_time) {
+    /* We use <= here. This is for handling clean trash and history.
+     * If the user cleans all history, truncate time will be equal to
+     * the head commit's ctime. In such case, we don't actually want to display
+     * any deleted file.
+     */
+    if ((gint64)(commit->ctime) <= truncate_time) {
         *stop = TRUE;
         return TRUE;
     }

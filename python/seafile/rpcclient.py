@@ -828,3 +828,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_change_repo_passwd(repo_id, old_passwd, new_passwd, user):
         pass
     change_repo_passwd = seafile_change_repo_passwd
+
+    # Clean trash
+    @searpc_func("int", ["string", "int"])
+    def clean_up_repo_history(repo_id, keep_days):
+        pass
