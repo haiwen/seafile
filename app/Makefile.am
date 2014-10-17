@@ -8,31 +8,8 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@MSVC_CFLAGS@ \
 	-Wall
 
-bin_PROGRAMS = seafile
-if COMPILE_SERVER
-bin_PROGRAMS += seafserv-tool
-endif
-
 if COMPILE_CLIENT
 bin_SCRIPTS = seaf-cli
-endif
-
-seafile_SOURCES = seafile.c
-seafile_LDADD =  @CCNET_LIBS@ \
-	$(top_builddir)/lib/libseafile.la \
-	$(top_builddir)/lib/libseafile_common.la \
-	@SEARPC_LIBS@ @JANSSON_LIBS@ \
-	@GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 @ZLIB_LIBS@
-
-seafile_LDFALGS = @STATIC_COMPILE@ @CONSOLE@
-
-if COMPILE_SERVER
-seafserv_tool_SOURCES = seafserv-tool.c
-seafserv_tool_LDADD =  @CCNET_LIBS@ \
-	$(top_builddir)/lib/libseafile.la @SEARPC_LIBS@ @JANSSON_LIBS@ \
-	@GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 @ZLIB_LIBS@
-
-seafserv_tool_LDFLAGS = @STATIC_COMPILE@ @CONSOLE@ @SERVER_PKG_RPATH@
 endif
 
 # monitor_tool_SOURCES = monitor-tool.c
