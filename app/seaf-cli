@@ -44,7 +44,7 @@ Stop seafile client.
     seaf-cli stop [-c <config-dir>]
 
 
-Download
+download
 --------
 Download a library from seafile server
 
@@ -80,6 +80,7 @@ import time
 import getpass
 import urllib
 import urllib2
+import re
 
 import ccnet
 import seafile
@@ -340,8 +341,8 @@ def seaf_list(args):
         print repo.name, repo.id, repo.worktree
 
 
-def seaf_download(args):
-    '''Download a library from seafile server '''
+def clone_from_server(clone_command, args, clone_dir):
+    '''Helper for user commands download and sync'''
 
     conf_dir = DEFAULT_CONF_DIR
     if args.confdir:
@@ -352,20 +353,23 @@ def seaf_download(args):
         print "Invalid config directory"
         sys.exit(1)
 
-    repo = args.library
+    # example of id: "cbb03d4a-85d0-4b68-9a5e-29b2c2b06465"
+    library_id_re = "[0-9A-Fa-f]{8}(-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}"
+    if re.match(library_id_re, args.library):
+        repo = args.library
+    else:
+        match = re.search("/repo/(%s)" % library_id_re, args.library)
+        if match:
+            args.server = args.library[:match.start()]
+            repo = match.group(1)
     if not repo:
         print "Library id is required"
         sys.exit(1)
 
     url = args.server
     if not url:
-        print "Seafile server url need to be presented"
+        print "Seafile server url is required"
         sys.exit(1)
-
-    download_dir = seafile_worktree
-    if args.dir:
-        download_dir = os.path.abspath(args.dir)
-
 
     pool = ccnet.ClientPool(conf_dir)
     seafile_rpc = seafile.RpcClient(pool, req_pool=False)
@@ -396,46 +400,37 @@ def seaf_download(args):
     version = tmp.get('repo_version', 0)
 
     print "Starting to download ..."
-    print "Library %s will be downloaded to %s" % (repo, download_dir)
+    print "Library %s will be downloaded to %s" % (repo, clone_dir)
     if encrypted == 1:
         repo_passwd = getpass.getpass("Enter password for the library: ")
     else:
         repo_passwd = None
 
-    seafile_rpc.download(repo,
-                         version,
-                         relay_id,
-                         repo_name.encode('utf-8'),
-                         download_dir.encode('utf-8'),
-                         clone_token,
-                         repo_passwd, magic,
-                         relay_addr,
-                         relay_port,
-                         email, random_key, enc_version)
+    clone_method = getattr(seafile_rpc, clone_command)
+    clone_method(repo,
+                 version,
+                 relay_id,
+                 repo_name.encode('utf-8'),
+                 clone_dir,
+                 clone_token,
+                 repo_passwd, magic,
+                 relay_addr,
+                 relay_port,
+                 email, random_key, enc_version)
 
+
+def seaf_download(args):
+    '''Download a library from seafile server '''
+
+    download_dir = seafile_worktree
+    if args.dir:
+        download_dir = os.path.abspath(args.dir).encode('utf-8')
+
+    clone_from_server('download', args, download_dir)
 
 
 def seaf_sync(args):
     ''' synchronize a library from seafile server '''
-
-    conf_dir = DEFAULT_CONF_DIR
-    if args.confdir:
-        conf_dir = args.confdir
-    conf_dir = os.path.abspath(conf_dir)
-
-    if not _config_valid(conf_dir):
-        print "Invalid config directory"
-        sys.exit(1)
-
-    repo = args.library
-    if not repo:
-        print "Library id is required"
-        sys.exit(1)
-
-    url = args.server
-    if not url:
-        print "Seafile server url is required"
-        sys.exit(1)
 
     folder = args.folder
     if not folder:
@@ -447,48 +442,7 @@ def seaf_sync(args):
         print "The local directory does not exists"
         sys.exit(1)
 
-    pool = ccnet.ClientPool(conf_dir)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
-
-    username = args.username
-    if not username:
-        username = raw_input("Enter username: ")
-    password = args.password
-    if not password:
-        password = getpass.getpass("Enter password for user %s : " % username)
-
-    token = get_token(url, username, password, conf_dir)
-    tmp = get_repo_downlod_info("%s/api2/repos/%s/download-info/" % (url, repo), token)
-
-    encrypted = tmp['encrypted']
-    magic = tmp.get('magic', None)
-    enc_version = tmp.get('enc_version', None)
-    random_key = tmp.get('random_key', None)
-
-    clone_token = tmp['token']
-    relay_id = tmp['relay_id']
-    relay_addr = tmp['relay_addr']
-    relay_port = tmp['relay_port']
-    email = tmp['email']
-    repo_name = tmp['repo_name']
-    version = tmp.get('repo_version', 0)
-
-    print "Starting to download ..."
-    if encrypted == 1:
-        repo_passwd = getpass.getpass("Enter password for the library: ")
-    else:
-        repo_passwd = None
-
-    seafile_rpc.clone(repo,
-                      version,
-                      relay_id,
-                      repo_name.encode('utf-8'),
-                      folder,
-                      clone_token,
-                      repo_passwd, magic,
-                      relay_addr,
-                      relay_port,
-                      email, random_key, enc_version)
+    clone_from_server('clone', args, folder)
 
 
 def seaf_desync(args):
@@ -674,7 +628,7 @@ def main():
                                          help='Download a library from seafile server')
     parser_download.set_defaults(func=seaf_download)
     parser_download.add_argument('-c', '--confdir', help='the config directory', type=str)
-    parser_download.add_argument('-l', '--library', help='library id', type=str)
+    parser_download.add_argument('-l', '--library', help='library id or url', type=str)
     parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
     parser_download.add_argument('-u', '--username', help='username', type=str)
@@ -686,7 +640,7 @@ def main():
                                         help='Sync a library with an existing foler')
     parser_sync.set_defaults(func=seaf_sync)
     parser_sync.add_argument('-c', '--confdir', help='the config directory', type=str)
-    parser_sync.add_argument('-l', '--library', help='library id', type=str)
+    parser_sync.add_argument('-l', '--library', help='library id or url', type=str)
     parser_sync.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_sync.add_argument('-u', '--username', help='username', type=str)
     parser_sync.add_argument('-p', '--password', help='password', type=str)
