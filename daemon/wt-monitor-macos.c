@@ -146,8 +146,7 @@ process_one_event (const char* eventPath,
         seaf_debug ("XattrMod %s.\n", filename);
         add_event_to_queue (status, WT_EVENT_ATTRIB, filename, NULL);
     }
-    //TODO: kFSEventStreamEventFlagRootChanged and
-    //kFSEventStreamCreateFlagWatchRoot
+
     g_free (filename);
     g_atomic_int_set (&info->status->last_changed, (gint)time(NULL));
 }
@@ -175,10 +174,8 @@ stream_callback (ConstFSEventStreamRef streamRef,
 
     int i;
     for (i = 0; i < numEvents; i++) {
-#ifdef FSEVENT_DEBUG
         seaf_debug("%ld Change %llu in %s, flags %x\n", (long)CFRunLoopGetCurrent(),
                    eventIds[i], paths[i], eventFlags[i]);
-#endif
         process_one_event (paths[i], info, info->worktree,
                            eventIds[i], eventFlags[i]);
     }
@@ -212,16 +209,14 @@ add_watch (SeafWTMonitor *monitor, const char* repo_id, const char* worktree)
     CFRelease (pathsToWatch);
 
     if (!stream) {
-        seaf_warning ("[wt] Failed to create event stream \n");
+        seaf_warning ("[wt] Failed to create event stream.\n");
         return stream;
     }
 
     FSEventStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
     FSEventStreamStart (stream);
-#ifdef FSEVENT_DEBUG
-    FSEventStreamShow (stream);
-    seaf_debug ("[wt mon] Add repo %s watch success :%s.\n", repo_id, repo->worktree);
-#endif
+    /* FSEventStreamShow (stream); */
+    seaf_debug ("[wt mon] Add repo %s watch success: %s.\n", repo_id, repo->worktree);
 
     pthread_mutex_lock (&priv->hash_lock);
     g_hash_table_insert (priv->handle_hash,
