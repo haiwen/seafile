@@ -14,6 +14,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@ZDB_CFLAGS@ \
 	@MSVC_CFLAGS@ \
 	@CURL_CFLAGS@ \
+	@LIBARCHIVE_CFLAGS@
 	-Wall
 
 bin_PROGRAMS = seaf-server
@@ -51,6 +52,10 @@ noinst_HEADERS = web-accesstoken-mgr.h chunkserv-mgr.h seafile-session.h \
 	block-tx-server.h \
 	copy-mgr.h \
 	http-server.h \
+	upload-file.h \
+	access-file.h \
+	pack-dir.h \
+	http-status-codes.h \
 	$(proc_headers)
 
 seaf_server_SOURCES = \
@@ -67,6 +72,9 @@ seaf_server_SOURCES = \
 	virtual-repo.c \
 	copy-mgr.c \
 	http-server.c \
+	upload-file.c \
+	access-file.c \
+	pack-dir.c \
 	monitor-rpc-wrappers.c ../common/seaf-db.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \
 	repo-mgr.c ../common/commit-mgr.c \
@@ -109,6 +117,7 @@ seaf_server_LDADD = @CCNET_LIBS@ \
 	$(top_builddir)/common/index/libindex.la \
 	@GLIB2_LIBS@ @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent -levhtp -levent_openssl \
 	$(top_builddir)/common/cdc/libcdc.la \
-	@SEARPC_LIBS@ @JANSSON_LIBS@ @ZDB_LIBS@ @CURL_LIBS@ ${LIB_WS32} @ZLIB_LIBS@
+	@SEARPC_LIBS@ @JANSSON_LIBS@ @ZDB_LIBS@ @CURL_LIBS@ ${LIB_WS32} @ZLIB_LIBS@ \
+	@LIBARCHIVE_LIBS@
 
 seaf_server_LDFLAGS = @STATIC_COMPILE@ @SERVER_PKG_RPATH@

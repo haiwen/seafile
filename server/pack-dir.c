@@ -12,7 +12,6 @@
 #include "utils.h"
 
 #include "seafile-session.h"
-#include "fileserver.h"
 
 #include <archive.h>
 #include <archive_entry.h>
@@ -103,10 +102,13 @@ add_file_to_archive (PackDirData *data,
     entry = archive_entry_new ();
 
     /* File name fixup for WinRAR */
-    if (is_windows && seaf->windows_encoding) {
-        char *win_file_name = do_iconv ("UTF-8", seaf->windows_encoding, pathname);
+    if (is_windows && seaf->http_server->windows_encoding) {
+        char *win_file_name = do_iconv ("UTF-8",
+                                        seaf->http_server->windows_encoding,
+                                        pathname);
         if (!win_file_name) {
-            seaf_warning ("Failed to convert file name to %s\n", seaf->windows_encoding);
+            seaf_warning ("Failed to convert file name to %s\n",
+                          seaf->http_server->windows_encoding);
             ret = -1;
             goto out;
         }

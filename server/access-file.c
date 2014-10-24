@@ -21,12 +21,10 @@
 
 #include "seafile-object.h"
 #include "seafile-crypt.h"
-#include "seafile.h"
 
 #include "utils.h"
 
 #include "seafile-session.h"
-#include "fileserver.h"
 #include "access-file.h"
 #include "pack-dir.h"
 
@@ -618,7 +616,7 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
     dir_size = seaf_fs_manager_get_fs_size (seaf->fs_mgr,
                                             repo->store_id, repo->version,
                                             dir_id);
-    if (dir_size < 0 || dir_size > seaf->max_download_dir_size) {
+    if (dir_size < 0 || dir_size > seaf->http_server->max_download_dir_size) {
         seaf_warning ("invalid dir size: %"G_GINT64_FORMAT"\n", dir_size);
         ret = -1;
         goto out;
@@ -745,7 +743,6 @@ access_cb(evhtp_request_t *req, void *arg)
     const char *operation = NULL;
     const char *user = NULL;
 
-    SearpcClient *rpc_client = NULL;
     GError *err = NULL;
     char *repo_role = NULL;
     SeafileCryptKey *key = NULL;
@@ -762,13 +759,7 @@ access_cb(evhtp_request_t *req, void *arg)
     token = parts[1];
     filename = parts[2];
 
-    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                 NULL,
-                                                 "seafserv-rpcserver");
-
-    webaccess = (SeafileWebAccess *) searpc_client_call__object (
-        rpc_client, "seafile_web_query_access_token", SEAFILE_TYPE_WEB_ACCESS,
-        NULL, 1, "string", token);
+    webaccess = seaf_web_at_manager_query_access_token (seaf->web_at_mgr, token);
     if (!webaccess) {
         error = "Bad access token";
         goto bad_req;
@@ -814,8 +805,8 @@ access_cb(evhtp_request_t *req, void *arg)
 
     if (repo->encrypted) {
         err = NULL;
-        key = (SeafileCryptKey *) seafile_get_decrypt_key (rpc_client,
-                                                           repo_id, user, &err);
+        key = seaf_passwd_manager_get_decrypt_key (seaf->passwd_mgr,
+                                                   repo_id, user);
         if (!key) {
             error = "Repo is encrypted. Please provide password to view it.";
             goto bad_req;
@@ -840,8 +831,6 @@ access_cb(evhtp_request_t *req, void *arg)
     }
 
 success:
-    ccnet_rpc_client_free (rpc_client);
-
     g_strfreev (parts);
     if (repo != NULL)
         seaf_repo_unref (repo);
@@ -862,10 +851,6 @@ bad_req:
     if (webaccess != NULL)
         g_object_unref (webaccess);
 
-    if (rpc_client)
-        ccnet_rpc_client_free (rpc_client);
-
-    seaf_warning ("fetch failed: %s\n", error);
     evbuffer_add_printf(req->buffer_out, "%s\n", error);
     evhtp_send_reply(req, EVHTP_RES_BADREQ);
 }
@@ -975,7 +960,6 @@ access_blks_cb(evhtp_request_t *req, void *arg)
     const char *id = NULL;
     const char *operation = NULL;
 
-    SearpcClient *rpc_client = NULL;
     char *repo_role = NULL;
     SeafileWebAccess *webaccess = NULL;
 
@@ -990,13 +974,7 @@ access_blks_cb(evhtp_request_t *req, void *arg)
     token = parts[1];
     blkid = parts[2];
 
-    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                 NULL,
-                                                 "seafserv-rpcserver");
-
-    webaccess = (SeafileWebAccess *) searpc_client_call__object (
-        rpc_client, "seafile_web_query_access_token", SEAFILE_TYPE_WEB_ACCESS,
-        NULL, 1, "string", token);
+    webaccess = seaf_web_at_manager_query_access_token (seaf->web_at_mgr, token);
     if (!webaccess) {
         error = "Bad access token";
         goto bad_req;
@@ -1053,8 +1031,6 @@ access_blks_cb(evhtp_request_t *req, void *arg)
     }
 
 success:
-    ccnet_rpc_client_free (rpc_client);
-
     g_strfreev (parts);
     if (repo != NULL)
         seaf_repo_unref (repo);
@@ -1071,10 +1047,6 @@ bad_req:
     if (webaccess != NULL)
         g_object_unref (webaccess);
 
-    if (rpc_client)
-        ccnet_rpc_client_free (rpc_client);
-
-    seaf_warning ("fetch failed: %s\n", error);
     evbuffer_add_printf(req->buffer_out, "%s\n", error);
     evhtp_send_reply(req, EVHTP_RES_BADREQ);
 }
