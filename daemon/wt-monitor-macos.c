@@ -216,7 +216,7 @@ add_watch (SeafWTMonitor *monitor, const char* repo_id, const char* worktree)
     FSEventStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
     FSEventStreamStart (stream);
     /* FSEventStreamShow (stream); */
-    seaf_debug ("[wt mon] Add repo %s watch success: %s.\n", repo_id, repo->worktree);
+    seaf_debug ("[wt mon] Add repo %s watch success: %s.\n", repo_id, worktree);
 
     pthread_mutex_lock (&priv->hash_lock);
     g_hash_table_insert (priv->handle_hash,
