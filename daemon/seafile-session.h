@@ -17,7 +17,6 @@
 #include "db.h"
 
 #include "transfer-mgr.h"
-#include "share-mgr.h"
 #include "sync-mgr.h"
 #include "wt-monitor.h"
 #include "mq-mgr.h"
