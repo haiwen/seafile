@@ -30,7 +30,8 @@ static const struct option long_opts[] = {
 static void usage ()
 {
     fprintf (stderr,
-             "usage: seafserv-gc [-c config_dir] [-d seafile_dir]\n"
+             "usage: seafserv-gc [-c config_dir] [-d seafile_dir] "
+             "[repo_id_1 [repo_id_2 ...]]\n"
              "Additional options:\n"
              "-V, --verify: check for missing blocks\n");
 }
@@ -143,12 +144,18 @@ main(int argc, char *argv[])
 
     load_history_config ();
 
+    GList *repo_id_list = NULL;
+    int i;
+    for (i = optind; i < argc; i++)
+        repo_id_list = g_list_append (repo_id_list, g_strdup(argv[i]));
+
+
     if (verify) {
-        verify_repos ();
+        verify_repos (repo_id_list);
         return 0;
     }
 
-    gc_core_run (dry_run);
+    gc_core_run (repo_id_list, dry_run);
 
     return 0;
 }
