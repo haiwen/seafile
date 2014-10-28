@@ -2343,7 +2343,7 @@ seaf_repo_manager_validate_repo_worktree (SeafRepoManager *mgr,
 
     repo->worktree_invalid = FALSE;
 
-    if (repo->auto_sync) {
+    if (repo->auto_sync && !repo->is_readonly) {
         if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
             g_warning ("failed to watch repo %s.\n", repo->id);
         }
@@ -3300,11 +3300,14 @@ seaf_repo_manager_set_repo_property (SeafRepoManager *manager,
 
         if (g_strcmp0(value, "true") == 0) {
             repo->auto_sync = 1;
-            seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree);
+            if (!repo->is_readonly)
+                seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id,
+                                            repo->worktree);
             repo->last_sync_time = 0;
         } else {
             repo->auto_sync = 0;
-            seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
+            if (!repo->is_readonly)
+                seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
             /* Cancel current sync task if any. */
             seaf_sync_manager_cancel_sync_task (seaf->sync_mgr, repo->id);
         }

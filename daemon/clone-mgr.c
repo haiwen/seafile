@@ -1076,7 +1076,7 @@ add_task_common (SeafCloneManager *mgr,
     if (more_info) {
         json_error_t jerror;
         json_t *object = NULL;
-    
+
         object = json_loads (more_info, 0, &jerror);
         if (!object) {
             if (jerror.text)
