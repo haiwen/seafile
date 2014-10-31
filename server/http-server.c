@@ -27,7 +27,7 @@
 #define PORT "port"
 
 #define INIT_INFO "If you see this page, Seafile HTTP syncing component works."
-#define PROTO_VERSION "{version: 1}"
+#define PROTO_VERSION "{\"version\": 1}"
 
 #define CLEANING_INTERVAL_MSEC 300	/* 5 minutes */
 #define TOKEN_EXPIRE_TIME 7200	    /* 2 hours */
@@ -54,7 +54,7 @@ typedef enum CheckExistType {
     CHECK_BLOCK_EXIST
 } CheckExistType;
 
-const char *GET_PROTO_PATH = "/protocol_version/";
+const char *GET_PROTO_PATH = "/protocol-version";
 const char *OP_PERM_CHECK_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{12}/permission-check/.*";
 const char *GET_CHECK_QUOTA_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{12}/quota-check/.*";
 const char *HEAD_COMMIT_OPER_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{12}/commit/HEAD";
@@ -309,14 +309,15 @@ get_check_quota_cb (evhtp_request_t *req, void *arg)
 {
     const char *delta = evhtp_kv_find (req->uri->query, "delta");
     long int delta_num;
-    if (delta == NULL ||
-        (delta_num = strtol(delta, NULL, 10)) == 0) {
+    if (delta == NULL) {
         char *error = "Invalid delta parameter.\n";
         seaf_warning ("%s", error);
         evbuffer_add (req->buffer_out, error, strlen (error));
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
     }
+
+    delta_num = strtol(delta, NULL, 10);
 
     HttpServer *htp_server = arg;
     char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
@@ -385,7 +386,7 @@ get_head_commit_cb (evhtp_request_t *req, void *arg)
     }
 
     evbuffer_add_printf (req->buffer_out,
-                         "{\"is_corrupted\": 0, \"head_commit_id\": %s}",
+                         "{\"is_corrupted\": 0, \"head_commit_id\": \"%s\"}",
                          commit_id);
     evhtp_send_reply (req, EVHTP_RES_OK);
 
@@ -1172,7 +1173,14 @@ post_recv_fs_cb (evhtp_request_t *req, void *arg)
     void *obj_con = NULL;
     int con_len;
 
-    while (fs_con_len) {
+    while (fs_con_len > 0) {
+        if (fs_con_len < sizeof(FsHdr)) {
+            seaf_warning ("Bad fs object content format from %.8s:%s.\n",
+                          repo_id, username);
+            evhtp_send_reply (req, EVHTP_RES_BADREQ);
+            break;
+        }
+
         evbuffer_remove (req->buffer_in, hdr, sizeof(FsHdr));
         con_len = ntohl (hdr->obj_size);
         memcpy (obj_id, hdr->obj_id, 40);
@@ -1197,13 +1205,6 @@ post_recv_fs_cb (evhtp_request_t *req, void *arg)
 
         fs_con_len -= (con_len + sizeof(FsHdr));
         g_free (obj_con);
-
-        if (fs_con_len < 0 || fs_con_len < sizeof(FsHdr)) {
-            seaf_warning ("Bad fs object content format from %.8s:%s.\n",
-                          repo_id, username);
-            evhtp_send_reply (req, EVHTP_RES_BADREQ);
-            break;
-        }
     }
 
     if (fs_con_len == 0) {

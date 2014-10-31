@@ -42,7 +42,6 @@ typedef struct _ServerState ServerState;
 struct _HttpServerState {
     gboolean http_not_supported;
     int http_version;
-    gint64 last_check_time;
     gboolean checking;
 };
 typedef struct _HttpServerState HttpServerState;
@@ -62,12 +61,20 @@ start_sync (SeafSyncManager *manager, SeafRepo *repo,
             gboolean is_initial_commit);
 
 static int auto_sync_pulse (void *vmanager);
+
 static void on_repo_fetched (SeafileSession *seaf,
                              TransferTask *tx_task,
                              SeafSyncManager *manager);
 static void on_repo_uploaded (SeafileSession *seaf,
                               TransferTask *tx_task,
                               SeafSyncManager *manager);
+static void on_repo_http_fetched (SeafileSession *seaf,
+                                  HttpTxTask *tx_task,
+                                  SeafSyncManager *manager);
+static void on_repo_http_uploaded (SeafileSession *seaf,
+                                   HttpTxTask *tx_task,
+                                   SeafSyncManager *manager);
+
 static inline void
 transition_sync_state (SyncTask *task, int new_state);
 
@@ -352,6 +359,10 @@ seaf_sync_manager_start (SeafSyncManager *mgr)
                       (GCallback)on_repo_fetched, mgr);
     g_signal_connect (seaf, "repo-uploaded",
                       (GCallback)on_repo_uploaded, mgr);
+    g_signal_connect (seaf, "repo-http-fetched",
+                      (GCallback)on_repo_http_fetched, mgr);
+    g_signal_connect (seaf, "repo-http-uploaded",
+                      (GCallback)on_repo_http_uploaded, mgr);
 
     return 0;
 }
@@ -1388,12 +1399,15 @@ check_head_commit_http (SyncTask *task)
 {
     SeafRepo *repo = task->repo;
 
-    return http_tx_manager_check_head_commit (seaf->http_tx_mgr,
-                                              repo->id, repo->version,
-                                              repo->server_url,
-                                              repo->token,
-                                              check_head_commit_done,
-                                              task);
+    int ret = http_tx_manager_check_head_commit (seaf->http_tx_mgr,
+                                                 repo->id, repo->version,
+                                                 repo->server_url,
+                                                 repo->token,
+                                                 check_head_commit_done,
+                                                 task);
+    if (ret == 0)
+        transition_sync_state (task, SYNC_STATE_INIT);
+    return ret;
 }
 
 struct CommitResult {
@@ -1632,12 +1646,14 @@ create_sync_task_v2 (SeafSyncManager *manager, SeafRepo *repo,
     task->info->in_sync = TRUE;
     task->repo = repo;
 
-    HttpServerState *state = g_hash_table_lookup (manager->http_server_states,
-                                                  repo->server_url);
-    if (state) {
-        if (!state->http_not_supported) {
-            task->http_sync = TRUE;
-            task->http_version = state->http_version;
+    if (repo->server_url) {
+        HttpServerState *state = g_hash_table_lookup (manager->http_server_states,
+                                                      repo->server_url);
+        if (state) {
+            if (!state->http_not_supported) {
+                task->http_sync = TRUE;
+                task->http_version = state->http_version;
+            }
         }
     }
 
@@ -1862,15 +1878,24 @@ check_http_protocol_done (HttpProtocolVersion *result, void *user_data)
         state->http_not_supported = result->not_supported;
         if (!result->not_supported)
             state->http_version = result->version;
-    }
+    } else
+        state->http_not_supported = TRUE;
 }
 
 #define CHECK_HTTP_INTERVAL 10
 
+/*
+ * Returns TRUE if we can use http-sync; otherwise FALSE.
+ * If FALSE is returned, the caller should also check @is_checking value.
+ * If @is_checking is set to TRUE, we're still determining whether the
+ * server supports http-sync.
+ */
 static gboolean
-check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo)
+check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo, gboolean *is_checking)
 {
-    /* If a repo was cloned before http sync is enabled, server-url is not set. */
+    *is_checking = FALSE;
+
+    /* If a repo was cloned before 4.0, server-url is not set. */
     if (!repo->server_url)
         return FALSE;
 
@@ -1882,22 +1907,22 @@ check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo)
                              g_strdup(repo->server_url), state);
     }
 
+    if (state->checking) {
+        *is_checking = TRUE;
+        return FALSE;
+    }
+
     if (state->http_not_supported)
         return FALSE;
     if (state->http_version > 0)
         return TRUE;
 
-    gint64 now = (gint64)time(NULL);
-
-    if (!state->checking &&
-        (now - state->last_check_time > CHECK_HTTP_INTERVAL)) {
-        http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
-                                                repo->server_url,
-                                                check_http_protocol_done,
-                                                state);
-        state->checking = TRUE;
-        state->last_check_time = now;
-    }
+    http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
+                                            repo->server_url,
+                                            check_http_protocol_done,
+                                            state);
+    state->checking = TRUE;
+    *is_checking = TRUE;
 
     return FALSE;
 }
@@ -2029,9 +2054,14 @@ auto_sync_pulse (void *vmanager)
             continue;
 
         /* Try to use http sync first if enabled. */
-        if (check_http_protocol (manager, repo)) {
-            sync_repo_v2 (manager, repo, FALSE);
-            continue;
+        gboolean is_checking_http = FALSE;
+        if (repo->version > 0) {
+            if (check_http_protocol (manager, repo, &is_checking_http)) {
+                sync_repo_v2 (manager, repo, FALSE);
+                continue;
+            } else if (is_checking_http)
+                continue;
+            /* Otherwise we've determined the server doesn't support http-sync. */
         }
 
         /* If relay is not ready or protocol version is not determined,
@@ -2159,6 +2189,87 @@ on_repo_uploaded (SeafileSession *seaf,
     }
 }
 
+static void
+on_repo_http_fetched (SeafileSession *seaf,
+                      HttpTxTask *tx_task,
+                      SeafSyncManager *manager)
+{
+    SyncInfo *info = get_sync_info (manager, tx_task->repo_id);
+    SyncTask *task = info->current_task;
+
+    /* Clone tasks are handled by clone manager. */
+    if (tx_task->is_clone)
+        return;
+
+    if (task->repo->delete_pending) {
+        transition_sync_state (task, SYNC_STATE_CANCELED);
+        seaf_repo_manager_del_repo (seaf->repo_mgr, task->repo);
+        return;
+    }
+
+    if (tx_task->state == HTTP_TASK_STATE_FINISHED) {
+        memcpy (info->head_commit, tx_task->head, 41);
+        transition_sync_state (task, SYNC_STATE_DONE);
+    } else if (tx_task->state == HTTP_TASK_STATE_CANCELED) {
+        transition_sync_state (task, SYNC_STATE_CANCELED);
+    } else if (tx_task->state == HTTP_TASK_STATE_ERROR) {
+        if (tx_task->error == HTTP_TASK_ERR_FORBIDDEN) {
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_ACCESS_DENIED);
+            if (!task->repo->access_denied_notified) {
+                send_sync_error_notification (task->repo, "sync.access_denied");
+                task->repo->access_denied_notified = 1;
+            }
+        } else
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_FETCH);
+    }
+}
+
+static void
+on_repo_http_uploaded (SeafileSession *seaf,
+                       HttpTxTask *tx_task,
+                       SeafSyncManager *manager)
+{
+    SyncInfo *info = get_sync_info (manager, tx_task->repo_id);
+    SyncTask *task = info->current_task;
+
+    g_return_if_fail (task != NULL && info->in_sync);
+
+    if (task->repo->delete_pending) {
+        transition_sync_state (task, SYNC_STATE_CANCELED);
+        seaf_repo_manager_del_repo (seaf->repo_mgr, task->repo);
+        return;
+    }
+
+    if (tx_task->state == HTTP_TASK_STATE_FINISHED) {
+        memcpy (info->head_commit, tx_task->head, 41);
+
+        /* Save current head commit id for GC. */
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             task->repo->id,
+                                             REPO_LOCAL_HEAD,
+                                             task->repo->head->commit_id);
+        task->uploaded = TRUE;
+        check_head_commit_http (task);
+    } else if (tx_task->state == HTTP_TASK_STATE_CANCELED) {
+        transition_sync_state (task, SYNC_STATE_CANCELED);
+    } else if (tx_task->state == HTTP_TASK_STATE_ERROR) {
+        if (tx_task->error == HTTP_TASK_ERR_FORBIDDEN) {
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_ACCESS_DENIED);
+            if (!task->repo->access_denied_notified) {
+                send_sync_error_notification (task->repo, "sync.access_denied");
+                task->repo->access_denied_notified = 1;
+            }
+        } else if (tx_task->error == HTTP_TASK_ERR_NO_QUOTA) {
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_QUOTA_FULL);
+            /* Only notify "quota full" once. */
+            if (!task->repo->quota_full_notified) {
+                send_sync_error_notification (task->repo, "sync.quota_full");
+                task->repo->quota_full_notified = 1;
+            }
+        } else
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_UPLOAD);
+    }
+}
 
 const char *
 sync_error_to_str (int error)

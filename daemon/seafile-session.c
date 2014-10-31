@@ -35,6 +35,8 @@ enum {
 	REPO_COMMITTED,
     REPO_FETCHED,
     REPO_UPLOADED,
+    REPO_HTTP_FETCHED,
+    REPO_HTTP_UPLOADED,
     REPO_WORKTREE_CHECKED,
 	LAST_SIGNAL
 };
@@ -71,7 +73,21 @@ seafile_session_class_init (SeafileSessionClass *klass)
                       NULL, NULL, /* no accumulator */
                       g_cclosure_marshal_VOID__POINTER,
                       G_TYPE_NONE, 1, G_TYPE_POINTER);
+    signals[REPO_HTTP_FETCHED] =
+        g_signal_new ("repo-http-fetched", SEAFILE_TYPE_SESSION,
+                      G_SIGNAL_RUN_LAST,
+                      0,        /* no class singal handler */
+                      NULL, NULL, /* no accumulator */
+                      g_cclosure_marshal_VOID__POINTER,
+                      G_TYPE_NONE, 1, G_TYPE_POINTER);
 
+    signals[REPO_HTTP_UPLOADED] =
+        g_signal_new ("repo-http-uploaded", SEAFILE_TYPE_SESSION,
+                      G_SIGNAL_RUN_LAST,
+                      0,        /* no class singal handler */
+                      NULL, NULL, /* no accumulator */
+                      g_cclosure_marshal_VOID__POINTER,
+                      G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
 
 

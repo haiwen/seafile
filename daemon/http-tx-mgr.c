@@ -145,6 +145,7 @@ connection_pool_new (const char *host)
 {
     ConnectionPool *pool = g_new0 (ConnectionPool, 1);
     pool->host = g_strdup(host);
+    pool->queue = g_queue_new ();
     pthread_mutex_init (&pool->lock, NULL);
     return pool;
 }
@@ -397,6 +398,8 @@ http_put (CURL *curl, const char *url, const char *token,
         curl_easy_setopt(curl, CURLOPT_READFUNCTION, callback);
         curl_easy_setopt(curl, CURLOPT_READDATA, cb_data);
         curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)req_size);
+    } else {
+        curl_easy_setopt (curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)0);
     }
 
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
@@ -525,9 +528,9 @@ static void
 emit_transfer_done_signal (HttpTxTask *task)
 {
     if (task->type == HTTP_TASK_TYPE_DOWNLOAD)
-        g_signal_emit_by_name (seaf, "repo-fetched", task);
+        g_signal_emit_by_name (seaf, "repo-http-fetched", task);
     else
-        g_signal_emit_by_name (seaf, "repo-uploaded", task);
+        g_signal_emit_by_name (seaf, "repo-http-uploaded", task);
 }
 
 static void
@@ -540,6 +543,10 @@ transition_state (HttpTxTask *task, int state, int rt_state)
                   http_task_state_to_str(state),
                   http_task_rt_state_to_str(rt_state));
 
+    if (state != task->state)
+        task->state = state;
+    task->runtime_state = rt_state;
+
     if (rt_state == HTTP_TASK_RT_STATE_FINISHED) {
         /* Clear download head info. */
         if (task->type == HTTP_TASK_TYPE_DOWNLOAD &&
@@ -551,10 +558,6 @@ transition_state (HttpTxTask *task, int state, int rt_state)
 
         emit_transfer_done_signal (task);
     }
-
-    if (state != task->state)
-        task->state = state;
-    task->runtime_state = rt_state;
 }
 
 typedef struct {
@@ -620,7 +623,7 @@ check_protocol_version_thread (void *vdata)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/protocol-version", data->host);
+    url = g_strdup_printf ("%sseafhttp/protocol-version", data->host);
 
     if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL) < 0) {
         goto out;
@@ -757,7 +760,7 @@ check_head_commit_thread (void *vdata)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/commit/HEAD",
+    url = g_strdup_printf ("%sseafhttp/repo/%s/commit/HEAD",
                            data->host, data->repo_id);
 
     if (http_get (curl, url, data->token, &status, &rsp_content, &rsp_size,
@@ -860,7 +863,7 @@ check_permission (HttpTxTask *task, Connection *conn)
     curl = conn->curl;
 
     const char *type = (task->type == HTTP_TASK_TYPE_DOWNLOAD) ? "download" : "upload";
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/permission-check/?op=%s",
+    url = g_strdup_printf ("%sseafhttp/repo/%s/permission-check/?op=%s",
                            task->host, task->repo_id, type);
 
     if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL) < 0) {
@@ -966,23 +969,23 @@ check_quota_diff_dirs (int n, const char *basedir, SeafDirent *dirs[], void *dat
     return 0;
 }
 
-static gint64
-calculate_upload_size_delta (HttpTxTask *task)
+static int
+calculate_upload_size_delta (HttpTxTask *task, gint64 *delta)
 {
-    gint64 delta = 0;
+    int ret = 0;
     SeafBranch *local = NULL, *master = NULL;
     SeafCommit *local_head = NULL, *master_head = NULL;
 
     local = seaf_branch_manager_get_branch (seaf->branch_mgr, task->repo_id, "local");
     if (!local) {
         seaf_warning ("Branch local not found for repo %.8s.\n", task->repo_id);
-        delta = -1;
+        ret = -1;
         goto out;
     }
     master = seaf_branch_manager_get_branch (seaf->branch_mgr, task->repo_id, "master");
     if (!master) {
         seaf_warning ("Branch master not found for repo %.8s.\n", task->repo_id);
-        delta = -1;
+        ret = -1;
         goto out;
     }
 
@@ -992,7 +995,7 @@ calculate_upload_size_delta (HttpTxTask *task)
     if (!local_head) {
         seaf_warning ("Local head commit not found for repo %.8s.\n",
                       task->repo_id);
-        delta = -1;
+        ret = -1;
         goto out;
     }
     master_head = seaf_commit_manager_get_commit (seaf->commit_mgr,
@@ -1001,7 +1004,7 @@ calculate_upload_size_delta (HttpTxTask *task)
     if (!master_head) {
         seaf_warning ("Master head commit not found for repo %.8s.\n",
                       task->repo_id);
-        delta = -1;
+        ret = -1;
         goto out;
     }
 
@@ -1023,11 +1026,11 @@ calculate_upload_size_delta (HttpTxTask *task)
     if (diff_trees (2, trees, &opts) < 0) {
         seaf_warning ("Failed to diff local and master head for repo %.8s.\n",
                       task->repo_id);
-        delta = -1;
+        ret = -1;
         goto out;
     }
 
-    delta = data.delta;
+    *delta = data.delta;
 
 out:
     seaf_branch_unref (local);
@@ -1035,7 +1038,7 @@ out:
     seaf_commit_unref (local_head);
     seaf_commit_unref (master_head);
 
-    return delta;
+    return ret;
 }
 
 static int
@@ -1047,8 +1050,7 @@ check_quota (HttpTxTask *task, Connection *conn)
     gint64 delta = 0;
     int ret = 0;
 
-    delta = calculate_upload_size_delta (task);
-    if (delta < 0) {
+    if (calculate_upload_size_delta (task, &delta) < 0) {
         seaf_warning ("Failed to calculate upload size delta for repo %s.\n",
                       task->repo_id);
         task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
@@ -1057,7 +1059,7 @@ check_quota (HttpTxTask *task, Connection *conn)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/quota-check/?delta=%"G_GINT64_FORMAT"",
+    url = g_strdup_printf ("%sseafhttp/repo/%s/quota-check/?delta=%"G_GINT64_FORMAT"",
                            task->host, task->repo_id, delta);
 
     if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL) < 0) {
@@ -1099,7 +1101,7 @@ send_commit_object (HttpTxTask *task, Connection *conn)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/commit/%s",
+    url = g_strdup_printf ("%sseafhttp/repo/%s/commit/%s",
                            task->host, task->repo_id, task->head);
 
     if (http_put (curl, url, task->token,
@@ -1291,6 +1293,9 @@ upload_check_id_list_segment (HttpTxTask *task, Connection *conn, const char *ur
             break;
     }
 
+    seaf_debug ("Check %d ids for %s:%s.\n",
+                n_sent, task->host, task->repo_id);
+
     data = json_dumps (array, 0);
     len = strlen(data);
     json_decref (array);
@@ -1327,6 +1332,10 @@ upload_check_id_list_segment (HttpTxTask *task, Connection *conn, const char *ur
     int i;
     size_t n = json_array_size (array);
     json_t *str;
+
+    seaf_debug ("%lu objects or blocks are needed for %s:%s.\n",
+                n, task->host, task->repo_id);
+
     for (i = 0; i < n; ++i) {
         str = json_array_get (array, i);
         if (!str) {
@@ -1371,6 +1380,7 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
     char *url;
     int status;
     int ret = 0;
+    int n_sent = 0;
 
     buf = evbuffer_new ();
 
@@ -1387,6 +1397,8 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
             goto out;
         }
 
+        ++n_sent;
+
         memcpy (hdr.obj_id, obj_id, 40);
         hdr.obj_size = htonl (len);
 
@@ -1402,11 +1414,14 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
             break;
     }
 
+    seaf_debug ("Sending %d fs objects for %s:%s.\n",
+                n_sent, task->host, task->repo_id);
+
     package = evbuffer_pullup (buf, -1);
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/recv-fs/",
+    url = g_strdup_printf ("%sseafhttp/repo/%s/recv-fs/",
                            task->host, task->repo_id);
 
     if (http_post (curl, url, task->token,
@@ -1516,21 +1531,23 @@ block_list_diff_dirs (int n, const char *basedir, SeafDirent *dirs[], void *data
     return 0;
 }
 
-static GList *
-calculate_block_list (HttpTxTask *task)
+static int
+calculate_block_list (HttpTxTask *task, GList **plist)
 {
-    GList *ret = NULL;
+    int ret = 0;
     SeafBranch *local = NULL, *master = NULL;
     SeafCommit *local_head = NULL, *master_head = NULL;
 
     local = seaf_branch_manager_get_branch (seaf->branch_mgr, task->repo_id, "local");
     if (!local) {
         seaf_warning ("Branch local not found for repo %.8s.\n", task->repo_id);
+        ret = -1;
         goto out;
     }
     master = seaf_branch_manager_get_branch (seaf->branch_mgr, task->repo_id, "master");
     if (!master) {
         seaf_warning ("Branch master not found for repo %.8s.\n", task->repo_id);
+        ret = -1;
         goto out;
     }
 
@@ -1540,6 +1557,7 @@ calculate_block_list (HttpTxTask *task)
     if (!local_head) {
         seaf_warning ("Local head commit not found for repo %.8s.\n",
                       task->repo_id);
+        ret = -1;
         goto out;
     }
     master_head = seaf_commit_manager_get_commit (seaf->commit_mgr,
@@ -1548,6 +1566,7 @@ calculate_block_list (HttpTxTask *task)
     if (!master_head) {
         seaf_warning ("Master head commit not found for repo %.8s.\n",
                       task->repo_id);
+        ret = -1;
         goto out;
     }
 
@@ -1576,11 +1595,12 @@ calculate_block_list (HttpTxTask *task)
         for (ptr = data.block_list; ptr; ptr = ptr->next)
             g_free (ptr->data);
 
+        ret = -1;
         goto out;
     }
 
     g_hash_table_destroy (data.added_blocks);
-    ret = data.block_list;
+    *plist = data.block_list;
 
 out:
     seaf_branch_unref (local);
@@ -1675,7 +1695,7 @@ send_block (HttpTxTask *task, Connection *conn, const char *block_id)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/block/%s",
+    url = g_strdup_printf ("%sseafhttp/repo/%s/block/%s",
                            task->host, task->repo_id, block_id);
 
     if (http_put (curl, url, task->token,
@@ -1717,7 +1737,7 @@ update_branch (HttpTxTask *task, Connection *conn)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/commit/HEAD/?head=%s",
+    url = g_strdup_printf ("%sseafhttp/repo/%s/commit/HEAD/?head=%s",
                            task->host, task->repo_id, task->head);
 
     if (http_put (curl, url, task->token,
@@ -1740,6 +1760,24 @@ out:
     curl_easy_reset (curl);
 
     return ret;
+}
+
+static void
+update_master_branch (HttpTxTask *task)
+{
+    SeafBranch *branch;
+    branch = seaf_branch_manager_get_branch (seaf->branch_mgr,
+                                             task->repo_id,
+                                             "master");
+    if (!branch) {
+        branch = seaf_branch_new ("master", task->repo_id, task->head);
+        seaf_branch_manager_add_branch (seaf->branch_mgr, branch);
+        seaf_branch_unref (branch);
+    } else {
+        seaf_branch_set_commit (branch, task->head);
+        seaf_branch_manager_update_branch (seaf->branch_mgr, branch);
+        seaf_branch_unref (branch);
+    }
 }
 
 static void *
@@ -1815,7 +1853,7 @@ http_upload_thread (void *vdata)
         goto out;
     }
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/check-fs/",
+    url = g_strdup_printf ("%sseafhttp/repo/%s/check-fs/",
                            task->host, task->repo_id);
 
     while (send_fs_list != NULL) {
@@ -1843,15 +1881,14 @@ http_upload_thread (void *vdata)
 
     transition_state (task, task->state, HTTP_TASK_RT_STATE_BLOCK);
 
-    block_list = calculate_block_list (task);
-    if (!block_list) {
+    if (calculate_block_list (task, &block_list) < 0) {
         seaf_warning ("Failed to calculate block list for repo %.8s.\n",
                       task->repo_id);
         task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
         goto out;
     }
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/check-blocks/",
+    url = g_strdup_printf ("%sseafhttp/repo/%s/check-blocks/",
                            task->host, task->repo_id);
 
     while (block_list != NULL) {
@@ -1869,6 +1906,9 @@ http_upload_thread (void *vdata)
     url = NULL;
 
     task->n_blocks = g_list_length (needed_block_list);
+
+    seaf_debug ("%d blocks to send for %s:%s.\n",
+                task->n_blocks, task->host, task->repo_id);
 
     char *block_id;
     for (ptr = needed_block_list; ptr; ptr = ptr->next) {
@@ -1890,7 +1930,13 @@ http_upload_thread (void *vdata)
 
     if (update_branch (task, conn) < 0) {
         seaf_warning ("Failed to update branch of repo %.8s.\n", task->repo_id);
+        goto out;
     }
+
+    /* After successful upload, the cached 'master' branch should be updated to
+     * the head commit of 'local' branch.
+     */
+    update_master_branch (task);
 
 out:
     string_list_free (send_fs_list);
@@ -1944,10 +1990,12 @@ http_tx_manager_add_download (HttpTxManager *manager,
         return -1;
     }
 
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Repo not found");
-        return -1;
+    if (!is_clone) {
+        repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+        if (!repo) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Repo not found");
+            return -1;
+        }
     }
 
     clean_tasks_for_repo (manager, repo_id);
@@ -1985,7 +2033,7 @@ get_commit_object (HttpTxTask *task, Connection *conn)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/commit/%s",
+    url = g_strdup_printf ("%sseafhttp/repo/%s/commit/%s",
                            task->host, task->repo_id, task->head);
 
     if (http_get (curl, url, task->token, &status,
@@ -2048,14 +2096,14 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
             return -1;
         }
 
-        url = g_strdup_printf ("%s/seafhttp/repo/%s/fs-id-list/"
+        url = g_strdup_printf ("%sseafhttp/repo/%s/fs-id-list/"
                                "?server-head=%s&client-head=%s",
                                task->host, task->repo_id,
                                task->head, master->commit_id);
 
         seaf_branch_unref (master);
     } else {
-        url = g_strdup_printf ("%s/seafhttp/repo/%s/fs-id-list/?server-head=%s",
+        url = g_strdup_printf ("%sseafhttp/repo/%s/fs-id-list/?server-head=%s",
                                task->host, task->repo_id, task->head);
     }
 
@@ -2087,6 +2135,10 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
     int i;
     size_t n = json_array_size (array);
     json_t *str;
+
+    seaf_debug ("Received fs object list size %lu from %s:%s.\n",
+                n, task->host, task->repo_id);
+
     for (i = 0; i < n; ++i) {
         str = json_array_get (array, i);
         if (!str) {
@@ -2161,6 +2213,9 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
             break;
     }
 
+    seaf_debug ("Requesting %d fs objects from %s:%s.\n",
+                n_sent, task->host, task->repo_id);
+
     data = json_dumps (array, 0);
     len = strlen(data);
     json_decref (array);
@@ -2169,7 +2224,7 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/pack-fs/", task->host, task->repo_id);
+    url = g_strdup_printf ("%sseafhttp/repo/%s/pack-fs/", task->host, task->repo_id);
 
     if (http_post (curl, url, task->token,
                    data, len,
@@ -2188,6 +2243,7 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
 
     /* Save received fs objects. */
 
+    int n_recv = 0;
     char *p = rsp_content;
     ObjectHeader *hdr = (ObjectHeader *)p;
     int n = 0;
@@ -2202,6 +2258,8 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
             ret = -1;
             goto out;
         }
+
+        ++n_recv;
 
         rc = seaf_obj_store_write_obj (seaf->fs_mgr->obj_store,
                                        task->repo_id, task->repo_version,
@@ -2222,6 +2280,9 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
         n += (sizeof(ObjectHeader) + size);
         hdr = (ObjectHeader *)p;
     }
+
+    seaf_debug ("Received %d fs objects from %s:%s.\n",
+                n_recv, task->host, task->repo_id);
 
     /* The server may not return all the objects we requested.
      * So we need to add back the remaining object ids into fs_list.
@@ -2317,7 +2378,7 @@ get_block (HttpTxTask *task, Connection *conn, const char *block_id)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/block/%s",
+    url = g_strdup_printf ("%sseafhttp/repo/%s/block/%s",
                            task->host, task->repo_id, block_id);
 
     if (http_get (curl, url, task->token, &status, NULL, NULL,
