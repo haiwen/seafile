@@ -15,7 +15,7 @@ export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafil
 script_name=$0
 function usage () {
     echo "usage : "
-    echo "$(basename ${script_name}) { dryrun | verify | run | force } "
+    echo "$(basename ${script_name}) { dryrun | run } "
     echo ""
 }
 
@@ -93,14 +93,6 @@ case $1 in
         ;;
     "run" )
         seaf_gc_opts=""
-        run_seaf_gc;
-        ;;
-    "verify" )
-        seaf_gc_opts="--verify"
-        run_seaf_gc;
-        ;;
-    "force" )
-        seaf_gc_opts="--ignore-errors"
         run_seaf_gc;
         ;;
     *)
