@@ -748,12 +748,12 @@ def main():
     parser_create.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
 
     # config 
-    parser_desync = subparsers.add_parser('config',
+    parser_config = subparsers.add_parser('config',
                                           help='Configure seafile client')
-    parser_desync.set_defaults(func=seaf_config)
-    parser_desync.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
-    parser_desync.add_argument('-k', '--key', help='configuration key', type=str)
-    parser_desync.add_argument('-v', '--value', help='configuration value (if provided, key is set to this value)', type=str, required=False)
+    parser_config.set_defaults(func=seaf_config)
+    parser_config.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
+    parser_config.add_argument('-k', '--key', help='configuration key', type=str)
+    parser_config.add_argument('-v', '--value', help='configuration value (if provided, key is set to this value)', type=str, required=False)
 
     if len(sys.argv) == 1:
         print parser.format_help()
