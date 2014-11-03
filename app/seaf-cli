@@ -529,6 +529,37 @@ def seaf_desync(args):
         print "%s is not a library" % args.folder
 
 
+def seaf_config(args):
+    '''Configure the seafile client'''
+
+    conf_dir = DEFAULT_CONF_DIR
+    if args.confdir:
+        conf_dir = args.confdir
+    conf_dir = os.path.abspath(conf_dir)
+
+    if not _config_valid(conf_dir):
+        print "Invalid config directory"
+        sys.exit(1)
+
+    config_key = args.key
+    if not config_key:
+        print "Must specify configuration key"
+        sys.exit(1)
+
+    config_value = args.value
+
+    pool = ccnet.ClientPool(conf_dir)
+    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
+
+    if config_value:
+        # set configuration key
+        seafile_rpc.seafile_set_config(config_key, config_value)
+    else:
+        # print configuration key
+        val = seafile_rpc.seafile_get_config(config_key)
+        print "%s = %s" % (config_key, val)
+
+
 def seaf_status(args):
     '''Show status'''
 
@@ -715,6 +746,14 @@ def main():
     parser_create.add_argument('-u', '--username', help='username', type=str)
     parser_create.add_argument('-p', '--password', help='password', type=str)
     parser_create.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
+
+    # config 
+    parser_config = subparsers.add_parser('config',
+                                          help='Configure seafile client')
+    parser_config.set_defaults(func=seaf_config)
+    parser_config.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
+    parser_config.add_argument('-k', '--key', help='configuration key', type=str)
+    parser_config.add_argument('-v', '--value', help='configuration value (if provided, key is set to this value)', type=str, required=False)
 
     if len(sys.argv) == 1:
         print parser.format_help()
