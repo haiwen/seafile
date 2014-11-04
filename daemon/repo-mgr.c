@@ -3325,6 +3325,17 @@ seaf_repo_manager_set_repo_relay_id (SeafRepoManager *mgr,
     return 0;
 }
 
+static char *
+canonical_server_url (const char *url_in)
+{
+    char *url = g_strdup(url_in);
+    int len = strlen(url);
+
+    if (url[len - 1] == '/')
+        url[len - 1] = 0;
+
+    return url;
+}
 
 int
 seaf_repo_manager_set_repo_property (SeafRepoManager *manager, 
@@ -3367,6 +3378,13 @@ seaf_repo_manager_set_repo_property (SeafRepoManager *manager,
 
     if (strcmp(key, REPO_RELAY_ID) == 0)
         return seaf_repo_manager_set_repo_relay_id (manager, repo, value);
+
+    if (strcmp (key, REPO_PROP_SERVER_URL) == 0) {
+        char *url = canonical_server_url (value);
+        repo->server_url = url;
+        save_repo_property (manager, repo_id, key, url);
+        return 0;
+    }
 
     save_repo_property (manager, repo_id, key, value);
     return 0;

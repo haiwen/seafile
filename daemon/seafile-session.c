@@ -209,6 +209,12 @@ seafile_session_prepare (SeafileSession *session)
     session->sync_extra_temp_file = seafile_session_config_get_bool
         (session, KEY_SYNC_EXTRA_TEMP_FILE);
 
+    session->enable_http_sync = seafile_session_config_get_bool
+        (session, KEY_ENABLE_HTTP_SYNC);
+
+    session->disable_verify_certificate = seafile_session_config_get_bool
+        (session, KEY_DISABLE_VERIFY_CERTIFICATE);
+
     /* Start mq manager earlier, so that we can send notifications
      * when start repo manager. */
     seaf_mq_manager_init (session->mq_mgr);

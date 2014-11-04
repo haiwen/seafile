@@ -584,9 +584,7 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
     const char *sync_state;
     char allzeros[41] = {0};
 
-    if (!ccnet_peer_is_ready(seaf->ccnetrpc_client, repo->relay_id)) {
-        sync_state = "relay not connected";
-    } else if (!info->in_sync && memcmp(allzeros, info->head_commit, 41) == 0) {
+    if (!info->in_sync && memcmp(allzeros, info->head_commit, 41) == 0) {
         sync_state = "waiting for sync";
     } else {
         sync_state = sync_state_to_str(task->state);

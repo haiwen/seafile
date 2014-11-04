@@ -2055,7 +2055,7 @@ auto_sync_pulse (void *vmanager)
 
         /* Try to use http sync first if enabled. */
         gboolean is_checking_http = FALSE;
-        if (repo->version > 0) {
+        if (seaf->enable_http_sync && repo->version > 0) {
             if (check_http_protocol (manager, repo, &is_checking_http)) {
                 sync_repo_v2 (manager, repo, FALSE);
                 continue;

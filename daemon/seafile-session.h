@@ -73,6 +73,8 @@ struct _SeafileSession {
     gboolean             started;
 
     gboolean             sync_extra_temp_file;
+    gboolean             enable_http_sync;
+    gboolean             disable_verify_certificate;
 };
 
 struct _SeafileSessionClass

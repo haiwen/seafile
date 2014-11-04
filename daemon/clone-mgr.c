@@ -12,6 +12,7 @@
 #include "unpack-trees.h"
 #include "vc-utils.h"
 #include "utils.h"
+#include "seafile-config.h"
 
 #include "processors/checkff-proc.h"
 
@@ -536,7 +537,7 @@ restart_task (sqlite3_stmt *stmt, void *data)
     if (repo != NULL && repo->head != NULL) {
         transition_state (task, CLONE_STATE_DONE);
         return TRUE;
-    } else if (task->repo_version > 0 && task->server_url)
+    } else if (seaf->enable_http_sync && task->repo_version > 0 && task->server_url)
         check_http_protocol (task);
     else
         connect_non_http_server (task);
@@ -1152,6 +1153,18 @@ seaf_clone_manager_check_worktree_path (SeafCloneManager *mgr, const char *path,
 }
 
 static char *
+canonical_server_url (const char *url_in)
+{
+    char *url = g_strdup(url_in);
+    int len = strlen(url);
+
+    if (url[len - 1] == '/')
+        url[len - 1] = 0;
+
+    return url;
+}
+
+static char *
 add_task_common (SeafCloneManager *mgr, 
                  const char *repo_id,
                  int repo_version,
@@ -1196,7 +1209,7 @@ add_task_common (SeafCloneManager *mgr,
         task->is_readonly = json_integer_value (integer);
         json_t *string = json_object_get (object, "server_url");
         if (string)
-            task->server_url = g_strdup (json_string_value (string));
+            task->server_url = canonical_server_url (json_string_value (string));
         json_decref (object);
     }
 
@@ -1206,7 +1219,7 @@ add_task_common (SeafCloneManager *mgr,
         return NULL;
     }
 
-    if (task->repo_version > 0 && task->server_url)
+    if (seaf->enable_http_sync && task->repo_version > 0 && task->server_url)
         check_http_protocol (task);
     else
         connect_non_http_server (task);
