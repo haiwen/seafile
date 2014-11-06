@@ -1266,6 +1266,29 @@ error:
     }
 }
 
+static char *
+format_update_json_ret (const char *filename, const char *file_id, gint64 size)
+{
+    json_t *array, *obj;
+    char *json_data;
+    char *ret;
+
+    array = json_array ();
+
+    obj = json_object ();
+    json_object_set_string_member (obj, "name", filename);
+    json_object_set_string_member (obj, "id", file_id);
+    json_object_set_int_member (obj, "size", size);
+    json_array_append_new (array, obj);
+
+    json_data = json_dumps (array, 0);
+    json_decref (array);
+
+    ret = g_strdup (json_data);
+    free (json_data);
+    return ret;
+}
+
 static void
 update_ajax_cb(evhtp_request_t *req, void *arg)
 {
@@ -1275,6 +1298,7 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
     char *new_file_id = NULL;
+    gint64 size;
 
     evhtp_headers_add_header (req->headers_out,
                               evhtp_header_new("Access-Control-Allow-Headers",
@@ -1327,6 +1351,14 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
+    SeafStat st;
+    char *tmp_file_path = fsm->files->data;
+    if (seaf_stat (tmp_file_path, &st) < 0) {
+        seaf_warning ("Failed to stat tmp file %s.\n", tmp_file_path);
+        goto error;
+    }
+    size = (gint64)st.st_size;
+
     head_id = evhtp_kv_find (req->uri->query, "head");
 
     if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
@@ -1341,10 +1373,9 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
                                          filename,
                                          fsm->user,
                                          head_id,
-                                         NULL,
+                                         &new_file_id,
                                          &error);
     g_free (parent_dir);
-    g_free (filename);
     
     if (rc < 0) {
         if (error) {
@@ -1356,28 +1387,23 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    GString *res_buf = g_string_new (NULL);
-    GList *ptr;
+    char *json_ret = format_update_json_ret (filename, new_file_id, size);
 
-    g_string_append (res_buf, "[");
-    for (ptr = fsm->filenames; ptr; ptr = ptr->next) {
-        char *filename = ptr->data;
-        if (ptr->next)
-            g_string_append_printf (res_buf, "{\"name\": \"%s\"}, ", filename);
-        else
-            g_string_append_printf (res_buf, "{\"name\": \"%s\"}", filename);
-    }
-    g_string_append (res_buf, "]");
-
-    evbuffer_add (req->buffer_out, res_buf->str, res_buf->len);
-    g_string_free (res_buf, TRUE);
+    evbuffer_add (req->buffer_out, json_ret, strlen(json_ret));
     
     set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_OK);
 
+    g_free (new_file_id);
+    g_free (filename);
+    g_free (json_ret);
+
     return;
 
 error:
+    g_free (new_file_id);
+    g_free (filename);
+
     switch (error_code) {
     case ERROR_FILENAME:
         evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");

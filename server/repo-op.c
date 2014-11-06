@@ -906,27 +906,31 @@ json_to_file_list (const char *files_json)
 }
 
 /*
- * Return [{'name': 'file1', 'id': 'id1'}, {'name': 'file2', 'id': 'id2'}]
+ * Return [{'name': 'file1', 'id': 'id1', 'size': num1}, {'name': 'file2', 'id': 'id2', 'size': num2}]
  */
 static char *
-format_json_ret (GList *name_list, GList *id_list)
+format_json_ret (GList *name_list, GList *id_list, GList *size_list)
 {
     json_t *array, *obj;
     GList *ptr, *ptr2;
+    GList *sptr;
     char *filename, *id;
+    gint64 *size;
     char *json_data;
     char *ret;
 
     array = json_array ();
 
-    for (ptr = name_list, ptr2 = id_list;
-         ptr && ptr2;
-         ptr = ptr->next, ptr2 = ptr2->next) {
+    for (ptr = name_list, ptr2 = id_list, sptr = size_list;
+         ptr && ptr2 && sptr;
+         ptr = ptr->next, ptr2 = ptr2->next, sptr = sptr->next) {
         filename = ptr->data;
         id = ptr2->data;
+        size = sptr->data;
         obj = json_object ();
         json_object_set_string_member (obj, "name", filename);
         json_object_set_string_member (obj, "id", id);
+        json_object_set_int_member (obj, "size", *size);
         json_array_append_new (array, obj);
     }
 
@@ -1062,7 +1066,7 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
     seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
     if (ret_json)
-        *ret_json = format_json_ret (name_list, id_list);
+        *ret_json = format_json_ret (name_list, id_list, size_list);
 
 out:
     if (repo)
