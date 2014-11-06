@@ -152,7 +152,7 @@ seafile_set_upload_rate_limit (int limit, GError **error)
     if (limit < 0)
         limit = 0;
 
-    seaf->transfer_mgr->upload_limit = limit;
+    seaf->sync_mgr->upload_limit = limit;
 
     return seafile_session_config_set_int (seaf, KEY_UPLOAD_LIMIT, limit);
 }
@@ -163,7 +163,7 @@ seafile_set_download_rate_limit (int limit, GError **error)
     if (limit < 0)
         limit = 0;
 
-    seaf->transfer_mgr->download_limit = limit;
+    seaf->sync_mgr->download_limit = limit;
 
     return seafile_session_config_set_int (seaf, KEY_DOWNLOAD_LIMIT, limit);
 }
@@ -396,10 +396,8 @@ seafile_get_clone_tasks (GError **error)
                           "state", clone_task_state_to_str(task->state),
                           "error_str", clone_task_error_to_str(task->error),
                           "repo_id", task->repo_id,
-                          "peer_id", task->peer_id,
                           "repo_name", task->repo_name,
                           "worktree", task->worktree,
-                          "tx_id", task->tx_id,
                           NULL);
         ret = g_list_prepend (ret, t);
     }
@@ -448,14 +446,10 @@ convert_task (TransferTask *task)
     if (task->protocol_version < 7)
         get_task_size (task, &rsize, &dsize);
 
-    g_object_set (t, "tx_id", task->tx_id,
+    g_object_set (t,
                   "repo_id", task->repo_id,
-                  "dest_id", task->dest_id,
-                  "from_branch", task->from_branch,
-                  "to_branch", task->to_branch,
                   "state", task_state_to_str(task->state),
                   "rt_state", task_rt_state_to_str(task->runtime_state),
-                  "rsize", rsize, "dsize", dsize,
                   "error_str", task_error_str(task->error),
                   NULL);
 
@@ -485,50 +479,66 @@ convert_task (TransferTask *task)
     return t;
 }
 
+static SeafileTask *
+convert_http_task (HttpTxTask *task)
+{
+    SeafileTask *t = seafile_task_new();
+
+    g_object_set (t,
+                  "repo_id", task->repo_id,
+                  "state", http_task_state_to_str(task->state),
+                  "rt_state", http_task_rt_state_to_str(task->runtime_state),
+                  "error_str", http_task_error_str(task->error),
+                  NULL);
+
+    if (task->type == HTTP_TASK_TYPE_DOWNLOAD) {
+        g_object_set (t, "ttype", "download", NULL);
+        if (task->runtime_state == HTTP_TASK_RT_STATE_BLOCK) {
+            g_object_set (t, "block_total", task->n_files,
+                          "block_done", task->done_files,
+                          NULL);
+            g_object_set (t, "rate", http_tx_task_get_rate(task), NULL);
+        }
+    } else {
+        g_object_set (t, "ttype", "upload", NULL);
+        if (task->runtime_state == HTTP_TASK_RT_STATE_BLOCK) {
+            g_object_set (t, "block_total", task->n_blocks,
+                          "block_done", task->done_blocks,
+                          NULL);
+            g_object_set (t, "rate", http_tx_task_get_rate(task), NULL);
+        }
+    }
+
+    return t;
+}
 
 GObject *
 seafile_find_transfer_task (const char *repo_id, GError *error)
 {
     TransferTask *task;
+    HttpTxTask *http_task;
 
-    task = seaf_transfer_manager_find_transfer_by_repo (
-        seaf->transfer_mgr, repo_id);
-    if (!task)
-        return NULL;
+    task = seaf_transfer_manager_find_transfer_by_repo (seaf->transfer_mgr, repo_id);
+    if (task)
+        return (GObject *)convert_task (task);
 
-    return (GObject *)convert_task (task);
+    http_task = http_tx_manager_find_task (seaf->http_tx_mgr, repo_id);
+    if (task)
+        return (GObject *)convert_http_task (http_task);
+
+    return NULL;
 }
 
 int
 seafile_get_upload_rate(GError **error)
 {
-    int rate = 0;
-    GList *ptr, *tasks = seaf_transfer_manager_get_upload_tasks(seaf->transfer_mgr);
-
-    for (ptr = tasks; ptr; ptr = ptr->next) {
-        TransferTask *task = (TransferTask *)ptr->data;
-        rate += transfer_task_get_rate (task);
-    }
-
-    g_list_free(tasks);
-
-    return rate;
+    return seaf->sync_mgr->last_sent_bytes;
 }
 
 int
 seafile_get_download_rate(GError **error)
 {
-    int rate = 0;
-    GList *ptr, *tasks = seaf_transfer_manager_get_download_tasks(seaf->transfer_mgr);
-
-    for (ptr = tasks; ptr; ptr = ptr->next) {
-        TransferTask *task = (TransferTask *)ptr->data;
-        rate += transfer_task_get_rate (task);
-    }
-
-    g_list_free(tasks);
-
-    return rate;
+    return seaf->sync_mgr->last_recv_bytes;
 }
 
 
@@ -574,9 +584,7 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
     const char *sync_state;
     char allzeros[41] = {0};
 
-    if (!ccnet_peer_is_ready(seaf->ccnetrpc_client, repo->relay_id)) {
-        sync_state = "relay not connected";
-    } else if (!info->in_sync && memcmp(allzeros, info->head_commit, 41) == 0) {
+    if (!info->in_sync && memcmp(allzeros, info->head_commit, 41) == 0) {
         sync_state = "waiting for sync";
     } else {
         sync_state = sync_state_to_str(task->state);
@@ -588,8 +596,6 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
                            "force_upload", task->is_manual_sync,
                            "state", sync_state,
                            "error", sync_error_to_str(task->error),
-                           "tx_id", task->tx_id,
-                           "dest_id", task->dest_id,
                            "repo_id", info->repo_id,
                            NULL);
 
@@ -617,9 +623,7 @@ seafile_get_sync_task_list (GError **error)
                                "force_upload", task->is_manual_sync,
                                "state", sync_state_to_str(task->state),
                                "error", sync_error_to_str(task->error),
-                               "dest_id", task->dest_id,
                                "repo_id", info->repo_id,
-                               "tx_id", task->tx_id,
                                NULL);
         task_list = g_list_prepend (task_list, s_task);
     }

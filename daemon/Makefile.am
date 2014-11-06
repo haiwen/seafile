@@ -10,6 +10,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@SEARPC_CFLAGS@ \
 	@GLIB2_CFLAGS@ \
 	@MSVC_CFLAGS@ \
+	@CURL_CFLAGS@
 	-Wall
 
 bin_PROGRAMS = 
@@ -57,6 +58,7 @@ noinst_HEADERS = \
 	block-tx-client.h \
 	seafile-config.h \
 	client-migrate.h \
+	http-tx-mgr.h \
 	$(proc_headers)
 
 if LINUX
@@ -72,6 +74,7 @@ wt_monitor_src = wt-monitor.c wt-monitor-macos.c wt-monitor-structs.c
 endif
 
 common_src = \
+	http-tx-mgr.c \
 	transfer-mgr.c \
 	../common/unpack-trees.c ../common/seaf-tree-walk.c \
 	merge.c merge-recursive.c vc-utils.c \
@@ -124,7 +127,7 @@ seaf_daemon_LDADD = $(top_builddir)/lib/libseafile_common.la \
 	@GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 @LIBEVENT_LIBS@ \
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/common/index/libindex.la ${LIB_WS32} \
-	@SEARPC_LIBS@ @CCNET_LIBS@ @GNOME_KEYRING_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@
+	@SEARPC_LIBS@ @CCNET_LIBS@ @GNOME_KEYRING_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@ @CURL_LIBS@
 
 seaf_daemon_LDFLAGS = @STATIC_COMPILE@ @CONSOLE@
 

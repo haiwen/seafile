@@ -335,26 +335,6 @@ seafile_gc (GError **error);
 /* -----------------  Task Related --------------  */
 
 /**
- * seafile_get_upload_task_list:
- *
- * List all the upload tasks.
- *
- * Returns: A list of task info.
- */
-GList* seafile_get_upload_task_list (GError **error);
-
-
-/**
- * seafile_get_download_task_list:
- *
- * List all the download tasks.
- *
- * Returns: A list of task info.
- */
-GList* seafile_get_download_task_list (GError **error);
-
-
-/**
  * seafile_find_transfer:
  *
  * Find a non finished task of a repo

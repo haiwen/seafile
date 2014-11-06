@@ -1061,7 +1061,8 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
 
     seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
-    *ret_json = format_json_ret (name_list, id_list);
+    if (ret_json)
+        *ret_json = format_json_ret (name_list, id_list);
 
 out:
     if (repo)
@@ -2775,7 +2776,8 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
                                                   fullpath, NULL, NULL);
 
     if (g_strcmp0(old_file_id, new_dent->id) == 0) {
-        *new_file_id = g_strdup(new_dent->id);
+        if (new_file_id)
+            *new_file_id = g_strdup(new_dent->id);
         goto out;
     }
 
@@ -2795,7 +2797,8 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
         goto out;       
     }
 
-    *new_file_id = g_strdup(new_dent->id);
+    if (new_file_id)
+        *new_file_id = g_strdup(new_dent->id);
 
     seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
@@ -3024,7 +3027,8 @@ seaf_repo_manager_put_file_blocks (SeafRepoManager *mgr,
                                                   fullpath, NULL, NULL);
 
     if (g_strcmp0(old_file_id, new_dent->id) == 0) {
-        *new_file_id = g_strdup(new_dent->id);
+        if (new_file_id)
+            *new_file_id = g_strdup(new_dent->id);
         goto out;
     }
 
@@ -3044,7 +3048,8 @@ seaf_repo_manager_put_file_blocks (SeafRepoManager *mgr,
         goto out;
     }
 
-    *new_file_id = g_strdup(new_dent->id);
+    if (new_file_id)
+        *new_file_id = g_strdup(new_dent->id);
 
 out:
     if (repo)

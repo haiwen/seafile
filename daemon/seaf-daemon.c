@@ -202,7 +202,7 @@ start_rpc_service (CcnetClient *client)
                                      seafile_download,
                                      "seafile_download",
         searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int_string());
-    
+
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_cancel_clone_task,
                                      "seafile_cancel_clone_task",

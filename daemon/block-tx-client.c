@@ -574,7 +574,7 @@ send_encrypted_block (BlockTxClient *client,
 
         /* Update global transferred bytes. */
         g_atomic_int_add (&(info->task->tx_bytes), n);
-        g_atomic_int_add (&(seaf->transfer_mgr->sent_bytes), n);
+        g_atomic_int_add (&(seaf->sync_mgr->sent_bytes), n);
 
         /* If uploaded bytes exceeds the limit, wait until the counter
          * is reset. We check the counter every 100 milliseconds, so we
@@ -582,9 +582,9 @@ send_encrypted_block (BlockTxClient *client,
          * the counter is reset.
          */
         while (1) {
-            gint sent = g_atomic_int_get(&(seaf->transfer_mgr->sent_bytes));
-            if (seaf->transfer_mgr->upload_limit > 0 &&
-                sent > seaf->transfer_mgr->upload_limit)
+            gint sent = g_atomic_int_get(&(seaf->sync_mgr->sent_bytes));
+            if (seaf->sync_mgr->upload_limit > 0 &&
+                sent > seaf->sync_mgr->upload_limit)
                 /* 100 milliseconds */
                 g_usleep (100000);
             else
@@ -648,12 +648,12 @@ save_block_content_cb (char *content, int clen, int end, void *cbarg)
 
     /* Update global transferred bytes. */
     g_atomic_int_add (&(task->tx_bytes), clen);
-    g_atomic_int_add (&(seaf->transfer_mgr->recv_bytes), clen);
+    g_atomic_int_add (&(seaf->sync_mgr->recv_bytes), clen);
 
     while (1) {
-        gint recv_bytes = g_atomic_int_get (&(seaf->transfer_mgr->recv_bytes));
-        if (seaf->transfer_mgr->download_limit > 0 &&
-            recv_bytes > seaf->transfer_mgr->download_limit) {
+        gint recv_bytes = g_atomic_int_get (&(seaf->sync_mgr->recv_bytes));
+        if (seaf->sync_mgr->download_limit > 0 &&
+            recv_bytes > seaf->sync_mgr->download_limit) {
             g_usleep (100000);
         } else {
             break;

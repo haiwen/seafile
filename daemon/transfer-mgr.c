@@ -438,19 +438,6 @@ seaf_transfer_manager_new (struct _SeafileSession *seaf)
         return NULL;
     }
 
-    gboolean exists;
-    int download_limit = seafile_session_config_get_int (seaf,
-                                                         KEY_DOWNLOAD_LIMIT,
-                                                         &exists);
-    if (exists)
-        mgr->download_limit = download_limit;
-
-    int upload_limit = seafile_session_config_get_int (seaf,
-                                                       KEY_UPLOAD_LIMIT,
-                                                       &exists);
-    if (exists)
-        mgr->upload_limit = upload_limit;
-
     return mgr;
 }
 
@@ -1390,7 +1377,7 @@ download_and_checkout_files_thread (void *vdata)
     piperead (task->tx_info->done_pipe[0], &rsp, sizeof(rsp));
 
     if (rsp == BLOCK_CLIENT_READY) {
-        data->status = seaf_repo_fetch_and_checkout (task, task->head);
+        data->status = seaf_repo_fetch_and_checkout (task, NULL, FALSE, task->head);
 
         block_tx_client_run_command (task->tx_info, BLOCK_CLIENT_CMD_END);
 
@@ -1805,12 +1792,6 @@ update_local_repo (TransferTask *task)
         branch = seaf_branch_new ("master", task->repo_id, task->head);
         seaf_branch_manager_add_branch (seaf->branch_mgr, branch);
         seaf_branch_unref (branch);
-
-        /* Set relay to where this repo from. */
-        if (is_peer_relay (task->dest_id)) {
-            seaf_repo_manager_set_repo_relay_id (seaf->repo_mgr, repo,
-                                                 task->dest_id);
-        }
     } else {
         if (!repo) {
             transition_state_to_error (task, TASK_ERR_UNKNOWN);
@@ -2343,56 +2324,6 @@ state_machine_tick (TransferTask *task)
     }
 }
 
-
-static inline void 
-format_transfer_task_detail (TransferTask *task, GString *buf)
-{
-    SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr,
-                                                 task->repo_id);
-    char *repo_name;
-    char *type;
-    
-    if (repo) {
-        repo_name = repo->name;
-        type = (task->type == TASK_TYPE_UPLOAD) ? "upload" : "download";
-        
-    } else if (task->is_clone) {
-        CloneTask *ctask;
-        ctask = seaf_clone_manager_get_task (seaf->clone_mgr, task->repo_id);
-        repo_name = ctask->repo_name;
-        type = "download";
-        
-    } else {
-        return;
-    }
-    int rate = transfer_task_get_rate(task);
-
-    g_string_append_printf (buf, "%s\t%d %s\n", type, rate, repo_name);
-}
-
-/*
- * Publish a notification message to report :
- *
- *      [uploading/downloading]\t[transfer-rate] [repo-name]\n
- */
-static void
-send_transfer_message (GList *tasks)
-{
-    GList *ptr;
-    TransferTask *task;
-    GString *buf = g_string_new (NULL);
-
-    for (ptr = tasks; ptr; ptr = ptr->next) {
-        task = ptr->data;
-        format_transfer_task_detail(task, buf);
-    }
-        
-    seaf_mq_manager_publish_notification (seaf->mq_mgr, "transfer",
-                                          buf->str);
-
-    g_string_free (buf, TRUE);
-}
-
 static int
 schedule_task_pulse (void *vmanager)
 {
@@ -2401,58 +2332,17 @@ schedule_task_pulse (void *vmanager)
     gpointer key, value;
     TransferTask *task;
 
-    GList *tasks_in_transfer = NULL;
-
     g_hash_table_iter_init (&iter, mgr->download_tasks);
     while (g_hash_table_iter_next (&iter, &key, &value)) {
         task = value;
         state_machine_tick (task);
-        if ((task->state == TASK_STATE_NORMAL)
-            && (task->runtime_state == TASK_RT_STATE_COMMIT ||
-                task->runtime_state == TASK_RT_STATE_FS ||
-                task->runtime_state == TASK_RT_STATE_CHECK_BLOCKS ||
-                task->runtime_state == TASK_RT_STATE_CHUNK_SERVER ||
-                task->runtime_state == TASK_RT_STATE_DATA)) {
-            tasks_in_transfer = g_list_prepend (tasks_in_transfer, task);
-        }
     }
 
     g_hash_table_iter_init (&iter, mgr->upload_tasks);
     while (g_hash_table_iter_next (&iter, &key, &value)) {
         task = value;
         state_machine_tick (task);
-        if ((task->state == TASK_STATE_NORMAL)
-            && (task->runtime_state == TASK_RT_STATE_COMMIT ||
-                task->runtime_state == TASK_RT_STATE_FS ||
-                task->runtime_state == TASK_RT_STATE_CHECK_BLOCKS ||
-                task->runtime_state == TASK_RT_STATE_CHUNK_SERVER ||
-                task->runtime_state == TASK_RT_STATE_DATA)) {
-            tasks_in_transfer = g_list_prepend (tasks_in_transfer, task);
-        }
     }
-
-    if (tasks_in_transfer) {
-        send_transfer_message (tasks_in_transfer);
-        g_list_free (tasks_in_transfer);
-    }
-
-    /* Save tx_bytes to last_tx_bytes and reset tx_bytes to 0 every second */
-    g_hash_table_iter_init (&iter, mgr->download_tasks);
-    while (g_hash_table_iter_next (&iter, &key, &value)) {
-        task = value;
-        task->last_tx_bytes = g_atomic_int_get (&task->tx_bytes);
-        g_atomic_int_set (&task->tx_bytes, 0);
-    }
-
-    g_hash_table_iter_init (&iter, mgr->upload_tasks);
-    while (g_hash_table_iter_next (&iter, &key, &value)) {
-        task = value;
-        task->last_tx_bytes = g_atomic_int_get (&task->tx_bytes);
-        g_atomic_int_set (&task->tx_bytes, 0);
-    }
-
-    g_atomic_int_set (&mgr->sent_bytes, 0);
-    g_atomic_int_set (&mgr->recv_bytes, 0);
 
     return TRUE;
 }

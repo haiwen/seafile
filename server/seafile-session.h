@@ -27,6 +27,8 @@
 
 #include "mq-mgr.h"
 
+#include "http-server.h"
+
 #include <searpc-client.h>
 
 struct _CcnetClient;
@@ -81,6 +83,8 @@ struct _SeafileSession {
 
     int                  rpc_thread_pool_size;
     int                  sync_thread_pool_size;
+
+    HttpServer           *http_server;
 };
 
 extern SeafileSession *seaf;
