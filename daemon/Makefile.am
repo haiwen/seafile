@@ -52,7 +52,6 @@ noinst_HEADERS = \
 	wt-monitor.h \
 	merge.h merge-recursive.h vc-utils.h seafile-session.h \
 	clone-mgr.h \
-	share-mgr.h \
 	wt-monitor-structs.h \
 	../common/sync-repo-common.h \
 	block-tx-client.h \

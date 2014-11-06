@@ -275,7 +275,8 @@ calculate_send_object_list (void *vdata)
         remote_head_root = EMPTY_SHA1;
 
     /* Diff won't traverse the root object itself. */
-    if (strcmp (remote_head_root, master_head->root_id) != 0)
+    if (strcmp (remote_head_root, master_head->root_id) != 0 &&
+        strcmp (master_head->root_id, EMPTY_SHA1) != 0)
         priv->send_obj_list = g_list_prepend (priv->send_obj_list,
                                               g_strdup(master_head->root_id));
 

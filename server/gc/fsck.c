@@ -5,87 +5,6 @@
 
 #include "fsck.h"
 
-typedef struct FsckOpt {
-    gboolean dry_run;
-    gboolean strict;
-} FsckOpt;
-
-static gboolean
-remove_corrupt_fs_object (const char *store_id, int version,
-                          const char *obj_id, void *user_data)
-{
-    FsckOpt *opt = user_data;
-    gboolean io_error = FALSE;
-    gboolean ok = TRUE;
-
-    ok = seaf_fs_manager_verify_object (seaf->fs_mgr,
-                                        store_id, version,
-                                        obj_id, opt->strict, &io_error);
-    if (!ok && !io_error) {
-        if (opt->dry_run) {
-            seaf_message ("Fs object %s is corrupted.\n", obj_id);
-        } else {
-            seaf_message ("Fs object %s is corrupted, remove it.\n", obj_id);
-            seaf_obj_store_delete_obj (seaf->fs_mgr->obj_store,
-                                       store_id, version,
-                                       obj_id);
-        }
-    }
-
-    return TRUE;
-}
-
-static int
-remove_corrupt_fs_objects (const char *store_id, int version,
-                           gboolean dry_run, gboolean strict)
-{
-    FsckOpt opt;
-
-    memset (&opt, 0, sizeof(opt));
-    opt.dry_run = dry_run;
-    opt.strict = strict;
-
-    return seaf_obj_store_foreach_obj (seaf->fs_mgr->obj_store,
-                                       store_id, version,
-                                       remove_corrupt_fs_object,
-                                       &opt);
-}
-
-static gboolean
-remove_corrupt_block (const char *store_id, int version,
-                      const char *block_id, void *user_data)
-{
-    gboolean *dry_run = user_data;
-    gboolean io_error = FALSE;
-    gboolean ok = TRUE;
-
-    ok = seaf_block_manager_verify_block (seaf->block_mgr,
-                                          store_id, version,
-                                          block_id, &io_error);
-    if (!ok && !io_error) {
-        if (*dry_run) {
-            seaf_message ("Block %s is corrupted.\n", block_id);
-        } else {
-            seaf_message ("Block %s is corrupted, remove it.\n", block_id);
-            seaf_block_manager_remove_block (seaf->block_mgr,
-                                             store_id, version,
-                                             block_id);
-        }
-    }
-
-    return TRUE;
-}
-
-static int
-remove_corrupt_blocks (const char *store_id, int version,
-                       gboolean dry_run)
-{
-    return seaf_block_manager_foreach_block (seaf->block_mgr,
-                                             store_id, version,
-                                             remove_corrupt_block,
-                                             &dry_run);
-}
-
 typedef struct FsckRes {
     SeafRepo *repo;
     char *consistent_head;
@@ -101,6 +20,9 @@ check_blocks (SeafFSManager *mgr, FsckRes *res, const char *file_id)
     char *block_id;
     int ret = 0;
     int dummy;
+    gboolean io_error = FALSE;
+    gboolean ok = TRUE;
+
 
     seafile = seaf_fs_manager_get_seafile (mgr, repo->store_id, repo->version, file_id);
     if (!seafile) {
@@ -108,9 +30,6 @@ check_blocks (SeafFSManager *mgr, FsckRes *res, const char *file_id)
         return -1;
     }
 
-    /* Since we've removed corrupted blocks, we can assume existing blocks
-     * are integrent.
-     */
     for (i = 0; i < seafile->n_blocks; ++i) {
         block_id = seafile->blk_sha1s[i];
 
@@ -121,6 +40,19 @@ check_blocks (SeafFSManager *mgr, FsckRes *res, const char *file_id)
                                               repo->store_id, repo->version,
                                               block_id)) {
             seaf_message ("Block %s is missing.\n", block_id);
+            ret = -1;
+            break;
+        }
+
+        // check block integrity, if not remove it
+        ok = seaf_block_manager_verify_block (seaf->block_mgr,
+                                              repo->store_id, repo->version,
+                                              block_id, &io_error);
+        if (!ok && !io_error) {
+            seaf_message ("Block %s is corrupted, remove it.\n", block_id);
+            seaf_block_manager_remove_block (seaf->block_mgr,
+                                             repo->store_id, repo->version,
+                                             block_id);
             ret = -1;
             break;
         }
@@ -175,6 +107,164 @@ check_fs_integrity (SeafCommit *commit, void *vdata, gboolean *stop)
     return TRUE;
 }
 
+static gint
+compare_commit_by_ctime (gconstpointer a, gconstpointer b)
+{
+    const SeafCommit *commit_a = a;
+    const SeafCommit *commit_b = b;
+
+    return (commit_b->ctime - commit_a->ctime);
+}
+
+static gboolean
+fsck_get_repo_commit (const char *repo_id, int version,
+                      const char *obj_id, void *commit_list)
+{
+    void *data = NULL;
+    int data_len;
+    GList **cur_list = (GList **)commit_list;
+
+    int ret = seaf_obj_store_read_obj (seaf->commit_mgr->obj_store, repo_id,
+                                       version, obj_id, &data, &data_len);
+    if (ret < 0 || data == NULL)
+        return TRUE;
+
+    SeafCommit *cur_commit = seaf_commit_from_data (obj_id, data, data_len);
+    if (cur_commit != NULL) {
+       *cur_list = g_list_prepend (*cur_list, cur_commit);
+    }
+
+    g_free(data);
+    return TRUE;
+}
+
+static SeafCommit*
+cre_commit_from_parent (char *repo_id, SeafCommit *parent)
+{
+    SeafCommit *new_commit = NULL;
+    new_commit = seaf_commit_new (NULL, repo_id, parent->root_id,
+                                  parent->creator_name, parent->creator_id,
+                                  parent->desc, 0);
+    if (new_commit) {
+        new_commit->parent_id = g_strdup (parent->commit_id);
+        new_commit->repo_name = g_strdup (parent->repo_name);
+        new_commit->repo_desc = g_strdup (parent->repo_desc);
+        new_commit->encrypted = parent->encrypted;
+        if (new_commit->encrypted) {
+            new_commit->enc_version = parent->enc_version;
+            if (new_commit->enc_version >= 1)
+                new_commit->magic = g_strdup (parent->magic);
+            if (new_commit->enc_version == 2)
+                new_commit->random_key = g_strdup (parent->random_key);
+        }
+        new_commit->repo_category = g_strdup (parent->repo_category);
+        new_commit->no_local_history = parent->no_local_history;
+        new_commit->version = parent->version;
+        new_commit->repaired = TRUE;
+    }
+
+    return new_commit;
+}
+
+static int
+recover_corrupted_repo_head (char *repo_id)
+{
+    GList *commit_list = NULL;
+    GList *temp_list = NULL;
+    SeafCommit *temp_commit = NULL;
+    SeafBranch *branch = NULL;
+    SeafRepo *repo = NULL;
+    SeafVirtRepo *vinfo = NULL;
+    FsckRes res;
+    int rc = -1;
+
+    seaf_message ("Recovering corrupt head commit for repo %.8s.\n", repo_id);
+
+    seaf_obj_store_foreach_obj (seaf->commit_mgr->obj_store, repo_id,
+                                1, fsck_get_repo_commit, &commit_list);
+
+    if (commit_list == NULL)
+        return rc;
+
+    commit_list = g_list_sort (commit_list, compare_commit_by_ctime);
+    memset (&res, 0, sizeof(res));
+    res.existing_blocks = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                 g_free, NULL);
+
+
+    for (temp_list = commit_list; temp_list; temp_list = temp_list->next) {
+        temp_commit = temp_list->data;
+
+        branch = seaf_branch_new ("master", repo_id, temp_commit->commit_id);
+        if (branch == NULL) {
+            continue;
+        }
+        repo = seaf_repo_new (repo_id, NULL, NULL);
+        if (repo == NULL) {
+            seaf_branch_unref (branch);
+            continue;
+        }
+        repo->head = branch;
+        seaf_repo_from_commit (repo, temp_commit);
+        vinfo = seaf_repo_manager_get_virtual_repo_info (seaf->repo_mgr, repo_id);
+        if (vinfo) {
+            repo->is_virtual = TRUE;
+            memcpy (repo->store_id, vinfo->origin_repo_id, 36);
+        } else {
+            repo->is_virtual = FALSE;
+            memcpy (repo->store_id, repo->id, 36);
+        }
+        seaf_virtual_repo_info_free (vinfo);
+
+        res.repo = repo;
+        rc = seaf_fs_manager_traverse_tree (seaf->fs_mgr,
+                                            repo->store_id,
+                                            repo->version,
+                                            temp_commit->root_id,
+                                            fs_callback,
+                                            &res, FALSE);
+
+        if (rc < 0) {
+            seaf_repo_unref (repo);
+        } else {
+            break;
+        }
+    }
+
+    if (rc < 0) {
+        seaf_warning ("Failed to fix head commit of repo %.8s.\n", repo_id);
+    } else {
+        // create new head commit, and set it's parent commit as latest avaliable commit
+        temp_commit = cre_commit_from_parent (repo_id, temp_commit);
+        if (temp_commit) {
+            seaf_branch_set_commit (repo->head, temp_commit->commit_id);
+            // in case of branch col miss, using add_branch instead of update_branch
+            if (seaf_branch_manager_add_branch (seaf->branch_mgr, repo->head) < 0) {
+                seaf_warning ("Failed to fix head commit of repo %.8s.\n", repo_id);
+                rc = -1;
+            } else {
+                seaf_commit_manager_add_commit (seaf->commit_mgr, temp_commit);
+                seaf_message ("Head commit of repo %.8s has been fixed to commit %.8s.\n",
+                              repo_id, temp_commit->commit_id);
+            }
+            seaf_commit_unref (temp_commit);
+        } else {
+            seaf_warning ("Failed to fix head commit of repo %.8s.\n", repo_id);
+            rc = -1;
+        }
+    }
+
+    g_hash_table_destroy (res.existing_blocks);
+    seaf_repo_unref (repo);
+    for (temp_list = commit_list; temp_list; temp_list = temp_list->next) {
+        temp_commit = temp_list->data;
+        seaf_commit_unref (temp_commit);
+    }
+    g_list_free (commit_list);
+
+    return rc;
+}
+
 /*
  * Check whether the current head of @repo is consistent (including fs and block),
  * if not, find and reset its head to the last consistent commit.
@@ -184,8 +274,11 @@ static void
 check_and_reset_consistent_state (SeafRepo *repo)
 {
     FsckRes res;
+    SeafCommit *rep_commit;
+    SeafCommit *new_commit;
 
-    seaf_message ("Checking integrity of repo %s(%.8s)...\n", repo->name, repo->id);
+    seaf_message ("Checking file system integrity of repo %s(%.8s)...\n",
+                  repo->name, repo->id);
 
     memset (&res, 0, sizeof(res));
     res.repo = repo;
@@ -202,17 +295,31 @@ check_and_reset_consistent_state (SeafRepo *repo)
     g_hash_table_destroy (res.existing_blocks);
 
     if (!res.consistent_head) {
-        seaf_warning ("Repo %.8s doesn't have consistent history state.\n",
-                      repo->id);
+        recover_corrupted_repo_head (repo->id);
         return;
     }
 
     /* If the current head is not consistent, reset it. */
     if (strcmp (res.consistent_head, repo->head->commit_id) != 0) {
-        seaf_message ("Resetting head of repo %.8s to commit %.8s.\n",
-                      repo->id, res.consistent_head);
-        seaf_branch_set_commit (repo->head, res.consistent_head);
-        if (seaf_branch_manager_update_branch (seaf->branch_mgr, repo->head) < 0) {
+        rep_commit = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->id,
+                                                     repo->version, res.consistent_head);
+        if (rep_commit) {
+            new_commit = cre_commit_from_parent (repo->id, rep_commit);
+            if (new_commit == NULL) {
+                seaf_warning ("Failed to update branch head.\n");
+            } else {
+                seaf_message ("Resetting head of repo %.8s to commit %.8s.\n",
+                              repo->id, new_commit->commit_id);
+                seaf_branch_set_commit (repo->head, new_commit->commit_id);
+                if (seaf_branch_manager_update_branch (seaf->branch_mgr, repo->head) < 0) {
+                    seaf_warning ("Failed to update branch head.\n");
+                } else {
+                    seaf_commit_manager_add_commit (seaf->commit_mgr, new_commit);
+                }
+                seaf_commit_unref (new_commit);
+            }
+            seaf_commit_unref (rep_commit);
+        } else {
             seaf_warning ("Failed to update branch head.\n");
         }
     }
@@ -220,31 +327,8 @@ check_and_reset_consistent_state (SeafRepo *repo)
     g_free (res.consistent_head);
 }
 
-static int
-check_fs_block_objects_for_repo (SeafRepo *repo, gboolean dry_run, gboolean strict)
-{
-    seaf_message ("Checking fs objects for version %d repo %s(%.8s)...\n",
-                  repo->version, repo->name, repo->id);
-
-    if (remove_corrupt_fs_objects (repo->store_id, repo->version,
-                                   dry_run, strict) < 0) {
-        seaf_warning ("Failed to check fs objects.\n");
-        return -1;
-    }
-
-    seaf_message ("Checking blocks for version %d repo %s(%.8s)...\n",
-                  repo->version, repo->name, repo->id);
-
-    if (remove_corrupt_blocks (repo->store_id, repo->version, dry_run) < 0) {
-        seaf_warning ("Failed to check blocks.\n");
-        return -1;
-    }
-
-    return 0;
-}
-
 int
-seaf_fsck (GList *repo_id_list, gboolean dry_run, gboolean strict)
+seaf_fsck (GList *repo_id_list)
 {
     if (!repo_id_list)
         repo_id_list = seaf_repo_manager_get_repo_id_list (seaf->repo_mgr);
@@ -255,28 +339,23 @@ seaf_fsck (GList *repo_id_list, gboolean dry_run, gboolean strict)
 
     for (ptr = repo_id_list; ptr; ptr = ptr->next) {
         repo_id = ptr->data;
+
+        seaf_message ("Running fsck for repo %.8s.\n", repo_id);
+
         repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
         if (!repo) {
-            seaf_warning ("Cannot load repo %.8s.\n", repo_id);
+            if (recover_corrupted_repo_head (repo_id) < 0) {
+                seaf_warning ("Failed to recover repo %.8s.\n\n", repo_id);
+            } else
+                seaf_message ("Fsck finished for repo %.8s.\n\n", repo_id);
             continue;
         }
 
-        if (repo->is_virtual) {
-            seaf_repo_unref (repo);
-            continue;
-        }
+        check_and_reset_consistent_state (repo);
 
-        if (check_fs_block_objects_for_repo (repo, dry_run, strict) < 0) {
-            seaf_warning ("Failed to check fs and blocks for repo %.8s.\n",
-                          repo->id);
-            continue;
-        }
-
-        if (!dry_run)
-            check_and_reset_consistent_state (repo);
+        seaf_message ("Fsck finished for repo %.8s.\n\n", repo_id);
 
         seaf_repo_unref (repo);
     }
-
     return 0;
 }

@@ -194,7 +194,7 @@ start_watch_dir_change(SeafWTMonitorPriv *priv, HANDLE dir_handle)
 retry:
     ret = ReadDirectoryChangesW
         (dir_handle,            /* dir handle */
-         &aux->buf,              /* buf to hold change info */
+         aux->buf,              /* buf to hold change info */
          DIR_WATCH_BUFSIZE,     /* buf size */
          TRUE,                  /* watch subtree */
          DIR_WATCH_MASK,        /* notify filter */

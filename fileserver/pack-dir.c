@@ -177,7 +177,7 @@ add_file_to_archive (PackDirData *data,
                 /* not encrypted */
                 len = archive_write_data (a, buf, n);
                 if (len <= 0) {
-                    seaf_warning ("archive_write_data returned %d\n", len);
+                    seaf_warning ("archive_write_data error: %s\n", archive_error_string(a));
                     ret = -1;
                     goto out;
                 }
@@ -207,7 +207,7 @@ add_file_to_archive (PackDirData *data,
                 if (dec_out_len > 0) {
                     len = archive_write_data (a, dec_out, dec_out_len);
                     if (len <= 0) {
-                        seaf_warning ("archive_write_data returned %d\n", len);
+                        seaf_warning ("archive_write_data error: %s\n", archive_error_string(a));
                         ret = -1;
                         goto out;
                     }
@@ -228,7 +228,7 @@ add_file_to_archive (PackDirData *data,
                     if (dec_out_len != 0) {
                         len = archive_write_data (a, dec_out, dec_out_len);
                         if (len <= 0) {
-                            seaf_warning ("archive_write_data returned %d\n", len);
+                            seaf_warning ("archive_write_data error: %s\n", archive_error_string(a));
                             ret = -1;
                             goto out;
                         }

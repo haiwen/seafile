@@ -10,6 +10,7 @@ struct _SeafileSession;
 struct _SeafWebAccessTokenManager {
     struct _SeafileSession	*seaf;
     GHashTable		*access_token_hash; /* token -> access info */
+    GHashTable      *access_info_hash;  /* access info -> token */
 };
 typedef struct _SeafWebAccessTokenManager SeafWebAccessTokenManager;
 

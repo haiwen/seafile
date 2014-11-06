@@ -306,7 +306,7 @@ migrate_v0_repos_to_v1_layout ()
     repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, &error);
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
-        if (repo->version == 0)
+        if (!repo->is_corrupted && repo->version == 0)
             migrate_repo (repo);
         seaf_repo_unref (repo);
     }

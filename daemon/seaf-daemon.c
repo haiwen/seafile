@@ -192,14 +192,17 @@ start_rpc_service (CcnetClient *client)
                                      seafile_check_path_for_clone,
                                      "seafile_check_path_for_clone",
                                      searpc_signature_int__string());
+    
+    /* clone means sync with existing folder, download means sync to a new folder. */
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_clone,
                                      "seafile_clone",
-        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int());
+        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int_string());
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_download,
                                      "seafile_download",
-        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int());
+        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int_string());
+    
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_cancel_clone_task,
                                      "seafile_cancel_clone_task",

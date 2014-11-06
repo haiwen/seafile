@@ -11,10 +11,9 @@
 #include <getopt.h>
 
 #include <glib.h>
-#include <ccnet.h>                              \
+#include <ccnet.h>
 
 #include "utils.h"
-
 #include "log.h"
 #include "seafile-controller.h"
 

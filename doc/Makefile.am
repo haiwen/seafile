@@ -4,4 +4,4 @@ endif
 
 dist_man1_MANS = $(CLIENT_MANUALS)
 
-EXTRA_DIST = cli-readme.txt seafile-tutorial.doc Seafile使用指南.doc
+EXTRA_DIST = cli-readme.txt seafile-tutorial.doc Seafile-tutorial-cn.doc

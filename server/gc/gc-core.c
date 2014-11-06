@@ -132,8 +132,12 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
              (gint64)(commit->ctime) < data->truncate_time &&
              data->traversed_head)
     {
+        /* Still traverse the first commit older than truncate_time.
+         * If a file in the child commit of this commit is deleted,
+         * we need to access this commit in order to restore it
+         * from trash.
+         */
         *stop = TRUE;
-        return TRUE;
     }
 
     if (!data->traversed_head)
@@ -356,21 +360,22 @@ out:
 }
 
 int
-gc_core_run (int dry_run)
+gc_core_run (GList *repo_id_list, int dry_run)
 {
-    GList *repos = NULL, *del_repos = NULL, *ptr;
+    if (repo_id_list == NULL)
+        repo_id_list = seaf_repo_manager_get_repo_id_list (seaf->repo_mgr);
+
+    GList *del_repos = NULL, *ptr;
     SeafRepo *repo;
     GList *corrupt_repos = NULL;
-    gboolean error = FALSE;
 
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, &error);
-    if (error) {
-        seaf_warning ("Failed to load repo list.\n");
-        return -1;
-    }
+    for (ptr = repo_id_list; ptr; ptr = ptr->next) {
+        repo = seaf_repo_manager_get_repo_ex (seaf->repo_mgr, (const gchar *)ptr->data);
 
-    for (ptr = repos; ptr; ptr = ptr->next) {
-        repo = ptr->data;
+        g_free (ptr->data);
+
+        if (!repo)
+            continue;
 
         if (repo->is_corrupted) {
             corrupt_repos = g_list_prepend (corrupt_repos, g_strdup(repo->id));
@@ -385,7 +390,7 @@ gc_core_run (int dry_run)
         }
         seaf_repo_unref (repo);
     }
-    g_list_free (repos);
+    g_list_free (repo_id_list);
 
     seaf_message ("=== GC deleted repos ===\n");
     del_repos = seaf_repo_manager_list_garbage_repos (seaf->repo_mgr);

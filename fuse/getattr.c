@@ -110,6 +110,19 @@ static int getattr_repo(SeafileSession *seaf,
                 cnt++;
         }
 
+        if (strcmp (repo_path, "/") != 0) {
+            // get dirent of the dir
+            SeafDirent *dirent = fuse_get_dirent_by_path (seaf->fs_mgr,
+                                                          repo->store_id,
+                                                          repo->version,
+                                                          commit->root_id,
+                                                          repo_path);
+            if (dirent && repo->version != 0)
+                stbuf->st_mtime = dirent->mtime;
+
+            seaf_dirent_free (dirent);
+        }
+
         stbuf->st_size += cnt * sizeof(SeafDirent);
         stbuf->st_mode = mode | 0755;
         stbuf->st_nlink = 2;
@@ -123,9 +136,18 @@ static int getattr_repo(SeafileSession *seaf,
         if (file)
             stbuf->st_size = file->file_size;
 
+        SeafDirent *dirent = fuse_get_dirent_by_path (seaf->fs_mgr,
+                                                      repo->store_id,
+                                                      repo->version,
+                                                      commit->root_id,
+                                                      repo_path);
+        if (dirent && repo->version != 0)
+            stbuf->st_mtime = dirent->mtime;
+
         stbuf->st_mode = mode | 0644;
         stbuf->st_nlink = 1;
 
+        seaf_dirent_free (dirent);
         seafile_unref (file);
     } else {
         return -ENOENT;

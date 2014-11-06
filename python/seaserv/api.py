@@ -354,4 +354,9 @@ class SeafileAPI(object):
     def delete_repo_tokens_by_peer_id(self, username, device_id):
         return seafserv_threaded_rpc.delete_repo_tokens_by_peer_id(username, device_id)
 
+    # Clean trash
+
+    def clean_up_repo_history(self, repo_id, keep_days):
+        return seafserv_threaded_rpc.clean_up_repo_history(repo_id, keep_days)
+
 seafile_api = SeafileAPI()

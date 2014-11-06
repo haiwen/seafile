@@ -4528,7 +4528,12 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
     gint64 truncate_time = data->truncate_time;
     SeafCommit *p1, *p2;
 
-    if ((gint64)(commit->ctime) < truncate_time) {
+    /* We use <= here. This is for handling clean trash and history.
+     * If the user cleans all history, truncate time will be equal to
+     * the head commit's ctime. In such case, we don't actually want to display
+     * any deleted file.
+     */
+    if ((gint64)(commit->ctime) <= truncate_time) {
         *stop = TRUE;
         return TRUE;
     }
@@ -4543,13 +4548,13 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
         seaf_warning ("Failed to find commit %s.\n", commit->parent_id);
         return FALSE;
     }
-    if ((gint64)(p1->ctime) >= truncate_time) {
-        if (find_deleted_recursive (data->repo, commit->root_id, p1->root_id, "/",
-                                    commit, p1, entries) < 0) {
-            seaf_commit_unref (p1);
-            return FALSE;
-        }
+
+    if (find_deleted_recursive (data->repo, commit->root_id, p1->root_id, "/",
+                                commit, p1, entries) < 0) {
+        seaf_commit_unref (p1);
+        return FALSE;
     }
+
     seaf_commit_unref (p1);
 
     if (commit->second_parent_id) {
@@ -4561,13 +4566,13 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
                           commit->second_parent_id);
             return FALSE;
         }
-        if ((gint64)(p2->ctime) >= truncate_time) {
-            if (find_deleted_recursive (data->repo, commit->root_id, p2->root_id, "/",
-                                        commit, p2, entries) < 0) {
-                seaf_commit_unref (p2);
-                return FALSE;
-            }
+
+        if (find_deleted_recursive (data->repo, commit->root_id, p2->root_id, "/",
+                                    commit, p2, entries) < 0) {
+            seaf_commit_unref (p2);
+            return FALSE;
         }
+
         seaf_commit_unref (p2);
     }
 

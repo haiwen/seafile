@@ -276,10 +276,27 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
                                                    file_path);
         if (!conflict_path)
             goto bad;
-        if (ccnet_rename (tmp_path, conflict_path) < 0) {
-            g_free (conflict_path);
-            goto bad;
+
+        seaf_warning ("Cannot update %s, creating conflict file %s.\n",
+                      file_path, conflict_path);
+
+        /* First try to rename the local version to a conflict file,
+         * this will preserve the version from the server.
+         * If this fails, fall back to checking out the server version
+         * to the conflict file.
+         */
+        if (ccnet_rename (file_path, conflict_path) == 0) {
+            if (ccnet_rename (tmp_path, file_path) < 0) {
+                g_free (conflict_path);
+                goto bad;
+            }
+        } else {
+            if (ccnet_rename (tmp_path, conflict_path) < 0) {
+                g_free (conflict_path);
+                goto bad;
+            }
         }
+
         g_free (conflict_path);
     } else if (mtime > 0) {
         /* !force_conflict && ccnet_rename() == 0

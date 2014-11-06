@@ -145,9 +145,14 @@ process_one_event (const char* eventPath,
     } else if (eventFlags & kFSEventStreamEventFlagItemXattrMod) {
         seaf_debug ("XattrMod %s.\n", filename);
         add_event_to_queue (status, WT_EVENT_ATTRIB, filename, NULL);
+    } else if (eventFlags & kFSEventStreamEventFlagRootChanged) {
+        /* An empty path indicates repo-mgr to scan the whole worktree. */
+        seaf_debug ("RootChange event.\n");
+        add_event_to_queue (info->status, WT_EVENT_CREATE_OR_UPDATE, "", NULL);
+    } else {
+        seaf_debug ("Unhandled event with flags %x.\n", eventFlags);
     }
-    //TODO: kFSEventStreamEventFlagRootChanged and
-    //kFSEventStreamCreateFlagWatchRoot
+
     g_free (filename);
     g_atomic_int_set (&info->status->last_changed, (gint)time(NULL));
 }
@@ -175,10 +180,8 @@ stream_callback (ConstFSEventStreamRef streamRef,
 
     int i;
     for (i = 0; i < numEvents; i++) {
-#ifdef FSEVENT_DEBUG
         seaf_debug("%ld Change %llu in %s, flags %x\n", (long)CFRunLoopGetCurrent(),
                    eventIds[i], paths[i], eventFlags[i]);
-#endif
         process_one_event (paths[i], info, info->worktree,
                            eventIds[i], eventFlags[i]);
     }
@@ -188,16 +191,17 @@ static FSEventStreamRef
 add_watch (SeafWTMonitor *monitor, const char* repo_id, const char* worktree)
 {
     SeafWTMonitorPriv *priv = monitor->priv;
-    const char *path = worktree;
     RepoWatchInfo *info;
     double latency = 0.25; /* unit: second */
 
-    CFStringRef mypath = CFStringCreateWithCString (kCFAllocatorDefault,
-                                                    path, kCFStringEncodingUTF8);
-    CFArrayRef pathsToWatch = CFArrayCreate(NULL, (const void **)&mypath, 1, NULL);
+    CFStringRef mypaths[1];
+    mypaths[0] = CFStringCreateWithCString (kCFAllocatorDefault,
+                                                    worktree, kCFStringEncodingUTF8);
+    CFArrayRef pathsToWatch = CFArrayCreate(NULL, (const void **)mypaths, 1, NULL);
     FSEventStreamRef stream;
 
     /* Create the stream, passing in a callback */
+    seaf_debug("Use kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot\n");
     struct FSEventStreamContext ctx = {0, monitor, NULL, NULL, NULL};
     stream = FSEventStreamCreate(kCFAllocatorDefault,
                                  stream_callback,
@@ -205,23 +209,21 @@ add_watch (SeafWTMonitor *monitor, const char* repo_id, const char* worktree)
                                  pathsToWatch,
                                  kFSEventStreamEventIdSinceNow,
                                  latency,
-                                 kFSEventStreamCreateFlagFileEvents /* deprecated OSX 10.6 support*/
-        );
+                                 kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot
+                                 );
 
-    CFRelease (mypath);
+    CFRelease (mypaths[0]);
     CFRelease (pathsToWatch);
 
     if (!stream) {
-        seaf_warning ("[wt] Failed to create event stream \n");
+        seaf_warning ("[wt] Failed to create event stream.\n");
         return stream;
     }
 
     FSEventStreamScheduleWithRunLoop(stream, CFRunLoopGetCurrent(), kCFRunLoopDefaultMode);
     FSEventStreamStart (stream);
-#ifdef FSEVENT_DEBUG
-    FSEventStreamShow (stream);
-    seaf_debug ("[wt mon] Add repo %s watch success :%s.\n", repo_id, repo->worktree);
-#endif
+    /* FSEventStreamShow (stream); */
+    seaf_debug ("[wt mon] Add repo %s watch success: %s.\n", repo_id, worktree);
 
     pthread_mutex_lock (&priv->hash_lock);
     g_hash_table_insert (priv->handle_hash,

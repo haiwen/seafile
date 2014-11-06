@@ -51,9 +51,6 @@ static const char *ignore_table[] = {
     "*~",
     /* Emacs tmp files */
     "#*#",
-    /* ms office tmp files */
-    "~$*",
-    "~*.tmp", /* for files like ~WRL0001.tmp */
     /* windows image cache */
     "Thumbs.db",
     /* For Mac */
@@ -62,6 +59,8 @@ static const char *ignore_table[] = {
 };
 
 static GPatternSpec** ignore_patterns;
+static GPatternSpec* office_temp_ignore_patterns[4];
+
 
 static SeafRepo *
 load_repo (SeafRepoManager *manager, const char *repo_id);
@@ -71,6 +70,10 @@ static void seaf_repo_manager_del_repo_property (SeafRepoManager *manager,
                                                  const char *repo_id);
 
 static int save_branch_repo_map (SeafRepoManager *manager, SeafBranch *branch);
+static void save_repo_property (SeafRepoManager *manager,
+                                const char *repo_id,
+                                const char *key, const char *value);
+
 
 gboolean
 is_repo_id_valid (const char *id)
@@ -133,22 +136,6 @@ seaf_repo_check_worktree (SeafRepo *repo)
     }
 
     return 0;
-}
-
-static void
-send_wktree_notification (SeafRepo *repo, int addordel)
-{
-    if (seaf_repo_check_worktree(repo) < 0)
-        return;
-    if (addordel) {
-        seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                              "repo.setwktree",
-                                              repo->worktree);
-    } else {
-        seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                              "repo.unsetwktree",
-                                              repo->worktree);
-    }
 }
 
 
@@ -313,6 +300,21 @@ out:
     return commits;
 }
 
+void
+seaf_repo_set_readonly (SeafRepo *repo)
+{
+    repo->is_readonly = TRUE;
+    save_repo_property (repo->manager, repo->id, REPO_PROP_IS_READONLY, "true");
+}
+
+void
+seaf_repo_unset_readonly (SeafRepo *repo)
+{
+    repo->is_readonly = FALSE;
+    save_repo_property (repo->manager, repo->id, REPO_PROP_IS_READONLY, "false");
+}
+
+
 static inline gboolean
 has_trailing_space_or_period (const char *path)
 {
@@ -350,6 +352,15 @@ should_ignore(const char *basepath, const char *filename, void *data)
         if (g_pattern_match_string(*spec, filename))
             return TRUE;
         spec++;
+    }
+
+    if (!seaf->sync_extra_temp_file) {
+        spec = office_temp_ignore_patterns;
+        while (*spec) {
+            if (g_pattern_match_string(*spec, filename))
+                return TRUE;
+            spec++;
+        }
     }
     
     /*
@@ -794,16 +805,11 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
     GList *scanned_dirs = NULL;
 
     WTEvent *last_event;
-    if (repo->create_partial_commit && status->last_event != NULL)
-        last_event = status->last_event;
-    else {
-        if (!repo->create_partial_commit)
-            status->last_event = NULL;
 
-        pthread_mutex_lock (&status->q_lock);
-        last_event = g_queue_peek_tail (status->event_q);
-        pthread_mutex_unlock (&status->q_lock);
-    }
+    pthread_mutex_lock (&status->q_lock);
+    last_event = g_queue_peek_tail (status->event_q);
+    pthread_mutex_unlock (&status->q_lock);
+
     if (!last_event)
         goto out;
 
@@ -828,6 +834,10 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 break;
 
             if (!repo->create_partial_commit) {
+                /* XXX: We now use remain_files = NULL to signify not creating
+                 * partial commits. It's better to use total_size = NULL for
+                 * that purpose.
+                 */
                 add_path_to_index (repo, istate, crypt, event->path,
                                    ignore_list, &scanned_dirs,
                                    &total_size, NULL);
@@ -836,19 +846,39 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 add_path_to_index (repo, istate, crypt, event->path,
                                    ignore_list, &scanned_dirs,
                                    &total_size, &remain_files);
-                if (remain_files) {
-                    /* Cache remaining files in the event structure. */
-                    event->remain_files = remain_files;
+                if (total_size >= MAX_COMMIT_SIZE) {
+                    seaf_message ("Creating partial commit after adding %s.\n",
+                                  event->path);
 
-                    pthread_mutex_lock (&status->q_lock);
-                    g_queue_push_head (status->event_q, event);
-                    pthread_mutex_unlock (&status->q_lock);
+                    status->partial_commit = TRUE;
 
-                    /* Set status->last_event to signify partial commit. */
-                    status->last_event = last_event;
+                    /* An event for a new folder may contain many files.
+                     * If the total_size become larger than 100MB after adding
+                     * some of these files, the remaining file paths will be
+                     * cached in remain files. This way we don't need to scan
+                     * the folder again next time.
+                     */
+                    if (remain_files) {
+                        if (g_queue_get_length (remain_files) == 0) {
+                            g_queue_free (remain_files);
+                            goto out;
+                        }
+
+                        seaf_message ("Remain files for %s.\n", event->path);
+
+                        /* Cache remaining files in the event structure. */
+                        event->remain_files = remain_files;
+
+                        pthread_mutex_lock (&status->q_lock);
+                        g_queue_push_head (status->event_q, event);
+                        pthread_mutex_unlock (&status->q_lock);
+                    }
+
                     goto out;
                 }
             } else {
+                seaf_message ("Adding remaining files for %s.\n", event->path);
+
                 add_remain_files (repo, istate, crypt, event->remain_files,
                                   ignore_list, &total_size);
                 if (g_queue_get_length (event->remain_files) != 0) {
@@ -857,6 +887,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                     pthread_mutex_unlock (&status->q_lock);
                     goto out;
                 }
+                if (total_size >= MAX_COMMIT_SIZE)
+                    goto out;
             }
             break;
         case WT_EVENT_DELETE:
@@ -903,8 +935,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
 
         if (event == last_event) {
             wt_event_free (event);
-            if (status->last_event != NULL)
-                status->last_event = NULL;
+            seaf_message ("All events are processed for repo %s.\n", repo->id);
+            status->partial_commit = FALSE;
             break;
         } else
             wt_event_free (event);
@@ -1761,7 +1793,8 @@ checkout_file (const char *repo_id,
                 goto update_cache;
             } else {
                 /* Conflict. The worktree file was updated by the user. */
-                seaf_debug ("File is updated. Conflict.\n");
+                seaf_message ("File %s is updated by user. "
+                              "Will checkout to conflict file later.\n", path);
                 force_conflict = TRUE;
             }
         }
@@ -1799,8 +1832,11 @@ checkout_file (const char *repo_id,
     /* The worktree file may have been changed when we're downloading the blocks. */
     if (path_exists && S_ISREG(st.st_mode) && !force_conflict) {
         seaf_stat (path, &st2);
-        if (st.st_mtime != st2.st_mtime)
+        if (st.st_mtime != st2.st_mtime) {
+            seaf_message ("File %s is updated by user. "
+                          "Will checkout to conflict file later.\n", path);
             force_conflict = TRUE;
+        }
     }
 
     /* then checkout the file. */
@@ -2271,7 +2307,6 @@ seaf_repo_manager_set_repo_worktree (SeafRepoManager *mgr,
     if (repo->worktree)
         g_free (repo->worktree);
     repo->worktree = g_strdup(worktree);
-    send_wktree_notification (repo, TRUE);
 
     if (seaf_repo_manager_set_repo_property (mgr, repo->id,
                                              "worktree",
@@ -2308,7 +2343,7 @@ seaf_repo_manager_validate_repo_worktree (SeafRepoManager *mgr,
 
     repo->worktree_invalid = FALSE;
 
-    if (repo->auto_sync) {
+    if (repo->auto_sync && !repo->is_readonly) {
         if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
             g_warning ("failed to watch repo %s.\n", repo->id);
         }
@@ -2340,6 +2375,12 @@ seaf_repo_manager_new (SeafileSession *seaf)
     for (i = 0; ignore_table[i] != NULL; i++) {
         ignore_patterns[i] = g_pattern_spec_new (ignore_table[i]);
     }
+
+    office_temp_ignore_patterns[0] = g_pattern_spec_new("~$*");
+    /* for files like ~WRL0001.tmp */
+    office_temp_ignore_patterns[1] = g_pattern_spec_new("~*.tmp");
+    office_temp_ignore_patterns[2] = g_pattern_spec_new(".~lock*#");
+    office_temp_ignore_patterns[3] = NULL;
 
     mgr->priv->repo_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
@@ -2373,7 +2414,7 @@ watch_repos (SeafRepoManager *mgr)
     g_hash_table_iter_init (&iter, mgr->priv->repo_hash);
     while (g_hash_table_iter_next (&iter, &key, &value)) {
         repo = value;
-        if (repo->auto_sync && !repo->worktree_invalid) {
+        if (repo->auto_sync && !repo->worktree_invalid && !repo->is_readonly) {
             if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
                 g_warning ("failed to watch repo %s.\n", repo->id);
                 /* If we fail to add watch at the beginning, sync manager
@@ -2447,7 +2488,6 @@ seaf_repo_manager_add_repo (SeafRepoManager *manager,
     g_hash_table_insert (manager->priv->repo_hash, g_strdup(repo->id), repo);
 
     pthread_rwlock_unlock (&manager->priv->lock);
-    send_wktree_notification (repo, TRUE);
 
     return 0;
 }
@@ -2469,7 +2509,6 @@ seaf_repo_manager_mark_repo_deleted (SeafRepoManager *mgr, SeafRepo *repo)
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
     repo->delete_pending = TRUE;
-    send_wktree_notification (repo, FALSE);
 
     return 0;
 }
@@ -2606,13 +2645,14 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
 
     pthread_rwlock_unlock (&mgr->priv->lock);
 
-    send_wktree_notification (repo, FALSE);
-
     seaf_repo_free (repo);
 
     return 0;
 }
 
+/*
+  Return the internal Repo in hashtable. The caller should not free the returned Repo.
+ */
 SeafRepo*
 seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
 {
@@ -3054,8 +3094,14 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
         }
     }
 
+    /* load readonly property */
+    value = load_repo_property (manager, repo->id, REPO_PROP_IS_READONLY);
+    if (g_strcmp0(value, "true") == 0)
+        repo->is_readonly = TRUE;
+    else
+        repo->is_readonly = FALSE;
+
     g_hash_table_insert (manager->priv->repo_hash, g_strdup(repo->id), repo);
-    send_wktree_notification (repo, TRUE);
 
     return repo;
 }
@@ -3233,6 +3279,7 @@ seaf_repo_manager_set_repo_relay_id (SeafRepoManager *mgr,
     return 0;
 }
 
+
 int
 seaf_repo_manager_set_repo_property (SeafRepoManager *manager, 
                                      const char *repo_id,
@@ -3253,11 +3300,14 @@ seaf_repo_manager_set_repo_property (SeafRepoManager *manager,
 
         if (g_strcmp0(value, "true") == 0) {
             repo->auto_sync = 1;
-            seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree);
+            if (!repo->is_readonly)
+                seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id,
+                                            repo->worktree);
             repo->last_sync_time = 0;
         } else {
             repo->auto_sync = 0;
-            seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
+            if (!repo->is_readonly)
+                seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
             /* Cancel current sync task if any. */
             seaf_sync_manager_cancel_sync_task (seaf->sync_mgr, repo->id);
         }

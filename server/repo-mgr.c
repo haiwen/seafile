@@ -245,7 +245,7 @@ has_trailing_space_or_period (const char *path)
 gboolean
 should_ignore_file(const char *filename, void *data)
 {
-    GPatternSpec **spec = ignore_patterns;
+    /* GPatternSpec **spec = ignore_patterns; */
 
     if (!g_utf8_validate (filename, -1, NULL)) {
         seaf_warning ("File name %s contains non-UTF8 characters, skip.\n", filename);
@@ -263,11 +263,11 @@ should_ignore_file(const char *filename, void *data)
         return TRUE;
     }
 
-    while (*spec) {
-        if (g_pattern_match_string(*spec, filename))
-            return TRUE;
-        spec++;
-    }
+    /* while (*spec) { */
+    /*     if (g_pattern_match_string(*spec, filename)) */
+    /*         return TRUE; */
+    /*     spec++; */
+    /* } */
 
     
     /*
@@ -314,11 +314,11 @@ seaf_repo_manager_new (SeafileSession *seaf)
     mgr->priv->reap_token_timer = ccnet_timer_new (reap_token, mgr,
                                                    REAP_TOKEN_INTERVAL * 1000);
 
-    ignore_patterns = g_new0 (GPatternSpec*, G_N_ELEMENTS(ignore_table));
-    int i;
-    for (i = 0; ignore_table[i] != NULL; i++) {
-        ignore_patterns[i] = g_pattern_spec_new (ignore_table[i]);
-    }
+    /* ignore_patterns = g_new0 (GPatternSpec*, G_N_ELEMENTS(ignore_table)); */
+    /* int i; */
+    /* for (i = 0; ignore_table[i] != NULL; i++) { */
+    /*     ignore_patterns[i] = g_pattern_spec_new (ignore_table[i]); */
+    /* } */
 
     return mgr;
 }
