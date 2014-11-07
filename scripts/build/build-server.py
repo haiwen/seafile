@@ -667,11 +667,11 @@ def copy_shared_libs():
                            'seafile',
                            'lib')
 
-    fileserver_path = os.path.join(builddir,
+    seafile_path = os.path.join(builddir,
                                    'seafile-server',
                                    'seafile',
                                    'bin',
-                                   'fileserver')
+                                   'seaf-server')
 
     ccnet_server_path = os.path.join(builddir,
                                      'seafile-server',
@@ -687,7 +687,7 @@ def copy_shared_libs():
 
     libs = set()
     libs.update(get_dependent_libs(ccnet_server_path))
-    libs.update(get_dependent_libs(fileserver_path))
+    libs.update(get_dependent_libs(seafile_path))
     libs.update(get_dependent_libs(seaf_fuse_path))
 
     for lib in libs:

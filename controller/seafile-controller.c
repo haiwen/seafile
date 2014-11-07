@@ -210,31 +210,6 @@ start_seaf_server ()
     return 0;
 }
 
-static int
-start_fileserver() {
-    static char *logfile = NULL;
-    if (logfile == NULL) {
-        logfile = g_build_filename (ctl->logdir, "fileserver.log", NULL);
-    }
-
-    char *argv[] = {
-        "fileserver",
-        "-c", ctl->config_dir,
-        "-d", ctl->seafile_dir,
-        "-l", logfile,
-        "-P", ctl->pidfile[PID_FILESERVER],
-        NULL
-    };
-
-    int pid = spawn_process (argv);
-    if (pid <= 0) {
-        seaf_warning ("Failed to spawn fileserver\n");
-        return -1;
-    }
-
-    return 0;
-}
-
 static const char *
 get_python_executable() {
     static const char *python = NULL;
@@ -443,11 +418,6 @@ check_process (void *data)
         start_seaf_server ();
     }
 
-    if (need_restart(PID_FILESERVER)) {
-        seaf_message ("fileserver need restart...\n");
-        start_fileserver ();
-    }
-
     if (ctl->seafdav_config.enabled) {
         if (need_restart(PID_SEAFDAV)) {
             seaf_message ("seafdav need restart...\n");
@@ -550,13 +520,6 @@ on_ccnet_connected ()
     if (start_seaf_server () < 0)
         controller_exit(1);
 
-    if (need_restart(PID_FILESERVER)) {
-        /* Since fileserver doesn't die when ccnet server dies, when ccnet
-         * server is restarted, we don't need to start fileserver */
-        if (start_fileserver() < 0)
-            controller_exit(1);
-    }
-
     if (ctl->seafdav_config.enabled) {
         if (need_restart(PID_SEAFDAV)) {
             if (start_seafdav() < 0)
@@ -607,7 +570,6 @@ stop_ccnet_server ()
 
     try_kill_process(PID_CCNET);
     try_kill_process(PID_SERVER);
-    try_kill_process(PID_FILESERVER);
     try_kill_process(PID_SEAFDAV);
 }
 
@@ -624,7 +586,6 @@ init_pidfile_path (SeafileController *ctl)
 
     ctl->pidfile[PID_CCNET] = g_build_filename (pid_dir, "ccnet.pid", NULL);
     ctl->pidfile[PID_SERVER] = g_build_filename (pid_dir, "seaf-server.pid", NULL);
-    ctl->pidfile[PID_FILESERVER] = g_build_filename (pid_dir, "fileserver.pid", NULL);
     ctl->pidfile[PID_SEAFDAV] = g_build_filename (pid_dir, "seafdav.pid", NULL);
 }
 
