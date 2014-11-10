@@ -57,7 +57,7 @@
   <!-- <?define ProductGuid="36B756D6-ED10-41E1-A1AF-F6FF413650DE" ?> (3.1.5) -->
   <!-- <?define ProductGuid="DEBE2F11-4C1F-4616-8105-A3D5CF42F2A2" ?> (3.1.6) -->
   <!-- <?define ProductGuid="146A15A5-B784-4681-8056-A0F55F743327" ?> (3.1.7) -->
-  <!-- <?define ProductGuid="291A0294-B431-44B7-8C59-2272C7E8D790" ?> (4.0.0) -->
+  <!-- <?define ProductGuid="291A0294-B431-44B7-8C59-2272C7E8D790" ?> (3.1.8) -->
   <?define ProductGuid="ACF30931-E8E8-4DBF-AEE5-3E9E7865BCBA" ?>
 
 </Include>

@@ -253,6 +253,8 @@ http_tx_manager_start (HttpTxManager *mgr)
     mgr->priv->reset_bytes_timer = ccnet_timer_new (reset_bytes,
                                                     mgr,
                                                     RESET_BYTES_INTERVAL_MSEC);
+
+    return 0;
 }
 
 /* Common Utility Functions. */
