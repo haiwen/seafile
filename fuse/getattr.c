@@ -112,11 +112,11 @@ static int getattr_repo(SeafileSession *seaf,
 
         if (strcmp (repo_path, "/") != 0) {
             // get dirent of the dir
-            SeafDirent *dirent = fuse_get_dirent_by_path (seaf->fs_mgr,
-                                                          repo->store_id,
-                                                          repo->version,
-                                                          commit->root_id,
-                                                          repo_path);
+            SeafDirent *dirent = seaf_fs_manager_get_dirent_by_path (seaf->fs_mgr,
+                                                                     repo->store_id,
+                                                                     repo->version,
+                                                                     commit->root_id,
+                                                                     repo_path);
             if (dirent && repo->version != 0)
                 stbuf->st_mtime = dirent->mtime;
 
@@ -136,11 +136,11 @@ static int getattr_repo(SeafileSession *seaf,
         if (file)
             stbuf->st_size = file->file_size;
 
-        SeafDirent *dirent = fuse_get_dirent_by_path (seaf->fs_mgr,
-                                                      repo->store_id,
-                                                      repo->version,
-                                                      commit->root_id,
-                                                      repo_path);
+        SeafDirent *dirent = seaf_fs_manager_get_dirent_by_path (seaf->fs_mgr,
+                                                                 repo->store_id,
+                                                                 repo->version,
+                                                                 commit->root_id,
+                                                                 repo_path);
         if (dirent && repo->version != 0)
             stbuf->st_mtime = dirent->mtime;
 

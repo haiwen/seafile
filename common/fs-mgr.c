@@ -1890,6 +1890,85 @@ seaf_fs_manager_traverse_tree (SeafFSManager *mgr,
     return traverse_dir (mgr, repo_id, version, root_id, callback, user_data, skip_errors);
 }
 
+static int
+traverse_dir_path (SeafFSManager *mgr,
+                   const char *repo_id,
+                   int version,
+                   const char *dir_path,
+                   SeafDirent *dent,
+                   TraverseFSPathCallback callback,
+                   void *user_data)
+{
+    SeafDir *dir;
+    GList *p;
+    SeafDirent *seaf_dent;
+    gboolean stop = FALSE;
+    char *sub_path;
+    int ret = 0;
+
+    if (!callback (mgr, dir_path, dent, user_data, &stop))
+        return -1;
+
+    if (stop)
+        return 0;
+
+    dir = seaf_fs_manager_get_seafdir (mgr, repo_id, version, dent->id);
+    if (!dir) {
+        seaf_warning ("get seafdir %s failed\n", dent->id);
+        return -1;
+    }
+
+    for (p = dir->entries; p; p = p->next) {
+        seaf_dent = (SeafDirent *)p->data;
+        sub_path = g_strconcat (dir_path, "/", seaf_dent->name, NULL);
+
+        if (S_ISREG(seaf_dent->mode)) {
+            if (!callback (mgr, sub_path, seaf_dent, user_data, &stop)) {
+                g_free (sub_path);
+                ret = -1;
+                break;
+            }
+        } else if (S_ISDIR(seaf_dent->mode)) {
+            if (traverse_dir_path (mgr, repo_id, version, sub_path, seaf_dent,
+                                   callback, user_data) < 0) {
+                g_free (sub_path);
+                ret = -1;
+                break;
+            }
+        }
+        g_free (sub_path);
+    }
+
+    seaf_dir_free (dir);
+    return ret;
+}
+
+int
+seaf_fs_manager_traverse_path (SeafFSManager *mgr,
+                               const char *repo_id,
+                               int version,
+                               const char *root_id,
+                               const char *dir_path,
+                               TraverseFSPathCallback callback,
+                               void *user_data)
+{
+    SeafDirent *dent;
+    int ret = 0;
+
+    dent = seaf_fs_manager_get_dirent_by_path (mgr, repo_id, version,
+                                               root_id, dir_path);
+    if (!dent) {
+        seaf_warning ("Failed to get dirent for %.8s:%s.\n", repo_id, dir_path);
+        return -1;
+    }
+
+    ret = traverse_dir_path (mgr, repo_id, version, dir_path, dent,
+                             callback, user_data);
+
+    seaf_dirent_free (dent);
+    return ret;
+}
+
 static gboolean
 fill_blocklist (SeafFSManager *mgr,
                 const char *repo_id, int version,
@@ -2245,6 +2324,48 @@ seaf_fs_manager_get_seafdir_id_by_path (SeafFSManager *mgr,
     }
 
     return dir_id;
+}
+
+SeafDirent *
+seaf_fs_manager_get_dirent_by_path (SeafFSManager *mgr,
+                                    const char *repo_id,
+                                    int version,
+                                    const char *root_id,
+                                    const char *path)
+{
+    SeafDirent *dent = NULL;
+    SeafDir *dir = NULL;
+    char *parent_dir = NULL;
+    char *file_name = NULL;
+
+    parent_dir  = g_path_get_dirname(path);
+    file_name = g_path_get_basename(path);
+
+    if (strcmp (parent_dir, ".") == 0)
+        dir = seaf_fs_manager_get_seafdir (mgr, repo_id, version, root_id);
+    else
+        dir = seaf_fs_manager_get_seafdir_by_path (mgr, repo_id, version,
+                                                   root_id, parent_dir, NULL);
+
+    if (!dir) {
+        seaf_warning ("dir %s doesn't exist in repo %.8s.\n", parent_dir, repo_id);
+        goto out;
+    }
+
+    GList *p;
+    for (p = dir->entries; p; p = p->next) {
+        SeafDirent *d = p->data;
+        if (strcmp (d->name, file_name) == 0) {
+            dent = seaf_dirent_dup(d);
+            break;
+        }
+    }
+
+out:
+    if (dir)
+        seaf_dir_free (dir);
+
+    return dent;
 }
 
 static gboolean

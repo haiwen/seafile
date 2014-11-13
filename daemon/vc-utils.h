@@ -43,7 +43,8 @@ build_case_conflict_free_path (const char *worktree,
                                const char *ce_name,
                                GHashTable *conflict_hash,
                                GHashTable *no_conflict_hash,
-                               gboolean *is_case_conflict);
+                               gboolean *is_case_conflict,
+                               gboolean is_rename);
 
 char *
 build_checkout_path (const char *worktree, const char *ce_name, int len);
@@ -52,8 +53,21 @@ int
 delete_path (const char *worktree, const char *name,
              unsigned int mode, gint64 old_mtime);
 
+struct index_state;
+
+int
+delete_dir_with_check (const char *repo_id,
+                       int repo_version,
+                       const char *root_id,
+                       const char *dir_path,
+                       const char *worktree,
+                       struct index_state *istate);
+
 gboolean
 do_check_file_locked (const char *path, const char *worktree);
+
+gboolean
+do_check_dir_locked (const char *path, const char *worktree);
 
 gboolean
 files_locked_on_windows (struct index_state *index, const char *worktree);
