@@ -253,6 +253,21 @@ seaf_fs_manager_traverse_tree (SeafFSManager *mgr,
                                void *user_data,
                                gboolean skip_errors);
 
+typedef gboolean (*TraverseFSPathCallback) (SeafFSManager *mgr,
+                                            const char *path,
+                                            SeafDirent *dent,
+                                            void *user_data,
+                                            gboolean *stop);
+
+int
+seaf_fs_manager_traverse_path (SeafFSManager *mgr,
+                               const char *repo_id,
+                               int version,
+                               const char *root_id,
+                               const char *dir_path,
+                               TraverseFSPathCallback callback,
+                               void *user_data);
+
 gboolean
 seaf_fs_manager_object_exists (SeafFSManager *mgr,
                                const char *repo_id,
@@ -325,6 +340,13 @@ seaf_fs_manager_get_seafdir_id_by_path (SeafFSManager *mgr,
                                         const char *root_id,
                                         const char *path,
                                         GError **error);
+
+SeafDirent *
+seaf_fs_manager_get_dirent_by_path (SeafFSManager *mgr,
+                                    const char *repo_id,
+                                    int version,
+                                    const char *root_id,
+                                    const char *path);
 
 /* Check object integrity. */
 

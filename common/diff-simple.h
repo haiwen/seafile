@@ -18,6 +18,7 @@
 #define DIFF_STATUS_UNMERGED		'U'
 #define DIFF_STATUS_DIR_ADDED           'B'
 #define DIFF_STATUS_DIR_DELETED         'C'
+#define DIFF_STATUS_DIR_RENAMED         'E'
 
 enum {
     STATUS_UNMERGED_NONE,

@@ -415,4 +415,7 @@ int
 seaf_repo_fetch_and_checkout (struct _TransferTask *task,
                               const char *remote_head_id);
 
+gboolean
+seaf_repo_manager_is_ignored_hidden_file (const char *filename);
+
 #endif
