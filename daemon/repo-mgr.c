@@ -2112,6 +2112,81 @@ do_rename_in_worktree (DiffEntry *de, const char *worktree,
     return ret;
 }
 
+static void
+delete_worktree_dir_recursive (const char *path)
+{
+    GDir *dir;
+    const char *dname;
+    GError *error = NULL;
+    char *sub_path;
+    SeafStat st;
+
+    dir = g_dir_open (path, 0, &error);
+    if (!dir) {
+        seaf_warning ("Failed to open dir %s: %s.\n", path, error->message);
+        return;
+    }
+
+    while ((dname = g_dir_read_name (dir)) != NULL) {
+        sub_path = g_build_filename (path, dname, NULL);
+
+#ifdef WIN32
+        char *sub_path_w = g_utf8_to_utf16 (sub_path, -1, NULL, NULL, NULL);
+
+        DWORD attrs = GetFileAttributesW (sub_path_w);
+        if (attrs == INVALID_FILE_ATTRIBUTES) {
+            seaf_warning ("Failed to GetFileAttributes for %s: %d.\n",
+                          sub_path, GetLastError());
+            g_free (sub_path_w);
+            continue;
+        }
+
+        if (attrs & FILE_ATTRIBUTE_DIRECTORY) {
+            delete_worktree_dir_recursive (sub_path);
+        } else {
+            if (!DeleteFileW (sub_path_w)) {
+                seaf_warning ("Failed to delete file %s: %d.\n",
+                              sub_path, GetLastError());
+            }
+        }
+
+        g_free (sub_path_w);
+#else
+        if (lstat (sub_path, &st) < 0) {
+            seaf_warning ("Failed to stat %s.\n", sub_path);
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            delete_worktree_dir_recursive (sub_path);
+        } else {
+            /* Delete all other file types. */
+            if (g_unlink (sub_path) < 0) {
+                seaf_warning ("Failed to delete file %s: %s.\n",
+                              sub_path, strerror(errno));
+            }
+        }
+#endif
+
+        g_free (sub_path);
+    }
+
+    g_dir_close (dir);
+    if (g_rmdir (path) < 0) {
+        seaf_warning ("Failed to delete dir %s: %s.\n", path, strerror(errno));
+    }
+}
+
+static void
+delete_worktree_dir (const char *worktree, const char *path)
+{
+    char *full_path = g_build_filename (worktree, path, NULL);
+
+    delete_worktree_dir_recursive(full_path);
+
+    g_free (full_path);
+}
+
 #define UPDATE_CACHE_SIZE_LIMIT 100 * (1 << 20) /* 100MB */
 
 int
@@ -2225,7 +2300,8 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 #ifdef WIN32
     for (ptr = results; ptr; ptr = ptr->next) {
         de = ptr->data;
-        if (de->status == DIFF_STATUS_DIR_RENAMED) {
+        if (de->status == DIFF_STATUS_DIR_RENAMED ||
+            de->status == DIFF_STATUS_DIR_DELETED) {
             if (do_check_dir_locked (de->name, worktree)) {
                 seaf_message ("File(s) in dir %s are locked by other program, "
                               "skip checkout.\n", de->name);
@@ -2296,9 +2372,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             if (!master_head || strcmp(master_head->root_id, EMPTY_SHA1) == 0)
                 continue;
 
-            delete_dir_with_check (task->repo_id, task->repo_version,
-                                   master_head->root_id, de->name,
-                                   worktree, &istate);
+            delete_worktree_dir (worktree, de->name);
 
             try_add_empty_parent_dir_entry (worktree, &istate, ignore_list, de->name);
         }

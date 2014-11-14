@@ -862,7 +862,7 @@ delete_dir_recursive (const char *repo_id,
 
     char *full_path = g_build_filename (worktree, dir_path, NULL);
     if (seaf_remove_empty_dir (full_path) < 0) {
-        g_warning ("Failed to remove dir %s: %s.\n", full_path, strerror(errno));
+        seaf_warning ("Failed to remove dir %s: %s.\n", full_path, strerror(errno));
         return -1;
     }
 
