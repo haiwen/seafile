@@ -62,6 +62,7 @@
   <?define ProductGuid="ACF30931-E8E8-4DBF-AEE5-3E9E7865BCBA" ?>
   <!-- <?define ProductGuid="ACF30931-E8E8-4DBF-AEE5-3E9E7865BCBA" ?> (3.1.8) -->
   <!-- <?define ProductGuid="0CAD4624-1154-4FC4-A0B7-29BA68EC74D3" ?> (3.1.9) -->
-  <?define ProductGuid="3EC81DEE-0FC0-46D0-8E4C-244BDA4C2F22" ?>
+  <!-- <?define ProductGuid="3EC81DEE-0FC0-46D0-8E4C-244BDA4C2F22" ?> (3.1.10) -->
+  <?define ProductGuid="6FAA9EDB-6788-41EF-AC09-3C74D39C0C6C" ?>
 
 </Include>
