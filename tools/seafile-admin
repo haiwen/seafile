@@ -54,7 +54,7 @@ CONF_SEAFILE_DIR = 'seafile_dir'
 CONF_SEAHUB_DIR = 'seafile_dir'
 CONF_CCNET_PORT = 'ccnet_port'
 CONF_SEAFILE_PORT = 'seafile_port'
-CONF_FILESERVER_PORT = 'fileserver_port'
+CONF_HTTPSERVER_PORT = 'httpserver_port'
 CONF_IP_OR_DOMAIN = 'ip_or_domain'
 
 CONF_SEAHUB_CONF = 'seahub_conf'
@@ -237,7 +237,6 @@ def check_seafile_install():
         'seaf-server-init',
         'seaf-server',
         'ccnet-server',
-        'fileserver',
         'seafile-controller',
     ]
 
@@ -359,7 +358,7 @@ def get_seafile_port():
                                            default=default,
                                            validate=validate)
 
-def get_fileserver_port():
+def get_httpserver_port():
     def validate(s):
         try:
             port = int(s)
@@ -368,10 +367,10 @@ def get_fileserver_port():
 
         return port > 0 and port < 65536
 
-    question = 'Which port do you want to use for the seafile fileserver?'
-    key = 'seafile fileserver port'
+    question = 'Which port do you want to use for the seafile httpserver?'
+    key = 'seafile httpserver port'
     default = '8082'
-    conf[CONF_FILESERVER_PORT] = ask_question(question,
+    conf[CONF_HTTPSERVER_PORT] = ask_question(question,
                                               key=key,
                                               default=default,
                                               validate=validate)
@@ -521,7 +520,7 @@ def config_ccnet_seafile():
     get_seafile_data_dir()
     if not conf[CONF_SEAFILE_CONF_EXISTS]:
         get_seafile_port()
-        get_fileserver_port()
+        get_httpserver_port()
 
     info('This is your configuration')
     info('------------------------------------------')
@@ -538,7 +537,7 @@ def config_ccnet_seafile():
     else:
         info('seafile data dir:         %s' % highlight(conf[CONF_SEAFILE_DIR]))
         info('seafile port:             %s' % highlight(conf[CONF_SEAFILE_PORT]))
-        info('seafile fileserver port:  %s' % highlight(conf[CONF_FILESERVER_PORT]))
+        info('seafile httpserver port:  %s' % highlight(conf[CONF_HTTPSERVER_PORT]))
 
     info('------------------------------------------')
     info('Press ENTER if the config is right, or anything else to re-config ')
@@ -570,7 +569,7 @@ def init_ccnet_seafile():
             'seaf-server-init',
             '--seafile-dir', conf[CONF_SEAFILE_DIR],
             '--port', conf[CONF_SEAFILE_PORT],
-            '--fileserver-port', conf[CONF_FILESERVER_PORT],
+            '--httpserver-port', conf[CONF_HTTPSERVER_PORT],
         ]
 
         if run_argv(argv) != 0:
@@ -767,7 +766,7 @@ def check_necessary_files():
             error('%s not found' % fpath)
 
 def start_seafile(args):
-    '''start ccnet/seafile/seahub/fileserver'''
+    '''start ccnet/seafile/seahub'''
     if is_running('seafile-controller'):
         error(highlight('NOTE: Seafile is already running'))
 
