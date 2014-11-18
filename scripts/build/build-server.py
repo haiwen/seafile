@@ -561,9 +561,11 @@ def copy_scripts_and_libs():
 
     must_copy(os.path.join(scripts_srcdir, 'setup-seafile.sh'),
               serverdir)
-    must_copy(os.path.join(scripts_srcdir, 'setup-seafile-mysql.sh'),
+    must_copy(os.path.join(scripts_srcdir, 'setup-seafile-database.sh'),
               serverdir)
     must_copy(os.path.join(scripts_srcdir, 'setup-seafile-mysql.py'),
+              serverdir)
+    must_copy(os.path.join(scripts_srcdir, 'setup-seafile-postgres.py'),
               serverdir)
     must_copy(os.path.join(scripts_srcdir, 'seafile.sh'),
               serverdir)

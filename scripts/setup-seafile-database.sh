@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ########
-### This script is a wrapper for setup-seafile-mysql.py
+### This script is a wrapper for setup-seafile-mysql.py and setup-seafile-postgres.py
 ########
 
 set -e
@@ -9,9 +9,21 @@ set -e
 SCRIPT=$(readlink -f "$0")
 INSTALLPATH=$(dirname "${SCRIPT}")
 
+SETUP_MYSQL=setup-seafile-mysql.py
+SETUP_POSTGRES=setup-seafile-postgres.py
+
 cd "$INSTALLPATH"
 
-python_script=setup-seafile-mysql.py
+if [[ $1 == 'mysql' ]]; then
+   python_script=$SETUP_MYSQL
+elif [[ $1 == 'postgres' ]]; then
+   python_script=$SETUP_POSTGRES
+else
+    echo "No database type specified!"
+    echo "Usage: $0 (mysql|postgres)"
+    echo
+    exit
+fi
 
 function err_and_quit () {
     printf "\n\n\033[33mError occured during setup. \nPlease fix possible problems and run the script again.\033[m\n\n"
@@ -80,8 +92,15 @@ function check_python () {
         hint="\nOn Debian/Ubntu: apt-get install python-imaging\nOn CentOS/RHEL: yum install python${py26}-imaging"
         check_python_module PIL python-imaging "${hint}"
 
-        hint='\nOn Debian/Ubuntu:\n\nsudo apt-get install python-mysqldb\n\nOn CentOS/RHEL:\n\nsudo yum install MYSQL-python'
-        check_python_module MySQLdb python-mysqldb "${hint}"
+        if [[ $python_script == $SETUP_MYSQL ]]; then
+            hint='\nOn Debian/Ubuntu:\n\nsudo apt-get install python-mysqldb\n\nOn CentOS/RHEL:\n\nsudo yum install MYSQL-python'
+            check_python_module MySQLdb python-mysqldb "${hint}"
+        fi
+        
+        if [[ $python_script == $SETUP_POSTGRES ]]; then
+            hint='\nOn Debian/Ubuntu:\n\nsudo apt-get install python-psycopg2\n\nOn CentOS/RHEL:\n\nsudo yum install ????-python'
+            check_python_module psycopg2 python-psycopg2 "${hint}"
+        fi
     fi
     echo
 }
