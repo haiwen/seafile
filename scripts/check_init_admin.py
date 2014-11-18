@@ -157,7 +157,7 @@ Press ENTER to continue
     @staticmethod
     def get_python_executable():
         '''Return the python executable. This should be the PYTHON environment
-        variable which is set in setup-seafile-mysql.sh
+        variable which is set in setup-seafile-database.sh
 
         '''
         return os.environ['PYTHON']
