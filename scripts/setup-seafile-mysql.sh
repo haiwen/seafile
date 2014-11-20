@@ -80,7 +80,7 @@ function check_python () {
         hint="\nOn Debian/Ubntu: apt-get install python-imaging\nOn CentOS/RHEL: yum install python${py26}-imaging"
         check_python_module PIL python-imaging "${hint}"
 
-        hint='\nOn Debian/Ubuntu:\n\nsudo apt-get install python-mysqldb\n\nOn CentOS/RHEL:\n\nsudo yum install MYSQL-python'
+        hint='\nOn Debian/Ubuntu:\n\nsudo apt-get install python-mysqldb\n\nOn CentOS/RHEL:\n\nsudo yum install MySQL-python'
         check_python_module MySQLdb python-mysqldb "${hint}"
     fi
     echo
