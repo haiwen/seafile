@@ -256,6 +256,7 @@ should_ignore_file(const char *filename, void *data)
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)
         return TRUE;
 
+#ifdef WIN32
     if (has_trailing_space_or_period (filename)) {
         /* Ignore files/dir whose path has trailing spaces. It would cause
          * problem on windows. */
@@ -279,7 +280,7 @@ should_ignore_file(const char *filename, void *data)
      * 
      *  Refer to http://msdn.microsoft.com/en-us/library/aa365247%28VS.85%29.aspx
      */
-    static char illegals[] = {'\\', '/', ':', '*', '?', '"', '<', '>', '|', '\b', '\t'};
+    static char illegals[] = {'\\', ':', '*', '?', '"', '<', '>', '|', '\b', '\t'};
 
     int i;
     char c;
@@ -295,7 +296,8 @@ should_ignore_file(const char *filename, void *data)
             return TRUE;
         }
     }
-        
+#endif
+
     return FALSE;
 }
 

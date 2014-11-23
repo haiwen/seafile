@@ -340,6 +340,58 @@ has_trailing_space_or_period (const char *path)
 }
 
 static gboolean
+should_ignore_by_platform (const char *file_path)
+{
+    gboolean ret = FALSE;
+
+#ifdef WIN32
+    char **components = g_strsplit (file_path, "/", -1);
+    int n_comps = g_strv_length (components);
+    char *file_name = components[n_comps - 1];
+
+    if (has_trailing_space_or_period (file_name)) {
+        /* Ignore files/dir whose path has trailing spaces. It would cause
+         * problem on windows. */
+        /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */
+        ret = TRUE;
+        goto out;
+    }
+
+    /*
+     *  Illegal charaters in filenames under windows: (In Linux, only '/' is
+     *  disallowed)
+     *
+     *  - / \ : * ? " < > | \b \t
+     *  - \1 - \31
+     *
+     *  Refer to http://msdn.microsoft.com/en-us/library/aa365247%28VS.85%29.aspx
+     */
+    static char illegals[] = {'\\', ':', '*', '?', '"', '<', '>', '|', '\b', '\t'};
+    int i;
+    char c;
+
+    for (i = 0; i < G_N_ELEMENTS(illegals); i++) {
+        if (strchr (file_name, illegals[i])) {
+            ret = TRUE;
+            goto out;
+        }
+    }
+
+    for (c = 1; c <= 31; c++) {
+        if (strchr (file_name, c)) {
+            ret = TRUE;
+            goto out;
+        }
+    }
+
+out:
+    g_strfreev (components);
+#endif
+
+    return ret;
+}
+
+static gboolean
 should_ignore(const char *basepath, const char *filename, void *data)
 {
     GPatternSpec **spec = ignore_patterns;
@@ -354,13 +406,6 @@ should_ignore(const char *basepath, const char *filename, void *data)
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)
         return TRUE;
 
-    if (has_trailing_space_or_period (filename)) {
-        /* Ignore files/dir whose path has trailing spaces. It would cause
-         * problem on windows. */
-        /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */
-        return TRUE;
-    }
-
     while (*spec) {
         if (g_pattern_match_string(*spec, filename))
             return TRUE;
@@ -373,32 +418,6 @@ should_ignore(const char *basepath, const char *filename, void *data)
             if (g_pattern_match_string(*spec, filename))
                 return TRUE;
             spec++;
-        }
-    }
-    
-    /*
-     *  Illegal charaters in filenames under windows: (In Linux, only '/' is
-     *  disallowed)
-     *  
-     *  - / \ : * ? " < > | \b \t  
-     *  - \1 - \31
-     * 
-     *  Refer to http://msdn.microsoft.com/en-us/library/aa365247%28VS.85%29.aspx
-     */
-    static char illegals[] = {'\\', '/', ':', '*', '?', '"', '<', '>', '|', '\b', '\t'};
-
-    int i;
-    char c;
-    
-    for (i = 0; i < G_N_ELEMENTS(illegals); i++) {
-        if (strchr (filename, illegals[i])) {
-            return TRUE;
-        }
-    }
-
-    for (c = 1; c <= 31; c++) {
-        if (strchr (filename, c)) {
-            return TRUE;
         }
     }
 
@@ -2429,6 +2448,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         update_index (&istate, index_path);
 
     gint64 checkout_size = 0;
+    int rc;
     for (ptr = results; ptr; ptr = ptr->next) {
         de = ptr->data;
 
@@ -2447,7 +2467,8 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                 add_ce = TRUE;
             }
 
-            int rc = checkout_file (task->repo_id,
+            if (!should_ignore_by_platform (de->name)) {
+                rc = checkout_file (task->repo_id,
                                     task->repo_version,
                                     worktree,
                                     de->name,
@@ -2460,24 +2481,26 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                                     remote_head_id,
                                     conflict_hash,
                                     no_conflict_hash);
-            /* Even if the file failed to check out, still need to update index.
-             * But we have to stop after transfer errors.
-             */
-            if (rc == FETCH_CHECKOUT_CANCELED) {
-                seaf_debug ("Transfer canceled.\n");
-                ret = FETCH_CHECKOUT_CANCELED;
-                if (add_ce)
-                    cache_entry_free (ce);
-                goto out;
-            } else if (rc == FETCH_CHECKOUT_TRANSFER_ERROR) {
-                seaf_warning ("Transfer failed.\n");
-                ret = FETCH_CHECKOUT_TRANSFER_ERROR;
-                if (add_ce)
-                    cache_entry_free (ce);
-                goto out;
-            }
 
-            cleanup_file_blocks (task->repo_id, task->repo_version, file_id);
+                /* Even if the file failed to check out, still need to update index.
+                 * But we have to stop after transfer errors.
+                 */
+                if (rc == FETCH_CHECKOUT_CANCELED) {
+                    seaf_debug ("Transfer canceled.\n");
+                    ret = FETCH_CHECKOUT_CANCELED;
+                    if (add_ce)
+                        cache_entry_free (ce);
+                    goto out;
+                } else if (rc == FETCH_CHECKOUT_TRANSFER_ERROR) {
+                    seaf_warning ("Transfer failed.\n");
+                    ret = FETCH_CHECKOUT_TRANSFER_ERROR;
+                    if (add_ce)
+                        cache_entry_free (ce);
+                    goto out;
+                }
+
+                cleanup_file_blocks (task->repo_id, task->repo_version, file_id);
+            }
 
             ++(task->n_downloaded);
 
