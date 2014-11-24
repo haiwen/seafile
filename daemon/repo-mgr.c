@@ -314,6 +314,19 @@ seaf_repo_unset_readonly (SeafRepo *repo)
     save_repo_property (repo->manager, repo->id, REPO_PROP_IS_READONLY, "false");
 }
 
+gboolean
+seaf_repo_manager_is_ignored_hidden_file (const char *filename)
+{
+    GPatternSpec **spec = ignore_patterns;
+
+    while (*spec) {
+        if (g_pattern_match_string(*spec, filename))
+            return TRUE;
+        spec++;
+    }
+
+    return FALSE;
+}
 
 static inline gboolean
 has_trailing_space_or_period (const char *path)
@@ -1760,7 +1773,8 @@ checkout_file (const char *repo_id,
 #ifndef __linux__
     path = build_case_conflict_free_path (worktree, name,
                                           conflict_hash, no_conflict_hash,
-                                          &case_conflict);
+                                          &case_conflict,
+                                          FALSE);
 #else
     path = build_checkout_path (worktree, name, strlen(name));
 #endif
@@ -1915,7 +1929,8 @@ checkout_empty_dir (const char *worktree,
 #ifndef __linux__
     path = build_case_conflict_free_path (worktree, name,
                                           conflict_hash, no_conflict_hash,
-                                          &case_conflict);
+                                          &case_conflict,
+                                          FALSE);
 #else
     path = build_checkout_path (worktree, name, strlen(name));
 #endif
@@ -1987,6 +2002,256 @@ cleanup_file_blocks (const char *repo_id, int version, const char *file_id)
                                          file->blk_sha1s[i]);
 
     seafile_unref (file);
+}
+
+static gboolean
+expand_dir_added_cb (SeafFSManager *mgr,
+                     const char *path,
+                     SeafDirent *dent,
+                     void *user_data,
+                     gboolean *stop)
+{
+    GList **expanded = user_data;
+    DiffEntry *de = NULL;
+    unsigned char sha1[20];
+
+    hex_to_rawdata (dent->id, sha1, 20);
+
+    if (S_ISDIR(dent->mode) && strcmp(dent->id, EMPTY_SHA1) == 0)
+        de = diff_entry_new (DIFF_TYPE_COMMITS, DIFF_STATUS_DIR_ADDED, sha1, path);
+    else if (S_ISREG(dent->mode))
+        de = diff_entry_new (DIFF_TYPE_COMMITS, DIFF_STATUS_ADDED, sha1, path);
+
+    if (de) {
+        de->mtime = dent->mtime;
+        de->mode = dent->mode;
+        de->modifier = g_strdup(dent->modifier);
+        de->size = dent->size;
+        *expanded = g_list_prepend (*expanded, de);
+    }
+
+    return TRUE;
+}
+
+/*
+ * Expand DIR_ADDED results into multiple ADDED results.
+ */
+static int
+expand_diff_results (const char *repo_id, int version,
+                     const char *remote_root, const char *local_root,
+                     GList **results)
+{
+    GList *ptr, *next;
+    DiffEntry *de;
+    char obj_id[41];
+    GList *expanded = NULL;
+
+    ptr = *results;
+    while (ptr) {
+        de = ptr->data;
+
+        next = ptr->next;
+
+        if (de->status == DIFF_STATUS_DIR_ADDED) {
+            *results = g_list_delete_link (*results, ptr);
+
+            rawdata_to_hex (de->sha1, obj_id, 20);
+            if (seaf_fs_manager_traverse_path (seaf->fs_mgr,
+                                               repo_id, version,
+                                               remote_root,
+                                               de->name,
+                                               expand_dir_added_cb,
+                                               &expanded) < 0)
+                goto error;
+        }
+
+        ptr = next;
+    }
+
+    expanded = g_list_reverse (expanded);
+    *results = g_list_concat (*results, expanded);
+
+    return 0;
+
+error:
+    for (ptr = expanded; ptr; ptr = ptr->next)
+        diff_entry_free ((DiffEntry *)(ptr->data));
+    return -1;
+}
+
+static int
+do_rename_in_worktree (DiffEntry *de, const char *worktree,
+                       GHashTable *conflict_hash, GHashTable *no_conflict_hash)
+{
+    char *old_path, *new_path;
+    gboolean case_conflict;
+    int ret = 0;
+
+    old_path = g_build_filename (worktree, de->name, NULL);
+
+    if (g_file_test (old_path, G_FILE_TEST_EXISTS)) {
+#ifndef __linux__
+        new_path = build_case_conflict_free_path (worktree, de->new_name,
+                                                  conflict_hash, no_conflict_hash,
+                                                  &case_conflict,
+                                                  TRUE);
+#else
+        new_path = build_checkout_path (worktree, de->new_name, strlen(de->new_name));
+#endif
+
+        if (g_rename (old_path, new_path) < 0) {
+            seaf_warning ("Failed to rename %s to %s: %s.\n",
+                          old_path, new_path, strerror(errno));
+            ret = -1;
+        }
+
+        g_free (new_path);
+    }
+
+    g_free (old_path);
+    return ret;
+}
+
+#ifdef WIN32
+static void
+delete_worktree_dir_recursive_win32 (const wchar_t *path_w)
+{
+    WIN32_FIND_DATAW fdata;
+    HANDLE handle;
+    wchar_t *pattern;
+    wchar_t *sub_path_w;
+    char *path, *sub_path;
+    int path_len_w;
+
+    path = g_utf16_to_utf8 (path_w, -1, NULL, NULL, NULL);
+
+    path_len_w = wcslen(path_w);
+
+    pattern = g_new0 (wchar_t, (path_len_w + 3));
+    wcscpy (pattern, path_w);
+    wcscat (pattern, L"\\*");
+
+    handle = FindFirstFileW (pattern, &fdata);
+    if (handle == INVALID_HANDLE_VALUE) {
+        seaf_warning ("FindFirstFile failed %s: %lu.\n",
+                      path, GetLastError());
+        g_free (path);
+        g_free (pattern);
+        return;
+    }
+
+    do {
+        if (wcscmp (fdata.cFileName, L".") == 0 ||
+            wcscmp (fdata.cFileName, L"..") == 0)
+            continue;
+
+        sub_path_w = g_new0 (wchar_t, path_len_w + wcslen(fdata.cFileName) + 2);
+        wcscpy (sub_path_w, path_w);
+        wcscat (sub_path_w, L"\\");
+        wcscat (sub_path_w, fdata.cFileName);
+
+        if (fdata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+            delete_worktree_dir_recursive_win32 (sub_path_w);
+        } else {
+            if (!DeleteFileW (sub_path_w)) {
+                sub_path = g_utf16_to_utf8 (sub_path_w, -1,
+                                            NULL, NULL, NULL);
+                seaf_warning ("Failed to delete file %s: %lu.\n",
+                              sub_path, GetLastError());
+                g_free (sub_path);
+            }
+        }
+
+        g_free (sub_path_w);
+    } while (FindNextFileW (handle, &fdata) != 0);
+
+    DWORD error = GetLastError();
+    if (error != ERROR_NO_MORE_FILES) {
+        seaf_warning ("FindNextFile failed %s: %lu.\n",
+                      path, error);
+    }
+
+    FindClose (handle);
+
+    int n = 0;
+    while (!RemoveDirectoryW (path_w)) {
+        error = GetLastError();
+        seaf_warning ("Failed to remove dir %s: %lu.\n",
+                      path, error);
+        if (error != ERROR_DIR_NOT_EMPTY)
+            break;
+        if (++n >= 3)
+            break;
+        /* Sleep 100ms and retry. */
+        g_usleep (100000);
+        seaf_warning ("Retry remove dir %s.\n", path);
+    }
+    g_free (path);
+    g_free (pattern);
+}
+
+#else
+
+static void
+delete_worktree_dir_recursive (const char *path)
+{
+    GDir *dir;
+    const char *dname;
+    GError *error = NULL;
+    char *sub_path;
+    SeafStat st;
+
+    dir = g_dir_open (path, 0, &error);
+    if (!dir) {
+        seaf_warning ("Failed to open dir %s: %s.\n", path, error->message);
+        return;
+    }
+
+    while ((dname = g_dir_read_name (dir)) != NULL) {
+        sub_path = g_build_filename (path, dname, NULL);
+
+        if (lstat (sub_path, &st) < 0) {
+            seaf_warning ("Failed to stat %s.\n", sub_path);
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            delete_worktree_dir_recursive (sub_path);
+        } else {
+            /* Delete all other file types. */
+            if (g_unlink (sub_path) < 0) {
+                seaf_warning ("Failed to delete file %s: %s.\n",
+                              sub_path, strerror(errno));
+            }
+        }
+
+        g_free (sub_path);
+    }
+
+    g_dir_close (dir);
+
+    if (g_rmdir (path) < 0) {
+        seaf_warning ("Failed to delete dir %s: %s.\n", path, strerror(errno));
+    }
+}
+
+#endif  /* WIN32 */
+
+static void
+delete_worktree_dir (const char *worktree, const char *path)
+{
+    char *full_path = g_build_filename (worktree, path, NULL);
+
+#ifdef WIN32
+    wchar_t *full_path_w = g_utf8_to_utf16 (full_path, -1,
+                                            NULL, NULL, NULL);
+    delete_worktree_dir_recursive_win32 (full_path_w);
+    g_free (full_path_w);
+#else
+    delete_worktree_dir_recursive(full_path);
+#endif
+
+    g_free (full_path);
 }
 
 #define UPDATE_CACHE_SIZE_LIMIT 100 * (1 << 20) /* 100MB */
@@ -2081,7 +2346,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
     if (diff_commit_roots (repo_id, repo_version,
                            master_head ? master_head->root_id : EMPTY_SHA1,
                            remote_head->root_id,
-                           &results, FALSE) < 0) {
+                           &results, TRUE) < 0) {
         seaf_warning ("Failed to diff for repo %.8s.\n", repo_id);
         ret = FETCH_CHECKOUT_FAILED;
         goto out;
@@ -2090,10 +2355,27 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
     GList *ptr;
     DiffEntry *de;
 
+    /* Expand DIR_ADDED diff entries. */
+    if (expand_diff_results (repo_id, repo_version,
+                             remote_head->root_id,
+                             master_head ? master_head->root_id : EMPTY_SHA1,
+                             &results) < 0) {
+        ret = FETCH_CHECKOUT_FAILED;
+        goto out;
+    }
+
 #ifdef WIN32
     for (ptr = results; ptr; ptr = ptr->next) {
         de = ptr->data;
-        if (do_check_file_locked (de->name, worktree)) {
+        if (de->status == DIFF_STATUS_DIR_RENAMED ||
+            de->status == DIFF_STATUS_DIR_DELETED) {
+            if (do_check_dir_locked (de->name, worktree)) {
+                seaf_message ("File(s) in dir %s are locked by other program, "
+                              "skip checkout.\n", de->name);
+                ret = FETCH_CHECKOUT_FAILED;
+                goto out;
+            }
+        } else if (do_check_file_locked (de->name, worktree)) {
             seaf_message ("File %s is locked by other program, skip checkout.\n",
                           de->name);
             ret = FETCH_CHECKOUT_FAILED;
@@ -2137,13 +2419,10 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         }
     }
 
-    /* Delete/rename files before deleting dirs,
-     * because we can't delete non-empty dirs.
-     */
     for (ptr = results; ptr; ptr = ptr->next) {
         de = ptr->data;
         if (de->status == DIFF_STATUS_DELETED) {
-            seaf_debug ("Delete %s.\n", de->name);
+            seaf_debug ("Delete file %s.\n", de->name);
 
             ce = index_name_exists (&istate, de->name, strlen(de->name), 0);
             if (!ce)
@@ -2153,53 +2432,33 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 
             remove_from_index_with_prefix (&istate, de->name);
             try_add_empty_parent_dir_entry (worktree, &istate, ignore_list, de->name);
+        } else if (de->status == DIFF_STATUS_DIR_DELETED) {
+            seaf_debug ("Delete dir %s.\n", de->name);
+
+            /* Nothing to delete. */
+            if (!master_head || strcmp(master_head->root_id, EMPTY_SHA1) == 0)
+                continue;
+
+            delete_worktree_dir (worktree, de->name);
+
+            /* Remove all index entries under this directory */
+            remove_from_index_with_prefix (&istate, de->name);
+
+            try_add_empty_parent_dir_entry (worktree, &istate, ignore_list, de->name);
         }
     }
 
     for (ptr = results; ptr; ptr = ptr->next) {
         de = ptr->data;
-        if (de->status == DIFF_STATUS_RENAMED) {
+        if (de->status == DIFF_STATUS_RENAMED ||
+            de->status == DIFF_STATUS_DIR_RENAMED) {
             seaf_debug ("Rename %s to %s.\n", de->name, de->new_name);
 
-            char *old_path = g_build_filename (worktree, de->name, NULL);
-
-            char *new_path;
-            gboolean case_conflict;
-#ifndef __linux__
-            new_path = build_case_conflict_free_path (worktree, de->new_name,
-                                                      conflict_hash, no_conflict_hash,
-                                                      &case_conflict);
-#else
-            new_path = build_checkout_path (worktree, de->new_name, strlen(de->new_name));
-#endif
-
-            if (g_file_test (old_path, G_FILE_TEST_EXISTS) &&
-                g_rename (old_path, new_path) < 0)
-                seaf_warning ("Failed to rename %s to %s: %s.\n",
-                              old_path, new_path, strerror(errno));
-
-            g_free (old_path);
-            g_free (new_path);
+            do_rename_in_worktree (de, worktree, conflict_hash, no_conflict_hash);
 
             rename_index_entries (&istate, de->name, de->new_name);
 
             /* Moving files out of a dir may make it empty. */
-            try_add_empty_parent_dir_entry (worktree, &istate, ignore_list, de->name);
-        }
-    }
-
-    for (ptr = results; ptr; ptr = ptr->next) {
-        de = ptr->data;
-        if (de->status == DIFF_STATUS_DIR_DELETED) {
-            seaf_debug ("Delete %s.\n", de->name);
-
-            ce = index_name_exists (&istate, de->name, strlen(de->name), 0);
-            if (!ce)
-                continue;
-
-            delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
-
-            remove_from_index_with_prefix (&istate, de->name);
             try_add_empty_parent_dir_entry (worktree, &istate, ignore_list, de->name);
         }
     }

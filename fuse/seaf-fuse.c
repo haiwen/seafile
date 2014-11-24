@@ -83,48 +83,6 @@ int parse_fuse_path (const char *path,
     return ret;
 }
 
-SeafDirent *
-fuse_get_dirent_by_path (SeafFSManager *mgr,
-                         const char *repo_id,
-                         int version,
-                         const char *root_id,
-                         const char *path)
-{
-    SeafDirent *dent = NULL;
-    SeafDir *dir = NULL;
-    char *parent_dir = NULL;
-    char *file_name = NULL;
-
-    parent_dir  = g_path_get_dirname(path);
-    file_name = g_path_get_basename(path);
-
-    if (strcmp (parent_dir, ".") == 0)
-        dir = seaf_fs_manager_get_seafdir (mgr, repo_id, version, root_id);
-    else
-        dir = seaf_fs_manager_get_seafdir_by_path (mgr, repo_id, version,
-                                                   root_id, parent_dir, NULL);
-
-    if (!dir) {
-        seaf_warning ("dir %s doesn't exist in repo %.8s.\n", parent_dir, repo_id);
-        goto out;
-    }
-
-    GList *p;
-    for (p = dir->entries; p; p = p->next) {
-        SeafDirent *d = p->data;
-        if (strcmp (d->name, file_name) == 0) {
-            dent = seaf_dirent_dup(d);
-            break;
-        }
-    }
-
-out:
-    if (dir)
-        seaf_dir_free (dir);
-
-    return dent;
-}
-
 static int seaf_fuse_getattr(const char *path, struct stat *stbuf)
 {
     memset(stbuf, 0, sizeof(struct stat));

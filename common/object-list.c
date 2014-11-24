@@ -49,7 +49,7 @@ object_list_insert (ObjectList *ol, const char *object_id)
     if (g_hash_table_lookup (ol->obj_hash, object_id))
         return FALSE;
     char *id = g_strdup(object_id);
-    g_hash_table_insert (ol->obj_hash, id, id);
+    g_hash_table_replace (ol->obj_hash, id, id);
     g_ptr_array_add (ol->obj_ids, id);
     return TRUE;
 }

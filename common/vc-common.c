@@ -34,7 +34,7 @@ add_to_commit_hash (SeafCommit *commit, void *vhash, gboolean *stop)
     GHashTable *hash = vhash;
 
     char *key = g_strdup (commit->commit_id);
-    g_hash_table_insert (hash, key, key);
+    g_hash_table_replace (hash, key, key);
 
     return TRUE;
 }

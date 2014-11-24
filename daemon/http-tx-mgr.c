@@ -2159,7 +2159,6 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
     seaf_debug ("Received fs object list size %lu from %s:%s.\n",
                 n, task->host, task->repo_id);
 
-    int dummy;
     GHashTable *checked_objs = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                       g_free, NULL);
 
@@ -2177,7 +2176,8 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
 
         if (g_hash_table_lookup (checked_objs, obj_id))
             continue;
-        g_hash_table_insert (checked_objs, g_strdup(obj_id), &dummy);
+        char *key = g_strdup(obj_id);
+        g_hash_table_replace (checked_objs, key, key);
 
         if (!seaf_obj_store_obj_exists (seaf->fs_mgr->obj_store,
                                         task->repo_id, task->repo_version,
@@ -2223,7 +2223,6 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
     gint64 rsp_size;
     int ret = 0;
     GHashTable *requested;
-    int dummy;
 
     /* Convert object id list to JSON format. */
 
@@ -2237,7 +2236,7 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
 
         *fs_list = g_list_delete_link (*fs_list, *fs_list);
 
-        g_hash_table_insert (requested, obj_id, &dummy);
+        g_hash_table_replace (requested, obj_id, obj_id);
 
         if (++n_sent >= GET_FS_OBJECT_N)
             break;
