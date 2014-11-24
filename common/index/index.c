@@ -258,6 +258,20 @@ static int read_index_extension(struct index_state *istate,
     return 0;
 }
 
+static void alloc_index (struct index_state *istate)
+{
+    istate->cache_alloc = alloc_nr(istate->cache_nr);
+    istate->cache = calloc(istate->cache_alloc, sizeof(struct cache_entry *));
+    istate->name_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                               g_free, NULL);
+#if defined WIN32 || defined __APPLE__
+    istate->i_name_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                 g_free, NULL);
+#endif
+    istate->initialized = 1;
+    istate->name_hash_initialized = 1;
+}
+
 /* remember to discard_cache() before reading a different cache! */
 int read_index_from(struct index_state *istate, const char *path, int repo_version)
 {
@@ -280,8 +294,10 @@ int read_index_from(struct index_state *istate, const char *path, int repo_versi
     istate->timestamp.nsec = 0;
     fd = g_open (path, O_RDONLY | O_BINARY, 0);
     if (fd < 0) {
-        if (errno == ENOENT)
+        if (errno == ENOENT) {
+            alloc_index (istate);
             return 0;
+        }
         g_critical("index file open failed\n");
         return -1;
     }
@@ -314,14 +330,7 @@ int read_index_from(struct index_state *istate, const char *path, int repo_versi
      */
     istate->version = ntohl(hdr->hdr_version);
     istate->cache_nr = ntohl(hdr->hdr_entries);
-    istate->cache_alloc = alloc_nr(istate->cache_nr);
-    istate->cache = calloc(istate->cache_alloc, sizeof(struct cache_entry *));
-    istate->name_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                               g_free, NULL);
-#if defined WIN32 || defined __APPLE__
-    istate->i_name_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                                 g_free, NULL);
-#endif
+    alloc_index (istate);
 
     /*
      * The disk format is actually larger than the in-memory format,
@@ -329,8 +338,6 @@ int read_index_from(struct index_state *istate, const char *path, int repo_versi
      * has room for a few  more flags, we can allocate using the same
      * index size
      */
-    /* istate->alloc = malloc(estimate_cache_size(mmap_size, istate->cache_nr)); */
-    istate->initialized = 1;
 
     src_offset = sizeof(*hdr);
     for (i = 0; i < istate->cache_nr; i++) {

@@ -359,7 +359,7 @@ insert_parent_commit (GList **list, GHashTable *hash,
                                            NULL);
 
     key = g_strdup (parent_id);
-    g_hash_table_insert (hash, key, key);
+    g_hash_table_replace (hash, key, key);
 
     return 0;
 }
@@ -392,7 +392,7 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
                                            NULL);
 
     char *key = g_strdup (commit->commit_id);
-    g_hash_table_insert (commit_hash, key, key);
+    g_hash_table_replace (commit_hash, key, key);
 
     int count = 0;
     while (list) {
@@ -479,7 +479,7 @@ traverse_commit_tree_common (SeafCommitManager *mgr,
                                            NULL);
 
     char *key = g_strdup (commit->commit_id);
-    g_hash_table_insert (commit_hash, key, key);
+    g_hash_table_replace (commit_hash, key, key);
 
     while (list) {
         gboolean stop = FALSE;

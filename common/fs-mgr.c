@@ -1771,7 +1771,7 @@ block_list_insert (BlockList *bl, const char *block_id)
         return;
 
     char *key = g_strdup(block_id);
-    g_hash_table_insert (bl->block_hash, key, key);
+    g_hash_table_replace (bl->block_hash, key, key);
     g_ptr_array_add (bl->block_ids, g_strdup(block_id));
     ++bl->n_blocks;
 }
@@ -1790,7 +1790,7 @@ block_list_difference (BlockList *bl1, BlockList *bl2)
         block_id = g_ptr_array_index (bl1->block_ids, i);
         if (g_hash_table_lookup (bl2->block_hash, block_id) == NULL) {
             key = g_strdup(block_id);
-            g_hash_table_insert (bl->block_hash, key, key);
+            g_hash_table_replace (bl->block_hash, key, key);
             g_ptr_array_add (bl->block_ids, g_strdup(block_id));
             ++bl->n_blocks;
         }
