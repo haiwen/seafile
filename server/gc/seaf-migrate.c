@@ -201,7 +201,7 @@ fs_callback (SeafFSManager *mgr,
         }
 
         char *key = g_strdup(obj_id);
-        g_hash_table_insert (data->visited, key, key);
+        g_hash_table_replace (data->visited, key, key);
     }
 
     if (seaf_obj_store_copy_obj (seaf->fs_mgr->obj_store,
