@@ -381,7 +381,7 @@ get_head_commit_cb (evhtp_request_t *req, void *arg)
     }
 
     if (commit_id[0] == 0) {
-        evhtp_send_reply (req, EVHTP_RES_NOTFOUND);
+        evhtp_send_reply (req, SEAF_HTTP_RES_REPO_DELETED);
         goto out;
     }
 
