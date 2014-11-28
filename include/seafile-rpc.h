@@ -691,6 +691,10 @@ char *
 seafile_get_dir_id_by_path (const char *repo_id, const char *path,
                             GError **error);
 
+GObject *
+seafile_get_dirent_by_path (const char *repo_id, const char *path,
+                            GError **error);
+
 /**
  * Return a list of commits where every commit contains a unique version of
  * the file.
