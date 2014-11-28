@@ -152,6 +152,9 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.get_file_id_by_commit_and_path(repo_id,
                                                                     commit_id, path)
 
+    def get_dirent_by_path(self, repo_id, path):
+        return seafserv_threaded_rpc.get_dirent_by_path(repo_id, path)
+
     def get_file_revisions(self, repo_id, path, max_revision, limit):
         return seafserv_threaded_rpc.list_file_revisions(repo_id, path,
                                                          max_revision, limit)

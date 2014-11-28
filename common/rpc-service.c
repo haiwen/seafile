@@ -3053,6 +3053,82 @@ char *seafile_get_dir_id_by_path (const char *repo_id,
     return get_obj_id_by_path (repo_id, path, TRUE, error);
 }
 
+GObject *
+seafile_get_dirent_by_path (const char *repo_id, const char *path,
+                            GError **error)
+{
+    if (!repo_id || !path) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Bad arguments");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "invalid repo id");
+        return NULL;
+    }
+
+    int path_len = strlen (path);
+    if (path_len == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "invalid path");
+        return NULL;
+    }
+
+    SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
+                     "Get repo error");
+        return NULL;
+    }
+
+    SeafCommit *commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                                         repo->id, repo->version,
+                                                         repo->head->commit_id);
+    if (!commit) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
+                     "Get commit error");
+        seaf_repo_unref (repo);
+        return NULL;
+    }
+
+    char *tmp_path = g_strdup (path);
+    while (path_len > 0 && tmp_path[path_len-1] == '/') {
+        tmp_path[path_len-1] = '\0';
+        path_len--;
+    }
+
+    SeafDirent *dirent = seaf_fs_manager_get_dirent_by_path (seaf->fs_mgr,
+                                                             repo_id, repo->version,
+                                                             commit->root_id, tmp_path);
+    if (!dirent) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
+                     "Get dirent error");
+        g_free (tmp_path);
+        seaf_repo_unref (repo);
+        seaf_commit_unref (commit);
+        return NULL;
+    }
+
+    GObject *obj = g_object_new (SEAFILE_TYPE_DIRENT,
+                                 "obj_id", dirent->id,
+                                 "obj_name", dirent->name,
+                                 "mode", dirent->mode,
+                                 "version", dirent->version,
+                                 "mtime", dirent->mtime,
+                                 "size", dirent->size,
+                                 "modifier", dirent->modifier,
+                                 NULL);
+
+    g_free (tmp_path);
+    seaf_repo_unref (repo);
+    seaf_commit_unref (commit);
+    seaf_dirent_free (dirent);
+
+    return obj;
+}
+
 char *
 seafile_list_file (const char *repo_id,
                    const char *file_id, int offset, int limit, GError **error)
