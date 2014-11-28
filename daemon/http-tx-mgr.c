@@ -20,6 +20,7 @@
 #define HTTP_FORBIDDEN 403
 #define HTTP_NOT_FOUND 404
 #define HTTP_NO_QUOTA 443
+#define HTTP_REPO_DELETED 444
 #define HTTP_INTERNAL_SERVER_ERROR 500
 
 #define RESET_BYTES_INTERVAL_MSEC 1000
@@ -649,7 +650,9 @@ check_protocol_version_thread (void *vdata)
     data->success = TRUE;
 
     if (status == HTTP_OK) {
-        if (parse_protocol_version (rsp_content, rsp_size, data) < 0)
+        if (rsp_size == 0)
+            data->not_supported = TRUE;
+        else if (parse_protocol_version (rsp_content, rsp_size, data) < 0)
             data->not_supported = TRUE;
     } else {
         seaf_warning ("Bad response code for GET %s: %d.\n", url, status);
@@ -788,7 +791,7 @@ check_head_commit_thread (void *vdata)
         if (parse_head_commit_info (rsp_content, rsp_size, data) < 0)
             goto out;
         data->success = TRUE;
-    } else if (status == HTTP_NOT_FOUND) {
+    } else if (status == HTTP_REPO_DELETED) {
         data->is_deleted = TRUE;
         data->success = TRUE;
     } else {
