@@ -120,7 +120,7 @@ function update_database() {
     echo
 
     db_update_helper=${UPGRADE_DIR}/db_update_helper.py
-    if ! $PYTHON "${db_update_helper}" 3.1.0; then
+    if ! $PYTHON "${db_update_helper}" 4.0.0; then
         echo
         echo "Failed to upgrade your database"
         echo
@@ -201,7 +201,7 @@ ensure_server_not_running;
 
 migrate_avatars;
 
-# update_database;
+update_database;
 
 move_old_customdir_outside;
 make_media_custom_symlink;
