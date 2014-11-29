@@ -14,6 +14,7 @@
 
 #include "access-file.h"
 #include "upload-file.h"
+#include "fileserver-config.h"
 
 #include "http-status-codes.h"
 
@@ -22,7 +23,6 @@
 #define DEFAULT_THREADS 50
 #define DEFAULT_MAX_DOWNLOAD_DIR_SIZE 100 * ((gint64)1 << 20) /* 100MB */
 
-#define GROUP_NAME "httpserver"
 #define HOST "host"
 #define PORT "port"
 
@@ -77,7 +77,7 @@ load_http_config (HttpServer *htp_server, SeafileSession *session)
     int max_download_dir_size_mb;
     char *encoding;
 
-    host = g_key_file_get_string (session->config, GROUP_NAME, HOST, &error);
+    host = fileserver_config_get_string (session->config, HOST, &error);
     if (!error) {
         htp_server->bind_addr = host;
     } else {
@@ -91,7 +91,7 @@ load_http_config (HttpServer *htp_server, SeafileSession *session)
         g_clear_error (&error);
     }
 
-    port = g_key_file_get_integer (session->config, GROUP_NAME, PORT, &error);
+    port = fileserver_config_get_integer (session->config, PORT, &error);
     if (!error) {
         htp_server->bind_port = port;
     } else {
@@ -105,8 +105,7 @@ load_http_config (HttpServer *htp_server, SeafileSession *session)
         g_clear_error (&error);
     }
 
-    max_upload_size_mb = g_key_file_get_integer (session->config,
-                                                 GROUP_NAME,
+    max_upload_size_mb = fileserver_config_get_integer (session->config,
                                                  "max_upload_size",
                                                  &error);
     if (error) {
@@ -119,8 +118,7 @@ load_http_config (HttpServer *htp_server, SeafileSession *session)
             htp_server->max_upload_size = max_upload_size_mb * ((gint64)1 << 20);
     }
 
-    max_download_dir_size_mb = g_key_file_get_integer (session->config,
-                                                       GROUP_NAME,
+    max_download_dir_size_mb = fileserver_config_get_integer (session->config,
                                                        "max_download_dir_size",
                                                        &error);
     if (error) {
