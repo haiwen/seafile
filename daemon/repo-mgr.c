@@ -823,8 +823,11 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
     last_event = g_queue_peek_tail (status->event_q);
     pthread_mutex_unlock (&status->q_lock);
 
-    if (!last_event)
+    if (!last_event) {
+        seaf_message ("All events are processed for repo %s.\n", repo->id);
+        status->partial_commit = FALSE;
         goto out;
+    }
 
     gint64 total_size = 0;
 
