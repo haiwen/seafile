@@ -166,4 +166,17 @@ public class RepoTokenInfo: Object {
     public int64 sync_time { get; set; }
 }
 
+public class FolderUserPerm: Object {
+    public string repo_id { get; set; }
+    public string path { get; set; }
+    public string permission { get; set; }
+    public string user { get; set; }
+}
+
+public class FolderGroupPerm: Object {
+    public string repo_id { get; set; }
+    public string path { get; set; }
+    public string permission { get; set; }
+    public int group_id { get; set; }
+}
 } // namespace

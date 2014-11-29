@@ -444,6 +444,59 @@ seafile_get_checkout_task (const char *repo_id, GError **error);
 GList *
 seafile_get_sync_task_list (GError **error);
 
+/* folder permission */
+int
+seafile_add_folder_user_perm (const char *repo_id,
+                              const char *path,
+                              const char *permission,
+                              const char *user,
+                              GError **error);
+
+int
+seafile_rm_folder_user_perm (const char *repo_id,
+                             const char *path,
+                             const char *user,
+                             GError **error);
+
+GList*
+seafile_list_folder_user_perm_by_repo (const char *repo_id,
+                                       int start,
+                                       int limit,
+                                       GError **error);
+
+int
+seafile_set_folder_user_perm (const char *repo_id,
+                              const char *path,
+                              const char *permission,
+                              const char *user,
+                              GError **error);
+
+int
+seafile_add_folder_group_perm (const char *repo_id,
+                               const char *path,
+                               const char *permission,
+                               int group_id,
+                               GError **error);
+
+int
+seafile_rm_folder_group_perm (const char *repo_id,
+                              const char *path,
+                              int group_id,
+                              GError **error);
+
+GList*
+seafile_list_folder_group_perm_by_repo (const char *repo_id,
+                                        int start,
+                                        int limit,
+                                        GError **error);
+
+int
+seafile_set_folder_group_perm (const char *repo_id,
+                               const char *path,
+                               const char *permission,
+                               int group_id,
+                               GError **error);
+
 int
 seafile_add_share (const char *repo_id, const char *from_email,
                    const char *to_email, const char *permission,
@@ -779,6 +832,10 @@ seafile_create_enc_repo (const char *repo_id,
 
 char *
 seafile_check_permission (const char *repo_id, const char *user, GError **error);
+
+char *
+seafile_check_permission_by_path (const char *repo_id, const char *path,
+                                  const char *user, GError **error);
 
 int
 seafile_set_inner_pub_repo (const char *repo_id,

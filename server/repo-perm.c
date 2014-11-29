@@ -34,7 +34,6 @@ check_repo_share_permission (SeafRepoManager *mgr,
                                                       user_name);
     if (permission != NULL)
         return permission;
-    g_free (permission);
 
     rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
                                                  NULL,
@@ -92,6 +91,74 @@ group_out:
         return seaf_repo_manager_get_inner_pub_repo_perm (mgr, repo_id);
 
     return NULL;
+}
+
+/** user folder permission --> user folder group permission **/
+char *
+seaf_repo_manager_check_permission_by_path (SeafRepoManager *mgr,
+                                            const char *repo_id,
+                                            const char *path,
+                                            const char *user,
+                                            GError **error)
+{
+    char *perm = seaf_repo_manager_get_folder_user_perm (mgr, repo_id, path, user);
+    if (perm)
+        return perm;
+
+    SearpcClient *rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
+                                                               NULL,
+                                                               "ccnet-threaded-rpcserver");
+    if (!rpc_client) {
+        return NULL;
+    }
+
+    GList *groups;
+    GList *group_tmp;
+    GList *group_perms;
+    GList *group_perm_tmp;
+    CcnetGroup *group;
+    GroupPerm *group_perm;
+    int group_id;
+
+    /* Get the groups this user belongs to. */
+    groups = ccnet_get_groups_by_user (rpc_client, user);
+
+    ccnet_rpc_client_free (rpc_client);
+
+    group_perms = seaf_repo_manager_get_folder_group_perm_by_path (mgr, repo_id, path);
+
+    for (group_tmp = groups; group_tmp; group_tmp = group_tmp->next) {
+        group = group_tmp->data;
+        g_object_get (group, "id", &group_id, NULL);
+
+        for (group_perm_tmp = group_perms; group_perm_tmp; group_perm_tmp = group_perm_tmp->next) {
+            group_perm = group_perm_tmp->data;
+
+            if (group_id == group_perm->group_id) {
+                if (strcmp (group_perm->permission, "rw") == 0) {
+                    perm = group_perm->permission;
+                    goto out;
+                } else if (strcmp (group_perm->permission, "r") == 0 &&
+                           !perm) {
+                    perm = group_perm->permission;
+                }
+            }
+        }
+    }
+
+out:
+    if (perm != NULL)
+        perm = g_strdup(perm);
+
+    for (group_tmp = groups; group_tmp != NULL; group_tmp = group_tmp->next)
+        g_object_unref ((GObject *)group_tmp->data);
+    g_list_free (groups);
+
+    for (group_perm_tmp = group_perms; group_perm_tmp != NULL; group_perm_tmp = group_perm_tmp->next)
+        g_free (group_perm_tmp->data);
+    g_list_free (group_perms);
+
+    return perm;
 }
 
 static char *

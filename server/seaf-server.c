@@ -341,6 +341,47 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "get_deleted",
                                      searpc_signature_objlist__string_int());
 
+    /* folder permission */
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_add_folder_user_perm,
+                                     "seafile_add_folder_user_perm",
+                                     searpc_signature_int__string_string_string_string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_list_folder_user_perm_by_repo,
+                                     "seafile_list_folder_user_perm_by_repo",
+                                     searpc_signature_objlist__string_int_int());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_rm_folder_user_perm,
+                                     "seafile_rm_folder_user_perm",
+                                     searpc_signature_int__string_string_string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_set_folder_user_perm,
+                                     "seafile_set_folder_user_perm",
+                                     searpc_signature_int__string_string_string_string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_add_folder_group_perm,
+                                     "seafile_add_folder_group_perm",
+                                     searpc_signature_int__string_string_string_int());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_list_folder_group_perm_by_repo,
+                                     "seafile_list_folder_group_perm_by_repo",
+                                     searpc_signature_objlist__string_int_int());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_rm_folder_group_perm,
+                                     "seafile_rm_folder_group_perm",
+                                     searpc_signature_int__string_string_int());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_set_folder_group_perm,
+                                     "seafile_set_folder_group_perm",
+                                     searpc_signature_int__string_string_string_int());
+
     /* share repo to user */
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_add_share,
@@ -543,7 +584,13 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_check_permission,
                                      "check_permission",
                                      searpc_signature_string__string_string());
-    
+
+    /* folder permission */
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_check_permission_by_path,
+                                     "check_permission_by_path",
+                                     searpc_signature_string__string_string_string());
+
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_file_id_by_commit_and_path,
                                      "seafile_get_file_id_by_commit_and_path",

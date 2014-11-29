@@ -428,6 +428,10 @@ remove_repo_ondisk (SeafRepoManager *mgr,
     seaf_db_statement_query (db, "DELETE FROM RepoGroup WHERE repo_id = ?",
                    1, "string", repo_id);
 
+    seaf_repo_manager_rm_folder_user_perm_by_repo (mgr, repo_id);
+
+    seaf_repo_manager_rm_folder_group_perm_by_repo (mgr, repo_id);
+
     if (!seaf->cloud_mode) {
         seaf_db_statement_query (db, "DELETE FROM InnerPubRepo WHERE repo_id = ?",
                                  1, "string", repo_id);
@@ -726,6 +730,20 @@ create_tables_mysql (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
+    sql = "CREATE TABLE IF NOT EXISTS FolderUserPerm ("
+        "repo_id CHAR(36) NOT NULL, path TEXT NOT NULL, permission CHAR(15), "
+        "user VARCHAR(255) NOT NULL, INDEX(repo_id))"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS FolderGroupPerm ("
+        "repo_id CHAR(36) NOT NULL, path TEXT NOT NULL, permission CHAR(15), "
+        "group_id INTEGER NOT NULL, INDEX(repo_id))"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
     return 0;
 }
 
@@ -849,6 +867,26 @@ create_tables_sqlite (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
+    sql = "CREATE TABLE IF NOT EXISTS FolderUserPerm ("
+        "repo_id CHAR(36) NOT NULL, path TEXT NOT NULL, permission CHAR(15), "
+        "user VARCHAR(255) NOT NULL)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE INDEX IF NOT EXISTS folder_user_perm_idx ON FolderUserPerm(repo_id)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS FolderGroupPerm ("
+        "repo_id CHAR(36) NOT NULL, path TEXT NOT NULL, permission CHAR(15), "
+        "group_id INTEGER NOT NULL)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE INDEX IF NOT EXISTS folder_group_perm_idx ON FolderGroupPerm(repo_id)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
     return 0;
 }
 
@@ -964,6 +1002,30 @@ create_tables_pgsql (SeafRepoManager *mgr)
     sql = "CREATE TABLE IF NOT EXISTS GarbageRepos (repo_id CHAR(36) PRIMARY KEY)";
     if (seaf_db_query (db, sql) < 0)
         return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS FolderUserPerm ("
+        "repo_id CHAR(36) NOT NULL, path TEXT NOT NULL, permission CHAR(15), "
+        "user VARCHAR(255) NOT NULL)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    if (!pgsql_index_exists (db, "folder_user_perm_idx")) {
+        sql = "CREATE INDEX folder_user_perm_idx ON FolderUserPerm(repo_id)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
+
+    sql = "CREATE TABLE IF NOT EXISTS FolderGroupPerm ("
+        "repo_id CHAR(36) NOT NULL, path TEXT NOT NULL, permission CHAR(15), "
+        "group_id INTEGER NOT NULL)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    if (!pgsql_index_exists (db, "folder_group_perm_idx")) {
+        sql = "CREATE INDEX folder_group_perm_idx ON FolderGroupPerm(repo_id)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
 
     return 0;
 }
@@ -1766,6 +1828,341 @@ seaf_repo_manager_query_access_property (SeafRepoManager *mgr, const char *repo_
 
     return ret;
 }
+
+/* folder permission */
+int
+seaf_repo_manager_add_folder_user_perm (SeafRepoManager *mgr,
+                                        const char *repo_id,
+                                        const char *path,
+                                        const char *permission,
+                                        const char *user,
+                                        GError **error)
+{
+    int ret = seaf_db_statement_query (mgr->seaf->db,
+                                       "INSERT INTO FolderUserPerm "
+                                       "(repo_id, path, permission, user) "
+                                       "VALUES (?, ?, ?, ?)",
+                                       4, "string", repo_id, "string", path,
+                                       "string", permission, "string", user);
+    if (ret < 0)
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
+
+    return ret;
+}
+
+int
+seaf_repo_manager_rm_folder_user_perm (SeafRepoManager *mgr,
+                                       const char *repo_id,
+                                       const char *path,
+                                       const char *user,
+                                       GError **error)
+{
+    int ret = seaf_db_statement_query (mgr->seaf->db,
+                                       "DELETE FROM FolderUserPerm WHERE repo_id=? "
+                                       "AND path=? and user=?",
+                                       3, "string", repo_id, "string", path, "string", user);
+    if (ret < 0)
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
+
+    return ret;
+}
+
+int
+seaf_repo_manager_rm_folder_user_perm_by_repo (SeafRepoManager *mgr,
+                                               const char *repo_id)
+{
+    int ret = seaf_db_statement_query (mgr->seaf->db,
+                                       "DELETE FROM FolderUserPerm WHERE repo_id=? ",
+                                       1, "string", repo_id);
+    return ret;
+}
+
+char*
+seaf_repo_manager_get_folder_user_perm (SeafRepoManager *mgr,
+                                        const char *repo_id,
+                                        const char *path,
+                                        const char *user)
+{
+    if (!repo_id || !path || !user)
+        return NULL;
+
+    const char *perm = seaf_db_statement_get_string (mgr->seaf->db,
+                                                     "select permission from FolderUserPerm where "
+                                                     "repo_id=? and path=? and user=?",
+                                                     3, "string", repo_id, "string", path,
+                                                     "string", user);
+    return g_strdup (perm);
+}
+
+static gboolean
+get_folder_user_perm_cb (SeafDBRow *row, void *data)
+{
+    GList **perm_list = data;
+
+    const char *repo_id = seaf_db_row_get_column_text (row, 0);
+    if (!repo_id)
+        return FALSE;
+
+    const char *path = seaf_db_row_get_column_text (row, 1);
+    if (!path)
+        return FALSE;
+
+    const char *permission = seaf_db_row_get_column_text (row, 2);
+
+    const char *user = seaf_db_row_get_column_text (row, 3);
+    if (!user)
+        return FALSE;
+
+    SeafileFolderUserPerm *user_perm = g_object_new (SEAFILE_TYPE_FOLDER_USER_PERM,
+                                                     "repo_id", repo_id, "path", path,
+                                                     "permission", permission,
+                                                     "user", user, NULL);
+    if (!user_perm)
+        return FALSE;
+
+    *perm_list = g_list_prepend (*perm_list, user_perm);
+
+    return TRUE;
+}
+
+GList*
+seaf_repo_manager_list_folder_user_perm_by_repo (SeafRepoManager *mgr,
+                                                 const char *repo_id,
+                                                 int start,
+                                                 int limit,
+                                                 GError **error)
+{
+    char *sql;
+    GList *user_perms = NULL;
+    int n_row;
+
+    if (start == -1 && limit == -1) {
+        sql = "SELECT repo_id, path, permission, user FROM FolderUserPerm WHERE repo_id=?";
+
+        n_row = seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_folder_user_perm_cb,
+                                               &user_perms, 1, "string", repo_id);
+    } else {
+        sql = "SELECT repo_id, path, permission, user FROM FolderUserPerm WHERE repo_id=? "
+              "LIMIT ? OFFSET ?";
+
+        n_row = seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_folder_user_perm_cb,
+                                               &user_perms, 3, "string", repo_id,
+                                               "int", limit, "int", start);
+    }
+
+    if (n_row < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
+        return NULL;
+    }
+
+    return g_list_reverse (user_perms);
+}
+
+int
+seaf_repo_manager_set_folder_user_perm (SeafRepoManager *mgr,
+                                        const char *repo_id,
+                                        const char *path,
+                                        const char *permission,
+                                        const char *user,
+                                        GError **error)
+{
+    int ret = seaf_db_statement_query (mgr->seaf->db,
+                                       "UPDATE FolderUserPerm SET permission=? WHERE "
+                                       "repo_id=? AND path=? and user=?",
+                                       4, "string", permission, "string", repo_id,
+                                       "string", path, "string", user);
+    if (ret < 0)
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
+
+    return ret;
+}
+
+int
+seaf_repo_manager_add_folder_group_perm (SeafRepoManager *mgr,
+                                         const char *repo_id,
+                                         const char *path,
+                                         const char *permission,
+                                         int group_id,
+                                         GError **error)
+{
+    int ret = seaf_db_statement_query (mgr->seaf->db,
+                                       "INSERT INTO FolderGroupPerm "
+                                       "(repo_id, path, permission, group_id)"
+                                       "VALUES (?, ?, ?, ?)",
+                                       4, "string", repo_id, "string", path,
+                                       "string", permission, "int", group_id);
+    if (ret < 0)
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
+
+    return ret;
+}
+
+int
+seaf_repo_manager_rm_folder_group_perm (SeafRepoManager *mgr,
+                                        const char *repo_id,
+                                        const char *path,
+                                        int group_id,
+                                        GError **error)
+{
+    int ret = seaf_db_statement_query (mgr->seaf->db,
+                                       "DELETE FROM FolderGroupPerm WHERE repo_id=? "
+                                       "AND path=? and group_id=?",
+                                       3, "string", repo_id, "string", path, "int", group_id);
+    if (ret < 0)
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
+
+    return ret;
+}
+
+int
+seaf_repo_manager_rm_folder_group_perm_by_repo (SeafRepoManager *mgr,
+                                                const char *repo_id)
+{
+    int ret = seaf_db_statement_query (mgr->seaf->db,
+                                       "DELETE FROM FolderGroupPerm WHERE repo_id=? ",
+                                       1, "string", repo_id);
+    return ret;
+}
+
+char*
+seaf_repo_manager_get_folder_group_perm (SeafRepoManager *mgr,
+                                         const char *repo_id,
+                                         const char *path,
+                                         int group_id)
+{
+    if (!repo_id || !path || group_id < 0)
+        return NULL;
+
+    const char *perm = seaf_db_statement_get_string (mgr->seaf->db,
+                                                     "select permission from FolderGroupPerm where "
+                                                     "repo_id=? and path=? and group_id=?",
+                                                     3, "string", repo_id, "string", path,
+                                                     "int", group_id);
+    return g_strdup (perm);
+}
+
+static gboolean
+get_folder_group_perm_cb (SeafDBRow *row, void *data)
+{
+    GList **perm_list = data;
+
+    const char *repo_id = seaf_db_row_get_column_text (row, 0);
+    if (!repo_id)
+        return FALSE;
+
+    const char *path = seaf_db_row_get_column_text (row, 1);
+    if (!path)
+        return FALSE;
+
+    const char *permission = seaf_db_row_get_column_text (row, 2);
+
+    int group_id = seaf_db_row_get_column_int (row, 3);
+
+    SeafileFolderGroupPerm *group_perm = g_object_new (SEAFILE_TYPE_FOLDER_GROUP_PERM,
+                                                       "repo_id", repo_id, "path", path,
+                                                       "permission", permission,
+                                                       "group_id", group_id, NULL);
+    if (!group_perm)
+        return FALSE;
+
+    *perm_list = g_list_prepend (*perm_list, group_perm);
+
+    return TRUE;
+}
+
+GList*
+seaf_repo_manager_list_folder_group_perm_by_repo (SeafRepoManager *mgr,
+                                                  const char *repo_id,
+                                                  int start,
+                                                  int limit,
+                                                  GError **error)
+{
+    char *sql;
+    GList *group_perms = NULL;
+    int n_row;
+
+    if (start == -1 && limit == -1) {
+        sql = "SELECT repo_id, path, permission, group_id FROM FolderGroupPerm WHERE repo_id=?";
+
+        n_row = seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_folder_group_perm_cb,
+                                               &group_perms, 1, "string", repo_id);
+    } else {
+        sql = "SELECT repo_id, path, permission, group_id FROM FolderGroupPerm WHERE repo_id=? "
+              "LIMIT ? OFFSET ?";
+
+        n_row = seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_folder_group_perm_cb,
+                                               &group_perms, 3, "string", repo_id,
+                                               "int", limit, "int", start);
+    }
+
+    if (n_row < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
+        return NULL;
+    }
+
+    return g_list_reverse (group_perms);
+}
+
+int
+seaf_repo_manager_set_folder_group_perm (SeafRepoManager *mgr,
+                                         const char *repo_id,
+                                         const char *path,
+                                         const char *permission,
+                                         int group_id,
+                                         GError **error)
+{
+    int ret = seaf_db_statement_query (mgr->seaf->db,
+                                       "UPDATE FolderGroupPerm SET permission=? WHERE "
+                                       "repo_id=? AND path=? and group_id=?",
+                                       4, "string", permission, "string", repo_id,
+                                       "string", path, "int", group_id);
+    if (ret < 0)
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "DB error");
+
+    return ret;
+}
+
+static gboolean
+get_folder_group_perm_by_path_cb (SeafDBRow *row, void *data)
+{
+    GList **perm_list = data;
+
+    const char *permission = seaf_db_row_get_column_text (row, 0);
+    int perm_len = strlen (permission);
+
+    int group_id = seaf_db_row_get_column_int (row, 1);
+
+    GroupPerm *group_perm = g_new0 (GroupPerm, 1);
+    if (!group_perm)
+        return FALSE;
+
+    group_perm->group_id = group_id;
+    memcpy (group_perm->permission, permission, perm_len);
+    group_perm->permission[perm_len] = '\0';
+
+    *perm_list = g_list_prepend (*perm_list, group_perm);
+
+    return TRUE;
+}
+
+GList*
+seaf_repo_manager_get_folder_group_perm_by_path (SeafRepoManager *mgr,
+                                                 const char *repo_id,
+                                                 const char *path)
+{
+    char *sql;
+    GList *group_perms = NULL;
+
+    sql = "SELECT permission, group_id FROM FolderGroupPerm WHERE repo_id=? "
+          "and path=?";
+
+    seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_folder_group_perm_by_path_cb,
+                                   &group_perms, 2, "string", repo_id,
+                                   "string", path);
+
+    return group_perms;
+}
+
 
 /* Group repos. */
 

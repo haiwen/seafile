@@ -201,6 +201,31 @@ class SeafileAPI(object):
     def get_deleted(self, repo_id, show_days):
         return seafserv_threaded_rpc.get_deleted(repo_id, show_days)
 
+    # folder permission
+    def add_folder_user_perm(self, repo_id, path, permission, user):
+        return seafserv_threaded_rpc.add_folder_user_perm(repo_id, path, permission, user)
+
+    def rm_folder_user_perm(self, repo_id, path, user):
+        return seafserv_threaded_rpc.rm_folder_user_perm(repo_id, path, user)
+
+    def list_folder_user_perm_by_repo(self, repo_id, start=-1, limit=-1):
+        return seafserv_threaded_rpc.list_folder_user_perm_by_repo(repo_id, start, limit)
+
+    def set_folder_user_perm(self, repo_id, path, permission, user):
+        return seafserv_threaded_rpc.set_folder_user_perm(repo_id, path, permission, user)
+
+    def add_folder_group_perm(self, repo_id, path, permission, group_id):
+        return seafserv_threaded_rpc.add_folder_group_perm(repo_id, path, permission, group_id)
+
+    def rm_folder_group_perm(self, repo_id, path, group_id):
+        return seafserv_threaded_rpc.rm_folder_group_perm(repo_id, path, group_id)
+
+    def list_folder_group_perm_by_repo(self, repo_id, start=-1, limit=-1):
+        return seafserv_threaded_rpc.list_folder_group_perm_by_repo(repo_id, start, limit)
+
+    def set_folder_group_perm(self, repo_id, path, permission, group_id):
+        return seafserv_threaded_rpc.set_folder_group_perm(repo_id, path, permission, group_id)
+
     # share repo to user
     def share_repo(self, repo_id, from_username, to_username, permission):
         return seafserv_threaded_rpc.add_share(repo_id, from_username,
@@ -334,6 +359,10 @@ class SeafileAPI(object):
     # permission
     def check_permission(self, repo_id, user):
         return seafserv_threaded_rpc.check_permission(repo_id, user)
+
+    # folder permission
+    def check_permission_by_path(self, repo_id, path, user):
+        return seafserv_threaded_rpc.check_permission_by_path(repo_id, path, user)
 
     # virtual repo
     def create_virtual_repo(self, origin_repo_id, path, repo_name, repo_desc, owner):
