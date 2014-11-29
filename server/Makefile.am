@@ -55,6 +55,7 @@ noinst_HEADERS = web-accesstoken-mgr.h chunkserv-mgr.h seafile-session.h \
 	upload-file.h \
 	access-file.h \
 	pack-dir.h \
+	fileserver-config.h \
 	http-status-codes.h \
 	$(proc_headers)
 
@@ -75,6 +76,7 @@ seaf_server_SOURCES = \
 	upload-file.c \
 	access-file.c \
 	pack-dir.c \
+	fileserver-config.c \
 	monitor-rpc-wrappers.c ../common/seaf-db.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \
 	repo-mgr.c ../common/commit-mgr.c \
