@@ -515,6 +515,47 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def get_deleted(repo_id, show_days):
         pass
 
+    # folder permission
+    @searpc_func("int", ["string", "string", "string", "string"])
+    def seafile_add_folder_user_perm(repo_id, path, permisson, user):
+        pass
+    add_folder_user_perm = seafile_add_folder_user_perm
+
+    @searpc_func("int", ["string", "string", "string"])
+    def seafile_rm_folder_user_perm(repo_id, path, user):
+        pass
+    rm_folder_user_perm = seafile_rm_folder_user_perm
+
+    @searpc_func("objlist", ["string", "int", "int"])
+    def seafile_list_folder_user_perm_by_repo(repo_id, start, offset):
+        pass
+    list_folder_user_perm_by_repo = seafile_list_folder_user_perm_by_repo
+
+    @searpc_func("int", ["string", "string", "string", "string"])
+    def seafile_set_folder_user_perm(repo_id, path, permisson, user):
+        pass
+    set_folder_user_perm = seafile_set_folder_user_perm
+
+    @searpc_func("int", ["string", "string", "string", "int"])
+    def seafile_add_folder_group_perm(repo_id, path, permisson, group_id):
+        pass
+    add_folder_group_perm = seafile_add_folder_group_perm
+
+    @searpc_func("int", ["string", "string", "int"])
+    def seafile_rm_folder_group_perm(repo_id, path, group_id):
+        pass
+    rm_folder_group_perm = seafile_rm_folder_group_perm
+
+    @searpc_func("objlist", ["string", "int", "int"])
+    def seafile_list_folder_group_perm_by_repo(repo_id, start, offset):
+        pass
+    list_folder_group_perm_by_repo = seafile_list_folder_group_perm_by_repo
+
+    @searpc_func("int", ["string", "string", "string", "int"])
+    def seafile_set_folder_group_perm(repo_id, path, permisson, group_id):
+        pass
+    set_folder_group_perm = seafile_set_folder_group_perm
+
     # share repo to user
     @searpc_func("string", ["string", "string", "string", "string"])
     def seafile_add_share(repo_id, from_email, to_email, permission):
@@ -700,6 +741,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     # repo permission checking
     @searpc_func("string", ["string", "string"])
     def check_permission(repo_id, user):
+        pass
+
+    # folder permission check
+    @searpc_func("string", ["string", "string", "string"])
+    def check_permission_by_path(repo_id, path, user):
         pass
 
     # org repo

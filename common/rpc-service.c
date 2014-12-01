@@ -2132,6 +2132,262 @@ seafile_remove_share (const char *repo_id, const char *from_email,
     return ret;
 }
 
+/* folder permission */
+int
+seafile_add_folder_user_perm (const char *repo_id,
+                              const char *path,
+                              const char *permission,
+                              const char *user,
+                              GError **error)
+{
+    int ret;
+
+    if (!repo_id || !path || !user) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Missing args");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo_id");
+        return -1;
+    }
+
+    if (strlen (path) == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid path");
+        return -1;
+    }
+
+    if (strlen (user) == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid user");
+        return -1;
+    }
+
+    ret = seaf_repo_manager_add_folder_user_perm (seaf->repo_mgr, repo_id, path,
+                                                  permission, user, error);
+
+    return ret;
+}
+
+int
+seafile_rm_folder_user_perm (const char *repo_id,
+                             const char *path,
+                             const char *user,
+                             GError **error)
+{
+    int ret;
+
+    if (!repo_id || !path || !user) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Missing args");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo_id");
+        return -1;
+    }
+
+    if (strlen (path) == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid path");
+        return -1;
+    }
+
+    if (strlen (user) == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid user");
+        return -1;
+    }
+
+    ret = seaf_repo_manager_rm_folder_user_perm (seaf->repo_mgr, repo_id, path,
+                                                 user, error);
+
+    return ret;
+}
+
+GList*
+seafile_list_folder_user_perm_by_repo (const char *repo_id,
+                                       int start,
+                                       int limit,
+                                       GError **error)
+{
+    GList *ret;
+
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Missing args");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo_id");
+        return NULL;
+    }
+
+    ret = seaf_repo_manager_list_folder_user_perm_by_repo (seaf->repo_mgr, repo_id, start,
+                                                           limit, error);
+
+    return ret;
+}
+
+int
+seafile_set_folder_user_perm (const char *repo_id,
+                              const char *path,
+                              const char *permission,
+                              const char *user,
+                              GError **error)
+{
+    int ret;
+
+    if (!repo_id || !path || !user) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Missing args");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo_id");
+        return -1;
+    }
+
+    if (strlen (path) == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid path");
+        return -1;
+    }
+
+    if (strlen (user) == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid user");
+        return -1;
+    }
+
+    ret = seaf_repo_manager_set_folder_user_perm (seaf->repo_mgr, repo_id, path,
+                                                  permission, user, error);
+
+    return ret;
+}
+
+int
+seafile_add_folder_group_perm (const char *repo_id,
+                               const char *path,
+                               const char *permission,
+                               int group_id,
+                               GError **error)
+{
+    int ret;
+
+    if (!repo_id || !path) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Missing args");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo_id");
+        return -1;
+    }
+
+    if (strlen (path) == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid path");
+        return -1;
+    }
+
+    if (group_id < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "group_id is invalid");
+        return -1;
+    }
+
+    ret = seaf_repo_manager_add_folder_group_perm (seaf->repo_mgr, repo_id, path,
+                                                   permission, group_id, error);
+
+    return ret;
+}
+
+int
+seafile_rm_folder_group_perm (const char *repo_id,
+                              const char *path,
+                              int group_id,
+                              GError **error)
+{
+    int ret;
+
+    if (!repo_id || !path) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Missing args");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo_id");
+        return -1;
+    }
+
+    if (strlen (path) == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid path");
+        return -1;
+    }
+
+    if (group_id < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "group_id is invalid");
+        return -1;
+    }
+
+    ret = seaf_repo_manager_rm_folder_group_perm (seaf->repo_mgr, repo_id, path,
+                                                  group_id, error);
+
+    return ret;
+}
+
+GList*
+seafile_list_folder_group_perm_by_repo (const char *repo_id,
+                                        int start,
+                                        int limit,
+                                        GError **error)
+{
+    GList *ret;
+
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Missing args");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo_id");
+        return NULL;
+    }
+
+    ret = seaf_repo_manager_list_folder_group_perm_by_repo (seaf->repo_mgr, repo_id, start,
+                                                            limit, error);
+    return ret;
+}
+
+int
+seafile_set_folder_group_perm (const char *repo_id,
+                               const char *path,
+                               const char *permission,
+                               int group_id,
+                               GError **error)
+{
+    int ret;
+
+    if (!repo_id || !path) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Missing args");
+        return -1;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo_id");
+        return -1;
+    }
+
+    if (strlen (path) == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid path");
+        return -1;
+    }
+
+    if (group_id < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "group_id is invalid");
+        return -1;
+    }
+
+    ret = seaf_repo_manager_set_folder_group_perm (seaf->repo_mgr, repo_id, path,
+                                                   permission, group_id, error);
+
+    return ret;
+}
+
 /* Group repo RPC. */
 
 int
@@ -3480,6 +3736,35 @@ seafile_check_permission (const char *repo_id, const char *user, GError **error)
 
     return seaf_repo_manager_check_permission (seaf->repo_mgr,
                                                repo_id, user, error);
+}
+
+char *
+seafile_check_permission_by_path (const char *repo_id, const char *path,
+                                  const char *user, GError **error)
+{
+    if (!repo_id || !user || !path) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
+    if (strlen (user) == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid user");
+        return NULL;
+    }
+
+    if (strlen (path) == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid path");
+        return NULL;
+    }
+
+    return seaf_repo_manager_check_permission_by_path (seaf->repo_mgr,
+                                                       repo_id, path,
+                                                       user, error);
 }
 
 int

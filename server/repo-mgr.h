@@ -490,6 +490,91 @@ GList *
 seaf_repo_manager_get_repo_ids_by_owner (SeafRepoManager *mgr,
                                          const char *email);
 
+/* folder permission */
+int
+seaf_repo_manager_add_folder_user_perm (SeafRepoManager *mgr,
+                                        const char *repo_id,
+                                        const char *path,
+                                        const char *permission,
+                                        const char *user,
+                                        GError **error);
+
+int
+seaf_repo_manager_rm_folder_user_perm_by_repo (SeafRepoManager *mgr,
+                                               const char *repo_id);
+
+int
+seaf_repo_manager_rm_folder_user_perm (SeafRepoManager *mgr,
+                                       const char *repo_id,
+                                       const char *path,
+                                       const char *user,
+                                       GError **error);
+
+char*
+seaf_repo_manager_get_folder_user_perm (SeafRepoManager *mgr,
+                                        const char *repo_id,
+                                        const char *path,
+                                        const char *user);
+GList*
+seaf_repo_manager_list_folder_user_perm_by_repo (SeafRepoManager *mgr,
+                                                 const char *repo_id,
+                                                 int start,
+                                                 int offset,
+                                                 GError **error);
+
+int
+seaf_repo_manager_set_folder_user_perm (SeafRepoManager *mgr,
+                                        const char *repo_id,
+                                        const char *path,
+                                        const char *permission,
+                                        const char *user,
+                                        GError **error);
+
+int
+seaf_repo_manager_add_folder_group_perm (SeafRepoManager *mgr,
+                                         const char *repo_id,
+                                         const char *path,
+                                         const char *permission,
+                                         int group_id,
+                                         GError **error);
+
+int
+seaf_repo_manager_rm_folder_group_perm_by_repo (SeafRepoManager *mgr,
+                                                const char *repo_id);
+
+int
+seaf_repo_manager_rm_folder_group_perm (SeafRepoManager *mgr,
+                                        const char *repo_id,
+                                        const char *path,
+                                        int group_id,
+                                        GError **error);
+
+char*
+seaf_repo_manager_get_folder_group_perm (SeafRepoManager *mgr,
+                                         const char *repo_id,
+                                         const char *path,
+                                         int group_id);
+
+GList*
+seaf_repo_manager_get_folder_group_perm_by_path (SeafRepoManager *mgr,
+                                                 const char *repo_id,
+                                                 const char *path);
+
+GList*
+seaf_repo_manager_list_folder_group_perm_by_repo (SeafRepoManager *mgr,
+                                                  const char *repo_id,
+                                                  int start,
+                                                  int limit,
+                                                  GError **error);
+
+int
+seaf_repo_manager_set_folder_group_perm (SeafRepoManager *mgr,
+                                         const char *repo_id,
+                                         const char *path,
+                                         const char *permission,
+                                         int group_id,
+                                         GError **error);
+
 /* Group repos. */
 
 int
@@ -586,6 +671,13 @@ seaf_repo_manager_check_permission (SeafRepoManager *mgr,
                                     const char *repo_id,
                                     const char *user,
                                     GError **error);
+
+char *
+seaf_repo_manager_check_permission_by_path (SeafRepoManager *mgr,
+                                            const char *repo_id,
+                                            const char *path,
+                                            const char *user,
+                                            GError **error);
 
 /* Web access permission. */
 
