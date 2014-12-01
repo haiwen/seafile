@@ -3573,8 +3573,6 @@ seaf_repo_manager_set_repo_relay_id (SeafRepoManager *mgr,
 {
     if (relay_id && strlen(relay_id) != 40)
         return -1;
-    if (!is_peer_relay(relay_id))
-        return -1;
 
     save_repo_property (mgr, repo->id, REPO_RELAY_ID, relay_id);
 
