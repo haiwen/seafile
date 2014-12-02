@@ -108,11 +108,16 @@ process_one_event (const char* eventPath,
 {
     WTStatus *status = info->status;
     char *filename;
+    char *event_path_nfc;
     const char *tmp;
-    tmp = eventPath + strlen(worktree);
+
+    event_path_nfc = g_utf8_normalize (eventPath, -1, G_NORMALIZE_NFC);
+
+    tmp = event_path_nfc + strlen(worktree);
     if (*tmp == '/')
         tmp++;
     filename = g_strdup(tmp);
+    g_free (event_path_nfc);
 
     /* Reinterpreted RENAMED as combine of CREATED or DELETED event */
     if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
@@ -194,9 +199,12 @@ add_watch (SeafWTMonitor *monitor, const char* repo_id, const char* worktree)
     RepoWatchInfo *info;
     double latency = 0.25; /* unit: second */
 
+    char *worktree_nfd = g_utf8_normalize (worktree, -1, G_NORMALIZE_NFD);
+
     CFStringRef mypaths[1];
     mypaths[0] = CFStringCreateWithCString (kCFAllocatorDefault,
-                                                    worktree, kCFStringEncodingUTF8);
+                                            worktree_nfd, kCFStringEncodingUTF8);
+    g_free (worktree_nfd);
     CFArrayRef pathsToWatch = CFArrayCreate(NULL, (const void **)mypaths, 1, NULL);
     FSEventStreamRef stream;
 
