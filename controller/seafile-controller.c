@@ -29,7 +29,7 @@ char *topdir = NULL;
 
 char *seafile_ld_library_path = NULL;
 
-static const char *short_opts = "hvftCc:d:l:g:G:P:";
+static const char *short_opts = "hvftCc:d:L:g:G:P:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
