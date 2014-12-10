@@ -1108,12 +1108,11 @@ static int is_garbage_empty_dir (struct index_state *istate, struct cache_entry 
     return ret;
 }
 
-int
-add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *st)
+static struct cache_entry *
+create_empty_dir_index_entry (const char *path, SeafStat *st)
 {
     int namelen, size;
-    struct cache_entry *ce, *alias;
-    int add_option = (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE);
+    struct cache_entry *ce;
 
     namelen = strlen(path);
     size = cache_entry_size(namelen);
@@ -1126,6 +1125,17 @@ add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *
 
     ce->ce_mode = S_IFDIR;
     /* sha1 is all-zero. */
+
+    return ce;
+}
+
+int
+add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *st)
+{
+    struct cache_entry *ce, *alias;
+    int add_option = (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE);
+
+    ce = create_empty_dir_index_entry (path, st);
 
     if (is_garbage_empty_dir (istate, ce)) {
         free (ce);
@@ -1384,6 +1394,68 @@ out:
     free (new_ces);
 
     return ret;
+}
+
+/*
+ * If there is no file under @path, add an empty dir entry for this @path.
+ */
+int
+add_empty_dir_to_index_with_check (struct index_state *istate,
+                                   const char *path, SeafStat *st)
+{
+    int pathlen = strlen(path);
+    int pos = index_name_pos (istate, path, pathlen);
+
+    /* Exact match, empty dir entry already exists. */
+    if (pos >= 0) {
+        return 0;
+    }
+
+    /* Otherwise it may be a prefix match, remove all entries begin with this prefix.
+     */
+
+    /* -pos = (the position this entry *should* be) + 1.
+     * So -pos-1 is the first entry larger than this entry.
+     */
+    pos = -pos-1;
+
+    /* Add '/' to the end of prefix so that we won't match a partial path component.
+     * e.g. we don't want to match 'abc' with 'abcd/ef'
+     */
+    char *full_path = g_strconcat (path, "/", NULL);
+    ++pathlen;
+
+    gboolean is_empty = TRUE;
+    struct cache_entry *ce;
+
+    ce = istate->cache[pos];
+    if (strncmp (ce->name, full_path, pathlen) == 0) {
+        is_empty = FALSE;
+    }
+
+    g_free (full_path);
+
+    if (is_empty) {
+        ce = create_empty_dir_index_entry (path, st);
+
+        /* Make sure the array is big enough .. */
+        if (istate->cache_nr == istate->cache_alloc) {
+            istate->cache_alloc = alloc_nr(istate->cache_alloc);
+            istate->cache = realloc(istate->cache,
+                                    istate->cache_alloc * sizeof(struct cache_entry *));
+        }
+
+        /* Add it in.. */
+        istate->cache_nr++;
+        if (istate->cache_nr > pos + 1)
+            memmove(istate->cache + pos + 1,
+                    istate->cache + pos,
+                    (istate->cache_nr - pos - 1) * sizeof(ce));
+        set_index_entry(istate, pos, ce);
+        istate->cache_changed = 1;
+    }
+
+    return 0;
 }
 
 static struct cache_entry *refresh_cache_entry(struct cache_entry *ce,

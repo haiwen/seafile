@@ -271,11 +271,12 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
 
     if (force_conflict || ccnet_rename (tmp_path, file_path) < 0) {
         *conflicted = TRUE;
-        conflict_path = gen_conflict_path_wrapper (repo_id, version,
-                                                   conflict_head_id, in_repo_path,
-                                                   file_path);
-        if (!conflict_path)
+
+        SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+        if (!repo)
             goto bad;
+
+        conflict_path = gen_conflict_path (file_path, repo->email, (gint64)time(NULL));
 
         seaf_warning ("Cannot update %s, creating conflict file %s.\n",
                       file_path, conflict_path);
@@ -291,6 +292,13 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
                 goto bad;
             }
         } else {
+            g_free (conflict_path);
+            conflict_path = gen_conflict_path_wrapper (repo_id, version,
+                                                       conflict_head_id, in_repo_path,
+                                                       file_path);
+            if (!conflict_path)
+                goto bad;
+
             if (ccnet_rename (tmp_path, conflict_path) < 0) {
                 g_free (conflict_path);
                 goto bad;

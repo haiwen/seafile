@@ -60,6 +60,10 @@ struct _SeafRepo {
     int         wt_check_time;
     int         last_sync_time;
 
+    /* Last time check locked files. */
+    int         last_check_locked_time;
+    gboolean    checking_locked_files;
+
     unsigned char enc_key[32];   /* 256-bit encryption key */
     unsigned char enc_iv[16];
 
@@ -424,5 +428,39 @@ seaf_repo_fetch_and_checkout (struct _TransferTask *task,
 
 gboolean
 seaf_repo_manager_is_ignored_hidden_file (const char *filename);
+
+#define LOCKED_OP_UPDATE "update"
+#define LOCKED_OP_DELETE "delete"
+
+typedef struct _LockedFile {
+    char *operation;
+    gint64 old_mtime;
+    char file_id[41];
+} LockedFile;
+
+typedef struct _LockedFileSet {
+    SeafRepoManager *mgr;
+    char repo_id[37];
+    GHashTable *locked_files;
+} LockedFileSet;
+
+LockedFileSet *
+seaf_repo_manager_get_locked_file_set (SeafRepoManager *mgr, const char *repo_id);
+
+void
+locked_file_set_free (LockedFileSet *fset);
+
+int
+locked_file_set_add_update (LockedFileSet *fset,
+                            const char *path,
+                            const char *operation,
+                            gint64 old_mtime,
+                            const char *file_id);
+
+int
+locked_file_set_remove (LockedFileSet *fset, const char *path, gboolean db_only);
+
+LockedFile *
+locked_file_set_lookup (LockedFileSet *fset, const char *path);
 
 #endif
