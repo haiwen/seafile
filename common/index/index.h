@@ -450,6 +450,8 @@ int
 add_empty_dir_to_index_with_check (struct index_state *istate,
                                    const char *path, SeafStat *st);
 
+void remove_empty_parent_dir_entry (struct index_state *istate, const char *path);
+
 extern int add_file_to_index(struct index_state *, const char *path, int flags);
 extern struct cache_entry *make_cache_entry(unsigned int mode, const unsigned char *sha1, const char *path, const char *full_path, int stage, int refresh);
 extern int ce_same_name(struct cache_entry *a, struct cache_entry *b);

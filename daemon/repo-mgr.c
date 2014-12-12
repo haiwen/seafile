@@ -935,6 +935,9 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
     if (S_ISDIR(st.st_mode))
         *scanned_dirs = g_list_prepend (*scanned_dirs, g_strdup(path));
 
+    /* Adding a dir/file makes an empty dir non-empty. */
+    remove_empty_parent_dir_entry (istate, path);
+
     /* Add is always recursive */
     add_recursive (repo->id, repo->version, repo->email, istate, repo->worktree, path,
                    crypt, FALSE, ignore_list, total_size, remain_files, fset);
@@ -1215,6 +1218,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
              * when we process the update event, a.txt is already not in its original
              * place.
              */
+            remove_empty_parent_dir_entry (istate, event->new_path);
+
             add_recursive (repo->id, repo->version, repo->email,
                            istate, repo->worktree, event->new_path,
                            crypt, FALSE, ignore_list,
@@ -1646,7 +1651,6 @@ need_handle_unmerged_index (SeafRepo *repo, struct index_state *istate)
     return TRUE;
 }
 
-#if 0
 static int 
 print_index (struct index_state *istate)
 {
@@ -1665,7 +1669,6 @@ print_index (struct index_state *istate)
 
     return 0;
 }
-#endif
 
 char *
 seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_initial_commit,
@@ -2760,6 +2763,9 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 
             do_rename_in_worktree (de, worktree, conflict_hash, no_conflict_hash);
 
+            /* Moving files into a dir makes it non-empty. */
+            remove_empty_parent_dir_entry (&istate, de->new_name);
+
             rename_index_entries (&istate, de->name, de->new_name);
 
             /* Moving files out of a dir may make it empty. */
@@ -2842,9 +2848,11 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                 ++(http_task->done_files);
 
             if (add_ce) {
-                if (!(ce->ce_flags & CE_REMOVE))
+                if (!(ce->ce_flags & CE_REMOVE)) {
+                    remove_empty_parent_dir_entry (&istate, de->name);
                     add_index_entry (&istate, ce,
                                      (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE));
+                }
             } else {
                 ce->ce_mtime.sec = de->mtime;
                 ce->ce_size = de->size;
@@ -2883,9 +2891,11 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                                 no_conflict_hash);
 
             if (add_ce) {
-                if (!(ce->ce_flags & CE_REMOVE))
+                if (!(ce->ce_flags & CE_REMOVE)) {
+                    remove_empty_parent_dir_entry (&istate, de->name);
                     add_index_entry (&istate, ce,
                                      (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE));
+                }
             } else
                 ce->ce_mtime.sec = de->mtime;
         }

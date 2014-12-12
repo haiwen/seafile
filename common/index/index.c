@@ -867,6 +867,26 @@ int verify_path(const char *path)
     }
 }
 
+void remove_empty_parent_dir_entry (struct index_state *istate, const char *path)
+{
+    char *parent_dir = g_path_get_dirname (path);
+
+    if (strcmp (parent_dir, ".") == 0) {
+        g_free (parent_dir);
+        return;
+    }
+
+    /* No empty parent dir entry exists. */
+    if (!index_name_exists (istate, parent_dir, strlen(parent_dir), 0)) {
+        g_free (parent_dir);
+        return;
+    }
+
+    remove_file_from_index (istate, parent_dir);
+
+    g_free (parent_dir);
+}
+
 static int add_index_entry_with_check(struct index_state *istate, struct cache_entry *ce, int option)
 {
     int pos;
@@ -884,27 +904,6 @@ static int add_index_entry_with_check(struct index_state *istate, struct cache_e
         return 0;
     }
     pos = -pos-1;
-
-    /*
-     * If an empty dir entry exsits in the index and it's the parent of
-     * the entry to be inserted, remove the empty dir entry.
-     */
-    int i = pos - 1;
-    struct cache_entry *prev;
-    if (i >= 0) {
-        prev = istate->cache[i];
-
-        if (S_ISDIR(prev->ce_mode)) {
-            char *full_name = g_strconcat (prev->name, "/", NULL);
-            int len1 = strlen(full_name);
-            int len2 = strlen(ce->name);
-            if (len1 < len2 && strncmp (ce->name, full_name, len1) == 0) {
-                remove_index_entry_at (istate, i);
-                pos = pos - 1;
-            }
-            g_free (full_name);
-        }
-    }
 
     /*
      * Inserting a merged entry ("stage 0") into the index
@@ -1097,11 +1096,16 @@ static int is_garbage_empty_dir (struct index_state *istate, struct cache_entry 
     struct cache_entry *next;
     char *dir_name = g_strconcat (ce->name, "/", NULL);
     int this_len = strlen (ce->name) + 1;
-    if (pos < istate->cache_nr) {
+    while (pos < istate->cache_nr) {
         next = istate->cache[pos];
-        int rc = strncmp (dir_name, next->name, this_len);
-        if (rc == 0)
+        int rc = strncmp (next->name, dir_name, this_len);
+        if (rc == 0) {
             ret = 1;
+            break;
+        } else if (rc < 0) {
+            ++pos;
+        } else
+            break;
     }
 
     g_free (dir_name);
@@ -1173,6 +1177,7 @@ remove_from_index_with_prefix (struct index_state *istate, const char *path_pref
 {
     int pathlen = strlen(path_prefix);
     int pos = index_name_pos (istate, path_prefix, pathlen);
+    struct cache_entry *ce;
 
     /* Exact match, remove that entry. */
     if (pos >= 0) {
@@ -1194,7 +1199,19 @@ remove_from_index_with_prefix (struct index_state *istate, const char *path_pref
     char *full_path_prefix = g_strconcat (path_prefix, "/", NULL);
     ++pathlen;
 
-    struct cache_entry *ce;
+    while (pos < istate->cache_nr) {
+        ce = istate->cache[pos];
+        if (strncmp (ce->name, full_path_prefix, pathlen) < 0) {
+            ++pos;
+        } else
+            break;
+    }
+
+    if (pos == istate->cache_nr) {
+        g_free (full_path_prefix);
+        return 0;
+    }
+
     int i = pos;
     while (i < istate->cache_nr) {
         ce = istate->cache[i];
@@ -1281,8 +1298,21 @@ create_renamed_cache_entries (struct index_state *istate,
     char *full_src_path = g_strconcat (src_path, "/", NULL);
     ++src_pathlen;
 
-    int i = pos;
+    while (pos < istate->cache_nr) {
+        ce = istate->cache[pos];
+        if (strncmp (ce->name, full_src_path, src_pathlen) < 0) {
+            ++pos;
+        } else
+            break;
+    }
 
+    if (pos == istate->cache_nr) {
+        g_free (full_src_path);
+        *n_entries = 0;
+        return NULL;
+    }
+
+    int i = pos;
     while (i < istate->cache_nr) {
         ce = istate->cache[i];
         if (strncmp (ce->name, full_src_path, src_pathlen) == 0) {
@@ -1350,19 +1380,6 @@ rename_index_entries (struct index_state *istate,
 
     pos = -pos-1;
 
-    /* Moving a file may turn an empty dir into non-empty. */
-    if (pos > 0) {
-        struct cache_entry *prev = istate->cache[pos-1];
-        char *full_name = g_strconcat (prev->name, "/", NULL);
-
-        if (S_ISDIR(prev->ce_mode) &&
-            strncmp(full_name, dst_path, strlen(full_name)) == 0) {
-            remove_index_entry_at (istate, pos-1);
-            pos = pos - 1;
-        }
-        g_free (full_name);
-    }
-
     /* There should be at least n_entries free room in istate->cache array,
      * since we just removed n_entries from the index in
      * create_renamed_cache_entires(). 
@@ -1405,6 +1422,7 @@ add_empty_dir_to_index_with_check (struct index_state *istate,
 {
     int pathlen = strlen(path);
     int pos = index_name_pos (istate, path, pathlen);
+    struct cache_entry *ce;
 
     /* Exact match, empty dir entry already exists. */
     if (pos >= 0) {
@@ -1426,11 +1444,17 @@ add_empty_dir_to_index_with_check (struct index_state *istate,
     ++pathlen;
 
     gboolean is_empty = TRUE;
-    struct cache_entry *ce;
 
-    ce = istate->cache[pos];
-    if (strncmp (ce->name, full_path, pathlen) == 0) {
-        is_empty = FALSE;
+    while (pos < istate->cache_nr) {
+        ce = istate->cache[pos];
+        int rc = strncmp (ce->name, full_path, pathlen);
+        if (rc < 0) {
+            ++pos;
+        } else if (rc == 0) {
+            is_empty = FALSE;
+            break;
+        } else
+            break;
     }
 
     g_free (full_path);
