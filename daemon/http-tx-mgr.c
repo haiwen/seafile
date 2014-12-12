@@ -118,6 +118,7 @@ static const char *http_task_error_strs[] = {
     "Not enough memory",
     "Failed to write data on the client",
     "Storage quota full",
+    "Files are locked by other application",
     "Unknown error",
 };
 
@@ -2680,6 +2681,9 @@ http_download_thread (void *vdata)
         task->error = HTTP_TASK_ERR_WRITE_LOCAL_DATA;
         goto out;
     case FETCH_CHECKOUT_TRANSFER_ERROR:
+        goto out;
+    case FETCH_CHECKOUT_LOCKED:
+        task->error = HTTP_TASK_ERR_FILES_LOCKED;
         goto out;
     }
 

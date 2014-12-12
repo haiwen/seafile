@@ -1100,8 +1100,10 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
         goto out;
     }
 
+#ifdef WIN32
     if (repo->version > 0)
         fset = seaf_repo_manager_get_locked_file_set (seaf->repo_mgr, repo->id);
+#endif
 
     gint64 total_size = 0;
 
@@ -1246,7 +1248,9 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
 out:
     wt_status_unref (status);
     string_list_free (scanned_dirs);
+#ifdef WIN32
     locked_file_set_free (fset);
+#endif
 
     return 0;
 }
@@ -2665,14 +2669,14 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             if (do_check_dir_locked (de->name, worktree)) {
                 seaf_message ("File(s) in dir %s are locked by other program, "
                               "skip rename/delete.\n", de->name);
-                ret = FETCH_CHECKOUT_FAILED;
+                ret = FETCH_CHECKOUT_LOCKED;
                 goto out;
             }
         } else if (de->status == DIFF_STATUS_RENAMED) {
             if (do_check_file_locked (de->name, worktree)) {
                 seaf_message ("File %s is locked by other program, skip rename.\n",
                               de->name);
-                ret = FETCH_CHECKOUT_FAILED;
+                ret = FETCH_CHECKOUT_LOCKED;
                 goto out;
             }
         }
@@ -2714,7 +2718,9 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         }
     }
 
+#ifdef WIN32
     fset = seaf_repo_manager_get_locked_file_set (seaf->repo_mgr, repo_id);
+#endif
 
     for (ptr = results; ptr; ptr = ptr->next) {
         de = ptr->data;
@@ -2922,7 +2928,9 @@ out:
     if (ignore_list)
         seaf_repo_free_ignore_files (ignore_list);
 
+#ifdef WIN32
     locked_file_set_free (fset);
+#endif
 
     return ret;
 }

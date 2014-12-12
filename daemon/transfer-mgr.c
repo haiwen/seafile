@@ -155,6 +155,7 @@ static const char *transfer_task_error_strs[] = {
     "Failed to start block transfer client.",
     "Failed to upload blocks.",
     "Failed to download blocks.",
+    "Files are locked by other application.",
     "Server version is too old."
 };
 
@@ -1415,6 +1416,9 @@ download_and_checkout_files_done (void *vdata)
         break;
     case FETCH_CHECKOUT_CANCELED:
         transition_state (task, TASK_STATE_CANCELED, TASK_RT_STATE_FINISHED);
+        break;
+    case FETCH_CHECKOUT_LOCKED:
+        transition_state_to_error (task, TASK_ERR_FILES_LOCKED);
         break;
     }
 

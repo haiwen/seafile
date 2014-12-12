@@ -950,7 +950,7 @@ check_dir_locked_recursive (const char *path)
     dir = g_dir_open (path, 0, &error);
     if (!dir) {
         seaf_warning ("Failed to open dir %s: %s.\n", path, error->message);
-        return TRUE;
+        return FALSE;
     }
 
     while ((dname = g_dir_read_name (dir)) != NULL) {
@@ -959,7 +959,7 @@ check_dir_locked_recursive (const char *path)
         if (seaf_stat (sub_path, &st) < 0) {
             seaf_warning ("Failed to stat %s: %s.\n", sub_path, strerror(errno));
             g_free (sub_path);
-            ret = TRUE;
+            ret = FALSE;
             break;
         }
 

@@ -608,6 +608,7 @@ static const char *sync_error_str[] = {
     "Files changed in local folder, skip merge.",
     "Server version is too old.",
     "Failed to get sync info from server.",
+    "Files are locked by other application",
     "Unknown error.",
 };
 
@@ -2428,6 +2429,8 @@ on_repo_fetched (SeafileSession *seaf,
                 send_sync_error_notification (task->repo, "sync.access_denied");
                 task->repo->access_denied_notified = 1;
             }
+        } else if (tx_task->error == TASK_ERR_FILES_LOCKED) {
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_FILES_LOCKED);
         } else
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_FETCH);
     }
@@ -2517,6 +2520,8 @@ on_repo_http_fetched (SeafileSession *seaf,
                 send_sync_error_notification (task->repo, "sync.access_denied");
                 task->repo->access_denied_notified = 1;
             }
+        } else if (tx_task->error == HTTP_TASK_ERR_FILES_LOCKED) {
+            seaf_sync_manager_set_task_error (task, SYNC_ERROR_FILES_LOCKED);
         } else
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_FETCH);
     }
