@@ -869,22 +869,24 @@ int verify_path(const char *path)
 
 void remove_empty_parent_dir_entry (struct index_state *istate, const char *path)
 {
-    char *parent_dir = g_path_get_dirname (path);
+    char *parent = g_strdup(path);
+    char *slash;
 
-    if (strcmp (parent_dir, ".") == 0) {
-        g_free (parent_dir);
-        return;
+    /* Find and remove empty dir entry from low level to top level. */
+    while (1) {
+        slash = strrchr (parent, '/');
+        if (!slash)
+            break;
+
+        *slash = 0;
+
+        if (index_name_exists (istate, parent, strlen(parent), 0) != NULL) {
+            remove_file_from_index (istate, parent);
+            break;
+        }
     }
 
-    /* No empty parent dir entry exists. */
-    if (!index_name_exists (istate, parent_dir, strlen(parent_dir), 0)) {
-        g_free (parent_dir);
-        return;
-    }
-
-    remove_file_from_index (istate, parent_dir);
-
-    g_free (parent_dir);
+    g_free (parent);
 }
 
 static int add_index_entry_with_check(struct index_state *istate, struct cache_entry *ce, int option)
