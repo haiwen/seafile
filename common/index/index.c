@@ -895,6 +895,8 @@ static int add_index_entry_with_check(struct index_state *istate, struct cache_e
     /* int skip_df_check = option & ADD_CACHE_SKIP_DFCHECK; */
     int new_only = option & ADD_CACHE_NEW_ONLY;
 
+    remove_empty_parent_dir_entry (istate, ce->name);
+
     pos = index_name_pos(istate, ce->name, ce->ce_flags);
 
     /* existing match? Just replace it. */
@@ -1368,6 +1370,8 @@ rename_index_entries (struct index_state *istate,
      * one file is renamed to overwrite another file.
      */
     remove_from_index_with_prefix (istate, dst_path);
+
+    remove_empty_parent_dir_entry (istate, dst_path);
 
     /* Insert the renamed entries to their position. */
     int dst_pathlen = strlen(dst_path);
