@@ -209,7 +209,9 @@ add_watch (SeafWTMonitor *monitor, const char* repo_id, const char* worktree)
     FSEventStreamRef stream;
 
     /* Create the stream, passing in a callback */
-    seaf_debug("Use kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot\n");
+    seaf_debug("Use kFSEventStreamCreateFlagWatchRoot\n");
+    // kFSEventStreamCreateFlagFileEvents does not work for libraries with name
+    // containing accent characters.
     struct FSEventStreamContext ctx = {0, monitor, NULL, NULL, NULL};
     stream = FSEventStreamCreate(kCFAllocatorDefault,
                                  stream_callback,
@@ -217,7 +219,7 @@ add_watch (SeafWTMonitor *monitor, const char* repo_id, const char* worktree)
                                  pathsToWatch,
                                  kFSEventStreamEventIdSinceNow,
                                  latency,
-                                 kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagWatchRoot
+                                 kFSEventStreamCreateFlagWatchRoot
                                  );
 
     CFRelease (mypaths[0]);
