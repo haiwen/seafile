@@ -119,6 +119,11 @@ process_one_event (const char* eventPath,
     filename = g_strdup(tmp);
     g_free (event_path_nfc);
 
+    /* Path for folder returned from system may contain a '/' at the end. */
+    int len = strlen(filename);
+    if (len > 0 && filename[len - 1] == '/')
+        filename[len - 1] = 0;
+
     /* Reinterpreted RENAMED as combine of CREATED or DELETED event */
     if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
         seaf_debug ("Rename Event Affected: %s \n", filename);
