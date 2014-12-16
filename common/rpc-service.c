@@ -3179,6 +3179,23 @@ seafile_list_file (const char *repo_id,
     return g_string_free (buf, FALSE);
 }
 
+/*
+ * Directories are always before files. Otherwise compare the names.
+ */
+static gint
+comp_dirent_func (gconstpointer a, gconstpointer b)
+{
+    const SeafDirent *dent_a = a, *dent_b = b;
+
+    if (S_ISDIR(dent_a->mode) && S_ISREG(dent_b->mode))
+        return -1;
+
+    if (S_ISREG(dent_a->mode) && S_ISDIR(dent_b->mode))
+        return 1;
+
+    return g_strcmp0 (dent_a->name, dent_b->name);
+}
+
 GList *
 seafile_list_dir (const char *repo_id,
                   const char *dir_id, int offset, int limit, GError **error)
@@ -3208,6 +3225,8 @@ seafile_list_dir (const char *repo_id,
         seaf_repo_unref (repo);
         return NULL;
     }
+
+    dir->entries = g_list_sort (dir->entries, comp_dirent_func);
 
     if (offset < 0) {
         offset = 0;
