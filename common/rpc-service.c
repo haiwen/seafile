@@ -1222,8 +1222,6 @@ seafile_unsync_repos_by_account (const char *server_addr, const char *email, GEr
 int
 seafile_destroy_repo (const char *repo_id, GError **error)
 {
-    SeafRepo *repo;
-
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
         return -1;
@@ -1233,18 +1231,21 @@ seafile_destroy_repo (const char *repo_id, GError **error)
         return -1;
     }
 
+#ifndef SEAFILE_SERVER
+    SeafRepo *repo;
+
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such repository");
         return -1;
     }
 
-#ifndef SEAFILE_SERVER
     return do_unsync_repo(repo);
 #else
-    seaf_repo_manager_del_repo (seaf->repo_mgr, repo->id,
-                                (repo->virtual_info != NULL) ? FALSE : TRUE);
-    seaf_repo_unref (repo);
+    gboolean is_virtual = seaf_repo_manager_is_virtual_repo (seaf->repo_mgr, repo_id);
+
+    seaf_repo_manager_del_repo (seaf->repo_mgr, repo_id,
+                                is_virtual ? FALSE : TRUE);
 
     return 0;
 #endif
