@@ -80,6 +80,7 @@ import time
 import getpass
 import urllib
 import urllib2
+from urlparse import urlparse
 
 import ccnet
 import seafile
@@ -342,6 +343,15 @@ def seaf_list(args):
     for repo in repos:
         print repo.name, repo.id, repo.worktree
 
+def get_base_url(url):
+    parse_result = urlparse(url)
+    scheme = parse_result.scheme
+    netloc = parse_result.netloc
+
+    if scheme and netloc:
+        return '%s://%s' % (scheme, netloc)
+
+    return None
 
 def seaf_download(args):
     '''Download a library from seafile server '''
@@ -398,6 +408,13 @@ def seaf_download(args):
     repo_name = tmp['repo_name']
     version = tmp.get('repo_version', 0)
 
+    more_info = None
+    use_http = seafile_rpc.get_config("enable_http_sync")
+    if use_http and bool(use_http):
+        base_url = get_base_url(url)
+        if base_url:
+            more_info = json.dumps({'server_url': base_url})
+
     print "Starting to download ..."
     print "Library %s will be downloaded to %s" % (repo, download_dir)
     if encrypted == 1:
@@ -414,7 +431,7 @@ def seaf_download(args):
                          repo_passwd, magic,
                          relay_addr,
                          relay_port,
-                         email, random_key, enc_version)
+                         email, random_key, enc_version, more_info)
 
 
 
@@ -476,6 +493,13 @@ def seaf_sync(args):
     repo_name = tmp['repo_name']
     version = tmp.get('repo_version', 0)
 
+    more_info = None
+    use_http = seafile_rpc.get_config("enable_http_sync")
+    if use_http and bool(use_http):
+        base_url = get_base_url(url)
+        if base_url:
+            more_info = json.dumps({'server_url': url})
+
     print "Starting to download ..."
     if encrypted == 1:
         repo_passwd = getpass.getpass("Enter password for the library: ")
@@ -491,7 +515,7 @@ def seaf_sync(args):
                       repo_passwd, magic,
                       relay_addr,
                       relay_port,
-                      email, random_key, enc_version)
+                      email, random_key, enc_version, more_info)
 
 
 def seaf_desync(args):
