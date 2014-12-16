@@ -3193,7 +3193,7 @@ comp_dirent_func (gconstpointer a, gconstpointer b)
     if (S_ISREG(dent_a->mode) && S_ISDIR(dent_b->mode))
         return 1;
 
-    return g_strcmp0 (dent_a->name, dent_b->name);
+    return strcasecmp (dent_a->name, dent_b->name);
 }
 
 GList *
