@@ -231,17 +231,6 @@ out:
     return commits;
 }
 
-static inline gboolean
-has_trailing_space_or_period (const char *path)
-{
-    int len = strlen(path);
-    if (path[len - 1] == ' ' || path[len - 1] == '.') {
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
 gboolean
 should_ignore_file(const char *filename, void *data)
 {
@@ -254,6 +243,9 @@ should_ignore_file(const char *filename, void *data)
 
     /* Ignore file/dir if its name is too long. */
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)
+        return TRUE;
+
+    if (strchr (filename, '/'))
         return TRUE;
 
     return FALSE;

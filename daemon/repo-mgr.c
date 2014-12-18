@@ -592,6 +592,9 @@ should_ignore(const char *basepath, const char *filename, void *data)
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)
         return TRUE;
 
+    if (strchr (filename, '/'))
+        return TRUE;
+
     while (*spec) {
         if (g_pattern_match_string(*spec, filename))
             return TRUE;
