@@ -10,6 +10,7 @@ enum {
     WT_EVENT_RENAME,
     WT_EVENT_ATTRIB,
     WT_EVENT_OVERFLOW,
+    WT_EVENT_SCAN_TREE,
 };
 
 typedef struct WTEvent {

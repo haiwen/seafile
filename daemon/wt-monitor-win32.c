@@ -151,6 +151,9 @@ add_event_to_queue (WTStatus *status,
     case WT_EVENT_OVERFLOW:
         name = "overflow";
         break;
+    case WT_EVENT_SCAN_TREE:
+        name = "scan tree";
+        break;
     default:
         name = "unknown";
     }
@@ -646,7 +649,7 @@ static HANDLE add_watch (SeafWTMonitorPriv *priv,
     g_hash_table_insert (priv->info_hash, (gpointer)(long)dir_handle, info);
     pthread_mutex_unlock (&priv->hash_lock);
 
-    add_event_to_queue (info->status, WT_EVENT_CREATE_OR_UPDATE, "", NULL);
+    add_event_to_queue (info->status, WT_EVENT_SCAN_TREE, "", NULL);
 
     return dir_handle;
 }

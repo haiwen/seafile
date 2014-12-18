@@ -170,6 +170,9 @@ add_event_to_queue (WTStatus *status,
     case WT_EVENT_ATTRIB:
         name = "attribute change";
         break;
+    case WT_EVENT_SCAN_TREE:
+        name = "scan tree";
+        break;
     default:
         name = "unknown";
     }
@@ -595,8 +598,8 @@ add_watch (SeafWTMonitorPriv *priv, const char *repo_id, const char *worktree)
         return -1;
     }
 
-    /* An empty path indicates repo-mgr to scan the whole worktree. */
-    add_event_to_queue (info->status, WT_EVENT_CREATE_OR_UPDATE, "", NULL);
+    /* A special event indicates repo-mgr to scan the whole worktree. */
+    add_event_to_queue (info->status, WT_EVENT_SCAN_TREE, "", NULL);
 
     return inotify_fd;
 }

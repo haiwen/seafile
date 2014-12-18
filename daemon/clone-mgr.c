@@ -2132,6 +2132,9 @@ start_checkout (SeafRepo *repo, CloneTask *task)
 }
 
 static void
+check_folder_permissions (CloneTask *task);
+
+static void
 on_repo_fetched (SeafileSession *seaf,
                  TransferTask *tx_task,
                  SeafCloneManager *mgr)
@@ -2183,7 +2186,7 @@ on_repo_fetched (SeafileSession *seaf,
     if (!task->server_side_merge)
         start_checkout (repo, task);
     else
-        mark_clone_done_v2 (repo, task);
+        check_folder_permissions (task);
 }
 
 static void
@@ -2230,7 +2233,7 @@ on_repo_http_fetched (SeafileSession *seaf,
                                              task->server_url);
     }
 
-    mark_clone_done_v2 (repo, task);
+    check_folder_permissions (task);
 }
 
 static void
@@ -2261,3 +2264,61 @@ on_checkout_done (CheckoutTask *ctask, SeafRepo *repo, void *data)
     }
 }
 
+static void
+check_folder_perms_done (HttpFolderPerms *result, void *user_data)
+{
+    CloneTask *task = user_data;
+    GList *ptr;
+    HttpFolderPermRes *res;
+
+    SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr,
+                                                 task->repo_id);
+    if (repo == NULL) {
+        seaf_warning ("[Clone mgr] cannot find repo %s after fetched.\n", 
+                   task->repo_id);
+        transition_to_error (task, CLONE_ERROR_INTERNAL);
+        return;
+    }
+
+    if (!result->success) {
+        goto out;
+    }
+
+    for (ptr = result->results; ptr; ptr = ptr->next) {
+        res = ptr->data;
+
+        seaf_repo_manager_update_folder_perms (seaf->repo_mgr, res->repo_id,
+                                               FOLDER_PERM_TYPE_USER,
+                                               res->user_perms);
+        seaf_repo_manager_update_folder_perms (seaf->repo_mgr, res->repo_id,
+                                               FOLDER_PERM_TYPE_GROUP,
+                                               res->group_perms);
+        seaf_repo_manager_update_folder_perm_timestamp (seaf->repo_mgr,
+                                                        res->repo_id,
+                                                        res->timestamp);
+    }
+
+out:
+    mark_clone_done_v2 (repo, task);
+}
+
+static void
+check_folder_permissions (CloneTask *task)
+{
+    HttpFolderPermReq *req;
+    GList *requests = NULL;
+
+    req = g_new0 (HttpFolderPermReq, 1);
+    memcpy (req->repo_id, task->repo_id, 36);
+    req->token = g_strdup(task->token);
+    req->timestamp = 0;
+
+    requests = g_list_append (requests, req);
+
+    /* The requests list will be freed in http tx manager. */
+    http_tx_manager_get_folder_perms (seaf->http_tx_mgr,
+                                      task->server_url,
+                                      requests,
+                                      check_folder_perms_done,
+                                      task);
+}

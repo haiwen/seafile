@@ -865,6 +865,346 @@ http_tx_manager_check_head_commit (HttpTxManager *manager,
     return 0;
 }
 
+/* Get folder permissions. */
+
+void
+http_folder_perm_req_free (HttpFolderPermReq *req)
+{
+    if (!req)
+        return;
+    g_free (req->token);
+    g_free (req);
+}
+
+void
+http_folder_perm_res_free (HttpFolderPermRes *res)
+{
+    GList *ptr;
+
+    if (!res)
+        return;
+    for (ptr = res->user_perms; ptr; ptr = ptr->next)
+        folder_perm_free ((FolderPerm *)ptr->data);
+    for (ptr = res->group_perms; ptr; ptr = ptr->next)
+        folder_perm_free ((FolderPerm *)ptr->data);
+    g_free (res);
+}
+
+typedef struct {
+    char *host;
+    GList *requests;
+    HttpGetFolderPermsCallback callback;
+    void *user_data;
+
+    gboolean success;
+    GList *results;
+} GetFolderPermsData;
+
+/* Make sure the path starts with '/' but doesn't end with '/'. */
+static char *
+canonical_perm_path (const char *path)
+{
+    int len = strlen(path);
+    char *copy, *ret;
+
+    if (strcmp (path, "/") == 0)
+        return g_strdup(path);
+
+    if (path[0] == '/' && path[len-1] != '/')
+        return g_strdup(path);
+
+    copy = g_strdup(path);
+
+    if (copy[len-1] == '/')
+        copy[len-1] = 0;
+
+    if (copy[0] != '/')
+        ret = g_strconcat ("/", copy, NULL);
+    else
+        ret = copy;
+
+    return ret;
+}
+
+static GList *
+parse_permission_list (json_t *array, gboolean *error)
+{
+    GList *ret = NULL, *ptr;
+    json_t *object, *member;
+    size_t n;
+    int i;
+    FolderPerm *perm;
+    const char *str;
+
+    *error = FALSE;
+
+    n = json_array_size (array);
+    for (i = 0; i < n; ++i) {
+        object = json_array_get (array, i);
+
+        perm = g_new0 (FolderPerm, 1);
+
+        member = json_object_get (object, "path");
+        if (!member) {
+            seaf_warning ("Invalid folder perm response format: no path.\n");
+            *error = TRUE;
+            goto out;
+        }
+        str = json_string_value(member);
+        if (!str) {
+            seaf_warning ("Invalid folder perm response format: invalid path.\n");
+            *error = TRUE;
+            goto out;
+        }
+        perm->path = canonical_perm_path (str);
+
+        member = json_object_get (object, "permission");
+        if (!member) {
+            seaf_warning ("Invalid folder perm response format: no permission.\n");
+            *error = TRUE;
+            goto out;
+        }
+        str = json_string_value(member);
+        if (!str) {
+            seaf_warning ("Invalid folder perm response format: invalid permission.\n");
+            *error = TRUE;
+            goto out;
+        }
+        perm->permission = g_strdup(str);
+
+        ret = g_list_append (ret, perm);
+    }
+
+out:
+    if (*error) {
+        for (ptr = ret; ptr; ptr = ptr->next)
+            folder_perm_free ((FolderPerm *)ptr->data);
+        g_list_free (ret);
+        ret = NULL;
+    }
+
+    return ret;
+}
+
+static int
+parse_folder_perms (const char *rsp_content, int rsp_size, GetFolderPermsData *data)
+{
+    json_t *array = NULL, *object, *member;
+    json_error_t jerror;
+    size_t n;
+    int i;
+    GList *results = NULL, *ptr;
+    HttpFolderPermRes *res;
+    const char *repo_id;
+    int ret = 0;
+    gboolean error;
+
+    array = json_loadb (rsp_content, rsp_size, 0, &jerror);
+    if (!array) {
+        seaf_warning ("Parse response failed: %s.\n", jerror.text);
+        return -1;
+    }
+
+    n = json_array_size (array);
+    for (i = 0; i < n; ++i) {
+        object = json_array_get (array, i);
+
+        res = g_new0 (HttpFolderPermRes, 1);
+
+        member = json_object_get (object, "repo_id");
+        if (!member) {
+            seaf_warning ("Invalid folder perm response format: no repo_id.\n");
+            ret = -1;
+            goto out;
+        }
+        repo_id = json_string_value(member);
+        if (strlen(repo_id) != 36) {
+            seaf_warning ("Invalid folder perm response format: invalid repo_id.\n");
+            ret = -1;
+            goto out;
+        }
+        memcpy (res->repo_id, repo_id, 36);
+ 
+        member = json_object_get (object, "ts");
+        if (!member) {
+            seaf_warning ("Invalid folder perm response format: no timestamp.\n");
+            ret = -1;
+            goto out;
+        }
+        res->timestamp = json_integer_value (member);
+
+        member = json_object_get (object, "user_perms");
+        if (!member) {
+            seaf_warning ("Invalid folder perm response format: no user_perms.\n");
+            ret = -1;
+            goto out;
+        }
+        res->user_perms = parse_permission_list (member, &error);
+        if (error) {
+            ret = -1;
+            goto out;
+        }
+
+        member = json_object_get (object, "group_perms");
+        if (!member) {
+            seaf_warning ("Invalid folder perm response format: no group_perms.\n");
+            ret = -1;
+            goto out;
+        }
+        res->group_perms = parse_permission_list (member, &error);
+        if (error) {
+            ret = -1;
+            goto out;
+        }
+
+        results = g_list_append (results, res);
+    }
+
+out:
+    json_decref (array);
+
+    if (ret < 0) {
+        for (ptr = results; ptr; ptr = ptr->next)
+            http_folder_perm_res_free ((HttpFolderPermRes *)ptr->data);
+        g_list_free (results);
+    } else
+        data->results = results;
+
+    return ret;
+}
+
+static char *
+compose_get_folder_perms_request (GList *requests)
+{
+    GList *ptr;
+    HttpFolderPermReq *req;
+    json_t *object, *array;
+    char *req_str = NULL;
+
+    array = json_array ();
+
+    for (ptr = requests; ptr; ptr = ptr->next) {
+        req = ptr->data;
+
+        object = json_object ();
+        json_object_set_new (object, "repo_id", json_string(req->repo_id));
+        json_object_set_new (object, "token", json_string(req->token));
+        json_object_set_new (object, "ts", json_integer(req->timestamp));
+
+        json_array_append_new (array, object);
+    }
+
+    req_str = json_dumps (array, 0);
+    if (!req_str) {
+        seaf_warning ("Faile to json_dumps.\n");
+    }
+
+    json_decref (array);
+    return req_str;
+}
+
+static void *
+get_folder_perms_thread (void *vdata)
+{
+    GetFolderPermsData *data = vdata;
+    HttpTxPriv *priv = seaf->http_tx_mgr->priv;
+    ConnectionPool *pool;
+    Connection *conn;
+    CURL *curl;
+    char *url;
+    char *req_content = NULL;
+    int status;
+    char *rsp_content = NULL;
+    gint64 rsp_size;
+    GList *ptr;
+
+    pool = find_connection_pool (priv, data->host);
+    if (!pool) {
+        seaf_warning ("Failed to create connection pool for host %s.\n", data->host);
+        return vdata;
+    }
+
+    conn = connection_pool_get_connection (pool);
+    if (!conn) {
+        seaf_warning ("Failed to get connection to host %s.\n", data->host);
+        return vdata;
+    }
+
+    curl = conn->curl;
+
+    url = g_strdup_printf ("%s/seafhttp/repo/folder-perm", data->host);
+
+    req_content = compose_get_folder_perms_request (data->requests);
+    if (!req_content)
+        goto out;
+
+    if (http_post (curl, url, NULL, req_content, strlen(req_content),
+                   &status, &rsp_content, &rsp_size) < 0)
+        goto out;
+
+    if (status == HTTP_OK) {
+        if (parse_folder_perms (rsp_content, rsp_size, data) < 0)
+            goto out;
+        data->success = TRUE;
+    } else {
+        seaf_warning ("Bad response code for GET %s: %d.\n", url, status);
+    }
+
+out:
+    for (ptr = data->requests; ptr; ptr = ptr->next)
+        http_folder_perm_req_free ((HttpFolderPermReq *)ptr->data);
+    g_list_free (data->requests);
+
+    g_free (url);
+    g_free (req_content);
+    g_free (rsp_content);
+    connection_pool_return_connection (pool, conn);
+    return vdata;
+}
+
+static void
+get_folder_perms_done (void *vdata)
+{
+    GetFolderPermsData *data = vdata;
+    HttpFolderPerms cb_data;
+
+    memset (&cb_data, 0, sizeof(cb_data));
+    cb_data.success = data->success;
+    cb_data.results = data->results;
+
+    data->callback (&cb_data, data->user_data);
+
+    GList *ptr;
+    for (ptr = data->results; ptr; ptr = ptr->next)
+        http_folder_perm_res_free ((HttpFolderPermRes *)ptr->data);
+    g_list_free (data->results);
+
+    g_free (data->host);
+    g_free (data);
+}
+
+int
+http_tx_manager_get_folder_perms (HttpTxManager *manager,
+                                  const char *host,
+                                  GList *folder_perm_requests,
+                                  HttpGetFolderPermsCallback callback,
+                                  void *user_data)
+{
+    GetFolderPermsData *data = g_new0 (GetFolderPermsData, 1);
+
+    data->host = g_strdup(host);
+    data->requests = folder_perm_requests;
+    data->callback = callback;
+    data->user_data = user_data;
+
+    ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                    get_folder_perms_thread,
+                                    get_folder_perms_done,
+                                    data);
+
+    return 0;
+}
+
 static gboolean
 remove_task_help (gpointer key, gpointer value, gpointer user_data)
 {
