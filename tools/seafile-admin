@@ -180,7 +180,7 @@ def run(cmdline, cwd=None, env=None, suppress_stdout=False, suppress_stderr=Fals
 def is_running(process):
     '''Detect if there is a process with the given name running'''
     argv = [
-        'bash', '-c', 'test $(ps -o cmd -e | awk \'/^' + process + '/ { print $1 }\' | wc -l) -eq 1'
+        'bash', '-c', 'test $( ps -o cmd -e | awk \'/^' + process + '/ { print $1 }\' | wc -l ) -eq 1'
     ]
 
     return run_argv(argv, suppress_stdout=True) == 0
