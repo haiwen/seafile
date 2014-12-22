@@ -99,6 +99,7 @@ add_event_to_queue (WTStatus *status,
     pthread_mutex_unlock (&status->q_lock);
 }
 
+#if 0
 static void
 process_one_event (const char* eventPath,
                    RepoWatchInfo *info,
@@ -164,6 +165,52 @@ process_one_event (const char* eventPath,
     }
 
     g_free (filename);
+    g_atomic_int_set (&info->status->last_changed, (gint)time(NULL));
+}
+#endif
+
+static void
+process_one_event (const char* eventPath,
+                   RepoWatchInfo *info,
+                   const char *worktree,
+                   const FSEventStreamEventId eventId,
+                   const FSEventStreamEventFlags eventFlags)
+{
+    WTStatus *status = info->status;
+    char *dirname;
+    char *event_path_nfc;
+    const char *tmp;
+
+    event_path_nfc = g_utf8_normalize (eventPath, -1, G_NORMALIZE_NFC);
+
+    tmp = event_path_nfc + strlen(worktree);
+    if (*tmp == '/')
+        tmp++;
+    dirname = g_strdup(tmp);
+    g_free (event_path_nfc);
+
+    /* Path for folder returned from system may contain a '/' at the end. */
+    int len = strlen(dirname);
+    if (len > 0 && dirname[len - 1] == '/')
+        dirname[len - 1] = 0;
+
+    if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
+        seaf_debug ("Rename event in dir: %s \n", dirname);
+    } else if (eventFlags & kFSEventStreamEventFlagItemModified) {
+        seaf_debug ("Modified event in dir %s.\n", dirname);
+    } else if (eventFlags & kFSEventStreamEventFlagItemCreated) {
+        seaf_debug ("Created event in dir %s.\n", dirname);
+    } else if (eventFlags & kFSEventStreamEventFlagItemRemoved) {
+        seaf_debug ("Deleted event in dir %s.\n", dirname);
+    } else if (eventFlags & kFSEventStreamEventFlagItemXattrMod) {
+        seaf_debug ("XattrMod event in dir %s.\n", dirname);
+    } else {
+        seaf_debug ("Unhandled event with flags %x.\n", eventFlags);
+    }
+
+    add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, dirname, NULL);
+
+    g_free (dirname);
     g_atomic_int_set (&info->status->last_changed, (gint)time(NULL));
 }
 

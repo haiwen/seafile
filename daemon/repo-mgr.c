@@ -816,7 +816,7 @@ check_locked_file_before_remove (LockedFileSet *fset, const char *path)
 }
 
 static void
-remove_deleted (struct index_state *istate, const char *worktree,
+remove_deleted (struct index_state *istate, const char *worktree, const char *prefix,
                 GList *ignore_list, LockedFileSet *fset)
 {
     struct cache_entry **ce_array = istate->cache;
@@ -826,8 +826,16 @@ remove_deleted (struct index_state *istate, const char *worktree,
     SeafStat st;
     int ret;
 
+    char *full_prefix = g_strconcat (prefix, "/", NULL);
+    int len = strlen(full_prefix);
+
     for (i = 0; i < istate->cache_nr; ++i) {
         ce = ce_array[i];
+
+        if (prefix[0] != 0 && strcmp (ce->name, prefix) != 0 &&
+            strncmp (ce->name, full_prefix, len) != 0)
+            continue;
+
         snprintf (path, SEAF_PATH_MAX, "%s/%s", worktree, ce->name);
         ret = seaf_stat (path, &st);
 
@@ -849,6 +857,8 @@ remove_deleted (struct index_state *istate, const char *worktree,
     }
 
     remove_marked_cache_entries (istate);
+
+    g_free (full_prefix);
 }
 
 static int
@@ -860,7 +870,7 @@ scan_worktree_for_changes (struct index_state *istate, SeafRepo *repo,
                        NULL, NULL, NULL) < 0)
         return -1;
 
-    remove_deleted (istate, repo->worktree, ignore_list, NULL);
+    remove_deleted (istate, repo->worktree, "", ignore_list, NULL);
 
     return 0;
 }
@@ -893,6 +903,8 @@ out:
     return ret;
 }
 
+#ifndef __APPLE__
+
 static int
 add_path_to_index (SeafRepo *repo, struct index_state *istate,
                    SeafileCrypt *crypt, const char *path, GList *ignore_list,
@@ -906,7 +918,7 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
      * for the worktree root "".
      */
     if (path[0] == 0) {
-        remove_deleted (istate, repo->worktree, ignore_list, fset);
+        remove_deleted (istate, repo->worktree, "", ignore_list, fset);
 
         add_recursive (repo->id, repo->version, repo->email, istate,
                        repo->worktree, path,
@@ -959,6 +971,62 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
     g_free (full_path);
     return 0;
 }
+
+#else
+
+static int
+add_path_to_index (SeafRepo *repo, struct index_state *istate,
+                   SeafileCrypt *crypt, const char *path, GList *ignore_list,
+                   GList **scanned_dirs, gint64 *total_size, GQueue **remain_files,
+                   LockedFileSet *fset)
+{
+    SeafStat st;
+
+    /* If we've recursively scanned the parent directory, don't need to scan
+     * any files under it any more.
+     */
+    GList *ptr;
+    char *dir, *full_dir;
+    for (ptr = *scanned_dirs; ptr; ptr = ptr->next) {
+        dir = ptr->data;
+
+        /* Have scanned from root directory. */
+        if (dir[0] == 0) {
+            seaf_debug ("%s has been scanned before, skip adding.\n", path);
+            return 0;
+        }
+
+        /* exact match */
+        if (strcmp (dir, path) == 0) {
+            seaf_debug ("%s has been scanned before, skip adding.\n", path);
+            return 0;
+        }
+
+        /* prefix match. */
+        full_dir = g_strconcat (dir, "/", NULL);
+        if (strncmp (full_dir, path, strlen(full_dir)) == 0) {
+            g_free (full_dir);
+            seaf_debug ("%s has been scanned before, skip adding.\n", path);
+            return 0;
+        }
+        g_free (full_dir);
+    }
+
+    if (path[0] != 0 && check_full_path_ignore (repo->worktree, path, ignore_list))
+        return 0;
+
+    remove_deleted (istate, repo->worktree, path, ignore_list, NULL);
+
+    *scanned_dirs = g_list_prepend (*scanned_dirs, g_strdup(path));
+
+    /* Add is always recursive */
+    add_recursive (repo->id, repo->version, repo->email, istate, repo->worktree, path,
+                   crypt, FALSE, ignore_list, total_size, remain_files, fset);
+
+    return 0;
+}
+
+#endif  /* __APPLE__ */
 
 static int
 add_remain_files (SeafRepo *repo, struct index_state *istate,
@@ -1421,7 +1489,7 @@ seaf_repo_index_worktree_files (const char *repo_id,
                        NULL, NULL, NULL) < 0)
         goto error;
 
-    remove_deleted (&istate, worktree, ignore_list, NULL);
+    remove_deleted (&istate, worktree, "", ignore_list, NULL);
 
     it = cache_tree ();
     if (cache_tree_update (repo_id, repo_version, worktree,
