@@ -1,3 +1,5 @@
+/* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+
 #include "common.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
 #include "log.h"
@@ -895,6 +897,8 @@ do_break_loop (BlockTxClient *client)
     }
 }
 
+#define RECV_TIMEOUT_SEC 45
+
 static gboolean
 client_thread_loop (BlockTxClient *client)
 {
@@ -903,6 +907,7 @@ client_thread_loop (BlockTxClient *client)
     int max_fd = MAX (info->cmd_pipe[0], client->data_fd);
     int rc;
     gboolean restart = FALSE;
+    struct timeval tmo;
 
     while (1) {
         FD_ZERO (&fds);
@@ -915,13 +920,23 @@ client_thread_loop (BlockTxClient *client)
         } else
             max_fd = info->cmd_pipe[0];
 
-        rc = select (max_fd + 1, &fds, NULL, NULL, NULL);
+        tmo.tv_sec = RECV_TIMEOUT_SEC;
+        tmo.tv_usec = 0;
+
+        rc = select (max_fd + 1, &fds, NULL, NULL, &tmo);
         if (rc < 0 && errno == EINTR) {
             continue;
         } else if (rc < 0) {
             seaf_warning ("select error: %s.\n", strerror(errno));
             client->info->result = BLOCK_CLIENT_FAILED;
             break;
+        } else if (rc == 0){
+            /* timeout */
+            seaf_warning ("Recv timeout.\n");
+            client->info->result = BLOCK_CLIENT_NET_ERROR;
+            if (do_break_loop (client))
+                break;
+            continue;
         }
 
         if (client->recv_state != RECV_STATE_DONE &&

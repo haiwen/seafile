@@ -1,3 +1,5 @@
+/* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+
 #include "common.h"
 
 #include <ccnet.h>
@@ -2148,7 +2150,12 @@ on_repo_fetched (SeafileSession *seaf,
         transition_state (task, CLONE_STATE_CANCELED);
         return;
     } else if (tx_task->state == TASK_STATE_ERROR) {
-        transition_to_error (task, CLONE_ERROR_FETCH);
+        /* transition_to_error (task, CLONE_ERROR_FETCH); */
+        /* Always restart failed clone task. */
+        if (add_transfer_task (task, NULL) == 0)
+            transition_state (task, CLONE_STATE_FETCH);
+        else
+            transition_to_error (task, CLONE_ERROR_FETCH);
         return;
     }
 

@@ -285,6 +285,8 @@ recv_response (void *contents, size_t size, size_t nmemb, void *userp)
     return realsize;
 }
 
+#define HTTP_TIMEOUT_SEC 45
+
 typedef size_t (*HttpRecvCallback) (void *, size_t, size_t, void *);
 
 static int
@@ -305,6 +307,8 @@ http_get (CURL *curl, const char *url, const char *token,
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, HTTP_TIMEOUT_SEC);
 
     if (seaf->disable_verify_certificate) {
         curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0L);
@@ -395,6 +399,8 @@ http_put (CURL *curl, const char *url, const char *token,
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
 
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, HTTP_TIMEOUT_SEC);
+
     if (seaf->disable_verify_certificate) {
         curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0L);
         curl_easy_setopt (curl, CURLOPT_SSL_VERIFYHOST, 0L);
@@ -474,6 +480,8 @@ http_post (CURL *curl, const char *url, const char *token,
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
+
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, HTTP_TIMEOUT_SEC);
 
     if (seaf->disable_verify_certificate) {
         curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0L);
