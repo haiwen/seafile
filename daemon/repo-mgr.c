@@ -865,12 +865,12 @@ static int
 scan_worktree_for_changes (struct index_state *istate, SeafRepo *repo,
                            SeafileCrypt *crypt, GList *ignore_list)
 {
+    remove_deleted (istate, repo->worktree, "", ignore_list, NULL);
+
     if (add_recursive (repo->id, repo->version, repo->email,
                        istate, repo->worktree, "", crypt, FALSE, ignore_list,
                        NULL, NULL, NULL) < 0)
         return -1;
-
-    remove_deleted (istate, repo->worktree, "", ignore_list, NULL);
 
     return 0;
 }
@@ -1406,7 +1406,7 @@ retry:
 
 static int
 index_add (SeafRepo *repo, struct index_state *istate,
-           gboolean is_initial_commit, gboolean handle_unmerged)
+           gboolean is_force_commit, gboolean handle_unmerged)
 {
     SeafileCrypt *crypt = NULL;
     GList *ignore_list = NULL;
@@ -1418,8 +1418,13 @@ index_add (SeafRepo *repo, struct index_state *istate,
 
     ignore_list = seaf_repo_load_ignore_files (repo->worktree);
 
-    if (apply_worktree_changes_to_index (repo, istate, crypt, ignore_list) < 0) {
-        seaf_warning ("Failed to apply worktree changes to index.\n");
+    if (!is_force_commit) {
+        if (apply_worktree_changes_to_index (repo, istate, crypt, ignore_list) < 0) {
+            seaf_warning ("Failed to apply worktree changes to index.\n");
+            ret = -1;
+        }
+    } else if (scan_worktree_for_changes (istate, repo, crypt, ignore_list) < 0) {
+        seaf_warning ("Failed to scan worktree for changes.\n");
         ret = -1;
     }
 
@@ -1755,7 +1760,7 @@ print_index (struct index_state *istate)
 }
 
 char *
-seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_initial_commit,
+seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_force_commit,
                         GError **error)
 {
     SeafRepoManager *mgr = repo->manager;
@@ -1779,7 +1784,7 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_initial_co
     if (need_handle_unmerged_index (repo, &istate))
         unmerged = TRUE;
 
-    if (index_add (repo, &istate, is_initial_commit, unmerged) < 0) {
+    if (index_add (repo, &istate, is_force_commit, unmerged) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Failed to add");
         goto error;
     }

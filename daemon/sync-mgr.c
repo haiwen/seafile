@@ -90,6 +90,9 @@ has_old_commits_to_upload (SeafRepo *repo);
 static int
 sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync);
 
+static gboolean
+check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo, gboolean *is_checking);
+
 SeafSyncManager*
 seaf_sync_manager_new (SeafileSession *seaf)
 {
@@ -393,6 +396,19 @@ seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
         return -1;
     }
 
+    SyncInfo *info = get_sync_info (mgr, repo->id);
+
+    if (info->in_sync)
+        return 0;
+
+    gboolean is_checking_http = FALSE;
+    if (seaf->enable_http_sync && repo->version > 0) {
+        if (check_http_protocol (mgr, repo, &is_checking_http)) {
+            sync_repo_v2 (mgr, repo, TRUE);
+            return 0;
+        }
+    }
+
     /* If relay is not ready or protocol version is not determined,
      * need to wait.
      */
@@ -401,11 +417,6 @@ seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
                       "is not detected.\n", repo->name, repo->id);
         return 0;
     }
-
-    SyncInfo *info = get_sync_info (mgr, repo->id);
-
-    if (info->in_sync)
-        return 0;
 
     ServerState *state = g_hash_table_lookup (mgr->server_states,
                                               repo->relay_id);
@@ -1515,7 +1526,7 @@ commit_job (void *vtask)
     res->changed = TRUE;
     res->success = TRUE;
 
-    char *commit_id = seaf_repo_index_commit (repo, "", task->is_initial_commit,
+    char *commit_id = seaf_repo_index_commit (repo, "", task->is_manual_sync,
                                               &error);
     if (commit_id == NULL && error != NULL) {
         seaf_warning ("[Sync mgr] Failed to commit to repo %s(%.8s).\n",
@@ -1841,6 +1852,10 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
             /* Do nothing if the client still has something to upload
             * but it's before 30-second schedule.
             */
+            goto out;
+        } else if (is_manual_sync) {
+            task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
+            commit_repo (task);
             goto out;
         } else if (create_commit_from_event_queue (manager, repo, is_manual_sync))
             goto out;
