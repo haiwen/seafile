@@ -96,7 +96,8 @@ seaf_share_manager_add_share (SeafShareManager *mgr, const char *repo_id,
         goto out;
 
     if (seaf_db_statement_query (mgr->seaf->db,
-                                 "INSERT INTO SharedRepo VALUES (?, ?, ?, ?)",
+                                 "INSERT INTO SharedRepo (repo_id, from_email, "
+                                 "to_email, permission) VALUES (?, ?, ?, ?)",
                                  4, "string", repo_id, "string", from_email_l,
                                  "string", to_email_l, "string", permission) < 0) {
         ret = -1;
