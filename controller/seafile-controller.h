@@ -55,4 +55,10 @@ struct _SeafileController {
 
     SeafDavConfig       seafdav_config;
 };
+
+#ifdef WIN32
+#define SEAFILE_MACHINE_ID "/etc/machine-id"
+#else
+#define SEAFILE_MACHINE_ID "/etc/machine-id"
+#endif
 #endif

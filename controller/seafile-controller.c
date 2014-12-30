@@ -573,12 +573,86 @@ stop_ccnet_server ()
     try_kill_process(PID_SEAFDAV);
 }
 
+/* Remove trailing newline from string if present
+ *
+ * Parmeters:
+ * STR: the string in question
+ *
+ * Return value:
+ * The modified string
+ */
+
+static GString* remove_trailing_nl (GString* str)
+{
+    if (str) {
+        gint len = str->len;
+
+        if (len > 0 && str->str [len - 1] == '\n') {
+            g_string_truncate (str, len - 1);
+        }
+    }
+
+    return str;
+}
+
+/* Get machine salt value: generator produces repeatable salt values based on hostname and machine ID
+ * First, try to get the machine name from DBus, failing that try /etc/machine-id
+ * Prepend this with the host name and compute salt
+ *
+ * Parm: none
+ * Return value: gchar* containing the salt value
+ */
+
+static gchar* get_machine_salt (void)
+{
+    GString* machine_id =  g_string_new (NULL);;
+
+#ifdef WIN32
+    /* Get windows machine name */
+    long windows_cmid = gethostid ();
+    g_string_printf (machine_id, "%ul", windows_cmid);
+#else
+    GError* g_err_ptr = NULL;
+    GIOChannel* machine_file = g_io_channel_new_file (SEAFILE_MACHINE_ID, "r", &g_err_ptr);
+
+    if (machine_file != NULL) {
+        g_io_channel_read_line_string (machine_file, machine_id, NULL, &g_err_ptr);
+        remove_trailing_nl (machine_id);
+    } else {
+        /* Use MAC address of first NIC as fallback */
+        gchar* stdout;
+        g_err_ptr = NULL;
+
+        g_spawn_command_line_sync ("sh -c 'ip li | fgrep ether | head -1 | awk \"{ print \\$2 }\" | sed s/://g'", &stdout, NULL, NULL, &g_err_ptr);
+        if (! g_err_ptr) {
+            machine_id = g_string_new (stdout);
+            remove_trailing_nl (machine_id);
+            g_free (stdout);
+        } else {
+            /* Last resort: empty salt value */
+            machine_id = g_string_new ("");
+        }
+    }
+#endif
+
+    /* We now have a valid machine name, prepend host name and build salt */
+    GString* salt_string = g_string_new ("");
+    g_string_printf (salt_string, "%s%s", g_get_host_name (), machine_id->str);
+    gchar* salt = g_compute_checksum_for_string (G_CHECKSUM_MD5, salt_string->str, salt_string->len);
+    g_string_free (machine_id, TRUE);
+
+    return salt;
+}
+
+
 static void
 init_pidfile_path (SeafileController *ctl)
 {
-    char *pid_dir = g_build_filename (ctl->seafile_dir, "pids", NULL);
+    /* Insert salt into PID file path in order to assure uniqueness when sharing the data directory */
+    gchar* salt = get_machine_salt ();
+    char *pid_dir = g_build_filename (ctl->seafile_dir, salt, "pids", NULL);
     if (!g_file_test(pid_dir, G_FILE_TEST_EXISTS)) {
-        if (g_mkdir(pid_dir, 0777) < 0) {
+        if (g_mkdir_with_parents (pid_dir, 0777) < 0) {
             seaf_warning("failed to create pid dir %s: %s", pid_dir, strerror(errno));
             controller_exit(1);
         }
@@ -587,6 +661,9 @@ init_pidfile_path (SeafileController *ctl)
     ctl->pidfile[PID_CCNET] = g_build_filename (pid_dir, "ccnet.pid", NULL);
     ctl->pidfile[PID_SERVER] = g_build_filename (pid_dir, "seaf-server.pid", NULL);
     ctl->pidfile[PID_SEAFDAV] = g_build_filename (pid_dir, "seafdav.pid", NULL);
+    /* Free temporary pid path buffer */
+    g_free (pid_dir);
+    g_free (salt);
 }
 
 static int
