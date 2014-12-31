@@ -29,9 +29,10 @@
 #define INIT_INFO "If you see this page, Seafile HTTP syncing component works."
 #define PROTO_VERSION "{\"version\": 1}"
 
-#define CLEANING_INTERVAL_MSEC 300	/* 5 minutes */
+#define CLEANING_INTERVAL_SEC 300	/* 5 minutes */
 #define TOKEN_EXPIRE_TIME 7200	    /* 2 hours */
 #define PERM_EXPIRE_TIME 7200       /* 2 hours */
+#define VIRINFO_EXPIRE_TIME 7200       /* 2 hours */
 
 typedef struct TokenInfo {
     char *repo_id;
@@ -43,6 +44,11 @@ typedef struct PermInfo {
     char *perm;
     gint64 expire_time;
 } PermInfo;
+
+typedef struct VirRepoInfo {
+    char *store_id;
+    gint64 expire_time;
+} VirRepoInfo;
 
 typedef struct FsHdr {
     char obj_id[40];
@@ -251,6 +257,98 @@ check_permission (HttpServer *htp_server, const char *repo_id, const char *usern
     /* Invalidate cache if perm not found in db. */
     remove_perm_cache (htp_server, repo_id, username);
     return EVHTP_RES_FORBIDDEN;
+}
+
+static gboolean
+get_vir_repo_info (SeafDBRow *row, void *data)
+{
+    HttpServer *htp_server = data;
+
+    const char *repo_id = seaf_db_row_get_column_text (row, 0);
+    if (!repo_id)
+        return FALSE;
+    const char *origin_id = seaf_db_row_get_column_text (row, 1);
+    if (!origin_id)
+        return FALSE;
+
+    VirRepoInfo **vinfo = data;
+    *vinfo = g_new0 (VirRepoInfo, 1);
+    if (!*vinfo)
+        return FALSE;
+    (*vinfo)->store_id = g_strdup (origin_id);
+    if (!(*vinfo)->store_id)
+        return FALSE;
+    (*vinfo)->expire_time = time (NULL) + VIRINFO_EXPIRE_TIME;
+
+    return TRUE;
+}
+
+static char *
+get_store_id_from_vir_repo_info_cache (HttpServer *htp_server, const char *repo_id)
+{
+    char *store_id = NULL;
+    VirRepoInfo *vinfo = NULL;
+
+    pthread_mutex_lock (&htp_server->vir_repo_info_cache_lock);
+    vinfo = g_hash_table_lookup (htp_server->vir_repo_info_cache, repo_id);
+
+    if (vinfo) {
+        if (vinfo->store_id)
+            store_id = g_strdup (vinfo->store_id);
+        else
+            store_id = g_strdup (repo_id);
+
+        vinfo->expire_time = time (NULL) + VIRINFO_EXPIRE_TIME;
+    }
+
+    pthread_mutex_unlock (&htp_server->vir_repo_info_cache_lock);
+
+    return store_id;
+}
+
+static void
+add_vir_info_to_cache (HttpServer *htp_server, const char *repo_id,
+                       VirRepoInfo *vinfo)
+{
+    pthread_mutex_lock (&htp_server->vir_repo_info_cache_lock);
+    g_hash_table_insert (htp_server->vir_repo_info_cache, g_strdup (repo_id), vinfo);
+    pthread_mutex_unlock (&htp_server->vir_repo_info_cache_lock);
+}
+
+static char *
+get_repo_store_id (HttpServer *htp_server, const char *repo_id)
+{
+    char *store_id = get_store_id_from_vir_repo_info_cache (htp_server,
+                                                            repo_id);
+    if (store_id) {
+        return store_id;
+    }
+
+    VirRepoInfo *vinfo = NULL;
+    char *sql = "SELECT repo_id, origin_repo FROM VirtualRepo where repo_id = ?";
+    int n_row = seaf_db_statement_foreach_row (seaf->db, sql, get_vir_repo_info,
+                                               &vinfo, 1, "string", repo_id);
+    if (n_row < 0) {
+        // db error, return NULL
+        return NULL;
+    } else if (n_row == 0) {
+        // repo is not virtual repo
+        vinfo = g_new0 (VirRepoInfo, 1);
+        if (!vinfo)
+            return NULL;
+        vinfo->expire_time = time (NULL) + VIRINFO_EXPIRE_TIME;
+
+        add_vir_info_to_cache (htp_server, repo_id, vinfo);
+
+        return g_strdup (repo_id);
+    } else if (!vinfo || !vinfo->store_id) {
+        // out of memory, return NULL
+        return NULL;
+    }
+
+    add_vir_info_to_cache (htp_server, repo_id, vinfo);
+
+    return g_strdup (vinfo->store_id);
 }
 
 static void
@@ -907,6 +1005,7 @@ get_block_cb (evhtp_request_t *req, void *arg)
 {
     const char *repo_id = NULL;
     char *block_id = NULL;
+    char *store_id = NULL;
     HttpServer *htp_server = arg;
     BlockMetadata *blk_meta = NULL;
 
@@ -920,8 +1019,14 @@ get_block_cb (evhtp_request_t *req, void *arg)
         goto out;
     }
 
+    store_id = get_repo_store_id (htp_server, repo_id);
+    if (!store_id) {
+        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        goto out;
+    }
+
     blk_meta = seaf_block_manager_stat_block (seaf->block_mgr,
-                                              repo_id, 1, block_id);
+                                              store_id, 1, block_id);
     if (blk_meta == NULL) {
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
         goto out;
@@ -929,9 +1034,9 @@ get_block_cb (evhtp_request_t *req, void *arg)
 
     BlockHandle *blk_handle = NULL;
     blk_handle = seaf_block_manager_open_block(seaf->block_mgr,
-                                               repo_id, 1, block_id, BLOCK_READ);
+                                               store_id, 1, block_id, BLOCK_READ);
     if (!blk_handle) {
-        seaf_warning ("Failed to open block %.8s:%s.\n", repo_id, block_id);
+        seaf_warning ("Failed to open block %.8s:%s.\n", store_id, block_id);
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
         goto out;
     }
@@ -946,7 +1051,7 @@ get_block_cb (evhtp_request_t *req, void *arg)
                                                blk_handle, block_con,
                                                blk_meta->size);
     if (rsize != blk_meta->size) {
-        seaf_warning ("Failed to read block %.8s:%s.\n", repo_id, block_id);
+        seaf_warning ("Failed to read block %.8s:%s.\n", store_id, block_id);
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
     } else {
         evbuffer_add (req->buffer_out, block_con, blk_meta->size);
@@ -960,6 +1065,7 @@ free_handle:
 
 out:
     g_free (blk_meta);
+    g_free (store_id);
     g_strfreev (parts);
 }
 
@@ -968,6 +1074,7 @@ put_send_block_cb (evhtp_request_t *req, void *arg)
 {
     const char *repo_id = NULL;
     char *block_id = NULL;
+    char *store_id = NULL;
     char *username = NULL;
     HttpServer *htp_server = arg;
 
@@ -988,6 +1095,12 @@ put_send_block_cb (evhtp_request_t *req, void *arg)
         goto out;
     }
 
+    store_id = get_repo_store_id (htp_server, repo_id);
+    if (!store_id) {
+        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        goto out;
+    }
+
     int blk_len = evbuffer_get_length (req->buffer_in);
     if (blk_len == 0) {
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
@@ -1004,23 +1117,23 @@ put_send_block_cb (evhtp_request_t *req, void *arg)
 
     BlockHandle *blk_handle = NULL;
     blk_handle = seaf_block_manager_open_block (seaf->block_mgr,
-                                                repo_id, 1, block_id, BLOCK_WRITE);
+                                                store_id, 1, block_id, BLOCK_WRITE);
     if (blk_handle == NULL) {
-        seaf_warning ("Failed to open block %.8s:%s.\n", repo_id, block_id);
+        seaf_warning ("Failed to open block %.8s:%s.\n", store_id, block_id);
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
         goto out;
     }
 
     if (seaf_block_manager_write_block (seaf->block_mgr, blk_handle,
                                         blk_con, blk_len) != blk_len) {
-        seaf_warning ("Failed to write block %.8s:%s.\n", repo_id, block_id);
+        seaf_warning ("Failed to write block %.8s:%s.\n", store_id, block_id);
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
         goto write_fail;
     }
 
     if (seaf_block_manager_commit_block (seaf->block_mgr,
                                          blk_handle) < 0) {
-        seaf_warning ("Failed to commit block %.8s:%s.\n", repo_id, block_id);
+        seaf_warning ("Failed to commit block %.8s:%s.\n", store_id, block_id);
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
     } else {
         evhtp_send_reply (req, EVHTP_RES_OK);
@@ -1033,6 +1146,7 @@ write_fail:
 
 out:
     g_free (username);
+    g_free (store_id);
     g_strfreev (parts);
 }
 
@@ -1054,10 +1168,17 @@ post_check_exist_cb (evhtp_request_t *req, void *arg, CheckExistType type)
     HttpServer *htp_server = arg;
     char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
     char *repo_id = parts[1];
+    char *store_id = NULL;
 
     int token_status = validate_token (htp_server, req, repo_id, NULL);
     if (token_status != EVHTP_RES_OK) {
         evhtp_send_reply (req, token_status);
+        goto out;
+    }
+
+    store_id = get_repo_store_id (htp_server, repo_id);
+    if (!store_id) {
+        evhtp_send_reply (req, EVHTP_RES_SERVERR);
         goto out;
     }
 
@@ -1099,10 +1220,10 @@ post_check_exist_cb (evhtp_request_t *req, void *arg, CheckExistType type)
             continue;
 
         if (type == CHECK_FS_EXIST) {
-            ret = seaf_fs_manager_object_exists (seaf->fs_mgr, repo_id, 1,
+            ret = seaf_fs_manager_object_exists (seaf->fs_mgr, store_id, 1,
                                                  obj_id);
         } else if (type == CHECK_BLOCK_EXIST) {
-            ret = seaf_block_manager_block_exists (seaf->block_mgr, repo_id, 1,
+            ret = seaf_block_manager_block_exists (seaf->block_mgr, store_id, 1,
                                                    obj_id);
         }
 
@@ -1120,6 +1241,7 @@ post_check_exist_cb (evhtp_request_t *req, void *arg, CheckExistType type)
     json_decref (obj_array);
 
 out:
+    g_free (store_id);
     g_strfreev (parts);
 }
 
@@ -1141,6 +1263,7 @@ post_recv_fs_cb (evhtp_request_t *req, void *arg)
     HttpServer *htp_server = arg;
     char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
     const char *repo_id = parts[1];
+    char *store_id = NULL;
     char *username = NULL;
     FsHdr *hdr = NULL;
 
@@ -1154,6 +1277,12 @@ post_recv_fs_cb (evhtp_request_t *req, void *arg)
                                         "upload", FALSE);
     if (perm_status == EVHTP_RES_FORBIDDEN) {
         evhtp_send_reply (req, EVHTP_RES_FORBIDDEN);
+        goto out;
+    }
+
+    store_id = get_repo_store_id (htp_server, repo_id);
+    if (!store_id) {
+        evhtp_send_reply (req, EVHTP_RES_SERVERR);
         goto out;
     }
 
@@ -1194,7 +1323,7 @@ post_recv_fs_cb (evhtp_request_t *req, void *arg)
         evbuffer_remove (req->buffer_in, obj_con, con_len);
 
         if (seaf_obj_store_write_obj (seaf->fs_mgr->obj_store,
-                                      repo_id, 1, obj_id, obj_con,
+                                      store_id, 1, obj_id, obj_con,
                                       con_len, FALSE) < 0) {
             seaf_warning ("Failed to write fs object %.8s to disk.\n",
                           obj_id);
@@ -1212,6 +1341,7 @@ post_recv_fs_cb (evhtp_request_t *req, void *arg)
     }
 
 out:
+    g_free (store_id);
     g_free (hdr);
     g_free (username);
     g_strfreev (parts);
@@ -1225,10 +1355,17 @@ post_pack_fs_cb (evhtp_request_t *req, void *arg)
     HttpServer *htp_server = arg;
     char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
     const char *repo_id = parts[1];
+    char *store_id = NULL;
 
     int token_status = validate_token (htp_server, req, repo_id, NULL);
     if (token_status != EVHTP_RES_OK) {
         evhtp_send_reply (req, token_status);
+        goto out;
+    }
+
+    store_id = get_repo_store_id (htp_server, repo_id);
+    if (!store_id) {
+        evhtp_send_reply (req, EVHTP_RES_SERVERR);
         goto out;
     }
 
@@ -1276,7 +1413,7 @@ post_pack_fs_cb (evhtp_request_t *req, void *arg)
             json_decref (fs_id_array);
             goto out;
         }
-        if (seaf_obj_store_read_obj (seaf->fs_mgr->obj_store, repo_id, 1,
+        if (seaf_obj_store_read_obj (seaf->fs_mgr->obj_store, store_id, 1,
                                      obj_id, &fs_data, &data_len) < 0) {
             seaf_warning ("Failed to read seafile object %s.\n", obj_id);
             evhtp_send_reply (req, EVHTP_RES_SERVERR);
@@ -1300,6 +1437,7 @@ post_pack_fs_cb (evhtp_request_t *req, void *arg)
 
     json_decref (fs_id_array);
 out:
+    g_free (store_id);
     g_strfreev (parts);
 }
 
@@ -1373,7 +1511,7 @@ is_token_expire (gpointer key, gpointer value, gpointer arg)
 {
     TokenInfo *token_info = (TokenInfo *)value;
 
-    if(token_info && token_info->expire_time >= (gint64)time(NULL)) {
+    if(token_info && token_info->expire_time <= (gint64)time(NULL)) {
         return TRUE;
     }
 
@@ -1393,11 +1531,37 @@ is_perm_expire (gpointer key, gpointer value, gpointer arg)
 {
     PermInfo *perm_info = (PermInfo *)value;
 
-    if(perm_info && perm_info->expire_time >= (gint64)time(NULL)) {
+    if(perm_info && perm_info->expire_time <= (gint64)time(NULL)) {
         return TRUE;
     }
 
     return FALSE;
+}
+
+static gboolean
+is_vir_repo_info_expire (gpointer key, gpointer value, gpointer arg)
+{
+    VirRepoInfo *vinfo = (VirRepoInfo *)value;
+
+    if(vinfo && vinfo->expire_time <= (gint64)time(NULL)) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static void
+free_vir_repo_info (gpointer data)
+{
+    if (!data)
+        return;
+
+    VirRepoInfo *vinfo = data;
+
+    if (vinfo->store_id)
+        g_free (vinfo->store_id);
+
+    g_free (vinfo);
 }
 
 static void
@@ -1412,6 +1576,11 @@ remove_expire_cache_cb (evutil_socket_t sock, short type, void *data)
     pthread_mutex_lock (&htp_server->perm_cache_lock);
     g_hash_table_foreach_remove (htp_server->perm_cache, is_perm_expire, NULL);
     pthread_mutex_unlock (&htp_server->perm_cache_lock);
+
+    pthread_mutex_lock (&htp_server->vir_repo_info_cache_lock);
+    g_hash_table_foreach_remove (htp_server->vir_repo_info_cache,
+                                 is_vir_repo_info_expire, NULL);
+    pthread_mutex_unlock (&htp_server->vir_repo_info_cache_lock);
 }
 
 static void *
@@ -1435,7 +1604,7 @@ http_server_run (void *arg)
     evhtp_use_threads (htp_server->evhtp, NULL, DEFAULT_THREADS, NULL);
 
     struct timeval tv;
-    tv.tv_sec = CLEANING_INTERVAL_MSEC;
+    tv.tv_sec = CLEANING_INTERVAL_SEC;
     tv.tv_usec = 0;
     htp_server->reap_timer = evtimer_new (htp_server->evbase,
                                           remove_expire_cache_cb,
@@ -1469,6 +1638,10 @@ seaf_http_server_new (struct _SeafileSession *session)
                                                      g_free, perm_cache_value_free);
     pthread_mutex_init (&http_server->perm_cache_lock, NULL);
 
+    http_server->vir_repo_info_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                              g_free, free_vir_repo_info);
+    pthread_mutex_init (&http_server->vir_repo_info_cache_lock, NULL);
+
     http_server->http_temp_dir = g_build_filename (session->seaf_dir, "httptemp", NULL);
 
     return http_server;
@@ -1492,6 +1665,9 @@ void seaf_http_server_release (HttpServer *htp_server)
         }
         if (htp_server->perm_cache) {
             g_hash_table_destroy (htp_server->perm_cache);
+        }
+        if (htp_server->vir_repo_info_cache) {
+            g_hash_table_destroy (htp_server->vir_repo_info_cache);
         }
         if (htp_server->reap_timer) {
             event_del (htp_server->reap_timer);
