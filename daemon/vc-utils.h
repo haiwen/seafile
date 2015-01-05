@@ -1,7 +1,7 @@
 #ifndef VC_UTILS_H
 #define VC_UTILS_H
 
-#include <glib/gstdio.h>
+#include <glib.h>
 
 #include "index/index.h"
 #include "index/cache-tree.h"
@@ -38,13 +38,45 @@ update_worktree (struct unpack_trees_options *o,
 int
 seaf_remove_empty_dir (const char *path);
 
+char *
+build_case_conflict_free_path (const char *worktree,
+                               const char *ce_name,
+                               GHashTable *conflict_hash,
+                               GHashTable *no_conflict_hash,
+                               gboolean *is_case_conflict,
+                               gboolean is_rename);
+
+char *
+build_checkout_path (const char *worktree, const char *ce_name, int len);
+
+int
+delete_path (const char *worktree, const char *name,
+             unsigned int mode, gint64 old_mtime);
+
+struct index_state;
+
+int
+delete_dir_with_check (const char *repo_id,
+                       int repo_version,
+                       const char *root_id,
+                       const char *dir_path,
+                       const char *worktree,
+                       struct index_state *istate);
+
+gboolean
+do_check_file_locked (const char *path, const char *worktree);
+
+gboolean
+do_check_dir_locked (const char *path, const char *worktree);
+
 gboolean
 files_locked_on_windows (struct index_state *index, const char *worktree);
 
 int
 compare_file_content (const char *path, SeafStat *st, 
                       const unsigned char *ce_sha1,
-                      struct SeafileCrypt *crypt);
+                      struct SeafileCrypt *crypt,
+                      int repo_version);
 
 void
 fill_seafile_blocks (const char *repo_id, int version,

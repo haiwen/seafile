@@ -14,6 +14,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@ZDB_CFLAGS@ \
 	@MSVC_CFLAGS@ \
 	@CURL_CFLAGS@ \
+	@LIBARCHIVE_CFLAGS@
 	-Wall
 
 bin_PROGRAMS = seaf-server
@@ -32,7 +33,11 @@ proc_headers = $(addprefix processors/, \
 	putcs-v2-proc.h \
 	checkbl-proc.h \
 	checkff-proc.h \
-	putca-proc.h)
+	putca-proc.h \
+	check-protocol-slave-proc.h \
+	recvfs-v2-proc.h \
+	recvbranch-v2-proc.h \
+	putfs-v2-proc.h)
 
 noinst_HEADERS = web-accesstoken-mgr.h chunkserv-mgr.h seafile-session.h \
 	repo-mgr.h \
@@ -46,6 +51,12 @@ noinst_HEADERS = web-accesstoken-mgr.h chunkserv-mgr.h seafile-session.h \
 	size-sched.h \
 	block-tx-server.h \
 	copy-mgr.h \
+	http-server.h \
+	upload-file.h \
+	access-file.h \
+	pack-dir.h \
+	fileserver-config.h \
+	http-status-codes.h \
 	$(proc_headers)
 
 seaf_server_SOURCES = \
@@ -61,19 +72,21 @@ seaf_server_SOURCES = \
 	size-sched.c \
 	virtual-repo.c \
 	copy-mgr.c \
+	http-server.c \
+	upload-file.c \
+	access-file.c \
+	pack-dir.c \
+	fileserver-config.c \
 	monitor-rpc-wrappers.c ../common/seaf-db.c \
-	../common/bitfield.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \
 	repo-mgr.c ../common/commit-mgr.c \
-	../common/log.c ../common/avl/avl.c ../common/object-list.c \
+	../common/log.c ../common/object-list.c \
 	../common/rpc-service.c \
 	../common/vc-common.c \
 	../common/seaf-utils.c \
 	../common/obj-store.c \
 	../common/obj-backend-fs.c \
 	../common/seafile-crypt.c \
-	../common/unpack-trees.c \
-	../common/seaf-tree-walk.c \
 	../common/diff-simple.c \
 	../common/mq-mgr.c \
 	../common/block-mgr.c \
@@ -95,13 +108,18 @@ seaf_server_SOURCES = \
 	processors/putcs-v2-proc.c \
 	processors/checkbl-proc.c \
 	processors/checkff-proc.c \
-	processors/putca-proc.c
+	processors/putca-proc.c \
+	processors/check-protocol-slave-proc.c \
+	processors/recvfs-v2-proc.c \
+	processors/recvbranch-v2-proc.c \
+	processors/putfs-v2-proc.c
 
 seaf_server_LDADD = @CCNET_LIBS@ \
 	$(top_builddir)/lib/libseafile_common.la \
 	$(top_builddir)/common/index/libindex.la \
-	@GLIB2_LIBS@ @GOBJECT_LIBS@ -lssl @LIB_RT@ @LIB_UUID@ -lsqlite3 -levent \
+	@GLIB2_LIBS@ @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 @LIBEVENT_LIBS@ -levhtp -levent_openssl \
 	$(top_builddir)/common/cdc/libcdc.la \
-	@SEARPC_LIBS@ @JANSSON_LIBS@ @ZDB_LIBS@ @CURL_LIBS@ ${LIB_WS32} @ZLIB_LIBS@
+	@SEARPC_LIBS@ @JANSSON_LIBS@ @ZDB_LIBS@ @CURL_LIBS@ ${LIB_WS32} @ZLIB_LIBS@ \
+	@LIBARCHIVE_LIBS@
 
 seaf_server_LDFLAGS = @STATIC_COMPILE@ @SERVER_PKG_RPATH@

@@ -73,21 +73,22 @@ Create a new library
 
 import argparse
 import os
-try:
-    import json
-except:
-    import simplejson as json
+import json
 import subprocess
 import sys
 import time
 import getpass
 import urllib
 import urllib2
+from urlparse import urlparse
 
 import ccnet
 import seafile
 
-DEFAULT_CONF_DIR = "%s/.ccnet" % os.environ['HOME']
+if 'HOME' in os.environ:
+    DEFAULT_CONF_DIR = "%s/.ccnet" % os.environ['HOME']
+else:
+    DEFAULT_CONF_DIR = None
 
 seafile_datadir = None
 seafile_worktree = None
@@ -342,6 +343,15 @@ def seaf_list(args):
     for repo in repos:
         print repo.name, repo.id, repo.worktree
 
+def get_base_url(url):
+    parse_result = urlparse(url)
+    scheme = parse_result.scheme
+    netloc = parse_result.netloc
+
+    if scheme and netloc:
+        return '%s://%s' % (scheme, netloc)
+
+    return None
 
 def seaf_download(args):
     '''Download a library from seafile server '''
@@ -398,6 +408,13 @@ def seaf_download(args):
     repo_name = tmp['repo_name']
     version = tmp.get('repo_version', 0)
 
+    more_info = None
+    use_http = seafile_rpc.get_config("enable_http_sync")
+    if use_http and bool(use_http):
+        base_url = get_base_url(url)
+        if base_url:
+            more_info = json.dumps({'server_url': base_url})
+
     print "Starting to download ..."
     print "Library %s will be downloaded to %s" % (repo, download_dir)
     if encrypted == 1:
@@ -414,7 +431,7 @@ def seaf_download(args):
                          repo_passwd, magic,
                          relay_addr,
                          relay_port,
-                         email, random_key, enc_version)
+                         email, random_key, enc_version, more_info)
 
 
 
@@ -476,6 +493,13 @@ def seaf_sync(args):
     repo_name = tmp['repo_name']
     version = tmp.get('repo_version', 0)
 
+    more_info = None
+    use_http = seafile_rpc.get_config("enable_http_sync")
+    if use_http and bool(use_http):
+        base_url = get_base_url(url)
+        if base_url:
+            more_info = json.dumps({'server_url': url})
+
     print "Starting to download ..."
     if encrypted == 1:
         repo_passwd = getpass.getpass("Enter password for the library: ")
@@ -491,7 +515,7 @@ def seaf_sync(args):
                       repo_passwd, magic,
                       relay_addr,
                       relay_port,
-                      email, random_key, enc_version)
+                      email, random_key, enc_version, more_info)
 
 
 def seaf_desync(args):
@@ -527,6 +551,37 @@ def seaf_desync(args):
         seafile_rpc.remove_repo(repo.id)
     else:
         print "%s is not a library" % args.folder
+
+
+def seaf_config(args):
+    '''Configure the seafile client'''
+
+    conf_dir = DEFAULT_CONF_DIR
+    if args.confdir:
+        conf_dir = args.confdir
+    conf_dir = os.path.abspath(conf_dir)
+
+    if not _config_valid(conf_dir):
+        print "Invalid config directory"
+        sys.exit(1)
+
+    config_key = args.key
+    if not config_key:
+        print "Must specify configuration key"
+        sys.exit(1)
+
+    config_value = args.value
+
+    pool = ccnet.ClientPool(conf_dir)
+    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
+
+    if config_value:
+        # set configuration key
+        seafile_rpc.seafile_set_config(config_key, config_value)
+    else:
+        # print configuration key
+        val = seafile_rpc.seafile_get_config(config_key)
+        print "%s = %s" % (config_key, val)
 
 
 def seaf_status(args):
@@ -644,39 +699,41 @@ def main():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(title='subcommands', description='')
 
+    confdir_required = DEFAULT_CONF_DIR is None
+
     # init
     parser_init = subparsers.add_parser('init', help='Initialize config directory')
     parser_init.set_defaults(func=seaf_init)
-    parser_init.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_init.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
     parser_init.add_argument('-d', '--dir', help='the parent directory to put seafile-data', type=str)
 
     # start
     parser_start = subparsers.add_parser('start',
                                          help='Start ccnet and seafile daemon')
     parser_start.set_defaults(func=seaf_start_all)
-    parser_start.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_start.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
 
     # stop
     parser_stop = subparsers.add_parser('stop',
-                                         help='Start ccnet and seafile daemon')
+                                         help='Stop ccnet and seafile daemon')
     parser_stop.set_defaults(func=seaf_stop)
-    parser_stop.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_stop.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
 
     # list
-    parser_list = subparsers.add_parser('list', help='list local libraries')
+    parser_list = subparsers.add_parser('list', help='List local libraries')
     parser_list.set_defaults(func=seaf_list)
-    parser_list.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_list.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
 
     # status
-    parser_status = subparsers.add_parser('status', help='show syncing status')
+    parser_status = subparsers.add_parser('status', help='Show syncing status')
     parser_status.set_defaults(func=seaf_status)
-    parser_status.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_status.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
 
     # download
     parser_download = subparsers.add_parser('download',
                                          help='Download a library from seafile server')
     parser_download.set_defaults(func=seaf_download)
-    parser_download.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_download.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
     parser_download.add_argument('-l', '--library', help='library id', type=str)
     parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
@@ -688,7 +745,7 @@ def main():
     parser_sync = subparsers.add_parser('sync',
                                         help='Sync a library with an existing foler')
     parser_sync.set_defaults(func=seaf_sync)
-    parser_sync.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_sync.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
     parser_sync.add_argument('-l', '--library', help='library id', type=str)
     parser_sync.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_sync.add_argument('-u', '--username', help='username', type=str)
@@ -699,7 +756,7 @@ def main():
     parser_desync = subparsers.add_parser('desync',
                                           help='Desync a library with seafile server')
     parser_desync.set_defaults(func=seaf_desync)
-    parser_desync.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_desync.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
     parser_desync.add_argument('-d', '--folder', help='the local folder', type=str)
 
     # create
@@ -712,7 +769,15 @@ def main():
     parser_create.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_create.add_argument('-u', '--username', help='username', type=str)
     parser_create.add_argument('-p', '--password', help='password', type=str)
-    parser_create.add_argument('-c', '--confdir', help='the config directory', type=str)
+    parser_create.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
+
+    # config 
+    parser_config = subparsers.add_parser('config',
+                                          help='Configure seafile client')
+    parser_config.set_defaults(func=seaf_config)
+    parser_config.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
+    parser_config.add_argument('-k', '--key', help='configuration key', type=str)
+    parser_config.add_argument('-v', '--value', help='configuration value (if provided, key is set to this value)', type=str, required=False)
 
     if len(sys.argv) == 1:
         print parser.format_help()

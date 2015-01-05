@@ -36,6 +36,19 @@ diff_entry_new_from_dirent (char type, char status,
     memcpy (de->sha1, sha1, 20);
     de->name = path;
 
+#ifdef SEAFILE_CLIENT
+    if (type == DIFF_TYPE_COMMITS &&
+        (status == DIFF_STATUS_ADDED ||
+         status == DIFF_STATUS_MODIFIED ||
+         status == DIFF_STATUS_DIR_ADDED ||
+         status == DIFF_STATUS_DIR_DELETED)) {
+        de->mtime = dent->mtime;
+        de->mode = dent->mode;
+        de->modifier = g_strdup(dent->modifier);
+        de->size = dent->size;
+    }
+#endif
+
     return de;
 }
 
@@ -45,6 +58,11 @@ diff_entry_free (DiffEntry *de)
     g_free (de->name);
     if (de->new_name)
         g_free (de->new_name);
+
+#ifdef SEAFILE_CLIENT
+    g_free (de->modifier);
+#endif
+
     g_free (de);
 }
 
@@ -149,28 +167,6 @@ int diff_index(const char *repo_id, int version,
 
 #endif  /* not SEAFILE_SERVER */
 
-#ifdef SEAFILE_SERVER
-
-typedef int (*DiffFileCB) (int n,
-                             const char *basedir,
-                             SeafDirent *files[],
-                             void *data);
-
-typedef int (*DiffDirCB) (int n,
-                          const char *basedir,
-                          SeafDirent *dirs[],
-                          void *data,
-                          gboolean *recurse);
-
-typedef struct DiffOptions {
-    char store_id[37];
-    int version;
-
-    DiffFileCB file_cb;
-    DiffDirCB dir_cb;
-    void *data;
-} DiffOptions;
-
 inline static gboolean
 dirent_same (SeafDirent *denta, SeafDirent *dentb)
 {
@@ -221,15 +217,13 @@ diff_directories (int n, SeafDirent *dents[], const char *basedir, DiffOptions *
     if (n_dirs == 0)
         return 0;
 
-    if (opt->dir_cb != NULL) {
-        gboolean recurse = TRUE;
-        ret = opt->dir_cb (n, basedir, dirs, opt->data, &recurse);
-        if (ret < 0)
-            return ret;
+    gboolean recurse = TRUE;
+    ret = opt->dir_cb (n, basedir, dirs, opt->data, &recurse);
+    if (ret < 0)
+        return ret;
 
-        if (!recurse)
-            return 0;
-    }
+    if (!recurse)
+        return 0;
 
     memset (sub_dirs, 0, sizeof(sub_dirs[0])*n);
     for (i = 0; i < n; ++i) {
@@ -334,7 +328,7 @@ diff_trees_recursive (int n, SeafDir *trees[],
     return ret;
 }
 
-static int
+int
 diff_trees (int n, const char *roots[], DiffOptions *opt)
 {
     SeafDir **trees, *root;
@@ -365,10 +359,16 @@ diff_trees (int n, const char *roots[], DiffOptions *opt)
     return ret;
 }
 
+typedef struct DiffData {
+    GList **results;
+    gboolean fold_dir_diff;
+} DiffData;
+
 static int
-twoway_diff_files (int n, const char *basedir, SeafDirent *files[], void *data)
+twoway_diff_files (int n, const char *basedir, SeafDirent *files[], void *vdata)
 {
-    GList **results = data;
+    DiffData *data = vdata;
+    GList **results = data->results;
     DiffEntry *de;
     SeafDirent *tree1 = files[0];
     SeafDirent *tree2 = files[1];
@@ -397,32 +397,36 @@ twoway_diff_files (int n, const char *basedir, SeafDirent *files[], void *data)
 }
 
 static int
-twoway_diff_dirs (int n, const char *basedir, SeafDirent *dirs[], void *data,
+twoway_diff_dirs (int n, const char *basedir, SeafDirent *dirs[], void *vdata,
                   gboolean *recurse)
 {
-    GList **results = data;
+    DiffData *data = vdata;
+    GList **results = data->results;
     DiffEntry *de;
     SeafDirent *tree1 = dirs[0];
     SeafDirent *tree2 = dirs[1];
 
-    /* If a dir is added or deleted (including files inside it), only add
-     * one diff entry for the dir. Don't need to recursively add diff entries
-     * for the files inside it.
-     */
-
     if (!tree1) {
-        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_DIR_ADDED,
-                                         tree2, basedir);
-        *results = g_list_prepend (*results, de);
-        *recurse = FALSE;
+        if (strcmp (tree2->id, EMPTY_SHA1) == 0 || data->fold_dir_diff) {
+            de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_DIR_ADDED,
+                                             tree2, basedir);
+            *results = g_list_prepend (*results, de);
+            *recurse = FALSE;
+        } else
+            *recurse = TRUE;
         return 0;
     }
 
     if (!tree2) {
-        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_DIR_DELETED,
+        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS,
+                                         DIFF_STATUS_DIR_DELETED,
                                          tree1, basedir);
         *results = g_list_prepend (*results, de);
-        *recurse = FALSE;
+
+        if (data->fold_dir_diff) {
+            *recurse = FALSE;
+        } else
+            *recurse = TRUE;
         return 0;
     }
 
@@ -443,15 +447,25 @@ diff_commits (SeafCommit *commit1, SeafCommit *commit2, GList **results,
         return -1;
     }
 
+    DiffData data;
+    memset (&data, 0, sizeof(data));
+    data.results = results;
+    data.fold_dir_diff = fold_dir_diff;
+
     memset (&opt, 0, sizeof(opt));
+#ifdef SEAFILE_SERVER
     memcpy (opt.store_id, repo->store_id, 36);
+#else
+    memcpy (opt.store_id, repo->id, 36);
+#endif
     opt.version = repo->version;
     opt.file_cb = twoway_diff_files;
-    if (fold_dir_diff)
-        opt.dir_cb = twoway_diff_dirs;
-    opt.data = results;
+    opt.dir_cb = twoway_diff_dirs;
+    opt.data = &data;
 
+#ifdef SEAFILE_SERVER
     seaf_repo_unref (repo);
+#endif
 
     roots[0] = commit1->root_id;
     roots[1] = commit2->root_id;
@@ -470,13 +484,17 @@ diff_commit_roots (const char *store_id, int version,
     DiffOptions opt;
     const char *roots[2];
 
+    DiffData data;
+    memset (&data, 0, sizeof(data));
+    data.results = results;
+    data.fold_dir_diff = fold_dir_diff;
+
     memset (&opt, 0, sizeof(opt));
     memcpy (opt.store_id, store_id, 36);
     opt.version = version;
     opt.file_cb = twoway_diff_files;
-    if (fold_dir_diff)
-        opt.dir_cb = twoway_diff_dirs;
-    opt.data = results;
+    opt.dir_cb = twoway_diff_dirs;
+    opt.data = &data;
 
     roots[0] = root1;
     roots[1] = root2;
@@ -488,12 +506,13 @@ diff_commit_roots (const char *store_id, int version,
 }
 
 static int
-threeway_diff_files (int n, const char *basedir, SeafDirent *files[], void *data)
+threeway_diff_files (int n, const char *basedir, SeafDirent *files[], void *vdata)
 {
+    DiffData *data = vdata;
     SeafDirent *m = files[0];
     SeafDirent *p1 = files[1];
     SeafDirent *p2 = files[2];
-    GList **results = data;
+    GList **results = data->results;
     DiffEntry *de;
 
     /* diff m with both p1 and p2. */
@@ -534,27 +553,10 @@ threeway_diff_files (int n, const char *basedir, SeafDirent *files[], void *data
 }
 
 static int
-threeway_diff_dirs (int n, const char *basedir, SeafDirent *dirs[], void *data,
+threeway_diff_dirs (int n, const char *basedir, SeafDirent *dirs[], void *vdata,
                     gboolean *recurse)
 {
-    SeafDirent *m = dirs[0];
-    SeafDirent *p1 = dirs[1];
-    SeafDirent *p2 = dirs[2];
-    GList **results = data;
-    DiffEntry *de;
-
-    if (!m && p1 && p2) {
-        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_DIR_DELETED,
-                                         p1, basedir);
-        *results = g_list_prepend (*results, de);
-        *recurse = FALSE;
-    } else if (m && !p1 && !p2) {
-        de = diff_entry_new_from_dirent (DIFF_TYPE_COMMITS, DIFF_STATUS_DIR_ADDED,
-                                         m, basedir);
-        *results = g_list_prepend (*results, de);
-        *recurse = FALSE;
-    }
-
+    *recurse = TRUE;
     return 0;
 }
 
@@ -596,15 +598,25 @@ diff_merge (SeafCommit *merge, GList **results, gboolean fold_dir_diff)
         return -1;
     }
 
+    DiffData data;
+    memset (&data, 0, sizeof(data));
+    data.results = results;
+    data.fold_dir_diff = fold_dir_diff;
+
     memset (&opt, 0, sizeof(opt));
+#ifdef SEAFILE_SERVER
     memcpy (opt.store_id, repo->store_id, 36);
+#else
+    memcpy (opt.store_id, repo->id, 36);
+#endif
     opt.version = repo->version;
     opt.file_cb = threeway_diff_files;
-    if (fold_dir_diff)
-        opt.dir_cb = threeway_diff_dirs;
-    opt.data = results;
+    opt.dir_cb = threeway_diff_dirs;
+    opt.data = &data;
 
+#ifdef SEAFILE_SERVER
     seaf_repo_unref (repo);
+#endif
 
     roots[0] = merge->root_id;
     roots[1] = parent1->root_id;
@@ -629,13 +641,17 @@ diff_merge_roots (const char *store_id, int version,
 
     g_return_val_if_fail (*results == NULL, -1);
 
+    DiffData data;
+    memset (&data, 0, sizeof(data));
+    data.results = results;
+    data.fold_dir_diff = fold_dir_diff;
+
     memset (&opt, 0, sizeof(opt));
     memcpy (opt.store_id, store_id, 36);
     opt.version = version;
     opt.file_cb = threeway_diff_files;
-    if (fold_dir_diff)
-        opt.dir_cb = threeway_diff_dirs;
-    opt.data = results;
+    opt.dir_cb = threeway_diff_dirs;
+    opt.data = &data;
 
     roots[0] = merged_root;
     roots[1] = p1_root;
@@ -647,10 +663,9 @@ diff_merge_roots (const char *store_id, int version,
     return 0;
 }
 
-#endif  /* SEAFILE_SERVER */
-
 /* This function only resolve "strict" rename, i.e. two files must be
  * exactly the same.
+ * Don't detect rename of empty files and empty dirs.
  */
 void
 diff_resolve_renames (GList **diff_entries)
@@ -659,6 +674,9 @@ diff_resolve_renames (GList **diff_entries)
     GList *p;
     GList *added = NULL;
     DiffEntry *de;
+    unsigned char empty_sha1[20];
+
+    memset (empty_sha1, 0, 20);
 
     /* Hash and equal functions for raw sha1. */
     deleted = g_hash_table_new (ccnet_sha1_hash, ccnet_sha1_equal);
@@ -666,14 +684,18 @@ diff_resolve_renames (GList **diff_entries)
     /* Collect all "deleted" entries. */
     for (p = *diff_entries; p != NULL; p = p->next) {
         de = p->data;
-        if (de->status == DIFF_STATUS_DELETED)
+        if ((de->status == DIFF_STATUS_DELETED ||
+             de->status == DIFF_STATUS_DIR_DELETED) &&
+            memcmp (de->sha1, empty_sha1, 20) != 0)
             g_hash_table_insert (deleted, de->sha1, p);
     }
 
     /* Collect all "added" entries into a separate list. */
     for (p = *diff_entries; p != NULL; p = p->next) {
         de = p->data;
-        if (de->status == DIFF_STATUS_ADDED)
+        if ((de->status == DIFF_STATUS_ADDED ||
+             de->status == DIFF_STATUS_DIR_ADDED) &&
+            memcmp (de->sha1, empty_sha1, 20) != 0)
             added = g_list_prepend (added, p);
     }
 
@@ -684,6 +706,7 @@ diff_resolve_renames (GList **diff_entries)
     while (p != NULL) {
         GList *p_add, *p_del;
         DiffEntry *de_add, *de_del, *de_rename;
+        int rename_status;
 
         p_add = p->data;
         de_add = p_add->data;
@@ -691,7 +714,13 @@ diff_resolve_renames (GList **diff_entries)
         p_del = g_hash_table_lookup (deleted, de_add->sha1);
         if (p_del) {
             de_del = p_del->data;
-            de_rename = diff_entry_new (de_del->type, DIFF_STATUS_RENAMED, 
+
+            if (de_add->status == DIFF_STATUS_DIR_ADDED)
+                rename_status = DIFF_STATUS_DIR_RENAMED;
+            else
+                rename_status = DIFF_STATUS_RENAMED;
+
+            de_rename = diff_entry_new (de_del->type, rename_status, 
                                         de_del->sha1, de_del->name);
             de_rename->new_name = g_strdup(de_add->name);
 

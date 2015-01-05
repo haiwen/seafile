@@ -168,6 +168,11 @@ seafile_update_repo_relay_info (const char *repo_id,
                                 const char *new_port,
                                 GError **error);
 
+int
+seafile_update_repos_server_host (const char *old_host,
+                                  const char *new_host,
+                                  GError **error);
+
 int seafile_disable_auto_sync (GError **error);
 
 int seafile_enable_auto_sync (GError **error);
@@ -246,6 +251,7 @@ seafile_clone (const char *repo_id,
                const char *email,
                const char *random_key,
                int enc_version,
+               const char *more_info,
                GError **error);
 
 char *
@@ -262,6 +268,7 @@ seafile_download (const char *repo_id,
                   const char *email,
                   const char *random_key,
                   int enc_version,
+                  const char *more_info,
                   GError **error);
 
 int
@@ -328,26 +335,6 @@ seafile_gc (GError **error);
 /* -----------------  Task Related --------------  */
 
 /**
- * seafile_get_upload_task_list:
- *
- * List all the upload tasks.
- *
- * Returns: A list of task info.
- */
-GList* seafile_get_upload_task_list (GError **error);
-
-
-/**
- * seafile_get_download_task_list:
- *
- * List all the download tasks.
- *
- * Returns: A list of task info.
- */
-GList* seafile_get_download_task_list (GError **error);
-
-
-/**
  * seafile_find_transfer:
  *
  * Find a non finished task of a repo
@@ -376,7 +363,7 @@ int seafile_remove_task (const char *task_id, int task_type, GError **error);
  */
 GList *
 seafile_diff (const char *repo_id, const char *old, const char *new,
-              GError **error);
+              int fold_dir_diff, GError **error);
 
 GList *
 seafile_branch_gets (const char *repo_id, GError **error);
@@ -566,6 +553,7 @@ seafile_post_multi_files (const char *repo_id,
                           const char *filenames_json,
                           const char *paths_json,
                           const char *user,
+                          int replace,
                           GError **error);
 
 /**
@@ -582,6 +570,7 @@ seafile_post_file_blocks (const char *repo_id,
                           const char *paths_json,
                           const char *user,
                           gint64 file_size,
+                          int replace_existed,
                           GError **error);
 
 
@@ -700,6 +689,10 @@ seafile_get_file_id_by_path (const char *repo_id, const char *path,
 
 char *
 seafile_get_dir_id_by_path (const char *repo_id, const char *path,
+                            GError **error);
+
+GObject *
+seafile_get_dirent_by_path (const char *repo_id, const char *path,
                             GError **error);
 
 /**
@@ -847,6 +840,11 @@ seafile_get_virtual_repo (const char *origin_repo,
 
 char *
 seafile_get_system_default_repo_id (GError **error);
+
+/* Clean trash */
+
+int
+seafile_clean_up_repo_history (const char *repo_id, int keep_days, GError **error);
 
 /* ------------------ public RPC calls. ------------ */
 

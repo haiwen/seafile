@@ -60,6 +60,7 @@ debian/seafile
 debian/*.substvars
 lib/searpc-marshal.h
 lib/searpc-signature.h
+lib/*.tmp
 lib/dir.c
 lib/dirent.c
 lib/seafile-object.h
@@ -78,7 +79,7 @@ server/seaf-server
 server/gc/seafserv-gc
 monitor/seaf-mon
 controller/seafile-controller
-httpserver/httpserver
+fileserver/fileserver
 tests/common-conf.sh
 tools/seaf-server-init
 *.mo
@@ -122,3 +123,5 @@ seaf-fsck
 *.tar.gz
 fuse/seaf-fuse
 server/gc/seaf-migrate
+/compile
+/test-driver

@@ -293,7 +293,7 @@ void wt_status_collect_changes_worktree(struct index_state *index,
 
         g_free (realpath);
 
-        changed = ie_match_stat (index, ce, &st, 0);
+        changed = ie_match_stat (ce, &st, 0);
         if (!changed) {
             ce_mark_uptodate (ce);
             continue;

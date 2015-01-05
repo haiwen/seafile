@@ -10,7 +10,6 @@
 #include <ccnet.h>
 #include <ccnet/ccnet-object.h>
 #include "utils.h"
-#include "avl/avl.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_OTHER
 #include "log.h"
 #include "seafile.h"
@@ -23,9 +22,6 @@
 #include "fs-mgr.h"
 #include "seafile-error.h"
 #include "seafile-crypt.h"
-#include "index/index.h"
-#include "index/cache-tree.h"
-#include "unpack-trees.h"
 #include "diff-simple.h"
 #include "merge-new.h"
 #include "monitor-rpc-wrappers.h"
@@ -129,6 +125,7 @@ static char *
 post_file_recursive (SeafRepo *repo,
                      const char *dir_id,
                      const char *to_path,
+                     int replace_existed,
                      SeafDirent *newdent)
 {
     SeafDir *olddir, *newdir;
@@ -147,9 +144,30 @@ post_file_recursive (SeafRepo *repo,
 
     /* we reach the target dir.  new dir entry is added */
     if (*to_path == '\0') {
-        GList *newentries;
+        GList *newentries = NULL;
         char *unique_name;
         SeafDirent *dent_dup;
+        if (replace_existed && filename_exists(olddir->entries, newdent->name)) {
+            GList *p;
+            SeafDirent *dent;
+
+            for (p = olddir->entries; p; p = p->next) {
+                dent = p->data;
+                if (strcmp(dent->name, newdent->name) == 0) {
+                    newentries = g_list_prepend (newentries, seaf_dirent_dup(newdent));
+                } else {
+                    newentries = g_list_prepend (newentries, seaf_dirent_dup(dent));
+                }
+            }
+            newentries = g_list_reverse (newentries);
+            newdir = seaf_dir_new (NULL, newentries,
+                                   dir_version_from_repo_version(repo->version));
+            seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
+            id = g_strndup (newdir->dir_id, 41);
+            id[40] = '\0';
+            seaf_dir_free (newdir);
+            goto out;
+        }
 
         unique_name = generate_unique_filename (newdent->name, olddir->entries);
         if (!unique_name)
@@ -168,8 +186,7 @@ post_file_recursive (SeafRepo *repo,
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 41);
-        id[40] = '\0';
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
 
         goto out;
@@ -191,7 +208,7 @@ post_file_recursive (SeafRepo *repo,
         if (strcmp(dent->name, to_path_dup) != 0)
             continue;
 
-        id = post_file_recursive (repo, dent->id, remain, newdent);
+        id = post_file_recursive (repo, dent->id, remain, replace_existed, newdent);
         if (id != NULL) {
             memcpy(dent->id, id, 40);
             dent->id[40] = '\0';
@@ -211,9 +228,7 @@ post_file_recursive (SeafRepo *repo,
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
         
         g_free(id);
-        id = g_strndup(newdir->dir_id, 41);
-        id[40] = '\0';
-        
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
     }
 
@@ -224,16 +239,26 @@ out:
 }
 
 static char *
-do_post_file (SeafRepo *repo,
-              const char *root_id,
-              const char *parent_dir,
-              SeafDirent *dent)
+do_post_file_replace (SeafRepo *repo,
+                      const char *root_id,
+                      const char *parent_dir,
+                      int replace_existed,
+                      SeafDirent *dent)
 {
     /* if parent_dir is a absolutely path, we will remove the first '/' */
     if (*parent_dir == '/')
         parent_dir = parent_dir + 1;
 
-    return post_file_recursive(repo, root_id, parent_dir, dent);
+    return post_file_recursive(repo, root_id, parent_dir, replace_existed, dent);
+}
+
+static char *
+do_post_file (SeafRepo *repo,
+              const char *root_id,
+              const char *parent_dir,
+              SeafDirent *dent)
+{
+    return do_post_file_replace(repo, root_id, parent_dir, 0, dent);
 }
 
 static char *
@@ -685,7 +710,7 @@ out:
 static int
 add_new_entries (SeafRepo *repo, const char *user,
                  GList **entries, GList *filenames, GList *id_list,
-                 GList *size_list, GList **name_list)
+                 GList *size_list, int replace_existed, GList **name_list)
 {
     GList *ptr1, *ptr2, *ptr3;
     char *file, *id;
@@ -701,8 +726,28 @@ add_new_entries (SeafRepo *repo, const char *user,
 
         char *unique_name;
         SeafDirent *newdent;
+        gboolean replace = FALSE;
 
-        unique_name = generate_unique_filename (file, *entries);
+        if (replace_existed) {
+            GList *p;
+            SeafDirent *dent;
+
+            for (p = *entries; p; p = p->next) {
+                dent = p->data;
+                if (strcmp(dent->name, file) == 0) {
+                    replace = TRUE;
+                    *entries = g_list_delete_link (*entries, p);
+                    seaf_dirent_free (dent);
+                    break;
+                }
+            }
+        }
+
+        if (replace)
+            unique_name = g_strdup (file);
+        else
+            unique_name = generate_unique_filename (file, *entries);
+
         if (unique_name != NULL) {
             newdent = seaf_dirent_new (dir_version_from_repo_version(repo->version),
                                        id, STD_FILE_MODE, unique_name,
@@ -726,6 +771,7 @@ post_multi_files_recursive (SeafRepo *repo,
                             GList *id_list,
                             GList *size_list,
                             const char *user,
+                            int replace_existed,
                             GList **name_list)
 {
     SeafDir *olddir, *newdir;
@@ -751,14 +797,13 @@ post_multi_files_recursive (SeafRepo *repo,
 
         if (add_new_entries (repo, user,
                              &newentries, filenames, id_list, size_list,
-                             name_list) < 0)
+                             replace_existed, name_list) < 0)
             goto out;
 
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 41);
-        id[40] = '\0';
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
 
         goto out;
@@ -780,9 +825,9 @@ post_multi_files_recursive (SeafRepo *repo,
         if (strcmp(dent->name, to_path_dup) != 0)
             continue;
 
-        id = post_multi_files_recursive (repo,
-                                         dent->id, remain, filenames, id_list,
-                                         size_list, user, name_list);
+        id = post_multi_files_recursive (repo, dent->id, remain, filenames,
+                                         id_list, size_list, user,
+                                         replace_existed, name_list);
         if (id != NULL) {
             memcpy(dent->id, id, 40);
             dent->id[40] = '\0';
@@ -802,9 +847,7 @@ post_multi_files_recursive (SeafRepo *repo,
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
         
         g_free(id);
-        id = g_strndup(newdir->dir_id, 41);
-        id[40] = '\0';
-        
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
     }
 
@@ -822,15 +865,16 @@ do_post_multi_files (SeafRepo *repo,
                      GList *id_list,
                      GList *size_list,
                      const char *user,
+                     int replace_existed,
                      GList **name_list)
 {
     /* if parent_dir is a absolutely path, we will remove the first '/' */
     if (*parent_dir == '/')
         parent_dir = parent_dir + 1;
 
-    return post_multi_files_recursive(repo,
-                                      root_id, parent_dir, filenames,
-                                      id_list, size_list, user, name_list);
+    return post_multi_files_recursive(repo, root_id, parent_dir,
+                                      filenames, id_list, size_list,
+                                      user, replace_existed, name_list);
 }
 
 static GList *
@@ -862,27 +906,31 @@ json_to_file_list (const char *files_json)
 }
 
 /*
- * Return [{'name': 'file1', 'id': 'id1'}, {'name': 'file2', 'id': 'id2'}]
+ * Return [{'name': 'file1', 'id': 'id1', 'size': num1}, {'name': 'file2', 'id': 'id2', 'size': num2}]
  */
 static char *
-format_json_ret (GList *name_list, GList *id_list)
+format_json_ret (GList *name_list, GList *id_list, GList *size_list)
 {
     json_t *array, *obj;
     GList *ptr, *ptr2;
+    GList *sptr;
     char *filename, *id;
+    gint64 *size;
     char *json_data;
     char *ret;
 
     array = json_array ();
 
-    for (ptr = name_list, ptr2 = id_list;
-         ptr && ptr2;
-         ptr = ptr->next, ptr2 = ptr2->next) {
+    for (ptr = name_list, ptr2 = id_list, sptr = size_list;
+         ptr && ptr2 && sptr;
+         ptr = ptr->next, ptr2 = ptr2->next, sptr = sptr->next) {
         filename = ptr->data;
         id = ptr2->data;
+        size = sptr->data;
         obj = json_object ();
         json_object_set_string_member (obj, "name", filename);
         json_object_set_string_member (obj, "id", id);
+        json_object_set_int_member (obj, "size", *size);
         json_array_append_new (array, obj);
     }
 
@@ -901,6 +949,7 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
                                     const char *filenames_json,
                                     const char *paths_json,
                                     const char *user,
+                                    int replace_existed,
                                     char **ret_json,
                                     GError **error)
 {
@@ -990,9 +1039,9 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
     size_list = g_list_reverse (size_list);
 
     /* Add the files to parent dir and commit. */
-    root_id = do_post_multi_files (repo,
-                                   head_commit->root_id, canon_path,
-                                   filenames, id_list, size_list, user, &name_list);
+    root_id = do_post_multi_files (repo, head_commit->root_id, canon_path,
+                                   filenames, id_list, size_list, user,
+                                   replace_existed, &name_list);
     if (!root_id) {
         seaf_warning ("[post file] Failed to put file.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
@@ -1016,7 +1065,8 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
 
     seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
-    *ret_json = format_json_ret (name_list, id_list);
+    if (ret_json)
+        *ret_json = format_json_ret (name_list, id_list, size_list);
 
 out:
     if (repo)
@@ -1050,6 +1100,7 @@ seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
                                     const char *paths_json,
                                     const char *user,
                                     gint64 file_size,
+                                    int replace_existed,
                                     char **new_id,
                                     GError **error)
 {
@@ -1124,8 +1175,8 @@ seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
                                 hex, STD_FILE_MODE, file_name,
                                 (gint64)time(NULL), user, file_size);
 
-    root_id = do_post_file (repo,
-                            head_commit->root_id, canon_path, new_dent);
+    root_id = do_post_file_replace (repo, head_commit->root_id,
+                                    canon_path, replace_existed, new_dent);
     if (!root_id) {
         seaf_warning ("[post-blks] Failed to post file.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
@@ -1195,8 +1246,7 @@ del_file_recursive(SeafRepo *repo,
         newdir = seaf_dir_new(NULL, newentries,
                               dir_version_from_repo_version(repo->version));
         seaf_dir_save(seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup(newdir->dir_id, 41);
-        id[40] = '\0';
+        id = g_strndup(newdir->dir_id, 40);
         seaf_dir_free(newdir);
 
         goto out;
@@ -1237,9 +1287,7 @@ del_file_recursive(SeafRepo *repo,
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
         
         g_free(id);
-        id = g_strndup(newdir->dir_id, 41);
-        id[40] = '\0';
-        
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
     }
 
@@ -2391,8 +2439,7 @@ rename_file_recursive(SeafRepo *repo,
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 41);
-        id[40] = '\0';
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
 
         goto out;
@@ -2432,9 +2479,7 @@ rename_file_recursive(SeafRepo *repo,
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
         
         g_free(id);
-        id = g_strndup(newdir->dir_id, 41);
-        id[40] = '\0';
-        
+        id = g_strndup(newdir->dir_id, 40);
         seaf_dir_free (newdir);
     }
 
@@ -2572,8 +2617,7 @@ put_file_recursive(SeafRepo *repo,
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 41);
-        id[40] = '\0';
+        id = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
 
         goto out;
@@ -2615,9 +2659,7 @@ put_file_recursive(SeafRepo *repo,
         seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
         
         g_free(id);
-        id = g_strndup(newdir->dir_id, 41);
-        id[40] = '\0';
-        
+        id = g_strndup(newdir->dir_id, 40);
         seaf_dir_free (newdir);
     }
 
@@ -2738,7 +2780,8 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
                                                   fullpath, NULL, NULL);
 
     if (g_strcmp0(old_file_id, new_dent->id) == 0) {
-        *new_file_id = g_strdup(new_dent->id);
+        if (new_file_id)
+            *new_file_id = g_strdup(new_dent->id);
         goto out;
     }
 
@@ -2758,7 +2801,8 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
         goto out;       
     }
 
-    *new_file_id = g_strdup(new_dent->id);
+    if (new_file_id)
+        *new_file_id = g_strdup(new_dent->id);
 
     seaf_repo_manager_merge_virtual_repo (mgr, repo_id, NULL);
 
@@ -2987,7 +3031,8 @@ seaf_repo_manager_put_file_blocks (SeafRepoManager *mgr,
                                                   fullpath, NULL, NULL);
 
     if (g_strcmp0(old_file_id, new_dent->id) == 0) {
-        *new_file_id = g_strdup(new_dent->id);
+        if (new_file_id)
+            *new_file_id = g_strdup(new_dent->id);
         goto out;
     }
 
@@ -3007,7 +3052,8 @@ seaf_repo_manager_put_file_blocks (SeafRepoManager *mgr,
         goto out;
     }
 
-    *new_file_id = g_strdup(new_dent->id);
+    if (new_file_id)
+        *new_file_id = g_strdup(new_dent->id);
 
 out:
     if (repo)
@@ -4299,7 +4345,7 @@ retry:
     strftime (desc, sizeof(desc), "Reverted repo to status at %F %T.", 
               localtime((time_t *)(&commit->ctime)));
 #else
-    strftime (desc, sizeof(desc), "Reverted repo to status at %%Y-%m-%d %H:%M:%S.", 
+    strftime (desc, sizeof(desc), "Reverted repo to status at %Y-%m-%d %H:%M:%S.",
               localtime((time_t *)(&commit->ctime)));
 #endif
 
@@ -4491,7 +4537,12 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
     gint64 truncate_time = data->truncate_time;
     SeafCommit *p1, *p2;
 
-    if ((gint64)(commit->ctime) < truncate_time) {
+    /* We use <= here. This is for handling clean trash and history.
+     * If the user cleans all history, truncate time will be equal to
+     * the head commit's ctime. In such case, we don't actually want to display
+     * any deleted file.
+     */
+    if ((gint64)(commit->ctime) <= truncate_time) {
         *stop = TRUE;
         return TRUE;
     }
@@ -4506,13 +4557,13 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
         seaf_warning ("Failed to find commit %s.\n", commit->parent_id);
         return FALSE;
     }
-    if ((gint64)(p1->ctime) >= truncate_time) {
-        if (find_deleted_recursive (data->repo, commit->root_id, p1->root_id, "/",
-                                    commit, p1, entries) < 0) {
-            seaf_commit_unref (p1);
-            return FALSE;
-        }
+
+    if (find_deleted_recursive (data->repo, commit->root_id, p1->root_id, "/",
+                                commit, p1, entries) < 0) {
+        seaf_commit_unref (p1);
+        return FALSE;
     }
+
     seaf_commit_unref (p1);
 
     if (commit->second_parent_id) {
@@ -4524,13 +4575,13 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
                           commit->second_parent_id);
             return FALSE;
         }
-        if ((gint64)(p2->ctime) >= truncate_time) {
-            if (find_deleted_recursive (data->repo, commit->root_id, p2->root_id, "/",
-                                        commit, p2, entries) < 0) {
-                seaf_commit_unref (p2);
-                return FALSE;
-            }
+
+        if (find_deleted_recursive (data->repo, commit->root_id, p2->root_id, "/",
+                                    commit, p2, entries) < 0) {
+            seaf_commit_unref (p2);
+            return FALSE;
         }
+
         seaf_commit_unref (p2);
     }
 
@@ -4698,7 +4749,7 @@ get_commit(SeafRepo *repo, const char *branch_or_commit)
 }
 
 GList *
-seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, char **error)
+seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, int fold_dir_diff, char **error)
 {
     SeafCommit *c1 = NULL, *c2 = NULL;
     int ret = 0;
@@ -4714,7 +4765,7 @@ seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, char **error)
     
     if (old == NULL || old[0] == '\0') {
         if (c2->parent_id && c2->second_parent_id) {
-            ret = diff_merge (c2, &diff_entries, TRUE);
+            ret = diff_merge (c2, &diff_entries, fold_dir_diff);
             if (ret < 0) {
                 *error = g_strdup("Failed to do diff");
                 seaf_commit_unref (c2);
@@ -4742,7 +4793,7 @@ seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, char **error)
     }
 
     /* do diff */
-    ret = diff_commits (c1, c2, &diff_entries, TRUE);
+    ret = diff_commits (c1, c2, &diff_entries, fold_dir_diff);
     if (ret < 0)
         *error = g_strdup("Failed to do diff");
 

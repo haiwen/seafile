@@ -2,11 +2,9 @@ MAKE_CLIENT =
 
 if COMPILE_CLIENT
   MAKE_CLIENT += daemon
-  MAKE_data = data # Caution: don't use MAKE_DATA
 endif
 
 if WIN32
-  MAKE_data =
   MAKE_CONTROLLER =
 else
   MAKE_CONTROLLER = controller
@@ -19,22 +17,22 @@ else
 endif
 
 if COMPILE_SERVER
-  MAKE_SERVER = server tools httpserver $(MAKE_CONTROLLER) $(MAKE_FUSE)
+  MAKE_SERVER = server tools $(MAKE_CONTROLLER) $(MAKE_FUSE)
 endif
 
 SUBDIRS = include lib common app python tests doc \
-	$(MAKE_CLIENT) $(MAKE_SERVER) $(MAKE_data)
+	$(MAKE_CLIENT) $(MAKE_SERVER)
 
 DIST_SUBDIRS = include lib common app python tests \
-	daemon server tools httpserver controller \
-	data doc fuse
+	daemon server tools controller \
+	doc fuse
 
 INTLTOOL = \
 	intltool-extract.in \
 	intltool-merge.in \
 	intltool-update.in
 
-EXTRA_DIST = install-sh $(INTLTOOL) README.markdown scripts debian msi LICENCE.txt
+EXTRA_DIST = install-sh $(INTLTOOL) README.markdown scripts debian msi LICENSE.txt
 
 DISTCHECK_CONFIGURE_FLAGS = --enable-server
 

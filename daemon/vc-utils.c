@@ -16,6 +16,7 @@
 #include "merge.h"
 #include "vc-utils.h"
 #include "vc-common.h"
+#include "index/index.h"
 
 static gint
 compare_dirents (gconstpointer a, gconstpointer b)
@@ -170,21 +171,36 @@ int
 seaf_remove_empty_dir (const char *path)
 {
     SeafStat st;
-    char *ds_store, *thumbs_db;
+    GDir *dir;
+    const char *dname;
+    char *full_path;
+    GError *error = NULL;
 
     if (seaf_stat (path, &st) < 0 || !S_ISDIR(st.st_mode))
         return 0;
 
     if (g_rmdir (path) < 0) {
-        ds_store = g_build_filename (path, ".DS_Store", NULL);
-        g_unlink (ds_store);
-        g_free (ds_store);
+        dir = g_dir_open (path, 0, &error);
+        if (!dir) {
+            seaf_warning ("Failed to open dir %s: %s.\n", path, error->message);
+            return -1;
+        }
 
-        thumbs_db = g_build_filename (path, "Thumbs.db", NULL);
-        g_unlink (thumbs_db);
-        g_free (thumbs_db);
+        /* Remove all ignored hidden files. */
+        while ((dname = g_dir_read_name (dir)) != NULL) {
+            if (seaf_repo_manager_is_ignored_hidden_file(dname)) {
+                full_path = g_build_path ("/", path, dname, NULL);
+                if (g_unlink (full_path) < 0)
+                    seaf_warning ("Failed to remove file %s: %s.\n",
+                                  full_path, strerror(errno));
+                g_free (full_path);
+            }
+        }
+
+        g_dir_close (dir);
 
         if (g_rmdir (path) < 0) {
+            seaf_warning ("Failed to remove dir %s: %s.\n", path, strerror(errno));
             return -1;
         }
     }
@@ -250,26 +266,39 @@ unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
 
 int
 compare_file_content (const char *path, SeafStat *st, const unsigned char *ce_sha1,
-                      SeafileCrypt *crypt)
+                      SeafileCrypt *crypt, int repo_version)
 {
     CDCFileDescriptor cdc;
     unsigned char sha1[20];
 
-    memset (&cdc, 0, sizeof(cdc));
-    cdc.block_sz = calculate_chunk_size (st->st_size);
-    cdc.block_min_sz = cdc.block_sz >> 2;
-    cdc.block_max_sz = cdc.block_sz << 2;
-    cdc.write_block = seafile_write_chunk;
-    if (filename_chunk_cdc (path, &cdc, crypt, FALSE) < 0) {
-        g_warning ("Failed to chunk file.\n");
-        return -1;
-    }
-    memcpy (sha1, cdc.file_sum, 20);
+    if (st->st_size == 0) {
+        memset (sha1, 0, 20);
+    } else {
+        memset (&cdc, 0, sizeof(cdc));
+        cdc.block_sz = calculate_chunk_size (st->st_size);
+        cdc.block_min_sz = cdc.block_sz >> 2;
+        cdc.block_max_sz = cdc.block_sz << 2;
+        cdc.write_block = seafile_write_chunk;
+        if (filename_chunk_cdc (path, &cdc, crypt, FALSE) < 0) {
+            g_warning ("Failed to chunk file.\n");
+            return -1;
+        }
 
+        if (repo_version > 0)
+            seaf_fs_manager_calculate_seafile_id_json (repo_version, &cdc, sha1);
+        else
+            memcpy (sha1, cdc.file_sum, 20);
+
+        if (cdc.blk_sha1s)
+            free (cdc.blk_sha1s);
+    }
+
+#if 0
     char id1[41], id2[41];
     rawdata_to_hex (sha1, id1, 20);
     rawdata_to_hex (ce_sha1, id2, 20);
-    printf ("id1: %s, id2: %s.\n", id1, id2);
+    seaf_debug ("id1: %s, id2: %s.\n", id1, id2);
+#endif
 
     return hashcmp (sha1, ce_sha1);
 }
@@ -301,7 +330,8 @@ case_conflict_utf8 (const char *name1, const char *name2)
 }
 
 static gboolean
-case_conflict_exists (const char *dir_path, const char *new_dname)
+case_conflict_exists (const char *dir_path, const char *new_dname,
+                      char **conflict_dname)
 {
     GDir *dir;
     const char *dname;
@@ -324,13 +354,14 @@ case_conflict_exists (const char *dir_path, const char *new_dname)
         char *norm_dname = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
         if (case_conflict_utf8 (norm_dname, new_dname)) {
             is_case_conflict = TRUE;
-            g_free (norm_dname);
+            *conflict_dname = norm_dname;
             break;
         }
         g_free (norm_dname);
 #else
         if (case_conflict_utf8 (dname, new_dname)) {
             is_case_conflict = TRUE;
+            *conflict_dname = g_strdup(dname);
             break;
         }
 #endif
@@ -388,22 +419,24 @@ gen_case_conflict_free_dname (const char *dir_path, const char *dname)
  * @conflict_hash: conflicting_dir_path -> conflict_free_dname
  * @no_conflict_hash: a hash table to remember dirs that have no case conflict.
  */
-static char *
+char *
 build_case_conflict_free_path (const char *worktree,
                                const char *ce_name,
                                GHashTable *conflict_hash,
                                GHashTable *no_conflict_hash,
-                               gboolean *is_case_conflict)
+                               gboolean *is_case_conflict,
+                               gboolean is_rename)
 {
     GString *buf = g_string_new (worktree);
     char **components, *ptr;
     guint i, n_comps;
     static int dummy;
+    char *conflict_dname = NULL;
 
     components = g_strsplit (ce_name, "/", -1);
     n_comps = g_strv_length (components);
     for (i = 0; i < n_comps; ++i) {
-        char *path = NULL, *dname = NULL, *case_conflict_free_path = NULL;
+        char *path = NULL, *dname = NULL;
         SeafStat st;
 
         ptr = components[i];
@@ -440,7 +473,7 @@ build_case_conflict_free_path (const char *worktree,
         }
 
         /* No luck in the hash tables, we have to run case conflict detection. */
-        if (!case_conflict_exists (buf->str, ptr)) {
+        if (!case_conflict_exists (buf->str, ptr, &conflict_dname)) {
             /* No case conflict. */
             if (i != n_comps - 1)
                 g_hash_table_insert (no_conflict_hash,
@@ -457,26 +490,50 @@ build_case_conflict_free_path (const char *worktree,
          * remember it in the hash table.
          */
 
-        dname = gen_case_conflict_free_dname (buf->str, ptr);
+        if (!is_rename) {
+            dname = gen_case_conflict_free_dname (buf->str, ptr);
 
-        case_conflict_free_path = g_build_path ("/", buf->str, dname, NULL);
-        if (i != n_comps - 1) {
-            if (g_mkdir (case_conflict_free_path, 0777) < 0) {
-                seaf_warning ("Failed to create dir %s.\n", case_conflict_free_path);
+            char *case_conflict_free_path = g_build_path ("/", buf->str, dname, NULL);
+            if (i != n_comps - 1) {
+                if (g_mkdir (case_conflict_free_path, 0777) < 0) {
+                    seaf_warning ("Failed to create dir %s.\n",
+                                  case_conflict_free_path);
+                    g_free (path);
+                    g_free (dname);
+                    g_free (case_conflict_free_path);
+                    goto error;
+                }
+
+                g_hash_table_insert (conflict_hash, g_strdup(path), g_strdup(dname));
+            }
+
+            g_string_append_printf (buf, "/%s", dname);
+
+            g_free (dname);
+            g_free (case_conflict_free_path);
+        } else {
+            char *src_path = g_build_path ("/", buf->str, conflict_dname, NULL);
+
+            if (i != (n_comps - 1) && g_rename (src_path, path) < 0) {
+                seaf_warning ("Failed to rename %s to %s: %s.\n",
+                              src_path, path, strerror(errno));
                 g_free (path);
-                g_free (dname);
-                g_free (case_conflict_free_path);
+                g_free (src_path);
                 goto error;
             }
 
-            g_hash_table_insert (conflict_hash, g_strdup(path), g_strdup(dname));
+            /* Since the exsiting dir in the worktree has been renamed,
+             * there is no more case conflict.
+             */
+            g_hash_table_insert (no_conflict_hash, g_strdup(path), &dummy);
+
+            g_string_append_printf (buf, "/%s", ptr);
+
+            g_free (src_path);
         }
 
-        g_string_append_printf (buf, "/%s", dname);
-
+        g_free (conflict_dname);
         g_free (path);
-        g_free (dname);
-        g_free (case_conflict_free_path);
     }
 
     g_strfreev (components);
@@ -491,7 +548,7 @@ error:
 
 #ifdef __linux__
 
-static char *
+char *
 build_checkout_path (const char *worktree, const char *ce_name, int len)
 {
     int base_len = strlen(worktree);
@@ -552,7 +609,8 @@ checkout_entry (struct cache_entry *ce,
 #ifndef __linux__
     path = build_case_conflict_free_path (o->base, ce->name,
                                           conflict_hash, no_conflict_hash,
-                                          &case_conflict);
+                                          &case_conflict,
+                                          FALSE);
 #else
     path = build_checkout_path (o->base, ce->name, ce_namelen(ce));
 #endif
@@ -593,7 +651,7 @@ checkout_entry (struct cache_entry *ce,
          * cache entry.
          */
         if (!recover_merge || 
-            compare_file_content (path, &st, ce->sha1, o->crypt) != 0) {
+            compare_file_content (path, &st, ce->sha1, o->crypt, o->version) != 0) {
             g_warning ("File %s is changed. Checkout to conflict file.\n", path);
             force_conflict = TRUE;
         } else {
@@ -696,18 +754,160 @@ update_worktree (struct unpack_trees_options *o,
     return 0;
 }
 
+int
+delete_path (const char *worktree, const char *name,
+             unsigned int mode, gint64 old_mtime)
+{
+    char path[SEAF_PATH_MAX];
+    SeafStat st;
+    int len = strlen(name);
+
+    if (!len) {
+        g_warning ("entry name should not be empty.\n");
+        return -1;
+    }
+
+    snprintf (path, SEAF_PATH_MAX, "%s/%s", worktree, name);
+
+    if (!S_ISDIR(mode)) {
+        /* file doesn't exist in work tree */
+        if (seaf_stat (path, &st) < 0 || !S_ISREG(st.st_mode)) {
+            return 0;
+        }
+
+        /* file has been changed. */
+        if (old_mtime != st.st_mtime) {
+            g_warning ("File %s is changed. Skip removing the file.\n", path);
+            return -1;
+        }
+
+        /* first unlink the file. */
+        if (g_unlink (path) < 0) {
+            g_warning ("Failed to remove %s: %s.\n", path, strerror(errno));
+            return -1;
+        }
+    } else {
+        if (seaf_remove_empty_dir (path) < 0) {
+            g_warning ("Failed to remove dir %s: %s.\n", path, strerror(errno));
+            return -1;
+        }
+    }
+
+    /* then remove all empty directories upwards. */
+    /* offset = base_len + len; */
+    /* do { */
+    /*     if (path[offset] == '/') { */
+    /*         path[offset] = '\0'; */
+    /*         int ret = seaf_remove_empty_dir (path); */
+    /*         if (ret < 0) { */
+    /*             break; */
+    /*         } */
+    /*     } */
+    /* } while (--offset > base_len); */
+
+    return 0;
+}
+
+static int
+delete_dir_recursive (const char *repo_id,
+                      int repo_version,
+                      const char *dir_path,
+                      SeafDir *dir,
+                      const char *worktree,
+                      struct index_state *istate)
+{
+    GList *ptr;
+    SeafDirent *dent;
+    char *sub_path;
+    SeafDir *sub_dir;
+
+    for (ptr = dir->entries; ptr; ptr = ptr->next) {
+        dent = ptr->data;
+        sub_path = g_strconcat (dir_path, "/", dent->name, NULL);
+
+        if (S_ISDIR(dent->mode)) {
+            if (strcmp(dent->id, EMPTY_SHA1) == 0) {
+                delete_path (worktree, sub_path, dent->mode, 0);
+            } else {
+                sub_dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr,
+                                                       repo_id, repo_version,
+                                                       dent->id);
+                if (!sub_dir) {
+                    seaf_warning ("Failed to find dir %s in repo %.8s.\n",
+                                  sub_path, repo_id);
+                    g_free (sub_path);
+                    return -1;
+                }
+
+                if (delete_dir_recursive (repo_id, repo_version,
+                                          sub_path, sub_dir,
+                                          worktree, istate) < 0) {
+                    g_free (sub_path);
+                    return -1;
+                }
+
+                seaf_dir_free (sub_dir);
+            }
+        } else if (S_ISREG(dent->mode)) {
+            struct cache_entry *ce;
+
+            ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
+            if (ce) {
+                delete_path (worktree, sub_path, dent->mode, ce->ce_mtime.sec);
+            }
+        }
+
+        g_free (sub_path);
+    }
+
+    char *full_path = g_build_filename (worktree, dir_path, NULL);
+    if (seaf_remove_empty_dir (full_path) < 0) {
+        seaf_warning ("Failed to remove dir %s: %s.\n", full_path, strerror(errno));
+        return -1;
+    }
+
+    return 0;
+}
+
+int
+delete_dir_with_check (const char *repo_id,
+                       int repo_version,
+                       const char *root_id,
+                       const char *dir_path,
+                       const char *worktree,
+                       struct index_state *istate)
+{
+    SeafDir *dir;
+    int ret;
+
+    dir = seaf_fs_manager_get_seafdir_by_path (seaf->fs_mgr,
+                                               repo_id, repo_version,
+                                               root_id, dir_path, NULL);
+    if (!dir) {
+        seaf_warning ("Failed to find dir %s in repo %.8s.\n", dir_path, repo_id);
+        return -1;
+    }
+
+    ret = delete_dir_recursive (repo_id, repo_version, dir_path,
+                                dir, worktree, istate);
+
+    seaf_dir_free (dir);
+
+    /* Remove all index entries under this directory */
+    remove_from_index_with_prefix (istate, dir_path);
+
+    return ret;
+}
+
 #ifdef WIN32
 
 static gboolean
-do_check_file_locked (const char *path, const char *worktree)
+check_file_locked (const char *path)
 {
-    char *real_path;
     HANDLE handle;
     wchar_t *path_w;
 
-    real_path = g_build_path(PATH_SEPERATOR, worktree, path, NULL);
-    path_w = wchar_from_utf8 (real_path);
-    g_free (real_path);
+    path_w = wchar_from_utf8 (path);
 
     handle = CreateFileW (path_w,
                           GENERIC_WRITE,
@@ -724,6 +924,73 @@ do_check_file_locked (const char *path, const char *worktree)
     }
 
     return FALSE;
+}
+
+gboolean
+do_check_file_locked (const char *path, const char *worktree)
+{
+    char *real_path;
+    gboolean ret;
+    real_path = g_build_path(PATH_SEPERATOR, worktree, path, NULL);
+    ret = check_file_locked (real_path);
+    g_free (real_path);
+    return ret;
+}
+
+static gboolean
+check_dir_locked_recursive (const char *path)
+{
+    GDir *dir;
+    const char *dname;
+    char *sub_path;
+    SeafStat st;
+    GError *error = NULL;
+    gboolean ret = FALSE;
+
+    dir = g_dir_open (path, 0, &error);
+    if (!dir) {
+        seaf_warning ("Failed to open dir %s: %s.\n", path, error->message);
+        return FALSE;
+    }
+
+    while ((dname = g_dir_read_name (dir)) != NULL) {
+        sub_path = g_build_path (PATH_SEPERATOR, path, dname, NULL);
+
+        if (seaf_stat (sub_path, &st) < 0) {
+            seaf_warning ("Failed to stat %s: %s.\n", sub_path, strerror(errno));
+            g_free (sub_path);
+            ret = FALSE;
+            break;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            if (check_dir_locked_recursive (sub_path)) {
+                g_free (sub_path);
+                ret = TRUE;
+                break;
+            }
+        } else if (S_ISREG(st.st_mode)) {
+            if (check_file_locked (sub_path)) {
+                g_free (sub_path);
+                ret = TRUE;
+                break;
+            }
+        }
+
+        g_free (sub_path);
+    }
+
+    g_dir_close (dir);
+    return ret;
+}
+
+gboolean
+do_check_dir_locked (const char *path, const char *worktree)
+{
+    char *real_path = g_build_path (PATH_SEPERATOR, worktree, path, NULL);
+    gboolean ret = check_dir_locked_recursive (real_path);
+    g_free (real_path);
+    return ret;
 }
 
 gboolean

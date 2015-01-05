@@ -19,6 +19,11 @@
 #define SC_OBJ_SEG_END  "307"
 #define SS_OBJ_SEG_END  "Object Segment End"
 
+#define SC_OBJ_LIST_SEG "308"
+#define SS_OBJ_LIST_SEG "Object List Segment"
+#define SC_OBJ_LIST_SEG_END "309"
+#define SS_OBJ_LIST_SEG_END "Object List Segment End"
+
 #define SC_NOT_FOUND    "401"
 #define SS_NOT_FOUND    "Object not found"
 #define SC_BAD_OL       "402"

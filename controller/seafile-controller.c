@@ -11,10 +11,9 @@
 #include <getopt.h>
 
 #include <glib.h>
-#include <ccnet.h>                              \
+#include <ccnet.h>
 
 #include "utils.h"
-
 #include "log.h"
 #include "seafile-controller.h"
 
@@ -30,7 +29,7 @@ char *topdir = NULL;
 
 char *seafile_ld_library_path = NULL;
 
-static const char *short_opts = "hvftCc:d:l:g:G:P:";
+static const char *short_opts = "hvftCc:d:L:g:G:P:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -133,8 +132,12 @@ try_kill_process(int which)
 
     char *pidfile = ctl->pidfile[which];
     int pid = read_pid_from_pidfile(pidfile);
-    if (pid > 0)
-        kill((pid_t)pid, SIGTERM);
+    if (pid > 0) {
+        // if SIGTERM send success, then remove related pid file
+        if (kill ((pid_t)pid, SIGTERM) == 0) {
+            g_unlink (pidfile);
+        }
+    }
 }
 
 
@@ -207,31 +210,6 @@ start_seaf_server ()
     return 0;
 }
 
-static int
-start_httpserver() {
-    static char *logfile = NULL;
-    if (logfile == NULL) {
-        logfile = g_build_filename (ctl->logdir, "http.log", NULL);
-    }
-
-    char *argv[] = {
-        "httpserver",
-        "-c", ctl->config_dir,
-        "-d", ctl->seafile_dir,
-        "-l", logfile,
-        "-P", ctl->pidfile[PID_HTTPSERVER],
-        NULL
-    };
-
-    int pid = spawn_process (argv);
-    if (pid <= 0) {
-        seaf_warning ("Failed to spawn httpserver\n");
-        return -1;
-    }
-
-    return 0;
-}
-
 static const char *
 get_python_executable() {
     static const char *python = NULL;
@@ -248,9 +226,9 @@ get_python_executable() {
 
     int i;
     for (i = 0; i < G_N_ELEMENTS(try_list); i++) {
-        char *exectuable = g_find_program_in_path (try_list[i]);
-        if (exectuable != NULL) {
-            python = exectuable;
+        char *executable = g_find_program_in_path (try_list[i]);
+        if (executable != NULL) {
+            python = executable;
             break;
         }
     }
@@ -269,21 +247,21 @@ static void
 init_seafile_path ()
 {
     GError *error = NULL;
-    char *exectuble = g_file_read_link ("/proc/self/exe", &error);
+    char *executable = g_file_read_link ("/proc/self/exe", &error);
     char *tmp = NULL;
     if (error != NULL) {
         seaf_warning ("failed to readlink: %s\n", error->message);
         return;
     }
 
-    bin_dir = g_path_get_dirname (exectuble);
+    bin_dir = g_path_get_dirname (executable);
 
     tmp = g_path_get_dirname (bin_dir);
     installpath = g_path_get_dirname (tmp);
 
     topdir = g_path_get_dirname (installpath);
 
-    g_free (exectuble);
+    g_free (executable);
     g_free (tmp);
 }
 
@@ -440,11 +418,6 @@ check_process (void *data)
         start_seaf_server ();
     }
 
-    if (need_restart(PID_HTTPSERVER)) {
-        seaf_message ("httpserver need restart...\n");
-        start_httpserver ();
-    }
-
     if (ctl->seafdav_config.enabled) {
         if (need_restart(PID_SEAFDAV)) {
             seaf_message ("seafdav need restart...\n");
@@ -547,13 +520,6 @@ on_ccnet_connected ()
     if (start_seaf_server () < 0)
         controller_exit(1);
 
-    if (need_restart(PID_HTTPSERVER)) {
-        /* Since httpserver doesn't die when ccnet server dies, when ccnet
-         * server is restarted, we don't need to start httpserver */
-        if (start_httpserver() < 0)
-            controller_exit(1);
-    }
-
     if (ctl->seafdav_config.enabled) {
         if (need_restart(PID_SEAFDAV)) {
             if (start_seafdav() < 0)
@@ -604,7 +570,6 @@ stop_ccnet_server ()
 
     try_kill_process(PID_CCNET);
     try_kill_process(PID_SERVER);
-    try_kill_process(PID_HTTPSERVER);
     try_kill_process(PID_SEAFDAV);
 }
 
@@ -621,7 +586,6 @@ init_pidfile_path (SeafileController *ctl)
 
     ctl->pidfile[PID_CCNET] = g_build_filename (pid_dir, "ccnet.pid", NULL);
     ctl->pidfile[PID_SERVER] = g_build_filename (pid_dir, "seaf-server.pid", NULL);
-    ctl->pidfile[PID_HTTPSERVER] = g_build_filename (pid_dir, "httpserver.pid", NULL);
     ctl->pidfile[PID_SEAFDAV] = g_build_filename (pid_dir, "seafdav.pid", NULL);
 }
 
@@ -978,10 +942,29 @@ int main (int argc, char **argv)
     if (seaf_controller_start () < 0)
         controller_exit (1);
 
-#if !defined(WIN32) && !defined(__APPLE__)
-    if (daemon_mode)
+#ifndef WIN32
+    if (daemon_mode) {
+#ifndef __APPLE__
         daemon (1, 0);
-#endif
+#else   /* __APPLE */
+        /* daemon is deprecated under APPLE
+         * use fork() instead
+         * */
+        switch (fork ()) {
+          case -1:
+              seaf_warning ("Failed to daemonize");
+              exit (-1);
+              break;
+          case 0:
+              /* all good*/
+              break;
+          default:
+              /* kill origin process */
+              exit (0);
+        }
+#endif  /* __APPLE */
+    }
+#endif /* !WIN32 */
 
     if (controller_pidfile == NULL) {
         controller_pidfile = g_strdup(g_getenv ("SEAFILE_PIDFILE"));
@@ -998,4 +981,3 @@ int main (int argc, char **argv)
 
     return 0;
 }
-

@@ -13,15 +13,16 @@
 #include "commit-mgr.h"
 #include "branch-mgr.h"
 #include "repo-mgr.h"
-#include "info-mgr.h"
 #include "clone-mgr.h"
 #include "db.h"
 
 #include "transfer-mgr.h"
-#include "share-mgr.h"
 #include "sync-mgr.h"
 #include "wt-monitor.h"
 #include "mq-mgr.h"
+
+#include "http-tx-mgr.h"
+
 #include <searpc-client.h>
 
 struct _CcnetClient;
@@ -66,8 +67,14 @@ struct _SeafileSession {
     CEventManager       *ev_mgr;
     CcnetJobManager     *job_mgr;
 
+    HttpTxManager       *http_tx_mgr;
+
     /* Set after all components are up and running. */
     gboolean             started;
+
+    gboolean             sync_extra_temp_file;
+    gboolean             enable_http_sync;
+    gboolean             disable_verify_certificate;
 };
 
 struct _SeafileSessionClass

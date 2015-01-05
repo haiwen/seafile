@@ -5,7 +5,6 @@
 
 #include <ccnet.h>
 #include "utils.h"
-#include "avl/avl.h"
 #include "log.h"
 
 #include "seafile-session.h"
@@ -20,12 +19,11 @@
 #define INDEX_DIR "index"
 
 struct _SeafRepoManagerPriv {
-    avl_tree_t *repo_tree;
-    pthread_rwlock_t lock;
+
 };
 
 static SeafRepo *
-load_repo (SeafRepoManager *manager, const char *repo_id);
+load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt);
 
 gboolean
 is_repo_id_valid (const char *id)
@@ -187,11 +185,6 @@ seaf_repo_manager_new (SeafileSession *seaf)
     mgr->priv = g_new0 (SeafRepoManagerPriv, 1);
     mgr->seaf = seaf;
 
-    mgr->priv->repo_tree = avl_alloc_tree ((avl_compare_t)compare_repo,
-                                           NULL);
-
-    pthread_rwlock_init (&mgr->priv->lock, NULL);
-
     return mgr;
 }
 
@@ -218,6 +211,16 @@ repo_exists_in_db (SeafDB *db, const char *id)
     return seaf_db_check_for_existence (db, sql, &db_err);
 }
 
+static gboolean
+repo_exists_in_db_ex (SeafDB *db, const char *id, gboolean *db_err)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql), "SELECT repo_id FROM Repo WHERE repo_id = '%s'",
+              id);
+    return seaf_db_check_for_existence (db, sql, db_err);
+}
+
 SeafRepo*
 seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
 {
@@ -228,24 +231,9 @@ seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
         return NULL;
 
     memcpy (repo.id, id, len + 1);
-#if 0
-    if (pthread_rwlock_rdlock (&manager->priv->lock) < 0) {
-        g_warning ("[repo mgr] failed to lock repo cache.\n");
-        return NULL;
-    }
-
-    avl_node_t *res = avl_search (manager->priv->repo_tree, &repo);
-
-    pthread_rwlock_unlock (&manager->priv->lock);
-
-    if (res) {
-        seaf_repo_ref ((SeafRepo *)(res->item));
-        return res->item;
-    }
-#endif
 
     if (repo_exists_in_db (manager->seaf->db, id)) {
-        SeafRepo *ret = load_repo (manager, id);
+        SeafRepo *ret = load_repo (manager, id, FALSE);
         if (!ret)
             return NULL;
         /* seaf_repo_ref (ret); */
@@ -256,23 +244,28 @@ seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
 }
 
 SeafRepo*
-seaf_repo_manager_get_repo_prefix (SeafRepoManager *manager, const gchar *id)
+seaf_repo_manager_get_repo_ex (SeafRepoManager *manager, const gchar *id)
 {
-    avl_node_t *node;
-    SeafRepo repo, *result;
     int len = strlen(id);
+    gboolean db_err = FALSE, exists;
+    SeafRepo *ret = NULL;
 
     if (len >= 37)
         return NULL;
 
-    memcpy (repo.id, id, len + 1);
+    exists = repo_exists_in_db_ex (manager->seaf->db, id, &db_err);
 
-    avl_search_closest (manager->priv->repo_tree, &repo, &node);
-    if (node != NULL) {
-        result = node->item;
-        if (strncmp (id, result->id, len) == 0)
-            return node->item;
+    if (db_err) {
+        ret = seaf_repo_new(id, NULL, NULL);
+        ret->is_corrupted = TRUE;
+        return ret;
     }
+
+    if (exists) {
+        ret = load_repo (manager, id, TRUE);
+        return ret;
+    }
+
     return NULL;
 }
 
@@ -282,35 +275,7 @@ seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id)
     SeafRepo repo;
     memcpy (repo.id, id, 37);
 
-#if 0
-    if (pthread_rwlock_rdlock (&manager->priv->lock) < 0) {
-        g_warning ("[repo mgr] failed to lock repo cache.\n");
-        return FALSE;
-    }
-
-    avl_node_t *res = avl_search (manager->priv->repo_tree, &repo);
-
-    pthread_rwlock_unlock (&manager->priv->lock);
-
-    if (res)
-        return TRUE;
-#endif
-
     return repo_exists_in_db (manager->seaf->db, id);
-}
-
-gboolean
-seaf_repo_manager_repo_exists_prefix (SeafRepoManager *manager, const gchar *id)
-{
-    avl_node_t *node;
-    SeafRepo repo;
-
-    memcpy (repo.id, id, 37);
-
-    avl_search_closest (manager->priv->repo_tree, &repo, &node);
-    if (node != NULL)
-        return TRUE;
-    return FALSE;
 }
 
 static void
@@ -336,7 +301,7 @@ load_repo_commit (SeafRepoManager *manager,
 }
 
 static SeafRepo *
-load_repo (SeafRepoManager *manager, const char *repo_id)
+load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt)
 {
     SeafRepo *repo;
     SeafBranch *branch;
@@ -344,7 +309,7 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
 
     repo = seaf_repo_new(repo_id, NULL, NULL);
     if (!repo) {
-        g_warning ("[repo mgr] failed to alloc repo.\n");
+        seaf_warning ("[repo mgr] failed to alloc repo.\n");
         return NULL;
     }
 
@@ -360,9 +325,11 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     }
 
     if (repo->is_corrupted) {
-        g_warning ("Repo %.8s is corrupted.\n", repo->id);
-        seaf_repo_free (repo);
-        return NULL;
+        if (!ret_corrupt) {
+            seaf_repo_free (repo);
+            return NULL;
+        }
+        return repo;
     }
 
     vinfo = seaf_repo_manager_get_virtual_repo_info (manager, repo_id);
@@ -374,19 +341,6 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
         memcpy (repo->store_id, repo->id, 36);
     }
     seaf_virtual_repo_info_free (vinfo);
-
-#if 0
-    if (pthread_rwlock_wrlock (&manager->priv->lock) < 0) {
-        g_warning ("[repo mgr] failed to lock repo cache.\n");
-        seaf_repo_free (repo);
-        return NULL;
-    }
-    avl_insert (manager->priv->repo_tree, repo);
-    /* Don't need to increase ref count, since the ref count of
-     * a new repo object is already 1.
-     */
-    pthread_rwlock_unlock (&manager->priv->lock);
-#endif
 
     return repo;
 }
@@ -421,7 +375,6 @@ seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr)
 GList *
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
                                  int start, int limit,
-                                 gboolean ignore_errors,
                                  gboolean *error)
 {
     char sql[256];
@@ -442,19 +395,9 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
 
     for (ptr = id_list; ptr; ptr = ptr->next) {
         char *repo_id = ptr->data;
-        repo = seaf_repo_manager_get_repo (mgr, repo_id);
-        if (!repo) {
-            /* In GC, we should be more conservative.
-             * No matter a repo is really corrupted or it's a temp error,
-             * we return error here.
-             */
-            g_warning ("Failed to get repo %.8s.\n", repo_id);
-            if (!ignore_errors)
-                goto error;
-            else
-                continue;
-        }
-        ret = g_list_prepend (ret, repo);
+        repo = seaf_repo_manager_get_repo_ex (mgr, repo_id);
+        if (repo)
+            ret = g_list_prepend (ret, repo);
     }
 
     string_list_free (id_list);

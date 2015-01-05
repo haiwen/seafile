@@ -1,6 +1,0 @@
-txt     text/plain
-html    text/html
-doc     application/word
-docx    application/word
-mp3     audio/mp3
-pdf     application/pdf

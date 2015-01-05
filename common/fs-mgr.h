@@ -4,7 +4,6 @@
 #define SEAF_FILE_MGR_H
 
 #include <glib.h>
-#include "bitfield.h"
 
 #include "seafile-object.h"
 
@@ -128,7 +127,6 @@ typedef struct {
     /* TODO: GHashTable may be inefficient when we have large number of IDs. */
     GHashTable  *block_hash;
     GPtrArray   *block_ids;
-    Bitfield     block_map;
     uint32_t     n_blocks;
     uint32_t     n_valid_blocks;
 } BlockList;
@@ -138,12 +136,6 @@ block_list_new ();
 
 void
 block_list_free (BlockList *bl);
-
-void
-block_list_generate_bitmap (BlockList *bl, const char *repo_id, int version);
-
-void
-block_list_serialize (BlockList *bl, uint8_t **buffer, uint32_t *len);
 
 void
 block_list_insert (BlockList *bl, const char *block_id);
@@ -261,6 +253,21 @@ seaf_fs_manager_traverse_tree (SeafFSManager *mgr,
                                void *user_data,
                                gboolean skip_errors);
 
+typedef gboolean (*TraverseFSPathCallback) (SeafFSManager *mgr,
+                                            const char *path,
+                                            SeafDirent *dent,
+                                            void *user_data,
+                                            gboolean *stop);
+
+int
+seaf_fs_manager_traverse_path (SeafFSManager *mgr,
+                               const char *repo_id,
+                               int version,
+                               const char *root_id,
+                               const char *dir_path,
+                               TraverseFSPathCallback callback,
+                               void *user_data);
+
 gboolean
 seaf_fs_manager_object_exists (SeafFSManager *mgr,
                                const char *repo_id,
@@ -334,6 +341,13 @@ seaf_fs_manager_get_seafdir_id_by_path (SeafFSManager *mgr,
                                         const char *path,
                                         GError **error);
 
+SeafDirent *
+seaf_fs_manager_get_dirent_by_path (SeafFSManager *mgr,
+                                    const char *repo_id,
+                                    int version,
+                                    const char *root_id,
+                                    const char *path);
+
 /* Check object integrity. */
 
 gboolean
@@ -365,5 +379,11 @@ dir_version_from_repo_version (int repo_version);
 
 int
 seafile_version_from_repo_version (int repo_version);
+
+struct _CDCFileDescriptor;
+void
+seaf_fs_manager_calculate_seafile_id_json (int repo_version,
+                                           struct _CDCFileDescriptor *cdc,
+                                           guint8 *file_id_sha1);
 
 #endif

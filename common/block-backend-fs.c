@@ -141,6 +141,11 @@ create_parent_path (const char *path)
     if (!dir)
         return -1;
 
+    if (g_file_test (dir, G_FILE_TEST_EXISTS)) {
+        g_free (dir);
+        return 0;
+    }
+
     if (g_mkdir_with_parents (dir, 0777) < 0) {
         seaf_warning ("Failed to create object parent path: %s.\n", dir);
         g_free (dir);
@@ -260,7 +265,7 @@ block_backend_fs_foreach_block (BlockBackend *bend,
     char path[SEAF_PATH_MAX], *pos;
     int ret = 0;
 
-#if defined MIGRATION || defined SEAFILE_CLIENT
+#if defined MIGRATION
     if (version > 0)
         block_dir = g_build_filename (priv->block_dir, store_id, NULL);
     else
@@ -403,7 +408,7 @@ get_block_path (BlockBackend *bend,
     char *pos = path;
     int n;
 
-#if defined MIGRATION || defined SEAFILE_CLIENT
+#if defined MIGRATION
     if (version > 0) {
         n = snprintf (path, SEAF_PATH_MAX, "%s/%s/", priv->block_dir, store_id);
         pos += n;
@@ -460,12 +465,6 @@ block_backend_fs_new (const char *seaf_dir, const char *tmp_dir)
 
     priv->tmp_dir = g_strdup (tmp_dir);
     priv->tmp_dir_len = strlen (tmp_dir);
-
-    if (g_mkdir_with_parents (priv->v0_block_dir, 0777) < 0) {
-        seaf_warning ("Block dir %s does not exist and"
-                   " is unable to create\n", priv->v0_block_dir);
-        goto onerror;
-    }
 
     if (g_mkdir_with_parents (priv->block_dir, 0777) < 0) {
         seaf_warning ("Block dir %s does not exist and"

@@ -25,29 +25,11 @@ private_key_to_pub(RSA *priv)
 }
 
 
-GString* public_key_to_gstring(const RSA *rsa)
+inline GString*
+public_key_to_gstring(const RSA *rsa)
 {
     GString *buf = g_string_new(NULL);
-    unsigned char *temp;
-    char *coded;
-
-    gsize len = BN_num_bytes(rsa->n);
-    temp = malloc(len);
-    BN_bn2bin(rsa->n, temp);
-    coded = g_base64_encode(temp, len);
-    g_string_append (buf, coded);
-    g_string_append_c (buf, ' ');
-    g_free(coded);
-    
-    len = BN_num_bytes(rsa->e);
-    temp = realloc(temp, len);
-    BN_bn2bin(rsa->e, temp);
-    coded = g_base64_encode(temp, len);
-    g_string_append (buf, coded);
-    g_free(coded);
-
-    free(temp);
-    
+    public_key_append_to_gstring(rsa, buf);
     return buf;
 }
 
@@ -64,7 +46,7 @@ public_key_append_to_gstring(const RSA *rsa, GString *buf)
     g_string_append (buf, coded);
     g_string_append_c (buf, ' ');
     g_free(coded);
-    
+
     len = BN_num_bytes(rsa->e);
     temp = realloc(temp, len);
     BN_bn2bin(rsa->e, temp);
@@ -75,7 +57,8 @@ public_key_append_to_gstring(const RSA *rsa, GString *buf)
     free(temp);
 }
 
-RSA* public_key_from_string(char *str)
+RSA*
+public_key_from_string(char *str)
 {
     char *p;
     unsigned char *num;
@@ -94,7 +77,7 @@ RSA* public_key_from_string(char *str)
     if (!key->n)
         goto err;
     g_free(num);
-    
+
     num = g_base64_decode(p+1, &len);
     key->e = BN_bin2bn(num, len, NULL);
     if (!key->e)

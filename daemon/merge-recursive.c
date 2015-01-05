@@ -569,7 +569,7 @@ static int update_file_flags(struct merge_options *o,
         if (update_cache && o->recover_merge && 
             seaf_stat(real_path, &st) == 0 && S_ISREG(st.st_mode)) {
             if (compare_file_content (real_path, &st, sha, 
-                                      o->crypt) == 0) {
+                                      o->crypt, o->version) == 0) {
                 goto update_cache;
             }
             /* If the file was checked out and changed by user, we

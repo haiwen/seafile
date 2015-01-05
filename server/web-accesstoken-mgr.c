@@ -11,7 +11,7 @@
 
 #define CLEANING_INTERVAL_MSEC 1000*300	/* 5 minutes */
 #define TOKEN_EXPIRE_TIME 3600	        /* 1 hour */
-#define TOKEN_LEN 8
+#define TOKEN_LEN 36
 
 /* #define DEBUG 1 */
 

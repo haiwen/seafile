@@ -8,7 +8,6 @@
  *       - ccnet-server
  *       - seaf-server
  *       - seaf-mon
- *       - httpserver
  *
  *    2. Repair:
  *
@@ -26,7 +25,6 @@ typedef struct _SeafileController SeafileController;
 enum {
     PID_CCNET = 0,
     PID_SERVER,
-    PID_HTTPSERVER,
     PID_SEAFDAV,
     N_PID
 };

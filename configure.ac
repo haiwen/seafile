@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 
 
 AC_PREREQ(2.61)
-AC_INIT([seafile], [3.0.2], [freeplant@gmail.com])
+AC_INIT([seafile], [4.0.5], [freeplant@gmail.com])
 AC_CONFIG_HEADER([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -22,7 +22,7 @@ AC_PROG_CC
 AC_C_CONST
 AC_PROG_MAKE_SET
 # AC_PROG_RANLIB
-AC_PROG_LIBTOOL
+LT_INIT
 
 # Checks for headers.
 #AC_CHECK_HEADERS([arpa/inet.h fcntl.h inttypes.h libintl.h limits.h locale.h netdb.h netinet/in.h stdint.h stdlib.h string.h strings.h sys/ioctl.h sys/socket.h sys/time.h termios.h unistd.h utime.h utmp.h])
@@ -43,7 +43,7 @@ else
 fi
 
 AC_MSG_CHECKING(for Mac)
-if test "$TERM_PROGRAM" = "Apple_Terminal"; then
+if test "$(uname)" = "Darwin"; then
   bmac=true
   AC_MSG_RESULT(compile in mac)
 else
@@ -86,7 +86,9 @@ if test "$blinux" = true; then
 
    AC_ARG_ENABLE(riak, AC_HELP_STRING([--enable-riak], [enable riak backend]),
       [compile_riak=$enableval],[compile_riak="no"])
+fi
 
+if test "$bwin32" != true; then
    AC_ARG_ENABLE(fuse, AC_HELP_STRING([--enable-fuse], [enable fuse virtual file system]),
       [compile_fuse=$enableval],[compile_fuse="yes"])
 fi
@@ -151,17 +153,13 @@ AM_CONDITIONAL([LINUX], [test "$blinux" = "true"])
 
 # check libraries
 if test "$bwin32" != true; then
+  if test "$bmac" = true; then
+  AC_CHECK_LIB(c, uuid_generate, [echo "found library uuid"],
+          AC_MSG_ERROR([*** Unable to find uuid_generate in libc]), )
+  else
   AC_CHECK_LIB(uuid, uuid_generate, [echo "found library uuid"],
-      dnl - if failed, try uuid_create
-      AC_CHECK_LIB(uuid, uuid_create,[echo "found library uuid"] ,
           AC_MSG_ERROR([*** Unable to find uuid library]), )
-      , )
-
-  AC_CHECK_LIB(event, event_init,[echo "found library event"] ,
-    AC_MSG_ERROR([*** Unable to find libevent library]), )
-else
-  AC_CHECK_LIB(event, event_init, [echo "found library event"],
-    AC_MSG_ERROR([*** Unable to find libevent library]), [-lwsock32])
+  fi
 fi
 
 AC_CHECK_LIB(pthread, pthread_create, [echo "found library pthread"], AC_MSG_ERROR([*** Unable to find pthread library]), )
@@ -200,7 +198,7 @@ elif test "$bmac" = true ; then
   LIB_RT=
   LIB_INTL=
   LIB_RESOLV=-lresolv
-  LIB_UUID=-luuid
+  LIB_UUID=
   LIB_IPHLPAPI=
   LIB_SHELL32=
   LIB_PSAPI=
@@ -241,8 +239,12 @@ JANSSON_REQUIRED=2.2.1
 ZDB_REQUIRED=2.10
 #LIBNAUTILUS_EXTENSION_REQUIRED=2.30.1
 CURL_REQUIRED=7.17
-FUSE_REQUIRED=2.8.6
+FUSE_REQUIRED=2.7.3
 ZLIB_REQUIRED=1.2.0
+
+PKG_CHECK_MODULES(SSL, [openssl])
+AC_SUBST(SSL_CFLAGS)
+AC_SUBST(SSL_LIBS)
 
 PKG_CHECK_MODULES(GLIB2, [glib-2.0 >= $GLIB_REQUIRED])
 AC_SUBST(GLIB2_CFLAGS)
@@ -308,12 +310,10 @@ if test x${compile_server} = xyes; then
    AC_SUBST(LIBARCHIVE_LIBS)
 fi
 
-# We use http to communicate with Riak, check for libcurl.
-if test "${compile_riak}" = "yes"; then
+if test "${compile_client}" = "yes"; then
    PKG_CHECK_MODULES(CURL, [libcurl >= $CURL_REQUIRED])
    AC_SUBST(CURL_CFLAGS)
    AC_SUBST(CURL_LIBS)
-   AC_DEFINE([RIAK_BACKEND], [1], ["define if support Riak backend"])
 fi
 
 AM_CONDITIONAL([HAVE_KEYSTORAGE_GK], [test "${compile_gnome_keyring}" = "yes"])
@@ -329,15 +329,6 @@ ac_configure_args="$ac_configure_args -q"
 AC_CONFIG_FILES(
     Makefile
     include/Makefile
-    data/Makefile
-    data/icons/Makefile
-    data/icons/16x16/Makefile
-    data/icons/22x22/Makefile
-    data/icons/24x24/Makefile
-    data/icons/32x32/Makefile
-    data/icons/48x48/Makefile
-    data/icons/128x128/Makefile
-    data/icons/scalable/Makefile
     fuse/Makefile
     lib/Makefile
     lib/libseafile.pc
@@ -352,7 +343,6 @@ AC_CONFIG_FILES(
     python/seafile/Makefile
     python/seaserv/Makefile
     controller/Makefile
-    httpserver/Makefile
     tools/Makefile
     tests/Makefile
     tests/common-conf.sh

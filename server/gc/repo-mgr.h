@@ -73,6 +73,9 @@ void
 seaf_repo_unref (SeafRepo *repo);
 
 void
+seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit);
+
+void
 seaf_virtual_repo_info_free (SeafVirtRepo *vinfo);
 
 typedef struct _SeafRepoManager SeafRepoManager;
@@ -103,18 +106,14 @@ SeafRepo*
 seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id);
 
 SeafRepo* 
-seaf_repo_manager_get_repo_prefix (SeafRepoManager *manager, const gchar *id);
+seaf_repo_manager_get_repo_ex (SeafRepoManager *manager, const gchar *id);
 
 gboolean
 seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id);
 
-gboolean
-seaf_repo_manager_repo_exists_prefix (SeafRepoManager *manager, const gchar *id);
-
 GList* 
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
                                  int start, int limit,
-                                 gboolean ignore_errors,
                                  gboolean *error);
 
 GList *

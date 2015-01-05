@@ -219,7 +219,7 @@ class Seafile(Project):
             s3_support = '--enable-s3'
 
         self.build_commands = [
-            './configure --prefix=%s --disable-client --enable-server --enable-pgsql --enable-httpserver %s' \
+            './configure --prefix=%s --disable-client --enable-server --enable-pgsql %s' \
                 % (self.prefix, s3_support),
             'make',
             'make install'
@@ -313,7 +313,7 @@ def validate_args(usage, options):
     # [ version ]
     def check_project_version(version):
         '''A valid version must be like 1.2.2, 1.3'''
-        if not re.match('^[0-9](\.[0-9])+$', version):
+        if not re.match('^[0-9]+(\.([0-9])+)+$', version):
             error('%s is not a valid version' % version, usage=usage)
 
     version = get_option(CONF_VERSION)
@@ -575,6 +575,8 @@ def copy_scripts_and_libs():
               serverdir)
     must_copy(os.path.join(scripts_srcdir, 'check_init_admin.py'),
               serverdir)
+    must_copy(os.path.join(scripts_srcdir, 'seaf-gc.sh'),
+              serverdir)
 
     # copy update scripts
     update_scriptsdir = os.path.join(scripts_srcdir, 'upgrade')
@@ -665,11 +667,11 @@ def copy_shared_libs():
                            'seafile',
                            'lib')
 
-    httpserver_path = os.path.join(builddir,
+    seafile_path = os.path.join(builddir,
                                    'seafile-server',
                                    'seafile',
                                    'bin',
-                                   'httpserver')
+                                   'seaf-server')
 
     ccnet_server_path = os.path.join(builddir,
                                      'seafile-server',
@@ -685,7 +687,7 @@ def copy_shared_libs():
 
     libs = set()
     libs.update(get_dependent_libs(ccnet_server_path))
-    libs.update(get_dependent_libs(httpserver_path))
+    libs.update(get_dependent_libs(seafile_path))
     libs.update(get_dependent_libs(seaf_fuse_path))
 
     for lib in libs:

@@ -211,7 +211,7 @@ seaf_repo_manager_create_virtual_repo (SeafRepoManager *mgr,
             seaf_warning ("Creating virtual repo for enc version %d is not supported.\n",
                           origin_repo->enc_version);
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
-                         "Unsuppoorted encryption version");
+                         "Unsupported encryption version");
             seaf_repo_unref (origin_repo);
             return NULL;
         }

@@ -1,8 +1,0 @@
-[Desktop Entry]
-Name=Seafile
-Comment=Seafile
-TryExec=seafile-applet
-Exec=seafile-applet
-Icon=seafile
-Type=Application
-Categories=Network;FileTransfer;

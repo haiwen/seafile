@@ -2,7 +2,9 @@
 #define DIFF_SIMPLE_H
 
 #include <glib.h>
+#ifndef SEAFILE_SERVER
 #include "index/index.h"
+#endif
 #include "seafile-session.h"
 
 #define DIFF_TYPE_WORKTREE              'W' /* diff from index to worktree */
@@ -16,6 +18,7 @@
 #define DIFF_STATUS_UNMERGED		'U'
 #define DIFF_STATUS_DIR_ADDED           'B'
 #define DIFF_STATUS_DIR_DELETED         'C'
+#define DIFF_STATUS_DIR_RENAMED         'E'
 
 enum {
     STATUS_UNMERGED_NONE,
@@ -40,6 +43,15 @@ typedef struct DiffEntry {
     unsigned char sha1[20];     /* used for resolve rename */
     char *name;
     char *new_name;             /* only used in rename. */
+
+#ifdef SEAFILE_CLIENT
+    /* Fields only used for ADDED, DIR_ADDED, MODIFIED types,
+     * used in check out files/dirs.*/
+    gint64 mtime;
+    unsigned int mode;
+    char *modifier;
+    gint64 size;
+#endif
 } DiffEntry;
 
 DiffEntry *
@@ -91,5 +103,28 @@ format_diff_results(GList *results);
 
 char *
 diff_results_to_description (GList *results);
+
+typedef int (*DiffFileCB) (int n,
+                           const char *basedir,
+                           SeafDirent *files[],
+                           void *data);
+
+typedef int (*DiffDirCB) (int n,
+                          const char *basedir,
+                          SeafDirent *dirs[],
+                          void *data,
+                          gboolean *recurse);
+
+typedef struct DiffOptions {
+    char store_id[37];
+    int version;
+
+    DiffFileCB file_cb;
+    DiffDirCB dir_cb;
+    void *data;
+} DiffOptions;
+
+int
+diff_trees (int n, const char *roots[], DiffOptions *opt);
 
 #endif

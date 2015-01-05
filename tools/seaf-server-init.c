@@ -42,14 +42,14 @@ static const struct option long_opts[] = {
     { "verbose", no_argument, NULL, 'v' },
     { "seafile-dir", required_argument, NULL, 'd' },
     { "port", required_argument, NULL, 'p' },
-    { "httpserver-port", required_argument, NULL, 'P' },
+    { "fileserver-port", required_argument, NULL, 'P' },
     { 0, 0, 0, 0 },
 };
 
 struct seaf_server_config {
     char *seafile_dir;
     char *port;
-    char *httpserver_port;
+    char *fileserver_port;
 }; 
 
 static struct seaf_server_config config = {
@@ -67,7 +67,7 @@ void usage(int code) {
 "  -v, --verbose          output more information\n"
 "  -d, --seafile-dir      specify a diretory to put your seafile server config and data\n" 
 "  -p, --port             specify a port to to transmit data\n" 
-"  -P, --httpserver-port  specify the port to use by httpserver\n" 
+"  -P, --fileserver-port  specify the port to use by fileserver\n" 
         );
     exit(code);
 }
@@ -96,7 +96,7 @@ int main (int argc, char **argv)
             config.port = strdup(optarg);
             break;
         case 'P':
-            config.httpserver_port = strdup(optarg);
+            config.fileserver_port = strdup(optarg);
             break;
         default:
             usage(1);
@@ -112,11 +112,11 @@ int main (int argc, char **argv)
     GKeyFile *key_file = g_key_file_new ();
 
     g_key_file_set_string (key_file, "network", "port", config.port);
-    if (config.httpserver_port) {
-        g_key_file_set_string (key_file, "httpserver", "port", config.httpserver_port);
+    if (config.fileserver_port) {
+        g_key_file_set_string (key_file, "fileserver", "port", config.fileserver_port);
     } else {
-        /* httpserver port defaults to 8082 */
-        g_key_file_set_string (key_file, "httpserver", "port", "8082");
+        /* fileserver port defaults to 8082 */
+        g_key_file_set_string (key_file, "fileserver", "port", "8082");
     }
 
     struct stat st;

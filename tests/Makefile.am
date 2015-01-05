@@ -14,7 +14,7 @@ test_seafile_fmt_CFLAGS = -I$(top_srcdir)/daemon \
 
 test_seafile_fmt_LDADD = @CCNET_LIBS@ \
 	$(top_builddir)/lib/libseafile_common.la \
-	-lssl -levent @GLIB2_LIBS@
+	@SSL_LIBS@ @LIBEVENT_LIBS@ @GLIB2_LIBS@
 
 test_cdc_SOURCES = test-cdc.c
 

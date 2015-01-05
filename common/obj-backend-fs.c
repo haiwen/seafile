@@ -266,6 +266,11 @@ create_parent_path (const char *path)
     if (!dir)
         return -1;
 
+    if (g_file_test (dir, G_FILE_TEST_EXISTS)) {
+        g_free (dir);
+        return 0;
+    }
+
     if (g_mkdir_with_parents (dir, 0777) < 0) {
         seaf_warning ("Failed to create object parent path: %s.\n", dir);
         g_free (dir);
@@ -289,14 +294,14 @@ obj_backend_fs_write (ObjBackend *bend,
 
     id_to_path (bend->priv, obj_id, path, repo_id, version);
 
+    /* GTimeVal s, e; */
+
+    /* g_get_current_time (&s); */
+
     if (create_parent_path (path) < 0) {
         seaf_warning ("[obj backend] Failed to create path for obj %s.\n", obj_id);
         return -1;
     }
-
-    /* GTimeVal s, e; */
-
-    /* g_get_current_time (&s); */
 
     if (save_obj_contents (path, data, len, need_sync) < 0) {
         seaf_warning ("[obj backend] Failed to write obj %s.\n", obj_id);
@@ -305,8 +310,8 @@ obj_backend_fs_write (ObjBackend *bend,
 
     /* g_get_current_time (&e); */
 
-    /* seaf_message ("write obj time: %ldms.\n", */
-    /*               ((e.tv_sec*1000000+e.tv_usec) - (s.tv_sec*1000000+s.tv_usec))/1000); */
+    /* seaf_message ("write obj time: %ldus.\n", */
+    /*               ((e.tv_sec*1000000+e.tv_usec) - (s.tv_sec*1000000+s.tv_usec))); */
 
     return 0;
 }

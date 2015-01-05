@@ -22,7 +22,6 @@ seaf_fuse_SOURCES = seaf-fuse.c \
 					getattr.c \
                     readdir.c \
                     repo-mgr.c \
-                    ../common/bitfield.c \
                     ../common/block-mgr.c \
                     ../common/block-backend.c \
                     ../common/block-backend-fs.c \
@@ -32,7 +31,6 @@ seaf_fuse_SOURCES = seaf-fuse.c \
                     ../common/log.c \
                     ../common/seaf-db.c \
                     ../common/seaf-utils.c \
-                    ../common/avl/avl.c \
                     ../common/obj-store.c \
                     ../common/obj-backend-fs.c \
                     ../common/obj-backend-riak.c \
@@ -40,8 +38,8 @@ seaf_fuse_SOURCES = seaf-fuse.c \
 
 seaf_fuse_LDADD = @CCNET_LIBS@ \
 				  $(top_builddir)/lib/libseafile.la \
-				  @GLIB2_LIBS@ @GOBJECT_LIBS@ -lssl @LIB_RT@ @LIB_UUID@ \
-                  -lsqlite3 -levent \
+				  @GLIB2_LIBS@ @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ \
+                  -lsqlite3 @LIBEVENT_LIBS@ \
 				  $(top_builddir)/common/cdc/libcdc.la \
 				  @SEARPC_LIBS@ @JANSSON_LIBS@ @ZDB_LIBS@ @FUSE_LIBS@ @ZLIB_LIBS@
 

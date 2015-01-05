@@ -719,7 +719,7 @@ class ExistingDBConfigurator(AbstractDBConfigurator):
 
 class CcnetConfigurator(AbstractConfigurator):
     SERVER_NAME_REGEX = r'^[a-zA-Z0-9_\-]{3,14}$'
-    SERVER_IP_OR_DOMAIN_REGEX = '^[^.].+\..+[^.]$'
+    SERVER_IP_OR_DOMAIN_REGEX = r'^[^.].+\..+[^.]$'
 
     def __init__(self):
         '''Initialize default values of ccnet configuration'''
@@ -819,12 +819,12 @@ class SeafileConfigurator(AbstractConfigurator):
         AbstractConfigurator.__init__(self)
         self.seafile_dir = os.path.join(env_mgr.top_dir, 'seafile-data')
         self.port = 12001
-        self.httpserver_port = 8082
+        self.fileserver_port = 8082
 
     def ask_questions(self):
         self.ask_seafile_dir()
         self.ask_port()
-        self.ask_httpserver_port()
+        self.ask_fileserver_port()
 
     def generate(self):
         print 'Generating seafile configuration ...\n'
@@ -833,7 +833,7 @@ class SeafileConfigurator(AbstractConfigurator):
             seafserv_init,
             '--seafile-dir', self.seafile_dir,
             '--port', str(self.port),
-            '--httpserver-port', str(self.httpserver_port),
+            '--fileserver-port', str(self.fileserver_port),
         ]
 
         if Utils.run_argv(argv, env=env_mgr.get_binary_env()) != 0:
@@ -899,7 +899,7 @@ class SeafileConfigurator(AbstractConfigurator):
                                        default=default,
                                        validate=validate)
 
-    def ask_httpserver_port(self):
+    def ask_fileserver_port(self):
         def validate(port):
             port = Utils.validate_port(port)
             if port == ccnet_config.port:
@@ -912,13 +912,13 @@ class SeafileConfigurator(AbstractConfigurator):
 
             return port
 
-        question = 'Which port do you want to use for the seafile httpserver?'
-        key = 'seafile httpserver port'
+        question = 'Which port do you want to use for the seafile fileserver?'
+        key = 'seafile fileserver port'
         default = 8082
-        self.httpserver_port = Utils.ask_question(question,
-                                            key=key,
-                                            default=default,
-                                            validate=validate)
+        self.fileserver_port = Utils.ask_question(question,
+                                                  key=key,
+                                                  default=default,
+                                                  validate=validate)
 
     def write_seafile_ini(self):
         seafile_ini = os.path.join(ccnet_config.ccnet_dir, 'seafile.ini')
@@ -1026,16 +1026,36 @@ DATABASES = {
         print '----------------------------------------'
         print 'Now creating seahub database tables ...\n'
         print '----------------------------------------'
-        env = env_mgr.get_seahub_env()
-        cwd = os.path.join(env_mgr.install_path, 'seahub')
-        argv = [
-            Utils.get_python_executable(),
-            'manage.py',
-            'syncdb',
-        ]
 
-        if Utils.run_argv(argv, cwd=cwd, env=env) != 0:
-            Utils.error("Failed to create seahub databases")
+        try:
+            conn = MySQLdb.connect(host=db_config.mysql_host,
+                                   port=db_config.mysql_port,
+                                   user=db_config.seafile_mysql_user,
+                                   passwd=db_config.seafile_mysql_password,
+                                   db=db_config.seahub_db_name)
+        except Exception, e:
+            if isinstance(e, MySQLdb.OperationalError):
+                Utils.error('Failed to connect to mysql database %s: %s' % (db_config.seahub_db_name, e.args[1]))
+            else:
+                Utils.error('Failed to connect to mysql database %s: %s' % (db_config.seahub_db_name, e))
+
+        cursor = conn.cursor()
+
+        sql_file = os.path.join(env_mgr.install_path, 'seahub', 'sql', 'mysql.sql')
+        with open(sql_file, 'r') as fp:
+            content = fp.read()
+
+        sqls = [line.strip() for line in content.split(';') if line.strip()]
+        for sql in sqls:
+            try:
+                cursor.execute(sql)
+            except Exception, e:
+                if isinstance(e, MySQLdb.OperationalError):
+                    Utils.error('Failed to init seahub database: %s' % e.args[1])
+                else:
+                    Utils.error('Failed to init seahub database: %s' % e)
+
+        conn.commit()
 
     def prepare_avatar_dir(self):
         # media_dir=${INSTALLPATH}/seahub/media
@@ -1120,7 +1140,7 @@ def report_config():
 
     seafile data dir:       %(seafile_dir)s
     seafile port:           %(seafile_port)s
-    httpserver port:        %(httpserver_port)s
+    fileserver port:        %(fileserver_port)s
 
     database:               %(use_existing_db)s
     ccnet database:         %(ccnet_db_name)s
@@ -1136,7 +1156,7 @@ def report_config():
 
         'seafile_dir' :         seafile_config.seafile_dir,
         'seafile_port' :        seafile_config.port,
-        'httpserver_port' :     seafile_config.httpserver_port,
+        'fileserver_port' :     seafile_config.fileserver_port,
 
         'admin_email' :         seahub_config.admin_email,
 
@@ -1232,7 +1252,7 @@ If you are behind a firewall, remember to allow input/output of these tcp ports:
 
 port of ccnet server:         %(ccnet_port)s
 port of seafile server:       %(seafile_port)s
-port of seafile httpserver:   %(httpserver_port)s
+port of seafile fileserver:   %(fileserver_port)s
 port of seahub:               8000
 
 When problems occur, Refer to
@@ -1245,7 +1265,7 @@ for information.
 
     print message % dict(ccnet_port=ccnet_config.port,
                          seafile_port=seafile_config.port,
-                         httpserver_port=seafile_config.httpserver_port,
+                         fileserver_port=seafile_config.fileserver_port,
                          server_manual_http=SERVER_MANUAL_HTTP)
 
 

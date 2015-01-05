@@ -201,7 +201,7 @@ fs_callback (SeafFSManager *mgr,
         }
 
         char *key = g_strdup(obj_id);
-        g_hash_table_insert (data->visited, key, key);
+        g_hash_table_replace (data->visited, key, key);
     }
 
     if (seaf_obj_store_copy_obj (seaf->fs_mgr->obj_store,
@@ -303,10 +303,10 @@ migrate_v0_repos_to_v1_layout ()
     SeafRepo *repo;
     gboolean error = FALSE;
 
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, TRUE, &error);
+    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, &error);
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
-        if (repo->version == 0)
+        if (!repo->is_corrupted && repo->version == 0)
             migrate_repo (repo);
         seaf_repo_unref (repo);
     }

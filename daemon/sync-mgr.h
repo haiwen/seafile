@@ -60,8 +60,10 @@ enum {
     SYNC_ERROR_COMMIT,
     SYNC_ERROR_MERGE,
     SYNC_ERROR_WORKTREE_DIRTY,
-    SYNC_ERROR_UNKNOWN,
     SYNC_ERROR_DEPRECATED_SERVER,
+    SYNC_ERROR_GET_SYNC_INFO,   /* for http sync */
+    SYNC_ERROR_FILES_LOCKED,
+    SYNC_ERROR_UNKNOWN,
     SYNC_ERROR_NUM,
 };
 
@@ -69,16 +71,19 @@ struct _SyncTask {
     SeafSyncManager *mgr;
     SyncInfo        *info;
     char            *dest_id;
-    gboolean         is_sync_lan;
-    gboolean         force_upload;
-    gboolean         need_commit;
-    gboolean         quiet;     /* don't print log messages. */
+    gboolean         is_manual_sync;
+    gboolean         is_initial_commit;
     int              state;
     int              error;
     char            *tx_id;
     char            *token;
     struct CcnetTimer *commit_timer;
-    struct CcnetTimer *conn_timer;
+
+    gboolean         server_side_merge;
+    gboolean         uploaded;
+
+    gboolean         http_sync;
+    int              http_version;
 
     SeafRepo        *repo;  /* for convenience, only valid when in_sync. */
 };
@@ -89,12 +94,24 @@ struct _SeafSyncManager {
     struct _SeafileSession   *seaf;
 
     GHashTable *sync_infos;
-    GQueue     *sync_tasks;
     int         n_running_tasks;
     gboolean    commit_job_running;
     int         sync_interval;
 
-    int         wt_interval;
+    GHashTable *server_states;
+    GHashTable *http_server_states;
+
+    /* Sent/recv bytes from all transfer tasks in this second.
+     * Since we have http and non-http tasks, sync manager is
+     * the only reasonable place to put these variables.
+     */
+    gint             sent_bytes;
+    gint             recv_bytes;
+    gint             last_sent_bytes;
+    gint             last_recv_bytes;
+    /* Upload/download rate limits. */
+    gint             upload_limit;
+    gint             download_limit;
 
     SeafSyncManagerPriv *priv;
 };
@@ -107,9 +124,6 @@ int seaf_sync_manager_start (SeafSyncManager *mgr);
 int
 seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
                                  const char *repo_id,
-                                 const char *dest_id,
-                                 const char *token,
-                                 gboolean is_sync_lan,
                                  GError **error);
 
 void

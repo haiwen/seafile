@@ -15,6 +15,7 @@ public class Dirent : Object {
 	public int version { set; get; }
 	public int64 mtime { set; get; }
 	public int64 size { set; get; }
+	public string modifier { set; get;}
 }
 
 public class FileLastModifiedInfo : Object {

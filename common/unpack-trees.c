@@ -746,7 +746,7 @@ static int verify_uptodate_1(struct cache_entry *ce,
 
     snprintf(full_path, SEAF_PATH_MAX, "%s/%s", o->base, ce->name);
     if (!seaf_stat (full_path, &st)) {
-        unsigned changed = ie_match_stat(o->src_index, ce, &st, CE_MATCH_IGNORE_VALID|CE_MATCH_IGNORE_SKIP_WORKTREE);
+        unsigned changed = ie_match_stat(ce, &st, CE_MATCH_IGNORE_VALID|CE_MATCH_IGNORE_SKIP_WORKTREE);
         if (!changed)
             return 0;
         /*
@@ -1298,7 +1298,7 @@ int oneway_merge(struct cache_entry **src, struct unpack_trees_options *o)
             char full_path[SEAF_PATH_MAX];
             snprintf (full_path, SEAF_PATH_MAX, "%s/%s", o->base, old->name);
             if (seaf_stat (full_path, &st) ||
-                ie_match_stat(o->src_index, old, &st, CE_MATCH_IGNORE_VALID|CE_MATCH_IGNORE_SKIP_WORKTREE))
+                ie_match_stat(old, &st, CE_MATCH_IGNORE_VALID|CE_MATCH_IGNORE_SKIP_WORKTREE))
                 update |= CE_UPDATE;
         }
         add_entry(o, old, update, 0);

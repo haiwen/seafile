@@ -34,9 +34,8 @@ from service import get_related_users_by_repo, get_related_users_by_org_repo
 from service import post_empty_file, del_file
 
 from service import CCNET_CONF_PATH, CCNET_SERVER_ADDR, CCNET_SERVER_PORT, \
-    MAX_UPLOAD_FILE_SIZE, MAX_DOWNLOAD_DIR_SIZE, HTTP_SERVER_ROOT, \
-    CALC_SHARE_USAGE, SERVICE_URL, HTTP_SERVER_PORT, HTTP_SERVER_HTTPS, \
-    SERVER_ID
+    MAX_UPLOAD_FILE_SIZE, MAX_DOWNLOAD_DIR_SIZE, FILE_SERVER_ROOT, \
+    CALC_SHARE_USAGE, SERVICE_URL, FILE_SERVER_PORT, SERVER_ID
 
 from service import send_message
 

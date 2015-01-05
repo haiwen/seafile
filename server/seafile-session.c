@@ -151,6 +151,10 @@ seafile_session_new(const char *seafile_dir,
     if (!session->mq_mgr)
         goto onerror;
 
+    session->http_server = seaf_http_server_new (session);
+    if (!session->http_server)
+        goto onerror;
+
     return session;
 
 onerror:
@@ -231,6 +235,11 @@ seafile_session_start (SeafileSession *session)
 
     if (seaf_copy_manager_start (session->copy_mgr) < 0) {
         g_error ("Failed to start copy manager.\n");
+        return -1;
+    }
+
+    if (seaf_http_server_start (session->http_server) < 0) {
+        g_error ("Failed to start http server thread.\n");
         return -1;
     }
 

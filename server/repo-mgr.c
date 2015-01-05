@@ -41,18 +41,17 @@ struct _SeafRepoManagerPriv {
 };
 
 static const char *ignore_table[] = {
+    /* tmp files under Linux */
     "*~",
-    "*#",
-    /* -------------
-     * windows tmp files
-     * -------------
-     */
-    "*.tmp",
-    "*.TMP",
+    /* Emacs tmp files */
+    "#*#",
     /* ms office tmp files */
     "~$*",
+    "~*.tmp", /* for files like ~WRL0001.tmp */
     /* windows image cache */
     "Thumbs.db",
+    /* For Mac */
+    ".DS_Store",
     NULL,
 };
 
@@ -232,21 +231,10 @@ out:
     return commits;
 }
 
-static inline gboolean
-has_trailing_space_or_period (const char *path)
-{
-    int len = strlen(path);
-    if (path[len - 1] == ' ' || path[len - 1] == '.') {
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
 gboolean
 should_ignore_file(const char *filename, void *data)
 {
-    GPatternSpec **spec = ignore_patterns;
+    /* GPatternSpec **spec = ignore_patterns; */
 
     if (!g_utf8_validate (filename, -1, NULL)) {
         seaf_warning ("File name %s contains non-UTF8 characters, skip.\n", filename);
@@ -257,46 +245,9 @@ should_ignore_file(const char *filename, void *data)
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)
         return TRUE;
 
-    if (has_trailing_space_or_period (filename)) {
-        /* Ignore files/dir whose path has trailing spaces. It would cause
-         * problem on windows. */
-        /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */
+    if (strchr (filename, '/'))
         return TRUE;
-    }
 
-    while (*spec) {
-        if (g_pattern_match_string(*spec, filename))
-            return TRUE;
-        spec++;
-    }
-
-    
-    /*
-     *  Illegal charaters in filenames under windows: (In Linux, only '/' is
-     *  disallowed)
-     *  
-     *  - / \ : * ? " < > | \b \t  
-     *  - \1 - \31
-     * 
-     *  Refer to http://msdn.microsoft.com/en-us/library/aa365247%28VS.85%29.aspx
-     */
-    static char illegals[] = {'\\', '/', ':', '*', '?', '"', '<', '>', '|', '\b', '\t'};
-
-    int i;
-    char c;
-    
-    for (i = 0; i < G_N_ELEMENTS(illegals); i++) {
-        if (strchr (filename, illegals[i])) {
-            return TRUE;
-        }
-    }
-
-    for (c = 1; c <= 31; c++) {
-        if (strchr (filename, c)) {
-            return TRUE;
-        }
-    }
-        
     return FALSE;
 }
 
@@ -315,11 +266,11 @@ seaf_repo_manager_new (SeafileSession *seaf)
     mgr->priv->reap_token_timer = ccnet_timer_new (reap_token, mgr,
                                                    REAP_TOKEN_INTERVAL * 1000);
 
-    ignore_patterns = g_new0 (GPatternSpec*, G_N_ELEMENTS(ignore_table));
-    int i;
-    for (i = 0; ignore_table[i] != NULL; i++) {
-        ignore_patterns[i] = g_pattern_spec_new (ignore_table[i]);
-    }
+    /* ignore_patterns = g_new0 (GPatternSpec*, G_N_ELEMENTS(ignore_table)); */
+    /* int i; */
+    /* for (i = 0; ignore_table[i] != NULL; i++) { */
+    /*     ignore_patterns[i] = g_pattern_spec_new (ignore_table[i]); */
+    /* } */
 
     return mgr;
 }
@@ -1685,7 +1636,7 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
 
     for (ptr = id_list; ptr; ptr = ptr->next) {
         char *repo_id = ptr->data;
-        repo = seaf_repo_manager_get_repo (mgr, repo_id);
+        repo = seaf_repo_manager_get_repo_ex (mgr, repo_id);
         if (repo != NULL)
             ret = g_list_prepend (ret, repo);
     }

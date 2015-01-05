@@ -92,7 +92,7 @@ GList *
 seaf_repo_get_commits (SeafRepo *repo);
 
 GList *
-seaf_repo_diff (SeafRepo *repo, const char *arg1, const char *arg2, char **error);
+seaf_repo_diff (SeafRepo *repo, const char *arg1, const char *arg2, int fold_dir_diff, char **error);
 
 typedef struct _SeafRepoManager SeafRepoManager;
 typedef struct _SeafRepoManagerPriv SeafRepoManagerPriv;
@@ -131,14 +131,8 @@ seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id);
 SeafRepo*
 seaf_repo_manager_get_repo_ex (SeafRepoManager *manager, const gchar *id);
 
-SeafRepo* 
-seaf_repo_manager_get_repo_prefix (SeafRepoManager *manager, const gchar *id);
-
 gboolean
 seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id);
-
-gboolean
-seaf_repo_manager_repo_exists_prefix (SeafRepoManager *manager, const gchar *id);
 
 GList* 
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit);
@@ -277,6 +271,7 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
                                     const char *filenames_json,
                                     const char *paths_json,
                                     const char *user,
+                                    int replace_existed,
                                     char **new_ids,
                                     GError **error);
 
@@ -289,6 +284,7 @@ seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
                                     const char *paths_json,
                                     const char *user,
                                     gint64 file_size,
+                                    int replace_existed,
                                     char **new_id,
                                     GError **error);
 

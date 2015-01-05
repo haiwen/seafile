@@ -36,6 +36,10 @@
 #include "processors/checkbl-proc.h"
 #include "processors/checkff-proc.h"
 #include "processors/putca-proc.h"
+#include "processors/check-protocol-slave-proc.h"
+#include "processors/recvfs-v2-proc.h"
+#include "processors/recvbranch-v2-proc.h"
+#include "processors/putfs-v2-proc.h"
 
 #include "cdc/cdc.h"
 
@@ -97,6 +101,14 @@ static void register_processors (CcnetClient *client)
                             SEAFILE_TYPE_CHECKFF_PROC, NULL);
     ccnet_register_service (client, "seafile-putca", "basic",
                             SEAFILE_TYPE_PUTCA_PROC, NULL);
+    ccnet_register_service (client, "seafile-check-protocol-slave", "basic",
+                            SEAFILE_TYPE_CHECK_PROTOCOL_SLAVE_PROC, NULL);
+    ccnet_register_service (client, "seafile-recvfs-v2", "basic",
+                            SEAFILE_TYPE_RECVFS_V2_PROC, NULL);
+    ccnet_register_service (client, "seafile-recvbranch-v2", "basic",
+                            SEAFILE_TYPE_RECVBRANCH_V2_PROC, NULL);
+    ccnet_register_service (client, "seafile-putfs-v2", "basic",
+                            SEAFILE_TYPE_PUTFS_V2_PROC, NULL);
 }
 
 #include <searpc.h>
@@ -184,7 +196,7 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_diff,
                                      "seafile_diff",
-                                     searpc_signature_objlist__string_string_string());
+                                     searpc_signature_objlist__string_string_string_int());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_post_file,
@@ -194,11 +206,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_post_file_blocks,
                                      "seafile_post_file_blocks",
-                    searpc_signature_string__string_string_string_string_string_string_int64());
+                    searpc_signature_string__string_string_string_string_string_string_int64_int());
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_post_multi_files,
                                      "seafile_post_multi_files",
-                    searpc_signature_string__string_string_string_string_string());
+                    searpc_signature_string__string_string_string_string_string_int());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_put_file,
@@ -298,6 +310,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_get_dir_id_by_path,
                                      "seafile_get_dir_id_by_path",
                                      searpc_signature_string__string_string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_dirent_by_path,
+                                     "seafile_get_dirent_by_path",
+                                     searpc_signature_object__string_string());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_list_file_revisions,
@@ -441,6 +458,13 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "get_virtual_repo",
                                      searpc_signature_object__string_string_string());
 
+    /* Clean trash */
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_clean_up_repo_history,
+                                     "clean_up_repo_history",
+                                     searpc_signature_int__string_int());
+
     /* -------- rpc services -------- */
     /* token for web access to repo */
     searpc_server_register_function ("seafserv-rpcserver",
@@ -569,11 +593,22 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      searpc_signature_string__void());
 }
 
+static struct event sigusr1;
+
+static void sigusr1Handler (int fd, short event, void *user_data)
+{
+    seafile_log_reopen ();
+}
+
 static void
 set_signal_handlers (SeafileSession *session)
 {
 #ifndef WIN32
     signal (SIGPIPE, SIG_IGN);
+
+    /* design as reopen log */
+    event_set(&sigusr1, SIGUSR1, EV_SIGNAL | EV_PERSIST, sigusr1Handler, NULL);
+    event_add(&sigusr1, NULL);
 #endif
 }
 
@@ -762,10 +797,29 @@ main (int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-#if !defined(WIN32) && !defined(__APPLE__)
-    if (daemon_mode)
+#ifndef WIN32
+    if (daemon_mode) {
+#ifndef __APPLE__
         daemon (1, 0);
-#endif
+#else   /* __APPLE */
+        /* daemon is deprecated under APPLE
+         * use fork() instead
+         * */
+        switch (fork ()) {
+          case -1:
+              seaf_warning ("Failed to daemonize");
+              exit (-1);
+              break;
+          case 0:
+              /* all good*/
+              break;
+          default:
+              /* kill origin process */
+              exit (0);
+        }
+#endif  /* __APPLE */
+    }
+#endif /* !WIN32 */
 
     cdc_init ();
 

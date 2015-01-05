@@ -25,8 +25,9 @@
 #include "seafile-config.h"
 #include "vc-utils.h"
 #include "seaf-utils.h"
-#include "gc-core.h"
 #include "log.h"
+
+#include "client-migrate.h"
 
 #define MAX_THREADS 50
 
@@ -34,6 +35,8 @@ enum {
 	REPO_COMMITTED,
     REPO_FETCHED,
     REPO_UPLOADED,
+    REPO_HTTP_FETCHED,
+    REPO_HTTP_UPLOADED,
     REPO_WORKTREE_CHECKED,
 	LAST_SIGNAL
 };
@@ -70,7 +73,21 @@ seafile_session_class_init (SeafileSessionClass *klass)
                       NULL, NULL, /* no accumulator */
                       g_cclosure_marshal_VOID__POINTER,
                       G_TYPE_NONE, 1, G_TYPE_POINTER);
+    signals[REPO_HTTP_FETCHED] =
+        g_signal_new ("repo-http-fetched", SEAFILE_TYPE_SESSION,
+                      G_SIGNAL_RUN_LAST,
+                      0,        /* no class singal handler */
+                      NULL, NULL, /* no accumulator */
+                      g_cclosure_marshal_VOID__POINTER,
+                      G_TYPE_NONE, 1, G_TYPE_POINTER);
 
+    signals[REPO_HTTP_UPLOADED] =
+        g_signal_new ("repo-http-uploaded", SEAFILE_TYPE_SESSION,
+                      G_SIGNAL_RUN_LAST,
+                      0,        /* no class singal handler */
+                      NULL, NULL, /* no accumulator */
+                      g_cclosure_marshal_VOID__POINTER,
+                      G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
 
 
@@ -149,12 +166,14 @@ seafile_session_new(const char *seafile_dir,
     session->clone_mgr = seaf_clone_manager_new (session);
     if (!session->clone_mgr)
         goto onerror;
-#ifndef SEAF_TOOL    
     session->sync_mgr = seaf_sync_manager_new (session);
     if (!session->sync_mgr)
         goto onerror;
     session->wt_monitor = seaf_wt_monitor_new (session);
     if (!session->wt_monitor)
+        goto onerror;
+    session->http_tx_mgr = http_tx_manager_new (session);
+    if (!session->http_tx_mgr)
         goto onerror;
 
     session->job_mgr = ccnet_job_manager_new (MAX_THREADS);
@@ -165,7 +184,6 @@ seafile_session_new(const char *seafile_dir,
     session->mq_mgr = seaf_mq_manager_new (session);
     if (!session->mq_mgr)
         goto onerror;
-#endif    
 
     return session;
 
@@ -187,6 +205,16 @@ seafile_session_init (SeafileSession *session)
 void
 seafile_session_prepare (SeafileSession *session)
 {
+    /* load config */
+    session->sync_extra_temp_file = seafile_session_config_get_bool
+        (session, KEY_SYNC_EXTRA_TEMP_FILE);
+
+    session->enable_http_sync = seafile_session_config_get_bool
+        (session, KEY_ENABLE_HTTP_SYNC);
+
+    session->disable_verify_certificate = seafile_session_config_get_bool
+        (session, KEY_DISABLE_VERIFY_CERTIFICATE);
+
     /* Start mq manager earlier, so that we can send notifications
      * when start repo manager. */
     seaf_mq_manager_init (session->mq_mgr);
@@ -234,15 +262,61 @@ seafile_session_prepare (SeafileSession *session)
 /*     g_list_free (repos); */
 /* } */
 
+static gboolean
+is_repo_block_store_in_use (const char *repo_id)
+{
+    if (seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id))
+        return TRUE;
+
+    char sql[256];
+    snprintf (sql, sizeof(sql), "SELECT 1 FROM CloneTasks WHERE repo_id='%s'",
+              repo_id);
+    if (sqlite_check_for_existence (seaf->clone_mgr->db, sql))
+        return TRUE;
+
+    return FALSE;
+}
+
+static void
+cleanup_unused_repo_block_stores ()
+{
+    char *top_block_dir;
+    const char *repo_id;
+
+    top_block_dir = g_build_filename (seaf->seaf_dir, "storage", "blocks", NULL);
+
+    GError *error = NULL;
+    GDir *dir = g_dir_open (top_block_dir, 0, &error);
+    if (!dir) {
+        seaf_warning ("Failed to open block dir %s: %s.\n",
+                      top_block_dir, error->message);
+        g_free (top_block_dir);
+        return;
+    }
+
+    while ((repo_id = g_dir_read_name(dir)) != NULL) {
+        if (!is_repo_block_store_in_use (repo_id)) {
+            seaf_message ("Removing blocks for deleted repo %s.\n", repo_id);
+            seaf_block_manager_remove_store (seaf->block_mgr, repo_id);
+        }
+    }
+
+    g_free (top_block_dir);
+    g_dir_close (dir);
+}
+
 static void *
 on_start_cleanup_job (void *vdata)
 {
     /* recover_interrupted_merges (); */
 
-    /* If some metadata objects are corrupt, the blocks they reference are
-     * useless anyway. So just ignore errors.
+    /* Ignore migration errors. If any blocks is not migrated successfully,
+     * there will be some sync error in run time. The user has to recover the
+     * error by resyncing.
      */
-    gc_core_run (0, 1);
+    migrate_client_v0_repos ();
+
+    cleanup_unused_repo_block_stores ();
 
     return vdata;
 }
@@ -259,6 +333,11 @@ cleanup_job_done (void *vdata)
 
     if (seaf_transfer_manager_start (session->transfer_mgr) < 0) {
         g_error ("Failed to start transfer manager.\n");
+        return;
+    }
+
+    if (http_tx_manager_start (session->http_tx_mgr) < 0) {
+        g_error ("Failed to start http transfer manager.\n");
         return;
     }
 

@@ -18,7 +18,9 @@ seafile_object_define = repo.vala commit.vala dirent.vala dir.vala \
 
 seafile_object_gen = $(seafile_object_define:.vala=.c)
 
-EXTRA_DIST = ${seafile_object_define} rpc_table.py $(pcfiles)
+valac_gen = ${seafile_object_gen} seafile-object.h
+
+EXTRA_DIST = ${seafile_object_define} rpc_table.py $(pcfiles) vala.stamp
 
 utils_headers = net.h rsa.h bloom-filter.h utils.h db.h
 
@@ -30,10 +32,6 @@ seafiledir = $(includedir)/seafile
 seafile_HEADERS = seafile-object.h
 
 seafile-rpc-wrapper.c: seafile-object.h
-
-.vala.c:
-	rm -f $@
-	valac -C --pkg posix ${seafile_object_define}
 
 seafile-object.h: ${seafile_object_define}
 	rm -f $@
@@ -53,27 +51,44 @@ noinst_LTLIBRARIES = libseafile_common.la
 
 libseafile_common_la_SOURCES = ${seafile_object_gen} ${utils_srcs}
 libseafile_common_la_LDFLAGS = -no-undefined
-libseafile_common_la_LIBADD = @GLIB2_LIBS@  @GOBJECT_LIBS@ -lssl -lcrypto @LIB_GDI32@ \
+libseafile_common_la_LIBADD = @GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ -lcrypto @LIB_GDI32@ \
 				     @LIB_UUID@ @LIB_WS32@ @LIB_PSAPI@ -lsqlite3 \
-					 -levent @SEARPC_LIBS@ @LIB_SHELL32@ \
+					 @LIBEVENT_LIBS@ @SEARPC_LIBS@ @LIB_SHELL32@ \
 	@ZLIB_LIBS@
 
 searpc_gen = searpc-signature.h searpc-marshal.h
 
-gensource: ${searpc_gen}
+gensource: ${searpc_gen} ${valac_gen}
 
-${searpc_gen}: $(top_srcdir)/lib/rpc_table.py
+rpc_table.stamp: ${top_srcdir}/lib/rpc_table.py
+	@rm -f rpc_table.tmp
+	@touch rpc_table.tmp
 	@echo "[libsearpc]: generating rpc header files"
-	@PYTHON@ `which searpc-codegen.py` $(top_srcdir)/lib/rpc_table.py
+	@PYTHON@ `which searpc-codegen.py` ${top_srcdir}/lib/rpc_table.py
 	@echo "[libsearpc]: done"
+	@mv -f rpc_table.tmp $@
+
+${searpc_gen}: rpc_table.stamp
+
+vala.stamp: ${seafile_object_define}
+	rm -f ${seafile_object_gen}
+	@rm -f vala.tmp
+	@touch vala.tmp
+	valac -C --pkg posix $^
+	@mv -f vala.tmp $@
+
+${seafile_object_gen}: vala.stamp
 
 clean-local:
 	rm -f ${searpc_gen}
-	rm -f $(top_srcdir)/lib/rpc_table.pyc
+	rm -f rpc_table.pyc
+	rm -f rpc_table.stamp
+	rm -f rpc_table.tmp
+	rm -f vala.tmp vala.stamp ${valac_gen}
 
 install-data-local:
 if MACOS
-	${SED} -i '' -e "s|(DESTDIR)|${DESTDIR}|g" $(pcfiles)
+	sed -i '' -e "s|(DESTDIR)|${DESTDIR}|g" $(pcfiles)
 else
 	${SED} -i "s|(DESTDIR)|${DESTDIR}|g" $(pcfiles)
 endif

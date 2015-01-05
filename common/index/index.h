@@ -63,8 +63,6 @@ extern int git_munmap(void *start, size_t length);
 
 #endif
 
-#include "hash.h"
-
 #ifndef O_BINARY
 #define O_BINARY 0
 #endif
@@ -335,28 +333,17 @@ struct index_state {
     void *alloc;
     unsigned name_hash_initialized : 1,
          initialized : 1;
-    struct hash_table name_hash;
+    GHashTable *name_hash;
+#if defined WIN32 || defined __APPLE__
+    GHashTable *i_name_hash;    /* ignore case */
+#endif
     int has_modifier;
 };
 
 extern struct index_state the_index;
 
 /* Name hashing */
-extern void add_name_hash(struct index_state *istate, struct cache_entry *ce);
 extern unsigned int hash_name(const char *name, int namelen);
-/*
- * We don't actually *remove* it, we can just mark it invalid so that
- * we won't find it in lookups.
- *
- * Not only would we have to search the lists (simple enough), but
- * we'd also have to rehash other hash buckets in case this makes the
- * hash bucket empty (common). So it's much better to just mark
- * it.
- */
-static inline void remove_name_hash(struct cache_entry *ce)
-{
-    ce->ce_flags |= CE_UNHASHED;
-}
 
 enum object_type {
     OBJ_BAD = -1,
@@ -409,7 +396,6 @@ extern int write_index(struct index_state *, int newfd);
 extern int discard_index(struct index_state *);
 extern int unmerged_index(const struct index_state *);
 extern int verify_path(const char *path);
-extern struct cache_entry *index_name_exists(struct index_state *istate, const char *name, int namelen, int igncase);
 extern int index_name_pos(const struct index_state *, const char *name, int namelen);
 #define ADD_CACHE_OK_TO_ADD 1        /* Ok to add */
 #define ADD_CACHE_OK_TO_REPLACE 2    /* Ok to replace file/directory */
@@ -444,12 +430,27 @@ int add_to_index(const char *repo_id,
                  int flags,
                  struct SeafileCrypt *crypt,
                  IndexCB index_cb,
-                 const char *modifier);
+                 const char *modifier,
+                 gboolean *added);
 
 int
 add_empty_dir_to_index (struct index_state *istate,
                         const char *path,
                         SeafStat *st);
+
+int
+remove_from_index_with_prefix (struct index_state *istate, const char *path_prefix);
+
+int
+rename_index_entries (struct index_state *istate,
+                      const char *src_path,
+                      const char *dst_path);
+
+int
+add_empty_dir_to_index_with_check (struct index_state *istate,
+                                   const char *path, SeafStat *st);
+
+void remove_empty_parent_dir_entry (struct index_state *istate, const char *path);
 
 extern int add_file_to_index(struct index_state *, const char *path, int flags);
 extern struct cache_entry *make_cache_entry(unsigned int mode, const unsigned char *sha1, const char *path, const char *full_path, int stage, int refresh);
@@ -464,7 +465,7 @@ void cache_entry_free (struct cache_entry *ce);
 #define CE_MATCH_RACY_IS_DIRTY        02
 /* do stat comparison even if CE_SKIP_WORKTREE is true */
 #define CE_MATCH_IGNORE_SKIP_WORKTREE    04
-extern int ie_match_stat(const struct index_state *, struct cache_entry *, SeafStat *, unsigned int);
+extern int ie_match_stat(struct cache_entry *, SeafStat *, unsigned int);
 extern int ie_modified(const struct index_state *, struct cache_entry *, SeafStat *, unsigned int);
 
 extern int ce_path_match(const struct cache_entry *ce, const char **pathspec);
@@ -472,6 +473,12 @@ extern int index_fd(unsigned char *sha1, int fd, SeafStat *st, enum object_type 
 extern int index_path(unsigned char *sha1, const char *path, SeafStat *st);
 extern void fill_stat_cache_info(struct cache_entry *ce, SeafStat *st);
 extern void mark_all_ce_unused(struct index_state *index);
+
+void remove_name_hash(struct index_state *istate, struct cache_entry *ce);
+void add_name_hash(struct index_state *istate, struct cache_entry *ce);
+struct cache_entry *index_name_exists(struct index_state *istate,
+                                      const char *name, int namelen,
+                                      int igncase);
 
 #define MTIME_CHANGED    0x0001
 #define CTIME_CHANGED    0x0002
