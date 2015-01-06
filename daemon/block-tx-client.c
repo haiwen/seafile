@@ -930,12 +930,14 @@ client_thread_loop (BlockTxClient *client)
             seaf_warning ("select error: %s.\n", strerror(errno));
             client->info->result = BLOCK_CLIENT_FAILED;
             break;
-        } else if (rc == 0){
+        } else if (rc == 0) {
             /* timeout */
-            seaf_warning ("Recv timeout.\n");
-            client->info->result = BLOCK_CLIENT_NET_ERROR;
-            if (do_break_loop (client))
-                break;
+            if (info->task->type == TASK_TYPE_DOWNLOAD) {
+                seaf_warning ("Recv timeout.\n");
+                client->info->result = BLOCK_CLIENT_NET_ERROR;
+                if (do_break_loop (client))
+                    break;
+            }
             continue;
         }
 
