@@ -69,27 +69,26 @@ function read_seafile_data_dir () {
     export SEAFILE_CONF_DIR=$seafile_data_dir
 }
 
+function check_component_running() {
+    name=$1
+    cmd=$2
+    if pid=$(pgrep -f "$cmd" 2>/dev/null); then
+        echo "[$name] is running, pid $pid. You can stop it by: "
+        echo
+        echo "        kill $pid"
+        echo
+        echo "Stop it and try again."
+        echo
+        exit
+    fi
+}
+
 function ensure_server_not_running() {
     # test whether seafile server has been stopped.
-    if pgrep seaf-server 2>/dev/null 1>&2 ; then
-        echo
-        echo "seafile server is still running !"
-        echo "stop it using scripts before upgrade."
-        echo
-        exit 1
-    elif pgrep -f "${manage_py} run_gunicorn" 2>/dev/null 1>&2 ; then
-        echo
-        echo "seahub server is still running !"
-        echo "stop it before upgrade."
-        echo
-        exit 1
-    elif pgrep -f "${manage_py} runfcgi" 2>/dev/null 1>&2 ; then
-        echo
-        echo "seahub server is still running !"
-        echo "stop it before upgrade."
-        echo
-        exit 1
-    fi
+    check_component_running "ccnet-server" "ccnet-server -c ${default_ccnet_conf_dir}"
+    check_component_running "seaf-server" "seaf-server -c ${default_ccnet_conf_dir}"
+    check_component_running "fileserver" "fileserver -c ${default_ccnet_conf_dir}"
+    check_component_running "seafdav" "wsgidav.server.run_server"
 }
 
 function migrate_avatars() {
