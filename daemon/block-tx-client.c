@@ -920,10 +920,15 @@ client_thread_loop (BlockTxClient *client)
         } else
             max_fd = info->cmd_pipe[0];
 
-        tmo.tv_sec = RECV_TIMEOUT_SEC;
-        tmo.tv_usec = 0;
+        /* If the client is already shutdown, no need to add timeout. */
+        if (client->recv_state != RECV_STATE_DONE) {
+            tmo.tv_sec = RECV_TIMEOUT_SEC;
+            tmo.tv_usec = 0;
+            rc = select (max_fd + 1, &fds, NULL, NULL, &tmo);
+        } else {
+            rc = select (max_fd + 1, &fds, NULL, NULL, NULL);
+        }
 
-        rc = select (max_fd + 1, &fds, NULL, NULL, &tmo);
         if (rc < 0 && errno == EINTR) {
             continue;
         } else if (rc < 0) {
