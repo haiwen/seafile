@@ -8,7 +8,8 @@
   <!-- Product Guid must be changed in every version  -->
   <!-- <?define ProductGuid="FAA8FD6F-7788-4575-A697-3DEB5F344288" ?> (1.8.2) -->
   <!-- <?define ProductGuid="7E6C277E-81C2-11E3-8038-6FD1050B59B6" ?> (2.1.1) -->
-  <!-- ?define ProductGuid="6A2D0F65-E82D-4A4A-9836-87DEF0A910EB" ?> (3.0.4)-->
-  <?define ProductGuid="EBC6D1B7-D8F3-4511-8F74-8DCAC64C9647" ?>
+  <!-- <?define ProductGuid="6A2D0F65-E82D-4A4A-9836-87DEF0A910EB" ?> (3.0.4)-->
+  <!-- <?define ProductGuid="EBC6D1B7-D8F3-4511-8F74-8DCAC64C9647" ?> (4.0.5)-->
+  <?define ProductGuid="CB70DA89-75A3-43BC-957F-FE267AD1EEEE" ?>
 
 </Include>
