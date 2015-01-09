@@ -308,7 +308,9 @@ http_get (CURL *curl, const char *url, const char *token,
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
 
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, HTTP_TIMEOUT_SEC);
+    /* Set low speed limit to 1 bytes. This effectively means no data. */
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, HTTP_TIMEOUT_SEC);
 
     if (seaf->disable_verify_certificate) {
         curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0L);
@@ -399,7 +401,9 @@ http_put (CURL *curl, const char *url, const char *token,
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
 
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, HTTP_TIMEOUT_SEC);
+    /* Set low speed limit to 1 bytes. This effectively means no data. */
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, HTTP_TIMEOUT_SEC);
 
     if (seaf->disable_verify_certificate) {
         curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0L);
@@ -481,7 +485,9 @@ http_post (CURL *curl, const char *url, const char *token,
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, HTTP_TIMEOUT_SEC);
+    /* Set low speed limit to 1 bytes. This effectively means no data. */
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, HTTP_TIMEOUT_SEC);
 
     if (seaf->disable_verify_certificate) {
         curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0L);

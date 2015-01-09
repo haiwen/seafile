@@ -920,22 +920,29 @@ client_thread_loop (BlockTxClient *client)
         } else
             max_fd = info->cmd_pipe[0];
 
-        tmo.tv_sec = RECV_TIMEOUT_SEC;
-        tmo.tv_usec = 0;
+        /* If the client is already shutdown, no need to add timeout. */
+        if (client->recv_state != RECV_STATE_DONE) {
+            tmo.tv_sec = RECV_TIMEOUT_SEC;
+            tmo.tv_usec = 0;
+            rc = select (max_fd + 1, &fds, NULL, NULL, &tmo);
+        } else {
+            rc = select (max_fd + 1, &fds, NULL, NULL, NULL);
+        }
 
-        rc = select (max_fd + 1, &fds, NULL, NULL, &tmo);
         if (rc < 0 && errno == EINTR) {
             continue;
         } else if (rc < 0) {
             seaf_warning ("select error: %s.\n", strerror(errno));
             client->info->result = BLOCK_CLIENT_FAILED;
             break;
-        } else if (rc == 0){
+        } else if (rc == 0) {
             /* timeout */
-            seaf_warning ("Recv timeout.\n");
-            client->info->result = BLOCK_CLIENT_NET_ERROR;
-            if (do_break_loop (client))
-                break;
+            if (info->task->type == TASK_TYPE_DOWNLOAD) {
+                seaf_warning ("Recv timeout.\n");
+                client->info->result = BLOCK_CLIENT_NET_ERROR;
+                if (do_break_loop (client))
+                    break;
+            }
             continue;
         }
 

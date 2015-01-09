@@ -622,7 +622,7 @@ class NewDBConfigurator(AbstractDBConfigurator):
 
     def grant_db_permission(self, db_name):
         cursor = self.root_conn.cursor()
-        sql = '''GRANT ALL PRIVILEGES ON `%s`.* to `%s` ''' \
+        sql = '''GRANT ALL PRIVILEGES ON `%s`.* to `%s`@localhost ''' \
               % (db_name, self.seafile_mysql_user)
 
         try:
