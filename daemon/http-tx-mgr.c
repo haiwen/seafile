@@ -353,6 +353,7 @@ http_get (CURL *curl, const char *url, const char *token,
 out:
     if (ret < 0)
         g_free (rsp.content);
+    curl_slist_free_all (headers);
     return ret;
 }
 
@@ -461,6 +462,7 @@ http_put (CURL *curl, const char *url, const char *token,
 out:
     if (ret < 0)
         g_free (rsp.content);
+    curl_slist_free_all (headers);
     return ret;
 }
 
@@ -537,6 +539,7 @@ http_post (CURL *curl, const char *url, const char *token,
 out:
     if (ret < 0)
         g_free (rsp.content);
+    curl_slist_free_all (headers);
     return ret;
 }
 
