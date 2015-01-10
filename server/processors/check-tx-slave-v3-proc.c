@@ -74,6 +74,10 @@ typedef struct {
     char *rsp_msg;
     char head_id[41];
     int has_branch;
+
+    char *user;
+    char orig_repo_id[37];
+    char *orig_path;
 } SeafileCheckTxSlaveV3ProcPriv;
 
 #define GET_PRIV(o)  \
@@ -103,6 +107,8 @@ release_resource(CcnetProcessor *processor)
     g_free (priv->branch_name);
     g_free (priv->rsp_code);
     g_free (priv->rsp_msg);
+    g_free (priv->user);
+    g_free (priv->orig_path);
 
     CCNET_PROCESSOR_CLASS (seafile_check_tx_slave_v3_proc_parent_class)->release_resource (processor);
 }
@@ -283,10 +289,37 @@ check_tx (void *vprocessor)
 
     get_branch_head (processor);
 
+    /* Fill information for sending events. */
+    priv->user = g_strdup(user);
+    if (repo->virtual_info) {
+        memcpy (priv->orig_repo_id, repo->virtual_info->origin_repo_id, 36);
+        priv->orig_path = g_strdup(repo->virtual_info->path);
+    } else
+        memcpy (priv->orig_repo_id, repo_id, 36);
+
 out:
     seaf_repo_unref (repo);
     g_free (user);
     return vprocessor;    
+}
+
+static void
+publish_repo_download_event (CcnetProcessor *processor)
+{
+    USE_PRIV;
+    GString *buf;
+
+    if (!priv->user)
+        return;
+
+    buf = g_string_new (NULL);
+        g_string_printf (buf, "repo-download\t%s\t%s\t%s",
+                         priv->orig_repo_id, priv->user,
+                         priv->orig_path ? priv->orig_path : "/");
+
+    seaf_mq_manager_publish_event (seaf->mq_mgr, buf->str);
+
+    g_string_free (buf, TRUE);
 }
 
 static void 
@@ -303,6 +336,9 @@ thread_done (void *result)
         } else
             ccnet_processor_send_response (processor, SC_OK, SS_OK, NULL, 0);
         processor->state = ACCESS_GRANTED;
+
+        if (priv->type == CHECK_TX_TYPE_DOWNLOAD)
+            publish_repo_download_event (processor);
     } else {
         ccnet_processor_send_response (processor,
                                        priv->rsp_code, priv->rsp_msg,

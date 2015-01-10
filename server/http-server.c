@@ -358,6 +358,52 @@ default_cb (evhtp_request_t *req, void *arg)
     evhtp_send_reply (req, EVHTP_RES_OK);
 }
 
+typedef struct {
+    char repo_id[37];
+    char *user;
+    char *path;
+} RepoDownloadEventData;
+
+static void
+publish_repo_download_event (CEvent *event, void *data)
+{
+    RepoDownloadEventData *rdata = event->data;
+
+    GString *buf = g_string_new (NULL);
+    g_string_printf (buf, "repo-download\t%s\t%s\t%s",
+                     rdata->repo_id, rdata->user,
+                     rdata->path ? rdata->path : "/");
+
+    seaf_mq_manager_publish_event (seaf->mq_mgr, buf->str);
+
+    g_string_free (buf, TRUE);
+    g_free (rdata->user);
+    g_free (rdata->path);
+    g_free (rdata);
+}
+
+static void
+on_repo_downloaded (HttpServer *htp_server, const char *repo_id, const char *user)
+{
+    RepoDownloadEventData *rdata = g_new0 (RepoDownloadEventData, 1);
+    SeafVirtRepo *vinfo = seaf_repo_manager_get_virtual_repo_info (seaf->repo_mgr,
+                                                                   repo_id);
+
+    if (vinfo) {
+        memcpy (rdata->repo_id, vinfo->origin_repo_id, 36);
+        rdata->path = g_strdup(vinfo->path);
+    } else
+        memcpy (rdata->repo_id, repo_id, 36);
+    rdata->user = g_strdup (user);
+
+    cevent_manager_add_event (seaf->ev_mgr, htp_server->cevent_id, rdata);
+
+    if (vinfo) {
+        g_free (vinfo->path);
+        g_free (vinfo);
+    }
+}
+
 static void
 get_check_permission_cb (evhtp_request_t *req, void *arg)
 {
@@ -386,6 +432,9 @@ get_check_permission_cb (evhtp_request_t *req, void *arg)
         evhtp_send_reply (req, EVHTP_RES_FORBIDDEN);
         goto out;
     }
+
+    if (strcmp (op, "download") == 0)
+        on_repo_downloaded (htp_server, repo_id, username);
 
     evhtp_send_reply (req, EVHTP_RES_OK);
 
@@ -1678,6 +1727,10 @@ void seaf_http_server_release (HttpServer *htp_server)
 int
 seaf_http_server_start (HttpServer *htp_server)
 {
+    htp_server->cevent_id = cevent_manager_register (seaf->ev_mgr,
+                                    (cevent_handler)publish_repo_download_event,
+                                                     NULL);
+
    int ret = pthread_create (&htp_server->thread_id, NULL, http_server_run, htp_server);
    if (ret != 0)
        return -1;
