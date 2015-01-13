@@ -1567,8 +1567,6 @@ copy_recursive (SeafRepo *src_repo, SeafRepo *dst_repo,
         for (ptr = src_dir->entries; ptr; ptr = ptr->next) {
             dent = ptr->data;
 
-            seaf_message ("Copying %s.\n", dent->name);
-
             guint64 new_size = 0;
             new_id = copy_recursive (src_repo, dst_repo,
                                      dent->id, dent->mode, modifier, task, &new_size);
