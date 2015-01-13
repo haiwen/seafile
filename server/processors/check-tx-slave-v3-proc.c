@@ -304,7 +304,7 @@ out:
 }
 
 static void
-publish_repo_download_event (CcnetProcessor *processor)
+publish_repo_event (CcnetProcessor *processor, const char *etype)
 {
     USE_PRIV;
     GString *buf;
@@ -313,9 +313,10 @@ publish_repo_download_event (CcnetProcessor *processor)
         return;
 
     buf = g_string_new (NULL);
-        g_string_printf (buf, "repo-download\t%s\t%s\t%s",
-                         priv->orig_repo_id, priv->user,
-                         priv->orig_path ? priv->orig_path : "/");
+    g_string_printf (buf, "%s\t%s\t%s\t%s\t%s\t%s",
+                     etype, priv->user, priv->peer_addr,
+                     priv->peer_name, priv->orig_repo_id,
+                     priv->orig_path ? priv->orig_path : "/");
 
     seaf_mq_manager_publish_event (seaf->mq_mgr, buf->str);
 
@@ -338,7 +339,9 @@ thread_done (void *result)
         processor->state = ACCESS_GRANTED;
 
         if (priv->type == CHECK_TX_TYPE_DOWNLOAD)
-            publish_repo_download_event (processor);
+            publish_repo_event (processor, "repo-download-sync");
+        else if (priv->type == CHECK_TX_TYPE_UPLOAD)
+            publish_repo_event (processor, "repo-upload-sync");
     } else {
         ccnet_processor_send_response (processor,
                                        priv->rsp_code, priv->rsp_msg,
