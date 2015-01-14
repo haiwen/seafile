@@ -30,6 +30,10 @@
 
 #define INDEX_DIR "index"
 
+#define PREFIX_DEL_FILE "Deleted \""
+#define PREFIX_DEL_DIR "Removed directory \""
+#define PREFIX_DEL_DIRS "Removed \""
+
 gboolean
 should_ignore_file(const char *filename, void *data);
 
@@ -4547,6 +4551,12 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
 
     if (commit->parent_id == NULL)
         return TRUE;
+
+    if (!(strstr (commit->desc, PREFIX_DEL_FILE) != NULL ||
+          strstr (commit->desc, PREFIX_DEL_DIR) != NULL ||
+          strstr (commit->desc, PREFIX_DEL_DIRS) != NULL)) {
+        return TRUE;
+    }
 
     p1 = seaf_commit_manager_get_commit (commit->manager,
                                          repo->id, repo->version,
