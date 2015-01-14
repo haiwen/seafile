@@ -2,6 +2,7 @@
 #include <string.h>
 #include <jansson.h>
 #include <locale.h>
+#include <sys/types.h>
 
 #include "common.h"
 #include "utils.h"
@@ -358,6 +359,81 @@ default_cb (evhtp_request_t *req, void *arg)
     evhtp_send_reply (req, EVHTP_RES_OK);
 }
 
+typedef struct {
+    char *etype;
+    char *user;
+    char *ip;
+    char repo_id[37];
+    char *path;
+} RepoEventData;
+
+static void
+free_repo_event_data (RepoEventData *data)
+{
+    if (!data)
+        return;
+
+    g_free (data->etype);
+    g_free (data->user);
+    g_free (data->ip);
+    g_free (data->path);
+    g_free (data);
+}
+
+static void
+publish_repo_event (CEvent *event, void *data)
+{
+    RepoEventData *rdata = event->data;
+
+    GString *buf = g_string_new (NULL);
+    g_string_printf (buf, "%s\t%s\t%s\t\t%s\t%s",
+                     rdata->etype, rdata->user, rdata->ip,
+                     rdata->repo_id, rdata->path ? rdata->path : "/");
+
+    seaf_mq_manager_publish_event (seaf->mq_mgr, buf->str);
+
+    g_string_free (buf, TRUE);
+    free_repo_event_data (rdata);
+}
+
+static void
+on_repo_oper (HttpServer *htp_server, const char *etype,
+              const char *repo_id, char *user, char *ip)
+{
+    RepoEventData *rdata = g_new0 (RepoEventData, 1);
+    SeafVirtRepo *vinfo = seaf_repo_manager_get_virtual_repo_info (seaf->repo_mgr,
+                                                                   repo_id);
+
+    if (vinfo) {
+        memcpy (rdata->repo_id, vinfo->origin_repo_id, 36);
+        rdata->path = g_strdup(vinfo->path);
+    } else
+        memcpy (rdata->repo_id, repo_id, 36);
+    rdata->etype = g_strdup (etype);
+    rdata->user = g_strdup (user);
+    rdata->ip = g_strdup (ip);
+
+    cevent_manager_add_event (seaf->ev_mgr, htp_server->cevent_id, rdata);
+
+    if (vinfo) {
+        g_free (vinfo->path);
+        g_free (vinfo);
+    }
+}
+
+char *
+get_client_ip_addr (evhtp_connection_t *conn)
+{
+    char ip_addr[17];
+    const char *ip = NULL;
+    struct sockaddr_in *addr_in = (struct sockaddr_in *)conn->saddr;
+
+    memset (ip_addr, '\0', 17);
+    ip = evutil_inet_ntop (AF_INET, &addr_in->sin_addr, ip_addr, 16);
+
+    return g_strdup (ip);
+}
+
 static void
 get_check_permission_cb (evhtp_request_t *req, void *arg)
 {
@@ -371,6 +447,7 @@ get_check_permission_cb (evhtp_request_t *req, void *arg)
     char *repo_id = parts[1];
     HttpServer *htp_server = (HttpServer *)arg;
     char *username = NULL;
+    char *ip = NULL;
 
     int token_status = validate_token (htp_server, req, repo_id, &username);
     if (token_status != EVHTP_RES_OK) {
@@ -387,10 +464,24 @@ get_check_permission_cb (evhtp_request_t *req, void *arg)
         goto out;
     }
 
+    ip = get_client_ip_addr (req->conn);
+    if (!ip) {
+        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        goto out;
+    }
+
+    if (strcmp (op, "download") == 0) {
+        on_repo_oper (htp_server, "repo-download-sync", repo_id, username, ip);
+    } else if (strcmp (op, "upload") == 0) {
+        on_repo_oper (htp_server, "repo-upload-sync", repo_id, username, ip);
+    }
+
     evhtp_send_reply (req, EVHTP_RES_OK);
 
 out:
     g_strfreev (parts);
+    g_free (ip);
+    g_free (username);
 }
 
 static void
@@ -1678,6 +1769,10 @@ void seaf_http_server_release (HttpServer *htp_server)
 int
 seaf_http_server_start (HttpServer *htp_server)
 {
+    htp_server->cevent_id = cevent_manager_register (seaf->ev_mgr,
+                                    (cevent_handler)publish_repo_event,
+                                                     NULL);
+
    int ret = pthread_create (&htp_server->thread_id, NULL, http_server_run, htp_server);
    if (ret != 0)
        return -1;

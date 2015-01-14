@@ -28,6 +28,8 @@ typedef struct HttpServer {
     GHashTable *vir_repo_info_cache;
     pthread_mutex_t vir_repo_info_cache_lock;
 
+    uint32_t cevent_id;         /* Used for sending activity events. */
+
     event_t *reap_timer;
 
     struct _SeafileSession *seaf_session;

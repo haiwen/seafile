@@ -348,6 +348,9 @@ publish_repo_update_event (CEvent *event, void *data)
 static void
 on_branch_updated (SeafBranchManager *mgr, SeafBranch *branch)
 {
+    if (seaf_repo_manager_is_virtual_repo (seaf->repo_mgr, branch->repo_id))
+        return;
+
     RepoUpdateEventData *rdata = g_new0 (RepoUpdateEventData, 1);
 
     rdata->repo_id = g_strdup (branch->repo_id);
