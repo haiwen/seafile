@@ -60,7 +60,7 @@ Differences from Git:
 Build and Run
 =============
 
-See <https://github.com/haiwen/seafile/wiki>
+See <http://manual.seafile.com/develop/README.html>
 
 Internationalization (I18n)
 ==========
@@ -76,9 +76,8 @@ See <https://seacloud.cc/group/3/wiki/home/>
 Why Open Source
 ===============
 
-Our primary goal is to build a first-class product. Since we are only a small team, we think our goal can only be achieved by collaborating with the whole world.
+Our primary goal is to build a first-class product. We think this goal can only be achieved by collaborating with the whole world.
 
-Seafile is an open and extensible system. A library is a collection of files that could be synced. It can be presented to users as a Wiki, a set of notes, a gallery and so on. We have already written the Wiki module as an example. We need your contributions to make Seafile more versatile. Let's build an awesome system together!
 
 License
 =======
@@ -92,6 +91,5 @@ Contact
 
 Twitter: @seafile <https://twitter.com/seafile>
 
-Google Group: <https://groups.google.com/forum/?fromgroups#!forum/seafile>
+Forum: <https://forum.seafile-server.org>
 
-IRC: #seafile on freenode
