@@ -446,7 +446,8 @@ process_one_event (RepoWatchInfo *info,
 
         /* Ignore modified event for directories. */
         char *full_path = g_build_filename (worktree, filename, NULL);
-        if (g_file_test(full_path, G_FILE_TEST_IS_DIR)) {
+        SeafStat st;
+        if (seaf_stat (full_path, &st) == 0 && S_ISDIR(st.st_mode)) {
             g_free (full_path);
             goto out;
         }

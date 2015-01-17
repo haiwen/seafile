@@ -855,6 +855,8 @@ out:
     return;
 }
 
+#ifndef WIN32
+
 static gboolean
 is_non_empty_directory (const char *path)
 {
@@ -870,6 +872,32 @@ is_non_empty_directory (const char *path)
 
     return ret;
 }
+
+#else
+
+static int
+check_empty_cb (wchar_t *parent, wchar_t *dname, void *user_data, gboolean *stop)
+{
+    gboolean *res = user_data;
+
+    *res = TRUE;
+    *stop = TRUE;
+
+    return 0;
+}
+
+static gboolean
+is_non_empty_directory (const char *path)
+{
+    wchar_t *wpath = win32_long_path (path);
+    gboolean ret = FALSE;
+
+    traverse_directory_win32 (wpath, check_empty_cb, &ret);
+
+    return ret;
+}
+
+#endif  /* WIN32 */
 
 static int
 start_index_or_transfer (SeafCloneManager *mgr, CloneTask *task, GError **error)
@@ -991,10 +1019,10 @@ make_worktree (SeafCloneManager *mgr,
     remove_trail_slash (wt);
 
     rc = seaf_stat (wt, &st);
-    if (rc < 0 && errno == ENOENT) {
+    if (rc < 0) {
         ret = wt;
         return ret;
-    } else if (rc < 0 || !S_ISDIR(st.st_mode)) {
+    } else if (!S_ISDIR(st.st_mode)) {
         if (!dry_run) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                          "Invalid local directory");

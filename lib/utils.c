@@ -211,38 +211,6 @@ file_time_to_unix_time (FILETIME *ftime)
 }
 
 static int
-get_utc_file_time (const char *path, const wchar_t *wpath,
-                   __time64_t *mtime, __time64_t *ctime)
-{
-    HANDLE handle;
-    FILETIME write_time, create_time;
-
-    handle = CreateFileW (wpath,
-                          GENERIC_READ,
-                          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
-                          NULL,
-                          OPEN_EXISTING,
-                          FILE_FLAG_BACKUP_SEMANTICS,
-                          NULL);
-    if (handle == INVALID_HANDLE_VALUE) {
-        g_warning ("Failed to open %s: %lu.\n", path, GetLastError());
-        return -1;
-    }
-
-    if (!GetFileTime (handle, &create_time, NULL, &write_time)) {
-        g_warning ("Failed to get file time for %s: %lu.\n", path, GetLastError());
-        CloseHandle (handle);
-        return -1;
-    }
-    CloseHandle (handle);
-
-    *mtime = file_time_to_unix_time (&write_time);
-    *ctime = file_time_to_unix_time (&create_time);
-
-    return 0;
-}
-
-static int
 get_utc_file_time_fd (int fd, __time64_t *mtime, __time64_t *ctime)
 {
     HANDLE handle;
@@ -313,16 +281,28 @@ int
 seaf_stat (const char *path, SeafStat *st)
 {
 #ifdef WIN32
-    wchar_t *wpath = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
+    wchar_t *wpath = win32_long_path (path);
+    WIN32_FILE_ATTRIBUTE_DATA attrs;
     int ret = 0;
 
-    if (_wstat64 (wpath, st) < 0) {
+    if (!GetFileAttributesExW (wpath, GetFileExInfoStandard, &attrs)) {
         ret = -1;
         goto out;
     }
 
-    if (get_utc_file_time (path, wpath, &st->st_mtime, &st->st_ctime) < 0)
-        ret = -1;
+    memset (st, 0, sizeof(SeafStat));
+
+    if (attrs.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        st->st_mode = (S_IFDIR | S_IRWXU);
+    else
+        st->st_mode = (S_IFREG | S_IRUSR | S_IWUSR);
+
+    st->st_atime = file_time_to_unix_time (&attrs.ftLastAccessTime);
+    st->st_ctime = file_time_to_unix_time (&attrs.ftCreationTime);
+    st->st_mtime = file_time_to_unix_time (&attrs.ftLastWriteTime);
+
+    st->st_size = ((((__int64)attrs.nFileSizeHigh)<<32) + attrs.nFileSizeLow);
+
 out:
     g_free (wpath);
 
@@ -348,6 +328,27 @@ seaf_fstat (int fd, SeafStat *st)
 #endif
 }
 
+#ifdef WIN32
+
+void
+seaf_stat_from_find_data (WIN32_FIND_DATAW *fdata, SeafStat *st)
+{
+    memset (st, 0, sizeof(SeafStat));
+
+    if (fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        st->st_mode = (S_IFDIR | S_IRWXU);
+    else
+        st->st_mode = (S_IFREG | S_IRUSR | S_IWUSR);
+
+    st->st_atime = file_time_to_unix_time (&fdata->ftLastAccessTime);
+    st->st_ctime = file_time_to_unix_time (&fdata->ftCreationTime);
+    st->st_mtime = file_time_to_unix_time (&fdata->ftLastWriteTime);
+
+    st->st_size = ((((__int64)fdata->nFileSizeHigh)<<32) + fdata->nFileSizeLow);
+}
+
+#endif
+
 int
 seaf_set_file_time (const char *path, guint64 mtime)
 {
@@ -365,7 +366,7 @@ seaf_set_file_time (const char *path, guint64 mtime)
 
     return utime (path, &times);
 #else
-    wchar_t *wpath = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
+    wchar_t *wpath = win32_long_path (path);
     int ret = 0;
 
     if (set_utc_file_time (path, wpath, mtime) < 0)
@@ -375,6 +376,282 @@ seaf_set_file_time (const char *path, guint64 mtime)
     return ret;
 #endif
 }
+
+#ifdef WIN32
+
+wchar_t *
+win32_long_path (const char *path)
+{
+    char *long_path, *p;
+    wchar_t *long_path_w;
+
+    long_path = g_strconcat ("\\\\?\\", path, NULL);
+    for (p = long_path; *p != 0; ++p)
+        if (*p == '/')
+            *p = '\\';
+
+    long_path_w = g_utf8_to_utf16 (long_path, -1, NULL, NULL, NULL);
+
+    g_free (long_path);
+    return long_path_w;
+}
+
+static int
+windows_error_to_errno (DWORD error)
+{
+    switch (error) {
+    case ERROR_FILE_NOT_FOUND:
+    case ERROR_PATH_NOT_FOUND:
+        return ENOENT;
+    case ERROR_ALREADY_EXISTS:
+        return EEXIST;
+    case ERROR_ACCESS_DENIED:
+    case ERROR_SHARING_VIOLATION:
+        return EACCES;
+    case ERROR_DIR_NOT_EMPTY:
+        return ENOTEMPTY;
+    default:
+        return 0;
+    }
+}
+
+#endif  /* WIN32 */
+
+int
+seaf_util_unlink (const char *path)
+{
+#ifdef WIN32
+    wchar_t *wpath = win32_long_path (path);
+    int ret = 0;
+
+    if (!DeleteFileW (wpath)) {
+        ret = -1;
+        errno = windows_error_to_errno (GetLastError());
+    }
+
+    g_free (wpath);
+    return ret;
+#else
+    return unlink (path);
+#endif
+}
+
+int
+seaf_util_rmdir (const char *path)
+{
+#ifdef WIN32
+    wchar_t *wpath = win32_long_path (path);
+    int ret = 0;
+
+    if (!RemoveDirectoryW (wpath)) {
+        ret = -1;
+        errno = windows_error_to_errno (GetLastError());
+    }
+
+    g_free (wpath);
+    return ret;
+#else
+    return rmdir (path);
+#endif
+}
+
+int
+seaf_util_mkdir (const char *path, mode_t mode)
+{
+#ifdef WIN32
+    wchar_t *wpath = win32_long_path (path);
+    int ret = 0;
+
+    if (!CreateDirectoryW (wpath, NULL)) {
+        ret = -1;
+        errno = windows_error_to_errno (GetLastError());
+    }
+
+    g_free (wpath);
+    return ret;
+#else
+    return mkdir (path, mode);
+#endif
+}
+
+int
+seaf_util_open (const char *path, int flags)
+{
+#ifdef WIN32
+    wchar_t *wpath;
+    DWORD access = 0;
+    HANDLE handle;
+    int fd;
+
+    access |= GENERIC_READ;
+    if (flags & (O_WRONLY | O_RDWR))
+        access |= GENERIC_WRITE;
+
+    wpath = win32_long_path (path);
+
+    handle = CreateFileW (wpath,
+                          access,
+                          FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                          NULL,
+                          OPEN_EXISTING,
+                          0,
+                          NULL);
+    if (handle == INVALID_HANDLE_VALUE) {
+        errno = windows_error_to_errno (GetLastError());
+        g_free (wpath);
+        return -1;
+    }
+
+    fd = _open_osfhandle ((intptr_t)handle, 0);
+
+    g_free (wpath);
+    return fd;
+#else
+    return open (path, flags);
+#endif
+}
+
+int
+seaf_util_create (const char *path, int flags, mode_t mode)
+{
+#ifdef WIN32
+    wchar_t *wpath;
+    DWORD access = 0;
+    HANDLE handle;
+    int fd;
+
+    access |= GENERIC_READ;
+    if (flags & (O_WRONLY | O_RDWR))
+        access |= GENERIC_WRITE;
+
+    wpath = win32_long_path (path);
+
+    handle = CreateFileW (wpath,
+                          access,
+                          FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                          NULL,
+                          CREATE_ALWAYS,
+                          0,
+                          NULL);
+    if (handle == INVALID_HANDLE_VALUE) {
+        errno = windows_error_to_errno (GetLastError());
+        g_free (wpath);
+        return -1;
+    }
+
+    fd = _open_osfhandle ((intptr_t)handle, 0);
+
+    g_free (wpath);
+    return fd;
+#else
+    return open (path, flags, mode);
+#endif
+}
+
+int
+seaf_util_rename (const char *oldpath, const char *newpath)
+{
+#ifdef WIN32
+    wchar_t *oldpathw = win32_long_path (oldpath);
+    wchar_t *newpathw = win32_long_path (newpath);
+    int ret = 0;
+
+    if (!MoveFileExW (oldpathw, newpathw, MOVEFILE_REPLACE_EXISTING)) {
+        ret = -1;
+        errno = windows_error_to_errno (GetLastError());
+    }
+
+    g_free (oldpathw);
+    g_free (newpathw);
+    return ret;
+#else
+    return rename (oldpath, newpath);
+#endif
+}
+
+gboolean
+seaf_util_exists (const char *path)
+{
+#ifdef WIN32
+    wchar_t *wpath = win32_long_path (path);
+    DWORD attrs;
+    gboolean ret;
+
+    attrs = GetFileAttributesW (wpath);
+    ret = (attrs != INVALID_FILE_ATTRIBUTES);
+
+    g_free (wpath);
+    return ret;
+#else
+    return (access (path, F_OK) == 0);
+#endif
+}
+
+#ifdef WIN32
+
+int
+traverse_directory_win32 (wchar_t *path_w,
+                          DirentCallback callback,
+                          void *user_data)
+{
+    WIN32_FIND_DATAW fdata;
+    HANDLE handle;
+    wchar_t *pattern;
+    char *path;
+    int path_len_w;
+    DWORD error;
+    gboolean stop;
+    int ret = 0;
+
+    path = g_utf16_to_utf8 (path_w, -1, NULL, NULL, NULL);
+
+    path_len_w = wcslen(path_w);
+
+    pattern = g_new0 (wchar_t, (path_len_w + 3));
+    wcscpy (pattern, path_w);
+    wcscat (pattern, L"\\*");
+
+    handle = FindFirstFileW (pattern, &fdata);
+    if (handle == INVALID_HANDLE_VALUE) {
+        g_warning ("FindFirstFile failed %s: %lu.\n",
+                   path, GetLastError());
+        ret = -1;
+        goto out;
+    }
+
+    do {
+        if (wcscmp (fdata.cFileName, L".") == 0 ||
+            wcscmp (fdata.cFileName, L"..") == 0)
+            continue;
+
+        stop = FALSE;
+        if (callback (path_w, &fdata, user_data, &stop) < 0) {
+            ret = -1;
+            FindClose (handle);
+            goto out;
+        }
+        if (stop) {
+            FindClose (handle);
+            goto out;
+        }
+    } while (FindNextFileW (handle, &fdata) != 0);
+
+    error = GetLastError();
+    if (error != ERROR_NO_MORE_FILES) {
+        g_warning ("FindNextFile failed %s: %lu.\n",
+                   path, error);
+        ret = -1;
+    }
+
+    FindClose (handle);
+
+out:
+    g_free (path);
+    g_free (pattern);
+    return ret;
+}
+
+#endif
 
 ssize_t						/* Read "n" bytes from a descriptor. */
 readn(int fd, void *vptr, size_t n)

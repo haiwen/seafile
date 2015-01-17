@@ -292,7 +292,7 @@ int read_index_from(struct index_state *istate, const char *path, int repo_versi
         istate->has_modifier = 1;
     istate->timestamp.sec = 0;
     istate->timestamp.nsec = 0;
-    fd = g_open (path, O_RDONLY | O_BINARY, 0);
+    fd = seaf_util_open (path, O_RDONLY | O_BINARY);
     if (fd < 0) {
         if (errno == ENOENT) {
             alloc_index (istate);
@@ -1630,7 +1630,7 @@ int index_path(unsigned char *sha1, const char *path, SeafStat *st)
 
     switch (st->st_mode & S_IFMT) {
     case S_IFREG:
-        fd = g_open (path, O_RDONLY | O_BINARY, 0);
+        fd = seaf_util_open (path, O_RDONLY | O_BINARY);
         if (fd < 0) {
             g_warning("g_open (\"%s\"): %s\n", path, strerror(errno));
             return -1;
