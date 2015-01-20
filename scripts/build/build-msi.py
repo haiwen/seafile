@@ -54,6 +54,8 @@ CONF_OUTPUTDIR          = 'outputdir'
 CONF_DEBUG              = 'debug'
 CONF_ONLY_CHINESE       = 'onlychinese'
 CONF_QT_ROOT            = 'qt_root'
+CONF_QT5                = 'qt5'
+CONF_WITH_SHIB          = 'with_shib'
 
 ####################
 ### Common helper functions
@@ -308,8 +310,13 @@ class SeafileClient(Project):
     name = 'seafile-client'
     def __init__(self):
         Project.__init__(self)
+        flags = {
+            'USE_QT5': 'ON' if conf[CONF_QT5] else 'OFF',
+            'BUILD_SHIBBOLETH_SUPPORT': 'ON' if conf[CONF_WITH_SHIB] else 'OFF',
+        }
+        flags = ' '.join(['-D%s=%s' % (k, v) for k, v in flags.iteritems()])
         self.build_commands = [
-            'cmake -G "MSYS Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%s .' % to_mingw_path(self.prefix),
+            'cmake -G "MSYS Makefiles" %s -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%s .' % (flags, to_mingw_path(self.prefix)),
             get_make_path(),
             '%s install' % get_make_path(),
         ]
@@ -397,6 +404,10 @@ def validate_args(usage, options):
             error('%s is not a valid qt root' % qt_root)
     check_qt_root(qt_root)
 
+    # [qt5]
+    qt5 = get_option(CONF_QT5)
+    with_shib = get_option(CONF_WITH_SHIB)
+
     conf[CONF_VERSION] = version
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
     conf[CONF_CCNET_VERSION] = ccnet_version
@@ -410,6 +421,8 @@ def validate_args(usage, options):
     conf[CONF_DEBUG] = debug
     conf[CONF_ONLY_CHINESE] = onlychinese
     conf[CONF_QT_ROOT] = qt_root
+    conf[CONF_QT5] = qt5
+    conf[CONF_WITH_SHIB] = with_shib
 
     prepare_builddir(builddir)
     show_build_info()
@@ -514,6 +527,16 @@ def parse_args():
                       dest=CONF_ONLY_CHINESE,
                       action='store_true',
                       help='''only build the Chinese version. By default both Chinese and English versions would be built.''')
+
+    parser.add_option(long_opt(CONF_QT5),
+                      dest=CONF_QT5,
+                      action='store_true',
+                      help='''build seafile client with qt5''')
+
+    parser.add_option(long_opt(CONF_WITH_SHIB),
+                      dest=CONF_WITH_SHIB,
+                      action='store_true',
+                      help='''build seafile client with shibboleth support''')
 
     usage = parser.format_help()
     options, remain = parser.parse_args()
