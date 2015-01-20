@@ -439,12 +439,14 @@ add_empty_dir_to_index (struct index_state *istate,
                         SeafStat *st);
 
 int
-remove_from_index_with_prefix (struct index_state *istate, const char *path_prefix);
+remove_from_index_with_prefix (struct index_state *istate, const char *path_prefix,
+                               gboolean *not_found);
 
 int
 rename_index_entries (struct index_state *istate,
                       const char *src_path,
-                      const char *dst_path);
+                      const char *dst_path,
+                      gboolean *not_found);
 
 int
 add_empty_dir_to_index_with_check (struct index_state *istate,

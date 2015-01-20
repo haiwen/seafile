@@ -412,71 +412,6 @@ handle_consecutive_duplicate_event (RepoWatchInfo *info,
 }
 #endif
 
-/* Convert a (possible) 8.3 format path to long path */
-static wchar_t *
-get_long_path (const char *worktree, const wchar_t *path, int path_len)
-{
-    wchar_t *worktree_w = g_utf8_to_utf16 (worktree, -1, NULL, NULL, NULL);
-    int wt_len;
-    wchar_t *p;
-    wchar_t *fullpath_w = NULL;
-    wchar_t *fullpath_long = NULL;
-    wchar_t *ret = NULL;
-    char *fullpath;
-
-    for (p = worktree_w; *p != L'\0'; ++p)
-        if (*p == L'/')
-            *p = L'\\';
-
-    wt_len = wcslen(worktree_w);
-
-    fullpath_w = g_new0 (wchar_t, wt_len + path_len + 6);
-    wcscpy (fullpath_w, L"\\\\?\\");
-    wcscat (fullpath_w, worktree_w);
-    wcscat (fullpath_w, L"\\");
-    wcsncat (fullpath_w, path, path_len);
-
-    fullpath_long = g_new0 (wchar_t, SEAF_PATH_MAX);
-
-    DWORD n = GetLongPathNameW (fullpath_w, fullpath_long, SEAF_PATH_MAX);
-    if (n == 0) {
-        /* Failed. */
-        fullpath = g_utf16_to_utf8 (fullpath_w, -1, NULL, NULL, NULL);
-        seaf_warning ("Failed to GetLongPathName for %s: %lu.\n",
-                      fullpath, GetLastError());
-        g_free (fullpath);
-
-        ret = g_new0 (wchar_t, path_len + 1);
-        wcsncat (ret, path, path_len);
-        goto out;
-    } else if (n > SEAF_PATH_MAX) {
-        /* In this case n is the necessary length for the buf. */
-        g_free (fullpath_long);
-        fullpath_long = g_new0 (wchar_t, n);
-
-        if (GetLongPathNameW (fullpath_w, fullpath_long, n) != (n - 1)) {
-            fullpath = g_utf16_to_utf8 (fullpath_w, -1, NULL, NULL, NULL);
-            seaf_warning ("Failed to GetLongPathName for %s: %lu.\n",
-                          fullpath, GetLastError());
-            g_free (fullpath);
-
-            ret = g_new0 (wchar_t, path_len + 1);
-            wcsncat (ret, path, path_len);
-            goto out;
-        }
-    }
-
-    /* Remove "\\?\worktree\" from the beginning. */
-    ret = wcsdup (fullpath_long + wt_len + 5);
-
-out:
-    g_free (worktree_w);
-    g_free (fullpath_w);
-    g_free (fullpath_long);
-
-    return ret;
-}
-
 static char *
 convert_to_unix_path (const char *worktree, const wchar_t *path, int path_len,
                       gboolean convert_long_path)
@@ -484,9 +419,15 @@ convert_to_unix_path (const char *worktree, const wchar_t *path, int path_len,
     char *utf8_path = NULL;
 
     if (convert_long_path) {
-        wchar_t *long_path = get_long_path (worktree, path, path_len/sizeof(wchar_t));
-        utf8_path = g_utf16_to_utf8 (long_path, -1, NULL, NULL, NULL);
-        g_free (long_path);
+        wchar_t *long_path = win32_83_path_to_long_path (worktree,
+                                                         path,
+                                                         path_len/sizeof(wchar_t));
+        if (long_path) {
+            utf8_path = g_utf16_to_utf8 (long_path, -1, NULL, NULL, NULL);
+            g_free (long_path);
+        } else
+            utf8_path = g_utf16_to_utf8 (path, path_len/sizeof(wchar_t),
+                                         NULL, NULL, NULL);
     } else
         utf8_path = g_utf16_to_utf8 (path, path_len/sizeof(wchar_t), NULL, NULL, NULL);
 
@@ -526,7 +467,8 @@ process_one_event (RepoWatchInfo *info,
         /* Ignore modified event for directories. */
         char *full_path = g_build_filename (worktree, filename, NULL);
         SeafStat st;
-        if (seaf_stat (full_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+        int rc = seaf_stat (full_path, &st);
+        if (rc < 0 || S_ISDIR(st.st_mode)) {
             g_free (full_path);
             goto out;
         }

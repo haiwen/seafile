@@ -1404,6 +1404,100 @@ update_ce_mode (struct index_state *istate, const char *worktree, const char *pa
     istate->cache_changed = 1;
 }
 
+#ifdef WIN32
+static void
+scan_subtree_for_deletion (struct index_state *istate,
+                           const char *worktree,
+                           const char *path,
+                           GList *ignore_list,
+                           LockedFileSet *fset,
+                           GList **scanned_dirs)
+{
+    wchar_t *path_w;
+    wchar_t *dir_w = NULL;
+    wchar_t *p;
+    char *dir = NULL;
+    char *p2;
+
+    /* In most file systems, like NTFS, 8.3 format path should contain ~.
+     * Also note that *~ files are ignored.
+     */
+    if (!strchr (path, '~') || path[strlen(path)-1] == '~')
+        return;
+
+    path_w = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
+
+    for (p = path_w; *p != L'\0'; ++p)
+        if (*p == L'/')
+            *p = L'\\';
+
+    while (1) {
+        p = wcsrchr (path_w, L'\\');
+        if (p)
+            *p = L'\0';
+        dir_w = win32_83_path_to_long_path (worktree, path_w, wcslen(path_w));
+        if (dir_w)
+            break;
+        if (!p)
+            break;
+    }
+
+    if (!dir_w)
+        dir_w = wcsdup(L"");
+
+    dir = g_utf16_to_utf8 (dir_w, -1, NULL, NULL, NULL);
+    for (p2 = dir; *p2 != 0; ++p2)
+        if (*p2 == '\\')
+            *p2 = '/';
+
+    /* If we've recursively scanned the parent directory, don't need to scan
+     * any files under it any more.
+     */
+    GList *ptr;
+    char *s, *full_s;
+    for (ptr = *scanned_dirs; ptr; ptr = ptr->next) {
+        s = ptr->data;
+
+        /* Have scanned from root directory. */
+        if (s[0] == 0) {
+            goto out;
+        }
+
+        /* exact match */
+        if (strcmp (s, path) == 0) {
+            goto out;
+        }
+
+        /* prefix match. */
+        full_s = g_strconcat (s, "/", NULL);
+        if (strncmp (full_s, dir, strlen(full_s)) == 0) {
+            g_free (full_s);
+            goto out;
+        }
+        g_free (full_s);
+    }
+
+    *scanned_dirs = g_list_prepend (*scanned_dirs, g_strdup(dir));
+
+    remove_deleted (istate, worktree, dir, ignore_list, fset);
+
+out:
+    g_free (path_w);
+    g_free (dir_w);
+    g_free (dir);
+}
+#else
+static void
+scan_subtree_for_deletion (struct index_state *istate,
+                           const char *worktree,
+                           const char *path,
+                           GList *ignore_list,
+                           LockedFileSet *fset,
+                           GList **scanned_dirs)
+{
+}
+#endif
+
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list)
@@ -1411,6 +1505,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
     WTStatus *status;
     WTEvent *event, *next_event;
     LockedFileSet *fset = NULL;
+    gboolean not_found;
 
     status = seaf_wt_monitor_get_worktree_status (seaf->wt_monitor, repo->id);
     if (!status) {
@@ -1419,7 +1514,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
         return -1;
     }
 
-    GList *scanned_dirs = NULL;
+    GList *scanned_dirs = NULL, *scanned_del_dirs = NULL;
 
     WTEvent *last_event;
 
@@ -1518,7 +1613,13 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             break;
         case WT_EVENT_DELETE:
             if (check_locked_file_before_remove (fset, event->path)) {
-                remove_from_index_with_prefix (istate, event->path);
+                not_found = FALSE;
+                remove_from_index_with_prefix (istate, event->path, &not_found);
+                if (not_found)
+                    scan_subtree_for_deletion (istate,
+                                               repo->worktree, event->path,
+                                               ignore_list, fset, &scanned_del_dirs);
+
                 try_add_empty_parent_dir_entry_from_wt (repo->worktree,
                                                         istate,
                                                         ignore_list,
@@ -1529,13 +1630,24 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             /* If the destination path is ignored, just remove the source path. */
             if (check_full_path_ignore (repo->worktree, event->new_path,
                                         ignore_list)) {
-                if (check_locked_file_before_remove (fset, event->path))
-                    remove_from_index_with_prefix (istate, event->path);
+                if (check_locked_file_before_remove (fset, event->path)) {
+                    not_found = FALSE;
+                    remove_from_index_with_prefix (istate, event->path, &not_found);
+                    if (not_found)
+                        scan_subtree_for_deletion (istate,
+                                                   repo->worktree, event->path,
+                                                   ignore_list, fset, &scanned_del_dirs);
+                }
                 break;
             }
 
             if (check_locked_file_before_remove (fset, event->path)) {
-                rename_index_entries (istate, event->path, event->new_path);
+                not_found = FALSE;
+                rename_index_entries (istate, event->path, event->new_path, &not_found);
+                if (not_found)
+                    scan_subtree_for_deletion (istate,
+                                               repo->worktree, event->path,
+                                               ignore_list, fset, &scanned_del_dirs);
 
                 /* Moving files out of a dir may make it empty. */
                 try_add_empty_parent_dir_entry_from_wt (repo->worktree,
@@ -1579,6 +1691,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
 out:
     wt_status_unref (status);
     string_list_free (scanned_dirs);
+    string_list_free (scanned_del_dirs);
 #ifdef WIN32
     locked_file_set_free (fset);
 #endif
@@ -3078,7 +3191,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
 #endif
 
-            remove_from_index_with_prefix (&istate, de->name);
+            remove_from_index_with_prefix (&istate, de->name, NULL);
             try_add_empty_parent_dir_entry (worktree, &istate, de->name);
         } else if (de->status == DIFF_STATUS_DIR_DELETED) {
             seaf_debug ("Delete dir %s.\n", de->name);
@@ -3090,7 +3203,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             delete_worktree_dir (worktree, de->name);
 
             /* Remove all index entries under this directory */
-            remove_from_index_with_prefix (&istate, de->name);
+            remove_from_index_with_prefix (&istate, de->name, NULL);
 
             try_add_empty_parent_dir_entry (worktree, &istate, de->name);
         }
@@ -3104,7 +3217,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 
             do_rename_in_worktree (de, worktree, conflict_hash, no_conflict_hash);
 
-            rename_index_entries (&istate, de->name, de->new_name);
+            rename_index_entries (&istate, de->name, de->new_name, NULL);
 
             /* Moving files out of a dir may make it empty. */
             try_add_empty_parent_dir_entry (worktree, &istate, de->name);

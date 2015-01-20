@@ -72,8 +72,14 @@ seaf_stat_from_find_data (WIN32_FIND_DATAW *fdata, SeafStat *st);
 
 int seaf_set_file_time (const char *path, guint64 mtime);
 
+#ifdef WIN32
 wchar_t *
 win32_long_path (const char *path);
+
+/* Convert a (possible) 8.3 format path to long path */
+wchar_t *
+win32_83_path_to_long_path (const char *worktree, const wchar_t *path, int path_len);
+#endif
 
 int
 seaf_util_unlink (const char *path);

@@ -3,16 +3,26 @@
 #include <config.h>
 
 #include "common.h"
+
+#ifdef WIN32
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x500
+#endif
+#endif
+
 #include "utils.h"
 
 #ifdef WIN32
-    #include <winsock2.h>
-    #include <ws2tcpip.h>
-    #include <Rpc.h>
-    #include <shlobj.h>
-    #include <psapi.h>
+
+#include <windows.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <Rpc.h>
+#include <shlobj.h>
+#include <psapi.h>
+
 #else
-    #include <arpa/inet.h>
+#include <arpa/inet.h>
 #endif
 
 #ifndef WIN32
@@ -275,6 +285,99 @@ set_utc_file_time (const char *path, const wchar_t *wpath, guint64 mtime)
     return 0;
 }
 
+wchar_t *
+win32_long_path (const char *path)
+{
+    char *long_path, *p;
+    wchar_t *long_path_w;
+
+    long_path = g_strconcat ("\\\\?\\", path, NULL);
+    for (p = long_path; *p != 0; ++p)
+        if (*p == '/')
+            *p = '\\';
+
+    long_path_w = g_utf8_to_utf16 (long_path, -1, NULL, NULL, NULL);
+
+    g_free (long_path);
+    return long_path_w;
+}
+
+/* Convert a (possible) 8.3 format path to long path */
+wchar_t *
+win32_83_path_to_long_path (const char *worktree, const wchar_t *path, int path_len)
+{
+    wchar_t *worktree_w = g_utf8_to_utf16 (worktree, -1, NULL, NULL, NULL);
+    int wt_len;
+    wchar_t *p;
+    wchar_t *fullpath_w = NULL;
+    wchar_t *fullpath_long = NULL;
+    wchar_t *ret = NULL;
+    char *fullpath;
+
+    for (p = worktree_w; *p != L'\0'; ++p)
+        if (*p == L'/')
+            *p = L'\\';
+
+    wt_len = wcslen(worktree_w);
+
+    fullpath_w = g_new0 (wchar_t, wt_len + path_len + 6);
+    wcscpy (fullpath_w, L"\\\\?\\");
+    wcscat (fullpath_w, worktree_w);
+    wcscat (fullpath_w, L"\\");
+    wcsncat (fullpath_w, path, path_len);
+
+    fullpath_long = g_new0 (wchar_t, SEAF_PATH_MAX);
+
+    DWORD n = GetLongPathNameW (fullpath_w, fullpath_long, SEAF_PATH_MAX);
+    if (n == 0) {
+        /* Failed. */
+        fullpath = g_utf16_to_utf8 (fullpath_w, -1, NULL, NULL, NULL);
+        g_free (fullpath);
+
+        goto out;
+    } else if (n > SEAF_PATH_MAX) {
+        /* In this case n is the necessary length for the buf. */
+        g_free (fullpath_long);
+        fullpath_long = g_new0 (wchar_t, n);
+
+        if (GetLongPathNameW (fullpath_w, fullpath_long, n) != (n - 1)) {
+            fullpath = g_utf16_to_utf8 (fullpath_w, -1, NULL, NULL, NULL);
+            g_free (fullpath);
+
+            goto out;
+        }
+    }
+
+    /* Remove "\\?\worktree\" from the beginning. */
+    ret = wcsdup (fullpath_long + wt_len + 5);
+
+out:
+    g_free (worktree_w);
+    g_free (fullpath_w);
+    g_free (fullpath_long);
+
+    return ret;
+}
+
+static int
+windows_error_to_errno (DWORD error)
+{
+    switch (error) {
+    case ERROR_FILE_NOT_FOUND:
+    case ERROR_PATH_NOT_FOUND:
+        return ENOENT;
+    case ERROR_ALREADY_EXISTS:
+        return EEXIST;
+    case ERROR_ACCESS_DENIED:
+    case ERROR_SHARING_VIOLATION:
+        return EACCES;
+    case ERROR_DIR_NOT_EMPTY:
+        return ENOTEMPTY;
+    default:
+        return 0;
+    }
+}
+
 #endif
 
 int
@@ -287,6 +390,7 @@ seaf_stat (const char *path, SeafStat *st)
 
     if (!GetFileAttributesExW (wpath, GetFileExInfoStandard, &attrs)) {
         ret = -1;
+        windows_error_to_errno (GetLastError());
         goto out;
     }
 
@@ -376,46 +480,6 @@ seaf_set_file_time (const char *path, guint64 mtime)
     return ret;
 #endif
 }
-
-#ifdef WIN32
-
-wchar_t *
-win32_long_path (const char *path)
-{
-    char *long_path, *p;
-    wchar_t *long_path_w;
-
-    long_path = g_strconcat ("\\\\?\\", path, NULL);
-    for (p = long_path; *p != 0; ++p)
-        if (*p == '/')
-            *p = '\\';
-
-    long_path_w = g_utf8_to_utf16 (long_path, -1, NULL, NULL, NULL);
-
-    g_free (long_path);
-    return long_path_w;
-}
-
-static int
-windows_error_to_errno (DWORD error)
-{
-    switch (error) {
-    case ERROR_FILE_NOT_FOUND:
-    case ERROR_PATH_NOT_FOUND:
-        return ENOENT;
-    case ERROR_ALREADY_EXISTS:
-        return EEXIST;
-    case ERROR_ACCESS_DENIED:
-    case ERROR_SHARING_VIOLATION:
-        return EACCES;
-    case ERROR_DIR_NOT_EMPTY:
-        return ENOTEMPTY;
-    default:
-        return 0;
-    }
-}
-
-#endif  /* WIN32 */
 
 int
 seaf_util_unlink (const char *path)
