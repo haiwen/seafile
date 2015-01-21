@@ -321,7 +321,8 @@ class SeafileClient(Project):
             'BUILD_SHIBBOLETH_SUPPORT': 'ON' if conf[CONF_WITH_SHIB] else 'OFF',
         }
         flags = ' '.join(['-D%s=%s' % (k, v) for k, v in flags.iteritems()])
-        ninja = find_in_path('ninja.exe')
+        # ninja = find_in_path('ninja.exe')
+        ninja = None
         generator = 'Ninja' if ninja else 'MSYS Makefiles'
         make = ninja or get_make_path()
         self.build_commands = [
