@@ -253,7 +253,8 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
 
     tmp_path = g_strconcat (file_path, SEAF_TMP_EXT, NULL);
 
-    wfd = g_open (tmp_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY, mode & ~S_IFMT);
+    wfd = seaf_util_create (tmp_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY,
+                            mode & ~S_IFMT);
     if (wfd < 0) {
         g_warning ("Failed to open file %s for checkout: %s.\n",
                    tmp_path, strerror(errno));
@@ -269,7 +270,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
     close (wfd);
     wfd = -1;
 
-    if (force_conflict || ccnet_rename (tmp_path, file_path) < 0) {
+    if (force_conflict || seaf_util_rename (tmp_path, file_path) < 0) {
         *conflicted = TRUE;
 
         SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
@@ -286,8 +287,8 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
          * If this fails, fall back to checking out the server version
          * to the conflict file.
          */
-        if (ccnet_rename (file_path, conflict_path) == 0) {
-            if (ccnet_rename (tmp_path, file_path) < 0) {
+        if (seaf_util_rename (file_path, conflict_path) == 0) {
+            if (seaf_util_rename (tmp_path, file_path) < 0) {
                 g_free (conflict_path);
                 goto bad;
             }
@@ -299,7 +300,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
             if (!conflict_path)
                 goto bad;
 
-            if (ccnet_rename (tmp_path, conflict_path) < 0) {
+            if (seaf_util_rename (tmp_path, conflict_path) < 0) {
                 g_free (conflict_path);
                 goto bad;
             }
@@ -323,7 +324,7 @@ bad:
     if (wfd >= 0)
         close (wfd);
     /* Remove the tmp file if it still exists, in case that rename fails. */
-    g_unlink (tmp_path);
+    seaf_util_unlink (tmp_path);
     g_free (tmp_path);
     seafile_unref (seafile);
     return -1;

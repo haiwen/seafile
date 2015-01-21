@@ -479,6 +479,7 @@ get_check_permission_cb (evhtp_request_t *req, void *arg)
     evhtp_send_reply (req, EVHTP_RES_OK);
 
 out:
+    g_free (username);
     g_strfreev (parts);
     g_free (ip);
     g_free (username);

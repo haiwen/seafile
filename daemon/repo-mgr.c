@@ -643,6 +643,8 @@ index_cb (const char *repo_id,
 
 #define MAX_COMMIT_SIZE 100 * (1 << 20) /* 100MB */
 
+#ifndef WIN32
+
 /*
  * @remain_files: returns the files haven't been added under this path.
  *                If it's set to NULL, no partial commit will be created.
@@ -671,13 +673,11 @@ add_recursive (const char *repo_id,
 
     full_path = g_build_path (PATH_SEPERATOR, worktree, path, NULL);
     if (seaf_stat (full_path, &st) < 0) {
-#ifndef WIN32
         /* Ignore broken symlinks on Linux and Mac OS X */
         if (lstat (full_path, &st) == 0 && S_ISLNK(st.st_mode)) {
             g_free (full_path);
             return 0;
         }
-#endif
         g_warning ("Failed to stat %s.\n", full_path);
         g_free (full_path);
         return -1;
@@ -685,25 +685,6 @@ add_recursive (const char *repo_id,
 
     if (S_ISREG(st.st_mode)) {
         gboolean added = FALSE;
-
-#ifdef WIN32
-        if (fset) {
-            LockedFile *file = locked_file_set_lookup (fset, path);
-            if (file) {
-                if (strcmp (file->operation, LOCKED_OP_DELETE) == 0) {
-                    /* Only remove the lock record if the file is changed. */
-                    if (st.st_mtime == file->old_mtime) {
-                        g_free (full_path);
-                        return ret;
-                    }
-                    locked_file_set_remove (fset, path, FALSE);
-                } else if (strcmp (file->operation, LOCKED_OP_UPDATE) == 0) {
-                    g_free (full_path);
-                    return ret;
-                }
-            }
-        }
-#endif
 
         if (!remain_files) {
             ret = add_to_index (repo_id, version, istate, path, full_path,
@@ -794,6 +775,276 @@ is_empty_dir (const char *path, GList *ignore_list)
 
     return ret;
 }
+
+#else
+
+static int
+add_file (const char *repo_id,
+          int version,
+          const char *modifier,
+          struct index_state *istate, 
+          const char *path,
+          const char *full_path,
+          SeafStat *st,
+          SeafileCrypt *crypt,
+          gint64 *total_size,
+          GQueue **remain_files,
+          LockedFileSet *fset)
+{
+    gboolean added = FALSE;
+    int ret = 0;
+
+    if (fset) {
+        LockedFile *file = locked_file_set_lookup (fset, path);
+        if (file) {
+            if (strcmp (file->operation, LOCKED_OP_DELETE) == 0) {
+                /* Only remove the lock record if the file is changed. */
+                if (st->st_mtime == file->old_mtime) {
+                    return ret;
+                }
+                locked_file_set_remove (fset, path, FALSE);
+            } else if (strcmp (file->operation, LOCKED_OP_UPDATE) == 0) {
+                return ret;
+            }
+        }
+    }
+
+    if (!remain_files) {
+        ret = add_to_index (repo_id, version, istate, path, full_path,
+                            st, 0, crypt, index_cb, modifier, &added);
+    } else if (*remain_files == NULL) {
+        ret = add_to_index (repo_id, version, istate, path, full_path,
+                            st, 0, crypt, index_cb, modifier, &added);
+        if (added) {
+            *total_size += (gint64)(st->st_size);
+            if (*total_size >= MAX_COMMIT_SIZE)
+                *remain_files = g_queue_new ();
+        }
+    } else
+        g_queue_push_tail (*remain_files, g_strdup(path));
+
+    return ret;
+}
+
+typedef struct AddParams {
+    const char *repo_id;
+    int version;
+    const char *modifier;
+    struct index_state *istate;
+    const char *worktree;
+    SeafileCrypt *crypt;
+    gboolean ignore_empty_dir;
+    GList *ignore_list;
+    gint64 *total_size;
+    GQueue **remain_files;
+    LockedFileSet *fset;
+} AddParams;
+
+typedef struct IterCBData {
+    AddParams *add_params;
+    const char *parent;
+    const char *full_parent;
+    int n;
+} IterCBData;
+
+static int
+add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
+                   AddParams *params);
+
+static int
+iter_dir_cb (wchar_t *full_parent_w,
+             WIN32_FIND_DATAW *fdata,
+             void *user_data,
+             gboolean *stop)
+{
+    IterCBData *data = user_data;
+    AddParams *params = data->add_params;
+    char *dname = NULL, *path = NULL, *full_path = NULL;
+    SeafStat st;
+    int ret = 0;
+
+    dname = g_utf16_to_utf8 (fdata->cFileName, -1, NULL, NULL, NULL);
+
+    if (should_ignore(data->full_parent, dname, params->ignore_list))
+        goto out;
+
+    path = g_build_path ("/", data->parent, dname, NULL);
+    full_path = g_build_path ("/", params->worktree, path, NULL);
+
+    seaf_stat_from_find_data (fdata, &st);
+
+    if (fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+        ret = add_dir_recursive (path, full_path, &st, params);
+    else
+        ret = add_file (params->repo_id,
+                        params->version,
+                        params->modifier,
+                        params->istate,
+                        path,
+                        full_path,
+                        &st,
+                        params->crypt,
+                        params->total_size,
+                        params->remain_files,
+                        params->fset);
+
+    ++(data->n);
+
+out:
+    g_free (dname);
+    g_free (path);
+    g_free (full_path);
+
+    return ret;
+}
+
+static int
+add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
+                   AddParams *params)
+{
+    IterCBData data;
+    wchar_t *full_path_w;
+    int ret = 0;
+
+    memset (&data, 0, sizeof(data));
+    data.add_params = params;
+    data.parent = path;
+    data.full_parent = full_path;
+
+    full_path_w = win32_long_path (full_path);
+    ret = traverse_directory_win32 (full_path_w, iter_dir_cb, &data);
+    g_free (full_path_w);
+
+    if (ret < 0)
+        return ret;
+
+    if (data.n == 0 && path[0] != 0 && !params->ignore_empty_dir) {
+        if (!params->remain_files || *(params->remain_files) == NULL)
+            add_empty_dir_to_index (params->istate, path, st);
+        else
+            g_queue_push_tail (*(params->remain_files), g_strdup(path));
+    }
+
+    return ret;
+}
+
+static int
+add_recursive (const char *repo_id,
+               int version,
+               const char *modifier,
+               struct index_state *istate, 
+               const char *worktree,
+               const char *path,
+               SeafileCrypt *crypt,
+               gboolean ignore_empty_dir,
+               GList *ignore_list,
+               gint64 *total_size,
+               GQueue **remain_files,
+               LockedFileSet *fset)
+{
+    char *full_path;
+    SeafStat st;
+    int ret = 0;
+
+    full_path = g_build_path (PATH_SEPERATOR, worktree, path, NULL);
+    if (seaf_stat (full_path, &st) < 0) {
+        g_warning ("Failed to stat %s.\n", full_path);
+        g_free (full_path);
+        return -1;
+    }
+
+    if (S_ISREG(st.st_mode)) {
+        ret = add_file (repo_id,
+                        version,
+                        modifier,
+                        istate, 
+                        path,
+                        full_path,
+                        &st,
+                        crypt,
+                        total_size,
+                        remain_files,
+                        fset);
+    } else if (S_ISDIR(st.st_mode)) {
+        AddParams params = {
+            .repo_id = repo_id,
+            .version = version,
+            .modifier = modifier,
+            .istate = istate,
+            .worktree = worktree,
+            .crypt = crypt,
+            .ignore_empty_dir = ignore_empty_dir,
+            .ignore_list = ignore_list,
+            .total_size = total_size,
+            .remain_files = remain_files,
+            .fset = fset,
+        };
+
+        ret = add_dir_recursive (path, full_path, &st, &params);
+    }
+
+    g_free (full_path);
+    return ret;
+}
+
+static gboolean
+is_empty_dir (const char *path, GList *ignore_list)
+{
+    WIN32_FIND_DATAW fdata;
+    HANDLE handle;
+    wchar_t *pattern;
+    wchar_t *path_w;
+    char *dname;
+    int path_len_w;
+    DWORD error;
+    gboolean ret = TRUE;
+
+    path_w = win32_long_path (path);
+
+    path_len_w = wcslen(path_w);
+
+    pattern = g_new0 (wchar_t, (path_len_w + 3));
+    wcscpy (pattern, path_w);
+    wcscat (pattern, L"\\*");
+
+    handle = FindFirstFileW (pattern, &fdata);
+    if (handle == INVALID_HANDLE_VALUE) {
+        seaf_warning ("FindFirstFile failed %s: %lu.\n",
+                      path, GetLastError());
+        ret = FALSE;
+        goto out;
+    }
+
+    do {
+        if (wcscmp (fdata.cFileName, L".") == 0 ||
+            wcscmp (fdata.cFileName, L"..") == 0)
+            continue;
+
+        dname = g_utf16_to_utf8 (fdata.cFileName, -1, NULL, NULL, NULL);
+        if (!should_ignore (path, dname, ignore_list)) {
+            ret = FALSE;
+            g_free (dname);
+            FindClose (handle);
+            goto out;
+        }
+        g_free (dname);
+    } while (FindNextFileW (handle, &fdata) != 0);
+
+    error = GetLastError();
+    if (error != ERROR_NO_MORE_FILES) {
+        seaf_warning ("FindNextFile failed %s: %lu.\n",
+                      path, error);
+    }
+
+    FindClose (handle);
+
+out:
+    g_free (path_w);
+    g_free (pattern);
+    return ret;
+}
+
+#endif  /* WIN32 */
 
 /* Returns whether the file should be removed from index. */
 static gboolean
@@ -1153,6 +1404,100 @@ update_ce_mode (struct index_state *istate, const char *worktree, const char *pa
     istate->cache_changed = 1;
 }
 
+#ifdef WIN32
+static void
+scan_subtree_for_deletion (struct index_state *istate,
+                           const char *worktree,
+                           const char *path,
+                           GList *ignore_list,
+                           LockedFileSet *fset,
+                           GList **scanned_dirs)
+{
+    wchar_t *path_w;
+    wchar_t *dir_w = NULL;
+    wchar_t *p;
+    char *dir = NULL;
+    char *p2;
+
+    /* In most file systems, like NTFS, 8.3 format path should contain ~.
+     * Also note that *~ files are ignored.
+     */
+    if (!strchr (path, '~') || path[strlen(path)-1] == '~')
+        return;
+
+    path_w = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
+
+    for (p = path_w; *p != L'\0'; ++p)
+        if (*p == L'/')
+            *p = L'\\';
+
+    while (1) {
+        p = wcsrchr (path_w, L'\\');
+        if (p)
+            *p = L'\0';
+        dir_w = win32_83_path_to_long_path (worktree, path_w, wcslen(path_w));
+        if (dir_w)
+            break;
+        if (!p)
+            break;
+    }
+
+    if (!dir_w)
+        dir_w = wcsdup(L"");
+
+    dir = g_utf16_to_utf8 (dir_w, -1, NULL, NULL, NULL);
+    for (p2 = dir; *p2 != 0; ++p2)
+        if (*p2 == '\\')
+            *p2 = '/';
+
+    /* If we've recursively scanned the parent directory, don't need to scan
+     * any files under it any more.
+     */
+    GList *ptr;
+    char *s, *full_s;
+    for (ptr = *scanned_dirs; ptr; ptr = ptr->next) {
+        s = ptr->data;
+
+        /* Have scanned from root directory. */
+        if (s[0] == 0) {
+            goto out;
+        }
+
+        /* exact match */
+        if (strcmp (s, path) == 0) {
+            goto out;
+        }
+
+        /* prefix match. */
+        full_s = g_strconcat (s, "/", NULL);
+        if (strncmp (full_s, dir, strlen(full_s)) == 0) {
+            g_free (full_s);
+            goto out;
+        }
+        g_free (full_s);
+    }
+
+    *scanned_dirs = g_list_prepend (*scanned_dirs, g_strdup(dir));
+
+    remove_deleted (istate, worktree, dir, ignore_list, fset);
+
+out:
+    g_free (path_w);
+    g_free (dir_w);
+    g_free (dir);
+}
+#else
+static void
+scan_subtree_for_deletion (struct index_state *istate,
+                           const char *worktree,
+                           const char *path,
+                           GList *ignore_list,
+                           LockedFileSet *fset,
+                           GList **scanned_dirs)
+{
+}
+#endif
+
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list)
@@ -1160,6 +1505,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
     WTStatus *status;
     WTEvent *event, *next_event;
     LockedFileSet *fset = NULL;
+    gboolean not_found;
 
     status = seaf_wt_monitor_get_worktree_status (seaf->wt_monitor, repo->id);
     if (!status) {
@@ -1168,7 +1514,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
         return -1;
     }
 
-    GList *scanned_dirs = NULL;
+    GList *scanned_dirs = NULL, *scanned_del_dirs = NULL;
 
     WTEvent *last_event;
 
@@ -1267,7 +1613,13 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             break;
         case WT_EVENT_DELETE:
             if (check_locked_file_before_remove (fset, event->path)) {
-                remove_from_index_with_prefix (istate, event->path);
+                not_found = FALSE;
+                remove_from_index_with_prefix (istate, event->path, &not_found);
+                if (not_found)
+                    scan_subtree_for_deletion (istate,
+                                               repo->worktree, event->path,
+                                               ignore_list, fset, &scanned_del_dirs);
+
                 try_add_empty_parent_dir_entry_from_wt (repo->worktree,
                                                         istate,
                                                         ignore_list,
@@ -1278,13 +1630,24 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             /* If the destination path is ignored, just remove the source path. */
             if (check_full_path_ignore (repo->worktree, event->new_path,
                                         ignore_list)) {
-                if (check_locked_file_before_remove (fset, event->path))
-                    remove_from_index_with_prefix (istate, event->path);
+                if (check_locked_file_before_remove (fset, event->path)) {
+                    not_found = FALSE;
+                    remove_from_index_with_prefix (istate, event->path, &not_found);
+                    if (not_found)
+                        scan_subtree_for_deletion (istate,
+                                                   repo->worktree, event->path,
+                                                   ignore_list, fset, &scanned_del_dirs);
+                }
                 break;
             }
 
             if (check_locked_file_before_remove (fset, event->path)) {
-                rename_index_entries (istate, event->path, event->new_path);
+                not_found = FALSE;
+                rename_index_entries (istate, event->path, event->new_path, &not_found);
+                if (not_found)
+                    scan_subtree_for_deletion (istate,
+                                               repo->worktree, event->path,
+                                               ignore_list, fset, &scanned_del_dirs);
 
                 /* Moving files out of a dir may make it empty. */
                 try_add_empty_parent_dir_entry_from_wt (repo->worktree,
@@ -1328,6 +1691,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
 out:
     wt_status_unref (status);
     string_list_free (scanned_dirs);
+    string_list_free (scanned_del_dirs);
 #ifdef WIN32
     locked_file_set_free (fset);
 #endif
@@ -1468,7 +1832,7 @@ seaf_repo_index_worktree_files (const char *repo_id,
      * clone-merge. Removing it assures that new blocks from the worktree
      * get added into the repo again (they're deleted by GC).
      */
-    g_unlink (index_path);
+    seaf_util_unlink (index_path);
 
     if (read_index_from (&istate, index_path, repo_version) < 0) {
         g_warning ("Failed to load index.\n");
@@ -2013,7 +2377,7 @@ seaf_repo_checkout (SeafRepo *repo, const char *worktree, char **error)
     /* remove original index */
     char index_path[SEAF_PATH_MAX];
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
-    g_unlink (index_path);
+    seaf_util_unlink (index_path);
 
     branch = seaf_branch_manager_get_branch (seaf->branch_mgr,
                                              repo->id, "local");
@@ -2313,7 +2677,7 @@ checkout_empty_dir (const char *worktree,
     if (!path)
         return FETCH_CHECKOUT_FAILED;
 
-    if (!g_file_test (path, G_FILE_TEST_EXISTS) && g_mkdir (path, 0777) < 0) {
+    if (!seaf_util_exists (path) && seaf_util_mkdir (path, 0777) < 0) {
         g_warning ("Failed to create empty dir %s in checkout.\n", path);
         g_free (path);
         return FETCH_CHECKOUT_FAILED;
@@ -2464,7 +2828,7 @@ do_rename_in_worktree (DiffEntry *de, const char *worktree,
 
     old_path = g_build_filename (worktree, de->name, NULL);
 
-    if (g_file_test (old_path, G_FILE_TEST_EXISTS)) {
+    if (seaf_util_exists (old_path)) {
 #ifndef __linux__
         new_path = build_case_conflict_free_path (worktree, de->new_name,
                                                   conflict_hash, no_conflict_hash,
@@ -2474,7 +2838,7 @@ do_rename_in_worktree (DiffEntry *de, const char *worktree,
         new_path = build_checkout_path (worktree, de->new_name, strlen(de->new_name));
 #endif
 
-        if (g_rename (old_path, new_path) < 0) {
+        if (seaf_util_rename (old_path, new_path) < 0) {
             seaf_warning ("Failed to rename %s to %s: %s.\n",
                           old_path, new_path, strerror(errno));
             ret = -1;
@@ -2525,7 +2889,7 @@ delete_worktree_dir_recursive_win32 (const char *worktree,
 
         sub_path_w = g_new0 (wchar_t, path_len_w + wcslen(fdata.cFileName) + 2);
         wcscpy (sub_path_w, path_w);
-        wcscat (sub_path_w, L"/");
+        wcscat (sub_path_w, L"\\");
         wcscat (sub_path_w, fdata.cFileName);
 
         if (fdata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
@@ -2600,7 +2964,7 @@ delete_worktree_dir_recursive (const char *path)
             delete_worktree_dir_recursive (sub_path);
         } else {
             /* Delete all other file types. */
-            if (g_unlink (sub_path) < 0) {
+            if (seaf_util_unlink (sub_path) < 0) {
                 seaf_warning ("Failed to delete file %s: %s.\n",
                               sub_path, strerror(errno));
             }
@@ -2624,8 +2988,7 @@ delete_worktree_dir (const char *worktree, const char *path)
     char *full_path = g_build_path ("/", worktree, path, NULL);
 
 #ifdef WIN32
-    wchar_t *full_path_w = g_utf8_to_utf16 (full_path, -1,
-                                            NULL, NULL, NULL);
+    wchar_t *full_path_w = win32_long_path (full_path);
     delete_worktree_dir_recursive_win32 (worktree, full_path_w);
     g_free (full_path_w);
 #else
@@ -2828,7 +3191,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
 #endif
 
-            remove_from_index_with_prefix (&istate, de->name);
+            remove_from_index_with_prefix (&istate, de->name, NULL);
             try_add_empty_parent_dir_entry (worktree, &istate, de->name);
         } else if (de->status == DIFF_STATUS_DIR_DELETED) {
             seaf_debug ("Delete dir %s.\n", de->name);
@@ -2840,7 +3203,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             delete_worktree_dir (worktree, de->name);
 
             /* Remove all index entries under this directory */
-            remove_from_index_with_prefix (&istate, de->name);
+            remove_from_index_with_prefix (&istate, de->name, NULL);
 
             try_add_empty_parent_dir_entry (worktree, &istate, de->name);
         }
@@ -2854,7 +3217,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 
             do_rename_in_worktree (de, worktree, conflict_hash, no_conflict_hash);
 
-            rename_index_entries (&istate, de->name, de->new_name);
+            rename_index_entries (&istate, de->name, de->new_name, NULL);
 
             /* Moving files out of a dir may make it empty. */
             try_add_empty_parent_dir_entry (worktree, &istate, de->name);
@@ -3313,11 +3676,7 @@ seaf_repo_manager_remove_repo_ondisk (SeafRepoManager *mgr,
     /* remove index */
     char path[SEAF_PATH_MAX];
     snprintf (path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo_id);
-    if (g_unlink (path) < 0) {
-        if (errno != ENOENT) {
-            g_warning("Cannot delete index file: %s", strerror(errno));
-        }
-    }
+    seaf_util_unlink (path);
 
     /* remove branch */
     GList *p;
@@ -4561,8 +4920,6 @@ GList *seaf_repo_load_ignore_files (const char *worktree)
 
     full_path = g_build_path (PATH_SEPERATOR, worktree,
                               IGNORE_FILE, NULL);
-    if (g_access (full_path, F_OK) < 0)
-        goto error;
     if (seaf_stat (full_path, &st) < 0)
         goto error;
     if (!S_ISREG(st.st_mode))
@@ -4610,7 +4967,7 @@ seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath)
     /* first check the path is a reg file or a dir */
     if (seaf_stat(str, &st) < 0) {
         g_free(str);
-        return TRUE;
+        return FALSE;
     }
     if (S_ISDIR(st.st_mode)) {
         g_free(str);

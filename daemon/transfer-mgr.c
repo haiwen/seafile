@@ -155,8 +155,8 @@ static const char *transfer_task_error_strs[] = {
     "Failed to start block transfer client.",
     "Failed to upload blocks.",
     "Failed to download blocks.",
-    "Files are locked by other application.",
     "Server version is too old."
+    "Files are locked by other application.",
 };
 
 const char *

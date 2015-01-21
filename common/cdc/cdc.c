@@ -216,7 +216,7 @@ int filename_chunk_cdc(const char *filename,
                        SeafileCrypt *crypt,
                        gboolean write_data)
 {
-    int fd_src = g_open (filename, O_RDONLY | O_BINARY, 0);
+    int fd_src = seaf_util_open (filename, O_RDONLY | O_BINARY);
     if (fd_src < 0) {
         g_warning ("CDC: failed to open %s.\n", filename);
         return -1;
