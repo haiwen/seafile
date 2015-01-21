@@ -662,19 +662,39 @@ def copy_dll_exe():
         must_copy(name, destdir)
 
     copy_shared_libs([ f for f in filelist if f.endswith('.exe') ])
-    copy_qt_plugins()
+    copy_qt_plugins_imageformats()
+    copy_qt_plugins_platforms()
     copy_qt_translations()
 
-def copy_qt_plugins():
-    destdir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin', 'imageformats')
+def copy_qt_plugins_imageformats():
+    destdir = os.path.join(CONF_BUILDDIR, 'pack', 'bin', 'imageformats')
     must_mkdir(destdir)
 
-    qt_plugins_srcdir = os.path.join(conf[CONF_QT_ROOT], 'plugins', 'imageformats')
+    qt_plugins_srcdir = os.path.join(CONF_QT_ROOT, 'plugins', 'imageformats')
 
     src = os.path.join(qt_plugins_srcdir, 'qico4.dll')
+    if conf[CONF_QT5]:
+        src = os.path.join(qt_plugins_srcdir, 'qico.dll')
     must_copy(src, destdir)
 
     src = os.path.join(qt_plugins_srcdir, 'qgif4.dll')
+    if conf[CONF_QT5]:
+        src = os.path.join(qt_plugins_srcdir, 'qgif.dll')
+    must_copy(src, destdir)
+
+def copy_qt_plugins_platforms():
+    if not conf[CONF_QT5]:
+        return
+
+    destdir = os.path.join(CONF_BUILDDIR, 'pack', 'bin', 'platforms')
+    must_mkdir(destdir)
+
+    qt_plugins_srcdir = os.path.join(CONF_QT_ROOT, 'plugins', 'platforms')
+
+    src = os.path.join(qt_plugins_srcdir, 'qwindows.dll')
+    must_copy(src, destdir)
+
+    src = os.path.join(qt_plugins_srcdir, 'qminimal.dll')
     must_copy(src, destdir)
 
 def copy_qt_translations():
