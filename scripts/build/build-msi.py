@@ -682,10 +682,10 @@ def copy_dll_exe():
     copy_qt_translations()
 
 def copy_qt_plugins_imageformats():
-    destdir = os.path.join(CONF_BUILDDIR, 'pack', 'bin', 'imageformats')
+    destdir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin', 'imageformats')
     must_mkdir(destdir)
 
-    qt_plugins_srcdir = os.path.join(CONF_QT_ROOT, 'plugins', 'imageformats')
+    qt_plugins_srcdir = os.path.join(conf[CONF_QT_ROOT], 'plugins', 'imageformats')
 
     src = os.path.join(qt_plugins_srcdir, 'qico4.dll')
     if conf[CONF_QT5]:
@@ -701,10 +701,10 @@ def copy_qt_plugins_platforms():
     if not conf[CONF_QT5]:
         return
 
-    destdir = os.path.join(CONF_BUILDDIR, 'pack', 'bin', 'platforms')
+    destdir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin', 'platforms')
     must_mkdir(destdir)
 
-    qt_plugins_srcdir = os.path.join(CONF_QT_ROOT, 'plugins', 'platforms')
+    qt_plugins_srcdir = os.path.join(conf[CONF_QT_ROOT], 'plugins', 'platforms')
 
     src = os.path.join(qt_plugins_srcdir, 'qwindows.dll')
     must_copy(src, destdir)
