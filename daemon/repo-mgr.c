@@ -1612,6 +1612,9 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             }
             break;
         case WT_EVENT_DELETE:
+            if (check_full_path_ignore (repo->worktree, event->path, ignore_list))
+                break;
+
             if (check_locked_file_before_remove (fset, event->path)) {
                 not_found = FALSE;
                 remove_from_index_with_prefix (istate, event->path, &not_found);
@@ -1630,6 +1633,9 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             /* If the destination path is ignored, just remove the source path. */
             if (check_full_path_ignore (repo->worktree, event->new_path,
                                         ignore_list)) {
+                if (check_full_path_ignore (repo->worktree, event->path, ignore_list))
+                    break;
+
                 if (check_locked_file_before_remove (fset, event->path)) {
                     not_found = FALSE;
                     remove_from_index_with_prefix (istate, event->path, &not_found);
@@ -1641,19 +1647,23 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 break;
             }
 
-            if (check_locked_file_before_remove (fset, event->path)) {
-                not_found = FALSE;
-                rename_index_entries (istate, event->path, event->new_path, &not_found);
-                if (not_found)
-                    scan_subtree_for_deletion (istate,
-                                               repo->worktree, event->path,
-                                               ignore_list, fset, &scanned_del_dirs);
+            if (!check_full_path_ignore (repo->worktree, event->path, ignore_list)) {
+                if (check_locked_file_before_remove (fset, event->path)) {
+                    not_found = FALSE;
+                    rename_index_entries (istate, event->path,
+                                          event->new_path, &not_found);
+                    if (not_found)
+                        scan_subtree_for_deletion (istate,
+                                                   repo->worktree, event->path,
+                                                   ignore_list, fset,
+                                                   &scanned_del_dirs);
 
-                /* Moving files out of a dir may make it empty. */
-                try_add_empty_parent_dir_entry_from_wt (repo->worktree,
-                                                        istate,
-                                                        ignore_list,
-                                                        event->path);
+                    /* Moving files out of a dir may make it empty. */
+                    try_add_empty_parent_dir_entry_from_wt (repo->worktree,
+                                                            istate,
+                                                            ignore_list,
+                                                            event->path);
+                }
             }
 
             /* We should always scan the destination to compare with the renamed
