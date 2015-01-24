@@ -101,28 +101,26 @@ check_virtual_repo_permission (SeafRepoManager *mgr,
                                const char *user,
                                GError **error)
 {
-    char *owner = NULL, *orig_owner = NULL;
+    char *owner = NULL;
     char *permission = NULL;
 
-    owner = seaf_repo_manager_get_repo_owner (mgr, repo_id);
-    if (!owner) {
-        seaf_warning ("Failed to get owner for virtual repo %.10s.\n", repo_id);
-        goto out;
+    /* If I'm the owner of origin repo, I have full access to sub-repos. */
+    owner = seaf_repo_manager_get_repo_owner (mgr, origin_repo_id);
+    if (g_strcmp0 (user, owner) == 0) {
+        permission = g_strdup("rw");
+        return permission;
     }
-
-    /* If this virtual repo is not created by @user, it is shared by others. */
-    if (strcmp (user, owner) != 0) {
-        permission = check_repo_share_permission (mgr, repo_id, user);
-        goto out;
-    }
-
-    /* otherwise check @user's permission to the origin repo. */
-    permission =  seaf_repo_manager_check_permission (mgr, origin_repo_id,
-                                                      user, error);
-
-out:
     g_free (owner);
-    g_free (orig_owner);
+
+    /* If I'm not the owner of origin repo, this sub-repo can be created
+     * from a shared repo by me or directly shared by others to me.
+     * The priority of shared sub-folder is higher than top-level repo.
+     */
+    permission = check_repo_share_permission (mgr, repo_id, user);
+    if (permission)
+        return permission;
+
+    permission = check_repo_share_permission (mgr, origin_repo_id, user);
     return permission;
 }
 
