@@ -20,7 +20,7 @@
           <RegistryValue Root="HKLM" Key="Software\Classes\LibraryFolder\Background\shellex\ContextMenuHandlers\!(loc.AppName)" Value="{$(var.ShellGuid)}" Type="string" />
           <RegistryKey Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}" />
           <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}\InProcServer32" Name="ThreadingModel" Value="Apartment" Type="string" />
-          <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}\InProcServer32" Value="[INSTALLDIR]bin\seafile_shell_ext.dll" Type="string" />
+          <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}\InProcServer32" Value="[AppDataFolder]!(loc.AppName)\seafile_shell_ext.dll" Type="string" />
           <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}" Value="!(loc.AppName)" Type="string" />
           <RegistryKey Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}\shellex\NoRecentDocs" />
           <RegistryValue Root="HKLM" Key="Software\Classes\*\shellex\ContextMenuHandlers\!(loc.AppName)" Value="{$(var.ShellGuid)}" Type="string" />
@@ -44,7 +44,7 @@
           <RegistryValue Root="HKLM" Key="Software\Classes\LibraryFolder\Background\shellex\ContextMenuHandlers\!(loc.AppName)" Value="{$(var.ShellGuid)}" Type="string" />
           <RegistryKey Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}" />
           <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}\InProcServer32" Name="ThreadingModel" Value="Apartment" Type="string" />
-          <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}\InProcServer32" Value="[INSTALLDIR]bin\seafile_shell_ext64.dll" Type="string" />
+          <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}\InProcServer32" Value="[AppDataFolder]!(loc.AppName)\seafile_shell_ext64.dll" Type="string" />
           <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}" Value="!(loc.AppName)" Type="string" />
           <RegistryKey Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}\shellex\NoRecentDocs" />
           <RegistryValue Root="HKLM" Key="Software\Classes\*\shellex\ContextMenuHandlers\!(loc.AppName)" Value="{$(var.ShellGuid)}" Type="string" />

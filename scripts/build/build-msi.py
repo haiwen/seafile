@@ -432,7 +432,7 @@ def validate_args(usage, options):
     conf[CONF_BUILDDIR] = builddir
     conf[CONF_SRCDIR] = srcdir
     conf[CONF_OUTPUTDIR] = outputdir
-    conf[CONF_KEEP] = keep
+    conf[CONF_KEEP] = True
     conf[CONF_DEBUG] = debug
     conf[CONF_ONLY_CHINESE] = onlychinese
     conf[CONF_QT_ROOT] = qt_root
@@ -673,12 +673,19 @@ def copy_dll_exe():
         os.path.join(prefix, 'bin', 'ccnet.exe'),
         os.path.join(prefix, 'bin', 'seaf-daemon.exe'),
         os.path.join(SeafileClient().projdir, 'seafile-applet.exe'),
-        os.path.join(SeafileClient().projdir, 'extensions', 'lib', 'seafile_shell_ext.dll'),
-        os.path.join(SeafileClient().projdir, 'extensions', 'lib', 'seafile_shell_ext64.dll'),
     ]
 
     for name in filelist:
         must_copy(name, destdir)
+
+    extdlls = [
+        os.path.join(SeafileClient().projdir, 'extensions', 'lib', 'seafile_shell_ext.dll'),
+        os.path.join(SeafileClient().projdir, 'extensions', 'lib', 'seafile_shell_ext64.dll'),
+    ]
+
+    customdir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'custom')
+    for dll in extdlls:
+        must_copy(dll, customdir)
 
     copy_shared_libs([ f for f in filelist if f.endswith('.exe') ])
     copy_qt_plugins_imageformats()
@@ -750,6 +757,9 @@ def prepare_msi():
 
     must_copytree(msi_dir, pack_dir)
     must_mkdir(os.path.join(pack_dir, 'bin'))
+
+    if run('make', cwd=os.path.join(pack_dir, 'custom')) != 0:
+        error('Error when compiling seafile msi custom dlls')
 
     copy_dll_exe()
 
