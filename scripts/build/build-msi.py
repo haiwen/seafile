@@ -316,14 +316,18 @@ class SeafileClient(Project):
     name = 'seafile-client'
     def __init__(self):
         Project.__init__(self)
+        ninja = find_in_path('ninja.exe')
+        seafile_prefix = Seafile().prefix
+        generator = 'Ninja' if ninja else 'MSYS Makefiles'
         flags = {
             'USE_QT5': 'ON' if conf[CONF_QT5] else 'OFF',
             'BUILD_SHIBBOLETH_SUPPORT': 'ON' if conf[CONF_WITH_SHIB] else 'OFF',
+            # ninja invokes cmd.exe which doesn't support msys/mingw path
+            # change the value but don't override CMAKE_EXE_LINKER_FLAGS,
+            # which is in use
+            'CMAKE_EXE_LINKER_FLAGS_RELEASE': '-L%s' % (os.path.join(seafile_prefix, 'lib') if ninja else to_mingw_path(os.path.join(seafile_prefix, 'lib'))),
         }
         flags = ' '.join(['-D%s=%s' % (k, v) for k, v in flags.iteritems()])
-        # ninja = find_in_path('ninja.exe')
-        ninja = None
-        generator = 'Ninja' if ninja else 'MSYS Makefiles'
         make = ninja or get_make_path()
         self.build_commands = [
             'cmake -G "%s" %s -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%s .' % (generator, flags, to_mingw_path(self.prefix)),
