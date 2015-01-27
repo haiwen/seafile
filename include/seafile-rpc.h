@@ -780,6 +780,10 @@ seafile_create_enc_repo (const char *repo_id,
 char *
 seafile_check_permission (const char *repo_id, const char *user, GError **error);
 
+char *
+seafile_check_permission_by_path (const char *repo_id, const char *path,
+                                  const char *user, GError **error);
+
 int
 seafile_set_inner_pub_repo (const char *repo_id,
                             const char *permission,

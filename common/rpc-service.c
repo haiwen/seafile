@@ -3502,6 +3502,13 @@ seafile_check_permission (const char *repo_id, const char *user, GError **error)
                                                repo_id, user, error);
 }
 
+char *
+seafile_check_permission_by_path (const char *repo_id, const char *path,
+                                  const char *user, GError **error)
+{
+    return seafile_check_permission (repo_id, user, error);
+}
+
 int
 seafile_set_share_permission (const char *repo_id,
                               const char *from_email,

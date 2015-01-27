@@ -609,14 +609,12 @@ create_tables_mysql (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
-    if (!mgr->seaf->cloud_mode) {
-        sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
-            "repo_id CHAR(37) PRIMARY KEY,"
-            "permission CHAR(15))"
-            "ENGINE=INNODB";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-    }
+    sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
+        "repo_id CHAR(37) PRIMARY KEY,"
+        "permission CHAR(15))"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
 
     sql = "CREATE TABLE IF NOT EXISTS RepoUserToken ("
         "repo_id CHAR(37), "
@@ -726,13 +724,11 @@ create_tables_sqlite (SeafRepoManager *mgr)
 
     /* Public repo */
 
-    if (!mgr->seaf->cloud_mode) {
-        sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
-            "repo_id CHAR(37) PRIMARY KEY,"
-            "permission CHAR(15))";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-    }
+    sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
+        "repo_id CHAR(37) PRIMARY KEY,"
+        "permission CHAR(15))";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
 
     sql = "CREATE TABLE IF NOT EXISTS RepoUserToken ("
         "repo_id CHAR(37), "
@@ -844,13 +840,11 @@ create_tables_pgsql (SeafRepoManager *mgr)
             return -1;
     }
 
-    if (!mgr->seaf->cloud_mode) {
-        sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
-            "repo_id CHAR(36) PRIMARY KEY,"
-            "permission VARCHAR(15))";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-    }
+    sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
+        "repo_id CHAR(36) PRIMARY KEY,"
+        "permission VARCHAR(15))";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
 
     sql = "CREATE TABLE IF NOT EXISTS RepoUserToken ("
         "repo_id CHAR(36), "

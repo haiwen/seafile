@@ -702,6 +702,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def check_permission(repo_id, user):
         pass
 
+    # folder permission check
+    @searpc_func("string", ["string", "string", "string"])
+    def check_permission_by_path(repo_id, path, user):
+        pass
+
     # org repo
     @searpc_func("string", ["string", "string", "string", "string", "string", "int", "int"])
     def seafile_create_org_repo(name, desc, user, passwd, magic, random_key, enc_version, org_id):
