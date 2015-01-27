@@ -32,7 +32,6 @@ BOOL readRegValue(HKEY root, const char *subkey, const char *name, char **value)
                                KEY_READ,
                                &hKey);
     if (result != ERROR_SUCCESS) {
-        msgbox("here: " AT);
         goto out;
     }
 
@@ -44,10 +43,6 @@ BOOL readRegValue(HKEY root, const char *subkey, const char *name, char **value)
                              NULL,  // data
                              &len); // size
     if (result != ERROR_SUCCESS || type != REG_SZ) {
-        msgbox("here: " AT);
-        char buf[128];
-        snprintf(buf, sizeof(buf), "len is %lu", len);
-        msgbox(buf);
         goto out;
     }
 
@@ -60,10 +55,6 @@ BOOL readRegValue(HKEY root, const char *subkey, const char *name, char **value)
                              (LPBYTE) buf,  // data
                              &len);         // size
     if (result != ERROR_SUCCESS) {
-        msgbox("here: " AT);
-        char buf[128];
-        snprintf(buf, sizeof(buf), "error code %lu", result);
-        msgbox(buf);
         goto out;
     }
 
@@ -82,12 +73,10 @@ UINT __stdcall RemoveExtDll(HANDLE hModule)
     const char *dll_path_key = "SOFTWARE\\Classes\\CLSID\\{D14BEDD3-4E05-4F2F-B0DE-C0381E6AE606}\\InProcServer32";
     char *path = NULL;
     if (!readRegValue(HKEY_LOCAL_MACHINE, dll_path_key, "", &path)) {
-        msgbox("failed to read registry value");
         return ERROR_SUCCESS;
     }
 
     if (!path) {
-        msgbox("path is null");
         return ERROR_SUCCESS;
     }
 
@@ -98,13 +87,7 @@ UINT __stdcall RemoveExtDll(HANDLE hModule)
     path2[n + 1] = '1';
     path2[n + 2] = 0;
 
-    if (MoveFileEx(path, path2, MOVEFILE_REPLACE_EXISTING) == 0) {
-        char buf[128];
-        snprintf(buf, sizeof(buf), "MoveFileEx error is %lu", GetLastError());
-        msgbox(buf);
-    } else {
-        msgbox("MoveFileEx success");
-    }
+    MoveFileEx(path, path2, MOVEFILE_REPLACE_EXISTING);
 
     free(path);
     free(path2);
