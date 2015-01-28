@@ -1405,13 +1405,15 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
 static int
 scan_worktree_for_changes (struct index_state *istate, SeafRepo *repo,
                            SeafileCrypt *crypt, GList *ignore_list,
+                           LockedFileSet *fset,
                            GList *user_perms, GList *group_perms)
 {
-    remove_deleted (istate, repo->worktree, "", ignore_list, NULL,
+    remove_deleted (istate, repo->worktree, "", ignore_list, fset,
                     user_perms, group_perms, repo->is_readonly);
 
     AddOptions options;
     memset (&options, 0, sizeof(options));
+    options.fset = fset;
     options.user_perms = user_perms;
     options.group_perms = group_perms;
     options.is_repo_ro = repo->is_readonly;
@@ -1462,6 +1464,27 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
 {
     char *full_path;
     SeafStat st;
+    AddOptions options;
+
+    /* When a repo is initially added, a CREATE_OR_UPDATE event will be created
+     * for the worktree root "".
+     */
+    if (path[0] == 0) {
+        remove_deleted (istate, repo->worktree, "", ignore_list, fset,
+                        user_perms, group_perms, repo->is_readonly);
+
+        memset (&options, 0, sizeof(options));
+        options.fset = fset;
+        options.user_perms = user_perms;
+        options.group_perms = group_perms;
+        options.is_repo_ro = repo->is_readonly;
+
+        add_recursive (repo->id, repo->version, repo->email, istate,
+                       repo->worktree, path,
+                       crypt, FALSE, ignore_list,
+                       total_size, remain_files, &options);
+        return 0;
+    }
 
     /* If we've recursively scanned the parent directory, don't need to scan
      * any files under it any more.
@@ -1500,7 +1523,6 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
     if (S_ISDIR(st.st_mode))
         *scanned_dirs = g_list_prepend (*scanned_dirs, g_strdup(path));
 
-    AddOptions options;
     memset (&options, 0, sizeof(options));
     options.fset = fset;
     options.is_repo_ro = repo->is_readonly;
@@ -1795,6 +1817,9 @@ scan_subtree_for_deletion (struct index_state *istate,
                            const char *path,
                            GList *ignore_list,
                            LockedFileSet *fset,
+                           GList *user_perms,
+                           GList *group_perms,
+                           gboolean is_readonly,
                            GList **scanned_dirs)
 {
 }
@@ -1803,11 +1828,11 @@ scan_subtree_for_deletion (struct index_state *istate,
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list,
+                                 LockedFileSet *fset,
                                  GList *user_perms, GList *group_perms)
 {
     WTStatus *status;
     WTEvent *event, *next_event;
-    LockedFileSet *fset = NULL;
     gboolean not_found;
 
     status = seaf_wt_monitor_get_worktree_status (seaf->wt_monitor, repo->id);
@@ -1830,11 +1855,6 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
         status->partial_commit = FALSE;
         goto out;
     }
-
-#ifdef WIN32
-    if (repo->version > 0)
-        fset = seaf_repo_manager_get_locked_file_set (seaf->repo_mgr, repo->id);
-#endif
 
     gint64 total_size = 0;
 
@@ -2020,11 +2040,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             break;
         case WT_EVENT_OVERFLOW:
             seaf_warning ("Kernel event queue overflowed, fall back to scan.\n");
-            scan_worktree_for_changes (istate, repo, crypt, ignore_list,
-                                       user_perms, group_perms);
-            break;
-        case WT_EVENT_SCAN_TREE:
-            scan_worktree_for_changes (istate, repo, crypt, ignore_list,
+            scan_worktree_for_changes (istate, repo, crypt, ignore_list, fset,
                                        user_perms, group_perms);
             break;
         }
@@ -2042,9 +2058,6 @@ out:
     wt_status_unref (status);
     string_list_free (scanned_dirs);
     string_list_free (scanned_del_dirs);
-#ifdef WIN32
-    locked_file_set_free (fset);
-#endif
 
     return 0;
 }
@@ -2123,6 +2136,7 @@ index_add (SeafRepo *repo, struct index_state *istate,
            gboolean is_force_commit, gboolean handle_unmerged)
 {
     SeafileCrypt *crypt = NULL;
+    LockedFileSet *fset = NULL;
     GList *ignore_list = NULL;
     GList *user_perms = NULL, *group_perms = NULL;
     GList *ptr;
@@ -2131,6 +2145,11 @@ index_add (SeafRepo *repo, struct index_state *istate,
     if (repo->encrypted) {
         crypt = seafile_crypt_new (repo->enc_version, repo->enc_key, repo->enc_iv);
     }
+
+#ifdef WIN32
+    if (repo->version > 0)
+        fset = seaf_repo_manager_get_locked_file_set (seaf->repo_mgr, repo->id);
+#endif
 
     ignore_list = seaf_repo_load_ignore_files (repo->worktree);
 
@@ -2142,12 +2161,12 @@ index_add (SeafRepo *repo, struct index_state *istate,
                                                        FOLDER_PERM_TYPE_GROUP);
 
     if (!is_force_commit) {
-        if (apply_worktree_changes_to_index (repo, istate, crypt, ignore_list,
+        if (apply_worktree_changes_to_index (repo, istate, crypt, ignore_list, fset,
                                              user_perms, group_perms) < 0) {
             seaf_warning ("Failed to apply worktree changes to index.\n");
             ret = -1;
         }
-    } else if (scan_worktree_for_changes (istate, repo, crypt, ignore_list,
+    } else if (scan_worktree_for_changes (istate, repo, crypt, ignore_list, fset,
                                           user_perms, group_perms) < 0) {
         seaf_warning ("Failed to scan worktree for changes.\n");
         ret = -1;
@@ -2161,13 +2180,20 @@ index_add (SeafRepo *repo, struct index_state *istate,
         handle_unmerged_index_entries (repo, istate, crypt, ignore_list);
 
     seaf_repo_free_ignore_files (ignore_list);
+
+#ifdef WIN32
+    locked_file_set_free (fset);
+#endif
+
     for (ptr = user_perms; ptr; ptr = ptr->next)
         folder_perm_free ((FolderPerm *)ptr->data);
     g_list_free (user_perms);
     for (ptr = group_perms; ptr; ptr = ptr->next)
         folder_perm_free ((FolderPerm *)ptr->data);
     g_list_free (group_perms);
+
     g_free (crypt);
+
     return ret;
 }
 

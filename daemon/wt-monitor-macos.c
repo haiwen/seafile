@@ -88,9 +88,6 @@ add_event_to_queue (WTStatus *status,
     case WT_EVENT_ATTRIB:
         name = "attribute change";
         break;
-    case WT_EVENT_SCAN_TREE:
-        name = "scan tree";
-        break;
     default:
         name = "unknown";
     }
@@ -299,7 +296,7 @@ add_watch (SeafWTMonitor *monitor, const char* repo_id, const char* worktree)
     pthread_mutex_unlock (&priv->hash_lock);
 
     /* A special event indicates repo-mgr to scan the whole worktree. */
-    add_event_to_queue (info->status, WT_EVENT_SCAN_TREE, "", NULL);
+    add_event_to_queue (info->status, WT_EVENT_CREATE_OR_UPDATE, "", NULL);
     return stream;
 }
 

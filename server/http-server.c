@@ -482,7 +482,6 @@ out:
     g_free (username);
     g_strfreev (parts);
     g_free (ip);
-    g_free (username);
 }
 
 static void
