@@ -20,6 +20,9 @@
 #define KEY_ENABLE_HTTP_SYNC "enable_http_sync"
 #define KEY_DISABLE_VERIFY_CERTIFICATE "disable_verify_certificate"
 
+gboolean
+seafile_session_config_exists (SeafileSession *session, const char *key);
+
 /*
  * Returns: config value in string. The string should be freed by caller. 
  */
