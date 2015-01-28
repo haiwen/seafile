@@ -34,6 +34,7 @@ import optparse
 import atexit
 import csv
 
+error_exit = False
 ####################
 ### Global variables
 ####################
@@ -161,7 +162,11 @@ def run(cmdline, cwd=None, env=None, suppress_stdout=False, suppress_stderr=Fals
                                 stderr=stderr,
                                 env=env,
                                 shell=True)
-        return proc.wait()
+        ret = proc.wait()
+        if 'depend' not in cmdline and ret != 0:
+            global error_exit
+            error_exit = True
+        return ret
 
 def must_mkdir(path):
     '''Create a directory, exit on failure'''
@@ -245,6 +250,7 @@ class Project(object):
         '''Build the source'''
         self.before_build()
         info('Building %s' % self.name)
+        dump_env()
         for cmd in self.build_commands:
             if run(cmd, cwd=self.projdir) != 0:
                 error('error when running command:\n\t%s\n' % cmd)
@@ -310,15 +316,24 @@ class SeafileClient(Project):
     name = 'seafile-client'
     def __init__(self):
         Project.__init__(self)
+        ninja = find_in_path('ninja.exe')
+        seafile_prefix = Seafile().prefix
+        generator = 'Ninja' if ninja else 'MSYS Makefiles'
         flags = {
             'USE_QT5': 'ON' if conf[CONF_QT5] else 'OFF',
             'BUILD_SHIBBOLETH_SUPPORT': 'ON' if conf[CONF_WITH_SHIB] else 'OFF',
+            # ninja invokes cmd.exe which doesn't support msys/mingw path
+            # change the value but don't override CMAKE_EXE_LINKER_FLAGS,
+            # which is in use
+            'CMAKE_EXE_LINKER_FLAGS_RELEASE': '-L%s' % (os.path.join(seafile_prefix, 'lib') if ninja else to_mingw_path(os.path.join(seafile_prefix, 'lib'))),
         }
         flags = ' '.join(['-D%s=%s' % (k, v) for k, v in flags.iteritems()])
+        make = ninja or get_make_path()
         self.build_commands = [
-            'cmake -G "MSYS Makefiles" %s -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%s .' % (flags, to_mingw_path(self.prefix)),
-            get_make_path(),
-            '%s install' % get_make_path(),
+            'cmake -G "%s" %s -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%s .' % (generator, flags, to_mingw_path(self.prefix)),
+            make,
+            '%s install' % make,
+            "bash extensions/build.sh",
         ]
 
     def get_version(self):
@@ -417,7 +432,7 @@ def validate_args(usage, options):
     conf[CONF_BUILDDIR] = builddir
     conf[CONF_SRCDIR] = srcdir
     conf[CONF_OUTPUTDIR] = outputdir
-    conf[CONF_KEEP] = keep
+    conf[CONF_KEEP] = True
     conf[CONF_DEBUG] = debug
     conf[CONF_ONLY_CHINESE] = onlychinese
     conf[CONF_QT_ROOT] = qt_root
@@ -455,8 +470,9 @@ def prepare_builddir(builddir):
     if not conf[CONF_KEEP]:
         def remove_builddir():
             '''Remove the builddir when exit'''
-            info('remove builddir before exit')
-            shutil.rmtree(builddir, ignore_errors=True)
+            if not error_exit:
+                info('remove builddir before exit')
+                shutil.rmtree(builddir, ignore_errors=True)
         atexit.register(remove_builddir)
 
     os.chdir(builddir)
@@ -571,7 +587,8 @@ def setup_build_env():
                       seperator=';')
 
     prepend_env_value('PKG_CONFIG_PATH',
-                      os.path.join(prefix, 'lib', 'pkgconfig'))
+                      os.path.join(prefix, 'lib', 'pkgconfig'),
+                      seperator=';')
                       # to_mingw_path(os.path.join(prefix, 'lib', 'pkgconfig')))
 
     # specifiy the directory for wix temporary files
@@ -655,11 +672,20 @@ def copy_dll_exe():
         os.path.join(prefix, 'bin', 'libseafile-0.dll'),
         os.path.join(prefix, 'bin', 'ccnet.exe'),
         os.path.join(prefix, 'bin', 'seaf-daemon.exe'),
-        os.path.join(SeafileClient().projdir, 'seafile-applet.exe')
+        os.path.join(SeafileClient().projdir, 'seafile-applet.exe'),
     ]
 
     for name in filelist:
         must_copy(name, destdir)
+
+    extdlls = [
+        os.path.join(SeafileClient().projdir, 'extensions', 'lib', 'seafile_shell_ext.dll'),
+        os.path.join(SeafileClient().projdir, 'extensions', 'lib', 'seafile_shell_ext64.dll'),
+    ]
+
+    customdir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'custom')
+    for dll in extdlls:
+        must_copy(dll, customdir)
 
     copy_shared_libs([ f for f in filelist if f.endswith('.exe') ])
     copy_qt_plugins_imageformats()
@@ -667,10 +693,10 @@ def copy_dll_exe():
     copy_qt_translations()
 
 def copy_qt_plugins_imageformats():
-    destdir = os.path.join(CONF_BUILDDIR, 'pack', 'bin', 'imageformats')
+    destdir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin', 'imageformats')
     must_mkdir(destdir)
 
-    qt_plugins_srcdir = os.path.join(CONF_QT_ROOT, 'plugins', 'imageformats')
+    qt_plugins_srcdir = os.path.join(conf[CONF_QT_ROOT], 'plugins', 'imageformats')
 
     src = os.path.join(qt_plugins_srcdir, 'qico4.dll')
     if conf[CONF_QT5]:
@@ -686,10 +712,10 @@ def copy_qt_plugins_platforms():
     if not conf[CONF_QT5]:
         return
 
-    destdir = os.path.join(CONF_BUILDDIR, 'pack', 'bin', 'platforms')
+    destdir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin', 'platforms')
     must_mkdir(destdir)
 
-    qt_plugins_srcdir = os.path.join(CONF_QT_ROOT, 'plugins', 'platforms')
+    qt_plugins_srcdir = os.path.join(conf[CONF_QT_ROOT], 'plugins', 'platforms')
 
     src = os.path.join(qt_plugins_srcdir, 'qwindows.dll')
     must_copy(src, destdir)
@@ -732,18 +758,25 @@ def prepare_msi():
     must_copytree(msi_dir, pack_dir)
     must_mkdir(os.path.join(pack_dir, 'bin'))
 
+    if run('make', cwd=os.path.join(pack_dir, 'custom')) != 0:
+        error('Error when compiling seafile msi custom dlls')
+
     copy_dll_exe()
 
 def strip_symbols():
     bin_dir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin')
-    def do_strip(fn):
-        run('strip "%s"' % fn)
+    def do_strip(fn, stripcmd='strip'):
+        run('%s "%s"' % (stripcmd, fn))
         info('stripping: %s' % fn)
 
     for dll in glob.glob(os.path.join(bin_dir, '*.dll')):
         name = os.path.basename(dll).lower()
         if 'qt' in name:
             do_strip(dll)
+        if name == 'seafile_shell_ext.dll':
+            do_strip(dll)
+        elif name == 'seafile_shell_ext64.dll':
+            do_strip(dll, stripcmd='x86_64-w64-mingw32-strip')
 
 def edit_fragment_wxs():
     '''In the main wxs file(seafile.wxs) we need to reference to the id of
@@ -829,7 +862,13 @@ def check_tools():
         if not find_in_path(prog + '.exe'):
             error('%s not found' % prog)
 
+def dump_env():
+    print 'Dumping environment variables:'
+    for k, v in os.environ.iteritems():
+        print '%s: %s' % (k, v)
+
 def main():
+    dump_env()
     parse_args()
     setup_build_env()
     check_tools()
