@@ -1692,8 +1692,35 @@ try_add_empty_parent_dir_entry_from_wt (const char *worktree,
         goto out;
     }
 
-    if (is_empty_dir (full_dir, ignore_list))
+    if (is_empty_dir (full_dir, ignore_list)) {
+#ifdef WIN32
+        wchar_t *parent_dir_w = g_utf8_to_utf16 (parent_dir, -1, NULL, NULL, NULL);
+        wchar_t *pw;
+        for (pw = parent_dir_w; *pw != L'\0'; ++pw)
+            if (*pw == L'/')
+                *pw = L'\\';
+
+        wchar_t *long_path = win32_83_path_to_long_path (worktree,
+                                                         parent_dir_w,
+                                                         wcslen(parent_dir_w));
+        g_free (parent_dir_w);
+        if (!long_path) {
+            seaf_warning ("Convert %s to long path failed.\n", parent_dir);
+            goto out;
+        }
+
+        char *utf8_path = g_utf16_to_utf8 (long_path, -1, NULL, NULL, NULL);
+        char *p;
+        for (p = utf8_path; *p != 0; ++p)
+            if (*p == '\\')
+                *p = '/';
+        g_free (long_path);
+
+        add_empty_dir_to_index (istate, utf8_path, &st);
+#else
         add_empty_dir_to_index (istate, parent_dir, &st);
+#endif
+    }
 
 out:
     g_free (parent_dir);
