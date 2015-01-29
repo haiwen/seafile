@@ -1624,7 +1624,6 @@ seaf_http_server_new (struct _SeafileSession *session)
     HttpServer *http_server = g_new0 (HttpServer, 1);
     http_server->evbase = NULL;
     http_server->evhtp = NULL;
-    http_server->thread_id = 0;
 
     load_http_config (http_server, session);
 
