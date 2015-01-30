@@ -816,8 +816,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
 
     # virtual repo
-    @searpc_func("string", ["string", "string", "string", "string", "string"])
-    def create_virtual_repo(origin_repo_id, path, repo_name, repo_desc, owner):
+    @searpc_func("string", ["string", "string", "string", "string", "string", "string"])
+    def create_virtual_repo(origin_repo_id, path, repo_name, repo_desc, owner, passwd=''):
         pass
 
     @searpc_func("objlist", ["string"])
