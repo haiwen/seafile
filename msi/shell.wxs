@@ -25,6 +25,11 @@
           <RegistryKey Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}\shellex\NoRecentDocs" />
           <RegistryValue Root="HKLM" Key="Software\Classes\*\shellex\ContextMenuHandlers\!(loc.AppName)" Value="{$(var.ShellGuid)}" Type="string" />
 
+          <!-- icon overlay extension -->
+          <RegistryKey Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers\&quot;.!(loc.AppName)&quot;" />
+          <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers\&quot;.!(loc.AppName)&quot;"
+                         Value="{$(var.ShellGuid)}" Type="string" />
+
           <!-- approve our shell extensions -->
           <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved" Name="{$(var.ShellGuid)}" Value="!(loc.AppName)" Type="string" />
         </Component>
@@ -48,6 +53,11 @@
           <RegistryValue Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}" Value="!(loc.AppName)" Type="string" />
           <RegistryKey Root="HKLM" Key="Software\Classes\CLSID\{$(var.ShellGuid)}\shellex\NoRecentDocs" />
           <RegistryValue Root="HKLM" Key="Software\Classes\*\shellex\ContextMenuHandlers\!(loc.AppName)" Value="{$(var.ShellGuid)}" Type="string" />
+
+          <!-- icon overlay extension -->
+          <RegistryKey Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers\&quot;.!(loc.AppName)&quot;" />
+          <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Explorer\ShellIconOverlayIdentifiers\&quot;.!(loc.AppName)&quot;"
+                         Value="{$(var.ShellGuid)}" Type="string" />
 
           <!-- approve our shell extensions -->
           <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved" Name="{$(var.ShellGuid)}" Value="!(loc.AppName)" Type="string" />
