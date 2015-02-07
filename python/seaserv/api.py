@@ -346,12 +346,13 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.check_permission_by_path(repo_id, path, user)
 
     # virtual repo
-    def create_virtual_repo(self, origin_repo_id, path, repo_name, repo_desc, owner):
+    def create_virtual_repo(self, origin_repo_id, path, repo_name, repo_desc, owner, passwd=''):
         return seafserv_threaded_rpc.create_virtual_repo(origin_repo_id,
                                                          path,
                                                          repo_name,
                                                          repo_desc,
-                                                         owner)
+                                                         owner,
+                                                         passwd)
 
     def get_virtual_repos_by_owner(self, owner):
         return seafserv_threaded_rpc.get_virtual_repos_by_owner(owner)

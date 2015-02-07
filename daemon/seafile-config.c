@@ -5,6 +5,16 @@
 
 #include "seafile-config.h"
 
+gboolean
+seafile_session_config_exists (SeafileSession *session, const char *key)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "SELECT 1 FROM Config WHERE key = '%s'",
+              key);
+    return sqlite_check_for_existence (session->config_db, sql);
+}
 
 static gboolean
 get_value (sqlite3_stmt *stmt, void *data)

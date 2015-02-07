@@ -618,6 +618,7 @@ seaf_repo_manager_create_virtual_repo (SeafRepoManager *mgr,
                                        const char *repo_name,
                                        const char *repo_desc,
                                        const char *owner,
+                                       const char *passwd,
                                        GError **error);
 
 SeafVirtRepo *

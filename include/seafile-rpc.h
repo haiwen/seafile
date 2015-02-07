@@ -831,6 +831,7 @@ seafile_create_virtual_repo (const char *origin_repo_id,
                              const char *repo_name,
                              const char *repo_desc,
                              const char *owner,
+                             const char *passwd,
                              GError **error);
 
 GList *

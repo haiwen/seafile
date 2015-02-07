@@ -83,8 +83,10 @@ do_create_virtual_repo (SeafRepoManager *mgr,
     repo->no_local_history = TRUE;
     if (passwd != NULL && passwd[0] != '\0') {
         repo->encrypted = TRUE;
-        repo->enc_version = 1;
-        seafile_generate_magic (1, repo_id, passwd, repo->magic);
+        repo->enc_version = origin_repo->enc_version;
+        seafile_generate_magic (repo->enc_version, repo_id, passwd, repo->magic);
+        if (repo->enc_version == 2)
+            seafile_generate_random_key (passwd, repo->random_key);
     }
 
     /* Virtual repos share fs and block store with origin repo and
@@ -169,13 +171,13 @@ seaf_repo_manager_create_virtual_repo (SeafRepoManager *mgr,
                                        const char *repo_name,
                                        const char *repo_desc,
                                        const char *owner,
+                                       const char *passwd,
                                        GError **error)
 {
     SeafRepo *origin_repo = NULL;
     SeafCommit *origin_head = NULL;
     char *repo_id = NULL;
     char *dir_id = NULL;
-    char *passwd = NULL;
     char *orig_owner = NULL;
 
     if (seaf_repo_manager_is_virtual_repo (mgr, origin_repo_id)) {
@@ -198,11 +200,29 @@ seaf_repo_manager_create_virtual_repo (SeafRepoManager *mgr,
     }
 
     if (origin_repo->encrypted) {
-        seaf_warning ("Creating virtual repo for encrypted library is not supported.\n");
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
-                     "Sub-library for encrypted not supported");
-        seaf_repo_unref (origin_repo);
-        return NULL;
+        if (origin_repo->enc_version < 2) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                         "Library encryption version must be higher than 2");
+            seaf_repo_unref (origin_repo);
+            return NULL;
+        }
+
+        if (!passwd || passwd[0] == 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                         "Password is not set");
+            seaf_repo_unref (origin_repo);
+            return NULL;
+        }
+
+        if (seafile_verify_repo_passwd (origin_repo_id,
+                                        passwd,
+                                        origin_repo->magic,
+                                        origin_repo->enc_version) < 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "Incorrect password");
+            seaf_repo_unref (origin_repo);
+            return NULL;
+        }
     }
 
     origin_head = seaf_commit_manager_get_commit (seaf->commit_mgr,

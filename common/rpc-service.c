@@ -3602,6 +3602,7 @@ seafile_create_virtual_repo (const char *origin_repo_id,
                              const char *repo_name,
                              const char *repo_desc,
                              const char *owner,
+                             const char *passwd,
                              GError **error)
 {
     if (!origin_repo_id || !path ||!repo_name || !repo_desc || !owner) {
@@ -3619,7 +3620,7 @@ seafile_create_virtual_repo (const char *origin_repo_id,
     repo_id = seaf_repo_manager_create_virtual_repo (seaf->repo_mgr,
                                                      origin_repo_id, path,
                                                      repo_name, repo_desc,
-                                                     owner, error);
+                                                     owner, passwd, error);
     return repo_id;
 }
 
