@@ -1,12 +1,12 @@
-Welcome to use Seafile client.
+Welcome to use HorizonBase client.
 
-Seafile client is used to download a "library" from a Seafile website, which is
+HorizonBase client is used to download a "library" from a HorizonBase website, which is
 different from other file sync service like dropbox.
 
-1. Create a library on Seafile website;
+1. Create a library on HorizonBase website;
 
-2. Download the library from Seafile website;
+2. Download the library from HorizonBase website;
 
-3. Files added to this donwloaded library will automatically appear on Seafile website.
+3. Files added to this donwloaded library will automatically appear on HorizonBase website.
 
-Don't add files to the "Seafile" folder. That would not make it appear on the website.
+Don't add files to the "HorizonBase" folder. That would not make it appear on the website.

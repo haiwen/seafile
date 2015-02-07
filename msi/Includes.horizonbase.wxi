@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Include Id="SeafileInclude">
+  <?define CurrentSeafileVersion="4.0.7" ?>
+
+  <!-- Update Guid 不能变 -->
+  <?define CurrentUpdateGuid="271FE528-47B4-4600-AC43-9D59733EF8DD" ?>
+
+  <!-- 每个新版本必须重新生成 Product Guid  -->
+  <!-- <?define ProductGuid="1AD3CFFB-21A2-49B0-9969-F6DD2F6294F5" ?> (4.0.3) -->
+  <?define ProductGuid="EDB340A7-5A62-4327-AD12-D2F8710E371A" ?>
+
+</Include>
