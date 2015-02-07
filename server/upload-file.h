@@ -1,9 +1,7 @@
 #ifndef UPLOAD_FILE_H
 #define UPLOAD_FILE_H
 
-struct HttpServer;
-
 int
-upload_file_init (struct HttpServer *http_server);
+upload_file_init (evhtp_t *evhtp, const char *http_temp_dir);
 
 #endif
