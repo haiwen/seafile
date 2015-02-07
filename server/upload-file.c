@@ -2064,14 +2064,13 @@ upload_progress_cb(evhtp_request_t *req, void *arg)
 }
 
 int
-upload_file_init (HttpServer *http_server)
+upload_file_init (evhtp_t *htp, const char *http_temp_dir)
 {
-    evhtp_t *htp = http_server->evhtp;
     evhtp_callback_t *cb;
 
-    if (g_mkdir_with_parents (http_server->http_temp_dir, 0777) < 0) {
+    if (g_mkdir_with_parents (http_temp_dir, 0777) < 0) {
         seaf_warning ("Failed to create temp file dir %s.\n",
-                      http_server->http_temp_dir);
+                      http_temp_dir);
         return -1;
     }
 

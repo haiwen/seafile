@@ -585,10 +585,6 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
      */
     evhtp_request_pause (req);
 
-    /* Avoid recursive call of write_data_cb(). */
-    if (req->htp->ssl_cfg != NULL)
-        evbuffer_defer_callbacks (bev->output, bev->ev_base);
-
     /* Kick start data transfer by sending out http headers. */
     evhtp_send_reply_start(req, EVHTP_RES_OK);
 
@@ -707,10 +703,6 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
      * handling this request.
      */
     evhtp_request_pause (req);
-
-    /* Avoid recursive call of write_dir_data_cb(). */
-    if (req->htp->ssl_cfg != NULL)
-        evbuffer_defer_callbacks (bev->output, bev->ev_base);
 
     /* Kick start data transfer by sending out http headers. */
     evhtp_send_reply_start(req, EVHTP_RES_OK);
@@ -938,10 +930,6 @@ do_block(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
      * handling this request.
      */
     evhtp_request_pause (req);
-
-    /* Avoid recursive call of write_data_cb(). */
-    if (req->htp->ssl_cfg != NULL)
-        evbuffer_defer_callbacks (bev->output, bev->ev_base);
 
     /* Kick start data transfer by sending out http headers. */
     evhtp_send_reply_start(req, EVHTP_RES_OK);

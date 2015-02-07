@@ -1,10 +1,19 @@
+#include "common.h"
+
 #include <pthread.h>
 #include <string.h>
 #include <jansson.h>
 #include <locale.h>
 #include <sys/types.h>
 
-#include "common.h"
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#include <event2/event.h>
+#else
+#include <event.h>
+#endif
+
+#include <evhtp.h>
+
 #include "utils.h"
 #include "log.h"
 #include "http-server.h"
@@ -34,6 +43,26 @@
 #define TOKEN_EXPIRE_TIME 7200	    /* 2 hours */
 #define PERM_EXPIRE_TIME 7200       /* 2 hours */
 #define VIRINFO_EXPIRE_TIME 7200       /* 2 hours */
+
+struct _HttpServer {
+    evbase_t *evbase;
+    evhtp_t *evhtp;
+    pthread_t thread_id;
+
+    GHashTable *token_cache;
+    pthread_mutex_t token_cache_lock; /* token -> username */
+
+    GHashTable *perm_cache;
+    pthread_mutex_t perm_cache_lock; /* repo_id:username -> permission */
+
+    GHashTable *vir_repo_info_cache;
+    pthread_mutex_t vir_repo_info_cache_lock;
+
+    uint32_t cevent_id;         /* Used for sending activity events. */
+
+    event_t *reap_timer;
+};
+typedef struct _HttpServer HttpServer;
 
 typedef struct TokenInfo {
     char *repo_id;
@@ -75,7 +104,7 @@ const char *POST_RECV_FS_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\
 const char *POST_PACK_FS_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{12}/pack-fs";
 
 static void
-load_http_config (HttpServer *htp_server, SeafileSession *session)
+load_http_config (HttpServerStruct *htp_server, SeafileSession *session)
 {
     GError *error = NULL;
     char *host = NULL;
@@ -174,7 +203,7 @@ validate_token (HttpServer *htp_server, evhtp_request_t *req,
 
     pthread_mutex_unlock (&htp_server->token_cache_lock);
 
-    email = seaf_repo_manager_get_email_by_token (htp_server->seaf_session->repo_mgr,
+    email = seaf_repo_manager_get_email_by_token (seaf->repo_mgr,
                                                   repo_id, token);
     if (email == NULL)
         return EVHTP_RES_FORBIDDEN;
@@ -1168,8 +1197,10 @@ put_send_block_cb (evhtp_request_t *req, void *arg)
     char *store_id = NULL;
     char *username = NULL;
     HttpServer *htp_server = arg;
+    char **parts = NULL;
+    void *blk_con = NULL;
 
-    char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
+    parts = g_strsplit (req->uri->path->full + 1, "/", 0);
     repo_id = parts[1];
     block_id = parts[3];
 
@@ -1198,7 +1229,7 @@ put_send_block_cb (evhtp_request_t *req, void *arg)
         goto out;
     }
 
-    void *blk_con = g_new0 (char, blk_len);
+    blk_con = g_new0 (char, blk_len);
     if (!blk_con) {
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
         goto out;
@@ -1219,26 +1250,30 @@ put_send_block_cb (evhtp_request_t *req, void *arg)
                                         blk_con, blk_len) != blk_len) {
         seaf_warning ("Failed to write block %.8s:%s.\n", store_id, block_id);
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
-        goto write_fail;
+        seaf_block_manager_close_block (seaf->block_mgr, blk_handle);
+        seaf_block_manager_block_handle_free (seaf->block_mgr, blk_handle);
+        goto out;
     }
+
+    seaf_block_manager_close_block (seaf->block_mgr, blk_handle);
 
     if (seaf_block_manager_commit_block (seaf->block_mgr,
                                          blk_handle) < 0) {
         seaf_warning ("Failed to commit block %.8s:%s.\n", store_id, block_id);
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
-    } else {
-        evhtp_send_reply (req, EVHTP_RES_OK);
+        seaf_block_manager_block_handle_free (seaf->block_mgr, blk_handle);
+        goto out;
     }
 
-write_fail:
-    g_free (blk_con);
-    seaf_block_manager_close_block (seaf->block_mgr, blk_handle);
     seaf_block_manager_block_handle_free (seaf->block_mgr, blk_handle);
+
+    evhtp_send_reply (req, EVHTP_RES_OK);
 
 out:
     g_free (username);
     g_free (store_id);
     g_strfreev (parts);
+    g_free (blk_con);
 }
 
 static void
@@ -1533,57 +1568,59 @@ out:
 }
 
 static void
-http_request_init (HttpServer *htp_server)
+http_request_init (HttpServerStruct *server)
 {
-    evhtp_set_cb (htp_server->evhtp,
+    HttpServer *priv = server->priv;
+
+    evhtp_set_cb (priv->evhtp,
                   GET_PROTO_PATH, get_protocol_cb,
                   NULL);
 
-    evhtp_set_regex_cb (htp_server->evhtp,
+    evhtp_set_regex_cb (priv->evhtp,
                         GET_CHECK_QUOTA_REGEX, get_check_quota_cb,
-                        htp_server);
+                        priv);
 
-    evhtp_set_regex_cb (htp_server->evhtp,
+    evhtp_set_regex_cb (priv->evhtp,
                         OP_PERM_CHECK_REGEX, get_check_permission_cb,
-                        htp_server);
+                        priv);
 
-    evhtp_set_regex_cb (htp_server->evhtp,
+    evhtp_set_regex_cb (priv->evhtp,
                         HEAD_COMMIT_OPER_REGEX, head_commit_oper_cb,
-                        htp_server);
+                        priv);
 
-    evhtp_set_regex_cb (htp_server->evhtp,
+    evhtp_set_regex_cb (priv->evhtp,
                         COMMIT_OPER_REGEX, commit_oper_cb,
-                        htp_server);
+                        priv);
 
-    evhtp_set_regex_cb (htp_server->evhtp,
+    evhtp_set_regex_cb (priv->evhtp,
                         GET_FS_OBJ_ID_REGEX, get_fs_obj_id_cb,
-                        htp_server);
+                        priv);
 
-    evhtp_set_regex_cb (htp_server->evhtp,
+    evhtp_set_regex_cb (priv->evhtp,
                         BLOCK_OPER_REGEX, block_oper_cb,
-                        htp_server);
+                        priv);
 
-    evhtp_set_regex_cb (htp_server->evhtp,
+    evhtp_set_regex_cb (priv->evhtp,
                         POST_CHECK_FS_REGEX, post_check_fs_cb,
-                        htp_server);
+                        priv);
 
-    evhtp_set_regex_cb (htp_server->evhtp,
+    evhtp_set_regex_cb (priv->evhtp,
                         POST_CHECK_BLOCK_REGEX, post_check_block_cb,
-                        htp_server);
+                        priv);
 
-    evhtp_set_regex_cb (htp_server->evhtp,
+    evhtp_set_regex_cb (priv->evhtp,
                         POST_RECV_FS_REGEX, post_recv_fs_cb,
-                        htp_server);
+                        priv);
 
-    evhtp_set_regex_cb (htp_server->evhtp,
+    evhtp_set_regex_cb (priv->evhtp,
                         POST_PACK_FS_REGEX, post_pack_fs_cb,
-                        htp_server);
+                        priv);
 
     /* Web access file */
-    access_file_init (htp_server->evhtp);
+    access_file_init (priv->evhtp);
 
     /* Web upload file */
-    upload_file_init (htp_server);
+    upload_file_init (priv->evhtp, server->http_temp_dir);
 }
 
 static void
@@ -1677,106 +1714,80 @@ remove_expire_cache_cb (evutil_socket_t sock, short type, void *data)
 static void *
 http_server_run (void *arg)
 {
-    HttpServer *htp_server = arg;
-    htp_server->evbase = event_base_new();
-    htp_server->evhtp = evhtp_new(htp_server->evbase, NULL);
+    HttpServerStruct *server = arg;
+    HttpServer *priv = server->priv;
 
-    if (evhtp_bind_socket(htp_server->evhtp,
-                          htp_server->bind_addr,
-                          htp_server->bind_port, 128) < 0) {
+    priv->evbase = event_base_new();
+    priv->evhtp = evhtp_new(priv->evbase, NULL);
+
+    if (evhtp_bind_socket(priv->evhtp,
+                          server->bind_addr,
+                          server->bind_port, 128) < 0) {
         seaf_warning ("Could not bind socket: %s\n", strerror (errno));
         exit(-1);
     }
 
-    evhtp_set_gencb (htp_server->evhtp, default_cb, NULL);
+    evhtp_set_gencb (priv->evhtp, default_cb, NULL);
 
-    http_request_init (htp_server);
+    http_request_init (server);
 
-    evhtp_use_threads (htp_server->evhtp, NULL, DEFAULT_THREADS, NULL);
+    evhtp_use_threads (priv->evhtp, NULL, DEFAULT_THREADS, NULL);
 
     struct timeval tv;
     tv.tv_sec = CLEANING_INTERVAL_SEC;
     tv.tv_usec = 0;
-    htp_server->reap_timer = evtimer_new (htp_server->evbase,
-                                          remove_expire_cache_cb,
-                                          htp_server);
-    evtimer_add (htp_server->reap_timer, &tv);
+    priv->reap_timer = evtimer_new (priv->evbase,
+                                    remove_expire_cache_cb,
+                                    priv);
+    evtimer_add (priv->reap_timer, &tv);
 
-    event_base_loop (htp_server->evbase, 0);
-    seaf_http_server_release (htp_server);
+    event_base_loop (priv->evbase, 0);
 
     return NULL;
 }
 
-HttpServer *
+HttpServerStruct *
 seaf_http_server_new (struct _SeafileSession *session)
 {
-    HttpServer *http_server = g_new0 (HttpServer, 1);
-    http_server->evbase = NULL;
-    http_server->evhtp = NULL;
-    http_server->thread_id = 0;
+    HttpServerStruct *server = g_new0 (HttpServerStruct, 1);
+    HttpServer *priv = g_new0 (HttpServer, 1);
 
-    load_http_config (http_server, session);
+    priv->evbase = NULL;
+    priv->evhtp = NULL;
 
-    session->http_server = http_server;
-    http_server->seaf_session = session;
+    load_http_config (server, session);
 
-    http_server->token_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                                      g_free, token_cache_value_free);
-    pthread_mutex_init (&http_server->token_cache_lock, NULL);
+    priv->token_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                               g_free, token_cache_value_free);
+    pthread_mutex_init (&priv->token_cache_lock, NULL);
 
-    http_server->perm_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                                     g_free, perm_cache_value_free);
-    pthread_mutex_init (&http_server->perm_cache_lock, NULL);
+    priv->perm_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                              g_free, perm_cache_value_free);
+    pthread_mutex_init (&priv->perm_cache_lock, NULL);
 
-    http_server->vir_repo_info_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                                              g_free, free_vir_repo_info);
-    pthread_mutex_init (&http_server->vir_repo_info_cache_lock, NULL);
+    priv->vir_repo_info_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                       g_free, free_vir_repo_info);
+    pthread_mutex_init (&priv->vir_repo_info_cache_lock, NULL);
 
-    http_server->http_temp_dir = g_build_filename (session->seaf_dir, "httptemp", NULL);
+    server->http_temp_dir = g_build_filename (session->seaf_dir, "httptemp", NULL);
 
-    return http_server;
-}
+    server->seaf_session = session;
+    server->priv = priv;
 
-void seaf_http_server_release (HttpServer *htp_server)
-{
-    if (htp_server) {
-        if (htp_server->bind_addr) {
-            g_free (htp_server->bind_addr);
-        }
-        if (htp_server->evhtp) {
-            evhtp_unbind_socket (htp_server->evhtp);
-            evhtp_free (htp_server->evhtp);
-        }
-        if (htp_server->evbase) {
-            event_base_free (htp_server->evbase);
-        }
-        if (htp_server->token_cache) {
-            g_hash_table_destroy (htp_server->token_cache);
-        }
-        if (htp_server->perm_cache) {
-            g_hash_table_destroy (htp_server->perm_cache);
-        }
-        if (htp_server->vir_repo_info_cache) {
-            g_hash_table_destroy (htp_server->vir_repo_info_cache);
-        }
-        if (htp_server->reap_timer) {
-            event_del (htp_server->reap_timer);
-        }
-    }
+    return server;
 }
 
 int
-seaf_http_server_start (HttpServer *htp_server)
+seaf_http_server_start (HttpServerStruct *server)
 {
-    htp_server->cevent_id = cevent_manager_register (seaf->ev_mgr,
+    server->priv->cevent_id = cevent_manager_register (seaf->ev_mgr,
                                     (cevent_handler)publish_repo_event,
-                                                     NULL);
+                                                       NULL);
 
-   int ret = pthread_create (&htp_server->thread_id, NULL, http_server_run, htp_server);
+   int ret = pthread_create (&server->priv->thread_id, NULL, http_server_run, server);
    if (ret != 0)
        return -1;
 
-   pthread_detach (htp_server->thread_id);
+   pthread_detach (server->priv->thread_id);
    return 0;
 }
