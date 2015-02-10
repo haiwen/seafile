@@ -37,6 +37,9 @@ typedef struct  {
     SeafilePutcommitProcPriv *priv = GET_PRIV(processor);
 
 static int put_commit_start (CcnetProcessor *processor, int argc, char **argv);
+static void handle_update (CcnetProcessor *processor,
+                           char *code, char *code_msg,
+                           char *content, int clen);
 
 G_DEFINE_TYPE (SeafilePutcommitV2Proc, seafile_putcommit_v2_proc, CCNET_TYPE_PROCESSOR)
 
@@ -63,6 +66,7 @@ seafile_putcommit_v2_proc_class_init (SeafilePutcommitV2ProcClass *klass)
 
     proc_class->name = "putcommit-v2-proc";
     proc_class->start = put_commit_start;
+    proc_class->handle_update = handle_update;
     proc_class->release_resource = release_resource;
 
     g_type_class_add_private (klass, sizeof (SeafilePutcommitProcPriv));
@@ -365,4 +369,11 @@ put_commit_start (CcnetProcessor *processor, int argc, char **argv)
                                    processor);
 
     return 0;
+}
+
+static void handle_update (CcnetProcessor *processor,
+                           char *code, char *code_msg,
+                           char *content, int clen)
+{
+    ccnet_processor_done (processor, FALSE);
 }
