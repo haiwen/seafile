@@ -98,6 +98,10 @@ sed 's/,    UNIQUE (`user_email`, `contact_email`)//g' ${SEAHUB_DB} > ${SEAHUB_D
 # remove base_dirfileslastmodifiedinfo records to avoid json string parsing issue between sqlite and mysql
 sed '/INSERT INTO `base_dirfileslastmodifiedinfo`/d' ${SEAHUB_DB} > ${SEAHUB_DB}.tmp && mv ${SEAHUB_DB}.tmp ${SEAHUB_DB}
 
+# remove notifications_usernotification records to avoid json string parsing issue between sqlite and mysql
+sed '/INSERT INTO `notifications_usernotification`/d' ${SEAHUB_DB} > ${SEAHUB_DB}.tmp && mv ${SEAHUB_DB}.tmp ${SEAHUB_DB}
+
+
 ########## common logic
 
 # add ENGIN=INNODB to create table statment
