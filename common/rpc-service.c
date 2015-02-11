@@ -855,6 +855,19 @@ seafile_get_trash_repo_list (int start, int limit, GError **error)
                                                   error);
 }
 
+GList *
+seafile_get_trash_repos_by_owner (const char *owner, GError **error)
+{
+    if (!owner) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return NULL;
+    }
+
+    return seaf_repo_manager_get_trash_repos_by_owner (seaf->repo_mgr,
+                                                       owner,
+                                                       error);
+}
+
 int
 seafile_del_repo_from_trash (const char *repo_id, GError **error)
 {
@@ -872,6 +885,23 @@ seafile_del_repo_from_trash (const char *repo_id, GError **error)
     ret = seaf_repo_manager_del_repo_from_trash (seaf->repo_mgr, repo_id, error);
 
     return ret;
+}
+
+int
+seafile_empty_repo_trash (GError **error)
+{
+    return seaf_repo_manager_empty_repo_trash (seaf->repo_mgr, error);
+}
+
+int
+seafile_empty_repo_trash_by_owner (const char *owner, GError **error)
+{
+    if (!owner) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+
+    return seaf_repo_manager_empty_repo_trash_by_owner (seaf->repo_mgr, owner, error);
 }
 
 int

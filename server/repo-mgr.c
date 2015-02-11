@@ -352,26 +352,35 @@ add_deleted_repo_to_trash (SeafRepoManager *mgr, const char *repo_id)
 
     branch = seaf_branch_manager_get_branch (mgr->seaf->branch_mgr,
                                              repo_id, "master");
-    if (!branch)
+    if (!branch) {
+        seaf_warning ("Failed to get branch for repo %.8s.\n", repo_id);
         return ret;
+    }
 
     commit = seaf_commit_manager_get_commit (mgr->seaf->commit_mgr,
                                              repo_id, 1, branch->commit_id);
-    if (!commit)
+    if (!commit) {
+        seaf_warning ("Failed to get commit %s from repo %.8s.\n",
+                      branch->commit_id, repo_id);
         goto out;
+    }
 
     owner = seaf_repo_manager_get_repo_owner (mgr, repo_id);
-    if (!owner)
+    if (!owner) {
+        seaf_warning ("Failed to get owner for repo %.8s.\n", repo_id);
         goto out;
+    }
 
     gint64 size = seaf_repo_manager_get_repo_size (mgr, repo_id);
-    if (size == -1)
+    if (size == -1) {
+        seaf_warning ("Failed to get size of repo %.8s.\n", repo_id);
         goto out;
+    }
 
     ret =  seaf_db_statement_query (mgr->seaf->db,
                                     "INSERT INTO RepoTrash (repo_id, repo_name, head_id, "
-                                    "owner_id, size) "
-                                    "values (?, ?, ?, ?, ?)", 5,
+                                    "owner_id, size, org_id) "
+                                    "values (?, ?, ?, ?, ?, -1)", 5,
                                     "string", repo_id,
                                     "string", commit->repo_name,
                                     "string", branch->commit_id,
@@ -434,9 +443,17 @@ int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr,
                             const char *repo_id)
 {
+    if (add_deleted_repo_to_trash (mgr, repo_id) < 0)
+        return -1;
+
     if (seaf_db_statement_query (mgr->seaf->db, "DELETE FROM Repo WHERE repo_id = ?",
                                  1, "string", repo_id) < 0)
         return -1;
+
+    /* Repo branches are not removed at this point. */
+
+    seaf_db_statement_query (mgr->seaf->db, "DELETE FROM RepoOwner WHERE repo_id = ?",
+                             1, "string", repo_id);
 
     seaf_db_statement_query (mgr->seaf->db, "DELETE FROM SharedRepo WHERE repo_id = ?",
                              1, "string", repo_id);
@@ -463,10 +480,7 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
                              "WHERE repo_id=? OR origin_repo=?",
                              2, "string", repo_id, "string", repo_id);
 
-
-    int ret = add_deleted_repo_to_trash (mgr, repo_id);
-
-    return ret;
+    return 0;
 }
 
 int
@@ -741,7 +755,7 @@ create_tables_mysql (SeafRepoManager *mgr)
 
     sql = "CREATE TABLE IF NOT EXISTS RepoTrash (repo_id CHAR(36) PRIMARY KEY,"
         "repo_name VARCHAR(255), head_id CHAR(40), owner_id VARCHAR(255),"
-        "size bigint(20))ENGINE=INNODB";
+        "size bigint(20), org_id INTEGER, INDEX(owner_id), INDEX(org_id))ENGINE=INNODB";
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
@@ -867,7 +881,16 @@ create_tables_sqlite (SeafRepoManager *mgr)
         return -1;
 
     sql = "CREATE TABLE IF NOT EXISTS RepoTrash (repo_id CHAR(36) PRIMARY KEY,"
-        "repo_name VARCHAR(255), head_id CHAR(40), owner_id VARCHAR(255), size BIGINT UNSIGNED)";
+        "repo_name VARCHAR(255), head_id CHAR(40), owner_id VARCHAR(255), size BIGINT UNSIGNED,"
+        "org_id INTEGER)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE INDEX IF NOT EXISTS repotrash_owner_id_idx ON RepoTrash(owner_id)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE INDEX IF NOT EXISTS repotrash_org_id_idx ON RepoTrash(org_id)";
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
@@ -986,7 +1009,8 @@ create_tables_pgsql (SeafRepoManager *mgr)
         return -1;
 
     sql = "CREATE TABLE IF NOT EXISTS RepoTrash (repo_id CHAR(36) PRIMARY KEY,"
-        "repo_name VARCHAR(255), head_id CHAR(40), owner_id VARCHAR(255), size bigint)";
+        "repo_name VARCHAR(255), head_id CHAR(40), owner_id VARCHAR(255), size bigint,"
+        "org_id INTEGER, INDEX(owner_id), INDEX(org_id))";
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
@@ -1615,40 +1639,6 @@ collect_repo_id (SeafDBRow *row, void *data)
     return TRUE;
 }
 
-static gboolean
-collect_trash_repo (SeafDBRow *row, void *data)
-{
-    GList **trash_repos = data;
-    const char *repo_id;
-    const char *repo_name;
-    const char *head_id;
-    const char *owner_id;
-    gint64 size;
-
-    repo_id = seaf_db_row_get_column_text (row, 0);
-    repo_name = seaf_db_row_get_column_text (row, 1);
-    head_id = seaf_db_row_get_column_text (row, 2);
-    owner_id = seaf_db_row_get_column_text (row, 3);
-    size = seaf_db_row_get_column_int64 (row, 4);
-
-    if (!repo_id || !repo_name || !head_id || !owner_id)
-        return FALSE;
-
-    SeafileTrashRepo *trash_repo = g_object_new (SEAFILE_TYPE_TRASH_REPO,
-                                                 "repo_id", repo_id,
-                                                 "repo_name", repo_name,
-                                                 "head_id", head_id,
-                                                 "owner_id", owner_id,
-                                                 "size", size,
-                                                 NULL);
-    if (!trash_repo)
-        return FALSE;
-
-    *trash_repos = g_list_prepend (*trash_repos, trash_repo);
-
-    return TRUE;
-}
-
 GList *
 seaf_repo_manager_get_orphan_repo_list (SeafRepoManager *mgr)
 {
@@ -1772,6 +1762,40 @@ seaf_repo_manager_get_repo_ids_by_owner (SeafRepoManager *mgr,
     return ret;
 }
 
+static gboolean
+collect_trash_repo (SeafDBRow *row, void *data)
+{
+    GList **trash_repos = data;
+    const char *repo_id;
+    const char *repo_name;
+    const char *head_id;
+    const char *owner_id;
+    gint64 size;
+
+    repo_id = seaf_db_row_get_column_text (row, 0);
+    repo_name = seaf_db_row_get_column_text (row, 1);
+    head_id = seaf_db_row_get_column_text (row, 2);
+    owner_id = seaf_db_row_get_column_text (row, 3);
+    size = seaf_db_row_get_column_int64 (row, 4);
+
+    if (!repo_id || !repo_name || !head_id || !owner_id)
+        return FALSE;
+
+    SeafileTrashRepo *trash_repo = g_object_new (SEAFILE_TYPE_TRASH_REPO,
+                                                 "repo_id", repo_id,
+                                                 "repo_name", repo_name,
+                                                 "head_id", head_id,
+                                                 "owner_id", owner_id,
+                                                 "size", size,
+                                                 NULL);
+    if (!trash_repo)
+        return FALSE;
+
+    *trash_repos = g_list_prepend (*trash_repos, trash_repo);
+
+    return TRUE;
+}
+
 GList *
 seaf_repo_manager_get_trash_repo_list (SeafRepoManager *mgr,
                                        int start,
@@ -1808,6 +1832,57 @@ seaf_repo_manager_get_trash_repo_list (SeafRepoManager *mgr,
     return trash_repos;
 }
 
+GList *
+seaf_repo_manager_get_trash_repos_by_owner (SeafRepoManager *mgr,
+                                            const char *owner,
+                                            GError **error)
+{
+    GList *trash_repos = NULL;
+    int rc;
+
+    rc = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                        "SELECT repo_id, repo_name, head_id, owner_id, "
+                                        "size FROM RepoTrash WHERE owner_id = ?",
+                                        collect_trash_repo, &trash_repos,
+                                        1, "string", owner);
+
+    if (rc < 0) {
+        while (trash_repos) {
+            g_object_unref (trash_repos->data);
+            trash_repos = g_list_delete_link (trash_repos, trash_repos);
+        }
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to get trashed repo from db.");
+        return NULL;
+    }
+
+    return trash_repos;
+}
+
+SeafileTrashRepo *
+seaf_repo_manager_get_repo_from_trash (SeafRepoManager *mgr,
+                                       const char *repo_id)
+{
+    SeafileTrashRepo *ret = NULL;
+    GList *trash_repos = NULL;
+    char *sql;
+    int rc;
+
+    sql = "SELECT repo_id, repo_name, head_id, owner_id, size FROM RepoTrash "
+        "WHERE repo_id = ?";
+    rc = seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                        collect_trash_repo, &trash_repos,
+                                        1, "string", repo_id);
+    if (rc < 0)
+        return NULL;
+
+    /* There should be only one results, since repo_id is a PK. */
+    ret = trash_repos->data;
+
+    g_list_free (trash_repos);
+    return ret;
+}
+
 int
 seaf_repo_manager_del_repo_from_trash (SeafRepoManager *mgr,
                                        const char *repo_id,
@@ -1815,16 +1890,14 @@ seaf_repo_manager_del_repo_from_trash (SeafRepoManager *mgr,
 {
     int ret = 0;
 
-    ret = seaf_db_statement_query (mgr->seaf->db,
-                                   "DELETE FROM RepoTrash WHERE repo_id = ?",
-                                   1, "string", repo_id);
-    if (ret < 0) {
+    /* As long as the repo is successfully moved into GarbageRepo table,
+     * we consider this operation successful.
+     */
+    if (add_deleted_repo_record (mgr, repo_id) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "DB error: delete from RepoTrash.");
+                     "DB error: Add deleted record");
         return -1;
     }
-
-    add_deleted_repo_record (mgr, repo_id);
 
     /* remove branch */
     GList *p;
@@ -1836,15 +1909,57 @@ seaf_repo_manager_del_repo_from_trash (SeafRepoManager *mgr,
     }
     seaf_branch_list_free (branch_list);
 
-    ret = seaf_db_statement_query (mgr->seaf->db, "DELETE FROM RepoOwner WHERE repo_id = ?",
-                                   1, "string", repo_id);
-    if (ret < 0) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "DB error: delete from RepoOwner.");
+    seaf_db_statement_query (mgr->seaf->db,
+                             "DELETE FROM RepoTrash WHERE repo_id = ?",
+                             1, "string", repo_id);
+
+    return 0;
+}
+
+int
+seaf_repo_manager_empty_repo_trash (SeafRepoManager *mgr, GError **error)
+{
+    GList *trash_repos = NULL, *ptr;
+    SeafileTrashRepo *repo;
+
+    trash_repos = seaf_repo_manager_get_trash_repo_list (mgr, -1, -1, error);
+    if (*error)
         return -1;
+
+    for (ptr = trash_repos; ptr; ptr = ptr->next) {
+        repo = ptr->data;
+        seaf_repo_manager_del_repo_from_trash (mgr,
+                                               seafile_trash_repo_get_repo_id(repo),
+                                               NULL);
+        g_object_unref (repo);
     }
 
-    return ret;
+    g_list_free (trash_repos);
+    return 0;
+}
+
+int
+seaf_repo_manager_empty_repo_trash_by_owner (SeafRepoManager *mgr,
+                                             const char *owner,
+                                             GError **error)
+{
+    GList *trash_repos = NULL, *ptr;
+    SeafileTrashRepo *repo;
+
+    trash_repos = seaf_repo_manager_get_trash_repos_by_owner (mgr, owner, error);
+    if (*error)
+        return -1;
+
+    for (ptr = trash_repos; ptr; ptr = ptr->next) {
+        repo = ptr->data;
+        seaf_repo_manager_del_repo_from_trash (mgr,
+                                               seafile_trash_repo_get_repo_id(repo),
+                                               NULL);
+        g_object_unref (repo);
+    }
+
+    g_list_free (trash_repos);
+    return 0;
 }
 
 int
@@ -1852,26 +1967,72 @@ seaf_repo_manager_restore_repo_from_trash (SeafRepoManager *mgr,
                                            const char *repo_id,
                                            GError **error)
 {
+    SeafileTrashRepo *repo = NULL;
     int ret = 0;
+    gboolean exists = FALSE;
+    gboolean db_err;
 
-    ret = seaf_db_statement_query (mgr->seaf->db,
-                                   "DELETE FROM RepoTrash WHERE repo_id = ?",
-                                   1, "string", repo_id);
+    repo = seaf_repo_manager_get_repo_from_trash (mgr, repo_id);
+
+    SeafDBTrans *trans = seaf_db_begin_transaction (mgr->seaf->db);
+
+    exists = seaf_db_trans_check_for_existence (trans,
+                                                "SELECT 1 FROM Repo WHERE repo_id=?",
+                                                &db_err, 1, "string", repo_id);
+
+    if (!exists) {
+        ret = seaf_db_trans_query (trans,
+                                   "INSERT INTO Repo(repo_id) VALUES (?)",
+                                   1, "string", repo_id) < 0;
+        if (ret < 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "DB error: Insert Repo.");
+            seaf_db_rollback (trans);
+            seaf_db_trans_close (trans);
+            goto out;
+        }
+    }
+
+    exists = seaf_db_trans_check_for_existence (trans,
+                                                "SELECT 1 FROM RepoOwner WHERE repo_id=?",
+                                                &db_err, 1, "string", repo_id);
+
+    if (!exists) {
+        ret = seaf_db_trans_query (trans,
+                                   "INSERT INTO RepoOwner VALUES (?, ?)",
+                                   2, "string", repo_id,
+                                   "string", seafile_trash_repo_get_owner_id(repo));
+        if (ret < 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "DB error: Insert Repo Owner.");
+            seaf_db_rollback (trans);
+            seaf_db_trans_close (trans);
+            goto out;
+        }
+    }
+
+    ret = seaf_db_trans_query (trans,
+                               "DELETE FROM RepoTrash WHERE repo_id = ?",
+                               1, "string", repo_id);
     if (ret < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "DB error: delete from RepoTrash.");
-        return -1;
+        seaf_db_rollback (trans);
+        seaf_db_trans_close (trans);
+        goto out;
     }
 
-    ret = seaf_db_statement_query (mgr->seaf->db,
-                                   "INSERT INTO Repo(repo_id) VALUES (?)",
-                                   1, "string", repo_id) < 0;
-    if (ret < 0) {
+    if (seaf_db_commit (trans) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "DB error: Insert Repo.");
-        return -1;
+                     "DB error: Failed to commit.");
+        seaf_db_rollback (trans);
+        ret = -1;
     }
 
+    seaf_db_trans_close (trans);
+
+out:
+    g_object_unref (repo);
     return ret;
 }
 

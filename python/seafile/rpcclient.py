@@ -336,21 +336,6 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     get_repo_list = seafile_get_repo_list
 
-    @searpc_func("objlist", ["int", "int"])
-    def seafile_get_trash_repo_list(start, limit):
-        pass
-    get_trash_repo_list = seafile_get_trash_repo_list
-
-    @searpc_func("int", ["string"])
-    def seafile_del_repo_from_trash(repo_id):
-        pass
-    del_repo_from_trash = seafile_del_repo_from_trash
-
-    @searpc_func("int", ["string"])
-    def seafile_restore_repo_from_trash(repo_id):
-        pass
-    restore_repo_from_trash = seafile_restore_repo_from_trash
-
     @searpc_func("int", ["string", "string", "string", "string"])
     def seafile_edit_repo(repo_id, name, description, user):
         pass
@@ -857,4 +842,29 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     # Clean trash
     @searpc_func("int", ["string", "int"])
     def clean_up_repo_history(repo_id, keep_days):
+        pass
+
+    # Trashed repos
+    @searpc_func("objlist", ["int", "int"])
+    def get_trash_repo_list(start, limit):
+        pass
+
+    @searpc_func("int", ["string"])
+    def del_repo_from_trash(repo_id):
+        pass
+
+    @searpc_func("int", ["string"])
+    def restore_repo_from_trash(repo_id):
+        pass
+
+    @searpc_func("objlist", ["string"])
+    def get_trash_repos_by_owner(owner):
+        pass
+
+    @searpc_func("int", [])
+    def empty_repo_trash():
+        pass
+
+    @searpc_func("int", ["string"])
+    def empty_repo_trash_by_owner(owner):
         pass

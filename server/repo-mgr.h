@@ -146,10 +146,24 @@ seaf_repo_manager_get_trash_repo_list (SeafRepoManager *mgr,
                                        int limit,
                                        GError **error);
 
+GList *
+seaf_repo_manager_get_trash_repos_by_owner (SeafRepoManager *mgr,
+                                            const char *owner,
+                                            GError **error);
+
 int
 seaf_repo_manager_del_repo_from_trash (SeafRepoManager *mgr,
                                        const char *repo_id,
                                        GError **error);
+
+/* Remove all entries in the repo trash. */
+int
+seaf_repo_manager_empty_repo_trash (SeafRepoManager *mgr, GError **error);
+
+int
+seaf_repo_manager_empty_repo_trash_by_owner (SeafRepoManager *mgr,
+                                             const char *owner,
+                                             GError **error);
 
 int
 seaf_repo_manager_restore_repo_from_trash (SeafRepoManager *mgr,

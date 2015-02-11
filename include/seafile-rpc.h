@@ -32,6 +32,15 @@ seafile_del_repo_from_trash (const char *repo_id, GError **error);
 int
 seafile_restore_repo_from_trash (const char *repo_id, GError **error);
 
+GList *
+seafile_get_trash_repos_by_owner (const char *owner, GError **error);
+
+int
+seafile_empty_repo_trash (GError **error);
+
+int
+seafile_empty_repo_trash_by_owner (const char *owner, GError **error);
+
 /**
  * seafile_get_commit_list:
  *
