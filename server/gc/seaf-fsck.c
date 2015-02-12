@@ -16,10 +16,11 @@ static char *seafile_dir = NULL;
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvc:d:Ds";
+static const char *short_opts = "hvc:d:sC";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
+    { "clean", no_argument, NULL, 'C', },
     { "config-file", required_argument, NULL, 'c', },
     { "seafdir", required_argument, NULL, 'd', },
 };
@@ -27,7 +28,7 @@ static const struct option long_opts[] = {
 static void usage ()
 {
     fprintf (stderr,
-             "usage: seaf-fsck [-c config_dir] [-d seafile_dir] "
+             "usage: seaf-fsck [-C] [-c config_dir] [-d seafile_dir] "
              "[repo_id_1 [repo_id_2 ...]]\n");
 }
 
@@ -61,6 +62,7 @@ int
 main(int argc, char *argv[])
 {
     int c;
+    gboolean clean = FALSE;
 
 #ifdef WIN32
     argv = get_argv_utf8 (&argc);
@@ -76,6 +78,9 @@ main(int argc, char *argv[])
             exit(0);
         case 'v':
             exit(-1);
+            break;
+        case 'C':
+            clean = TRUE;
             break;
         case 'c':
             config_dir = strdup(optarg);
@@ -118,7 +123,7 @@ main(int argc, char *argv[])
     for (i = optind; i < argc; i++)
         repo_id_list = g_list_append (repo_id_list, g_strdup(argv[i]));
 
-    seaf_fsck (repo_id_list);
+    seaf_fsck (repo_id_list, clean);
 
     return 0;
 }

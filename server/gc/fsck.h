@@ -2,6 +2,6 @@
 #define SEAF_FSCK_H
 
 int
-seaf_fsck (GList *repo_id_list);
+seaf_fsck (GList *repo_id_list, gboolean clean);
 
 #endif
