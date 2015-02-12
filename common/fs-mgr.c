@@ -2029,6 +2029,15 @@ seaf_fs_manager_object_exists (SeafFSManager *mgr,
     return seaf_obj_store_obj_exists (mgr->obj_store, repo_id, version, id);
 }
 
+void
+seaf_fs_manager_delete_object (SeafFSManager *mgr,
+                               const char *repo_id,
+                               int version,
+                               const char *id)
+{
+    seaf_obj_store_delete_obj (mgr->obj_store, repo_id, version, id);
+}
+
 gint64
 seaf_fs_manager_get_file_size (SeafFSManager *mgr,
                                const char *repo_id,
