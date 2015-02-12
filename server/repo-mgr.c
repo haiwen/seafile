@@ -1973,6 +1973,10 @@ seaf_repo_manager_restore_repo_from_trash (SeafRepoManager *mgr,
     gboolean db_err;
 
     repo = seaf_repo_manager_get_repo_from_trash (mgr, repo_id);
+    if (!repo) {
+        seaf_warning ("Repo %.8s not found in trash.\n", repo_id);
+        return -1;
+    }
 
     SeafDBTrans *trans = seaf_db_begin_transaction (mgr->seaf->db);
 
