@@ -6,7 +6,7 @@
 #include "fsck.h"
 
 typedef struct FsckData {
-    gboolean clean;
+    gboolean repair;
     SeafRepo *repo;
     GHashTable *existing_blocks;
 } FsckData;
@@ -22,7 +22,7 @@ fsck_verify_seafobj (const char *store_id,
                      const char *obj_id,
                      gboolean *io_error,
                      VerifyType type,
-                     gboolean clean)
+                     gboolean repair)
 {
     gboolean valid = TRUE;
 
@@ -40,14 +40,14 @@ fsck_verify_seafobj (const char *store_id,
     if (type == VERIFY_FILE) {
         valid = seaf_fs_manager_verify_seafile (seaf->fs_mgr, store_id, version,
                                                 obj_id, TRUE, io_error);
-        if (!valid && !*io_error && clean) {
+        if (!valid && !*io_error && repair) {
             seaf_message ("File %s is curropted, remove it.\n", obj_id);
             seaf_fs_manager_delete_object (seaf->fs_mgr, store_id, version, obj_id);
         }
     } else if (type == VERIFY_DIR) {
         valid = seaf_fs_manager_verify_seafdir (seaf->fs_mgr, store_id, version,
                                                 obj_id, TRUE, io_error);
-        if (!valid && !*io_error && clean) {
+        if (!valid && !*io_error && repair) {
             seaf_message ("Dir %s is curropted, remove it.\n", obj_id);
             seaf_fs_manager_delete_object (seaf->fs_mgr, store_id, version, obj_id);
         }
@@ -96,7 +96,7 @@ check_blocks (const char *file_id, FsckData *fsck_data, gboolean *io_error)
                 ret = -1;
                 break;
             } else {
-                if (fsck_data->clean) {
+                if (fsck_data->repair) {
                     seaf_message ("Block %s is corrupted, remove it.\n", block_id);
                     seaf_block_manager_remove_block (seaf->block_mgr,
                                                      store_id, version,
@@ -125,18 +125,13 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
     GList *p;
     SeafDirent *seaf_dent;
     char *dir_id = NULL;
+    char *path = NULL;
     gboolean io_error = FALSE;
-    char path[SEAF_PATH_MAX];
-    char *path_prefix;
 
     SeafFSManager *mgr = seaf->fs_mgr;
     char *store_id = fsck_data->repo->store_id;
     int version = fsck_data->repo->version;
     gboolean is_corrupted = FALSE;
-
-    memset (path, 0, SEAF_PATH_MAX);
-    memcpy (path, parent_dir, strlen (parent_dir));
-    path_prefix = path + strlen (path);
 
     dir = seaf_fs_manager_get_seafdir (mgr, store_id, version, id);
 
@@ -145,16 +140,21 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
         io_error = FALSE;
 
         if (S_ISREG(seaf_dent->mode)) {
-            memcpy (path_prefix, seaf_dent->name, seaf_dent->name_len + 1);
-
+            path = g_strdup_printf ("%s%s", parent_dir, seaf_dent->name);
+            if (!path) {
+                seaf_warning ("Out of memory, stop to run fsck for repo %.8s.\n",
+                              fsck_data->repo->id);
+                goto out;
+            }
             if (!fsck_verify_seafobj (store_id, version,
                                       seaf_dent->id, &io_error,
-                                      VERIFY_FILE, fsck_data->clean)) {
+                                      VERIFY_FILE, fsck_data->repair)) {
                 if (io_error) {
+                    g_free (path);
                     goto out;
                 }
                 is_corrupted = TRUE;
-                if (fsck_data->clean) {
+                if (fsck_data->repair) {
                     seaf_message ("File %s(%.8s) is curropted, recreate an empty file.\n",
                                   path, seaf_dent->id);
                 } else {
@@ -167,10 +167,11 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
             } else {
                 if (check_blocks (seaf_dent->id, fsck_data, &io_error) < 0) {
                     if (io_error) {
+                        g_free (path);
                         goto out;
                     }
                     is_corrupted = TRUE;
-                    if (fsck_data->clean) {
+                    if (fsck_data->repair) {
                         seaf_message ("File %s(%.8s) is curropted, recreate an empty file.\n",
                                       path, seaf_dent->id);
                     } else {
@@ -182,17 +183,22 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
                     seaf_dent->size = 0;
                 }
             }
+            g_free (path);
         } else if (S_ISDIR(seaf_dent->mode)) {
-            memcpy (path_prefix, seaf_dent->name, seaf_dent->name_len);
-            memcpy (path_prefix + seaf_dent->name_len, "/", 2);
-
+            path = g_strdup_printf ("%s%s/", parent_dir, seaf_dent->name);
+            if (!path) {
+                seaf_warning ("Out of memory, stop to run fsck for repo %.8s.\n",
+                              fsck_data->repo->id);
+                goto out;
+            }
             if (!fsck_verify_seafobj (store_id, version,
                                       seaf_dent->id, &io_error,
-                                      VERIFY_DIR, fsck_data->clean)) {
+                                      VERIFY_DIR, fsck_data->repair)) {
                 if (io_error) {
+                    g_free (path);
                     goto out;
                 }
-                if (fsck_data->clean) {
+                if (fsck_data->repair) {
                     seaf_message ("Dir %s(%.8s) is curropted, recreate an empty dir.\n",
                                   path, seaf_dent->id);
                 } else {
@@ -206,6 +212,7 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
                dir_id = fsck_check_dir_recursive (seaf_dent->id, path, fsck_data);
                if (dir_id == NULL) {
                    // IO error
+                   g_free (path);
                    goto out;
                }
                if (strcmp (dir_id, seaf_dent->id) != 0) {
@@ -215,12 +222,13 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
                }
                g_free (dir_id);
            }
+           g_free (path);
         }
     }
 
     if (is_corrupted) {
         new_dir = seaf_dir_new (NULL, dir->entries, version);
-        if (fsck_data->clean) {
+        if (fsck_data->repair) {
             seaf_dir_save (mgr, store_id, version, new_dir);
         }
         dir_id = g_strdup (new_dir->dir_id);
@@ -301,7 +309,7 @@ cre_commit_from_parent (char *repo_id, SeafCommit *parent, char *new_root_id)
 }
 
 static SeafRepo*
-get_available_repo (char *repo_id, gboolean clean)
+get_available_repo (char *repo_id, gboolean repair)
 {
     GList *commit_list = NULL;
     GList *temp_list = NULL;
@@ -346,7 +354,7 @@ get_available_repo (char *repo_id, gboolean clean)
         io_error = FALSE;
 
         if (!fsck_verify_seafobj (repo->store_id, 1, temp_commit->root_id,
-                                  &io_error, VERIFY_DIR, clean)) {
+                                  &io_error, VERIFY_DIR, repair)) {
             if (io_error) {
                 seaf_warning ("IO error, stop to run fsck for repo %.8s.\n",
                               repo_id);
@@ -371,21 +379,9 @@ get_available_repo (char *repo_id, gboolean clean)
         seaf_repo_from_commit (repo, temp_commit);
 
         char time_buf[64];
-        strftime(time_buf, 64, "%Y-%m-%d %H:%M:%S", localtime((time_t *)&temp_commit->ctime));
+        strftime (time_buf, 64, "%Y-%m-%d %H:%M:%S", localtime((time_t *)&temp_commit->ctime));
         seaf_message ("Find available commit %.8s(created at %s) for repo %.8s.\n",
                       temp_commit->commit_id, time_buf, repo_id);
-
-        if (clean) {
-            if (seaf_branch_manager_add_branch (seaf->branch_mgr, repo->head) < 0) {
-                seaf_warning ("Set available commit %.8s to repo %.8s failed, "
-                              "can not be repaired.\n", temp_commit->commit_id, repo_id);
-                seaf_repo_unref (repo);
-                repo = NULL;
-            } else {
-                seaf_message ("Set available commit %.8s to repo %.8s success.\n",
-                              temp_commit->commit_id, repo_id);
-            }
-        }
         break;
     }
 
@@ -403,7 +399,7 @@ out:
  * check and recover repo, for curropted file or folder set it empty
  */
 static void
-check_and_recover_repo (SeafRepo *repo, gboolean clean)
+check_and_recover_repo (SeafRepo *repo, gboolean repair)
 {
     FsckData fsck_data;
     SeafCommit *rep_commit;
@@ -416,7 +412,7 @@ check_and_recover_repo (SeafRepo *repo, gboolean clean)
                                                  repo->version, repo->head->commit_id);
 
     memset (&fsck_data, 0, sizeof(fsck_data));
-    fsck_data.clean = clean;
+    fsck_data.repair = repair;
     fsck_data.repo = repo;
     fsck_data.existing_blocks = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                        g_free, NULL);
@@ -426,7 +422,7 @@ check_and_recover_repo (SeafRepo *repo, gboolean clean)
     if (root_id == NULL)
         return;
 
-    if (clean) {
+    if (repair) {
         if (strcmp (root_id, rep_commit->root_id) != 0) {
             // some fs objects curropted for the head commit,
             // create new head commit using the new root_id
@@ -438,7 +434,7 @@ check_and_recover_repo (SeafRepo *repo, gboolean clean)
                 seaf_message ("Resetting head of repo %.8s to commit %.8s.\n",
                               repo->id, new_commit->commit_id);
                 seaf_branch_set_commit (repo->head, new_commit->commit_id);
-                if (seaf_branch_manager_update_branch (seaf->branch_mgr, repo->head) < 0) {
+                if (seaf_branch_manager_add_branch (seaf->branch_mgr, repo->head) < 0) {
                     seaf_warning ("Reset head of repo %.8s to commit %.8s failed, "
                                   "recover failed.\n", repo->id, new_commit->commit_id);
                 } else {
@@ -454,7 +450,7 @@ check_and_recover_repo (SeafRepo *repo, gboolean clean)
 }
 
 int
-seaf_fsck (GList *repo_id_list, gboolean clean)
+seaf_fsck (GList *repo_id_list, gboolean repair)
 {
     if (!repo_id_list)
         repo_id_list = seaf_repo_manager_get_repo_id_list (seaf->repo_mgr);
@@ -474,7 +470,7 @@ seaf_fsck (GList *repo_id_list, gboolean clean)
         if (!repo) {
             seaf_message ("Repo %.8s HEAD commit is corrupted, "
                           "need to restore to an old version.\n", repo_id);
-            repo = get_available_repo (repo_id, clean);
+            repo = get_available_repo (repo_id, repair);
             if (!repo) {
                 continue;
             }
@@ -485,7 +481,7 @@ seaf_fsck (GList *repo_id_list, gboolean clean)
             io_error = FALSE;
             if (!fsck_verify_seafobj (repo->store_id, repo->version,
                                       commit->root_id,  &io_error,
-                                      VERIFY_DIR, clean)) {
+                                      VERIFY_DIR, repair)) {
                 if (io_error) {
                     seaf_warning ("IO error, stop to run fsck for repo %s(%.8s).\n",
                                   repo->id, repo->name);
@@ -498,7 +494,7 @@ seaf_fsck (GList *repo_id_list, gboolean clean)
                                   "need to restore to an old version.\n", repo_id);
                     seaf_commit_unref (commit);
                     seaf_repo_unref (repo);
-                    repo = get_available_repo (repo_id, clean);
+                    repo = get_available_repo (repo_id, repair);
                     if (!repo) {
                         continue;
                     }
@@ -509,7 +505,7 @@ seaf_fsck (GList *repo_id_list, gboolean clean)
             }
         }
 
-        check_and_recover_repo (repo, clean);
+        check_and_recover_repo (repo, repair);
 
         seaf_message ("Fsck finished for repo %.8s.\n\n", repo_id);
 
