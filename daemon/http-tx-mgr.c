@@ -355,6 +355,8 @@ http_get (CURL *curl, const char *url, const char *token,
     gboolean is_https = (strncasecmp(url, "https", strlen("https")) == 0);
     set_proxy (curl, is_https);
 
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
     int rc = curl_easy_perform (curl);
     if (rc != 0) {
         seaf_warning ("libcurl failed to GET %s: %s.\n",
@@ -467,6 +469,8 @@ http_put (CURL *curl, const char *url, const char *token,
     gboolean is_https = (strncasecmp(url, "https", strlen("https")) == 0);
     set_proxy (curl, is_https);
 
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
     int rc = curl_easy_perform (curl);
     if (rc != 0) {
         seaf_warning ("libcurl failed to PUT %s: %s.\n",
@@ -546,6 +550,10 @@ http_post (CURL *curl, const char *url, const char *token,
 
     gboolean is_https = (strncasecmp(url, "https", strlen("https")) == 0);
     set_proxy (curl, is_https);
+
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    /* All POST requests should remain POST after redirect. */
+    curl_easy_setopt(curl, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL);
 
     int rc = curl_easy_perform (curl);
     if (rc != 0) {
