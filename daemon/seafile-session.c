@@ -220,6 +220,15 @@ seafile_session_prepare (SeafileSession *session)
     session->disable_verify_certificate = seafile_session_config_get_bool
         (session, KEY_DISABLE_VERIFY_CERTIFICATE);
 
+    session->use_http_proxy = seafile_session_config_get_bool
+        (session, KEY_USE_PROXY);
+    session->http_proxy_type = seafile_session_config_get_string
+        (session, KEY_PROXY_TYPE);
+    session->http_proxy_addr = seafile_session_config_get_string
+        (session, KEY_PROXY_ADDR);
+    session->http_proxy_port = seafile_session_config_get_int
+        (session, KEY_PROXY_PORT, NULL);
+
     /* Start mq manager earlier, so that we can send notifications
      * when start repo manager. */
     seaf_mq_manager_init (session->mq_mgr);

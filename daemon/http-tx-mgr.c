@@ -5,6 +5,8 @@
 #include <jansson.h>
 #include <event2/buffer.h>
 
+#include "seafile-config.h"
+
 #include "seafile-session.h"
 #include "http-tx-mgr.h"
 
@@ -261,6 +263,29 @@ http_tx_manager_start (HttpTxManager *mgr)
 
 /* Common Utility Functions. */
 
+static void
+set_proxy (CURL *curl, gboolean is_https)
+{
+    if (!seaf->use_http_proxy || !seaf->http_proxy_type || !seaf->http_proxy_addr)
+        return;
+
+    if (g_strcmp0(seaf->http_proxy_type, PROXY_TYPE_HTTP) == 0) {
+        curl_easy_setopt(curl, CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
+        /* Use CONNECT method create a SSL tunnel if https is used. */
+        if (is_https)
+            curl_easy_setopt(curl, CURLOPT_HTTPPROXYTUNNEL, 1L);
+        curl_easy_setopt(curl, CURLOPT_PROXY, seaf->http_proxy_addr);
+        curl_easy_setopt(curl, CURLOPT_PROXYPORT,
+                         seaf->http_proxy_port > 0 ? seaf->http_proxy_port : 80);
+    } else if (g_strcmp0(seaf->http_proxy_type, PROXY_TYPE_SOCKS) == 0) {
+        if (seaf->http_proxy_port < 0)
+            return;
+        curl_easy_setopt(curl, CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5);
+        curl_easy_setopt(curl, CURLOPT_PROXY, seaf->http_proxy_addr);
+        curl_easy_setopt(curl, CURLOPT_PROXYPORT, seaf->http_proxy_port);
+    }
+}
+
 typedef struct _HttpResponse {
     char *content;
     size_t size;
@@ -326,6 +351,9 @@ http_get (CURL *curl, const char *url, const char *token,
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, callback);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, cb_data);
     }
+
+    gboolean is_https = (strncasecmp(url, "https", strlen("https")) == 0);
+    set_proxy (curl, is_https);
 
     int rc = curl_easy_perform (curl);
     if (rc != 0) {
@@ -436,6 +464,9 @@ http_put (CURL *curl, const char *url, const char *token,
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &rsp);
     }
 
+    gboolean is_https = (strncasecmp(url, "https", strlen("https")) == 0);
+    set_proxy (curl, is_https);
+
     int rc = curl_easy_perform (curl);
     if (rc != 0) {
         seaf_warning ("libcurl failed to PUT %s: %s.\n",
@@ -512,6 +543,9 @@ http_post (CURL *curl, const char *url, const char *token,
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, recv_response);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &rsp);
     }
+
+    gboolean is_https = (strncasecmp(url, "https", strlen("https")) == 0);
+    set_proxy (curl, is_https);
 
     int rc = curl_easy_perform (curl);
     if (rc != 0) {
