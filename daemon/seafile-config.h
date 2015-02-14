@@ -27,6 +27,8 @@
 #define KEY_PROXY_TYPE "proxy_type"
 #define KEY_PROXY_ADDR "proxy_addr"
 #define KEY_PROXY_PORT "proxy_port"
+#define KEY_PROXY_USERNAME "proxy_username"
+#define KEY_PROXY_PASSWORD "proxy_password"
 #define PROXY_TYPE_HTTP "http"
 #define PROXY_TYPE_SOCKS "socks"
 

@@ -135,6 +135,14 @@ seafile_session_config_set_string (SeafileSession *session,
         session->http_proxy_addr = g_strdup(value);
     }
 
+    if (g_strcmp0(key, KEY_PROXY_USERNAME) == 0) {
+        session->http_proxy_username = g_strdup(value);
+    }
+
+    if (g_strcmp0(key, KEY_PROXY_PASSWORD) == 0) {
+        session->http_proxy_password = g_strdup(value);
+    }
+
     return 0;
 }
 

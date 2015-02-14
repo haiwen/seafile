@@ -80,6 +80,8 @@ struct _SeafileSession {
     char                *http_proxy_type;
     char                *http_proxy_addr;
     int                  http_proxy_port;
+    char                *http_proxy_username;
+    char                *http_proxy_password;
 };
 
 struct _SeafileSessionClass

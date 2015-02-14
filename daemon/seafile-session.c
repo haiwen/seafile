@@ -228,6 +228,10 @@ seafile_session_prepare (SeafileSession *session)
         (session, KEY_PROXY_ADDR);
     session->http_proxy_port = seafile_session_config_get_int
         (session, KEY_PROXY_PORT, NULL);
+    session->http_proxy_username = seafile_session_config_get_string
+        (session, KEY_PROXY_USERNAME);
+    session->http_proxy_password = seafile_session_config_get_string
+        (session, KEY_PROXY_PASSWORD);
 
     /* Start mq manager earlier, so that we can send notifications
      * when start repo manager. */

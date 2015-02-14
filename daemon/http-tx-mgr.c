@@ -277,6 +277,16 @@ set_proxy (CURL *curl, gboolean is_https)
         curl_easy_setopt(curl, CURLOPT_PROXY, seaf->http_proxy_addr);
         curl_easy_setopt(curl, CURLOPT_PROXYPORT,
                          seaf->http_proxy_port > 0 ? seaf->http_proxy_port : 80);
+        if (seaf->http_proxy_username && seaf->http_proxy_password) {
+            curl_easy_setopt(curl, CURLOPT_PROXYAUTH,
+                             CURLAUTH_BASIC |
+                             CURLAUTH_DIGEST |
+                             CURLAUTH_DIGEST_IE |
+                             CURLAUTH_GSSNEGOTIATE |
+                             CURLAUTH_NTLM);
+            curl_easy_setopt(curl, CURLOPT_PROXYUSERNAME, seaf->http_proxy_username);
+            curl_easy_setopt(curl, CURLOPT_PROXYPASSWORD, seaf->http_proxy_password);
+        }
     } else if (g_strcmp0(seaf->http_proxy_type, PROXY_TYPE_SOCKS) == 0) {
         if (seaf->http_proxy_port < 0)
             return;
