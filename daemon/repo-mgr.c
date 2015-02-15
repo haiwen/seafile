@@ -5338,7 +5338,8 @@ seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
 int
 seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
                                             const char *old_host,
-                                            const char *new_host)
+                                            const char *new_host,
+                                            const char *new_server_url)
 {
     GList *ptr, *repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, 0, -1);
     SeafRepo *r;
@@ -5352,6 +5353,8 @@ seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
         if (g_strcmp0(relay_addr, old_host) == 0) {
             seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, r->id,
                                                    new_host, relay_port);
+            seaf_repo_manager_set_repo_property (
+                seaf->repo_mgr, r->id, REPO_PROP_SERVER_URL, new_server_url);
         }
 
         g_free (relay_addr);
