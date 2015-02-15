@@ -193,6 +193,7 @@ seafile_update_repo_relay_info (const char *repo_id,
 int
 seafile_update_repos_server_host (const char *old_host,
                                   const char *new_host,
+                                  const char *new_server_url,
                                   GError **error);
 
 int seafile_disable_auto_sync (GError **error);
