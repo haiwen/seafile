@@ -1,42 +1,35 @@
 Introduction [![Build Status](https://secure.travis-ci.org/haiwen/seafile.svg?branch=master)](http://travis-ci.org/haiwen/seafile)
 ============
 
-Seafile is a next-generation open source cloud storage system with advanced support for file syncing, privacy protection and teamwork.
-
-Collections of files are called libraries, and each library can be synced separately. A library can be encrypted with a user chosen password. This password is not stored on the server, so even the server admin cannot view a file's contents.
-
-Seafile allows users to create groups with file syncing, wiki, and discussion to enable easy collaboration around documents within a team.
+Seafile is an open source cloud storage system with features on privacy protection and teamwork. Collections of files are called libraries, and each library can be synced separately. A library can also be encrypted with a user chosen password. Seafile also allows users to create groups and easily sharing files into groups.
 
 Feature Summary
 ===============
 
-Seafile is a full-fledged cloud storage platform. It has the following features:
+Seafile has the following features:
 
-### Complete and advanced file syncing
+### File syncing
 
 1. Selective synchronization of file libraries. Each library can be synced separately.
 2. Correct handling of file conflicts based on history instead of timestamp.
-3. Efficient bandwidth usage by only transfering contents not in the server, and incomplete transfers can be resumed.
+3. Only transfering contents not in the server, and incomplete transfers can be resumed.
 4. Sync with two or more servers.
 5. Sync with existing folders.
 6. Sync a sub-folder.
-7. Full version control with configurable revision number.
 
+### File sharing and collaboration
 
-### Full team collaboration support
+1. Sharing libraries between users or into groups.
+2. Sharing sub-folders between users or into groups.
+3. Download links with password protection
+4. Upload links
+5. Version control with configurable revision number.
+6. Restoring deleted files from trash, history or snapshots.
 
-1. Groups with file syncing, wiki, discussion.
-2. Online file editing and comments.
-3. Sharing sub-folders to users/groups.
-4. Sharing single files between users.
-5. Sharing links.
-6. Personal messages.
-
-### Advanced privacy protection
+### Privacy protection
 
 1. Library encryption with a user chosen password.
-2. Client side encryption.
-3. Never sends the user's password to the server.
+2. Client side encryption when using the desktop syncing.
 
 Internal
 ========
