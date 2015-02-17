@@ -32,6 +32,8 @@ enum {
 typedef struct SeafDavConfig {
     gboolean enabled;
     gboolean fastcgi;
+    // should server be publicly available (instead of being bound to localhost)
+    gboolean public;
     int port;
 
 } SeafDavConfig;
