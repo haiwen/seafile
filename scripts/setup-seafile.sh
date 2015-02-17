@@ -330,6 +330,7 @@ function gen_seafdav_conf () {
 enabled = false
 port = 8080
 fastcgi = false
+public = false
 share_name = /
 EOF
 ); then
