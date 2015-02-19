@@ -846,6 +846,84 @@ seafile_branch_gets (const char *repo_id, GError **error)
     return ret;
 }
 
+#ifdef SEAFILE_SERVER
+GList*
+seafile_get_trash_repo_list (int start, int limit, GError **error)
+{
+    return seaf_repo_manager_get_trash_repo_list (seaf->repo_mgr,
+                                                  start, limit,
+                                                  error);
+}
+
+GList *
+seafile_get_trash_repos_by_owner (const char *owner, GError **error)
+{
+    if (!owner) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return NULL;
+    }
+
+    return seaf_repo_manager_get_trash_repos_by_owner (seaf->repo_mgr,
+                                                       owner,
+                                                       error);
+}
+
+int
+seafile_del_repo_from_trash (const char *repo_id, GError **error)
+{
+    int ret = 0;
+
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
+    ret = seaf_repo_manager_del_repo_from_trash (seaf->repo_mgr, repo_id, error);
+
+    return ret;
+}
+
+int
+seafile_empty_repo_trash (GError **error)
+{
+    return seaf_repo_manager_empty_repo_trash (seaf->repo_mgr, error);
+}
+
+int
+seafile_empty_repo_trash_by_owner (const char *owner, GError **error)
+{
+    if (!owner) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+
+    return seaf_repo_manager_empty_repo_trash_by_owner (seaf->repo_mgr, owner, error);
+}
+
+int
+seafile_restore_repo_from_trash (const char *repo_id, GError **error)
+{
+    int ret = 0;
+
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
+    ret = seaf_repo_manager_restore_repo_from_trash (seaf->repo_mgr, repo_id, error);
+
+    return ret;
+}
+#endif
+
 GList*
 seafile_get_repo_list (int start, int limit, GError **error)
 {
@@ -1242,10 +1320,8 @@ seafile_destroy_repo (const char *repo_id, GError **error)
 
     return do_unsync_repo(repo);
 #else
-    gboolean is_virtual = seaf_repo_manager_is_virtual_repo (seaf->repo_mgr, repo_id);
 
-    seaf_repo_manager_del_repo (seaf->repo_mgr, repo_id,
-                                is_virtual ? FALSE : TRUE);
+    seaf_repo_manager_del_repo (seaf->repo_mgr, repo_id);
 
     return 0;
 #endif

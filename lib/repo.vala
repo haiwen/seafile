@@ -79,6 +79,14 @@ public class Repo : Object {
     public bool is_corrupted { get; set; }
 }
 
+public class TrashRepo : Object {
+
+    public string repo_id { get; set; }
+    public string repo_name { get; set; }
+    public string head_id { get; set; }
+    public string owner_id { get; set; }
+    public int64 size { get; set; }
+}
 
 public class SyncInfo : Object {
 

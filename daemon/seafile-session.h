@@ -75,6 +75,13 @@ struct _SeafileSession {
     gboolean             sync_extra_temp_file;
     gboolean             enable_http_sync;
     gboolean             disable_verify_certificate;
+
+    gboolean             use_http_proxy;
+    char                *http_proxy_type;
+    char                *http_proxy_addr;
+    int                  http_proxy_port;
+    char                *http_proxy_username;
+    char                *http_proxy_password;
 };
 
 struct _SeafileSessionClass
