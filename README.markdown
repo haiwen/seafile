@@ -58,7 +58,8 @@ See <http://manual.seafile.com/develop/README.html>
 Internationalization (I18n)
 ==========
 
-See [po/i18n.markdown](https://github.com/haiwen/seafile/blob/master/po/i18n.markdown)
+* [Translate seafile web ui](https://github.com/haiwen/seafile/wiki/Seahub-Translation)
+* [Translate seafile desktop client](https://github.com/haiwen/seafile-client/#internationalization)
 
 Change Logs
 ===========
@@ -85,4 +86,3 @@ Contact
 Twitter: @seafile <https://twitter.com/seafile>
 
 Forum: <https://forum.seafile-server.org>
-
