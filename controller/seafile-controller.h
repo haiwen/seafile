@@ -29,10 +29,15 @@ enum {
     N_PID
 };
 
+// host size limit (39 charaters: max ipv6 size)
+#define SEAFDAV_MAX_HOST 39
+
 typedef struct SeafDavConfig {
     gboolean enabled;
     gboolean fastcgi;
     int port;
+    // host to bind server to
+    gchar host[SEAFDAV_MAX_HOST + 1];
 
 } SeafDavConfig;
 
