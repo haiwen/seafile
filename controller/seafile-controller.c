@@ -347,7 +347,7 @@ start_seafdav() {
         "--log-file", seafdav_log_file,
         "--pid", ctl->pidfile[PID_SEAFDAV],
         "--port", port,
-        "--host", "0.0.0.0",
+        "--host", ctl->seafdav_config.public ? "0.0.0.0" : "localhost",
         NULL
     };
 
@@ -358,6 +358,7 @@ start_seafdav() {
         "--log-file", seafdav_log_file,
         "--pid", ctl->pidfile[PID_SEAFDAV],
         "--port", port,
+        "--host", ctl->seafdav_config.public ? "0.0.0.0" : "localhost",
         NULL
     };
 
@@ -818,6 +819,15 @@ read_seafdav_config()
             seaf_message ("Error when reading WEBDAV.fastcgi, use default value 'false'\n");
         }
         ctl->seafdav_config.fastcgi = FALSE;
+    }
+    
+    /* fastcgi */
+    ctl->seafdav_config.public = g_key_file_get_boolean(key_file, "WEBDAV", "public", &error);
+    if (error != NULL) {
+        if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND) {
+            seaf_message ("Error when reading WEBDAV.public, use default value 'false'\n");
+        }
+        ctl->seafdav_config.public = FALSE;
     }
 
     /* port */
