@@ -845,7 +845,7 @@ read_seafdav_config()
 	strcpy(ctl->seafdav_config.host,"localhost");
     }
     if(host){
-     	free(host);
+     	g_free(host);
      }
 
     /* port */
