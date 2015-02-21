@@ -823,18 +823,18 @@ read_seafdav_config()
 
     /* host */
     gchar* host = g_key_file_get_string(key_file, "WEBDAV", "host", &error);
-    unsigned char host_valid = 1;
+    gboolean host_valid = TRUE;
     if (error != NULL) {
         if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND) {
             seaf_message ("Error when reading WEBDAV.host, use default value 'localhost'\n");
         }
-	host_valid = 0;
+	host_valid = FALSE;
     }else{
 	// no error occured while reading host, validate it
         size_t len = strnlen(host,SEAFDAV_MAX_HOST + 1);
         if(len ==  0 || len > SEAFDAV_MAX_HOST){
 	    seaf_message ("Error when validating WEBDAV.host, use default value 'localhost'\n");
-	    host_valid = 0;
+	    host_valid = FALSE;
 	}
     }
     if(host_valid){
