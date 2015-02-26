@@ -463,7 +463,7 @@ seaf_fsck (GList *repo_id_list, gboolean repair)
     for (ptr = repo_id_list; ptr; ptr = ptr->next) {
         repo_id = ptr->data;
 
-        seaf_message ("Running fsck for repo %.8s.\n", repo_id);
+        seaf_message ("Running fsck for repo %s.\n", repo_id);
 
         repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
 
