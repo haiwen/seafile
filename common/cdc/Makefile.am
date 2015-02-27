@@ -3,9 +3,9 @@ AM_CFLAGS = -I$(top_srcdir)/common -I$(top_srcdir)/lib \
 
 noinst_LTLIBRARIES = libcdc.la
 
-noinst_HEADERS = cdc.h rabin.h msb.h
+noinst_HEADERS = cdc.h rabin-checksum.h
 
-libcdc_la_SOURCES = cdc.c rabin.c msb.c
+libcdc_la_SOURCES = cdc.c rabin-checksum.c
 
 libcdc_la_LDFLAGS = -Wl,-z -Wl,defs
 libcdc_la_LIBADD = @SSL_LIBS@ @GLIB2_LIBS@ \

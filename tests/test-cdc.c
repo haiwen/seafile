@@ -52,6 +52,8 @@ int test_chunks (CDCFileDescriptor *file_descriptor)
             max_sz = sb.st_size;
         total_sz += sb.st_size;
 
+        printf ("%s: %u bytes\n", chksum_str, (uint32_t)sb.st_size);
+
         if (sb.st_size > file_descriptor->block_max_sz) {
             fprintf (stderr, "chunk size too large: %s.\n", chksum_str);
             return -1;
@@ -73,7 +75,9 @@ int test_chunks (CDCFileDescriptor *file_descriptor)
     return 0;
 }
 
-int test_write_chunk (CDCDescriptor *chunk_descr,
+int test_write_chunk (const char *repo_id,
+                      int version,
+                      CDCDescriptor *chunk_descr,
                       struct SeafileCrypt *crypt,
                       uint8_t *checksum,
                       gboolean write_data)
@@ -81,6 +85,11 @@ int test_write_chunk (CDCDescriptor *chunk_descr,
     char filename[NAME_MAX_SZ];
     char chksum_str[CHECKSUM_LENGTH *2 + 1];
     int fd_chunk, ret;
+    SHA_CTX ctx;
+
+    SHA1_Init (&ctx);
+    SHA1_Update (&ctx, chunk_descr->block_buf, chunk_descr->len);
+    SHA1_Final (checksum, &ctx);
 
     rawdata_to_hex (chunk_descr->checksum, chksum_str, CHECKSUM_LENGTH);
     snprintf (filename, NAME_MAX_SZ, "%s/%s", dest_dir, chksum_str);
@@ -105,6 +114,8 @@ int main (int argc, char *argv[])
         src_filename = argv[1];
         dest_dir = argv[2];
     }
+
+    cdc_init ();
     
     memset (&file_descr, 0, sizeof (file_descr));
     file_descr.write_block = test_write_chunk;
