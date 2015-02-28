@@ -2380,6 +2380,9 @@ seaf_compress (guint8 *input, int inlen, guint8 **output, int *outlen)
     guint8 out[ZLIB_BUF_SIZE];
     GByteArray *barray;
 
+    if (inlen == 0)
+        return -1;
+
     /* allocate deflate state */
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
@@ -2419,6 +2422,11 @@ seaf_decompress (guint8 *input, int inlen, guint8 **output, int *outlen)
     unsigned char out[ZLIB_BUF_SIZE];
     GByteArray *barray;
 
+    if (inlen == 0) {
+        g_warning ("Empty input for zlib, invalid.\n");
+        return -1;
+    }
+
     /* allocate inflate state */
     strm.zalloc = Z_NULL;
     strm.zfree = Z_NULL;
@@ -2438,7 +2446,7 @@ seaf_decompress (guint8 *input, int inlen, guint8 **output, int *outlen)
     do {
         strm.avail_out = ZLIB_BUF_SIZE;
         strm.next_out = out;
-        ret = inflate(&strm, Z_FINISH);
+        ret = inflate(&strm, Z_NO_FLUSH);
         switch (ret) {
         case Z_NEED_DICT:
             ret = Z_DATA_ERROR;     /* and fall through */
