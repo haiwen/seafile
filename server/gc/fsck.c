@@ -286,7 +286,7 @@ cre_commit_from_parent (char *repo_id, SeafCommit *parent, char *new_root_id)
     SeafCommit *new_commit = NULL;
     new_commit = seaf_commit_new (NULL, repo_id, new_root_id,
                                   parent->creator_name, parent->creator_id,
-                                  "repaired by system", 0);
+                                  "Repaired by system", 0);
     if (new_commit) {
         new_commit->parent_id = g_strdup (parent->commit_id);
         new_commit->repo_name = g_strdup (parent->repo_name);
@@ -472,7 +472,7 @@ seaf_fsck (GList *repo_id_list, gboolean repair)
                           "need to restore to an old version.\n", repo_id);
             repo = get_available_repo (repo_id, repair);
             if (!repo) {
-                continue;
+                goto next;
             }
         } else {
             SeafCommit *commit = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->id,
@@ -496,7 +496,7 @@ seaf_fsck (GList *repo_id_list, gboolean repair)
                     seaf_repo_unref (repo);
                     repo = get_available_repo (repo_id, repair);
                     if (!repo) {
-                        continue;
+                        goto next;
                     }
                 }
             } else {
@@ -507,9 +507,9 @@ seaf_fsck (GList *repo_id_list, gboolean repair)
 
         check_and_recover_repo (repo, repair);
 
-        seaf_message ("Fsck finished for repo %.8s.\n\n", repo_id);
-
         seaf_repo_unref (repo);
+next:
+        seaf_message ("Fsck finished for repo %.8s.\n\n", repo_id);
     }
     return 0;
 }

@@ -892,4 +892,7 @@ char *seafile_diff_pub (const char *repo_id, const char *old, const char *new,
 
 GList * seafile_list_dir_pub (const char *dir_id, GError **error);
 
+int
+seafile_enable_repo_sync (const char *repo_id, GError **error);
+
 #endif

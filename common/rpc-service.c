@@ -993,6 +993,7 @@ seafile_get_repo (const char *repo_id, GError **error)
         g_object_set (repo, "random_key", r->random_key, NULL);
 
     g_object_set (repo, "store_id", r->store_id, NULL);
+    g_object_set (repo, "repaired", r->repaired, NULL);
 #endif
 
 #ifndef SEAFILE_SERVER
@@ -3857,6 +3858,17 @@ seafile_clean_up_repo_history (const char *repo_id, int keep_days, GError **erro
 
     seaf_repo_unref (repo);
     return ret;
+}
+
+int
+seafile_enable_repo_sync (const char *repo_id, GError **error)
+{
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid arguments");
+        return -1;
+    }
+
+    return seaf_repo_manager_enable_repo_sync (repo_id, error);
 }
 
 #endif  /* SEAFILE_SERVER */

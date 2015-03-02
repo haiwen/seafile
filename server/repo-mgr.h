@@ -43,6 +43,7 @@ struct _SeafRepo {
     SeafBranch *head;
 
     gboolean    is_corrupted;
+    gboolean    repaired;
     int         ref_cnt;
 
     SeafVirtRepo *virtual_info;
@@ -703,4 +704,7 @@ seaf_repo_manager_cleanup_virtual_repos (SeafRepoManager *mgr,
 int
 seaf_repo_manager_init_merge_scheduler ();
 
+int
+seaf_repo_manager_enable_repo_sync (const char *repo_id,
+                                    GError **error);
 #endif

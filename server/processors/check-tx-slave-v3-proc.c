@@ -228,6 +228,12 @@ check_tx (void *vprocessor)
         goto out;
     }
 
+    if (repo->repaired) {
+        priv->rsp_code = g_strdup(SC_ACCESS_DENIED);
+        priv->rsp_msg = g_strdup(SS_ACCESS_DENIED);
+        goto out;
+    }
+
     if (repo->version > 0 && priv->client_version < 6) {
         seaf_warning ("Client protocol version is %d, "
                       "cannot sync version %d repo %s.\n",
