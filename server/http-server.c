@@ -517,6 +517,7 @@ get_check_permission_cb (evhtp_request_t *req, void *arg)
     char *username = NULL;
     char *ip = NULL;
     const char *token;
+    SeafRepo *repo = NULL;
 
     int token_status = validate_token (htp_server, req, repo_id, &username, TRUE);
     if (token_status != EVHTP_RES_OK) {
@@ -530,6 +531,12 @@ get_check_permission_cb (evhtp_request_t *req, void *arg)
     int perm_status = check_permission (htp_server, repo_id, username, op, TRUE);
     if (perm_status == EVHTP_RES_FORBIDDEN) {
         evhtp_send_reply (req, EVHTP_RES_FORBIDDEN);
+        goto out;
+    }
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo || repo->repaired) {
+        evhtp_send_reply (req, SEAF_HTTP_RES_REPO_CORRUPTED);
         goto out;
     }
 
@@ -572,6 +579,9 @@ out:
     g_strfreev (parts);
     g_free (ip);
     g_free (client_name);
+    if (repo) {
+        seaf_repo_unref (repo);
+    }
 }
 
 static void
