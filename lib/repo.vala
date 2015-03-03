@@ -77,6 +77,7 @@ public class Repo : Object {
     public string store_id { get; set; }
 
     public bool is_corrupted { get; set; }
+    public bool repaired { get; set; }
 }
 
 public class TrashRepo : Object {

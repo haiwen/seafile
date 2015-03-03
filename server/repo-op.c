@@ -4356,7 +4356,6 @@ retry:
                                   desc, 0);
 
     new_commit->parent_id = g_strdup (repo->head->commit_id);
-
     seaf_repo_to_commit (repo, new_commit);
 
     if (seaf_commit_manager_add_commit (seaf->commit_mgr, new_commit) < 0) {
