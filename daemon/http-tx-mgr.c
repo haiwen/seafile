@@ -5,6 +5,8 @@
 #include <jansson.h>
 #include <event2/buffer.h>
 
+#include <ccnet/ccnet-client.h>
+
 #include "seafile-config.h"
 
 #include "seafile-session.h"
@@ -1293,8 +1295,14 @@ check_permission (HttpTxTask *task, Connection *conn)
     curl = conn->curl;
 
     const char *type = (task->type == HTTP_TASK_TYPE_DOWNLOAD) ? "download" : "upload";
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/permission-check/?op=%s",
-                           task->host, task->repo_id, type);
+    if (seaf->session->base.name)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/permission-check/?op=%s"
+                               "&client_id=%s&client_name=%s",
+                               task->host, task->repo_id, type,
+                               seaf->session->base.id, seaf->session->base.name);
+    else
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/permission-check/?op=%s",
+                               task->host, task->repo_id, type);
 
     if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL) < 0) {
         task->error = HTTP_TASK_ERR_NET;
@@ -2052,7 +2060,7 @@ send_block_callback (void *ptr, size_t size, size_t nmemb, void *userp)
     size_t realsize = size *nmemb;
     SendBlockData *data = userp;
     HttpTxTask *task = data->task;
-    size_t n;
+    int n;
 
     if (task->state == HTTP_TASK_STATE_CANCELED)
         return CURL_READFUNC_ABORT;
