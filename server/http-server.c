@@ -661,7 +661,7 @@ get_head_commit_cb (evhtp_request_t *req, void *arg)
     commit_id[0] = 0;
 
     sql = "SELECT commit_id FROM Branch WHERE name='master' AND repo_id=?";
-    if (seaf_db_statement_foreach_row (seaf->db, sql, 
+    if (seaf_db_statement_foreach_row (seaf->db, sql,
                                        get_branch, commit_id,
                                        1, "string", repo_id) < 0) {
         seaf_warning ("DB error when get branch master.\n");
@@ -1865,4 +1865,19 @@ seaf_http_server_start (HttpServerStruct *server)
 
    pthread_detach (server->priv->thread_id);
    return 0;
+}
+
+int
+seaf_http_server_invalidate_tokens (HttpServerStruct *htp_server,
+                                    const GList *tokens)
+{
+    const GList *p;
+
+    pthread_mutex_lock (&htp_server->priv->token_cache_lock);
+    for (p = tokens; p; p = p->next) {
+        const char *token = (char *)p->data;
+        g_hash_table_remove (htp_server->priv->token_cache, token);
+    }
+    pthread_mutex_unlock (&htp_server->priv->token_cache_lock);
+    return 0;
 }

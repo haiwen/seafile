@@ -1309,6 +1309,18 @@ seaf_repo_manager_list_repo_tokens_by_email (SeafRepoManager *mgr,
     return g_list_reverse(ret_list);
 }
 
+static gboolean
+collect_peer_tokens (SeafDBRow *row, void *data)
+{
+    GList **p_tokens = data;
+    const char *token;
+
+    token = seaf_db_row_get_column_text (row, 0);
+    *p_tokens = g_list_prepend (*p_tokens, g_strdup(token));
+
+    return TRUE;
+}
+
 /**
  * Delete all repo tokens for a given user on a given client
  */
@@ -1333,6 +1345,7 @@ int
 seaf_repo_manager_delete_repo_tokens_by_peer_id (SeafRepoManager *mgr,
                                                  const char *email,
                                                  const char *peer_id,
+                                                 GList **tokens,
                                                  GError **error)
 {
     int ret = 0;

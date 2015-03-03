@@ -1192,7 +1192,7 @@ seafile_get_commit_list (const char *repo_id,
                                                                  repo_id);
 #endif
 
-    ret = 
+    ret =
         seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                   repo->id, repo->version,
                                                   commit_id, get_commit, &cp, FALSE);
@@ -1297,6 +1297,42 @@ seafile_unsync_repos_by_account (const char *server_addr, const char *email, GEr
     return 0;
 }
 
+int
+seafile_remove_repo_tokens_by_account (const char *server_addr, const char *email, GError **error)
+{
+    if (!server_addr || !email) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+
+    GList *ptr, *repos = seaf_repo_manager_get_repo_list(seaf->repo_mgr, -1, -1);
+    if (!repos) {
+        return 0;
+    }
+
+    for (ptr = repos; ptr; ptr = ptr->next) {
+        SeafRepo *repo = (SeafRepo*)ptr->data;
+        char *addr = NULL;
+        seaf_repo_manager_get_repo_relay_info(seaf->repo_mgr,
+                                              repo->id,
+                                              &addr, /* addr */
+                                              NULL); /* port */
+
+        if (g_strcmp0(addr, server_addr) == 0 && g_strcmp0(repo->email, email) == 0) {
+            if (seaf_repo_manager_remove_repo_token(seaf->repo_mgr, repo) < 0) {
+                return -1;
+            }
+        }
+
+        g_free (addr);
+    }
+
+    g_list_free (repos);
+
+    cancel_clone_tasks_by_account (server_addr, email);
+
+    return 0;
+}
 
 #endif
 
@@ -1827,7 +1863,7 @@ seafile_get_orphan_repo_list(GError **error)
     GList *repos, *ptr;
     SeafRepo *r;
     SeafileRepo *repo;
-    
+
     repos = seaf_repo_manager_get_orphan_repo_list(seaf->repo_mgr);
     ptr = repos;
     while (ptr) {
@@ -3557,7 +3593,15 @@ seafile_delete_repo_tokens_by_peer_id(const char *email,
         }
     }
 
-    return seaf_repo_manager_delete_repo_tokens_by_peer_id (seaf->repo_mgr, email, peer_id, error);
+    GList *tokens = NULL;
+    if (seaf_repo_manager_delete_repo_tokens_by_peer_id (seaf->repo_mgr, email, peer_id, &tokens, error) < 0) {
+        g_list_free_full (tokens, (GDestroyNotify)g_free);
+        return -1;
+    }
+
+    seaf_http_server_invalidate_tokens(seaf->http_server, tokens);
+    g_list_free_full (tokens, (GDestroyNotify)g_free);
+    return 0;
 }
 
 int

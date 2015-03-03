@@ -249,6 +249,10 @@ seaf_repo_manager_set_repo_token (SeafRepoManager *manager,
                                   const char *token);
 
 int
+seaf_repo_manager_remove_repo_token (SeafRepoManager *manager,
+                                     SeafRepo *repo);
+
+int
 seaf_repo_manager_set_repo_email (SeafRepoManager *manager, 
                                   SeafRepo *repo,
                                   const char *email);
