@@ -1334,6 +1334,36 @@ seafile_remove_repo_tokens_by_account (const char *server_addr, const char *emai
     return 0;
 }
 
+int
+seafile_set_repo_token (const char *repo_id,
+                        const char *token,
+                        GError **error)
+{
+    int ret;
+
+    if (repo_id == NULL || token == NULL) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return -1;
+    }
+
+    SeafRepo *repo;
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_REPO, "Can't find Repo %s", repo_id);
+        return -1;
+    }
+
+    ret = seaf_repo_manager_set_repo_token (seaf->repo_mgr,
+                                            repo, token);
+    if (ret < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
+                     "Failed to set token for repo %s", repo_id);
+        return -1;
+    }
+
+    return 0;
+}
+
 #endif
 
 int

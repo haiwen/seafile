@@ -127,6 +127,11 @@ start_rpc_service (CcnetClient *client)
                                      searpc_signature_int__string_string());
 
     searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_set_repo_token,
+                                     "seafile_set_repo_token",
+                                     searpc_signature_int__string_string());
+
+    searpc_server_register_function ("seafile-rpcserver",
                                      seafile_get_upload_rate,
                                      "seafile_get_upload_rate",
                                      searpc_signature_int__void());

@@ -120,6 +120,9 @@ int
 seafile_remove_repo_tokens_by_account (const char *server_addr, const char *email, GError **error);
 
 int
+seafile_set_repo_token (const char *repo_id, const char *token, GError **error);
+
+int
 seafile_get_download_rate(GError **error);
 
 int
