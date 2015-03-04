@@ -407,6 +407,7 @@ typedef struct {
     char *ip;
     char repo_id[37];
     char *path;
+    char *client_name;
 } RepoEventData;
 
 static void
@@ -419,6 +420,7 @@ free_repo_event_data (RepoEventData *data)
     g_free (data->user);
     g_free (data->ip);
     g_free (data->path);
+    g_free (data->client_name);
     g_free (data);
 }
 
@@ -428,8 +430,9 @@ publish_repo_event (CEvent *event, void *data)
     RepoEventData *rdata = event->data;
 
     GString *buf = g_string_new (NULL);
-    g_string_printf (buf, "%s\t%s\t%s\t\t%s\t%s",
+    g_string_printf (buf, "%s\t%s\t%s\t%s\t%s\t%s",
                      rdata->etype, rdata->user, rdata->ip,
+                     rdata->client_name ? rdata->client_name : "",
                      rdata->repo_id, rdata->path ? rdata->path : "/");
 
     seaf_mq_manager_publish_event (seaf->mq_mgr, buf->str);
@@ -440,7 +443,7 @@ publish_repo_event (CEvent *event, void *data)
 
 static void
 on_repo_oper (HttpServer *htp_server, const char *etype,
-              const char *repo_id, char *user, char *ip)
+              const char *repo_id, char *user, char *ip, char *client_name)
 {
     RepoEventData *rdata = g_new0 (RepoEventData, 1);
     SeafVirtRepo *vinfo = seaf_repo_manager_get_virtual_repo_info (seaf->repo_mgr,
@@ -454,6 +457,7 @@ on_repo_oper (HttpServer *htp_server, const char *etype,
     rdata->etype = g_strdup (etype);
     rdata->user = g_strdup (user);
     rdata->ip = g_strdup (ip);
+    rdata->client_name = g_strdup(client_name);
 
     cevent_manager_add_event (seaf->ev_mgr, htp_server->cevent_id, rdata);
 
@@ -547,9 +551,9 @@ get_check_permission_cb (evhtp_request_t *req, void *arg)
     }
 
     if (strcmp (op, "download") == 0) {
-        on_repo_oper (htp_server, "repo-download-sync", repo_id, username, ip);
+        on_repo_oper (htp_server, "repo-download-sync", repo_id, username, ip, client_name);
     } else if (strcmp (op, "upload") == 0) {
-        on_repo_oper (htp_server, "repo-upload-sync", repo_id, username, ip);
+        on_repo_oper (htp_server, "repo-upload-sync", repo_id, username, ip, client_name);
     }
 
     if (client_id && client_name) {
