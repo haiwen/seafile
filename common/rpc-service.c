@@ -3560,6 +3560,17 @@ seafile_delete_repo_tokens_by_peer_id(const char *email,
     return seaf_repo_manager_delete_repo_tokens_by_peer_id (seaf->repo_mgr, email, peer_id, error);
 }
 
+int
+seafile_delete_repo_tokens_by_email (const char *email,
+                                     GError **error)
+{
+    if (!email) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Arguments should not be empty");
+        return -1;
+    }
+
+    return seaf_repo_manager_delete_repo_tokens_by_email (seaf->repo_mgr, email, error);
+}
 
 char *
 seafile_check_permission (const char *repo_id, const char *user, GError **error)

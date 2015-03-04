@@ -290,6 +290,12 @@ class SeafileAPI(object):
     def list_repo_tokens_by_email(self, username):
         return seafserv_threaded_rpc.list_repo_tokens_by_email(username)
 
+    def delete_repo_tokens_by_peer_id(self, email, peer_id):
+        return seafserv_threaded_rpc.delete_repo_tokens_by_peer_id(email, peer_id)
+
+    def delete_repo_tokens_by_email(self, email):
+        return seafserv_threaded_rpc.delete_repo_tokens_by_email(email)
+
     # quota
     def get_user_self_usage(self, username):
         """Get the sum of repos' size of the user"""

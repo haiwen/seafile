@@ -780,6 +780,10 @@ seafile_list_repo_tokens_by_email (const char *email,
 int
 seafile_delete_repo_tokens_by_peer_id(const char *email, const char *peer_id, GError **error);
 
+int
+seafile_delete_repo_tokens_by_email (const char *email,
+                                     GError **error);
+
 /**
  * create a repo on seahub
  */
