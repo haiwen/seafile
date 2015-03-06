@@ -132,7 +132,7 @@ function update_database() {
 function fix_mysql_user() {
 
     fix_script=${UPGRADE_DIR}/fix_mysql_user.py
-    if ! $PYTHON "${db_update_helper}"; then
+    if ! $PYTHON "${fix_script}"; then
         echo
         echo "Failed to upgrade your database"
         echo
