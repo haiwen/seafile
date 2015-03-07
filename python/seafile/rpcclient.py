@@ -341,11 +341,6 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     edit_repo = seafile_edit_repo
 
-    @searpc_func("int", ["string"])
-    def seafile_enable_repo_sync(repo_id):
-        pass
-    enable_repo_sync = seafile_enable_repo_sync
-
     @searpc_func("int", ["string", "string"])
     def seafile_is_repo_owner(user_id, repo_id):
         pass

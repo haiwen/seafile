@@ -55,9 +55,6 @@ class SeafileAPI(object):
     def remove_repo(self, repo_id):
         return seafserv_threaded_rpc.remove_repo(repo_id)
 
-    def enable_repo_sync(self, repo_id):
-        return seafserv_threaded_rpc.enable_repo_sync(repo_id)
-
     def get_repo_list(self, start, limit):
         return seafserv_threaded_rpc.get_repo_list(start, limit)
 

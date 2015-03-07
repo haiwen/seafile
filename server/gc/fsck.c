@@ -294,19 +294,7 @@ reset_commit_to_repair (SeafRepo *repo, SeafCommit *parent, char *new_root_id)
     }
 
     new_commit->parent_id = g_strdup (parent->commit_id);
-    new_commit->repo_name = g_strdup (parent->repo_name);
-    new_commit->repo_desc = g_strdup (parent->repo_desc);
-    new_commit->encrypted = parent->encrypted;
-    if (new_commit->encrypted) {
-        new_commit->enc_version = parent->enc_version;
-        if (new_commit->enc_version >= 1)
-            new_commit->magic = g_strdup (parent->magic);
-        if (new_commit->enc_version == 2)
-            new_commit->random_key = g_strdup (parent->random_key);
-    }
-    new_commit->repo_category = g_strdup (parent->repo_category);
-    new_commit->no_local_history = parent->no_local_history;
-    new_commit->version = parent->version;
+    seaf_repo_to_commit (repo, new_commit);
     new_commit->repaired = TRUE;
 
     seaf_message ("Resetting head of repo %.8s to commit %.8s.\n",
@@ -416,7 +404,6 @@ check_and_recover_repo (SeafRepo *repo, gboolean reset, gboolean repair)
 {
     FsckData fsck_data;
     SeafCommit *rep_commit;
-    SeafCommit *new_commit;
 
     seaf_message ("Checking file system integrity of repo %s(%.8s)...\n",
                   repo->name, repo->id);
@@ -450,12 +437,80 @@ check_and_recover_repo (SeafRepo *repo, gboolean reset, gboolean repair)
     seaf_commit_unref (rep_commit);
 }
 
-int
-seaf_fsck (GList *repo_id_list, gboolean repair)
+static void
+enable_sync_repo (const char *repo_id)
 {
-    if (!repo_id_list)
-        repo_id_list = seaf_repo_manager_get_repo_id_list (seaf->repo_mgr);
+    SeafRepo *repo = NULL;
+    SeafCommit *parent_commit = NULL;
+    SeafCommit *new_commit = NULL;
 
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %.8s.\n", repo_id);
+        return;
+    }
+
+    parent_commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
+                                                               repo_id,
+                                                               repo->head->commit_id);
+    if (!parent_commit) {
+        seaf_warning ("Commit %s is missing\n", repo->head->commit_id);
+        goto out;
+    }
+
+    new_commit = seaf_commit_new (NULL, repo_id, parent_commit->root_id,
+                                  parent_commit->creator_name,
+                                  parent_commit->creator_id,
+                                  "Enable sync repo", 0);
+    if (!new_commit) {
+        seaf_warning ("Out of memory when create commit.\n");
+        goto out;
+    }
+    new_commit->parent_id = g_strdup (parent_commit->commit_id);
+    seaf_repo_to_commit (repo, new_commit);
+    new_commit->repaired = FALSE;
+
+    if (seaf_commit_manager_add_commit (seaf->commit_mgr,
+                                        new_commit) < 0) {
+        seaf_warning ("Failed to save commit %.8s for repo %.8s.\n",
+                      new_commit->commit_id, repo_id);
+        goto out;
+    }
+
+    seaf_branch_set_commit (repo->head, new_commit->commit_id);
+    if (seaf_branch_manager_update_branch (seaf->branch_mgr,
+                                           repo->head) < 0) {
+        seaf_warning ("Failed to update head commit %.8s to repo %.8s.\n",
+                      new_commit->commit_id, repo_id);
+    } else {
+        seaf_message ("Enable sync repo %.8s success, reset head commit to %.8s.\n",
+                      repo_id, new_commit->commit_id);
+    }
+
+out:
+    if (parent_commit)
+        seaf_commit_unref (parent_commit);
+    if (new_commit)
+        seaf_commit_unref (new_commit);
+    if (repo)
+        seaf_repo_unref (repo);
+}
+
+static void
+enable_sync_repos (GList *repo_id_list)
+{
+    GList *ptr;
+
+    for (ptr = repo_id_list; ptr; ptr = ptr->next) {
+        seaf_message ("Running fsck for enable sync repo %s.\n", (char *)ptr->data);
+        enable_sync_repo (ptr->data);
+        seaf_message ("Fsck finished for enable sync repo %.8s.\n\n", (char *)ptr->data);
+    }
+}
+
+static void
+repair_repos (GList *repo_id_list, gboolean repair)
+{
     GList *ptr;
     char *repo_id;
     SeafRepo *repo;
@@ -466,7 +521,7 @@ seaf_fsck (GList *repo_id_list, gboolean repair)
         reset = FALSE;
         repo_id = ptr->data;
 
-        seaf_message ("Running fsck for repo %s.\n", repo_id);
+        seaf_message ("Running fsck for repair repo %s.\n", repo_id);
 
         repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
 
@@ -514,7 +569,26 @@ seaf_fsck (GList *repo_id_list, gboolean repair)
 
         seaf_repo_unref (repo);
 next:
-        seaf_message ("Fsck finished for repo %.8s.\n\n", repo_id);
+        seaf_message ("Fsck finished for repair repo %.8s.\n\n", repo_id);
     }
+}
+
+int
+seaf_fsck (GList *repo_id_list, gboolean repair, gboolean esync)
+{
+    if (!repo_id_list)
+        repo_id_list = seaf_repo_manager_get_repo_id_list (seaf->repo_mgr);
+
+    if (esync) {
+        enable_sync_repos (repo_id_list);
+    } else {
+        repair_repos (repo_id_list, repair);
+    }
+
+    while (repo_id_list) {
+        g_free (repo_id_list->data);
+        repo_id_list = g_list_delete_link (repo_id_list, repo_id_list);
+    }
+
     return 0;
 }
