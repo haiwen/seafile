@@ -521,7 +521,7 @@ repair_repos (GList *repo_id_list, gboolean repair)
         reset = FALSE;
         repo_id = ptr->data;
 
-        seaf_message ("Running fsck for repair repo %s.\n", repo_id);
+        seaf_message ("Running fsck for repo %s.\n", repo_id);
 
         repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
 
@@ -569,7 +569,7 @@ repair_repos (GList *repo_id_list, gboolean repair)
 
         seaf_repo_unref (repo);
 next:
-        seaf_message ("Fsck finished for repair repo %.8s.\n\n", repo_id);
+        seaf_message ("Fsck finished for repo %.8s.\n\n", repo_id);
     }
 }
 

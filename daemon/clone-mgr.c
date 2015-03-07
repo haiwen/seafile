@@ -126,7 +126,7 @@ mark_clone_done_v2 (SeafRepo *repo, CloneTask *task)
     if (task->server_url)
         repo->server_url = g_strdup(task->server_url);
 
-    if (repo->auto_sync && !task->is_readonly) {
+    if (repo->auto_sync) {
         if (seaf_wt_monitor_watch_repo (seaf->wt_monitor,
                                         repo->id, repo->worktree) < 0) {
             seaf_warning ("failed to watch repo %s(%.10s).\n", repo->name, repo->id);
