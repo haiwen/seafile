@@ -3871,15 +3871,4 @@ seafile_clean_up_repo_history (const char *repo_id, int keep_days, GError **erro
     return ret;
 }
 
-int
-seafile_enable_repo_sync (const char *repo_id, GError **error)
-{
-    if (!is_uuid_valid (repo_id)) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid arguments");
-        return -1;
-    }
-
-    return seaf_repo_manager_enable_repo_sync (repo_id, error);
-}
-
 #endif  /* SEAFILE_SERVER */

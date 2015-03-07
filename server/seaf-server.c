@@ -166,11 +166,6 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      searpc_signature_int__string_string_string_string());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
-                                     seafile_enable_repo_sync,
-                                     "seafile_enable_repo_sync",
-                                     searpc_signature_int__string());
-
-    searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_is_repo_owner,
                                      "seafile_is_repo_owner",
                                      searpc_signature_int__string_string());
