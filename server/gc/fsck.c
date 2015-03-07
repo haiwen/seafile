@@ -280,32 +280,45 @@ fsck_get_repo_commit (const char *repo_id, int version,
     return TRUE;
 }
 
-static SeafCommit*
-cre_commit_from_parent (char *repo_id, SeafCommit *parent, char *new_root_id)
+static void
+reset_commit_to_repair (SeafRepo *repo, SeafCommit *parent, char *new_root_id)
 {
     SeafCommit *new_commit = NULL;
-    new_commit = seaf_commit_new (NULL, repo_id, new_root_id,
+    new_commit = seaf_commit_new (NULL, repo->id, new_root_id,
                                   parent->creator_name, parent->creator_id,
                                   "Repaired by system", 0);
-    if (new_commit) {
-        new_commit->parent_id = g_strdup (parent->commit_id);
-        new_commit->repo_name = g_strdup (parent->repo_name);
-        new_commit->repo_desc = g_strdup (parent->repo_desc);
-        new_commit->encrypted = parent->encrypted;
-        if (new_commit->encrypted) {
-            new_commit->enc_version = parent->enc_version;
-            if (new_commit->enc_version >= 1)
-                new_commit->magic = g_strdup (parent->magic);
-            if (new_commit->enc_version == 2)
-                new_commit->random_key = g_strdup (parent->random_key);
-        }
-        new_commit->repo_category = g_strdup (parent->repo_category);
-        new_commit->no_local_history = parent->no_local_history;
-        new_commit->version = parent->version;
-        new_commit->repaired = TRUE;
+    if (!new_commit) {
+        seaf_warning ("Out of memory, stop to run fsck for repo %.8s.\n",
+                      repo->id);
+        return;
     }
 
-    return new_commit;
+    new_commit->parent_id = g_strdup (parent->commit_id);
+    new_commit->repo_name = g_strdup (parent->repo_name);
+    new_commit->repo_desc = g_strdup (parent->repo_desc);
+    new_commit->encrypted = parent->encrypted;
+    if (new_commit->encrypted) {
+        new_commit->enc_version = parent->enc_version;
+        if (new_commit->enc_version >= 1)
+            new_commit->magic = g_strdup (parent->magic);
+        if (new_commit->enc_version == 2)
+            new_commit->random_key = g_strdup (parent->random_key);
+    }
+    new_commit->repo_category = g_strdup (parent->repo_category);
+    new_commit->no_local_history = parent->no_local_history;
+    new_commit->version = parent->version;
+    new_commit->repaired = TRUE;
+
+    seaf_message ("Resetting head of repo %.8s to commit %.8s.\n",
+                  repo->id, new_commit->commit_id);
+    seaf_branch_set_commit (repo->head, new_commit->commit_id);
+    if (seaf_branch_manager_add_branch (seaf->branch_mgr, repo->head) < 0) {
+        seaf_warning ("Reset head of repo %.8s to commit %.8s failed, "
+                      "recover failed.\n", repo->id, new_commit->commit_id);
+    } else {
+        seaf_commit_manager_add_commit (seaf->commit_mgr, new_commit);
+    }
+    seaf_commit_unref (new_commit);
 }
 
 static SeafRepo*
@@ -399,7 +412,7 @@ out:
  * check and recover repo, for curropted file or folder set it empty
  */
 static void
-check_and_recover_repo (SeafRepo *repo, gboolean repair)
+check_and_recover_repo (SeafRepo *repo, gboolean reset, gboolean repair)
 {
     FsckData fsck_data;
     SeafCommit *rep_commit;
@@ -426,22 +439,10 @@ check_and_recover_repo (SeafRepo *repo, gboolean repair)
         if (strcmp (root_id, rep_commit->root_id) != 0) {
             // some fs objects curropted for the head commit,
             // create new head commit using the new root_id
-            new_commit = cre_commit_from_parent (repo->id, rep_commit, root_id);
-            if (new_commit == NULL) {
-                seaf_warning ("Out of memory, stop to run fsck for repo %.8s.\n",
-                              repo->id);
-            } else {
-                seaf_message ("Resetting head of repo %.8s to commit %.8s.\n",
-                              repo->id, new_commit->commit_id);
-                seaf_branch_set_commit (repo->head, new_commit->commit_id);
-                if (seaf_branch_manager_add_branch (seaf->branch_mgr, repo->head) < 0) {
-                    seaf_warning ("Reset head of repo %.8s to commit %.8s failed, "
-                                  "recover failed.\n", repo->id, new_commit->commit_id);
-                } else {
-                    seaf_commit_manager_add_commit (seaf->commit_mgr, new_commit);
-                }
-                seaf_commit_unref (new_commit);
-            }
+            reset_commit_to_repair (repo, rep_commit, root_id);
+        } else if (reset) {
+            // for reset commit but fs objects not curropted, also create a repaired commit
+            reset_commit_to_repair (repo, rep_commit, rep_commit->root_id);
         }
     }
 
@@ -458,9 +459,11 @@ seaf_fsck (GList *repo_id_list, gboolean repair)
     GList *ptr;
     char *repo_id;
     SeafRepo *repo;
+    gboolean reset;
     gboolean io_error;
 
     for (ptr = repo_id_list; ptr; ptr = ptr->next) {
+        reset = FALSE;
         repo_id = ptr->data;
 
         seaf_message ("Running fsck for repo %s.\n", repo_id);
@@ -474,6 +477,7 @@ seaf_fsck (GList *repo_id_list, gboolean repair)
             if (!repo) {
                 goto next;
             }
+            reset = TRUE;
         } else {
             SeafCommit *commit = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->id,
                                                                  repo->version,
@@ -487,7 +491,7 @@ seaf_fsck (GList *repo_id_list, gboolean repair)
                                   repo->id, repo->name);
                     seaf_commit_unref (commit);
                     seaf_repo_unref (repo);
-                    continue;
+                    goto next;
                 } else {
                     // root fs object is curropted, get available commit
                     seaf_message ("Repo %.8s HEAD commit is corrupted, "
@@ -498,6 +502,7 @@ seaf_fsck (GList *repo_id_list, gboolean repair)
                     if (!repo) {
                         goto next;
                     }
+                    reset = TRUE;
                 }
             } else {
                 // head commit is available
@@ -505,7 +510,7 @@ seaf_fsck (GList *repo_id_list, gboolean repair)
             }
         }
 
-        check_and_recover_repo (repo, repair);
+        check_and_recover_repo (repo, reset, repair);
 
         seaf_repo_unref (repo);
 next:
