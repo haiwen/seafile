@@ -14,7 +14,7 @@ export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafil
 script_name=$0
 function usage () {
     echo "usage : "
-    echo "$(basename ${script_name}) [-h/--help] [-r/--repair] [repo_id_1 [repo_id_2 ...]]"
+    echo "$(basename ${script_name}) [-h/--help] [-r/--repair] [-e/--enable-sync] [repo_id_1 [repo_id_2 ...]]"
     echo ""
 }
 
