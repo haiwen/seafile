@@ -347,7 +347,7 @@ start_seafdav() {
         "--log-file", seafdav_log_file,
         "--pid", ctl->pidfile[PID_SEAFDAV],
         "--port", port,
-        "--host", "0.0.0.0",
+        "--host", conf.host,
         NULL
     };
 
@@ -358,6 +358,7 @@ start_seafdav() {
         "--log-file", seafdav_log_file,
         "--pid", ctl->pidfile[PID_SEAFDAV],
         "--port", port,
+        "--host", conf.host,
         NULL
     };
 
@@ -820,6 +821,35 @@ read_seafdav_config()
         ctl->seafdav_config.fastcgi = FALSE;
     }
 
+    /* host */
+    gchar* host = g_key_file_get_string(key_file, "WEBDAV", "host", &error);
+    // set default host depending on fastcgi setting in order to preserve default behaviour
+    const char* host_default = ctl->seafdav_config.fastcgi ? "localhost" : "0.0.0.0";
+    gboolean host_valid = TRUE;
+    if (error != NULL) {
+        if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND) {
+            seaf_message ("Error when reading WEBDAV.host, use default value '%s'\n", host_default);
+        }
+	host_valid = FALSE;
+    }else{
+	// no error occured while reading host, validate it
+        size_t len = strnlen(host,SEAFDAV_MAX_HOST + 1);
+        if(len ==  0 || len > SEAFDAV_MAX_HOST){
+	    seaf_message ("Error when validating WEBDAV.host, use default value '%s'\n", host_default);
+	    host_valid = FALSE;
+	}
+    }
+    if(host_valid){
+        // copy entered host to seafdav settings
+        strncpy(ctl->seafdav_config.host,host,SEAFDAV_MAX_HOST);
+    }else{
+        // use default value
+        strcpy(ctl->seafdav_config.host, host_default);
+    }
+    if(host){
+     	g_free(host);
+     }
+
     /* port */
     ctl->seafdav_config.port = g_key_file_get_integer(key_file, "WEBDAV", "port", &error);
     if (error != NULL) {
@@ -839,7 +869,6 @@ out:
     if (key_file) {
         g_key_file_free (key_file);
     }
-
     g_free (seafdav_conf);
 
     return ret;
@@ -981,3 +1010,4 @@ int main (int argc, char **argv)
 
     return 0;
 }
+
