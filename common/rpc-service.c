@@ -1060,19 +1060,6 @@ seafile_get_commit (const char *repo_id, int version,
     return (GObject *)commit;
 }
 
-static void
-free_commit_list (GList *commits)
-{
-    SeafileCommit *c;
-    GList *ptr;
-
-    for (ptr = commits; ptr; ptr = ptr->next) {
-        c = ptr->data;
-        g_object_unref (c);
-    }
-    g_list_free (commits);
-}
-
 struct CollectParam {
     int offset;
     int limit;
@@ -1195,7 +1182,7 @@ seafile_get_commit_list (const char *repo_id,
     ret = 
         seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
                                                   repo->id, repo->version,
-                                                  commit_id, get_commit, &cp, FALSE);
+                                                  commit_id, get_commit, &cp, TRUE);
     g_free (commit_id);
 #ifdef SEAFILE_SERVER
     seaf_repo_unref (repo);
@@ -1203,7 +1190,6 @@ seafile_get_commit_list (const char *repo_id,
 
     if (!ret) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_LIST_COMMITS, "Failed to list commits");
-        free_commit_list (commits);
         return NULL;
     }
 
