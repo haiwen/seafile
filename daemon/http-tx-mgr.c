@@ -2839,7 +2839,7 @@ get_block (HttpTxTask *task, Connection *conn, const char *block_id)
         if (task->state == HTTP_TASK_STATE_CANCELED)
             goto error;
 
-        if (task->error == HTTP_OK)
+        if (task->error == HTTP_TASK_OK)
             task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto error;
