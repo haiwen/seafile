@@ -2,6 +2,7 @@
 
 #include "seafile-session.h"
 #include "log.h"
+#include "utils.h"
 
 #include "fsck.h"
 
@@ -443,12 +444,22 @@ enable_sync_repo (const char *repo_id)
     SeafRepo *repo = NULL;
     SeafCommit *parent_commit = NULL;
     SeafCommit *new_commit = NULL;
+    gboolean exists;
 
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        seaf_warning ("Failed to get repo %.8s.\n", repo_id);
+    if (!is_uuid_valid (repo_id)) {
+        seaf_warning ("Invalid repo id %s.\n", repo_id);
         return;
     }
+
+    exists = seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id);
+    if (!exists) {
+        seaf_warning ("Repo %.8s doesn't exist.\n", repo_id);
+        return;
+    }
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo)
+        return;
 
     parent_commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
                                                                repo_id,
@@ -514,6 +525,7 @@ repair_repos (GList *repo_id_list, gboolean repair)
     GList *ptr;
     char *repo_id;
     SeafRepo *repo;
+    gboolean exists;
     gboolean reset;
     gboolean io_error;
 
@@ -522,6 +534,17 @@ repair_repos (GList *repo_id_list, gboolean repair)
         repo_id = ptr->data;
 
         seaf_message ("Running fsck for repo %s.\n", repo_id);
+
+        if (!is_uuid_valid (repo_id)) {
+            seaf_warning ("Invalid repo id %s.\n", repo_id);
+            goto next;
+        }
+
+        exists = seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id);
+        if (!exists) {
+            seaf_warning ("Repo %.8s doesn't exist.\n", repo_id);
+            goto next;
+        }
 
         repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
 
