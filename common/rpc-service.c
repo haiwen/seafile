@@ -3330,6 +3330,7 @@ seafile_list_dir (const char *repo_id,
                           "version", dent->version,
                           "mtime", dent->mtime,
                           "size", dent->size,
+                          "permission", "",
                           NULL);
         res = g_list_prepend (res, d);
     }
@@ -3597,6 +3598,18 @@ seafile_check_permission_by_path (const char *repo_id, const char *path,
                                   const char *user, GError **error)
 {
     return seafile_check_permission (repo_id, user, error);
+}
+
+GList *
+seafile_list_dir_with_perm (const char *repo_id,
+                            const char *path,
+                            const char *dir_id,
+                            const char *user,
+                            int offset,
+                            int limit,
+                            GError **error)
+{
+    return seafile_list_dir (repo_id, dir_id, offset, limit, error);
 }
 
 int

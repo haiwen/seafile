@@ -811,6 +811,15 @@ char *
 seafile_check_permission_by_path (const char *repo_id, const char *path,
                                   const char *user, GError **error);
 
+GList *
+seafile_list_dir_with_perm (const char *repo_id,
+                            const char *path,
+                            const char *dir_id,
+                            const char *user,
+                            int offset,
+                            int limit,
+                            GError **error);
+
 int
 seafile_set_inner_pub_repo (const char *repo_id,
                             const char *permission,
