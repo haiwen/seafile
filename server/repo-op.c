@@ -4037,15 +4037,17 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
                                                               repo->version,
                                                               head_id,
                                                               (CommitTraverseFunc)collect_file_revisions,
-                                                              limit, &data)) {
+                                                              limit, &data, TRUE)) {
         g_clear_error (error);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "failed to traverse commit of repo %s", repo_id);
         goto out;
     }
 
-    if (!data.wanted_commits)
+    if (!data.wanted_commits) {
+        g_clear_error (error);
         goto out;
+    }
 
     /* commit list in descending commit time order. */
     last_commit = data.wanted_commits->data;
@@ -4069,6 +4071,8 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
         g_free (parent_id);
         g_free (old_path);
     }
+
+    g_clear_error (error);
 
 out:
     if (repo)
@@ -4273,7 +4277,7 @@ seaf_repo_manager_calc_files_last_modified (SeafRepoManager *mgr,
                                                               repo->id, repo->version, 
                                                         repo->head->commit_id,
                                 (CommitTraverseFunc)collect_files_last_modified,
-                                                              limit, &data)) {
+                                                              limit, &data, FALSE)) {
         if (*error)
             seaf_warning ("error when traversing commits: %s\n", (*error)->message);
         else
@@ -4703,7 +4707,7 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
                                                    repo->head->commit_id,
                                                    collect_deleted,
                                                    &data,
-                                                   FALSE))
+                                                   TRUE))
     {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
                      "Internal error");
@@ -4715,9 +4719,12 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
     /* Remove entries exist in the current commit.
      * This is necessary because some files may be added back after deletion.
      */
-    filter_out_existing_entries (entries, repo, repo->head->commit_id);
+    if (filter_out_existing_entries (entries, repo,
+                                     repo->head->commit_id) == 0) {
+        // filter success, then add collected result to list
+        g_hash_table_foreach_steal (entries, hash_to_list, &ret);
+    }
 
-    g_hash_table_foreach_steal (entries, hash_to_list, &ret);
     g_hash_table_destroy (entries);
 
     seaf_repo_unref (repo);
