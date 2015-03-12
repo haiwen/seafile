@@ -298,7 +298,7 @@ reset_commit_to_repair (SeafRepo *repo, SeafCommit *parent, char *new_root_id)
     seaf_repo_to_commit (repo, new_commit);
     new_commit->repaired = TRUE;
 
-    seaf_message ("Resetting head of repo %.8s to commit %.8s.\n",
+    seaf_message ("Revert repo %.8s status to commit %.8s.\n",
                   repo->id, new_commit->commit_id);
     seaf_branch_set_commit (repo->head, new_commit->commit_id);
     if (seaf_branch_manager_add_branch (seaf->branch_mgr, repo->head) < 0) {
@@ -494,8 +494,8 @@ enable_sync_repo (const char *repo_id)
         seaf_warning ("Failed to update head commit %.8s to repo %.8s.\n",
                       new_commit->commit_id, repo_id);
     } else {
-        seaf_message ("Enable sync repo %.8s success, reset head commit to %.8s.\n",
-                      repo_id, new_commit->commit_id);
+        seaf_message ("Enable sync repo %.8s success.\n",
+                      repo_id);
     }
 
 out:
@@ -513,9 +513,8 @@ enable_sync_repos (GList *repo_id_list)
     GList *ptr;
 
     for (ptr = repo_id_list; ptr; ptr = ptr->next) {
-        seaf_message ("Running fsck for enable sync repo %s.\n", (char *)ptr->data);
+        seaf_message ("Enabling sync repo %s.\n", (char *)ptr->data);
         enable_sync_repo (ptr->data);
-        seaf_message ("Fsck finished for enable sync repo %.8s.\n\n", (char *)ptr->data);
     }
 }
 
