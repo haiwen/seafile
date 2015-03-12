@@ -3641,7 +3641,7 @@ struct CollectRevisionParam {
     GList *file_id_list;
     GList *file_size_list;
     int n_commits;
-    GHashTable *file_id_cache;
+    GHashTable *file_info_cache;
     
     /* 
      * > 0: stop collect when this amount of revisions are collected.
@@ -3659,39 +3659,203 @@ struct CollectRevisionParam {
     GError **error;
 };
 
-static char *
-get_file_id_with_cache (SeafRepo *repo,
-                        SeafCommit *commit,
-                        const char *path,
-                        GHashTable *file_id_cache,
-                        GError **error)
-{
-    char *file_id = NULL;
-    guint32 mode;
+typedef struct FileInfo {
+    gint64 file_size;
+    char *file_id;
+    GList *dir_ids;
+} FileInfo;
 
-    file_id = g_hash_table_lookup (file_id_cache, commit->commit_id);
-    if (file_id) {
-        return g_strdup(file_id);
+static void
+free_file_info (gpointer info)
+{
+    if (!info)
+        return;
+
+    FileInfo *file_info = info;
+    g_free (file_info->file_id);
+    g_list_free_full (file_info->dir_ids, g_free);
+    g_free (file_info);
+}
+
+static gboolean
+compare_or_add_id (GList *dir_ids,
+                   GList **cur_dir_ids,
+                   const char *dir_id)
+{
+    gboolean ret = FALSE;
+    GList *tmp = dir_ids;
+
+    if (tmp == NULL ||
+        strcmp ((char *)tmp->data, dir_id) != 0) {
+        *cur_dir_ids = g_list_append (*cur_dir_ids, g_strdup (dir_id));
+    } else {
+        // file doesn't changed, append all dir ids to this commit cache
+        while (tmp) {
+            *cur_dir_ids = g_list_append (*cur_dir_ids,
+                                          g_strdup ((char *)tmp->data));
+            tmp = tmp->next;
+        }
+        ret = TRUE;
     }
 
-    file_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
-                                              repo->store_id, repo->version,
-                                              commit->root_id, path, &mode, error);
+    return ret;
+}
 
-    if (file_id != NULL) {
-        if (S_ISDIR(mode)) {
-            g_free (file_id);
-            return NULL;
+// if no error and returned seafdir is NULL, then it means
+// file is not changed
+static SeafDir*
+get_seafdir_by_path (const char *repo_id,
+                     int version,
+                     const char *root_id,
+                     const char *path,
+                     GList *dir_ids,
+                     GList **cur_dir_ids,
+                     GError **error)
+{
+    SeafDir *dir = NULL;
+    SeafDirent *dent;
+    const char *dir_id = root_id;
+    char *name, *saveptr;
+    char *tmp_path = NULL;
+    GList *tmp = dir_ids;
 
-        } else {
-            g_hash_table_insert (file_id_cache,
-                                 g_strdup(commit->commit_id),
-                                 g_strdup(file_id));
-            return file_id;
+    dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr, repo_id, version, dir_id);
+    if (!dir) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_DIR_MISSING, "directory is missing");
+        goto out;
+    }
+
+    if (compare_or_add_id (tmp, cur_dir_ids, dir_id)) {
+        seaf_dir_free (dir);
+        dir = NULL;
+        goto out;
+    } else if (tmp) {
+        tmp = tmp->next;
+    }
+
+    if (strcmp (path, ".") == 0 ||
+        strcmp (path, "/") == 0) {
+        goto out;
+    } else {
+        tmp_path = g_strdup (path);
+    }
+
+    name = strtok_r (tmp_path, "/", &saveptr);
+    while (name != NULL) {
+        GList *l;
+        for (l = dir->entries; l != NULL; l = l->next) {
+            dent = l->data;
+
+            if (strcmp(dent->name, name) == 0 && S_ISDIR(dent->mode)) {
+                dir_id = dent->id;
+                break;
+            }
+        }
+
+        if (!l) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_PATH_NO_EXIST,
+                         "Path does not exists %s", path);
+            seaf_dir_free (dir);
+            dir = NULL;
+            break;
+        }
+
+        if (compare_or_add_id (tmp, cur_dir_ids, dir_id)) {
+            seaf_dir_free (dir);
+            dir = NULL;
+            goto out;
+        } else if (tmp) {
+            tmp = tmp->next;
+        }
+
+        SeafDir *prev = dir;
+        dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr, repo_id, version, dir_id);
+        seaf_dir_free (prev);
+
+        if (!dir) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_DIR_MISSING,
+                         "directory is missing");
+            break;
+        }
+
+        name = strtok_r (NULL, "/", &saveptr);
+    }
+
+out:
+    g_free (tmp_path);
+    return dir;
+}
+
+static FileInfo*
+get_file_info (SeafRepo *repo,
+               SeafCommit *commit,
+               const char *path,
+               GHashTable *file_info_cache,
+               FileInfo *last_info,
+               GError **error)
+{
+    SeafDir *dir = NULL;
+    SeafDirent *dirent = NULL;
+    FileInfo *file_info = NULL;
+    GList *tmp;
+
+    file_info = g_hash_table_lookup (file_info_cache, commit->commit_id);
+    if (file_info)
+        return file_info;
+
+    char *dir_name = g_path_get_dirname (path);
+    char *file_name = g_path_get_basename (path);
+    GList *cur_dir_ids = NULL;
+    GList *dir_ids = last_info ? last_info->dir_ids : NULL;
+
+    dir = get_seafdir_by_path (repo->store_id, repo->version,
+                               commit->root_id, dir_name, dir_ids,
+                               &cur_dir_ids, error);
+    if (*error)
+        goto out;
+
+    if (!dir) {
+        file_info = g_new0 (FileInfo, 1);
+        file_info->file_id = g_strdup (last_info->file_id);
+        file_info->dir_ids = cur_dir_ids;
+        file_info->file_size = last_info->file_size;
+        g_hash_table_insert (file_info_cache, g_strdup (commit->commit_id),
+                             file_info);
+    } else {
+        for (tmp = dir->entries; tmp; tmp = tmp->next) {
+            dirent = tmp->data;
+            if (strcmp (file_name, dirent->name) == 0 &&
+                S_ISREG (dirent->mode)) {
+                break;
+            }
+        }
+        if (tmp) {
+            file_info = g_new0 (FileInfo, 1);
+            file_info->file_id = g_strdup (dirent->id);
+            file_info->dir_ids = cur_dir_ids;
+            if (repo->version > 0) {
+                file_info->file_size = dirent->size;
+            } else {
+                file_info->file_size = seaf_fs_manager_get_file_size (seaf->fs_mgr,
+                                                                      repo->store_id,
+                                                                      repo->version,
+                                                                      dirent->id);
+            }
+            g_hash_table_insert (file_info_cache, g_strdup (commit->commit_id),
+                                 file_info);
         }
     }
 
-    return NULL;
+out:
+    if (dir)
+        seaf_dir_free (dir);
+    if (!file_info) {
+        g_list_free_full (cur_dir_ids, g_free);
+    }
+    g_free (file_name);
+    g_free (dir_name);
+
+    return file_info;
 }
 
 static void
@@ -3714,14 +3878,13 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
     SeafRepo *repo = data->repo;
     const char *path = data->path;
     GError **error = data->error;
-    GHashTable *file_id_cache = data->file_id_cache;
+    GHashTable *file_info_cache = data->file_info_cache;
+    FileInfo *file_info = NULL;
+    FileInfo *parent1_info = NULL;
+    FileInfo *parent2_info = NULL;
 
     SeafCommit *parent_commit = NULL;
     SeafCommit *parent_commit2 = NULL;
-    char *file_id = NULL;
-    char *parent_file_id = NULL;
-    char *parent_file_id2 = NULL;
-    gint64 file_size;
 
     gboolean ret = TRUE;
 
@@ -3744,31 +3907,28 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
         return TRUE;
     }
 
-    file_id = get_file_id_with_cache (data->repo, commit, path,
-                                      file_id_cache, error);
+    g_clear_error (error);
+
+    file_info = get_file_info (data->repo, commit, path,
+                               file_info_cache, NULL, error);
     if (*error) {
         ret = FALSE;
         goto out;
     }
 
-    if (!file_id) {
+    if (!file_info) {
         /* Target file is not present in this commit. */
         goto out;
     }
 
-    file_size = seaf_fs_manager_get_file_size (seaf->fs_mgr,
-                                               repo->store_id,
-                                               repo->version,
-                                               file_id);
-
     if (!commit->parent_id) {
         /* Initial commit */
-        add_revision_info (data, commit, file_id, file_size);
+        add_revision_info (data, commit, file_info->file_id, file_info->file_size);
         goto out;
     }
 
     parent_commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                                    repo->id, repo->version, 
+                                                    repo->id, repo->version,
                                                     commit->parent_id);
     if (!parent_commit) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
@@ -3777,14 +3937,15 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
         goto out;
     }
 
-    parent_file_id = get_file_id_with_cache (data->repo, parent_commit,
-                                             path, file_id_cache, error);
+    parent1_info = get_file_info (data->repo, parent_commit, path,
+                                  file_info_cache, file_info, error);
     if (*error) {
         ret = FALSE;
         goto out;
     }
 
-    if (g_strcmp0 (parent_file_id, file_id) == 0) {
+    if (parent1_info &&
+        g_strcmp0 (parent1_info->file_id, file_info->file_id) == 0) {
         /* This commit does not modify the target file */
         goto out;
     }
@@ -3792,7 +3953,7 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
     /* In case of a merge, the second parent also need compare */
     if (commit->second_parent_id) {
         parent_commit2 = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                                         repo->id, repo->version, 
+                                                         repo->id, repo->version,
                                                          commit->second_parent_id);
         if (!parent_commit2) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
@@ -3801,14 +3962,15 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
             goto out;
         }
 
-        parent_file_id2 = get_file_id_with_cache (data->repo, parent_commit2,
-                                                  path, file_id_cache, error);
+        parent2_info = get_file_info (data->repo, parent_commit2, path,
+                                      file_info_cache, file_info, error);
         if (*error) {
             ret = FALSE;
             goto out;
         }
 
-        if (g_strcmp0 (parent_file_id2, file_id) == 0) {
+        if (parent2_info &&
+            g_strcmp0 (parent2_info->file_id, file_info->file_id) == 0) {
             /* This commit does not modify the target file */
             goto out;
         }
@@ -3817,15 +3979,13 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
     if (!data->got_latest)
         data->got_latest = TRUE;
 
-    add_revision_info (data, commit, file_id, file_size);
+    add_revision_info (data, commit, file_info->file_id, file_info->file_size);
 
 out:
-    g_free (file_id);
-    g_free (parent_file_id);
-    g_free (parent_file_id2);
-
     if (parent_commit) seaf_commit_unref (parent_commit);
     if (parent_commit2) seaf_commit_unref (parent_commit2);
+
+    g_hash_table_remove (file_info_cache, commit->commit_id);
 
     return ret;
 }
@@ -3993,6 +4153,7 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
                                        const char *path,
                                        int max_revision,
                                        int limit,
+                                       int show_days,
                                        GError **error)
 {
     SeafRepo *repo = NULL;
@@ -4004,6 +4165,7 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
     gboolean is_renamed = FALSE;
     char *parent_id = NULL, *old_path = NULL;
     GList *old_revisions = NULL;
+    int show_time;
 
     repo = seaf_repo_manager_get_repo (mgr, repo_id);
     if (!repo) {
@@ -4023,14 +4185,16 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
     data.error = error;
     data.max_revision = max_revision;
 
-    data.truncate_time = seaf_repo_manager_get_repo_truncate_time (mgr, repo_id);
+    show_time = show_days > 0 ? time(NULL) - show_days*24*3600 : -1;
+    data.truncate_time = MAX (show_time,
+                              seaf_repo_manager_get_repo_truncate_time (mgr, repo_id));
     data.wanted_commits = NULL;
     data.file_id_list = NULL;
     data.file_size_list = NULL;
 
-    /* A hash table to cache caculated file id of <path> in <commit> */
-    data.file_id_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                                g_free, g_free);
+    /* A hash table to cache caculated file info of <path> in <commit> */
+    data.file_info_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                  g_free, free_file_info);
 
     if (!seaf_commit_manager_traverse_commit_tree_with_limit (seaf->commit_mgr,
                                                               repo->id,
@@ -4066,7 +4230,8 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
         /* Get the revisions of the old path, starting from parent commit. */
         old_revisions = seaf_repo_manager_list_file_revisions (mgr, repo_id,
                                                                parent_id, old_path,
-                                                               -1, -1, error);
+                                                               -1, -1, show_days,
+                                                               error);
         ret = g_list_concat (ret, old_revisions);
         g_free (parent_id);
         g_free (old_path);
@@ -4084,8 +4249,8 @@ out:
     for (ptr = file_size_list; ptr; ptr = ptr->next)
         g_free (ptr->data);
     g_list_free (file_size_list);
-    if (data.file_id_cache)
-        g_hash_table_destroy (data.file_id_cache);
+    if (data.file_info_cache)
+        g_hash_table_destroy (data.file_info_cache);
 
     return ret;
 }

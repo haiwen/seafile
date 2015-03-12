@@ -3167,10 +3167,13 @@ seafile_get_dirent_by_path (const char *repo_id, const char *path,
 
     SeafDirent *dirent = seaf_fs_manager_get_dirent_by_path (seaf->fs_mgr,
                                                              repo_id, repo->version,
-                                                             commit->root_id, tmp_path);
+                                                             commit->root_id, tmp_path,
+                                                             error);
     if (!dirent) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
-                     "Get dirent error");
+        if (!*error) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
+                         "Get dirent error");
+        }
         g_free (tmp_path);
         seaf_repo_unref (repo);
         seaf_commit_unref (commit);
@@ -3332,6 +3335,7 @@ seafile_list_file_revisions (const char *repo_id,
                              const char *path,
                              int max_revision,
                              int limit,
+                             int show_days,
                              GError **error)
 {
     if (!repo_id || !path) {
@@ -3349,7 +3353,7 @@ seafile_list_file_revisions (const char *repo_id,
     commit_list = seaf_repo_manager_list_file_revisions (seaf->repo_mgr,
                                                          repo_id, NULL, path,
                                                          max_revision,
-                                                         limit, error);
+                                                         limit, show_days, error);
     return commit_list;
 }
 

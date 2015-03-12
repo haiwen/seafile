@@ -727,6 +727,7 @@ seafile_list_file_revisions (const char *repo_id,
                              const char *path,
                              int max_revision,
                              int limit,
+                             int show_days,
                              GError **error);
 
 GList *

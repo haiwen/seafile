@@ -1965,7 +1965,7 @@ seaf_fs_manager_traverse_path (SeafFSManager *mgr,
     int ret = 0;
 
     dent = seaf_fs_manager_get_dirent_by_path (mgr, repo_id, version,
-                                               root_id, dir_path);
+                                               root_id, dir_path, NULL);
     if (!dent) {
         seaf_warning ("Failed to get dirent for %.8s:%s.\n", repo_id, dir_path);
         return -1;
@@ -2349,7 +2349,8 @@ seaf_fs_manager_get_dirent_by_path (SeafFSManager *mgr,
                                     const char *repo_id,
                                     int version,
                                     const char *root_id,
-                                    const char *path)
+                                    const char *path,
+                                    GError **error)
 {
     SeafDirent *dent = NULL;
     SeafDir *dir = NULL;
@@ -2363,7 +2364,7 @@ seaf_fs_manager_get_dirent_by_path (SeafFSManager *mgr,
         dir = seaf_fs_manager_get_seafdir (mgr, repo_id, version, root_id);
     else
         dir = seaf_fs_manager_get_seafdir_by_path (mgr, repo_id, version,
-                                                   root_id, parent_dir, NULL);
+                                                   root_id, parent_dir, error);
 
     if (!dir) {
         seaf_warning ("dir %s doesn't exist in repo %.8s.\n", parent_dir, repo_id);
@@ -2382,6 +2383,8 @@ seaf_fs_manager_get_dirent_by_path (SeafFSManager *mgr,
 out:
     if (dir)
         seaf_dir_free (dir);
+    g_free (parent_dir);
+    g_free (file_name);
 
     return dent;
 }
