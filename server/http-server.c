@@ -1330,7 +1330,12 @@ put_send_block_cb (evhtp_request_t *req, void *arg)
         goto out;
     }
 
-    seaf_block_manager_close_block (seaf->block_mgr, blk_handle);
+    if (seaf_block_manager_close_block (seaf->block_mgr, blk_handle) < 0) {
+        seaf_warning ("Failed to close block %.8s:%s.\n", store_id, block_id);
+        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        seaf_block_manager_block_handle_free (seaf->block_mgr, blk_handle);
+        goto out;
+    }
 
     if (seaf_block_manager_commit_block (seaf->block_mgr,
                                          blk_handle) < 0) {

@@ -516,7 +516,11 @@ do_write_chunk (const char *repo_id, int version,
         return -1;
     }
 
-    seaf_block_manager_close_block (blk_mgr, handle);
+    if (seaf_block_manager_close_block (blk_mgr, handle) < 0) {
+        g_warning ("failed to close block %s.\n", chksum_str);
+        seaf_block_manager_block_handle_free (blk_mgr, handle);
+        return -1;
+    }
 
     if (seaf_block_manager_commit_block (blk_mgr, handle) < 0) {
         g_warning ("failed to commit chunk %s.\n", chksum_str);
