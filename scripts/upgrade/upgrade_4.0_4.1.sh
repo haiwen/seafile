@@ -10,6 +10,7 @@ default_seahub_db=${TOPDIR}/seahub.db
 default_conf_dir=${TOPDIR}/conf
 seafile_server_symlink=${TOPDIR}/seafile-server-latest
 seahub_data_dir=${TOPDIR}/seahub-data
+seahub_settings_py=${TOPDIR}/seahub_settings.py
 
 manage_py=${INSTALLPATH}/seahub/manage.py
 
@@ -221,6 +222,10 @@ move_old_customdir_outside;
 make_media_custom_symlink;
 upgrade_seafile_server_latest_symlink;
 
+chmod 0600 "$seahub_settings_py"
+chmod 0700 "$seafile_data_dir"
+chmod 0700 "$default_ccnet_conf_dir"
+chmod 0700 "$default_conf_dir"
 
 echo
 echo "-----------------------------------------------------------------"
