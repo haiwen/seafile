@@ -4947,6 +4947,25 @@ seaf_repo_manager_del_repo_property (SeafRepoManager *manager,
     pthread_mutex_unlock (&manager->priv->db_lock);
 }
 
+static void
+seaf_repo_manager_del_repo_property_by_key (SeafRepoManager *manager,
+                                            const char *repo_id,
+                                            const char *key)
+{
+    char *sql;
+    sqlite3 *db = manager->priv->db;
+
+    pthread_mutex_lock (&manager->priv->db_lock);
+
+    sql = sqlite3_mprintf ("DELETE FROM RepoProperty "
+                           "WHERE repo_id = %Q "
+                           "  AND key = %Q", repo_id, key);
+    sqlite_query_exec (db, sql);
+    sqlite3_free (sql);
+
+    pthread_mutex_unlock (&manager->priv->db_lock);
+}
+
 static int
 save_repo_enc_info (SeafRepoManager *manager,
                     SeafRepo *repo)
@@ -5305,6 +5324,17 @@ seaf_repo_manager_set_repo_token (SeafRepoManager *manager,
     repo->token = g_strdup(token);
 
     save_repo_property (manager, repo->id, REPO_PROP_TOKEN, token);
+    return 0;
+}
+
+
+int
+seaf_repo_manager_remove_repo_token (SeafRepoManager *manager,
+                                     SeafRepo *repo)
+{
+    g_free (repo->token);
+    repo->token = NULL;
+    seaf_repo_manager_del_repo_property_by_key(manager, repo->id, REPO_PROP_TOKEN);
     return 0;
 }
 

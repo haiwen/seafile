@@ -28,4 +28,8 @@ seaf_http_server_new (struct _SeafileSession *session);
 int
 seaf_http_server_start (HttpServerStruct *htp_server);
 
+int
+seaf_http_server_invalidate_tokens (HttpServerStruct *htp_server,
+                                    const GList *tokens);
+
 #endif

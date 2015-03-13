@@ -1309,6 +1309,18 @@ seaf_repo_manager_list_repo_tokens_by_email (SeafRepoManager *mgr,
     return g_list_reverse(ret_list);
 }
 
+static gboolean
+collect_peer_tokens (SeafDBRow *row, void *data)
+{
+    GList **p_tokens = data;
+    const char *token;
+
+    token = seaf_db_row_get_column_text (row, 0);
+    *p_tokens = g_list_prepend (*p_tokens, g_strdup(token));
+
+    return TRUE;
+}
+
 /**
  * Delete all repo tokens for a given user on a given client
  */
@@ -1333,20 +1345,23 @@ int
 seaf_repo_manager_delete_repo_tokens_by_peer_id (SeafRepoManager *mgr,
                                                  const char *email,
                                                  const char *peer_id,
+                                                 GList **tokens,
                                                  GError **error)
 {
     int ret = 0;
     const char *template;
-    GString *token_list = g_string_new ("");
+    GList *token_list = NULL;
+    GString *token_list_str = g_string_new ("");
     GString *sql = g_string_new ("");
-    int rc;
+    GList *ptr;
+    int rc = 0;
 
     template = "SELECT u.token "
         "FROM RepoUserToken as u, RepoTokenPeerInfo as p "
         "WHERE u.token = p.token "
         "AND u.email = ? AND p.peer_id = ?";
     rc = seaf_db_statement_foreach_row (mgr->seaf->db, template,
-                                        fill_token_list, token_list,
+                                        collect_peer_tokens, &token_list,
                                         2, "string", email, "string", peer_id);
     if (rc < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "DB error");
@@ -1356,11 +1371,19 @@ seaf_repo_manager_delete_repo_tokens_by_peer_id (SeafRepoManager *mgr,
     if (rc == 0)
         goto out;
 
+    for (ptr = token_list; ptr; ptr = ptr->next) {
+        const char *token = (char *)ptr->data;
+        if (token_list_str->len == 0)
+            g_string_append_printf (token_list_str, "'%s'", token);
+        else
+            g_string_append_printf (token_list_str, ",'%s'", token);
+    }
+
     /* Note that there is a size limit on sql query. In MySQL it's 1MB by default.
      * Normally the token_list won't be that long.
      */
     g_string_printf (sql, "DELETE FROM RepoUserToken WHERE token in (%s)",
-                     token_list->str);
+                     token_list_str->str);
     rc = seaf_db_statement_query (mgr->seaf->db, sql->str, 0);
     if (rc < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "DB error");
@@ -1368,17 +1391,20 @@ seaf_repo_manager_delete_repo_tokens_by_peer_id (SeafRepoManager *mgr,
     }
 
     g_string_printf (sql, "DELETE FROM RepoTokenPeerInfo WHERE token in (%s)",
-                     token_list->str);
+                     token_list_str->str);
     rc = seaf_db_statement_query (mgr->seaf->db, sql->str, 0);
     if (rc < 0)
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "DB error");
 
 out:
-    g_string_free (token_list, TRUE);
+    g_string_free (token_list_str, TRUE);
     g_string_free (sql, TRUE);
 
     if (rc < 0) {
         ret = -1;
+        g_list_free_full (token_list, (GDestroyNotify)g_free);
+    } else {
+        *tokens = token_list;
     }
 
     return ret;
