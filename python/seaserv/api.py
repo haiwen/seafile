@@ -198,8 +198,8 @@ class SeafileAPI(object):
     def revert_dir(self, repo_id, commit_id, path, username):
         return seafserv_threaded_rpc.revert_dir(repo_id, commit_id, path, username)
 
-    def get_deleted(self, repo_id, show_days):
-        return seafserv_threaded_rpc.get_deleted(repo_id, show_days)
+    def get_deleted(self, repo_id, show_days, path='/'):
+        return seafserv_threaded_rpc.get_deleted(repo_id, show_days, path)
 
     # share repo to user
     def share_repo(self, repo_id, from_username, to_username, permission):

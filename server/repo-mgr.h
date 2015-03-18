@@ -485,6 +485,7 @@ GList *
 seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
                                        const char *repo_id,
                                        int show_days,
+                                       const char *path,
                                        GError **error);
 
 /*

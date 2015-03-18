@@ -226,6 +226,13 @@ seaf_fs_manager_get_seafdir_sorted (SeafFSManager *mgr,
                                     int version,
                                     const char *dir_id);
 
+SeafDir *
+seaf_fs_manager_get_seafdir_sorted_by_path (SeafFSManager *mgr,
+                                            const char *repo_id,
+                                            int version,
+                                            const char *root_id,
+                                            const char *path);
+
 int
 seaf_fs_manager_populate_blocklist (SeafFSManager *mgr,
                                     const char *repo_id,

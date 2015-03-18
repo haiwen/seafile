@@ -4445,36 +4445,16 @@ add_deleted_entry (SeafRepo *repo,
 
 static int
 find_deleted_recursive (SeafRepo *repo,
-                        const char *root1,
-                        const char *root2,
+                        SeafDir *d1,
+                        SeafDir *d2,
                         const char *base,
                         SeafCommit *child,
                         SeafCommit *parent,
                         GHashTable *entries)
 {
-    SeafDir *d1, *d2;
     GList *p1, *p2;
     SeafDirent *dent1, *dent2;
     int res, ret = 0;
-
-    if (strcmp (root1, root2) == 0)
-        return 0;
-
-    d1 = seaf_fs_manager_get_seafdir_sorted (seaf->fs_mgr,
-                                             repo->store_id, repo->version,
-                                             root1);
-    if (!d1) {
-        seaf_warning ("Failed to find dir %s.\n", root1);
-        return -1;
-    }
-    d2 = seaf_fs_manager_get_seafdir_sorted (seaf->fs_mgr,
-                                             repo->store_id, repo->version,
-                                             root2);
-    if (!d2) {
-        seaf_warning ("Failed to find dir %s.\n", root2);
-        seaf_dir_free (d1);
-        return -1;
-    }
 
     p1 = d1->entries;
     p2 = d2->entries;
@@ -4500,12 +4480,33 @@ find_deleted_recursive (SeafRepo *repo,
                 /* both exists but with diffent type. */
                 add_deleted_entry (repo, entries, dent2, base, child, parent);
             } else if (S_ISDIR(dent1->mode)) {
+                SeafDir *n1 = seaf_fs_manager_get_seafdir_sorted (seaf->fs_mgr,
+                                                                  repo->id,
+                                                                  repo->version,
+                                                                  dent1->id);
+                if (!n1) {
+                    seaf_warning ("Failed to find dir %s.\n", dent1->id);
+                    return -1;
+                }
+
+                SeafDir *n2 = seaf_fs_manager_get_seafdir_sorted (seaf->fs_mgr,
+                                                                  repo->id,
+                                                                  repo->version,
+                                                                  dent2->id);
+                if (!n2) {
+                    seaf_warning ("Failed to find dir %s.\n", dent2->id);
+                    seaf_dir_free (n1);
+                    return -1;
+                }
+
                 char *new_base = g_strconcat (base, dent1->name, "/", NULL);
-                ret = find_deleted_recursive (repo, dent1->id, dent2->id, new_base,
+                ret = find_deleted_recursive (repo, n1, n2, new_base,
                                               child, parent, entries);
                 g_free (new_base);
+                seaf_dir_free (n1);
+                seaf_dir_free (n2);
                 if (ret < 0)
-                    goto out;
+                    return ret;
             }
             p1 = p1->next;
             p2 = p2->next;
@@ -4519,9 +4520,40 @@ find_deleted_recursive (SeafRepo *repo,
         add_deleted_entry (repo, entries, dent2, base, child, parent);
     }
 
-out:
-    seaf_dir_free (d1);
-    seaf_dir_free (d2);
+    return ret;
+}
+
+static int
+find_deleted (SeafRepo *repo,
+              SeafCommit *child,
+              SeafCommit *parent,
+              const char *base,
+              GHashTable *entries)
+{
+    SeafDir *d1, *d2;
+    int ret = 0;
+
+    d1 = seaf_fs_manager_get_seafdir_sorted_by_path (seaf->fs_mgr,
+                                                     repo->id,
+                                                     repo->version,
+                                                     child->root_id, base);
+    if (!d1) {
+        seaf_warning ("Failed to find dir %s on root %s.\n", base, child->root_id);
+        return -1;
+    }
+
+    d2 = seaf_fs_manager_get_seafdir_sorted_by_path (seaf->fs_mgr,
+                                                     repo->id,
+                                                     repo->version,
+                                                     parent->root_id, base);
+    if (!d2) {
+        seaf_warning ("Failed to find dir %s on root %s.\n", base, parent->root_id);
+        seaf_dir_free (d1);
+        return -1;
+    }
+
+    ret = find_deleted_recursive (repo, d1, d2, base, child, parent, entries);
+
     return ret;
 }
 
@@ -4529,6 +4561,7 @@ typedef struct CollectDelData {
     SeafRepo *repo;
     GHashTable *entries;
     gint64 truncate_time;
+    char *path;
 } CollectDelData;
 
 #define DEFAULT_RECYCLE_DAYS 7
@@ -4569,8 +4602,7 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
         return FALSE;
     }
 
-    if (find_deleted_recursive (data->repo, commit->root_id, p1->root_id, "/",
-                                commit, p1, entries) < 0) {
+    if (find_deleted (data->repo, commit, p1, data->path, entries) < 0) {
         seaf_commit_unref (p1);
         return FALSE;
     }
@@ -4587,8 +4619,7 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
             return FALSE;
         }
 
-        if (find_deleted_recursive (data->repo, commit->root_id, p2->root_id, "/",
-                                    commit, p2, entries) < 0) {
+        if (find_deleted (data->repo, commit, p2, data->path, entries) < 0) {
             seaf_commit_unref (p2);
             return FALSE;
         }
@@ -4673,6 +4704,7 @@ GList *
 seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
                                        const char *repo_id,
                                        int show_days,
+                                       const char *path,
                                        GError **error)
 {
     SeafRepo *repo;
@@ -4701,9 +4733,18 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
     data.repo = repo;
     data.entries = entries;
     data.truncate_time = MAX (show_time, truncate_time);
+    if (path) {
+        if (path[strlen(path) - 1] == '/') {
+            data.path = g_strdup (path);
+        } else {
+            data.path = g_strconcat (path, "/", NULL);
+        }
+    } else {
+        data.path = g_strdup ("/");
+    }
 
     if (!seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
-                                                   repo->id, repo->version, 
+                                                   repo->id, repo->version,
                                                    repo->head->commit_id,
                                                    collect_deleted,
                                                    &data,
@@ -4713,6 +4754,7 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
                      "Internal error");
         g_hash_table_destroy (entries);
         seaf_repo_unref (repo);
+        g_free (data.path);
         return NULL;
     }
 
@@ -4728,6 +4770,8 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
     g_hash_table_destroy (entries);
 
     seaf_repo_unref (repo);
+    g_free (data.path);
+
     return ret;
 }
 
