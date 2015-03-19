@@ -145,7 +145,7 @@ verify_repos (GList *repo_id_list)
             continue;
 
         if (repo->is_corrupted) {
-           seaf_warning ("Repo %s is corrupted.", repo->id);
+           seaf_warning ("Repo %s is corrupted.\n", repo->id);
         } else {
             ret = verify_repo (repo);
             seaf_repo_unref (repo);
