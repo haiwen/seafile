@@ -1626,6 +1626,30 @@ seaf_fs_manager_get_seafdir_sorted (SeafFSManager *mgr,
     return dir;
 }
 
+SeafDir *
+seaf_fs_manager_get_seafdir_sorted_by_path (SeafFSManager *mgr,
+                                            const char *repo_id,
+                                            int version,
+                                            const char *root_id,
+                                            const char *path)
+{
+    SeafDir *dir = seaf_fs_manager_get_seafdir_by_path (mgr, repo_id,
+                                                        version, root_id,
+                                                        path, NULL);
+
+    if (!dir)
+        return NULL;
+
+    /* Only some very old dir objects are not sorted. */
+    if (version > 0)
+        return dir;
+
+    if (!is_dirents_sorted (dir->entries))
+        dir->entries = g_list_sort (dir->entries, compare_dirents);
+
+    return dir;
+}
+
 static int
 parse_metadata_type_v0 (const uint8_t *data, int len)
 {
