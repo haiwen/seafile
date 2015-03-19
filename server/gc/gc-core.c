@@ -359,13 +359,41 @@ out:
     return ret;
 }
 
+void
+delete_garbaged_repos (int dry_run)
+{
+    GList *del_repos = NULL;
+    GList *ptr;
+
+    seaf_message ("=== GC deleted repos ===\n");
+    del_repos = seaf_repo_manager_list_garbage_repos (seaf->repo_mgr);
+    for (ptr = del_repos; ptr; ptr = ptr->next) {
+        char *repo_id = ptr->data;
+
+        /* Confirm repo doesn't exist before removing blocks. */
+        if (!seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id)) {
+            if (!dry_run) {
+                seaf_message ("GC deleted repo %.8s.\n", repo_id);
+                seaf_block_manager_remove_store (seaf->block_mgr, repo_id);
+            } else {
+                seaf_message ("Repo %.8s can be GC'ed.\n", repo_id);
+            }
+        }
+
+        if (!dry_run)
+            seaf_repo_manager_remove_garbage_repo (seaf->repo_mgr, repo_id);
+        g_free (repo_id);
+    }
+    g_list_free (del_repos);
+}
+
 int
 gc_core_run (GList *repo_id_list, int dry_run)
 {
     if (repo_id_list == NULL)
         repo_id_list = seaf_repo_manager_get_repo_id_list (seaf->repo_mgr);
 
-    GList *del_repos = NULL, *ptr;
+    GList *ptr;
     SeafRepo *repo;
     GList *corrupt_repos = NULL;
 
@@ -392,26 +420,7 @@ gc_core_run (GList *repo_id_list, int dry_run)
     }
     g_list_free (repo_id_list);
 
-    seaf_message ("=== GC deleted repos ===\n");
-    del_repos = seaf_repo_manager_list_garbage_repos (seaf->repo_mgr);
-    for (ptr = del_repos; ptr; ptr = ptr->next) {
-        char *repo_id = ptr->data;
-
-        /* Confirm repo doesn't exist before removing blocks. */
-        if (!seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id)) {
-            if (!dry_run) {
-                seaf_message ("GC deleted repo %.8s.\n", repo_id);
-                seaf_block_manager_remove_store (seaf->block_mgr, repo_id);
-            } else {
-                seaf_message ("Repo %.8s can be GC'ed.\n", repo_id);
-            }
-        }
-
-        if (!dry_run)
-            seaf_repo_manager_remove_garbage_repo (seaf->repo_mgr, repo_id);
-        g_free (repo_id);
-    }
-    g_list_free (del_repos);
+    delete_garbaged_repos (dry_run);
 
     seaf_message ("=== GC is finished ===\n");
 
