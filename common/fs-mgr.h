@@ -352,7 +352,8 @@ seaf_fs_manager_get_dirent_by_path (SeafFSManager *mgr,
                                     const char *repo_id,
                                     int version,
                                     const char *root_id,
-                                    const char *path);
+                                    const char *path,
+                                    GError **error);
 
 /* Check object integrity. */
 

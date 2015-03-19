@@ -155,9 +155,10 @@ class SeafileAPI(object):
     def get_dirent_by_path(self, repo_id, path):
         return seafserv_threaded_rpc.get_dirent_by_path(repo_id, path)
 
-    def get_file_revisions(self, repo_id, path, max_revision, limit):
+    def get_file_revisions(self, repo_id, path, max_revision, limit, show_days=7):
         return seafserv_threaded_rpc.list_file_revisions(repo_id, path,
-                                                         max_revision, limit)
+                                                         max_revision, limit,
+                                                         show_days)
 
     def get_files_last_modified(self, repo_id, parent_dir, limit):
         """Get last modification time for files in a dir
