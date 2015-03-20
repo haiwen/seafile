@@ -155,7 +155,7 @@ class SeafileAPI(object):
     def get_dirent_by_path(self, repo_id, path):
         return seafserv_threaded_rpc.get_dirent_by_path(repo_id, path)
 
-    def get_file_revisions(self, repo_id, path, max_revision, limit, show_days=7):
+    def get_file_revisions(self, repo_id, path, max_revision, limit, show_days=-1):
         return seafserv_threaded_rpc.list_file_revisions(repo_id, path,
                                                          max_revision, limit,
                                                          show_days)
