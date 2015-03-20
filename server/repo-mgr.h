@@ -629,6 +629,16 @@ seaf_repo_manager_check_permission (SeafRepoManager *mgr,
                                     const char *user,
                                     GError **error);
 
+GList *
+seaf_repo_manager_list_dir_with_perm (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      const char *dir_path,
+                                      const char *dir_id,
+                                      const char *user,
+                                      int offset,
+                                      int limit,
+                                      GError **error);
+
 /* Web access permission. */
 
 int

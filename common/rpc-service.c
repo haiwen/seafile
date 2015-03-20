@@ -3675,7 +3675,14 @@ seafile_list_dir_with_perm (const char *repo_id,
                             int limit,
                             GError **error)
 {
-    return seafile_list_dir (repo_id, dir_id, offset, limit, error);
+    return seaf_repo_manager_list_dir_with_perm (seaf->repo_mgr,
+                                                 repo_id,
+                                                 path,
+                                                 dir_id,
+                                                 user,
+                                                 offset,
+                                                 limit,
+                                                 error);
 }
 
 int
