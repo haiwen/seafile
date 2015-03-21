@@ -62,7 +62,6 @@ typedef struct {
 
     int traversed_commits;
     gint64 traversed_blocks;
-    gboolean ignore_errors;
 
     int verbose;
     gint64 traversed_fs_objs;
@@ -159,8 +158,8 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
                                          data->repo->store_id, data->repo->version,
                                          commit->root_id,
                                          fs_callback,
-                                         data, data->ignore_errors);
-    if (ret < 0 && !data->ignore_errors)
+                                         data, FALSE);
+    if (ret < 0)
         return FALSE;
 
     if (data->verbose)
@@ -171,8 +170,7 @@ traverse_commit (SeafCommit *commit, void *vdata, gboolean *stop)
 }
 
 static int
-populate_gc_index_for_repo (SeafRepo *repo, Bloom *index, gboolean ignore_errors,
-                            int verbose)
+populate_gc_index_for_repo (SeafRepo *repo, Bloom *index, int verbose)
 {
     GList *branches, *ptr;
     SeafBranch *branch;
@@ -215,7 +213,6 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index, gboolean ignore_errors
     }
 
     data->truncate_time = truncate_time;
-    data->ignore_errors = ignore_errors;
 
     for (ptr = branches; ptr != NULL; ptr = ptr->next) {
         branch = ptr->data;
@@ -225,9 +222,9 @@ populate_gc_index_for_repo (SeafRepo *repo, Bloom *index, gboolean ignore_errors
                                                                  branch->commit_id,
                                                                  traverse_commit,
                                                                  data,
-                                                                 ignore_errors);
+                                                                 FALSE);
         seaf_branch_unref (branch);
-        if (!res && !ignore_errors) {
+        if (!res) {
             ret = -1;
             break;
         }
@@ -268,8 +265,7 @@ check_block_liveness (const char *store_id, int version,
 }
 
 static int
-populate_gc_index_for_virtual_repos (SeafRepo *repo, Bloom *index, int ignore_errors,
-                                     int verbose)
+populate_gc_index_for_virtual_repos (SeafRepo *repo, Bloom *index, int verbose)
 {
     GList *vrepo_ids = NULL, *ptr;
     char *repo_id;
@@ -283,16 +279,13 @@ populate_gc_index_for_virtual_repos (SeafRepo *repo, Bloom *index, int ignore_er
         vrepo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
         if (!vrepo) {
             seaf_warning ("Failed to get repo %s.\n", repo_id);
-            if (!ignore_errors) {
-                ret = -1;
-                goto out;
-            } else
-                continue;
+            ret = -1;
+            goto out;
         }
 
-        ret = populate_gc_index_for_repo (vrepo, index, ignore_errors, verbose);
+        ret = populate_gc_index_for_repo (vrepo, index, verbose);
         seaf_repo_unref (vrepo);
-        if (ret < 0 && !ignore_errors)
+        if (ret < 0)
             goto out;
     }
 
@@ -302,7 +295,7 @@ out:
 }
 
 int
-gc_v1_repo (SeafRepo *repo, int dry_run, int ignore_errors, int verbose)
+gc_v1_repo (SeafRepo *repo, int dry_run, int verbose)
 {
     Bloom *index;
     int ret;
@@ -333,15 +326,15 @@ gc_v1_repo (SeafRepo *repo, int dry_run, int ignore_errors, int verbose)
 
     seaf_message ("Populating index.\n");
 
-    ret = populate_gc_index_for_repo (repo, index, ignore_errors, verbose);
-    if (ret < 0 && !ignore_errors)
+    ret = populate_gc_index_for_repo (repo, index, verbose);
+    if (ret < 0)
         goto out;
 
     /* Since virtual repos share fs and block store with the origin repo,
      * it's necessary to do GC for them together.
      */
-    ret = populate_gc_index_for_virtual_repos (repo, index, ignore_errors, verbose);
-    if (ret < 0 && !ignore_errors)
+    ret = populate_gc_index_for_virtual_repos (repo, index, verbose);
+    if (ret < 0)
         goto out;
 
     if (!dry_run)
@@ -443,7 +436,7 @@ gc_core_run (GList *repo_id_list, int dry_run, int verbose)
         if (!repo->is_virtual) {
             seaf_message ("GC version %d repo %s(%s)\n",
                           repo->version, repo->name, repo->id);
-            gc_ret = gc_v1_repo (repo, dry_run, FALSE, verbose);
+            gc_ret = gc_v1_repo (repo, dry_run, verbose);
             if (gc_ret < 0) {
                 corrupt_repos = g_list_prepend (corrupt_repos, g_strdup(repo->id));
             } else if (dry_run && gc_ret) {
