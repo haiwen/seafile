@@ -1295,14 +1295,18 @@ check_permission (HttpTxTask *task, Connection *conn)
     curl = conn->curl;
 
     const char *type = (task->type == HTTP_TASK_TYPE_DOWNLOAD) ? "download" : "upload";
-    if (seaf->session->base.name)
+    if (seaf->session->base.name) {
+        char *client_name = g_uri_escape_string (seaf->session->base.name,
+                                                 NULL, FALSE);
         url = g_strdup_printf ("%s/seafhttp/repo/%s/permission-check/?op=%s"
                                "&client_id=%s&client_name=%s",
                                task->host, task->repo_id, type,
-                               seaf->session->base.id, seaf->session->base.name);
-    else
+                               seaf->session->base.id, client_name);
+        g_free (client_name);
+    } else {
         url = g_strdup_printf ("%s/seafhttp/repo/%s/permission-check/?op=%s",
                                task->host, task->repo_id, type);
+    }
 
     if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL) < 0) {
         task->error = HTTP_TASK_ERR_NET;
