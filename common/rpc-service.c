@@ -33,66 +33,87 @@
 
 
 /* -------- Utilities -------- */
+static GObject*
+convert_repo (SeafRepo *r)
+{
+    SeafileRepo *repo = NULL;
+
+#ifndef SEAFILE_SERVER
+    if (r->head == NULL)
+        return NULL;
+
+    if (r->worktree_invalid && !seafile_session_config_get_allow_invalid_worktree(seaf))
+        return NULL;
+#endif
+
+    repo = seafile_repo_new ();
+    if (!repo)
+        return NULL;
+
+    g_object_set (repo, "id", r->id, "name", r->name,
+                  "desc", r->desc, "encrypted", r->encrypted,
+                  "magic", r->magic, "enc_version", r->enc_version,
+                  "head_cmmt_id", r->head ? r->head->commit_id : NULL,
+                  "version", r->version, "last_modify", r->last_modify,
+                  "repo_id", r->id, "repo_name", r->name,
+                  "repo_desc", r->desc, "last_modified", r->last_modify,
+                  NULL);
+
+#ifdef SEAFILE_SERVER
+    if (r->virtual_info) {
+        g_object_set (repo,
+                      "is_virtual", TRUE,
+                      "origin_repo_id", r->virtual_info->origin_repo_id,
+                      "origin_path", r->virtual_info->path,
+                      NULL);
+    }
+
+    if (r->encrypted && r->enc_version == 2)
+        g_object_set (repo, "random_key", r->random_key, NULL);
+
+    g_object_set (repo, "store_id", r->store_id,
+                  "repaired", r->repaired,
+                  "size", r->size, NULL);
+#endif
+
+#ifndef SEAFILE_SERVER
+    g_object_set (repo, "worktree", r->worktree,
+                  "relay-id", r->relay_id,
+                  "last-sync-time", r->last_sync_time,
+                  "auto-sync", r->auto_sync,
+                  NULL);
+
+#endif  /* SEAFILE_SERVER */
+
+    return (GObject *)repo;
+}
+
+static void
+free_repo_obj (gpointer repo)
+{
+    if (!repo)
+        return;
+    g_object_unref ((GObject *)repo);
+}
+
 static GList *
 convert_repo_list (GList *inner_repos)
 {
     GList *ret = NULL, *ptr;
+    GObject *repo = NULL;
 
     for (ptr = inner_repos; ptr; ptr=ptr->next) {
         SeafRepo *r = ptr->data;
-#ifndef SEAFILE_SERVER
-        /* Don't display repos without worktree. */
-        if (r->head == NULL)
-            continue;
-
-        if (r->worktree_invalid && !seafile_session_config_get_allow_invalid_worktree(seaf))
-            continue;
-#endif
-
-        SeafileRepo *repo = seafile_repo_new ();
-        g_object_set (repo, "id", r->id, "name", r->name,
-                      "desc", r->desc, "encrypted", r->encrypted,
-                      "enc_version", r->enc_version,
-                      "version", r->version,
-                      NULL);
-
-        if (r->encrypted && r->enc_version == 2)
-            g_object_set (repo, "magic", r->magic,
-                          "random_key", r->random_key, NULL);
-
-#ifdef SEAFILE_SERVER
-        g_object_set (repo, "store_id", r->store_id,
-                      "is_corrupted", r->is_corrupted,
-                      NULL);
-#endif
-
-#ifndef SEAFILE_SERVER
-        g_object_set (repo, "worktree-changed", r->wt_changed,
-                      "worktree-checktime", r->wt_check_time,
-                      "worktree-invalid", r->worktree_invalid,
-                      "last-sync-time", r->last_sync_time,
-                      "index-corrupted", r->index_corrupted,
-                      NULL);
-
-        g_object_set (repo, "worktree", r->worktree,
-                      /* "auto-sync", r->auto_sync, */
-                      "head_branch", r->head ? r->head->name : NULL,
-                      "relay-id", r->relay_id,
-                      "auto-sync", r->auto_sync,
-                      NULL);
-
-        g_object_set (repo,
-                      "last-modify", seafile_repo_last_modify(r->id, NULL),
-                      NULL);
-
-        g_object_set (repo, "no-local-history", r->no_local_history, NULL);
-#endif
+        repo = convert_repo (r);
+        if (!repo) {
+            g_list_free_full (ret, free_repo_obj);
+            return NULL;
+        }
 
         ret = g_list_prepend (ret, repo);
     }
-    ret = g_list_reverse (ret);
 
-    return ret;
+    return g_list_reverse (ret);
 }
 
 /*
@@ -172,8 +193,6 @@ int
 seafile_repo_last_modify(const char *repo_id, GError **error)
 {
     SeafRepo *repo;
-    SeafCommit *c;
-    char *commit_id;
     int ctime = 0;
 
     if (!repo_id) {
@@ -187,33 +206,11 @@ seafile_repo_last_modify(const char *repo_id, GError **error)
         return -1;
     }
 
-    if (!repo->head) {
-        SeafBranch *branch =
-            seaf_branch_manager_get_branch (seaf->branch_mgr,
-                                            repo->id, "master");
-        if (branch != NULL) {
-            commit_id = g_strdup (branch->commit_id);
-            seaf_branch_unref (branch);
-        } else {
-            g_warning ("[repo-mgr] Failed to get repo %s branch master\n",
-                       repo_id);
-            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_REPO,
-                         "No head and branch master");
-            return -1;
-        }
-    } else {
-        commit_id = g_strdup (repo->head->commit_id);
-    }
+    ctime = repo->last_modify;
+#ifdef SEAFILE_SERVER
+    seaf_repo_unref (repo);
+#endif
 
-    c = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                        repo->id, repo->version,
-                                        commit_id);
-    g_free (commit_id);
-    if (!c)
-        return -1;
-
-    ctime = c->ctime;
-    seaf_commit_unref (c);
     return ctime;
 }
 
@@ -963,64 +960,13 @@ seafile_get_repo (const char *repo_id, GError **error)
     if (r == NULL)
         return NULL;
 
-#ifndef SEAFILE_SERVER
-    if (r->head == NULL)
-        return NULL;
-
-    if (r->worktree_invalid && !seafile_session_config_get_allow_invalid_worktree(seaf))
-        return NULL;
-#endif
-
-    SeafileRepo *repo = seafile_repo_new ();
-    g_object_set (repo, "id", r->id, "name", r->name,
-                  "desc", r->desc, "encrypted", r->encrypted,
-                  "magic", r->magic, "enc_version", r->enc_version,
-                  "head_branch", r->head ? r->head->name : NULL,
-                  "head_cmmt_id", r->head ? r->head->commit_id : NULL,
-                  "version", r->version,
-                  NULL);
-
-#ifdef SEAFILE_SERVER
-    if (r->virtual_info) {
-        g_object_set (repo,
-                      "is_virtual", TRUE,
-                      "origin_repo_id", r->virtual_info->origin_repo_id,
-                      "origin_path", r->virtual_info->path,
-                      NULL);
-    }
-
-    if (r->encrypted && r->enc_version == 2)
-        g_object_set (repo, "random_key", r->random_key, NULL);
-
-    g_object_set (repo, "store_id", r->store_id, NULL);
-    g_object_set (repo, "repaired", r->repaired, NULL);
-#endif
-
-#ifndef SEAFILE_SERVER
-    g_object_set (repo, "worktree-changed", r->wt_changed,
-                  "worktree-checktime", r->wt_check_time,
-                  "worktree-invalid", r->worktree_invalid,
-                  "last-sync-time", r->last_sync_time,
-                  "index-corrupted", r->index_corrupted,
-                  NULL);
-
-    g_object_set (repo, "worktree", r->worktree,
-                  "relay-id", r->relay_id,
-                  "auto-sync", r->auto_sync,
-                  NULL);
-
-    g_object_set (repo,
-                  "last-modify", seafile_repo_last_modify(r->id, NULL),
-                  NULL);
-
-    g_object_set (repo, "no-local-history", r->no_local_history, NULL);
-#endif  /* SEAFILE_SERVER */
+    GObject *repo = convert_repo (r);
 
 #ifdef SEAFILE_SERVER
     seaf_repo_unref (r);
 #endif
 
-    return (GObject *)repo;
+    return repo;
 }
 
 SeafileCommit *
@@ -1877,33 +1823,14 @@ seafile_get_orphan_repo_list(GError **error)
 {
     GList *ret = NULL;
     GList *repos, *ptr;
-    SeafRepo *r;
-    SeafileRepo *repo;
 
     repos = seaf_repo_manager_get_orphan_repo_list(seaf->repo_mgr);
-    ptr = repos;
-    while (ptr) {
-        r = ptr->data;
+    ret = convert_repo_list (repos);
 
-        repo = seafile_repo_new ();
-        g_object_set (repo, "id", r->id, "name", r->name,
-                      "desc", r->desc, "encrypted", r->encrypted,
-                      "head_cmmt_id", r->head ? r->head->commit_id : NULL,
-                      "is_virtual", (r->virtual_info != NULL),
-                      "enc_version", r->enc_version,
-                      "version", r->version,
-                      "store_id", r->store_id,
-                      NULL);
-        if (r->encrypted && r->enc_version == 2)
-            g_object_set (repo, "magic", r->magic,
-                          "random_key", r->random_key, NULL);
-
-        ret = g_list_prepend (ret, repo);
-        seaf_repo_unref (r);
-        ptr = ptr->next;
+    for (ptr = repos; ptr; ptr = ptr->next) {
+        seaf_repo_unref ((SeafRepo *)ptr->data);
     }
     g_list_free (repos);
-    ret = g_list_reverse (ret);
 
     return ret;
 }
@@ -1913,33 +1840,14 @@ seafile_list_owned_repos (const char *email, GError **error)
 {
     GList *ret = NULL;
     GList *repos, *ptr;
-    SeafRepo *r;
-    SeafileRepo *repo;
 
     repos = seaf_repo_manager_get_repos_by_owner (seaf->repo_mgr, email);
-    ptr = repos;
-    while (ptr) {
-        r = ptr->data;
+    ret = convert_repo_list (repos);
 
-        repo = seafile_repo_new ();
-        g_object_set (repo, "id", r->id, "name", r->name,
-                      "desc", r->desc, "encrypted", r->encrypted,
-                      "head_cmmt_id", r->head ? r->head->commit_id : NULL,
-                      "is_virtual", (r->virtual_info != NULL),
-                      "enc_version", r->enc_version,
-                      "version", r->version,
-                      "store_id", r->store_id,
-                      NULL);
-        if (r->encrypted && r->enc_version == 2)
-            g_object_set (repo, "magic", r->magic,
-                          "random_key", r->random_key, NULL);
-
-        ret = g_list_prepend (ret, repo);
-        seaf_repo_unref (r);
-        ptr = ptr->next;
+    for(ptr = repos; ptr; ptr = ptr->next) {
+        seaf_repo_unref ((SeafRepo *)ptr->data);
     }
     g_list_free (repos);
-    ret = g_list_reverse (ret);
 
     return ret;
 }
@@ -3839,20 +3747,14 @@ seafile_get_virtual_repos_by_owner (const char *owner, GError **error)
         char *perm = seaf_repo_manager_check_permission (seaf->repo_mgr,
                                                          r->id, owner, NULL);
 
-        repo = seafile_repo_new ();
-        g_object_set (repo,
-                      "id", r->id, "name", r->name,
-                      "head_cmmt_id", r->head ? r->head->commit_id : NULL,
-                      "is_virtual", TRUE,
-                      "origin_repo_id", r->virtual_info->origin_repo_id,
-                      "origin_repo_name", o->name,
-                      "origin_path", r->virtual_info->path,
-                      "is_original_owner", is_original_owner,
-                      "virtual_perm", perm,
-                      "version", r->version,
-                      NULL);
+        repo = (SeafileRepo *)convert_repo (r);
+        if (repo) {
+            g_object_set (repo, "is_original_owner", is_original_owner,
+                          "origin_repo_name", o->name,
+                          "virtual_perm", perm, NULL);
+            ret = g_list_prepend (ret, repo);
+        }
 
-        ret = g_list_prepend (ret, repo);
         seaf_repo_unref (r);
         seaf_repo_unref (o);
         g_free (perm);
