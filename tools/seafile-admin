@@ -782,15 +782,6 @@ def start_seafile(args):
 
     start_controller()
 
-    if args.port:
-        try:
-            port = int(args.port)
-        except ValueError:
-            error('invalid port: %s' % args.port)
-        else:
-            if port <= 0 or port > 65535:
-                error('invalid port: %s' % args.port)
-
     if args.fastcgi:
         start_seahub_fastcgi()
     else:
