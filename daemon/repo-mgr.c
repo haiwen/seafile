@@ -1466,7 +1466,7 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
     SeafStat st;
     AddOptions options;
 
-    /* When a repo is initially added, a CREATE_OR_UPDATE event will be created
+    /* When a repo is initially added, a SCAN_DIR event will be created
      * for the worktree root "".
      */
     if (path[0] == 0) {
@@ -1525,6 +1525,8 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
 
     memset (&options, 0, sizeof(options));
     options.fset = fset;
+    options.user_perms = user_perms;
+    options.group_perms = group_perms;
     options.is_repo_ro = repo->is_readonly;
 
     /* Add is always recursive */
@@ -1852,6 +1854,78 @@ scan_subtree_for_deletion (struct index_state *istate,
 }
 #endif
 
+/* Return TRUE if the caller should stop processing next event. */
+static gboolean
+handle_add_files (SeafRepo *repo, struct index_state *istate,
+                  SeafileCrypt *crypt, GList *ignore_list,
+                  LockedFileSet *fset,
+                  GList *user_perms, GList *group_perms,
+                  WTStatus *status, WTEvent *event,
+                  GList **scanned_dirs, gint64 *total_size)
+{
+    if (!repo->create_partial_commit) {
+        /* XXX: We now use remain_files = NULL to signify not creating
+         * partial commits. It's better to use total_size = NULL for
+         * that purpose.
+         */
+        add_path_to_index (repo, istate, crypt, event->path,
+                           ignore_list, scanned_dirs,
+                           total_size, NULL, NULL,
+                           user_perms, group_perms);
+    } else if (!event->remain_files) {
+        GQueue *remain_files = NULL;
+        add_path_to_index (repo, istate, crypt, event->path,
+                           ignore_list, scanned_dirs,
+                           total_size, &remain_files, fset,
+                           user_perms, group_perms);
+        if (*total_size >= MAX_COMMIT_SIZE) {
+            seaf_message ("Creating partial commit after adding %s.\n",
+                          event->path);
+
+            status->partial_commit = TRUE;
+
+            /* An event for a new folder may contain many files.
+             * If the total_size become larger than 100MB after adding
+             * some of these files, the remaining file paths will be
+             * cached in remain files. This way we don't need to scan
+             * the folder again next time.
+             */
+            if (remain_files) {
+                if (g_queue_get_length (remain_files) == 0) {
+                    g_queue_free (remain_files);
+                    return TRUE;
+                }
+
+                seaf_message ("Remain files for %s.\n", event->path);
+
+                /* Cache remaining files in the event structure. */
+                event->remain_files = remain_files;
+
+                pthread_mutex_lock (&status->q_lock);
+                g_queue_push_head (status->event_q, event);
+                pthread_mutex_unlock (&status->q_lock);
+            }
+
+            return TRUE;
+        }
+    } else {
+        seaf_message ("Adding remaining files for %s.\n", event->path);
+
+        add_remain_files (repo, istate, crypt, event->remain_files,
+                          ignore_list, total_size);
+        if (g_queue_get_length (event->remain_files) != 0) {
+            pthread_mutex_lock (&status->q_lock);
+            g_queue_push_head (status->event_q, event);
+            pthread_mutex_unlock (&status->q_lock);
+            return TRUE;
+        }
+        if (*total_size >= MAX_COMMIT_SIZE)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list,
@@ -1903,71 +1977,30 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 strcmp (next_event->path, event->path) == 0)
                 break;
 
+            /* CREATE_OR_UPDATE event tells us the exact path of changed file/dir.
+             * If the event path is not writable, we don't need to check the paths
+             * under the event path.
+             */
             if (!is_path_writable(user_perms, group_perms,
                                   repo->is_readonly, event->path)) {
                 seaf_debug ("%s is not writable, ignore.\n", event->path);
                 break;
             }
 
-            if (!repo->create_partial_commit) {
-                /* XXX: We now use remain_files = NULL to signify not creating
-                 * partial commits. It's better to use total_size = NULL for
-                 * that purpose.
-                 */
-                add_path_to_index (repo, istate, crypt, event->path,
-                                   ignore_list, &scanned_dirs,
-                                   &total_size, NULL, NULL,
-                                   user_perms, group_perms);
-            } else if (!event->remain_files) {
-                GQueue *remain_files = NULL;
-                add_path_to_index (repo, istate, crypt, event->path,
-                                   ignore_list, &scanned_dirs,
-                                   &total_size, &remain_files, fset,
-                                   user_perms, group_perms);
-                if (total_size >= MAX_COMMIT_SIZE) {
-                    seaf_message ("Creating partial commit after adding %s.\n",
-                                  event->path);
+            if (handle_add_files (repo, istate, crypt, ignore_list,
+                                  fset, user_perms, group_perms,
+                                  status, event,
+                                  &scanned_dirs, &total_size))
+                goto out;
 
-                    status->partial_commit = TRUE;
+            break;
+        case WT_EVENT_SCAN_DIR:
+            if (handle_add_files (repo, istate, crypt, ignore_list,
+                                  fset, user_perms, group_perms,
+                                  status, event,
+                                  &scanned_dirs, &total_size))
+                goto out;
 
-                    /* An event for a new folder may contain many files.
-                     * If the total_size become larger than 100MB after adding
-                     * some of these files, the remaining file paths will be
-                     * cached in remain files. This way we don't need to scan
-                     * the folder again next time.
-                     */
-                    if (remain_files) {
-                        if (g_queue_get_length (remain_files) == 0) {
-                            g_queue_free (remain_files);
-                            goto out;
-                        }
-
-                        seaf_message ("Remain files for %s.\n", event->path);
-
-                        /* Cache remaining files in the event structure. */
-                        event->remain_files = remain_files;
-
-                        pthread_mutex_lock (&status->q_lock);
-                        g_queue_push_head (status->event_q, event);
-                        pthread_mutex_unlock (&status->q_lock);
-                    }
-
-                    goto out;
-                }
-            } else {
-                seaf_message ("Adding remaining files for %s.\n", event->path);
-
-                add_remain_files (repo, istate, crypt, event->remain_files,
-                                  ignore_list, &total_size);
-                if (g_queue_get_length (event->remain_files) != 0) {
-                    pthread_mutex_lock (&status->q_lock);
-                    g_queue_push_head (status->event_q, event);
-                    pthread_mutex_unlock (&status->q_lock);
-                    goto out;
-                }
-                if (total_size >= MAX_COMMIT_SIZE)
-                    goto out;
-            }
             break;
         case WT_EVENT_DELETE:
             if (!is_path_writable(user_perms, group_perms,
@@ -4914,6 +4947,25 @@ seaf_repo_manager_del_repo_property (SeafRepoManager *manager,
     pthread_mutex_unlock (&manager->priv->db_lock);
 }
 
+static void
+seaf_repo_manager_del_repo_property_by_key (SeafRepoManager *manager,
+                                            const char *repo_id,
+                                            const char *key)
+{
+    char *sql;
+    sqlite3 *db = manager->priv->db;
+
+    pthread_mutex_lock (&manager->priv->db_lock);
+
+    sql = sqlite3_mprintf ("DELETE FROM RepoProperty "
+                           "WHERE repo_id = %Q "
+                           "  AND key = %Q", repo_id, key);
+    sqlite_query_exec (db, sql);
+    sqlite3_free (sql);
+
+    pthread_mutex_unlock (&manager->priv->db_lock);
+}
+
 static int
 save_repo_enc_info (SeafRepoManager *manager,
                     SeafRepo *repo)
@@ -5275,6 +5327,17 @@ seaf_repo_manager_set_repo_token (SeafRepoManager *manager,
     return 0;
 }
 
+
+int
+seaf_repo_manager_remove_repo_token (SeafRepoManager *manager,
+                                     SeafRepo *repo)
+{
+    g_free (repo->token);
+    repo->token = NULL;
+    seaf_repo_manager_del_repo_property_by_key(manager, repo->id, REPO_PROP_TOKEN);
+    return 0;
+}
+
 int
 seaf_repo_manager_set_repo_relay_info (SeafRepoManager *mgr,
                                        const char *repo_id,
@@ -5338,7 +5401,8 @@ seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
 int
 seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
                                             const char *old_host,
-                                            const char *new_host)
+                                            const char *new_host,
+                                            const char *new_server_url)
 {
     GList *ptr, *repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, 0, -1);
     SeafRepo *r;
@@ -5352,6 +5416,8 @@ seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
         if (g_strcmp0(relay_addr, old_host) == 0) {
             seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, r->id,
                                                    new_host, relay_port);
+            seaf_repo_manager_set_repo_property (
+                seaf->repo_mgr, r->id, REPO_PROP_SERVER_URL, new_server_url);
         }
 
         g_free (relay_addr);

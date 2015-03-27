@@ -277,6 +277,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      searpc_signature_objlist__string_string_int_int());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_list_dir_with_perm,
+                                     "list_dir_with_perm",
+                                     searpc_signature_objlist__string_string_string_string_int_int());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_list_file,
                                      "seafile_list_file",
                                      searpc_signature_string__string_string_int_int());
@@ -319,7 +324,7 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_list_file_revisions,
                                      "seafile_list_file_revisions",
-                                     searpc_signature_objlist__string_string_int_int());
+                                     searpc_signature_objlist__string_string_int_int_int());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_calc_files_last_modified,
@@ -339,7 +344,7 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_deleted,
                                      "get_deleted",
-                                     searpc_signature_objlist__string_int());
+                                     searpc_signature_objlist__string_int_string());
 
     /* share repo to user */
     searpc_server_register_function ("seafserv-threaded-rpcserver",
@@ -431,6 +436,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_delete_repo_tokens_by_peer_id,
                                      "seafile_delete_repo_tokens_by_peer_id",
                                      searpc_signature_int__string_string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_delete_repo_tokens_by_email,
+                                     "delete_repo_tokens_by_email",
+                                     searpc_signature_int__string());
     
     /* quota */
     searpc_server_register_function ("seafserv-threaded-rpcserver",

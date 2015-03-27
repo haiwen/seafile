@@ -243,7 +243,12 @@ save_obj_contents (const char *path, const void *data, int len, gboolean need_sy
     if (need_sync && fsync_obj_contents (fd) < 0)
         return -1;
 
-    close (fd);
+    /* Close may return error, especially in NFS. */
+    if (close (fd) < 0) {
+        seaf_warning ("[obj backend Failed close obj %s: %s.\n",
+                      tmp_path, strerror(errno));
+        return -1;
+    }
 
     if (need_sync) {
         if (rename_and_sync (tmp_path, path) < 0)

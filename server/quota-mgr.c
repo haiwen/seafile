@@ -352,11 +352,11 @@ seaf_quota_manager_get_user_usage (SeafQuotaManager *mgr, const char *user)
         return -1;
 
     /* Add size of repos in trash. */
-    sql = "SELECT size FROM RepoTrash WHERE owner_id = ?";
-    if (seaf_db_statement_foreach_row (mgr->session->db, sql,
-                                       get_total_size, &total,
-                                       1, "string", user) < 0)
-        return -1;
+    /* sql = "SELECT size FROM RepoTrash WHERE owner_id = ?"; */
+    /* if (seaf_db_statement_foreach_row (mgr->session->db, sql, */
+    /*                                    get_total_size, &total, */
+    /*                                    1, "string", user) < 0) */
+    /*     return -1; */
 
     return total;
 }

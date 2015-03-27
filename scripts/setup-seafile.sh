@@ -584,6 +584,11 @@ fi
 echo "done"
 echo
 
+chmod 0600 "$dest_settings_py"
+chmod 0700 "$default_ccnet_conf_dir"
+chmod 0700 "$seafile_data_dir"
+chmod 0700 "$default_conf_dir"
+
 # -------------------------------------------
 # copy user manuals to library template
 # -------------------------------------------

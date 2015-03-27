@@ -16,7 +16,7 @@
 #include "cdc.h"
 #include "../seafile-crypt.h"
 
-#include "rabin.h"
+#include "rabin-checksum.h"
 #define finger rabin_checksum
 #define rolling_finger rabin_rolling_checksum
 

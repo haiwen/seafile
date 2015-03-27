@@ -43,6 +43,7 @@ struct _SeafRepo {
     SeafBranch *head;
 
     gboolean    is_corrupted;
+    gboolean    repaired;
     int         ref_cnt;
 
     SeafVirtRepo *virtual_info;
@@ -230,7 +231,13 @@ int
 seaf_repo_manager_delete_repo_tokens_by_peer_id (SeafRepoManager *mgr,
                                                  const char *email,
                                                  const char *peer_id,
+                                                 GList **tokens,
                                                  GError **error);
+
+int
+seaf_repo_manager_delete_repo_tokens_by_email (SeafRepoManager *mgr,
+                                               const char *email,
+                                               GError **error);
 
 gint64
 seaf_repo_manager_get_repo_size (SeafRepoManager *mgr, const char *repo_id);
@@ -446,6 +453,7 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
                                        const char *path,
                                        int max_revision,
                                        int limit,
+                                       int show_days,
                                        GError **error);
 
 GList *
@@ -478,6 +486,7 @@ GList *
 seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
                                        const char *repo_id,
                                        int show_days,
+                                       const char *path,
                                        GError **error);
 
 /*
@@ -619,6 +628,16 @@ seaf_repo_manager_check_permission (SeafRepoManager *mgr,
                                     const char *repo_id,
                                     const char *user,
                                     GError **error);
+
+GList *
+seaf_repo_manager_list_dir_with_perm (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      const char *dir_path,
+                                      const char *dir_id,
+                                      const char *user,
+                                      int offset,
+                                      int limit,
+                                      GError **error);
 
 /* Web access permission. */
 

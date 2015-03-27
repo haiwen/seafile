@@ -249,6 +249,10 @@ seaf_repo_manager_set_repo_token (SeafRepoManager *manager,
                                   const char *token);
 
 int
+seaf_repo_manager_remove_repo_token (SeafRepoManager *manager,
+                                     SeafRepo *repo);
+
+int
 seaf_repo_manager_set_repo_email (SeafRepoManager *manager, 
                                   SeafRepo *repo,
                                   const char *email);
@@ -399,7 +403,8 @@ seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
 int
 seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
                                             const char *old_host,
-                                            const char *new_host);
+                                            const char *new_host,
+                                            const char *new_server_url);
 
 GList *
 seaf_repo_load_ignore_files (const char *worktree);
