@@ -964,6 +964,27 @@ do_check_file_locked (const char *path, const char *worktree)
 }
 
 static gboolean
+check_dir_locked (const wchar_t *path_w)
+{
+    HANDLE handle;
+
+    handle = CreateFileW (path_w,
+                          GENERIC_WRITE,
+                          0,
+                          NULL,
+                          OPEN_EXISTING,
+                          FILE_FLAG_BACKUP_SEMANTICS,
+                          NULL);
+    if (handle != INVALID_HANDLE_VALUE) {
+        CloseHandle (handle);
+    } else if (GetLastError() == ERROR_SHARING_VIOLATION) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static gboolean
 check_dir_locked_recursive (const wchar_t *path_w)
 {
     WIN32_FIND_DATAW fdata;
@@ -974,6 +995,9 @@ check_dir_locked_recursive (const wchar_t *path_w)
     int path_len_w;
     DWORD error;
     gboolean ret = FALSE;
+
+    if (check_dir_locked (path_w))
+        return TRUE;
 
     path = g_utf16_to_utf8 (path_w, -1, NULL, NULL, NULL);
 
