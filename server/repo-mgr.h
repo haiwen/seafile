@@ -39,6 +39,8 @@ struct _SeafRepo {
     gchar       magic[65];       /* hash(repo_id + passwd), key stretched. */
     gchar       random_key[97];
     gboolean    no_local_history;
+    gint64      last_modify;
+    gint64      size;
 
     SeafBranch *head;
 
@@ -79,6 +81,9 @@ seaf_repo_set_head (SeafRepo *repo, SeafBranch *branch);
  */
 void
 seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit);
+
+void
+seaf_fill_repo_obj_from_commit (GList *repos);
 
 /* Update repo-related fields to commit. 
  */
