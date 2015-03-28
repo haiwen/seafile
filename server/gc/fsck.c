@@ -42,14 +42,14 @@ fsck_verify_seafobj (const char *store_id,
         valid = seaf_fs_manager_verify_seafile (seaf->fs_mgr, store_id, version,
                                                 obj_id, TRUE, io_error);
         if (!valid && !*io_error && repair) {
-            seaf_message ("File %s is curropted, remove it.\n", obj_id);
+            seaf_message ("File %s is corrupted, remove it.\n", obj_id);
             seaf_fs_manager_delete_object (seaf->fs_mgr, store_id, version, obj_id);
         }
     } else if (type == VERIFY_DIR) {
         valid = seaf_fs_manager_verify_seafdir (seaf->fs_mgr, store_id, version,
                                                 obj_id, TRUE, io_error);
         if (!valid && !*io_error && repair) {
-            seaf_message ("Dir %s is curropted, remove it.\n", obj_id);
+            seaf_message ("Dir %s is corrupted, remove it.\n", obj_id);
             seaf_fs_manager_delete_object (seaf->fs_mgr, store_id, version, obj_id);
         }
     }
@@ -156,13 +156,13 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
                 }
                 is_corrupted = TRUE;
                 if (fsck_data->repair) {
-                    seaf_message ("File %s(%.8s) is curropted, recreate an empty file.\n",
+                    seaf_message ("File %s(%.8s) is corrupted, recreate an empty file.\n",
                                   path, seaf_dent->id);
                 } else {
-                    seaf_message ("File %s(%.8s) is curropted.\n",
+                    seaf_message ("File %s(%.8s) is corrupted.\n",
                                   path, seaf_dent->id);
                 }
-                // file curropted, set it empty
+                // file corrupted, set it empty
                 memcpy (seaf_dent->id, EMPTY_SHA1, 40);
                 seaf_dent->size = 0;
             } else {
@@ -173,13 +173,13 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
                     }
                     is_corrupted = TRUE;
                     if (fsck_data->repair) {
-                        seaf_message ("File %s(%.8s) is curropted, recreate an empty file.\n",
+                        seaf_message ("File %s(%.8s) is corrupted, recreate an empty file.\n",
                                       path, seaf_dent->id);
                     } else {
-                        seaf_message ("File %s(%.8s) is curropted.\n",
+                        seaf_message ("File %s(%.8s) is corrupted.\n",
                                       path, seaf_dent->id);
                     }
-                    // file curropted, set it empty
+                    // file corrupted, set it empty
                     memcpy (seaf_dent->id, EMPTY_SHA1, 40);
                     seaf_dent->size = 0;
                 }
@@ -200,14 +200,14 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
                     goto out;
                 }
                 if (fsck_data->repair) {
-                    seaf_message ("Dir %s(%.8s) is curropted, recreate an empty dir.\n",
+                    seaf_message ("Dir %s(%.8s) is corrupted, recreate an empty dir.\n",
                                   path, seaf_dent->id);
                 } else {
-                    seaf_message ("Dir %s(%.8s) is curropted.\n",
+                    seaf_message ("Dir %s(%.8s) is corrupted.\n",
                                   path, seaf_dent->id);
                 }
                 is_corrupted = TRUE;
-                // dir curropted, set it empty
+                // dir corrupted, set it empty
                 memcpy (seaf_dent->id, EMPTY_SHA1, 40);
             } else {
                dir_id = fsck_check_dir_recursive (seaf_dent->id, path, fsck_data);
@@ -218,7 +218,7 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
                }
                if (strcmp (dir_id, seaf_dent->id) != 0) {
                    is_corrupted = TRUE;
-                   // dir curropted, set it to new dir_id
+                   // dir corrupted, set it to new dir_id
                    memcpy (seaf_dent->id, dir_id, 41);
                }
                g_free (dir_id);
@@ -364,7 +364,7 @@ get_available_repo (char *repo_id, gboolean repair)
                 repo = NULL;
                 goto out;
             }
-            // fs object of this commit is curropted,
+            // fs object of this commit is corrupted,
             // continue to verify next
             continue;
         }
@@ -398,7 +398,7 @@ out:
 }
 
 /*
- * check and recover repo, for curropted file or folder set it empty
+ * check and recover repo, for corrupted file or folder set it empty
  */
 static void
 check_and_recover_repo (SeafRepo *repo, gboolean reset, gboolean repair)
@@ -425,11 +425,11 @@ check_and_recover_repo (SeafRepo *repo, gboolean reset, gboolean repair)
 
     if (repair) {
         if (strcmp (root_id, rep_commit->root_id) != 0) {
-            // some fs objects curropted for the head commit,
+            // some fs objects corrupted for the head commit,
             // create new head commit using the new root_id
             reset_commit_to_repair (repo, rep_commit, root_id);
         } else if (reset) {
-            // for reset commit but fs objects not curropted, also create a repaired commit
+            // for reset commit but fs objects not corrupted, also create a repaired commit
             reset_commit_to_repair (repo, rep_commit, rep_commit->root_id);
         }
     }
@@ -570,7 +570,7 @@ repair_repos (GList *repo_id_list, gboolean repair)
                     seaf_repo_unref (repo);
                     goto next;
                 } else {
-                    // root fs object is curropted, get available commit
+                    // root fs object is corrupted, get available commit
                     seaf_message ("Repo %.8s HEAD commit is corrupted, "
                                   "need to restore to an old version.\n", repo_id);
                     seaf_commit_unref (commit);
