@@ -474,7 +474,7 @@ traverse_commit_tree_common (SeafCommitManager *mgr,
     commit = seaf_commit_manager_get_commit (mgr, repo_id, version, head);
     if (!commit) {
         g_warning ("Failed to find commit %s.\n", head);
-        // For head commit curropted, directly return FALSE
+        // For head commit corrupted, directly return FALSE
         // user can repair head by fsck then retraverse the tree
         return FALSE;
     }
