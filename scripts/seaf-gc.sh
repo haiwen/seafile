@@ -15,7 +15,7 @@ export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafil
 script_name=$0
 function usage () {
     echo "usage : "
-    echo "$(basename ${script_name}) { dryrun | run } "
+    echo "$(basename ${script_name}) [--dry-run | -D] [--rm-deleted | -r] [repo-id1] [repo-id2]"
     echo ""
 }
 

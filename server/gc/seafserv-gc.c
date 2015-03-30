@@ -25,7 +25,7 @@ static const struct option long_opts[] = {
     { "seafdir", required_argument, NULL, 'd', },
     { "verbose", no_argument, NULL, 'V' },
     { "dry-run", no_argument, NULL, 'D' },
-    { "rm-garbage", no_argument, NULL, 'r' },
+    { "rm-deleted", no_argument, NULL, 'r' },
 };
 
 static void usage ()
@@ -34,7 +34,7 @@ static void usage ()
              "usage: seafserv-gc [-c config_dir] [-d seafile_dir] "
              "[repo_id_1 [repo_id_2 ...]]\n"
              "Additional options:\n"
-             "-r, --rm-garbage: remove garbaged repos\n"
+             "-r, --rm-deleted: remove garbaged repos\n"
              "-D, --dry-run: report blocks that can be remove, but not remove them\n"
              "-V, --verbose: verbose output messages\n");
 }
