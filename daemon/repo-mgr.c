@@ -666,6 +666,7 @@ seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit)
     repo->desc = g_strdup (commit->repo_desc);
     repo->encrypted = commit->encrypted;
     repo->last_modify = commit->ctime;
+    memcpy (repo->root_id, commit->root_id, 40);
     if (repo->encrypted) {
         repo->enc_version = commit->enc_version;
         if (repo->enc_version == 1)

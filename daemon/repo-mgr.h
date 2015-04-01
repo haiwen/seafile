@@ -51,6 +51,7 @@ struct _SeafRepo {
     gint64 last_modify;
 
     SeafBranch *head;
+    gchar root_id[41];
 
     gboolean    is_corrupted;
     gboolean    delete_pending;

@@ -54,6 +54,7 @@ convert_repo (SeafRepo *r)
                   "desc", r->desc, "encrypted", r->encrypted,
                   "magic", r->magic, "enc_version", r->enc_version,
                   "head_cmmt_id", r->head ? r->head->commit_id : NULL,
+                  "root", r->root_id,
                   "version", r->version, "last_modify", r->last_modify,
                   "repo_id", r->id, "repo_name", r->name,
                   "repo_desc", r->desc, "last_modified", r->last_modify,
