@@ -2452,11 +2452,6 @@ auto_sync_pulse (void *vmanager)
 
         repo->worktree_invalid = FALSE;
 
-        if (repo->delete_pending) {
-            seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
-            continue;
-        }
-
         if (!repo->token) {
             /* If the user has logged out of the account, the repo token would
              * be null */
