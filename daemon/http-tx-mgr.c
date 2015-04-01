@@ -29,6 +29,22 @@
 
 #define RESET_BYTES_INTERVAL_MSEC 1000
 
+#ifndef SEAFILE_CLIENT_VERSION
+#define SEAFILE_CLIENT_VERSION PACKAGE_VERSION
+#endif
+
+#ifdef WIN32
+#define USER_AGENT_OS "Windows NT"
+#endif
+
+#ifdef __APPLE__
+#define USER_AGENT_OS "Apple OS X"
+#endif
+
+#ifdef __linux__
+#define USER_AGENT_OS "Linux"
+#endif
+
 struct _Connection {
     CURL *curl;
     gint64 ctime;               /* Used to clean up unused connection. */
@@ -344,6 +360,8 @@ http_get (CURL *curl, const char *url, const char *token,
     struct curl_slist *headers = NULL;
     int ret = 0;
 
+    headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
+
     if (token) {
         token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
         headers = curl_slist_append (headers, token_header);
@@ -446,6 +464,8 @@ http_put (CURL *curl, const char *url, const char *token,
     struct curl_slist *headers = NULL;
     int ret = 0;
 
+    headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
+
     if (token) {
         token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
         headers = curl_slist_append (headers, token_header);
@@ -538,6 +558,8 @@ http_post (CURL *curl, const char *url, const char *token,
     int ret = 0;
 
     g_return_val_if_fail (req_content != NULL, -1);
+
+    headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
 
     if (token) {
         token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
