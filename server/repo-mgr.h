@@ -83,7 +83,7 @@ void
 seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit);
 
 void
-seaf_fill_repo_obj_from_commit (GList *repos);
+seaf_fill_repo_obj_from_commit (GList **repos);
 
 /* Update repo-related fields to commit. 
  */

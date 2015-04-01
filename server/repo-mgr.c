@@ -2411,37 +2411,40 @@ get_group_repos_cb (SeafDBRow *row, void *data)
 }
 
 void
-seaf_fill_repo_obj_from_commit (GList *repos)
+seaf_fill_repo_obj_from_commit (GList **repos)
 {
     SeafileRepo *repo;
     SeafCommit *commit;
     char *repo_id;
     char *commit_id;
-    GList *p, *prev;
+    GList *p = *repos;
+    GList *next;
 
-    for (p = repos; p; p = p->next) {
-       repo = p->data;
-       g_object_get (repo, "repo_id", &repo_id, "head_cmmt_id", &commit_id, NULL);
-       commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
-                                                           repo_id, commit_id);
-       if (!commit) {
-           g_object_unref (repo);
-           prev = p->prev;
-           repos = g_list_delete_link (repos, p);
-           p = prev;
-       } else {
-           g_object_set (repo, "name", commit->repo_name, "desc", commit->repo_desc,
-                         "encrypted", commit->encrypted, "magic", commit->magic,
-                         "enc_version", commit->enc_version,
-                         "version", commit->version, "last_modify", commit->ctime,
-                         "repo_name", commit->repo_name, "repo_desc", commit->repo_desc,
-                         "last_modified", commit->ctime, "repaired", commit->repaired, NULL);
-           if (commit->encrypted && commit->enc_version == 2)
-               g_object_set (repo, "random_key", commit->random_key, NULL);
-       }
-       g_free (repo_id);
-       g_free (commit_id);
-       seaf_commit_unref (commit);
+    while (p) {
+        repo = p->data;
+        g_object_get (repo, "repo_id", &repo_id, "head_cmmt_id", &commit_id, NULL);
+        commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
+                                                            repo_id, commit_id);
+        if (!commit) {
+            g_object_unref (repo);
+            next = p->next;
+            *repos = g_list_delete_link (*repos, p);
+            p = next;
+        } else {
+            g_object_set (repo, "name", commit->repo_name, "desc", commit->repo_desc,
+                          "encrypted", commit->encrypted, "magic", commit->magic,
+                          "enc_version", commit->enc_version,
+                          "version", commit->version, "last_modify", commit->ctime,
+                          "repo_name", commit->repo_name, "repo_desc", commit->repo_desc,
+                          "last_modified", commit->ctime, "repaired", commit->repaired, NULL);
+            if (commit->encrypted && commit->enc_version == 2)
+                g_object_set (repo, "random_key", commit->random_key, NULL);
+
+            p = p->next;
+        }
+        g_free (repo_id);
+        g_free (commit_id);
+        seaf_commit_unref (commit);
     }
 }
 
@@ -2472,7 +2475,7 @@ seaf_repo_manager_get_group_repos_by_owner (SeafRepoManager *mgr,
         return NULL;
     }
 
-    seaf_fill_repo_obj_from_commit (repos);
+    seaf_fill_repo_obj_from_commit (&repos);
 
     return g_list_reverse (repos);
 }
@@ -2655,7 +2658,7 @@ seaf_repo_manager_list_inner_pub_repos (SeafRepoManager *mgr)
         return NULL;
     }
 
-    seaf_fill_repo_obj_from_commit (ret);
+    seaf_fill_repo_obj_from_commit (&ret);
 
     return g_list_reverse (ret);
 }
@@ -2695,7 +2698,7 @@ seaf_repo_manager_list_inner_pub_repos_by_owner (SeafRepoManager *mgr,
         return NULL;
     }
 
-    seaf_fill_repo_obj_from_commit (ret);
+    seaf_fill_repo_obj_from_commit (&ret);
 
     return g_list_reverse (ret);
 }

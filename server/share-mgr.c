@@ -161,7 +161,7 @@ collect_repos (SeafDBRow *row, void *data)
                          "user", email_l,
                          "permission", permission,
                          "is_virtual", (vrepo_id != NULL),
-                         "size", "size",
+                         "size", size,
                          NULL);
     g_free (email_l);
 
@@ -268,7 +268,7 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
         }
     }
 
-    seaf_fill_repo_obj_from_commit (ret);
+    seaf_fill_repo_obj_from_commit (&ret);
 
     return g_list_reverse (ret);
 }
