@@ -1,3 +1,28 @@
+seafile (4.1.4) stable; urgency=low
+
+  * Several improvments for seafile-client
+
+ -- plt <freeplant@gmail.com>  Thu, 27 March 2015 15:20:30 +0800
+seafile (4.1.3) stable; urgency=low
+
+  * Several improvments for seafile-client
+
+ -- plt <freeplant@gmail.com>  Thu, 23 March 2015 11:30:30 +0800
+seafile (4.1.2) stable; urgency=low
+
+  * Several improvments for seafile-client
+
+ -- plt <freeplant@gmail.com>  Thu, 19 March 2015 11:30:30 +0800
+seafile (4.1.1) stable; urgency=low
+
+  * Several improvments for seafile-client
+
+ -- plt <freeplant@gmail.com>  Sat, 28 Febuery 2015 16:01:30 +0800
+seafile (4.1.0) stable; urgency=low
+
+  * Several improvments for seafile-client
+
+ -- plt <freeplant@gmail.com>  Tue, 20 January 2015 11:44:30 +0800
 seafile (4.0.7) stable; urgency=low
 
   * Several improvments for seafile-client

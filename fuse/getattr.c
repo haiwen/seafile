@@ -116,7 +116,7 @@ static int getattr_repo(SeafileSession *seaf,
                                                                      repo->store_id,
                                                                      repo->version,
                                                                      commit->root_id,
-                                                                     repo_path);
+                                                                     repo_path, NULL);
             if (dirent && repo->version != 0)
                 stbuf->st_mtime = dirent->mtime;
 
@@ -140,7 +140,7 @@ static int getattr_repo(SeafileSession *seaf,
                                                                  repo->store_id,
                                                                  repo->version,
                                                                  commit->root_id,
-                                                                 repo_path);
+                                                                 repo_path, NULL);
         if (dirent && repo->version != 0)
             stbuf->st_mtime = dirent->mtime;
 

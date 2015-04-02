@@ -86,19 +86,19 @@ function run_seaf_gc () {
     echo
 }
 
-case $1 in
-    "dryrun" )
-        seaf_gc_opts="--dry-run"
-        run_seaf_gc;
-        ;;
-    "run" )
-        seaf_gc_opts=""
-        run_seaf_gc;
-        ;;
-    *)
-        usage;
-        exit 1;
-        ;;
-esac
+if [ $# -gt 0 ];
+then
+    for param in $@;
+    do
+        if [ ${param} = "-h" -o ${param} = "--help" ];
+        then
+            usage;
+            exit 1;
+        fi
+    done
+fi
+
+seaf_gc_opts=$@
+run_seaf_gc;
 
 echo "Done."

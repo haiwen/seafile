@@ -3,6 +3,7 @@
 import sys
 import os
 import ConfigParser
+import glob
 
 HAS_MYSQLDB = True
 try:
@@ -208,13 +209,33 @@ class DBUpdater(object):
     def update_seahub_sql(self, seahub_sql):
         raise NotImplementedError
 
+class CcnetSQLiteDB(object):
+    def __init__(self, ccnet_dir):
+        self.ccnet_dir = ccnet_dir
+
+    def get_db(self, dbname):
+        dbs = (
+            'ccnet.db',
+            'GroupMgr/groupmgr.db',
+            'misc/config.db',
+            'OrgMgr/orgmgr.db',
+        )
+        for db in dbs:
+            if os.path.splitext(os.path.basename(db))[0] == dbname:
+                return os.path.join(self.ccnet_dir, db)
+
 class SQLiteDBUpdater(DBUpdater):
     def __init__(self, version):
         DBUpdater.__init__(self, version, 'sqlite3')
 
-        self.ccnet_db = os.path.join(env_mgr.ccnet_dir, 'ccnet.db')
+        self.ccnet_db = CcnetSQLiteDB(env_mgr.ccnet_dir)
         self.seafile_db = os.path.join(env_mgr.seafile_dir, 'seafile.db')
         self.seahub_db = os.path.join(env_mgr.top_dir, 'seahub.db')
+
+    def update_db(self):
+        super(SQLiteDBUpdater, self).update_db()
+        for sql_path in glob.glob(os.path.join(self.sql_dir, 'ccnet', '*.sql')):
+            self.update_ccnet_sql(sql_path)
 
     def apply_sqls(self, db_path, sql_path):
         with open(sql_path, 'r') as fp:
@@ -229,7 +250,8 @@ class SQLiteDBUpdater(DBUpdater):
                     conn.execute(line)
 
     def update_ccnet_sql(self, sql_path):
-        self.apply_sqls(self.ccnet_db, sql_path)
+        dbname = os.path.splitext(os.path.basename(sql_path))[0]
+        self.apply_sqls(self.ccnet_db.get_db(dbname), sql_path)
 
     def update_seafile_sql(self, sql_path):
         self.apply_sqls(self.seafile_db, sql_path)

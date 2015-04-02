@@ -577,6 +577,8 @@ def copy_scripts_and_libs():
               serverdir)
     must_copy(os.path.join(scripts_srcdir, 'seaf-gc.sh'),
               serverdir)
+    must_copy(os.path.join(scripts_srcdir, 'seaf-fsck.sh'),
+              serverdir)
 
     # copy update scripts
     update_scriptsdir = os.path.join(scripts_srcdir, 'upgrade')

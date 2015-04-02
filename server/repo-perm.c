@@ -11,6 +11,7 @@
 #include "seafile-session.h"
 #include "repo-mgr.h"
 
+#include "seafile-error.h"
 
 /*
  * Permission priority: owner --> personal share --> group share --> public.
@@ -101,28 +102,26 @@ check_virtual_repo_permission (SeafRepoManager *mgr,
                                const char *user,
                                GError **error)
 {
-    char *owner = NULL, *orig_owner = NULL;
+    char *owner = NULL;
     char *permission = NULL;
 
-    owner = seaf_repo_manager_get_repo_owner (mgr, repo_id);
-    if (!owner) {
-        seaf_warning ("Failed to get owner for virtual repo %.10s.\n", repo_id);
-        goto out;
+    /* If I'm the owner of origin repo, I have full access to sub-repos. */
+    owner = seaf_repo_manager_get_repo_owner (mgr, origin_repo_id);
+    if (g_strcmp0 (user, owner) == 0) {
+        permission = g_strdup("rw");
+        return permission;
     }
-
-    /* If this virtual repo is not created by @user, it is shared by others. */
-    if (strcmp (user, owner) != 0) {
-        permission = check_repo_share_permission (mgr, repo_id, user);
-        goto out;
-    }
-
-    /* otherwise check @user's permission to the origin repo. */
-    permission =  seaf_repo_manager_check_permission (mgr, origin_repo_id,
-                                                      user, error);
-
-out:
     g_free (owner);
-    g_free (orig_owner);
+
+    /* If I'm not the owner of origin repo, this sub-repo can be created
+     * from a shared repo by me or directly shared by others to me.
+     * The priority of shared sub-folder is higher than top-level repo.
+     */
+    permission = check_repo_share_permission (mgr, repo_id, user);
+    if (permission)
+        return permission;
+
+    permission = check_repo_share_permission (mgr, origin_repo_id, user);
     return permission;
 }
 
@@ -162,4 +161,104 @@ out:
     seaf_virtual_repo_info_free (vinfo);
     g_free (owner);
     return permission;
+}
+
+/*
+ * Directories are always before files. Otherwise compare the names.
+ */
+static gint
+comp_dirent_func (gconstpointer a, gconstpointer b)
+{
+    const SeafDirent *dent_a = a, *dent_b = b;
+
+    if (S_ISDIR(dent_a->mode) && S_ISREG(dent_b->mode))
+        return -1;
+
+    if (S_ISREG(dent_a->mode) && S_ISDIR(dent_b->mode))
+        return 1;
+
+    return strcasecmp (dent_a->name, dent_b->name);
+}
+
+GList *
+seaf_repo_manager_list_dir_with_perm (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      const char *dir_path,
+                                      const char *dir_id,
+                                      const char *user,
+                                      int offset,
+                                      int limit,
+                                      GError **error)
+{
+    SeafRepo *repo;
+    char *perm = NULL;
+    SeafDir *dir;
+    SeafDirent *dent;
+    SeafileDirent *d;
+    GList *res = NULL;
+    GList *p;
+
+    if (!repo_id || !is_uuid_valid(repo_id) || dir_id == NULL || !user) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_DIR_ID, "Bad dir id");
+        return NULL;
+    }
+
+    perm = seaf_repo_manager_check_permission (mgr, repo_id, user, error);
+    if (!perm) {
+        if (*error == NULL)
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Access denied");
+        return NULL;
+    }
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Bad repo id");
+        g_free (perm);
+        return NULL;
+    }
+
+    dir = seaf_fs_manager_get_seafdir (seaf->fs_mgr,
+                                       repo->store_id, repo->version, dir_id);
+    if (!dir) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_DIR_ID, "Bad dir id");
+        seaf_repo_unref (repo);
+        g_free (perm);
+        return NULL;
+    }
+
+    dir->entries = g_list_sort (dir->entries, comp_dirent_func);
+
+    if (offset < 0) {
+        offset = 0;
+    }
+
+    int index = 0;
+    for (p = dir->entries; p != NULL; p = p->next, index++) {
+        if (index < offset) {
+            continue;
+        }
+
+        if (limit > 0) {
+            if (index >= offset + limit)
+                break;
+        }
+
+        dent = p->data;
+        d = g_object_new (SEAFILE_TYPE_DIRENT,
+                          "obj_id", dent->id,
+                          "obj_name", dent->name,
+                          "mode", dent->mode,
+                          "version", dent->version,
+                          "mtime", dent->mtime,
+                          "size", dent->size,
+                          "permission", perm,
+                          NULL);
+        res = g_list_prepend (res, d);
+    }
+
+    seaf_dir_free (dir);
+    seaf_repo_unref (repo);
+    g_free (perm);
+    res = g_list_reverse (res);
+    return res;
 }

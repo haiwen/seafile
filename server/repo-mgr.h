@@ -43,6 +43,7 @@ struct _SeafRepo {
     SeafBranch *head;
 
     gboolean    is_corrupted;
+    gboolean    repaired;
     int         ref_cnt;
 
     SeafVirtRepo *virtual_info;
@@ -121,8 +122,11 @@ seaf_repo_manager_add_repo (SeafRepoManager *mgr, SeafRepo *repo);
 
 int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr,
-                            const char *repo_id,
-                            gboolean add_deleted_record);
+                            const char *repo_id);
+
+int
+seaf_repo_manager_del_virtual_repo (SeafRepoManager *mgr,
+                                    const char *repo_id);
 
 SeafRepo* 
 seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id);
@@ -136,6 +140,36 @@ seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id);
 
 GList* 
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit);
+
+GList*
+seaf_repo_manager_get_trash_repo_list (SeafRepoManager *mgr,
+                                       int start,
+                                       int limit,
+                                       GError **error);
+
+GList *
+seaf_repo_manager_get_trash_repos_by_owner (SeafRepoManager *mgr,
+                                            const char *owner,
+                                            GError **error);
+
+int
+seaf_repo_manager_del_repo_from_trash (SeafRepoManager *mgr,
+                                       const char *repo_id,
+                                       GError **error);
+
+/* Remove all entries in the repo trash. */
+int
+seaf_repo_manager_empty_repo_trash (SeafRepoManager *mgr, GError **error);
+
+int
+seaf_repo_manager_empty_repo_trash_by_owner (SeafRepoManager *mgr,
+                                             const char *owner,
+                                             GError **error);
+
+int
+seaf_repo_manager_restore_repo_from_trash (SeafRepoManager *mgr,
+                                           const char *repo_id,
+                                           GError **error);
 
 GList *
 seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr);
@@ -197,7 +231,13 @@ int
 seaf_repo_manager_delete_repo_tokens_by_peer_id (SeafRepoManager *mgr,
                                                  const char *email,
                                                  const char *peer_id,
+                                                 GList **tokens,
                                                  GError **error);
+
+int
+seaf_repo_manager_delete_repo_tokens_by_email (SeafRepoManager *mgr,
+                                               const char *email,
+                                               GError **error);
 
 gint64
 seaf_repo_manager_get_repo_size (SeafRepoManager *mgr, const char *repo_id);
@@ -413,6 +453,7 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
                                        const char *path,
                                        int max_revision,
                                        int limit,
+                                       int show_days,
                                        GError **error);
 
 GList *
@@ -445,6 +486,7 @@ GList *
 seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
                                        const char *repo_id,
                                        int show_days,
+                                       const char *path,
                                        GError **error);
 
 /*
@@ -587,6 +629,16 @@ seaf_repo_manager_check_permission (SeafRepoManager *mgr,
                                     const char *user,
                                     GError **error);
 
+GList *
+seaf_repo_manager_list_dir_with_perm (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      const char *dir_path,
+                                      const char *dir_id,
+                                      const char *user,
+                                      int offset,
+                                      int limit,
+                                      GError **error);
+
 /* Web access permission. */
 
 int
@@ -618,6 +670,7 @@ seaf_repo_manager_create_virtual_repo (SeafRepoManager *mgr,
                                        const char *repo_name,
                                        const char *repo_desc,
                                        const char *owner,
+                                       const char *passwd,
                                        GError **error);
 
 SeafVirtRepo *

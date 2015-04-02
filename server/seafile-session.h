@@ -84,7 +84,7 @@ struct _SeafileSession {
     int                  rpc_thread_pool_size;
     int                  sync_thread_pool_size;
 
-    HttpServer           *http_server;
+    HttpServerStruct    *http_server;
 };
 
 extern SeafileSession *seaf;

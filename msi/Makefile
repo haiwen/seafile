@@ -22,10 +22,11 @@ LD=light.exe
 CFLAGS = -nologo -ext WixUIExtension -ext WixUtilExtension
 LDFLAGS = -nologo -spdb -ext \
 	WixUIExtension -ext WixUtilExtension \
-	-loc ${LANG_FILE} -cultures:${CULTURE}
+	-loc ${LANG_FILE} -cultures:${CULTURE} \
+	-sice:ICE80
 
 sources = WixUI_InstallDir_NoLicense.wxs MyInstallDirDlg.wxs \
-	seafile.wxs fragment.wxs 
+	seafile.wxs fragment.wxs shell.wxs
 
 OBJECTS = ${sources:%.wxs=%.wixobj} 
 

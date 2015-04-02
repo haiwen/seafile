@@ -5,6 +5,16 @@
 
 #include "seafile-config.h"
 
+gboolean
+seafile_session_config_exists (SeafileSession *session, const char *key)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "SELECT 1 FROM Config WHERE key = '%s'",
+              key);
+    return sqlite_check_for_existence (session->config_db, sql);
+}
 
 static gboolean
 get_value (sqlite3_stmt *stmt, void *data)
@@ -110,6 +120,29 @@ seafile_session_config_set_string (SeafileSession *session,
             session->disable_verify_certificate = FALSE;
     }
 
+    if (g_strcmp0(key, KEY_USE_PROXY) == 0) {
+        if (g_strcmp0(value, "true") == 0)
+            session->use_http_proxy = TRUE;
+        else
+            session->use_http_proxy = FALSE;
+    }
+
+    if (g_strcmp0(key, KEY_PROXY_TYPE) == 0) {
+        session->http_proxy_type = g_strdup(value);
+    }
+
+    if (g_strcmp0(key, KEY_PROXY_ADDR) == 0) {
+        session->http_proxy_addr = g_strdup(value);
+    }
+
+    if (g_strcmp0(key, KEY_PROXY_USERNAME) == 0) {
+        session->http_proxy_username = g_strdup(value);
+    }
+
+    if (g_strcmp0(key, KEY_PROXY_PASSWORD) == 0) {
+        session->http_proxy_password = g_strdup(value);
+    }
+
     return 0;
 }
 
@@ -125,6 +158,10 @@ seafile_session_config_set_int (SeafileSession *session,
                       key, value);
     if (sqlite_query_exec (session->config_db, sql) < 0)
         return -1;
+
+    if (g_strcmp0(key, KEY_PROXY_PORT) == 0) {
+        session->http_proxy_port = value;
+    }
 
     return 0;
 }

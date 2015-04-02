@@ -226,6 +226,13 @@ seaf_fs_manager_get_seafdir_sorted (SeafFSManager *mgr,
                                     int version,
                                     const char *dir_id);
 
+SeafDir *
+seaf_fs_manager_get_seafdir_sorted_by_path (SeafFSManager *mgr,
+                                            const char *repo_id,
+                                            int version,
+                                            const char *root_id,
+                                            const char *path);
+
 int
 seaf_fs_manager_populate_blocklist (SeafFSManager *mgr,
                                     const char *repo_id,
@@ -270,6 +277,12 @@ seaf_fs_manager_traverse_path (SeafFSManager *mgr,
 
 gboolean
 seaf_fs_manager_object_exists (SeafFSManager *mgr,
+                               const char *repo_id,
+                               int version,
+                               const char *id);
+
+void
+seaf_fs_manager_delete_object (SeafFSManager *mgr,
                                const char *repo_id,
                                int version,
                                const char *id);
@@ -346,7 +359,8 @@ seaf_fs_manager_get_dirent_by_path (SeafFSManager *mgr,
                                     const char *repo_id,
                                     int version,
                                     const char *root_id,
-                                    const char *path);
+                                    const char *path,
+                                    GError **error);
 
 /* Check object integrity. */
 

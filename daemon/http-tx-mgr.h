@@ -158,6 +158,42 @@ http_tx_manager_check_head_commit (HttpTxManager *manager,
                                    HttpHeadCommitCallback callback,
                                    void *user_data);
 
+typedef struct _HttpFolderPermReq {
+    char repo_id[37];
+    char *token;
+    gint64 timestamp;
+} HttpFolderPermReq;
+
+typedef struct _HttpFolderPermRes {
+    char repo_id[37];
+    gint64 timestamp;
+    GList *user_perms;
+    GList *group_perms;
+} HttpFolderPermRes;
+
+void
+http_folder_perm_req_free (HttpFolderPermReq *req);
+
+void
+http_folder_perm_res_free (HttpFolderPermRes *res);
+
+struct _HttpFolderPerms {
+    gboolean success;
+    GList *results;             /* List of HttpFolderPermRes */
+};
+typedef struct _HttpFolderPerms HttpFolderPerms;
+
+typedef void (*HttpGetFolderPermsCallback) (HttpFolderPerms *result,
+                                            void *user_data);
+
+/* Asynchronous interface for getting folder permissions for a repo. */
+int
+http_tx_manager_get_folder_perms (HttpTxManager *manager,
+                                  const char *host,
+                                  GList *folder_perm_requests, /* HttpFolderPermReq */
+                                  HttpGetFolderPermsCallback callback,
+                                  void *user_data);
+
 int
 http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id);
 
