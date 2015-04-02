@@ -43,6 +43,7 @@ struct _SeafRepo {
     gint64      size;
 
     SeafBranch *head;
+    gchar root_id[41];
 
     gboolean    is_corrupted;
     gboolean    repaired;

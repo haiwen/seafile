@@ -149,6 +149,7 @@ seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit)
     repo->encrypted = commit->encrypted;
     repo->repaired = commit->repaired;
     repo->last_modify = commit->ctime;
+    memcpy (repo->root_id, commit->root_id, 40);
     if (repo->encrypted) {
         repo->enc_version = commit->enc_version;
         if (repo->enc_version == 1)
@@ -2433,7 +2434,7 @@ seaf_fill_repo_obj_from_commit (GList **repos)
         } else {
             g_object_set (repo, "name", commit->repo_name, "desc", commit->repo_desc,
                           "encrypted", commit->encrypted, "magic", commit->magic,
-                          "enc_version", commit->enc_version,
+                          "enc_version", commit->enc_version, "root", commit->root_id,
                           "version", commit->version, "last_modify", commit->ctime,
                           "repo_name", commit->repo_name, "repo_desc", commit->repo_desc,
                           "last_modified", commit->ctime, "repaired", commit->repaired, NULL);

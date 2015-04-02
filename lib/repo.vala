@@ -33,6 +33,7 @@ public class Repo : Object {
     public int    last_modify { get; set; }
     public int64  size { get; set; }
     public string head_cmmt_id { get; set; }
+    public string root { get; set; }
 
     // To be compatible with obsoleted SharedRepo object
     public string repo_id { get; set; }
