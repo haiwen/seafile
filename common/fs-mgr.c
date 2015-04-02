@@ -234,7 +234,8 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
                                const char *in_repo_path,
                                const char *conflict_head_id,
                                gboolean force_conflict,
-                               gboolean *conflicted)
+                               gboolean *conflicted,
+                               const char *email)
 {
     Seafile *seafile;
     char *blk_id;
@@ -273,11 +274,26 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
     if (force_conflict || seaf_util_rename (tmp_path, file_path) < 0) {
         *conflicted = TRUE;
 
-        SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-        if (!repo)
-            goto bad;
+        /* XXX
+         * In new syncing protocol and http sync, files are checked out before
+         * the repo is created. So we can't get user email from repo at this point.
+         * So a email parameter is needed.
+         * For old syncing protocol, repo always exists when files are checked out.
+         * This is a quick and dirty hack. A cleaner solution should modifiy the
+         * code of old syncing protocol to pass in email too. But I don't want to
+         * spend more time on the nearly obsoleted code.
+         */
+        const char *suffix = NULL;
+        if (email) {
+            suffix = email;
+        } else {
+            SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+            if (!repo)
+                goto bad;
+            suffix = email;
+        }
 
-        conflict_path = gen_conflict_path (file_path, repo->email, (gint64)time(NULL));
+        conflict_path = gen_conflict_path (file_path, suffix, (gint64)time(NULL));
 
         seaf_warning ("Cannot update %s, creating conflict file %s.\n",
                       file_path, conflict_path);

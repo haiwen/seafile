@@ -108,6 +108,7 @@ http_tx_task_free (HttpTxTask *task)
     g_free (task->token);
     g_free (task->passwd);
     g_free (task->worktree);
+    g_free (task->email);
     g_free (task);
 }
 
@@ -2464,12 +2465,13 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               const char *passwd,
                               const char *worktree,
                               int protocol_version,
+                              const char *email,
                               GError **error)
 {
     HttpTxTask *task;
     SeafRepo *repo;
 
-    if (!repo_id || !token || !host || !server_head_id) {
+    if (!repo_id || !token || !host || !server_head_id || !email) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Empty argument(s)");
         return -1;
     }
@@ -2490,6 +2492,7 @@ http_tx_manager_add_download (HttpTxManager *manager,
 
     memcpy (task->head, server_head_id, 40);
     task->protocol_version = protocol_version;
+    task->email = g_strdup(email);
 
     task->state = TASK_STATE_NORMAL;
 

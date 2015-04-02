@@ -795,7 +795,8 @@ checkout_entry (struct cache_entry *ce,
                                        ce->name,
                                        conflict_head_id,
                                        force_conflict,
-                                       &conflicted) < 0) {
+                                       &conflicted,
+                                       NULL) < 0) {
         g_warning ("Failed to checkout file %s.\n", path);
         g_free (path);
         return -1;

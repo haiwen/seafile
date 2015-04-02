@@ -179,7 +179,8 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
                                const char *in_repo_path,
                                const char *conflict_head_id,
                                gboolean force_conflict,
-                               gboolean *conflicted);
+                               gboolean *conflicted,
+                               const char *email);
 
 #endif  /* not SEAFILE_SERVER */
 

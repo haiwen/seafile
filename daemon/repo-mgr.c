@@ -3069,7 +3069,8 @@ checkout_file (const char *repo_id,
                                        name,
                                        conflict_head_id,
                                        force_conflict,
-                                       &conflicted) < 0) {
+                                       &conflicted,
+                                       is_http ? http_task->email : task->email) < 0) {
         seaf_warning ("Failed to checkout file %s.\n", path);
         g_free (path);
         return FETCH_CHECKOUT_FAILED;
