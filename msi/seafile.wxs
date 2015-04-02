@@ -26,6 +26,7 @@
         <Directory Id="SeafileStartMenuFolder" Name='!(loc.AppName)' />
       </Directory>
 
+      <!--
       <Directory Id='AppDataFolder' Name='AFiles'>
         <Directory Id='SeafileExtDir' Name='!(loc.AppName)'>
           <Component Id="seafile_shell_ext" Guid="A2B35A93-F6DD-4524-BFF1-158C81011E93">
@@ -38,6 +39,7 @@
           </Component>
         </Directory>
       </Directory>
+      -->
 
       <Directory Id='ProgramFilesFolder' Name='PFiles'>
         <Directory Id='INSTALLDIR' Name='!(loc.AppName)'>
@@ -101,23 +103,25 @@
     </DirectoryRef>
 
 
+    <!--
     <Binary Id='seafile_custom_dll32' SourceFile='custom\seafile_custom32.dll' />
     <Binary Id='seafile_custom_dll64' SourceFile='custom\seafile_custom64.dll' />
 
     <CustomAction Id="MoveExtDll" BinaryKey="seafile_custom_dll32" DllEntry="RemoveExtDll" Execute="immediate" />
     <CustomAction Id="MoveExtDll64" BinaryKey="seafile_custom_dll64" DllEntry="RemoveExtDll" Execute="immediate" />
+    -->
 
     <CustomAction Id="RemoveSeafileUserData" FileKey="seafileapplet.exe" ExeCommand="--remove-user-data"
                   Execute="immediate" Impersonate="yes" Return="ignore" />
 
     <InstallExecuteSequence>
       <!-- Move away seafile shell extension so we don't need to kill explorer during uninstall. -->
-      <Custom Action="MoveExtDll" Before="InstallValidate">
+      <!--<Custom Action="MoveExtDll" Before="InstallValidate">
         Installed AND (NOT VersionNT64)
       </Custom>
       <Custom Action="MoveExtDll64" Before="InstallValidate">
         Installed AND VersionNT64
-      </Custom>
+      </Custom>-->
 
       <!-- Remove User data, as well as seafile QSettings in registry -->
       <Custom Action="RemoveSeafileUserData" Before="InstallValidate">
@@ -147,9 +151,9 @@
       <!-- defined in fragment.wxs -->
       <ComponentGroupRef Id='group_bin' />
       <!-- defined in shell.wxs -->
-      <ComponentRef Id='comp_shell' />
-      <ComponentRef Id='comp_shell64' />
-      <ComponentRef Id='seafile_shell_ext' />
+      <!-- <ComponentRef Id='comp_shell' /> -->
+      <!-- <ComponentRef Id='comp_shell64' /> -->
+      <!-- <ComponentRef Id='seafile_shell_ext' /> -->
     </Feature>
 
     <Property Id="CHECKBOX_DEL_SEAFILE_DATA" Secure="yes" />

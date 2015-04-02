@@ -678,14 +678,14 @@ def copy_dll_exe():
     for name in filelist:
         must_copy(name, destdir)
 
-    extdlls = [
-        os.path.join(SeafileClient().projdir, 'extensions', 'lib', 'seafile_shell_ext.dll'),
-        os.path.join(SeafileClient().projdir, 'extensions', 'lib', 'seafile_shell_ext64.dll'),
-    ]
+    #extdlls = [
+    #   os.path.join(SeafileClient().projdir, 'extensions', 'lib', 'seafile_shell_ext.dll'),
+    #   os.path.join(SeafileClient().projdir, 'extensions', 'lib', 'seafile_shell_ext64.dll'),
+    #]
 
     customdir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'custom')
-    for dll in extdlls:
-        must_copy(dll, customdir)
+    #for dll in extdlls:
+    #    must_copy(dll, customdir)
 
     copy_shared_libs([ f for f in filelist if f.endswith('.exe') ])
     copy_qt_plugins_imageformats()
