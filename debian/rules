@@ -43,7 +43,7 @@ build:
 	./configure --prefix=/usr CFLAGS="$(CFLAGS)" && make && make install DESTDIR=$(destdir)
 
 	# build and install seafile-client
-	cd $(seafile_client_dir) && cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release . && make -j2 && make install DESTDIR=$(destdir)
+	cd $(seafile_client_dir) && cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DBUILD_SHIBBOLETH_SUPPORT=ON . && make -j2 && make install DESTDIR=$(destdir)
 
 	# remove development files
 	rm -rf $(install_prefix)/include

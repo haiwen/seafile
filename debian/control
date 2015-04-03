@@ -12,7 +12,8 @@ Build-Depends:
 	libevent-dev,
 	uuid-dev,
 	libgtk2.0-dev,
-    libqt4-dev
+    libqt4-dev,
+    libqtwebkit-dev
 Standards-Version: 3.9.4
 Homepage: http://seafile.com
 
@@ -28,7 +29,8 @@ Depends:
 	libevent-2.0-5,
     libqt4-network,
     libqtcore4,
-    libqtgui4
+    libqtgui4,
+    libqtwebkit4
 Description: Client of seafile, an online file storage and collaboration tool
  Seafile enables you to build private cloud for file sharing and collaboration
  among team members in your company/organization. This is the Linux desktop
