@@ -728,9 +728,17 @@ usage ()
 {
     fprintf (stderr, "Usage: seafile-controller OPTIONS\n"
              "OPTIONS:\n"
-             "  -b, --bin-dir           insert a directory in front of the PATH env\n"
-             "  -c, --config-dir        ccnet config dir\n"
-             "  -d, --seafile-dir       seafile dir\n"
+             "  -c, --config-dir           path of the ccnet config directory\n"
+             "  -C, --cloud-mode           run in cloud mode\n"
+             "  -d, --seafile-dir          path of the seafile directory\n"
+             "  -f, --foreground           run in foreground\n"
+             "  -g, --ccnet-debug-level    ccnet debug level\n"
+             "  -G, --seafile-debug-level  seafile debug level\n"
+             "  -L, --logdir               path of the logs directory\n"
+             "  -P, --pidfile              path of the controller's pidfile\n"
+             "  -t, --test                 test config and exit\n"
+             "  -h, --help                 display this help and exit\n"
+             "  -v, --version              display version and exit\n"
         );
 }
 
