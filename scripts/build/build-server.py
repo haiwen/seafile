@@ -264,10 +264,11 @@ def check_seahub_thirdpart(thirdpartdir):
         'gunicorn',
         'flup',
         'chardet',
+        'python_dateutil'
         # 'SQLAlchemy',
-        'python_daemon',
-        'lockfile',
-        'six',
+        # 'python_daemon',
+        # 'lockfile',
+        # 'six',
     ]
     def check_thirdpart_lib(name):
         name += '*/'

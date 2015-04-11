@@ -29,6 +29,22 @@
 
 #define RESET_BYTES_INTERVAL_MSEC 1000
 
+#ifndef SEAFILE_CLIENT_VERSION
+#define SEAFILE_CLIENT_VERSION PACKAGE_VERSION
+#endif
+
+#ifdef WIN32
+#define USER_AGENT_OS "Windows NT"
+#endif
+
+#ifdef __APPLE__
+#define USER_AGENT_OS "Apple OS X"
+#endif
+
+#ifdef __linux__
+#define USER_AGENT_OS "Linux"
+#endif
+
 struct _Connection {
     CURL *curl;
     gint64 ctime;               /* Used to clean up unused connection. */
@@ -92,6 +108,7 @@ http_tx_task_free (HttpTxTask *task)
     g_free (task->token);
     g_free (task->passwd);
     g_free (task->worktree);
+    g_free (task->email);
     g_free (task);
 }
 
@@ -326,14 +343,25 @@ recv_response (void *contents, size_t size, size_t nmemb, void *userp)
 
 typedef size_t (*HttpRecvCallback) (void *, size_t, size_t, void *);
 
+/*
+ * The @timeout parameter is for detecting network connection problems. 
+ * The @timeout parameter should be set to TRUE for data-transfer-only operations,
+ * such as getting objects, blocks. For operations that requires calculations
+ * on the server side, the timeout should be set to FALSE. Otherwise when
+ * the server sometimes takes more than 45 seconds to calculate the result,
+ * the client will time out.
+ */
 static int
 http_get (CURL *curl, const char *url, const char *token,
           int *rsp_status, char **rsp_content, gint64 *rsp_size,
-          HttpRecvCallback callback, void *cb_data)
+          HttpRecvCallback callback, void *cb_data,
+          gboolean timeout)
 {
     char *token_header;
     struct curl_slist *headers = NULL;
     int ret = 0;
+
+    headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
 
     if (token) {
         token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
@@ -345,9 +373,11 @@ http_get (CURL *curl, const char *url, const char *token,
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
 
-    /* Set low speed limit to 1 bytes. This effectively means no data. */
-    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1);
-    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, HTTP_TIMEOUT_SEC);
+    if (timeout) {
+        /* Set low speed limit to 1 bytes. This effectively means no data. */
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1);
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, HTTP_TIMEOUT_SEC);
+    }
 
     if (seaf->disable_verify_certificate) {
         curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0L);
@@ -428,11 +458,14 @@ static int
 http_put (CURL *curl, const char *url, const char *token,
           const char *req_content, gint64 req_size,
           HttpSendCallback callback, void *cb_data,
-          int *rsp_status, char **rsp_content, gint64 *rsp_size)
+          int *rsp_status, char **rsp_content, gint64 *rsp_size,
+          gboolean timeout)
 {
     char *token_header;
     struct curl_slist *headers = NULL;
     int ret = 0;
+
+    headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
 
     if (token) {
         token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
@@ -444,9 +477,11 @@ http_put (CURL *curl, const char *url, const char *token,
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
 
-    /* Set low speed limit to 1 bytes. This effectively means no data. */
-    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1);
-    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, HTTP_TIMEOUT_SEC);
+    if (timeout) {
+        /* Set low speed limit to 1 bytes. This effectively means no data. */
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1);
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, HTTP_TIMEOUT_SEC);
+    }
 
     if (seaf->disable_verify_certificate) {
         curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0L);
@@ -516,13 +551,16 @@ out:
 static int
 http_post (CURL *curl, const char *url, const char *token,
            const char *req_content, gint64 req_size,
-           int *rsp_status, char **rsp_content, gint64 *rsp_size)
+           int *rsp_status, char **rsp_content, gint64 *rsp_size,
+           gboolean timeout)
 {
     char *token_header;
     struct curl_slist *headers = NULL;
     int ret = 0;
 
     g_return_val_if_fail (req_content != NULL, -1);
+
+    headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
 
     if (token) {
         token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
@@ -534,9 +572,11 @@ http_post (CURL *curl, const char *url, const char *token,
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
 
-    /* Set low speed limit to 1 bytes. This effectively means no data. */
-    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1);
-    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, HTTP_TIMEOUT_SEC);
+    if (timeout) {
+        /* Set low speed limit to 1 bytes. This effectively means no data. */
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1);
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, HTTP_TIMEOUT_SEC);
+    }
 
     if (seaf->disable_verify_certificate) {
         curl_easy_setopt (curl, CURLOPT_SSL_VERIFYPEER, 0L);
@@ -715,7 +755,7 @@ check_protocol_version_thread (void *vdata)
 
     url = g_strdup_printf ("%s/seafhttp/protocol-version", data->host);
 
-    if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL) < 0) {
+    if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL, FALSE) < 0) {
         goto out;
     }
 
@@ -856,7 +896,7 @@ check_head_commit_thread (void *vdata)
                            data->host, data->repo_id);
 
     if (http_get (curl, url, data->token, &status, &rsp_content, &rsp_size,
-                  NULL, NULL) < 0)
+                  NULL, NULL, FALSE) < 0)
         goto out;
 
     if (status == HTTP_OK) {
@@ -1196,7 +1236,7 @@ get_folder_perms_thread (void *vdata)
         goto out;
 
     if (http_post (curl, url, NULL, req_content, strlen(req_content),
-                   &status, &rsp_content, &rsp_size) < 0)
+                   &status, &rsp_content, &rsp_size, FALSE) < 0)
         goto out;
 
     if (status == HTTP_OK) {
@@ -1308,7 +1348,7 @@ check_permission (HttpTxTask *task, Connection *conn)
                                task->host, task->repo_id, type);
     }
 
-    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL) < 0) {
+    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE) < 0) {
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -1504,7 +1544,7 @@ check_quota (HttpTxTask *task, Connection *conn)
     url = g_strdup_printf ("%s/seafhttp/repo/%s/quota-check/?delta=%"G_GINT64_FORMAT"",
                            task->host, task->repo_id, delta);
 
-    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL) < 0) {
+    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE) < 0) {
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -1549,7 +1589,7 @@ send_commit_object (HttpTxTask *task, Connection *conn)
     if (http_put (curl, url, task->token,
                   data, len,
                   NULL, NULL,
-                  &status, NULL, NULL) < 0) {
+                  &status, NULL, NULL, TRUE) < 0) {
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -1748,7 +1788,7 @@ upload_check_id_list_segment (HttpTxTask *task, Connection *conn, const char *ur
 
     if (http_post (curl, url, task->token,
                    data, len,
-                   &status, &rsp_content, &rsp_size) < 0) {
+                   &status, &rsp_content, &rsp_size, FALSE) < 0) {
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -1868,7 +1908,7 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
 
     if (http_post (curl, url, task->token,
                    package, evbuffer_get_length(buf),
-                   &status, NULL, NULL) < 0) {
+                   &status, NULL, NULL, FALSE) < 0) {
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -2143,7 +2183,7 @@ send_block (HttpTxTask *task, Connection *conn, const char *block_id)
     if (http_put (curl, url, task->token,
                   NULL, bmd->size,
                   send_block_callback, &data,
-                  &status, NULL, NULL) < 0) {
+                  &status, NULL, NULL, TRUE) < 0) {
         if (task->state == HTTP_TASK_STATE_CANCELED)
             goto out;
 
@@ -2185,7 +2225,7 @@ update_branch (HttpTxTask *task, Connection *conn)
     if (http_put (curl, url, task->token,
                   NULL, 0,
                   NULL, NULL,
-                  &status, NULL, NULL) < 0) {
+                  &status, NULL, NULL, FALSE) < 0) {
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -2425,12 +2465,13 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               const char *passwd,
                               const char *worktree,
                               int protocol_version,
+                              const char *email,
                               GError **error)
 {
     HttpTxTask *task;
     SeafRepo *repo;
 
-    if (!repo_id || !token || !host || !server_head_id) {
+    if (!repo_id || !token || !host || !server_head_id || !email) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Empty argument(s)");
         return -1;
     }
@@ -2451,6 +2492,7 @@ http_tx_manager_add_download (HttpTxManager *manager,
 
     memcpy (task->head, server_head_id, 40);
     task->protocol_version = protocol_version;
+    task->email = g_strdup(email);
 
     task->state = TASK_STATE_NORMAL;
 
@@ -2483,7 +2525,7 @@ get_commit_object (HttpTxTask *task, Connection *conn)
 
     if (http_get (curl, url, task->token, &status,
                   &rsp_content, &rsp_size,
-                  NULL, NULL) < 0) {
+                  NULL, NULL, TRUE) < 0) {
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -2556,7 +2598,7 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
 
     if (http_get (curl, url, task->token, &status,
                   &rsp_content, &rsp_size,
-                  NULL, NULL) < 0) {
+                  NULL, NULL, FALSE) < 0) {
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -2682,7 +2724,7 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
 
     if (http_post (curl, url, task->token,
                    data, len,
-                   &status, &rsp_content, &rsp_size) < 0) {
+                   &status, &rsp_content, &rsp_size, FALSE) < 0) {
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -2839,7 +2881,7 @@ get_block (HttpTxTask *task, Connection *conn, const char *block_id)
                            task->host, task->repo_id, block_id);
 
     if (http_get (curl, url, task->token, &status, NULL, NULL,
-                  get_block_callback, &data) < 0) {
+                  get_block_callback, &data, TRUE) < 0) {
         if (task->state == HTTP_TASK_STATE_CANCELED)
             goto error;
 

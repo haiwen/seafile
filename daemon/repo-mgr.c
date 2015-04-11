@@ -946,7 +946,8 @@ add_recursive (const char *repo_id,
         }
         g_warning ("Failed to stat %s.\n", full_path);
         g_free (full_path);
-        return -1;
+        /* Ignore error. */
+        return 0;
     }
 
     if (S_ISREG(st.st_mode)) {
@@ -974,14 +975,15 @@ add_recursive (const char *repo_id,
             g_queue_push_tail (*remain_files, g_strdup(path));
 
         g_free (full_path);
-        return ret;
+        return 0;
     }
 
     if (S_ISDIR(st.st_mode)) {
         dir = g_dir_open (full_path, 0, NULL);
         if (!dir) {
             g_warning ("Failed to open dir %s: %s.\n", full_path, strerror(errno));
-            goto bad;
+            g_free (full_path);
+            return 0;
         }
 
         n = 0;
@@ -1004,12 +1006,8 @@ add_recursive (const char *repo_id,
                                  crypt, ignore_empty_dir, ignore_list,
                                  total_size, remain_files, options);
             g_free (subpath);
-            if (ret < 0)
-                break;
         }
         g_dir_close (dir);
-        if (ret < 0)
-            goto bad;
 
         if (n == 0 && path[0] != 0 && !ignore_empty_dir &&
             (!options ||
@@ -1025,10 +1023,6 @@ add_recursive (const char *repo_id,
 
     g_free (full_path);
     return 0;
-
-bad:
-    g_free (full_path);
-    return -1;
 }
 
 static gboolean
@@ -1179,7 +1173,7 @@ out:
     g_free (path);
     g_free (full_path);
 
-    return ret;
+    return 0;
 }
 
 static int
@@ -1200,8 +1194,9 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     ret = traverse_directory_win32 (full_path_w, iter_dir_cb, &data);
     g_free (full_path_w);
 
+    /* Ignore traverse dir error. */
     if (ret < 0)
-        return ret;
+        return 0;
 
     if (data.n == 0 && path[0] != 0 && !params->ignore_empty_dir &&
         (!options ||
@@ -1238,7 +1233,8 @@ add_recursive (const char *repo_id,
     if (seaf_stat (full_path, &st) < 0) {
         g_warning ("Failed to stat %s.\n", full_path);
         g_free (full_path);
-        return -1;
+        /* Ignore error */
+        return 0;
     }
 
     if (S_ISREG(st.st_mode)) {
@@ -3075,7 +3071,8 @@ checkout_file (const char *repo_id,
                                        name,
                                        conflict_head_id,
                                        force_conflict,
-                                       &conflicted) < 0) {
+                                       &conflicted,
+                                       is_http ? http_task->email : task->email) < 0) {
         seaf_warning ("Failed to checkout file %s.\n", path);
         g_free (path);
         return FETCH_CHECKOUT_FAILED;

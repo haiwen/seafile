@@ -729,6 +729,7 @@ start_fetch_if_necessary (SyncTask *task, const char *remote_head)
                                                     task->server_side_merge,
                                                     NULL,
                                                     NULL,
+                                                    repo->email,
                                                     &error);
 
         if (error != NULL) {
@@ -748,6 +749,7 @@ start_fetch_if_necessary (SyncTask *task, const char *remote_head)
                                           FALSE,
                                           NULL, NULL,
                                           task->http_version,
+                                          repo->email,
                                           &error) < 0) {
             seaf_warning ("Failed to start http download: %s.\n", error->message);
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_START_FETCH);
@@ -2172,7 +2174,8 @@ handle_locked_file_update (SeafRepo *repo, struct index_state *istate,
                                        path,
                                        master->commit_id,
                                        force_conflict,
-                                       &conflicted) < 0) {
+                                       &conflicted,
+                                       repo->email) < 0) {
         seaf_warning ("Failed to checkout previously locked file %s in repo "
                       "%s(%.8s).\n",
                       path, repo->name, repo->id);
@@ -2451,11 +2454,6 @@ auto_sync_pulse (void *vmanager)
         }
 
         repo->worktree_invalid = FALSE;
-
-        if (repo->delete_pending) {
-            seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
-            continue;
-        }
 
         if (!repo->token) {
             /* If the user has logged out of the account, the repo token would

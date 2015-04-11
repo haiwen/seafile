@@ -68,6 +68,7 @@ struct _HttpTxTask {
     int type;
     char *host;
     gboolean is_clone;
+    char *email;
 
     char head[41];
 
@@ -107,6 +108,7 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               const char *passwd,
                               const char *worktree,
                               int protocol_version,
+                              const char *email,
                               GError **error);
 
 int

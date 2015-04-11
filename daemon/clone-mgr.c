@@ -782,6 +782,7 @@ add_transfer_task (CloneTask *task, GError **error)
                                                           task->server_side_merge,
                                                           task->passwd,
                                                           task->worktree,
+                                                          task->email,
                                                           error);
         if (!task->tx_id)
             return -1;
@@ -796,6 +797,7 @@ add_transfer_task (CloneTask *task, GError **error)
                                                 task->passwd,
                                                 task->worktree,
                                                 task->http_protocol_version,
+                                                task->email,
                                                 error);
         if (ret < 0)
             return -1;
