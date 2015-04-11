@@ -462,6 +462,7 @@ seafile_web_get_access_token (const char *repo_id,
                               const char *obj_id,
                               const char *op,
                               const char *username,
+                              int use_onetime,
                               GError **error);
 
 GObject *

@@ -1882,15 +1882,26 @@ get_boundary (evhtp_headers_t *hdr)
 
 static int
 check_access_token (const char *token,
+                    const char *url_op,
                     char **repo_id,
                     char **user)
 {
     SeafileWebAccess *webaccess;
+    const char *op;
 
     webaccess = (SeafileWebAccess *)
         seaf_web_at_manager_query_access_token (seaf->web_at_mgr, token);
     if (!webaccess)
         return -1;
+
+    /* token with op = "upload" can only be used for "upload-*" operations;
+     * token with op = "update" can only be used for "update-*" operations.
+     */
+    op = seafile_web_access_get_op (webaccess);
+    if (strncmp (url_op, op, strlen(op)) != 0) {
+        g_object_unref (webaccess);
+        return -1;
+    }
 
     *repo_id = g_strdup (seafile_web_access_get_repo_id (webaccess));
     *user = g_strdup (seafile_web_access_get_username (webaccess));
@@ -1928,6 +1939,7 @@ get_progress_info (evhtp_request_t *req,
 static evhtp_res
 upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
 {
+    char **parts = NULL;
     char *token, *repo_id = NULL, *user = NULL;
     char *boundary = NULL;
     gint64 content_len;
@@ -1938,8 +1950,8 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
 
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
          return EVHTP_RES_OK;
-    }    
-    
+    }
+
     /* URL format: http://host:port/[upload|update]/<token>?X-Progress-ID=<uuid> */
     token = req->uri->path->file;
     if (!token) {
@@ -1948,7 +1960,14 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
         goto err;
     }
 
-    if (check_access_token (token, &repo_id, &user) < 0) {
+    parts = g_strsplit (req->uri->path->full + 1, "/", 0);
+    if (!parts || g_strv_length (parts) < 2) {
+        err_msg = "Invalid URL";
+        goto err;
+    }
+    char *url_op = parts[0];
+
+    if (check_access_token (token, url_op, &repo_id, &user) < 0) {
         err_msg = "Access denied";
         goto err;
     }
@@ -1996,6 +2015,8 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
     /* Set arg for upload_cb or update_cb. */
     req->cbarg = fsm;
 
+    g_strfreev (parts);
+
     return EVHTP_RES_OK;
 
 err:
@@ -2015,6 +2036,7 @@ err:
     g_free (user);
     g_free (boundary);
     g_free (progress_id);
+    g_strfreev (parts);
     return EVHTP_RES_OK;
 }
 

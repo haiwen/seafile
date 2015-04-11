@@ -261,8 +261,8 @@ class SeafServerRpcClient(ccnet.RpcClientBase):
                                      *args, **kwargs)
 
     # token for web access to repo
-    @searpc_func("string", ["string", "string", "string", "string"])
-    def seafile_web_get_access_token(repo_id, obj_id, op, username):
+    @searpc_func("string", ["string", "string", "string", "string", "int"])
+    def seafile_web_get_access_token(repo_id, obj_id, op, username, use_onetime=1):
         pass
     web_get_access_token = seafile_web_get_access_token
     

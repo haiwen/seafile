@@ -948,9 +948,9 @@ def get_user_share_usage(user):
     return ret
     
 # access token
-def web_get_access_token(repo_id, obj_id, op, username):
+def web_get_access_token(repo_id, obj_id, op, username, use_onetime=1):
     try:
-        ret = seafserv_rpc.web_get_access_token(repo_id, obj_id, op, username)
+        ret = seafserv_rpc.web_get_access_token(repo_id, obj_id, op, username, use_onetime)
     except SearpcError, e:
         ret = ''
     return ret
