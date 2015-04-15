@@ -429,7 +429,7 @@ gc_core_run (GList *repo_id_list, int dry_run, int verbose)
 
         if (repo->is_corrupted) {
             corrupt_repos = g_list_prepend (corrupt_repos, g_strdup(repo->id));
-            seaf_message ("Repo %s is curropted, skip GC.\n\n", repo->id);
+            seaf_message ("Repo %s is corrupted, skip GC.\n\n", repo->id);
             continue;
         }
 
