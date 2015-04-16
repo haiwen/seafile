@@ -757,6 +757,18 @@ access_cb(evhtp_request_t *req, void *arg)
         goto bad_req;
     }
 
+    repo_id = seafile_web_access_get_repo_id (webaccess);
+    id = seafile_web_access_get_obj_id (webaccess);
+    operation = seafile_web_access_get_op (webaccess);
+    user = seafile_web_access_get_username (webaccess);
+
+    if (strcmp(operation, "view") != 0 &&
+        strcmp(operation, "download") != 0 &&
+        strcmp(operation, "download-dir") != 0) {
+        error = "Bad access token";
+        goto bad_req;
+    }
+
     if (evhtp_kv_find (req->headers_in, "If-Modified-Since") != NULL) {
         evhtp_send_reply (req, EVHTP_RES_NOTMOD);
         goto success;
@@ -783,11 +795,6 @@ access_cb(evhtp_request_t *req, void *arg)
         kv = evhtp_kv_new ("Cache-Control", "max-age=3600", 1, 1);
         evhtp_kvs_add_kv (req->headers_out, kv);
     }
-
-    repo_id = seafile_web_access_get_repo_id (webaccess);
-    id = seafile_web_access_get_obj_id (webaccess);
-    operation = seafile_web_access_get_op (webaccess);
-    user = seafile_web_access_get_username (webaccess);
 
     repo = seaf_repo_manager_get_repo(seaf->repo_mgr, repo_id);
     if (!repo) {
@@ -1043,7 +1050,7 @@ int
 access_file_init (evhtp_t *htp)
 {
     evhtp_set_regex_cb (htp, "^/files/.*", access_cb, NULL);
-    evhtp_set_regex_cb (htp, "^/blks/.*", access_blks_cb, NULL);
+    /* evhtp_set_regex_cb (htp, "^/blks/.*", access_blks_cb, NULL); */
 
     return 0;
 }
