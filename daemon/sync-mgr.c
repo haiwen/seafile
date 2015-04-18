@@ -42,9 +42,13 @@ struct _ServerState {
 typedef struct _ServerState ServerState;
 
 struct _HttpServerState {
-    gboolean http_not_supported;
     int http_version;
     gboolean checking;
+    gint64 last_http_check_time;
+    char *testing_host;
+    /* Can be server_url or server_url:8082, depends on which one works. */
+    char *effective_host;
+    gboolean use_fileserver_port;
 
     gboolean folder_perms_not_supported;
     gint64 last_check_perms_time;
@@ -96,7 +100,7 @@ static int
 sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync);
 
 static gboolean
-check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo, gboolean *is_checking);
+check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo);
 
 SeafSyncManager*
 seaf_sync_manager_new (SeafileSession *seaf)
@@ -217,7 +221,10 @@ add_repo_relays ()
 
     for (ptr = repo_list; ptr; ptr = ptr->next) {
         SeafRepo *repo = ptr->data;
-        if (repo->relay_id) {
+        /* Only use non-http sync protocol for old repos.
+         * If no old repos exist, we don't need to connect to 10001 port.
+         */
+        if (repo->version == 0 && repo->relay_id) {
             add_relay_if_needed (repo);
         }
     }
@@ -406,32 +413,25 @@ seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
     if (info->in_sync)
         return 0;
 
-    gboolean is_checking_http = FALSE;
-    if (seaf->enable_http_sync && repo->version > 0) {
-        if (check_http_protocol (mgr, repo, &is_checking_http)) {
-            sync_repo_v2 (mgr, repo, TRUE);
+    if (repo->version > 0) {
+        if (seaf->enable_http_sync) {
+            if (check_http_protocol (mgr, repo)) {
+                sync_repo_v2 (mgr, repo, TRUE);
+                return 0;
+            }
+        } else
+            return 0;
+    } else {
+        /* If relay is not ready or protocol version is not determined,
+         * need to wait.
+         */
+        if (!check_relay_status (mgr, repo)) {
+            seaf_warning ("Relay for repo %s(%.8s) is not ready or protocol version"
+                          "is not detected.\n", repo->name, repo->id);
             return 0;
         }
-    }
-
-    /* If relay is not ready or protocol version is not determined,
-     * need to wait.
-     */
-    if (!check_relay_status (mgr, repo)) {
-        seaf_warning ("Relay for repo %s(%.8s) is not ready or protocol version"
-                      "is not detected.\n", repo->name, repo->id);
-        return 0;
-    }
-
-    ServerState *state = g_hash_table_lookup (mgr->server_states,
-                                              repo->relay_id);
-
-    if (repo->version == 0 ||
-        state->server_side_merge == SERVER_SIDE_MERGE_UNSUPPORTED ||
-        has_old_commits_to_upload (repo))
         start_sync (mgr, repo, TRUE, TRUE, FALSE);
-    else if (state->server_side_merge == SERVER_SIDE_MERGE_SUPPORTED)
-        sync_repo_v2 (mgr, repo, TRUE);
+    }
 
     return 0;
 }
@@ -696,9 +696,10 @@ start_upload_if_necessary (SyncTask *task)
         if (http_tx_manager_add_upload (seaf->http_tx_mgr,
                                         repo->id,
                                         repo->version,
-                                        repo->server_url,
+                                        repo->effective_host,
                                         repo->token,
                                         task->http_version,
+                                        repo->use_fileserver_port,
                                         &error) < 0) {
             seaf_warning ("Failed to start http upload: %s\n", error->message);
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_START_UPLOAD);
@@ -743,13 +744,14 @@ start_fetch_if_necessary (SyncTask *task, const char *remote_head)
         if (http_tx_manager_add_download (seaf->http_tx_mgr,
                                           repo->id,
                                           repo->version,
-                                          repo->server_url,
+                                          repo->effective_host,
                                           repo->token,
                                           remote_head,
                                           FALSE,
                                           NULL, NULL,
                                           task->http_version,
                                           repo->email,
+                                          repo->use_fileserver_port,
                                           &error) < 0) {
             seaf_warning ("Failed to start http download: %s.\n", error->message);
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_START_FETCH);
@@ -1502,8 +1504,9 @@ check_head_commit_http (SyncTask *task)
 
     int ret = http_tx_manager_check_head_commit (seaf->http_tx_mgr,
                                                  repo->id, repo->version,
-                                                 repo->server_url,
+                                                 repo->effective_host,
                                                  repo->token,
+                                                 repo->use_fileserver_port,
                                                  check_head_commit_done,
                                                  task);
     if (ret == 0)
@@ -1751,10 +1754,8 @@ create_sync_task_v2 (SeafSyncManager *manager, SeafRepo *repo,
         HttpServerState *state = g_hash_table_lookup (manager->http_server_states,
                                                       repo->server_url);
         if (state) {
-            if (!state->http_not_supported) {
-                task->http_sync = TRUE;
-                task->http_version = state->http_version;
-            }
+            task->http_sync = TRUE;
+            task->http_version = state->http_version;
         }
     }
 
@@ -1970,34 +1971,68 @@ check_relay_status (SeafSyncManager *mgr, SeafRepo *repo)
     }
 }
 
+static char *
+http_fileserver_url (const char *url)
+{
+    char *colon;
+    char *url_no_port;
+    char *ret = NULL;
+
+    colon = strrchr (url, ':');
+    if (colon) {
+        url_no_port = g_strndup(url, colon - url);
+        ret = g_strconcat(url_no_port, ":8082", NULL);
+    } else {
+        ret = g_strconcat(url, ":8082", NULL);
+    }
+
+    return ret;
+}
+
 static void
-check_http_protocol_done (HttpProtocolVersion *result, void *user_data)
+check_http_fileserver_protocol_done (HttpProtocolVersion *result, void *user_data)
 {
     HttpServerState *state = user_data;
 
     state->checking = FALSE;
 
-    if (result->check_success) {
-        state->http_not_supported = result->not_supported;
-        if (!result->not_supported)
-            state->http_version = result->version;
-    } else
-        state->http_not_supported = TRUE;
+    if (result->check_success && !result->not_supported) {
+        state->http_version = result->version;
+        state->effective_host = http_fileserver_url(state->testing_host);
+        state->use_fileserver_port = TRUE;
+    }
+}
+
+static void
+check_http_protocol_done (HttpProtocolVersion *result, void *user_data)
+{
+    HttpServerState *state = user_data;
+
+    if (result->check_success && !result->not_supported) {
+        state->http_version = result->version;
+        state->effective_host = g_strdup(state->testing_host);
+        state->checking = FALSE;
+    } else if (strncmp(state->testing_host, "https", 5) != 0) {
+        char *host_fileserver = http_fileserver_url(state->testing_host);
+        http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
+                                                host_fileserver,
+                                                TRUE,
+                                                check_http_fileserver_protocol_done,
+                                                state);
+        g_free (host_fileserver);
+    } else {
+        state->checking = FALSE;
+    }
 }
 
 #define CHECK_HTTP_INTERVAL 10
 
 /*
- * Returns TRUE if we can use http-sync; otherwise FALSE.
- * If FALSE is returned, the caller should also check @is_checking value.
- * If @is_checking is set to TRUE, we're still determining whether the
- * server supports http-sync.
+ * Returns TRUE if we're ready to use http-sync; otherwise FALSE.
  */
 static gboolean
-check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo, gboolean *is_checking)
+check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo)
 {
-    *is_checking = FALSE;
-
     /* If a repo was cloned before 4.0, server-url is not set. */
     if (!repo->server_url)
         return FALSE;
@@ -2011,21 +2046,36 @@ check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo, gboolean *is_checking
     }
 
     if (state->checking) {
-        *is_checking = TRUE;
         return FALSE;
     }
 
-    if (state->http_not_supported)
-        return FALSE;
-    if (state->http_version > 0)
+    if (state->http_version > 0) {
+        if (!repo->effective_host) {
+            repo->effective_host = g_strdup(state->effective_host);
+            repo->use_fileserver_port = state->use_fileserver_port;
+        }
         return TRUE;
+    }
+
+    /* If we haven't detected the server url successfully, retry every 10 seconds. */
+    gint64 now = time(NULL);
+    if (now - state->last_http_check_time < CHECK_HTTP_INTERVAL)
+        return FALSE;
+
+    /* First try repo->server_url.
+     * If it fails and https is not used, try server_url:8082 instead.
+     */
+    g_free (state->testing_host);
+    state->testing_host = g_strdup(repo->server_url);
+
+    state->last_http_check_time = (gint64)time(NULL);
 
     http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
                                             repo->server_url,
+                                            FALSE,
                                             check_http_protocol_done,
                                             state);
     state->checking = TRUE;
-    *is_checking = TRUE;
 
     return FALSE;
 }
@@ -2381,7 +2431,8 @@ check_folder_permissions_one_server (SeafSyncManager *mgr,
 
     /* The requests list will be freed in http tx manager. */
     http_tx_manager_get_folder_perms (seaf->http_tx_mgr,
-                                      host,
+                                      server_state->effective_host,
+                                      server_state->use_fileserver_port,
                                       requests,
                                       check_folder_perms_done,
                                       server_state);
@@ -2494,32 +2545,20 @@ auto_sync_pulse (void *vmanager)
         if (info->in_sync)
             continue;
 
-        /* Try to use http sync first if enabled. */
-        gboolean is_checking_http = FALSE;
-        if (seaf->enable_http_sync && repo->version > 0) {
-            if (check_http_protocol (manager, repo, &is_checking_http)) {
-                sync_repo_v2 (manager, repo, FALSE);
-                continue;
-            } else if (is_checking_http)
-                continue;
-            /* Otherwise we've determined the server doesn't support http-sync. */
+        if (repo->version > 0) {
+            /* For repo version > 0, only use http sync. */
+            if (seaf->enable_http_sync) {
+                if (check_http_protocol (manager, repo)) {
+                    sync_repo_v2 (manager, repo, FALSE);
+                }
+            }
+        } else {
+            /* If relay is not ready or protocol version is not determined,
+             * need to wait.
+             */
+            if (check_relay_status (manager, repo))
+                sync_repo (manager, repo);
         }
-
-        /* If relay is not ready or protocol version is not determined,
-         * need to wait.
-         */
-        if (!check_relay_status (manager, repo))
-            continue;
-
-        ServerState *state = g_hash_table_lookup (manager->server_states,
-                                                  repo->relay_id);
-
-        if (repo->version == 0 ||
-            state->server_side_merge == SERVER_SIDE_MERGE_UNSUPPORTED ||
-            has_old_commits_to_upload (repo))
-            sync_repo (manager, repo);
-        else if (state->server_side_merge == SERVER_SIDE_MERGE_SUPPORTED)
-            sync_repo_v2 (manager, repo, FALSE);
     }
 
     g_list_free (repos);

@@ -89,6 +89,9 @@ struct _SeafRepo {
 
     /* Used for http sync. */
     char *server_url;
+    /* Can be server_url or server_url:8082, depends on which one works. */
+    char *effective_host;
+    gboolean use_fileserver_port;
 };
 
 

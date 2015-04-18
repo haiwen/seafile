@@ -278,8 +278,7 @@ check_head_commit_done (HttpHeadCommit *result, void *user_data)
         memcpy (task->server_head_id, result->head_commit, 40);
         start_clone_v2 (task);
     } else {
-        task->http_sync = FALSE;
-        connect_non_http_server (task);
+        transition_to_error (task, CLONE_ERROR_CONNECT);
     }
 }
 
@@ -289,10 +288,46 @@ http_check_head_commit (CloneTask *task)
     http_tx_manager_check_head_commit (seaf->http_tx_mgr,
                                        task->repo_id,
                                        task->repo_version,
-                                       task->server_url,
+                                       task->effective_url,
                                        task->token,
+                                       task->use_fileserver_port,
                                        check_head_commit_done,
                                        task);
+}
+
+static char *
+http_fileserver_url (const char *url)
+{
+    char *colon;
+    char *url_no_port;
+    char *ret = NULL;
+
+    colon = strrchr (url, ':');
+    if (colon) {
+        url_no_port = g_strndup(url, colon - url);
+        ret = g_strconcat(url_no_port, ":8082", NULL);
+    } else {
+        ret = g_strconcat(url, ":8082", NULL);
+    }
+
+    return ret;
+}
+
+static void
+check_http_fileserver_protocol_done (HttpProtocolVersion *result, void *user_data)
+{
+    CloneTask *task = user_data;
+
+    if (result->check_success && !result->not_supported) {
+        task->http_protocol_version = result->version;
+        task->effective_url = http_fileserver_url (task->server_url);
+        task->use_fileserver_port = TRUE;
+        task->http_sync = TRUE;
+        http_check_head_commit (task);
+    } else {
+        /* Wait for periodic retry. */
+        transition_state (task, CLONE_STATE_CONNECT);
+    }
 }
 
 static void
@@ -302,10 +337,21 @@ check_http_protocol_done (HttpProtocolVersion *result, void *user_data)
 
     if (result->check_success && !result->not_supported) {
         task->http_protocol_version = result->version;
+        task->effective_url = g_strdup(task->server_url);
         task->http_sync = TRUE;
         http_check_head_commit (task);
-    } else
-        connect_non_http_server (task);
+    } else if (strncmp(task->server_url, "https", 5) != 0) {
+        char *host_fileserver = http_fileserver_url(task->server_url);
+        http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
+                                                host_fileserver,
+                                                TRUE,
+                                                check_http_fileserver_protocol_done,
+                                                task);
+        g_free (host_fileserver);
+    } else {
+        /* Wait for periodic retry. */
+        transition_state (task, CLONE_STATE_CONNECT);
+    }
 }
 
 static void
@@ -313,6 +359,7 @@ check_http_protocol (CloneTask *task)
 {
     http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
                                             task->server_url,
+                                            FALSE,
                                             check_http_protocol_done,
                                             task);
     transition_state (task, CLONE_STATE_CHECK_HTTP);
@@ -359,6 +406,7 @@ clone_task_free (CloneTask *task)
     g_free (task->email);
     g_free (task->random_key);
     g_free (task->server_url);
+    g_free (task->effective_url);
 
     g_free (task);
 }
@@ -539,10 +587,18 @@ restart_task (sqlite3_stmt *stmt, void *data)
     if (repo != NULL && repo->head != NULL) {
         transition_state (task, CLONE_STATE_DONE);
         return TRUE;
-    } else if (seaf->enable_http_sync && task->repo_version > 0 && task->server_url)
-        check_http_protocol (task);
-    else
+    }
+
+    if (task->repo_version > 0) {
+        if (seaf->enable_http_sync && task->server_url) {
+            check_http_protocol (task);
+        } else {
+            transition_to_error (task, CLONE_ERROR_CONNECT);
+            return TRUE;
+        }
+    } else {
         connect_non_http_server (task);
+    }
 
     g_hash_table_insert (mgr->tasks, g_strdup(task->repo_id), task);
 
@@ -603,7 +659,10 @@ static int check_connect_pulse (void *vmanager)
     while (g_hash_table_iter_next (&iter, &key, &value)) {
         task = value;
         if (task->state == CLONE_STATE_CONNECT) {
-            continue_task_when_peer_connected (task);
+            if (task->repo_version == 0)
+                continue_task_when_peer_connected (task);
+            else
+                check_http_protocol (task);
         }
     }
 
@@ -790,7 +849,7 @@ add_transfer_task (CloneTask *task, GError **error)
         int ret = http_tx_manager_add_download (seaf->http_tx_mgr,
                                                 task->repo_id,
                                                 task->repo_version,
-                                                task->server_url,
+                                                task->effective_url,
                                                 task->token,
                                                 task->server_head_id,
                                                 TRUE,
@@ -798,6 +857,7 @@ add_transfer_task (CloneTask *task, GError **error)
                                                 task->worktree,
                                                 task->http_protocol_version,
                                                 task->email,
+                                                task->use_fileserver_port,
                                                 error);
         if (ret < 0)
             return -1;
@@ -1251,10 +1311,16 @@ add_task_common (SeafCloneManager *mgr,
         return NULL;
     }
 
-    if (seaf->enable_http_sync && task->repo_version > 0 && task->server_url)
-        check_http_protocol (task);
-    else
+    if (task->repo_version > 0) {
+        if (seaf->enable_http_sync && task->server_url) {
+            check_http_protocol (task);
+        } else {
+            clone_task_free (task);
+            return NULL;
+        }
+    } else {
         connect_non_http_server (task);
+    }
 
     /* The old task for this repo will be freed. */
     g_hash_table_insert (mgr->tasks, g_strdup(task->repo_id), task);
@@ -2238,7 +2304,10 @@ on_repo_http_fetched (SeafileSession *seaf,
         transition_state (task, CLONE_STATE_CANCELED);
         return;
     } else if (tx_task->state == HTTP_TASK_STATE_ERROR) {
-        transition_to_error (task, CLONE_ERROR_FETCH);
+        if (add_transfer_task (task, NULL) == 0)
+            transition_state (task, CLONE_STATE_FETCH);
+        else
+            transition_to_error (task, CLONE_ERROR_FETCH);
         return;
     }
 
@@ -2347,7 +2416,8 @@ check_folder_permissions (CloneTask *task)
 
     /* The requests list will be freed in http tx manager. */
     http_tx_manager_get_folder_perms (seaf->http_tx_mgr,
-                                      task->server_url,
+                                      task->effective_url,
+                                      task->use_fileserver_port,
                                       requests,
                                       check_folder_perms_done,
                                       task);

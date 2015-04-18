@@ -692,6 +692,7 @@ transition_state (HttpTxTask *task, int state, int rt_state)
 
 typedef struct {
     char *host;
+    gboolean use_fileserver_port;
     HttpProtocolVersionCallback callback;
     void *user_data;
 
@@ -753,7 +754,10 @@ check_protocol_version_thread (void *vdata)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/protocol-version", data->host);
+    if (!data->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/protocol-version", data->host);
+    else
+        url = g_strdup_printf ("%s/protocol-version", data->host);
 
     if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL, FALSE) < 0) {
         goto out;
@@ -799,12 +803,14 @@ check_protocol_version_done (void *vdata)
 int
 http_tx_manager_check_protocol_version (HttpTxManager *manager,
                                         const char *host,
+                                        gboolean use_fileserver_port,
                                         HttpProtocolVersionCallback callback,
                                         void *user_data)
 {
     CheckProtocolData *data = g_new0 (CheckProtocolData, 1);
 
     data->host = g_strdup(host);
+    data->use_fileserver_port = use_fileserver_port;
     data->callback = callback;
     data->user_data = user_data;
 
@@ -823,6 +829,7 @@ typedef struct {
     int repo_version;
     char *host;
     char *token;
+    gboolean use_fileserver_port;
     HttpHeadCommitCallback callback;
     void *user_data;
 
@@ -892,8 +899,12 @@ check_head_commit_thread (void *vdata)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/commit/HEAD",
-                           data->host, data->repo_id);
+    if (!data->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/commit/HEAD",
+                               data->host, data->repo_id);
+    else
+        url = g_strdup_printf ("%s/repo/%s/commit/HEAD",
+                               data->host, data->repo_id);
 
     if (http_get (curl, url, data->token, &status, &rsp_content, &rsp_size,
                   NULL, NULL, FALSE) < 0)
@@ -942,6 +953,7 @@ http_tx_manager_check_head_commit (HttpTxManager *manager,
                                    int repo_version,
                                    const char *host,
                                    const char *token,
+                                   gboolean use_fileserver_port,
                                    HttpHeadCommitCallback callback,
                                    void *user_data)
 {
@@ -953,6 +965,7 @@ http_tx_manager_check_head_commit (HttpTxManager *manager,
     data->token = g_strdup(token);
     data->callback = callback;
     data->user_data = user_data;
+    data->use_fileserver_port = use_fileserver_port;
 
     ccnet_job_manager_schedule_job (seaf->job_mgr,
                                     check_head_commit_thread,
@@ -989,6 +1002,7 @@ http_folder_perm_res_free (HttpFolderPermRes *res)
 
 typedef struct {
     char *host;
+    gboolean use_fileserver_port;
     GList *requests;
     HttpGetFolderPermsCallback callback;
     void *user_data;
@@ -1229,7 +1243,10 @@ get_folder_perms_thread (void *vdata)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/folder-perm", data->host);
+    if (!data->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/folder-perm", data->host);
+    else
+        url = g_strdup_printf ("%s/repo/folder-perm", data->host);
 
     req_content = compose_get_folder_perms_request (data->requests);
     if (!req_content)
@@ -1283,6 +1300,7 @@ get_folder_perms_done (void *vdata)
 int
 http_tx_manager_get_folder_perms (HttpTxManager *manager,
                                   const char *host,
+                                  gboolean use_fileserver_port,
                                   GList *folder_perm_requests,
                                   HttpGetFolderPermsCallback callback,
                                   void *user_data)
@@ -1293,6 +1311,7 @@ http_tx_manager_get_folder_perms (HttpTxManager *manager,
     data->requests = folder_perm_requests;
     data->callback = callback;
     data->user_data = user_data;
+    data->use_fileserver_port = use_fileserver_port;
 
     ccnet_job_manager_schedule_job (seaf->job_mgr,
                                     get_folder_perms_thread,
@@ -1335,17 +1354,18 @@ check_permission (HttpTxTask *task, Connection *conn)
     curl = conn->curl;
 
     const char *type = (task->type == HTTP_TASK_TYPE_DOWNLOAD) ? "download" : "upload";
+    const char *url_prefix = (task->use_fileserver_port) ? "" : "seafhttp/";
     if (seaf->session->base.name) {
         char *client_name = g_uri_escape_string (seaf->session->base.name,
                                                  NULL, FALSE);
-        url = g_strdup_printf ("%s/seafhttp/repo/%s/permission-check/?op=%s"
+        url = g_strdup_printf ("%s/%srepo/%s/permission-check/?op=%s"
                                "&client_id=%s&client_name=%s",
-                               task->host, task->repo_id, type,
+                               task->host, url_prefix, task->repo_id, type,
                                seaf->session->base.id, client_name);
         g_free (client_name);
     } else {
-        url = g_strdup_printf ("%s/seafhttp/repo/%s/permission-check/?op=%s",
-                               task->host, task->repo_id, type);
+        url = g_strdup_printf ("%s/%srepo/%s/permission-check/?op=%s",
+                               task->host, url_prefix, task->repo_id, type);
     }
 
     if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE) < 0) {
@@ -1379,6 +1399,7 @@ http_tx_manager_add_upload (HttpTxManager *manager,
                             const char *host,
                             const char *token,
                             int protocol_version,
+                            gboolean use_fileserver_port,
                             GError **error)
 {
     HttpTxTask *task;
@@ -1404,6 +1425,8 @@ http_tx_manager_add_upload (HttpTxManager *manager,
     task->protocol_version = protocol_version;
 
     task->state = TASK_STATE_NORMAL;
+
+    task->use_fileserver_port = use_fileserver_port;
 
     g_hash_table_insert (manager->priv->upload_tasks,
                          g_strdup(repo_id),
@@ -1541,8 +1564,12 @@ check_quota (HttpTxTask *task, Connection *conn)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/quota-check/?delta=%"G_GINT64_FORMAT"",
-                           task->host, task->repo_id, delta);
+    if (!task->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/quota-check/?delta=%"G_GINT64_FORMAT"",
+                               task->host, task->repo_id, delta);
+    else
+        url = g_strdup_printf ("%s/repo/%s/quota-check/?delta=%"G_GINT64_FORMAT"",
+                               task->host, task->repo_id, delta);
 
     if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE) < 0) {
         task->error = HTTP_TASK_ERR_NET;
@@ -1583,8 +1610,12 @@ send_commit_object (HttpTxTask *task, Connection *conn)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/commit/%s",
-                           task->host, task->repo_id, task->head);
+    if (!task->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/commit/%s",
+                               task->host, task->repo_id, task->head);
+    else
+        url = g_strdup_printf ("%s/repo/%s/commit/%s",
+                               task->host, task->repo_id, task->head);
 
     if (http_put (curl, url, task->token,
                   data, len,
@@ -1903,8 +1934,12 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/recv-fs/",
-                           task->host, task->repo_id);
+    if (!task->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/recv-fs/",
+                               task->host, task->repo_id);
+    else
+        url = g_strdup_printf ("%s/repo/%s/recv-fs/",
+                               task->host, task->repo_id);
 
     if (http_post (curl, url, task->token,
                    package, evbuffer_get_length(buf),
@@ -2177,8 +2212,12 @@ send_block (HttpTxTask *task, Connection *conn, const char *block_id)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/block/%s",
-                           task->host, task->repo_id, block_id);
+    if (!task->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/block/%s",
+                               task->host, task->repo_id, block_id);
+    else
+        url = g_strdup_printf ("%s/repo/%s/block/%s",
+                               task->host, task->repo_id, block_id);
 
     if (http_put (curl, url, task->token,
                   NULL, bmd->size,
@@ -2219,8 +2258,12 @@ update_branch (HttpTxTask *task, Connection *conn)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/commit/HEAD/?head=%s",
-                           task->host, task->repo_id, task->head);
+    if (!task->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/commit/HEAD/?head=%s",
+                               task->host, task->repo_id, task->head);
+    else
+        url = g_strdup_printf ("%s/repo/%s/commit/HEAD/?head=%s",
+                               task->host, task->repo_id, task->head);
 
     if (http_put (curl, url, task->token,
                   NULL, 0,
@@ -2338,8 +2381,12 @@ http_upload_thread (void *vdata)
         goto out;
     }
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/check-fs/",
-                           task->host, task->repo_id);
+    if (!task->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/check-fs/",
+                               task->host, task->repo_id);
+    else
+        url = g_strdup_printf ("%s/repo/%s/check-fs/",
+                               task->host, task->repo_id);
 
     while (send_fs_list != NULL) {
         if (upload_check_id_list_segment (task, conn, url,
@@ -2373,8 +2420,12 @@ http_upload_thread (void *vdata)
         goto out;
     }
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/check-blocks/",
-                           task->host, task->repo_id);
+    if (!task->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/check-blocks/",
+                               task->host, task->repo_id);
+    else
+        url = g_strdup_printf ("%s/repo/%s/check-blocks/",
+                               task->host, task->repo_id);
 
     while (block_list != NULL) {
         if (upload_check_id_list_segment (task, conn, url,
@@ -2466,6 +2517,7 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               const char *worktree,
                               int protocol_version,
                               const char *email,
+                              gboolean use_fileserver_port,
                               GError **error)
 {
     HttpTxTask *task;
@@ -2496,6 +2548,8 @@ http_tx_manager_add_download (HttpTxManager *manager,
 
     task->state = TASK_STATE_NORMAL;
 
+    task->use_fileserver_port = use_fileserver_port;
+
     g_hash_table_insert (manager->priv->download_tasks,
                          g_strdup(repo_id),
                          task);
@@ -2520,8 +2574,12 @@ get_commit_object (HttpTxTask *task, Connection *conn)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/commit/%s",
-                           task->host, task->repo_id, task->head);
+    if (!task->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/commit/%s",
+                               task->host, task->repo_id, task->head);
+    else
+        url = g_strdup_printf ("%s/repo/%s/commit/%s",
+                               task->host, task->repo_id, task->head);
 
     if (http_get (curl, url, task->token, &status,
                   &rsp_content, &rsp_size,
@@ -2573,6 +2631,8 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
     json_error_t jerror;
     const char *obj_id;
 
+    const char *url_prefix = (task->use_fileserver_port) ? "" : "seafhttp/";
+
     if (!task->is_clone) {
         master = seaf_branch_manager_get_branch (seaf->branch_mgr,
                                                  task->repo_id,
@@ -2583,15 +2643,15 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
             return -1;
         }
 
-        url = g_strdup_printf ("%s/seafhttp/repo/%s/fs-id-list/"
+        url = g_strdup_printf ("%s/%srepo/%s/fs-id-list/"
                                "?server-head=%s&client-head=%s",
-                               task->host, task->repo_id,
+                               task->host, url_prefix, task->repo_id,
                                task->head, master->commit_id);
 
         seaf_branch_unref (master);
     } else {
-        url = g_strdup_printf ("%s/seafhttp/repo/%s/fs-id-list/?server-head=%s",
-                               task->host, task->repo_id, task->head);
+        url = g_strdup_printf ("%s/%srepo/%s/fs-id-list/?server-head=%s",
+                               task->host, url_prefix, task->repo_id, task->head);
     }
 
     curl = conn->curl;
@@ -2720,7 +2780,10 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/pack-fs/", task->host, task->repo_id);
+    if (!task->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/pack-fs/", task->host, task->repo_id);
+    else
+        url = g_strdup_printf ("%s/repo/%s/pack-fs/", task->host, task->repo_id);
 
     if (http_post (curl, url, task->token,
                    data, len,
@@ -2877,8 +2940,12 @@ get_block (HttpTxTask *task, Connection *conn, const char *block_id)
 
     curl = conn->curl;
 
-    url = g_strdup_printf ("%s/seafhttp/repo/%s/block/%s",
-                           task->host, task->repo_id, block_id);
+    if (!task->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/block/%s",
+                               task->host, task->repo_id, block_id);
+    else
+        url = g_strdup_printf ("%s/repo/%s/block/%s",
+                               task->host, task->repo_id, block_id);
 
     if (http_get (curl, url, task->token, &status, NULL, NULL,
                   get_block_callback, &data, TRUE) < 0) {
