@@ -4913,7 +4913,18 @@ seaf_repo_manager_set_repo_property (SeafRepoManager *manager,
 
     if (strcmp (key, REPO_PROP_SERVER_URL) == 0) {
         char *url = canonical_server_url (value);
-        repo->server_url = url;
+
+        if (!repo->server_url) {
+            /* Called from clone-mgr. */
+            repo->server_url = url;
+        } else {
+            g_free (repo->server_url);
+            repo->server_url = url;
+
+            g_free (repo->effective_host);
+            repo->effective_host = NULL;
+        }
+
         save_repo_property (manager, repo_id, key, url);
         return 0;
     }
