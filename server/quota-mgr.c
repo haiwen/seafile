@@ -272,95 +272,6 @@ seaf_quota_manager_get_org_user_quota (SeafQuotaManager *mgr,
     return quota;
 }
 
-int
-seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
-                                const char *repo_id)
-{
-    SeafVirtRepo *vinfo;
-    const char *r_repo_id = repo_id;
-    char *user = NULL;
-    gint64 quota, usage;
-    int ret = 0;
-
-    /* If it's a virtual repo, check quota to origin repo. */
-    vinfo = seaf_repo_manager_get_virtual_repo_info (seaf->repo_mgr, repo_id);
-    if (vinfo)
-        r_repo_id = vinfo->origin_repo_id;
-
-    user = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, r_repo_id);
-    if (user != NULL) {
-        quota = seaf_quota_manager_get_user_quota (mgr, user);
-    } else {
-        seaf_warning ("Repo %s has no owner.\n", r_repo_id);
-        ret = -1;
-        goto out;
-    }
-
-    if (quota == INFINITE_QUOTA)
-        goto out;
-
-    if (!mgr->calc_share_usage) {
-        usage = seaf_quota_manager_get_user_usage (mgr, user);
-    } else {
-        gint64 my_usage, share_usage;
-        share_usage = seaf_quota_manager_get_user_share_usage (mgr, user);
-        if (share_usage < 0) {
-            ret = -1;
-            goto out;
-        }
-        my_usage = seaf_quota_manager_get_user_usage (mgr, user);
-        if (my_usage < 0) {
-            ret = -1;
-            goto out;
-        }
-        usage = my_usage + share_usage;
-    }
-
-    if (usage < 0 || usage >= quota)
-        ret = -1;
-
-out:
-    seaf_virtual_repo_info_free (vinfo);
-    g_free (user);
-    return ret;
-}
-
-static gboolean
-get_total_size (SeafDBRow *row, void *vpsize)
-{
-    gint64 *psize = vpsize;
-
-    *psize += seaf_db_row_get_column_int64 (row, 0);
-
-    return TRUE;
-}
-
-gint64
-seaf_quota_manager_get_user_usage (SeafQuotaManager *mgr, const char *user)
-{
-    char *sql;
-    gint64 total = 0;
-
-    sql = "SELECT size FROM "
-        "RepoOwner o LEFT JOIN VirtualRepo v ON o.repo_id=v.repo_id, "
-        "RepoSize WHERE "
-        "owner_id=? AND o.repo_id=RepoSize.repo_id "
-        "AND v.repo_id IS NULL";
-    if (seaf_db_statement_foreach_row (mgr->session->db, sql,
-                                       get_total_size, &total,
-                                       1, "string", user) < 0)
-        return -1;
-
-    /* Add size of repos in trash. */
-    /* sql = "SELECT size FROM RepoTrash WHERE owner_id = ?"; */
-    /* if (seaf_db_statement_foreach_row (mgr->session->db, sql, */
-    /*                                    get_total_size, &total, */
-    /*                                    1, "string", user) < 0) */
-    /*     return -1; */
-
-    return total;
-}
-
 static void
 count_group_members (GHashTable *user_hash, GList *members)
 {
@@ -380,14 +291,14 @@ count_group_members (GHashTable *user_hash, GList *members)
     g_list_free (members);
 }
 
-static gint64
-repo_share_usage (const char *user, const char *repo_id)
+static gint
+get_num_shared_to (const char *user, const char *repo_id)
 {
     GHashTable *user_hash;
     int dummy;
     GList *personal = NULL, *groups = NULL, *members = NULL, *p;
     SearpcClient *client = NULL;
-    gint64 usage = -1;
+    gint n_shared_to = -1;
 
     /* seaf_debug ("Computing share usage for repo %s.\n", repo_id); */
 
@@ -430,27 +341,147 @@ repo_share_usage (const char *user, const char *repo_id)
     /* Remove myself if i'm in a group. */
     g_hash_table_remove (user_hash, user);
 
-    guint n_shared_to = g_hash_table_size(user_hash);
+    n_shared_to = g_hash_table_size(user_hash);
     /* seaf_debug ("n_shared_to = %u.\n", n_shared_to); */
-    if (n_shared_to == 0) {
-        usage = 0;
-        goto out;
-    }
-
-    gint64 size = seaf_repo_manager_get_repo_size (seaf->repo_mgr, repo_id);
-    if (size < 0) {
-        seaf_warning ("Cannot get size of repo %s.\n", repo_id);
-        goto out;
-    }
-
-    /* share_usage = repo_size * n_shared_to */
-    usage = size * n_shared_to;
 
 out:
     g_hash_table_destroy (user_hash);
     string_list_free (personal);
     g_list_free (groups);
     ccnet_rpc_client_free (client);
+
+    return n_shared_to;
+}
+
+int
+seaf_quota_manager_check_quota_with_delta (SeafQuotaManager *mgr,
+                                           const char *repo_id,
+                                           gint64 delta)
+{
+    SeafVirtRepo *vinfo;
+    const char *r_repo_id = repo_id;
+    char *user = NULL;
+    gint64 quota, usage;
+    int ret = 0;
+
+    /* If it's a virtual repo, check quota to origin repo. */
+    vinfo = seaf_repo_manager_get_virtual_repo_info (seaf->repo_mgr, repo_id);
+    if (vinfo)
+        r_repo_id = vinfo->origin_repo_id;
+
+    user = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, r_repo_id);
+    if (user != NULL) {
+        quota = seaf_quota_manager_get_user_quota (mgr, user);
+    } else {
+        seaf_warning ("Repo %s has no owner.\n", r_repo_id);
+        ret = -1;
+        goto out;
+    }
+
+    if (quota == INFINITE_QUOTA)
+        goto out;
+
+    usage = seaf_quota_manager_get_user_usage (mgr, user);
+    if (usage < 0) {
+        ret = -1;
+        goto out;
+    }
+
+    if (delta != 0) {
+        usage += delta;
+    }
+
+    if (mgr->calc_share_usage) {
+        gint64 share_usage;
+        share_usage = seaf_quota_manager_get_user_share_usage (mgr, user);
+        if (share_usage < 0) {
+            ret = -1;
+            goto out;
+        }
+
+        usage += share_usage;
+
+        if (delta != 0) {
+            gint n_shared_to = get_num_shared_to (user, repo_id);
+            if (n_shared_to < 0) {
+                ret = -1;
+                goto out;
+            }
+
+            usage += delta * n_shared_to;
+        }
+    }
+
+    if (usage >= quota)
+        ret = 1;
+out:
+    seaf_virtual_repo_info_free (vinfo);
+    g_free (user);
+    return ret;
+}
+
+int
+seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
+                                const char *repo_id)
+{
+    return seaf_quota_manager_check_quota_with_delta (mgr, repo_id, 0);
+}
+
+static gboolean
+get_total_size (SeafDBRow *row, void *vpsize)
+{
+    gint64 *psize = vpsize;
+
+    *psize += seaf_db_row_get_column_int64 (row, 0);
+
+    return TRUE;
+}
+
+gint64
+seaf_quota_manager_get_user_usage (SeafQuotaManager *mgr, const char *user)
+{
+    char *sql;
+    gint64 total = 0;
+
+    sql = "SELECT size FROM "
+        "RepoOwner o LEFT JOIN VirtualRepo v ON o.repo_id=v.repo_id, "
+        "RepoSize WHERE "
+        "owner_id=? AND o.repo_id=RepoSize.repo_id "
+        "AND v.repo_id IS NULL";
+    if (seaf_db_statement_foreach_row (mgr->session->db, sql,
+                                       get_total_size, &total,
+                                       1, "string", user) < 0)
+        return -1;
+
+    /* Add size of repos in trash. */
+    /* sql = "SELECT size FROM RepoTrash WHERE owner_id = ?"; */
+    /* if (seaf_db_statement_foreach_row (mgr->session->db, sql, */
+    /*                                    get_total_size, &total, */
+    /*                                    1, "string", user) < 0) */
+    /*     return -1; */
+
+    return total;
+}
+
+static gint64
+repo_share_usage (const char *user, const char *repo_id)
+{
+    gint n_shared_to = get_num_shared_to (user, repo_id);
+    if (n_shared_to < 0) {
+        return -1;
+    } else if (n_shared_to == 0) {
+        return 0;
+    }
+
+    gint64 size = seaf_repo_manager_get_repo_size (seaf->repo_mgr, repo_id);
+    if (size < 0) {
+        seaf_warning ("Cannot get size of repo %s.\n", repo_id);
+        return -1;
+    }
+
+    /* share_usage = repo_size * n_shared_to */
+    gint64 usage = size * n_shared_to;
+
     return usage;
 }
 
