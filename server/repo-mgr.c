@@ -1035,9 +1035,20 @@ create_tables_pgsql (SeafRepoManager *mgr)
 
     sql = "CREATE TABLE IF NOT EXISTS RepoTrash (repo_id CHAR(36) PRIMARY KEY,"
         "repo_name VARCHAR(255), head_id CHAR(40), owner_id VARCHAR(255), size bigint,"
-        "org_id INTEGER, INDEX(owner_id), INDEX(org_id))";
+        "org_id INTEGER)";
     if (seaf_db_query (db, sql) < 0)
         return -1;
+
+    if (!pgsql_index_exists (db, "repotrash_owner_id")) {
+        sql = "CREATE INDEX repotrash_owner_id on RepoTrash(owner_id)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
+    if (!pgsql_index_exists (db, "repotrash_org_id")) {
+        sql = "CREATE INDEX repotrash_org_id on RepoTrash(org_id)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
 
     return 0;
 }
