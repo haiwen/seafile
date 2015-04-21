@@ -359,7 +359,7 @@ insert_parent_commit (GList **list, GHashTable *hash,
                                            NULL);
 
     key = g_strdup (parent_id);
-    g_hash_table_insert (hash, key, key);
+    g_hash_table_replace (hash, key, key);
 
     return 0;
 }
@@ -371,7 +371,8 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
                                                      const char *head,
                                                      CommitTraverseFunc func,
                                                      int limit,
-                                                     void *data)
+                                                     void *data,
+                                                     gboolean skip_errors)
 {
     SeafCommit *commit;
     GList *list = NULL;
@@ -392,7 +393,7 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
                                            NULL);
 
     char *key = g_strdup (commit->commit_id);
-    g_hash_table_insert (commit_hash, key, key);
+    g_hash_table_replace (commit_hash, key, key);
 
     int count = 0;
     while (list) {
@@ -401,9 +402,11 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
         list = g_list_delete_link (list, list);
 
         if (!func (commit, data, &stop)) {
-            seaf_commit_unref (commit);
-            ret = FALSE;
-            goto out;
+            if (!skip_errors) {
+                seaf_commit_unref (commit);
+                ret = FALSE;
+                goto out;
+            }
         }
 
         /* Stop when limit is reached. If limit < 0, there is no limit; */
@@ -423,17 +426,21 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
         if (commit->parent_id) {
             if (insert_parent_commit (&list, commit_hash, repo_id, version,
                                       commit->parent_id, FALSE) < 0) {
-                seaf_commit_unref (commit);
-                ret = FALSE;
-                goto out;
+                if (!skip_errors) {
+                    seaf_commit_unref (commit);
+                    ret = FALSE;
+                    goto out;
+                }
             }
         }
         if (commit->second_parent_id) {
             if (insert_parent_commit (&list, commit_hash, repo_id, version,
                                       commit->second_parent_id, FALSE) < 0) {
-                seaf_commit_unref (commit);
-                ret = FALSE;
-                goto out;
+                if (!skip_errors) {
+                    seaf_commit_unref (commit);
+                    ret = FALSE;
+                    goto out;
+                }
             }
         }
         seaf_commit_unref (commit);
@@ -467,8 +474,9 @@ traverse_commit_tree_common (SeafCommitManager *mgr,
     commit = seaf_commit_manager_get_commit (mgr, repo_id, version, head);
     if (!commit) {
         g_warning ("Failed to find commit %s.\n", head);
-        if (!skip_errors)
-            return FALSE;
+        // For head commit corrupted, directly return FALSE
+        // user can repair head by fsck then retraverse the tree
+        return FALSE;
     }
 
     /* A hash table for recording id of traversed commits. */
@@ -479,7 +487,7 @@ traverse_commit_tree_common (SeafCommitManager *mgr,
                                            NULL);
 
     char *key = g_strdup (commit->commit_id);
-    g_hash_table_insert (commit_hash, key, key);
+    g_hash_table_replace (commit_hash, key, key);
 
     while (list) {
         gboolean stop = FALSE;
@@ -628,6 +636,8 @@ commit_to_json_object (SeafCommit *commit)
         json_object_set_int_member (object, "conflict", 1);
     if (commit->new_merge)
         json_object_set_int_member (object, "new_merge", 1);
+    if (commit->repaired)
+        json_object_set_int_member (object, "repaired", 1);
 
     return object;
 }
@@ -653,6 +663,7 @@ commit_from_json_object (const char *commit_id, json_t *object)
     int no_local_history = 0;
     int version = 0;
     int conflict = 0, new_merge = 0;
+    int repaired = 0;
 
     root_id = json_object_get_string_member (object, "root_id");
     repo_id = json_object_get_string_member (object, "repo_id");
@@ -691,6 +702,10 @@ commit_from_json_object (const char *commit_id, json_t *object)
 
     if (json_object_has_member (object, "conflict"))
         conflict = json_object_get_int_member (object, "conflict");
+
+    if (json_object_has_member (object, "repaired"))
+        repaired = json_object_get_int_member (object, "repaired");
+
 
     /* sanity check for incoming values. */
     if (!repo_id || strlen(repo_id) != 36 ||
@@ -750,6 +765,8 @@ commit_from_json_object (const char *commit_id, json_t *object)
         commit->new_merge = TRUE;
     if (conflict)
         commit->conflict = TRUE;
+    if (repaired)
+        commit->repaired = TRUE;
 
     return commit;
 }

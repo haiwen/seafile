@@ -234,7 +234,8 @@ calculate_send_object_list (void *vdata)
     }
 
     /* Diff won't traverse the root object itself. */
-    if (strcmp (local_head->root_id, master_head->root_id) != 0)
+    if (strcmp (local_head->root_id, master_head->root_id) != 0 &&
+        strcmp (local_head->root_id, EMPTY_SHA1) != 0)
         priv->send_obj_list = g_list_prepend (priv->send_obj_list,
                                               g_strdup(local_head->root_id));
 

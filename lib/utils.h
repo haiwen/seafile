@@ -39,29 +39,10 @@
 #define ccnet_pipe_t intptr_t
 
 int pgpipe (ccnet_pipe_t handles[2]);
-#define ccnet_mkdir(a,b) g_mkdir((a),(b))
 #define ccnet_pipe(a) pgpipe((a))
 #define piperead(a,b,c) recv((a),(b),(c),0)
 #define pipewrite(a,b,c) send((a),(b),(c),0)
 #define pipeclose(a) closesocket((a))
-
-static inline int ccnet_rename(const char *oldfile, const char *newfile)
-{
-    int ret = g_rename (oldfile, newfile);
-    if (ret < 0) {
-        if (errno != EEXIST) 
-            return -1;
-        
-        ret = g_unlink(oldfile);
-        
-        if (ret < 0) {
-            g_warning("ccnet_rename failed because g_unlink failed\n");
-            return -1;
-        }
-        return g_rename(oldfile, newfile);
-    }
-    return 0;
-}
 
 #define SeafStat struct __stat64
 
@@ -69,12 +50,10 @@ static inline int ccnet_rename(const char *oldfile, const char *newfile)
 
 #define ccnet_pipe_t int
 
-#define ccnet_mkdir(a,b) g_mkdir((a),(b))
 #define ccnet_pipe(a) pipe((a))
 #define piperead(a,b,c) read((a),(b),(c))
 #define pipewrite(a,b,c) write((a),(b),(c))
 #define pipeclose(a) close((a))
-#define ccnet_rename g_rename
 
 #define SeafStat struct stat
 
@@ -86,7 +65,55 @@ static inline int ccnet_rename(const char *oldfile, const char *newfile)
 int seaf_stat (const char *path, SeafStat *st);
 int seaf_fstat (int fd, SeafStat *st);
 
+#ifdef WIN32
+void
+seaf_stat_from_find_data (WIN32_FIND_DATAW *fdata, SeafStat *st);
+#endif
+
 int seaf_set_file_time (const char *path, guint64 mtime);
+
+#ifdef WIN32
+wchar_t *
+win32_long_path (const char *path);
+
+/* Convert a (possible) 8.3 format path to long path */
+wchar_t *
+win32_83_path_to_long_path (const char *worktree, const wchar_t *path, int path_len);
+#endif
+
+int
+seaf_util_unlink (const char *path);
+
+int
+seaf_util_rmdir (const char *path);
+
+int
+seaf_util_mkdir (const char *path, mode_t mode);
+
+int
+seaf_util_open (const char *path, int flags);
+
+int
+seaf_util_create (const char *path, int flags, mode_t mode);
+
+int
+seaf_util_rename (const char *oldpath, const char *newpath);
+
+gboolean
+seaf_util_exists (const char *path);
+
+#ifdef WIN32
+
+typedef int (*DirentCallback) (wchar_t *parent,
+                               WIN32_FIND_DATAW *fdata,
+                               void *user_data,
+                               gboolean *stop);
+
+int
+traverse_directory_win32 (wchar_t *path_w,
+                          DirentCallback callback,
+                          void *user_data);
+#endif
 
 #ifndef O_BINARY
 #define O_BINARY 0

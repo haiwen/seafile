@@ -30,9 +30,13 @@ seafile_log (const gchar *log_domain, GLogLevelFlags log_level,
     tm = localtime(&t);
     len = strftime (buf, 1024, "[%x %X] ", tm);
     g_return_if_fail (len < 1024);
-    fputs (buf, logfp);
-    fputs (message, logfp);
-    fflush (logfp);
+    if (logfp != NULL) {    
+        fputs (buf, logfp);
+        fputs (message, logfp);
+        fflush (logfp);
+    } else { // log file not available
+        printf("%s %s", buf, message);
+    }
 }
 
 static void 
@@ -51,9 +55,13 @@ ccnet_log (const gchar *log_domain, GLogLevelFlags log_level,
     tm = localtime(&t);
     len = strftime (buf, 1024, "[%x %X] ", tm);
     g_return_if_fail (len < 1024);
-    fputs (buf, logfp);
-    fputs (message, logfp);
-    fflush (logfp);
+    if (logfp != NULL) {
+        fputs (buf, logfp);
+        fputs (message, logfp);
+        fflush (logfp);
+    } else { // log file not available
+        printf("%s %s", buf, message);
+    }
 }
 
 static int

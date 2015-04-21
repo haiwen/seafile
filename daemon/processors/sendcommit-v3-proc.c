@@ -226,7 +226,7 @@ traverse_commit_remote (SeafCommit *commit, void *data, gboolean *stop)
         return TRUE;
 
     key = g_strdup(commit->commit_id);
-    g_hash_table_insert (priv->commit_hash, key, key);
+    g_hash_table_replace (priv->commit_hash, key, key);
     return TRUE;
 }
 

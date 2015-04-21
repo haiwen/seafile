@@ -81,6 +81,7 @@ enum TaskError {
     TASK_ERR_UPLOAD_BLOCKS,
     TASK_ERR_DOWNLOAD_BLOCKS,
     TASK_ERR_DEPRECATED_SERVER,
+    TASK_ERR_FILES_LOCKED,
     N_TASK_ERROR,
 };
 
@@ -140,6 +141,7 @@ struct _TransferTask {
     int          last_runtime_state;
     int          type;
     gboolean     is_clone;      /* TRUE when fetching a new repo. */
+    char        *email;
     int          error;
 
     char        *dest_id;
@@ -211,13 +213,6 @@ struct _SeafTransferManager {
     GHashTable      *upload_tasks;
 
     CcnetTimer      *schedule_timer;
-
-    /* Sent/recv bytes from all tasks in this second. */
-    gint             sent_bytes;
-    gint             recv_bytes;
-    /* Upload/download rate limits. */
-    gint             upload_limit;
-    gint             download_limit;
 };
 
 typedef struct _SeafTransferManager SeafTransferManager;
@@ -237,6 +232,7 @@ seaf_transfer_manager_add_download (SeafTransferManager *manager,
                                     gboolean server_side_merge,
                                     const char *passwd,
                                     const char *worktree,
+                                    const char *email,
                                     GError **error);
 
 char *

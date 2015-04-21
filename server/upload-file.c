@@ -18,23 +18,13 @@
 
 #include <pthread.h>
 
-#include <ccnet.h>
-
 #include "seafile-object.h"
-#include "seafile.h"
 
 #include "utils.h"
 
 #include "seafile-session.h"
-#include "fileserver.h"
 #include "upload-file.h"
-
-
-#define SEAF_HTTP_RES_BADFILENAME 440
-#define SEAF_HTTP_RES_EXISTS 441
-#define SEAF_HTTP_RES_NOT_EXISTS 441
-#define SEAF_HTTP_RES_TOOLARGE 442
-#define SEAF_HTTP_RES_NOQUOTA 443
+#include "http-status-codes.h"
 
 enum RecvState {
     RECV_INIT,
@@ -83,6 +73,8 @@ typedef struct RecvFSM {
 } RecvFSM;
 
 #define MAX_CONTENT_LINE 10240
+
+#define POST_FILE_ERR_FILENAME 401
 
 static GHashTable *upload_progress;
 static pthread_mutex_t pg_lock;
@@ -221,7 +213,8 @@ check_tmp_file_list (GList *tmp_files, int *error_code)
         total_size += (gint64)st.st_size;
     }
 
-    if (seaf->max_upload_size != -1 && total_size > seaf->max_upload_size) {
+    if (seaf->http_server->max_upload_size != -1 &&
+        total_size > seaf->http_server->max_upload_size) {
         seaf_warning ("[upload] File size is too large.\n");
         *error_code = ERROR_SIZE;
         return FALSE;
@@ -258,7 +251,6 @@ static void
 upload_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
-    SearpcClient *rpc_client = NULL;
     char *parent_dir;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
@@ -291,12 +283,7 @@ upload_cb(evhtp_request_t *req, void *arg)
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
-    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                 NULL,
-                                                 "seafserv-threaded-rpcserver");
-
-    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
-        seaf_warning ("[upload] Out of quota.\n");
+    if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
         error_code = ERROR_QUOTA;
         goto error;
     }
@@ -304,36 +291,33 @@ upload_cb(evhtp_request_t *req, void *arg)
     filenames_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
 
-    char *ret_json = seafile_post_multi_files (rpc_client,
-                                               fsm->repo_id,
-                                               parent_dir,
-                                               filenames_json,
-                                               tmp_files_json,
-                                               fsm->user,
-                                               0,
-                                               &error);
+    int rc = seaf_repo_manager_post_multi_files (seaf->repo_mgr,
+                                                 fsm->repo_id,
+                                                 parent_dir,
+                                                 filenames_json,
+                                                 tmp_files_json,
+                                                 fsm->user,
+                                                 0,
+                                                 NULL,
+                                                 &error);
     g_free (filenames_json);
     g_free (tmp_files_json);
-    g_free (ret_json);
-    if (error) {
-        if (error->code == POST_FILE_ERR_FILENAME) {
-            error_code = ERROR_FILENAME;
-            err_file = g_strdup(error->message);
+    if (rc < 0) {
+        if (error) {
+            if (error->code == POST_FILE_ERR_FILENAME) {
+                error_code = ERROR_FILENAME;
+                err_file = g_strdup(error->message);
+            }
+            g_clear_error (&error);
         }
-        g_clear_error (&error);
         goto error;
     }
-
-    ccnet_rpc_client_free (rpc_client);
 
     /* Redirect to repo dir page after upload finishes. */
     redirect_to_success_page (req, fsm->repo_id, parent_dir);
     return;
 
 error:
-    if (rpc_client)
-        ccnet_rpc_client_free (rpc_client);
-
     redirect_to_upload_error (req, fsm->repo_id, parent_dir,
                               err_file, error_code);
     g_free (err_file);
@@ -372,7 +356,6 @@ static void
 upload_api_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
-    SearpcClient *rpc_client = NULL;
     char *parent_dir, *replace_str;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
@@ -416,12 +399,7 @@ upload_api_cb(evhtp_request_t *req, void *arg)
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
-    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                 NULL,
-                                                 "seafserv-threaded-rpcserver");
-
-    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
-        seaf_warning ("[upload] Out of quota.\n");
+    if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
         error_code = ERROR_QUOTA;
         goto error;
     }
@@ -429,26 +407,27 @@ upload_api_cb(evhtp_request_t *req, void *arg)
     filenames_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
 
-    char *ret_json = seafile_post_multi_files (rpc_client,
-                                               fsm->repo_id,
-                                               parent_dir,
-                                               filenames_json,
-                                               tmp_files_json,
-                                               fsm->user,
-                                               replace,
-                                               &error);
+    char *ret_json = NULL;
+    int rc = seaf_repo_manager_post_multi_files (seaf->repo_mgr,
+                                                 fsm->repo_id,
+                                                 parent_dir,
+                                                 filenames_json,
+                                                 tmp_files_json,
+                                                 fsm->user,
+                                                 replace,
+                                                 &ret_json,
+                                                 &error);
     g_free (filenames_json);
     g_free (tmp_files_json);
-    if (error) {
-        if (error->code == POST_FILE_ERR_FILENAME) {
-            error_code = ERROR_FILENAME;
-            seaf_warning ("[upload] Bad filename.\n");
+    if (rc < 0) {
+        if (error) {
+            if (error->code == POST_FILE_ERR_FILENAME) {
+                error_code = ERROR_FILENAME;
+            }
+            g_clear_error (&error);
         }
-        g_clear_error (&error);
         goto error;
     }
-
-    ccnet_rpc_client_free (rpc_client);
 
     const char *use_json = evhtp_kv_find (req->uri->query, "ret-json");
     if (use_json) {
@@ -466,9 +445,6 @@ upload_api_cb(evhtp_request_t *req, void *arg)
     return;
 
 error:
-    if (rpc_client)
-        ccnet_rpc_client_free (rpc_client);
-
     switch (error_code) {
     case ERROR_FILENAME:
         evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
@@ -502,7 +478,6 @@ static void
 upload_blks_api_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
-    SearpcClient *rpc_client = NULL;
     char *parent_dir, *file_name, *size_str, *replace_str;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
@@ -544,12 +519,7 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
-    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                 NULL,
-                                                 "seafserv-threaded-rpcserver");
-
-    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
-        seaf_warning ("[upload-blks] Out of quota.\n");
+    if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
         error_code = ERROR_QUOTA;
         goto error;
     }
@@ -557,28 +527,29 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
     blockids_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
 
-    char *new_file_ids = seafile_post_file_blocks (rpc_client,
-                                                   fsm->repo_id,
-                                                   parent_dir,
-                                                   file_name,
-                                                   blockids_json,
-                                                   tmp_files_json,
-                                                   fsm->user,
-                                                   file_size,
-                                                   replace,
-                                                   &error);
+    char *new_file_ids = NULL;
+    int rc = seaf_repo_manager_post_file_blocks (seaf->repo_mgr,
+                                                 fsm->repo_id,
+                                                 parent_dir,
+                                                 file_name,
+                                                 blockids_json,
+                                                 tmp_files_json,
+                                                 fsm->user,
+                                                 file_size,
+                                                 replace,
+                                                 &new_file_ids,
+                                                 &error);
     g_free (blockids_json);
     g_free (tmp_files_json);
-    if (error) {
-        if (error->code == POST_FILE_ERR_FILENAME) {
-            error_code = ERROR_FILENAME;
-            seaf_warning ("[upload-blks] Bad filename.\n");
+    if (rc < 0) {
+        if (error) {
+            if (error->code == POST_FILE_ERR_FILENAME) {
+                error_code = ERROR_FILENAME;
+            }
+            g_clear_error (&error);
         }
-        g_clear_error (&error);
         goto error;
     }
-
-    ccnet_rpc_client_free (rpc_client);
 
     evbuffer_add (req->buffer_out, new_file_ids, strlen(new_file_ids));
     g_free (new_file_ids);
@@ -587,9 +558,6 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
     return;
 
 error:
-    if (rpc_client)
-        ccnet_rpc_client_free (rpc_client);
-
     switch (error_code) {
     case ERROR_FILENAME:
         evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
@@ -623,7 +591,6 @@ static void
 upload_blks_ajax_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
-    SearpcClient *rpc_client = NULL;
     char *parent_dir, *file_name, *size_str;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
@@ -645,7 +612,7 @@ upload_blks_ajax_cb(evhtp_request_t *req, void *arg)
 
     evhtp_headers_add_header (req->headers_out,
                               evhtp_header_new("Content-Type",
-                                               "text/html; charset=utf-8", 1, 1));
+                                               "application/json; charset=utf-8", 1, 1));
 
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
@@ -679,12 +646,7 @@ upload_blks_ajax_cb(evhtp_request_t *req, void *arg)
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
-    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                 NULL,
-                                                 "seafserv-threaded-rpcserver");
-
-    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
-        seaf_warning ("[upload-blks] Out of quota.\n");
+    if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
         error_code = ERROR_QUOTA;
         goto error;
     }
@@ -692,38 +654,34 @@ upload_blks_ajax_cb(evhtp_request_t *req, void *arg)
     blockids_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
 
-    char *new_file_ids = seafile_post_file_blocks (rpc_client,
-                                                   fsm->repo_id,
-                                                   parent_dir,
-                                                   file_name,
-                                                   blockids_json,
-                                                   tmp_files_json,
-                                                   fsm->user,
-                                                   file_size,
-                                                   0,
-                                                   &error);
+    int rc = seaf_repo_manager_post_file_blocks (seaf->repo_mgr,
+                                                 fsm->repo_id,
+                                                 parent_dir,
+                                                 file_name,
+                                                 blockids_json,
+                                                 tmp_files_json,
+                                                 fsm->user,
+                                                 file_size,
+                                                 0,
+                                                 NULL,
+                                                 &error);
     g_free (blockids_json);
     g_free (tmp_files_json);
-    if (error) {
-        if (error->code == POST_FILE_ERR_FILENAME) {
-            error_code = ERROR_FILENAME;
-            seaf_warning ("[upload-blks] Bad filename.\n");
+    if (rc < 0) {
+        if (error) {
+            if (error->code == POST_FILE_ERR_FILENAME) {
+                error_code = ERROR_FILENAME;
+            }
+            g_clear_error (&error);
         }
-        g_clear_error (&error);
         goto error;
     }
-
-    g_free (new_file_ids);
-    ccnet_rpc_client_free (rpc_client);
 
     set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_OK);
     return;
 
 error:
-    if (rpc_client)
-        ccnet_rpc_client_free (rpc_client);
-
     switch (error_code) {
     case ERROR_FILENAME:
         evbuffer_add_printf(req->buffer_out, "{\"error\": \"Invalid filename.\"}");
@@ -761,7 +719,6 @@ static void
 upload_ajax_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
-    SearpcClient *rpc_client = NULL;
     char *parent_dir;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
@@ -782,7 +739,7 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
 
     evhtp_headers_add_header (req->headers_out,
                               evhtp_header_new("Content-Type",
-                                               "text/html; charset=utf-8", 1, 1));
+                                               "application/json; charset=utf-8", 1, 1));
 
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
@@ -820,12 +777,7 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
-    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                 NULL,
-                                                 "seafserv-threaded-rpcserver");
-
-    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
-        seaf_warning ("[upload] Out of quota.\n");
+    if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
         error_code = ERROR_QUOTA;
         goto error;
     }
@@ -833,26 +785,27 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     filenames_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
 
-    char *ret_json = seafile_post_multi_files (rpc_client,
-                                               fsm->repo_id,
-                                               parent_dir,
-                                               filenames_json,
-                                               tmp_files_json,
-                                               fsm->user,
-                                               0,
-                                               &error);
+    char *ret_json = NULL;
+    int rc = seaf_repo_manager_post_multi_files (seaf->repo_mgr,
+                                                 fsm->repo_id,
+                                                 parent_dir,
+                                                 filenames_json,
+                                                 tmp_files_json,
+                                                 fsm->user,
+                                                 0,
+                                                 &ret_json,
+                                                 &error);
     g_free (filenames_json);
     g_free (tmp_files_json);
-    if (error) {
-        if (error->code == POST_FILE_ERR_FILENAME) {
-            error_code = ERROR_FILENAME;
-            seaf_warning ("[upload] Bad filename.\n");
+    if (rc < 0) {
+        if (error) {
+            if (error->code == POST_FILE_ERR_FILENAME) {
+                error_code = ERROR_FILENAME;
+            }
+            g_clear_error (&error);
         }
-        g_clear_error (&error);
         goto error;
     }
-
-    ccnet_rpc_client_free (rpc_client);
 
     evbuffer_add (req->buffer_out, ret_json, strlen(ret_json));
     g_free (ret_json);
@@ -862,9 +815,6 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     return;
 
 error:
-    if (rpc_client)
-        ccnet_rpc_client_free (rpc_client);
-
     switch (error_code) {
     case ERROR_FILENAME:
         evbuffer_add_printf(req->buffer_out, "{\"error\": \"Invalid filename.\"}");
@@ -898,7 +848,6 @@ static void
 update_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
-    SearpcClient *rpc_client = NULL;
     char *target_file, *parent_dir = NULL, *filename = NULL;
     const char *head_id = NULL;
     GError *error = NULL;
@@ -931,36 +880,29 @@ update_cb(evhtp_request_t *req, void *arg)
 
     head_id = evhtp_kv_find (req->uri->query, "head");
 
-    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                 NULL,
-                                                 "seafserv-threaded-rpcserver");
-
-    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
-        seaf_warning ("[update] Out of quota.\n");
+    if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
         error_code = ERROR_QUOTA;
         goto error;
     }
 
-    char *new_file_id = seafile_put_file (rpc_client,
-                                      fsm->repo_id,
-                                      (char *)(fsm->files->data),
-                                      parent_dir,
-                                      filename,
-                                      fsm->user,
-                                      head_id,
-                                      &error);
-    if (error) {
-        if (g_strcmp0 (error->message, "file does not exist") == 0) {
-            error_code = ERROR_NOT_EXIST;
+    int rc = seaf_repo_manager_put_file (seaf->repo_mgr,
+                                         fsm->repo_id,
+                                         (char *)(fsm->files->data),
+                                         parent_dir,
+                                         filename,
+                                         fsm->user,
+                                         head_id,
+                                         NULL,
+                                         &error);
+    if (rc < 0) {
+        if (error) {
+            if (g_strcmp0 (error->message, "file does not exist") == 0) {
+                error_code = ERROR_NOT_EXIST;
+            }
+            g_clear_error (&error);
         }
-        if (error->message)
-            seaf_warning ("%s\n", error->message);
-        g_clear_error (&error);
         goto error;
     }
-
-    g_free (new_file_id);
-    ccnet_rpc_client_free (rpc_client);
 
     /* Redirect to repo dir page after upload finishes. */
     redirect_to_success_page (req, fsm->repo_id, parent_dir);
@@ -969,9 +911,6 @@ update_cb(evhtp_request_t *req, void *arg)
     return;
 
 error:
-    if (rpc_client)
-        ccnet_rpc_client_free (rpc_client);
-
     redirect_to_update_error (req, fsm->repo_id, target_file, error_code);
     g_free (parent_dir);
     g_free (filename);
@@ -981,7 +920,6 @@ static void
 update_api_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
-    SearpcClient *rpc_client = NULL;
     char *target_file, *parent_dir = NULL, *filename = NULL;
     const char *head_id = NULL;
     GError *error = NULL;
@@ -1015,38 +953,33 @@ update_api_cb(evhtp_request_t *req, void *arg)
 
     head_id = evhtp_kv_find (req->uri->query, "head");
 
-    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                 NULL,
-                                                 "seafserv-threaded-rpcserver");
-
-    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
-        seaf_warning ("[update] Out of quota.\n");
+    if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
         error_code = ERROR_QUOTA;
         goto error;
     }
 
-    new_file_id = seafile_put_file (rpc_client,
-                                    fsm->repo_id,
-                                    (char *)(fsm->files->data),
-                                    parent_dir,
-                                    filename,
-                                    fsm->user,
-                                    head_id,
-                                    &error);
+    int rc = seaf_repo_manager_put_file (seaf->repo_mgr,
+                                         fsm->repo_id,
+                                         (char *)(fsm->files->data),
+                                         parent_dir,
+                                         filename,
+                                         fsm->user,
+                                         head_id,
+                                         &new_file_id,
+                                         &error);
     g_free (parent_dir);
     g_free (filename);
     
-    if (error) {
-        if (g_strcmp0 (error->message, "file does not exist") == 0) {
-            error_code = ERROR_NOT_EXIST;
+    if (rc < 0) {
+        if (error) {
+            if (g_strcmp0 (error->message, "file does not exist") == 0) {
+                error_code = ERROR_NOT_EXIST;
+            }
+            g_clear_error (&error);
         }
-        if (error->message)
-            seaf_warning ("%s\n", error->message);
-        g_clear_error (&error);
         goto error;
     }
 
-    ccnet_rpc_client_free (rpc_client);
     /* Send back the new file id, so that the mobile client can update local cache */
     evbuffer_add(req->buffer_out, new_file_id, strlen(new_file_id));
     set_content_length_header (req);
@@ -1056,9 +989,6 @@ update_api_cb(evhtp_request_t *req, void *arg)
     return;
 
 error:
-    if (rpc_client)
-        ccnet_rpc_client_free (rpc_client);
-
     switch (error_code) {
     case ERROR_FILENAME:
         evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
@@ -1098,7 +1028,6 @@ static void
 update_blks_api_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
-    SearpcClient *rpc_client = NULL;
     char *target_file, *parent_dir = NULL, *filename = NULL, *size_str = NULL;
     const char *head_id = NULL;
     GError *error = NULL;
@@ -1128,44 +1057,39 @@ update_blks_api_cb(evhtp_request_t *req, void *arg)
 
     head_id = evhtp_kv_find (req->uri->query, "head");
 
-    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                 NULL,
-                                                 "seafserv-threaded-rpcserver");
-
-    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
-        seaf_warning ("[update-blks] Out of quota.\n");
+    if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
         error_code = ERROR_QUOTA;
         goto error;
     }
 
     blockids_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
-    new_file_id = seafile_put_file_blocks (rpc_client,
-                                           fsm->repo_id,
-                                           parent_dir,
-                                           filename,
-                                           blockids_json,
-                                           tmp_files_json,
-                                           fsm->user,
-                                           head_id,
-                                           file_size,
-                                           &error);
+    int rc = seaf_repo_manager_put_file_blocks (seaf->repo_mgr,
+                                                fsm->repo_id,
+                                                parent_dir,
+                                                filename,
+                                                blockids_json,
+                                                tmp_files_json,
+                                                fsm->user,
+                                                head_id,
+                                                file_size,
+                                                &new_file_id,
+                                                &error);
     g_free (blockids_json);
     g_free (tmp_files_json);
     g_free (parent_dir);
     g_free (filename);
 
-    if (error) {
-        if (g_strcmp0 (error->message, "file does not exist") == 0) {
-            error_code = ERROR_NOT_EXIST;
+    if (rc < 0) {
+        if (error) {
+            if (g_strcmp0 (error->message, "file does not exist") == 0) {
+                error_code = ERROR_NOT_EXIST;
+            }
+            g_clear_error (&error);
         }
-        if (error->message)
-            seaf_warning ("%s\n", error->message);
-        g_clear_error (&error);
         goto error;
     }
 
-    ccnet_rpc_client_free (rpc_client);
     /* Send back the new file id, so that the mobile client can update local cache */
     evbuffer_add(req->buffer_out, new_file_id, strlen(new_file_id));
     set_content_length_header (req);
@@ -1175,9 +1099,6 @@ update_blks_api_cb(evhtp_request_t *req, void *arg)
     return;
 
 error:
-    if (rpc_client)
-        ccnet_rpc_client_free (rpc_client);
-
     switch (error_code) {
     case ERROR_FILENAME:
         evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
@@ -1217,12 +1138,10 @@ static void
 update_blks_ajax_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
-    SearpcClient *rpc_client = NULL;
     char *target_file, *parent_dir = NULL, *filename = NULL, *size_str = NULL;
     const char *head_id = NULL;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
-    char *new_file_id = NULL;
     char *blockids_json, *tmp_files_json;
     gint64 file_size = -1;
 
@@ -1241,7 +1160,7 @@ update_blks_ajax_cb(evhtp_request_t *req, void *arg)
 
     evhtp_headers_add_header (req->headers_out,
                               evhtp_header_new("Content-Type",
-                                               "text/html; charset=utf-8", 1, 1));
+                                               "application/json; charset=utf-8", 1, 1));
 
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
@@ -1273,55 +1192,45 @@ update_blks_ajax_cb(evhtp_request_t *req, void *arg)
 
     head_id = evhtp_kv_find (req->uri->query, "head");
 
-    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                 NULL,
-                                                 "seafserv-threaded-rpcserver");
-
-    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
-        seaf_warning ("[update-blks] Out of quota.\n");
+    if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
         error_code = ERROR_QUOTA;
         goto error;
     }
 
     blockids_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
-    new_file_id = seafile_put_file_blocks (rpc_client,
-                                           fsm->repo_id,
-                                           parent_dir,
-                                           filename,
-                                           blockids_json,
-                                           tmp_files_json,
-                                           fsm->user,
-                                           head_id,
-                                           file_size,
-                                           &error);
+    int rc = seaf_repo_manager_put_file_blocks (seaf->repo_mgr,
+                                                fsm->repo_id,
+                                                parent_dir,
+                                                filename,
+                                                blockids_json,
+                                                tmp_files_json,
+                                                fsm->user,
+                                                head_id,
+                                                file_size,
+                                                NULL,
+                                                &error);
     g_free (blockids_json);
     g_free (tmp_files_json);
     g_free (parent_dir);
     g_free (filename);
 
-    if (error) {
-        if (g_strcmp0 (error->message, "file does not exist") == 0) {
-            error_code = ERROR_NOT_EXIST;
+    if (rc < 0) {
+        if (error) {
+            if (g_strcmp0 (error->message, "file does not exist") == 0) {
+                error_code = ERROR_NOT_EXIST;
+            }
+            g_clear_error (&error);
         }
-        if (error->message)
-            seaf_warning ("%s\n", error->message);
-        g_clear_error (&error);
         goto error;
     }
-
-    ccnet_rpc_client_free (rpc_client);
 
     set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_OK);
 
-    g_free (new_file_id);
     return;
 
 error:
-    if (rpc_client)
-        ccnet_rpc_client_free (rpc_client);
-
     switch (error_code) {
     case ERROR_FILENAME:
         evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
@@ -1357,16 +1266,39 @@ error:
     }
 }
 
+static char *
+format_update_json_ret (const char *filename, const char *file_id, gint64 size)
+{
+    json_t *array, *obj;
+    char *json_data;
+    char *ret;
+
+    array = json_array ();
+
+    obj = json_object ();
+    json_object_set_string_member (obj, "name", filename);
+    json_object_set_string_member (obj, "id", file_id);
+    json_object_set_int_member (obj, "size", size);
+    json_array_append_new (array, obj);
+
+    json_data = json_dumps (array, 0);
+    json_decref (array);
+
+    ret = g_strdup (json_data);
+    free (json_data);
+    return ret;
+}
+
 static void
 update_ajax_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
-    SearpcClient *rpc_client = NULL;
     char *target_file, *parent_dir = NULL, *filename = NULL;
     const char *head_id = NULL;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
     char *new_file_id = NULL;
+    gint64 size;
 
     evhtp_headers_add_header (req->headers_out,
                               evhtp_header_new("Access-Control-Allow-Headers",
@@ -1383,7 +1315,7 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
 
     evhtp_headers_add_header (req->headers_out,
                               evhtp_header_new("Content-Type",
-                                               "text/html; charset=utf-8", 1, 1));
+                                               "application/json; charset=utf-8", 1, 1));
 
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
@@ -1419,66 +1351,58 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
+    SeafStat st;
+    char *tmp_file_path = fsm->files->data;
+    if (seaf_stat (tmp_file_path, &st) < 0) {
+        seaf_warning ("Failed to stat tmp file %s.\n", tmp_file_path);
+        goto error;
+    }
+    size = (gint64)st.st_size;
+
     head_id = evhtp_kv_find (req->uri->query, "head");
 
-    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                 NULL,
-                                                 "seafserv-threaded-rpcserver");
-
-    if (seafile_check_quota (rpc_client, fsm->repo_id, NULL) < 0) {
-        seaf_warning ("[update] Out of quota.\n");
+    if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
         error_code = ERROR_QUOTA;
         goto error;
     }
 
-    new_file_id = seafile_put_file (rpc_client,
-                                    fsm->repo_id,
-                                    (char *)(fsm->files->data),
-                                    parent_dir,
-                                    filename,
-                                    fsm->user,
-                                    head_id,
-                                    &error);
+    int rc = seaf_repo_manager_put_file (seaf->repo_mgr,
+                                         fsm->repo_id,
+                                         (char *)(fsm->files->data),
+                                         parent_dir,
+                                         filename,
+                                         fsm->user,
+                                         head_id,
+                                         &new_file_id,
+                                         &error);
     g_free (parent_dir);
-    g_free (filename);
     
-    if (error) {
-        if (g_strcmp0 (error->message, "file does not exist") == 0) {
-            error_code = ERROR_NOT_EXIST;
+    if (rc < 0) {
+        if (error) {
+            if (g_strcmp0 (error->message, "file does not exist") == 0) {
+                error_code = ERROR_NOT_EXIST;
+            }
+            g_clear_error (&error);
         }
-        if (error->message)
-            seaf_warning ("%s\n", error->message);
-        g_clear_error (&error);
         goto error;
     }
 
-    ccnet_rpc_client_free (rpc_client);
+    char *json_ret = format_update_json_ret (filename, new_file_id, size);
 
-    GString *res_buf = g_string_new (NULL);
-    GList *ptr;
-
-    g_string_append (res_buf, "[");
-    for (ptr = fsm->filenames; ptr; ptr = ptr->next) {
-        char *filename = ptr->data;
-        if (ptr->next)
-            g_string_append_printf (res_buf, "{\"name\": \"%s\"}, ", filename);
-        else
-            g_string_append_printf (res_buf, "{\"name\": \"%s\"}", filename);
-    }
-    g_string_append (res_buf, "]");
-
-    evbuffer_add (req->buffer_out, res_buf->str, res_buf->len);
-    g_string_free (res_buf, TRUE);
+    evbuffer_add (req->buffer_out, json_ret, strlen(json_ret));
     
     set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_OK);
 
     g_free (new_file_id);
+    g_free (filename);
+    g_free (json_ret);
+
     return;
 
 error:
-    if (rpc_client)
-        ccnet_rpc_client_free (rpc_client);
+    g_free (new_file_id);
+    g_free (filename);
 
     switch (error_code) {
     case ERROR_FILENAME:
@@ -1644,7 +1568,7 @@ open_temp_file (RecvFSM *fsm)
     GString *temp_file = g_string_new (NULL);
 
     g_string_printf (temp_file, "%s/%sXXXXXX",
-                     seaf->http_temp_dir, get_basename(fsm->file_name));
+                     seaf->http_server->http_temp_dir, get_basename(fsm->file_name));
 
     fsm->fd = g_mkstemp (temp_file->str);
     if (fsm->fd < 0) {
@@ -1957,17 +1881,27 @@ get_boundary (evhtp_headers_t *hdr)
 }
 
 static int
-check_access_token (SearpcClient *rpc,
-                    const char *token,
+check_access_token (const char *token,
+                    const char *url_op,
                     char **repo_id,
                     char **user)
 {
     SeafileWebAccess *webaccess;
+    const char *op;
 
     webaccess = (SeafileWebAccess *)
-        seafile_web_query_access_token (rpc, token, NULL);
+        seaf_web_at_manager_query_access_token (seaf->web_at_mgr, token);
     if (!webaccess)
         return -1;
+
+    /* token with op = "upload" can only be used for "upload-*" operations;
+     * token with op = "update" can only be used for "update-*" operations.
+     */
+    op = seafile_web_access_get_op (webaccess);
+    if (strncmp (url_op, op, strlen(op)) != 0) {
+        g_object_unref (webaccess);
+        return -1;
+    }
 
     *repo_id = g_strdup (seafile_web_access_get_repo_id (webaccess));
     *user = g_strdup (seafile_web_access_get_username (webaccess));
@@ -2005,7 +1939,7 @@ get_progress_info (evhtp_request_t *req,
 static evhtp_res
 upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
 {
-    SearpcClient *rpc_client = NULL;
+    char **parts = NULL;
     char *token, *repo_id = NULL, *user = NULL;
     char *boundary = NULL;
     gint64 content_len;
@@ -2016,8 +1950,8 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
 
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
          return EVHTP_RES_OK;
-    }    
-    
+    }
+
     /* URL format: http://host:port/[upload|update]/<token>?X-Progress-ID=<uuid> */
     token = req->uri->path->file;
     if (!token) {
@@ -2026,12 +1960,14 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
         goto err;
     }
 
-    rpc_client = ccnet_create_pooled_rpc_client (seaf->client_pool,
-                                                 NULL,
-                                                 "seafserv-rpcserver");
+    parts = g_strsplit (req->uri->path->full + 1, "/", 0);
+    if (!parts || g_strv_length (parts) < 2) {
+        err_msg = "Invalid URL";
+        goto err;
+    }
+    char *url_op = parts[0];
 
-    if (check_access_token (rpc_client, token, &repo_id, &user) < 0) {
-        seaf_warning ("[upload] Invalid token.\n");
+    if (check_access_token (token, url_op, &repo_id, &user) < 0) {
         err_msg = "Access denied";
         goto err;
     }
@@ -2079,7 +2015,7 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
     /* Set arg for upload_cb or update_cb. */
     req->cbarg = fsm;
 
-    ccnet_rpc_client_free (rpc_client);
+    g_strfreev (parts);
 
     return EVHTP_RES_OK;
 
@@ -2096,13 +2032,11 @@ err:
     set_content_length_header (req);
     evhtp_send_reply (req, EVHTP_RES_BADREQ);
 
-    if (rpc_client)
-        ccnet_rpc_client_free (rpc_client);
-
     g_free (repo_id);
     g_free (user);
     g_free (boundary);
     g_free (progress_id);
+    g_strfreev (parts);
     return EVHTP_RES_OK;
 }
 
@@ -2152,13 +2086,13 @@ upload_progress_cb(evhtp_request_t *req, void *arg)
 }
 
 int
-upload_file_init (evhtp_t *htp)
+upload_file_init (evhtp_t *htp, const char *http_temp_dir)
 {
     evhtp_callback_t *cb;
 
-    if (g_mkdir_with_parents (seaf->http_temp_dir, 0777) < 0) {
+    if (g_mkdir_with_parents (http_temp_dir, 0777) < 0) {
         seaf_warning ("Failed to create temp file dir %s.\n",
-                      seaf->http_temp_dir);
+                      http_temp_dir);
         return -1;
     }
 

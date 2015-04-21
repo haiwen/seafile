@@ -258,6 +258,20 @@ static int read_index_extension(struct index_state *istate,
     return 0;
 }
 
+static void alloc_index (struct index_state *istate)
+{
+    istate->cache_alloc = alloc_nr(istate->cache_nr);
+    istate->cache = calloc(istate->cache_alloc, sizeof(struct cache_entry *));
+    istate->name_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                               g_free, NULL);
+#if defined WIN32 || defined __APPLE__
+    istate->i_name_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                 g_free, NULL);
+#endif
+    istate->initialized = 1;
+    istate->name_hash_initialized = 1;
+}
+
 /* remember to discard_cache() before reading a different cache! */
 int read_index_from(struct index_state *istate, const char *path, int repo_version)
 {
@@ -278,10 +292,12 @@ int read_index_from(struct index_state *istate, const char *path, int repo_versi
         istate->has_modifier = 1;
     istate->timestamp.sec = 0;
     istate->timestamp.nsec = 0;
-    fd = g_open (path, O_RDONLY | O_BINARY, 0);
+    fd = seaf_util_open (path, O_RDONLY | O_BINARY);
     if (fd < 0) {
-        if (errno == ENOENT)
+        if (errno == ENOENT) {
+            alloc_index (istate);
             return 0;
+        }
         g_critical("index file open failed\n");
         return -1;
     }
@@ -314,14 +330,7 @@ int read_index_from(struct index_state *istate, const char *path, int repo_versi
      */
     istate->version = ntohl(hdr->hdr_version);
     istate->cache_nr = ntohl(hdr->hdr_entries);
-    istate->cache_alloc = alloc_nr(istate->cache_nr);
-    istate->cache = calloc(istate->cache_alloc, sizeof(struct cache_entry *));
-    istate->name_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                               g_free, NULL);
-#if defined WIN32 || defined __APPLE__
-    istate->i_name_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                                 g_free, NULL);
-#endif
+    alloc_index (istate);
 
     /*
      * The disk format is actually larger than the in-memory format,
@@ -329,8 +338,6 @@ int read_index_from(struct index_state *istate, const char *path, int repo_versi
      * has room for a few  more flags, we can allocate using the same
      * index size
      */
-    /* istate->alloc = malloc(estimate_cache_size(mmap_size, istate->cache_nr)); */
-    istate->initialized = 1;
 
     src_offset = sizeof(*hdr);
     for (i = 0; i < istate->cache_nr; i++) {
@@ -860,6 +867,28 @@ int verify_path(const char *path)
     }
 }
 
+void remove_empty_parent_dir_entry (struct index_state *istate, const char *path)
+{
+    char *parent = g_strdup(path);
+    char *slash;
+
+    /* Find and remove empty dir entry from low level to top level. */
+    while (1) {
+        slash = strrchr (parent, '/');
+        if (!slash)
+            break;
+
+        *slash = 0;
+
+        if (index_name_exists (istate, parent, strlen(parent), 0) != NULL) {
+            remove_file_from_index (istate, parent);
+            break;
+        }
+    }
+
+    g_free (parent);
+}
+
 static int add_index_entry_with_check(struct index_state *istate, struct cache_entry *ce, int option)
 {
     int pos;
@@ -867,6 +896,8 @@ static int add_index_entry_with_check(struct index_state *istate, struct cache_e
     /* int ok_to_replace = option & ADD_CACHE_OK_TO_REPLACE; */
     /* int skip_df_check = option & ADD_CACHE_SKIP_DFCHECK; */
     int new_only = option & ADD_CACHE_NEW_ONLY;
+
+    remove_empty_parent_dir_entry (istate, ce->name);
 
     pos = index_name_pos(istate, ce->name, ce->ce_flags);
 
@@ -877,27 +908,6 @@ static int add_index_entry_with_check(struct index_state *istate, struct cache_e
         return 0;
     }
     pos = -pos-1;
-
-    /*
-     * If an empty dir entry exsits in the index and it's the parent of
-     * the entry to be inserted, remove the empty dir entry.
-     */
-    int i = pos - 1;
-    struct cache_entry *prev;
-    if (i >= 0) {
-        prev = istate->cache[i];
-
-        if (S_ISDIR(prev->ce_mode)) {
-            char *full_name = g_strconcat (prev->name, "/", NULL);
-            int len1 = strlen(full_name);
-            int len2 = strlen(ce->name);
-            if (len1 < len2 && strncmp (ce->name, full_name, len1) == 0) {
-                remove_index_entry_at (istate, i);
-                pos = pos - 1;
-            }
-            g_free (full_name);
-        }
-    }
 
     /*
      * Inserting a merged entry ("stage 0") into the index
@@ -1090,23 +1100,27 @@ static int is_garbage_empty_dir (struct index_state *istate, struct cache_entry 
     struct cache_entry *next;
     char *dir_name = g_strconcat (ce->name, "/", NULL);
     int this_len = strlen (ce->name) + 1;
-    if (pos < istate->cache_nr) {
+    while (pos < istate->cache_nr) {
         next = istate->cache[pos];
-        int rc = strncmp (dir_name, next->name, this_len);
-        if (rc == 0)
+        int rc = strncmp (next->name, dir_name, this_len);
+        if (rc == 0) {
             ret = 1;
+            break;
+        } else if (rc < 0) {
+            ++pos;
+        } else
+            break;
     }
 
     g_free (dir_name);
     return ret;
 }
 
-int
-add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *st)
+static struct cache_entry *
+create_empty_dir_index_entry (const char *path, SeafStat *st)
 {
     int namelen, size;
-    struct cache_entry *ce, *alias;
-    int add_option = (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE);
+    struct cache_entry *ce;
 
     namelen = strlen(path);
     size = cache_entry_size(namelen);
@@ -1119,6 +1133,17 @@ add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *
 
     ce->ce_mode = S_IFDIR;
     /* sha1 is all-zero. */
+
+    return ce;
+}
+
+int
+add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *st)
+{
+    struct cache_entry *ce, *alias;
+    int add_option = (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE);
+
+    ce = create_empty_dir_index_entry (path, st);
 
     if (is_garbage_empty_dir (istate, ce)) {
         free (ce);
@@ -1152,10 +1177,15 @@ add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *
 }
 
 int
-remove_from_index_with_prefix (struct index_state *istate, const char *path_prefix)
+remove_from_index_with_prefix (struct index_state *istate, const char *path_prefix,
+                               gboolean *not_found)
 {
     int pathlen = strlen(path_prefix);
     int pos = index_name_pos (istate, path_prefix, pathlen);
+    struct cache_entry *ce;
+
+    if (not_found)
+        *not_found = FALSE;
 
     /* Exact match, remove that entry. */
     if (pos >= 0) {
@@ -1177,7 +1207,21 @@ remove_from_index_with_prefix (struct index_state *istate, const char *path_pref
     char *full_path_prefix = g_strconcat (path_prefix, "/", NULL);
     ++pathlen;
 
-    struct cache_entry *ce;
+    while (pos < istate->cache_nr) {
+        ce = istate->cache[pos];
+        if (strncmp (ce->name, full_path_prefix, pathlen) < 0) {
+            ++pos;
+        } else
+            break;
+    }
+
+    if (pos == istate->cache_nr) {
+        g_free (full_path_prefix);
+        if (not_found)
+            *not_found = TRUE;
+        return 0;
+    }
+
     int i = pos;
     while (i < istate->cache_nr) {
         ce = istate->cache[i];
@@ -1191,8 +1235,11 @@ remove_from_index_with_prefix (struct index_state *istate, const char *path_pref
     g_free (full_path_prefix);
 
     /* No match. */
-    if (i == pos)
+    if (i == pos) {
+        if (not_found)
+            *not_found = TRUE;
         return 0;
+    }
 
     if (i < istate->cache_nr)
         memmove (istate->cache + pos,
@@ -1264,8 +1311,21 @@ create_renamed_cache_entries (struct index_state *istate,
     char *full_src_path = g_strconcat (src_path, "/", NULL);
     ++src_pathlen;
 
-    int i = pos;
+    while (pos < istate->cache_nr) {
+        ce = istate->cache[pos];
+        if (strncmp (ce->name, full_src_path, src_pathlen) < 0) {
+            ++pos;
+        } else
+            break;
+    }
 
+    if (pos == istate->cache_nr) {
+        g_free (full_src_path);
+        *n_entries = 0;
+        return NULL;
+    }
+
+    int i = pos;
     while (i < istate->cache_nr) {
         ce = istate->cache[i];
         if (strncmp (ce->name, full_src_path, src_pathlen) == 0) {
@@ -1305,22 +1365,30 @@ create_renamed_cache_entries (struct index_state *istate,
 int
 rename_index_entries (struct index_state *istate,
                       const char *src_path,
-                      const char *dst_path)
+                      const char *dst_path,
+                      gboolean *not_found)
 {
     struct cache_entry **new_ces;
     int n_entries;
     int ret = 0;
     int i;
 
+    if (not_found)
+        *not_found = FALSE;
+
     new_ces = create_renamed_cache_entries (istate, src_path, dst_path, &n_entries);
     if (n_entries == 0) {
+        if (not_found)
+            *not_found = TRUE;
         return 0;
     }
 
     /* Remove entries under dst_path. It's necessary for the situation that
      * one file is renamed to overwrite another file.
      */
-    remove_from_index_with_prefix (istate, dst_path);
+    remove_from_index_with_prefix (istate, dst_path, NULL);
+
+    remove_empty_parent_dir_entry (istate, dst_path);
 
     /* Insert the renamed entries to their position. */
     int dst_pathlen = strlen(dst_path);
@@ -1332,19 +1400,6 @@ rename_index_entries (struct index_state *istate,
     }
 
     pos = -pos-1;
-
-    /* Moving a file may turn an empty dir into non-empty. */
-    if (pos > 0) {
-        struct cache_entry *prev = istate->cache[pos-1];
-        char *full_name = g_strconcat (prev->name, "/", NULL);
-
-        if (S_ISDIR(prev->ce_mode) &&
-            strncmp(full_name, dst_path, strlen(full_name)) == 0) {
-            remove_index_entry_at (istate, pos-1);
-            pos = pos - 1;
-        }
-        g_free (full_name);
-    }
 
     /* There should be at least n_entries free room in istate->cache array,
      * since we just removed n_entries from the index in
@@ -1377,6 +1432,75 @@ out:
     free (new_ces);
 
     return ret;
+}
+
+/*
+ * If there is no file under @path, add an empty dir entry for this @path.
+ */
+int
+add_empty_dir_to_index_with_check (struct index_state *istate,
+                                   const char *path, SeafStat *st)
+{
+    int pathlen = strlen(path);
+    int pos = index_name_pos (istate, path, pathlen);
+    struct cache_entry *ce;
+
+    /* Exact match, empty dir entry already exists. */
+    if (pos >= 0) {
+        return 0;
+    }
+
+    /* Otherwise it may be a prefix match, remove all entries begin with this prefix.
+     */
+
+    /* -pos = (the position this entry *should* be) + 1.
+     * So -pos-1 is the first entry larger than this entry.
+     */
+    pos = -pos-1;
+
+    /* Add '/' to the end of prefix so that we won't match a partial path component.
+     * e.g. we don't want to match 'abc' with 'abcd/ef'
+     */
+    char *full_path = g_strconcat (path, "/", NULL);
+    ++pathlen;
+
+    gboolean is_empty = TRUE;
+
+    while (pos < istate->cache_nr) {
+        ce = istate->cache[pos];
+        int rc = strncmp (ce->name, full_path, pathlen);
+        if (rc < 0) {
+            ++pos;
+        } else if (rc == 0) {
+            is_empty = FALSE;
+            break;
+        } else
+            break;
+    }
+
+    g_free (full_path);
+
+    if (is_empty) {
+        ce = create_empty_dir_index_entry (path, st);
+
+        /* Make sure the array is big enough .. */
+        if (istate->cache_nr == istate->cache_alloc) {
+            istate->cache_alloc = alloc_nr(istate->cache_alloc);
+            istate->cache = realloc(istate->cache,
+                                    istate->cache_alloc * sizeof(struct cache_entry *));
+        }
+
+        /* Add it in.. */
+        istate->cache_nr++;
+        if (istate->cache_nr > pos + 1)
+            memmove(istate->cache + pos + 1,
+                    istate->cache + pos,
+                    (istate->cache_nr - pos - 1) * sizeof(ce));
+        set_index_entry(istate, pos, ce);
+        istate->cache_changed = 1;
+    }
+
+    return 0;
 }
 
 static struct cache_entry *refresh_cache_entry(struct cache_entry *ce,
@@ -1521,7 +1645,7 @@ int index_path(unsigned char *sha1, const char *path, SeafStat *st)
 
     switch (st->st_mode & S_IFMT) {
     case S_IFREG:
-        fd = g_open (path, O_RDONLY | O_BINARY, 0);
+        fd = seaf_util_open (path, O_RDONLY | O_BINARY);
         if (fd < 0) {
             g_warning("g_open (\"%s\"): %s\n", path, strerror(errno));
             return -1;

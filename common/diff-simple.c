@@ -684,7 +684,8 @@ diff_resolve_renames (GList **diff_entries)
     /* Collect all "deleted" entries. */
     for (p = *diff_entries; p != NULL; p = p->next) {
         de = p->data;
-        if (de->status == DIFF_STATUS_DELETED &&
+        if ((de->status == DIFF_STATUS_DELETED ||
+             de->status == DIFF_STATUS_DIR_DELETED) &&
             memcmp (de->sha1, empty_sha1, 20) != 0)
             g_hash_table_insert (deleted, de->sha1, p);
     }
@@ -692,7 +693,8 @@ diff_resolve_renames (GList **diff_entries)
     /* Collect all "added" entries into a separate list. */
     for (p = *diff_entries; p != NULL; p = p->next) {
         de = p->data;
-        if (de->status == DIFF_STATUS_ADDED &&
+        if ((de->status == DIFF_STATUS_ADDED ||
+             de->status == DIFF_STATUS_DIR_ADDED) &&
             memcmp (de->sha1, empty_sha1, 20) != 0)
             added = g_list_prepend (added, p);
     }
@@ -704,6 +706,7 @@ diff_resolve_renames (GList **diff_entries)
     while (p != NULL) {
         GList *p_add, *p_del;
         DiffEntry *de_add, *de_del, *de_rename;
+        int rename_status;
 
         p_add = p->data;
         de_add = p_add->data;
@@ -711,7 +714,13 @@ diff_resolve_renames (GList **diff_entries)
         p_del = g_hash_table_lookup (deleted, de_add->sha1);
         if (p_del) {
             de_del = p_del->data;
-            de_rename = diff_entry_new (de_del->type, DIFF_STATUS_RENAMED, 
+
+            if (de_add->status == DIFF_STATUS_DIR_ADDED)
+                rename_status = DIFF_STATUS_DIR_RENAMED;
+            else
+                rename_status = DIFF_STATUS_RENAMED;
+
+            de_rename = diff_entry_new (de_del->type, rename_status, 
                                         de_del->sha1, de_del->name);
             de_rename->new_name = g_strdup(de_add->name);
 

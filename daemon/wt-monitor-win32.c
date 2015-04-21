@@ -1,6 +1,10 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 #include "common.h"
 
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x500
+#endif
+
 #include <windows.h>
 
 #include <sys/time.h>
@@ -142,6 +146,9 @@ add_event_to_queue (WTStatus *status,
     case WT_EVENT_CREATE_OR_UPDATE:
         name = "create/update";
         break;
+    case WT_EVENT_SCAN_DIR:
+        name = "scan dir";
+        break;
     case WT_EVENT_DELETE:
         name = "delete";
         break;
@@ -194,7 +201,7 @@ start_watch_dir_change(SeafWTMonitorPriv *priv, HANDLE dir_handle)
 retry:
     ret = ReadDirectoryChangesW
         (dir_handle,            /* dir handle */
-         &aux->buf,              /* buf to hold change info */
+         aux->buf,              /* buf to hold change info */
          DIR_WATCH_BUFSIZE,     /* buf size */
          TRUE,                  /* watch subtree */
          DIR_WATCH_MASK,        /* notify filter */
@@ -409,10 +416,23 @@ handle_consecutive_duplicate_event (RepoWatchInfo *info,
 #endif
 
 static char *
-convert_to_unix_path (const wchar_t *path, int path_len)
+convert_to_unix_path (const char *worktree, const wchar_t *path, int path_len,
+                      gboolean convert_long_path)
 {
-    char *utf8_path = g_utf16_to_utf8 (path, path_len/sizeof(wchar_t),
-                                       NULL, NULL, NULL);
+    char *utf8_path = NULL;
+
+    if (convert_long_path) {
+        wchar_t *long_path = win32_83_path_to_long_path (worktree,
+                                                         path,
+                                                         path_len/sizeof(wchar_t));
+        if (long_path) {
+            utf8_path = g_utf16_to_utf8 (long_path, -1, NULL, NULL, NULL);
+            g_free (long_path);
+        } else
+            utf8_path = g_utf16_to_utf8 (path, path_len/sizeof(wchar_t),
+                                         NULL, NULL, NULL);
+    } else
+        utf8_path = g_utf16_to_utf8 (path, path_len/sizeof(wchar_t), NULL, NULL, NULL);
 
     char *p;
     for (p = utf8_path; *p != 0; ++p)
@@ -437,7 +457,10 @@ process_one_event (RepoWatchInfo *info,
         add_to_queue = FALSE;
 #endif
 
-    filename = convert_to_unix_path (event->FileName, event->FileNameLength);
+    gboolean convert_long_path = !(event->Action == FILE_ACTION_RENAMED_OLD_NAME ||
+                                   event->Action == FILE_ACTION_REMOVED);
+    filename = convert_to_unix_path (worktree, event->FileName, event->FileNameLength,
+                                     convert_long_path);
 
     handle_rename (info, event, worktree, filename, last_event);
 
@@ -446,7 +469,9 @@ process_one_event (RepoWatchInfo *info,
 
         /* Ignore modified event for directories. */
         char *full_path = g_build_filename (worktree, filename, NULL);
-        if (g_file_test(full_path, G_FILE_TEST_IS_DIR)) {
+        SeafStat st;
+        int rc = seaf_stat (full_path, &st);
+        if (rc < 0 || S_ISDIR(st.st_mode)) {
             g_free (full_path);
             goto out;
         }
@@ -646,7 +671,7 @@ static HANDLE add_watch (SeafWTMonitorPriv *priv,
     g_hash_table_insert (priv->info_hash, (gpointer)(long)dir_handle, info);
     pthread_mutex_unlock (&priv->hash_lock);
 
-    add_event_to_queue (info->status, WT_EVENT_CREATE_OR_UPDATE, "", NULL);
+    add_event_to_queue (info->status, WT_EVENT_SCAN_DIR, "", NULL);
 
     return dir_handle;
 }

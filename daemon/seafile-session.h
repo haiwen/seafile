@@ -17,10 +17,12 @@
 #include "db.h"
 
 #include "transfer-mgr.h"
-#include "share-mgr.h"
 #include "sync-mgr.h"
 #include "wt-monitor.h"
 #include "mq-mgr.h"
+
+#include "http-tx-mgr.h"
+
 #include <searpc-client.h>
 
 struct _CcnetClient;
@@ -65,8 +67,21 @@ struct _SeafileSession {
     CEventManager       *ev_mgr;
     CcnetJobManager     *job_mgr;
 
+    HttpTxManager       *http_tx_mgr;
+
     /* Set after all components are up and running. */
     gboolean             started;
+
+    gboolean             sync_extra_temp_file;
+    gboolean             enable_http_sync;
+    gboolean             disable_verify_certificate;
+
+    gboolean             use_http_proxy;
+    char                *http_proxy_type;
+    char                *http_proxy_addr;
+    int                  http_proxy_port;
+    char                *http_proxy_username;
+    char                *http_proxy_password;
 };
 
 struct _SeafileSessionClass

@@ -1,3 +1,5 @@
+/* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+
 #include "common.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
 #include "log.h"
@@ -574,7 +576,7 @@ send_encrypted_block (BlockTxClient *client,
 
         /* Update global transferred bytes. */
         g_atomic_int_add (&(info->task->tx_bytes), n);
-        g_atomic_int_add (&(seaf->transfer_mgr->sent_bytes), n);
+        g_atomic_int_add (&(seaf->sync_mgr->sent_bytes), n);
 
         /* If uploaded bytes exceeds the limit, wait until the counter
          * is reset. We check the counter every 100 milliseconds, so we
@@ -582,9 +584,9 @@ send_encrypted_block (BlockTxClient *client,
          * the counter is reset.
          */
         while (1) {
-            gint sent = g_atomic_int_get(&(seaf->transfer_mgr->sent_bytes));
-            if (seaf->transfer_mgr->upload_limit > 0 &&
-                sent > seaf->transfer_mgr->upload_limit)
+            gint sent = g_atomic_int_get(&(seaf->sync_mgr->sent_bytes));
+            if (seaf->sync_mgr->upload_limit > 0 &&
+                sent > seaf->sync_mgr->upload_limit)
                 /* 100 milliseconds */
                 g_usleep (100000);
             else
@@ -648,12 +650,12 @@ save_block_content_cb (char *content, int clen, int end, void *cbarg)
 
     /* Update global transferred bytes. */
     g_atomic_int_add (&(task->tx_bytes), clen);
-    g_atomic_int_add (&(seaf->transfer_mgr->recv_bytes), clen);
+    g_atomic_int_add (&(seaf->sync_mgr->recv_bytes), clen);
 
     while (1) {
-        gint recv_bytes = g_atomic_int_get (&(seaf->transfer_mgr->recv_bytes));
-        if (seaf->transfer_mgr->download_limit > 0 &&
-            recv_bytes > seaf->transfer_mgr->download_limit) {
+        gint recv_bytes = g_atomic_int_get (&(seaf->sync_mgr->recv_bytes));
+        if (seaf->sync_mgr->download_limit > 0 &&
+            recv_bytes > seaf->sync_mgr->download_limit) {
             g_usleep (100000);
         } else {
             break;
@@ -895,6 +897,8 @@ do_break_loop (BlockTxClient *client)
     }
 }
 
+#define RECV_TIMEOUT_SEC 45
+
 static gboolean
 client_thread_loop (BlockTxClient *client)
 {
@@ -903,6 +907,7 @@ client_thread_loop (BlockTxClient *client)
     int max_fd = MAX (info->cmd_pipe[0], client->data_fd);
     int rc;
     gboolean restart = FALSE;
+    struct timeval tmo;
 
     while (1) {
         FD_ZERO (&fds);
@@ -915,13 +920,30 @@ client_thread_loop (BlockTxClient *client)
         } else
             max_fd = info->cmd_pipe[0];
 
-        rc = select (max_fd + 1, &fds, NULL, NULL, NULL);
+        /* If the client is already shutdown, no need to add timeout. */
+        if (client->recv_state != RECV_STATE_DONE) {
+            tmo.tv_sec = RECV_TIMEOUT_SEC;
+            tmo.tv_usec = 0;
+            rc = select (max_fd + 1, &fds, NULL, NULL, &tmo);
+        } else {
+            rc = select (max_fd + 1, &fds, NULL, NULL, NULL);
+        }
+
         if (rc < 0 && errno == EINTR) {
             continue;
         } else if (rc < 0) {
             seaf_warning ("select error: %s.\n", strerror(errno));
             client->info->result = BLOCK_CLIENT_FAILED;
             break;
+        } else if (rc == 0) {
+            /* timeout */
+            if (info->task->type == TASK_TYPE_DOWNLOAD) {
+                seaf_warning ("Recv timeout.\n");
+                client->info->result = BLOCK_CLIENT_NET_ERROR;
+                if (do_break_loop (client))
+                    break;
+            }
+            continue;
         }
 
         if (client->recv_state != RECV_STATE_DONE &&

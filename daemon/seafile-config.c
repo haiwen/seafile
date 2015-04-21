@@ -5,6 +5,17 @@
 
 #include "seafile-config.h"
 
+gboolean
+seafile_session_config_exists (SeafileSession *session, const char *key)
+{
+    char sql[256];
+
+    snprintf (sql, sizeof(sql),
+              "SELECT 1 FROM Config WHERE key = '%s'",
+              key);
+    return sqlite_check_for_existence (session->config_db, sql);
+}
+
 static gboolean
 get_value (sqlite3_stmt *stmt, void *data)
 {
@@ -60,6 +71,21 @@ seafile_session_config_get_int (SeafileSession *session,
     return ret;
 }
 
+gboolean
+seafile_session_config_get_bool (SeafileSession *session,
+                                 const char *key)
+{
+    char *value;
+    gboolean ret = FALSE;
+
+    value = config_get_string (session->config_db, key);
+    if (g_strcmp0(value, "true") == 0)
+        ret = TRUE;
+
+    g_free (value);
+    return ret;
+}
+
 int
 seafile_session_config_set_string (SeafileSession *session,
                                    const char *key,
@@ -72,6 +98,50 @@ seafile_session_config_set_string (SeafileSession *session,
                       key, value);
     if (sqlite_query_exec (session->config_db, sql) < 0)
         return -1;
+
+    if (g_strcmp0(key, KEY_SYNC_EXTRA_TEMP_FILE) == 0) {
+        if (g_strcmp0(value, "true") == 0)
+            session->sync_extra_temp_file = TRUE;
+        else
+            session->sync_extra_temp_file = FALSE;
+    }
+
+    if (g_strcmp0(key, KEY_ENABLE_HTTP_SYNC) == 0) {
+        if (g_strcmp0(value, "true") == 0)
+            session->enable_http_sync = TRUE;
+        else
+            session->enable_http_sync = FALSE;
+    }
+
+    if (g_strcmp0(key, KEY_DISABLE_VERIFY_CERTIFICATE) == 0) {
+        if (g_strcmp0(value, "true") == 0)
+            session->disable_verify_certificate = TRUE;
+        else
+            session->disable_verify_certificate = FALSE;
+    }
+
+    if (g_strcmp0(key, KEY_USE_PROXY) == 0) {
+        if (g_strcmp0(value, "true") == 0)
+            session->use_http_proxy = TRUE;
+        else
+            session->use_http_proxy = FALSE;
+    }
+
+    if (g_strcmp0(key, KEY_PROXY_TYPE) == 0) {
+        session->http_proxy_type = g_strdup(value);
+    }
+
+    if (g_strcmp0(key, KEY_PROXY_ADDR) == 0) {
+        session->http_proxy_addr = g_strdup(value);
+    }
+
+    if (g_strcmp0(key, KEY_PROXY_USERNAME) == 0) {
+        session->http_proxy_username = g_strdup(value);
+    }
+
+    if (g_strcmp0(key, KEY_PROXY_PASSWORD) == 0) {
+        session->http_proxy_password = g_strdup(value);
+    }
 
     return 0;
 }
@@ -88,6 +158,10 @@ seafile_session_config_set_int (SeafileSession *session,
                       key, value);
     if (sqlite_query_exec (session->config_db, sql) < 0)
         return -1;
+
+    if (g_strcmp0(key, KEY_PROXY_PORT) == 0) {
+        session->http_proxy_port = value;
+    }
 
     return 0;
 }
@@ -123,13 +197,12 @@ seafile_session_config_set_allow_invalid_worktree(SeafileSession *session, gbool
 gboolean
 seafile_session_config_get_allow_invalid_worktree(SeafileSession *session)
 {
-    return g_strcmp0(seafile_session_config_get_string(session, \
-                        KEY_ALLOW_INVALID_WORKTREE), "true") == 0;
+    return seafile_session_config_get_bool (session, KEY_ALLOW_INVALID_WORKTREE);
 }
 
 gboolean
 seafile_session_config_get_allow_repo_not_found_on_server(SeafileSession *session)
 {
-    return g_strcmp0(seafile_session_config_get_string(session, \
-                        KEY_ALLOW_REPO_NOT_FOUND_ON_SERVER), "true") == 0;
+    return seafile_session_config_get_bool (session,
+                                            KEY_ALLOW_REPO_NOT_FOUND_ON_SERVER);
 }

@@ -27,29 +27,47 @@ seaf_share_manager_start (SeafShareManager *mgr)
     int db_type = seaf_db_type (db);
     if (db_type == SEAF_DB_TYPE_MYSQL) {
         sql = "CREATE TABLE IF NOT EXISTS SharedRepo "
-            "(repo_id CHAR(37) , from_email VARCHAR(512), to_email VARCHAR(512), "
-            "permission CHAR(15), INDEX (repo_id)) ENGINE=INNODB";
+            "(id INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT,"
+            "repo_id CHAR(37) , from_email VARCHAR(255), to_email VARCHAR(255), "
+            "permission CHAR(15), INDEX (repo_id), "
+            "INDEX(from_email), INDEX(to_email)) ENGINE=INNODB";
 
         if (seaf_db_query (db, sql) < 0)
             return -1;
     } else if (db_type == SEAF_DB_TYPE_SQLITE) {
         sql = "CREATE TABLE IF NOT EXISTS SharedRepo "
-            "(repo_id CHAR(37) , from_email VARCHAR(512), to_email VARCHAR(512), "
+            "(repo_id CHAR(37) , from_email VARCHAR(255), to_email VARCHAR(255), "
             "permission CHAR(15))";
         if (seaf_db_query (db, sql) < 0)
             return -1;
         sql = "CREATE INDEX IF NOT EXISTS RepoIdIndex on SharedRepo (repo_id)";
         if (seaf_db_query (db, sql) < 0)
             return -1;
+        sql = "CREATE INDEX IF NOT EXISTS FromEmailIndex on SharedRepo (from_email)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+        sql = "CREATE INDEX IF NOT EXISTS ToEmailIndex on SharedRepo (to_email)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
     } else if (db_type == SEAF_DB_TYPE_PGSQL) {
         sql = "CREATE TABLE IF NOT EXISTS SharedRepo "
-            "(repo_id CHAR(36) , from_email VARCHAR(512), to_email VARCHAR(512), "
+            "(repo_id CHAR(36) , from_email VARCHAR(255), to_email VARCHAR(255), "
             "permission VARCHAR(15))";
         if (seaf_db_query (db, sql) < 0)
             return -1;
 
         if (!pgsql_index_exists (db, "sharedrepo_repoid_idx")) {
             sql = "CREATE INDEX sharedrepo_repoid_idx ON SharedRepo (repo_id)";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+        }
+        if (!pgsql_index_exists (db, "sharedrepo_from_email_idx")) {
+            sql = "CREATE INDEX sharedrepo_from_email_idx ON SharedRepo (from_email)";
+            if (seaf_db_query (db, sql) < 0)
+                return -1;
+        }
+        if (!pgsql_index_exists (db, "sharedrepo_to_email_idx")) {
+            sql = "CREATE INDEX sharedrepo_to_email_idx ON SharedRepo (to_email)";
             if (seaf_db_query (db, sql) < 0)
                 return -1;
         }
@@ -78,7 +96,8 @@ seaf_share_manager_add_share (SeafShareManager *mgr, const char *repo_id,
         goto out;
 
     if (seaf_db_statement_query (mgr->seaf->db,
-                                 "INSERT INTO SharedRepo VALUES (?, ?, ?, ?)",
+                                 "INSERT INTO SharedRepo (repo_id, from_email, "
+                                 "to_email, permission) VALUES (?, ?, ?, ?)",
                                  4, "string", repo_id, "string", from_email_l,
                                  "string", to_email_l, "string", permission) < 0) {
         ret = -1;
@@ -122,38 +141,42 @@ collect_repos (SeafDBRow *row, void *data)
     const char *email;
     const char *permission;
     const char *commit_id;
-    SeafileSharedRepo *srepo;
-    SeafCommit *commit;
+    gint64 size;
+    SeafileRepo *repo;
 
     repo_id = seaf_db_row_get_column_text (row, 0);
     vrepo_id = seaf_db_row_get_column_text (row, 1);
     email = seaf_db_row_get_column_text (row, 2);
     permission = seaf_db_row_get_column_text (row, 3);
     commit_id = seaf_db_row_get_column_text (row, 4);
-
-    commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
-                                                        repo_id,
-                                                        commit_id);
-    if (!commit)
-        return TRUE;
+    size = seaf_db_row_get_column_int64 (row, 5);
 
     char *email_l = g_ascii_strdown (email, -1);
 
-    srepo = g_object_new (SEAFILE_TYPE_SHARED_REPO,
-                          "share_type", "personal",
-                          "repo_id", repo_id,
-                          "user", email_l,
-                          "permission", permission,
-                          "repo_name", commit->repo_name,
-                          "repo_desc", commit->repo_desc,
-                          "encrypted", commit->encrypted,
-                          "last_modified", commit->ctime,
-                          "is_virtual", (vrepo_id != NULL),
-                          NULL);
+    repo = g_object_new (SEAFILE_TYPE_REPO,
+                         "share_type", "personal",
+                         "repo_id", repo_id,
+                         "id", repo_id,
+                         "head_cmmt_id", commit_id,
+                         "user", email_l,
+                         "permission", permission,
+                         "is_virtual", (vrepo_id != NULL),
+                         "size", size,
+                         NULL);
     g_free (email_l);
-    seaf_commit_unref (commit);
 
-    *p_repos = g_list_prepend (*p_repos, srepo);
+    if (repo) {
+        if (vrepo_id) {
+            const char *origin_repo_id = seaf_db_row_get_column_text (row, 6);
+            const char *origin_path = seaf_db_row_get_column_text (row, 7);
+            g_object_set (repo, "store_id", origin_repo_id,
+                          "origin_repo_id", origin_repo_id,
+                          "origin_path", origin_path, NULL);
+        } else {
+            g_object_set (repo, "store_id", repo_id, NULL);
+        }
+        *p_repos = g_list_prepend (*p_repos, repo);
+    }
 
     return TRUE;
 }
@@ -168,16 +191,20 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
     if (start == -1 && limit == -1) {
         if (g_strcmp0 (type, "from_email") == 0) {
             sql = "SELECT SharedRepo.repo_id, VirtualRepo.repo_id, "
-                "to_email, permission, commit_id FROM "
+                "to_email, permission, commit_id, s.size, "
+                "VirtualRepo.origin_repo, VirtualRepo.path FROM "
                 "SharedRepo LEFT JOIN VirtualRepo ON "
-                "SharedRepo.repo_id=VirtualRepo.repo_id, Branch "
+                "SharedRepo.repo_id=VirtualRepo.repo_id "
+                "LEFT JOIN RepoSize s ON SharedRepo.repo_id = s.repo_id, Branch "
                 "WHERE from_email=? AND "
                 "SharedRepo.repo_id = Branch.repo_id AND "
                 "Branch.name = 'master'";
         } else if (g_strcmp0 (type, "to_email") == 0) {
-            sql = "SELECT SharedRepo.repo_id, NULL, "
-                "from_email, permission, commit_id FROM "
-                "SharedRepo, Branch "
+            sql = "SELECT SharedRepo.repo_id, VirtualRepo.repo_id, "
+                "from_email, permission, commit_id, s.size, "
+                "VirtualRepo.origin_repo, VirtualRepo.path FROM "
+                "SharedRepo LEFT JOIN VirtualRepo on SharedRepo.repo_id = VirtualRepo.repo_id "
+                "LEFT JOIN RepoSize s ON SharedRepo.repo_id = s.repo_id, Branch "
                 "WHERE to_email=? AND "
                 "SharedRepo.repo_id = Branch.repo_id AND "
                 "Branch.name = 'master'";
@@ -201,19 +228,23 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
     else {
         if (g_strcmp0 (type, "from_email") == 0) {
             sql = "SELECT SharedRepo.repo_id, VirtualRepo.repo_id, "
-                "to_email, permission, commit_id FROM "
+                "to_email, permission, commit_id, s.size, "
+                "VirtualRepo.origin_repo, VirtualRepo.path FROM "
                 "SharedRepo LEFT JOIN VirtualRepo ON "
-                "SharedRepo.repo_id=VirtualRepo.repo_id, Branch "
+                "SharedRepo.repo_id=VirtualRepo.repo_id "
+                "LEFT JOIN RepoSize s ON SharedRepo.repo_id = s.repo_id, Branch "
                 "WHERE from_email=? "
                 "AND SharedRepo.repo_id = Branch.repo_id "
                 "AND Branch.name = 'master' "
                 "ORDER BY SharedRepo.repo_id "
                 "LIMIT ? OFFSET ?";
         } else if (g_strcmp0 (type, "to_email") == 0) {
-            sql = "SELECT SharedRepo.repo_id, NULL, "
-                "from_email, permission, commit_id FROM "
-                "SharedRepo, Branch WHERE "
-                "to_email=? "
+            sql = "SELECT SharedRepo.repo_id, VirtualRepo.repo_id, "
+                "from_email, permission, commit_id, s.size, "
+                "VirtualRepo.origin_repo, VirtualRepo.path FROM "
+                "SharedRepo LEFT JOIN VirtualRepo on SharedRepo.repo_id = VirtualRepo.repo_id "
+                "LEFT JOIN RepoSize s ON SharedRepo.repo_id = s.repo_id, "
+                "Branch WHERE to_email=? "
                 "AND SharedRepo.repo_id = Branch.repo_id "
                 "AND Branch.name = 'master' "
                 "ORDER BY SharedRepo.repo_id "
@@ -236,6 +267,8 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
             return NULL;
         }
     }
+
+    seaf_fill_repo_obj_from_commit (&ret);
 
     return g_list_reverse (ret);
 }

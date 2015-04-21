@@ -127,19 +127,34 @@ verify_repo (SeafRepo *repo)
 }
 
 int
-verify_repos ()
+verify_repos (GList *repo_id_list)
 {
-    GList *repos = NULL, *ptr;
-    int ret = 0;
-    gboolean error = FALSE;
+    if (repo_id_list == NULL)
+        repo_id_list = seaf_repo_manager_get_repo_id_list (seaf->repo_mgr);
 
-    repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1, &error);
-    for (ptr = repos; ptr != NULL; ptr = ptr->next) {
-        ret = verify_repo ((SeafRepo *)ptr->data);
-        seaf_repo_unref ((SeafRepo *)ptr->data);
-        if (ret < 0)
-            break;
+    GList *ptr;
+    SeafRepo *repo;
+    int ret = 0;
+
+    for (ptr = repo_id_list; ptr != NULL; ptr = ptr->next) {
+        repo = seaf_repo_manager_get_repo_ex (seaf->repo_mgr, (const gchar *)ptr->data);
+
+        g_free (ptr->data);
+
+        if (!repo)
+            continue;
+
+        if (repo->is_corrupted) {
+           seaf_warning ("Repo %s is corrupted.\n", repo->id);
+        } else {
+            ret = verify_repo (repo);
+            seaf_repo_unref (repo);
+            if (ret < 0)
+                break;
+        }
     }
+
+    g_list_free (repo_id_list);
 
     return ret;
 }

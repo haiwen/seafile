@@ -39,7 +39,7 @@ seaf_fuse_SOURCES = seaf-fuse.c \
 seaf_fuse_LDADD = @CCNET_LIBS@ \
 				  $(top_builddir)/lib/libseafile.la \
 				  @GLIB2_LIBS@ @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ \
-                  -lsqlite3 -levent \
+                  -lsqlite3 @LIBEVENT_LIBS@ \
 				  $(top_builddir)/common/cdc/libcdc.la \
 				  @SEARPC_LIBS@ @JANSSON_LIBS@ @ZDB_LIBS@ @FUSE_LIBS@ @ZLIB_LIBS@
 

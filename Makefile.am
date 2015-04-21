@@ -17,14 +17,14 @@ else
 endif
 
 if COMPILE_SERVER
-  MAKE_SERVER = server tools fileserver $(MAKE_CONTROLLER) $(MAKE_FUSE)
+  MAKE_SERVER = server tools $(MAKE_CONTROLLER) $(MAKE_FUSE)
 endif
 
 SUBDIRS = include lib common app python tests doc \
 	$(MAKE_CLIENT) $(MAKE_SERVER)
 
 DIST_SUBDIRS = include lib common app python tests \
-	daemon server tools fileserver controller \
+	daemon server tools controller \
 	doc fuse
 
 INTLTOOL = \
@@ -32,7 +32,7 @@ INTLTOOL = \
 	intltool-merge.in \
 	intltool-update.in
 
-EXTRA_DIST = install-sh $(INTLTOOL) README.markdown scripts debian msi LICENCE.txt
+EXTRA_DIST = install-sh $(INTLTOOL) README.markdown scripts debian msi LICENSE.txt
 
 DISTCHECK_CONFIGURE_FLAGS = --enable-server
 

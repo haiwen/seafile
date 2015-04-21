@@ -122,6 +122,16 @@ start_rpc_service (CcnetClient *client)
                                      searpc_signature_int__string_string());
 
     searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_remove_repo_tokens_by_account,
+                                     "seafile_remove_repo_tokens_by_account",
+                                     searpc_signature_int__string_string());
+
+    searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_set_repo_token,
+                                     "seafile_set_repo_token",
+                                     searpc_signature_int__string_string());
+
+    searpc_server_register_function ("seafile-rpcserver",
                                      seafile_get_upload_rate,
                                      "seafile_get_upload_rate",
                                      searpc_signature_int__void());
@@ -163,7 +173,7 @@ start_rpc_service (CcnetClient *client)
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_update_repos_server_host,
                                      "seafile_update_repos_server_host",
-                                     searpc_signature_int__string_string());
+                                     searpc_signature_int__string_string_string());
 
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_disable_auto_sync,
@@ -192,14 +202,17 @@ start_rpc_service (CcnetClient *client)
                                      seafile_check_path_for_clone,
                                      "seafile_check_path_for_clone",
                                      searpc_signature_int__string());
+    
+    /* clone means sync with existing folder, download means sync to a new folder. */
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_clone,
                                      "seafile_clone",
-        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int());
+        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int_string());
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_download,
                                      "seafile_download",
-        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int());
+        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int_string());
+
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_cancel_clone_task,
                                      "seafile_cancel_clone_task",

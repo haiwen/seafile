@@ -35,6 +35,8 @@ enum {
 	REPO_COMMITTED,
     REPO_FETCHED,
     REPO_UPLOADED,
+    REPO_HTTP_FETCHED,
+    REPO_HTTP_UPLOADED,
     REPO_WORKTREE_CHECKED,
 	LAST_SIGNAL
 };
@@ -71,7 +73,21 @@ seafile_session_class_init (SeafileSessionClass *klass)
                       NULL, NULL, /* no accumulator */
                       g_cclosure_marshal_VOID__POINTER,
                       G_TYPE_NONE, 1, G_TYPE_POINTER);
+    signals[REPO_HTTP_FETCHED] =
+        g_signal_new ("repo-http-fetched", SEAFILE_TYPE_SESSION,
+                      G_SIGNAL_RUN_LAST,
+                      0,        /* no class singal handler */
+                      NULL, NULL, /* no accumulator */
+                      g_cclosure_marshal_VOID__POINTER,
+                      G_TYPE_NONE, 1, G_TYPE_POINTER);
 
+    signals[REPO_HTTP_UPLOADED] =
+        g_signal_new ("repo-http-uploaded", SEAFILE_TYPE_SESSION,
+                      G_SIGNAL_RUN_LAST,
+                      0,        /* no class singal handler */
+                      NULL, NULL, /* no accumulator */
+                      g_cclosure_marshal_VOID__POINTER,
+                      G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
 
 
@@ -150,12 +166,14 @@ seafile_session_new(const char *seafile_dir,
     session->clone_mgr = seaf_clone_manager_new (session);
     if (!session->clone_mgr)
         goto onerror;
-#ifndef SEAF_TOOL    
     session->sync_mgr = seaf_sync_manager_new (session);
     if (!session->sync_mgr)
         goto onerror;
     session->wt_monitor = seaf_wt_monitor_new (session);
     if (!session->wt_monitor)
+        goto onerror;
+    session->http_tx_mgr = http_tx_manager_new (session);
+    if (!session->http_tx_mgr)
         goto onerror;
 
     session->job_mgr = ccnet_job_manager_new (MAX_THREADS);
@@ -166,7 +184,6 @@ seafile_session_new(const char *seafile_dir,
     session->mq_mgr = seaf_mq_manager_new (session);
     if (!session->mq_mgr)
         goto onerror;
-#endif    
 
     return session;
 
@@ -188,6 +205,34 @@ seafile_session_init (SeafileSession *session)
 void
 seafile_session_prepare (SeafileSession *session)
 {
+    /* load config */
+    session->sync_extra_temp_file = seafile_session_config_get_bool
+        (session, KEY_SYNC_EXTRA_TEMP_FILE);
+
+    /* Enable http sync by default. */
+    if (seafile_session_config_exists (session, KEY_ENABLE_HTTP_SYNC)) {
+        session->enable_http_sync = seafile_session_config_get_bool
+            (session, KEY_ENABLE_HTTP_SYNC);
+    } else {
+        seafile_session_config_set_string (session, KEY_ENABLE_HTTP_SYNC, "true");
+    }
+
+    session->disable_verify_certificate = seafile_session_config_get_bool
+        (session, KEY_DISABLE_VERIFY_CERTIFICATE);
+
+    session->use_http_proxy = seafile_session_config_get_bool
+        (session, KEY_USE_PROXY);
+    session->http_proxy_type = seafile_session_config_get_string
+        (session, KEY_PROXY_TYPE);
+    session->http_proxy_addr = seafile_session_config_get_string
+        (session, KEY_PROXY_ADDR);
+    session->http_proxy_port = seafile_session_config_get_int
+        (session, KEY_PROXY_PORT, NULL);
+    session->http_proxy_username = seafile_session_config_get_string
+        (session, KEY_PROXY_USERNAME);
+    session->http_proxy_password = seafile_session_config_get_string
+        (session, KEY_PROXY_PASSWORD);
+
     /* Start mq manager earlier, so that we can send notifications
      * when start repo manager. */
     seaf_mq_manager_init (session->mq_mgr);
@@ -306,6 +351,11 @@ cleanup_job_done (void *vdata)
 
     if (seaf_transfer_manager_start (session->transfer_mgr) < 0) {
         g_error ("Failed to start transfer manager.\n");
+        return;
+    }
+
+    if (http_tx_manager_start (session->http_tx_mgr) < 0) {
+        g_error ("Failed to start http transfer manager.\n");
         return;
     }
 

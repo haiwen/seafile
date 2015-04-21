@@ -16,24 +16,21 @@ static char *seafile_dir = NULL;
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvc:d:Ds";
+static const char *short_opts = "hvc:d:re";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
+    { "repair", no_argument, NULL, 'r', },
+    { "enable-sync", no_argument, NULL, 'e', },
     { "config-file", required_argument, NULL, 'c', },
     { "seafdir", required_argument, NULL, 'd', },
-    { "dry-run", no_argument, NULL, 'D' },
-    { "strict", no_argument, NULL, 's' },
 };
 
 static void usage ()
 {
     fprintf (stderr,
-             "usage: seaf-fsck [-c config_dir] [-d seafile_dir] "
-             "[repo_id_1 [repo_id_2 ...]]\n"
-             "Additional options:\n"
-             "-D, --dry-run: check fs objects and blocks, but don't remove them.\n"
-             "-s, --strict: check whether fs object id consistent with content.\n");
+             "usage: seaf-fsck [-r] [-e] [-c config_dir] [-d seafile_dir] "
+             "[repo_id_1 [repo_id_2 ...]]\n");
 }
 
 #ifdef WIN32
@@ -66,8 +63,8 @@ int
 main(int argc, char *argv[])
 {
     int c;
-    gboolean dry_run = FALSE;
-    gboolean strict = FALSE;
+    gboolean repair = FALSE;
+    gboolean esync = FALSE;
 
 #ifdef WIN32
     argv = get_argv_utf8 (&argc);
@@ -84,17 +81,17 @@ main(int argc, char *argv[])
         case 'v':
             exit(-1);
             break;
+        case 'r':
+            repair = TRUE;
+            break;
+        case 'e':
+            esync = TRUE;
+            break;
         case 'c':
             config_dir = strdup(optarg);
             break;
         case 'd':
             seafile_dir = strdup(optarg);
-            break;
-        case 'D':
-            dry_run = TRUE;
-            break;
-        case 's':
-            strict = TRUE;
             break;
         default:
             usage();
@@ -131,7 +128,7 @@ main(int argc, char *argv[])
     for (i = optind; i < argc; i++)
         repo_id_list = g_list_append (repo_id_list, g_strdup(argv[i]));
 
-    seaf_fsck (repo_id_list, dry_run, strict);
+    seaf_fsck (repo_id_list, repair, esync);
 
     return 0;
 }

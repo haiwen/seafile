@@ -27,10 +27,15 @@
 #define REPO_PROP_RELAY_PORT  "relay-port"
 #define REPO_ENCRYPTED 0x1
 #define REPO_PROP_DOWNLOAD_HEAD "download-head"
+#define REPO_PROP_IS_READONLY "is-readonly"
+#define REPO_PROP_SERVER_URL  "server-url"
 
 struct _SeafRepoManager;
 typedef struct _SeafRepo SeafRepo;
 
+/* The caller can use the properties directly. But the caller should
+ * always write on repos via the API. 
+ */
 struct _SeafRepo {
     struct _SeafRepoManager *manager;
 
@@ -43,8 +48,10 @@ struct _SeafRepo {
     gchar       magic[65];       /* hash(repo_id + passwd), key stretched. */
     gchar       random_key[97];  /* key length is 48 after encryption */
     gboolean    no_local_history;
+    gint64 last_modify;
 
     SeafBranch *head;
+    gchar root_id[41];
 
     gboolean    is_corrupted;
     gboolean    delete_pending;
@@ -54,6 +61,10 @@ struct _SeafRepo {
     gboolean    wt_changed;
     int         wt_check_time;
     int         last_sync_time;
+
+    /* Last time check locked files. */
+    int         last_check_locked_time;
+    gboolean    checking_locked_files;
 
     unsigned char enc_key[32];   /* 256-bit encryption key */
     unsigned char enc_iv[16];
@@ -65,6 +76,7 @@ struct _SeafRepo {
 
     gboolean      worktree_invalid; /* true if worktree moved or deleted */
     gboolean      index_corrupted;
+    gboolean      is_readonly;
 
     unsigned int  auto_sync : 1;
     unsigned int  net_browsable : 1;
@@ -74,6 +86,9 @@ struct _SeafRepo {
     int version;
 
     gboolean create_partial_commit;
+
+    /* Used for http sync. */
+    char *server_url;
 };
 
 
@@ -90,6 +105,12 @@ seaf_repo_set_head (SeafRepo *repo, SeafBranch *branch);
 
 SeafCommit *
 seaf_repo_get_head_commit (const char *repo_id);
+
+void
+seaf_repo_set_readonly (SeafRepo *repo);
+
+void
+seaf_repo_unset_readonly (SeafRepo *repo);
 
 int
 seaf_repo_checkdir (SeafRepo *repo);
@@ -228,6 +249,10 @@ int
 seaf_repo_manager_set_repo_token (SeafRepoManager *manager, 
                                   SeafRepo *repo,
                                   const char *token);
+
+int
+seaf_repo_manager_remove_repo_token (SeafRepoManager *manager,
+                                     SeafRepo *repo);
 
 int
 seaf_repo_manager_set_repo_email (SeafRepoManager *manager, 
@@ -380,7 +405,8 @@ seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
 int
 seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
                                             const char *old_host,
-                                            const char *new_host);
+                                            const char *new_host,
+                                            const char *new_server_url);
 
 GList *
 seaf_repo_load_ignore_files (const char *worktree);
@@ -396,12 +422,90 @@ enum {
     FETCH_CHECKOUT_CANCELED,
     FETCH_CHECKOUT_FAILED,
     FETCH_CHECKOUT_TRANSFER_ERROR,
+    FETCH_CHECKOUT_LOCKED,
 };
 
 struct _TransferTask;
+struct _HttpTxTask;
 
 int
 seaf_repo_fetch_and_checkout (struct _TransferTask *task,
+                              struct _HttpTxTask *http_task,
+                              gboolean is_http,
                               const char *remote_head_id);
+
+gboolean
+seaf_repo_manager_is_ignored_hidden_file (const char *filename);
+
+/* Locked files. */
+
+#define LOCKED_OP_UPDATE "update"
+#define LOCKED_OP_DELETE "delete"
+
+typedef struct _LockedFile {
+    char *operation;
+    gint64 old_mtime;
+    char file_id[41];
+} LockedFile;
+
+typedef struct _LockedFileSet {
+    SeafRepoManager *mgr;
+    char repo_id[37];
+    GHashTable *locked_files;
+} LockedFileSet;
+
+LockedFileSet *
+seaf_repo_manager_get_locked_file_set (SeafRepoManager *mgr, const char *repo_id);
+
+void
+locked_file_set_free (LockedFileSet *fset);
+
+int
+locked_file_set_add_update (LockedFileSet *fset,
+                            const char *path,
+                            const char *operation,
+                            gint64 old_mtime,
+                            const char *file_id);
+
+int
+locked_file_set_remove (LockedFileSet *fset, const char *path, gboolean db_only);
+
+LockedFile *
+locked_file_set_lookup (LockedFileSet *fset, const char *path);
+
+/* Folder Permissions. */
+
+typedef enum FolderPermType {
+    FOLDER_PERM_TYPE_USER = 0,
+    FOLDER_PERM_TYPE_GROUP,
+} FolderPermType;
+
+typedef struct _FolderPerm {
+    char *path;
+    char *permission;
+} FolderPerm;
+
+void
+folder_perm_free (FolderPerm *perm);
+
+int
+seaf_repo_manager_update_folder_perms (SeafRepoManager *mgr,
+                                       const char *repo_id,
+                                       FolderPermType type,
+                                       GList *folder_perms);
+
+GList *
+seaf_repo_manager_load_folder_perms (SeafRepoManager *mgr,
+                                     const char *repo_id,
+                                     FolderPermType type);
+
+int
+seaf_repo_manager_update_folder_perm_timestamp (SeafRepoManager *mgr,
+                                                const char *repo_id,
+                                                gint64 timestamp);
+
+gint64
+seaf_repo_manager_get_folder_perm_timestamp (SeafRepoManager *mgr,
+                                             const char *repo_id);
 
 #endif

@@ -11,10 +11,9 @@
 #include <getopt.h>
 
 #include <glib.h>
-#include <ccnet.h>                              \
+#include <ccnet.h>
 
 #include "utils.h"
-
 #include "log.h"
 #include "seafile-controller.h"
 
@@ -30,7 +29,7 @@ char *topdir = NULL;
 
 char *seafile_ld_library_path = NULL;
 
-static const char *short_opts = "hvftCc:d:l:g:G:P:";
+static const char *short_opts = "hvftCc:d:L:g:G:P:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -211,31 +210,6 @@ start_seaf_server ()
     return 0;
 }
 
-static int
-start_fileserver() {
-    static char *logfile = NULL;
-    if (logfile == NULL) {
-        logfile = g_build_filename (ctl->logdir, "fileserver.log", NULL);
-    }
-
-    char *argv[] = {
-        "fileserver",
-        "-c", ctl->config_dir,
-        "-d", ctl->seafile_dir,
-        "-l", logfile,
-        "-P", ctl->pidfile[PID_FILESERVER],
-        NULL
-    };
-
-    int pid = spawn_process (argv);
-    if (pid <= 0) {
-        seaf_warning ("Failed to spawn fileserver\n");
-        return -1;
-    }
-
-    return 0;
-}
-
 static const char *
 get_python_executable() {
     static const char *python = NULL;
@@ -373,7 +347,7 @@ start_seafdav() {
         "--log-file", seafdav_log_file,
         "--pid", ctl->pidfile[PID_SEAFDAV],
         "--port", port,
-        "--host", "0.0.0.0",
+        "--host", conf.host,
         NULL
     };
 
@@ -384,6 +358,7 @@ start_seafdav() {
         "--log-file", seafdav_log_file,
         "--pid", ctl->pidfile[PID_SEAFDAV],
         "--port", port,
+        "--host", conf.host,
         NULL
     };
 
@@ -442,11 +417,6 @@ check_process (void *data)
     if (need_restart(PID_SERVER)) {
         seaf_message ("seaf-server need restart...\n");
         start_seaf_server ();
-    }
-
-    if (need_restart(PID_FILESERVER)) {
-        seaf_message ("fileserver need restart...\n");
-        start_fileserver ();
     }
 
     if (ctl->seafdav_config.enabled) {
@@ -551,13 +521,6 @@ on_ccnet_connected ()
     if (start_seaf_server () < 0)
         controller_exit(1);
 
-    if (need_restart(PID_FILESERVER)) {
-        /* Since fileserver doesn't die when ccnet server dies, when ccnet
-         * server is restarted, we don't need to start fileserver */
-        if (start_fileserver() < 0)
-            controller_exit(1);
-    }
-
     if (ctl->seafdav_config.enabled) {
         if (need_restart(PID_SEAFDAV)) {
             if (start_seafdav() < 0)
@@ -608,7 +571,6 @@ stop_ccnet_server ()
 
     try_kill_process(PID_CCNET);
     try_kill_process(PID_SERVER);
-    try_kill_process(PID_FILESERVER);
     try_kill_process(PID_SEAFDAV);
 }
 
@@ -625,7 +587,6 @@ init_pidfile_path (SeafileController *ctl)
 
     ctl->pidfile[PID_CCNET] = g_build_filename (pid_dir, "ccnet.pid", NULL);
     ctl->pidfile[PID_SERVER] = g_build_filename (pid_dir, "seaf-server.pid", NULL);
-    ctl->pidfile[PID_FILESERVER] = g_build_filename (pid_dir, "fileserver.pid", NULL);
     ctl->pidfile[PID_SEAFDAV] = g_build_filename (pid_dir, "seafdav.pid", NULL);
 }
 
@@ -821,6 +782,7 @@ read_seafdav_config()
     int ret = 0;
     char *seafdav_conf = NULL;
     GKeyFile *key_file = NULL;
+    GError *error = NULL;
 
     seafdav_conf = g_build_filename(topdir, "conf", "seafdav.conf", NULL);
     if (!g_file_test(seafdav_conf, G_FILE_TEST_EXISTS)) {
@@ -835,8 +797,6 @@ read_seafdav_config()
         goto out;
     }
 
-    GError *error = NULL;
-
     /* enabled */
     ctl->seafdav_config.enabled = g_key_file_get_boolean(key_file, "WEBDAV", "enabled", &error);
     if (error != NULL) {
@@ -844,6 +804,7 @@ read_seafdav_config()
             seaf_message ("Error when reading WEBDAV.enabled, use default value 'false'\n");
         }
         ctl->seafdav_config.enabled = FALSE;
+        g_clear_error (&error);
         goto out;
     }
 
@@ -858,7 +819,31 @@ read_seafdav_config()
             seaf_message ("Error when reading WEBDAV.fastcgi, use default value 'false'\n");
         }
         ctl->seafdav_config.fastcgi = FALSE;
+        g_clear_error (&error);
     }
+
+    /* host */
+    char *host = g_key_file_get_string(key_file, "WEBDAV", "host", &error);
+    // set default host depending on fastcgi setting in order to preserve default behaviour
+    const char *host_default = ctl->seafdav_config.fastcgi ? "localhost" : "0.0.0.0";
+    gboolean host_valid = TRUE;
+    if (error != NULL) {
+        if (error->code != G_KEY_FILE_ERROR_KEY_NOT_FOUND) {
+            seaf_message ("Error when reading WEBDAV.host, use default value '%s'\n", host_default);
+        }
+        host_valid = FALSE;
+        g_clear_error(&error);
+    } else {
+        // no error occured while reading host, validate it
+        size_t len = strlen(host);
+        if (len ==  0 || len > SEAFDAV_MAX_HOST) {
+            seaf_message ("Error when validating WEBDAV.host, use default value '%s'\n", host_default);
+            host_valid = FALSE;
+        }
+    }
+
+    ctl->seafdav_config.host = g_strdup(host_valid ? host : host_default);
+    g_free(host);
 
     /* port */
     ctl->seafdav_config.port = g_key_file_get_integer(key_file, "WEBDAV", "port", &error);
@@ -867,6 +852,7 @@ read_seafdav_config()
             seaf_message ("Error when reading WEBDAV.port, use deafult value 8080\n");
         }
         ctl->seafdav_config.port = 8080;
+        g_clear_error (&error);
     }
 
     if (ctl->seafdav_config.port <= 0 || ctl->seafdav_config.port > 65535) {
@@ -879,7 +865,6 @@ out:
     if (key_file) {
         g_key_file_free (key_file);
     }
-
     g_free (seafdav_conf);
 
     return ret;
@@ -1021,3 +1006,4 @@ int main (int argc, char **argv)
 
     return 0;
 }
+

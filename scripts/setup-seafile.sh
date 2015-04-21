@@ -330,6 +330,7 @@ function gen_seafdav_conf () {
 enabled = false
 port = 8080
 fastcgi = false
+host = 0.0.0.0
 share_name = /
 EOF
 ); then
@@ -582,6 +583,11 @@ if ! ln -s $(basename ${INSTALLPATH}) ${seafile_server_symlink}; then
 fi
 echo "done"
 echo
+
+chmod 0600 "$dest_settings_py"
+chmod 0700 "$default_ccnet_conf_dir"
+chmod 0700 "$seafile_data_dir"
+chmod 0700 "$default_conf_dir"
 
 # -------------------------------------------
 # copy user manuals to library template

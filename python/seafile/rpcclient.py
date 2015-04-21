@@ -75,7 +75,7 @@ class SeafileRpcClient(ccnet.RpcClientBase):
         pass
     remove_repo = seafile_destroy_repo
 
-    @searpc_func("objlist", ["string", "string", "string"])
+    @searpc_func("objlist", ["string", "string", "string", "int"])
     def seafile_diff():
         pass
     get_diff = seafile_diff
@@ -105,13 +105,13 @@ class SeafileRpcClient(ccnet.RpcClientBase):
     def gen_default_worktree(worktree_parent, repo_name):
         pass
 
-    @searpc_func("string", ["string", "int", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int"])
-    def seafile_clone(repo_id, repo_version, peer_id, repo_name, worktree, token, password, magic, peer_addr, peer_port, email, random_key, enc_version):
+    @searpc_func("string", ["string", "int", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int", "string"])
+    def seafile_clone(repo_id, repo_version, peer_id, repo_name, worktree, token, password, magic, peer_addr, peer_port, email, random_key, enc_version, more_info):
         pass
     clone = seafile_clone
 
-    @searpc_func("string", ["string", "int", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int"])
-    def seafile_download(repo_id, repo_version, peer_id, repo_name, wt_parent, token, password, magic, peer_addr, peer_port, email, random_key, enc_version):
+    @searpc_func("string", ["string", "int", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int", "string"])
+    def seafile_download(repo_id, repo_version, peer_id, repo_name, wt_parent, token, password, magic, peer_addr, peer_port, email, random_key, enc_version, more_info):
         pass
     download = seafile_download
 
@@ -261,8 +261,8 @@ class SeafServerRpcClient(ccnet.RpcClientBase):
                                      *args, **kwargs)
 
     # token for web access to repo
-    @searpc_func("string", ["string", "string", "string", "string"])
-    def seafile_web_get_access_token(repo_id, obj_id, op, username):
+    @searpc_func("string", ["string", "string", "string", "string", "int"])
+    def seafile_web_get_access_token(repo_id, obj_id, op, username, use_onetime=1):
         pass
     web_get_access_token = seafile_web_get_access_token
     
@@ -451,6 +451,10 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     list_dir = seafile_list_dir
 
+    @searpc_func("objlist", ["string", "string", "sting", "string", "int", "int"])
+    def list_dir_with_perm(repo_id, dir_path, dir_id, user, offset, limit):
+        pass
+
     @searpc_func("int64", ["string", "int", "string"])
     def seafile_get_file_size(store_id, version, file_id):
         pass
@@ -486,8 +490,13 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     get_file_id_by_commit_and_path = seafile_get_file_id_by_commit_and_path
 
-    @searpc_func("objlist", ["string", "string", "int", "int"])
-    def seafile_list_file_revisions(repo_id, path, max_revision, limit):
+    @searpc_func("object", ["string", "string"])
+    def seafile_get_dirent_by_path(repo_id, commit_id, path):
+        pass
+    get_dirent_by_path = seafile_get_dirent_by_path
+
+    @searpc_func("objlist", ["string", "string", "int", "int", "int"])
+    def seafile_list_file_revisions(repo_id, path, max_revision, limit, show_days):
         pass
     list_file_revisions = seafile_list_file_revisions
 
@@ -506,8 +515,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     revert_dir = seafile_revert_dir
 
-    @searpc_func("objlist", ["string", "int"])
-    def get_deleted(repo_id, show_days):
+    @searpc_func("objlist", ["string", "int", "string"])
+    def get_deleted(repo_id, show_days, path):
         pass
 
     # share repo to user
@@ -627,6 +636,10 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     delete_repo_tokens_by_peer_id = seafile_delete_repo_tokens_by_peer_id
 
+    @searpc_func("int", ["string"])
+    def delete_repo_tokens_by_email(email):
+        pass
+
     ###### quota ##########
     @searpc_func("int64", ["string"])
     def seafile_get_user_quota_usage(user_id):
@@ -695,6 +708,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     # repo permission checking
     @searpc_func("string", ["string", "string"])
     def check_permission(repo_id, user):
+        pass
+
+    # folder permission check
+    @searpc_func("string", ["string", "string", "string"])
+    def check_permission_by_path(repo_id, path, user):
         pass
 
     # org repo
@@ -806,8 +824,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
 
     # virtual repo
-    @searpc_func("string", ["string", "string", "string", "string", "string"])
-    def create_virtual_repo(origin_repo_id, path, repo_name, repo_desc, owner):
+    @searpc_func("string", ["string", "string", "string", "string", "string", "string"])
+    def create_virtual_repo(origin_repo_id, path, repo_name, repo_desc, owner, passwd=''):
         pass
 
     @searpc_func("objlist", ["string"])
@@ -828,3 +846,33 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_change_repo_passwd(repo_id, old_passwd, new_passwd, user):
         pass
     change_repo_passwd = seafile_change_repo_passwd
+
+    # Clean trash
+    @searpc_func("int", ["string", "int"])
+    def clean_up_repo_history(repo_id, keep_days):
+        pass
+
+    # Trashed repos
+    @searpc_func("objlist", ["int", "int"])
+    def get_trash_repo_list(start, limit):
+        pass
+
+    @searpc_func("int", ["string"])
+    def del_repo_from_trash(repo_id):
+        pass
+
+    @searpc_func("int", ["string"])
+    def restore_repo_from_trash(repo_id):
+        pass
+
+    @searpc_func("objlist", ["string"])
+    def get_trash_repos_by_owner(owner):
+        pass
+
+    @searpc_func("int", [])
+    def empty_repo_trash():
+        pass
+
+    @searpc_func("int", ["string"])
+    def empty_repo_trash_by_owner(owner):
+        pass

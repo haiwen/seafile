@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 
 
 AC_PREREQ(2.61)
-AC_INIT([seafile], [3.1.5], [freeplant@gmail.com])
+AC_INIT([seafile], [4.1.5], [freeplant@gmail.com])
 AC_CONFIG_HEADER([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -160,12 +160,6 @@ if test "$bwin32" != true; then
   AC_CHECK_LIB(uuid, uuid_generate, [echo "found library uuid"],
           AC_MSG_ERROR([*** Unable to find uuid library]), )
   fi
-
-  AC_CHECK_LIB(event, event_init,[echo "found library event"] ,
-    AC_MSG_ERROR([*** Unable to find libevent library]), )
-else
-  AC_CHECK_LIB(event, event_init, [echo "found library event"],
-    AC_MSG_ERROR([*** Unable to find libevent library]), [-lwsock32])
 fi
 
 AC_CHECK_LIB(pthread, pthread_create, [echo "found library pthread"], AC_MSG_ERROR([*** Unable to find pthread library]), )
@@ -316,12 +310,10 @@ if test x${compile_server} = xyes; then
    AC_SUBST(LIBARCHIVE_LIBS)
 fi
 
-# We use http to communicate with Riak, check for libcurl.
-if test "${compile_riak}" = "yes"; then
+if test "${compile_client}" = "yes"; then
    PKG_CHECK_MODULES(CURL, [libcurl >= $CURL_REQUIRED])
    AC_SUBST(CURL_CFLAGS)
    AC_SUBST(CURL_LIBS)
-   AC_DEFINE([RIAK_BACKEND], [1], ["define if support Riak backend"])
 fi
 
 AM_CONDITIONAL([HAVE_KEYSTORAGE_GK], [test "${compile_gnome_keyring}" = "yes"])
@@ -351,7 +343,6 @@ AC_CONFIG_FILES(
     python/seafile/Makefile
     python/seaserv/Makefile
     controller/Makefile
-    fileserver/Makefile
     tools/Makefile
     tests/Makefile
     tests/common-conf.sh

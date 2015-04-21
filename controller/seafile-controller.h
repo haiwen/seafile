@@ -8,7 +8,6 @@
  *       - ccnet-server
  *       - seaf-server
  *       - seaf-mon
- *       - fileserver
  *
  *    2. Repair:
  *
@@ -26,15 +25,19 @@ typedef struct _SeafileController SeafileController;
 enum {
     PID_CCNET = 0,
     PID_SERVER,
-    PID_FILESERVER,
     PID_SEAFDAV,
     N_PID
 };
+
+// host size limit (39 charaters: max ipv6 size)
+#define SEAFDAV_MAX_HOST 39
 
 typedef struct SeafDavConfig {
     gboolean enabled;
     gboolean fastcgi;
     int port;
+    // host to bind server to
+    char *host;
 
 } SeafDavConfig;
 

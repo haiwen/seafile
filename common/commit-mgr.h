@@ -38,6 +38,7 @@ struct _SeafCommit {
     int         version;
     gboolean    new_merge;
     gboolean    conflict;
+    gboolean    repaired;
 };
 
 
@@ -176,7 +177,8 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
                                                      const char *head,
                                                      CommitTraverseFunc func,
                                                      int limit,
-                                                     void *data);
+                                                     void *data,
+                                                     gboolean skip_errors);
 
 gboolean
 seaf_commit_manager_commit_exists (SeafCommitManager *mgr,
