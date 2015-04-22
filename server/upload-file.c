@@ -768,7 +768,7 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
     if (!parent_dir) {
         seaf_warning ("[upload] No parent dir given.\n");
-        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"Invalid URL.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
@@ -1339,7 +1339,7 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
     target_file = g_hash_table_lookup (fsm->form_kvs, "target_file");
     if (!target_file) {
         seaf_warning ("[Update] No target file given.\n");
-        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"Invalid URL.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
@@ -1406,27 +1406,27 @@ error:
 
     switch (error_code) {
     case ERROR_FILENAME:
-        evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"Invalid filename.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
         break;
     case ERROR_EXISTS:
-        evbuffer_add_printf(req->buffer_out, "File already exists.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"File already exists.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
         break;
     case ERROR_SIZE:
-        evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"File size is too large.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
         break;
     case ERROR_QUOTA:
-        evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"Out of quota.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
         break;
     case ERROR_NOT_EXIST:
-        evbuffer_add_printf(req->buffer_out, "File does not exist.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"File does not exist.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, SEAF_HTTP_RES_NOT_EXISTS);
         break;
