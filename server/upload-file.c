@@ -768,7 +768,7 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
     if (!parent_dir) {
         seaf_warning ("[upload] No parent dir given.\n");
-        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
+        evbuffer_add_printf(req->buffer_out, "{\"error\": \"Invalid URL.\"}");
         set_content_length_header (req);
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
