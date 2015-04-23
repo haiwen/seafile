@@ -2450,6 +2450,41 @@ seaf_fill_repo_obj_from_commit (GList **repos)
 }
 
 GList *
+seaf_repo_manager_get_repos_by_group (SeafRepoManager *mgr,
+                                      int group_id,
+                                      GError **error)
+{
+    char *sql;
+    GList *repos = NULL;
+    GList *p;
+
+    sql = "SELECT RepoGroup.repo_id, VirtualRepo.repo_id, "
+        "group_id, user_name, permission, commit_id, s.size, "
+        "VirtualRepo.origin_repo, VirtualRepo.path "
+        "FROM RepoGroup LEFT JOIN VirtualRepo ON "
+        "RepoGroup.repo_id = VirtualRepo.repo_id "
+        "LEFT JOIN RepoSize s ON RepoGroup.repo_id = s.repo_id, "
+        "Branch WHERE group_id = ? AND "
+        "RepoGroup.repo_id = Branch.repo_id AND "
+        "Branch.name = 'master'";
+
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_group_repos_cb,
+                                       &repos, 1, "int", group_id) < 0) {
+        for (p = repos; p; p = p->next) {
+            g_object_unref (p->data);
+        }
+        g_list_free (repos);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to get repos by group from db.");
+        return NULL;
+    }
+
+    seaf_fill_repo_obj_from_commit (&repos);
+
+    return g_list_reverse (repos);
+}
+
+GList *
 seaf_repo_manager_get_group_repos_by_owner (SeafRepoManager *mgr,
                                             const char *owner,
                                             GError **error)

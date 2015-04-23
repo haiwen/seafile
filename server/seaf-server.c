@@ -384,6 +384,10 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "seafile_get_group_repoids",
                                      searpc_signature_string__int());
     searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_repos_by_group,
+                                     "seafile_get_repos_by_group",
+                                     searpc_signature_objlist__int());
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_group_repos_by_owner,
                                      "get_group_repos_by_owner",
                                      searpc_signature_objlist__string());

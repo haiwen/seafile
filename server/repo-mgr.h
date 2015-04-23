@@ -586,6 +586,11 @@ seaf_repo_manager_get_group_repoids (SeafRepoManager *mgr,
                                      GError **error);
 
 GList *
+seaf_repo_manager_get_repos_by_group (SeafRepoManager *mgr,
+                                      int group_id,
+                                      GError **error);
+
+GList *
 seaf_repo_manager_get_group_repos_by_owner (SeafRepoManager *mgr,
                                             const char *owner,
                                             GError **error);

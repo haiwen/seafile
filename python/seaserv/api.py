@@ -266,6 +266,9 @@ class SeafileAPI(object):
             ret.append(r)
         return ret    
 
+    def get_repos_by_group(self, group_id):
+        return seafserv_threaded_rpc.get_repos_by_group(group_id)
+
     def get_group_repos_by_owner(self, username):
         return seafserv_threaded_rpc.get_group_repos_by_owner(username)
 

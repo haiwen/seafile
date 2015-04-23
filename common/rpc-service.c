@@ -2287,6 +2287,23 @@ seafile_get_group_repoids (int group_id, GError **error)
 }
 
 GList *
+seafile_get_repos_by_group (int group_id, GError **error)
+{
+    SeafRepoManager *mgr = seaf->repo_mgr;
+    GList *ret = NULL;
+
+    if (group_id < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid group id.");
+        return NULL;
+    }
+
+    ret = seaf_repo_manager_get_repos_by_group (mgr, group_id, error);
+
+    return ret;
+}
+
+GList *
 seafile_get_group_repos_by_owner (char *user, GError **error)
 {
     SeafRepoManager *mgr = seaf->repo_mgr;
