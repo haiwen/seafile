@@ -503,6 +503,9 @@ char *
 seafile_get_group_repoids (int group_id, GError **error);
 
 GList *
+seafile_get_repos_by_group (int group_id, GError **error);
+
+GList *
 seafile_get_group_repos_by_owner (char *user, GError **error);
 
 char *
