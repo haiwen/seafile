@@ -27,6 +27,8 @@
 
 #define REAP_TOKEN_INTERVAL 300 /* 5 mins */
 #define DECRYPTED_TOKEN_TTL 3600 /* 1 hour */
+#define SCAN_TRASH_DAYS 1 /* one day */
+#define TRASH_EXPIRE_DAYS 30 /* one month */
 
 typedef struct DecryptedToken {
     char *token;
@@ -38,6 +40,9 @@ struct _SeafRepoManagerPriv {
     GHashTable *decrypted_tokens;
     pthread_rwlock_t lock;
     CcnetTimer *reap_token_timer;
+
+    CcnetTimer *scan_trash_timer;
+    gint64 trash_expire_interval;
 };
 
 static const char *ignore_table[] = {
@@ -255,6 +260,68 @@ should_ignore_file(const char *filename, void *data)
     return FALSE;
 }
 
+static gboolean
+collect_repo_id (SeafDBRow *row, void *data);
+
+static int
+scan_trash (void *data)
+{
+    GList *repo_ids = NULL;
+    SeafRepoManager *mgr = seaf->repo_mgr;
+    gint64 expire_time = time(NULL) - mgr->priv->trash_expire_interval;
+    char *sql = "SELECT repo_id FROM RepoTrash WHERE del_time <= ?";
+
+    int ret = seaf_db_statement_foreach_row (seaf->db, sql,
+                                             collect_repo_id, &repo_ids,
+                                             1, "int64", expire_time);
+    if (ret < 0) {
+        seaf_warning ("Get expired repo from trash failed.");
+        string_list_free (repo_ids);
+        return TRUE;
+    }
+
+    GList *iter;
+    char *repo_id;
+    for (iter=repo_ids; iter; iter=iter->next) {
+        repo_id = iter->data;
+        ret = seaf_repo_manager_del_repo_from_trash (mgr, repo_id, NULL);
+        if (ret < 0)
+            break;
+    }
+
+    string_list_free (repo_ids);
+
+    return TRUE;
+}
+
+static void
+init_scan_trash_timer (SeafRepoManagerPriv *priv, GKeyFile *config)
+{
+    int scan_days;
+    int expire_days;
+    GError *error = NULL;
+
+    scan_days = g_key_file_get_integer (config,
+                                        "library_trash", "scan_days",
+                                        &error);
+    if (error) {
+       scan_days = SCAN_TRASH_DAYS;
+       g_clear_error (&error);
+    }
+
+    expire_days = g_key_file_get_integer (config,
+                                          "library_trash", "expire_days",
+                                          &error);
+    if (error) {
+        expire_days = TRASH_EXPIRE_DAYS;
+        g_clear_error (&error);
+    }
+
+    priv->trash_expire_interval = expire_days * 24 * 3600;
+    priv->scan_trash_timer = ccnet_timer_new (scan_trash, NULL,
+                                              scan_days * 24 * 3600 * 1000);
+}
+
 SeafRepoManager*
 seaf_repo_manager_new (SeafileSession *seaf)
 {
@@ -269,6 +336,8 @@ seaf_repo_manager_new (SeafileSession *seaf)
     pthread_rwlock_init (&mgr->priv->lock, NULL);
     mgr->priv->reap_token_timer = ccnet_timer_new (reap_token, mgr,
                                                    REAP_TOKEN_INTERVAL * 1000);
+
+    init_scan_trash_timer (mgr->priv, seaf->config);
 
     /* ignore_patterns = g_new0 (GPatternSpec*, G_N_ELEMENTS(ignore_table)); */
     /* int i; */
@@ -383,13 +452,14 @@ add_deleted_repo_to_trash (SeafRepoManager *mgr, const char *repo_id)
 
     ret =  seaf_db_statement_query (mgr->seaf->db,
                                     "INSERT INTO RepoTrash (repo_id, repo_name, head_id, "
-                                    "owner_id, size, org_id) "
-                                    "values (?, ?, ?, ?, ?, -1)", 5,
+                                    "owner_id, size, org_id, del_time) "
+                                    "values (?, ?, ?, ?, ?, -1, ?)", 6,
                                     "string", repo_id,
                                     "string", commit->repo_name,
                                     "string", branch->commit_id,
                                     "string", owner,
-                                    "int64", size);
+                                    "int64", size,
+                                    "int64", time(NULL));
 out:
     g_free (owner);
     seaf_commit_unref (commit);
@@ -780,7 +850,8 @@ create_tables_mysql (SeafRepoManager *mgr)
 
     sql = "CREATE TABLE IF NOT EXISTS RepoTrash (repo_id CHAR(36) PRIMARY KEY,"
         "repo_name VARCHAR(255), head_id CHAR(40), owner_id VARCHAR(255),"
-        "size bigint(20), org_id INTEGER, INDEX(owner_id), INDEX(org_id))ENGINE=INNODB";
+        "size BIGINT(20), org_id INTEGER, del_time BIGINT, "
+        "INDEX(owner_id), INDEX(org_id))ENGINE=INNODB";
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
@@ -907,7 +978,7 @@ create_tables_sqlite (SeafRepoManager *mgr)
 
     sql = "CREATE TABLE IF NOT EXISTS RepoTrash (repo_id CHAR(36) PRIMARY KEY,"
         "repo_name VARCHAR(255), head_id CHAR(40), owner_id VARCHAR(255), size BIGINT UNSIGNED,"
-        "org_id INTEGER)";
+        "org_id INTEGER, del_time BIGINT)";
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
@@ -1035,7 +1106,7 @@ create_tables_pgsql (SeafRepoManager *mgr)
 
     sql = "CREATE TABLE IF NOT EXISTS RepoTrash (repo_id CHAR(36) PRIMARY KEY,"
         "repo_name VARCHAR(255), head_id CHAR(40), owner_id VARCHAR(255), size bigint,"
-        "org_id INTEGER)";
+        "org_id INTEGER, del_time BIGINT)";
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
