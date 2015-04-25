@@ -598,18 +598,6 @@ get_protocol_cb (evhtp_request_t *req, void *arg)
 static void
 get_check_quota_cb (evhtp_request_t *req, void *arg)
 {
-    const char *delta = evhtp_kv_find (req->uri->query, "delta");
-    long int delta_num;
-    if (delta == NULL) {
-        char *error = "Invalid delta parameter.\n";
-        seaf_warning ("%s", error);
-        evbuffer_add (req->buffer_out, error, strlen (error));
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
-        return;
-    }
-
-    delta_num = strtol(delta, NULL, 10);
-
     HttpServer *htp_server = arg;
     char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
     char *repo_id = parts[1];
@@ -620,10 +608,33 @@ get_check_quota_cb (evhtp_request_t *req, void *arg)
         goto out;
     }
 
-    if (seaf_quota_manager_check_quota (seaf->quota_mgr, repo_id) < 0) {
-        evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
-    } else {
+    const char *delta = evhtp_kv_find (req->uri->query, "delta");
+    if (delta == NULL) {
+        char *error = "Invalid delta parameter.\n";
+        seaf_warning ("%s", error);
+        evbuffer_add (req->buffer_out, error, strlen (error));
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        goto out;
+    }
+
+    char *next_ptr = NULL;
+    gint64 delta_num = strtoll(delta, &next_ptr, 10);
+    if (!(*delta != '\0' && *next_ptr == '\0')) {
+        char *error = "Invalid delta parameter.\n";
+        seaf_warning ("%s", error);
+        evbuffer_add (req->buffer_out, error, strlen (error));
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        goto out;
+    }
+
+    int ret = seaf_quota_manager_check_quota_with_delta (seaf->quota_mgr,
+                                                         repo_id, delta_num);
+    if (ret < 0) {
+        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+    } else if (ret == 0) {
         evhtp_send_reply (req, EVHTP_RES_OK);
+    } else {
+        evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
     }
 
 out:
