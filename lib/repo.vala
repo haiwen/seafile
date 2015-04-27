@@ -98,6 +98,7 @@ public class TrashRepo : Object {
     public string head_id { get; set; }
     public string owner_id { get; set; }
     public int64 size { get; set; }
+    public int64 del_time { get; set; }
 }
 
 public class SyncInfo : Object {

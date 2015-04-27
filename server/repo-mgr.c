@@ -1984,12 +1984,15 @@ collect_trash_repo (SeafDBRow *row, void *data)
     const char *head_id;
     const char *owner_id;
     gint64 size;
+    gint64 del_time;
 
     repo_id = seaf_db_row_get_column_text (row, 0);
     repo_name = seaf_db_row_get_column_text (row, 1);
     head_id = seaf_db_row_get_column_text (row, 2);
     owner_id = seaf_db_row_get_column_text (row, 3);
     size = seaf_db_row_get_column_int64 (row, 4);
+    del_time = seaf_db_row_get_column_int64 (row, 5);
+
 
     if (!repo_id || !repo_name || !head_id || !owner_id)
         return FALSE;
@@ -2000,6 +2003,7 @@ collect_trash_repo (SeafDBRow *row, void *data)
                                                  "head_id", head_id,
                                                  "owner_id", owner_id,
                                                  "size", size,
+                                                 "del_time", del_time,
                                                  NULL);
     if (!trash_repo)
         return FALSE;
@@ -2021,13 +2025,13 @@ seaf_repo_manager_get_trash_repo_list (SeafRepoManager *mgr,
     if (start == -1 && limit == -1)
         rc = seaf_db_statement_foreach_row (mgr->seaf->db,
                                             "SELECT repo_id, repo_name, head_id, owner_id, "
-                                            "size FROM RepoTrash",
+                                            "size, del_time FROM RepoTrash",
                                             collect_trash_repo, &trash_repos,
                                             0);
     else
         rc = seaf_db_statement_foreach_row (mgr->seaf->db,
                                             "SELECT repo_id, repo_name, head_id, owner_id, "
-                                            "size FROM RepoTrash "
+                                            "size, del_time FROM RepoTrash "
                                             "ORDER BY repo_id LIMIT ? OFFSET ?",
                                             collect_trash_repo, &trash_repos,
                                             2, "int", limit, "int", start);
@@ -2055,7 +2059,7 @@ seaf_repo_manager_get_trash_repos_by_owner (SeafRepoManager *mgr,
 
     rc = seaf_db_statement_foreach_row (mgr->seaf->db,
                                         "SELECT repo_id, repo_name, head_id, owner_id, "
-                                        "size FROM RepoTrash WHERE owner_id = ?",
+                                        "size, del_time FROM RepoTrash WHERE owner_id = ?",
                                         collect_trash_repo, &trash_repos,
                                         1, "string", owner);
 
