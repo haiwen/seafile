@@ -2343,7 +2343,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
 
             if (check_locked_file_before_remove (fset, event->path)) {
                 not_found = FALSE;
-                rename_index_entries (istate, event->path, event->new_path, &not_found);
+                rename_index_entries (istate, event->path, event->new_path, &not_found,
+                                      NULL, NULL);
                 if (not_found)
                     scan_subtree_for_deletion (istate,
                                                repo->worktree, event->path,
@@ -3740,6 +3741,18 @@ delete_worktree_dir (const char *worktree, const char *path)
     g_free (full_path);
 }
 
+static void
+update_sync_status (struct cache_entry *ce, void *user_data)
+{
+    char *repo_id = user_data;
+
+    seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                          repo_id,
+                                          ce->name,
+                                          ce->ce_mode,
+                                          SYNC_STATUS_SYNCED);
+}
+
 #define UPDATE_CACHE_SIZE_LIMIT 100 * (1 << 20) /* 100MB */
 
 int
@@ -3959,7 +3972,15 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 
             do_rename_in_worktree (de, worktree, conflict_hash, no_conflict_hash);
 
-            rename_index_entries (&istate, de->name, de->new_name, NULL);
+            /* update_sync_status updates the sync status for each renamed path.
+             * The renamed file/folder becomes "synced" immediately after rename.
+             */
+            if (!is_clone)
+                rename_index_entries (&istate, de->name, de->new_name, NULL,
+                                      update_sync_status, repo_id);
+            else
+                rename_index_entries (&istate, de->name, de->new_name, NULL,
+                                      NULL, NULL);
 
             /* Moving files out of a dir may make it empty. */
             try_add_empty_parent_dir_entry (worktree, &istate, de->name);
@@ -3995,6 +4016,13 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                 is_locked = do_check_file_locked (de->name, worktree);
 #endif
 
+                if (!is_clone)
+                    seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                          repo_id,
+                                                          de->name,
+                                                          de->mode,
+                                                          SYNC_STATUS_SYNCING);
+
                 rc = checkout_file (repo_id,
                                     repo_version,
                                     worktree,
@@ -4020,21 +4048,36 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                     ret = FETCH_CHECKOUT_CANCELED;
                     if (add_ce)
                         cache_entry_free (ce);
+                    if (!is_clone)
+                        seaf_sync_manager_delete_active_path (seaf->sync_mgr,
+                                                              repo_id,
+                                                              de->name);
                     goto out;
                 } else if (rc == FETCH_CHECKOUT_TRANSFER_ERROR) {
                     seaf_warning ("Transfer failed.\n");
                     ret = FETCH_CHECKOUT_TRANSFER_ERROR;
                     if (add_ce)
                         cache_entry_free (ce);
+                    if (!is_clone)
+                        seaf_sync_manager_delete_active_path (seaf->sync_mgr,
+                                                              repo_id,
+                                                              de->name);
                     goto out;
                 }
 
                 if (!is_locked) {
                     cleanup_file_blocks (repo_id, repo_version, file_id);
+                    if (!is_clone)
+                        seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                              repo_id,
+                                                              de->name,
+                                                              de->mode,
+                                                              SYNC_STATUS_SYNCED);
                 } else {
 #ifdef WIN32
                     locked_file_set_add_update (fset, de->name, LOCKED_OP_UPDATE,
                                                 ce->ce_mtime.sec, file_id);
+                    /* Stay in syncing status if the file is locked. */
 #endif
                 }
             }
@@ -4085,6 +4128,12 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                                 ce,
                                 conflict_hash,
                                 no_conflict_hash);
+
+            seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                  repo_id,
+                                                  de->name,
+                                                  de->mode,
+                                                  SYNC_STATUS_SYNCED);
 
             if (add_ce) {
                 if (!(ce->ce_flags & CE_REMOVE)) {

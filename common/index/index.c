@@ -1277,7 +1277,9 @@ create_renamed_cache_entry (struct cache_entry *ce,
 static struct cache_entry **
 create_renamed_cache_entries (struct index_state *istate,
                               const char *src_path, const char *dst_path,
-                              int *n_entries)
+                              int *n_entries,
+                              CECallback cb_after_rename,
+                              void *user_data)
 {
     struct cache_entry *ce, **ret = NULL;
 
@@ -1347,6 +1349,9 @@ create_renamed_cache_entries (struct index_state *istate,
 
         ret[i - pos] = create_renamed_cache_entry (ce, src_path, dst_path);
 
+        if (cb_after_rename)
+            cb_after_rename (ret[i-pos], user_data);
+
         remove_name_hash(istate, ce);
         cache_entry_free (ce);
     }
@@ -1365,7 +1370,9 @@ int
 rename_index_entries (struct index_state *istate,
                       const char *src_path,
                       const char *dst_path,
-                      gboolean *not_found)
+                      gboolean *not_found,
+                      CECallback cb_after_rename,
+                      void *cb_data)
 {
     struct cache_entry **new_ces;
     int n_entries;
@@ -1375,7 +1382,8 @@ rename_index_entries (struct index_state *istate,
     if (not_found)
         *not_found = FALSE;
 
-    new_ces = create_renamed_cache_entries (istate, src_path, dst_path, &n_entries);
+    new_ces = create_renamed_cache_entries (istate, src_path, dst_path, &n_entries,
+                                            cb_after_rename, cb_data);
     if (n_entries == 0) {
         if (not_found)
             *not_found = TRUE;
