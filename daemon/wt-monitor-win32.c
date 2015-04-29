@@ -167,6 +167,16 @@ add_event_to_queue (WTStatus *status,
     pthread_mutex_lock (&status->q_lock);
     g_queue_push_tail (status->event_q, event);
     pthread_mutex_unlock (&status->q_lock);
+
+    if (type == WT_EVENT_CREATE_OR_UPDATE) {
+        pthread_mutex_lock (&status->ap_q_lock);
+
+        char *last = g_queue_peek_tail (status->active_paths);
+        if (!last || strcmp(last, path) != 0)
+            g_queue_push_tail (status->active_paths, g_strdup(path));
+
+        pthread_mutex_unlock (&status->ap_q_lock);
+    }
 }
 
 /* Every time after a read event is processed, we should call

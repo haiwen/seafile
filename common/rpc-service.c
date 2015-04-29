@@ -80,6 +80,7 @@ convert_repo (SeafRepo *r)
 #ifndef SEAFILE_SERVER
     g_object_set (repo, "worktree", r->worktree,
                   "relay-id", r->relay_id,
+                  "worktree-invalid", r->worktree_invalid,
                   "last-sync-time", r->last_sync_time,
                   "auto-sync", r->auto_sync,
                   NULL);
@@ -813,6 +814,35 @@ int seafile_is_auto_sync_enabled (GError **error)
     return seaf_sync_manager_is_auto_sync_enabled (seaf->sync_mgr);
 }
 
+char *
+seafile_get_path_sync_status (const char *repo_id,
+                              const char *path,
+                              int is_dir,
+                              GError **error)
+{
+    char *canon_path = NULL;
+    int len;
+    char *status;
+
+    if (!repo_id || !path) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return NULL;
+    }
+
+    if (*path == '/')
+        ++path;
+    canon_path = g_strdup(path);
+    len = strlen(canon_path);
+    if (canon_path[len-1] == '/')
+        canon_path[len-1] = 0;
+
+    status = seaf_sync_manager_get_path_sync_status (seaf->sync_mgr,
+                                                     repo_id,
+                                                     canon_path,
+                                                     is_dir);
+    g_free (canon_path);
+    return status;
+}
 
 #endif  /* not define SEAFILE_SERVER */
 

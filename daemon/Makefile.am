@@ -59,6 +59,7 @@ noinst_HEADERS = \
 	seafile-config.h \
 	client-migrate.h \
 	http-tx-mgr.h \
+	sync-status-tree.h \
 	$(proc_headers)
 
 if LINUX
@@ -97,6 +98,7 @@ common_src = \
 	block-tx-client.c \
 	../common/block-tx-utils.c \
 	client-migrate.c \
+	sync-status-tree.c \
 	processors/check-tx-proc.c \
 	processors/check-tx-v2-proc.c \
 	processors/check-tx-v3-proc.c \

@@ -3,6 +3,8 @@
 
 #include "common.h"
 
+#include <pthread.h>
+
 #include <ccnet.h>
 
 #include "db.h"
@@ -18,6 +20,12 @@
 #include "status.h"
 #include "mq-mgr.h"
 #include "utils.h"
+
+#include "sync-status-tree.h"
+
+#ifdef WIN32
+#include <shlobj.h>
+#endif
 
 #define DEBUG_FLAG SEAFILE_DEBUG_SYNC
 #include "log.h"
@@ -63,7 +71,21 @@ struct _SeafSyncManagerPriv {
 
     /* When FALSE, auto sync is globally disabled */
     gboolean   auto_sync_enabled;
+
+    GHashTable *active_paths;
+    pthread_mutex_t paths_lock;
+
+#ifdef WIN32
+    GAsyncQueue *refresh_paths;
+#endif
 };
+
+struct _ActivePathsInfo {
+    GHashTable *paths;
+    struct SyncStatusTree *syncing_tree;
+    struct SyncStatusTree *synced_tree;
+};
+typedef struct _ActivePathsInfo ActivePathsInfo;
 
 static void
 start_sync (SeafSyncManager *manager, SeafRepo *repo,
@@ -102,6 +124,9 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
 static gboolean
 check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo);
 
+static void
+active_paths_info_free (ActivePathsInfo *info);
+
 SeafSyncManager*
 seaf_sync_manager_new (SeafileSession *seaf)
 {
@@ -131,6 +156,15 @@ seaf_sync_manager_new (SeafileSession *seaf)
                                                        &exists);
     if (exists)
         mgr->upload_limit = upload_limit;
+
+    mgr->priv->active_paths = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                     g_free,
+                                                     (GDestroyNotify)active_paths_info_free);
+    pthread_mutex_init (&mgr->priv->paths_lock, NULL);
+
+#ifdef WIN32
+    mgr->priv->refresh_paths = g_async_queue_new ();
+#endif
 
     return mgr;
 }
@@ -351,6 +385,11 @@ update_tx_state (void *vmanager)
     return TRUE;
 }
 
+#ifdef WIN32
+static void *
+refresh_windows_explorer_thread (void *vdata);
+#endif
+
 int
 seaf_sync_manager_start (SeafSyncManager *mgr)
 {
@@ -379,6 +418,13 @@ seaf_sync_manager_start (SeafSyncManager *mgr)
                       (GCallback)on_repo_http_fetched, mgr);
     g_signal_connect (seaf, "repo-http-uploaded",
                       (GCallback)on_repo_http_uploaded, mgr);
+
+#ifdef WIN32
+    ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                    refresh_windows_explorer_thread,
+                                    NULL,
+                                    mgr->priv->refresh_paths);
+#endif
 
     return 0;
 }
@@ -2454,6 +2500,18 @@ check_folder_permissions (SeafSyncManager *mgr, GList *repos)
     }
 }
 
+static void
+print_active_paths (SeafSyncManager *mgr)
+{
+    int n = seaf_sync_manager_active_paths_number(mgr);
+    seaf_message ("%d active paths\n\n", n);
+    if (n < 10) {
+        char *paths_json = seaf_sync_manager_list_active_paths_json (mgr);
+        seaf_message ("%s\n", paths_json);
+        g_free (paths_json);
+    }
+}
+
 static int
 auto_sync_pulse (void *vmanager)
 {
@@ -2461,6 +2519,8 @@ auto_sync_pulse (void *vmanager)
     GList *repos, *ptr;
     SeafRepo *repo;
     gint64 now;
+
+    /* print_active_paths (manager); */
 
     repos = seaf_repo_manager_get_repo_list (manager->seaf->repo_mgr, -1, -1);
 
@@ -2778,7 +2838,7 @@ sync_state_to_str (int state)
 }
 
 static void
-cancel_all_sync_tasks (SeafSyncManager *mgr)
+disable_auto_sync_for_repos (SeafSyncManager *mgr)
 {
     GList *repos;
     GList *ptr;
@@ -2787,7 +2847,9 @@ cancel_all_sync_tasks (SeafSyncManager *mgr)
     repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
+        seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
         seaf_sync_manager_cancel_sync_task (mgr, repo->id);
+        seaf_sync_manager_remove_active_path_info (mgr, repo->id);
     }
 
     g_list_free (repos);
@@ -2801,34 +2863,28 @@ seaf_sync_manager_disable_auto_sync (SeafSyncManager *mgr)
         return -1;
     }
 
-    cancel_all_sync_tasks (mgr);
+    disable_auto_sync_for_repos (mgr);
+
     mgr->priv->auto_sync_enabled = FALSE;
     g_debug ("[sync mgr] auto sync is disabled\n");
     return 0;
 }
 
-#if 0
 static void
-add_sync_tasks_for_all (SeafSyncManager *mgr)
+enable_auto_sync_for_repos (SeafSyncManager *mgr)
 {
-    GList *repos, *ptr;
+    GList *repos;
+    GList *ptr;
     SeafRepo *repo;
 
     repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
-        if (!repo->auto_sync)
-            continue;
-
-        if (repo->worktree_invalid)
-            continue;
-        
-        start_sync (mgr, repo, TRUE, FALSE, TRUE);
+        seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree);
     }
 
     g_list_free (repos);
 }
-#endif
 
 int
 seaf_sync_manager_enable_auto_sync (SeafSyncManager *mgr)
@@ -2838,7 +2894,8 @@ seaf_sync_manager_enable_auto_sync (SeafSyncManager *mgr)
         return -1;
     }
 
-    /* add_sync_tasks_for_all (mgr); */
+    enable_auto_sync_for_repos (mgr);
+
     mgr->priv->auto_sync_enabled = TRUE;
     g_debug ("[sync mgr] auto sync is enabled\n");
     return 0;
@@ -2852,3 +2909,321 @@ seaf_sync_manager_is_auto_sync_enabled (SeafSyncManager *mgr)
     else
         return 0;
 }
+
+static ActivePathsInfo *
+active_paths_info_new (SeafRepo *repo)
+{
+    ActivePathsInfo *info = g_new0 (ActivePathsInfo, 1);
+
+    info->paths = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    info->syncing_tree = sync_status_tree_new (repo->worktree);
+    info->synced_tree = sync_status_tree_new (repo->worktree);
+
+    return info;
+}
+
+static void
+active_paths_info_free (ActivePathsInfo *info)
+{
+    if (!info)
+        return;
+    g_hash_table_destroy (info->paths);
+    sync_status_tree_free (info->syncing_tree);
+    sync_status_tree_free (info->synced_tree);
+    g_free (info);
+}
+
+void
+seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
+                                      const char *repo_id,
+                                      const char *path,
+                                      int mode,
+                                      SyncStatus status)
+{
+    ActivePathsInfo *info;
+    SeafRepo *repo;
+
+    if (!repo_id || !path) {
+        seaf_warning ("BUG: empty repo_id or path.\n");
+        return;
+    }
+
+    if (status <= SYNC_STATUS_NONE || status >= N_SYNC_STATUS) {
+        seaf_warning ("BUG: invalid sync status %d.\n", status);
+        return;
+    }
+
+    pthread_mutex_lock (&mgr->priv->paths_lock);
+
+    info = g_hash_table_lookup (mgr->priv->active_paths, repo_id);
+    if (!info) {
+        repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+        if (!repo) {
+            seaf_warning ("Failed to find repo %s\n", repo_id);
+            pthread_mutex_unlock (&mgr->priv->paths_lock);
+            return;
+        }
+        info = active_paths_info_new (repo);
+        g_hash_table_insert (mgr->priv->active_paths, g_strdup(repo_id), info);
+    }
+
+    SyncStatus existing = (SyncStatus) g_hash_table_lookup (info->paths, path);
+    if (!existing) {
+        g_hash_table_insert (info->paths, g_strdup(path), (void*)status);
+        if (status == SYNC_STATUS_SYNCING)
+            sync_status_tree_add (info->syncing_tree, path, mode);
+        else if (status == SYNC_STATUS_SYNCED)
+            sync_status_tree_add (info->synced_tree, path, mode);
+        else {
+#ifdef WIN32
+            seaf_sync_manager_add_refresh_path (mgr, path);
+#endif
+        }
+    } else if (existing != status) {
+        g_hash_table_replace (info->paths, g_strdup(path), (void*)status);
+
+        if (existing == SYNC_STATUS_SYNCING)
+            sync_status_tree_del (info->syncing_tree, path);
+        else if (existing == SYNC_STATUS_SYNCED)
+            sync_status_tree_del (info->synced_tree, path);
+
+        if (status == SYNC_STATUS_SYNCING)
+            sync_status_tree_add (info->syncing_tree, path, mode);
+        else if (status == SYNC_STATUS_SYNCED)
+            sync_status_tree_add (info->synced_tree, path, mode);
+    }
+
+    pthread_mutex_unlock (&mgr->priv->paths_lock);
+}
+
+void
+seaf_sync_manager_delete_active_path (SeafSyncManager *mgr,
+                                      const char *repo_id,
+                                      const char *path)
+{
+    ActivePathsInfo *info;
+
+    if (!repo_id || !path) {
+        seaf_warning ("BUG: empty repo_id or path.\n");
+        return;
+    }
+
+    pthread_mutex_lock (&mgr->priv->paths_lock);
+
+    info = g_hash_table_lookup (mgr->priv->active_paths, repo_id);
+    if (!info) {
+        pthread_mutex_unlock (&mgr->priv->paths_lock);
+        return;
+    }
+
+    g_hash_table_remove (info->paths, path);
+    sync_status_tree_del (info->syncing_tree, path);
+    sync_status_tree_del (info->synced_tree, path);
+
+    pthread_mutex_unlock (&mgr->priv->paths_lock);
+}
+
+static char *path_status_tbl[] = {
+    "none",
+    "syncing",
+    "error",
+    "ignored",
+    "synced",
+    NULL,
+};
+
+char *
+seaf_sync_manager_get_path_sync_status (SeafSyncManager *mgr,
+                                        const char *repo_id,
+                                        const char *path,
+                                        gboolean is_dir)
+{
+    ActivePathsInfo *info;
+    SyncStatus ret = SYNC_STATUS_NONE;
+
+    if (!repo_id || !path) {
+        seaf_warning ("BUG: empty repo_id or path.\n");
+        return NULL;
+    }
+
+    seaf_message ("get_path_sync_status for %s\n", path);
+
+    pthread_mutex_lock (&mgr->priv->paths_lock);
+
+    info = g_hash_table_lookup (mgr->priv->active_paths, repo_id);
+    if (!info) {
+        pthread_mutex_unlock (&mgr->priv->paths_lock);
+        ret = SYNC_STATUS_NONE;
+        goto out;
+    }
+
+    ret = (SyncStatus) g_hash_table_lookup (info->paths, path);
+    if (is_dir && (ret == SYNC_STATUS_NONE)) {
+        /* If a dir is not in the syncing tree but in the synced tree,
+         * it's synced. Otherwise if it's in the syncing tree, some files
+         * under it must be syncing, so it should be in syncing status too.
+         */
+        if (sync_status_tree_exists (info->syncing_tree, path))
+            ret = SYNC_STATUS_SYNCING;
+        else if (sync_status_tree_exists (info->synced_tree, path))
+            ret = SYNC_STATUS_SYNCED;
+    }
+
+    pthread_mutex_unlock (&mgr->priv->paths_lock);
+
+out:
+    return g_strdup(path_status_tbl[ret]);
+}
+
+static json_t *
+active_paths_to_json (GHashTable *paths)
+{
+    json_t *array = NULL, *obj = NULL;
+    GHashTableIter iter;
+    gpointer key, value;
+    char *path;
+    SyncStatus status;
+
+    array = json_array ();
+
+    g_hash_table_iter_init (&iter, paths);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        path = key;
+        status = (SyncStatus)value;
+
+        obj = json_object ();
+        json_object_set (obj, "path", json_string(path));
+        json_object_set (obj, "status", json_string(path_status_tbl[status]));
+
+        json_array_append (array, obj);
+    }
+
+    return array;
+}
+
+char *
+seaf_sync_manager_list_active_paths_json (SeafSyncManager *mgr)
+{
+    json_t *array = NULL, *obj = NULL, *path_array = NULL;
+    GHashTableIter iter;
+    gpointer key, value;
+    char *repo_id;
+    ActivePathsInfo *info;
+    char *ret = NULL;
+
+    pthread_mutex_lock (&mgr->priv->paths_lock);
+
+    array = json_array ();
+
+    g_hash_table_iter_init (&iter, mgr->priv->active_paths);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        repo_id = key;
+        info = value;
+
+        obj = json_object();
+        path_array = active_paths_to_json (info->paths);
+        json_object_set (obj, "repo_id", json_string(repo_id));
+        json_object_set (obj, "paths", path_array);
+
+        json_array_append (array, obj);
+    }
+
+    pthread_mutex_unlock (&mgr->priv->paths_lock);
+
+    ret = json_dumps (array, JSON_INDENT(4));
+    if (!ret) {
+        seaf_warning ("Failed to convert active paths to json\n");
+    }
+
+    json_decref (array);
+
+    return ret;
+}
+
+int
+seaf_sync_manager_active_paths_number (SeafSyncManager *mgr)
+{
+    GHashTableIter iter;
+    gpointer key, value;
+    ActivePathsInfo *info;
+    int ret = 0;
+
+    g_hash_table_iter_init (&iter, mgr->priv->active_paths);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        info = value;
+        ret += g_hash_table_size(info->paths);
+    }
+
+    return ret;
+}
+
+void
+seaf_sync_manager_remove_active_path_info (SeafSyncManager *mgr, const char *repo_id)
+{
+    ActivePathsInfo *info;
+
+    pthread_mutex_lock (&mgr->priv->paths_lock);
+
+    g_hash_table_remove (mgr->priv->active_paths, repo_id);
+
+    pthread_mutex_unlock (&mgr->priv->paths_lock);
+
+#ifdef WIN32
+    seaf_message ("Refresh windows.\n");
+    /* This is a hack to tell Windows Explorer to refresh all open windows. */
+    SHChangeNotify (SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
+#endif
+}
+
+#ifdef WIN32
+
+static wchar_t *
+win_path (const char *path)
+{
+    char *ret = g_strdup(path);
+    wchar_t *ret_w;
+    char *p;
+
+    for (p = ret; *p != 0; ++p)
+        if (*p == '/')
+            *p = '\\';
+
+    ret_w = g_utf8_to_utf16 (ret, -1, NULL, NULL, NULL);
+
+    g_free (ret);
+    return ret_w;
+}
+
+static void *
+refresh_windows_explorer_thread (void *vdata)
+{
+    GAsyncQueue *q = vdata;
+    char *path;
+    wchar_t *wpath;
+    int count = 0;
+
+    while (1) {
+        path = g_async_queue_pop (q);
+        wpath = win_path (path);
+
+        SHChangeNotify (SHCNE_ATTRIBUTES, SHCNF_PATHW, wpath, NULL);
+
+        seaf_debug ("Refresh %s\n", path);
+
+        g_free (path);
+        g_free (wpath);
+
+        if (++count >= 100) {
+            g_usleep (G_USEC_PER_SEC);
+            count = 0;
+        }
+    }
+}
+
+void
+seaf_sync_manager_add_refresh_path (SeafSyncManager *mgr, const char *path)
+{
+    g_async_queue_push (mgr->priv->refresh_paths, g_strdup(path));
+}
+
+#endif

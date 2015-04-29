@@ -43,6 +43,9 @@ WTStatus *create_wt_status (const char *repo_id)
     status->event_q = g_queue_new ();
     pthread_mutex_init (&status->q_lock, NULL);
 
+    status->active_paths = g_queue_new ();
+    pthread_mutex_init (&status->ap_q_lock, NULL);
+
     /* The monitor thread always holds a reference to this status
      * until it's unwatched
      */

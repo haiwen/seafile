@@ -688,6 +688,8 @@ traverse_directory_win32 (wchar_t *path_w,
             wcscmp (fdata.cFileName, L"..") == 0)
             continue;
 
+        ++ret;
+
         stop = FALSE;
         if (callback (path_w, &fdata, user_data, &stop) < 0) {
             ret = -1;

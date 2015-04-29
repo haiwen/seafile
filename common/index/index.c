@@ -1060,10 +1060,9 @@ int add_to_index(const char *repo_id,
     }
 #endif
 
-    /* Skip index file errors. */
     if (index_cb (repo_id, version, full_path, sha1, crypt, TRUE) < 0) {
         free (ce);
-        return 0;
+        return -1;
     }
 
 update_index:

@@ -208,6 +208,12 @@ int seafile_enable_auto_sync (GError **error);
 
 int seafile_is_auto_sync_enabled (GError **error);
 
+char *
+seafile_get_path_sync_status (const char *repo_id,
+                              const char *path,
+                              int is_dir,
+                              GError **error);
+
 /**
  * seafile_list_dir:
  * List a directory.

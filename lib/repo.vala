@@ -64,6 +64,7 @@ public class Repo : Object {
     }
     public int  last_sync_time { get; set; }
     public bool auto_sync { get; set; }
+    public bool worktree_invalid { get; set; }
 
     // Section 4: Server only information
     // Should be set for all server repo objects

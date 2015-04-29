@@ -1443,22 +1443,33 @@ http_tx_manager_add_upload (HttpTxManager *manager,
 typedef struct {
     HttpTxTask *task;
     gint64 delta;
+    GHashTable *active_paths;
 } CalcQuotaDeltaData;
 
 static int
-check_quota_diff_files (int n, const char *basedir, SeafDirent *files[], void *vdata)
+check_quota_and_active_paths_diff_files (int n, const char *basedir,
+                                         SeafDirent *files[], void *vdata)
 {
     CalcQuotaDeltaData *data = vdata;
     SeafDirent *file1 = files[0];
     SeafDirent *file2 = files[1];
     gint64 size1, size2;
+    char *path;
 
     if (file1 && file2) {
         size1 = file1->size;
         size2 = file2->size;
         data->delta += (size1 - size2);
+
+        if (strcmp(file1->id, file2->id) != 0) {
+            path = g_strconcat(basedir, file1->name, NULL);
+            g_hash_table_replace (data->active_paths, path, (void*)(long)S_IFREG);
+        }
     } else if (file1 && !file2) {
         data->delta += file1->size;
+
+        path = g_strconcat (basedir, file1->name, NULL);
+        g_hash_table_replace (data->active_paths, path, (void*)(long)S_IFREG);
     } else if (!file1 && file2) {
         data->delta -= file2->size;
     }
@@ -1467,15 +1478,28 @@ check_quota_diff_files (int n, const char *basedir, SeafDirent *files[], void *v
 }
 
 static int
-check_quota_diff_dirs (int n, const char *basedir, SeafDirent *dirs[], void *data,
-                       gboolean *recurse)
+check_quota_and_active_paths_diff_dirs (int n, const char *basedir,
+                                        SeafDirent *dirs[], void *vdata,
+                                        gboolean *recurse)
 {
-    /* Do nothing */
+    CalcQuotaDeltaData *data = vdata;
+    SeafDirent *dir1 = dirs[0];
+    SeafDirent *dir2 = dirs[1];
+    char *path;
+
+    /* When a new empty dir is created. */
+    if (!dir2 && dir1 && strcmp(dir1->id, EMPTY_SHA1) == 0) {
+        path = g_strconcat (basedir, dir1->name, NULL);
+        g_hash_table_replace (data->active_paths, path, (void*)(long)S_IFDIR);
+    }
+
     return 0;
 }
 
 static int
-calculate_upload_size_delta (HttpTxTask *task, gint64 *delta)
+calculate_upload_size_delta_and_active_paths (HttpTxTask *task,
+                                              gint64 *delta,
+                                              GHashTable *active_paths)
 {
     int ret = 0;
     SeafBranch *local = NULL, *master = NULL;
@@ -1516,13 +1540,14 @@ calculate_upload_size_delta (HttpTxTask *task, gint64 *delta)
     CalcQuotaDeltaData data;
     memset (&data, 0, sizeof(data));
     data.task = task;
+    data.active_paths = active_paths;
 
     DiffOptions opts;
     memset (&opts, 0, sizeof(opts));
     memcpy (opts.store_id, task->repo_id, 36);
     opts.version = task->repo_version;
-    opts.file_cb = check_quota_diff_files;
-    opts.dir_cb = check_quota_diff_dirs;
+    opts.file_cb = check_quota_and_active_paths_diff_files;
+    opts.dir_cb = check_quota_and_active_paths_diff_dirs;
     opts.data = &data;
 
     const char *trees[2];
@@ -1532,6 +1557,7 @@ calculate_upload_size_delta (HttpTxTask *task, gint64 *delta)
         seaf_warning ("Failed to diff local and master head for repo %.8s.\n",
                       task->repo_id);
         ret = -1;
+        g_hash_table_destroy (data.active_paths);
         goto out;
     }
 
@@ -1547,20 +1573,12 @@ out:
 }
 
 static int
-check_quota (HttpTxTask *task, Connection *conn)
+check_quota (HttpTxTask *task, Connection *conn, gint64 delta)
 {
     CURL *curl;
     char *url;
     int status;
-    gint64 delta = 0;
     int ret = 0;
-
-    if (calculate_upload_size_delta (task, &delta) < 0) {
-        seaf_warning ("Failed to calculate upload size delta for repo %s.\n",
-                      task->repo_id);
-        task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
-        return -1;
-    }
 
     curl = conn->curl;
 
@@ -2305,6 +2323,32 @@ update_master_branch (HttpTxTask *task)
     }
 }
 
+static void
+set_path_status_syncing (gpointer key, gpointer value, gpointer user_data)
+{
+    HttpTxTask *task = user_data;
+    char *path = key;
+    int mode = (int)(long)value;
+    seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                          task->repo_id,
+                                          path,
+                                          mode,
+                                          SYNC_STATUS_SYNCING);
+}
+
+static void
+set_path_status_synced (gpointer key, gpointer value, gpointer user_data)
+{
+    HttpTxTask *task = user_data;
+    char *path = key;
+    int mode = (int)(long)value;
+    seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                          task->repo_id,
+                                          path,
+                                          mode,
+                                          SYNC_STATUS_SYNCED);
+}
+
 static void *
 http_upload_thread (void *vdata)
 {
@@ -2316,6 +2360,7 @@ http_upload_thread (void *vdata)
     GList *send_fs_list = NULL, *needed_fs_list = NULL;
     GList *block_list = NULL, *needed_block_list = NULL;
     GList *ptr;
+    GHashTable *active_paths = NULL;
 
     SeafBranch *local = seaf_branch_manager_get_branch (seaf->branch_mgr,
                                                         task->repo_id, "local");
@@ -2346,13 +2391,25 @@ http_upload_thread (void *vdata)
 
     transition_state (task, task->state, HTTP_TASK_RT_STATE_CHECK);
 
+    gint64 delta = 0;
+    active_paths = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+
+    if (calculate_upload_size_delta_and_active_paths (task, &delta, active_paths) < 0) {
+        seaf_warning ("Failed to calculate upload size delta for repo %s.\n",
+                      task->repo_id);
+        task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+        goto out;
+    }
+
+    g_hash_table_foreach (active_paths, set_path_status_syncing, task);
+
     if (check_permission (task, conn) < 0) {
         seaf_warning ("Upload permission denied for repo %.8s on server %s.\n",
                       task->repo_id, task->host);
         goto out;
     }
 
-    if (check_quota (task, conn) < 0) {
+    if (check_quota (task, conn, delta) < 0) {
         seaf_warning ("Not enough quota for repo %.8s on server %s.\n",
                       task->repo_id, task->host);
         goto out;
@@ -2474,11 +2531,17 @@ http_upload_thread (void *vdata)
      */
     update_master_branch (task);
 
+    if (active_paths != NULL)
+        g_hash_table_foreach (active_paths, set_path_status_synced, task);
+
 out:
     string_list_free (send_fs_list);
     string_list_free (needed_fs_list);
     string_list_free (block_list);
     string_list_free (needed_block_list);
+
+    if (active_paths)
+        g_hash_table_destroy (active_paths);
 
     g_free (url);
 
