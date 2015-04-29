@@ -233,6 +233,7 @@ seaf_block_manager_verify_block (SeafBlockManager *mgr,
     }
 
     seaf_block_manager_close_block (mgr, h);
+    seaf_block_manager_block_handle_free (mgr, h);
 
     SHA1_Final (sha1, &ctx);
     rawdata_to_hex (sha1, check_id, 20);
