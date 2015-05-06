@@ -1107,6 +1107,16 @@ add_file (const char *repo_id,
     if (!remain_files) {
         ret = add_to_index (repo_id, version, istate, path, full_path,
                             st, 0, crypt, index_cb, modifier, &added);
+        if (!added) {
+            /* If the contents of the file doesn't change, move it to
+               synced status.
+            */
+            seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                  repo_id,
+                                                  path,
+                                                  S_IFREG,
+                                                  SYNC_STATUS_SYNCED);
+        }
     } else if (*remain_files == NULL) {
         ret = add_to_index (repo_id, version, istate, path, full_path,
                             st, 0, crypt, index_cb, modifier, &added);
@@ -1114,6 +1124,12 @@ add_file (const char *repo_id,
             *total_size += (gint64)(st->st_size);
             if (*total_size >= MAX_COMMIT_SIZE)
                 *remain_files = g_queue_new ();
+        } else {
+            seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                  repo_id,
+                                                  path,
+                                                  S_IFREG,
+                                                  SYNC_STATUS_SYNCED);
         }
     } else
         g_queue_push_tail (*remain_files, g_strdup(path));
@@ -1718,6 +1734,12 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                     g_free (full_path);
                     break;
                 }
+            } else {
+                seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                      repo->id,
+                                                      path,
+                                                      S_IFREG,
+                                                      SYNC_STATUS_SYNCED);
             }
         } else if (S_ISDIR(st.st_mode)) {
             if (is_empty_dir (full_path, ignore_list))
@@ -4081,12 +4103,18 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 
                 if (!is_locked) {
                     cleanup_file_blocks (repo_id, repo_version, file_id);
-                    if (!is_clone)
+                    if (!is_clone) {
+                        SyncStatus status;
+                        if (rc == FETCH_CHECKOUT_FAILED)
+                            status = SYNC_STATUS_ERROR;
+                        else
+                            status = SYNC_STATUS_SYNCED;
                         seaf_sync_manager_update_active_path (seaf->sync_mgr,
                                                               repo_id,
                                                               de->name,
                                                               de->mode,
-                                                              SYNC_STATUS_SYNCED);
+                                                              status);
+                    }
                 } else {
 #ifdef WIN32
                     locked_file_set_add_update (fset, de->name, LOCKED_OP_UPDATE,

@@ -2277,6 +2277,12 @@ handle_locked_file_update (SeafRepo *repo, struct index_state *istate,
                       path, repo->name, repo->id);
     }
 
+    seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                          repo->id,
+                                          path,
+                                          S_IFREG,
+                                          SYNC_STATUS_SYNCED);
+
 out:
     cleanup_file_blocks (repo->id, repo->version, file_id);
 
@@ -2520,7 +2526,7 @@ auto_sync_pulse (void *vmanager)
     SeafRepo *repo;
     gint64 now;
 
-    /* print_active_paths (manager); */
+    print_active_paths (manager);
 
     repos = seaf_repo_manager_get_repo_list (manager->seaf->repo_mgr, -1, -1);
 
@@ -2991,6 +2997,10 @@ seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
             sync_status_tree_add (info->syncing_tree, path, mode);
         else if (status == SYNC_STATUS_SYNCED)
             sync_status_tree_add (info->synced_tree, path, mode);
+
+#ifdef WIN32
+        seaf_sync_manager_add_refresh_path (mgr, path);
+#endif
     }
 
     pthread_mutex_unlock (&mgr->priv->paths_lock);
@@ -3045,8 +3055,6 @@ seaf_sync_manager_get_path_sync_status (SeafSyncManager *mgr,
         seaf_warning ("BUG: empty repo_id or path.\n");
         return NULL;
     }
-
-    seaf_message ("get_path_sync_status for %s\n", path);
 
     pthread_mutex_lock (&mgr->priv->paths_lock);
 
@@ -3169,7 +3177,6 @@ seaf_sync_manager_remove_active_path_info (SeafSyncManager *mgr, const char *rep
     pthread_mutex_unlock (&mgr->priv->paths_lock);
 
 #ifdef WIN32
-    seaf_message ("Refresh windows.\n");
     /* This is a hack to tell Windows Explorer to refresh all open windows. */
     SHChangeNotify (SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
 #endif
@@ -3207,8 +3214,6 @@ refresh_windows_explorer_thread (void *vdata)
         wpath = win_path (path);
 
         SHChangeNotify (SHCNE_ATTRIBUTES, SHCNF_PATHW, wpath, NULL);
-
-        seaf_debug ("Refresh %s\n", path);
 
         g_free (path);
         g_free (wpath);

@@ -1075,7 +1075,9 @@ update_index:
         return -1;
     }
 
-    *added = TRUE;
+    if (!alias || memcmp (alias->sha1, sha1, 20) != 0)
+        *added = TRUE;
+
     return 0;
 }
 
