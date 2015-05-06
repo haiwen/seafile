@@ -1067,27 +1067,34 @@ add_file (const char *repo_id,
 {
     gboolean added = FALSE;
     int ret = 0;
+    gboolean is_writable = TRUE;
 
-    if (options &&
-        !is_path_writable (options->user_perms, options->group_perms,
-                           options->is_repo_ro, path)) {
-        return ret;
-    }
+    if (options)
+        is_writable = is_path_writable(options->user_perms, options->group_perms,
+                                       options->is_repo_ro, path);
 
     if (options && options->startup_scan) {
         struct cache_entry *ce;
         SyncStatus status;
+
         ce = index_name_exists (istate, path, strlen(path), 0);
+
         if (!ce || ie_match_stat(ce, st, 0) != 0)
             status = SYNC_STATUS_SYNCING;
         else
             status = SYNC_STATUS_SYNCED;
-        seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                              repo_id,
-                                              path,
-                                              S_IFREG,
-                                              status);
+
+        /* Don't set "syncing" status for read-only path. */
+        if (status == SYNC_STATUS_SYNCED || is_writable)
+            seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                  repo_id,
+                                                  path,
+                                                  S_IFREG,
+                                                  status);
     }
+
+    if (!is_writable)
+        return ret;
 
     if (options && options->fset) {
         LockedFile *file = locked_file_set_lookup (options->fset, path);
@@ -1240,6 +1247,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     IterCBData data;
     wchar_t *full_path_w;
     int ret = 0;
+    gboolean is_writable = TRUE;
 
     memset (&data, 0, sizeof(data));
     data.add_params = params;
@@ -1261,6 +1269,10 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
         return 0;
     }
 
+    if (options)
+         is_writable = is_path_writable(options->user_perms, options->group_perms,
+                                        options->is_repo_ro, path);
+
     /* Update active path status for empty dir */
     if (options && options->startup_scan && ret == 0) {
         if (ignored) {
@@ -1277,18 +1289,18 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                 status = SYNC_STATUS_SYNCING;
             else
                 status = SYNC_STATUS_SYNCED;
-            seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                                  params->repo_id,
-                                                  path,
-                                                  S_IFDIR,
-                                                  status);
+
+
+            if (status == SYNC_STATUS_SYNCED || is_writable)
+                seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                      params->repo_id,
+                                                      path,
+                                                      S_IFDIR,
+                                                      status);
         }
     }
 
-    if (data.n == 0 && path[0] != 0 && !params->ignore_empty_dir &&
-        (!options ||
-         is_path_writable(options->user_perms, options->group_perms,
-                          options->is_repo_ro, path))) {
+    if (data.n == 0 && path[0] != 0 && !params->ignore_empty_dir && is_writable) {
         if (!params->remain_files || *(params->remain_files) == NULL)
             add_empty_dir_to_index (params->istate, path, st);
         else
@@ -2042,6 +2054,8 @@ typedef struct _UpdatePathData {
     SeafRepo *repo;
     struct index_state *istate;
     GList *ignore_list;
+    GList *user_perms;
+    GList *group_perms;
 
     const char *parent;
     const char *full_parent;
@@ -2049,30 +2063,42 @@ typedef struct _UpdatePathData {
 } UpdatePathData;
 
 static void
-update_active_file (const char *repo_id,
+update_active_file (SeafRepo *repo,
                     const char *path,
                     SeafStat *st,
                     struct index_state *istate,
-                    gboolean ignored)
+                    gboolean ignored,
+                    GList *user_perms,
+                    GList *group_perms)
 {
     if (ignored) {
         seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                              repo_id,
+                                              repo->id,
                                               path,
                                               S_IFREG,
                                               SYNC_STATUS_IGNORED);
     } else {
         SyncStatus status;
+        gboolean is_writable;
+
         struct cache_entry *ce = index_name_exists(istate, path, strlen(path), 0);
         if (!ce || ie_match_stat(ce, st, 0) != 0)
             status = SYNC_STATUS_SYNCING;
         else
             status = SYNC_STATUS_SYNCED;
-        seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                              repo_id,
-                                              path,
-                                              S_IFREG,
-                                              status);
+
+        is_writable = is_path_writable (user_perms, group_perms, repo->is_readonly, path);
+
+        if (!is_writable && status == SYNC_STATUS_SYNCING)
+            seaf_sync_manager_delete_active_path (seaf->sync_mgr,
+                                                  repo->id,
+                                                  path);
+        else
+            seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                  repo->id,
+                                                  path,
+                                                  S_IFREG,
+                                                  status);
     }
 }
 
@@ -2081,7 +2107,9 @@ update_active_path_recursive (SeafRepo *repo,
                               const char *path,
                               struct index_state *istate,
                               GList *ignore_list,
-                              gboolean ignored);
+                              gboolean ignored,
+                              GList *user_perms,
+                              GList *group_perms);
 
 static int
 update_active_path_cb (wchar_t *full_parent_w,
@@ -2109,13 +2137,17 @@ update_active_path_cb (wchar_t *full_parent_w,
                                       path,
                                       upd_data->istate,
                                       upd_data->ignore_list,
-                                      ignored);
+                                      ignored,
+                                      upd_data->user_perms,
+                                      upd_data->group_perms);
     } else {
-        update_active_file (upd_data->repo->id,
+        update_active_file (upd_data->repo,
                             path,
                             &st,
                             upd_data->istate,
-                            ignored);
+                            ignored,
+                            upd_data->user_perms,
+                            upd_data->group_perms);
     }
 
     g_free (dname);
@@ -2127,7 +2159,9 @@ update_active_path_recursive (SeafRepo *repo,
                               const char *path,
                               struct index_state *istate,
                               GList *ignore_list,
-                              gboolean ignored)
+                              gboolean ignored,
+                              GList *user_perms,
+                              GList *group_perms)
 {
     char *full_path;
     wchar_t *full_path_w;
@@ -2144,6 +2178,8 @@ update_active_path_recursive (SeafRepo *repo,
     upd_data.parent = path;
     upd_data.full_parent = full_path;
     upd_data.ignored = ignored;
+    upd_data.user_perms = user_perms;
+    upd_data.group_perms = group_perms;
 
     full_path_w = win32_long_path (full_path);
     ret = traverse_directory_win32 (full_path_w, update_active_path_cb, &upd_data);
@@ -2151,6 +2187,12 @@ update_active_path_recursive (SeafRepo *repo,
     g_free (full_path);
 
     if (ret < 0)
+        return;
+
+    /* Don't set sync status for read-only paths, since changes to read-only
+     * files are ignored.
+     */
+    if (!is_path_writable (user_perms, group_perms, repo->is_readonly, path))
         return;
 
     /* traverse_directory_win32() returns number of entries in the directory. */
@@ -2181,11 +2223,13 @@ update_active_path_recursive (SeafRepo *repo,
 #else
 
 static void
-update_active_file (const char *repo_id,
+update_active_file (SeafRepo *repo,
                     const char *path,
                     SeafStat *st,
                     struct index_state *istate,
-                    gboolean ignored)
+                    gboolean ignored,
+                    GList *user_perms,
+                    GList *group_perms)
 {
 
 }
@@ -2195,7 +2239,9 @@ update_active_path_recursive (SeafRepo *repo,
                               const char *path,
                               struct index_state *istate,
                               GList *ignore_list,
-                              gboolean ignored)
+                              gboolean ignored,
+                              GList *user_perms,
+                              GList *group_perms)
 {
 }
 
@@ -2203,7 +2249,8 @@ update_active_path_recursive (SeafRepo *repo,
 
 static void
 process_active_path (SeafRepo *repo, const char *path,
-                     struct index_state *istate, GList *ignore_list)
+                     struct index_state *istate, GList *ignore_list,
+                     GList *user_perms, GList *group_perms)
 {
     SeafStat st;
     SyncStatus status;
@@ -2220,9 +2267,11 @@ process_active_path (SeafRepo *repo, const char *path,
         ignored = TRUE;
 
     if (S_ISREG(st.st_mode)) {
-        update_active_file (repo->id, path, &st, istate, ignored);
+        update_active_file (repo, path, &st, istate, ignored,
+                            user_perms, group_perms);
     } else {
-        update_active_path_recursive (repo, path, istate, ignore_list, ignored);
+        update_active_path_recursive (repo, path, istate, ignore_list, ignored,
+                                      user_perms, group_perms);
     }
 
     g_free (fullpath);
@@ -2230,7 +2279,8 @@ process_active_path (SeafRepo *repo, const char *path,
 
 static void
 update_path_sync_status (SeafRepo *repo, WTStatus *status,
-                         struct index_state *istate, GList *ignore_list)
+                         struct index_state *istate, GList *ignore_list,
+                         GList *user_perms, GList *group_perms)
 {
     char *path;
 
@@ -2242,7 +2292,8 @@ update_path_sync_status (SeafRepo *repo, WTStatus *status,
         if (!path)
             break;
 
-        process_active_path (repo, path, istate, ignore_list);
+        process_active_path (repo, path, istate, ignore_list,
+                             user_perms, group_perms);
     }
 }
 
@@ -2264,7 +2315,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
     }
 
 #ifdef WIN32
-    update_path_sync_status (repo, status, istate, ignore_list);
+    update_path_sync_status (repo, status, istate, ignore_list,
+                             user_perms, group_perms);
 #endif
 
     GList *scanned_dirs = NULL, *scanned_del_dirs = NULL;
