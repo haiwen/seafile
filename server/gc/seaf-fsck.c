@@ -16,12 +16,13 @@ static char *seafile_dir = NULL;
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvc:d:re";
+static const char *short_opts = "hvc:d:reE:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
     { "repair", no_argument, NULL, 'r', },
     { "enable-sync", no_argument, NULL, 'e', },
+    { "export", required_argument, NULL, 'E', },
     { "config-file", required_argument, NULL, 'c', },
     { "seafdir", required_argument, NULL, 'd', },
 };
@@ -29,7 +30,7 @@ static const struct option long_opts[] = {
 static void usage ()
 {
     fprintf (stderr,
-             "usage: seaf-fsck [-r] [-e] [-c config_dir] [-d seafile_dir] "
+             "usage: seaf-fsck [-r] [-e] [-E exported_path] [-c config_dir] [-d seafile_dir] "
              "[repo_id_1 [repo_id_2 ...]]\n");
 }
 
@@ -65,6 +66,7 @@ main(int argc, char *argv[])
     int c;
     gboolean repair = FALSE;
     gboolean esync = FALSE;
+    char *export_path = NULL;
 
 #ifdef WIN32
     argv = get_argv_utf8 (&argc);
@@ -86,6 +88,9 @@ main(int argc, char *argv[])
             break;
         case 'e':
             esync = TRUE;
+            break;
+        case 'E':
+            export_path = strdup(optarg);
             break;
         case 'c':
             config_dir = strdup(optarg);
@@ -128,7 +133,11 @@ main(int argc, char *argv[])
     for (i = optind; i < argc; i++)
         repo_id_list = g_list_append (repo_id_list, g_strdup(argv[i]));
 
-    seaf_fsck (repo_id_list, repair, esync);
+    if (export_path) {
+        export_file (repo_id_list, seafile_dir, export_path);
+    } else {
+        seaf_fsck (repo_id_list, repair, esync);
+    }
 
     return 0;
 }
