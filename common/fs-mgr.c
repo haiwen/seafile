@@ -254,8 +254,9 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
 
     tmp_path = g_strconcat (file_path, SEAF_TMP_EXT, NULL);
 
+    mode_t rmode = mode & 0100 ? 0777 : 0666;
     wfd = seaf_util_create (tmp_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY,
-                            mode & ~S_IFMT);
+                            rmode & ~S_IFMT);
     if (wfd < 0) {
         g_warning ("Failed to open file %s for checkout: %s.\n",
                    tmp_path, strerror(errno));
