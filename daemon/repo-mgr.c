@@ -1589,16 +1589,6 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
                        crypt, FALSE, ignore_list,
                        total_size, remain_files, &options);
 
-#ifdef WIN32
-    /* This is a hack to tell Windows Explorer to refresh all open windows.
-     * On startup, if there is one big library, its events may dominate the
-     * explorer refresh queue. Other libraries don't get refreshed until
-     * the big library's events are consumed. So we refresh the open windows
-     * to reduce the delay.
-     */
-    SHChangeNotify (SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
-#endif
-
         return 0;
     }
 

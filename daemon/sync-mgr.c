@@ -77,6 +77,7 @@ struct _SeafSyncManagerPriv {
 
 #ifdef WIN32
     GAsyncQueue *refresh_paths;
+    struct CcnetTimer *refresh_windows_timer;
 #endif
 };
 
@@ -388,6 +389,23 @@ update_tx_state (void *vmanager)
 #ifdef WIN32
 static void *
 refresh_windows_explorer_thread (void *vdata);
+
+#define STARTUP_REFRESH_WINDOWS_DELAY 10000
+
+static int
+refresh_all_windows_on_startup (void *vdata)
+{
+    /* This is a hack to tell Windows Explorer to refresh all open windows.
+     * On startup, if there is one big library, its events may dominate the
+     * explorer refresh queue. Other libraries don't get refreshed until
+     * the big library's events are consumed. So we refresh the open windows
+     * to reduce the delay.
+     */
+    SHChangeNotify (SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
+
+    /* One time */
+    return 0;
+}
 #endif
 
 int
@@ -424,6 +442,9 @@ seaf_sync_manager_start (SeafSyncManager *mgr)
                                     refresh_windows_explorer_thread,
                                     NULL,
                                     mgr->priv->refresh_paths);
+
+    mgr->priv->refresh_windows_timer = ccnet_timer_new (
+        refresh_all_windows_on_startup, mgr, STARTUP_REFRESH_WINDOWS_DELAY);
 #endif
 
     return 0;
@@ -2526,7 +2547,7 @@ auto_sync_pulse (void *vmanager)
     SeafRepo *repo;
     gint64 now;
 
-    print_active_paths (manager);
+    /* print_active_paths (manager); */
 
     repos = seaf_repo_manager_get_repo_list (manager->seaf->repo_mgr, -1, -1);
 
