@@ -17,3 +17,14 @@ CREATE TABLE IF NOT EXISTS OrgSharedRepo (
 
 ALTER TABLE OrgSharedRepo MODIFY from_email VARCHAR(255);
 ALTER TABLE OrgSharedRepo MODIFY to_email VARCHAR(255);
+
+CREATE TABLE IF NOT EXISTS RepoTrash (
+    repo_id CHAR(36) PRIMARY KEY,
+    repo_name VARCHAR(255),
+    head_id CHAR(40),
+    owner_id VARCHAR(255),
+    size BIGINT(20),
+    org_id INTEGER,
+    INDEX(owner_id),
+    INDEX(org_id)
+) ENGINE=INNODB;
