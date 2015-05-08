@@ -298,14 +298,23 @@ http_check_head_commit (CloneTask *task)
 static char *
 http_fileserver_url (const char *url)
 {
+    const char *host;
     char *colon;
     char *url_no_port;
     char *ret = NULL;
 
-    colon = strrchr (url, ':');
+    /* Just return the url itself if it's invalid. */
+    if (strlen(url) <= strlen("http://"))
+        return g_strdup(url);
+
+    /* Skip protocol schem. */
+    host = url + strlen("http://");
+
+    colon = strrchr (host, ':');
     if (colon) {
         url_no_port = g_strndup(url, colon - url);
         ret = g_strconcat(url_no_port, ":8082", NULL);
+        g_free (url_no_port);
     } else {
         ret = g_strconcat(url, ":8082", NULL);
     }
