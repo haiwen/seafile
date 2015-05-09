@@ -972,6 +972,14 @@ seafile_get_repo_list (int start, int limit, GError **error)
     return ret;
 }
 
+#ifdef SEAFILE_SERVER
+gint64
+seafile_count_repos (GError **error)
+{
+    return seaf_repo_manager_count_repos (seaf->repo_mgr, error);
+}
+#endif
+
 GObject*
 seafile_get_repo (const char *repo_id, GError **error)
 {

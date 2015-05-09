@@ -19,6 +19,9 @@ seafile_get_session_info (GError **error);
  */
 GList* seafile_get_repo_list (int start, int limit, GError **error);
 
+gint64
+seafile_count_repos (GError **error);
+
 /**
  * seafile_get_trash_repo_list:
  *

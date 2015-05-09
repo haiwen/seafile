@@ -60,6 +60,9 @@ class SeafileAPI(object):
     def get_repo_list(self, start, limit):
         return seafserv_threaded_rpc.get_repo_list(start, limit)
 
+    def count_repos(self):
+        return seafserv_threaded_rpc.count_repos()
+
     def edit_repo(self, repo_id, name, description, username):
         return seafserv_threaded_rpc.edit_repo(repo_id, name, description, username)
 
