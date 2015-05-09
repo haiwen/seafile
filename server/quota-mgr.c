@@ -54,6 +54,11 @@ seaf_quota_manager_init (SeafQuotaManager *mgr)
         if (seaf_db_query (db, sql) < 0)
             return -1;
 
+        sql = "CREATE TABLE IF NOT EXISTS UserShareQuota (\"user\" VARCHAR(255) PRIMARY KEY,"
+            "quota BIGINT)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
         sql = "CREATE TABLE IF NOT EXISTS OrgQuota (org_id INTEGER PRIMARY KEY,"
             "quota BIGINT)";
         if (seaf_db_query (db, sql) < 0)
@@ -71,6 +76,11 @@ seaf_quota_manager_init (SeafQuotaManager *mgr)
         if (seaf_db_query (db, sql) < 0)
             return -1;
 
+        sql = "CREATE TABLE IF NOT EXISTS UserShareQuota (user VARCHAR(255) PRIMARY KEY,"
+            "quota BIGINT)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
         sql = "CREATE TABLE IF NOT EXISTS OrgQuota (org_id INTEGER PRIMARY KEY,"
             "quota BIGINT)";
         if (seaf_db_query (db, sql) < 0)
@@ -84,6 +94,11 @@ seaf_quota_manager_init (SeafQuotaManager *mgr)
         break;
     case SEAF_DB_TYPE_MYSQL:
         sql = "CREATE TABLE IF NOT EXISTS UserQuota (user VARCHAR(255) PRIMARY KEY,"
+            "quota BIGINT) ENGINE=INNODB";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+
+        sql = "CREATE TABLE IF NOT EXISTS UserShareQuota (user VARCHAR(255) PRIMARY KEY,"
             "quota BIGINT) ENGINE=INNODB";
         if (seaf_db_query (db, sql) < 0)
             return -1;
@@ -390,30 +405,10 @@ seaf_quota_manager_check_quota_with_delta (SeafQuotaManager *mgr,
     if (delta != 0) {
         usage += delta;
     }
-
-    if (mgr->calc_share_usage) {
-        gint64 share_usage;
-        share_usage = seaf_quota_manager_get_user_share_usage (mgr, user);
-        if (share_usage < 0) {
-            ret = -1;
-            goto out;
-        }
-
-        usage += share_usage;
-
-        if (delta != 0) {
-            gint n_shared_to = get_num_shared_to (user, repo_id);
-            if (n_shared_to < 0) {
-                ret = -1;
-                goto out;
-            }
-
-            usage += delta * n_shared_to;
-        }
+    if (usage >= quota) {
+        ret = 1;
     }
 
-    if (usage >= quota)
-        ret = 1;
 out:
     seaf_virtual_repo_info_free (vinfo);
     g_free (user);
@@ -424,7 +419,12 @@ int
 seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
                                 const char *repo_id)
 {
-    return seaf_quota_manager_check_quota_with_delta (mgr, repo_id, 0);
+    int ret = seaf_quota_manager_check_quota_with_delta (mgr, repo_id, 0);
+
+    if (ret == 1) {
+        return -1;
+    }
+    return ret;
 }
 
 static gboolean
