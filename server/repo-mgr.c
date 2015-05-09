@@ -1956,6 +1956,19 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
     return ret;
 }
 
+gint64
+seaf_repo_manager_count_repos (SeafRepoManager *mgr, GError **error)
+{
+    gint64 num = seaf_db_get_int64 (mgr->seaf->db,
+                                    "SELECT COUNT(repo_id) FROM Repo");
+    if (num < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to count repos from db");
+    }
+
+    return num;
+}
+
 GList *
 seaf_repo_manager_get_repo_ids_by_owner (SeafRepoManager *mgr,
                                          const char *email)
