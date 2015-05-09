@@ -128,7 +128,8 @@ seaf_repo_manager_add_repo (SeafRepoManager *mgr, SeafRepo *repo);
 
 int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr,
-                            const char *repo_id);
+                            const char *repo_id,
+                            GError **error);
 
 int
 seaf_repo_manager_del_virtual_repo (SeafRepoManager *mgr,

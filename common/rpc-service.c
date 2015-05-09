@@ -1363,9 +1363,7 @@ seafile_destroy_repo (const char *repo_id, GError **error)
     return do_unsync_repo(repo);
 #else
 
-    seaf_repo_manager_del_repo (seaf->repo_mgr, repo_id);
-
-    return 0;
+    return seaf_repo_manager_del_repo (seaf->repo_mgr, repo_id, error);
 #endif
 }
 
