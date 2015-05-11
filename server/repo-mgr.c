@@ -416,27 +416,11 @@ add_deleted_repo_record (SeafRepoManager *mgr, const char *repo_id)
 }
 
 static int
-add_deleted_repo_to_trash (SeafRepoManager *mgr, const char *repo_id)
+add_deleted_repo_to_trash (SeafRepoManager *mgr, const char *repo_id,
+                           SeafCommit *commit)
 {
-    SeafBranch *branch = NULL;
-    SeafCommit *commit = NULL;
     char *owner = NULL;
     int ret = -1;
-
-    branch = seaf_branch_manager_get_branch (mgr->seaf->branch_mgr,
-                                             repo_id, "master");
-    if (!branch) {
-        seaf_warning ("Failed to get branch for repo %.8s.\n", repo_id);
-        return ret;
-    }
-
-    commit = seaf_commit_manager_get_commit (mgr->seaf->commit_mgr,
-                                             repo_id, 1, branch->commit_id);
-    if (!commit) {
-        seaf_warning ("Failed to get commit %s from repo %.8s.\n",
-                      branch->commit_id, repo_id);
-        goto out;
-    }
 
     owner = seaf_repo_manager_get_repo_owner (mgr, repo_id);
     if (!owner) {
@@ -456,14 +440,12 @@ add_deleted_repo_to_trash (SeafRepoManager *mgr, const char *repo_id)
                                     "values (?, ?, ?, ?, ?, -1, ?)", 6,
                                     "string", repo_id,
                                     "string", commit->repo_name,
-                                    "string", branch->commit_id,
+                                    "string", commit->commit_id,
                                     "string", owner,
                                     "int64", size,
                                     "int64", time(NULL));
 out:
     g_free (owner);
-    seaf_commit_unref (commit);
-    seaf_branch_unref (branch);
 
     return ret;
 }
@@ -513,16 +495,76 @@ remove_virtual_repo_ondisk (SeafRepoManager *mgr,
     return 0;
 }
 
+static gboolean
+get_branch (SeafDBRow *row, void *vid)
+{
+    char *ret = vid;
+    const char *commit_id;
+
+    commit_id = seaf_db_row_get_column_text (row, 0);
+    memcpy (ret, commit_id, 41);
+
+    return FALSE;
+}
+
+static SeafCommit*
+get_head_commit (SeafRepoManager *mgr, const char *repo_id, gboolean *has_err)
+{
+    char commit_id[41];
+    char *sql;
+
+    commit_id[0] = 0;
+    sql = "SELECT commit_id FROM Branch WHERE name=? AND repo_id=?";
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                       get_branch, commit_id,
+                                       2, "string", "master", "string", repo_id) < 0) {
+        *has_err = TRUE;
+        return NULL;
+    }
+
+    if (commit_id[0] == 0)
+        return NULL;
+
+    SeafCommit *head_commit = seaf_commit_manager_get_commit (seaf->commit_mgr, repo_id,
+                                                              1, commit_id);
+
+    return head_commit;
+}
+
 int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr,
-                            const char *repo_id)
+                            const char *repo_id,
+                            GError **error)
 {
-    if (add_deleted_repo_to_trash (mgr, repo_id) < 0)
-        return -1;
+    gboolean has_err = FALSE;
 
-    if (seaf_db_statement_query (mgr->seaf->db, "DELETE FROM Repo WHERE repo_id = ?",
-                                 1, "string", repo_id) < 0)
+    SeafCommit *head_commit = get_head_commit (mgr, repo_id, &has_err);
+    if (has_err) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to get head commit from db");
         return -1;
+    }
+    if (!head_commit) {
+        // head commit is missing, del repo directly
+        goto del_repo;
+    }
+
+    if (add_deleted_repo_to_trash (mgr, repo_id, head_commit) < 0) {
+        seaf_commit_unref (head_commit);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to remove repo to trash ");
+        return -1;
+    }
+
+    seaf_commit_unref (head_commit);
+
+del_repo:
+    if (seaf_db_statement_query (mgr->seaf->db, "DELETE FROM Repo WHERE repo_id = ?",
+                                 1, "string", repo_id) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to delete repo from db");
+        return -1;
+    }
 
     /* Repo branches are not removed at this point. */
 
