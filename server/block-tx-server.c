@@ -531,7 +531,11 @@ save_block_content_cb (char *content, int clen, int end, void *cbarg)
     }
 
     if (end) {
-        seaf_block_manager_close_block (seaf->block_mgr, server->block);
+        if (seaf_block_manager_close_block (seaf->block_mgr, server->block) < 0) {
+            seaf_warning ("Failed to close block %s.\n", server->curr_block_id);
+            send_block_response_header (server, STATUS_INTERNAL_SERVER_ERROR);
+            return -1;
+        }
 
         if (seaf_block_manager_commit_block (seaf->block_mgr, server->block) < 0) {
             seaf_warning ("Failed to commit block %s.\n", server->curr_block_id);

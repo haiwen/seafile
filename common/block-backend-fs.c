@@ -171,7 +171,7 @@ block_backend_fs_commit_block (BlockBackend *bend,
         return -1;
     }
 
-    if (ccnet_rename (handle->tmp_file, path) < 0) {
+    if (g_rename (handle->tmp_file, path) < 0) {
         seaf_warning ("[block bend] failed to commit block %s: %s\n",
                    handle->block_id, strerror(errno));
         return -1;

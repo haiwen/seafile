@@ -194,52 +194,52 @@ int
 seafile_session_start (SeafileSession *session)
 {
     if (cevent_manager_start (session->ev_mgr) < 0) {
-        g_error ("Failed to start event manager.\n");
+        seaf_warning ("Failed to start event manager.\n");
         return -1;
     }
 
     if (seaf_cs_manager_start (session->cs_mgr) < 0) {
-        g_error ("Failed to start chunk server manager.\n");
+        seaf_warning ("Failed to start chunk server manager.\n");
         return -1;
     }
 
     if (seaf_share_manager_start (session->share_mgr) < 0) {
-        g_error ("Failed to start share manager.\n");
+        seaf_warning ("Failed to start share manager.\n");
         return -1;
     }
 
     if (seaf_web_at_manager_start (session->web_at_mgr) < 0) {
-        g_error ("Failed to start web access check manager.\n");
+        seaf_warning ("Failed to start web access check manager.\n");
         return -1;
     }
 
     if (seaf_passwd_manager_start (session->passwd_mgr) < 0) {
-        g_error ("Failed to start password manager.\n");
+        seaf_warning ("Failed to start password manager.\n");
         return -1;
     }
 
     if (seaf_mq_manager_start (session->mq_mgr) < 0) {
-        g_error ("Failed to start mq manager.\n");
+        seaf_warning ("Failed to start mq manager.\n");
         return -1;
     }
 
     if (seaf_listen_manager_start (session->listen_mgr) < 0) {
-        g_error ("Failed to start listen manager.\n");
+        seaf_warning ("Failed to start listen manager.\n");
         return -1;
     }
 
     if (size_scheduler_start (session->size_sched) < 0) {
-        g_error ("Failed to start size scheduler.\n");
+        seaf_warning ("Failed to start size scheduler.\n");
         return -1;
     }
 
     if (seaf_copy_manager_start (session->copy_mgr) < 0) {
-        g_error ("Failed to start copy manager.\n");
+        seaf_warning ("Failed to start copy manager.\n");
         return -1;
     }
 
     if (seaf_http_server_start (session->http_server) < 0) {
-        g_error ("Failed to start http server thread.\n");
+        seaf_warning ("Failed to start http server thread.\n");
         return -1;
     }
 

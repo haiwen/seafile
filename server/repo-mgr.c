@@ -27,6 +27,8 @@
 
 #define REAP_TOKEN_INTERVAL 300 /* 5 mins */
 #define DECRYPTED_TOKEN_TTL 3600 /* 1 hour */
+#define SCAN_TRASH_DAYS 1 /* one day */
+#define TRASH_EXPIRE_DAYS 30 /* one month */
 
 typedef struct DecryptedToken {
     char *token;
@@ -38,6 +40,9 @@ struct _SeafRepoManagerPriv {
     GHashTable *decrypted_tokens;
     pthread_rwlock_t lock;
     CcnetTimer *reap_token_timer;
+
+    CcnetTimer *scan_trash_timer;
+    gint64 trash_expire_interval;
 };
 
 static const char *ignore_table[] = {
@@ -57,8 +62,8 @@ static const char *ignore_table[] = {
 
 static GPatternSpec** ignore_patterns;
 
-static SeafRepo *
-load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt);
+static void
+load_repo (SeafRepoManager *manager, SeafRepo *repo);
 
 static int create_db_tables_if_not_exist (SeafRepoManager *mgr);
 
@@ -147,6 +152,9 @@ seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit)
     repo->name = g_strdup (commit->repo_name);
     repo->desc = g_strdup (commit->repo_desc);
     repo->encrypted = commit->encrypted;
+    repo->repaired = commit->repaired;
+    repo->last_modify = commit->ctime;
+    memcpy (repo->root_id, commit->root_id, 40);
     if (repo->encrypted) {
         repo->enc_version = commit->enc_version;
         if (repo->enc_version == 1)
@@ -166,6 +174,7 @@ seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit)
     commit->repo_name = g_strdup (repo->name);
     commit->repo_desc = g_strdup (repo->desc);
     commit->encrypted = repo->encrypted;
+    commit->repaired = repo->repaired;
     if (commit->encrypted) {
         commit->enc_version = repo->enc_version;
         if (commit->enc_version == 1)
@@ -231,17 +240,6 @@ out:
     return commits;
 }
 
-static inline gboolean
-has_trailing_space_or_period (const char *path)
-{
-    int len = strlen(path);
-    if (path[len - 1] == ' ' || path[len - 1] == '.') {
-        return TRUE;
-    }
-
-    return FALSE;
-}
-
 gboolean
 should_ignore_file(const char *filename, void *data)
 {
@@ -256,47 +254,72 @@ should_ignore_file(const char *filename, void *data)
     if (strlen(filename) >= SEAF_DIR_NAME_LEN)
         return TRUE;
 
-    if (has_trailing_space_or_period (filename)) {
-        /* Ignore files/dir whose path has trailing spaces. It would cause
-         * problem on windows. */
-        /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */
+    if (strchr (filename, '/'))
+        return TRUE;
+
+    return FALSE;
+}
+
+static gboolean
+collect_repo_id (SeafDBRow *row, void *data);
+
+static int
+scan_trash (void *data)
+{
+    GList *repo_ids = NULL;
+    SeafRepoManager *mgr = seaf->repo_mgr;
+    gint64 expire_time = time(NULL) - mgr->priv->trash_expire_interval;
+    char *sql = "SELECT repo_id FROM RepoTrash WHERE del_time <= ?";
+
+    int ret = seaf_db_statement_foreach_row (seaf->db, sql,
+                                             collect_repo_id, &repo_ids,
+                                             1, "int64", expire_time);
+    if (ret < 0) {
+        seaf_warning ("Get expired repo from trash failed.");
+        string_list_free (repo_ids);
         return TRUE;
     }
 
-    /* while (*spec) { */
-    /*     if (g_pattern_match_string(*spec, filename)) */
-    /*         return TRUE; */
-    /*     spec++; */
-    /* } */
-
-    
-    /*
-     *  Illegal charaters in filenames under windows: (In Linux, only '/' is
-     *  disallowed)
-     *  
-     *  - / \ : * ? " < > | \b \t  
-     *  - \1 - \31
-     * 
-     *  Refer to http://msdn.microsoft.com/en-us/library/aa365247%28VS.85%29.aspx
-     */
-    static char illegals[] = {'\\', '/', ':', '*', '?', '"', '<', '>', '|', '\b', '\t'};
-
-    int i;
-    char c;
-    
-    for (i = 0; i < G_N_ELEMENTS(illegals); i++) {
-        if (strchr (filename, illegals[i])) {
-            return TRUE;
-        }
+    GList *iter;
+    char *repo_id;
+    for (iter=repo_ids; iter; iter=iter->next) {
+        repo_id = iter->data;
+        ret = seaf_repo_manager_del_repo_from_trash (mgr, repo_id, NULL);
+        if (ret < 0)
+            break;
     }
 
-    for (c = 1; c <= 31; c++) {
-        if (strchr (filename, c)) {
-            return TRUE;
-        }
+    string_list_free (repo_ids);
+
+    return TRUE;
+}
+
+static void
+init_scan_trash_timer (SeafRepoManagerPriv *priv, GKeyFile *config)
+{
+    int scan_days;
+    int expire_days;
+    GError *error = NULL;
+
+    scan_days = g_key_file_get_integer (config,
+                                        "library_trash", "scan_days",
+                                        &error);
+    if (error) {
+       scan_days = SCAN_TRASH_DAYS;
+       g_clear_error (&error);
     }
-        
-    return FALSE;
+
+    expire_days = g_key_file_get_integer (config,
+                                          "library_trash", "expire_days",
+                                          &error);
+    if (error) {
+        expire_days = TRASH_EXPIRE_DAYS;
+        g_clear_error (&error);
+    }
+
+    priv->trash_expire_interval = expire_days * 24 * 3600;
+    priv->scan_trash_timer = ccnet_timer_new (scan_trash, NULL,
+                                              scan_days * 24 * 3600 * 1000);
 }
 
 SeafRepoManager*
@@ -313,6 +336,8 @@ seaf_repo_manager_new (SeafileSession *seaf)
     pthread_rwlock_init (&mgr->priv->lock, NULL);
     mgr->priv->reap_token_timer = ccnet_timer_new (reap_token, mgr,
                                                    REAP_TOKEN_INTERVAL * 1000);
+
+    init_scan_trash_timer (mgr->priv, seaf->config);
 
     /* ignore_patterns = g_new0 (GPatternSpec*, G_N_ELEMENTS(ignore_table)); */
     /* int i; */
@@ -391,14 +416,45 @@ add_deleted_repo_record (SeafRepoManager *mgr, const char *repo_id)
 }
 
 static int
-remove_repo_ondisk (SeafRepoManager *mgr,
-                    const char *repo_id,
-                    gboolean add_deleted_record)
+add_deleted_repo_to_trash (SeafRepoManager *mgr, const char *repo_id,
+                           SeafCommit *commit)
+{
+    char *owner = NULL;
+    int ret = -1;
+
+    owner = seaf_repo_manager_get_repo_owner (mgr, repo_id);
+    if (!owner) {
+        seaf_warning ("Failed to get owner for repo %.8s.\n", repo_id);
+        goto out;
+    }
+
+    gint64 size = seaf_repo_manager_get_repo_size (mgr, repo_id);
+    if (size == -1) {
+        seaf_warning ("Failed to get size of repo %.8s.\n", repo_id);
+        goto out;
+    }
+
+    ret =  seaf_db_statement_query (mgr->seaf->db,
+                                    "INSERT INTO RepoTrash (repo_id, repo_name, head_id, "
+                                    "owner_id, size, org_id, del_time) "
+                                    "values (?, ?, ?, ?, ?, -1, ?)", 6,
+                                    "string", repo_id,
+                                    "string", commit->repo_name,
+                                    "string", commit->commit_id,
+                                    "string", owner,
+                                    "int64", size,
+                                    "int64", time(NULL));
+out:
+    g_free (owner);
+
+    return ret;
+}
+
+static int
+remove_virtual_repo_ondisk (SeafRepoManager *mgr,
+                            const char *repo_id)
 {
     SeafDB *db = mgr->seaf->db;
-
-    if (add_deleted_record)
-        add_deleted_repo_record (mgr, repo_id);
 
     /* Remove record in repo table first.
      * Once this is commited, we can gc the other tables later even if
@@ -436,14 +492,107 @@ remove_repo_ondisk (SeafRepoManager *mgr,
     seaf_db_statement_query (db, "DELETE FROM RepoUserToken WHERE repo_id = ?",
                              1, "string", repo_id);
 
+    return 0;
+}
+
+static gboolean
+get_branch (SeafDBRow *row, void *vid)
+{
+    char *ret = vid;
+    const char *commit_id;
+
+    commit_id = seaf_db_row_get_column_text (row, 0);
+    memcpy (ret, commit_id, 41);
+
+    return FALSE;
+}
+
+static SeafCommit*
+get_head_commit (SeafRepoManager *mgr, const char *repo_id, gboolean *has_err)
+{
+    char commit_id[41];
+    char *sql;
+
+    commit_id[0] = 0;
+    sql = "SELECT commit_id FROM Branch WHERE name=? AND repo_id=?";
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                       get_branch, commit_id,
+                                       2, "string", "master", "string", repo_id) < 0) {
+        *has_err = TRUE;
+        return NULL;
+    }
+
+    if (commit_id[0] == 0)
+        return NULL;
+
+    SeafCommit *head_commit = seaf_commit_manager_get_commit (seaf->commit_mgr, repo_id,
+                                                              1, commit_id);
+
+    return head_commit;
+}
+
+int
+seaf_repo_manager_del_repo (SeafRepoManager *mgr,
+                            const char *repo_id,
+                            GError **error)
+{
+    gboolean has_err = FALSE;
+
+    SeafCommit *head_commit = get_head_commit (mgr, repo_id, &has_err);
+    if (has_err) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to get head commit from db");
+        return -1;
+    }
+    if (!head_commit) {
+        // head commit is missing, del repo directly
+        goto del_repo;
+    }
+
+    if (add_deleted_repo_to_trash (mgr, repo_id, head_commit) < 0) {
+        seaf_commit_unref (head_commit);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to remove repo to trash ");
+        return -1;
+    }
+
+    seaf_commit_unref (head_commit);
+
+del_repo:
+    if (seaf_db_statement_query (mgr->seaf->db, "DELETE FROM Repo WHERE repo_id = ?",
+                                 1, "string", repo_id) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to delete repo from db");
+        return -1;
+    }
+
+    /* Repo branches are not removed at this point. */
+
+    seaf_db_statement_query (mgr->seaf->db, "DELETE FROM RepoOwner WHERE repo_id = ?",
+                             1, "string", repo_id);
+
+    seaf_db_statement_query (mgr->seaf->db, "DELETE FROM SharedRepo WHERE repo_id = ?",
+                             1, "string", repo_id);
+
+    seaf_db_statement_query (mgr->seaf->db, "DELETE FROM RepoGroup WHERE repo_id = ?",
+                             1, "string", repo_id);
+
+    if (!seaf->cloud_mode) {
+        seaf_db_statement_query (mgr->seaf->db, "DELETE FROM InnerPubRepo WHERE repo_id = ?",
+                                 1, "string", repo_id);
+    }
+
+    seaf_db_statement_query (mgr->seaf->db, "DELETE FROM RepoUserToken WHERE repo_id = ?",
+                             1, "string", repo_id);
+
     /* Remove virtual repos when origin repo is deleted. */
     GList *vrepos, *ptr;
     vrepos = seaf_repo_manager_get_virtual_repo_ids_by_origin (mgr, repo_id);
     for (ptr = vrepos; ptr != NULL; ptr = ptr->next)
-        remove_repo_ondisk (mgr, (char *)ptr->data, FALSE);
+        remove_virtual_repo_ondisk (mgr, (char *)ptr->data);
     string_list_free (vrepos);
 
-    seaf_db_statement_query (db, "DELETE FROM VirtualRepo "
+    seaf_db_statement_query (mgr->seaf->db, "DELETE FROM VirtualRepo "
                              "WHERE repo_id=? OR origin_repo=?",
                              2, "string", repo_id, "string", repo_id);
 
@@ -451,14 +600,10 @@ remove_repo_ondisk (SeafRepoManager *mgr,
 }
 
 int
-seaf_repo_manager_del_repo (SeafRepoManager *mgr,
-                            const char *repo_id,
-                            gboolean add_deleted_record)
+seaf_repo_manager_del_virtual_repo (SeafRepoManager *mgr,
+                                    const char *repo_id)
 {
-    if (remove_repo_ondisk (mgr, repo_id, add_deleted_record) < 0)
-        return -1;
-
-    return 0;
+    return remove_virtual_repo_ondisk (mgr, repo_id);
 }
 
 static gboolean
@@ -469,50 +614,84 @@ repo_exists_in_db (SeafDB *db, const char *id, gboolean *db_err)
                                      db_err, 1, "string", id);
 }
 
+gboolean
+create_repo_fill_size (SeafDBRow *row, void *data)
+{
+    SeafRepo **repo = data;
+
+    const char *repo_id = seaf_db_row_get_column_text (row, 0);
+    gint64 size = seaf_db_row_get_column_int64 (row, 1);
+
+    *repo = seaf_repo_new (repo_id, NULL, NULL);
+    if (!*repo)
+        return FALSE;
+
+    (*repo)->size = size;
+
+    return TRUE;
+}
+
+static SeafRepo*
+get_repo_from_db (SeafRepoManager *mgr, const char *id, gboolean *db_err)
+{
+    SeafRepo *repo = NULL;
+    const char *sql = "SELECT r.repo_id, s.size FROM Repo r left join RepoSize s "
+                      "ON r.repo_id = s.repo_id WHERE r.repo_id = ?";
+
+    int ret = seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                             create_repo_fill_size, &repo,
+                                             1, "string", id);
+    if (ret < 0)
+        *db_err = TRUE;
+
+    return repo;
+}
+
 SeafRepo*
 seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
 {
     int len = strlen(id);
     gboolean db_err = FALSE;
+    SeafRepo *repo = NULL;
 
     if (len >= 37)
         return NULL;
 
-    if (repo_exists_in_db (manager->seaf->db, id, &db_err)) {
-        SeafRepo *ret = load_repo (manager, id, FALSE);
-        if (!ret)
+    repo = get_repo_from_db (manager, id, &db_err);
+
+    if (repo) {
+        load_repo (manager, repo);
+        if (repo->is_corrupted) {
+            seaf_repo_unref (repo);
             return NULL;
-        /* seaf_repo_ref (ret); */
-        return ret;
+        }
     }
 
-    return NULL;
+    return repo;
 }
 
 SeafRepo*
 seaf_repo_manager_get_repo_ex (SeafRepoManager *manager, const gchar *id)
 {
     int len = strlen(id);
-    gboolean db_err = FALSE, exists;
+    gboolean db_err = FALSE;
     SeafRepo *ret = NULL;
 
     if (len >= 37)
         return NULL;
 
-    exists = repo_exists_in_db (manager->seaf->db, id, &db_err);
-
+    ret = get_repo_from_db (manager, id, &db_err);
     if (db_err) {
         ret = seaf_repo_new(id, NULL, NULL);
         ret->is_corrupted = TRUE;
         return ret;
     }
 
-    if (exists) {
-        ret = load_repo (manager, id, TRUE);
-        return ret;
+    if (ret) {
+        load_repo (manager, ret);
     }
 
-    return NULL;
+    return ret;
 }
 
 gboolean
@@ -589,23 +768,16 @@ load_repo_commit (SeafRepoManager *manager,
     seaf_commit_unref (commit);
 }
 
-static SeafRepo *
-load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt)
+static void
+load_repo (SeafRepoManager *manager, SeafRepo *repo)
 {
-    SeafRepo *repo;
     SeafBranch *branch;
-
-    repo = seaf_repo_new(repo_id, NULL, NULL);
-    if (!repo) {
-        seaf_warning ("[repo mgr] failed to alloc repo.\n");
-        return NULL;
-    }
 
     repo->manager = manager;
 
-    branch = seaf_branch_manager_get_branch (seaf->branch_mgr, repo_id, "master");
+    branch = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "master");
     if (!branch) {
-        g_warning ("Failed to get master branch of repo %.8s.\n", repo_id);
+        g_warning ("Failed to get master branch of repo %.8s.\n", repo->id);
         repo->is_corrupted = TRUE;
     } else {
         load_repo_commit (manager, repo, branch);
@@ -613,21 +785,15 @@ load_repo (SeafRepoManager *manager, const char *repo_id, gboolean ret_corrupt)
     }
 
     if (repo->is_corrupted) {
-        if (!ret_corrupt) {
-            seaf_repo_free (repo);
-            return NULL;
-        }
-        return repo;
+        return;
     }
 
     /* Load virtual repo info if any. */
-    repo->virtual_info = seaf_repo_manager_get_virtual_repo_info (manager, repo_id);
+    repo->virtual_info = seaf_repo_manager_get_virtual_repo_info (manager, repo->id);
     if (repo->virtual_info)
         memcpy (repo->store_id, repo->virtual_info->origin_repo_id, 36);
     else
         memcpy (repo->store_id, repo->id, 36);
-
-    return repo;
 }
 
 static int
@@ -657,14 +823,12 @@ create_tables_mysql (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
-    if (!mgr->seaf->cloud_mode) {
-        sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
-            "repo_id CHAR(37) PRIMARY KEY,"
-            "permission CHAR(15))"
-            "ENGINE=INNODB";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-    }
+    sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
+        "repo_id CHAR(37) PRIMARY KEY,"
+        "permission CHAR(15))"
+        "ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
 
     sql = "CREATE TABLE IF NOT EXISTS RepoUserToken ("
         "repo_id CHAR(37), "
@@ -726,6 +890,13 @@ create_tables_mysql (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
+    sql = "CREATE TABLE IF NOT EXISTS RepoTrash (repo_id CHAR(36) PRIMARY KEY,"
+        "repo_name VARCHAR(255), head_id CHAR(40), owner_id VARCHAR(255),"
+        "size BIGINT(20), org_id INTEGER, del_time BIGINT, "
+        "INDEX(owner_id), INDEX(org_id))ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
     return 0;
 }
 
@@ -774,13 +945,11 @@ create_tables_sqlite (SeafRepoManager *mgr)
 
     /* Public repo */
 
-    if (!mgr->seaf->cloud_mode) {
-        sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
-            "repo_id CHAR(37) PRIMARY KEY,"
-            "permission CHAR(15))";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-    }
+    sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
+        "repo_id CHAR(37) PRIMARY KEY,"
+        "permission CHAR(15))";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
 
     sql = "CREATE TABLE IF NOT EXISTS RepoUserToken ("
         "repo_id CHAR(37), "
@@ -849,6 +1018,20 @@ create_tables_sqlite (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
+    sql = "CREATE TABLE IF NOT EXISTS RepoTrash (repo_id CHAR(36) PRIMARY KEY,"
+        "repo_name VARCHAR(255), head_id CHAR(40), owner_id VARCHAR(255), size BIGINT UNSIGNED,"
+        "org_id INTEGER, del_time BIGINT)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE INDEX IF NOT EXISTS repotrash_owner_id_idx ON RepoTrash(owner_id)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    sql = "CREATE INDEX IF NOT EXISTS repotrash_org_id_idx ON RepoTrash(org_id)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
     return 0;
 }
 
@@ -892,13 +1075,11 @@ create_tables_pgsql (SeafRepoManager *mgr)
             return -1;
     }
 
-    if (!mgr->seaf->cloud_mode) {
-        sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
-            "repo_id CHAR(36) PRIMARY KEY,"
-            "permission VARCHAR(15))";
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
-    }
+    sql = "CREATE TABLE IF NOT EXISTS InnerPubRepo ("
+        "repo_id CHAR(36) PRIMARY KEY,"
+        "permission VARCHAR(15))";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
 
     sql = "CREATE TABLE IF NOT EXISTS RepoUserToken ("
         "repo_id CHAR(36), "
@@ -964,6 +1145,23 @@ create_tables_pgsql (SeafRepoManager *mgr)
     sql = "CREATE TABLE IF NOT EXISTS GarbageRepos (repo_id CHAR(36) PRIMARY KEY)";
     if (seaf_db_query (db, sql) < 0)
         return -1;
+
+    sql = "CREATE TABLE IF NOT EXISTS RepoTrash (repo_id CHAR(36) PRIMARY KEY,"
+        "repo_name VARCHAR(255), head_id CHAR(40), owner_id VARCHAR(255), size bigint,"
+        "org_id INTEGER, del_time BIGINT)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
+    if (!pgsql_index_exists (db, "repotrash_owner_id")) {
+        sql = "CREATE INDEX repotrash_owner_id on RepoTrash(owner_id)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
+    if (!pgsql_index_exists (db, "repotrash_org_id")) {
+        sql = "CREATE INDEX repotrash_org_id on RepoTrash(org_id)";
+        if (seaf_db_query (db, sql) < 0)
+            return -1;
+    }
 
     return 0;
 }
@@ -1129,6 +1327,11 @@ seaf_repo_manager_delete_token (SeafRepoManager *mgr,
         return -1;
     }
 
+    GList *tokens = NULL;
+    tokens = g_list_append (tokens, g_strdup(token));
+    seaf_http_server_invalidate_tokens (seaf->http_server, tokens);
+    g_list_free_full (tokens, (GDestroyNotify)g_free);
+
     return 0;
 }
 
@@ -1258,50 +1461,152 @@ seaf_repo_manager_list_repo_tokens_by_email (SeafRepoManager *mgr,
     return g_list_reverse(ret_list);
 }
 
+static gboolean
+collect_token_list (SeafDBRow *row, void *data)
+{
+    GList **p_tokens = data;
+    const char *token;
+
+    token = seaf_db_row_get_column_text (row, 0);
+    *p_tokens = g_list_prepend (*p_tokens, g_strdup(token));
+
+    return TRUE;
+}
+
 /**
  * Delete all repo tokens for a given user on a given client
  */
+
 int
 seaf_repo_manager_delete_repo_tokens_by_peer_id (SeafRepoManager *mgr,
                                                  const char *email,
                                                  const char *peer_id,
+                                                 GList **tokens,
                                                  GError **error)
 {
     int ret = 0;
     const char *template;
-    int rc;
+    GList *token_list = NULL;
+    GString *token_list_str = g_string_new ("");
+    GString *sql = g_string_new ("");
+    GList *ptr;
+    int rc = 0;
 
-    if (seaf_db_type(mgr->seaf->db) == SEAF_DB_TYPE_MYSQL) {
-        /* MySQL does not allow us to delete from a table which is used in the subquery,
-         * This work around is from http://stackoverflow.com/a/14302701/1467959
-         */
-        template = \
-            "DELETE FROM RepoUserToken WHERE "
-            "token in ( "
-            "  SELECT u.token "
-            "  FROM (SELECT * FROM RepoUserToken WHERE email = ?) as u, RepoTokenPeerInfo as p "
-            "  WHERE u.token = p.token "
-            "  AND u.email = ? AND p.peer_id = ? "
-            ")";
-
-        rc = seaf_db_statement_query (mgr->seaf->db, template,
-                                      3, "string", email, "string", email,
-                                      "string", peer_id);
-
-    } else {
-        template =
-            "DELETE FROM RepoUserToken WHERE "
-            "token in ( "
-            "  SELECT u.token "
-            "  FROM RepoUserToken as u, RepoTokenPeerInfo as p "
-            "  WHERE u.token = p.token "
-            "  AND u.email = ? AND p.peer_id = ? "
-            ")";
-
-        rc = seaf_db_statement_query (mgr->seaf->db, template,
-                                      2, "string", email, "string", peer_id);
+    template = "SELECT u.token "
+        "FROM RepoUserToken as u, RepoTokenPeerInfo as p "
+        "WHERE u.token = p.token "
+        "AND u.email = ? AND p.peer_id = ?";
+    rc = seaf_db_statement_foreach_row (mgr->seaf->db, template,
+                                        collect_token_list, &token_list,
+                                        2, "string", email, "string", peer_id);
+    if (rc < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "DB error");
+        goto out;
     }
 
+    if (rc == 0)
+        goto out;
+
+    for (ptr = token_list; ptr; ptr = ptr->next) {
+        const char *token = (char *)ptr->data;
+        if (token_list_str->len == 0)
+            g_string_append_printf (token_list_str, "'%s'", token);
+        else
+            g_string_append_printf (token_list_str, ",'%s'", token);
+    }
+
+    /* Note that there is a size limit on sql query. In MySQL it's 1MB by default.
+     * Normally the token_list won't be that long.
+     */
+    g_string_printf (sql, "DELETE FROM RepoUserToken WHERE token in (%s)",
+                     token_list_str->str);
+    rc = seaf_db_statement_query (mgr->seaf->db, sql->str, 0);
+    if (rc < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "DB error");
+        goto out;
+    }
+
+    g_string_printf (sql, "DELETE FROM RepoTokenPeerInfo WHERE token in (%s)",
+                     token_list_str->str);
+    rc = seaf_db_statement_query (mgr->seaf->db, sql->str, 0);
+    if (rc < 0)
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "DB error");
+
+out:
+    g_string_free (token_list_str, TRUE);
+    g_string_free (sql, TRUE);
+
+    if (rc < 0) {
+        ret = -1;
+        g_list_free_full (token_list, (GDestroyNotify)g_free);
+    } else {
+        *tokens = token_list;
+    }
+
+    return ret;
+}
+
+int
+seaf_repo_manager_delete_repo_tokens_by_email (SeafRepoManager *mgr,
+                                               const char *email,
+                                               GError **error)
+{
+    int ret = 0;
+    const char *template;
+    GList *token_list = NULL;
+    GList *ptr;
+    GString *token_list_str = g_string_new ("");
+    GString *sql = g_string_new ("");
+    int rc;
+
+    template = "SELECT u.token "
+        "FROM RepoUserToken as u, RepoTokenPeerInfo as p "
+        "WHERE u.token = p.token "
+        "AND u.email = ?";
+    rc = seaf_db_statement_foreach_row (mgr->seaf->db, template,
+                                        collect_token_list, &token_list,
+                                        1, "string", email);
+    if (rc < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "DB error");
+        goto out;
+    }
+
+    if (rc == 0)
+        goto out;
+
+    for (ptr = token_list; ptr; ptr = ptr->next) {
+        const char *token = (char *)ptr->data;
+        if (token_list_str->len == 0)
+            g_string_append_printf (token_list_str, "'%s'", token);
+        else
+            g_string_append_printf (token_list_str, ",'%s'", token);
+    }
+
+    /* Note that there is a size limit on sql query. In MySQL it's 1MB by default.
+     * Normally the token_list won't be that long.
+     */
+    g_string_printf (sql, "DELETE FROM RepoUserToken WHERE token in (%s)",
+                     token_list_str->str);
+    rc = seaf_db_statement_query (mgr->seaf->db, sql->str, 0);
+    if (rc < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "DB error");
+        goto out;
+    }
+
+    g_string_printf (sql, "DELETE FROM RepoTokenPeerInfo WHERE token in (%s)",
+                     token_list_str->str);
+    rc = seaf_db_statement_query (mgr->seaf->db, sql->str, 0);
+    if (rc < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "DB error");
+        goto out;
+    }
+
+    seaf_http_server_invalidate_tokens (seaf->http_server, token_list);
+
+out:
+    g_string_free (token_list_str, TRUE);
+    g_string_free (sql, TRUE);
+    g_list_free_full (token_list, (GDestroyNotify)g_free);
 
     if (rc < 0) {
         ret = -1;
@@ -1309,7 +1614,6 @@ seaf_repo_manager_delete_repo_tokens_by_peer_id (SeafRepoManager *mgr,
 
     return ret;
 }
-
 
 static gboolean
 get_email_by_token_cb (SeafDBRow *row, void *data)
@@ -1694,6 +1998,19 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
     return ret;
 }
 
+gint64
+seaf_repo_manager_count_repos (SeafRepoManager *mgr, GError **error)
+{
+    gint64 num = seaf_db_get_int64 (mgr->seaf->db,
+                                    "SELECT COUNT(repo_id) FROM Repo");
+    if (num < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to count repos from db");
+    }
+
+    return num;
+}
+
 GList *
 seaf_repo_manager_get_repo_ids_by_owner (SeafRepoManager *mgr,
                                          const char *email)
@@ -1710,6 +2027,288 @@ seaf_repo_manager_get_repo_ids_by_owner (SeafRepoManager *mgr,
         return NULL;
     }
 
+    return ret;
+}
+
+static gboolean
+collect_trash_repo (SeafDBRow *row, void *data)
+{
+    GList **trash_repos = data;
+    const char *repo_id;
+    const char *repo_name;
+    const char *head_id;
+    const char *owner_id;
+    gint64 size;
+    gint64 del_time;
+
+    repo_id = seaf_db_row_get_column_text (row, 0);
+    repo_name = seaf_db_row_get_column_text (row, 1);
+    head_id = seaf_db_row_get_column_text (row, 2);
+    owner_id = seaf_db_row_get_column_text (row, 3);
+    size = seaf_db_row_get_column_int64 (row, 4);
+    del_time = seaf_db_row_get_column_int64 (row, 5);
+
+
+    if (!repo_id || !repo_name || !head_id || !owner_id)
+        return FALSE;
+
+    SeafileTrashRepo *trash_repo = g_object_new (SEAFILE_TYPE_TRASH_REPO,
+                                                 "repo_id", repo_id,
+                                                 "repo_name", repo_name,
+                                                 "head_id", head_id,
+                                                 "owner_id", owner_id,
+                                                 "size", size,
+                                                 "del_time", del_time,
+                                                 NULL);
+    if (!trash_repo)
+        return FALSE;
+
+    *trash_repos = g_list_prepend (*trash_repos, trash_repo);
+
+    return TRUE;
+}
+
+GList *
+seaf_repo_manager_get_trash_repo_list (SeafRepoManager *mgr,
+                                       int start,
+                                       int limit,
+                                       GError **error)
+{
+    GList *trash_repos = NULL;
+    int rc;
+
+    if (start == -1 && limit == -1)
+        rc = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                            "SELECT repo_id, repo_name, head_id, owner_id, "
+                                            "size, del_time FROM RepoTrash",
+                                            collect_trash_repo, &trash_repos,
+                                            0);
+    else
+        rc = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                            "SELECT repo_id, repo_name, head_id, owner_id, "
+                                            "size, del_time FROM RepoTrash "
+                                            "ORDER BY repo_id LIMIT ? OFFSET ?",
+                                            collect_trash_repo, &trash_repos,
+                                            2, "int", limit, "int", start);
+
+    if (rc < 0) {
+        while (trash_repos) {
+            g_object_unref (trash_repos->data);
+            trash_repos = g_list_delete_link (trash_repos, trash_repos);
+        }
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to get trashed repo from db.");
+        return NULL;
+    }
+
+    return trash_repos;
+}
+
+GList *
+seaf_repo_manager_get_trash_repos_by_owner (SeafRepoManager *mgr,
+                                            const char *owner,
+                                            GError **error)
+{
+    GList *trash_repos = NULL;
+    int rc;
+
+    rc = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                        "SELECT repo_id, repo_name, head_id, owner_id, "
+                                        "size, del_time FROM RepoTrash WHERE owner_id = ?",
+                                        collect_trash_repo, &trash_repos,
+                                        1, "string", owner);
+
+    if (rc < 0) {
+        while (trash_repos) {
+            g_object_unref (trash_repos->data);
+            trash_repos = g_list_delete_link (trash_repos, trash_repos);
+        }
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to get trashed repo from db.");
+        return NULL;
+    }
+
+    return trash_repos;
+}
+
+SeafileTrashRepo *
+seaf_repo_manager_get_repo_from_trash (SeafRepoManager *mgr,
+                                       const char *repo_id)
+{
+    SeafileTrashRepo *ret = NULL;
+    GList *trash_repos = NULL;
+    char *sql;
+    int rc;
+
+    sql = "SELECT repo_id, repo_name, head_id, owner_id, size FROM RepoTrash "
+        "WHERE repo_id = ?";
+    rc = seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                        collect_trash_repo, &trash_repos,
+                                        1, "string", repo_id);
+    if (rc < 0)
+        return NULL;
+
+    /* There should be only one results, since repo_id is a PK. */
+    ret = trash_repos->data;
+
+    g_list_free (trash_repos);
+    return ret;
+}
+
+int
+seaf_repo_manager_del_repo_from_trash (SeafRepoManager *mgr,
+                                       const char *repo_id,
+                                       GError **error)
+{
+    int ret = 0;
+
+    /* As long as the repo is successfully moved into GarbageRepo table,
+     * we consider this operation successful.
+     */
+    if (add_deleted_repo_record (mgr, repo_id) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "DB error: Add deleted record");
+        return -1;
+    }
+
+    /* remove branch */
+    GList *p;
+    GList *branch_list = seaf_branch_manager_get_branch_list (seaf->branch_mgr, repo_id);
+    for (p = branch_list; p; p = p->next) {
+        SeafBranch *b = (SeafBranch *)p->data;
+        seaf_repo_manager_branch_repo_unmap (mgr, b);
+        seaf_branch_manager_del_branch (seaf->branch_mgr, repo_id, b->name);
+    }
+    seaf_branch_list_free (branch_list);
+
+    seaf_db_statement_query (mgr->seaf->db,
+                             "DELETE FROM RepoTrash WHERE repo_id = ?",
+                             1, "string", repo_id);
+
+    return 0;
+}
+
+int
+seaf_repo_manager_empty_repo_trash (SeafRepoManager *mgr, GError **error)
+{
+    GList *trash_repos = NULL, *ptr;
+    SeafileTrashRepo *repo;
+
+    trash_repos = seaf_repo_manager_get_trash_repo_list (mgr, -1, -1, error);
+    if (*error)
+        return -1;
+
+    for (ptr = trash_repos; ptr; ptr = ptr->next) {
+        repo = ptr->data;
+        seaf_repo_manager_del_repo_from_trash (mgr,
+                                               seafile_trash_repo_get_repo_id(repo),
+                                               NULL);
+        g_object_unref (repo);
+    }
+
+    g_list_free (trash_repos);
+    return 0;
+}
+
+int
+seaf_repo_manager_empty_repo_trash_by_owner (SeafRepoManager *mgr,
+                                             const char *owner,
+                                             GError **error)
+{
+    GList *trash_repos = NULL, *ptr;
+    SeafileTrashRepo *repo;
+
+    trash_repos = seaf_repo_manager_get_trash_repos_by_owner (mgr, owner, error);
+    if (*error)
+        return -1;
+
+    for (ptr = trash_repos; ptr; ptr = ptr->next) {
+        repo = ptr->data;
+        seaf_repo_manager_del_repo_from_trash (mgr,
+                                               seafile_trash_repo_get_repo_id(repo),
+                                               NULL);
+        g_object_unref (repo);
+    }
+
+    g_list_free (trash_repos);
+    return 0;
+}
+
+int
+seaf_repo_manager_restore_repo_from_trash (SeafRepoManager *mgr,
+                                           const char *repo_id,
+                                           GError **error)
+{
+    SeafileTrashRepo *repo = NULL;
+    int ret = 0;
+    gboolean exists = FALSE;
+    gboolean db_err;
+
+    repo = seaf_repo_manager_get_repo_from_trash (mgr, repo_id);
+    if (!repo) {
+        seaf_warning ("Repo %.8s not found in trash.\n", repo_id);
+        return -1;
+    }
+
+    SeafDBTrans *trans = seaf_db_begin_transaction (mgr->seaf->db);
+
+    exists = seaf_db_trans_check_for_existence (trans,
+                                                "SELECT 1 FROM Repo WHERE repo_id=?",
+                                                &db_err, 1, "string", repo_id);
+
+    if (!exists) {
+        ret = seaf_db_trans_query (trans,
+                                   "INSERT INTO Repo(repo_id) VALUES (?)",
+                                   1, "string", repo_id) < 0;
+        if (ret < 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "DB error: Insert Repo.");
+            seaf_db_rollback (trans);
+            seaf_db_trans_close (trans);
+            goto out;
+        }
+    }
+
+    exists = seaf_db_trans_check_for_existence (trans,
+                                                "SELECT 1 FROM RepoOwner WHERE repo_id=?",
+                                                &db_err, 1, "string", repo_id);
+
+    if (!exists) {
+        ret = seaf_db_trans_query (trans,
+                                   "INSERT INTO RepoOwner VALUES (?, ?)",
+                                   2, "string", repo_id,
+                                   "string", seafile_trash_repo_get_owner_id(repo));
+        if (ret < 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "DB error: Insert Repo Owner.");
+            seaf_db_rollback (trans);
+            seaf_db_trans_close (trans);
+            goto out;
+        }
+    }
+
+    ret = seaf_db_trans_query (trans,
+                               "DELETE FROM RepoTrash WHERE repo_id = ?",
+                               1, "string", repo_id);
+    if (ret < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "DB error: delete from RepoTrash.");
+        seaf_db_rollback (trans);
+        seaf_db_trans_close (trans);
+        goto out;
+    }
+
+    if (seaf_db_commit (trans) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "DB error: Failed to commit.");
+        seaf_db_rollback (trans);
+        ret = -1;
+    }
+
+    seaf_db_trans_close (trans);
+
+out:
+    g_object_unref (repo);
     return ret;
 }
 
@@ -1911,44 +2510,119 @@ static gboolean
 get_group_repos_cb (SeafDBRow *row, void *data)
 {
     GList **p_list = data;
-    SeafileSharedRepo *srepo = NULL;
-    SeafCommit *commit;
-    
+    SeafileRepo *srepo = NULL;
+
     const char *repo_id = seaf_db_row_get_column_text (row, 0);
     const char *vrepo_id = seaf_db_row_get_column_text (row, 1);
     int group_id = seaf_db_row_get_column_int (row, 2);
     const char *user_name = seaf_db_row_get_column_text (row, 3);
     const char *permission = seaf_db_row_get_column_text (row, 4);
     const char *commit_id = seaf_db_row_get_column_text (row, 5);
-
-    commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
-                                                        repo_id,
-                                                        commit_id);
-    if (!commit)
-        return TRUE;
+    gint64 size = seaf_db_row_get_column_int64 (row, 6);
 
     char *user_name_l = g_ascii_strdown (user_name, -1);
 
-    srepo = g_object_new (SEAFILE_TYPE_SHARED_REPO,
+    srepo = g_object_new (SEAFILE_TYPE_REPO,
                           "share_type", "group",
                           "repo_id", repo_id,
+                          "id", repo_id,
+                          "head_cmmt_id", commit_id,
                           "group_id", group_id,
                           "user", user_name_l,
                           "permission", permission,
-                          "repo_name", commit->repo_name,
-                          "repo_desc", commit->repo_desc,
-                          "encrypted", commit->encrypted,
-                          "last_modified", commit->ctime,
                           "is_virtual", (vrepo_id != NULL),
+                          "size", size,
                           NULL);
     g_free (user_name_l);
-    seaf_commit_unref (commit);
 
     if (srepo != NULL) {
+        if (vrepo_id) {
+            const char *origin_repo_id = seaf_db_row_get_column_text (row, 7);
+            const char *origin_path = seaf_db_row_get_column_text (row, 8);
+            g_object_set (srepo, "store_id", origin_repo_id,
+                          "origin_repo_id", origin_repo_id,
+                          "origin_path", origin_path, NULL);
+        } else {
+            g_object_set (srepo, "store_id", repo_id, NULL);
+        }
+
         *p_list = g_list_prepend (*p_list, srepo);
     }
 
     return TRUE;
+}
+
+void
+seaf_fill_repo_obj_from_commit (GList **repos)
+{
+    SeafileRepo *repo;
+    SeafCommit *commit;
+    char *repo_id;
+    char *commit_id;
+    GList *p = *repos;
+    GList *next;
+
+    while (p) {
+        repo = p->data;
+        g_object_get (repo, "repo_id", &repo_id, "head_cmmt_id", &commit_id, NULL);
+        commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
+                                                            repo_id, commit_id);
+        if (!commit) {
+            g_object_unref (repo);
+            next = p->next;
+            *repos = g_list_delete_link (*repos, p);
+            p = next;
+        } else {
+            g_object_set (repo, "name", commit->repo_name, "desc", commit->repo_desc,
+                          "encrypted", commit->encrypted, "magic", commit->magic,
+                          "enc_version", commit->enc_version, "root", commit->root_id,
+                          "version", commit->version, "last_modify", commit->ctime,
+                          "repo_name", commit->repo_name, "repo_desc", commit->repo_desc,
+                          "last_modified", commit->ctime, "repaired", commit->repaired, NULL);
+            if (commit->encrypted && commit->enc_version == 2)
+                g_object_set (repo, "random_key", commit->random_key, NULL);
+
+            p = p->next;
+        }
+        g_free (repo_id);
+        g_free (commit_id);
+        seaf_commit_unref (commit);
+    }
+}
+
+GList *
+seaf_repo_manager_get_repos_by_group (SeafRepoManager *mgr,
+                                      int group_id,
+                                      GError **error)
+{
+    char *sql;
+    GList *repos = NULL;
+    GList *p;
+
+    sql = "SELECT RepoGroup.repo_id, VirtualRepo.repo_id, "
+        "group_id, user_name, permission, commit_id, s.size, "
+        "VirtualRepo.origin_repo, VirtualRepo.path "
+        "FROM RepoGroup LEFT JOIN VirtualRepo ON "
+        "RepoGroup.repo_id = VirtualRepo.repo_id "
+        "LEFT JOIN RepoSize s ON RepoGroup.repo_id = s.repo_id, "
+        "Branch WHERE group_id = ? AND "
+        "RepoGroup.repo_id = Branch.repo_id AND "
+        "Branch.name = 'master'";
+
+    if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_group_repos_cb,
+                                       &repos, 1, "int", group_id) < 0) {
+        for (p = repos; p; p = p->next) {
+            g_object_unref (p->data);
+        }
+        g_list_free (repos);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to get repos by group from db.");
+        return NULL;
+    }
+
+    seaf_fill_repo_obj_from_commit (&repos);
+
+    return g_list_reverse (repos);
 }
 
 GList *
@@ -1958,18 +2632,27 @@ seaf_repo_manager_get_group_repos_by_owner (SeafRepoManager *mgr,
 {
     char *sql;
     GList *repos = NULL;
+    GList *p;
 
     sql = "SELECT RepoGroup.repo_id, VirtualRepo.repo_id, "
-        "group_id, user_name, permission, commit_id "
+        "group_id, user_name, permission, commit_id, s.size, "
+        "VirtualRepo.origin_repo, VirtualRepo.path "
         "FROM RepoGroup LEFT JOIN VirtualRepo ON "
-        "RepoGroup.repo_id = VirtualRepo.repo_id, "
-        "Branch "
-        "WHERE user_name = ? AND "
+        "RepoGroup.repo_id = VirtualRepo.repo_id "
+        "LEFT JOIN RepoSize s ON RepoGroup.repo_id = s.repo_id, "
+        "Branch WHERE user_name = ? AND "
         "RepoGroup.repo_id = Branch.repo_id AND "
         "Branch.name = 'master'";
     if (seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_group_repos_cb,
-                                       &repos, 1, "string", owner) < 0)
+                                       &repos, 1, "string", owner) < 0) {
+        for (p = repos; p; p = p->next) {
+            g_object_unref (p->data);
+        }
+        g_list_free (repos);
         return NULL;
+    }
+
+    seaf_fill_repo_obj_from_commit (&repos);
 
     return g_list_reverse (repos);
 }
@@ -2086,39 +2769,44 @@ static gboolean
 collect_public_repos (SeafDBRow *row, void *data)
 {
     GList **ret = (GList **)data;
-    SeafileSharedRepo *srepo;
+    SeafileRepo *srepo;
     const char *repo_id, *vrepo_id, *owner, *permission, *commit_id;
-    SeafCommit *commit;
+    gint64 size;
 
     repo_id = seaf_db_row_get_column_text (row, 0);
     vrepo_id = seaf_db_row_get_column_text (row, 1);
     owner = seaf_db_row_get_column_text (row, 2);
     permission = seaf_db_row_get_column_text (row, 3);
     commit_id = seaf_db_row_get_column_text (row, 4);
-
-    commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
-                                                        repo_id,
-                                                        commit_id);
-    if (!commit)
-        return TRUE;
+    size = seaf_db_row_get_column_int64 (row, 5);
 
     char *owner_l = g_ascii_strdown (owner, -1);
 
-    srepo = g_object_new (SEAFILE_TYPE_SHARED_REPO,
+    srepo = g_object_new (SEAFILE_TYPE_REPO,
                           "share_type", "public",
                           "repo_id", repo_id,
+                          "id", repo_id,
+                          "head_cmmt_id", commit_id,
                           "permission", permission,
                           "user", owner_l,
-                          "repo_name", commit->repo_name,
-                          "repo_desc", commit->repo_desc,
-                          "encrypted", commit->encrypted,
-                          "last_modified", commit->ctime,
                           "is_virtual", (vrepo_id != NULL),
+                          "size", size,
                           NULL);
     g_free (owner_l);
-    seaf_commit_unref (commit);
 
-    *ret = g_list_prepend (*ret, srepo);
+    if (srepo) {
+        if (vrepo_id) {
+            const char *origin_repo_id = seaf_db_row_get_column_text (row, 6);
+            const char *origin_path = seaf_db_row_get_column_text (row, 7);
+            g_object_set (srepo, "store_id", origin_repo_id,
+                          "origin_repo_id", origin_repo_id,
+                          "origin_path", origin_path, NULL);
+        } else {
+            g_object_set (srepo, "store_id", repo_id, NULL);
+        }
+
+        *ret = g_list_prepend (*ret, srepo);
+    }
 
     return TRUE;
 }
@@ -2130,9 +2818,11 @@ seaf_repo_manager_list_inner_pub_repos (SeafRepoManager *mgr)
     char *sql;
 
     sql = "SELECT InnerPubRepo.repo_id, VirtualRepo.repo_id, "
-        "owner_id, permission, commit_id "
+        "owner_id, permission, commit_id, s.size, "
+        "VirtualRepo.origin_repo, VirtualRepo.path "
         "FROM InnerPubRepo LEFT JOIN VirtualRepo ON "
-        "InnerPubRepo.repo_id=VirtualRepo.repo_id, RepoOwner, Branch "
+        "InnerPubRepo.repo_id=VirtualRepo.repo_id "
+        "LEFT JOIN RepoSize s ON InnerPubRepo.repo_id = s.repo_id, RepoOwner, Branch "
         "WHERE InnerPubRepo.repo_id=RepoOwner.repo_id AND "
         "InnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'";
 
@@ -2145,7 +2835,9 @@ seaf_repo_manager_list_inner_pub_repos (SeafRepoManager *mgr)
         return NULL;
     }
 
-    return g_list_reverse (ret);    
+    seaf_fill_repo_obj_from_commit (&ret);
+
+    return g_list_reverse (ret);
 }
 
 gint64
@@ -2166,9 +2858,11 @@ seaf_repo_manager_list_inner_pub_repos_by_owner (SeafRepoManager *mgr,
     char *sql;
 
     sql = "SELECT InnerPubRepo.repo_id, VirtualRepo.repo_id, "
-        "owner_id, permission, commit_id "
+        "owner_id, permission, commit_id, s.size, "
+        "VirtualRepo.origin_repo, VirtualRepo.path "
         "FROM InnerPubRepo LEFT JOIN VirtualRepo ON "
-        "InnerPubRepo.repo_id=VirtualRepo.repo_id, RepoOwner, Branch "
+        "InnerPubRepo.repo_id=VirtualRepo.repo_id "
+        "LEFT JOIN RepoSize s ON InnerPubRepo.repo_id = s.repo_id, RepoOwner, Branch "
         "WHERE InnerPubRepo.repo_id=RepoOwner.repo_id AND owner_id=? "
         "AND InnerPubRepo.repo_id = Branch.repo_id AND Branch.name = 'master'";
 
@@ -2181,7 +2875,9 @@ seaf_repo_manager_list_inner_pub_repos_by_owner (SeafRepoManager *mgr,
         return NULL;
     }
 
-    return g_list_reverse (ret);    
+    seaf_fill_repo_obj_from_commit (&ret);
+
+    return g_list_reverse (ret);
 }
 
 char *

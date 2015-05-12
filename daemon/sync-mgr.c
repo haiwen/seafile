@@ -3,6 +3,8 @@
 
 #include "common.h"
 
+#include <pthread.h>
+
 #include <ccnet.h>
 
 #include "db.h"
@@ -19,6 +21,12 @@
 #include "mq-mgr.h"
 #include "utils.h"
 
+#include "sync-status-tree.h"
+
+#ifdef WIN32
+#include <shlobj.h>
+#endif
+
 #define DEBUG_FLAG SEAFILE_DEBUG_SYNC
 #include "log.h"
 
@@ -27,6 +35,7 @@
 #define UPDATE_TX_STATE_INTERVAL 1000 /* 1s */
 #define MAX_RUNNING_SYNC_TASKS 5
 #define CHECK_LOCKED_FILES_INTERVAL 10 /* 10s */
+#define CHECK_FOLDER_PERMS_INTERVAL 30 /* 30s */
 
 enum {
     SERVER_SIDE_MERGE_UNKNOWN = 0,
@@ -41,9 +50,17 @@ struct _ServerState {
 typedef struct _ServerState ServerState;
 
 struct _HttpServerState {
-    gboolean http_not_supported;
     int http_version;
     gboolean checking;
+    gint64 last_http_check_time;
+    char *testing_host;
+    /* Can be server_url or server_url:8082, depends on which one works. */
+    char *effective_host;
+    gboolean use_fileserver_port;
+
+    gboolean folder_perms_not_supported;
+    gint64 last_check_perms_time;
+    gboolean checking_folder_perms;
 };
 typedef struct _HttpServerState HttpServerState;
 
@@ -54,7 +71,22 @@ struct _SeafSyncManagerPriv {
 
     /* When FALSE, auto sync is globally disabled */
     gboolean   auto_sync_enabled;
+
+    GHashTable *active_paths;
+    pthread_mutex_t paths_lock;
+
+#ifdef WIN32
+    GAsyncQueue *refresh_paths;
+    struct CcnetTimer *refresh_windows_timer;
+#endif
 };
+
+struct _ActivePathsInfo {
+    GHashTable *paths;
+    struct SyncStatusTree *syncing_tree;
+    struct SyncStatusTree *synced_tree;
+};
+typedef struct _ActivePathsInfo ActivePathsInfo;
 
 static void
 start_sync (SeafSyncManager *manager, SeafRepo *repo,
@@ -90,6 +122,12 @@ has_old_commits_to_upload (SeafRepo *repo);
 static int
 sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync);
 
+static gboolean
+check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo);
+
+static void
+active_paths_info_free (ActivePathsInfo *info);
+
 SeafSyncManager*
 seaf_sync_manager_new (SeafileSession *seaf)
 {
@@ -119,6 +157,15 @@ seaf_sync_manager_new (SeafileSession *seaf)
                                                        &exists);
     if (exists)
         mgr->upload_limit = upload_limit;
+
+    mgr->priv->active_paths = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                     g_free,
+                                                     (GDestroyNotify)active_paths_info_free);
+    pthread_mutex_init (&mgr->priv->paths_lock, NULL);
+
+#ifdef WIN32
+    mgr->priv->refresh_paths = g_async_queue_new ();
+#endif
 
     return mgr;
 }
@@ -209,7 +256,10 @@ add_repo_relays ()
 
     for (ptr = repo_list; ptr; ptr = ptr->next) {
         SeafRepo *repo = ptr->data;
-        if (repo->relay_id) {
+        /* Only use non-http sync protocol for old repos.
+         * If no old repos exist, we don't need to connect to 10001 port.
+         */
+        if (repo->version == 0 && repo->relay_id) {
             add_relay_if_needed (repo);
         }
     }
@@ -336,6 +386,28 @@ update_tx_state (void *vmanager)
     return TRUE;
 }
 
+#ifdef WIN32
+static void *
+refresh_windows_explorer_thread (void *vdata);
+
+#define STARTUP_REFRESH_WINDOWS_DELAY 10000
+
+static int
+refresh_all_windows_on_startup (void *vdata)
+{
+    /* This is a hack to tell Windows Explorer to refresh all open windows.
+     * On startup, if there is one big library, its events may dominate the
+     * explorer refresh queue. Other libraries don't get refreshed until
+     * the big library's events are consumed. So we refresh the open windows
+     * to reduce the delay.
+     */
+    SHChangeNotify (SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
+
+    /* One time */
+    return 0;
+}
+#endif
+
 int
 seaf_sync_manager_start (SeafSyncManager *mgr)
 {
@@ -365,6 +437,16 @@ seaf_sync_manager_start (SeafSyncManager *mgr)
     g_signal_connect (seaf, "repo-http-uploaded",
                       (GCallback)on_repo_http_uploaded, mgr);
 
+#ifdef WIN32
+    ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                    refresh_windows_explorer_thread,
+                                    NULL,
+                                    mgr->priv->refresh_paths);
+
+    mgr->priv->refresh_windows_timer = ccnet_timer_new (
+        refresh_all_windows_on_startup, mgr, STARTUP_REFRESH_WINDOWS_DELAY);
+#endif
+
     return 0;
 }
 
@@ -393,29 +475,30 @@ seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
         return -1;
     }
 
-    /* If relay is not ready or protocol version is not determined,
-     * need to wait.
-     */
-    if (!check_relay_status (mgr, repo)) {
-        seaf_warning ("Relay for repo %s(%.8s) is not ready or protocol version"
-                      "is not detected.\n", repo->name, repo->id);
-        return 0;
-    }
-
     SyncInfo *info = get_sync_info (mgr, repo->id);
 
     if (info->in_sync)
         return 0;
 
-    ServerState *state = g_hash_table_lookup (mgr->server_states,
-                                              repo->relay_id);
-
-    if (repo->version == 0 ||
-        state->server_side_merge == SERVER_SIDE_MERGE_UNSUPPORTED ||
-        has_old_commits_to_upload (repo))
+    if (repo->version > 0) {
+        if (seaf->enable_http_sync) {
+            if (check_http_protocol (mgr, repo)) {
+                sync_repo_v2 (mgr, repo, TRUE);
+                return 0;
+            }
+        } else
+            return 0;
+    } else {
+        /* If relay is not ready or protocol version is not determined,
+         * need to wait.
+         */
+        if (!check_relay_status (mgr, repo)) {
+            seaf_warning ("Relay for repo %s(%.8s) is not ready or protocol version"
+                          "is not detected.\n", repo->name, repo->id);
+            return 0;
+        }
         start_sync (mgr, repo, TRUE, TRUE, FALSE);
-    else if (state->server_side_merge == SERVER_SIDE_MERGE_SUPPORTED)
-        sync_repo_v2 (mgr, repo, TRUE);
+    }
 
     return 0;
 }
@@ -680,9 +763,10 @@ start_upload_if_necessary (SyncTask *task)
         if (http_tx_manager_add_upload (seaf->http_tx_mgr,
                                         repo->id,
                                         repo->version,
-                                        repo->server_url,
+                                        repo->effective_host,
                                         repo->token,
                                         task->http_version,
+                                        repo->use_fileserver_port,
                                         &error) < 0) {
             seaf_warning ("Failed to start http upload: %s\n", error->message);
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_START_UPLOAD);
@@ -713,6 +797,7 @@ start_fetch_if_necessary (SyncTask *task, const char *remote_head)
                                                     task->server_side_merge,
                                                     NULL,
                                                     NULL,
+                                                    repo->email,
                                                     &error);
 
         if (error != NULL) {
@@ -726,12 +811,14 @@ start_fetch_if_necessary (SyncTask *task, const char *remote_head)
         if (http_tx_manager_add_download (seaf->http_tx_mgr,
                                           repo->id,
                                           repo->version,
-                                          repo->server_url,
+                                          repo->effective_host,
                                           repo->token,
                                           remote_head,
                                           FALSE,
                                           NULL, NULL,
                                           task->http_version,
+                                          repo->email,
+                                          repo->use_fileserver_port,
                                           &error) < 0) {
             seaf_warning ("Failed to start http download: %s.\n", error->message);
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_START_FETCH);
@@ -1484,8 +1571,9 @@ check_head_commit_http (SyncTask *task)
 
     int ret = http_tx_manager_check_head_commit (seaf->http_tx_mgr,
                                                  repo->id, repo->version,
-                                                 repo->server_url,
+                                                 repo->effective_host,
                                                  repo->token,
+                                                 repo->use_fileserver_port,
                                                  check_head_commit_done,
                                                  task);
     if (ret == 0)
@@ -1515,7 +1603,7 @@ commit_job (void *vtask)
     res->changed = TRUE;
     res->success = TRUE;
 
-    char *commit_id = seaf_repo_index_commit (repo, "", task->is_initial_commit,
+    char *commit_id = seaf_repo_index_commit (repo, "", task->is_manual_sync,
                                               &error);
     if (commit_id == NULL && error != NULL) {
         seaf_warning ("[Sync mgr] Failed to commit to repo %s(%.8s).\n",
@@ -1733,10 +1821,8 @@ create_sync_task_v2 (SeafSyncManager *manager, SeafRepo *repo,
         HttpServerState *state = g_hash_table_lookup (manager->http_server_states,
                                                       repo->server_url);
         if (state) {
-            if (!state->http_not_supported) {
-                task->http_sync = TRUE;
-                task->http_version = state->http_version;
-            }
+            task->http_sync = TRUE;
+            task->http_version = state->http_version;
         }
     }
 
@@ -1832,19 +1918,21 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
         goto out;
     }
 
-    if (!repo->is_readonly) {
-        if (strcmp (master->commit_id, local->commit_id) != 0) {
-            if (is_manual_sync || can_schedule_repo (manager, repo)) {
-                task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
-                start_upload_if_necessary (task);
-            }
-            /* Do nothing if the client still has something to upload
-            * but it's before 30-second schedule.
-            */
-            goto out;
-        } else if (create_commit_from_event_queue (manager, repo, is_manual_sync))
-            goto out;
-    }
+    if (strcmp (master->commit_id, local->commit_id) != 0) {
+        if (is_manual_sync || can_schedule_repo (manager, repo)) {
+            task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
+            start_upload_if_necessary (task);
+        }
+        /* Do nothing if the client still has something to upload
+         * but it's before 30-second schedule.
+         */
+        goto out;
+    } else if (is_manual_sync) {
+        task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
+        commit_repo (task);
+        goto out;
+    } else if (create_commit_from_event_queue (manager, repo, is_manual_sync))
+        goto out;
 
     if (is_manual_sync || can_schedule_repo (manager, repo)) {
         task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
@@ -1950,34 +2038,77 @@ check_relay_status (SeafSyncManager *mgr, SeafRepo *repo)
     }
 }
 
+static char *
+http_fileserver_url (const char *url)
+{
+    const char *host;
+    char *colon;
+    char *url_no_port;
+    char *ret = NULL;
+
+    /* Just return the url itself if it's invalid. */
+    if (strlen(url) <= strlen("http://"))
+        return g_strdup(url);
+
+    /* Skip protocol schem. */
+    host = url + strlen("http://");
+
+    colon = strrchr (host, ':');
+    if (colon) {
+        url_no_port = g_strndup(url, colon - url);
+        ret = g_strconcat(url_no_port, ":8082", NULL);
+        g_free (url_no_port);
+    } else {
+        ret = g_strconcat(url, ":8082", NULL);
+    }
+
+    return ret;
+}
+
 static void
-check_http_protocol_done (HttpProtocolVersion *result, void *user_data)
+check_http_fileserver_protocol_done (HttpProtocolVersion *result, void *user_data)
 {
     HttpServerState *state = user_data;
 
     state->checking = FALSE;
 
-    if (result->check_success) {
-        state->http_not_supported = result->not_supported;
-        if (!result->not_supported)
-            state->http_version = result->version;
-    } else
-        state->http_not_supported = TRUE;
+    if (result->check_success && !result->not_supported) {
+        state->http_version = result->version;
+        state->effective_host = http_fileserver_url(state->testing_host);
+        state->use_fileserver_port = TRUE;
+    }
+}
+
+static void
+check_http_protocol_done (HttpProtocolVersion *result, void *user_data)
+{
+    HttpServerState *state = user_data;
+
+    if (result->check_success && !result->not_supported) {
+        state->http_version = result->version;
+        state->effective_host = g_strdup(state->testing_host);
+        state->checking = FALSE;
+    } else if (strncmp(state->testing_host, "https", 5) != 0) {
+        char *host_fileserver = http_fileserver_url(state->testing_host);
+        http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
+                                                host_fileserver,
+                                                TRUE,
+                                                check_http_fileserver_protocol_done,
+                                                state);
+        g_free (host_fileserver);
+    } else {
+        state->checking = FALSE;
+    }
 }
 
 #define CHECK_HTTP_INTERVAL 10
 
 /*
- * Returns TRUE if we can use http-sync; otherwise FALSE.
- * If FALSE is returned, the caller should also check @is_checking value.
- * If @is_checking is set to TRUE, we're still determining whether the
- * server supports http-sync.
+ * Returns TRUE if we're ready to use http-sync; otherwise FALSE.
  */
 static gboolean
-check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo, gboolean *is_checking)
+check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo)
 {
-    *is_checking = FALSE;
-
     /* If a repo was cloned before 4.0, server-url is not set. */
     if (!repo->server_url)
         return FALSE;
@@ -1991,21 +2122,36 @@ check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo, gboolean *is_checking
     }
 
     if (state->checking) {
-        *is_checking = TRUE;
         return FALSE;
     }
 
-    if (state->http_not_supported)
-        return FALSE;
-    if (state->http_version > 0)
+    if (state->http_version > 0) {
+        if (!repo->effective_host) {
+            repo->effective_host = g_strdup(state->effective_host);
+            repo->use_fileserver_port = state->use_fileserver_port;
+        }
         return TRUE;
+    }
+
+    /* If we haven't detected the server url successfully, retry every 10 seconds. */
+    gint64 now = time(NULL);
+    if (now - state->last_http_check_time < CHECK_HTTP_INTERVAL)
+        return FALSE;
+
+    /* First try repo->server_url.
+     * If it fails and https is not used, try server_url:8082 instead.
+     */
+    g_free (state->testing_host);
+    state->testing_host = g_strdup(repo->server_url);
+
+    state->last_http_check_time = (gint64)time(NULL);
 
     http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
                                             repo->server_url,
+                                            FALSE,
                                             check_http_protocol_done,
                                             state);
     state->checking = TRUE;
-    *is_checking = TRUE;
 
     return FALSE;
 }
@@ -2125,7 +2271,7 @@ handle_locked_file_update (SeafRepo *repo, struct index_state *istate,
 
     fullpath = g_build_filename (repo->worktree, path, NULL);
 
-    file_exists = g_file_test (fullpath, G_FILE_TEST_EXISTS);
+    file_exists = seaf_util_exists (fullpath);
 
     if (file_exists && seaf_stat (fullpath, &st) < 0) {
         seaf_warning ("Failed to stat %s: %s.\n", fullpath, strerror(errno));
@@ -2154,11 +2300,18 @@ handle_locked_file_update (SeafRepo *repo, struct index_state *istate,
                                        path,
                                        master->commit_id,
                                        force_conflict,
-                                       &conflicted) < 0) {
+                                       &conflicted,
+                                       repo->email) < 0) {
         seaf_warning ("Failed to checkout previously locked file %s in repo "
                       "%s(%.8s).\n",
                       path, repo->name, repo->id);
     }
+
+    seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                          repo->id,
+                                          path,
+                                          S_IFREG,
+                                          SYNC_STATUS_SYNCED);
 
 out:
     cleanup_file_blocks (repo->id, repo->version, file_id);
@@ -2191,7 +2344,7 @@ handle_locked_file_delete (SeafRepo *repo, struct index_state *istate,
 
     fullpath = g_build_filename (repo->worktree, path, NULL);
 
-    file_exists = g_file_test (fullpath, G_FILE_TEST_EXISTS);
+    file_exists = seaf_util_exists (fullpath);
 
     if (file_exists && seaf_stat (fullpath, &st) < 0) {
         seaf_warning ("Failed to stat %s: %s.\n", fullpath, strerror(errno));
@@ -2199,7 +2352,7 @@ handle_locked_file_delete (SeafRepo *repo, struct index_state *istate,
     }
 
     if (file_exists && st.st_mtime == locked->old_mtime)
-        g_unlink (fullpath);
+        seaf_util_unlink (fullpath);
 
 out:
     /* Remove the locked file record from db. */
@@ -2266,14 +2419,148 @@ check_locked_files_done (void *vdata)
 
 #endif
 
+static void
+check_folder_perms_done (HttpFolderPerms *result, void *user_data)
+{
+    HttpServerState *server_state = user_data;
+    GList *ptr;
+    HttpFolderPermRes *res;
+    gint64 now = (gint64)time(NULL);
+
+    server_state->checking_folder_perms = FALSE;
+
+    if (!result->success) {
+        /* If on star-up we find that checking folder perms fails,
+         * we assume the server doesn't support it.
+         */
+        if (server_state->last_check_perms_time == 0)
+            server_state->folder_perms_not_supported = TRUE;
+        server_state->last_check_perms_time = now;
+        return;
+    }
+
+    for (ptr = result->results; ptr; ptr = ptr->next) {
+        res = ptr->data;
+
+        seaf_repo_manager_update_folder_perms (seaf->repo_mgr, res->repo_id,
+                                               FOLDER_PERM_TYPE_USER,
+                                               res->user_perms);
+        seaf_repo_manager_update_folder_perms (seaf->repo_mgr, res->repo_id,
+                                               FOLDER_PERM_TYPE_GROUP,
+                                               res->group_perms);
+        seaf_repo_manager_update_folder_perm_timestamp (seaf->repo_mgr,
+                                                        res->repo_id,
+                                                        res->timestamp);
+    }
+    server_state->last_check_perms_time = now;
+}
+
+static void
+check_folder_permissions_one_server (SeafSyncManager *mgr,
+                                     const char *host,
+                                     HttpServerState *server_state,
+                                     GList *repos)
+{
+    GList *ptr;
+    SeafRepo *repo;
+    char *token;
+    gint64 timestamp;
+    HttpFolderPermReq *req;
+    GList *requests = NULL;
+
+    gint64 now = (gint64)time(NULL);
+
+    if (server_state->http_version == 0 ||
+        server_state->folder_perms_not_supported ||
+        server_state->checking_folder_perms)
+        return;
+
+    if (server_state->last_check_perms_time > 0 &&
+        now - server_state->last_check_perms_time < CHECK_FOLDER_PERMS_INTERVAL)
+        return;
+
+    for (ptr = repos; ptr; ptr = ptr->next) {
+        repo = ptr->data;
+
+        if (!repo->head)
+            continue;
+
+        if (g_strcmp0 (host, repo->server_url) != 0)
+            continue;
+
+        token = seaf_repo_manager_get_repo_property (seaf->repo_mgr,
+                                                     repo->id, REPO_PROP_TOKEN);
+        if (!token)
+            continue;
+
+        timestamp = seaf_repo_manager_get_folder_perm_timestamp (seaf->repo_mgr,
+                                                                 repo->id);
+        if (timestamp < 0)
+            timestamp = 0;
+
+        req = g_new0 (HttpFolderPermReq, 1);
+        memcpy (req->repo_id, repo->id, 36);
+        req->token = g_strdup(token);
+        req->timestamp = timestamp;
+
+        requests = g_list_append (requests, req);
+    }
+
+    if (!requests)
+        return;
+
+    server_state->checking_folder_perms = TRUE;
+
+    /* The requests list will be freed in http tx manager. */
+    http_tx_manager_get_folder_perms (seaf->http_tx_mgr,
+                                      server_state->effective_host,
+                                      server_state->use_fileserver_port,
+                                      requests,
+                                      check_folder_perms_done,
+                                      server_state);
+}
+
+static void
+check_folder_permissions (SeafSyncManager *mgr, GList *repos)
+{
+    GHashTableIter iter;
+    gpointer key, value;
+    char *host;
+    HttpServerState *state;
+
+    g_hash_table_iter_init (&iter, mgr->http_server_states);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        host = key;
+        state = value;
+        check_folder_permissions_one_server (mgr, host, state, repos);
+    }
+}
+
+static void
+print_active_paths (SeafSyncManager *mgr)
+{
+    int n = seaf_sync_manager_active_paths_number(mgr);
+    seaf_message ("%d active paths\n\n", n);
+    if (n < 10) {
+        char *paths_json = seaf_sync_manager_list_active_paths_json (mgr);
+        seaf_message ("%s\n", paths_json);
+        g_free (paths_json);
+    }
+}
+
 static int
 auto_sync_pulse (void *vmanager)
 {
     SeafSyncManager *manager = vmanager;
     GList *repos, *ptr;
     SeafRepo *repo;
+    gint64 now;
+
+    /* print_active_paths (manager); */
 
     repos = seaf_repo_manager_get_repo_list (manager->seaf->repo_mgr, -1, -1);
+
+    check_folder_permissions (manager, repos);
 
     /* Sort repos by last_sync_time, so that we don't "starve" any repo. */
     repos = g_list_sort_with_data (repos, cmp_repos_by_sync_time, NULL);
@@ -2315,8 +2602,10 @@ auto_sync_pulse (void *vmanager)
 
         repo->worktree_invalid = FALSE;
 
-        if (repo->delete_pending) {
-            seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
+        if (!repo->token) {
+            /* If the user has logged out of the account, the repo token would
+             * be null */
+            seaf_debug ("repo token of %s (%.8s) is null, would not sync it\n", repo->name, repo->id);
             continue;
         }
 
@@ -2332,7 +2621,7 @@ auto_sync_pulse (void *vmanager)
             if (repo->checking_locked_files)
                 continue;
 
-            int now = (int)time(NULL);
+            now = (gint64)time(NULL);
             if (repo->last_check_locked_time == 0 ||
                 now - repo->last_check_locked_time >= CHECK_LOCKED_FILES_INTERVAL)
             {
@@ -2352,32 +2641,20 @@ auto_sync_pulse (void *vmanager)
         if (info->in_sync)
             continue;
 
-        /* Try to use http sync first if enabled. */
-        gboolean is_checking_http = FALSE;
-        if (seaf->enable_http_sync && repo->version > 0) {
-            if (check_http_protocol (manager, repo, &is_checking_http)) {
-                sync_repo_v2 (manager, repo, FALSE);
-                continue;
-            } else if (is_checking_http)
-                continue;
-            /* Otherwise we've determined the server doesn't support http-sync. */
+        if (repo->version > 0) {
+            /* For repo version > 0, only use http sync. */
+            if (seaf->enable_http_sync) {
+                if (check_http_protocol (manager, repo)) {
+                    sync_repo_v2 (manager, repo, FALSE);
+                }
+            }
+        } else {
+            /* If relay is not ready or protocol version is not determined,
+             * need to wait.
+             */
+            if (check_relay_status (manager, repo))
+                sync_repo (manager, repo);
         }
-
-        /* If relay is not ready or protocol version is not determined,
-         * need to wait.
-         */
-        if (!check_relay_status (manager, repo))
-            continue;
-
-        ServerState *state = g_hash_table_lookup (manager->server_states,
-                                                  repo->relay_id);
-
-        if (repo->version == 0 ||
-            state->server_side_merge == SERVER_SIDE_MERGE_UNSUPPORTED ||
-            has_old_commits_to_upload (repo))
-            sync_repo (manager, repo);
-        else if (state->server_side_merge == SERVER_SIDE_MERGE_SUPPORTED)
-            sync_repo_v2 (manager, repo, FALSE);
     }
 
     g_list_free (repos);
@@ -2597,7 +2874,7 @@ sync_state_to_str (int state)
 }
 
 static void
-cancel_all_sync_tasks (SeafSyncManager *mgr)
+disable_auto_sync_for_repos (SeafSyncManager *mgr)
 {
     GList *repos;
     GList *ptr;
@@ -2606,7 +2883,9 @@ cancel_all_sync_tasks (SeafSyncManager *mgr)
     repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
+        seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
         seaf_sync_manager_cancel_sync_task (mgr, repo->id);
+        seaf_sync_manager_remove_active_path_info (mgr, repo->id);
     }
 
     g_list_free (repos);
@@ -2620,34 +2899,28 @@ seaf_sync_manager_disable_auto_sync (SeafSyncManager *mgr)
         return -1;
     }
 
-    cancel_all_sync_tasks (mgr);
+    disable_auto_sync_for_repos (mgr);
+
     mgr->priv->auto_sync_enabled = FALSE;
     g_debug ("[sync mgr] auto sync is disabled\n");
     return 0;
 }
 
-#if 0
 static void
-add_sync_tasks_for_all (SeafSyncManager *mgr)
+enable_auto_sync_for_repos (SeafSyncManager *mgr)
 {
-    GList *repos, *ptr;
+    GList *repos;
+    GList *ptr;
     SeafRepo *repo;
 
     repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
-        if (!repo->auto_sync)
-            continue;
-
-        if (repo->worktree_invalid)
-            continue;
-        
-        start_sync (mgr, repo, TRUE, FALSE, TRUE);
+        seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree);
     }
 
     g_list_free (repos);
 }
-#endif
 
 int
 seaf_sync_manager_enable_auto_sync (SeafSyncManager *mgr)
@@ -2657,7 +2930,8 @@ seaf_sync_manager_enable_auto_sync (SeafSyncManager *mgr)
         return -1;
     }
 
-    /* add_sync_tasks_for_all (mgr); */
+    enable_auto_sync_for_repos (mgr);
+
     mgr->priv->auto_sync_enabled = TRUE;
     g_debug ("[sync mgr] auto sync is enabled\n");
     return 0;
@@ -2671,3 +2945,320 @@ seaf_sync_manager_is_auto_sync_enabled (SeafSyncManager *mgr)
     else
         return 0;
 }
+
+static ActivePathsInfo *
+active_paths_info_new (SeafRepo *repo)
+{
+    ActivePathsInfo *info = g_new0 (ActivePathsInfo, 1);
+
+    info->paths = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    info->syncing_tree = sync_status_tree_new (repo->worktree);
+    info->synced_tree = sync_status_tree_new (repo->worktree);
+
+    return info;
+}
+
+static void
+active_paths_info_free (ActivePathsInfo *info)
+{
+    if (!info)
+        return;
+    g_hash_table_destroy (info->paths);
+    sync_status_tree_free (info->syncing_tree);
+    sync_status_tree_free (info->synced_tree);
+    g_free (info);
+}
+
+void
+seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
+                                      const char *repo_id,
+                                      const char *path,
+                                      int mode,
+                                      SyncStatus status)
+{
+    ActivePathsInfo *info;
+    SeafRepo *repo;
+
+    if (!repo_id || !path) {
+        seaf_warning ("BUG: empty repo_id or path.\n");
+        return;
+    }
+
+    if (status <= SYNC_STATUS_NONE || status >= N_SYNC_STATUS) {
+        seaf_warning ("BUG: invalid sync status %d.\n", status);
+        return;
+    }
+
+    pthread_mutex_lock (&mgr->priv->paths_lock);
+
+    info = g_hash_table_lookup (mgr->priv->active_paths, repo_id);
+    if (!info) {
+        repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+        if (!repo) {
+            seaf_warning ("Failed to find repo %s\n", repo_id);
+            pthread_mutex_unlock (&mgr->priv->paths_lock);
+            return;
+        }
+        info = active_paths_info_new (repo);
+        g_hash_table_insert (mgr->priv->active_paths, g_strdup(repo_id), info);
+    }
+
+    SyncStatus existing = (SyncStatus) g_hash_table_lookup (info->paths, path);
+    if (!existing) {
+        g_hash_table_insert (info->paths, g_strdup(path), (void*)status);
+        if (status == SYNC_STATUS_SYNCING)
+            sync_status_tree_add (info->syncing_tree, path, mode);
+        else if (status == SYNC_STATUS_SYNCED)
+            sync_status_tree_add (info->synced_tree, path, mode);
+        else {
+#ifdef WIN32
+            seaf_sync_manager_add_refresh_path (mgr, path);
+#endif
+        }
+    } else if (existing != status) {
+        g_hash_table_replace (info->paths, g_strdup(path), (void*)status);
+
+        if (existing == SYNC_STATUS_SYNCING)
+            sync_status_tree_del (info->syncing_tree, path);
+        else if (existing == SYNC_STATUS_SYNCED)
+            sync_status_tree_del (info->synced_tree, path);
+
+        if (status == SYNC_STATUS_SYNCING)
+            sync_status_tree_add (info->syncing_tree, path, mode);
+        else if (status == SYNC_STATUS_SYNCED)
+            sync_status_tree_add (info->synced_tree, path, mode);
+
+#ifdef WIN32
+        seaf_sync_manager_add_refresh_path (mgr, path);
+#endif
+    }
+
+    pthread_mutex_unlock (&mgr->priv->paths_lock);
+}
+
+void
+seaf_sync_manager_delete_active_path (SeafSyncManager *mgr,
+                                      const char *repo_id,
+                                      const char *path)
+{
+    ActivePathsInfo *info;
+
+    if (!repo_id || !path) {
+        seaf_warning ("BUG: empty repo_id or path.\n");
+        return;
+    }
+
+    pthread_mutex_lock (&mgr->priv->paths_lock);
+
+    info = g_hash_table_lookup (mgr->priv->active_paths, repo_id);
+    if (!info) {
+        pthread_mutex_unlock (&mgr->priv->paths_lock);
+        return;
+    }
+
+    g_hash_table_remove (info->paths, path);
+    sync_status_tree_del (info->syncing_tree, path);
+    sync_status_tree_del (info->synced_tree, path);
+
+    pthread_mutex_unlock (&mgr->priv->paths_lock);
+}
+
+static char *path_status_tbl[] = {
+    "none",
+    "syncing",
+    "error",
+    "ignored",
+    "synced",
+    NULL,
+};
+
+char *
+seaf_sync_manager_get_path_sync_status (SeafSyncManager *mgr,
+                                        const char *repo_id,
+                                        const char *path,
+                                        gboolean is_dir)
+{
+    ActivePathsInfo *info;
+    SyncStatus ret = SYNC_STATUS_NONE;
+
+    if (!repo_id || !path) {
+        seaf_warning ("BUG: empty repo_id or path.\n");
+        return NULL;
+    }
+
+    pthread_mutex_lock (&mgr->priv->paths_lock);
+
+    info = g_hash_table_lookup (mgr->priv->active_paths, repo_id);
+    if (!info) {
+        pthread_mutex_unlock (&mgr->priv->paths_lock);
+        ret = SYNC_STATUS_NONE;
+        goto out;
+    }
+
+    ret = (SyncStatus) g_hash_table_lookup (info->paths, path);
+    if (is_dir && (ret == SYNC_STATUS_NONE)) {
+        /* If a dir is not in the syncing tree but in the synced tree,
+         * it's synced. Otherwise if it's in the syncing tree, some files
+         * under it must be syncing, so it should be in syncing status too.
+         */
+        if (sync_status_tree_exists (info->syncing_tree, path))
+            ret = SYNC_STATUS_SYNCING;
+        else if (sync_status_tree_exists (info->synced_tree, path))
+            ret = SYNC_STATUS_SYNCED;
+    }
+
+    pthread_mutex_unlock (&mgr->priv->paths_lock);
+
+out:
+    return g_strdup(path_status_tbl[ret]);
+}
+
+static json_t *
+active_paths_to_json (GHashTable *paths)
+{
+    json_t *array = NULL, *obj = NULL;
+    GHashTableIter iter;
+    gpointer key, value;
+    char *path;
+    SyncStatus status;
+
+    array = json_array ();
+
+    g_hash_table_iter_init (&iter, paths);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        path = key;
+        status = (SyncStatus)value;
+
+        obj = json_object ();
+        json_object_set (obj, "path", json_string(path));
+        json_object_set (obj, "status", json_string(path_status_tbl[status]));
+
+        json_array_append (array, obj);
+    }
+
+    return array;
+}
+
+char *
+seaf_sync_manager_list_active_paths_json (SeafSyncManager *mgr)
+{
+    json_t *array = NULL, *obj = NULL, *path_array = NULL;
+    GHashTableIter iter;
+    gpointer key, value;
+    char *repo_id;
+    ActivePathsInfo *info;
+    char *ret = NULL;
+
+    pthread_mutex_lock (&mgr->priv->paths_lock);
+
+    array = json_array ();
+
+    g_hash_table_iter_init (&iter, mgr->priv->active_paths);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        repo_id = key;
+        info = value;
+
+        obj = json_object();
+        path_array = active_paths_to_json (info->paths);
+        json_object_set (obj, "repo_id", json_string(repo_id));
+        json_object_set (obj, "paths", path_array);
+
+        json_array_append (array, obj);
+    }
+
+    pthread_mutex_unlock (&mgr->priv->paths_lock);
+
+    ret = json_dumps (array, JSON_INDENT(4));
+    if (!ret) {
+        seaf_warning ("Failed to convert active paths to json\n");
+    }
+
+    json_decref (array);
+
+    return ret;
+}
+
+int
+seaf_sync_manager_active_paths_number (SeafSyncManager *mgr)
+{
+    GHashTableIter iter;
+    gpointer key, value;
+    ActivePathsInfo *info;
+    int ret = 0;
+
+    g_hash_table_iter_init (&iter, mgr->priv->active_paths);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        info = value;
+        ret += g_hash_table_size(info->paths);
+    }
+
+    return ret;
+}
+
+void
+seaf_sync_manager_remove_active_path_info (SeafSyncManager *mgr, const char *repo_id)
+{
+    ActivePathsInfo *info;
+
+    pthread_mutex_lock (&mgr->priv->paths_lock);
+
+    g_hash_table_remove (mgr->priv->active_paths, repo_id);
+
+    pthread_mutex_unlock (&mgr->priv->paths_lock);
+
+#ifdef WIN32
+    /* This is a hack to tell Windows Explorer to refresh all open windows. */
+    SHChangeNotify (SHCNE_ASSOCCHANGED, SHCNF_IDLIST, NULL, NULL);
+#endif
+}
+
+#ifdef WIN32
+
+static wchar_t *
+win_path (const char *path)
+{
+    char *ret = g_strdup(path);
+    wchar_t *ret_w;
+    char *p;
+
+    for (p = ret; *p != 0; ++p)
+        if (*p == '/')
+            *p = '\\';
+
+    ret_w = g_utf8_to_utf16 (ret, -1, NULL, NULL, NULL);
+
+    g_free (ret);
+    return ret_w;
+}
+
+static void *
+refresh_windows_explorer_thread (void *vdata)
+{
+    GAsyncQueue *q = vdata;
+    char *path;
+    wchar_t *wpath;
+    int count = 0;
+
+    while (1) {
+        path = g_async_queue_pop (q);
+        wpath = win_path (path);
+
+        SHChangeNotify (SHCNE_ATTRIBUTES, SHCNF_PATHW, wpath, NULL);
+
+        g_free (path);
+        g_free (wpath);
+
+        if (++count >= 100) {
+            g_usleep (G_USEC_PER_SEC);
+            count = 0;
+        }
+    }
+}
+
+void
+seaf_sync_manager_add_refresh_path (SeafSyncManager *mgr, const char *path)
+{
+    g_async_queue_push (mgr->priv->refresh_paths, g_strdup(path));
+}
+
+#endif

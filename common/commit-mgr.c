@@ -371,7 +371,8 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
                                                      const char *head,
                                                      CommitTraverseFunc func,
                                                      int limit,
-                                                     void *data)
+                                                     void *data,
+                                                     gboolean skip_errors)
 {
     SeafCommit *commit;
     GList *list = NULL;
@@ -401,9 +402,11 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
         list = g_list_delete_link (list, list);
 
         if (!func (commit, data, &stop)) {
-            seaf_commit_unref (commit);
-            ret = FALSE;
-            goto out;
+            if (!skip_errors) {
+                seaf_commit_unref (commit);
+                ret = FALSE;
+                goto out;
+            }
         }
 
         /* Stop when limit is reached. If limit < 0, there is no limit; */
@@ -423,17 +426,21 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
         if (commit->parent_id) {
             if (insert_parent_commit (&list, commit_hash, repo_id, version,
                                       commit->parent_id, FALSE) < 0) {
-                seaf_commit_unref (commit);
-                ret = FALSE;
-                goto out;
+                if (!skip_errors) {
+                    seaf_commit_unref (commit);
+                    ret = FALSE;
+                    goto out;
+                }
             }
         }
         if (commit->second_parent_id) {
             if (insert_parent_commit (&list, commit_hash, repo_id, version,
                                       commit->second_parent_id, FALSE) < 0) {
-                seaf_commit_unref (commit);
-                ret = FALSE;
-                goto out;
+                if (!skip_errors) {
+                    seaf_commit_unref (commit);
+                    ret = FALSE;
+                    goto out;
+                }
             }
         }
         seaf_commit_unref (commit);
@@ -467,8 +474,9 @@ traverse_commit_tree_common (SeafCommitManager *mgr,
     commit = seaf_commit_manager_get_commit (mgr, repo_id, version, head);
     if (!commit) {
         g_warning ("Failed to find commit %s.\n", head);
-        if (!skip_errors)
-            return FALSE;
+        // For head commit corrupted, directly return FALSE
+        // user can repair head by fsck then retraverse the tree
+        return FALSE;
     }
 
     /* A hash table for recording id of traversed commits. */

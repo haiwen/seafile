@@ -2,6 +2,9 @@ namespace Seafile {
 
 public class Repo : Object {
 
+    // Section 1: Basic information
+    // Members in this section should be set for every Repo object
+
     // _id is for fast access from c code. id is for
     // vala to automatically generate a property. Note,
     // if a Vala property is start with _, it is not
@@ -24,44 +27,47 @@ public class Repo : Object {
         set { _desc = value; }
     }
 
-    public string _worktree;
-    public string worktree {
-        get { return _worktree; }
-        set { _worktree = value; }
-    }
+    // data format version
+    public int version { get; set; }
 
-    public string _relay_id;
-    public string relay_id {
-        get { return _relay_id; }
-        set { _relay_id = value; }
-    }
+    public int    last_modify { get; set; }
+    public int64  size { get; set; }
+    public string head_cmmt_id { get; set; }
+    public string root { get; set; }
+
+    // To be compatible with obsoleted SharedRepo object
+    public string repo_id { get; set; }
+    public string repo_name { get; set; }
+    public string repo_desc { get; set; }
+    public int last_modified { get; set; }
+
+    // Section 2: Encryption related
+    // Members in this section should be set for every Repo object
 
     public bool encrypted { get; set; }
     public string magic { get; set; }
     public int enc_version { get; set; }
     public string random_key { get; set; }
 
-    public bool worktree_changed { get; set; }
-    public bool worktree_invalid { get; set; }
-    public int  worktree_checktime { get; set; }
+    // Section 3: Client only information
+    // Should be set for all client repo objects
+
+    public string _worktree;
+    public string worktree {
+        get { return _worktree; }
+        set { _worktree = value; }
+    }
+    public string _relay_id;
+    public string relay_id {
+        get { return _relay_id; }
+        set { _relay_id = value; }
+    }
     public int  last_sync_time { get; set; }
-
-    public bool index_corrupted { get; set; }
-
     public bool auto_sync { get; set; }
+    public bool worktree_invalid { get; set; }
 
-    public int    last_modify { get; set; }
-    public int64  size { get; set; }
-
-    public string head_branch { get; set; }
-
-    public string head_cmmt_id { get; set; }
-
-    public string shared_email { get; set; }
-
-    public string share_permission { get; set; }
-
-    public bool no_local_history { get; set; }
+    // Section 4: Server only information
+    // Should be set for all server repo objects
 
     // virutal repo related
     public bool is_virtual { get; set; }
@@ -71,14 +77,30 @@ public class Repo : Object {
     public bool is_original_owner { get; set; }
     public string virtual_perm { get; set; }
 
-    // data format version
-    public int version { get; set; }
     // Used to access fs objects
     public string store_id { get; set; }
 
     public bool is_corrupted { get; set; }
+    public bool repaired { get; set; }
+
+    // Section 5: Share information
+    // Only set in list_share_repos, get_group_repos and get_inner_pub_repos, etc
+
+    public string share_type { get; set; } // personal, group or public
+    public string permission { get; set; }
+    public string user { get; set; } // share from or share to
+    public int group_id { get; set; } // used when shared to group
 }
 
+public class TrashRepo : Object {
+
+    public string repo_id { get; set; }
+    public string repo_name { get; set; }
+    public string head_id { get; set; }
+    public string owner_id { get; set; }
+    public int64 size { get; set; }
+    public int64 del_time { get; set; }
+}
 
 public class SyncInfo : Object {
 
@@ -113,26 +135,6 @@ public class CheckoutTask : Object {
     public string worktree { get; set; }
     public int total_files { get; set; }
     public int finished_files { get; set; }
-}
-
-// Unified container object for shared repo info.
-// Returned by list_share_repos, get_group_repos and get_inner_pub_repos, etc
-public class SharedRepo : Object {
-
-    public string share_type { get; set; } // personal, group or public
-
-    public string repo_id { get; set; }
-    public string repo_name { get; set; }
-    public string repo_desc { get; set; }
-    public bool encrypted { get; set; }
-    public bool enc_version { get; set; }
-    public string permission { get; set; }
-
-    public string user { get; set; } // share from or share to
-    public int group_id { get; set; } // used when shared to group
-
-    public int last_modified { get; set; }
-    public bool is_virtual { get; set; }
 }
 
 public class DiffEntry : Object {

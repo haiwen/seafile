@@ -264,10 +264,11 @@ def check_seahub_thirdpart(thirdpartdir):
         'gunicorn',
         'flup',
         'chardet',
+        'python_dateutil'
         # 'SQLAlchemy',
-        'python_daemon',
-        'lockfile',
-        'six',
+        # 'python_daemon',
+        # 'lockfile',
+        # 'six',
     ]
     def check_thirdpart_lib(name):
         name += '*/'
@@ -576,6 +577,8 @@ def copy_scripts_and_libs():
     must_copy(os.path.join(scripts_srcdir, 'check_init_admin.py'),
               serverdir)
     must_copy(os.path.join(scripts_srcdir, 'seaf-gc.sh'),
+              serverdir)
+    must_copy(os.path.join(scripts_srcdir, 'seaf-fsck.sh'),
               serverdir)
 
     # copy update scripts

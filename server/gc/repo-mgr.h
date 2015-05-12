@@ -44,6 +44,7 @@ struct _SeafRepo {
     SeafBranch *head;
 
     gboolean    is_corrupted;
+    gboolean    repaired;
     gboolean    delete_pending;
     int         ref_cnt;
 
@@ -71,6 +72,9 @@ seaf_repo_ref (SeafRepo *repo);
 
 void
 seaf_repo_unref (SeafRepo *repo);
+
+void
+seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit);
 
 void
 seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit);

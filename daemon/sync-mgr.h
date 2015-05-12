@@ -88,6 +88,16 @@ struct _SyncTask {
     SeafRepo        *repo;  /* for convenience, only valid when in_sync. */
 };
 
+enum _SyncStatus {
+    SYNC_STATUS_NONE = 0,
+    SYNC_STATUS_SYNCING,
+    SYNC_STATUS_ERROR,
+    SYNC_STATUS_IGNORED,
+    SYNC_STATUS_SYNCED,
+    N_SYNC_STATUS,
+};
+typedef enum _SyncStatus SyncStatus;
+
 struct _SeafileSession;
 
 struct _SeafSyncManager {
@@ -149,4 +159,37 @@ sync_error_to_str (int error);
 
 const char *
 sync_state_to_str (int state);
+
+void
+seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
+                                      const char *repo_id,
+                                      const char *path,
+                                      int mode,
+                                      SyncStatus status);
+
+void
+seaf_sync_manager_delete_active_path (SeafSyncManager *mgr,
+                                      const char *repo_id,
+                                      const char *path);
+
+char *
+seaf_sync_manager_get_path_sync_status (SeafSyncManager *mgr,
+                                        const char *repo_id,
+                                        const char *path,
+                                        gboolean is_dir);
+
+char *
+seaf_sync_manager_list_active_paths_json (SeafSyncManager *mgr);
+
+int
+seaf_sync_manager_active_paths_number (SeafSyncManager *mgr);
+
+void
+seaf_sync_manager_remove_active_path_info (SeafSyncManager *mgr, const char *repo_id);
+
+#ifdef WIN32
+void
+seaf_sync_manager_add_refresh_path (SeafSyncManager *mgr, const char *path);
+#endif
+
 #endif

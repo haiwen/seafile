@@ -18,7 +18,6 @@ typedef struct {
     int enc_version;
     unsigned char key[32];
     unsigned char iv[16];
-    char *passwd;
     guint64 expire_time;
 } DecryptKey;
 
@@ -37,9 +36,6 @@ decrypt_key_free (DecryptKey *key)
     /* clear sensitive information */
     memset (key->key, 0, sizeof(key->key));
     memset (key->iv, 0, sizeof(key->iv));
-    memset (key->passwd, 0, strlen(key->passwd));
-
-    g_free (key->passwd);
     g_free (key);
 }
 
@@ -154,7 +150,6 @@ seaf_passwd_manager_set_passwd (SeafPasswdManager *mgr,
                      "Incorrect password");
         return -1;
     }
-    crypt_key->passwd = g_strdup(passwd);
     crypt_key->expire_time = (guint64)time(NULL) + REAP_THRESHOLD;
     crypt_key->enc_version = repo->enc_version;
 
@@ -269,27 +264,6 @@ seaf_passwd_manager_get_decrypt_key_raw (SeafPasswdManager *mgr,
     }
 
     return 0;
-}
-
-char *
-seaf_passwd_manager_get_repo_passwd (SeafPasswdManager *mgr,
-                                     const char *repo_id,
-                                     const char *user)
-{
-    GString *hash_key;
-    DecryptKey *crypt_key;
-
-    hash_key = g_string_new (NULL);
-    g_string_printf (hash_key, "%s.%s", repo_id, user);
-
-    crypt_key = g_hash_table_lookup (mgr->priv->decrypt_keys, hash_key->str);
-    if (!crypt_key) {
-        g_string_free (hash_key, TRUE);
-        return NULL;
-    }
-    g_string_free (hash_key, TRUE);
-
-    return g_strdup(crypt_key->passwd);
 }
 
 static int

@@ -45,6 +45,8 @@ import seafile
 import re
 from pysearpc import SearpcError
 
+_DEBUG = 'SEAFILE_DEBUG' in os.environ
+
 ENVIRONMENT_VARIABLES = ('CCNET_CONF_DIR', 'SEAFILE_CONF_DIR')
 
 # Used to fix bug in some rpc calls, will be removed in near future.
@@ -59,7 +61,8 @@ try:
 except KeyError:
     raise ImportError("Seaserv cannot be imported, because environment variable %s is undefined." % ENVIRONMENT_VARIABLES[0])
 else:
-    print "Loading ccnet config from " + CCNET_CONF_PATH
+    if _DEBUG:
+        print "Loading ccnet config from " + CCNET_CONF_PATH
 
 CCNET_CONF_PATH = os.path.normpath(os.path.expanduser(CCNET_CONF_PATH))
 
@@ -99,7 +102,8 @@ try:
 except KeyError:
     raise ImportError("Seaserv cannot be imported, because environment variable %s is undefined." % ENVIRONMENT_VARIABLES[1])
 else:
-    print "Loading seafile config from " + SEAFILE_CONF_DIR
+    if _DEBUG:
+        print "Loading seafile config from " + SEAFILE_CONF_DIR
 
 SEAFILE_CONF_DIR = os.path.normpath(os.path.expanduser(SEAFILE_CONF_DIR))
 config.read(os.path.join(SEAFILE_CONF_DIR, 'seafile.conf'))
@@ -948,9 +952,9 @@ def get_user_share_usage(user):
     return ret
     
 # access token
-def web_get_access_token(repo_id, obj_id, op, username):
+def web_get_access_token(repo_id, obj_id, op, username, use_onetime=1):
     try:
-        ret = seafserv_rpc.web_get_access_token(repo_id, obj_id, op, username)
+        ret = seafserv_rpc.web_get_access_token(repo_id, obj_id, op, username, use_onetime)
     except SearpcError, e:
         ret = ''
     return ret

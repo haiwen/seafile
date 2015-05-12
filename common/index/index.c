@@ -292,7 +292,7 @@ int read_index_from(struct index_state *istate, const char *path, int repo_versi
         istate->has_modifier = 1;
     istate->timestamp.sec = 0;
     istate->timestamp.nsec = 0;
-    fd = g_open (path, O_RDONLY | O_BINARY, 0);
+    fd = seaf_util_open (path, O_RDONLY | O_BINARY);
     if (fd < 0) {
         if (errno == ENOENT) {
             alloc_index (istate);
@@ -1060,10 +1060,9 @@ int add_to_index(const char *repo_id,
     }
 #endif
 
-    /* Skip index file errors. */
     if (index_cb (repo_id, version, full_path, sha1, crypt, TRUE) < 0) {
         free (ce);
-        return 0;
+        return -1;
     }
 
 update_index:
@@ -1076,7 +1075,9 @@ update_index:
         return -1;
     }
 
-    *added = TRUE;
+    if (!alias || memcmp (alias->sha1, sha1, 20) != 0)
+        *added = TRUE;
+
     return 0;
 }
 
@@ -1177,11 +1178,15 @@ add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *
 }
 
 int
-remove_from_index_with_prefix (struct index_state *istate, const char *path_prefix)
+remove_from_index_with_prefix (struct index_state *istate, const char *path_prefix,
+                               gboolean *not_found)
 {
     int pathlen = strlen(path_prefix);
     int pos = index_name_pos (istate, path_prefix, pathlen);
     struct cache_entry *ce;
+
+    if (not_found)
+        *not_found = FALSE;
 
     /* Exact match, remove that entry. */
     if (pos >= 0) {
@@ -1213,6 +1218,8 @@ remove_from_index_with_prefix (struct index_state *istate, const char *path_pref
 
     if (pos == istate->cache_nr) {
         g_free (full_path_prefix);
+        if (not_found)
+            *not_found = TRUE;
         return 0;
     }
 
@@ -1229,8 +1236,11 @@ remove_from_index_with_prefix (struct index_state *istate, const char *path_pref
     g_free (full_path_prefix);
 
     /* No match. */
-    if (i == pos)
+    if (i == pos) {
+        if (not_found)
+            *not_found = TRUE;
         return 0;
+    }
 
     if (i < istate->cache_nr)
         memmove (istate->cache + pos,
@@ -1269,7 +1279,9 @@ create_renamed_cache_entry (struct cache_entry *ce,
 static struct cache_entry **
 create_renamed_cache_entries (struct index_state *istate,
                               const char *src_path, const char *dst_path,
-                              int *n_entries)
+                              int *n_entries,
+                              CECallback cb_after_rename,
+                              void *user_data)
 {
     struct cache_entry *ce, **ret = NULL;
 
@@ -1339,6 +1351,9 @@ create_renamed_cache_entries (struct index_state *istate,
 
         ret[i - pos] = create_renamed_cache_entry (ce, src_path, dst_path);
 
+        if (cb_after_rename)
+            cb_after_rename (ret[i-pos], user_data);
+
         remove_name_hash(istate, ce);
         cache_entry_free (ce);
     }
@@ -1356,22 +1371,31 @@ create_renamed_cache_entries (struct index_state *istate,
 int
 rename_index_entries (struct index_state *istate,
                       const char *src_path,
-                      const char *dst_path)
+                      const char *dst_path,
+                      gboolean *not_found,
+                      CECallback cb_after_rename,
+                      void *cb_data)
 {
     struct cache_entry **new_ces;
     int n_entries;
     int ret = 0;
     int i;
 
-    new_ces = create_renamed_cache_entries (istate, src_path, dst_path, &n_entries);
+    if (not_found)
+        *not_found = FALSE;
+
+    new_ces = create_renamed_cache_entries (istate, src_path, dst_path, &n_entries,
+                                            cb_after_rename, cb_data);
     if (n_entries == 0) {
+        if (not_found)
+            *not_found = TRUE;
         return 0;
     }
 
     /* Remove entries under dst_path. It's necessary for the situation that
      * one file is renamed to overwrite another file.
      */
-    remove_from_index_with_prefix (istate, dst_path);
+    remove_from_index_with_prefix (istate, dst_path, NULL);
 
     remove_empty_parent_dir_entry (istate, dst_path);
 
@@ -1630,7 +1654,7 @@ int index_path(unsigned char *sha1, const char *path, SeafStat *st)
 
     switch (st->st_mode & S_IFMT) {
     case S_IFREG:
-        fd = g_open (path, O_RDONLY | O_BINARY, 0);
+        fd = seaf_util_open (path, O_RDONLY | O_BINARY);
         if (fd < 0) {
             g_warning("g_open (\"%s\"): %s\n", path, strerror(errno));
             return -1;

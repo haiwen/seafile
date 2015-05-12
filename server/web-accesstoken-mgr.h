@@ -3,14 +3,13 @@
 #ifndef WEB_ACCESSTOKEN_MGR_H
 #define WEB_ACCESSTOKEN_MGR_H
 
-#include <glib.h>
-
 struct _SeafileSession;
+
+struct WebATPriv;
 
 struct _SeafWebAccessTokenManager {
     struct _SeafileSession	*seaf;
-    GHashTable		*access_token_hash; /* token -> access info */
-    GHashTable      *access_info_hash;  /* access info -> token */
+    struct WebATPriv *priv;
 };
 typedef struct _SeafWebAccessTokenManager SeafWebAccessTokenManager;
 
@@ -28,7 +27,8 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
                                       const char *repo_id,
                                       const char *obj_id,
                                       const char *op,
-                                      const char *username);
+                                      const char *username,
+                                      int use_onetime);
 
 /*
  * Returns access info for the given token.

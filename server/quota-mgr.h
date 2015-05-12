@@ -40,6 +40,14 @@ int
 seaf_quota_manager_check_quota (SeafQuotaManager *mgr,
                                 const char *repo_id);
 
+// ret = 0 means doesn't exceed quota,
+// 1 means exceed quota,
+// -1 means internal error
+int
+seaf_quota_manager_check_quota_with_delta (SeafQuotaManager *mgr,
+                                           const char *repo_id,
+                                           gint64 delta);
+
 gint64
 seaf_quota_manager_get_user_usage (SeafQuotaManager *mgr, const char *user);
 

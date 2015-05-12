@@ -10,6 +10,7 @@ enum {
     WT_EVENT_RENAME,
     WT_EVENT_ATTRIB,
     WT_EVENT_OVERFLOW,
+    WT_EVENT_SCAN_DIR,
 };
 
 typedef struct WTEvent {
@@ -42,6 +43,14 @@ typedef struct WTStatus {
 
     pthread_mutex_t q_lock;
     GQueue *event_q;
+
+    /* Paths that're updated. They corresponds to CREATE_OR_UPDATE events.
+     * Use a separate queue since we need to process them simultaneously with
+     * the event queue. And this queue is usually shorter and consumed faster,
+     * because we don't need to process them in multiple batches.
+     */
+    pthread_mutex_t ap_q_lock;
+    GQueue *active_paths;
 } WTStatus;
 
 WTStatus *create_wt_status (const char *repo_id);

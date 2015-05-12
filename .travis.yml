@@ -10,7 +10,7 @@ before_install:
  - git clone --depth=1 --branch=master git://github.com/haiwen/ccnet.git deps/ccnet
  - curl -L -o libevhtp.tar.gz https://github.com/ellzey/libevhtp/archive/1.2.9.tar.gz
  - tar -xvf libevhtp.tar.gz -C deps
- - cd deps/libevhtp-1.2.9 && cmake . && make -j8 && sudo make install && cd -
+ - cd deps/libevhtp-1.2.9 && cmake -DEVHTP_DISABLE_SSL=OFF -DEVHTP_BUILD_SHARED=ON . && make -j8 && sudo make install && cd -
  - cd deps/libzdb && ./bootstrap && ./configure --without-postgresql --without-mysql && make -j8 && sudo make install && cd -
  - cd deps/libsearpc && ./autogen.sh && ./configure
  - make -j8 && sudo make install && cd ../..

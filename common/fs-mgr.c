@@ -234,7 +234,8 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
                                const char *in_repo_path,
                                const char *conflict_head_id,
                                gboolean force_conflict,
-                               gboolean *conflicted)
+                               gboolean *conflicted,
+                               const char *email)
 {
     Seafile *seafile;
     char *blk_id;
@@ -253,7 +254,9 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
 
     tmp_path = g_strconcat (file_path, SEAF_TMP_EXT, NULL);
 
-    wfd = g_open (tmp_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY, mode & ~S_IFMT);
+    mode_t rmode = mode & 0100 ? 0777 : 0666;
+    wfd = seaf_util_create (tmp_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY,
+                            rmode & ~S_IFMT);
     if (wfd < 0) {
         g_warning ("Failed to open file %s for checkout: %s.\n",
                    tmp_path, strerror(errno));
@@ -269,14 +272,29 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
     close (wfd);
     wfd = -1;
 
-    if (force_conflict || ccnet_rename (tmp_path, file_path) < 0) {
+    if (force_conflict || seaf_util_rename (tmp_path, file_path) < 0) {
         *conflicted = TRUE;
 
-        SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-        if (!repo)
-            goto bad;
+        /* XXX
+         * In new syncing protocol and http sync, files are checked out before
+         * the repo is created. So we can't get user email from repo at this point.
+         * So a email parameter is needed.
+         * For old syncing protocol, repo always exists when files are checked out.
+         * This is a quick and dirty hack. A cleaner solution should modifiy the
+         * code of old syncing protocol to pass in email too. But I don't want to
+         * spend more time on the nearly obsoleted code.
+         */
+        const char *suffix = NULL;
+        if (email) {
+            suffix = email;
+        } else {
+            SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+            if (!repo)
+                goto bad;
+            suffix = email;
+        }
 
-        conflict_path = gen_conflict_path (file_path, repo->email, (gint64)time(NULL));
+        conflict_path = gen_conflict_path (file_path, suffix, (gint64)time(NULL));
 
         seaf_warning ("Cannot update %s, creating conflict file %s.\n",
                       file_path, conflict_path);
@@ -286,8 +304,8 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
          * If this fails, fall back to checking out the server version
          * to the conflict file.
          */
-        if (ccnet_rename (file_path, conflict_path) == 0) {
-            if (ccnet_rename (tmp_path, file_path) < 0) {
+        if (seaf_util_rename (file_path, conflict_path) == 0) {
+            if (seaf_util_rename (tmp_path, file_path) < 0) {
                 g_free (conflict_path);
                 goto bad;
             }
@@ -299,7 +317,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
             if (!conflict_path)
                 goto bad;
 
-            if (ccnet_rename (tmp_path, conflict_path) < 0) {
+            if (seaf_util_rename (tmp_path, conflict_path) < 0) {
                 g_free (conflict_path);
                 goto bad;
             }
@@ -323,7 +341,7 @@ bad:
     if (wfd >= 0)
         close (wfd);
     /* Remove the tmp file if it still exists, in case that rename fails. */
-    g_unlink (tmp_path);
+    seaf_util_unlink (tmp_path);
     g_free (tmp_path);
     seafile_unref (seafile);
     return -1;
@@ -515,7 +533,11 @@ do_write_chunk (const char *repo_id, int version,
         return -1;
     }
 
-    seaf_block_manager_close_block (blk_mgr, handle);
+    if (seaf_block_manager_close_block (blk_mgr, handle) < 0) {
+        g_warning ("failed to close block %s.\n", chksum_str);
+        seaf_block_manager_block_handle_free (blk_mgr, handle);
+        return -1;
+    }
 
     if (seaf_block_manager_commit_block (blk_mgr, handle) < 0) {
         g_warning ("failed to commit chunk %s.\n", chksum_str);
@@ -1621,6 +1643,30 @@ seaf_fs_manager_get_seafdir_sorted (SeafFSManager *mgr,
     return dir;
 }
 
+SeafDir *
+seaf_fs_manager_get_seafdir_sorted_by_path (SeafFSManager *mgr,
+                                            const char *repo_id,
+                                            int version,
+                                            const char *root_id,
+                                            const char *path)
+{
+    SeafDir *dir = seaf_fs_manager_get_seafdir_by_path (mgr, repo_id,
+                                                        version, root_id,
+                                                        path, NULL);
+
+    if (!dir)
+        return NULL;
+
+    /* Only some very old dir objects are not sorted. */
+    if (version > 0)
+        return dir;
+
+    if (!is_dirents_sorted (dir->entries))
+        dir->entries = g_list_sort (dir->entries, compare_dirents);
+
+    return dir;
+}
+
 static int
 parse_metadata_type_v0 (const uint8_t *data, int len)
 {
@@ -1964,7 +2010,7 @@ seaf_fs_manager_traverse_path (SeafFSManager *mgr,
     int ret = 0;
 
     dent = seaf_fs_manager_get_dirent_by_path (mgr, repo_id, version,
-                                               root_id, dir_path);
+                                               root_id, dir_path, NULL);
     if (!dent) {
         seaf_warning ("Failed to get dirent for %.8s:%s.\n", repo_id, dir_path);
         return -1;
@@ -2026,6 +2072,15 @@ seaf_fs_manager_object_exists (SeafFSManager *mgr,
         return TRUE;
 
     return seaf_obj_store_obj_exists (mgr->obj_store, repo_id, version, id);
+}
+
+void
+seaf_fs_manager_delete_object (SeafFSManager *mgr,
+                               const char *repo_id,
+                               int version,
+                               const char *id)
+{
+    seaf_obj_store_delete_obj (mgr->obj_store, repo_id, version, id);
 }
 
 gint64
@@ -2339,7 +2394,8 @@ seaf_fs_manager_get_dirent_by_path (SeafFSManager *mgr,
                                     const char *repo_id,
                                     int version,
                                     const char *root_id,
-                                    const char *path)
+                                    const char *path,
+                                    GError **error)
 {
     SeafDirent *dent = NULL;
     SeafDir *dir = NULL;
@@ -2353,7 +2409,7 @@ seaf_fs_manager_get_dirent_by_path (SeafFSManager *mgr,
         dir = seaf_fs_manager_get_seafdir (mgr, repo_id, version, root_id);
     else
         dir = seaf_fs_manager_get_seafdir_by_path (mgr, repo_id, version,
-                                                   root_id, parent_dir, NULL);
+                                                   root_id, parent_dir, error);
 
     if (!dir) {
         seaf_warning ("dir %s doesn't exist in repo %.8s.\n", parent_dir, repo_id);
@@ -2372,6 +2428,8 @@ seaf_fs_manager_get_dirent_by_path (SeafFSManager *mgr,
 out:
     if (dir)
         seaf_dir_free (dir);
+    g_free (parent_dir);
+    g_free (file_name);
 
     return dent;
 }

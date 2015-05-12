@@ -115,6 +115,38 @@ set_content_length_header (evhtp_request_t *req)
 }
 
 static void
+send_error_reply (evhtp_request_t *req, evhtp_res code, char *error)
+{
+    if (error)
+        evbuffer_add_printf (req->buffer_out, "{\"error\": \"%s\"}", error);
+    set_content_length_header (req);
+    evhtp_headers_add_header (
+        req->headers_out,
+        evhtp_header_new("Content-Type", "application/json; charset=utf-8", 1, 1));
+    evhtp_send_reply (req, code);
+}
+
+static void
+send_success_reply (evhtp_request_t *req)
+{
+    set_content_length_header (req);
+    evhtp_headers_add_header (
+        req->headers_out,
+        evhtp_header_new("Content-Type", "application/json; charset=utf-8", 1, 1));
+    evhtp_send_reply (req, EVHTP_RES_OK);
+}
+
+static void
+send_redirect_reply (evhtp_request_t *req)
+{
+    set_content_length_header (req);
+    evhtp_headers_add_header (
+        req->headers_out,
+        evhtp_header_new("Content-Type", "text/html; charset=utf-8", 1, 1));
+    evhtp_send_reply(req, EVHTP_RES_SEEOTHER);
+}
+
+static void
 redirect_to_upload_error (evhtp_request_t *req,
                           const char *repo_id,
                           const char *parent_dir,
@@ -140,10 +172,8 @@ redirect_to_upload_error (evhtp_request_t *req,
     evhtp_headers_add_header(req->headers_out,
                              evhtp_header_new("Location",
                                               url, 1, 1));
-    evhtp_headers_add_header(req->headers_out,
-                             evhtp_header_new("Content-Length",
-                                              "0", 1, 1));
-    evhtp_send_reply(req, EVHTP_RES_SEEOTHER);
+
+    send_redirect_reply (req);
 }
 
 static void
@@ -164,10 +194,8 @@ redirect_to_update_error (evhtp_request_t *req,
     evhtp_headers_add_header(req->headers_out,
                              evhtp_header_new("Location",
                                               url, 1, 1));
-    evhtp_headers_add_header(req->headers_out,
-                             evhtp_header_new("Content-Length",
-                                              "0", 1, 1));
-    evhtp_send_reply(req, EVHTP_RES_SEEOTHER);
+
+    send_redirect_reply (req);
 }
 
 static void
@@ -187,10 +215,7 @@ redirect_to_success_page (evhtp_request_t *req,
                              evhtp_header_new("Location",
                                               url, 1, 1));
     /* Firefox expects Content-Length header. */
-    evhtp_headers_add_header(req->headers_out,
-                             evhtp_header_new("Content-Length",
-                                              "0", 1, 1));
-    evhtp_send_reply(req, EVHTP_RES_SEEOTHER);
+    send_redirect_reply (req);
 }
 
 static gboolean
@@ -266,17 +291,14 @@ upload_cb(evhtp_request_t *req, void *arg)
 
     if (!fsm->files) {
         seaf_warning ("[upload] No file uploaded.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "No file.\n");
         return;
     }
 
     parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
     if (!parent_dir) {
         seaf_warning ("[upload] No parent dir given.\n");
-        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
 
@@ -371,8 +393,7 @@ upload_api_cb(evhtp_request_t *req, void *arg)
 
     if (!fsm->files) {
         seaf_warning ("[upload] No file uploaded.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "No file.\n");
         return;
     }
 
@@ -381,18 +402,14 @@ upload_api_cb(evhtp_request_t *req, void *arg)
         replace = atoi(replace_str);
         if (replace != 0 && replace != 1) {
             seaf_warning ("[Upload] Invalid argument replace: %s.\n", replace_str);
-            evbuffer_add_printf(req->buffer_out, "Invalid argument.\n");
-            set_content_length_header (req);
-            evhtp_send_reply (req, EVHTP_RES_BADREQ);
+            send_error_reply (req, EVHTP_RES_BADREQ, "Invalid argument.\n");
             return;
         }
     }
     parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
     if (!parent_dir) {
         seaf_warning ("[upload] No parent dir given.\n");
-        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
 
@@ -440,36 +457,26 @@ upload_api_cb(evhtp_request_t *req, void *arg)
     }
     g_free (ret_json);
 
-    set_content_length_header (req);
-    evhtp_send_reply (req, EVHTP_RES_OK);
+    send_success_reply (req);
     return;
 
 error:
     switch (error_code) {
     case ERROR_FILENAME:
-        evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
+        send_error_reply (req, SEAF_HTTP_RES_BADFILENAME, "Invalid filename.\n");
         break;
     case ERROR_EXISTS:
-        evbuffer_add_printf(req->buffer_out, "File already exists.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
+        send_error_reply (req, SEAF_HTTP_RES_EXISTS, "File already exists.\n");
         break;
     case ERROR_SIZE:
-        evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
+        send_error_reply (req, SEAF_HTTP_RES_TOOLARGE, "File size is too large.\n");
         break;
     case ERROR_QUOTA:
-        evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
+        send_error_reply (req, SEAF_HTTP_RES_NOQUOTA, "Out of quota.\n");
         break;
     case ERROR_RECV:
     case ERROR_INTERNAL:
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        send_error_reply (req, EVHTP_RES_SERVERR, "Internal error\n");
         break;
     }
 }
@@ -497,9 +504,7 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
         replace = atoi(replace_str);
         if (replace != 0 && replace != 1) {
             seaf_warning ("[Upload-blks] Invalid argument replace: %s.\n", replace_str);
-            evbuffer_add_printf(req->buffer_out, "Invalid argument.\n");
-            set_content_length_header (req);
-            evhtp_send_reply (req, EVHTP_RES_BADREQ);
+            send_error_reply (req, EVHTP_RES_BADREQ, "Invalid argument.\n");
             return;
         }
     }
@@ -510,9 +515,7 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
         file_size = atoll(size_str);
     if (!file_name || !parent_dir || !size_str || file_size < 0) {
         seaf_warning ("[upload-blks] No parent dir or file name given.\n");
-        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
 
@@ -553,36 +556,26 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
 
     evbuffer_add (req->buffer_out, new_file_ids, strlen(new_file_ids));
     g_free (new_file_ids);
-    set_content_length_header (req);
-    evhtp_send_reply (req, EVHTP_RES_OK);
+    send_success_reply (req);
     return;
 
 error:
     switch (error_code) {
     case ERROR_FILENAME:
-        evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
+        send_error_reply (req, SEAF_HTTP_RES_BADFILENAME, "Invalid filename.\n");
         break;
     case ERROR_EXISTS:
-        evbuffer_add_printf(req->buffer_out, "File already exists.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
+        send_error_reply (req, SEAF_HTTP_RES_EXISTS, "File already exists.\n");
         break;
     case ERROR_SIZE:
-        evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
+        send_error_reply (req, SEAF_HTTP_RES_TOOLARGE, "File size is too large.\n");
         break;
     case ERROR_QUOTA:
-        evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
+        send_error_reply (req, SEAF_HTTP_RES_NOQUOTA, "Out of quota.\n");
         break;
     case ERROR_RECV:
     case ERROR_INTERNAL:
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        send_error_reply (req, EVHTP_RES_SERVERR, "Internal error.\n");
         break;
     }
 }
@@ -610,17 +603,12 @@ upload_blks_ajax_cb(evhtp_request_t *req, void *arg)
                               evhtp_header_new("Access-Control-Max-Age",
                                                "86400", 1, 1));
 
-    evhtp_headers_add_header (req->headers_out,
-                              evhtp_header_new("Content-Type",
-                                               "application/json; charset=utf-8", 1, 1));
-
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
          * and return it.
          */
-         set_content_length_header (req);
-         evhtp_send_reply (req, EVHTP_RES_OK);
-         return;
+        send_success_reply (req);
+        return;
     }
 
     /* After upload_headers_cb() returns an error, libevhtp may still
@@ -637,9 +625,7 @@ upload_blks_ajax_cb(evhtp_request_t *req, void *arg)
         file_size = atoll(size_str);
     if (!file_name || !parent_dir || !size_str || file_size < 0) {
         seaf_warning ("[upload-blks] No parent dir or file name given.\n");
-        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
 
@@ -677,36 +663,26 @@ upload_blks_ajax_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    set_content_length_header (req);
-    evhtp_send_reply (req, EVHTP_RES_OK);
+    send_success_reply (req);
     return;
 
 error:
     switch (error_code) {
     case ERROR_FILENAME:
-        evbuffer_add_printf(req->buffer_out, "{\"error\": \"Invalid filename.\"}");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
+        send_error_reply (req, SEAF_HTTP_RES_BADFILENAME, "Invalid filename.");
         break;
     case ERROR_EXISTS:
-        evbuffer_add_printf(req->buffer_out, "{\"error\": \"File already exists.\"}");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
+        send_error_reply (req, SEAF_HTTP_RES_EXISTS, "File already exists.");
         break;
     case ERROR_SIZE:
-        evbuffer_add_printf(req->buffer_out, "{\"error\": \"File size is too large.\"}");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
+        send_error_reply (req, SEAF_HTTP_RES_TOOLARGE, "File size is too large.");
         break;
     case ERROR_QUOTA:
-        evbuffer_add_printf(req->buffer_out, "{\"error\": \"Out of quota.\"}");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
+        send_error_reply (req, SEAF_HTTP_RES_NOQUOTA, "Out of quota.");
         break;
     case ERROR_RECV:
     case ERROR_INTERNAL:
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        send_error_reply (req, EVHTP_RES_SERVERR, "Internal error.\n");
         break;
     }
 }
@@ -737,17 +713,12 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
                               evhtp_header_new("Access-Control-Max-Age",
                                                "86400", 1, 1));
 
-    evhtp_headers_add_header (req->headers_out,
-                              evhtp_header_new("Content-Type",
-                                               "application/json; charset=utf-8", 1, 1));
-
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
          * and return it.
          */
-         set_content_length_header (req);
-         evhtp_send_reply (req, EVHTP_RES_OK);
-         return;
+        send_success_reply (req);
+        return;
     }
 
 
@@ -760,17 +731,14 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
 
     if (!fsm->files) {
         seaf_warning ("[upload] No file uploaded.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "No file.\n");
         return;
     }
 
     parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
     if (!parent_dir) {
         seaf_warning ("[upload] No parent dir given.\n");
-        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.");
         return;
     }
 
@@ -810,36 +778,26 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     evbuffer_add (req->buffer_out, ret_json, strlen(ret_json));
     g_free (ret_json);
 
-    set_content_length_header (req);
-    evhtp_send_reply (req, EVHTP_RES_OK);
+    send_success_reply (req);
     return;
 
 error:
     switch (error_code) {
     case ERROR_FILENAME:
-        evbuffer_add_printf(req->buffer_out, "{\"error\": \"Invalid filename.\"}");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
+        send_error_reply (req, SEAF_HTTP_RES_BADFILENAME, "Invalid filename.");
         break;
     case ERROR_EXISTS:
-        evbuffer_add_printf(req->buffer_out, "{\"error\": \"File already exists.\"}");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
+        send_error_reply (req, SEAF_HTTP_RES_EXISTS, "File already exists.");
         break;
     case ERROR_SIZE:
-        evbuffer_add_printf(req->buffer_out, "{\"error\": \"File size is too large.\"}");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
+        send_error_reply (req, SEAF_HTTP_RES_TOOLARGE, "File size is too large.");
         break;
     case ERROR_QUOTA:
-        evbuffer_add_printf(req->buffer_out, "{\"error\": \"Out of quota.\"}");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
+        send_error_reply (req, SEAF_HTTP_RES_NOQUOTA, "Out of quota.");
         break;
     case ERROR_RECV:
     case ERROR_INTERNAL:
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        send_error_reply (req, EVHTP_RES_SERVERR, "Internal error.\n");
         break;
     }
 }
@@ -858,17 +816,14 @@ update_cb(evhtp_request_t *req, void *arg)
 
     if (!fsm->files) {
         seaf_warning ("[update] No file uploaded.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "No file.\n");
         return;
     }
 
     target_file = g_hash_table_lookup (fsm->form_kvs, "target_file");
     if (!target_file) {
         seaf_warning ("[Update] No target file given.\n");
-        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
 
@@ -931,17 +886,14 @@ update_api_cb(evhtp_request_t *req, void *arg)
 
     if (!fsm->files) {
         seaf_warning ("[update] No file uploaded.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "No file.\n");
         return;
     }
 
     target_file = g_hash_table_lookup (fsm->form_kvs, "target_file");
     if (!target_file) {
         seaf_warning ("[Update] No target file given.\n");
-        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
 
@@ -969,7 +921,7 @@ update_api_cb(evhtp_request_t *req, void *arg)
                                          &error);
     g_free (parent_dir);
     g_free (filename);
-    
+
     if (rc < 0) {
         if (error) {
             if (g_strcmp0 (error->message, "file does not exist") == 0) {
@@ -982,8 +934,7 @@ update_api_cb(evhtp_request_t *req, void *arg)
 
     /* Send back the new file id, so that the mobile client can update local cache */
     evbuffer_add(req->buffer_out, new_file_id, strlen(new_file_id));
-    set_content_length_header (req);
-    evhtp_send_reply (req, EVHTP_RES_OK);
+    send_success_reply (req);
 
     g_free (new_file_id);
     return;
@@ -991,35 +942,24 @@ update_api_cb(evhtp_request_t *req, void *arg)
 error:
     switch (error_code) {
     case ERROR_FILENAME:
-        evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
+        send_error_reply (req, SEAF_HTTP_RES_BADFILENAME, "Invalid filename.\n");
         break;
     case ERROR_EXISTS:
-        evbuffer_add_printf(req->buffer_out, "File already exists.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
+        send_error_reply (req, SEAF_HTTP_RES_EXISTS, "File already exists.\n");
         break;
     case ERROR_SIZE:
-        evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
+        send_error_reply (req, SEAF_HTTP_RES_TOOLARGE, "File size is too large.\n");
         break;
     case ERROR_QUOTA:
-        evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
+        send_error_reply (req, SEAF_HTTP_RES_NOQUOTA, "Out of quota.\n");
         break;
     case ERROR_NOT_EXIST:
-        evbuffer_add_printf(req->buffer_out, "File does not exist.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_NOT_EXISTS);
+        send_error_reply (req, SEAF_HTTP_RES_NOT_EXISTS, "File does not exist.\n");
         break;
     case ERROR_RECV:
     case ERROR_INTERNAL:
     default:
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        send_error_reply (req, EVHTP_RES_SERVERR, "Internal error.\n");
         break;
     }
 }
@@ -1043,9 +983,7 @@ update_blks_api_cb(evhtp_request_t *req, void *arg)
     if (size_str)  file_size = atoll(size_str);
     if (!target_file || !size_str || file_size < 0) {
         seaf_warning ("[Update-blks] No target file given.\n");
-        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
 
@@ -1092,8 +1030,7 @@ update_blks_api_cb(evhtp_request_t *req, void *arg)
 
     /* Send back the new file id, so that the mobile client can update local cache */
     evbuffer_add(req->buffer_out, new_file_id, strlen(new_file_id));
-    set_content_length_header (req);
-    evhtp_send_reply (req, EVHTP_RES_OK);
+    send_success_reply (req);
 
     g_free (new_file_id);
     return;
@@ -1101,35 +1038,24 @@ update_blks_api_cb(evhtp_request_t *req, void *arg)
 error:
     switch (error_code) {
     case ERROR_FILENAME:
-        evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
+        send_error_reply (req, SEAF_HTTP_RES_BADFILENAME, "Invalid filename.\n");
         break;
     case ERROR_EXISTS:
-        evbuffer_add_printf(req->buffer_out, "File already exists.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
+        send_error_reply (req, SEAF_HTTP_RES_EXISTS, "File already exists.\n");
         break;
     case ERROR_SIZE:
-        evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
+        send_error_reply (req, SEAF_HTTP_RES_TOOLARGE, "File size is too large.\n");
         break;
     case ERROR_QUOTA:
-        evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
+        send_error_reply (req, SEAF_HTTP_RES_NOQUOTA, "Out of quota.\n");
         break;
     case ERROR_NOT_EXIST:
-        evbuffer_add_printf(req->buffer_out, "File does not exist.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_NOT_EXISTS);
+        send_error_reply (req, SEAF_HTTP_RES_NOT_EXISTS, "File does not exist.\n");
         break;
     case ERROR_RECV:
     case ERROR_INTERNAL:
     default:
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        send_error_reply (req, EVHTP_RES_SERVERR, "Internal error.\n");
         break;
     }
 }
@@ -1158,19 +1084,14 @@ update_blks_ajax_cb(evhtp_request_t *req, void *arg)
                               evhtp_header_new("Access-Control-Max-Age",
                                                "86400", 1, 1));
 
-    evhtp_headers_add_header (req->headers_out,
-                              evhtp_header_new("Content-Type",
-                                               "application/json; charset=utf-8", 1, 1));
-
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
          * and return it.
          */
-         set_content_length_header (req);
-         evhtp_send_reply (req, EVHTP_RES_OK);
-         return;
+        send_success_reply (req);
+        return;
     }
-    
+
     if (!fsm || fsm->state == RECV_ERROR)
         return;
     target_file = g_hash_table_lookup (fsm->form_kvs, "target_file");
@@ -1178,9 +1099,7 @@ update_blks_ajax_cb(evhtp_request_t *req, void *arg)
     if (size_str)  file_size = atoll(size_str);
     if (!target_file || !size_str || file_size < 0) {
         seaf_warning ("[Update-blks] No target file given.\n");
-        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
 
@@ -1225,43 +1144,31 @@ update_blks_ajax_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    set_content_length_header (req);
-    evhtp_send_reply (req, EVHTP_RES_OK);
+    send_success_reply (req);
 
     return;
 
 error:
     switch (error_code) {
     case ERROR_FILENAME:
-        evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
+        send_error_reply (req, SEAF_HTTP_RES_BADFILENAME, "Invalid filename.\n");
         break;
     case ERROR_EXISTS:
-        evbuffer_add_printf(req->buffer_out, "File already exists.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
+        send_error_reply (req, SEAF_HTTP_RES_EXISTS, "File already exists.\n");
         break;
     case ERROR_SIZE:
-        evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
+        send_error_reply (req, SEAF_HTTP_RES_TOOLARGE, "File size is too large.\n");
         break;
     case ERROR_QUOTA:
-        evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
+        send_error_reply (req, SEAF_HTTP_RES_NOQUOTA, "Out of quota.\n");
         break;
     case ERROR_NOT_EXIST:
-        evbuffer_add_printf(req->buffer_out, "File does not exist.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_NOT_EXISTS);
+        send_error_reply (req, SEAF_HTTP_RES_NOT_EXISTS, "File does not exist.\n");
         break;
     case ERROR_RECV:
     case ERROR_INTERNAL:
     default:
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        send_error_reply (req, EVHTP_RES_SERVERR, "Internal error.\n");
         break;
     }
 }
@@ -1313,17 +1220,13 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
                               evhtp_header_new("Access-Control-Max-Age",
                                                "86400", 1, 1));
 
-    evhtp_headers_add_header (req->headers_out,
-                              evhtp_header_new("Content-Type",
-                                               "application/json; charset=utf-8", 1, 1));
 
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
         /* If CORS preflight header, then create an empty body response (200 OK)
          * and return it.
          */
-         set_content_length_header (req);
-         evhtp_send_reply (req, EVHTP_RES_OK);
-         return;
+        send_success_reply (req);
+        return;
     }
 
     if (!fsm || fsm->state == RECV_ERROR)
@@ -1331,17 +1234,14 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
 
     if (!fsm->files) {
         seaf_warning ("[update] No file uploaded.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "No file.\n");
         return;
     }
 
     target_file = g_hash_table_lookup (fsm->form_kvs, "target_file");
     if (!target_file) {
         seaf_warning ("[Update] No target file given.\n");
-        evbuffer_add_printf(req->buffer_out, "Invalid URL.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.");
         return;
     }
 
@@ -1376,7 +1276,7 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
                                          &new_file_id,
                                          &error);
     g_free (parent_dir);
-    
+
     if (rc < 0) {
         if (error) {
             if (g_strcmp0 (error->message, "file does not exist") == 0) {
@@ -1390,9 +1290,7 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
     char *json_ret = format_update_json_ret (filename, new_file_id, size);
 
     evbuffer_add (req->buffer_out, json_ret, strlen(json_ret));
-    
-    set_content_length_header (req);
-    evhtp_send_reply (req, EVHTP_RES_OK);
+    send_success_reply (req);
 
     g_free (new_file_id);
     g_free (filename);
@@ -1406,35 +1304,24 @@ error:
 
     switch (error_code) {
     case ERROR_FILENAME:
-        evbuffer_add_printf(req->buffer_out, "Invalid filename.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_BADFILENAME);
+        send_error_reply (req, SEAF_HTTP_RES_BADFILENAME, "Invalid filename.");
         break;
     case ERROR_EXISTS:
-        evbuffer_add_printf(req->buffer_out, "File already exists.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_EXISTS);
+        send_error_reply (req, SEAF_HTTP_RES_EXISTS, "File already exists.");
         break;
     case ERROR_SIZE:
-        evbuffer_add_printf(req->buffer_out, "File size is too large.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_TOOLARGE);
+        send_error_reply (req, SEAF_HTTP_RES_TOOLARGE, "File size is too large.");
         break;
     case ERROR_QUOTA:
-        evbuffer_add_printf(req->buffer_out, "Out of quota.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
+        send_error_reply (req, SEAF_HTTP_RES_NOQUOTA, "Out of quota.");
         break;
     case ERROR_NOT_EXIST:
-        evbuffer_add_printf(req->buffer_out, "File does not exist.\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, SEAF_HTTP_RES_NOT_EXISTS);
+        send_error_reply (req, SEAF_HTTP_RES_NOT_EXISTS, "File does not exist.");
         break;
     case ERROR_RECV:
     case ERROR_INTERNAL:
     default:
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        send_error_reply (req, EVHTP_RES_SERVERR, "Internal error.\n");
         break;
     }
 }
@@ -1735,7 +1622,7 @@ upload_read_cb (evhtp_request_t *req, evbuf_t *buf, void *arg)
 
     evbuffer_add_buffer (fsm->line, buf);
     /* Drain the buffer so that evhtp don't copy it to another buffer
-     * after this callback returns. 
+     * after this callback returns.
      */
     evbuffer_drain (buf, evbuffer_get_length (buf));
 
@@ -1812,12 +1699,9 @@ out:
     }
 
     if (res == EVHTP_RES_BADREQ) {
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "Bad request.\n");
     } else if (res == EVHTP_RES_SERVERR) {
-        evbuffer_add_printf (req->buffer_out, "Internal server error\n");
-        set_content_length_header (req);
-        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        send_error_reply (req, EVHTP_RES_SERVERR, "Internal server error\n");
     }
     return EVHTP_RES_OK;
 }
@@ -1882,15 +1766,26 @@ get_boundary (evhtp_headers_t *hdr)
 
 static int
 check_access_token (const char *token,
+                    const char *url_op,
                     char **repo_id,
                     char **user)
 {
     SeafileWebAccess *webaccess;
+    const char *op;
 
     webaccess = (SeafileWebAccess *)
         seaf_web_at_manager_query_access_token (seaf->web_at_mgr, token);
     if (!webaccess)
         return -1;
+
+    /* token with op = "upload" can only be used for "upload-*" operations;
+     * token with op = "update" can only be used for "update-*" operations.
+     */
+    op = seafile_web_access_get_op (webaccess);
+    if (strncmp (url_op, op, strlen(op)) != 0) {
+        g_object_unref (webaccess);
+        return -1;
+    }
 
     *repo_id = g_strdup (seafile_web_access_get_repo_id (webaccess));
     *user = g_strdup (seafile_web_access_get_username (webaccess));
@@ -1928,6 +1823,7 @@ get_progress_info (evhtp_request_t *req,
 static evhtp_res
 upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
 {
+    char **parts = NULL;
     char *token, *repo_id = NULL, *user = NULL;
     char *boundary = NULL;
     gint64 content_len;
@@ -1938,8 +1834,8 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
 
     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
          return EVHTP_RES_OK;
-    }    
-    
+    }
+
     /* URL format: http://host:port/[upload|update]/<token>?X-Progress-ID=<uuid> */
     token = req->uri->path->file;
     if (!token) {
@@ -1948,7 +1844,14 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
         goto err;
     }
 
-    if (check_access_token (token, &repo_id, &user) < 0) {
+    parts = g_strsplit (req->uri->path->full + 1, "/", 0);
+    if (!parts || g_strv_length (parts) < 2) {
+        err_msg = "Invalid URL";
+        goto err;
+    }
+    char *url_op = parts[0];
+
+    if (check_access_token (token, url_op, &repo_id, &user) < 0) {
         err_msg = "Access denied";
         goto err;
     }
@@ -1996,6 +1899,8 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
     /* Set arg for upload_cb or update_cb. */
     req->cbarg = fsm;
 
+    g_strfreev (parts);
+
     return EVHTP_RES_OK;
 
 err:
@@ -2006,15 +1911,13 @@ err:
      * connection after sending the reply.
      */
     req->keepalive = 0;
-    if (err_msg)
-        evbuffer_add_printf (req->buffer_out, "%s\n", err_msg);
-    set_content_length_header (req);
-    evhtp_send_reply (req, EVHTP_RES_BADREQ);
+    send_error_reply (req, EVHTP_RES_BADREQ, err_msg);
 
     g_free (repo_id);
     g_free (user);
     g_free (boundary);
     g_free (progress_id);
+    g_strfreev (parts);
     return EVHTP_RES_OK;
 }
 
@@ -2029,14 +1932,14 @@ upload_progress_cb(evhtp_request_t *req, void *arg)
     progress_id = evhtp_kv_find (req->uri->query, "X-Progress-ID");
     if (!progress_id) {
         seaf_warning ("[get pg] Progress id not found in url.\n");
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "Progress id not found");
         return;
     }
 
     callback = evhtp_kv_find (req->uri->query, "callback");
     if (!callback) {
         seaf_warning ("[get pg] callback not found in url.\n");
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "Callback not found");
         return;
     }
 
@@ -2046,7 +1949,7 @@ upload_progress_cb(evhtp_request_t *req, void *arg)
 
     if (!progress) {
         /* seaf_warning ("[get pg] No progress found for %s.\n", progress_id); */
-        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        send_error_reply (req, EVHTP_RES_BADREQ, "No progress found.\n");
         return;
     }
 
@@ -2059,19 +1962,18 @@ upload_progress_cb(evhtp_request_t *req, void *arg)
 
     seaf_debug ("JSONP: %s\n", buf->str);
 
-    evhtp_send_reply (req, EVHTP_RES_OK);
+    send_success_reply (req);
     g_string_free (buf, TRUE);
 }
 
 int
-upload_file_init (HttpServer *http_server)
+upload_file_init (evhtp_t *htp, const char *http_temp_dir)
 {
-    evhtp_t *htp = http_server->evhtp;
     evhtp_callback_t *cb;
 
-    if (g_mkdir_with_parents (http_server->http_temp_dir, 0777) < 0) {
+    if (g_mkdir_with_parents (http_temp_dir, 0777) < 0) {
         seaf_warning ("Failed to create temp file dir %s.\n",
-                      http_server->http_temp_dir);
+                      http_temp_dir);
         return -1;
     }
 
@@ -2087,10 +1989,10 @@ upload_file_init (HttpServer *http_server)
 
     cb = evhtp_set_regex_cb (htp, "^/upload-blks-aj/.*", upload_blks_ajax_cb, NULL);
     evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
-    
+
     cb = evhtp_set_regex_cb (htp, "^/upload-aj/.*", upload_ajax_cb, NULL);
     evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
-    
+
     cb = evhtp_set_regex_cb (htp, "^/update/.*", update_cb, NULL);
     evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
@@ -2105,7 +2007,7 @@ upload_file_init (HttpServer *http_server)
 
     cb = evhtp_set_regex_cb (htp, "^/update-aj/.*", update_ajax_cb, NULL);
     evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
-    
+
     evhtp_set_regex_cb (htp, "^/upload_progress.*", upload_progress_cb, NULL);
 
     upload_progress = g_hash_table_new_full (g_str_hash, g_str_equal,

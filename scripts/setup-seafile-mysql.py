@@ -622,7 +622,7 @@ class NewDBConfigurator(AbstractDBConfigurator):
 
     def grant_db_permission(self, db_name):
         cursor = self.root_conn.cursor()
-        sql = '''GRANT ALL PRIVILEGES ON `%s`.* to `%s` ''' \
+        sql = '''GRANT ALL PRIVILEGES ON `%s`.* to `%s`@localhost ''' \
               % (db_name, self.seafile_mysql_user)
 
         try:
@@ -930,6 +930,7 @@ class SeahubConfigurator(AbstractConfigurator):
         AbstractConfigurator.__init__(self)
         self.admin_email = ''
         self.admin_password = ''
+        self.seahub_settings_py = os.path.join(env_mgr.top_dir, 'seahub_settings.py')
 
     def hashed_admin_password(self):
         return hashlib.sha1(self.admin_password).hexdigest() # pylint: disable=E1101
@@ -943,8 +944,7 @@ class SeahubConfigurator(AbstractConfigurator):
         '''Generating seahub_settings.py'''
         print 'Generating seahub configuration ...\n'
         time.sleep(1)
-        seahub_settings_py = os.path.join(env_mgr.top_dir, 'seahub_settings.py')
-        with open(seahub_settings_py, 'w') as fp:
+        with open(self.seahub_settings_py, 'w') as fp:
             self.write_secret_key(fp)
             self.write_database_config(fp)
 
@@ -1189,6 +1189,23 @@ def create_seafile_server_symlink():
     else:
         print 'done\n\n'
 
+def set_file_perm():
+    filemode = 0600
+    dirmode = 0700
+    files = [
+        os.path.join(env_mgr.top_dir, 'seahub_settings.py'),
+    ]
+    dirs = [
+        ccnet_config.ccnet_dir,
+        seafile_config.seafile_dir,
+        seahub_config.seahub_settings_py,
+        seafdav_config.conf_dir,
+    ]
+    for fpath in files:
+        os.chmod(fpath, filemode)
+    for dpath in dirs:
+        os.chmod(dpath, dirmode)
+
 env_mgr = EnvManager()
 ccnet_config = CcnetConfigurator()
 seafile_config = SeafileConfigurator()
@@ -1232,6 +1249,8 @@ def main():
     # db_config.create_seahub_admin()
     user_manuals_handler.copy_user_manuals()
     create_seafile_server_symlink()
+
+    set_file_perm()
 
     report_success()
 

@@ -17,14 +17,15 @@ static char *seafile_dir = NULL;
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvc:d:VDi";
+static const char *short_opts = "hvc:d:VDr";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
     { "config-file", required_argument, NULL, 'c', },
     { "seafdir", required_argument, NULL, 'd', },
-    { "verify", no_argument, NULL, 'V' },
+    { "verbose", no_argument, NULL, 'V' },
     { "dry-run", no_argument, NULL, 'D' },
+    { "rm-deleted", no_argument, NULL, 'r' },
 };
 
 static void usage ()
@@ -33,7 +34,9 @@ static void usage ()
              "usage: seafserv-gc [-c config_dir] [-d seafile_dir] "
              "[repo_id_1 [repo_id_2 ...]]\n"
              "Additional options:\n"
-             "-V, --verify: check for missing blocks\n");
+             "-r, --rm-deleted: remove garbaged repos\n"
+             "-D, --dry-run: report blocks that can be remove, but not remove them\n"
+             "-V, --verbose: verbose output messages\n");
 }
 
 static void
@@ -81,9 +84,9 @@ int
 main(int argc, char *argv[])
 {
     int c;
-    int verify = 0;
+    int verbose = 0;
     int dry_run = 0;
-    int ignore_errors = 0;
+    int rm_garbage = 0;
 
 #ifdef WIN32
     argv = get_argv_utf8 (&argc);
@@ -107,10 +110,13 @@ main(int argc, char *argv[])
             seafile_dir = strdup(optarg);
             break;
         case 'V':
-            verify = 1;
+            verbose = 1;
             break;
         case 'D':
             dry_run = 1;
+            break;
+        case 'r':
+            rm_garbage = 1;
             break;
         default:
             usage();
@@ -142,6 +148,11 @@ main(int argc, char *argv[])
         exit (1);
     }
 
+    if (rm_garbage) {
+        delete_garbaged_repos (!rm_garbage);
+        return 0;
+    }
+
     load_history_config ();
 
     GList *repo_id_list = NULL;
@@ -149,13 +160,7 @@ main(int argc, char *argv[])
     for (i = optind; i < argc; i++)
         repo_id_list = g_list_append (repo_id_list, g_strdup(argv[i]));
 
-
-    if (verify) {
-        verify_repos (repo_id_list);
-        return 0;
-    }
-
-    gc_core_run (repo_id_list, dry_run);
+    gc_core_run (repo_id_list, dry_run, verbose);
 
     return 0;
 }

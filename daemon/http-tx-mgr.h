@@ -68,6 +68,8 @@ struct _HttpTxTask {
     int type;
     char *host;
     gboolean is_clone;
+    char *email;
+    gboolean use_fileserver_port;
 
     char head[41];
 
@@ -107,6 +109,8 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               const char *passwd,
                               const char *worktree,
                               int protocol_version,
+                              const char *email,
+                              gboolean use_fileserver_port,
                               GError **error);
 
 int
@@ -116,6 +120,7 @@ http_tx_manager_add_upload (HttpTxManager *manager,
                             const char *host,
                             const char *token,
                             int protocol_version,
+                            gboolean use_fileserver_port,
                             GError **error);
 
 struct _HttpProtocolVersion {
@@ -134,6 +139,7 @@ typedef void (*HttpProtocolVersionCallback) (HttpProtocolVersion *result,
 int
 http_tx_manager_check_protocol_version (HttpTxManager *manager,
                                         const char *host,
+                                        gboolean use_fileserver_port,
                                         HttpProtocolVersionCallback callback,
                                         void *user_data);
 
@@ -155,8 +161,46 @@ http_tx_manager_check_head_commit (HttpTxManager *manager,
                                    int repo_version,
                                    const char *host,
                                    const char *token,
+                                   gboolean use_fileserver_port,
                                    HttpHeadCommitCallback callback,
                                    void *user_data);
+
+typedef struct _HttpFolderPermReq {
+    char repo_id[37];
+    char *token;
+    gint64 timestamp;
+} HttpFolderPermReq;
+
+typedef struct _HttpFolderPermRes {
+    char repo_id[37];
+    gint64 timestamp;
+    GList *user_perms;
+    GList *group_perms;
+} HttpFolderPermRes;
+
+void
+http_folder_perm_req_free (HttpFolderPermReq *req);
+
+void
+http_folder_perm_res_free (HttpFolderPermRes *res);
+
+struct _HttpFolderPerms {
+    gboolean success;
+    GList *results;             /* List of HttpFolderPermRes */
+};
+typedef struct _HttpFolderPerms HttpFolderPerms;
+
+typedef void (*HttpGetFolderPermsCallback) (HttpFolderPerms *result,
+                                            void *user_data);
+
+/* Asynchronous interface for getting folder permissions for a repo. */
+int
+http_tx_manager_get_folder_perms (HttpTxManager *manager,
+                                  const char *host,
+                                  gboolean use_fileserver_port,
+                                  GList *folder_perm_requests, /* HttpFolderPermReq */
+                                  HttpGetFolderPermsCallback callback,
+                                  void *user_data);
 
 int
 http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id);

@@ -17,14 +17,16 @@ class SeafileAPI(object):
         pass
 
     # fileserver token
-    def get_fileserver_access_token(self, repo_id, obj_id, op, username):
+    def get_fileserver_access_token(self, repo_id, obj_id, op, username, use_onetime=True):
         """Generate token for access file/dir in fileserver
 
         op: the operation, 'view', 'download', 'download-dir'
 
         Return: the access token in string
         """
-        return seafserv_rpc.web_get_access_token(repo_id, obj_id, op, username)
+        onetime = 1 if bool(use_onetime) else 0
+        return seafserv_rpc.web_get_access_token(repo_id, obj_id, op, username,
+                                                 onetime)
 
     def query_fileserver_access_token(self, token):
         """Get the WebAccess object
@@ -57,6 +59,9 @@ class SeafileAPI(object):
 
     def get_repo_list(self, start, limit):
         return seafserv_threaded_rpc.get_repo_list(start, limit)
+
+    def count_repos(self):
+        return seafserv_threaded_rpc.count_repos()
 
     def edit_repo(self, repo_id, name, description, username):
         return seafserv_threaded_rpc.edit_repo(repo_id, name, description, username)
@@ -155,9 +160,10 @@ class SeafileAPI(object):
     def get_dirent_by_path(self, repo_id, path):
         return seafserv_threaded_rpc.get_dirent_by_path(repo_id, path)
 
-    def get_file_revisions(self, repo_id, path, max_revision, limit):
+    def get_file_revisions(self, repo_id, path, max_revision, limit, show_days=-1):
         return seafserv_threaded_rpc.list_file_revisions(repo_id, path,
-                                                         max_revision, limit)
+                                                         max_revision, limit,
+                                                         show_days)
 
     def get_files_last_modified(self, repo_id, parent_dir, limit):
         """Get last modification time for files in a dir
@@ -198,8 +204,8 @@ class SeafileAPI(object):
     def revert_dir(self, repo_id, commit_id, path, username):
         return seafserv_threaded_rpc.revert_dir(repo_id, commit_id, path, username)
 
-    def get_deleted(self, repo_id, show_days):
-        return seafserv_threaded_rpc.get_deleted(repo_id, show_days)
+    def get_deleted(self, repo_id, show_days, path='/'):
+        return seafserv_threaded_rpc.get_deleted(repo_id, show_days, path)
 
     # share repo to user
     def share_repo(self, repo_id, from_username, to_username, permission):
@@ -265,6 +271,9 @@ class SeafileAPI(object):
             ret.append(r)
         return ret    
 
+    def get_repos_by_group(self, group_id):
+        return seafserv_threaded_rpc.get_repos_by_group(group_id)
+
     def get_group_repos_by_owner(self, username):
         return seafserv_threaded_rpc.get_group_repos_by_owner(username)
 
@@ -287,6 +296,12 @@ class SeafileAPI(object):
     def list_repo_tokens_by_email(self, username):
         return seafserv_threaded_rpc.list_repo_tokens_by_email(username)
 
+    def delete_repo_tokens_by_peer_id(self, email, peer_id):
+        return seafserv_threaded_rpc.delete_repo_tokens_by_peer_id(email, peer_id)
+
+    def delete_repo_tokens_by_email(self, email):
+        return seafserv_threaded_rpc.delete_repo_tokens_by_email(email)
+
     # quota
     def get_user_self_usage(self, username):
         """Get the sum of repos' size of the user"""
@@ -300,6 +315,12 @@ class SeafileAPI(object):
 
     def set_user_quota(self, username, quota):
         return seafserv_threaded_rpc.set_user_quota(username, quota)
+
+    def get_user_share_quota(self, username):
+        return -2               # unlimited
+
+    def set_user_share_quota(self, username, quota):
+        pass
 
     def check_quota(self, repo_id):
         pass
@@ -335,13 +356,18 @@ class SeafileAPI(object):
     def check_permission(self, repo_id, user):
         return seafserv_threaded_rpc.check_permission(repo_id, user)
 
+    # folder permission
+    def check_permission_by_path(self, repo_id, path, user):
+        return seafserv_threaded_rpc.check_permission_by_path(repo_id, path, user)
+
     # virtual repo
-    def create_virtual_repo(self, origin_repo_id, path, repo_name, repo_desc, owner):
+    def create_virtual_repo(self, origin_repo_id, path, repo_name, repo_desc, owner, passwd=''):
         return seafserv_threaded_rpc.create_virtual_repo(origin_repo_id,
                                                          path,
                                                          repo_name,
                                                          repo_desc,
-                                                         owner)
+                                                         owner,
+                                                         passwd)
 
     def get_virtual_repos_by_owner(self, owner):
         return seafserv_threaded_rpc.get_virtual_repos_by_owner(owner)
@@ -361,5 +387,24 @@ class SeafileAPI(object):
 
     def clean_up_repo_history(self, repo_id, keep_days):
         return seafserv_threaded_rpc.clean_up_repo_history(repo_id, keep_days)
+
+    # Trashed repos
+    def get_trash_repo_list(self, start, limit):
+        return seafserv_threaded_rpc.get_trash_repo_list(start, limit)
+
+    def del_repo_from_trash(self, repo_id):
+        return seafserv_threaded_rpc.del_repo_from_trash(repo_id)
+
+    def restore_repo_from_trash(self, repo_id):
+        return seafserv_threaded_rpc.restore_repo_from_trash(repo_id)
+
+    def get_trash_repos_by_owner(self, owner):
+        return seafserv_threaded_rpc.get_trash_repos_by_owner(owner)
+
+    def empty_repo_trash(self):
+        return seafserv_threaded_rpc.empty_repo_trash()
+
+    def empty_repo_trash_by_owner(self, owner):
+        return seafserv_threaded_rpc.empty_repo_trash_by_owner(owner)
 
 seafile_api = SeafileAPI()

@@ -44,6 +44,9 @@ sqlite3 ${GRP_MGR_DB} .dump | python sqlite2mysql.py >> ${CCNET_DB}
 # change ctime from INTEGER to BIGINT in EmailUser table
 sed 's/ctime INTEGER/ctime BIGINT/g' ${CCNET_DB} > ${CCNET_DB}.tmp && mv ${CCNET_DB}.tmp ${CCNET_DB}
 
+# change email in UserRole from TEXT to VARCHAR(255)
+sed 's/email TEXT, role TEXT/email VARCHAR(255), role TEXT/g' ${CCNET_DB} > ${CCNET_DB}.tmp && mv ${CCNET_DB}.tmp ${CCNET_DB}
+
 ########## seafile
 rm -rf ${SEAFILE_DB}
 
@@ -94,6 +97,10 @@ sed 's/,    UNIQUE (`user_email`, `contact_email`)//g' ${SEAHUB_DB} > ${SEAHUB_D
 
 # remove base_dirfileslastmodifiedinfo records to avoid json string parsing issue between sqlite and mysql
 sed '/INSERT INTO `base_dirfileslastmodifiedinfo`/d' ${SEAHUB_DB} > ${SEAHUB_DB}.tmp && mv ${SEAHUB_DB}.tmp ${SEAHUB_DB}
+
+# remove notifications_usernotification records to avoid json string parsing issue between sqlite and mysql
+sed '/INSERT INTO `notifications_usernotification`/d' ${SEAHUB_DB} > ${SEAHUB_DB}.tmp && mv ${SEAHUB_DB}.tmp ${SEAHUB_DB}
+
 
 ########## common logic
 
