@@ -14,5 +14,5 @@ CREATE TABLE IF NOT EXISTS `organizations_orgmemberquota` (
   KEY `organizations_orgmemberquota_944dadb6` (`org_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-REPLACE INTO "django_content_type" VALUES(44,'client login token','base','clientlogintoken');
-REPLACE INTO "django_content_type" VALUES(45,'org member quota','organizations','orgmemberquota');
+REPLACE INTO django_content_type VALUES(44,'client login token','base','clientlogintoken');
+REPLACE INTO django_content_type VALUES(45,'org member quota','organizations','orgmemberquota');
