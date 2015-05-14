@@ -291,7 +291,10 @@ win32_long_path (const char *path)
     char *long_path, *p;
     wchar_t *long_path_w;
 
-    long_path = g_strconcat ("\\\\?\\", path, NULL);
+    if (strncmp(path, "//", 2) == 0)
+        long_path = g_strconcat ("\\\\?\\UNC\\", path + 2, NULL);
+    else
+        long_path = g_strconcat ("\\\\?\\", path, NULL);
     for (p = long_path; *p != 0; ++p)
         if (*p == '/')
             *p = '\\';
