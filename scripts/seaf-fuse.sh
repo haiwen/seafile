@@ -24,7 +24,7 @@ if [[ "$1" != "start" && "$1" != "stop" && "$1" != "restart" ]]; then
     exit 1;
 fi
 
-if [[ ($1 == "start" || $1 == "restart" ) && $# != 2 ]]; then
+if [[ ($1 == "start" || $1 == "restart" ) && $# < 2 ]]; then
     usage;
     exit 1
 fi
@@ -33,8 +33,6 @@ if [[ $1 == "stop" && $# != 1 ]]; then
     usage;
     exit 1
 fi
-
-mount_point=$2
 
 function validate_ccnet_conf_dir () {
     if [[ ! -d ${default_ccnet_conf_dir} ]]; then
@@ -88,7 +86,7 @@ function start_seaf_fuse () {
 
     LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_fuse} \
         -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}" -l "${logfile}" \
-        "${mount_point}"
+        "$@"
 
     sleep 2
 
@@ -116,18 +114,20 @@ function stop_seaf_fuse() {
 function restart_seaf_fuse () {
     stop_seaf_fuse
     sleep 2
-    start_seaf_fuse
+    start_seaf_fuse $@
 }
 
 case $1 in
     "start" )
-        start_seaf_fuse;
+	shift
+        start_seaf_fuse $@;
         ;;
     "stop" )
         stop_seaf_fuse;
         ;;
     "restart" )
-        restart_seaf_fuse;
+	shift
+        restart_seaf_fuse $@;
 esac
 
 echo "Done."
