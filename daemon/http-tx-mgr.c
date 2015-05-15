@@ -1487,8 +1487,9 @@ check_quota_and_active_paths_diff_dirs (int n, const char *basedir,
     SeafDirent *dir2 = dirs[1];
     char *path;
 
-    /* When a new empty dir is created. */
-    if (!dir2 && dir1 && strcmp(dir1->id, EMPTY_SHA1) == 0) {
+    /* When a new empty dir is created, or a dir became empty. */
+    if ((!dir2 && dir1 && strcmp(dir1->id, EMPTY_SHA1) == 0) ||
+	(dir2 && dir1 && strcmp(dir1->id, EMPTY_SHA1) == 0 && strcmp(dir2->id, EMPTY_SHA1) != 0)) {
         path = g_strconcat (basedir, dir1->name, NULL);
         g_hash_table_replace (data->active_paths, path, (void*)(long)S_IFDIR);
     }
