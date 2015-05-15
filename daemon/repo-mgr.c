@@ -1465,6 +1465,7 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
     unsigned int i;
     SeafStat st;
     int ret;
+    gboolean not_exist;
 
     char *full_prefix = g_strconcat (prefix, "/", NULL);
     int len = strlen(full_prefix);
@@ -1480,10 +1481,13 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
             continue;
 
         snprintf (path, SEAF_PATH_MAX, "%s/%s", worktree, ce->name);
+        not_exist = FALSE;
         ret = seaf_stat (path, &st);
+        if (ret < 0 && errno == ENOENT)
+            not_exist = TRUE;
 
         if (S_ISDIR (ce->ce_mode)) {
-            if ((ret < 0 || !S_ISDIR (st.st_mode)
+            if ((not_exist || (ret == 0 && !S_ISDIR (st.st_mode))
                  || !is_empty_dir (path, ignore_list)) &&
                 (ce->ce_ctime.sec != 0 || ce_stage(ce) != 0))
                 ce->ce_flags |= CE_REMOVE;
@@ -1492,7 +1496,7 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
              * In this case we don't want to mistakenly remove the file
              * from the repo.
              */
-            if ((ret < 0 || !S_ISREG (st.st_mode)) &&
+            if ((not_exist || (ret == 0 && !S_ISREG (st.st_mode))) &&
                 (ce->ce_ctime.sec != 0 || ce_stage(ce) != 0) &&
                 check_locked_file_before_remove (fset, ce->name))
                 ce_array[i]->ce_flags |= CE_REMOVE;

@@ -393,7 +393,7 @@ seaf_stat (const char *path, SeafStat *st)
 
     if (!GetFileAttributesExW (wpath, GetFileExInfoStandard, &attrs)) {
         ret = -1;
-        windows_error_to_errno (GetLastError());
+        errno = windows_error_to_errno (GetLastError());
         goto out;
     }
 
