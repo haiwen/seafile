@@ -1,9 +1,18 @@
+/* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+
 #include "common.h"
 
 #include <pthread.h>
 #include <curl/curl.h>
 #include <jansson.h>
 #include <event2/buffer.h>
+
+#ifdef WIN32
+#include <windows.h>
+#include <wincrypt.h>
+#include <openssl/pem.h>
+#include <openssl/x509.h>
+#endif
 
 #include <ccnet/ccnet-client.h>
 
@@ -66,6 +75,8 @@ struct _HttpTxPriv {
     pthread_mutex_t pools_lock;
 
     CcnetTimer *reset_bytes_timer;
+
+    char *ca_bundle_path;
 };
 typedef struct _HttpTxPriv HttpTxPriv;
 
@@ -235,6 +246,8 @@ http_tx_manager_new (struct _SeafileSession *seaf)
     priv->connection_pools = g_hash_table_new (g_str_hash, g_str_equal);
     pthread_mutex_init (&priv->pools_lock, NULL);
 
+    priv->ca_bundle_path = g_build_filename (seaf->seaf_dir, "ca-bundle.pem", NULL);
+
     mgr->priv = priv;
 
     return mgr;
@@ -271,6 +284,11 @@ http_tx_manager_start (HttpTxManager *mgr)
 {
     curl_global_init (CURL_GLOBAL_ALL);
 
+#ifdef WIN32
+    /* Remove existing ca-bundle file on start. */
+    g_unlink (mgr->priv->ca_bundle_path);
+#endif
+
     /* TODO: add a timer to clean up unused Http connections. */
 
     mgr->priv->reset_bytes_timer = ccnet_timer_new (reset_bytes,
@@ -281,6 +299,118 @@ http_tx_manager_start (HttpTxManager *mgr)
 }
 
 /* Common Utility Functions. */
+
+#ifdef WIN32
+
+static void
+write_cert_name_to_pem_file (FILE *f, PCCERT_CONTEXT pc)
+{
+    char *name;
+    DWORD size;
+
+    fprintf (f, "\n");
+
+    if (!CertGetCertificateContextProperty(pc,
+                                           CERT_FRIENDLY_NAME_PROP_ID,
+                                           NULL, &size)) {
+        seaf_warning ("Failed to get cert name: %lu\n", GetLastError());
+        return;
+    }
+
+    name = g_malloc ((gsize)size);
+    if (!name) {
+        seaf_warning ("Failed to alloc memory\n");
+        return;
+    }
+
+    if (!CertGetCertificateContextProperty(pc,
+                                           CERT_FRIENDLY_NAME_PROP_ID,
+                                           name, &size)) {
+        seaf_warning ("Failed to get cert name: %lu\n", GetLastError());
+        g_free (name);
+        return;
+    }
+
+    if (fwrite(name, (size_t)size, 1, f) != 1) {
+        seaf_warning ("Failed to write pem file.\n");
+        g_free (name);
+        return;
+    }
+    fprintf (f, "\n");
+
+    g_free (name);
+}
+
+static void
+write_cert_to_pem_file (FILE *f, PCCERT_CONTEXT pc)
+{
+    const unsigned char *der = pc->pbCertEncoded;
+    X509 *cert;
+
+    write_cert_name_to_pem_file (f, pc);
+
+    cert = d2i_X509 (NULL, &der, (int)pc->cbCertEncoded);
+    if (!cert) {
+        seaf_warning ("Failed to parse certificate from DER.\n");
+        return;
+    }
+
+    if (!PEM_write_X509 (f, cert)) {
+        seaf_warning ("Failed to write certificate.\n");
+        X509_free (cert);
+        return;
+    }
+
+    X509_free (cert);
+}
+
+static int
+create_ca_bundle (const char *ca_bundle_path)
+{
+    HCERTSTORE store;
+    FILE *f;
+
+    store = CertOpenSystemStoreW (0, L"ROOT");
+    if (!store) {
+        seaf_warning ("Failed to open system cert store: %lu\n", GetLastError());
+        return -1;
+    }
+
+    f = g_fopen (ca_bundle_path, "w+");
+    if (!f) {
+        seaf_warning ("Failed to open cabundle file\n");
+        CertCloseStore(store, 0);
+        return -1;
+    }
+
+    PCCERT_CONTEXT pc = NULL;
+    while (1) {
+        pc = CertFindCertificateInStore (store, X509_ASN_ENCODING, 0, CERT_FIND_ANY, NULL, pc);
+        if (!pc)
+            break;
+        write_cert_to_pem_file (f, pc);
+    }
+
+    CertCloseStore(store, 0);
+    fclose (f);
+
+    return 0;
+}
+
+static void
+load_ca_bundle (CURL *curl)
+{
+    char *ca_bundle_path = seaf->http_tx_mgr->priv->ca_bundle_path;
+
+    if (!seaf_util_exists (ca_bundle_path)) {
+        if (create_ca_bundle (ca_bundle_path) < 0)
+            return;
+    }
+
+    curl_easy_setopt (curl, CURLOPT_CAINFO, ca_bundle_path);
+}
+
+#endif	/* WIN32 */
 
 static void
 set_proxy (CURL *curl, gboolean is_https)
@@ -398,6 +528,10 @@ http_get (CURL *curl, const char *url, const char *token,
     set_proxy (curl, is_https);
 
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+
+#ifdef WIN32
+    load_ca_bundle (curl);
+#endif
 
     int rc = curl_easy_perform (curl);
     if (rc != 0) {
@@ -518,6 +652,10 @@ http_put (CURL *curl, const char *url, const char *token,
 
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
+#ifdef WIN32
+    load_ca_bundle (curl);
+#endif
+
     int rc = curl_easy_perform (curl);
     if (rc != 0) {
         seaf_warning ("libcurl failed to PUT %s: %s.\n",
@@ -599,6 +737,10 @@ http_post (CURL *curl, const char *url, const char *token,
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, recv_response);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &rsp);
     }
+
+#ifdef WIN32
+    load_ca_bundle (curl);
+#endif
 
     gboolean is_https = (strncasecmp(url, "https", strlen("https")) == 0);
     set_proxy (curl, is_https);
