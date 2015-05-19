@@ -192,6 +192,7 @@ if test "$bwin32" = true; then
   LIB_PSAPI=-lpsapi
   LIB_MAC=
   MSVC_CFLAGS="-D__MSVCRT__ -D__MSVCRT_VERSION__=0x0601"
+  LIB_CRYPT32=-lcrypt32
 elif test "$bmac" = true ; then
   LIB_WS32=
   LIB_GDI32=
@@ -204,6 +205,7 @@ elif test "$bmac" = true ; then
   LIB_PSAPI=
   MSVC_CFLAGS=
   LIB_MAC="-framework CoreServices"
+  LIB_CRYPT32=
 else
   LIB_WS32=
   LIB_GDI32=
@@ -216,6 +218,7 @@ else
   LIB_PSAPI=
   LIB_MAC=
   MSVC_CFLAGS=
+  LIB_CRYPT32=
 fi
 
 AC_SUBST(LIB_WS32)
@@ -229,6 +232,7 @@ AC_SUBST(LIB_SHELL32)
 AC_SUBST(LIB_PSAPI)
 AC_SUBST(LIB_MAC)
 AC_SUBST(MSVC_CFLAGS)
+AC_SUBST(LIB_CRYPT32)
 
 
 LIBEVENT_REQUIRED=2.0
