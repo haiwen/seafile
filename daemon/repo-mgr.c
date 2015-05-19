@@ -911,147 +911,6 @@ typedef struct _AddOptions {
     gboolean startup_scan;
 } AddOptions;
 
-#ifndef WIN32
-
-/*
- * @remain_files: returns the files haven't been added under this path.
- *                If it's set to NULL, no partial commit will be created.
- */
-static int
-add_recursive (const char *repo_id,
-               int version,
-               const char *modifier,
-               struct index_state *istate, 
-               const char *worktree,
-               const char *path,
-               SeafileCrypt *crypt,
-               gboolean ignore_empty_dir,
-               GList *ignore_list,
-               gint64 *total_size,
-               GQueue **remain_files,
-               AddOptions *options)
-{
-    char *full_path;
-    GDir *dir;
-    const char *dname;
-    char *subpath;
-    SeafStat st;
-    int n;
-    int ret = 0;
-
-    full_path = g_build_path (PATH_SEPERATOR, worktree, path, NULL);
-    if (seaf_stat (full_path, &st) < 0) {
-        /* Ignore broken symlinks on Linux and Mac OS X */
-        if (lstat (full_path, &st) == 0 && S_ISLNK(st.st_mode)) {
-            g_free (full_path);
-            return 0;
-        }
-        g_warning ("Failed to stat %s.\n", full_path);
-        g_free (full_path);
-        /* Ignore error. */
-        return 0;
-    }
-
-    if (S_ISREG(st.st_mode)) {
-        gboolean added = FALSE;
-
-        if (options &&
-            !is_path_writable (options->user_perms, options->group_perms,
-                               options->is_repo_ro, path)) {
-            g_free (full_path);
-            return ret;
-        }
-
-        if (!remain_files) {
-            ret = add_to_index (repo_id, version, istate, path, full_path,
-                                &st, 0, crypt, index_cb, modifier, &added);
-        } else if (*remain_files == NULL) {
-            ret = add_to_index (repo_id, version, istate, path, full_path,
-                                &st, 0, crypt, index_cb, modifier, &added);
-            if (added) {
-                *total_size += (gint64)(st.st_size);
-                if (*total_size >= MAX_COMMIT_SIZE)
-                    *remain_files = g_queue_new ();
-            }
-        } else
-            g_queue_push_tail (*remain_files, g_strdup(path));
-
-        g_free (full_path);
-        return 0;
-    }
-
-    if (S_ISDIR(st.st_mode)) {
-        dir = g_dir_open (full_path, 0, NULL);
-        if (!dir) {
-            g_warning ("Failed to open dir %s: %s.\n", full_path, strerror(errno));
-            g_free (full_path);
-            return 0;
-        }
-
-        n = 0;
-        while ((dname = g_dir_read_name(dir)) != NULL) {
-            if (should_ignore(full_path, dname, ignore_list))
-                continue;
-
-            ++n;
-
-#ifdef __APPLE__
-            char *norm_dname = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
-            subpath = g_build_path (PATH_SEPERATOR, path, norm_dname, NULL);
-            g_free (norm_dname);
-#else
-            subpath = g_build_path (PATH_SEPERATOR, path, dname, NULL);
-#endif
-
-            ret = add_recursive (repo_id, version, modifier,
-                                 istate, worktree, subpath,
-                                 crypt, ignore_empty_dir, ignore_list,
-                                 total_size, remain_files, options);
-            g_free (subpath);
-        }
-        g_dir_close (dir);
-
-        if (n == 0 && path[0] != 0 && !ignore_empty_dir &&
-            (!options ||
-             is_path_writable(options->user_perms, options->group_perms,
-                              options->is_repo_ro, path)))
-        {
-            if (!remain_files || *remain_files == NULL)
-                add_empty_dir_to_index (istate, path, &st);
-            else
-                g_queue_push_tail (*remain_files, g_strdup(path));
-        }
-    }
-
-    g_free (full_path);
-    return 0;
-}
-
-static gboolean
-is_empty_dir (const char *path, GList *ignore_list)
-{
-    GDir *dir;
-    const char *dname;
-    gboolean ret = TRUE;
-
-    dir = g_dir_open (path, 0, NULL);
-    if (!dir) {
-        return FALSE;
-    }
-
-    while ((dname = g_dir_read_name(dir)) != NULL) {
-        if (!should_ignore(path, dname, ignore_list)) {
-            ret = FALSE;
-            break;
-        }
-    }
-    g_dir_close (dir);
-
-    return ret;
-}
-
-#else
-
 static int
 add_file (const char *repo_id,
           int version,
@@ -1096,6 +955,7 @@ add_file (const char *repo_id,
     if (!is_writable)
         return ret;
 
+#ifdef WIN32
     if (options && options->fset) {
         LockedFile *file = locked_file_set_lookup (options->fset, path);
         if (file) {
@@ -1110,6 +970,7 @@ add_file (const char *repo_id,
             }
         }
     }
+#endif
 
     if (!remain_files) {
         ret = add_to_index (repo_id, version, istate, path, full_path,
@@ -1164,6 +1025,223 @@ typedef struct AddParams {
     GQueue **remain_files;
     AddOptions *options;
 } AddParams;
+
+#ifndef WIN32
+
+static int
+add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
+                   AddParams *params, gboolean ignored)
+{
+    AddOptions *options = params->options;
+    GDir *dir;
+    const char *dname;
+    char *subpath, *full_subpath;
+    int n, total;
+    gboolean is_writable = TRUE;
+    struct stat sub_st;
+
+    dir = g_dir_open (full_path, 0, NULL);
+    if (!dir) {
+        g_warning ("Failed to open dir %s: %s.\n", full_path, strerror(errno));
+
+        seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                              params->repo_id,
+                                              path,
+                                              S_IFDIR,
+                                              SYNC_STATUS_ERROR);
+
+        return 0;
+    }
+
+    n = 0;
+    total = 0;
+    while ((dname = g_dir_read_name(dir)) != NULL) {
+        ++total;
+
+#ifdef __APPLE__
+        char *norm_dname = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
+        subpath = g_build_path (PATH_SEPERATOR, path, norm_dname, NULL);
+        g_free (norm_dname);
+#else
+        subpath = g_build_path (PATH_SEPERATOR, path, dname, NULL);
+#endif
+        full_subpath = g_build_filename (params->worktree, subpath, NULL);
+
+        if (stat (full_subpath, &sub_st) < 0) {
+            seaf_warning ("Failed to stat %s: %s.\n", full_subpath, strerror(errno));
+            g_free (subpath);
+            g_free (full_subpath);
+            continue;
+        }
+
+        if (ignored || should_ignore(full_path, dname, params->ignore_list)) {
+            if (options && options->startup_scan) {
+                if (S_ISDIR(sub_st.st_mode))
+                    add_dir_recursive (subpath, full_subpath, &sub_st, params, TRUE);
+                else
+                    seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                          params->repo_id,
+                                                          subpath,
+                                                          S_IFREG,
+                                                          SYNC_STATUS_IGNORED);
+            }
+            continue;
+        }
+
+        ++n;
+
+        if (S_ISDIR(sub_st.st_mode))
+            add_dir_recursive (subpath, full_subpath, &sub_st, params, FALSE);
+        else if (S_ISREG(sub_st.st_mode))
+            add_file (params->repo_id,
+                      params->version,
+                      params->modifier,
+                      params->istate,
+                      subpath,
+                      full_subpath,
+                      &sub_st,
+                      params->crypt,
+                      params->total_size,
+                      params->remain_files,
+                      params->options);
+
+        g_free (subpath);
+        g_free (full_subpath);
+    }
+    g_dir_close (dir);
+
+    if (options)
+        is_writable = is_path_writable(options->user_perms, options->group_perms,
+                                       options->is_repo_ro, path);
+
+    /* Update active path status for empty dir */
+    if (options && options->startup_scan && total == 0) {
+        SyncStatus status;
+        struct cache_entry *ce = index_name_exists (params->istate, path,
+                                                    strlen(path), 0);
+        if (!ce)
+            status = SYNC_STATUS_SYNCING;
+        else
+            status = SYNC_STATUS_SYNCED;
+
+
+        if (status == SYNC_STATUS_SYNCED || is_writable)
+            seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                  params->repo_id,
+                                                  path,
+                                                  S_IFDIR,
+                                                  status);
+    }
+
+    if (n == 0 && path[0] != 0 && is_writable) {
+        if (!params->remain_files || *(params->remain_files) == NULL)
+            add_empty_dir_to_index (params->istate, path, st);
+        else
+            g_queue_push_tail (*(params->remain_files), g_strdup(path));
+    }
+
+    return 0;
+}
+
+/*
+ * @remain_files: returns the files haven't been added under this path.
+ *                If it's set to NULL, no partial commit will be created.
+ */
+static int
+add_recursive (const char *repo_id,
+               int version,
+               const char *modifier,
+               struct index_state *istate, 
+               const char *worktree,
+               const char *path,
+               SeafileCrypt *crypt,
+               gboolean ignore_empty_dir,
+               GList *ignore_list,
+               gint64 *total_size,
+               GQueue **remain_files,
+               AddOptions *options)
+{
+    char *full_path;
+    SeafStat st;
+
+    full_path = g_build_path (PATH_SEPERATOR, worktree, path, NULL);
+    if (seaf_stat (full_path, &st) < 0) {
+        /* Ignore broken symlinks on Linux and Mac OS X */
+        if (lstat (full_path, &st) == 0 && S_ISLNK(st.st_mode)) {
+            g_free (full_path);
+            return 0;
+        }
+        g_warning ("Failed to stat %s.\n", full_path);
+        g_free (full_path);
+        /* Ignore error. */
+
+        seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                              repo_id,
+                                              path,
+                                              0,
+                                              SYNC_STATUS_ERROR);
+
+        return 0;
+    }
+
+    if (S_ISREG(st.st_mode)) {
+        add_file (repo_id,
+                  version,
+                  modifier,
+                  istate,
+                  path,
+                  full_path,
+                  &st,
+                  crypt,
+                  total_size,
+                  remain_files,
+                  options);
+    } else if (S_ISDIR(st.st_mode)) {
+        AddParams params = {
+            .repo_id = repo_id,
+            .version = version,
+            .modifier = modifier,
+            .istate = istate,
+            .worktree = worktree,
+            .crypt = crypt,
+            .ignore_empty_dir = ignore_empty_dir,
+            .ignore_list = ignore_list,
+            .total_size = total_size,
+            .remain_files = remain_files,
+            .options = options,
+        };
+
+        add_dir_recursive (path, full_path, &st, &params, FALSE);
+    }
+
+    g_free (full_path);
+    return 0;
+}
+
+static gboolean
+is_empty_dir (const char *path, GList *ignore_list)
+{
+    GDir *dir;
+    const char *dname;
+    gboolean ret = TRUE;
+
+    dir = g_dir_open (path, 0, NULL);
+    if (!dir) {
+        return FALSE;
+    }
+
+    while ((dname = g_dir_read_name(dir)) != NULL) {
+        if (!should_ignore(path, dname, ignore_list)) {
+            ret = FALSE;
+            break;
+        }
+    }
+    g_dir_close (dir);
+
+    return ret;
+}
+
+#else
 
 typedef struct IterCBData {
     AddParams *add_params;
@@ -1275,29 +1353,21 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
 
     /* Update active path status for empty dir */
     if (options && options->startup_scan && ret == 0) {
-        if (ignored) {
+        SyncStatus status;
+        struct cache_entry *ce = index_name_exists (params->istate, path,
+                                                    strlen(path), 0);
+        if (!ce)
+            status = SYNC_STATUS_SYNCING;
+        else
+            status = SYNC_STATUS_SYNCED;
+
+
+        if (status == SYNC_STATUS_SYNCED || is_writable)
             seaf_sync_manager_update_active_path (seaf->sync_mgr,
                                                   params->repo_id,
                                                   path,
                                                   S_IFDIR,
-                                                  SYNC_STATUS_IGNORED);
-        } else {
-            SyncStatus status;
-            struct cache_entry *ce = index_name_exists (params->istate, path,
-                                                        strlen(path), 0);
-            if (!ce)
-                status = SYNC_STATUS_SYNCING;
-            else
-                status = SYNC_STATUS_SYNCED;
-
-
-            if (status == SYNC_STATUS_SYNCED || is_writable)
-                seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                                      params->repo_id,
-                                                      path,
-                                                      S_IFDIR,
-                                                      status);
-        }
+                                                  status);
     }
 
     if (data.n == 0 && path[0] != 0 && !params->ignore_empty_dir && is_writable) {
@@ -1584,9 +1654,7 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
         options.user_perms = user_perms;
         options.group_perms = group_perms;
         options.is_repo_ro = repo->is_readonly;
-#ifdef WIN32
         options.startup_scan = TRUE;
-#endif
 
         add_recursive (repo->id, repo->version, repo->email, istate,
                        repo->worktree, path,
@@ -1701,6 +1769,12 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
     options.user_perms = user_perms;
     options.group_perms = group_perms;
     options.is_repo_ro = repo->is_readonly;
+    /* When something is changed in the root directory, update active path
+     * sync status when scanning the worktree. This is inaccurate. This will
+     * be changed after we process fs events on Mac more precisely.
+     */
+    if (path[0] == 0)
+        options.startup_scan = TRUE;
 
     /* Add is always recursive */
     add_recursive (repo->id, repo->version, repo->email, istate, repo->worktree, path,
@@ -2042,19 +2116,161 @@ handle_add_files (SeafRepo *repo, struct index_state *istate,
     return FALSE;
 }
 
-#ifdef WIN32
+#ifdef __APPLE__
 
-typedef struct _UpdatePathData {
-    SeafRepo *repo;
-    struct index_state *istate;
-    GList *ignore_list;
-    GList *user_perms;
-    GList *group_perms;
+struct _WTDirent {
+    char *dname;
+    struct stat st;
+};
+typedef struct _WTDirent WTDirent;
 
-    const char *parent;
-    const char *full_parent;
-    gboolean ignored;
-} UpdatePathData;
+static gint
+compare_wt_dirents (gconstpointer a, gconstpointer b)
+{
+    const WTDirent *dent_a = a, *dent_b = b;
+
+    return (strcmp (dent_a->dname, dent_b->dname));
+}
+
+static GList *
+get_sorted_wt_dirents (const char *dir_path, const char *full_dir_path,
+                       gboolean *error)
+{
+    GDir *dir;
+    GError *err = NULL;
+    const char *name;
+    char *dname;
+    char *full_sub_path, *sub_path;
+    WTDirent *dent;
+    GList *ret = NULL;
+
+    dir = g_dir_open (full_dir_path, 0, &err);
+    if (!dir) {
+        seaf_warning ("Failed to open dir %s: %s.\n", full_dir_path, err->message);
+        *error = TRUE;
+        return NULL;
+    }
+
+    while ((name = g_dir_read_name(dir)) != NULL) {
+        dname = g_utf8_normalize (name, -1, G_NORMALIZE_NFC);
+        sub_path = g_strconcat (dir_path, "/", dname, NULL);
+        full_sub_path = g_strconcat (full_dir_path, "/", dname, NULL);
+
+        dent = g_new0 (WTDirent, 1);
+        dent->dname = dname;
+
+        if (stat (full_sub_path, &dent->st) < 0) {
+            seaf_warning ("Failed to stat %s: %s.\n", full_sub_path, strerror(errno));
+            g_free (dname);
+            g_free (sub_path);
+            g_free (full_sub_path);
+            g_free (dent);
+            continue;
+        }
+
+        ret = g_list_prepend (ret, dent);
+
+        g_free (sub_path);
+        g_free (full_sub_path);
+    }
+
+    g_dir_close (dir);
+
+    ret = g_list_sort (ret, compare_wt_dirents);
+    return ret;
+}
+
+static void
+wt_dirent_free (WTDirent *dent)
+{
+    if (!dent)
+        return;
+    g_free (dent->dname);
+    g_free (dent);
+}
+
+inline static char *
+concat_sub_path (const char *dir, const char *dname)
+{
+    if (dir[0] != 0)
+        return g_strconcat(dir, "/", dname, NULL);
+    else
+        return g_strdup(dname);
+}
+
+static int
+get_changed_paths_in_folder (SeafRepo *repo, struct index_state *istate,
+                             const char *dir_path,
+                             GList **add, GList **mod, GList **del)
+{
+    char *full_dir_path;
+    GList *wt_dents = NULL, *index_dents = NULL;
+    gboolean error = FALSE;
+
+    full_dir_path = g_build_filename(repo->worktree, dir_path, NULL);
+
+    wt_dents = get_sorted_wt_dirents (dir_path, full_dir_path, &error);
+    if (error) {
+        g_free (full_dir_path);
+        return -1;
+    }
+
+    index_dents = list_dirents_from_index (istate, dir_path);
+
+    GList *p;
+    IndexDirent *dent;
+    for (p = index_dents; p; p = p->next) {
+        dent = p->data;
+    }
+
+    GList *p1 = wt_dents, *p2 = index_dents;
+    WTDirent *dent1;
+    IndexDirent *dent2;
+
+    while (p1 && p2) {
+        dent1 = p1->data;
+        dent2 = p2->data;
+
+        int rc = strcmp (dent1->dname, dent2->dname);
+        if (rc == 0) {
+            if (S_ISREG(dent1->st.st_mode) && !dent2->is_dir) {
+                if (dent1->st.st_mtime != dent2->ce->ce_mtime.sec)
+                    *mod = g_list_prepend (*mod, concat_sub_path(dir_path, dent1->dname));
+            } else if ((S_ISREG(dent1->st.st_mode) && dent2->is_dir) ||
+                       (S_ISDIR(dent1->st.st_mode) && !dent2->is_dir)) {
+                *add = g_list_prepend (*add, concat_sub_path(dir_path, dent1->dname));
+                *del = g_list_prepend (*del, concat_sub_path(dir_path, dent1->dname));
+            }
+            p1 = p1->next;
+            p2 = p2->next;
+        } else if (rc < 0) {
+            *add = g_list_prepend (*add, concat_sub_path(dir_path, dent1->dname));
+            p1 = p1->next;
+        } else {
+            *del = g_list_prepend (*del, concat_sub_path(dir_path, dent2->dname));
+            p2 = p2->next;
+        }
+    }
+
+    while (p1) {
+        dent1 = p1->data;
+        *add = g_list_prepend (*add, concat_sub_path(dir_path, dent1->dname));
+        p1 = p1->next;
+    }
+
+    while (p2) {
+        dent2 = p2->data;
+        *del = g_list_prepend (*del, concat_sub_path(dir_path, dent2->dname));
+        p2 = p2->next;
+    }
+
+    g_free (full_dir_path);
+    g_list_free_full (wt_dents, (GDestroyNotify)wt_dirent_free);
+    g_list_free_full (index_dents, (GDestroyNotify)index_dirent_free);
+    return 0;
+}
+
+#endif  /* __APPLE__ */
 
 static void
 update_active_file (SeafRepo *repo,
@@ -2095,6 +2311,20 @@ update_active_file (SeafRepo *repo,
                                                   status);
     }
 }
+
+#ifdef WIN32
+
+typedef struct _UpdatePathData {
+    SeafRepo *repo;
+    struct index_state *istate;
+    GList *ignore_list;
+    GList *user_perms;
+    GList *group_perms;
+
+    const char *parent;
+    const char *full_parent;
+    gboolean ignored;
+} UpdatePathData;
 
 static void
 update_active_path_recursive (SeafRepo *repo,
@@ -2217,18 +2447,6 @@ update_active_path_recursive (SeafRepo *repo,
 #else
 
 static void
-update_active_file (SeafRepo *repo,
-                    const char *path,
-                    SeafStat *st,
-                    struct index_state *istate,
-                    gboolean ignored,
-                    GList *user_perms,
-                    GList *group_perms)
-{
-
-}
-
-static void
 update_active_path_recursive (SeafRepo *repo,
                               const char *path,
                               struct index_state *istate,
@@ -2237,9 +2455,89 @@ update_active_path_recursive (SeafRepo *repo,
                               GList *user_perms,
                               GList *group_perms)
 {
+    GDir *dir;
+    GError *error = NULL;
+    const char *name;
+    char *dname;
+    char *full_path, *full_sub_path, *sub_path;
+    struct stat st;
+    gboolean ignore_sub;
+
+    full_path = g_build_filename(repo->worktree, path, NULL);
+
+    dir = g_dir_open (full_path, 0, &error);
+    if (!dir) {
+        seaf_warning ("Failed to open dir %s: %s.\n", full_path, error->message);
+        g_free (full_path);
+        return;
+    }
+
+    int n = 0;
+    while ((name = g_dir_read_name(dir)) != NULL) {
+        ++n;
+
+        dname = g_utf8_normalize (name, -1, G_NORMALIZE_NFC);
+        sub_path = g_strconcat (path, "/", dname, NULL);
+        full_sub_path = g_strconcat (full_path, "/", dname, NULL);
+
+        ignore_sub = FALSE;
+        if (ignored || should_ignore(full_path, dname, ignore_list))
+            ignore_sub = TRUE;
+
+        if (stat (full_sub_path, &st) < 0) {
+            seaf_warning ("Failed to stat %s: %s.\n", full_sub_path, strerror(errno));
+            g_free (dname);
+            g_free (sub_path);
+            g_free (full_sub_path);
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            update_active_path_recursive (repo, sub_path, istate, ignore_list,
+                                          ignore_sub, user_perms, group_perms);
+        } else if (S_ISREG(st.st_mode)) {
+            update_active_file (repo, sub_path, &st, istate,
+                                ignore_sub, user_perms, group_perms);
+        }
+
+        g_free (dname);
+        g_free (sub_path);
+        g_free (full_sub_path);
+    }
+
+    g_dir_close (dir);
+
+    /* Don't set sync status for read-only paths, since changes to read-only
+     * files are ignored.
+     */
+    if (!is_path_writable (user_perms, group_perms, repo->is_readonly, path))
+        return;
+
+    if (n == 0 && path[0] != 0) {
+        if (ignored) {
+            seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                  repo->id,
+                                                  path,
+                                                  S_IFDIR,
+                                                  SYNC_STATUS_IGNORED);
+        } else {
+            /* There is no need to update an empty dir. */
+            SyncStatus status;
+            struct cache_entry *ce = index_name_exists(istate, path, strlen(path), 0);
+            if (!ce)
+                status = SYNC_STATUS_SYNCING;
+            else
+                status = SYNC_STATUS_SYNCED;
+            seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                  repo->id,
+                                                  path,
+                                                  S_IFDIR,
+                                                  status);
+        }
+    }
 }
 
-#endif
+#endif  /* WIN32 */
 
 static void
 process_active_path (SeafRepo *repo, const char *path,
@@ -2271,12 +2569,51 @@ process_active_path (SeafRepo *repo, const char *path,
     g_free (fullpath);
 }
 
+#ifdef __APPLE__
+
+static void
+process_active_folder (SeafRepo *repo, const char *dir,
+                       struct index_state *istate, GList *ignore_list,
+                       GList *user_perms, GList *group_perms)
+{
+    GList *add = NULL, *mod = NULL, *del = NULL;
+    GList *p;
+    char *path;
+
+    /* Delete event will be triggered on the deleted dir too. */
+    if (!g_file_test (dir, G_FILE_TEST_IS_DIR))
+        return;
+
+    if (get_changed_paths_in_folder (repo, istate, dir, &add, &mod, &del) < 0) {
+        seaf_warning ("Failed to get changed paths under %s.\n", dir);
+        return;
+    }
+
+    for (p = add; p; p = p->next) {
+        path = p->data;
+        process_active_path (repo, path, istate, ignore_list,
+                             user_perms, group_perms);
+    }
+
+    for (p = mod; p; p = p->next) {
+        path = p->data;
+        process_active_path (repo, path, istate, ignore_list,
+                             user_perms, group_perms);
+    }
+
+    g_list_free_full (add, g_free);
+    g_list_free_full (mod, g_free);
+    g_list_free_full (del, g_free);
+}
+
+#endif  /* __APPLE__ */
+
 static void
 update_path_sync_status (SeafRepo *repo, WTStatus *status,
                          struct index_state *istate, GList *ignore_list,
                          GList *user_perms, GList *group_perms)
 {
-    char *path;
+    char *path, *dir;
 
     while (1) {
         pthread_mutex_lock (&status->ap_q_lock);
@@ -2286,8 +2623,13 @@ update_path_sync_status (SeafRepo *repo, WTStatus *status,
         if (!path)
             break;
 
+#ifdef __APPLE__
+        process_active_folder (repo, path, istate, ignore_list,
+                               user_perms, group_perms);
+#else
         process_active_path (repo, path, istate, ignore_list,
                              user_perms, group_perms);
+#endif
     }
 }
 
@@ -2308,10 +2650,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
         return -1;
     }
 
-#ifdef WIN32
     update_path_sync_status (repo, status, istate, ignore_list,
                              user_perms, group_perms);
-#endif
 
     GList *scanned_dirs = NULL, *scanned_del_dirs = NULL;
 

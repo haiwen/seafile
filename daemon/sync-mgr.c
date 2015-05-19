@@ -2536,6 +2536,7 @@ check_folder_permissions (SeafSyncManager *mgr, GList *repos)
     }
 }
 
+#if 0
 static void
 print_active_paths (SeafSyncManager *mgr)
 {
@@ -2547,6 +2548,7 @@ print_active_paths (SeafSyncManager *mgr)
         g_free (paths_json);
     }
 }
+#endif
 
 static int
 auto_sync_pulse (void *vmanager)
@@ -2555,8 +2557,6 @@ auto_sync_pulse (void *vmanager)
     GList *repos, *ptr;
     SeafRepo *repo;
     gint64 now;
-
-    /* print_active_paths (manager); */
 
     repos = seaf_repo_manager_get_repo_list (manager->seaf->repo_mgr, -1, -1);
 

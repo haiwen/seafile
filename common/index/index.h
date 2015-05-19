@@ -458,6 +458,19 @@ add_empty_dir_to_index_with_check (struct index_state *istate,
 
 void remove_empty_parent_dir_entry (struct index_state *istate, const char *path);
 
+struct _IndexDirent {
+    char *dname;
+    gboolean is_dir;
+    struct cache_entry *ce;
+};
+typedef struct _IndexDirent IndexDirent;
+
+void
+index_dirent_free (IndexDirent *dent);
+
+GList *
+list_dirents_from_index (struct index_state *istate, const char *dir);
+
 extern int add_file_to_index(struct index_state *, const char *path, int flags);
 extern struct cache_entry *make_cache_entry(unsigned int mode, const unsigned char *sha1, const char *path, const char *full_path, int stage, int refresh);
 extern int ce_same_name(struct cache_entry *a, struct cache_entry *b);
