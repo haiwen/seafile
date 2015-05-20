@@ -313,7 +313,6 @@ write_cert_name_to_pem_file (FILE *f, PCCERT_CONTEXT pc)
     if (!CertGetCertificateContextProperty(pc,
                                            CERT_FRIENDLY_NAME_PROP_ID,
                                            NULL, &size)) {
-        seaf_warning ("Failed to get cert name: %lu\n", GetLastError());
         return;
     }
 
@@ -326,7 +325,6 @@ write_cert_name_to_pem_file (FILE *f, PCCERT_CONTEXT pc)
     if (!CertGetCertificateContextProperty(pc,
                                            CERT_FRIENDLY_NAME_PROP_ID,
                                            name, &size)) {
-        seaf_warning ("Failed to get cert name: %lu\n", GetLastError());
         g_free (name);
         return;
     }
@@ -376,9 +374,10 @@ create_ca_bundle (const char *ca_bundle_path)
         return -1;
     }
 
-    f = g_fopen (ca_bundle_path, "w+");
+    f = g_fopen (ca_bundle_path, "w+b");
     if (!f) {
-        seaf_warning ("Failed to open cabundle file\n");
+        seaf_warning ("Failed to open cabundle file %s: %s\n",
+                      ca_bundle_path, strerror(errno));
         CertCloseStore(store, 0);
         return -1;
     }
