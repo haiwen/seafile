@@ -22,6 +22,7 @@
 #include <ccnet/threaded-rpcserver-proc.h>
 #include "log.h"
 #include "utils.h"
+#include "seaf-import.h"
 
 #include "processors/check-tx-slave-v2-proc.h"
 #include "processors/check-tx-slave-v3-proc.h"
@@ -51,7 +52,7 @@ SearpcClient *async_ccnetrpc_client_t;
 
 char *pidfile = NULL;
 
-static const char *short_options = "hvc:d:l:fg:G:P:mCD:";
+static const char *short_options = "hvc:d:l:fg:G:P:mCD:p:n:u:";
 static struct option long_options[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -65,12 +66,17 @@ static struct option long_options[] = {
     { "master", no_argument, NULL, 'm'},
     { "pidfile", required_argument, NULL, 'P' },
     { "cloud-mode", no_argument, NULL, 'C'},
+    { "import-path", required_argument, NULL, 'p', },
+    { "repo-name", required_argument, NULL, 'n', },
+    { "owner", required_argument, NULL, 'u', },
     { NULL, 0, NULL, 0, },
 };
 
 static void usage ()
 {
     fprintf (stderr, "usage: seaf-server [-c config_dir] [-d seafile_dir]\n");
+    fprintf (stderr, "seaf-import usage: seaf-server [-d seafile_dir] "
+             "[-p import-path] [-n repo-name] [-u owner]\n");
 }
 
 static void register_processors (CcnetClient *client)
@@ -794,6 +800,10 @@ main (int argc, char **argv)
     char *ccnet_debug_level_str = "info";
     char *seafile_debug_level_str = "debug";
     int cloud_mode = 0;
+    // for import dir
+    char *import_path = NULL;
+    char *repo_name = NULL;
+    char *owner = NULL;
 
 #ifdef WIN32
     argv = get_argv_utf8 (&argc);
@@ -804,6 +814,7 @@ main (int argc, char **argv)
     {
         switch (c) {
         case 'h':
+            usage();
             exit (1);
             break;
         case 'v':
@@ -837,6 +848,15 @@ main (int argc, char **argv)
             break;
         case 'C':
             cloud_mode = 1;
+            break;
+        case 'p':
+            import_path = g_strdup (optarg);
+            break;
+        case 'n':
+            repo_name = g_strdup (optarg);
+            break;
+        case 'u':
+            owner = g_strdup (optarg);
             break;
         default:
             usage ();
@@ -893,6 +913,36 @@ main (int argc, char **argv)
                           seafile_debug_level_str) < 0) {
         seaf_warning ("Failed to init log.\n");
         exit (1);
+    }
+
+    if (import_path) {
+        if (!owner) {
+            seaf_warning ("Not using -u option to set repo owner, import failed.\n");
+            return -1;
+        }
+
+        if (!repo_name) {
+            repo_name = g_path_get_basename (import_path);
+        }
+
+        seaf = seafile_session_new (seafile_dir, NULL);
+        if (!seaf) {
+            seaf_warning ("Failed to create seafile session.\n");
+            exit (1);
+        }
+
+        if (seafile_session_init (seaf) < 0) {
+            seaf_warning ("Failed to init seafile session.\n");
+            exit (1);
+        }
+
+        seaf_import_dir (import_path, repo_name, owner);
+
+        g_free (import_path);
+        g_free (repo_name);
+        g_free (owner);
+
+        return 0;
     }
 
     client = ccnet_init (config_dir);

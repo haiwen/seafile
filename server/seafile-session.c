@@ -46,9 +46,6 @@ seafile_session_new(const char *seafile_dir,
     GKeyFile *config;
     SeafileSession *session = NULL;
 
-    if (!ccnet_session)
-        return NULL;
-
     abs_seafile_dir = ccnet_expand_path (seafile_dir);
     tmp_file_dir = g_build_filename (abs_seafile_dir, "tmpfiles", NULL);
     config_file_path = g_build_filename (abs_seafile_dir, "seafile.conf", NULL);
@@ -106,54 +103,56 @@ seafile_session_new(const char *seafile_dir,
     if (!session->branch_mgr)
         goto onerror;
 
-    session->cs_mgr = seaf_cs_manager_new (session);
-    if (!session->cs_mgr)
-        goto onerror;
+    if (ccnet_session) {
+        session->cs_mgr = seaf_cs_manager_new (session);
+        if (!session->cs_mgr)
+            goto onerror;
 
-    session->share_mgr = seaf_share_manager_new (session);
-    if (!session->share_mgr)
-        goto onerror;
-    
-    session->web_at_mgr = seaf_web_at_manager_new (session);
-    if (!session->web_at_mgr)
-        goto onerror;
+        session->share_mgr = seaf_share_manager_new (session);
+        if (!session->share_mgr)
+            goto onerror;
 
-    session->token_mgr = seaf_token_manager_new (session);
-    if (!session->token_mgr)
-        goto onerror;
+        session->web_at_mgr = seaf_web_at_manager_new (session);
+        if (!session->web_at_mgr)
+            goto onerror;
 
-    session->passwd_mgr = seaf_passwd_manager_new (session);
-    if (!session->passwd_mgr)
-        goto onerror;
+        session->token_mgr = seaf_token_manager_new (session);
+        if (!session->token_mgr)
+            goto onerror;
 
-    session->quota_mgr = seaf_quota_manager_new (session);
-    if (!session->quota_mgr)
-        goto onerror;
+        session->passwd_mgr = seaf_passwd_manager_new (session);
+        if (!session->passwd_mgr)
+            goto onerror;
 
-    session->listen_mgr = seaf_listen_manager_new (session);
-    if (!session->listen_mgr)
-        goto onerror;
+        session->quota_mgr = seaf_quota_manager_new (session);
+        if (!session->quota_mgr)
+            goto onerror;
 
-    session->copy_mgr = seaf_copy_manager_new (session);
-    if (!session->copy_mgr)
-        goto onerror;
+        session->listen_mgr = seaf_listen_manager_new (session);
+        if (!session->listen_mgr)
+            goto onerror;
 
-    session->job_mgr = ccnet_job_manager_new (session->sync_thread_pool_size);
-    ccnet_session->job_mgr = ccnet_job_manager_new (session->rpc_thread_pool_size);
+        session->copy_mgr = seaf_copy_manager_new (session);
+        if (!session->copy_mgr)
+            goto onerror;
 
-    session->size_sched = size_scheduler_new (session);
+        session->job_mgr = ccnet_job_manager_new (session->sync_thread_pool_size);
+        ccnet_session->job_mgr = ccnet_job_manager_new (session->rpc_thread_pool_size);
 
-    session->ev_mgr = cevent_manager_new ();
-    if (!session->ev_mgr)
-        goto onerror;
+        session->size_sched = size_scheduler_new (session);
 
-    session->mq_mgr = seaf_mq_manager_new (session);
-    if (!session->mq_mgr)
-        goto onerror;
+        session->ev_mgr = cevent_manager_new ();
+        if (!session->ev_mgr)
+            goto onerror;
 
-    session->http_server = seaf_http_server_new (session);
-    if (!session->http_server)
-        goto onerror;
+        session->mq_mgr = seaf_mq_manager_new (session);
+        if (!session->mq_mgr)
+            goto onerror;
+
+        session->http_server = seaf_http_server_new (session);
+        if (!session->http_server)
+            goto onerror;
+    }
 
     return session;
 
@@ -180,12 +179,14 @@ seafile_session_init (SeafileSession *session)
     if (seaf_repo_manager_init (session->repo_mgr) < 0)
         return -1;
 
-    if (seaf_quota_manager_init (session->quota_mgr) < 0)
-        return -1;
+    if (session->session) {
+        if (seaf_quota_manager_init (session->quota_mgr) < 0)
+            return -1;
 
-    seaf_mq_manager_init (session->mq_mgr);
-    seaf_mq_manager_set_heartbeat_name (session->mq_mgr,
-                                        "seaf_server.heartbeat");
+        seaf_mq_manager_init (session->mq_mgr);
+        seaf_mq_manager_set_heartbeat_name (session->mq_mgr,
+                                            "seaf_server.heartbeat");
+    }
 
     return 0;
 }
