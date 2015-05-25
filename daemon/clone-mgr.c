@@ -599,7 +599,7 @@ restart_task (sqlite3_stmt *stmt, void *data)
     }
 
     if (task->repo_version > 0) {
-        if (seaf->enable_http_sync && task->server_url) {
+        if (task->server_url) {
             check_http_protocol (task);
         } else {
             transition_to_error (task, CLONE_ERROR_CONNECT);
@@ -1321,7 +1321,7 @@ add_task_common (SeafCloneManager *mgr,
     }
 
     if (task->repo_version > 0) {
-        if (seaf->enable_http_sync && task->server_url) {
+        if (task->server_url) {
             check_http_protocol (task);
         } else {
             clone_task_free (task);

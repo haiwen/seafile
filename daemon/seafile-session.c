@@ -210,12 +210,7 @@ seafile_session_prepare (SeafileSession *session)
         (session, KEY_SYNC_EXTRA_TEMP_FILE);
 
     /* Enable http sync by default. */
-    if (seafile_session_config_exists (session, KEY_ENABLE_HTTP_SYNC)) {
-        session->enable_http_sync = seafile_session_config_get_bool
-            (session, KEY_ENABLE_HTTP_SYNC);
-    } else {
-        seafile_session_config_set_string (session, KEY_ENABLE_HTTP_SYNC, "true");
-    }
+    session->enable_http_sync = TRUE;
 
     session->disable_verify_certificate = seafile_session_config_get_bool
         (session, KEY_DISABLE_VERIFY_CERTIFICATE);

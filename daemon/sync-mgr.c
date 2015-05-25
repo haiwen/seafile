@@ -481,13 +481,10 @@ seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
         return 0;
 
     if (repo->version > 0) {
-        if (seaf->enable_http_sync) {
-            if (check_http_protocol (mgr, repo)) {
-                sync_repo_v2 (mgr, repo, TRUE);
-                return 0;
-            }
-        } else
+        if (check_http_protocol (mgr, repo)) {
+            sync_repo_v2 (mgr, repo, TRUE);
             return 0;
+        }
     } else {
         /* If relay is not ready or protocol version is not determined,
          * need to wait.
@@ -2643,10 +2640,8 @@ auto_sync_pulse (void *vmanager)
 
         if (repo->version > 0) {
             /* For repo version > 0, only use http sync. */
-            if (seaf->enable_http_sync) {
-                if (check_http_protocol (manager, repo)) {
-                    sync_repo_v2 (manager, repo, FALSE);
-                }
+            if (check_http_protocol (manager, repo)) {
+                sync_repo_v2 (manager, repo, FALSE);
             }
         } else {
             /* If relay is not ready or protocol version is not determined,

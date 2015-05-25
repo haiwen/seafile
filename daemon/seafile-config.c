@@ -106,13 +106,6 @@ seafile_session_config_set_string (SeafileSession *session,
             session->sync_extra_temp_file = FALSE;
     }
 
-    if (g_strcmp0(key, KEY_ENABLE_HTTP_SYNC) == 0) {
-        if (g_strcmp0(value, "true") == 0)
-            session->enable_http_sync = TRUE;
-        else
-            session->enable_http_sync = FALSE;
-    }
-
     if (g_strcmp0(key, KEY_DISABLE_VERIFY_CERTIFICATE) == 0) {
         if (g_strcmp0(value, "true") == 0)
             session->disable_verify_certificate = TRUE;
