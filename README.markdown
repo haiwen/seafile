@@ -76,7 +76,9 @@ Our primary goal is to build a first-class product. We think this goal can only 
 License
 =======
 
-Seafile and its desktop and mobile clients are published under the GPLv3.
+Seafile server and its desktop clients are published under GPLv2.
+
+Mobile clients are published under the GPLv3.
 
 The Seafile server's web end, i.e. Seahub, is published under the Apache License.
 
