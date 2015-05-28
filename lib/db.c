@@ -201,6 +201,7 @@ char *sqlite_get_string (sqlite3 *db, const char *sql)
     const char *res = NULL;
     int result;
     sqlite3_stmt *stmt;
+    char *ret;
 
     if ( !(stmt = sqlite_query_prepare(db, sql)) )
         return NULL;
@@ -208,8 +209,9 @@ char *sqlite_get_string (sqlite3 *db, const char *sql)
     result = sqlite3_step (stmt);
     if (result == SQLITE_ROW) {
         res = (const char *)sqlite3_column_text (stmt, 0);
+        ret = g_strdup(res);
         sqlite3_finalize (stmt);
-        return g_strdup(res);
+        return ret;
     }
 
     if (result == SQLITE_ERROR) {

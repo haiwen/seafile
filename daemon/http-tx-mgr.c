@@ -10,9 +10,12 @@
 #ifdef WIN32
 #include <windows.h>
 #include <wincrypt.h>
+#endif
+
 #include <openssl/pem.h>
 #include <openssl/x509.h>
-#endif
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
 
 #include <ccnet/ccnet-client.h>
 
@@ -411,6 +414,99 @@ load_ca_bundle (CURL *curl)
 
 #endif	/* WIN32 */
 
+static gboolean
+load_certs (sqlite3_stmt *stmt, void *vdata)
+{
+    X509_STORE *store = vdata;
+    X509 *saved = NULL;
+    const char *pem_b64;
+    char *pem = NULL;
+    BIO *b = NULL;
+    gboolean ret = TRUE;
+
+    pem_b64 = (const char *)sqlite3_column_text (stmt, 0);
+
+    gsize len;
+    pem = (char *)g_base64_decode (pem_b64, &len);
+    if (!pem) {
+        seaf_warning ("Failed to decode base64.\n");
+        goto out;
+    }
+
+    b = BIO_new (BIO_s_mem());
+    if (!b) {
+        seaf_warning ("Failed to alloc BIO\n");
+        goto out;
+    }
+
+    if (BIO_write (b, pem, len) != len) {
+        seaf_warning ("Failed to write pem to BIO\n");
+        goto out;
+    }
+
+    saved = PEM_read_bio_X509 (b, NULL, 0, NULL);
+    if (!saved) {
+        seaf_warning ("Failed to read PEM from BIO\n");
+        goto out;
+    }
+
+    X509_STORE_add_cert (store, saved);
+
+out:
+    g_free (pem);
+    if (b)
+        BIO_free (b);
+
+    return ret;
+}
+
+static int
+load_certs_from_db (X509_STORE *store)
+{
+    char *cert_db_path = NULL;
+    sqlite3 *db = NULL;
+    char *sql;
+    int ret = 0;
+
+    cert_db_path = g_build_filename (seaf->seaf_dir, "certs.db", NULL);
+    if (sqlite_open_db (cert_db_path, &db) < 0) {
+        seaf_warning ("Failed to open certs.db\n");
+        ret = -1;
+        goto out;
+    }
+
+    sql = "SELECT cert FROM Certs;";
+
+    if (sqlite_foreach_selected_row (db, sql, load_certs, store) < 0) {
+        ret = -1;
+        goto out;
+    }
+
+out:
+    g_free (cert_db_path);
+    if (db)
+        sqlite_close_db (db);
+
+    return ret;
+}
+
+static CURLcode
+ssl_callback (CURL *curl, void *ssl_ctx, void *userptr)
+{
+    SSL_CTX *ctx = ssl_ctx;
+    X509_STORE *store;
+
+    store = SSL_CTX_get_cert_store(ctx);
+
+    /* Add all certs stored in db as trusted CA certs.
+     * This workaround has one limitation though. The self-signed certs cannot
+     * contain chain. It must be the CA itself.
+     */
+    load_certs_from_db (store);
+
+    return CURLE_OK;
+}
+
 static void
 set_proxy (CURL *curl, gboolean is_https)
 {
@@ -531,6 +627,11 @@ http_get (CURL *curl, const char *url, const char *token,
 #ifdef WIN32
     load_ca_bundle (curl);
 #endif
+
+    if (!seaf->disable_verify_certificate) {
+        curl_easy_setopt (curl, CURLOPT_SSL_CTX_FUNCTION, ssl_callback);
+        curl_easy_setopt (curl, CURLOPT_SSL_CTX_DATA, url);
+    }
 
     int rc = curl_easy_perform (curl);
     if (rc != 0) {
@@ -655,6 +756,11 @@ http_put (CURL *curl, const char *url, const char *token,
     load_ca_bundle (curl);
 #endif
 
+    if (!seaf->disable_verify_certificate) {
+        curl_easy_setopt (curl, CURLOPT_SSL_CTX_FUNCTION, ssl_callback);
+        curl_easy_setopt (curl, CURLOPT_SSL_CTX_DATA, url);
+    }
+
     int rc = curl_easy_perform (curl);
     if (rc != 0) {
         seaf_warning ("libcurl failed to PUT %s: %s.\n",
@@ -740,6 +846,11 @@ http_post (CURL *curl, const char *url, const char *token,
 #ifdef WIN32
     load_ca_bundle (curl);
 #endif
+
+    if (!seaf->disable_verify_certificate) {
+        curl_easy_setopt (curl, CURLOPT_SSL_CTX_FUNCTION, ssl_callback);
+        curl_easy_setopt (curl, CURLOPT_SSL_CTX_DATA, url);
+    }
 
     gboolean is_https = (strncasecmp(url, "https", strlen("https")) == 0);
     set_proxy (curl, is_https);
