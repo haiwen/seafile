@@ -2428,6 +2428,9 @@ send_block_callback (void *ptr, size_t size, size_t nmemb, void *userp)
     /* Update global transferred bytes. */
     g_atomic_int_add (&(seaf->sync_mgr->sent_bytes), n);
 
+    /* Update transferred bytes for this task */
+    g_atomic_int_add (&task->tx_bytes, n);
+
     /* If uploaded bytes exceeds the limit, wait until the counter
      * is reset. We check the counter every 100 milliseconds, so we
      * can waste up to 100 milliseconds without sending data after
@@ -3212,6 +3215,9 @@ get_block_callback (void *ptr, size_t size, size_t nmemb, void *userp)
 
     /* Update global transferred bytes. */
     g_atomic_int_add (&(seaf->sync_mgr->recv_bytes), n);
+
+    /* Update transferred bytes for this task */
+    g_atomic_int_add (&task->tx_bytes, n);
 
     /* If uploaded bytes exceeds the limit, wait until the counter
      * is reset. We check the counter every 100 milliseconds, so we
