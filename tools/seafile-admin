@@ -319,6 +319,7 @@ def get_ccnet_conf_dir():
                 conf[CONF_CCNET_CONF_EXISTS] = True
         else:
             print 'Please remove the directory %s first, and run the script again' % ccnet_conf_dir
+            sys.exit(1)
     else:
         conf[CONF_CCNET_CONF_EXISTS] = False
 
