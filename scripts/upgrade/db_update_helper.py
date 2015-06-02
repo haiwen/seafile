@@ -53,12 +53,13 @@ class Utils(object):
 
 
 class MySQLDBInfo(object):
-    def __init__(self, host, port, username, password, db):
+    def __init__(self, host, port, username, password, db, unix_socket=None):
         self.host = host
         self.port = port
         self.username = username
         self.password = password
         self.db = db
+        self.unix_socket = unix_socket
 
 
 class DBUpdater(object):
@@ -120,6 +121,7 @@ class DBUpdater(object):
         defaults = {
             'HOST': '127.0.0.1',
             'PORT': '3306',
+            'UNIX_SOCKET': '',
         }
 
         config = Utils.read_config(ccnet_conf, defaults)
@@ -138,10 +140,11 @@ class DBUpdater(object):
             username = config.get(db_section, 'USER')
             password = config.get(db_section, 'PASSWD')
             db = config.get(db_section, 'DB')
+            unix_socket = config.get(db_section, 'UNIX_SOCKET')
         except ConfigParser.NoOptionError, e:
             Utils.error('Database config in ccnet.conf is invalid: %s' % e)
 
-        info = MySQLDBInfo(host, port, username, password, db)
+        info = MySQLDBInfo(host, port, username, password, db, unix_socket)
         return info
 
     @staticmethod
@@ -150,6 +153,7 @@ class DBUpdater(object):
         defaults = {
             'HOST': '127.0.0.1',
             'PORT': '3306',
+            'UNIX_SOCKET': '',
         }
         config = Utils.read_config(seafile_conf, defaults)
         db_section = 'database'
@@ -167,10 +171,11 @@ class DBUpdater(object):
             username = config.get(db_section, 'user')
             password = config.get(db_section, 'password')
             db = config.get(db_section, 'db_name')
+            unix_socket = config.get(db_section, 'unix_socket')
         except ConfigParser.NoOptionError, e:
             Utils.error('Database config in seafile.conf is invalid: %s' % e)
 
-        info = MySQLDBInfo(host, port, username, password, db)
+        info = MySQLDBInfo(host, port, username, password, db, unix_socket)
         return info
 
     @staticmethod
@@ -194,10 +199,11 @@ class DBUpdater(object):
             username = d['USER']
             password = d['PASSWORD']
             db = d['NAME']
+            unix_socket = host if host.startswith('/') else None
         except KeyError:
             Utils.error('Database config in seahub_settings.py is invalid: %s' % e)
 
-        info = MySQLDBInfo(host, port, username, password, db)
+        info = MySQLDBInfo(host, port, username, password, db, unix_socket)
         return info
 
     def update_ccnet_sql(self, ccnet_sql):
@@ -277,12 +283,18 @@ class MySQLDBUpdater(DBUpdater):
         self.apply_sqls(self.seahub_db_info, seahub_sql)
 
     def get_conn(self, info):
+        kw = dict(
+            user=info.username,
+            passwd=info.password,
+            db=info.db,
+        )
+        if info.unix_socket:
+            kw['unix_socket'] = info.unix_socket
+        else:
+            kw['host'] = info.host
+            kw['port'] = info.port
         try:
-            conn = MySQLdb.connect(host=info.host,
-                                   port=info.port,
-                                   user=info.username,
-                                   passwd=info.password,
-                                   db=info.db)
+            conn = MySQLdb.connect(**kw)
         except Exception, e:
             if isinstance(e, MySQLdb.OperationalError):
                 msg = str(e.args[1])
