@@ -308,6 +308,7 @@ class MySQLDBUpdater(DBUpdater):
         cursor = conn.cursor()
         try:
             cursor.execute(sql)
+            conn.commit()
         except Exception, e:
             if isinstance(e, MySQLdb.OperationalError):
                 msg = str(e.args[1])
