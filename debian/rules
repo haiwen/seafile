@@ -82,7 +82,7 @@ binary-arch:
 #	dh_installinfo
 #	dh_installman
 #	dh_link
-	dh_strip
+	[ -z $(SEAFILE_NOSTRIP) ] && dh_strip
 	dh_compress
 	dh_fixperms
 #	dh_perl

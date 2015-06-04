@@ -443,6 +443,7 @@ def setup_build_env():
         prepend_env_value('DEB_CPPFLAGS_APPEND',
                          '-g -O0',
                          seperator=' ')
+        os.environ['SEAFILE_NOSTRIP'] = 'true'
 
     prepend_env_value('PATH', os.path.join(prefix, 'bin'))
     prepend_env_value('PKG_CONFIG_PATH', os.path.join(prefix, 'lib', 'pkgconfig'))
