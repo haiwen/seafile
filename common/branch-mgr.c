@@ -114,9 +114,11 @@ int
 seaf_branch_manager_init (SeafBranchManager *mgr)
 {
 #if defined( SEAFILE_SERVER ) && defined( FULL_FEATURE )
-    mgr->priv->cevent_id = cevent_manager_register (seaf->ev_mgr,
-                                    (cevent_handler)publish_repo_update_event,
-                                                    NULL);
+    if (seaf->ev_mgr) {
+        mgr->priv->cevent_id = cevent_manager_register (seaf->ev_mgr,
+                                                        (cevent_handler)publish_repo_update_event,
+                                                        NULL);
+    }
 #endif    
 
     return open_db (mgr);

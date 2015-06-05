@@ -330,14 +330,16 @@ seaf_repo_manager_new (SeafileSession *seaf)
     mgr->priv = g_new0 (SeafRepoManagerPriv, 1);
     mgr->seaf = seaf;
 
-    mgr->priv->decrypted_tokens = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                                         g_free,
-                                                         (GDestroyNotify)decrypted_token_free);
-    pthread_rwlock_init (&mgr->priv->lock, NULL);
-    mgr->priv->reap_token_timer = ccnet_timer_new (reap_token, mgr,
-                                                   REAP_TOKEN_INTERVAL * 1000);
+    if (seaf->session) {
+        mgr->priv->decrypted_tokens = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                             g_free,
+                                                             (GDestroyNotify)decrypted_token_free);
+        pthread_rwlock_init (&mgr->priv->lock, NULL);
+        mgr->priv->reap_token_timer = ccnet_timer_new (reap_token, mgr,
+                                                       REAP_TOKEN_INTERVAL * 1000);
 
-    init_scan_trash_timer (mgr->priv, seaf->config);
+        init_scan_trash_timer (mgr->priv, seaf->config);
+    }
 
     /* ignore_patterns = g_new0 (GPatternSpec*, G_N_ELEMENTS(ignore_table)); */
     /* int i; */
@@ -359,9 +361,11 @@ seaf_repo_manager_init (SeafRepoManager *mgr)
         return -1;
     }
 
-    if (seaf_repo_manager_init_merge_scheduler() < 0) {
-        seaf_warning ("Failed to init merge scheduler.\n");
-        return -1;
+    if (seaf->session) {
+        if (seaf_repo_manager_init_merge_scheduler() < 0) {
+            seaf_warning ("Failed to init merge scheduler.\n");
+            return -1;
+        }
     }
 
     return 0;

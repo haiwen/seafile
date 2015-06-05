@@ -201,10 +201,18 @@ seaf_commit_manager_init (SeafCommitManager *mgr)
 #ifdef SEAFILE_SERVER
 
 #ifdef FULL_FEATURE
-    if (seaf_obj_store_init (mgr->obj_store, TRUE, seaf->ev_mgr) < 0) {
-        g_warning ("[commit mgr] Failed to init commit object store.\n");
-        return -1;
+    if (seaf->ev_mgr) {
+        if (seaf_obj_store_init (mgr->obj_store, TRUE, seaf->ev_mgr) < 0) {
+            g_warning ("[commit mgr] Failed to init commit object store.\n");
+            return -1;
+        }
+    } else {
+        if (seaf_obj_store_init (mgr->obj_store, FALSE, NULL) < 0) {
+            g_warning ("[commit mgr] Failed to init commit object store.\n");
+            return -1;
+        }
     }
+
 #else
     if (seaf_obj_store_init (mgr->obj_store, FALSE, NULL) < 0) {
         g_warning ("[commit mgr] Failed to init commit object store.\n");
