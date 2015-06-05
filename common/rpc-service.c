@@ -587,6 +587,8 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
         sync_state = "waiting for sync";
     } else {
         sync_state = sync_state_to_str(task->state);
+        if (strcmp(sync_state, "error") == 0 && !info->in_error)
+            sync_state = "synchronized";
     }
 
 
@@ -829,12 +831,17 @@ seafile_get_path_sync_status (const char *repo_id,
         return NULL;
     }
 
-    if (*path == '/')
-        ++path;
-    canon_path = g_strdup(path);
-    len = strlen(canon_path);
-    if (canon_path[len-1] == '/')
-        canon_path[len-1] = 0;
+    /* Empty path means to get status of the worktree folder. */
+    if (strcmp (path, "") != 0) {
+        if (*path == '/')
+            ++path;
+        canon_path = g_strdup(path);
+        len = strlen(canon_path);
+        if (canon_path[len-1] == '/')
+            canon_path[len-1] = 0;
+    } else {
+        canon_path = g_strdup(path);
+    }
 
     status = seaf_sync_manager_get_path_sync_status (seaf->sync_mgr,
                                                      repo_id,
