@@ -20,6 +20,11 @@ else
 CROSS= --build $(DEB_BUILD_GNU_TYPE)
 endif
 
+DPKG_EXPORT_BUILDFLAGS = 1
+include /usr/share/dpkg/buildflags.mk
+CFLAGS+=$(CPPFLAGS)
+CXXFLAGS+=$(CPPFLAGS)
+
 
 # SEARPC_SOURCE_DIR and CCNET_SOURCE_DIR is set by build-deb.py
 searpc_dir = $(LIBSEARPC_SOURCE_DIR)
