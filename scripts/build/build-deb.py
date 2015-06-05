@@ -444,6 +444,8 @@ def setup_build_env():
                          '-g -O0',
                          seperator=' ')
         os.environ['SEAFILE_NOSTRIP'] = 'true'
+        os.environ['DEB_CFLAGS_SET'] = ''
+        os.environ['DEB_CXXFLAGS_SET'] = ''
 
     prepend_env_value('PATH', os.path.join(prefix, 'bin'))
     prepend_env_value('PKG_CONFIG_PATH', os.path.join(prefix, 'lib', 'pkgconfig'))
