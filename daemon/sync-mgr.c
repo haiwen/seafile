@@ -624,6 +624,24 @@ notify_sync (SeafRepo *repo)
     seaf_commit_unref (head);
 }
 
+#define IN_ERROR_THRESHOLD 3
+
+static void
+update_sync_info_error_state (SyncTask *task, int new_state)
+{
+    SyncInfo *info = task->info;
+
+    if (new_state == SYNC_STATE_ERROR &&
+        task->error != SYNC_ERROR_FILES_LOCKED) {
+        info->err_cnt++;
+        if (info->err_cnt == IN_ERROR_THRESHOLD)
+            info->in_error = TRUE;
+    } else if (info->err_cnt > 0) {
+        info->err_cnt = 0;
+        info->in_error = FALSE;
+    }
+}
+
 static inline void
 transition_sync_state (SyncTask *task, int new_state)
 {
@@ -658,11 +676,12 @@ transition_sync_state (SyncTask *task, int new_state)
             new_state == SYNC_STATE_ERROR) {
             task->info->in_sync = FALSE;
             --(task->mgr->n_running_tasks);
-            if (new_state == SYNC_STATE_ERROR)
-                task->info->err_cnt++;
-            else
-                task->info->err_cnt = 0;
+            update_sync_info_error_state (task, new_state);
         }
+
+#ifdef WIN32
+        seaf_sync_manager_add_refresh_path (seaf->sync_mgr, task->repo->worktree);
+#endif
     }
 }
 
@@ -706,8 +725,12 @@ seaf_sync_manager_set_task_error (SyncTask *task, int error)
         task->state = SYNC_STATE_ERROR;
         task->error = error;
         task->info->in_sync = FALSE;
-        task->info->err_cnt++;
         --(task->mgr->n_running_tasks);
+        update_sync_info_error_state (task, SYNC_STATE_ERROR);
+
+#ifdef WIN32
+        seaf_sync_manager_add_refresh_path (seaf->sync_mgr, task->repo->worktree);
+#endif
 
 #if 0
         if (task->repo && error != SYNC_ERROR_RELAY_OFFLINE
@@ -3064,8 +3087,35 @@ static char *path_status_tbl[] = {
     "error",
     "ignored",
     "synced",
+    "paused",
     NULL,
 };
+
+static char *
+get_repo_sync_status (SeafSyncManager *mgr, const char *repo_id)
+{
+    SyncInfo *info = get_sync_info (mgr, repo_id);
+    SeafRepo *repo;
+
+    if (info->in_error)
+        return g_strdup(path_status_tbl[SYNC_STATUS_ERROR]);
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo)
+        return g_strdup(path_status_tbl[SYNC_STATUS_NONE]);
+
+    if (!repo->auto_sync || !mgr->priv->auto_sync_enabled)
+        return g_strdup(path_status_tbl[SYNC_STATUS_PAUSED]);
+
+    char allzeros[41] = {0};
+    if (!info->in_sync && memcmp(allzeros, info->head_commit, 41) == 0)
+        return g_strdup(path_status_tbl[SYNC_STATUS_NONE]);
+
+    if (info->in_sync)
+        return g_strdup(path_status_tbl[SYNC_STATUS_SYNCING]);
+    else
+        return g_strdup(path_status_tbl[SYNC_STATUS_SYNCED]);
+}
 
 char *
 seaf_sync_manager_get_path_sync_status (SeafSyncManager *mgr,
@@ -3074,12 +3124,22 @@ seaf_sync_manager_get_path_sync_status (SeafSyncManager *mgr,
                                         gboolean is_dir)
 {
     ActivePathsInfo *info;
+    SyncInfo *sync_info;
     SyncStatus ret = SYNC_STATUS_NONE;
 
     if (!repo_id || !path) {
         seaf_warning ("BUG: empty repo_id or path.\n");
         return NULL;
     }
+
+    if (path[0] == 0) {
+        return get_repo_sync_status (mgr, repo_id);
+    }
+
+    /* If the repo is in error, all files in it should show no sync status. */
+    sync_info = get_sync_info (mgr, repo_id);
+    if (sync_info && sync_info->in_error)
+        return SYNC_STATUS_NONE;
 
     pthread_mutex_lock (&mgr->priv->paths_lock);
 
