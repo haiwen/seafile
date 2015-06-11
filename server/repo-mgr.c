@@ -2568,6 +2568,7 @@ seaf_fill_repo_obj_from_commit (GList **repos)
         commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
                                                             repo_id, commit_id);
         if (!commit) {
+            seaf_warning ("Commit %s not found in repo %s\n", commit_id, repo_id);
             g_object_unref (repo);
             next = p->next;
             *repos = g_list_delete_link (*repos, p);
@@ -2577,6 +2578,8 @@ seaf_fill_repo_obj_from_commit (GList **repos)
                           "encrypted", commit->encrypted, "magic", commit->magic,
                           "enc_version", commit->enc_version, "root", commit->root_id,
                           "version", commit->version, "last_modify", commit->ctime,
+                          NULL);
+            g_object_set (repo,
                           "repo_name", commit->repo_name, "repo_desc", commit->repo_desc,
                           "last_modified", commit->ctime, "repaired", commit->repaired, NULL);
             if (commit->encrypted && commit->enc_version == 2)
