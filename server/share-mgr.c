@@ -3,6 +3,8 @@
 #include "common.h"
 #include "utils.h"
 
+#include "log.h"
+
 #include "seafile-session.h"
 #include "share-mgr.h"
 

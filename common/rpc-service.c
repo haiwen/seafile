@@ -56,6 +56,8 @@ convert_repo (SeafRepo *r)
                   "head_cmmt_id", r->head ? r->head->commit_id : NULL,
                   "root", r->root_id,
                   "version", r->version, "last_modify", r->last_modify,
+                  NULL);
+    g_object_set (repo,
                   "repo_id", r->id, "repo_name", r->name,
                   "repo_desc", r->desc, "last_modified", r->last_modify,
                   NULL);
