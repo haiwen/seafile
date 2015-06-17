@@ -592,8 +592,9 @@ http_get (CURL *curl, const char *url, const char *token,
         token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
         headers = curl_slist_append (headers, token_header);
         g_free (token_header);
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     }
+
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
@@ -700,13 +701,16 @@ http_put (CURL *curl, const char *url, const char *token,
     int ret = 0;
 
     headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
+    /* Disable the default "Expect: 100-continue" header */
+    headers = curl_slist_append (headers, "Expect:");
 
     if (token) {
         token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
         headers = curl_slist_append (headers, token_header);
         g_free (token_header);
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     }
+
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_UPLOAD, 1L);
@@ -809,8 +813,9 @@ http_post (CURL *curl, const char *url, const char *token,
         token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
         headers = curl_slist_append (headers, token_header);
         g_free (token_header);
-        curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     }
+
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_POST, 1L);
