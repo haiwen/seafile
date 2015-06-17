@@ -1818,8 +1818,6 @@ http_server_run (void *arg)
         exit(-1);
     }
 
-    evhtp_set_gencb (priv->evhtp, default_cb, NULL);
-
     http_request_init (server);
 
     evhtp_use_threads (priv->evhtp, NULL, DEFAULT_THREADS, NULL);
