@@ -3801,11 +3801,6 @@ checkout_file (const char *repo_id,
         return FETCH_CHECKOUT_SUCCESS;
     }
 
-    if (conflicted) {
-        g_free (path);
-        return FETCH_CHECKOUT_SUCCESS;
-    }
-
 update_cache:
     /* finally fill cache_entry info */
     /* Only update index if we checked out the file without any error

@@ -3111,7 +3111,11 @@ get_repo_sync_status (SeafSyncManager *mgr, const char *repo_id)
     if (!info->in_sync && memcmp(allzeros, info->head_commit, 41) == 0)
         return g_strdup(path_status_tbl[SYNC_STATUS_NONE]);
 
-    if (info->in_sync)
+    if (info->in_sync &&
+        (info->current_task->state == SYNC_STATE_COMMIT ||
+         info->current_task->state == SYNC_STATE_FETCH ||
+         info->current_task->state == SYNC_STATE_UPLOAD ||
+         info->current_task->state == SYNC_STATE_MERGE))
         return g_strdup(path_status_tbl[SYNC_STATUS_SYNCING]);
     else
         return g_strdup(path_status_tbl[SYNC_STATUS_SYNCED]);

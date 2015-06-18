@@ -324,8 +324,10 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
         }
 
         g_free (conflict_path);
-    } else if (mtime > 0) {
-        /* !force_conflict && ccnet_rename() == 0
+    }
+
+    if (mtime > 0) {
+        /* 
          * Set the checked out file mtime to what it has to be.
          */
         if (seaf_set_file_time (file_path, mtime) < 0) {
