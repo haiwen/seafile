@@ -497,11 +497,6 @@ seaf_repo_manager_update_folder_perms (SeafRepoManager *mgr,
                                        FolderPermType type,
                                        GList *folder_perms);
 
-GList *
-seaf_repo_manager_load_folder_perms (SeafRepoManager *mgr,
-                                     const char *repo_id,
-                                     FolderPermType type);
-
 int
 seaf_repo_manager_update_folder_perm_timestamp (SeafRepoManager *mgr,
                                                 const char *repo_id,
@@ -510,5 +505,10 @@ seaf_repo_manager_update_folder_perm_timestamp (SeafRepoManager *mgr,
 gint64
 seaf_repo_manager_get_folder_perm_timestamp (SeafRepoManager *mgr,
                                              const char *repo_id);
+
+gboolean
+seaf_repo_manager_is_path_writable (SeafRepoManager *mgr,
+                                    const char *repo_id,
+                                    const char *path);
 
 #endif

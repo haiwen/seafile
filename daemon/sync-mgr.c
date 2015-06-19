@@ -3088,6 +3088,7 @@ static char *path_status_tbl[] = {
     "ignored",
     "synced",
     "paused",
+    "readonly",
     NULL,
 };
 
@@ -3117,8 +3118,10 @@ get_repo_sync_status (SeafSyncManager *mgr, const char *repo_id)
          info->current_task->state == SYNC_STATE_UPLOAD ||
          info->current_task->state == SYNC_STATE_MERGE))
         return g_strdup(path_status_tbl[SYNC_STATUS_SYNCING]);
-    else
+    else if (!repo->is_readonly)
         return g_strdup(path_status_tbl[SYNC_STATUS_SYNCED]);
+    else
+        return g_strdup(path_status_tbl[SYNC_STATUS_READONLY]);
 }
 
 char *
@@ -3167,6 +3170,11 @@ seaf_sync_manager_get_path_sync_status (SeafSyncManager *mgr,
     }
 
     pthread_mutex_unlock (&mgr->priv->paths_lock);
+
+    /* Display "readonly" status for readonly synced folder. */
+    if (ret == SYNC_STATUS_SYNCED && is_dir &&
+        !seaf_repo_manager_is_path_writable(seaf->repo_mgr, repo_id, path))
+        ret = SYNC_STATUS_READONLY;
 
 out:
     return g_strdup(path_status_tbl[ret]);
