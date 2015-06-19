@@ -5,6 +5,7 @@ import sys
 import sqlite3
 import subprocess
 import ccnet
+import glob
 
 # Directory layout:
 #
@@ -87,6 +88,22 @@ def apply_sqls(db_path, sql_path):
             else:
                 conn.execute(line)
 
+def _get_ccnet_db(ccnet_dir, dbname):
+    dbs = (
+        'ccnet.db',
+        'GroupMgr/groupmgr.db',
+        'misc/config.db',
+        'OrgMgr/orgmgr.db',
+    )
+    for db in dbs:
+        if os.path.splitext(os.path.basename(db))[0] == dbname:
+            return os.path.join(ccnet_dir, db)
+
+def _handle_ccnet_sqls(version):
+    for sql_path in glob.glob(os.path.join(sql_dir, version, 'sqlite3', 'ccnet', '*.sql')):
+        dbname = os.path.splitext(os.path.basename(sql_path))[0]
+        apply_sqls(_get_ccnet_db(ccnet_dir, dbname), sql_path)
+
 def upgrade_db(version):
     ensure_server_not_running()
     print 'upgrading databases ...'
@@ -95,7 +112,7 @@ def upgrade_db(version):
     seahub_db = os.path.join(seafserv_dir, 'seahub.db')
 
     def get_sql(prog):
-        ret =  os.path.join(sql_dir, version, 'sqlite3', '%s.sql' % prog)
+        ret = os.path.join(sql_dir, version, 'sqlite3', '%s.sql' % prog)
         return ret
 
     ccnet_sql = get_sql('ccnet')
@@ -105,6 +122,7 @@ def upgrade_db(version):
     if os.path.exists(ccnet_sql):
         print '    upgrading ccnet databases ...'
         apply_sqls(ccnet_db, ccnet_sql)
+    _handle_ccnet_sqls(version)
 
     if os.path.exists(seafile_sql):
         print '    upgrading seafile databases ...'
