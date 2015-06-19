@@ -926,4 +926,14 @@ char *seafile_diff_pub (const char *repo_id, const char *old, const char *new,
 
 GList * seafile_list_dir_pub (const char *dir_id, GError **error);
 
+char *
+seafile_get_shared_users_for_subdir (const char *repo_id,
+                                     const char *path,
+                                     const char *from_user,
+                                     GError **error);
+char *
+seafile_get_shared_groups_for_subdir (const char *repo_id,
+                                      const char *path,
+                                      const char *from_user,
+                                      GError **error);
 #endif

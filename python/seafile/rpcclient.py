@@ -564,7 +564,17 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_get_shared_groups_by_repo(repo_id):
         pass
     get_shared_groups_by_repo=seafile_get_shared_groups_by_repo
-    
+
+    @searpc_func("string", ["string", "string", "string"])
+    def seafile_get_shared_users_for_subdir(repo_id, path, from_user):
+        pass
+    get_shared_users_for_subdir = seafile_get_shared_users_for_subdir
+
+    @searpc_func("string", ["string", "string", "string"])
+    def seafile_get_shared_groups_for_subdir(repo_id, path, from_user):
+        pass
+    get_shared_groups_for_subdir = seafile_get_shared_groups_for_subdir
+
     @searpc_func("string", ["int"])
     def seafile_get_group_repoids(group_id):
         pass

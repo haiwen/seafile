@@ -281,6 +281,12 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.set_group_repo_permission(group_id, repo_id,
                                                                permission)
 
+    def get_shared_users_for_subdir(self, repo_id, path, from_user):
+        return seafserv_threaded_rpc.get_shared_users_for_subdir(repo_id, path, from_user)
+
+    def get_shared_groups_for_subdir(self, repo_id, path, from_user):
+        return seafserv_threaded_rpc.get_shared_groups_for_subdir(repo_id, path, from_user)
+
     # token
     def generate_repo_token(self, repo_id, username):
         """Generate a token for sync a repo

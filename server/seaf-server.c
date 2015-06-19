@@ -408,7 +408,17 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_set_group_repo_permission,
                                      "set_group_repo_permission",
                                      searpc_signature_int__int_string_string());
-    
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_shared_users_for_subdir,
+                                     "seafile_get_shared_users_for_subdir",
+                                     searpc_signature_string__string_string_string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_shared_groups_for_subdir,
+                                     "seafile_get_shared_groups_for_subdir",
+                                     searpc_signature_string__string_string_string());
+
     /* branch and commit */
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_branch_gets,
