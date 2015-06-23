@@ -3,10 +3,14 @@
 #include "common.h"
 #include "utils.h"
 
+#include "log.h"
+
 #include "seafile-session.h"
 #include "share-mgr.h"
 
 #include "seaf-db.h"
+#include "log.h"
+#include "seafile-error.h"
 
 SeafShareManager *
 seaf_share_manager_new (SeafileSession *seaf)
@@ -304,6 +308,46 @@ seaf_share_manager_list_shared_to (SeafShareManager *mgr,
     }
 
     return ret;
+}
+
+static gboolean
+collect_repo_shared_to (SeafDBRow *row, void *data)
+{
+    json_t *shared_to = data;
+    const char *to_email = seaf_db_row_get_column_text (row, 0);
+    char *email_down = g_ascii_strdown(to_email, -1);
+
+    json_array_append_new (shared_to, json_string (email_down));
+    g_free (email_down);
+
+    return TRUE;
+}
+
+char *
+seaf_share_manager_list_repo_shared_to (SeafShareManager *mgr,
+                                        const char *owner,
+                                        const char *repo_id,
+                                        GError **error)
+{
+    json_t *shared_to = json_array ();
+    char *sql = "SELECT to_email FROM SharedRepo WHERE "
+                "from_email=? AND repo_id=?";
+
+    int ret = seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                             collect_repo_shared_to, shared_to,
+                                             2, "string", owner, "string", repo_id);
+    if (ret < 0) {
+        seaf_warning ("Failed to list repo %s shared to from db.\n", repo_id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to list repo shared to from db");
+        json_decref (shared_to);
+        return NULL;
+    }
+
+    char *shared_to_str = json_dumps (shared_to, JSON_COMPACT);
+    json_decref (shared_to);
+
+    return shared_to_str;
 }
 
 int

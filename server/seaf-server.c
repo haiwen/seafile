@@ -360,6 +360,10 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "seafile_list_share_repos",
                                      searpc_signature_objlist__string_string_int_int());
     searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_list_repo_shared_to,
+                                     "seafile_list_repo_shared_to",
+                                     searpc_signature_string__string_string());
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_remove_share,
                                      "seafile_remove_share",
                                      searpc_signature_int__string_string_string());
@@ -408,7 +412,17 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_set_group_repo_permission,
                                      "set_group_repo_permission",
                                      searpc_signature_int__int_string_string());
-    
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_shared_users_for_subdir,
+                                     "seafile_get_shared_users_for_subdir",
+                                     searpc_signature_string__string_string_string());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_get_shared_groups_for_subdir,
+                                     "seafile_get_shared_groups_for_subdir",
+                                     searpc_signature_string__string_string_string());
+
     /* branch and commit */
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_branch_gets,

@@ -216,6 +216,9 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.list_share_repos(username, "from_email",
                                                       start, limit)
 
+    def list_repo_shared_to(self, owner, repo_id):
+        return seafserv_threaded_rpc.list_repo_shared_to(owner, repo_id)
+
     def get_share_in_repo_list(self, username, start, limit):
         return seafserv_threaded_rpc.list_share_repos(username, "to_email",
                                                       start, limit)
@@ -280,6 +283,12 @@ class SeafileAPI(object):
     def set_group_repo_permission(self, group_id, repo_id, permission):
         return seafserv_threaded_rpc.set_group_repo_permission(group_id, repo_id,
                                                                permission)
+
+    def get_shared_users_for_subdir(self, repo_id, path, from_user):
+        return seafserv_threaded_rpc.get_shared_users_for_subdir(repo_id, path, from_user)
+
+    def get_shared_groups_for_subdir(self, repo_id, path, from_user):
+        return seafserv_threaded_rpc.get_shared_groups_for_subdir(repo_id, path, from_user)
 
     # token
     def generate_repo_token(self, repo_id, username):

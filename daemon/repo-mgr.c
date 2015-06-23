@@ -45,6 +45,10 @@ struct _SeafRepoManagerPriv {
     pthread_mutex_t db_lock;
     GHashTable *checkout_tasks_hash;
     pthread_rwlock_t lock;
+
+    GHashTable *user_perms;     /* repo_id -> folder user perms */
+    GHashTable *group_perms;    /* repo_id -> folder group perms */
+    pthread_mutex_t perm_lock;
 };
 
 static const char *ignore_table[] = {
@@ -291,6 +295,29 @@ folder_perm_free (FolderPerm *perm)
     g_free (perm);
 }
 
+static GList *
+folder_perm_list_copy (GList *perms)
+{
+    GList *ret = NULL, *ptr;
+    FolderPerm *perm, *new_perm;
+
+    for (ptr = perms; ptr; ptr = ptr->next) {
+        perm = ptr->data;
+        new_perm = folder_perm_new (perm->path, perm->permission);
+        ret = g_list_append (ret, new_perm);
+    }
+
+    return ret;
+}
+
+static gint
+comp_folder_perms (gconstpointer a, gconstpointer b)
+{
+    const FolderPerm *perm_a = a, *perm_b = b;
+
+    return (strcmp (perm_b->path, perm_a->path));
+}
+
 int
 seaf_repo_manager_update_folder_perms (SeafRepoManager *mgr,
                                        const char *repo_id,
@@ -305,6 +332,8 @@ seaf_repo_manager_update_folder_perms (SeafRepoManager *mgr,
     g_return_val_if_fail ((type == FOLDER_PERM_TYPE_USER ||
                            type == FOLDER_PERM_TYPE_GROUP),
                           -1);
+
+    /* Update db. */
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
@@ -357,6 +386,25 @@ seaf_repo_manager_update_folder_perms (SeafRepoManager *mgr,
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
+    /* Update in memory */
+    GList *new, *old;
+    new = folder_perm_list_copy (folder_perms);
+    new = g_list_sort (new, comp_folder_perms);
+
+    pthread_mutex_lock (&mgr->priv->perm_lock);
+    if (type == FOLDER_PERM_TYPE_USER) {
+        old = g_hash_table_lookup (mgr->priv->user_perms, repo_id);
+        if (old)
+            g_list_free_full (old, (GDestroyNotify)folder_perm_free);
+        g_hash_table_insert (mgr->priv->user_perms, g_strdup(repo_id), new);
+    } else if (type == FOLDER_PERM_TYPE_GROUP) {
+        old = g_hash_table_lookup (mgr->priv->group_perms, repo_id);
+        if (old)
+            g_list_free_full (old, (GDestroyNotify)folder_perm_free);
+        g_hash_table_insert (mgr->priv->group_perms, g_strdup(repo_id), new);
+    }
+    pthread_mutex_unlock (&mgr->priv->perm_lock);
+
     return 0;
 }
 
@@ -375,18 +423,10 @@ load_folder_perm (sqlite3_stmt *stmt, void *data)
     return TRUE;
 }
 
-static gint
-comp_folder_perms (gconstpointer a, gconstpointer b)
-{
-    const FolderPerm *perm_a = a, *perm_b = b;
-
-    return (strcmp (perm_b->path, perm_a->path));
-}
-
-GList *
-seaf_repo_manager_load_folder_perms (SeafRepoManager *mgr,
-                                     const char *repo_id,
-                                     FolderPermType type)
+static GList *
+load_folder_perms_for_repo (SeafRepoManager *mgr,
+                            const char *repo_id,
+                            FolderPermType type)
 {
     GList *perms = NULL;
     char sql[256];
@@ -424,6 +464,36 @@ seaf_repo_manager_load_folder_perms (SeafRepoManager *mgr,
     perms = g_list_sort (perms, comp_folder_perms);
 
     return perms;
+}
+
+static void
+init_folder_perms (SeafRepoManager *mgr)
+{
+    SeafRepoManagerPriv *priv = mgr->priv;
+    GList *repo_ids = g_hash_table_get_keys (priv->repo_hash);
+    GList *ptr;
+    GList *perms;
+    char *repo_id;
+
+    priv->user_perms = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    priv->group_perms = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    pthread_mutex_init (&priv->perm_lock, NULL);
+
+    for (ptr = repo_ids; ptr; ptr = ptr->next) {
+        repo_id = ptr->data;
+        perms = load_folder_perms_for_repo (mgr, repo_id, FOLDER_PERM_TYPE_USER);
+        if (perms) {
+            pthread_mutex_lock (&priv->perm_lock);
+            g_hash_table_insert (priv->user_perms, g_strdup(repo_id), perms);
+            pthread_mutex_unlock (&priv->perm_lock);
+        }
+        perms = load_folder_perms_for_repo (mgr, repo_id, FOLDER_PERM_TYPE_GROUP);
+        if (perms) {
+            pthread_mutex_lock (&priv->perm_lock);
+            g_hash_table_insert (priv->group_perms, g_strdup(repo_id), perms);
+            pthread_mutex_unlock (&priv->perm_lock);
+        }
+    }
 }
 
 int
@@ -497,13 +567,19 @@ lookup_folder_perm (GList *perms, const char *path)
 }
 
 static gboolean
-is_path_writable (GList *user_perms,
-                  GList *group_perms,
+is_path_writable (const char *repo_id,
                   gboolean is_repo_readonly,
                   const char *path)
 {
+    SeafRepoManager *mgr = seaf->repo_mgr;
+    GList *user_perms = NULL, *group_perms = NULL;
     char *permission = NULL;
     char *abs_path = NULL;
+
+    pthread_mutex_lock (&mgr->priv->perm_lock);
+
+    user_perms = g_hash_table_lookup (mgr->priv->user_perms, repo_id);
+    group_perms = g_hash_table_lookup (mgr->priv->group_perms, repo_id);
 
     if (user_perms || group_perms)
         abs_path = g_strconcat ("/", path, NULL);
@@ -512,6 +588,8 @@ is_path_writable (GList *user_perms,
         permission = lookup_folder_perm (user_perms, abs_path);
     if (!permission && group_perms)
         permission = lookup_folder_perm (group_perms, abs_path);
+
+    pthread_mutex_unlock (&mgr->priv->perm_lock);
 
     g_free (abs_path);
 
@@ -522,6 +600,20 @@ is_path_writable (GList *user_perms,
         return TRUE;
     else
         return FALSE;
+}
+
+gboolean
+seaf_repo_manager_is_path_writable (SeafRepoManager *mgr,
+                                    const char *repo_id,
+                                    const char *path)
+{
+    SeafRepo *repo = seaf_repo_manager_get_repo (mgr, repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %s.\n", repo_id);
+        return FALSE;
+    }
+
+    return is_path_writable (repo_id, repo->is_readonly, path);
 }
 
 gboolean
@@ -905,8 +997,6 @@ index_cb (const char *repo_id,
 
 typedef struct _AddOptions {
     LockedFileSet *fset;
-    GList *user_perms;
-    GList *group_perms;
     gboolean is_repo_ro;
     gboolean startup_scan;
 } AddOptions;
@@ -929,7 +1019,7 @@ add_file (const char *repo_id,
     gboolean is_writable = TRUE;
 
     if (options)
-        is_writable = is_path_writable(options->user_perms, options->group_perms,
+        is_writable = is_path_writable(repo_id,
                                        options->is_repo_ro, path);
 
     if (options && options->startup_scan) {
@@ -1111,7 +1201,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     g_dir_close (dir);
 
     if (options)
-        is_writable = is_path_writable(options->user_perms, options->group_perms,
+        is_writable = is_path_writable(params->repo_id,
                                        options->is_repo_ro, path);
 
     /* Update active path status for empty dir */
@@ -1348,7 +1438,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     }
 
     if (options)
-         is_writable = is_path_writable(options->user_perms, options->group_perms,
+        is_writable = is_path_writable(params->repo_id,
                                         options->is_repo_ro, path);
 
     /* Update active path status for empty dir */
@@ -1527,7 +1617,7 @@ check_locked_file_before_remove (LockedFileSet *fset, const char *path)
 static void
 remove_deleted (struct index_state *istate, const char *worktree, const char *prefix,
                 GList *ignore_list, LockedFileSet *fset,
-                GList *user_perms, GList *group_perms, gboolean is_repo_ro)
+                const char *repo_id, gboolean is_repo_ro)
 {
     struct cache_entry **ce_array = istate->cache;
     struct cache_entry *ce;
@@ -1543,7 +1633,7 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
     for (i = 0; i < istate->cache_nr; ++i) {
         ce = ce_array[i];
 
-        if (!is_path_writable (user_perms, group_perms, is_repo_ro, ce->name))
+        if (!is_path_writable (repo_id, is_repo_ro, ce->name))
             continue;
 
         if (prefix[0] != 0 && strcmp (ce->name, prefix) != 0 &&
@@ -1581,17 +1671,14 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
 static int
 scan_worktree_for_changes (struct index_state *istate, SeafRepo *repo,
                            SeafileCrypt *crypt, GList *ignore_list,
-                           LockedFileSet *fset,
-                           GList *user_perms, GList *group_perms)
+                           LockedFileSet *fset)
 {
     remove_deleted (istate, repo->worktree, "", ignore_list, fset,
-                    user_perms, group_perms, repo->is_readonly);
+                    repo->id, repo->is_readonly);
 
     AddOptions options;
     memset (&options, 0, sizeof(options));
     options.fset = fset;
-    options.user_perms = user_perms;
-    options.group_perms = group_perms;
     options.is_repo_ro = repo->is_readonly;
 
     if (add_recursive (repo->id, repo->version, repo->email,
@@ -1636,7 +1723,7 @@ static int
 add_path_to_index (SeafRepo *repo, struct index_state *istate,
                    SeafileCrypt *crypt, const char *path, GList *ignore_list,
                    GList **scanned_dirs, gint64 *total_size, GQueue **remain_files,
-                   LockedFileSet *fset, GList *user_perms, GList *group_perms)
+                   LockedFileSet *fset)
 {
     char *full_path;
     SeafStat st;
@@ -1647,12 +1734,10 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
      */
     if (path[0] == 0) {
         remove_deleted (istate, repo->worktree, "", ignore_list, fset,
-                        user_perms, group_perms, repo->is_readonly);
+                        repo->id, repo->is_readonly);
 
         memset (&options, 0, sizeof(options));
         options.fset = fset;
-        options.user_perms = user_perms;
-        options.group_perms = group_perms;
         options.is_repo_ro = repo->is_readonly;
         options.startup_scan = TRUE;
 
@@ -1703,8 +1788,6 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
 
     memset (&options, 0, sizeof(options));
     options.fset = fset;
-    options.user_perms = user_perms;
-    options.group_perms = group_perms;
     options.is_repo_ro = repo->is_readonly;
 
     /* Add is always recursive */
@@ -1721,7 +1804,7 @@ static int
 add_path_to_index (SeafRepo *repo, struct index_state *istate,
                    SeafileCrypt *crypt, const char *path, GList *ignore_list,
                    GList **scanned_dirs, gint64 *total_size, GQueue **remain_files,
-                   LockedFileSet *fset, GList *user_perms, GList *group_perms)
+                   LockedFileSet *fset)
 {
     SeafStat st;
 
@@ -1759,15 +1842,13 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
         return 0;
 
     remove_deleted (istate, repo->worktree, path, ignore_list, NULL,
-                    user_perms, group_perms, repo->is_readonly);
+                    repo->id, repo->is_readonly);
 
     *scanned_dirs = g_list_prepend (*scanned_dirs, g_strdup(path));
 
     AddOptions options;
     memset (&options, 0, sizeof(options));
     options.fset = fset;
-    options.user_perms = user_perms;
-    options.group_perms = group_perms;
     options.is_repo_ro = repo->is_readonly;
     /* When something is changed in the root directory, update active path
      * sync status when scanning the worktree. This is inaccurate. This will
@@ -1945,13 +2026,12 @@ update_ce_mode (struct index_state *istate, const char *worktree, const char *pa
 
 #ifdef WIN32
 static void
-scan_subtree_for_deletion (struct index_state *istate,
+scan_subtree_for_deletion (const char *repo_id,
+                           struct index_state *istate,
                            const char *worktree,
                            const char *path,
                            GList *ignore_list,
                            LockedFileSet *fset,
-                           GList *user_perms,
-                           GList *group_perms,
                            gboolean is_readonly,
                            GList **scanned_dirs)
 {
@@ -2022,7 +2102,7 @@ scan_subtree_for_deletion (struct index_state *istate,
     *scanned_dirs = g_list_prepend (*scanned_dirs, g_strdup(dir));
 
     remove_deleted (istate, worktree, dir, ignore_list, fset,
-                    user_perms, group_perms, is_readonly);
+                    repo_id, is_readonly);
 
 out:
     g_free (path_w);
@@ -2031,13 +2111,12 @@ out:
 }
 #else
 static void
-scan_subtree_for_deletion (struct index_state *istate,
+scan_subtree_for_deletion (const char *repo_id,
+                           struct index_state *istate,
                            const char *worktree,
                            const char *path,
                            GList *ignore_list,
                            LockedFileSet *fset,
-                           GList *user_perms,
-                           GList *group_perms,
                            gboolean is_readonly,
                            GList **scanned_dirs)
 {
@@ -2049,7 +2128,6 @@ static gboolean
 handle_add_files (SeafRepo *repo, struct index_state *istate,
                   SeafileCrypt *crypt, GList *ignore_list,
                   LockedFileSet *fset,
-                  GList *user_perms, GList *group_perms,
                   WTStatus *status, WTEvent *event,
                   GList **scanned_dirs, gint64 *total_size)
 {
@@ -2060,14 +2138,12 @@ handle_add_files (SeafRepo *repo, struct index_state *istate,
          */
         add_path_to_index (repo, istate, crypt, event->path,
                            ignore_list, scanned_dirs,
-                           total_size, NULL, NULL,
-                           user_perms, group_perms);
+                           total_size, NULL, NULL);
     } else if (!event->remain_files) {
         GQueue *remain_files = NULL;
         add_path_to_index (repo, istate, crypt, event->path,
                            ignore_list, scanned_dirs,
-                           total_size, &remain_files, fset,
-                           user_perms, group_perms);
+                           total_size, &remain_files, fset);
         if (*total_size >= MAX_COMMIT_SIZE) {
             seaf_message ("Creating partial commit after adding %s.\n",
                           event->path);
@@ -2277,9 +2353,7 @@ update_active_file (SeafRepo *repo,
                     const char *path,
                     SeafStat *st,
                     struct index_state *istate,
-                    gboolean ignored,
-                    GList *user_perms,
-                    GList *group_perms)
+                    gboolean ignored)
 {
     if (ignored) {
         seaf_sync_manager_update_active_path (seaf->sync_mgr,
@@ -2297,7 +2371,7 @@ update_active_file (SeafRepo *repo,
         else
             status = SYNC_STATUS_SYNCED;
 
-        is_writable = is_path_writable (user_perms, group_perms, repo->is_readonly, path);
+        is_writable = is_path_writable (repo->id, repo->is_readonly, path);
 
         if (!is_writable && status == SYNC_STATUS_SYNCING)
             seaf_sync_manager_delete_active_path (seaf->sync_mgr,
@@ -2318,8 +2392,6 @@ typedef struct _UpdatePathData {
     SeafRepo *repo;
     struct index_state *istate;
     GList *ignore_list;
-    GList *user_perms;
-    GList *group_perms;
 
     const char *parent;
     const char *full_parent;
@@ -2331,9 +2403,7 @@ update_active_path_recursive (SeafRepo *repo,
                               const char *path,
                               struct index_state *istate,
                               GList *ignore_list,
-                              gboolean ignored,
-                              GList *user_perms,
-                              GList *group_perms);
+                              gboolean ignored);
 
 static int
 update_active_path_cb (wchar_t *full_parent_w,
@@ -2361,17 +2431,13 @@ update_active_path_cb (wchar_t *full_parent_w,
                                       path,
                                       upd_data->istate,
                                       upd_data->ignore_list,
-                                      ignored,
-                                      upd_data->user_perms,
-                                      upd_data->group_perms);
+                                      ignored);
     } else {
         update_active_file (upd_data->repo,
                             path,
                             &st,
                             upd_data->istate,
-                            ignored,
-                            upd_data->user_perms,
-                            upd_data->group_perms);
+                            ignored);
     }
 
     g_free (dname);
@@ -2383,9 +2449,7 @@ update_active_path_recursive (SeafRepo *repo,
                               const char *path,
                               struct index_state *istate,
                               GList *ignore_list,
-                              gboolean ignored,
-                              GList *user_perms,
-                              GList *group_perms)
+                              gboolean ignored)
 {
     char *full_path;
     wchar_t *full_path_w;
@@ -2402,8 +2466,6 @@ update_active_path_recursive (SeafRepo *repo,
     upd_data.parent = path;
     upd_data.full_parent = full_path;
     upd_data.ignored = ignored;
-    upd_data.user_perms = user_perms;
-    upd_data.group_perms = group_perms;
 
     full_path_w = win32_long_path (full_path);
     ret = traverse_directory_win32 (full_path_w, update_active_path_cb, &upd_data);
@@ -2416,7 +2478,7 @@ update_active_path_recursive (SeafRepo *repo,
     /* Don't set sync status for read-only paths, since changes to read-only
      * files are ignored.
      */
-    if (!is_path_writable (user_perms, group_perms, repo->is_readonly, path))
+    if (!is_path_writable (repo->id, repo->is_readonly, path))
         return;
 
     /* traverse_directory_win32() returns number of entries in the directory. */
@@ -2451,9 +2513,7 @@ update_active_path_recursive (SeafRepo *repo,
                               const char *path,
                               struct index_state *istate,
                               GList *ignore_list,
-                              gboolean ignored,
-                              GList *user_perms,
-                              GList *group_perms)
+                              gboolean ignored)
 {
     GDir *dir;
     GError *error = NULL;
@@ -2494,10 +2554,10 @@ update_active_path_recursive (SeafRepo *repo,
 
         if (S_ISDIR(st.st_mode)) {
             update_active_path_recursive (repo, sub_path, istate, ignore_list,
-                                          ignore_sub, user_perms, group_perms);
+                                          ignore_sub);
         } else if (S_ISREG(st.st_mode)) {
             update_active_file (repo, sub_path, &st, istate,
-                                ignore_sub, user_perms, group_perms);
+                                ignore_sub);
         }
 
         g_free (dname);
@@ -2510,7 +2570,7 @@ update_active_path_recursive (SeafRepo *repo,
     /* Don't set sync status for read-only paths, since changes to read-only
      * files are ignored.
      */
-    if (!is_path_writable (user_perms, group_perms, repo->is_readonly, path))
+    if (!is_path_writable (repo->id, repo->is_readonly, path))
         return;
 
     if (n == 0 && path[0] != 0) {
@@ -2541,8 +2601,7 @@ update_active_path_recursive (SeafRepo *repo,
 
 static void
 process_active_path (SeafRepo *repo, const char *path,
-                     struct index_state *istate, GList *ignore_list,
-                     GList *user_perms, GList *group_perms)
+                     struct index_state *istate, GList *ignore_list)
 {
     SeafStat st;
     SyncStatus status;
@@ -2559,11 +2618,9 @@ process_active_path (SeafRepo *repo, const char *path,
         ignored = TRUE;
 
     if (S_ISREG(st.st_mode)) {
-        update_active_file (repo, path, &st, istate, ignored,
-                            user_perms, group_perms);
+        update_active_file (repo, path, &st, istate, ignored);
     } else {
-        update_active_path_recursive (repo, path, istate, ignore_list, ignored,
-                                      user_perms, group_perms);
+        update_active_path_recursive (repo, path, istate, ignore_list, ignored);
     }
 
     g_free (fullpath);
@@ -2573,8 +2630,7 @@ process_active_path (SeafRepo *repo, const char *path,
 
 static void
 process_active_folder (SeafRepo *repo, const char *dir,
-                       struct index_state *istate, GList *ignore_list,
-                       GList *user_perms, GList *group_perms)
+                       struct index_state *istate, GList *ignore_list)
 {
     GList *add = NULL, *mod = NULL, *del = NULL;
     GList *p;
@@ -2591,14 +2647,12 @@ process_active_folder (SeafRepo *repo, const char *dir,
 
     for (p = add; p; p = p->next) {
         path = p->data;
-        process_active_path (repo, path, istate, ignore_list,
-                             user_perms, group_perms);
+        process_active_path (repo, path, istate, ignore_list);
     }
 
     for (p = mod; p; p = p->next) {
         path = p->data;
-        process_active_path (repo, path, istate, ignore_list,
-                             user_perms, group_perms);
+        process_active_path (repo, path, istate, ignore_list);
     }
 
     g_list_free_full (add, g_free);
@@ -2610,8 +2664,7 @@ process_active_folder (SeafRepo *repo, const char *dir,
 
 static void
 update_path_sync_status (SeafRepo *repo, WTStatus *status,
-                         struct index_state *istate, GList *ignore_list,
-                         GList *user_perms, GList *group_perms)
+                         struct index_state *istate, GList *ignore_list)
 {
     char *path, *dir;
 
@@ -2624,11 +2677,9 @@ update_path_sync_status (SeafRepo *repo, WTStatus *status,
             break;
 
 #ifdef __APPLE__
-        process_active_folder (repo, path, istate, ignore_list,
-                               user_perms, group_perms);
+        process_active_folder (repo, path, istate, ignore_list);
 #else
-        process_active_path (repo, path, istate, ignore_list,
-                             user_perms, group_perms);
+        process_active_path (repo, path, istate, ignore_list);
 #endif
     }
 }
@@ -2636,8 +2687,7 @@ update_path_sync_status (SeafRepo *repo, WTStatus *status,
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list,
-                                 LockedFileSet *fset,
-                                 GList *user_perms, GList *group_perms)
+                                 LockedFileSet *fset)
 {
     WTStatus *status;
     WTEvent *event, *next_event;
@@ -2650,8 +2700,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
         return -1;
     }
 
-    update_path_sync_status (repo, status, istate, ignore_list,
-                             user_perms, group_perms);
+    update_path_sync_status (repo, status, istate, ignore_list);
 
     GList *scanned_dirs = NULL, *scanned_del_dirs = NULL;
 
@@ -2691,14 +2740,14 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
              * If the event path is not writable, we don't need to check the paths
              * under the event path.
              */
-            if (!is_path_writable(user_perms, group_perms,
+            if (!is_path_writable(repo->id,
                                   repo->is_readonly, event->path)) {
                 seaf_debug ("%s is not writable, ignore.\n", event->path);
                 break;
             }
 
             if (handle_add_files (repo, istate, crypt, ignore_list,
-                                  fset, user_perms, group_perms,
+                                  fset,
                                   status, event,
                                   &scanned_dirs, &total_size))
                 goto out;
@@ -2706,14 +2755,14 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             break;
         case WT_EVENT_SCAN_DIR:
             if (handle_add_files (repo, istate, crypt, ignore_list,
-                                  fset, user_perms, group_perms,
+                                  fset,
                                   status, event,
                                   &scanned_dirs, &total_size))
                 goto out;
 
             break;
         case WT_EVENT_DELETE:
-            if (!is_path_writable(user_perms, group_perms,
+            if (!is_path_writable(repo->id,
                                   repo->is_readonly, event->path)) {
                 seaf_debug ("%s is not writable, ignore.\n", event->path);
                 break;
@@ -2723,10 +2772,10 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 not_found = FALSE;
                 remove_from_index_with_prefix (istate, event->path, &not_found);
                 if (not_found)
-                    scan_subtree_for_deletion (istate,
+                    scan_subtree_for_deletion (repo->id,
+                                               istate,
                                                repo->worktree, event->path,
                                                ignore_list, fset,
-                                               user_perms, group_perms,
                                                repo->is_readonly,
                                                &scanned_del_dirs);
 
@@ -2737,9 +2786,9 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             }
             break;
         case WT_EVENT_RENAME:
-            if (!is_path_writable(user_perms, group_perms,
+            if (!is_path_writable(repo->id,
                                   repo->is_readonly, event->path) ||
-                !is_path_writable(user_perms, group_perms,
+                !is_path_writable(repo->id,
                                   repo->is_readonly, event->new_path)) {
                 seaf_debug ("Rename: %s or %s is not writable, ignore.\n",
                             event->path, event->new_path);
@@ -2753,10 +2802,10 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                     not_found = FALSE;
                     remove_from_index_with_prefix (istate, event->path, &not_found);
                     if (not_found)
-                        scan_subtree_for_deletion (istate,
+                        scan_subtree_for_deletion (repo->id,
+                                                   istate,
                                                    repo->worktree, event->path,
                                                    ignore_list, fset,
-                                                   user_perms, group_perms,
                                                    repo->is_readonly,
                                                    &scanned_del_dirs);
                 }
@@ -2768,10 +2817,10 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 rename_index_entries (istate, event->path, event->new_path, &not_found,
                                       NULL, NULL);
                 if (not_found)
-                    scan_subtree_for_deletion (istate,
+                    scan_subtree_for_deletion (repo->id,
+                                               istate,
                                                repo->worktree, event->path,
                                                ignore_list, fset,
-                                               user_perms, group_perms,
                                                repo->is_readonly,
                                                &scanned_del_dirs);
 
@@ -2802,7 +2851,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                            NULL, NULL, &options);
             break;
         case WT_EVENT_ATTRIB:
-            if (!is_path_writable(user_perms, group_perms,
+            if (!is_path_writable(repo->id,
                                   repo->is_readonly, event->path)) {
                 seaf_debug ("%s is not writable, ignore.\n", event->path);
                 break;
@@ -2811,8 +2860,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             break;
         case WT_EVENT_OVERFLOW:
             seaf_warning ("Kernel event queue overflowed, fall back to scan.\n");
-            scan_worktree_for_changes (istate, repo, crypt, ignore_list, fset,
-                                       user_perms, group_perms);
+            scan_worktree_for_changes (istate, repo, crypt, ignore_list, fset);
             break;
         }
 
@@ -2909,7 +2957,6 @@ index_add (SeafRepo *repo, struct index_state *istate,
     SeafileCrypt *crypt = NULL;
     LockedFileSet *fset = NULL;
     GList *ignore_list = NULL;
-    GList *user_perms = NULL, *group_perms = NULL;
     GList *ptr;
     int ret = 0;
 
@@ -2924,21 +2971,12 @@ index_add (SeafRepo *repo, struct index_state *istate,
 
     ignore_list = seaf_repo_load_ignore_files (repo->worktree);
 
-    user_perms = seaf_repo_manager_load_folder_perms (seaf->repo_mgr,
-                                                      repo->id,
-                                                      FOLDER_PERM_TYPE_USER);
-    group_perms = seaf_repo_manager_load_folder_perms (seaf->repo_mgr,
-                                                       repo->id,
-                                                       FOLDER_PERM_TYPE_GROUP);
-
     if (!is_force_commit) {
-        if (apply_worktree_changes_to_index (repo, istate, crypt, ignore_list, fset,
-                                             user_perms, group_perms) < 0) {
+        if (apply_worktree_changes_to_index (repo, istate, crypt, ignore_list, fset) < 0) {
             seaf_warning ("Failed to apply worktree changes to index.\n");
             ret = -1;
         }
-    } else if (scan_worktree_for_changes (istate, repo, crypt, ignore_list, fset,
-                                          user_perms, group_perms) < 0) {
+    } else if (scan_worktree_for_changes (istate, repo, crypt, ignore_list, fset) < 0) {
         seaf_warning ("Failed to scan worktree for changes.\n");
         ret = -1;
     }
@@ -2955,13 +2993,6 @@ index_add (SeafRepo *repo, struct index_state *istate,
 #ifdef WIN32
     locked_file_set_free (fset);
 #endif
-
-    for (ptr = user_perms; ptr; ptr = ptr->next)
-        folder_perm_free ((FolderPerm *)ptr->data);
-    g_list_free (user_perms);
-    for (ptr = group_perms; ptr; ptr = ptr->next)
-        folder_perm_free ((FolderPerm *)ptr->data);
-    g_list_free (group_perms);
 
     g_free (crypt);
 
@@ -3022,7 +3053,7 @@ seaf_repo_index_worktree_files (const char *repo_id,
                        NULL, NULL, NULL) < 0)
         goto error;
 
-    remove_deleted (&istate, worktree, "", ignore_list, NULL, NULL, NULL, FALSE);
+    remove_deleted (&istate, worktree, "", ignore_list, NULL, repo_id, FALSE);
 
     it = cache_tree ();
     if (cache_tree_update (repo_id, repo_version, worktree,
@@ -3797,11 +3828,6 @@ checkout_file (const char *repo_id,
      */
     if (case_conflict) {
         ce->ce_flags |= CE_REMOVE;
-        g_free (path);
-        return FETCH_CHECKOUT_SUCCESS;
-    }
-
-    if (conflicted) {
         g_free (path);
         return FETCH_CHECKOUT_SUCCESS;
     }
@@ -4705,6 +4731,9 @@ seaf_repo_manager_init (SeafRepoManager *mgr)
 
     /* Load all the repos into memory on the client side. */
     load_repos (mgr, mgr->seaf->seaf_dir);
+
+    /* Load folder permissions from db. */
+    init_folder_perms (mgr);
 
     return 0;
 }

@@ -19,6 +19,8 @@ struct _SyncInfo {
     gboolean   in_sync;         /* set to FALSE when sync state is DONE or ERROR */
 
     gint       err_cnt;
+    gboolean   in_error;        /* set to TRUE if err_cnt >= 3 */
+
     gboolean   deleted_on_relay;
     gboolean   branch_deleted_on_relay;
     gboolean   repo_corrupted;
@@ -94,6 +96,8 @@ enum _SyncStatus {
     SYNC_STATUS_ERROR,
     SYNC_STATUS_IGNORED,
     SYNC_STATUS_SYNCED,
+    SYNC_STATUS_PAUSED,
+    SYNC_STATUS_READONLY,
     N_SYNC_STATUS,
 };
 typedef enum _SyncStatus SyncStatus;
