@@ -1815,7 +1815,6 @@ calculate_upload_size_delta_and_active_paths (HttpTxTask *task,
         seaf_warning ("Failed to diff local and master head for repo %.8s.\n",
                       task->repo_id);
         ret = -1;
-        g_hash_table_destroy (data.active_paths);
         goto out;
     }
 
