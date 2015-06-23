@@ -492,6 +492,10 @@ GList *
 seafile_list_share_repos (const char *email, const char *type,
                           int start, int limit, GError **error);
 
+char *
+seafile_list_repo_shared_to (const char *owner, const char *repo_id,
+                             GError **error);
+
 int
 seafile_remove_share (const char *repo_id, const char *from_email,
                       const char *to_email, GError **error);
@@ -926,4 +930,14 @@ char *seafile_diff_pub (const char *repo_id, const char *old, const char *new,
 
 GList * seafile_list_dir_pub (const char *dir_id, GError **error);
 
+char *
+seafile_get_shared_users_for_subdir (const char *repo_id,
+                                     const char *path,
+                                     const char *from_user,
+                                     GError **error);
+char *
+seafile_get_shared_groups_for_subdir (const char *repo_id,
+                                      const char *path,
+                                      const char *from_user,
+                                      GError **error);
 #endif

@@ -3163,3 +3163,79 @@ seaf_repo_manager_get_decrypted_token (SeafRepoManager *mgr,
         return g_strdup(token->token);
     return NULL;
 }
+
+static gboolean
+get_shared_users (SeafDBRow *row, void *data)
+{
+    json_t *shared_users = data;
+    const char *user = seaf_db_row_get_column_text (row, 0);
+    json_array_append_new (shared_users, json_string (user));
+
+    return TRUE;
+}
+
+char *
+seaf_repo_manager_get_shared_users_for_subdir (SeafRepoManager *mgr,
+                                               const char *repo_id,
+                                               const char *path,
+                                               const char *from_user,
+                                               GError **error)
+{
+    json_t *shared_users = json_array();
+    int ret = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                             "SELECT to_email FROM SharedRepo s, VirtualRepo v "
+                                             "WHERE s.repo_id = v.repo_id AND v.origin_repo = ? "
+                                             "AND v.path = ? AND s.from_email = ?",
+                                             get_shared_users, shared_users, 3, "string", repo_id,
+                                             "string", path, "string", from_user);
+    if (ret < 0) {
+        seaf_warning ("Failed to get shared users for %.8s(%s).\n", repo_id, path);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to get shared users for subdir from db");
+        json_decref (shared_users);
+        return NULL;
+    }
+
+    char *shared_users_str = json_dumps (shared_users, JSON_COMPACT);
+    json_decref (shared_users);
+
+    return shared_users_str;
+}
+
+static gboolean
+get_shared_groups (SeafDBRow *row, void *data)
+{
+    json_t *shared_groups = data;
+    int group = seaf_db_row_get_column_int (row, 0);
+    json_array_append_new (shared_groups, json_integer (group));
+
+    return TRUE;
+}
+
+char *
+seaf_repo_manager_get_shared_groups_for_subdir (SeafRepoManager *mgr,
+                                                const char *repo_id,
+                                                const char *path,
+                                                const char *from_user,
+                                                GError **error)
+{
+    json_t *shared_groups = json_array();
+    int ret = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                             "SELECT group_id FROM RepoGroup r, VirtualRepo v "
+                                             "WHERE r.repo_id = v.repo_id AND v.origin_repo = ? "
+                                             "AND v.path = ? AND r.user_name = ?",
+                                             get_shared_groups, shared_groups, 3, "string", repo_id,
+                                             "string", path, "string", from_user);
+    if (ret < 0) {
+        seaf_warning ("Failed to get shared groups for %.8s(%s).\n", repo_id, path);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to get shared groups fro subdir from db");
+        json_decref (shared_groups);
+        return NULL;
+    }
+
+    char *shared_groups_str = json_dumps (shared_groups, JSON_COMPACT);
+    json_decref (shared_groups);
+
+    return shared_groups_str;
+}
