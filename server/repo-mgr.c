@@ -3167,9 +3167,9 @@ seaf_repo_manager_get_decrypted_token (SeafRepoManager *mgr,
 static gboolean
 get_shared_users (SeafDBRow *row, void *data)
 {
-    GString *shared_users = data;
+    json_t *shared_users = data;
     const char *user = seaf_db_row_get_column_text (row, 0);
-    g_string_append_printf (shared_users, "%s,", user);
+    json_array_append_new (shared_users, json_string (user));
 
     return TRUE;
 }
@@ -3181,35 +3181,33 @@ seaf_repo_manager_get_shared_users_for_subdir (SeafRepoManager *mgr,
                                                const char *from_user,
                                                GError **error)
 {
-    GString *shared_users = g_string_new ("");
+    json_t *shared_users = json_array();
     int ret = seaf_db_statement_foreach_row (mgr->seaf->db,
-                                             "SELECT to_email FROM SharedRepo WHERE repo_id = "
-                                             "(SELECT repo_id FROM VirtualRepo WHERE origin_repo = ?"
-                                             " AND path = ?) AND from_email = ?",
+                                             "SELECT to_email FROM SharedRepo s, VirtualRepo v "
+                                             "WHERE s.repo_id = v.repo_id AND v.origin_repo = ? "
+                                             "AND v.path = ? AND s.from_email = ?",
                                              get_shared_users, shared_users, 3, "string", repo_id,
                                              "string", path, "string", from_user);
     if (ret < 0) {
         seaf_warning ("Failed to get shared users for %.8s(%s).\n", repo_id, path);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to get shared users for subdir from db");
-        g_string_free (shared_users, TRUE);
+        json_decref (shared_users);
         return NULL;
     }
 
-    if (shared_users->len > 0) {
-        // trim the last ','
-        g_string_erase (shared_users, shared_users->len - 1, 1);
-    }
+    char *shared_users_str = json_dumps (shared_users, JSON_COMPACT);
+    json_decref (shared_users);
 
-    return g_string_free (shared_users, FALSE);
+    return shared_users_str;
 }
 
 static gboolean
 get_shared_groups (SeafDBRow *row, void *data)
 {
-    GString *shared_groups = data;
+    json_t *shared_groups = data;
     int group = seaf_db_row_get_column_int (row, 0);
-    g_string_append_printf (shared_groups, "%d,", group);
+    json_array_append_new (shared_groups, json_integer (group));
 
     return TRUE;
 }
@@ -3221,25 +3219,23 @@ seaf_repo_manager_get_shared_groups_for_subdir (SeafRepoManager *mgr,
                                                 const char *from_user,
                                                 GError **error)
 {
-    GString *shared_groups = g_string_new ("");
+    json_t *shared_groups = json_array();
     int ret = seaf_db_statement_foreach_row (mgr->seaf->db,
-                                             "SELECT group_id FROM RepoGroup WHERE repo_id = "
-                                             "(SELECT repo_id FROM VirtualRepo WHERE origin_repo = ?"
-                                             " AND path = ?) AND user_name = ?",
+                                             "SELECT group_id FROM RepoGroup r, VirtualRepo v "
+                                             "WHERE r.repo_id = v.repo_id AND v.origin_repo = ? "
+                                             "AND v.path = ? AND r.user_name = ?",
                                              get_shared_groups, shared_groups, 3, "string", repo_id,
                                              "string", path, "string", from_user);
     if (ret < 0) {
         seaf_warning ("Failed to get shared groups for %.8s(%s).\n", repo_id, path);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to get shared groups fro subdir from db");
-        g_string_free (shared_groups, TRUE);
+        json_decref (shared_groups);
         return NULL;
     }
 
-    if (shared_groups->len > 0) {
-        // trim the last ','
-        g_string_erase (shared_groups, shared_groups->len - 1, 1);
-    }
+    char *shared_groups_str = json_dumps (shared_groups, JSON_COMPACT);
+    json_decref (shared_groups);
 
-    return g_string_free (shared_groups, FALSE);
+    return shared_groups_str;
 }

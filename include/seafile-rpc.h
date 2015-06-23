@@ -492,6 +492,10 @@ GList *
 seafile_list_share_repos (const char *email, const char *type,
                           int start, int limit, GError **error);
 
+char *
+seafile_list_repo_shared_to (const char *owner, const char *repo_id,
+                             GError **error);
+
 int
 seafile_remove_share (const char *repo_id, const char *from_email,
                       const char *to_email, GError **error);

@@ -216,6 +216,9 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.list_share_repos(username, "from_email",
                                                       start, limit)
 
+    def list_repo_shared_to(self, owner, repo_id):
+        return seafserv_threaded_rpc.list_repo_shared_to(owner, repo_id)
+
     def get_share_in_repo_list(self, username, start, limit):
         return seafserv_threaded_rpc.list_share_repos(username, "to_email",
                                                       start, limit)

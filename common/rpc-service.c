@@ -2205,6 +2205,26 @@ seafile_list_share_repos (const char *email, const char *type,
                                                 start, limit);
 }
 
+char *
+seafile_list_repo_shared_to (const char *owner, const char *repo_id,
+                             GError **error)
+{
+
+    if (!owner || !repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Missing args");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
+    return seaf_share_manager_list_repo_shared_to (seaf->share_mgr,
+                                                   owner, repo_id,
+                                                   error);
+}
+
 int
 seafile_remove_share (const char *repo_id, const char *from_email,
                       const char *to_email, GError **error)
@@ -3926,6 +3946,30 @@ seafile_clean_up_repo_history (const char *repo_id, int keep_days, GError **erro
     return ret;
 }
 
+static char*
+format_subdir_path (const char *path)
+{
+    int path_len = strlen (path);
+    if (path_len == 0) {
+        return NULL;
+    }
+
+    char *rpath;
+    if (path[0] != '/') {
+        rpath = g_strconcat ("/", path, NULL);
+        path_len++;
+    } else {
+        rpath = g_strdup (path);
+    }
+    while (path_len > 0 && rpath[path_len-1] == '/') {
+        rpath[path_len-1] = '\0';
+        path_len--;
+    }
+
+    return rpath;
+}
+
+
 char *
 seafile_get_shared_users_for_subdir (const char *repo_id,
                                      const char *path,
@@ -3942,16 +3986,10 @@ seafile_get_shared_users_for_subdir (const char *repo_id,
         return NULL;
     }
 
-    int path_len = strlen (path);
-    if (path_len == 0) {
+    char *rpath = format_subdir_path (path);
+    if (!rpath) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid path");
         return NULL;
-    }
-
-    char *rpath = g_strdup (path);
-    while (path_len > 0 && rpath[path_len-1] == '/') {
-        rpath[path_len-1] = '\0';
-        path_len--;
     }
 
     char *ret = seaf_repo_manager_get_shared_users_for_subdir (seaf->repo_mgr,
@@ -3978,16 +4016,10 @@ seafile_get_shared_groups_for_subdir (const char *repo_id,
         return NULL;
     }
 
-    int path_len = strlen (path);
-    if (path_len == 0) {
+    char *rpath = format_subdir_path (path);
+    if (!rpath) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid path");
         return NULL;
-    }
-
-    char *rpath = g_strdup (path);
-    while (path_len > 0 && rpath[path_len-1] == '/') {
-        rpath[path_len-1] = '\0';
-        path_len--;
     }
 
     char *ret = seaf_repo_manager_get_shared_groups_for_subdir (seaf->repo_mgr,

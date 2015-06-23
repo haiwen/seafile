@@ -535,6 +535,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     list_share_repos = seafile_list_share_repos
 
+    @searpc_func("string", ["string", "string"])
+    def seafile_list_repo_shared_to(owner, repo_id):
+        pass
+    list_repo_shared_to = seafile_list_repo_shared_to
+
     @searpc_func("objlist", ["int", "string", "string", "int", "int"])
     def seafile_list_org_share_repos(org_id, email, query_col, start, limit):
         pass
