@@ -81,7 +81,7 @@
   <!-- <?define ProductGuid="11FDE763-87F3-4335-A408-DD10E1A2DBBE" ?> (4.2.2) -->
   <!-- <?define ProductGuid="D7DA2D13-3B7D-4418-A3A3-1425241CDCE5" ?> (4.2.3) -->
   <!-- <?define ProductGuid="B71EF658-343C-4878-9EB6-881BAA97DC6C" ?> (4.2.4) -->
-  <?define ProductGuid="B71EF658-343C-4878-9EB6-881BAA97DC6C" ?>
+  <?define ProductGuid="E4C66301-4D5C-4FF6-AB52-DD085F304182" ?>
 
   <?define ShellGuidContextMenu="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE606" ?>
   <?define  ShellGuidIconNormal="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE607" ?>
