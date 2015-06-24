@@ -737,14 +737,14 @@ seaf_repo_manager_cleanup_virtual_repos (SeafRepoManager *mgr,
 int
 seaf_repo_manager_init_merge_scheduler ();
 
-char *
+GList *
 seaf_repo_manager_get_shared_users_for_subdir (SeafRepoManager *mgr,
                                                const char *repo_id,
                                                const char *path,
                                                const char *from_user,
                                                GError **error);
 
-char *
+GList *
 seaf_repo_manager_get_shared_groups_for_subdir (SeafRepoManager *mgr,
                                                 const char *repo_id,
                                                 const char *path,

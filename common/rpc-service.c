@@ -2205,12 +2205,12 @@ seafile_list_share_repos (const char *email, const char *type,
                                                 start, limit);
 }
 
-char *
-seafile_list_repo_shared_to (const char *owner, const char *repo_id,
+GList *
+seafile_list_repo_shared_to (const char *from_user, const char *repo_id,
                              GError **error)
 {
 
-    if (!owner || !repo_id) {
+    if (!from_user || !repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Missing args");
         return NULL;
     }
@@ -2221,8 +2221,28 @@ seafile_list_repo_shared_to (const char *owner, const char *repo_id,
     }
 
     return seaf_share_manager_list_repo_shared_to (seaf->share_mgr,
-                                                   owner, repo_id,
+                                                   from_user, repo_id,
                                                    error);
+}
+
+GList *
+seafile_list_repo_shared_group (const char *from_user, const char *repo_id,
+                                GError **error)
+{
+
+    if (!from_user || !repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Missing args");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
+    return seaf_share_manager_list_repo_shared_group (seaf->share_mgr,
+                                                      from_user, repo_id,
+                                                      error);
 }
 
 int
@@ -3970,7 +3990,7 @@ format_subdir_path (const char *path)
 }
 
 
-char *
+GList *
 seafile_get_shared_users_for_subdir (const char *repo_id,
                                      const char *path,
                                      const char *from_user,
@@ -3992,15 +4012,15 @@ seafile_get_shared_users_for_subdir (const char *repo_id,
         return NULL;
     }
 
-    char *ret = seaf_repo_manager_get_shared_users_for_subdir (seaf->repo_mgr,
-                                                               repo_id, rpath,
-                                                               from_user, error);
+    GList *ret = seaf_repo_manager_get_shared_users_for_subdir (seaf->repo_mgr,
+                                                                repo_id, rpath,
+                                                                from_user, error);
     g_free (rpath);
 
     return ret;
 }
 
-char *
+GList *
 seafile_get_shared_groups_for_subdir (const char *repo_id,
                                       const char *path,
                                       const char *from_user,
@@ -4022,9 +4042,9 @@ seafile_get_shared_groups_for_subdir (const char *repo_id,
         return NULL;
     }
 
-    char *ret = seaf_repo_manager_get_shared_groups_for_subdir (seaf->repo_mgr,
-                                                                repo_id, rpath,
-                                                                from_user, error);
+    GList *ret = seaf_repo_manager_get_shared_groups_for_subdir (seaf->repo_mgr,
+                                                                 repo_id, rpath,
+                                                                 from_user, error);
     g_free (rpath);
 
     return ret;

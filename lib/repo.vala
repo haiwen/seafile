@@ -168,4 +168,14 @@ public class RepoTokenInfo: Object {
     public int64 sync_time { get; set; }
 }
 
+public class SharedUser : Object {
+    public string user { get; set; }
+    public string perm { get; set; }
+}
+
+public class SharedGroup : Object {
+    public int group_id { get; set; }
+    public string perm { get; set; }
+}
+
 } // namespace

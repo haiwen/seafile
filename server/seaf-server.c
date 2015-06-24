@@ -362,7 +362,7 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_list_repo_shared_to,
                                      "seafile_list_repo_shared_to",
-                                     searpc_signature_string__string_string());
+                                     searpc_signature_objlist__string_string());
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_remove_share,
                                      "seafile_remove_share",
@@ -392,6 +392,10 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "seafile_get_group_repoids",
                                      searpc_signature_string__int());
     searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_list_repo_shared_group,
+                                     "seafile_list_repo_shared_group",
+                                     searpc_signature_objlist__string_string());
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_repos_by_group,
                                      "seafile_get_repos_by_group",
                                      searpc_signature_objlist__int());
@@ -416,12 +420,12 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_shared_users_for_subdir,
                                      "seafile_get_shared_users_for_subdir",
-                                     searpc_signature_string__string_string_string());
+                                     searpc_signature_objlist__string_string_string());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_shared_groups_for_subdir,
                                      "seafile_get_shared_groups_for_subdir",
-                                     searpc_signature_string__string_string_string());
+                                     searpc_signature_objlist__string_string_string());
 
     /* branch and commit */
     searpc_server_register_function ("seafserv-threaded-rpcserver",

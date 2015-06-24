@@ -41,7 +41,7 @@ seaf_share_manager_list_shared_to (SeafShareManager *mgr,
                                    const char *owner,
                                    const char *repo_id);
 
-char *
+GList *
 seaf_share_manager_list_repo_shared_to (SeafShareManager *mgr,
                                         const char *owner,
                                         const char *repo_id,
