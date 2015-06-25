@@ -313,41 +313,89 @@ seaf_share_manager_list_shared_to (SeafShareManager *mgr,
 static gboolean
 collect_repo_shared_to (SeafDBRow *row, void *data)
 {
-    json_t *shared_to = data;
+    GList **shared_to = data;
     const char *to_email = seaf_db_row_get_column_text (row, 0);
     char *email_down = g_ascii_strdown(to_email, -1);
+    const char *perm = seaf_db_row_get_column_text (row, 1);
 
-    json_array_append_new (shared_to, json_string (email_down));
+    SeafileSharedUser *uobj = g_object_new (SEAFILE_TYPE_SHARED_USER,
+                                            "user", email_down,
+                                            "perm", perm,
+                                            NULL);
+    *shared_to = g_list_prepend (*shared_to, uobj);
     g_free (email_down);
 
     return TRUE;
 }
 
-char *
+GList *
 seaf_share_manager_list_repo_shared_to (SeafShareManager *mgr,
-                                        const char *owner,
+                                        const char *from_email,
                                         const char *repo_id,
                                         GError **error)
 {
-    json_t *shared_to = json_array ();
-    char *sql = "SELECT to_email FROM SharedRepo WHERE "
+    GList *shared_to = NULL;
+    char *sql = "SELECT to_email, permission FROM SharedRepo WHERE "
                 "from_email=? AND repo_id=?";
 
     int ret = seaf_db_statement_foreach_row (mgr->seaf->db, sql,
-                                             collect_repo_shared_to, shared_to,
-                                             2, "string", owner, "string", repo_id);
+                                             collect_repo_shared_to, &shared_to,
+                                             2, "string", from_email, "string", repo_id);
     if (ret < 0) {
         seaf_warning ("Failed to list repo %s shared to from db.\n", repo_id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to list repo shared to from db");
-        json_decref (shared_to);
+        while (shared_to) {
+            g_object_unref (shared_to->data);
+            shared_to = g_list_delete_link (shared_to, shared_to);
+        }
         return NULL;
     }
 
-    char *shared_to_str = json_dumps (shared_to, JSON_COMPACT);
-    json_decref (shared_to);
+    return shared_to;
+}
 
-    return shared_to_str;
+static gboolean
+collect_repo_shared_group (SeafDBRow *row, void *data)
+{
+    GList **shared_group = data;
+    int group_id = seaf_db_row_get_column_int (row, 0);
+    const char *perm = seaf_db_row_get_column_text (row, 1);
+
+    SeafileSharedGroup *gobj = g_object_new (SEAFILE_TYPE_SHARED_GROUP,
+                                             "group_id", group_id,
+                                             "perm", perm,
+                                             NULL);
+    *shared_group = g_list_prepend (*shared_group, gobj);
+
+    return TRUE;
+}
+
+GList *
+seaf_share_manager_list_repo_shared_group (SeafShareManager *mgr,
+                                           const char *from_email,
+                                           const char *repo_id,
+                                           GError **error)
+{
+    GList *shared_group = NULL;
+    char *sql = "SELECT group_id, permission FROM RepoGroup WHERE "
+                "user_name=? AND repo_id=?";
+
+    int ret = seaf_db_statement_foreach_row (mgr->seaf->db, sql,
+                                             collect_repo_shared_group, &shared_group,
+                                             2, "string", from_email, "string", repo_id);
+    if (ret < 0) {
+        seaf_warning ("Failed to list repo %s shared group from db.\n", repo_id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to list repo shared group from db");
+        while (shared_group) {
+            g_object_unref (shared_group->data);
+            shared_group = g_list_delete_link (shared_group, shared_group);
+        }
+        return NULL;
+    }
+
+    return shared_group;
 }
 
 int

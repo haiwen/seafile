@@ -243,8 +243,8 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.list_share_repos(username, "from_email",
                                                       start, limit)
 
-    def list_repo_shared_to(self, owner, repo_id):
-        return seafserv_threaded_rpc.list_repo_shared_to(owner, repo_id)
+    def list_repo_shared_to(self, from_user, repo_id):
+        return seafserv_threaded_rpc.list_repo_shared_to(from_user, repo_id)
 
     def get_share_in_repo_list(self, username, start, limit):
         return seafserv_threaded_rpc.list_share_repos(username, "to_email",
@@ -277,6 +277,9 @@ class SeafileAPI(object):
 
     def get_shared_groups_by_repo(self, repo_id):
         return seafserv_threaded_rpc.get_shared_groups_by_repo(repo_id)
+
+    def list_repo_shared_group(self, from_user, repo_id):
+        return seafserv_threaded_rpc.list_repo_shared_group(from_user, repo_id)
 
     def get_group_repoids(self, group_id):
         """
