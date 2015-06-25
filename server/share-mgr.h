@@ -47,6 +47,12 @@ seaf_share_manager_list_repo_shared_to (SeafShareManager *mgr,
                                         const char *repo_id,
                                         GError **error);
 
+GList *
+seaf_share_manager_list_repo_shared_group (SeafShareManager *mgr,
+                                           const char *from_email,
+                                           const char *repo_id,
+                                           GError **error);
+
 int
 seaf_share_manager_remove_share (SeafShareManager *mgr, const char *repo_id,
                                  const char *from_email, const char *to_email);
