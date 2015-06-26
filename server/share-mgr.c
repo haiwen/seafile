@@ -317,8 +317,10 @@ collect_repo_shared_to (SeafDBRow *row, void *data)
     const char *to_email = seaf_db_row_get_column_text (row, 0);
     char *email_down = g_ascii_strdown(to_email, -1);
     const char *perm = seaf_db_row_get_column_text (row, 1);
+    const char *repo_id = seaf_db_row_get_column_text (row, 2);
 
     SeafileSharedUser *uobj = g_object_new (SEAFILE_TYPE_SHARED_USER,
+                                            "repo_id", repo_id,
                                             "user", email_down,
                                             "perm", perm,
                                             NULL);
@@ -335,7 +337,7 @@ seaf_share_manager_list_repo_shared_to (SeafShareManager *mgr,
                                         GError **error)
 {
     GList *shared_to = NULL;
-    char *sql = "SELECT to_email, permission FROM SharedRepo WHERE "
+    char *sql = "SELECT to_email, permission, repo_id FROM SharedRepo WHERE "
                 "from_email=? AND repo_id=?";
 
     int ret = seaf_db_statement_foreach_row (mgr->seaf->db, sql,
@@ -361,8 +363,10 @@ collect_repo_shared_group (SeafDBRow *row, void *data)
     GList **shared_group = data;
     int group_id = seaf_db_row_get_column_int (row, 0);
     const char *perm = seaf_db_row_get_column_text (row, 1);
+    const char *repo_id = seaf_db_row_get_column_text (row, 2);
 
     SeafileSharedGroup *gobj = g_object_new (SEAFILE_TYPE_SHARED_GROUP,
+                                             "repo_id", repo_id,
                                              "group_id", group_id,
                                              "perm", perm,
                                              NULL);
@@ -378,7 +382,7 @@ seaf_share_manager_list_repo_shared_group (SeafShareManager *mgr,
                                            GError **error)
 {
     GList *shared_group = NULL;
-    char *sql = "SELECT group_id, permission FROM RepoGroup WHERE "
+    char *sql = "SELECT group_id, permission, repo_id FROM RepoGroup WHERE "
                 "user_name=? AND repo_id=?";
 
     int ret = seaf_db_statement_foreach_row (mgr->seaf->db, sql,

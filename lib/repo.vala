@@ -169,11 +169,13 @@ public class RepoTokenInfo: Object {
 }
 
 public class SharedUser : Object {
+    public string repo_id { get; set; }
     public string user { get; set; }
     public string perm { get; set; }
 }
 
 public class SharedGroup : Object {
+    public string repo_id { get; set; }
     public int group_id { get; set; }
     public string perm { get; set; }
 }

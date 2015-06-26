@@ -3170,8 +3170,10 @@ get_shared_users (SeafDBRow *row, void *data)
     GList **shared_users = data;
     const char *user = seaf_db_row_get_column_text (row, 0);
     const char *perm = seaf_db_row_get_column_text (row, 1);
+    const char *repo_id = seaf_db_row_get_column_text (row, 2);
 
     SeafileSharedUser *uobj = g_object_new (SEAFILE_TYPE_SHARED_USER,
+                                            "repo_id", repo_id,
                                             "user", user,
                                             "perm", perm,
                                             NULL);
@@ -3189,7 +3191,7 @@ seaf_repo_manager_get_shared_users_for_subdir (SeafRepoManager *mgr,
 {
     GList *shared_users = NULL;
     int ret = seaf_db_statement_foreach_row (mgr->seaf->db,
-                                             "SELECT to_email, permission "
+                                             "SELECT to_email, permission, v.repo_id "
                                              "FROM SharedRepo s, VirtualRepo v "
                                              "WHERE s.repo_id = v.repo_id AND v.origin_repo = ? "
                                              "AND v.path = ? AND s.from_email = ?",
@@ -3215,8 +3217,10 @@ get_shared_groups (SeafDBRow *row, void *data)
     GList **shared_groups = data;
     int group = seaf_db_row_get_column_int (row, 0);
     const char *perm = seaf_db_row_get_column_text (row, 1);
+    const char *repo_id = seaf_db_row_get_column_text (row, 2);
 
     SeafileSharedGroup *gobj = g_object_new (SEAFILE_TYPE_SHARED_GROUP,
+                                             "repo_id", repo_id,
                                              "group_id", group,
                                              "perm", perm,
                                              NULL);
@@ -3235,7 +3239,7 @@ seaf_repo_manager_get_shared_groups_for_subdir (SeafRepoManager *mgr,
 {
     GList *shared_groups = NULL;
     int ret = seaf_db_statement_foreach_row (mgr->seaf->db,
-                                             "SELECT group_id, permission "
+                                             "SELECT group_id, permission, v.repo_id "
                                              "FROM RepoGroup r, VirtualRepo v "
                                              "WHERE r.repo_id = v.repo_id AND v.origin_repo = ? "
                                              "AND v.path = ? AND r.user_name = ?",
