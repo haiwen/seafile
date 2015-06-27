@@ -128,7 +128,8 @@ send_repo_branch_info (void *vprocessor)
 
     commit_id[0] = 0;
 
-    sql = "SELECT commit_id FROM Branch WHERE name='master' AND repo_id=?";
+    sql = "SELECT commit_id FROM Repo r, Branch b "
+        "WHERE name='master' AND r.repo_id=? AND r.repo_id = b.repo_id";
     if (seaf_db_statement_foreach_row (seaf->db, sql, 
                                        get_branch, commit_id,
                                        1, "string", priv->repo_id) < 0) {

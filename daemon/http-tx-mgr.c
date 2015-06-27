@@ -37,6 +37,7 @@
 #define HTTP_NOT_FOUND 404
 #define HTTP_NO_QUOTA 443
 #define HTTP_REPO_DELETED 444
+#define HTTP_REPO_CORRUPTED 445
 #define HTTP_INTERNAL_SERVER_ERROR 500
 
 #define RESET_BYTES_INTERVAL_MSEC 1000
@@ -907,6 +908,10 @@ handle_http_errors (HttpTxTask *task, int status)
         task->error = HTTP_TASK_ERR_SERVER;
     else if (status == HTTP_NO_QUOTA)
         task->error = HTTP_TASK_ERR_NO_QUOTA;
+    else if (status == HTTP_REPO_DELETED)
+        task->error = HTTP_TASK_ERR_REPO_DELETED;
+    else if (status == HTTP_REPO_CORRUPTED)
+        task->error = HTTP_TASK_ERR_REPO_CORRUPTED;
     else
         task->error = HTTP_TASK_ERR_UNKNOWN;
 }

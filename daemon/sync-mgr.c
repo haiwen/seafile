@@ -1289,6 +1289,24 @@ remove_blocks_done (void *vtask)
 }
 
 static void
+on_repo_deleted_on_server (SyncTask *task, SeafRepo *repo)
+{
+    seaf_sync_manager_set_task_error (task, SYNC_ERROR_NOREPO);
+
+    seaf_warning ("repo %s(%.8s) not found on server\n",
+                  repo->name, repo->id);
+
+    if (!seafile_session_config_get_allow_repo_not_found_on_server(seaf)) {
+        seaf_message ("remove repo %s(%.8s) since it's deleted on relay\n",
+                      repo->name, repo->id);
+        seaf_mq_manager_publish_notification (seaf->mq_mgr,
+                                              "repo.deleted_on_relay",
+                                              repo->name);
+        seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
+    }
+}
+
+static void
 update_sync_status (SyncTask *task)
 {
     SyncInfo *info = task->info;
@@ -1339,21 +1357,8 @@ update_sync_status (SyncTask *task)
         /* If repo doesn't exist on relay and we have "master",
          * it was deleted on relay. In this case we remove this repo.
          */
-        else {
-            seaf_sync_manager_set_task_error (task, SYNC_ERROR_NOREPO);
-
-            seaf_warning ("repo %s(%.8s) not found on server\n",
-                        repo->name, repo->id);
-
-            if (!seafile_session_config_get_allow_repo_not_found_on_server(seaf)) {
-                seaf_debug ("remove repo %s(%.8s) since it's deleted on relay\n",
-                            repo->name, repo->id);
-                seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                                      "repo.deleted_on_relay",
-                                                      repo->name);
-                seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
-            }
-        }
+        else
+            on_repo_deleted_on_server (task, repo);
     } else {
         /* branch deleted on relay */
         if (info->branch_deleted_on_relay) {
@@ -1457,19 +1462,7 @@ update_sync_status_v2 (SyncTask *task)
     if (info->repo_corrupted) {
         seaf_sync_manager_set_task_error (task, SYNC_ERROR_REPO_CORRUPT);
     } else if (info->deleted_on_relay) {
-        seaf_sync_manager_set_task_error (task, SYNC_ERROR_NOREPO);
-
-        seaf_warning ("repo %s(%.8s) not found on server\n",
-                      repo->name, repo->id);
-
-        if (!seafile_session_config_get_allow_repo_not_found_on_server(seaf)) {
-            seaf_message ("remove repo %s(%.8s) since it's deleted on relay\n",
-                        repo->name, repo->id);
-            seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                                  "repo.deleted_on_relay",
-                                                  repo->name);
-            seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
-        }
+        on_repo_deleted_on_server (task, repo);
     } else {
         /* If local head is the same as remote head, already in sync. */
         if (strcmp (local->commit_id, info->head_commit) == 0) {
@@ -2817,6 +2810,8 @@ on_repo_http_fetched (SeafileSession *seaf,
             }
         } else if (tx_task->error == HTTP_TASK_ERR_FILES_LOCKED) {
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_FILES_LOCKED);
+        } else if (tx_task->error == HTTP_TASK_ERR_REPO_DELETED) {
+            on_repo_deleted_on_server (task, task->repo);
         } else
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_FETCH);
     }
@@ -2864,6 +2859,8 @@ on_repo_http_uploaded (SeafileSession *seaf,
                 send_sync_error_notification (task->repo, "sync.quota_full");
                 task->repo->quota_full_notified = 1;
             }
+        } else if (tx_task->error == HTTP_TASK_ERR_REPO_DELETED) {
+            on_repo_deleted_on_server (task, task->repo);
         } else
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_UPLOAD);
     }
