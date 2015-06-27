@@ -566,7 +566,15 @@ del_repo:
         return -1;
     }
 
-    /* Repo branches are not removed at this point. */
+    /* remove branch */
+    GList *p;
+    GList *branch_list = seaf_branch_manager_get_branch_list (seaf->branch_mgr, repo_id);
+    for (p = branch_list; p; p = p->next) {
+        SeafBranch *b = (SeafBranch *)p->data;
+        seaf_repo_manager_branch_repo_unmap (mgr, b);
+        seaf_branch_manager_del_branch (seaf->branch_mgr, repo_id, b->name);
+    }
+    seaf_branch_list_free (branch_list);
 
     seaf_db_statement_query (mgr->seaf->db, "DELETE FROM RepoOwner WHERE repo_id = ?",
                              1, "string", repo_id);
@@ -2140,7 +2148,7 @@ seaf_repo_manager_get_repo_from_trash (SeafRepoManager *mgr,
     char *sql;
     int rc;
 
-    sql = "SELECT repo_id, repo_name, head_id, owner_id, size FROM RepoTrash "
+    sql = "SELECT repo_id, repo_name, head_id, owner_id, size, del_time FROM RepoTrash "
         "WHERE repo_id = ?";
     rc = seaf_db_statement_foreach_row (mgr->seaf->db, sql,
                                         collect_trash_repo, &trash_repos,
@@ -2170,16 +2178,6 @@ seaf_repo_manager_del_repo_from_trash (SeafRepoManager *mgr,
                      "DB error: Add deleted record");
         return -1;
     }
-
-    /* remove branch */
-    GList *p;
-    GList *branch_list = seaf_branch_manager_get_branch_list (seaf->branch_mgr, repo_id);
-    for (p = branch_list; p; p = p->next) {
-        SeafBranch *b = (SeafBranch *)p->data;
-        seaf_repo_manager_branch_repo_unmap (mgr, b);
-        seaf_branch_manager_del_branch (seaf->branch_mgr, repo_id, b->name);
-    }
-    seaf_branch_list_free (branch_list);
 
     seaf_db_statement_query (mgr->seaf->db,
                              "DELETE FROM RepoTrash WHERE repo_id = ?",
@@ -2281,6 +2279,39 @@ seaf_repo_manager_restore_repo_from_trash (SeafRepoManager *mgr,
         if (ret < 0) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                          "DB error: Insert Repo Owner.");
+            seaf_db_rollback (trans);
+            seaf_db_trans_close (trans);
+            goto out;
+        }
+    }
+
+    exists = seaf_db_trans_check_for_existence (trans,
+                                                "SELECT 1 FROM Branch WHERE repo_id=?",
+                                                &db_err, 1, "string", repo_id);
+    if (!exists) {
+        ret = seaf_db_trans_query (trans,
+                                   "INSERT INTO Branch VALUES ('master', ?, ?)",
+                                   2, "string", repo_id,
+                                   "string", seafile_trash_repo_get_head_id(repo));
+        if (ret < 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "DB error: Insert Branch.");
+            seaf_db_rollback (trans);
+            seaf_db_trans_close (trans);
+            goto out;
+        }
+    }
+
+    exists = seaf_db_trans_check_for_existence (trans,
+                                                "SELECT 1 FROM RepoHead WHERE repo_id=?",
+                                                &db_err, 1, "string", repo_id);
+    if (!exists) {
+        ret = seaf_db_trans_query (trans,
+                                   "INSERT INTO RepoHead VALUES (?, 'master')",
+                                   1, "string", repo_id);
+        if (ret < 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "DB error: Set RepoHead.");
             seaf_db_rollback (trans);
             seaf_db_trans_close (trans);
             goto out;

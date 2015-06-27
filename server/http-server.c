@@ -523,6 +523,16 @@ get_check_permission_cb (evhtp_request_t *req, void *arg)
     const char *token;
     SeafRepo *repo = NULL;
 
+    repo = seaf_repo_manager_get_repo_ex (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        evhtp_send_reply (req, SEAF_HTTP_RES_REPO_DELETED);
+        goto out;
+    }
+    if (repo->is_corrupted || repo->repaired) {
+        evhtp_send_reply (req, SEAF_HTTP_RES_REPO_CORRUPTED);
+        goto out;
+    }
+
     int token_status = validate_token (htp_server, req, repo_id, &username, TRUE);
     if (token_status != EVHTP_RES_OK) {
         evhtp_send_reply (req, token_status);
@@ -535,12 +545,6 @@ get_check_permission_cb (evhtp_request_t *req, void *arg)
     int perm_status = check_permission (htp_server, repo_id, username, op, TRUE);
     if (perm_status == EVHTP_RES_FORBIDDEN) {
         evhtp_send_reply (req, EVHTP_RES_FORBIDDEN);
-        goto out;
-    }
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo || repo->repaired) {
-        evhtp_send_reply (req, SEAF_HTTP_RES_REPO_CORRUPTED);
         goto out;
     }
 
@@ -659,15 +663,30 @@ get_head_commit_cb (evhtp_request_t *req, void *arg)
     HttpServer *htp_server = arg;
     char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
     char *repo_id = parts[1];
+    gboolean db_err = FALSE, exists = TRUE;
+    int token_status;
+    char commit_id[41];
+    char *sql;
 
-    int token_status = validate_token (htp_server, req, repo_id, NULL, FALSE);
+    sql = "SELECT 1 FROM Repo WHERE repo_id=?";
+    exists = seaf_db_statement_exists (seaf->db, sql, &db_err, 1, "string", repo_id);
+    if (!exists) {
+        if (db_err) {
+            seaf_warning ("DB error when check repo existence.\n");
+            evbuffer_add_printf (req->buffer_out,
+                                 "{\"is_corrupted\": 1}");
+            evhtp_send_reply (req, EVHTP_RES_OK);
+            goto out;
+        }
+        evhtp_send_reply (req, SEAF_HTTP_RES_REPO_DELETED);
+        goto out;
+    }
+
+    token_status = validate_token (htp_server, req, repo_id, NULL, FALSE);
     if (token_status != EVHTP_RES_OK) {
         evhtp_send_reply (req, token_status);
         goto out;
     }
-
-    char commit_id[41];
-    char *sql;
 
     commit_id[0] = 0;
 
