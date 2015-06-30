@@ -610,13 +610,16 @@ seaf_db_statement_exists (SeafDB *db, const char *sql, gboolean *db_err, int n, 
     *db_err = FALSE;
 
     p = seaf_db_prepare_statement (db, sql);
-    if (!p)
+    if (!p) {
+        *db_err = TRUE;
         return FALSE;
+    }
 
     va_list args;
     va_start (args, n);
     if (set_parameters_va (p->p, n, args) < 0) {
         seaf_db_statement_free (p);
+        *db_err = TRUE;
         va_end (args);
         return FALSE;
     }
@@ -963,12 +966,15 @@ seaf_db_trans_check_for_existence (SeafDBTrans *trans,
     PreparedStatement_T p;
 
     p = trans_prepare_statement (trans->conn, sql);
-    if (!p)
+    if (!p) {
+        *db_err = TRUE;
         return FALSE;
+    }
 
     va_list args;
     va_start (args, n);
     if (set_parameters_va (p, n, args) < 0) {
+        *db_err = TRUE;
         va_end (args);
         return -1;
     }
