@@ -35,6 +35,8 @@
 #include "sendcommit-proc.h"
 #include "processors/objecttx-common.h"
 
+#include "log.h"
+
 /*
               seafile-recvcommit
   INIT      --------------------->
@@ -109,7 +111,7 @@ send_commit_start (CcnetProcessor *processor, int argc, char **argv)
                                                     ol, FALSE);
     if (ret == FALSE) {
         object_list_free (ol);
-        g_warning ("[sendcommit] Load commits error\n");
+        seaf_warning ("[sendcommit] Load commits error\n");
         ccnet_processor_done (processor, FALSE);
         return -1;
     }
@@ -138,7 +140,7 @@ send_commit (CcnetProcessor *processor, char *object_id)
 
     if (seaf_obj_store_read_obj (seaf->commit_mgr->obj_store,
                                  object_id, (void**)&data, &len) < 0) {
-        g_warning ("Failed to read commit %s.\n", object_id);
+        seaf_warning ("Failed to read commit %s.\n", object_id);
         goto fail;
     }
 
@@ -169,7 +171,7 @@ send_commits (CcnetProcessor *processor, char *content, int clen)
     int i;
 
     if (clen % 41 != 1 || content[clen-1] != '\0') {
-        g_warning ("Bad fs object list.\n");
+        seaf_warning ("Bad fs object list.\n");
         ccnet_processor_send_update (processor, SC_BAD_OL, SS_BAD_OL, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
@@ -241,7 +243,7 @@ static void handle_response (CcnetProcessor *processor,
         if (memcmp (code, SC_OK, 3) == 0)
             send_commit_ids (processor);
         else {
-            g_warning ("Bad response: %s %s.\n", code, code_msg);
+            seaf_warning ("Bad response: %s %s.\n", code, code_msg);
             ccnet_processor_done (processor, FALSE);
         }
         break;
@@ -251,7 +253,7 @@ static void handle_response (CcnetProcessor *processor,
         } else if (strncmp(code, SC_END, 3) == 0) {
             ccnet_processor_done (processor, TRUE);
         } else {
-            g_warning ("[sendcommit] Bad response in state SEND_OBJECT: %s %s\n",
+            seaf_warning ("[sendcommit] Bad response in state SEND_OBJECT: %s %s\n",
                        code, code_msg);
             ccnet_processor_done (processor, FALSE);
         }

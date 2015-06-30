@@ -872,7 +872,7 @@ load_blocklist_with_local_history (TransferTask *task)
                                                  task->repo_version,
                                                  commit_id);
         if (!commit) {
-            seaf_warning ("Failed to get commit %s.\n", commit_id);
+            seaf_warning ("Failed to get commit %s:%s.\n", task->repo_id, commit_id);
             block_list_free (bl1);
             return NULL;
         }
@@ -1019,7 +1019,8 @@ diff_files (int n, const char *basedir, SeafDirent *files[], void *vdata)
                                               task->repo_id, task->repo_version,
                                               file1->id);
             if (!f1) {
-                seaf_warning ("Failed to get seafile object %s.\n", file1->id);
+                seaf_warning ("Failed to get seafile object %s:%s.\n",
+                              task->repo_id, file1->id);
                 return -1;
             }
             for (i = 0; i < f1->n_blocks; ++i)
@@ -1030,7 +1031,8 @@ diff_files (int n, const char *basedir, SeafDirent *files[], void *vdata)
                                               task->repo_id, task->repo_version,
                                               file1->id);
             if (!f1) {
-                seaf_warning ("Failed to get seafile object %s.\n", file1->id);
+                seaf_warning ("Failed to get seafile object %s:%s.\n",
+                              task->repo_id, file1->id);
                 return -1;
             }
             f2 = seaf_fs_manager_get_seafile (seaf->fs_mgr,
@@ -1038,7 +1040,8 @@ diff_files (int n, const char *basedir, SeafDirent *files[], void *vdata)
                                               file2->id);
             if (!f2) {
                 seafile_unref (f1);
-                seaf_warning ("Failed to get seafile object %s.\n", file2->id);
+                seaf_warning ("Failed to get seafile object %s:%s.\n",
+                              task->repo_id, file2->id);
                 return -1;
             }
 

@@ -230,8 +230,8 @@ seaf_repo_manager_create_virtual_repo (SeafRepoManager *mgr,
                                                   origin_repo->version,
                                                   origin_repo->head->commit_id);
     if (!origin_head) {
-        seaf_warning ("Failed to get head commit %.8s.\n",
-                      origin_repo->head->commit_id);
+        seaf_warning ("Failed to get head commit %.8s of repo %s.\n",
+                      origin_repo->head->commit_id, origin_repo->id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Bad origin repo head");
         goto error;
@@ -526,7 +526,7 @@ handle_missing_virtual_repo (SeafRepoManager *mgr,
                                              head->repo_id, head->version,
                                              head->parent_id);
     if (!parent) {
-        seaf_warning ("Failed to find commit %s.\n", head->parent_id);
+        seaf_warning ("Failed to find commit %s:%s.\n", head->repo_id, head->parent_id);
         return;
     }
 
@@ -553,8 +553,8 @@ handle_missing_virtual_repo (SeafRepoManager *mgr,
                                                              par_path, &error);
         if (error) {
             if (error->code == SEAF_ERR_PATH_NO_EXIST) {
-                seaf_warning ("Failed to find %s under commit %s.\n",
-                              par_path, parent->commit_id);
+                seaf_warning ("Failed to find %s under commit %s in repo %s.\n",
+                              par_path, parent->commit_id, repo->store_id);
                 seaf_debug ("Delete virtual repo %.10s.\n", vinfo->repo_id);
                 seaf_repo_manager_del_virtual_repo (mgr, vinfo->repo_id);
             }
@@ -637,7 +637,8 @@ seaf_repo_manager_cleanup_virtual_repos (SeafRepoManager *mgr,
                                            repo->version,
                                            repo->head->commit_id);
     if (!head) {
-        seaf_warning ("Failed to get commit %.8s.\n", repo->head->commit_id);
+        seaf_warning ("Failed to get commit %s:%.8s.\n",
+                      repo->id, repo->head->commit_id);
         goto out;
     }
 
@@ -701,7 +702,8 @@ static void *merge_virtual_repo (void *vtask)
                                            repo->id, repo->version,
                                            repo->head->commit_id);
     if (!head) {
-        seaf_warning ("Failed to get commit %.8s.\n", repo->head->commit_id);
+        seaf_warning ("Failed to get commit %s:%.8s.\n",
+                      repo->id, repo->head->commit_id);
         ret = -1;
         goto out;
     }
@@ -710,7 +712,8 @@ static void *merge_virtual_repo (void *vtask)
                                                 orig_repo->id, orig_repo->version,
                                                 orig_repo->head->commit_id);
     if (!orig_head) {
-        seaf_warning ("Failed to get commit %.8s.\n", orig_repo->head->commit_id);
+        seaf_warning ("Failed to get commit %s:%.8s.\n",
+                      orig_repo->id, orig_repo->head->commit_id);
         ret = -1;
         goto out;
     }
@@ -719,7 +722,8 @@ static void *merge_virtual_repo (void *vtask)
                                            orig_repo->id, orig_repo->version,
                                            vinfo->base_commit);
     if (!base) {
-        seaf_warning ("Failed to get commit %.8s.\n", vinfo->base_commit);
+        seaf_warning ("Failed to get commit %s:%.8s.\n",
+                      orig_repo->id, vinfo->base_commit);
         ret = -1;
         goto out;
     }

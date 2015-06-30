@@ -13,6 +13,8 @@
 #include "processors/objecttx-common.h"
 #include "seaf-utils.h"
 
+#include "log.h"
+
 enum {
     INIT,
     RECV_OBJECT
@@ -110,7 +112,7 @@ write_done_cb (OSAsyncResult *res, void *cb_data)
     if (!res->success) {
         ccnet_processor_send_response (processor, SC_BAD_OBJECT, SS_BAD_OBJECT,
                                        NULL, 0);
-        g_warning ("[recvcommit] Failed to write commit object.\n");
+        seaf_warning ("[recvcommit] Failed to write commit object.\n");
         ccnet_processor_done (processor, FALSE);
     }
     /* FIXME: need to send ACK if success. */
@@ -134,7 +136,7 @@ receive_commit (CcnetProcessor *processor, char *content, int clen)
     ObjectPack *pack = (ObjectPack *)content;
 
     if (clen < sizeof(ObjectPack)) {
-        g_warning ("[recvcommit] invalid object id.\n");
+        seaf_warning ("[recvcommit] invalid object id.\n");
         goto bad;
     }
 
@@ -149,7 +151,7 @@ receive_commit (CcnetProcessor *processor, char *content, int clen)
 bad:
     ccnet_processor_send_response (processor, SC_BAD_OBJECT, SS_BAD_OBJECT,
                                    NULL, 0);
-    g_warning ("[recvcommit] Failed to write commit object.\n");
+    seaf_warning ("[recvcommit] Failed to write commit object.\n");
     ccnet_processor_done (processor, FALSE);
 }
 
@@ -165,7 +167,7 @@ static void handle_update (CcnetProcessor *processor,
             g_debug ("[recvcommit] Recv commit end.\n");
             ccnet_processor_done (processor, TRUE);
         } else {
-            g_warning ("[recvcommit] Bad update: %s %s\n", code, code_msg);
+            seaf_warning ("[recvcommit] Bad update: %s %s\n", code, code_msg);
             ccnet_processor_send_response (processor,
                                            SC_BAD_UPDATE_CODE, SS_BAD_UPDATE_CODE,
                                            NULL, 0);

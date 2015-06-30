@@ -259,7 +259,7 @@ void wt_status_collect_changes_worktree(struct index_state *index,
 
         if (changed) {
             if (changed < 0) {
-                g_warning ("Faile to stat %s: %s\n", ce->name, strerror(errno));
+                seaf_warning ("Faile to stat %s: %s\n", ce->name, strerror(errno));
                 g_free (realpath);
                 continue;
             }
@@ -334,7 +334,8 @@ wt_status_collect_changes_index (struct index_state *index,
                                            repo->id, repo->version,
                                            repo->head->commit_id);
     if (!head) {
-        seaf_warning ("Failed to get commit %s.\n", repo->head->commit_id);
+        seaf_warning ("Failed to get commit %s:%s.\n",
+                      repo->id, repo->head->commit_id);
         return;
     }
 
@@ -350,13 +351,14 @@ wt_status_collect_changes_index (struct index_state *index,
                                             repo->version,
                                             head->root_id);
         if (!root) {
-            seaf_warning ("Failed to get root %s.\n", head->root_id);
+            seaf_warning ("Failed to get root %s:%s.\n",
+                          repo->id, head->root_id);
             seaf_commit_unref (head);
             return;
         }
 
         if (diff_index(repo->id, repo->version, index, root, results) < 0)
-            g_warning("diff index failed\n");
+            seaf_warning("diff index failed\n");
         seaf_dir_free (root);
         seaf_commit_unref (head);
         return;

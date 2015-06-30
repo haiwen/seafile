@@ -214,14 +214,14 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
                 "Branch.name = 'master'";
         } else {
             /* should never reach here */
-            g_warning ("[share mgr] Wrong column type");
+            seaf_warning ("[share mgr] Wrong column type");
             return NULL;
         }
 
         if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
                                            collect_repos, &ret,
                                            1, "string", email) < 0) {
-            g_warning ("[share mgr] DB error when get shared repo id and email "
+            seaf_warning ("[share mgr] DB error when get shared repo id and email "
                        "for %s.\n", email);
             for (p = ret; p; p = p->next)
                 g_object_unref (p->data);
@@ -255,7 +255,7 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
                 "LIMIT ? OFFSET ?";
         } else {
             /* should never reach here */
-            g_warning ("[share mgr] Wrong column type");
+            seaf_warning ("[share mgr] Wrong column type");
             return NULL;
         }
 
@@ -263,7 +263,7 @@ seaf_share_manager_list_share_repos (SeafShareManager *mgr, const char *email,
                                            collect_repos, &ret,
                                            3, "string", email,
                                            "int", limit, "int", start) < 0) {
-            g_warning ("[share mgr] DB error when get shared repo id and email "
+            seaf_warning ("[share mgr] DB error when get shared repo id and email "
                        "for %s.\n", email);
             for (p = ret; p; p = p->next)
                 g_object_unref (p->data);
@@ -302,7 +302,7 @@ seaf_share_manager_list_shared_to (SeafShareManager *mgr,
     if (seaf_db_statement_foreach_row (mgr->seaf->db, sql,
                                        collect_shared_to, &ret,
                                        2, "string", owner, "string", repo_id) < 0) {
-        g_warning ("[share mgr] DB error when list shared to.\n");
+        seaf_warning ("[share mgr] DB error when list shared to.\n");
         string_list_free (ret);
         return NULL;
     }

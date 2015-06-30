@@ -2186,7 +2186,7 @@ start_checkout (SeafRepo *repo, CloneTask *task)
                                              repo->id, repo->version,
                                              local->commit_id);
     if (!commit) {
-        seaf_warning ("Failed to get commit %.8s.\n", local->commit_id);
+        seaf_warning ("Failed to get commit %s:%.8s.\n", repo->id, local->commit_id);
         transition_to_error (task, CLONE_ERROR_CHECKOUT);
         return;
     }

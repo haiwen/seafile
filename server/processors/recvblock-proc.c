@@ -20,6 +20,8 @@
 #include "recvblock-proc.h"
 #include "processors/blocktx-common.h"
 
+#include "log.h"
+
 enum {
     PREPARE,
     READY,
@@ -91,7 +93,7 @@ static void handle_update (CcnetProcessor *processor,
         break;
     }
 
-    g_warning ("Bad code: %s %s\n", code, code_msg);
+    seaf_warning ("Bad code: %s %s\n", code, code_msg);
     ccnet_processor_send_response (processor, SC_BAD_UPDATE_CODE, 
                                    SS_BAD_UPDATE_CODE, NULL, 0);
     ccnet_processor_done (processor, FALSE);

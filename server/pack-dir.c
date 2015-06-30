@@ -139,7 +139,7 @@ add_file_to_archive (PackDirData *data,
                                                 data->repo_version,
                                                 blk_id, BLOCK_READ);
         if (!handle) {
-            seaf_warning ("Failed to open block %s\n", blk_id);
+            seaf_warning ("Failed to open block %s:%s\n", data->store_id, blk_id);
             ret = -1;
             goto out;
         }
@@ -147,7 +147,7 @@ add_file_to_archive (PackDirData *data,
         bmd = seaf_block_manager_stat_block_by_handle (seaf->block_mgr,
                                                        handle);
         if (!bmd) {
-            seaf_warning ("Failed to stat block %s\n", blk_id);
+            seaf_warning ("Failed to stat block %s:%s\n", data->store_id, blk_id);
             ret = -1;
             goto out;
         }
@@ -283,7 +283,7 @@ archive_dir (PackDirData *data,
                                        data->store_id, data->repo_version,
                                        root_id);
     if (!dir) {
-        seaf_warning ("failed to get dir %s\n", root_id);
+        seaf_warning ("failed to get dir %s:%s\n", data->store_id, root_id);
         goto out;
     }
 

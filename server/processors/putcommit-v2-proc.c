@@ -107,7 +107,7 @@ read_and_send_commit (CcnetProcessor *processor)
     if (seaf_obj_store_async_read (seaf->commit_mgr->obj_store,
                                    priv->reader_id,
                                    id) < 0) {
-        g_warning ("[putcommit] Failed to start read of %s.\n", id);
+        seaf_warning ("[putcommit] Failed to start read of %s.\n", id);
         ccnet_processor_send_response (processor, SC_NOT_FOUND, SS_NOT_FOUND,
                                        NULL, 0);
         ccnet_processor_done (processor, FALSE);
@@ -126,7 +126,7 @@ read_done_cb (OSAsyncResult *res, void *cb_data)
     USE_PRIV;
 
     if (!res->success) {
-        g_warning ("[putcommit] Failed to read %s.\n", res->obj_id);
+        seaf_warning ("[putcommit] Failed to read %s.\n", res->obj_id);
         goto bad;
     }
 
@@ -274,7 +274,7 @@ collect_commit_id_thread (void *vprocessor)
                                                   collect_id_fast_forward,
                                                   processor,
                                                   FALSE) < 0) {
-        g_warning ("[putcommit] Failed to collect commit id.\n");
+        seaf_warning ("[putcommit] Failed to collect commit id.\n");
         string_list_free (priv->id_list);
         priv->id_list = NULL;
         goto out;

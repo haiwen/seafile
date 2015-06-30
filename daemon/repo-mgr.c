@@ -814,7 +814,7 @@ seaf_repo_get_commits (SeafRepo *repo)
 
     branches = seaf_branch_manager_get_branch_list (seaf->branch_mgr, repo->id);
     if (branches == NULL) {
-        g_warning ("Failed to get branch list of repo %s.\n", repo->id);
+        seaf_warning ("Failed to get branch list of repo %s.\n", repo->id);
         return NULL;
     }
 
@@ -987,7 +987,7 @@ index_cb (const char *repo_id,
     /* Check in blocks and get object ID. */
     if (seaf_fs_manager_index_blocks (seaf->fs_mgr, repo_id, version,
                                       path, sha1, &size, crypt, write_data) < 0) {
-        g_warning ("Failed to index file %s.\n", path);
+        seaf_warning ("Failed to index file %s.\n", path);
         return -1;
     }
     return 0;
@@ -1132,7 +1132,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
 
     dir = g_dir_open (full_path, 0, NULL);
     if (!dir) {
-        g_warning ("Failed to open dir %s: %s.\n", full_path, strerror(errno));
+        seaf_warning ("Failed to open dir %s: %s.\n", full_path, strerror(errno));
 
         seaf_sync_manager_update_active_path (seaf->sync_mgr,
                                               params->repo_id,
@@ -1261,7 +1261,7 @@ add_recursive (const char *repo_id,
             g_free (full_path);
             return 0;
         }
-        g_warning ("Failed to stat %s.\n", full_path);
+        seaf_warning ("Failed to stat %s.\n", full_path);
         g_free (full_path);
         /* Ignore error. */
 
@@ -1490,7 +1490,7 @@ add_recursive (const char *repo_id,
 
     full_path = g_build_path (PATH_SEPERATOR, worktree, path, NULL);
     if (seaf_stat (full_path, &st) < 0) {
-        g_warning ("Failed to stat %s.\n", full_path);
+        seaf_warning ("Failed to stat %s.\n", full_path);
         g_free (full_path);
         seaf_sync_manager_update_active_path (seaf->sync_mgr,
                                               repo_id,
@@ -3030,7 +3030,7 @@ seaf_repo_index_worktree_files (const char *repo_id,
     seaf_util_unlink (index_path);
 
     if (read_index_from (&istate, index_path, repo_version) < 0) {
-        g_warning ("Failed to load index.\n");
+        seaf_warning ("Failed to load index.\n");
         return -1;
     }
 
@@ -3059,7 +3059,7 @@ seaf_repo_index_worktree_files (const char *repo_id,
     if (cache_tree_update (repo_id, repo_version, worktree,
                            it, istate.cache, istate.cache_nr,
                            0, 0, commit_trees_cb) < 0) {
-        g_warning ("Failed to build cache tree");
+        seaf_warning ("Failed to build cache tree");
         goto error;
     }
 
@@ -3105,7 +3105,7 @@ seaf_repo_is_worktree_changed (SeafRepo *repo)
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
     if (read_index_from (&istate, index_path, repo->version) < 0) {
         repo->index_corrupted = TRUE;
-        g_warning ("Failed to load index.\n");
+        seaf_warning ("Failed to load index.\n");
         goto error;
     }
     repo->index_corrupted = FALSE;
@@ -3138,7 +3138,7 @@ changed:
 
         full_path = g_build_path ("/", repo->worktree, de->name, NULL);
         if (seaf_stat (full_path, &sb) < 0) {
-            g_warning ("Failed to stat %s: %s.\n", full_path, strerror(errno));
+            seaf_warning ("Failed to stat %s: %s.\n", full_path, strerror(errno));
             g_free (full_path);
             continue;
         }
@@ -3146,7 +3146,7 @@ changed:
 
         pos = index_name_pos (&istate, de->name, strlen(de->name));
         if (pos < 0) {
-            g_warning ("Cannot find diff entry %s in index.\n", de->name);
+            seaf_warning ("Cannot find diff entry %s in index.\n", de->name);
             continue;
         }
         ce = istate.cache[pos];
@@ -3221,7 +3221,7 @@ seaf_repo_is_index_unmerged (SeafRepo *repo)
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
     if (read_index_from (&istate, index_path, repo->version) < 0) {
-        g_warning ("Failed to load index.\n");
+        seaf_warning ("Failed to load index.\n");
         return FALSE;
     }
 
@@ -3335,7 +3335,7 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_force_comm
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
     if (read_index_from (&istate, index_path, repo->version) < 0) {
-        g_warning ("Failed to load index.\n");
+        seaf_warning ("Failed to load index.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal data structure error");
         return NULL;
     }
@@ -3372,14 +3372,14 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_force_comm
                            repo->worktree,
                            it, istate.cache,
                            istate.cache_nr, 0, 0, commit_trees_cb) < 0) {
-        g_warning ("Failed to build cache tree");
+        seaf_warning ("Failed to build cache tree");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal data structure error");
         cache_tree_free (&it);
         goto error;
     }
 
     if (commit_tree (repo, it, my_desc, commit_id, unmerged) < 0) {
-        g_warning ("Failed to save commit file");
+        seaf_warning ("Failed to save commit file");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal error");
         cache_tree_free (&it);
         goto error;
@@ -3456,7 +3456,7 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
     if (read_index_from (&istate, index_path, repo->version) < 0) {
-        g_warning ("Failed to load index.\n");
+        seaf_warning ("Failed to load index.\n");
         return -1;
     }
     repo->index_corrupted = FALSE;
@@ -3465,7 +3465,7 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
     if (!initial_checkout) {
         if (!repo->head) {
             /* TODO: Set error string*/
-            g_warning ("Repo corrupt: Index exists but head branch is not set\n");
+            seaf_warning ("Repo corrupt: Index exists but head branch is not set\n");
             return -1;
         }
         SeafCommit *head =
@@ -3473,7 +3473,8 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
                                             repo->id, repo->version,
                                             repo->head->commit_id);
         if (!head) {
-            seaf_warning ("Failed to get commit %s.\n", repo->head->commit_id);
+            seaf_warning ("Failed to get commit %s:%s.\n",
+                          repo->id, repo->head->commit_id);
             discard_index (&istate);
             return -1;
         }
@@ -3506,7 +3507,7 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
     }
 
     if (unpack_trees (2, trees, &topts) < 0) {
-        g_warning ("Failed to merge commit %s with work tree.\n", commit->commit_id);
+        seaf_warning ("Failed to merge commit %s with work tree.\n", commit->commit_id);
         ret = -1;
         goto out;
     }
@@ -3529,14 +3530,14 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
                          initial_checkout ? NULL : commit->commit_id,
                          commit->creator_name,
                          finished_entries) < 0) {
-        g_warning ("Failed to update worktree.\n");
+        seaf_warning ("Failed to update worktree.\n");
         /* Still finish checkout even have I/O errors. */
     }
 
     discard_index (&istate);
     istate = topts.result;
     if (update_index (&istate, index_path) < 0) {
-        g_warning ("Failed to update index.\n");
+        seaf_warning ("Failed to update index.\n");
         ret = -1;
         goto out;
     }
@@ -3577,7 +3578,7 @@ seaf_repo_checkout (SeafRepo *repo, const char *worktree, char **error)
     branch = seaf_branch_manager_get_branch (seaf->branch_mgr,
                                              repo->id, "local");
     if (!branch) {
-        g_warning ("[repo-mgr] Checkout repo failed: local branch does not exists\n");
+        seaf_warning ("[repo-mgr] Checkout repo failed: local branch does not exists\n");
         *error = g_strdup ("Repo's local branch does not exists.");
         goto error;
     }
@@ -3591,7 +3592,7 @@ seaf_repo_checkout (SeafRepo *repo, const char *worktree, char **error)
         err_msgs = g_string_new ("");
         g_string_append_printf (err_msgs, "Commit %s does not exist.\n",
                                 commit_id);
-        g_warning ("%s", err_msgs->str);
+        seaf_warning ("%s", err_msgs->str);
         *error = g_string_free (err_msgs, FALSE);
         seaf_branch_unref (branch);
         goto error;
@@ -3601,7 +3602,7 @@ seaf_repo_checkout (SeafRepo *repo, const char *worktree, char **error)
         err_msgs = g_string_new ("");
         g_string_append_printf (err_msgs, "Commit %s is not in Repo %s.\n", 
                                 commit_id, repo->id);
-        g_warning ("%s", err_msgs->str);
+        seaf_warning ("%s", err_msgs->str);
         *error = g_string_free (err_msgs, FALSE);
         seaf_commit_unref (commit);
         if (branch)
@@ -3869,13 +3870,13 @@ checkout_empty_dir (const char *worktree,
         return FETCH_CHECKOUT_FAILED;
 
     if (!seaf_util_exists (path) && seaf_util_mkdir (path, 0777) < 0) {
-        g_warning ("Failed to create empty dir %s in checkout.\n", path);
+        seaf_warning ("Failed to create empty dir %s in checkout.\n", path);
         g_free (path);
         return FETCH_CHECKOUT_FAILED;
     }
 
     if (mtime != 0 && seaf_set_file_time (path, mtime) < 0) {
-        g_warning ("Failed to set mtime for %s.\n", path);
+        seaf_warning ("Failed to set mtime for %s.\n", path);
     }
 
     if (case_conflict) {
@@ -4245,7 +4246,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s",
               seaf->repo_mgr->index_dir, repo_id);
     if (read_index_from (&istate, index_path, repo_version) < 0) {
-        g_warning ("Failed to load index.\n");
+        seaf_warning ("Failed to load index.\n");
         return FETCH_CHECKOUT_FAILED;
     }
 
@@ -4660,7 +4661,7 @@ seaf_repo_manager_invalidate_repo_worktree (SeafRepoManager *mgr,
 
     if (repo->auto_sync) {
         if (seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id) < 0) {
-            g_warning ("failed to unwatch repo %s.\n", repo->id);
+            seaf_warning ("failed to unwatch repo %s.\n", repo->id);
         }
     }
 }
@@ -4676,7 +4677,7 @@ seaf_repo_manager_validate_repo_worktree (SeafRepoManager *mgr,
 
     if (repo->auto_sync) {
         if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
-            g_warning ("failed to watch repo %s.\n", repo->id);
+            seaf_warning ("failed to watch repo %s.\n", repo->id);
         }
     }
 }
@@ -4724,7 +4725,7 @@ int
 seaf_repo_manager_init (SeafRepoManager *mgr)
 {
     if (checkdir_with_mkdir (mgr->index_dir) < 0) {
-        g_warning ("Index dir %s does not exist and is unable to create\n",
+        seaf_warning ("Index dir %s does not exist and is unable to create\n",
                    mgr->index_dir);
         return -1;
     }
@@ -4750,7 +4751,7 @@ watch_repos (SeafRepoManager *mgr)
         repo = value;
         if (repo->auto_sync && !repo->worktree_invalid) {
             if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
-                g_warning ("failed to watch repo %s.\n", repo->id);
+                seaf_warning ("failed to watch repo %s.\n", repo->id);
                 /* If we fail to add watch at the beginning, sync manager
                  * will periodically check repo status and retry.
                  */
@@ -4815,7 +4816,7 @@ seaf_repo_manager_add_repo (SeafRepoManager *manager,
     repo->manager = manager;
 
     if (pthread_rwlock_wrlock (&manager->priv->lock) < 0) {
-        g_warning ("[repo mgr] failed to lock repo cache.\n");
+        seaf_warning ("[repo mgr] failed to lock repo cache.\n");
         return -1;
     }
 
@@ -4985,7 +4986,7 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
     seaf_sync_manager_remove_active_path_info (seaf->sync_mgr, repo->id);
 
     if (pthread_rwlock_wrlock (&mgr->priv->lock) < 0) {
-        g_warning ("[repo mgr] failed to lock repo cache.\n");
+        seaf_warning ("[repo mgr] failed to lock repo cache.\n");
         return -1;
     }
 
@@ -5007,7 +5008,7 @@ seaf_repo_manager_get_repo (SeafRepoManager *manager, const gchar *id)
     SeafRepo *res;
 
     if (pthread_rwlock_rdlock (&manager->priv->lock) < 0) {
-        g_warning ("[repo mgr] failed to lock repo cache.\n");
+        seaf_warning ("[repo mgr] failed to lock repo cache.\n");
         return NULL;
     }
 
@@ -5027,7 +5028,7 @@ seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id)
     SeafRepo *res;
 
     if (pthread_rwlock_rdlock (&manager->priv->lock) < 0) {
-        g_warning ("[repo mgr] failed to lock repo cache.\n");
+        seaf_warning ("[repo mgr] failed to lock repo cache.\n");
         return FALSE;
     }
 
@@ -5065,7 +5066,7 @@ seaf_repo_manager_get_repo_lantoken (SeafRepoManager *manager,
               repo_id);
     if (sqlite_foreach_selected_row (manager->priv->db, sql,
                                      get_token, &ret) < 0) {
-        g_warning ("DB error when get token for repo %s.\n", repo_id);
+        seaf_warning ("DB error when get token for repo %s.\n", repo_id);
         pthread_mutex_unlock (&manager->priv->db_lock);
         return NULL;
     }
@@ -5202,7 +5203,7 @@ seaf_repo_manager_branch_repo_unmap (SeafRepoManager *manager, SeafBranch *branc
                            " AND repo_id = %Q",
                            branch->name, branch->repo_id);
     if (sqlite_query_exec (db, sql) < 0) {
-        g_warning ("Unmap branch repo failed\n");
+        seaf_warning ("Unmap branch repo failed\n");
         pthread_mutex_unlock (&manager->priv->db_lock);
         sqlite3_free (sql);
         return -1;
@@ -5225,7 +5226,7 @@ load_repo_commit (SeafRepoManager *manager,
                                                         repo->id,
                                                         branch->commit_id);
     if (!commit) {
-        g_warning ("Commit %s is missing\n", branch->commit_id);
+        seaf_warning ("Commit %s is missing\n", branch->commit_id);
         repo->is_corrupted = TRUE;
         return;
     }
@@ -5304,7 +5305,7 @@ load_repo_property (SeafRepoManager *manager,
     snprintf(sql, 256, "SELECT value FROM RepoProperty WHERE "
              "repo_id='%s' and key='%s'", repo_id, key);
     if (sqlite_foreach_selected_row (db, sql, load_property_cb, &value) < 0) {
-        g_warning ("Error read property %s for repo %s.\n", key, repo_id);
+        seaf_warning ("Error read property %s for repo %s.\n", key, repo_id);
         pthread_mutex_unlock (&manager->priv->db_lock);
         return NULL;
     }
@@ -5325,7 +5326,7 @@ load_branch_cb (sqlite3_stmt *stmt, void *vrepo)
         seaf_branch_manager_get_branch (manager->seaf->branch_mgr,
                                         repo->id, branch_name);
     if (branch == NULL) {
-        g_warning ("Broken branch name for repo %s\n", repo->id); 
+        seaf_warning ("Broken branch name for repo %s\n", repo->id); 
         repo->is_corrupted = TRUE;
         return FALSE;
     }
@@ -5343,7 +5344,7 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
 
     SeafRepo *repo = seaf_repo_new(repo_id, NULL, NULL);
     if (!repo) {
-        g_warning ("[repo mgr] failed to alloc repo.\n");
+        seaf_warning ("[repo mgr] failed to alloc repo.\n");
         return NULL;
     }
 
@@ -5353,7 +5354,7 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
              repo->id);
     if (sqlite_foreach_selected_row (manager->priv->db, sql, 
                                      load_branch_cb, repo) < 0) {
-        g_warning ("Error read branch for repo %s.\n", repo->id);
+        seaf_warning ("Error read branch for repo %s.\n", repo->id);
         seaf_repo_free (repo);
         return NULL;
     }
@@ -5382,14 +5383,14 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
                  seaf_repo_from_commit (repo, commit);
                  seaf_commit_unref (commit);
              } else {
-                 g_warning ("[repo-mgr] Can not find commit %s\n",
+                 seaf_warning ("[repo-mgr] Can not find commit %s\n",
                             branch->commit_id);
                  repo->is_corrupted = TRUE;
              }
 
              seaf_branch_unref (branch);
         } else {
-            g_warning ("[repo-mgr] Failed to get branch master");
+            seaf_warning ("[repo-mgr] Failed to get branch master");
             repo->is_corrupted = TRUE;
         }
     }
@@ -5583,13 +5584,13 @@ load_repos (SeafRepoManager *manager, const char *seaf_dir)
 
     sql = "SELECT repo_id FROM DeletedRepo";
     if (sqlite_foreach_selected_row (db, sql, remove_deleted_repo, manager) < 0) {
-        g_warning ("Error removing deleted repos.\n");
+        seaf_warning ("Error removing deleted repos.\n");
         return;
     }
 
     sql = "SELECT repo_id FROM Repo;";
     if (sqlite_foreach_selected_row (db, sql, load_repo_cb, manager) < 0) {
-        g_warning ("Error read repo db.\n");
+        seaf_warning ("Error read repo db.\n");
         return;
     }
 }
@@ -5973,7 +5974,7 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *manager, int start, int limit)
     gpointer key, value;
 
     if (pthread_rwlock_rdlock (&manager->priv->lock) < 0) {
-        g_warning ("[repo mgr] failed to lock repo cache.\n");
+        seaf_warning ("[repo mgr] failed to lock repo cache.\n");
         return NULL;
     }
     g_hash_table_iter_init (&iter, manager->priv->repo_hash);

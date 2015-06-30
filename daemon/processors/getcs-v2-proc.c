@@ -12,6 +12,7 @@
 #include "utils.h"
 #include "getcs-v2-proc.h"
 
+#include "log.h"
 
 G_DEFINE_TYPE (SeafileGetcsV2Proc, seafile_getcs_v2_proc, CCNET_TYPE_PROCESSOR)
 
@@ -64,20 +65,20 @@ add_chunk_server (CcnetProcessor *processor, TransferTask *task, char *cs_str)
 
     tokens = g_strsplit (cs_str, ":", -1);
     if (g_strv_length (tokens) != 2) {
-        g_warning ("Invalid chunk server address format: %s.\n", cs_str);
+        seaf_warning ("Invalid chunk server address format: %s.\n", cs_str);
         g_strfreev (tokens);
         return -1;
     }
 
     peer = ccnet_get_peer (seaf->ccnetrpc_client, processor->peer_id);
     if (!peer) {
-        g_warning ("[getcs] Invalid peer %s.\n", processor->peer_id);
+        seaf_warning ("[getcs] Invalid peer %s.\n", processor->peer_id);
         g_strfreev (tokens);
         return -1;
     }
 
     if (!peer->addr_str) {
-        g_warning ("[getcs] Peer doesn't have an address.\n");
+        seaf_warning ("[getcs] Peer doesn't have an address.\n");
         g_object_unref (peer);
         g_strfreev (tokens);
         return -1;
@@ -109,12 +110,12 @@ handle_response (CcnetProcessor *processor,
     }
 
     if (memcmp (code, SC_OK, 3) != 0) {
-        g_warning ("Bad response: %s %s.\n", code, code_msg);
+        seaf_warning ("Bad response: %s %s.\n", code, code_msg);
         ccnet_processor_done (processor, FALSE);
         return;
     }
     if (content[clen-1] != '\0') {
-        g_warning ("Bad chunk server list format.\n");
+        seaf_warning ("Bad chunk server list format.\n");
         ccnet_processor_done (processor, FALSE);
         return;
     }

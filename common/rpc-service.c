@@ -1150,7 +1150,7 @@ seafile_get_commit_list (const char *repo_id,
             commit_id = g_strdup (branch->commit_id);
             seaf_branch_unref (branch);
         } else {
-            g_warning ("[repo-mgr] Failed to get repo %s branch master\n",
+            seaf_warning ("[repo-mgr] Failed to get repo %s branch master\n",
                        repo_id);
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_REPO,
                          "No head and branch master");
@@ -1432,7 +1432,7 @@ seafile_list_dir_by_path(const char *repo_id,
                                                commit->root_id,
                                                p, error);
     if (!dir) {
-        seaf_warning ("Can't find seaf dir for %s\n", path);
+        seaf_warning ("Can't find seaf dir for %s in repo %s\n", path, repo->store_id);
         goto out;
     }
 
@@ -1506,7 +1506,7 @@ seafile_get_dirid_by_path(const char *repo_id,
                                                commit->root_id,
                                                p, error);
     if (!dir) {
-        seaf_warning ("Can't find seaf dir for %s\n", path);
+        seaf_warning ("Can't find seaf dir for %s in repo %s\n", path, repo->store_id);
         goto out;
     }
 
@@ -1569,7 +1569,8 @@ retry:
                                              repo->id, repo->version,
                                              repo->head->commit_id);
     if (!parent) {
-        seaf_warning ("Failed to get commit %s.\n", repo->head->commit_id);
+        seaf_warning ("Failed to get commit %s:%s.\n",
+                      repo->id, repo->head->commit_id);
         ret = -1;
         goto out;
     }
@@ -1670,7 +1671,8 @@ retry:
                                              repo->id, repo->version,
                                              repo->head->commit_id);
     if (!parent) {
-        seaf_warning ("Failed to get commit %s.\n", repo->head->commit_id);
+        seaf_warning ("Failed to get commit %s:%s.\n",
+                      repo->id, repo->head->commit_id);
         ret = -1;
         goto out;
     }
@@ -1817,7 +1819,7 @@ seafile_is_repo_owner (const char *email,
 
     char *owner = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
     if (!owner) {
-        /* g_warning ("Failed to get owner info for repo %s.\n", repo_id); */
+        /* seaf_warning ("Failed to get owner info for repo %s.\n", repo_id); */
         return 0;
     }
 
@@ -1860,7 +1862,7 @@ seafile_get_repo_owner (const char *repo_id, GError **error)
 
     char *owner = seaf_repo_manager_get_repo_owner (seaf->repo_mgr, repo_id);
     /* if (!owner){ */
-    /*     g_warning ("Failed to get repo owner for repo %s.\n", repo_id); */
+    /*     seaf_warning ("Failed to get repo owner for repo %s.\n", repo_id); */
     /* } */
 
     return owner;
@@ -3944,7 +3946,7 @@ seafile_clean_up_repo_history (const char *repo_id, int keep_days, GError **erro
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
-        g_warning ("Cannot find repo %s.\n", repo_id);
+        seaf_warning ("Cannot find repo %s.\n", repo_id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid arguments");
         return -1;
     }
@@ -3958,7 +3960,7 @@ seafile_clean_up_repo_history (const char *repo_id, int keep_days, GError **erro
 
     ret = update_valid_since_time (repo, truncate_time);
     if (ret < 0) {
-        g_warning ("Failed to update valid since time for repo %.8s.\n", repo->id);
+        seaf_warning ("Failed to update valid since time for repo %.8s.\n", repo->id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Database error");
     }
 

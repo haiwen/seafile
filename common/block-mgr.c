@@ -37,7 +37,7 @@ seaf_block_manager_new (struct _SeafileSession *seaf,
 
     mgr->backend = block_backend_fs_new (seaf_dir, seaf->tmp_file_dir);
     if (!mgr->backend) {
-        g_warning ("[Block mgr] Failed to load backend.\n");
+        seaf_warning ("[Block mgr] Failed to load backend.\n");
         goto onerror;
     }
 
@@ -213,7 +213,7 @@ seaf_block_manager_verify_block (SeafBlockManager *mgr,
                                        store_id, version,
                                        block_id, BLOCK_READ);
     if (!h) {
-        seaf_warning ("Failed to open block %.8s.\n", block_id);
+        seaf_warning ("Failed to open block %s:%.8s.\n", store_id, block_id);
         *io_error = TRUE;
         return FALSE;
     }
@@ -222,7 +222,7 @@ seaf_block_manager_verify_block (SeafBlockManager *mgr,
     while (1) {
         n = seaf_block_manager_read_block (mgr, h, buf, sizeof(buf));
         if (n < 0) {
-            seaf_warning ("Failed to read block %.8s.\n", block_id);
+            seaf_warning ("Failed to read block %s:%.8s.\n", store_id, block_id);
             *io_error = TRUE;
             return FALSE;
         }

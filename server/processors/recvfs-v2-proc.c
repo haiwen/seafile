@@ -190,7 +190,7 @@ on_fs_write (OSAsyncResult *res, void *cb_data)
     USE_PRIV;
 
     if (!res->success) {
-        g_warning ("[recvfs] Failed to write %s.\n", res->obj_id);
+        seaf_warning ("[recvfs] Failed to write %s.\n", res->obj_id);
         ccnet_processor_send_response (processor, SC_BAD_OBJECT, SS_BAD_OBJECT,
                                        NULL, 0);
         ccnet_processor_done (processor, FALSE);
@@ -226,7 +226,7 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
     /* SeafFSObject *fs_obj = NULL; */
 
     if (clen < sizeof(ObjectPack)) {
-        g_warning ("invalid object id.\n");
+        seaf_warning ("invalid object id.\n");
         goto bad;
     }
 
@@ -237,7 +237,7 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
     /*                                   pack->object, clen - sizeof(ObjectPack), */
     /*                                   (priv->repo_version > 0)); */
     /* if (!fs_obj) { */
-    /*     g_warning ("Bad fs object %s.\n", pack->id); */
+    /*     seaf_warning ("Bad fs object %s.\n", pack->id); */
     /*     goto bad; */
     /* } */
 
@@ -252,7 +252,7 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
 bad:
     ccnet_processor_send_response (processor, SC_BAD_OBJECT,
                                    SS_BAD_OBJECT, NULL, 0);
-    g_warning ("[recvfs] Bad fs object received.\n");
+    seaf_warning ("[recvfs] Bad fs object received.\n");
     ccnet_processor_done (processor, FALSE);
 
     /* seaf_fs_object_free (fs_obj); */

@@ -172,7 +172,7 @@ handle_upload_ok (CcnetProcessor *processor, TransferTask *task,
     }
 
     if (clen != 41 || content[clen-1] != '\0') {
-        g_warning ("Bad response content.\n");
+        seaf_warning ("Bad response content.\n");
         transfer_task_set_error (task, TASK_ERR_UNKNOWN);
         ccnet_processor_send_update (processor, SC_BAD_ARGS, SS_BAD_ARGS, NULL, 0);
         ccnet_processor_done (processor, FALSE);
@@ -190,7 +190,7 @@ handle_download_ok (CcnetProcessor *processor, TransferTask *task,
                     char *content, int clen)
 {
     if (clen != 41 || content[clen-1] != '\0') {
-        g_warning ("Bad response content.\n");
+        seaf_warning ("Bad response content.\n");
         transfer_task_set_error (task, TASK_ERR_UNKNOWN);
         ccnet_processor_send_update (processor, SC_BAD_ARGS, SS_BAD_ARGS, NULL, 0);
         ccnet_processor_done (processor, FALSE);
@@ -224,7 +224,7 @@ handle_response (CcnetProcessor *processor,
         }
 
         if (content[clen-1] != '\0') {
-            g_warning ("Bad response content.\n");
+            seaf_warning ("Bad response content.\n");
             transfer_task_set_error (task, TASK_ERR_UNKNOWN);
             ccnet_processor_send_update (processor, SC_BAD_ARGS, SS_BAD_ARGS,
                                          NULL, 0);
@@ -247,7 +247,7 @@ handle_response (CcnetProcessor *processor,
 
         ccnet_processor_done (processor, TRUE);
     } else {
-        g_warning ("[check tx v2] Bad response: %s %s", code, code_msg);
+        seaf_warning ("[check tx v2] Bad response: %s %s", code, code_msg);
         if (strncmp(code, SC_ACCESS_DENIED, 3) == 0)
             transfer_task_set_error (task, TASK_ERR_ACCESS_DENIED);
         else if (strncmp(code, SC_QUOTA_ERROR, 3) == 0)

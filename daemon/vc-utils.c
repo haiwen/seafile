@@ -149,12 +149,12 @@ update_index (struct index_state *istate, const char *index_path)
     index_fd = seaf_util_create (index_shadow, O_RDWR | O_CREAT | O_TRUNC | O_BINARY,
                                  0666);
     if (index_fd < 0) {
-        g_warning ("Failed to open shadow index: %s.\n", strerror(errno));
+        seaf_warning ("Failed to open shadow index: %s.\n", strerror(errno));
         return -1;
     }
 
     if (write_index (istate, index_fd) < 0) {
-        g_warning ("Failed to write shadow index: %s.\n", strerror(errno));
+        seaf_warning ("Failed to write shadow index: %s.\n", strerror(errno));
         close (index_fd);
         return -1;
     }
@@ -162,7 +162,7 @@ update_index (struct index_state *istate, const char *index_path)
 
     ret = seaf_util_rename (index_shadow, index_path);
     if (ret < 0) {
-        g_warning ("Failed to update index errno=%d %s\n", errno, strerror(errno));
+        seaf_warning ("Failed to update index errno=%d %s\n", errno, strerror(errno));
         return -1;
     }
     return 0;
@@ -291,7 +291,7 @@ unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
     int offset;
 
     if (!len) {
-        g_warning ("entry name should not be empty.\n");
+        seaf_warning ("entry name should not be empty.\n");
         return -1;
     }
 
@@ -306,18 +306,18 @@ unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
         /* file has been changed. */
         if (!o->reset &&
             (ce->current_mtime != st.st_mtime)) {
-            g_warning ("File %s is changed. Skip removing the file.\n", path);
+            seaf_warning ("File %s is changed. Skip removing the file.\n", path);
             return -1;
         }
 
         /* first unlink the file. */
         if (seaf_util_unlink (path) < 0) {
-            g_warning ("Failed to remove %s: %s.\n", path, strerror(errno));
+            seaf_warning ("Failed to remove %s: %s.\n", path, strerror(errno));
             return -1;
         }
     } else {
         if (seaf_remove_empty_dir (path) < 0) {
-            g_warning ("Failed to remove dir %s: %s.\n", path, strerror(errno));
+            seaf_warning ("Failed to remove dir %s: %s.\n", path, strerror(errno));
             return -1;
         }
     }
@@ -353,7 +353,7 @@ compare_file_content (const char *path, SeafStat *st, const unsigned char *ce_sh
         cdc.block_max_sz = cdc.block_sz << 2;
         cdc.write_block = seafile_write_chunk;
         if (filename_chunk_cdc (path, &cdc, crypt, FALSE) < 0) {
-            g_warning ("Failed to chunk file.\n");
+            seaf_warning ("Failed to chunk file.\n");
             return -1;
         }
 
@@ -676,7 +676,7 @@ build_checkout_path (const char *worktree, const char *ce_name, int len)
     SeafStat st;
 
     if (!len) {
-        g_warning ("entry name should not be empty.\n");
+        seaf_warning ("entry name should not be empty.\n");
         return NULL;
     }
 
@@ -698,7 +698,7 @@ build_checkout_path (const char *worktree, const char *ce_name, int len)
             continue;
         
         if (seaf_util_mkdir (path, 0777) < 0) {
-            g_warning ("Failed to create directory %s.\n", path);
+            seaf_warning ("Failed to create directory %s.\n", path);
             return NULL;
         }
     }
@@ -743,19 +743,19 @@ checkout_entry (struct cache_entry *ce,
          */
         if (seaf_stat (path, &st) == 0 && S_ISDIR(st.st_mode)) {
             if (seaf_util_rmdir (path) < 0) {
-                g_warning ("Failed to remove dir %s: %s\n", path, strerror(errno));
+                seaf_warning ("Failed to remove dir %s: %s\n", path, strerror(errno));
                 /* Don't quit since we can handle conflict later. */
             }
         }
     } else {
         if (seaf_util_mkdir (path, 0777) < 0) {
-            g_warning ("Failed to create empty dir %s in checkout.\n", path);
+            seaf_warning ("Failed to create empty dir %s in checkout.\n", path);
             g_free (path);
             return -1;
         }
         if (ce->ce_mtime.sec != 0 &&
             seaf_set_file_time (path, ce->ce_mtime.sec) < 0) {
-            g_warning ("Failed to set mtime for %s.\n", path);
+            seaf_warning ("Failed to set mtime for %s.\n", path);
         }
         goto update_cache;
     }
@@ -770,7 +770,7 @@ checkout_entry (struct cache_entry *ce,
          */
         if (!recover_merge || 
             compare_file_content (path, &st, ce->sha1, o->crypt, o->version) != 0) {
-            g_warning ("File %s is changed. Checkout to conflict file.\n", path);
+            seaf_warning ("File %s is changed. Checkout to conflict file.\n", path);
             force_conflict = TRUE;
         } else {
             /* Recover merge and file content matches index entry.
@@ -797,7 +797,7 @@ checkout_entry (struct cache_entry *ce,
                                        force_conflict,
                                        &conflicted,
                                        NULL) < 0) {
-        g_warning ("Failed to checkout file %s.\n", path);
+        seaf_warning ("Failed to checkout file %s.\n", path);
         g_free (path);
         return -1;
     }
@@ -882,7 +882,7 @@ delete_path (const char *worktree, const char *name,
     int len = strlen(name);
 
     if (!len) {
-        g_warning ("entry name should not be empty.\n");
+        seaf_warning ("entry name should not be empty.\n");
         return -1;
     }
 
@@ -896,18 +896,18 @@ delete_path (const char *worktree, const char *name,
 
         /* file has been changed. */
         if (old_mtime != st.st_mtime) {
-            g_warning ("File %s is changed. Skip removing the file.\n", path);
+            seaf_warning ("File %s is changed. Skip removing the file.\n", path);
             return -1;
         }
 
         /* first unlink the file. */
         if (seaf_util_unlink (path) < 0) {
-            g_warning ("Failed to remove %s: %s.\n", path, strerror(errno));
+            seaf_warning ("Failed to remove %s: %s.\n", path, strerror(errno));
             return -1;
         }
     } else {
         if (seaf_remove_empty_dir (path) < 0) {
-            g_warning ("Failed to remove dir %s: %s.\n", path, strerror(errno));
+            seaf_warning ("Failed to remove dir %s: %s.\n", path, strerror(errno));
             return -1;
         }
     }
@@ -1128,7 +1128,7 @@ fill_seafile_blocks (const char *repo_id, int version,
     rawdata_to_hex (sha1, file_id, 20);
     seafile = seaf_fs_manager_get_seafile (seaf->fs_mgr, repo_id, version, file_id);
     if (!seafile) {
-        g_warning ("Failed to find file %s.\n", file_id);
+        seaf_warning ("Failed to find file %s.\n", file_id);
         return;
     }
 

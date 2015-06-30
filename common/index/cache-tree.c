@@ -1,7 +1,7 @@
 
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#include "common.h"
+
+#include "log.h"
 
 #include "index.h"
 #if 0
@@ -213,7 +213,7 @@ static int verify_cache(struct cache_entry **cache,
                 fprintf(stderr, "...\n");
                 break;
             }
-            g_warning("You have both %s and %s\n",
+            seaf_warning("You have both %s and %s\n",
                       this_name, next_name);
         }
     }
@@ -326,7 +326,7 @@ static int update_one(const char *repo_id,
 
     if (commit_cb (repo_id, version, worktree,
                    it, cache, entries, base, baselen) < 0) {
-        g_warning ("save seafile dirent failed");
+        seaf_warning ("save seafile dirent failed");
         return -1;
     }
 

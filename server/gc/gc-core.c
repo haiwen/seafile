@@ -77,7 +77,7 @@ add_blocks_to_index (SeafFSManager *mgr, GCData *data, const char *file_id)
 
     seafile = seaf_fs_manager_get_seafile (mgr, repo->store_id, repo->version, file_id);
     if (!seafile) {
-        seaf_warning ("Failed to find file %s.\n", file_id);
+        seaf_warning ("Failed to find file %s:%s.\n", repo->store_id, file_id);
         return -1;
     }
 

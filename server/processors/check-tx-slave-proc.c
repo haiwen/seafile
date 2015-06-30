@@ -1,5 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include "common.h"
+
 #include <string.h>
 #include <ccnet.h>
 #include <stdlib.h>
@@ -8,9 +10,10 @@
 #include <ccnet/job-mgr.h>
 #include <ccnet/ccnet-object.h>
 
-#include "common.h"
 #include "seafile-session.h"
 #include "check-tx-slave-proc.h"
+
+#include "log.h"
 
 #define SC_GET_TOKEN        "301"
 #define SS_GET_TOKEN        "Get token"
@@ -271,7 +274,7 @@ get_email_cb (void *result, void *data, GError *error)
     USE_PRIV;
 
     if (!email) {
-        g_warning ("[check tx] cannot find email for peer %s.\n",
+        seaf_warning ("[check tx] cannot find email for peer %s.\n",
                    processor->peer_id);
         ccnet_processor_send_response (processor, 
                                        SC_ACCESS_DENIED, SS_ACCESS_DENIED,

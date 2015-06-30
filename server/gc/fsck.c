@@ -85,7 +85,7 @@ check_blocks (const char *file_id, FsckData *fsck_data, gboolean *io_error)
         if (!seaf_block_manager_block_exists (seaf->block_mgr,
                                               store_id, version,
                                               block_id)) {
-            seaf_warning ("Block %s is missing.\n", block_id);
+            seaf_warning ("Block %s:%s is missing.\n", store_id, block_id);
             ret = -1;
             break;
         }
@@ -467,7 +467,8 @@ enable_sync_repo (const char *repo_id)
                                                                repo_id,
                                                                repo->head->commit_id);
     if (!parent_commit) {
-        seaf_warning ("Commit %s is missing\n", repo->head->commit_id);
+        seaf_warning ("Commit %s:%s is missing\n",
+                      repo_id, repo->head->commit_id);
         goto out;
     }
 

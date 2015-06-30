@@ -13,6 +13,8 @@
 #include "processors/objecttx-common.h"
 #include "putfs-proc.h"
 
+#include "log.h"
+
 G_DEFINE_TYPE (SeafilePutfsProc, seafile_putfs_proc, CCNET_TYPE_PROCESSOR)
 
 static int start (CcnetProcessor *processor, int argc, char **argv);
@@ -64,7 +66,7 @@ send_fs_object (CcnetProcessor *processor, char *object_id)
 
     if (seaf_obj_store_read_obj (seaf->fs_mgr->obj_store,
                                  object_id, (void**)&data, &len) < 0) {
-        g_warning ("Failed to read fs object %s.\n", object_id);
+        seaf_warning ("Failed to read fs object %s.\n", object_id);
         goto fail;
     }
 
@@ -95,7 +97,7 @@ send_fs_objects (CcnetProcessor *processor, char *content, int clen)
     int i;
 
     if (clen % 41 != 1 || content[clen-1] != '\0') {
-        g_warning ("[putfs] Bad fs object list.\n");
+        seaf_warning ("[putfs] Bad fs object list.\n");
         ccnet_processor_send_response (processor, SC_BAD_OL, SS_BAD_OL, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
@@ -124,7 +126,7 @@ handle_update (CcnetProcessor *processor,
     } else if (strncmp(code, SC_END, 3) == 0) {
         ccnet_processor_done (processor, TRUE);     
     } else {
-        g_warning ("[putfs] Bad update: %s %s\n", code, code_msg);
+        seaf_warning ("[putfs] Bad update: %s %s\n", code, code_msg);
         ccnet_processor_done (processor, FALSE);
     }
 }

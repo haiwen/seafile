@@ -388,7 +388,8 @@ handle_block_header_content_cb (char *content, int clen, void *cbarg)
                                             server->repo_version,
                                             server->curr_block_id);
         if (!md) {
-            seaf_warning ("Failed to stat block %s.\n", server->curr_block_id);
+            seaf_warning ("Failed to stat block %s:%s.\n",
+                          server->store_id, server->curr_block_id);
             send_block_response_header (server, STATUS_NOT_FOUND);
             return -1;
         }
@@ -413,8 +414,8 @@ handle_block_header_content_cb (char *content, int clen, void *cbarg)
                                                        server->curr_block_id,
                                                        BLOCK_WRITE);
         if (!server->block) {
-            seaf_warning ("Failed to open block %s for write.\n",
-                          server->curr_block_id);
+            seaf_warning ("Failed to open block %s:%s for write.\n",
+                          server->store_id, server->curr_block_id);
             send_block_response_header (server, STATUS_INTERNAL_SERVER_ERROR);
             return -1;
         }
@@ -505,7 +506,8 @@ send_block_content (BlockTxServer *server, int block_size)
                                             server->curr_block_id,
                                             BLOCK_READ);
     if (!handle) {
-        seaf_warning ("Failed to open block %s.\n", server->curr_block_id);
+        seaf_warning ("Failed to open block %s:%s.\n",
+                      server->store_id, server->curr_block_id);
         return -1;
     }
 

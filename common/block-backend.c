@@ -1,6 +1,8 @@
 
 #include "common.h"
 
+#include "log.h"
+
 #include "block-backend.h"
 
 extern BlockBackend *
@@ -15,13 +17,13 @@ load_filesystem_block_backend(GKeyFile *config)
     
     block_dir = g_key_file_get_string (config, "block_backend", "block_dir", NULL);
     if (!block_dir) {
-        g_warning ("Block dir not set in config.\n");
+        seaf_warning ("Block dir not set in config.\n");
         return NULL;
     }
 
     tmp_dir = g_key_file_get_string (config, "block_backend", "tmp_dir", NULL);
     if (!tmp_dir) {
-        g_warning ("Block tmp dir not set in config.\n");
+        seaf_warning ("Block tmp dir not set in config.\n");
         return NULL;
     }
 
@@ -49,6 +51,6 @@ load_block_backend (GKeyFile *config)
         return bend;
     }
 
-    g_warning ("Unknown backend\n");
+    seaf_warning ("Unknown backend\n");
     return NULL;
 }

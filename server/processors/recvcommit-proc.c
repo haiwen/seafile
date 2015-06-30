@@ -18,6 +18,8 @@
 #include "processors/objecttx-common.h"
 #include "seaf-utils.h"
 
+#include "log.h"
+
 #define CHECK_INTERVAL 100      /* 100ms */
 
 enum {
@@ -146,7 +148,7 @@ receive_commit (CcnetProcessor *processor, char *content, int clen)
     ObjectPack *pack = (ObjectPack *)content;
 
     if (clen < sizeof(ObjectPack)) {
-        g_warning ("invalid object id.\n");
+        seaf_warning ("invalid object id.\n");
         goto bad;
     }
 
@@ -168,7 +170,7 @@ receive_commit (CcnetProcessor *processor, char *content, int clen)
 bad:
     ccnet_processor_send_response (processor, SC_BAD_OBJECT,
                                    SS_BAD_OBJECT, NULL, 0);
-    g_warning ("Bad commit object received.\n");
+    seaf_warning ("Bad commit object received.\n");
     ccnet_processor_done (processor, FALSE);
 }
 
@@ -181,7 +183,7 @@ process_commit_list (CcnetProcessor *processor, char *content, int clen)
     int i;
 
     if (clen % 41 != 1 || content[clen-1] != '\0') {
-        g_warning ("Bad commit id list.\n");
+        seaf_warning ("Bad commit id list.\n");
         ccnet_processor_send_response (processor, SC_BAD_OL, SS_BAD_OL, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
@@ -219,7 +221,7 @@ static void handle_update (CcnetProcessor *processor,
             /* change state to FETCH_OBJECT */
             processor->state = FETCH_OBJECT;
         } else {
-            g_warning ("Bad update: %s %s\n", code, code_msg);
+            seaf_warning ("Bad update: %s %s\n", code, code_msg);
             ccnet_processor_send_response (processor,
                                            SC_BAD_UPDATE_CODE, SS_BAD_UPDATE_CODE,
                                            NULL, 0);
@@ -230,7 +232,7 @@ static void handle_update (CcnetProcessor *processor,
         if (strncmp(code, SC_OBJECT, 3) == 0) {
             receive_commit (processor, content, clen);
         } else {
-            g_warning ("Bad update: %s %s\n", code, code_msg);
+            seaf_warning ("Bad update: %s %s\n", code, code_msg);
             ccnet_processor_send_response (processor,
                                            SC_BAD_UPDATE_CODE, SS_BAD_UPDATE_CODE,
                                            NULL, 0);

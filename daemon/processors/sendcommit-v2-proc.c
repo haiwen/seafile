@@ -13,6 +13,8 @@
 #include "processors/objecttx-common.h"
 #include "vc-common.h"
 
+#include "log.h"
+
 /*
               seafile-recvcommit-v2
   INIT      --------------------->
@@ -103,7 +105,7 @@ send_commit (CcnetProcessor *processor, const char *object_id)
     if (seaf_obj_store_read_obj (seaf->commit_mgr->obj_store,
                                  task->repo_id, task->repo_version,
                                  object_id, (void**)&data, &len) < 0) {
-        g_warning ("Failed to read commit %s.\n", object_id);
+        seaf_warning ("Failed to read commit %s.\n", object_id);
         goto fail;
     }
 
@@ -188,12 +190,12 @@ static void handle_response (CcnetProcessor *processor,
             processor->state = SEND_OBJECT;
             send_commits (processor, task->head);
         } else {
-            g_warning ("Bad response: %s %s.\n", code, code_msg);
+            seaf_warning ("Bad response: %s %s.\n", code, code_msg);
             ccnet_processor_done (processor, FALSE);
         }
         break;
     case SEND_OBJECT:
-        g_warning ("[sendcommit] Bad response in state SEND_OBJECT: %s %s\n",
+        seaf_warning ("[sendcommit] Bad response in state SEND_OBJECT: %s %s\n",
                    code, code_msg);
         ccnet_processor_done (processor, FALSE);
         break;

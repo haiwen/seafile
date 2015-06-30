@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include "log.h"
+
 #include <jansson.h>
 #include <openssl/sha.h>
 
@@ -139,9 +141,9 @@ seaf_commit_from_data (const char *id, char *data, gsize len)
         object = json_loadb (data, len, 0, &jerror);
         if (!object) {
             if (jerror.text)
-                g_warning ("Failed to load commit json: %s.\n", jerror.text);
+                seaf_warning ("Failed to load commit json: %s.\n", jerror.text);
             else
-                g_warning ("Failed to load commit json.\n");
+                seaf_warning ("Failed to load commit json.\n");
             return NULL;
         }
     }
@@ -202,19 +204,19 @@ seaf_commit_manager_init (SeafCommitManager *mgr)
 
 #ifdef FULL_FEATURE
     if (seaf_obj_store_init (mgr->obj_store, TRUE, seaf->ev_mgr) < 0) {
-        g_warning ("[commit mgr] Failed to init commit object store.\n");
+        seaf_warning ("[commit mgr] Failed to init commit object store.\n");
         return -1;
     }
 #else
     if (seaf_obj_store_init (mgr->obj_store, FALSE, NULL) < 0) {
-        g_warning ("[commit mgr] Failed to init commit object store.\n");
+        seaf_warning ("[commit mgr] Failed to init commit object store.\n");
         return -1;
     }
 #endif
 
 #else
     if (seaf_obj_store_init (mgr->obj_store, TRUE, seaf->ev_mgr) < 0) {
-        g_warning ("[commit mgr] Failed to init commit object store.\n");
+        seaf_warning ("[commit mgr] Failed to init commit object store.\n");
         return -1;
     }
 #endif
@@ -350,7 +352,7 @@ insert_parent_commit (GList **list, GHashTable *hash,
     if (!p) {
         if (allow_truncate)
             return 0;
-        g_warning ("Failed to find commit %s\n", parent_id);
+        seaf_warning ("Failed to find commit %s\n", parent_id);
         return -1;
     }
 
@@ -384,7 +386,7 @@ seaf_commit_manager_traverse_commit_tree_with_limit (SeafCommitManager *mgr,
 
     commit = seaf_commit_manager_get_commit (mgr, repo_id, version, head);
     if (!commit) {
-        g_warning ("Failed to find commit %s.\n", head);
+        seaf_warning ("Failed to find commit %s.\n", head);
         return FALSE;
     }
 
@@ -473,7 +475,7 @@ traverse_commit_tree_common (SeafCommitManager *mgr,
 
     commit = seaf_commit_manager_get_commit (mgr, repo_id, version, head);
     if (!commit) {
-        g_warning ("Failed to find commit %s.\n", head);
+        seaf_warning ("Failed to find commit %s.\n", head);
         // For head commit corrupted, directly return FALSE
         // user can repair head by fsck then retraverse the tree
         return FALSE;
@@ -495,7 +497,7 @@ traverse_commit_tree_common (SeafCommitManager *mgr,
         list = g_list_delete_link (list, list);
 
         if (!func (commit, data, &stop)) {
-            g_warning("[comit-mgr] CommitTraverseFunc failed\n");
+            seaf_warning("[comit-mgr] CommitTraverseFunc failed\n");
 
             /* If skip errors, continue to traverse parents. */
             if (!skip_errors) {
@@ -515,7 +517,7 @@ traverse_commit_tree_common (SeafCommitManager *mgr,
         if (commit->parent_id) {
             if (insert_parent_commit (&list, commit_hash, repo_id, version,
                                       commit->parent_id, allow_truncate) < 0) {
-                g_warning("[comit-mgr] insert parent commit failed\n");
+                seaf_warning("[comit-mgr] insert parent commit failed\n");
 
                 /* If skip errors, try insert second parent. */
                 if (!skip_errors) {
@@ -528,7 +530,7 @@ traverse_commit_tree_common (SeafCommitManager *mgr,
         if (commit->second_parent_id) {
             if (insert_parent_commit (&list, commit_hash, repo_id, version,
                                       commit->second_parent_id, allow_truncate) < 0) {
-                g_warning("[comit-mgr]insert second parent commit failed\n");
+                seaf_warning("[comit-mgr]insert second parent commit failed\n");
 
                 if (!skip_errors) {
                     seaf_commit_unref (commit);
@@ -730,7 +732,7 @@ commit_from_json_object (const char *commit_id, json_t *object)
             return NULL;
         break;
     default:
-        g_warning ("Unknown encryption version %d.\n", enc_version);
+        seaf_warning ("Unknown encryption version %d.\n", enc_version);
         return NULL;
     }
 
@@ -801,9 +803,9 @@ load_commit (SeafCommitManager *mgr,
         object = json_loadb (data, len, 0, &jerror);
         if (!object) {
             if (jerror.text)
-                g_warning ("Failed to load commit json object: %s.\n", jerror.text);
+                seaf_warning ("Failed to load commit json object: %s.\n", jerror.text);
             else
-                g_warning ("Failed to load commit json object.\n");
+                seaf_warning ("Failed to load commit json object.\n");
             goto out;
         }
     }

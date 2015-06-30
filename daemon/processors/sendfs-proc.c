@@ -205,7 +205,7 @@ send_fs_objects (CcnetProcessor *processor, char *content, int clen)
     int i;
 
     if (clen % 41 != 1 || content[clen-1] != '\0') {
-        g_warning ("Bad fs object list.\n");
+        seaf_warning ("Bad fs object list.\n");
         ccnet_processor_send_update (processor, SC_BAD_OL, SS_BAD_OL, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
@@ -281,7 +281,7 @@ handle_response (CcnetProcessor *processor,
         g_return_if_reached ();
     }
 
-    g_warning ("Bad response: %s %s.\n", code, code_msg);
+    seaf_warning ("Bad response: %s %s.\n", code, code_msg);
     if (memcmp (code, SC_ACCESS_DENIED, 3) == 0)
         transfer_task_set_error (task, TASK_ERR_ACCESS_DENIED);
     ccnet_processor_done (processor, FALSE);

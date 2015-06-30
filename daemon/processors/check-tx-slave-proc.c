@@ -8,6 +8,8 @@
 #include "seafile-session.h"
 #include "check-tx-slave-proc.h"
 
+#include "log.h"
+
 #define SC_GET_TOKEN        "301"
 #define SS_GET_TOKEN        "Get token"
 #define SC_PUT_TOKEN        "302"
@@ -142,7 +144,7 @@ handle_update (CcnetProcessor *processor,
         return;
     }
 
-    g_warning ("Bad update: %s %s.\n", code, code_msg);
+    seaf_warning ("Bad update: %s %s.\n", code, code_msg);
     ccnet_processor_send_response (processor, 
                                    SC_BAD_UPDATE_CODE, SS_BAD_UPDATE_CODE,
                                    NULL, 0);

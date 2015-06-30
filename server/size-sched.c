@@ -6,6 +6,8 @@
 #include "seafile-session.h"
 #include "size-sched.h"
 
+#include "log.h"
+
 typedef struct SizeSchedulerPriv {
     pthread_mutex_t q_lock;
     GQueue *repo_size_job_queue;
@@ -94,7 +96,7 @@ schedule_pulse (void *vscheduler)
                                                   compute_repo_size_done,
                                                   job);
         if (ret < 0) {
-            g_warning ("[scheduler] failed to start compute job.\n");
+            seaf_warning ("[scheduler] failed to start compute job.\n");
             pthread_mutex_lock (&sched->priv->q_lock);
             g_queue_push_head (sched->priv->repo_size_job_queue, job);
             pthread_mutex_unlock (&sched->priv->q_lock);
@@ -218,7 +220,7 @@ compute_repo_size (void *vjob)
 retry:
     repo = seaf_repo_manager_get_repo (sched->seaf->repo_mgr, job->repo_id);
     if (!repo) {
-        g_warning ("[scheduler] failed to get repo %s.\n", job->repo_id);
+        seaf_warning ("[scheduler] failed to get repo %s.\n", job->repo_id);
         return vjob;
     }
 
@@ -230,7 +232,7 @@ retry:
                                            repo->id, repo->version,
                                            repo->head->commit_id);
     if (!head) {
-        g_warning ("[scheduler] failed to get head commit %s.\n",
+        seaf_warning ("[scheduler] failed to get head commit %s.\n",
                    repo->head->commit_id);
         goto out;
     }
@@ -239,7 +241,7 @@ retry:
                                         repo->store_id, repo->version,
                                         head->root_id);
     if (size < 0) {
-        g_warning ("[scheduler] Failed to compute size of repo %.8s.\n",
+        seaf_warning ("[scheduler] Failed to compute size of repo %.8s.\n",
                    repo->id);
         goto out;
     }
@@ -250,7 +252,7 @@ retry:
                              repo->head->commit_id,
                              size);
     if (ret == SET_SIZE_ERROR)
-        g_warning ("[scheduler] failed to store repo size %s.\n", job->repo_id);
+        seaf_warning ("[scheduler] failed to store repo size %s.\n", job->repo_id);
     else if (ret == SET_SIZE_CONFLICT) {
         size = 0;
         seaf_repo_unref (repo);

@@ -249,7 +249,7 @@ seafile_encrypt (char **data_out,
 
     /* check validation */
     if ( data_in == NULL || in_len <= 0 || crypt == NULL) {
-        g_warning ("Invalid params.\n");
+        seaf_warning ("Invalid params.\n");
         return -1;
     }
 
@@ -295,7 +295,7 @@ seafile_encrypt (char **data_out,
     *data_out = (char *)g_malloc (blks * BLK_SIZE);
 
     if (*data_out == NULL) {
-        g_warning ("failed to allocate the output buffer.\n");
+        seaf_warning ("failed to allocate the output buffer.\n");
         goto enc_error;
     }                
 
@@ -360,7 +360,7 @@ seafile_decrypt (char **data_out,
     if ( data_in == NULL || in_len <= 0 || in_len % BLK_SIZE != 0 ||
          crypt == NULL) {
 
-        g_warning ("Invalid param(s).\n");
+        seaf_warning ("Invalid param(s).\n");
         return -1;
     }
 
@@ -397,7 +397,7 @@ seafile_decrypt (char **data_out,
     *data_out = (char *)g_malloc (in_len);
 
     if (*data_out == NULL) {
-        g_warning ("failed to allocate the output buffer.\n");
+        seaf_warning ("failed to allocate the output buffer.\n");
         goto dec_error;
     }                
 

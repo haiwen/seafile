@@ -38,6 +38,8 @@
 #include "sendcommit-proc.h"
 #include "sendblock-v2-proc.h"
 
+#include "log.h"
+
 enum {
     REQUEST_SENT,
     BLOCKLIST_SENT,
@@ -132,7 +134,7 @@ seafile_sendblock_v2_proc_send_block (SeafileSendblockV2Proc *proc,
     blk_req.block_idx = block_idx;
     if (pipewriten (priv->tdata->task_pipe[1], 
                     &blk_req, sizeof(blk_req)) < 0) {
-        g_warning ("failed to write task pipe.\n");
+        seaf_warning ("failed to write task pipe.\n");
         return -1;
     }
 
@@ -170,14 +172,14 @@ process_ack (CcnetProcessor *processor, char *content, int clen)
     int block_idx;
 
     if (content[clen-1] != '\0') {
-        g_warning ("Bad block ack.\n");
+        seaf_warning ("Bad block ack.\n");
         ccnet_processor_done (processor, FALSE);
         return;
     }
 
     block_idx = atoi(content);
     if (block_idx < 0 || block_idx >= proc->tx_task->block_list->n_blocks) {
-        g_warning ("Bad block index %d.\n", block_idx);
+        seaf_warning ("Bad block index %d.\n", block_idx);
         ccnet_processor_done (processor, FALSE);
         return;
     }
@@ -229,7 +231,7 @@ static void handle_response (CcnetProcessor *processor,
         }
     }
 
-    g_warning ("Bad response: %s %s.\n", code, code_msg);
+    seaf_warning ("Bad response: %s %s.\n", code, code_msg);
     if (memcmp (code, SC_ACCESS_DENIED, 3) == 0)
         transfer_task_set_error (proc->tx_task, TASK_ERR_ACCESS_DENIED);
     ccnet_processor_done (processor, FALSE);

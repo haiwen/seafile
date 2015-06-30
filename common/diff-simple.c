@@ -233,7 +233,8 @@ diff_directories (int n, SeafDirent *dents[], const char *basedir, DiffOptions *
                                                opt->version,
                                                dents[i]->id);
             if (!dir) {
-                seaf_warning ("Failed to find dir %s.\n", dents[i]->id);
+                seaf_warning ("Failed to find dir %s:%s.\n",
+                              opt->store_id, dents[i]->id);
                 ret = -1;
                 goto free_sub_dirs;
             }
@@ -343,7 +344,7 @@ diff_trees (int n, const char *roots[], DiffOptions *opt)
                                             opt->version,
                                             roots[i]);
         if (!root) {
-            seaf_warning ("Failed to find dir %s.\n", roots[i]);
+            seaf_warning ("Failed to find dir %s:%s.\n", opt->store_id, roots[i]);
             g_free (trees);
             return -1;
         }
@@ -584,7 +585,7 @@ diff_merge (SeafCommit *merge, GList **results, gboolean fold_dir_diff)
                                               repo->version,
                                               merge->parent_id);
     if (!parent1) {
-        seaf_warning ("failed to find commit %s.\n", merge->parent_id);
+        seaf_warning ("failed to find commit %s:%s.\n", repo->id, merge->parent_id);
         return -1;
     }
 
@@ -593,7 +594,8 @@ diff_merge (SeafCommit *merge, GList **results, gboolean fold_dir_diff)
                                               repo->version,
                                               merge->second_parent_id);
     if (!parent2) {
-        seaf_warning ("failed to find commit %s.\n", merge->second_parent_id);
+        seaf_warning ("failed to find commit %s:%s.\n",
+                      repo->id, merge->second_parent_id);
         seaf_commit_unref (parent1);
         return -1;
     }
@@ -817,7 +819,7 @@ int diff_unmerged_state(int mask)
         case 4:
             return STATUS_UNMERGED_DFC_OTHERS_ADDED_FILE;
         default:
-            g_warning ("Unexpected unmerged case\n");
+            seaf_warning ("Unexpected unmerged case\n");
     }
     return 0;
 }

@@ -137,7 +137,7 @@ static int seaf_fuse_open(const char *path, struct fuse_file_info *info)
                                             repo->version,
                                             branch->commit_id);
     if (!commit) {
-        seaf_warning ("Failed to get commit %.8s.\n", branch->commit_id);
+        seaf_warning ("Failed to get commit %s:%.8s.\n", repo->id, branch->commit_id);
         ret = -ENOENT;
         goto out;
     }
@@ -205,7 +205,7 @@ static int seaf_fuse_read(const char *path, char *buf, size_t size,
                                             repo->version,
                                             branch->commit_id);
     if (!commit) {
-        seaf_warning ("Failed to get commit %.8s.\n", branch->commit_id);
+        seaf_warning ("Failed to get commit %s:%.8s.\n", repo->id, branch->commit_id);
         ret = -ENOENT;
         goto out;
     }

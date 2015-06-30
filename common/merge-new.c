@@ -35,7 +35,8 @@ merge_conflict_filename (const char *store_id, int version,
                                                  version,
                                                  opt->remote_head);
         if (!commit) {
-            seaf_warning ("Failed to find remote head %s.\n", opt->remote_head);
+            seaf_warning ("Failed to find remote head %s:%s.\n",
+                          opt->remote_repo_id, opt->remote_head);
             goto out;
         }
         modifier = g_strdup(commit->creator_name);
@@ -64,7 +65,8 @@ merge_conflict_dirname (const char *store_id, int version,
                                              opt->remote_repo_id, version,
                                              opt->remote_head);
     if (!commit) {
-        seaf_warning ("Failed to find remote head %s.\n", opt->remote_head);
+        seaf_warning ("Failed to find remote head %s:%s.\n",
+                      opt->remote_repo_id, opt->remote_head);
         goto out;
     }
     modifier = g_strdup(commit->creator_name);
@@ -412,7 +414,7 @@ merge_directories (const char *store_id, int version,
                                                store_id, version,
                                                dents[i]->id);
             if (!dir) {
-                seaf_warning ("Failed to find dir %s.\n", dents[i]->id);
+                seaf_warning ("Failed to find dir %s:%s.\n", store_id, dents[i]->id);
                 ret = -1;
                 goto free_sub_dirs;
             }
@@ -549,7 +551,7 @@ merge_trees_recursive (const char *store_id, int version,
             ret = seaf_dir_save (seaf->fs_mgr, store_id, version, merged_tree);
             seaf_dir_free (merged_tree);
             if (ret < 0) {
-                seaf_warning ("Failed to save merged tree %s.\n", basedir);
+                seaf_warning ("Failed to save merged tree %s:%s.\n", store_id, basedir);
             }
         }
     }
@@ -570,7 +572,7 @@ seaf_merge_trees (const char *store_id, int version,
     for (i = 0; i < n; ++i) {
         root = seaf_fs_manager_get_seafdir (seaf->fs_mgr, store_id, version, roots[i]);
         if (!root) {
-            seaf_warning ("Failed to find dir %s.\n", roots[i]);
+            seaf_warning ("Failed to find dir %s:%s.\n", store_id, roots[i]);
             g_free (trees);
             return -1;
         }

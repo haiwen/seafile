@@ -765,7 +765,7 @@ load_repo_commit (SeafRepoManager *manager,
                                                         repo->id,
                                                         branch->commit_id);
     if (!commit) {
-        seaf_warning ("Commit %s is missing\n", branch->commit_id);
+        seaf_warning ("Commit %s:%s is missing\n", repo->id, branch->commit_id);
         repo->is_corrupted = TRUE;
         return;
     }
@@ -785,7 +785,7 @@ load_repo (SeafRepoManager *manager, SeafRepo *repo)
 
     branch = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "master");
     if (!branch) {
-        g_warning ("Failed to get master branch of repo %.8s.\n", repo->id);
+        seaf_warning ("Failed to get master branch of repo %.8s.\n", repo->id);
         repo->is_corrupted = TRUE;
     } else {
         load_repo_commit (manager, repo, branch);

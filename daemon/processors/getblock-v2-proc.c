@@ -36,6 +36,8 @@
 #include "block-mgr.h"
 #include "getblock-v2-proc.h"
 
+#include "log.h"
+
 enum {
     REQUEST_SENT,
     BLOCKLIST_SENT,
@@ -192,7 +194,7 @@ static void handle_response (CcnetProcessor *processor,
         }
     }
 
-    g_warning ("Bad response: %s %s.\n", code, code_msg);
+    seaf_warning ("Bad response: %s %s.\n", code, code_msg);
     if (memcmp (code, SC_ACCESS_DENIED, 3) == 0)
         transfer_task_set_error (proc->tx_task, TASK_ERR_ACCESS_DENIED);
     ccnet_processor_done (processor, FALSE);

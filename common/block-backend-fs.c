@@ -167,13 +167,14 @@ block_backend_fs_commit_block (BlockBackend *bend,
     get_block_path (bend, handle->block_id, path, handle->store_id, handle->version);
 
     if (create_parent_path (path) < 0) {
-        seaf_warning ("Failed to create path for block %s.\n", handle->block_id);
+        seaf_warning ("Failed to create path for block %s:%s.\n",
+                      handle->store_id, handle->block_id);
         return -1;
     }
 
     if (g_rename (handle->tmp_file, path) < 0) {
-        seaf_warning ("[block bend] failed to commit block %s: %s\n",
-                   handle->block_id, strerror(errno));
+        seaf_warning ("[block bend] failed to commit block %s:%s: %s\n",
+                      handle->store_id, handle->block_id, strerror(errno));
         return -1;
     }
 
@@ -220,8 +221,8 @@ block_backend_fs_stat_block (BlockBackend *bend,
 
     get_block_path (bend, block_id, path, store_id, version);
     if (seaf_stat (path, &st) < 0) {
-        seaf_warning ("[block bend] Failed to stat block %s at %s: %s.\n",
-                      block_id, path, strerror(errno));
+        seaf_warning ("[block bend] Failed to stat block %s:%s at %s: %s.\n",
+                      store_id, block_id, path, strerror(errno));
         return NULL;
     }
     block_md = g_new0(BMetadata, 1);
@@ -239,7 +240,8 @@ block_backend_fs_stat_block_by_handle (BlockBackend *bend,
     BMetadata *block_md;
 
     if (seaf_fstat (handle->fd, &st) < 0) {
-        seaf_warning ("[block bend] Failed to stat block %s.\n", handle->block_id);
+        seaf_warning ("[block bend] Failed to stat block %s:%s.\n",
+                      handle->store_id, handle->block_id);
         return NULL;
     }
     block_md = g_new0(BMetadata, 1);

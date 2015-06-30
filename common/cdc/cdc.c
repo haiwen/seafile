@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include "log.h"
+
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -111,7 +113,7 @@ int file_chunk_cdc(int fd_src,
 
     SeafStat sb;
     if (seaf_fstat (fd_src, &sb) < 0) {
-        g_warning ("CDC: failed to stat: %s.\n", strerror(errno));
+        seaf_warning ("CDC: failed to stat: %s.\n", strerror(errno));
         return -1;
     }
     uint64_t expected_size = sb.st_size;
@@ -144,7 +146,7 @@ int file_chunk_cdc(int fd_src,
         }
         ret = readn (fd_src, buf + tail, rsize);
         if (ret < 0) {
-            g_warning ("CDC: failed to read: %s.\n", strerror(errno));
+            seaf_warning ("CDC: failed to read: %s.\n", strerror(errno));
             free (buf);
             return -1;
         }
@@ -152,7 +154,7 @@ int file_chunk_cdc(int fd_src,
         file_descr->file_size += ret;
 
         if (file_descr->file_size > expected_size) {
-            g_warning ("File size changed while chunking.\n");
+            seaf_warning ("File size changed while chunking.\n");
             free (buf);
             return -1;
         }
@@ -165,7 +167,7 @@ int file_chunk_cdc(int fd_src,
         if (tail < block_min_sz || cur >= tail) {
             if (tail > 0) {
                 if (file_descr->block_nr == file_descr->max_block_nr) {
-                    g_warning ("Block id array is not large enough, bail out.\n");
+                    seaf_warning ("Block id array is not large enough, bail out.\n");
                     free (buf);
                     return -1;
                 }
@@ -191,7 +193,7 @@ int file_chunk_cdc(int fd_src,
                 || cur + 1 >= file_descr->block_max_sz)
             {
                 if (file_descr->block_nr == file_descr->max_block_nr) {
-                    g_warning ("Block id array is not large enough, bail out.\n");
+                    seaf_warning ("Block id array is not large enough, bail out.\n");
                     free (buf);
                     return -1;
                 }
@@ -218,7 +220,7 @@ int filename_chunk_cdc(const char *filename,
 {
     int fd_src = seaf_util_open (filename, O_RDONLY | O_BINARY);
     if (fd_src < 0) {
-        g_warning ("CDC: failed to open %s.\n", filename);
+        seaf_warning ("CDC: failed to open %s.\n", filename);
         return -1;
     }
 

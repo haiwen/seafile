@@ -1118,7 +1118,7 @@ calculate_send_object_list (SeafRepo *repo,
                                                   repo->id, repo->version,
                                                   server_head);
     if (!master_head) {
-        seaf_warning ("Server head commit %s not found.\n", repo->id);
+        seaf_warning ("Server head commit %s:%s not found.\n", repo->id, server_head);
         return -1;
     }
 
@@ -1127,7 +1127,8 @@ calculate_send_object_list (SeafRepo *repo,
                                                       repo->id, repo->version,
                                                       client_head);
         if (!remote_head) {
-            seaf_warning ("Remote head commit %s not found.\n", client_head);
+            seaf_warning ("Remote head commit %s:%s not found.\n",
+                          repo->id, client_head);
             ret = -1;
             goto out;
         }
@@ -1651,7 +1652,7 @@ post_pack_fs_cb (evhtp_request_t *req, void *arg)
         }
         if (seaf_obj_store_read_obj (seaf->fs_mgr->obj_store, store_id, 1,
                                      obj_id, &fs_data, &data_len) < 0) {
-            seaf_warning ("Failed to read seafile object %s.\n", obj_id);
+            seaf_warning ("Failed to read seafile object %s:%s.\n", store_id, obj_id);
             evhtp_send_reply (req, EVHTP_RES_SERVERR);
             json_decref (fs_id_array);
             goto out;

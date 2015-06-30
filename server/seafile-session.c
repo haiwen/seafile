@@ -54,13 +54,13 @@ seafile_session_new(const char *seafile_dir,
     config_file_path = g_build_filename (abs_seafile_dir, "seafile.conf", NULL);
 
     if (checkdir_with_mkdir (abs_seafile_dir) < 0) {
-        g_warning ("Config dir %s does not exist and is unable to create\n",
+        seaf_warning ("Config dir %s does not exist and is unable to create\n",
                    abs_seafile_dir);
         goto onerror;
     }
 
     if (checkdir_with_mkdir (tmp_file_dir) < 0) {
-        g_warning ("Temp file dir %s does not exist and is unable to create\n",
+        seaf_warning ("Temp file dir %s does not exist and is unable to create\n",
                    tmp_file_dir);
         goto onerror;
     }
@@ -69,7 +69,7 @@ seafile_session_new(const char *seafile_dir,
     config = g_key_file_new ();
     if (!g_key_file_load_from_file (config, config_file_path, 
                                     G_KEY_FILE_NONE, &error)) {
-        g_warning ("Failed to load config file.\n");
+        seaf_warning ("Failed to load config file.\n");
         g_key_file_free (config);
         goto onerror;
     }
@@ -81,12 +81,12 @@ seafile_session_new(const char *seafile_dir,
     session->config = config;
 
     if (load_database_config (session) < 0) {
-        g_warning ("Failed to load database config.\n");
+        seaf_warning ("Failed to load database config.\n");
         goto onerror;
     }
 
     if (load_thread_pool_config (session) < 0) {
-        g_warning ("Failed to load thread pool config.\n");
+        seaf_warning ("Failed to load thread pool config.\n");
         goto onerror;
     }
 

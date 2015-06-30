@@ -189,7 +189,7 @@ check_seafdir (CcnetProcessor *processor, SeafDir *dir)
             if (seaf_obj_store_async_stat (seaf->fs_mgr->obj_store,
                                            priv->stat_id,
                                            dent->id) < 0) {
-                g_warning ("[recvfs] Failed to start async stat of %s.\n",
+                seaf_warning ("[recvfs] Failed to start async stat of %s.\n",
                            dent->id);
                 goto bad;
             }
@@ -231,7 +231,7 @@ on_seafdir_read (OSAsyncResult *res, void *cb_data)
     dir = seaf_dir_from_data (res->obj_id, res->data, res->len,
                               (priv->repo_version > 0));
     if (!dir) {
-        g_warning ("[recvfs] Corrupt dir object %s.\n", res->obj_id);
+        seaf_warning ("[recvfs] Corrupt dir object %s.\n", res->obj_id);
         request_object_batch (processor, priv, res->obj_id);
         return;
     }
@@ -265,7 +265,7 @@ on_fs_write (OSAsyncResult *res, void *cb_data)
     USE_PRIV;
 
     if (!res->success) {
-        g_warning ("[recvfs] Failed to write %s.\n", res->obj_id);
+        seaf_warning ("[recvfs] Failed to write %s.\n", res->obj_id);
         ccnet_processor_send_response (processor, SC_BAD_OBJECT, SS_BAD_OBJECT,
                                        NULL, 0);
         ccnet_processor_done (processor, FALSE);
@@ -297,7 +297,7 @@ check_end_condition (CcnetProcessor *processor)
         if (seaf_obj_store_async_read (seaf->fs_mgr->obj_store,
                                        priv->reader_id,
                                        dir_id) < 0) {
-            g_warning ("[recvfs] Failed to start async read of %s.\n", dir_id);
+            seaf_warning ("[recvfs] Failed to start async read of %s.\n", dir_id);
             ccnet_processor_send_response (processor, SC_BAD_OBJECT, SS_BAD_OBJECT,
                                            NULL, 0);
             ccnet_processor_done (processor, FALSE);
@@ -442,7 +442,7 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
     SeafFSObject *fs_obj = NULL;
 
     if (clen < sizeof(ObjectPack)) {
-        g_warning ("invalid object id.\n");
+        seaf_warning ("invalid object id.\n");
         goto bad;
     }
 
@@ -452,7 +452,7 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
                                       pack->object, clen - sizeof(ObjectPack),
                                       (priv->repo_version > 0));
     if (!fs_obj) {
-        g_warning ("Bad fs object %s.\n", pack->id);
+        seaf_warning ("Bad fs object %s.\n", pack->id);
         goto bad;
     }
 
@@ -482,7 +482,7 @@ recv_fs_object (CcnetProcessor *processor, char *content, int clen)
 bad:
     ccnet_processor_send_response (processor, SC_BAD_OBJECT,
                                    SS_BAD_OBJECT, NULL, 0);
-    g_warning ("[recvfs] Bad fs object received.\n");
+    seaf_warning ("[recvfs] Bad fs object received.\n");
     ccnet_processor_done (processor, FALSE);
 
     seaf_fs_object_free (fs_obj);
@@ -566,7 +566,7 @@ queue_fs_roots (CcnetProcessor *processor, char *content, int clen)
     int i;
 
     if (clen % 41 != 0) {
-        g_warning ("Bad fs root list.\n");
+        seaf_warning ("Bad fs root list.\n");
         ccnet_processor_send_response (processor, SC_BAD_OL, SS_BAD_OL, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
@@ -600,7 +600,7 @@ handle_update (CcnetProcessor *processor,
                 (TimerCB)check_end_condition, processor, CHECK_INTERVAL);
             processor->state = FETCH_OBJECT;
         } else {
-            g_warning ("Bad update: %s %s\n", code, code_msg);
+            seaf_warning ("Bad update: %s %s\n", code, code_msg);
             ccnet_processor_send_response (processor,
                                            SC_BAD_UPDATE_CODE, SS_BAD_UPDATE_CODE,
                                            NULL, 0);
@@ -617,7 +617,7 @@ handle_update (CcnetProcessor *processor,
         } else if (strncmp(code, SC_OBJECT, 3) == 0) {
             recv_fs_object (processor, content, clen);
         } else {
-            g_warning ("Bad update: %s %s\n", code, code_msg);
+            seaf_warning ("Bad update: %s %s\n", code, code_msg);
             ccnet_processor_send_response (processor,
                                            SC_BAD_UPDATE_CODE, SS_BAD_UPDATE_CODE,
                                            NULL, 0);

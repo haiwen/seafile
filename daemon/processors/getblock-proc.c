@@ -37,6 +37,8 @@
 #include "getblock-proc.h"
 #include "processors/blocktx-common.h"
 
+#include "log.h"
+
 enum {
     REQUEST_SENT,
     BLOCKLIST_SENT,
@@ -180,6 +182,6 @@ static void handle_response (CcnetProcessor *processor,
         }
     }
 
-    g_warning ("Bad response: %s %s.\n", code, code_msg);
+    seaf_warning ("Bad response: %s %s.\n", code, code_msg);
     ccnet_processor_done (processor, FALSE);
 }

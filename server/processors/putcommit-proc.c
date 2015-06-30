@@ -20,6 +20,8 @@
 #include "object-list.h"
 #include "vc-common.h"
 
+#include "log.h"
+
 typedef struct  {
     char        commit_id[41];
     char        object_path[SEAF_PATH_MAX];
@@ -118,7 +120,7 @@ send_commit_ids (CcnetProcessor *processor, const char *head)
                                                     ol, FALSE);
     if (ret == FALSE) {
         object_list_free (ol);
-        g_warning ("[putcommit] Load commits error\n");
+        seaf_warning ("[putcommit] Load commits error\n");
         ccnet_processor_send_response (
             processor, SC_NOT_FOUND, SS_NOT_FOUND, NULL, 0);
         ccnet_processor_done (processor, FALSE);
@@ -164,7 +166,7 @@ send_commit (CcnetProcessor *processor, char *object_id)
 
     if (seaf_obj_store_read_obj (seaf->commit_mgr->obj_store,
                                  object_id, (void**)&data, &len) < 0) {
-        g_warning ("Failed to read commit %s.\n", object_id);
+        seaf_warning ("Failed to read commit %s.\n", object_id);
         goto fail;
     }
 
@@ -195,7 +197,7 @@ send_commits (CcnetProcessor *processor, char *content, int clen)
     int i;
 
     if (clen % 41 != 1 || content[clen-1] != '\0') {
-        g_warning ("[putcommit] Bad commit object list.\n");
+        seaf_warning ("[putcommit] Bad commit object list.\n");
         ccnet_processor_send_response (processor, SC_BAD_OL, SS_BAD_OL, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
@@ -222,7 +224,7 @@ static void handle_update (CcnetProcessor *processor,
     } else if (strncmp(code, SC_END, 3) == 0) {
         ccnet_processor_done (processor, TRUE);
     } else {
-        g_warning ("[putcommit] Bad response: %s %s\n", code, code_msg);
+        seaf_warning ("[putcommit] Bad response: %s %s\n", code, code_msg);
         ccnet_processor_done (processor, FALSE);
     }
 }

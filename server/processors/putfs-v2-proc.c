@@ -255,7 +255,8 @@ calculate_send_object_list (void *vdata)
                                                   priv->repo_id, priv->repo_version,
                                                   priv->server_head);
     if (!master_head) {
-        seaf_warning ("Server head commit %s not found.\n", priv->repo_id);
+        seaf_warning ("Server head commit %s:%s not found.\n",
+                      priv->repo_id, priv->server_head);
         priv->calc_success = FALSE;
         goto out;
     }
@@ -266,7 +267,8 @@ calculate_send_object_list (void *vdata)
                                                       priv->repo_version,
                                                       priv->client_head);
         if (!remote_head) {
-            seaf_warning ("Remote head commit %s not found.\n", priv->client_head);
+            seaf_warning ("Remote head commit %s:%s not found.\n",
+                          priv->repo_id, priv->client_head);
             priv->calc_success = FALSE;
             goto out;
         }
@@ -490,7 +492,7 @@ handle_update (CcnetProcessor *processor,
         g_return_if_reached ();
     }
 
-    g_warning ("Bad update: %s %s.\n", code, code_msg);
+    seaf_warning ("Bad update: %s %s.\n", code, code_msg);
     ccnet_processor_send_response (processor,
                                    SC_BAD_UPDATE_CODE, SS_BAD_UPDATE_CODE,
                                    NULL, 0);

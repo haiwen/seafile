@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include "log.h"
+
 #include "seafile-session.h"
 #include "fs-mgr.h"
 #include "seaf-tree-walk.h"
@@ -28,7 +30,7 @@ fill_tree_descriptor(const char *repo_id, int version,
                                               version,
                                               root_id);
     if (!dir) {
-        g_warning ("Failed to fill tree descriptor with %s.\n", root_id);
+        seaf_warning ("Failed to fill tree descriptor with %s.\n", root_id);
         desc->tree = NULL;
     }
 

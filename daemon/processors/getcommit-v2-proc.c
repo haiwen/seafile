@@ -187,7 +187,7 @@ receive_commit (CcnetProcessor *processor, char *content, int clen)
     ObjectPack *pack = (ObjectPack *)content;
 
     if (clen < sizeof(ObjectPack)) {
-        g_warning ("[getcommit] invalid object id.\n");
+        seaf_warning ("[getcommit] invalid object id.\n");
         goto bad;
     }
 
@@ -200,7 +200,7 @@ receive_commit (CcnetProcessor *processor, char *content, int clen)
     return;
 
 bad:
-    g_warning ("[getcommit] Bad commit object received.\n");
+    seaf_warning ("[getcommit] Bad commit object received.\n");
     transfer_task_set_error (((SeafileGetcommitV2Proc *)processor)->tx_task,
                              TASK_ERR_DOWNLOAD_COMMIT);
     ccnet_processor_send_update (processor, SC_BAD_OBJECT, SS_BAD_OBJECT,
@@ -243,7 +243,7 @@ static void handle_response (CcnetProcessor *processor,
         g_return_if_reached ();
     }
 
-    g_warning ("Bad response: %s %s.\n", code, code_msg);
+    seaf_warning ("Bad response: %s %s.\n", code, code_msg);
     if (memcmp (code, SC_ACCESS_DENIED, 3) == 0)
         transfer_task_set_error (proc->tx_task, TASK_ERR_ACCESS_DENIED);
     ccnet_processor_done (processor, FALSE);

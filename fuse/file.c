@@ -56,7 +56,7 @@ int read_file(SeafileSession *seaf,
                                                store_id, version,
                                                blkid, BLOCK_READ);
         if (!handle) {
-            seaf_warning ("Failed to open block %s.\n", blkid);
+            seaf_warning ("Failed to open block %s:%s.\n", store_id, blkid);
             return -EIO;
         }
 
@@ -69,7 +69,7 @@ int read_file(SeafileSession *seaf,
             n = seaf_block_manager_read_block(seaf->block_mgr, handle,
                                               tmp, offset-off);
             if (n != offset - off) {
-                seaf_warning ("Failed to read block %s.\n", blkid);
+                seaf_warning ("Failed to read block %s:%s.\n", store_id, blkid);
                 free (tmp);
                 goto out;
             }
@@ -80,7 +80,7 @@ int read_file(SeafileSession *seaf,
 
         if ((n = seaf_block_manager_read_block(seaf->block_mgr,
                                                handle, ptr, nleft)) < 0) {
-            seaf_warning ("Failed to read block %s.\n", blkid);
+            seaf_warning ("Failed to read block %s:%s.\n", store_id, blkid);
             goto out;
         }
 

@@ -36,6 +36,8 @@
 #include "getcommit-proc.h"
 #include "processors/objecttx-common.h"
 
+#include "log.h"
+
 
 /*
               seafile-putcommit <HEAD>
@@ -179,7 +181,7 @@ receive_commit (CcnetProcessor *processor, char *content, int clen)
     ObjectPack *pack = (ObjectPack *)content;
 
     if (clen < sizeof(ObjectPack)) {
-        g_warning ("[getcommit] invalid object id.\n");
+        seaf_warning ("[getcommit] invalid object id.\n");
         goto bad;
     }
 
@@ -201,7 +203,7 @@ receive_commit (CcnetProcessor *processor, char *content, int clen)
 bad:
     ccnet_processor_send_update (processor, SC_BAD_OBJECT,
                                    SS_BAD_OBJECT, NULL, 0);
-    g_warning ("[getcommit] Bad commit object received.\n");
+    seaf_warning ("[getcommit] Bad commit object received.\n");
     transfer_task_set_error (((SeafileGetcommitProc *)processor)->tx_task,
                              TASK_ERR_DOWNLOAD_COMMIT);
     ccnet_processor_done (processor, FALSE);
@@ -217,7 +219,7 @@ process_commit_list (CcnetProcessor *processor, char *content, int clen)
     int i;
 
     if (clen % 41 != 1 || content[clen-1] != '\0') {
-        g_warning ("[getcommit] Bad commit id list.\n");
+        seaf_warning ("[getcommit] Bad commit id list.\n");
         ccnet_processor_send_update (processor, SC_BAD_OL, SS_BAD_OL, NULL, 0);
         transfer_task_set_error (((SeafileGetcommitProc *)processor)->tx_task,
                                  TASK_ERR_DOWNLOAD_COMMIT);
@@ -263,7 +265,7 @@ static void handle_response (CcnetProcessor *processor,
         if (strncmp(code, SC_OK, 3) == 0) {
             processor->state = RECV_IDS;
         } else {
-            g_warning ("[getcommit] Bad response: %s %s\n", code, code_msg);
+            seaf_warning ("[getcommit] Bad response: %s %s\n", code, code_msg);
             transfer_task_set_error (proc->tx_task,
                                      TASK_ERR_DOWNLOAD_COMMIT);
             ccnet_processor_done (processor, FALSE);
@@ -277,7 +279,7 @@ static void handle_response (CcnetProcessor *processor,
             /* change state to FETCH_OBJECT */
             processor->state = FETCH_OBJECT;
         } else {
-            g_warning ("[getcommit] Bad response: %s %s\n", code, code_msg);
+            seaf_warning ("[getcommit] Bad response: %s %s\n", code, code_msg);
             transfer_task_set_error (proc->tx_task,
                                       TASK_ERR_DOWNLOAD_COMMIT);
             ccnet_processor_done (processor, FALSE);
@@ -287,7 +289,7 @@ static void handle_response (CcnetProcessor *processor,
         if (strncmp(code, SC_OBJECT, 3) == 0) {
             receive_commit (processor, content, clen);
         } else {
-            g_warning ("[getcommit] Bad response: %s %s\n", code, code_msg);
+            seaf_warning ("[getcommit] Bad response: %s %s\n", code, code_msg);
             /* Transfer the task state to error when an error ocurred */
             transfer_task_set_error (proc->tx_task,
                                      TASK_ERR_DOWNLOAD_COMMIT);

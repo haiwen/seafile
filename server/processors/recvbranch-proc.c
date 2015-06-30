@@ -9,6 +9,8 @@
 #include "vc-common.h"
 #include "monitor-rpc-wrappers.h"
 
+#include "log.h"
+
 #define SC_BAD_COMMIT   "401"
 #define SS_BAD_COMMIT   "Commit does not exist"
 #define SC_NOT_FF       "402"
@@ -180,7 +182,7 @@ update_repo (void *vprocessor)
     /* If branch exists, check fast forward. */
     if (strcmp (new_head, branch->commit_id) != 0 &&
         !is_fast_forward (repo->id, repo->version, new_head, branch->commit_id)) {
-        g_warning ("Upload is not fast forward. Refusing.\n");
+        seaf_warning ("Upload is not fast forward. Refusing.\n");
 
         seaf_repo_unref (repo);
         seaf_commit_unref (commit);
@@ -198,7 +200,7 @@ update_repo (void *vprocessor)
     if (seaf_branch_manager_test_and_update_branch (seaf->branch_mgr,
                                                     branch, old_commit_id) < 0)
     {
-        g_warning ("Upload is not fast forward, concurrent update.\n");
+        seaf_warning ("Upload is not fast forward, concurrent update.\n");
         priv->rsp_code = g_strdup (SC_NOT_FF);
         priv->rsp_msg = g_strdup (SS_NOT_FF);
         goto out;

@@ -503,7 +503,7 @@ handle_response (CcnetProcessor *processor,
         g_return_if_reached ();
     }
 
-    g_warning ("Bad response: %s %s.\n", code, code_msg);
+    seaf_warning ("Bad response: %s %s.\n", code, code_msg);
     if (memcmp (code, SC_ACCESS_DENIED, 3) == 0)
         transfer_task_set_error (task, TASK_ERR_ACCESS_DENIED);
     ccnet_processor_done (processor, FALSE);

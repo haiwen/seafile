@@ -141,7 +141,7 @@ seaf_repo_get_commits (SeafRepo *repo)
 
     branches = seaf_branch_manager_get_branch_list (seaf->branch_mgr, repo->id);
     if (branches == NULL) {
-        g_warning ("Failed to get branch list of repo %s.\n", repo->id);
+        seaf_warning ("Failed to get branch list of repo %s.\n", repo->id);
         return NULL;
     }
 
@@ -253,7 +253,7 @@ load_repo_commit (SeafRepoManager *manager,
                                                         repo->id,
                                                         branch->commit_id);
     if (!commit) {
-        g_warning ("Commit %s is missing\n", branch->commit_id);
+        seaf_warning ("Commit %s is missing\n", branch->commit_id);
         repo->is_corrupted = TRUE;
         return;
     }
@@ -303,7 +303,7 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
 
     repo = seaf_repo_new(repo_id, NULL, NULL);
     if (!repo) {
-        g_warning ("[repo mgr] failed to alloc repo.\n");
+        seaf_warning ("[repo mgr] failed to alloc repo.\n");
         return NULL;
     }
 
@@ -311,7 +311,7 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
 
     branch = seaf_branch_manager_get_branch (seaf->branch_mgr, repo_id, "master");
     if (!branch) {
-        g_warning ("Failed to get master branch of repo %.8s.\n", repo_id);
+        seaf_warning ("Failed to get master branch of repo %.8s.\n", repo_id);
         repo->is_corrupted = TRUE;
     } else {
         load_repo_commit (manager, repo, branch);
@@ -319,7 +319,7 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     }
 
     if (repo->is_corrupted) {
-        g_warning ("Repo %.8s is corrupted.\n", repo->id);
+        seaf_warning ("Repo %.8s is corrupted.\n", repo->id);
         seaf_repo_free (repo);
         return NULL;
     }

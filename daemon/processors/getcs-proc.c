@@ -13,6 +13,7 @@
 #include "db.h"
 #include "getcs-proc.h"
 
+#include "log.h"
 
 G_DEFINE_TYPE (SeafileGetcsProc, seafile_getcs_proc, CCNET_TYPE_PROCESSOR)
 
@@ -85,7 +86,7 @@ add_chunk_server (CcnetProcessor *processor, TransferTask *task, char *cs_str)
                                           processor->peer_id);
         g_return_if_fail (peer != NULL);
         if (!peer->public_addr) {
-            g_warning ("Public address of relay %s is not set.\n", cs_id);
+            seaf_warning ("Public address of relay %s is not set.\n", cs_id);
             g_object_unref (peer);
             goto out;
         }
@@ -117,12 +118,12 @@ handle_response (CcnetProcessor *processor,
     }
 
     if (memcmp (code, SC_OK, 3) != 0) {
-        g_warning ("Bad response: %s %s.\n", code, code_msg);
+        seaf_warning ("Bad response: %s %s.\n", code, code_msg);
         ccnet_processor_done (processor, FALSE);
         return;
     }
     if (content[clen-1] != '\0') {
-        g_warning ("Bad chunk server list format.\n");
+        seaf_warning ("Bad chunk server list format.\n");
         ccnet_processor_done (processor, FALSE);
         return;
     }

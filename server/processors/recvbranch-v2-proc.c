@@ -183,7 +183,8 @@ retry:
                                                    repo->id, repo->version, 
                                                    repo->head->commit_id);
     if (!current_head) {
-        seaf_warning ("Failed to find head commit of %s.\n", repo_id);
+        seaf_warning ("Failed to find head commit of %s:%s.\n",
+                      repo_id, repo->head->commit_id);
         ret = -1;
         goto out;
     }

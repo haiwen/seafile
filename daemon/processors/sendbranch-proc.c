@@ -5,6 +5,8 @@
 #include <ccnet.h>
 #include "sendbranch-proc.h"
 
+#include "log.h"
+
 #define SC_NOT_FF       "402"
 #define SS_NOT_FF       "Not fast forward"
 #define SC_QUOTA_ERROR  "403"
@@ -87,7 +89,7 @@ handle_response (CcnetProcessor *processor,
     if (memcmp (code, SC_OK, 3) == 0) {
         ccnet_processor_done (processor, TRUE);
     } else {
-        g_warning ("[sendbranch] Bad response: %s.\n", code_msg);
+        seaf_warning ("[sendbranch] Bad response: %s.\n", code_msg);
         if (strncmp(code, SC_NOT_FF, 3) == 0)
             transfer_task_set_error (task, TASK_ERR_NOT_FAST_FORWARD);
         else if (strncmp(code, SC_QUOTA_ERROR, 3) == 0)

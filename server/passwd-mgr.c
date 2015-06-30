@@ -135,7 +135,7 @@ seaf_passwd_manager_set_passwd (SeafPasswdManager *mgr,
 
     crypt_key = g_new0 (DecryptKey, 1);
     if (!crypt_key) {
-        g_warning ("Failed to alloc crypt key struct.\n");
+        seaf_warning ("Failed to alloc crypt key struct.\n");
         seaf_repo_unref (repo);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
                      "Internal server error");

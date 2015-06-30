@@ -306,7 +306,8 @@ check_file_exists (const char *store_id,
                                                root_id,
                                                parent_dir, NULL);
     if (!dir) {
-        seaf_warning ("parent_dir %s doesn't exist.\n", parent_dir);
+        seaf_warning ("parent_dir %s doesn't exist in repo %s.\n",
+                      parent_dir, store_id);
         return FALSE;
     }
 
@@ -378,7 +379,7 @@ check_file_exists (const char *store_id,
     do {                                                                \
         commit_var = seaf_commit_manager_get_commit(seaf->commit_mgr, (repo_id), (repo_version), (commit_id)); \
         if (!(commit_var)) {                                            \
-            seaf_warning ("commit %s doesn't exist.\n", (commit_id));   \
+            seaf_warning ("commit %s:%s doesn't exist.\n", (repo_id), (commit_id)); \
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid commit"); \
             ret = -1;                                                   \
             goto out;                                                   \
@@ -475,7 +476,8 @@ retry:
                                                    repo->id, repo->version, 
                                                    repo->head->commit_id);
     if (!current_head) {
-        seaf_warning ("Failed to find head commit of %s.\n", repo_id);
+        seaf_warning ("Failed to find head commit %s of %s.\n",
+                      repo->head->commit_id, repo_id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Invalid repo");
         ret = -1;
         goto out;
@@ -679,9 +681,10 @@ seaf_repo_manager_post_file (SeafRepoManager *mgr,
     root_id = do_post_file (repo,
                             head_commit->root_id, canon_path, new_dent);
     if (!root_id) {
-        seaf_warning ("[post file] Failed to put file.\n");
+        seaf_warning ("[post file] Failed to post file %s to %s in repo %s.\n",
+                      file_name, canon_path, repo->id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "Failed to put file");
+                     "Failed to post file");
         ret = -1;
         goto out;
     }
@@ -1047,7 +1050,8 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
                                    filenames, id_list, size_list, user,
                                    replace_existed, &name_list);
     if (!root_id) {
-        seaf_warning ("[post file] Failed to put file.\n");
+        seaf_warning ("[post multi-file] Failed to post files to %s in repo %s.\n",
+                      canon_path, repo->id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
                      "Failed to put file");
         ret = -1;
@@ -1182,7 +1186,8 @@ seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
     root_id = do_post_file_replace (repo, head_commit->root_id,
                                     canon_path, replace_existed, new_dent);
     if (!root_id) {
-        seaf_warning ("[post-blks] Failed to post file.\n");
+        seaf_warning ("[post-blks] Failed to post file to %s in repo %s.\n",
+                      canon_path, repo->id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to put file");
         ret = -1;
@@ -1338,15 +1343,16 @@ seaf_repo_manager_del_file (SeafRepoManager *mgr,
     
     if (!check_file_exists(repo->store_id, repo->version,
                            head_commit->root_id, canon_path, file_name, &mode)) {
-        seaf_warning ("[del file] target file %s/%s does not exist, skip\n",
-                      canon_path, file_name);
+        seaf_warning ("[del file] target file %s/%s does not exist in repo %s, skip\n",
+                      canon_path, file_name, repo->store_id);
         goto out;
     }
 
     root_id = do_del_file (repo,
                            head_commit->root_id, canon_path, file_name);
     if (!root_id) {
-        seaf_warning ("[del file] Failed to del file.\n");
+        seaf_warning ("[del file] Failed to del file %s from %s in repo %s.\n",
+                      file_name, canon_path, repo->id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to del file");
         ret = -1;
@@ -1401,7 +1407,8 @@ get_dirent_by_path (SeafRepo *repo,
                                                      repo->id, repo->version, 
                                                      repo->head->commit_id);
         if (!head_commit) {
-            seaf_warning ("commit %s doesn't exist.\n", repo->head->commit_id);
+            seaf_warning ("commit %s:%s doesn't exist.\n",
+                          repo->id, repo->head->commit_id);
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid commit");
             goto out;
         }
@@ -1459,7 +1466,8 @@ put_dirent_and_commit (SeafRepo *repo,
     root_id = do_post_file (repo,
                             head_commit->root_id, path, dent);
     if (!root_id) {
-        seaf_warning ("[cp file] Failed to cp file.\n");
+        seaf_warning ("[cp file] Failed to cp file %s to %s in repo %s.\n",
+                      dent->name, path, repo->id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to cp file");
         ret = -1;
@@ -1730,7 +1738,8 @@ check_file_count_and_size (SeafRepo *repo, SeafDirent *dent, gint64 total_files,
                                                 dent->id);
         }
         if (size < 0) {
-            seaf_warning ("Failed to get dir size.\n");
+            seaf_warning ("Failed to get dir size of %s:%s.\n",
+                          repo->store_id, dent->id);
             return FALSE;
         }
 
@@ -2289,7 +2298,8 @@ seaf_repo_manager_post_dir (SeafRepoManager *mgr,
     root_id = do_post_file (repo,
                             head_commit->root_id, canon_path, new_dent);
     if (!root_id) {
-        seaf_warning ("[put dir] Failed to put dir.\n");
+        seaf_warning ("[put dir] Failed to put dir %s to %s in repo %s.\n",
+                      new_dir_name, canon_path, repo->id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to put dir");
         ret = -1;
@@ -2789,7 +2799,8 @@ seaf_repo_manager_put_file (SeafRepoManager *mgr,
 
     root_id = do_put_file (repo, head_commit->root_id, canon_path, new_dent);
     if (!root_id) {
-        seaf_warning ("[put file] Failed to put file.\n");
+        seaf_warning ("[put file] Failed to put file %s to %s in repo %s.\n",
+                      file_name, canon_path, repo->id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to put file");
         ret = -1;
@@ -4005,7 +4016,7 @@ path_exists_in_commit (SeafRepo *repo, const char *commit_id, const char *path)
                                         repo->id, repo->version,
                                         commit_id);
     if (!c) {
-        seaf_warning ("Failed to get commit %.8s.\n", commit_id);
+        seaf_warning ("Failed to get commit %s:%.8s.\n", repo->id, commit_id);
         return FALSE;
     }
     obj_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
@@ -4042,7 +4053,8 @@ detect_rename_revision (SeafRepo *repo,
                                              repo->id, repo->version,
                                              commit->parent_id);
         if (!p1) {
-            seaf_warning ("Failed to get commit %.8s.\n", commit->parent_id);
+            seaf_warning ("Failed to get commit %s:%.8s.\n",
+                          repo->id, commit->parent_id);
             return FALSE;
         }
         /* Don't fold diff results for directories. We need to know a file was
@@ -4654,7 +4666,7 @@ find_deleted_recursive (SeafRepo *repo,
                                                                   repo->version,
                                                                   dent1->id);
                 if (!n1) {
-                    seaf_warning ("Failed to find dir %s.\n", dent1->id);
+                    seaf_warning ("Failed to find dir %s:%s.\n", repo->id, dent1->id);
                     return -1;
                 }
 
@@ -4663,7 +4675,7 @@ find_deleted_recursive (SeafRepo *repo,
                                                                   repo->version,
                                                                   dent2->id);
                 if (!n2) {
-                    seaf_warning ("Failed to find dir %s.\n", dent2->id);
+                    seaf_warning ("Failed to find dir %s:%s.\n", repo->id, dent2->id);
                     seaf_dir_free (n1);
                     return -1;
                 }
@@ -4707,7 +4719,8 @@ find_deleted (SeafRepo *repo,
                                                      repo->version,
                                                      child->root_id, base);
     if (!d1) {
-        seaf_warning ("Failed to find dir %s on root %s.\n", base, child->root_id);
+        seaf_warning ("Failed to find dir %s on root %s of repo %s.\n",
+                      base, child->root_id, repo->id);
         return -1;
     }
 
@@ -4716,7 +4729,8 @@ find_deleted (SeafRepo *repo,
                                                      repo->version,
                                                      parent->root_id, base);
     if (!d2) {
-        seaf_warning ("Failed to find dir %s on root %s.\n", base, parent->root_id);
+        seaf_warning ("Failed to find dir %s on root %s of repo %s.\n",
+                      base, parent->root_id, repo->id);
         seaf_dir_free (d1);
         return -1;
     }
@@ -4767,7 +4781,7 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
                                          repo->id, repo->version,
                                          commit->parent_id);
     if (!p1) {
-        seaf_warning ("Failed to find commit %s.\n", commit->parent_id);
+        seaf_warning ("Failed to find commit %s:%s.\n", repo->id, commit->parent_id);
         return FALSE;
     }
 
@@ -4783,8 +4797,8 @@ collect_deleted (SeafCommit *commit, void *vdata, gboolean *stop)
                                              repo->id, repo->version,
                                              commit->second_parent_id);
         if (!p2) {
-            seaf_warning ("Failed to find commit %s.\n",
-                          commit->second_parent_id);
+            seaf_warning ("Failed to find commit %s:%s.\n",
+                          repo->id, commit->second_parent_id);
             return FALSE;
         }
 
@@ -4845,7 +4859,8 @@ filter_out_existing_entries (GHashTable *entries,
                                            repo->id, repo->version, 
                                            head_id);
     if (!head) {
-        seaf_warning ("Failed to find head commit %s.\n", head_id);
+        seaf_warning ("Failed to find head commit %s of repo %s.\n",
+                      head_id, repo->id);
         return -1;
     }
 

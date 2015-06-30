@@ -195,7 +195,7 @@ write_block_data_cb (struct bufferevent *bev, void *ctx)
                                                      data->repo_version,
                                                      blk_id, BLOCK_READ);
         if (!data->handle) {
-            seaf_warning ("Failed to open block %s\n", blk_id);
+            seaf_warning ("Failed to open block %s:%s\n", data->store_id, blk_id);
             goto err;
         }
 
@@ -206,7 +206,8 @@ write_block_data_cb (struct bufferevent *bev, void *ctx)
     n = seaf_block_manager_read_block(seaf->block_mgr, handle, buf, sizeof(buf));
     data->remain -= n;
     if (n < 0) {
-        seaf_warning ("Error when reading from block %s.\n", blk_id);
+        seaf_warning ("Error when reading from block %s:%s.\n",
+                      data->store_id, blk_id);
         goto err;
     } else if (n == 0) {
         /* We've read up the data of this block, finish. */
@@ -258,7 +259,7 @@ next:
                                                      data->repo_version,
                                                      blk_id, BLOCK_READ);
         if (!data->handle) {
-            seaf_warning ("Failed to open block %s\n", blk_id);
+            seaf_warning ("Failed to open block %s:%s\n", data->store_id, blk_id);
             goto err;
         }
 
@@ -336,7 +337,7 @@ next:
                                      (unsigned char *)buf,
                                      n);
         if (ret == 0) {
-            seaf_warning ("Decrypt block %s failed.\n", blk_id);
+            seaf_warning ("Decrypt block %s:%s failed.\n", data->store_id, blk_id);
             g_free (dec_out);
             goto err;
         }
@@ -352,7 +353,7 @@ next:
                                        (unsigned char *)dec_out,
                                        &dec_out_len);
             if (ret == 0) {
-                seaf_warning ("Decrypt block %s failed.\n", blk_id);
+                seaf_warning ("Decrypt block %s:%s failed.\n", data->store_id, blk_id);
                 evbuffer_free (tmp_buf);
                 g_free (dec_out);
                 goto err;
@@ -667,7 +668,7 @@ get_start_block_handle (const char *store_id, int version, Seafile *file,
                                            store_id, version,
                                            blkid, BLOCK_READ);
     if (!handle) {
-        seaf_warning ("Failed to open block %s.\n", blkid);
+        seaf_warning ("Failed to open block %s:%s.\n", store_id, blkid);
         return NULL;
     }
 
@@ -680,7 +681,7 @@ get_start_block_handle (const char *store_id, int version, Seafile *file,
         int n = seaf_block_manager_read_block(seaf->block_mgr, handle,
                                               tmp, start-tolsize);
         if (n != start-tolsize) {
-            seaf_warning ("Failed to read block %s.\n", blkid);
+            seaf_warning ("Failed to read block %s:%s.\n", store_id, blkid);
             free (tmp);
             goto err;
         }
@@ -740,7 +741,7 @@ next:
                                                      data->repo_version,
                                                      blk_id, BLOCK_READ);
         if (!data->handle) {
-            seaf_warning ("Failed to open block %s\n", blk_id);
+            seaf_warning ("Failed to open block %s:%s\n", data->store_id, blk_id);
             goto err;
         }
     }
@@ -749,7 +750,8 @@ next:
     n = seaf_block_manager_read_block(seaf->block_mgr, data->handle, buf, bsize);
     data->range_remain -= n;
     if (n < 0) {
-        seaf_warning ("Error when reading from block %s.\n", blk_id);
+        seaf_warning ("Error when reading from block %s:%s.\n",
+                      data->store_id, blk_id);
         goto err;
     } else if (n == 0) {
         seaf_block_manager_close_block (seaf->block_mgr, data->handle);

@@ -83,7 +83,7 @@ static int getattr_repo(SeafileSession *seaf,
                                             repo->id, repo->version,
                                             branch->commit_id);
     if (!commit) {
-        seaf_warning ("Failed to get commit %.8s.\n", branch->commit_id);
+        seaf_warning ("Failed to get commit %s:%.8s.\n", repo->id, branch->commit_id);
         ret = -ENOENT;
         goto out;
     }

@@ -114,26 +114,26 @@ seafile_session_new(const char *seafile_dir,
     db_path = g_build_filename (abs_seafile_dir, "config.db", NULL);
 
     if (checkdir_with_mkdir (abs_seafile_dir) < 0) {
-        g_warning ("Config dir %s does not exist and is unable to create\n",
+        seaf_warning ("Config dir %s does not exist and is unable to create\n",
                    abs_seafile_dir);
         goto onerror;
     }
 
     if (checkdir_with_mkdir (abs_worktree_dir) < 0) {
-        g_warning ("Worktree %s does not exist and is unable to create\n",
+        seaf_warning ("Worktree %s does not exist and is unable to create\n",
                    abs_worktree_dir);
         goto onerror;
     }
 
     if (checkdir_with_mkdir (tmp_file_dir) < 0) {
-        g_warning ("Temp file dir %s does not exist and is unable to create\n",
+        seaf_warning ("Temp file dir %s does not exist and is unable to create\n",
                    tmp_file_dir);
         goto onerror;
     }
 
     config_db = seafile_session_config_open_db (db_path);
     if (!config_db) {
-        g_warning ("Failed to open config db.\n");
+        seaf_warning ("Failed to open config db.\n");
         goto onerror;
     }
 
@@ -257,7 +257,7 @@ seafile_session_prepare (SeafileSession *session)
 /*         repo = ptr->data; */
 
 /*         if (seaf_repo_manager_get_merge_info (seaf->repo_mgr, repo->id, &info) < 0) { */
-/*             g_warning ("Failed to get merge info for repo %s.\n", repo->id); */
+/*             seaf_warning ("Failed to get merge info for repo %s.\n", repo->id); */
 /*             continue; */
 /*         } */
 

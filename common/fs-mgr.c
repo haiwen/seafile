@@ -92,19 +92,19 @@ seaf_fs_manager_init (SeafFSManager *mgr)
 
 #ifdef FULL_FEATURE
     if (seaf_obj_store_init (mgr->obj_store, TRUE, seaf->ev_mgr) < 0) {
-        g_warning ("[fs mgr] Failed to init fs object store.\n");
+        seaf_warning ("[fs mgr] Failed to init fs object store.\n");
         return -1;
     }
 #else
     if (seaf_obj_store_init (mgr->obj_store, FALSE, NULL) < 0) {
-        g_warning ("[fs mgr] Failed to init fs object store.\n");
+        seaf_warning ("[fs mgr] Failed to init fs object store.\n");
         return -1;
     }
 #endif
 
 #else
     if (seaf_obj_store_init (mgr->obj_store, TRUE, seaf->ev_mgr) < 0) {
-        g_warning ("[fs mgr] Failed to init fs object store.\n");
+        seaf_warning ("[fs mgr] Failed to init fs object store.\n");
         return -1;
     }
 #endif
@@ -131,14 +131,14 @@ checkout_block (const char *repo_id,
                                             repo_id, version,
                                             block_id, BLOCK_READ);
     if (!handle) {
-        g_warning ("Failed to open block %s\n", block_id);
+        seaf_warning ("Failed to open block %s\n", block_id);
         return -1;
     }
 
     /* first stat the block to get its size */
     bmd = seaf_block_manager_stat_block_by_handle (block_mgr, handle);
     if (!bmd) {
-        g_warning ("can't stat block %s.\n", block_id);
+        seaf_warning ("can't stat block %s.\n", block_id);
         goto checkout_blk_error;
     }
 
@@ -154,7 +154,7 @@ checkout_block (const char *repo_id,
     /* read the block to prepare decryption */
     if (seaf_block_manager_read_block (block_mgr, handle,
                                        blk_content, bmd->size) != bmd->size) {
-        g_warning ("Error when reading from block %s.\n", block_id);
+        seaf_warning ("Error when reading from block %s.\n", block_id);
         goto checkout_blk_error;
     }
 
@@ -164,7 +164,7 @@ checkout_block (const char *repo_id,
            ENCRYPT_BLK_SIZE
         */
         if (bmd->size % ENCRYPT_BLK_SIZE != 0) {
-            g_warning ("Error: An invalid encrypted block, %s \n", block_id);
+            seaf_warning ("Error: An invalid encrypted block, %s \n", block_id);
             goto checkout_blk_error;
         }
 
@@ -176,7 +176,7 @@ checkout_block (const char *repo_id,
                                    crypt);
 
         if (ret != 0) {
-            g_warning ("Decryt block %s failed. \n", block_id);
+            seaf_warning ("Decryt block %s failed. \n", block_id);
             goto checkout_blk_error;
         }
 
@@ -185,7 +185,7 @@ checkout_block (const char *repo_id,
 
 
         if (ret !=  dec_out_len) {
-            g_warning ("Failed to write the decryted block %s.\n",
+            seaf_warning ("Failed to write the decryted block %s.\n",
                        block_id);
             goto checkout_blk_error;
         }
@@ -196,7 +196,7 @@ checkout_block (const char *repo_id,
     } else {
         /* not an encrypted block */
         if (writen(wfd, blk_content, bmd->size) != bmd->size) {
-            g_warning ("Failed to write the decryted block %s.\n",
+            seaf_warning ("Failed to write the decryted block %s.\n",
                        block_id);
             goto checkout_blk_error;
         }
@@ -248,7 +248,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
 
     seafile = seaf_fs_manager_get_seafile (mgr, repo_id, version, file_id);
     if (!seafile) {
-        g_warning ("File %s does not exist.\n", file_id);
+        seaf_warning ("File %s does not exist.\n", file_id);
         return -1;
     }
 
@@ -258,7 +258,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
     wfd = seaf_util_create (tmp_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY,
                             rmode & ~S_IFMT);
     if (wfd < 0) {
-        g_warning ("Failed to open file %s for checkout: %s.\n",
+        seaf_warning ("Failed to open file %s for checkout: %s.\n",
                    tmp_path, strerror(errno));
         goto bad;
     }
@@ -462,7 +462,8 @@ write_seafile (SeafFSManager *fs_mgr,
         int outlen;
 
         if (seaf_compress (ondisk, ondisk_size, &compressed, &outlen) < 0) {
-            seaf_warning ("Failed to compress seafile obj %s.\n", seafile_id);
+            seaf_warning ("Failed to compress seafile obj %s:%s.\n",
+                          repo_id, seafile_id);
             ret = -1;
             free (ondisk);
             goto out;
@@ -523,26 +524,26 @@ do_write_chunk (const char *repo_id, int version,
                                             repo_id, version,
                                             chksum_str, BLOCK_WRITE);
     if (!handle) {
-        g_warning ("Failed to open block %s.\n", chksum_str);
+        seaf_warning ("Failed to open block %s.\n", chksum_str);
         return -1;
     }
 
     n = seaf_block_manager_write_block (blk_mgr, handle, buf, len);
     if (n < 0) {
-        g_warning ("Failed to write chunk %s.\n", chksum_str);
+        seaf_warning ("Failed to write chunk %s.\n", chksum_str);
         seaf_block_manager_close_block (blk_mgr, handle);
         seaf_block_manager_block_handle_free (blk_mgr, handle);
         return -1;
     }
 
     if (seaf_block_manager_close_block (blk_mgr, handle) < 0) {
-        g_warning ("failed to close block %s.\n", chksum_str);
+        seaf_warning ("failed to close block %s.\n", chksum_str);
         seaf_block_manager_block_handle_free (blk_mgr, handle);
         return -1;
     }
 
     if (seaf_block_manager_commit_block (blk_mgr, handle) < 0) {
-        g_warning ("failed to commit chunk %s.\n", chksum_str);
+        seaf_warning ("failed to commit chunk %s.\n", chksum_str);
         seaf_block_manager_block_handle_free (blk_mgr, handle);
         return -1;
     }
@@ -575,7 +576,7 @@ seafile_write_chunk (const char *repo_id,
                                chunk->len,       /* input len */
                                crypt);
         if (ret != 0) {
-            g_warning ("Error: failed to encrypt block\n");
+            seaf_warning ("Error: failed to encrypt block\n");
             return -1;
         }
 
@@ -619,7 +620,7 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
     CDCFileDescriptor cdc;
 
     if (seaf_stat (file_path, &sb) < 0) {
-        g_warning ("Bad file %s: %s.\n", file_path, strerror(errno));
+        seaf_warning ("Bad file %s: %s.\n", file_path, strerror(errno));
         return -1;
     }
 
@@ -638,12 +639,12 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
         memcpy (cdc.repo_id, repo_id, 36);
         cdc.version = version;
         if (filename_chunk_cdc (file_path, &cdc, crypt, write_data) < 0) {
-            g_warning ("Failed to chunk file with CDC.\n");
+            seaf_warning ("Failed to chunk file with CDC.\n");
             return -1;
         }
 
         if (write_data && write_seafile (mgr, repo_id, version, &cdc, sha1) < 0) {
-            g_warning ("Failed to write seafile for %s.\n", file_path);
+            seaf_warning ("Failed to write seafile for %s.\n", file_path);
             return -1;
         }
     }
@@ -681,7 +682,7 @@ check_and_write_block (const char *repo_id, int version,
     SHA1_Final (checksum, &block_ctx);
 
     if (memcmp (checksum, sha1, 20) != 0) {
-        seaf_warning ("Block id %s doesn't match content.\n", block_id);
+        seaf_warning ("Block id %s:%s doesn't match content.\n", repo_id, block_id);
         ret = -1;
         goto out;
     }
@@ -830,18 +831,18 @@ seafile_from_v0_data (const char *id, const void *data, int len)
     int id_list_len, n_blocks;
 
     if (len < sizeof(SeafileOndisk)) {
-        g_warning ("[fs mgr] Corrupt seafile object %s.\n", id);
+        seaf_warning ("[fs mgr] Corrupt seafile object %s.\n", id);
         return NULL;
     }
 
     if (ntohl(ondisk->type) != SEAF_METADATA_TYPE_FILE) {
-        g_warning ("[fd mgr] %s is not a file.\n", id);
+        seaf_warning ("[fd mgr] %s is not a file.\n", id);
         return NULL;
     }
 
     id_list_len = len - sizeof(SeafileOndisk);
     if (id_list_len % 20 != 0) {
-        g_warning ("[fs mgr] Corrupt seafile object %s.\n", id);
+        seaf_warning ("[fs mgr] Corrupt seafile object %s.\n", id);
         return NULL;
     }
     n_blocks = id_list_len / 20;
@@ -945,9 +946,9 @@ seafile_from_json (const char *id, void *data, int len)
     g_free (decompressed);
     if (!object) {
         if (error.text)
-            g_warning ("Failed to load seafile json object: %s.\n", error.text);
+            seaf_warning ("Failed to load seafile json object: %s.\n", error.text);
         else
-            g_warning ("Failed to load seafile json object.\n");
+            seaf_warning ("Failed to load seafile json object.\n");
         return NULL;
     }
 
@@ -993,7 +994,7 @@ seaf_fs_manager_get_seafile (SeafFSManager *mgr,
 
     if (seaf_obj_store_read_obj (mgr->obj_store, repo_id, version,
                                  file_id, &data, &len) < 0) {
-        g_warning ("[fs mgr] Failed to read file %s.\n", file_id);
+        seaf_warning ("[fs mgr] Failed to read file %s.\n", file_id);
         return NULL;
     }
 
@@ -1243,7 +1244,7 @@ seaf_dir_from_v0_data (const char *dir_id, const uint8_t *data, int len)
     meta_type = get32bit (&ptr);
     remain -= 4;
     if (meta_type != SEAF_METADATA_TYPE_DIR) {
-        g_warning ("Data does not contain a directory.\n");
+        seaf_warning ("Data does not contain a directory.\n");
         return NULL;
     }
 
@@ -1270,7 +1271,7 @@ seaf_dir_from_v0_data (const char *dir_id, const uint8_t *data, int len)
             ptr += dent->name_len;
             remain -= dent->name_len;
         } else {
-            g_warning ("Bad data format for dir objcet %s.\n", dir_id);
+            seaf_warning ("Bad data format for dir objcet %s.\n", dir_id);
             g_free (dent);
             goto bad;
         }
@@ -1407,9 +1408,9 @@ seaf_dir_from_json (const char *dir_id, uint8_t *data, int len)
     g_free (decompressed);
     if (!object) {
         if (error.text)
-            g_warning ("Failed to load seafdir json object: %s.\n", error.text);
+            seaf_warning ("Failed to load seafdir json object: %s.\n", error.text);
         else
-            g_warning ("Failed to load seafdir json object.\n");
+            seaf_warning ("Failed to load seafdir json object.\n");
         return NULL;
     }
 
@@ -1583,7 +1584,7 @@ seaf_fs_manager_get_seafdir (SeafFSManager *mgr,
 
     if (seaf_obj_store_read_obj (mgr->obj_store, repo_id, version,
                                  dir_id, &data, &len) < 0) {
-        g_warning ("[fs mgr] Failed to read dir %s.\n", dir_id);
+        seaf_warning ("[fs mgr] Failed to read dir %s.\n", dir_id);
         return NULL;
     }
 
@@ -1698,9 +1699,9 @@ parse_metadata_type_json (const char *obj_id, uint8_t *data, int len)
     g_free (decompressed);
     if (!object) {
         if (error.text)
-            g_warning ("Failed to load fs json object: %s.\n", error.text);
+            seaf_warning ("Failed to load fs json object: %s.\n", error.text);
         else
-            g_warning ("Failed to load fs json object.\n");
+            seaf_warning ("Failed to load fs json object.\n");
         return SEAF_METADATA_TYPE_INVALID;
     }
 
@@ -1754,9 +1755,9 @@ fs_object_from_json (const char *obj_id, uint8_t *data, int len)
     g_free (decompressed);
     if (!object) {
         if (error.text)
-            g_warning ("Failed to load fs json object: %s.\n", error.text);
+            seaf_warning ("Failed to load fs json object: %s.\n", error.text);
         else
-            g_warning ("Failed to load fs json object.\n");
+            seaf_warning ("Failed to load fs json object.\n");
         return NULL;
     }
 
@@ -1900,7 +1901,7 @@ traverse_dir (SeafFSManager *mgr,
 
     dir = seaf_fs_manager_get_seafdir (mgr, repo_id, version, id);
     if (!dir) {
-        g_warning ("[fs-mgr]get seafdir %s failed\n", id);
+        seaf_warning ("[fs-mgr]get seafdir %s failed\n", id);
         if (skip_errors)
             return 0;
         return -1;
@@ -1970,7 +1971,7 @@ traverse_dir_path (SeafFSManager *mgr,
 
     dir = seaf_fs_manager_get_seafdir (mgr, repo_id, version, dent->id);
     if (!dir) {
-        seaf_warning ("get seafdir %s failed\n", dent->id);
+        seaf_warning ("get seafdir %s:%s failed\n", repo_id, dent->id);
         return -1;
     }
 
@@ -2038,7 +2039,7 @@ fill_blocklist (SeafFSManager *mgr,
     if (type == SEAF_METADATA_TYPE_FILE) {
         seafile = seaf_fs_manager_get_seafile (mgr, repo_id, version, obj_id);
         if (!seafile) {
-            g_warning ("[fs mgr] Failed to find file %s.\n", obj_id);
+            seaf_warning ("[fs mgr] Failed to find file %s.\n", obj_id);
             return FALSE;
         }
 
@@ -2096,7 +2097,7 @@ seaf_fs_manager_get_file_size (SeafFSManager *mgr,
 
     file = seaf_fs_manager_get_seafile (seaf->fs_mgr, repo_id, version, file_id);
     if (!file) {
-        seaf_warning ("Couldn't get file %s\n", file_id);
+        seaf_warning ("Couldn't get file %s:%s\n", repo_id, file_id);
         return -1;
     }
 
@@ -2294,7 +2295,7 @@ seaf_fs_manager_path_to_obj_id (SeafFSManager *mgr,
     if (!slash) {
         base_dir = seaf_fs_manager_get_seafdir (mgr, repo_id, version, root_id);
         if (!base_dir) {
-            g_warning ("Failed to find root dir %s.\n", root_id);
+            seaf_warning ("Failed to find root dir %s.\n", root_id);
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, " ");
             goto out;
         }
@@ -2313,7 +2314,7 @@ seaf_fs_manager_path_to_obj_id (SeafFSManager *mgr,
             !g_error_matches(tmp_error,
                              SEAFILE_DOMAIN,
                              SEAF_ERR_PATH_NO_EXIST)) {
-            g_warning ("Failed to get dir for %s.\n", copy);
+            seaf_warning ("Failed to get dir for %s.\n", copy);
             g_propagate_error (error, tmp_error);
             goto out;
         }
@@ -2558,7 +2559,7 @@ seaf_fs_manager_verify_seafdir (SeafFSManager *mgr,
 
     if (seaf_obj_store_read_obj (mgr->obj_store, repo_id, version,
                                  dir_id, &data, &len) < 0) {
-        seaf_warning ("[fs mgr] Failed to read dir %s.\n", dir_id);
+        seaf_warning ("[fs mgr] Failed to read dir %s:%s.\n", repo_id, dir_id);
         *io_error = TRUE;
         return FALSE;
     }
@@ -2635,7 +2636,7 @@ seaf_fs_manager_verify_seafile (SeafFSManager *mgr,
 
     if (seaf_obj_store_read_obj (mgr->obj_store, repo_id, version,
                                  file_id, &data, &len) < 0) {
-        seaf_warning ("[fs mgr] Failed to read file %s.\n", file_id);
+        seaf_warning ("[fs mgr] Failed to read file %s:%s.\n", repo_id, file_id);
         *io_error = TRUE;
         return FALSE;
     }
@@ -2688,7 +2689,7 @@ seaf_fs_manager_verify_object (SeafFSManager *mgr,
 
     if (seaf_obj_store_read_obj (mgr->obj_store, repo_id, version,
                                  obj_id, &data, &len) < 0) {
-        seaf_warning ("[fs mgr] Failed to read object %s.\n", obj_id);
+        seaf_warning ("[fs mgr] Failed to read object %s:%s.\n", repo_id, obj_id);
         *io_error = TRUE;
         return FALSE;
     }

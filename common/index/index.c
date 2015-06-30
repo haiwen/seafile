@@ -13,6 +13,8 @@
 #include "common.h"
 #include "utils.h"
 
+#include "log.h"
+
 #include "index.h"
 #include "../seafile-crypt.h"
 /* #include "../vc-utils.h" */
@@ -35,16 +37,16 @@ void *git_mmap(void *start, size_t length, int prot, int flags, int fd, off_t of
     hmap = CreateFileMapping((HANDLE)_get_osfhandle(fd), 0, PAGE_WRITECOPY,
                              0, 0, 0);
     if (!hmap) {
-        g_warning ("CreateFileMapping error: %lu.\n", GetLastError());
+        seaf_warning ("CreateFileMapping error: %lu.\n", GetLastError());
         return MAP_FAILED;
     }
 
     temp = MapViewOfFileEx(hmap, FILE_MAP_COPY, h, l, length, start);
     if (!temp)
-        g_warning ("MapViewOfFileEx error: %lu.\n", GetLastError());
+        seaf_warning ("MapViewOfFileEx error: %lu.\n", GetLastError());
 
     if (!CloseHandle(hmap))
-        g_warning ("unable to close file mapping handle\n");
+        seaf_warning ("unable to close file mapping handle\n");
 
     return temp ? temp : MAP_FAILED;
 }
@@ -219,7 +221,7 @@ static int read_modifiers (struct index_state *istate, void *data, unsigned int 
                    S_ISDIR(istate->cache[idx]->ce_mode))
                 ++idx;
             if (idx >= istate->cache_nr) {
-                g_warning ("More modifiers than cache entries.\n");
+                seaf_warning ("More modifiers than cache entries.\n");
                 return -1;
             }
 
@@ -236,7 +238,7 @@ static int read_modifiers (struct index_state *istate, void *data, unsigned int 
         ++idx;
 
     if (idx != istate->cache_nr) {
-        g_warning ("Less modifiers than cached entries.\n");
+        seaf_warning ("Less modifiers than cached entries.\n");
         return -1;
     }
 
@@ -517,7 +519,7 @@ static int ce_match_stat_basic(struct cache_entry *ce, SeafStat *st)
         /*     changed |= DATA_CHANGED; */
         return changed;
     default:
-        g_warning("internal error: ce_mode is %o\n", ce->ce_mode);
+        seaf_warning("internal error: ce_mode is %o\n", ce->ce_mode);
         return -1;
     }
     if (ce->ce_mtime.sec != st->st_mtime)
@@ -924,7 +926,7 @@ static int add_index_entry_with_check(struct index_state *istate, struct cache_e
     if (!ok_to_add)
         return -1;
     /* if (!verify_path(ce->name)) { */
-    /*     g_warning("Invalid path '%s'\n", ce->name); */
+    /*     seaf_warning("Invalid path '%s'\n", ce->name); */
     /*     return -1; */
     /* } */
 
@@ -993,7 +995,7 @@ int add_to_index(const char *repo_id,
     *added = FALSE;
 
     if (!S_ISREG(st_mode) && !S_ISLNK(st_mode) && !S_ISDIR(st_mode)) {
-        g_warning("%s: can only add regular files, symbolic links or git-directories\n", path);
+        seaf_warning("%s: can only add regular files, symbolic links or git-directories\n", path);
         return -1;
     }
 
@@ -1071,7 +1073,7 @@ update_index:
     ce->modifier = g_strdup(modifier);
 
     if (add_index_entry(istate, ce, add_option)) {
-        g_warning("unable to add %s to index\n",path);
+        seaf_warning("unable to add %s to index\n",path);
         return -1;
     }
 
@@ -1169,7 +1171,7 @@ add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *
     }
 
     if (add_index_entry(istate, ce, add_option)) {
-        g_warning("unable to add %s to index\n",path);
+        seaf_warning("unable to add %s to index\n",path);
         free (ce);
         return -1;
     }
@@ -1403,7 +1405,7 @@ rename_index_entries (struct index_state *istate,
     int dst_pathlen = strlen(dst_path);
     int pos = index_name_pos (istate, dst_path, dst_pathlen);
     if (pos >= 0) {
-        g_warning ("BUG: %s should not exist in index after remove.\n", dst_path);
+        seaf_warning ("BUG: %s should not exist in index after remove.\n", dst_path);
         ret = -1;
         goto out;
     }
@@ -1415,7 +1417,7 @@ rename_index_entries (struct index_state *istate,
      * create_renamed_cache_entires(). 
      */
     if (istate->cache_alloc - istate->cache_nr < n_entries) {
-        g_warning ("BUG: not enough room to insert renamed entries.\n"
+        seaf_warning ("BUG: not enough room to insert renamed entries.\n"
                    "cache_alloc: %u, cache_nr: %u, n_entries: %d.\n",
                    istate->cache_alloc, istate->cache_nr, n_entries);
         ret = -1;
@@ -1645,7 +1647,7 @@ static struct cache_entry *refresh_cache_entry(struct cache_entry *ce,
     SeafStat st;
 
     if (seaf_stat (full_path, &st) < 0) {
-        g_warning("Failed to stat %s.\n", full_path);
+        seaf_warning("Failed to stat %s.\n", full_path);
         return NULL;
     }
     fill_stat_cache_info(ce, &st);
@@ -1662,7 +1664,7 @@ struct cache_entry *make_cache_entry(unsigned int mode,
     struct cache_entry *ce;
 
     /* if (!verify_path(path)) { */
-    /*     g_warning("Invalid path '%s'", path); */
+    /*     seaf_warning("Invalid path '%s'", path); */
     /*     return NULL; */
     /* } */
 
@@ -1687,7 +1689,7 @@ int add_file_to_index(struct index_state *istate, const char *path, int flags)
 {
     SeafStat st;
     if (seaf_stat (path, &st)) {
-        g_warning("unable to stat '%s'\n", path);
+        seaf_warning("unable to stat '%s'\n", path);
         return -1;
     }
     return add_to_index(istate, path, &st, flags);
@@ -1719,7 +1721,7 @@ static int type_from_string(const char *str)
     for (i = 1; i < ARRAY_SIZE(object_type_strings); i++)
         if (!strcmp(str, object_type_strings[i]))
             return i;
-    g_warning("invalid object type \"%s\"\n", str);
+    seaf_warning("invalid object type \"%s\"\n", str);
     return -1;
 }
 #endif
@@ -1760,7 +1762,7 @@ int index_fd(unsigned char *sha1, int fd, SeafStat *st,
         if (size == readn(fd, buf, size)) {
             ret = index_mem(sha1, buf, size, type, path);
         } else {
-            g_warning("short read %s\n", strerror(errno));
+            seaf_warning("short read %s\n", strerror(errno));
             ret = -1;
         }
         free(buf);
@@ -1783,7 +1785,7 @@ int index_path(unsigned char *sha1, const char *path, SeafStat *st)
     case S_IFREG:
         fd = seaf_util_open (path, O_RDONLY | O_BINARY);
         if (fd < 0) {
-            g_warning("g_open (\"%s\"): %s\n", path, strerror(errno));
+            seaf_warning("g_open (\"%s\"): %s\n", path, strerror(errno));
             return -1;
         }
         if (index_fd(sha1, fd, st, OBJ_BLOB, path) < 0) {
@@ -1795,14 +1797,14 @@ int index_path(unsigned char *sha1, const char *path, SeafStat *st)
         pathlen = readlink(path, buf, SEAF_PATH_MAX);
         if (pathlen != st->st_size) {
             char *errstr = strerror(errno);
-            g_warning("readlink(\"%s\"): %s\n", path, errstr);
+            seaf_warning("readlink(\"%s\"): %s\n", path, errstr);
             return -1;
         }
         hash_sha1_file(buf, pathlen, typename(OBJ_BLOB), sha1);
         break;
 #endif        
     default:
-        g_warning("%s: unsupported file type\n", path);
+        seaf_warning("%s: unsupported file type\n", path);
         return -1;
     }
     return 0;
@@ -2004,7 +2006,7 @@ modifiers_to_string (GString *buf, struct index_state *istate)
         if (S_ISDIR(ce->ce_mode) || (ce->ce_flags & CE_REMOVE))
             continue;
         if (!ce->modifier) {
-            g_warning ("BUG: index entry %s doesn't have modifier info.\n",
+            seaf_warning ("BUG: index entry %s doesn't have modifier info.\n",
                        ce->name);
             return -1;
         }

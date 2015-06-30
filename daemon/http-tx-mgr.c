@@ -1883,7 +1883,7 @@ send_commit_object (HttpTxTask *task, Connection *conn)
     if (seaf_obj_store_read_obj (seaf->commit_mgr->obj_store,
                                  task->repo_id, task->repo_version,
                                  task->head, (void**)&data, &len) < 0) {
-        g_warning ("Failed to read commit %s.\n", task->head);
+        seaf_warning ("Failed to read commit %s.\n", task->head);
         task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
         return -1;
     }
@@ -2277,7 +2277,8 @@ block_list_diff_files (int n, const char *basedir, SeafDirent *files[], void *vd
                                               task->repo_id, task->repo_version,
                                               file1->id);
             if (!f1) {
-                seaf_warning ("Failed to get seafile object %s.\n", file1->id);
+                seaf_warning ("Failed to get seafile object %s:%s.\n",
+                              task->repo_id, file1->id);
                 return -1;
             }
             for (i = 0; i < f1->n_blocks; ++i)
@@ -2289,7 +2290,8 @@ block_list_diff_files (int n, const char *basedir, SeafDirent *files[], void *vd
                                               task->repo_id, task->repo_version,
                                               file1->id);
             if (!f1) {
-                seaf_warning ("Failed to get seafile object %s.\n", file1->id);
+                seaf_warning ("Failed to get seafile object %s:%s.\n",
+                              task->repo_id, file1->id);
                 return -1;
             }
             f2 = seaf_fs_manager_get_seafile (seaf->fs_mgr,
@@ -2297,7 +2299,8 @@ block_list_diff_files (int n, const char *basedir, SeafDirent *files[], void *vd
                                               file2->id);
             if (!f2) {
                 seafile_unref (f1);
-                seaf_warning ("Failed to get seafile object %s.\n", file2->id);
+                seaf_warning ("Failed to get seafile object %s:%s.\n",
+                              task->repo_id, file2->id);
                 return -1;
             }
 
@@ -3389,7 +3392,7 @@ update_local_repo (HttpTxTask *task)
                                                task->repo_version,
                                                task->head);
     if (!new_head) {
-        seaf_warning ("Failed to get commit %s.\n", task->head);
+        seaf_warning ("Failed to get commit %s:%s.\n", task->repo_id, task->head);
         task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
         return -1;
     }

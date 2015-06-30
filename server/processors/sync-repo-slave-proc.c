@@ -75,7 +75,7 @@ sync_repo_slave_start (CcnetProcessor *processor, int argc, char **argv)
     USE_PRIV;
 
     if (argc != 2) {
-        g_warning ("[sync-repo-slave] argc(%d) must be 2\n", argc);
+        seaf_warning ("[sync-repo-slave] argc(%d) must be 2\n", argc);
         ccnet_processor_done (processor, FALSE);
         return -1;
     }
@@ -95,7 +95,7 @@ sync_repo_slave_start (CcnetProcessor *processor, int argc, char **argv)
                                        send_repo_branch_info,
                                        thread_done,
                                        processor) < 0) {
-        g_warning ("[sync repo] failed to start thread.\n");
+        seaf_warning ("[sync repo] failed to start thread.\n");
         ccnet_processor_send_response (processor, 
                                        SC_SERVER_ERROR, SS_SERVER_ERROR,
                                        NULL, 0);

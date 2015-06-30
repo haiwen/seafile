@@ -162,7 +162,7 @@ read_done_cb (OSAsyncResult *res, void *cb_data)
     int pack_size;
 
     if (!res->success) {
-        g_warning ("[putfs] Failed to read %s.\n", res->obj_id);
+        seaf_warning ("[putfs] Failed to read %s.\n", res->obj_id);
         ccnet_processor_send_response (processor, SC_NOT_FOUND, SS_NOT_FOUND,
                                        NULL, 0);
         ccnet_processor_done (processor, FALSE);
@@ -212,7 +212,7 @@ send_fs_object (CcnetProcessor *processor, char *object_id)
     if (seaf_obj_store_async_read (seaf->fs_mgr->obj_store,
                                    priv->reader_id,
                                    object_id) < 0) {
-        g_warning ("[putfs] Failed to start async read of %s.\n", object_id);
+        seaf_warning ("[putfs] Failed to start async read of %s.\n", object_id);
         ccnet_processor_send_response (processor, SC_BAD_OBJECT, SS_BAD_OBJECT,
                                        NULL, 0);
         ccnet_processor_done (processor, FALSE);
@@ -230,7 +230,7 @@ send_fs_objects (CcnetProcessor *processor, char *content, int clen)
     int i;
 
     if (clen % 41 != 1 || content[clen-1] != '\0') {
-        g_warning ("[putfs] Bad fs object list.\n");
+        seaf_warning ("[putfs] Bad fs object list.\n");
         ccnet_processor_send_response (processor, SC_BAD_OL, SS_BAD_OL, NULL, 0);
         ccnet_processor_done (processor, FALSE);
         return;
@@ -257,7 +257,7 @@ handle_update (CcnetProcessor *processor,
     } else if (strncmp(code, SC_END, 3) == 0) {
         ccnet_processor_done (processor, TRUE);     
     } else {
-        g_warning ("[putfs] Bad update: %s %s\n", code, code_msg);
+        seaf_warning ("[putfs] Bad update: %s %s\n", code, code_msg);
         ccnet_processor_send_response (processor,
                                        SC_BAD_UPDATE_CODE, SS_BAD_UPDATE_CODE,
                                        NULL, 0);
