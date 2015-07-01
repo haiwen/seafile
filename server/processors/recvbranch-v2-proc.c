@@ -266,12 +266,10 @@ retry:
         }
 
         if (++retry_cnt <= MAX_RETRY_COUNT) {
-            seaf_message ("Concurrent branch update, retry.\n");
             /* Sleep random time between 100 and 1000 millisecs. */
             usleep (g_random_int_range(1, 11) * 100 * 1000);
             goto retry;
         } else {
-            seaf_warning ("Stop retrying.\n");
             ret = -1;
             goto out;
         }

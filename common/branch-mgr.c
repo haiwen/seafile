@@ -396,8 +396,6 @@ seaf_branch_manager_test_and_update_branch (SeafBranchManager *mgr,
         return -1;
     }
     if (strcmp (old_commit_id, commit_id) != 0) {
-        g_message ("[branch mgr] Branch update conflict for repo %s, rollback.\n",
-                   branch->repo_id);
         seaf_db_rollback (trans);
         seaf_db_trans_close (trans);
         return -1;

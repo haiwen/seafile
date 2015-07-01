@@ -200,7 +200,6 @@ update_repo (void *vprocessor)
     if (seaf_branch_manager_test_and_update_branch (seaf->branch_mgr,
                                                     branch, old_commit_id) < 0)
     {
-        seaf_warning ("Upload is not fast forward, concurrent update.\n");
         priv->rsp_code = g_strdup (SC_NOT_FF);
         priv->rsp_msg = g_strdup (SS_NOT_FF);
         goto out;

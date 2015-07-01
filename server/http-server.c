@@ -845,12 +845,10 @@ retry:
         }
 
         if (++retry_cnt <= MAX_RETRY_COUNT) {
-            seaf_message ("Concurrent branch update, retry.\n");
             /* Sleep random time between 100 and 1000 millisecs. */
             usleep (g_random_int_range(1, 11) * 100 * 1000);
             goto retry;
         } else {
-            seaf_warning ("Stop retrying.\n");
             ret = -1;
             goto out;
         }
@@ -1844,9 +1842,11 @@ http_server_run (void *arg)
     struct timeval tv;
     tv.tv_sec = CLEANING_INTERVAL_SEC;
     tv.tv_usec = 0;
-    priv->reap_timer = evtimer_new (priv->evbase,
-                                    remove_expire_cache_cb,
-                                    priv);
+    priv->reap_timer = event_new (priv->evbase,
+                                  -1,
+                                  EV_PERSIST,
+                                  remove_expire_cache_cb,
+                                  priv);
     evtimer_add (priv->reap_timer, &tv);
 
     event_base_loop (priv->evbase, 0);
