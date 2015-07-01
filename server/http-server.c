@@ -924,7 +924,6 @@ put_update_branch_cb (evhtp_request_t *req, void *arg)
     }
 
     if (seaf_quota_manager_check_quota (seaf->quota_mgr, repo_id) < 0) {
-        seaf_warning ("Quota is full for repo %s.\n", repo->id);
         evhtp_send_reply (req, SEAF_HTTP_RES_NOQUOTA);
         goto out;
     }
