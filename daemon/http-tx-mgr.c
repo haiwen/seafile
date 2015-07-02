@@ -61,6 +61,7 @@
 struct _Connection {
     CURL *curl;
     gint64 ctime;               /* Used to clean up unused connection. */
+    gboolean release;           /* If TRUE, the connection will be released. */
 };
 typedef struct _Connection Connection;
 
@@ -224,6 +225,11 @@ connection_pool_return_connection (ConnectionPool *pool, Connection *conn)
 {
     if (!conn)
         return;
+
+    if (conn->release) {
+        connection_free (conn);
+        return;
+    }
 
     curl_easy_reset (conn->curl);
 
@@ -1024,6 +1030,7 @@ check_protocol_version_thread (void *vdata)
         url = g_strdup_printf ("%s/protocol-version", data->host);
 
     if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL, FALSE) < 0) {
+        conn->release = TRUE;
         goto out;
     }
 
@@ -1171,8 +1178,10 @@ check_head_commit_thread (void *vdata)
                                data->host, data->repo_id);
 
     if (http_get (curl, url, data->token, &status, &rsp_content, &rsp_size,
-                  NULL, NULL, FALSE) < 0)
+                  NULL, NULL, FALSE) < 0) {
+        conn->release = TRUE;
         goto out;
+    }
 
     if (status == HTTP_OK) {
         if (parse_head_commit_info (rsp_content, rsp_size, data) < 0)
@@ -1518,8 +1527,10 @@ get_folder_perms_thread (void *vdata)
         goto out;
 
     if (http_post (curl, url, NULL, req_content, strlen(req_content),
-                   &status, &rsp_content, &rsp_size, FALSE) < 0)
+                   &status, &rsp_content, &rsp_size, FALSE) < 0) {
+        conn->release = TRUE;
         goto out;
+    }
 
     if (status == HTTP_OK) {
         if (parse_folder_perms (rsp_content, rsp_size, data) < 0)
@@ -1794,8 +1805,10 @@ get_locked_files_thread (void *vdata)
         goto out;
 
     if (http_post (curl, url, NULL, req_content, strlen(req_content),
-                   &status, &rsp_content, &rsp_size, FALSE) < 0)
+                   &status, &rsp_content, &rsp_size, FALSE) < 0) {
+        conn->release = TRUE;
         goto out;
+    }
 
     if (status == HTTP_OK) {
         seaf_message ("%s\n", rsp_content);
@@ -1906,6 +1919,7 @@ check_permission (HttpTxTask *task, Connection *conn)
     }
 
     if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE) < 0) {
+        conn->release = TRUE;
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -2127,6 +2141,7 @@ check_quota (HttpTxTask *task, Connection *conn, gint64 delta)
                                task->host, task->repo_id, delta);
 
     if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE) < 0) {
+        conn->release = TRUE;
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -2176,6 +2191,7 @@ send_commit_object (HttpTxTask *task, Connection *conn)
                   data, len,
                   NULL, NULL,
                   &status, NULL, NULL, TRUE) < 0) {
+        conn->release = TRUE;
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -2375,6 +2391,7 @@ upload_check_id_list_segment (HttpTxTask *task, Connection *conn, const char *ur
     if (http_post (curl, url, task->token,
                    data, len,
                    &status, &rsp_content, &rsp_size, FALSE) < 0) {
+        conn->release = TRUE;
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -2499,6 +2516,7 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
     if (http_post (curl, url, task->token,
                    package, evbuffer_get_length(buf),
                    &status, NULL, NULL, FALSE) < 0) {
+        conn->release = TRUE;
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -2787,8 +2805,11 @@ send_block (HttpTxTask *task, Connection *conn, const char *block_id)
         if (task->state == HTTP_TASK_STATE_CANCELED)
             goto out;
 
-        if (task->error == TASK_OK)
+        if (task->error == TASK_OK) {
+            /* Only release connection when it's a network error */
+            conn->release = TRUE;
             task->error = HTTP_TASK_ERR_NET;
+        }
         ret = -1;
         goto out;
     }
@@ -2830,6 +2851,7 @@ update_branch (HttpTxTask *task, Connection *conn)
                   NULL, 0,
                   NULL, NULL,
                   &status, NULL, NULL, FALSE) < 0) {
+        conn->release = TRUE;
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -3190,6 +3212,7 @@ get_commit_object (HttpTxTask *task, Connection *conn)
     if (http_get (curl, url, task->token, &status,
                   &rsp_content, &rsp_size,
                   NULL, NULL, TRUE) < 0) {
+        conn->release = TRUE;
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -3265,6 +3288,7 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
     if (http_get (curl, url, task->token, &status,
                   &rsp_content, &rsp_size,
                   NULL, NULL, FALSE) < 0) {
+        conn->release = TRUE;
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -3394,6 +3418,7 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
     if (http_post (curl, url, task->token,
                    data, len,
                    &status, &rsp_content, &rsp_size, FALSE) < 0) {
+        conn->release = TRUE;
         task->error = HTTP_TASK_ERR_NET;
         ret = -1;
         goto out;
@@ -3561,8 +3586,11 @@ get_block (HttpTxTask *task, Connection *conn, const char *block_id)
         if (task->state == HTTP_TASK_STATE_CANCELED)
             goto error;
 
-        if (task->error == HTTP_TASK_OK)
+        if (task->error == HTTP_TASK_OK) {
+            /* Only release the connection when it's a network error. */
+            conn->release = TRUE;
             task->error = HTTP_TASK_ERR_NET;
+        }
         ret = -1;
         goto error;
     }
