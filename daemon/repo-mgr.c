@@ -2609,7 +2609,6 @@ process_active_path (SeafRepo *repo, const char *path,
 
     char *fullpath = g_build_filename (repo->worktree, path, NULL);
     if (seaf_stat (fullpath, &st) < 0) {
-        seaf_warning ("Failed to stat %s: %s.\n", fullpath, strerror(errno));
         g_free (fullpath);
         return;
     }
