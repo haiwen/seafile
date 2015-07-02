@@ -809,6 +809,8 @@ http_post (CURL *curl, const char *url, const char *token,
     g_return_val_if_fail (req_content != NULL, -1);
 
     headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
+    /* Disable the default "Expect: 100-continue" header */
+    headers = curl_slist_append (headers, "Expect:");
 
     if (token) {
         token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
