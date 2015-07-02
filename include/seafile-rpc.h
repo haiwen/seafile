@@ -217,6 +217,9 @@ seafile_get_path_sync_status (const char *repo_id,
                               int is_dir,
                               GError **error);
 
+int
+seafile_mark_file_locked (const char *repo_id, const char *path, GError **error);
+
 /**
  * seafile_list_dir:
  * List a directory.

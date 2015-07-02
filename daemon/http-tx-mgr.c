@@ -1442,8 +1442,9 @@ out:
         for (ptr = results; ptr; ptr = ptr->next)
             http_folder_perm_res_free ((HttpFolderPermRes *)ptr->data);
         g_list_free (results);
-    } else
+    } else {
         data->results = results;
+    }
 
     return ret;
 }
@@ -1580,6 +1581,278 @@ http_tx_manager_get_folder_perms (HttpTxManager *manager,
     ccnet_job_manager_schedule_job (seaf->job_mgr,
                                     get_folder_perms_thread,
                                     get_folder_perms_done,
+                                    data);
+
+    return 0;
+}
+
+/* Get Locked Files. */
+
+void
+http_locked_files_req_free (HttpLockedFilesReq *req)
+{
+    if (!req)
+        return;
+    g_free (req->token);
+    g_free (req);
+}
+
+void
+http_locked_files_res_free (HttpLockedFilesRes *res)
+{
+    if (!res)
+        return;
+
+    g_hash_table_destroy (res->locked_files);
+    g_free (res);
+}
+
+typedef struct {
+    char *host;
+    gboolean use_fileserver_port;
+    GList *requests;
+    HttpGetLockedFilesCallback callback;
+    void *user_data;
+
+    gboolean success;
+    GList *results;
+} GetLockedFilesData;
+
+static GHashTable *
+parse_locked_file_list (json_t *array)
+{
+    GHashTable *ret = NULL;
+    size_t n, i;
+    json_t *obj, *string, *integer;
+
+    ret = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    if (!ret) {
+        return NULL;
+    }
+
+    n = json_array_size (array);
+    for (i = 0; i < n; ++i) {
+        obj = json_array_get (array, i);
+        string = json_object_get (obj, "path");
+        if (!string) {
+            g_hash_table_destroy (ret);
+            return NULL;
+        }
+        integer = json_object_get (obj, "by_me");
+        if (!integer) {
+            g_hash_table_destroy (ret);
+            return NULL;
+        }
+        g_hash_table_insert (ret,
+                             g_strdup(json_string_value(string)),
+                             (void*)json_integer_value(integer));
+    }
+
+    return ret;
+}
+
+static int
+parse_locked_files (const char *rsp_content, int rsp_size, GetLockedFilesData *data)
+{
+    json_t *array = NULL, *object, *member;
+    json_error_t jerror;
+    size_t n;
+    int i;
+    GList *results = NULL, *ptr;
+    HttpLockedFilesRes *res;
+    const char *repo_id;
+    int ret = 0;
+
+    array = json_loadb (rsp_content, rsp_size, 0, &jerror);
+    if (!array) {
+        seaf_warning ("Parse response failed: %s.\n", jerror.text);
+        return -1;
+    }
+
+    n = json_array_size (array);
+    for (i = 0; i < n; ++i) {
+        object = json_array_get (array, i);
+
+        res = g_new0 (HttpLockedFilesRes, 1);
+
+        member = json_object_get (object, "repo_id");
+        if (!member) {
+            seaf_warning ("Invalid locked files response format: no repo_id.\n");
+            ret = -1;
+            goto out;
+        }
+        repo_id = json_string_value(member);
+        if (strlen(repo_id) != 36) {
+            seaf_warning ("Invalid locked files response format: invalid repo_id.\n");
+            ret = -1;
+            goto out;
+        }
+        memcpy (res->repo_id, repo_id, 36);
+ 
+        member = json_object_get (object, "ts");
+        if (!member) {
+            seaf_warning ("Invalid locked files response format: no timestamp.\n");
+            ret = -1;
+            goto out;
+        }
+        res->timestamp = json_integer_value (member);
+
+        member = json_object_get (object, "locked_files");
+        if (!member) {
+            seaf_warning ("Invalid locked files response format: no locked_files.\n");
+            ret = -1;
+            goto out;
+        }
+
+        res->locked_files = parse_locked_file_list (member);
+        if (res->locked_files == NULL) {
+            ret = -1;
+            goto out;
+        }
+
+        results = g_list_append (results, res);
+    }
+
+out:
+    json_decref (array);
+
+    if (ret < 0) {
+        g_list_free_full (results, (GDestroyNotify)http_locked_files_res_free);
+    } else {
+        data->results = results;
+    }
+
+    return ret;
+}
+
+static char *
+compose_get_locked_files_request (GList *requests)
+{
+    GList *ptr;
+    HttpLockedFilesReq *req;
+    json_t *object, *array;
+    char *req_str = NULL;
+
+    array = json_array ();
+
+    for (ptr = requests; ptr; ptr = ptr->next) {
+        req = ptr->data;
+
+        object = json_object ();
+        json_object_set_new (object, "repo_id", json_string(req->repo_id));
+        json_object_set_new (object, "token", json_string(req->token));
+        json_object_set_new (object, "ts", json_integer(req->timestamp));
+
+        json_array_append_new (array, object);
+    }
+
+    req_str = json_dumps (array, 0);
+    if (!req_str) {
+        seaf_warning ("Faile to json_dumps.\n");
+    }
+
+    json_decref (array);
+    return req_str;
+}
+
+static void *
+get_locked_files_thread (void *vdata)
+{
+    GetLockedFilesData *data = vdata;
+    HttpTxPriv *priv = seaf->http_tx_mgr->priv;
+    ConnectionPool *pool;
+    Connection *conn;
+    CURL *curl;
+    char *url;
+    char *req_content = NULL;
+    int status;
+    char *rsp_content = NULL;
+    gint64 rsp_size;
+    GList *ptr;
+
+    pool = find_connection_pool (priv, data->host);
+    if (!pool) {
+        seaf_warning ("Failed to create connection pool for host %s.\n", data->host);
+        return vdata;
+    }
+
+    conn = connection_pool_get_connection (pool);
+    if (!conn) {
+        seaf_warning ("Failed to get connection to host %s.\n", data->host);
+        return vdata;
+    }
+
+    curl = conn->curl;
+
+    if (!data->use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/locked-files", data->host);
+    else
+        url = g_strdup_printf ("%s/repo/locked-files", data->host);
+
+    req_content = compose_get_locked_files_request (data->requests);
+    if (!req_content)
+        goto out;
+
+    if (http_post (curl, url, NULL, req_content, strlen(req_content),
+                   &status, &rsp_content, &rsp_size, FALSE) < 0)
+        goto out;
+
+    if (status == HTTP_OK) {
+        seaf_message ("%s\n", rsp_content);
+        if (parse_locked_files (rsp_content, rsp_size, data) < 0)
+            goto out;
+        data->success = TRUE;
+    } else {
+        seaf_warning ("Bad response code for GET %s: %d.\n", url, status);
+    }
+
+out:
+    g_list_free_full (data->requests, (GDestroyNotify)http_locked_files_req_free);
+
+    g_free (url);
+    g_free (req_content);
+    g_free (rsp_content);
+    connection_pool_return_connection (pool, conn);
+    return vdata;
+}
+
+static void
+get_locked_files_done (void *vdata)
+{
+    GetLockedFilesData *data = vdata;
+    HttpLockedFiles cb_data;
+
+    memset (&cb_data, 0, sizeof(cb_data));
+    cb_data.success = data->success;
+    cb_data.results = data->results;
+
+    data->callback (&cb_data, data->user_data);
+
+    g_list_free_full (data->results, (GDestroyNotify)http_locked_files_res_free);
+
+    g_free (data->host);
+    g_free (data);
+}
+
+int
+http_tx_manager_get_locked_files (HttpTxManager *manager,
+                                  const char *host,
+                                  gboolean use_fileserver_port,
+                                  GList *locked_files_requests,
+                                  HttpGetLockedFilesCallback callback,
+                                  void *user_data)
+{
+    GetLockedFilesData *data = g_new0 (GetLockedFilesData, 1);
+
+    data->host = g_strdup(host);
+    data->requests = locked_files_requests;
+    data->callback = callback;
+    data->user_data = user_data;
+    data->use_fileserver_port = use_fileserver_port;
+
+    ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                    get_locked_files_thread,
+                                    get_locked_files_done,
                                     data);
 
     return 0;

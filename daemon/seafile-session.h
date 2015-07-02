@@ -22,6 +22,7 @@
 #include "mq-mgr.h"
 
 #include "http-tx-mgr.h"
+#include "filelock-mgr.h"
 
 #include <searpc-client.h>
 
@@ -68,6 +69,8 @@ struct _SeafileSession {
     CcnetJobManager     *job_mgr;
 
     HttpTxManager       *http_tx_mgr;
+
+    SeafFilelockManager *filelock_mgr;
 
     /* Set after all components are up and running. */
     gboolean             started;

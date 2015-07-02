@@ -204,6 +204,42 @@ http_tx_manager_get_folder_perms (HttpTxManager *manager,
                                   HttpGetFolderPermsCallback callback,
                                   void *user_data);
 
+typedef struct _HttpLockedFilesReq {
+    char repo_id[37];
+    char *token;
+    gint64 timestamp;
+} HttpLockedFilesReq;
+
+typedef struct _HttpLockedFilesRes {
+    char repo_id[37];
+    gint64 timestamp;
+    GHashTable *locked_files;   /* path -> by_me */
+} HttpLockedFilesRes;
+
+void
+http_locked_files_req_free (HttpLockedFilesReq *req);
+
+void
+http_locked_files_res_free (HttpLockedFilesRes *res);
+
+struct _HttpLockedFiles {
+    gboolean success;
+    GList *results;             /* List of HttpLockedFilesRes */
+};
+typedef struct _HttpLockedFiles HttpLockedFiles;
+
+typedef void (*HttpGetLockedFilesCallback) (HttpLockedFiles *result,
+                                            void *user_data);
+
+/* Asynchronous interface for getting locked files for a repo. */
+int
+http_tx_manager_get_locked_files (HttpTxManager *manager,
+                                  const char *host,
+                                  gboolean use_fileserver_port,
+                                  GList *locked_files_requests,
+                                  HttpGetLockedFilesCallback callback,
+                                  void *user_data);
+
 int
 http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id);
 

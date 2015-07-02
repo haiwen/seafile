@@ -176,6 +176,10 @@ seafile_session_new(const char *seafile_dir,
     if (!session->http_tx_mgr)
         goto onerror;
 
+    session->filelock_mgr = seaf_filelock_manager_new (session);
+    if (!session->filelock_mgr)
+        goto onerror;
+
     session->job_mgr = ccnet_job_manager_new (MAX_THREADS);
     session->ev_mgr = cevent_manager_new ();
     if (!session->ev_mgr)
@@ -239,6 +243,7 @@ seafile_session_prepare (SeafileSession *session)
 #ifndef SEAF_TOOL    
     seaf_sync_manager_init (session->sync_mgr);
 #endif
+    seaf_filelock_manager_init (session->filelock_mgr);
     seaf_mq_manager_set_heartbeat_name (session->mq_mgr,
                                         "seafile.heartbeat");
 }
@@ -372,6 +377,11 @@ cleanup_job_done (void *vdata)
 
     if (seaf_clone_manager_start (session->clone_mgr) < 0) {
         g_error ("Failed to start clone manager.\n");
+        return;
+    }
+
+    if (seaf_filelock_manager_start (session->filelock_mgr) < 0) {
+        g_error ("Failed to start filelock manager.\n");
         return;
     }
 

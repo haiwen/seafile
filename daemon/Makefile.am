@@ -60,6 +60,8 @@ noinst_HEADERS = \
 	client-migrate.h \
 	http-tx-mgr.h \
 	sync-status-tree.h \
+	filelock-mgr.h \
+	set-perm.h \
 	$(proc_headers)
 
 if LINUX
@@ -99,6 +101,8 @@ common_src = \
 	../common/block-tx-utils.c \
 	client-migrate.c \
 	sync-status-tree.c \
+	filelock-mgr.c \
+	set-perm.c \
 	processors/check-tx-proc.c \
 	processors/check-tx-v2-proc.c \
 	processors/check-tx-v3-proc.c \

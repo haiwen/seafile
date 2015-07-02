@@ -1016,11 +1016,14 @@ add_file (const char *repo_id,
 {
     gboolean added = FALSE;
     int ret = 0;
-    gboolean is_writable = TRUE;
+    gboolean is_writable = TRUE, is_locked = FALSE;
 
     if (options)
         is_writable = is_path_writable(repo_id,
                                        options->is_repo_ro, path);
+
+    is_locked = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                      repo_id, path);
 
     if (options && options->startup_scan) {
         struct cache_entry *ce;
@@ -1034,7 +1037,7 @@ add_file (const char *repo_id,
             status = SYNC_STATUS_SYNCED;
 
         /* Don't set "syncing" status for read-only path. */
-        if (status == SYNC_STATUS_SYNCED || is_writable)
+        if (status == SYNC_STATUS_SYNCED || (is_writable && !is_locked))
             seaf_sync_manager_update_active_path (seaf->sync_mgr,
                                                   repo_id,
                                                   path,
@@ -1042,7 +1045,7 @@ add_file (const char *repo_id,
                                                   status);
     }
 
-    if (!is_writable)
+    if (!is_writable || is_locked)
         return ret;
 
 #ifdef WIN32
@@ -2617,7 +2620,10 @@ process_active_path (SeafRepo *repo, const char *path,
         ignored = TRUE;
 
     if (S_ISREG(st.st_mode)) {
-        update_active_file (repo, path, &st, istate, ignored);
+        if (!seaf_filelock_manager_is_file_locked(seaf->filelock_mgr,
+                                                  repo->id, path)) {
+            update_active_file (repo, path, &st, istate, ignored);
+        }
     } else {
         update_active_path_recursive (repo, path, istate, ignore_list, ignored);
     }
@@ -2767,6 +2773,12 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 break;
             }
 
+            if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                      repo->id, event->path)) {
+                seaf_debug ("%s is locked on server, ignore.\n", event->path);
+                break;
+            }
+
             if (check_locked_file_before_remove (fset, event->path)) {
                 not_found = FALSE;
                 remove_from_index_with_prefix (istate, event->path, &not_found);
@@ -2791,6 +2803,14 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                   repo->is_readonly, event->new_path)) {
                 seaf_debug ("Rename: %s or %s is not writable, ignore.\n",
                             event->path, event->new_path);
+                break;
+            }
+
+            if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                      repo->id, event->path) ||
+                seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                      repo->id, event->new_path)) {
+                seaf_debug ("Rename: %s or %s is locked on server, ignore.\n", event->path, event->new_path);
                 break;
             }
 
@@ -3802,6 +3822,14 @@ checkout_file (const char *repo_id,
         }
     }
 
+    /* Temporarily unlock the file if it's locked on server, so that the client
+     * itself can write to it. 
+     */
+    if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                              repo_id, name))
+        seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
+                                              repo_id, name);
+
     /* then checkout the file. */
     gboolean conflicted = FALSE;
     if (seaf_fs_manager_checkout_file (seaf->fs_mgr,
@@ -3819,8 +3847,19 @@ checkout_file (const char *repo_id,
                                        is_http ? http_task->email : task->email) < 0) {
         seaf_warning ("Failed to checkout file %s.\n", path);
         g_free (path);
+
+        if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                  repo_id, name))
+            seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
+                                                repo_id, name);
+
         return FETCH_CHECKOUT_FAILED;
     }
+
+    if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                              repo_id, name))
+        seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
+                                            repo_id, name);
 
     /* If case conflict, this file has been checked out to another path.
      * Remove the current entry, otherwise it won't be removed later
@@ -4382,6 +4421,11 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             if (!ce)
                 continue;
 
+            if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                      repo_id, de->name))
+                seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
+                                                      repo_id, de->name);
+
 #ifdef WIN32
             if (!do_check_file_locked (de->name, worktree)) {
                 locked_file_set_remove (fset, de->name, FALSE);
@@ -4393,6 +4437,8 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 #else
             delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
 #endif
+
+            /* No need to lock wt file again since it's deleted. */
 
             remove_from_index_with_prefix (&istate, de->name, NULL);
             try_add_empty_parent_dir_entry (worktree, &istate, de->name);
@@ -4417,6 +4463,11 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         if (de->status == DIFF_STATUS_RENAMED ||
             de->status == DIFF_STATUS_DIR_RENAMED) {
             seaf_debug ("Rename %s to %s.\n", de->name, de->new_name);
+
+            if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                      repo_id, de->name))
+                seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
+                                                      repo_id, de->name);
 
             do_rename_in_worktree (de, worktree, conflict_hash, no_conflict_hash);
 
@@ -4519,6 +4570,10 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                         SyncStatus status;
                         if (rc == FETCH_CHECKOUT_FAILED)
                             status = SYNC_STATUS_ERROR;
+                        else if (seaf_filelock_manager_is_file_locked(seaf->filelock_mgr,
+                                                                      repo_id,
+                                                                      de->name))
+                            status = SYNC_STATUS_LOCKED;
                         else
                             status = SYNC_STATUS_SYNCED;
                         seaf_sync_manager_update_active_path (seaf->sync_mgr,
@@ -4970,6 +5025,8 @@ seaf_repo_manager_remove_repo_ondisk (SeafRepoManager *mgr,
     snprintf (sql, sizeof(sql), "DELETE FROM FolderPermTimestamp WHERE repo_id = '%s'", 
               repo_id);
     sqlite_query_exec (mgr->priv->db, sql);
+
+    seaf_filelock_manager_remove (seaf->filelock_mgr, repo_id);
 
 out:
     pthread_mutex_unlock (&mgr->priv->db_lock);
