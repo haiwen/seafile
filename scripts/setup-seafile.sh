@@ -363,12 +363,12 @@ check_existing_ccnet;
 if [[ ${use_existing_ccnet} != "true" ]]; then
     get_server_name;
     get_server_ip_or_domain;
-    get_ccnet_server_port;
+    # get_ccnet_server_port;
 fi
 
 get_seafile_data_dir;
 if [[ ${use_existing_seafile} != "true" ]]; then
-    get_seafile_server_port
+    # get_seafile_server_port
     get_fileserver_port
 fi
 
@@ -379,14 +379,12 @@ printf "\nThis is your config information:\n\n"
 if [[ ${use_existing_ccnet} != "true" ]]; then
     printf "server name:        \033[33m${server_name}\033[m\n"
     printf "server ip/domain:   \033[33m${ip_or_domain}\033[m\n"
-    printf "server port:        \033[33m${server_port}\033[m\n"
 else
     printf "ccnet config:       use existing config in  \033[33m${default_ccnet_conf_dir}\033[m\n"
 fi
 
 if [[ ${use_existing_seafile} != "true" ]]; then
     printf "seafile data dir:   \033[33m${seafile_data_dir}\033[m\n"
-    printf "seafile port:       \033[33m${seafile_server_port}\033[m\n"
     printf "fileserver port:    \033[33m${fileserver_port}\033[m\n"
 else
     printf "seafile data dir:   use existing data in    \033[33m${seafile_data_dir}\033[m\n"
@@ -405,7 +403,7 @@ seaf_server_init=${INSTALLPATH}/seafile/bin/seaf-server-init
 if [[ "${use_existing_ccnet}" != "true" ]]; then
     echo "Generating ccnet configuration in ${default_ccnet_conf_dir}..."
     echo
-    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH "${ccnet_init}" -c "${default_ccnet_conf_dir}" --name "${server_name}" --port "${server_port}" --host "${ip_or_domain}"; then
+    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH "${ccnet_init}" -c "${default_ccnet_conf_dir}" --name "${server_name}" --host "${ip_or_domain}"; then
         err_and_quit;
     fi
 
@@ -421,7 +419,7 @@ if [[ "${use_existing_seafile}" != "true" ]]; then
     echo "Generating seafile configuration in ${seafile_data_dir} ..."
     echo
     if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_server_init} --seafile-dir "${seafile_data_dir}" \
-        --port ${seafile_server_port} --fileserver-port ${fileserver_port}; then
+        --fileserver-port ${fileserver_port}; then
         
         echo "Failed to generate seafile configuration"
         err_and_quit;
@@ -612,8 +610,6 @@ echo "-----------------------------------------------------------------"
 echo "If the server is behind a firewall, remember to open these tcp ports:"
 echo "-----------------------------------------------------------------"
 echo
-echo "port of ccnet server:         ${server_port}"
-echo "port of seafile server:       ${seafile_server_port}"
 echo "port of seafile fileserver:   ${fileserver_port}"
 echo "port of seahub:               8000"
 echo
