@@ -57,12 +57,13 @@ get_listen_port (SeafileSession *session)
     port_str = g_key_file_get_string (session->config, "network", "port", NULL);
     if (port_str) {
         port = atoi(port_str);
+
+        if (port <= 0 || port > 65535)
+            port = DEFAULT_SERVER_PORT;
+
+        g_free(port_str);
     }
 
-    if (port <= 0 || port > 65535)
-        port = DEFAULT_SERVER_PORT;
-
-    g_free(port_str);
     return port;
 }
 
@@ -87,6 +88,10 @@ seaf_listen_manager_start (SeafListenManager *mgr)
     evutil_socket_t listenfd;
     unsigned flags;
     SeafListenManagerPriv *priv = mgr->priv;
+
+    if (mgr->port == 0) {
+        return 0;
+    }
 
     listenfd = ccnet_net_bind_tcp (mgr->port, 1);
     if (listenfd < 0) {
