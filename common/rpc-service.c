@@ -1460,6 +1460,15 @@ out:
     return res;
 }
 
+static void
+filter_error (GError **error) {
+    if (*error && g_error_matches(*error,
+                                  SEAFILE_DOMAIN,
+                                  SEAF_ERR_PATH_NO_EXIST)) {
+        g_clear_error (error);
+    }
+}
+
 char *
 seafile_get_dirid_by_path(const char *repo_id,
                           const char *commit_id, const char *path, GError **error)
@@ -1507,6 +1516,7 @@ seafile_get_dirid_by_path(const char *repo_id,
                                                p, error);
     if (!dir) {
         seaf_warning ("Can't find seaf dir for %s in repo %s\n", path, repo->store_id);
+        filter_error (error);
         goto out;
     }
 
@@ -3192,14 +3202,22 @@ char *seafile_get_file_id_by_path (const char *repo_id,
                                    const char *path,
                                    GError **error)
 {
-    return get_obj_id_by_path (repo_id, path, FALSE, error);
+    char *ret = get_obj_id_by_path (repo_id, path, FALSE, error);
+
+    filter_error (error);
+
+    return ret;
 }
 
 char *seafile_get_dir_id_by_path (const char *repo_id,
                                   const char *path,
                                   GError **error)
 {
-    return get_obj_id_by_path (repo_id, path, TRUE, error);
+    char *ret = get_obj_id_by_path (repo_id, path, TRUE, error);
+
+    filter_error (error);
+
+    return ret;
 }
 
 GObject *
@@ -3256,6 +3274,8 @@ seafile_get_dirent_by_path (const char *repo_id, const char *path,
         if (!*error) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
                          "Get dirent error");
+        } else {
+            filter_error (error);
         }
         g_free (tmp_path);
         seaf_repo_unref (repo);
@@ -3780,6 +3800,7 @@ seafile_get_file_id_by_commit_and_path(const char *repo_id,
     file_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
                                               repo->store_id, repo->version,
                                               commit->root_id, path, NULL, error);
+    filter_error (error);
 
     seaf_commit_unref(commit);
     seaf_repo_unref (repo);
