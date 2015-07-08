@@ -234,6 +234,10 @@ class SeafileAPI(object):
     def get_deleted(self, repo_id, show_days, path='/'):
         return seafserv_threaded_rpc.get_deleted(repo_id, show_days, path)
 
+    # file lock
+    def check_file_lock(self, repo_id, path, user):
+        return False
+
     # share repo to user
     def share_repo(self, repo_id, from_username, to_username, permission):
         return seafserv_threaded_rpc.add_share(repo_id, from_username,
