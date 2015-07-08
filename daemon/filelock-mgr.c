@@ -563,3 +563,54 @@ seaf_filelock_manager_mark_file_locked (SeafFilelockManager *mgr,
 
     return mark_file_locked_in_db (mgr, repo_id, path);
 }
+
+static int
+remove_locked_file_from_db (SeafFilelockManager *mgr,
+                            const char *repo_id,
+                            const char *path)
+{
+    char *sql;
+    sqlite3_stmt *stmt;
+
+    pthread_mutex_lock (&mgr->priv->db_lock);
+
+    sql = "DELETE FROM ServerLockedFiles WHERE repo_id = ? AND path = ?";
+    stmt = sqlite_query_prepare (mgr->priv->db, sql);
+    sqlite3_bind_text (stmt, 1, repo_id, -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text (stmt, 2, path, -1, SQLITE_TRANSIENT);
+    if (sqlite3_step (stmt) != SQLITE_DONE) {
+        seaf_warning ("Failed to remove locked file %s from %.8s: %s.\n",
+                      path, repo_id, sqlite3_errmsg (mgr->priv->db));
+        sqlite3_finalize (stmt);
+        pthread_mutex_unlock (&mgr->priv->db_lock);
+        return -1;
+    }
+    sqlite3_finalize (stmt);
+
+    pthread_mutex_unlock (&mgr->priv->db_lock);
+
+    return 0;
+}
+
+int
+seaf_filelock_manager_mark_file_unlocked (SeafFilelockManager *mgr,
+                                          const char *repo_id,
+                                          const char *path)
+{
+    GHashTable *locks;
+    LockInfo *info;
+
+    pthread_mutex_lock (&mgr->priv->hash_lock);
+
+    locks = g_hash_table_lookup (mgr->priv->repo_locked_files, repo_id);
+    if (!locks) {
+        pthread_mutex_unlock (&mgr->priv->hash_lock);
+        return 0;
+    }
+
+    g_hash_table_remove (locks, path);
+
+    pthread_mutex_unlock (&mgr->priv->hash_lock);
+
+    return remove_locked_file_from_db (mgr, repo_id, path);
+}

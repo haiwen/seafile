@@ -885,6 +885,38 @@ seafile_mark_file_locked (const char *repo_id, const char *path, GError **error)
     return ret;
 }
 
+int
+seafile_mark_file_unlocked (const char *repo_id, const char *path, GError **error)
+{
+    char *canon_path = NULL;
+    int len;
+    int ret;
+
+    if (!repo_id || !path) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return -1;
+    }
+
+    if (*path == '/')
+        ++path;
+
+    if (path[0] == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid path");
+        return -1;
+    }
+
+    canon_path = g_strdup(path);
+    len = strlen(canon_path);
+    if (canon_path[len-1] == '/')
+        canon_path[len-1] = 0;
+
+    ret = seaf_filelock_manager_mark_file_unlocked (seaf->filelock_mgr,
+                                                    repo_id, path);
+
+    g_free (canon_path);
+    return ret;
+}
+
 #endif  /* not define SEAFILE_SERVER */
 
 /*

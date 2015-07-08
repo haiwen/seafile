@@ -67,4 +67,9 @@ seaf_filelock_manager_mark_file_locked (SeafFilelockManager *mgr,
                                         const char *repo_id,
                                         const char *path);
 
+int
+seaf_filelock_manager_mark_file_unlocked (SeafFilelockManager *mgr,
+                                          const char *repo_id,
+                                          const char *path);
+
 #endif
