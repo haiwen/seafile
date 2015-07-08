@@ -14,8 +14,6 @@ WebAccess:
 
 class SeafileAPI(object):
 
-    PATH_NOT_EXIST_PREFIX = 'Path does not exists'
-
     def __init__(self):
         pass
 
@@ -154,36 +152,15 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.get_file_size(store_id, version, file_id)
 
     def get_file_id_by_path(self, repo_id, path):
-        try:
-            ret = seafserv_threaded_rpc.get_file_id_by_path(repo_id, path)
-        except SearpcError as e:
-            if str(e).startswith(SeafileAPI.PATH_NOT_EXIST_PREFIX):
-                ret = None
-            else:
-                raise e
-        return ret
+        return seafserv_threaded_rpc.get_file_id_by_path(repo_id, path)
 
     def get_file_id_by_commit_and_path(self, repo_id, commit_id, path):
-        try:
-            ret = seafserv_threaded_rpc.get_file_id_by_commit_and_path(repo_id,
-                                                                       commit_id,
-                                                                       path)
-        except SearpcError as e:
-            if str(e).startswith(SeafileAPI.PATH_NOT_EXIST_PREFIX):
-                ret = None
-            else:
-                raise e
-        return ret
+        return seafserv_threaded_rpc.get_file_id_by_commit_and_path(repo_id,
+                                                                    commit_id,
+                                                                    path)
 
     def get_dirent_by_path(self, repo_id, path):
-        try:
-            ret = seafserv_threaded_rpc.get_dirent_by_path(repo_id, path)
-        except SearpcError as e:
-            if str(e).startswith(SeafileAPI.PATH_NOT_EXIST_PREFIX):
-                ret = None
-            else:
-                raise e
-        return ret
+        return seafserv_threaded_rpc.get_dirent_by_path(repo_id, path)
 
     def get_file_revisions(self, repo_id, path, max_revision, limit, show_days=-1):
         return seafserv_threaded_rpc.list_file_revisions(repo_id, path,
@@ -206,14 +183,7 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.list_file(repo_id, file_id, offset, limit)
     
     def get_dir_id_by_path(self, repo_id, path):
-        try:
-            ret = seafserv_threaded_rpc.get_dir_id_by_path(repo_id, path)
-        except SearpcError as e:
-            if str(e).startswith(SeafileAPI.PATH_NOT_EXIST_PREFIX):
-                ret = None
-            else:
-                raise e
-        return ret
+        return seafserv_threaded_rpc.get_dir_id_by_path(repo_id, path)
 
     def list_dir_by_dir_id(self, repo_id, dir_id, offset=-1, limit=-1):
         return seafserv_threaded_rpc.list_dir(repo_id, dir_id, offset, limit)
@@ -226,26 +196,13 @@ class SeafileAPI(object):
 
     def list_dir_by_commit_and_path(self, repo_id,
                                     commit_id, path, offset=-1, limit=-1):
-        try:
-            dir_id = seafserv_threaded_rpc.get_dirid_by_path(repo_id, commit_id, path)
-        except SearpcError as e:
-            if str(e).startswith(SeafileAPI.PATH_NOT_EXIST_PREFIX):
-                dir_id = None
-            else:
-                raise e
+        dir_id = seafserv_threaded_rpc.get_dirid_by_path(repo_id, commit_id, path)
         if dir_id is None:
             return None
         return seafserv_threaded_rpc.list_dir(repo_id, dir_id, offset, limit)
     
     def get_dir_id_by_commit_and_path(self, repo_id, commit_id, path):
-        try:
-            ret = seafserv_threaded_rpc.get_dirid_by_path(repo_id, commit_id, path)
-        except SearpcError as e:
-            if str(e).startswith(SeafileAPI.PATH_NOT_EXIST_PREFIX):
-                ret = None
-            else:
-                raise e
-        return ret
+        return seafserv_threaded_rpc.get_dirid_by_path(repo_id, commit_id, path)
 
     def revert_file(self, repo_id, commit_id, path, username):
         return seafserv_threaded_rpc.revert_file(repo_id, commit_id, path, username)
