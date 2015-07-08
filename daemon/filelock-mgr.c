@@ -504,6 +504,22 @@ seaf_filelock_manager_remove (SeafFilelockManager *mgr,
     return 0;
 }
 
+#ifdef WIN32
+
+static void
+refresh_locked_path_status (const char *repo_id, const char *path)
+{
+    SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo)
+        return;
+
+    char *fullpath = g_build_path ("/", repo->worktree, path);
+    seaf_sync_manager_refresh_path (seaf->sync_mgr, path);
+    g_free (fullpath);
+}
+
+#endif
+
 static int
 mark_file_locked_in_db (SeafFilelockManager *mgr,
                         const char *repo_id,
@@ -561,6 +577,10 @@ seaf_filelock_manager_mark_file_locked (SeafFilelockManager *mgr,
 
     pthread_mutex_unlock (&mgr->priv->hash_lock);
 
+#ifdef WIN32
+    refresh_locked_path_status (repo_id, path);
+#endif
+
     return mark_file_locked_in_db (mgr, repo_id, path);
 }
 
@@ -611,6 +631,10 @@ seaf_filelock_manager_mark_file_unlocked (SeafFilelockManager *mgr,
     g_hash_table_remove (locks, path);
 
     pthread_mutex_unlock (&mgr->priv->hash_lock);
+
+#ifdef WIN32
+    refresh_locked_path_status (repo_id, path);
+#endif
 
     return remove_locked_file_from_db (mgr, repo_id, path);
 }

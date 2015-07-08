@@ -194,8 +194,13 @@ void
 seaf_sync_manager_remove_active_path_info (SeafSyncManager *mgr, const char *repo_id);
 
 #ifdef WIN32
+/* Add to refresh queue */
 void
 seaf_sync_manager_add_refresh_path (SeafSyncManager *mgr, const char *path);
+
+/* Refresh immediately. */
+void
+seaf_sync_manager_refresh_path (SeafSyncManager *mgr, const char *path);
 #endif
 
 #endif

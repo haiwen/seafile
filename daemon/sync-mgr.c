@@ -3469,4 +3469,14 @@ seaf_sync_manager_add_refresh_path (SeafSyncManager *mgr, const char *path)
     g_async_queue_push (mgr->priv->refresh_paths, g_strdup(path));
 }
 
+void
+seaf_sync_manager_refresh_path (SeafSyncManager *mgr, const char *path)
+{
+    wchar_t *wpath;
+
+    wpath = win_path (path);
+    SHChangeNotify (SHCNE_ATTRIBUTES, SHCNF_PATHW, wpath, NULL);
+    g_free (wpath);
+}
+
 #endif
