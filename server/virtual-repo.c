@@ -551,14 +551,14 @@ handle_missing_virtual_repo (SeafRepoManager *mgr,
                                                              repo->version,
                                                              parent->root_id,
                                                              par_path, &error);
-        if (error) {
-            if (error->code == SEAF_ERR_PATH_NO_EXIST) {
+        if (!old_dir_id) {
+            if (error && error->code == SEAF_ERR_PATH_NO_EXIST) {
                 seaf_warning ("Failed to find %s under commit %s in repo %s.\n",
                               par_path, parent->commit_id, repo->store_id);
                 seaf_debug ("Delete virtual repo %.10s.\n", vinfo->repo_id);
                 seaf_repo_manager_del_virtual_repo (mgr, vinfo->repo_id);
+                g_clear_error (&error);
             }
-            g_clear_error (&error);
             goto out;
         }
 
