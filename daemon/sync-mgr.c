@@ -3305,7 +3305,7 @@ seaf_sync_manager_get_path_sync_status (SeafSyncManager *mgr,
     pthread_mutex_unlock (&mgr->priv->paths_lock);
 
     /* Display "readonly" status for readonly synced folder. */
-    if (ret == SYNC_STATUS_SYNCED && is_dir &&
+    if (ret == SYNC_STATUS_SYNCED &&
         !seaf_repo_manager_is_path_writable(seaf->repo_mgr, repo_id, path))
         ret = SYNC_STATUS_READONLY;
 

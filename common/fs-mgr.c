@@ -2320,8 +2320,10 @@ seaf_fs_manager_path_to_obj_id (SeafFSManager *mgr,
         }
 
         /* The path doesn't exist in this commit. */
-        if (!base_dir)
+        if (!base_dir) {
+            g_propagate_error (error, tmp_error);
             goto out;
+        }
     }
 
     for (p = base_dir->entries; p != NULL; p = p->next) {

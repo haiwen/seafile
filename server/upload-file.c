@@ -721,7 +721,6 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
         return;
     }
 
-
     /* After upload_headers_cb() returns an error, libevhtp may still
      * receive data from the web browser and call into this cb.
      * In this case fsm will be NULL.
@@ -778,7 +777,21 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
     evbuffer_add (req->buffer_out, ret_json, strlen(ret_json));
     g_free (ret_json);
 
-    send_success_reply (req);
+    // send_success_reply (req);
+    set_content_length_header (req);
+
+    const char *accept = evhtp_kv_find (req->headers_in, "Accept");
+    if (accept && strstr (accept, "application/json") != NULL) {
+        evhtp_headers_add_header (
+            req->headers_out,
+            evhtp_header_new("Content-Type", "application/json; charset=utf-8", 1, 1));
+    } else {
+        evhtp_headers_add_header (
+            req->headers_out,
+            evhtp_header_new("Content-Type", "text/plain", 1, 1));
+    }
+    evhtp_send_reply (req, EVHTP_RES_OK);
+
     return;
 
 error:
