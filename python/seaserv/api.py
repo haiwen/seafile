@@ -236,7 +236,7 @@ class SeafileAPI(object):
 
     # file lock
     def check_file_lock(self, repo_id, path, user):
-        return False
+        return 0
 
     # share repo to user
     def share_repo(self, repo_id, from_username, to_username, permission):
