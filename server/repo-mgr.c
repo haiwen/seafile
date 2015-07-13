@@ -611,7 +611,14 @@ int
 seaf_repo_manager_del_virtual_repo (SeafRepoManager *mgr,
                                     const char *repo_id)
 {
-    return remove_virtual_repo_ondisk (mgr, repo_id);
+    int ret = remove_virtual_repo_ondisk (mgr, repo_id);
+
+    if (ret < 0)
+        return ret;
+
+    return seaf_db_statement_query (mgr->seaf->db,
+                                    "DELETE FROM VirtualRepo WHERE repo_id = ?",
+                                    1, "string", repo_id);
 }
 
 static gboolean
