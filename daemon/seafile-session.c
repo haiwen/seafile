@@ -238,12 +238,12 @@ seafile_session_prepare (SeafileSession *session)
     seaf_commit_manager_init (session->commit_mgr);
     seaf_fs_manager_init (session->fs_mgr);
     seaf_branch_manager_init (session->branch_mgr);
+    seaf_filelock_manager_init (session->filelock_mgr);
     seaf_repo_manager_init (session->repo_mgr);
     seaf_clone_manager_init (session->clone_mgr);
 #ifndef SEAF_TOOL    
     seaf_sync_manager_init (session->sync_mgr);
 #endif
-    seaf_filelock_manager_init (session->filelock_mgr);
     seaf_mq_manager_set_heartbeat_name (session->mq_mgr,
                                         "seafile.heartbeat");
 }
