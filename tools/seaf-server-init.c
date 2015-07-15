@@ -54,7 +54,7 @@ struct seaf_server_config {
 
 static struct seaf_server_config config = {
     NULL,
-    "12001",
+    NULL,
 };
 
     
@@ -111,7 +111,10 @@ int main (int argc, char **argv)
     /* Generate config file. */
     GKeyFile *key_file = g_key_file_new ();
 
-    g_key_file_set_string (key_file, "network", "port", config.port);
+    if (config.port) {
+        g_key_file_set_string (key_file, "network", "port", config.port);
+    }
+
     if (config.fileserver_port) {
         g_key_file_set_string (key_file, "fileserver", "port", config.fileserver_port);
     } else {

@@ -78,14 +78,16 @@ seafserv_threaded_rpc = seafile.ServerThreadedRpcClient(pool, req_pool=True)
 config = ConfigParser.ConfigParser()
 config.read(os.path.join(CCNET_CONF_PATH, 'ccnet.conf'))
 
-if config.has_option('General', 'SERVICE_URL') and \
-   config.has_option('Network', 'PORT'):
+if config.has_option('General', 'SERVICE_URL'):
     service_url = config.get('General', 'SERVICE_URL')
     hostname = urlparse(service_url).hostname
 
     SERVICE_URL = service_url
     CCNET_SERVER_ADDR = hostname
-    CCNET_SERVER_PORT = config.get('Network', 'PORT')
+    if config.has_option('Network', 'PORT'):
+        CCNET_SERVER_PORT = config.get('Network', 'PORT')
+    else:
+        CCNET_SERVER_PORT = None
 else:
     print "Warning: SERVICE_URL not set in ccnet.conf"
     CCNET_SERVER_ADDR = None

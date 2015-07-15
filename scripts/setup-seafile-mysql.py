@@ -732,7 +732,7 @@ class CcnetConfigurator(AbstractConfigurator):
     def ask_questions(self):
         self.ask_server_name()
         self.ask_server_ip_or_domain()
-        self.ask_port()
+        # self.ask_port()
 
     def generate(self):
         print 'Generating ccnet configuration ...\n'
@@ -742,7 +742,6 @@ class CcnetConfigurator(AbstractConfigurator):
             '--config-dir', self.ccnet_dir,
             '--name', self.server_name,
             '--host', self.ip_or_domain,
-            '--port', str(self.port),
         ]
 
         if Utils.run_argv(argv, env=env_mgr.get_binary_env()) != 0:
@@ -823,7 +822,7 @@ class SeafileConfigurator(AbstractConfigurator):
 
     def ask_questions(self):
         self.ask_seafile_dir()
-        self.ask_port()
+        # self.ask_port()
         self.ask_fileserver_port()
 
     def generate(self):
@@ -832,7 +831,6 @@ class SeafileConfigurator(AbstractConfigurator):
         argv = [
             seafserv_init,
             '--seafile-dir', self.seafile_dir,
-            '--port', str(self.port),
             '--fileserver-port', str(self.fileserver_port),
         ]
 
@@ -1136,10 +1134,8 @@ def report_config():
     template = '''\
     server name:            %(server_name)s
     server ip/domain:       %(ip_or_domain)s
-    ccnet port:             %(ccnet_port)s
 
     seafile data dir:       %(seafile_dir)s
-    seafile port:           %(seafile_port)s
     fileserver port:        %(fileserver_port)s
 
     database:               %(use_existing_db)s
@@ -1152,10 +1148,8 @@ def report_config():
     config = {
         'server_name' :         ccnet_config.server_name,
         'ip_or_domain' :        ccnet_config.ip_or_domain,
-        'ccnet_port' :          ccnet_config.port,
 
         'seafile_dir' :         seafile_config.seafile_dir,
-        'seafile_port' :        seafile_config.port,
         'fileserver_port' :     seafile_config.fileserver_port,
 
         'admin_email' :         seahub_config.admin_email,
@@ -1269,8 +1263,6 @@ run seahub  server:     ./seahub.sh  { start <port> | stop | restart <port> }
 If you are behind a firewall, remember to allow input/output of these tcp ports:
 -----------------------------------------------------------------
 
-port of ccnet server:         %(ccnet_port)s
-port of seafile server:       %(seafile_port)s
 port of seafile fileserver:   %(fileserver_port)s
 port of seahub:               8000
 
@@ -1282,9 +1274,7 @@ for information.
 
 '''
 
-    print message % dict(ccnet_port=ccnet_config.port,
-                         seafile_port=seafile_config.port,
-                         fileserver_port=seafile_config.fileserver_port,
+    print message % dict(fileserver_port=seafile_config.fileserver_port,
                          server_manual_http=SERVER_MANUAL_HTTP)
 
 
