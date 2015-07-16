@@ -66,5 +66,14 @@ seaf_share_manager_check_permission (SeafShareManager *mgr,
                                      const char *repo_id,
                                      const char *email);
 
+GHashTable *
+seaf_share_manager_get_shared_sub_dirs (SeafShareManager *mgr,
+                                        const char *repo_id,
+                                        const char *path);
+
+int
+seaf_share_manager_is_repo_shared (SeafShareManager *mgr,
+                                   const char *repo_id);
+
 #endif /* SHARE_MGR_H */
 

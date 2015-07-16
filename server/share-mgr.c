@@ -438,3 +438,89 @@ seaf_share_manager_check_permission (SeafShareManager *mgr,
     return seaf_db_statement_get_string (mgr->seaf->db, sql,
                                          2, "string", repo_id, "string", email);
 }
+
+static gboolean
+get_shared_sub_dirs (SeafDBRow *row, void *data)
+{
+    GHashTable *sub_dirs = data;
+    int dummy;
+
+    const char *sub_dir = seaf_db_row_get_column_text (row, 0);
+    g_hash_table_replace (sub_dirs, g_strdup(sub_dir), &dummy);
+
+    return TRUE;
+}
+
+GHashTable *
+seaf_share_manager_get_shared_sub_dirs (SeafShareManager *mgr,
+                                        const char *repo_id,
+                                        const char *path)
+{
+    GHashTable *sub_dirs = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                  g_free, NULL);
+    char *pattern;
+    if (strcmp (path, "/") == 0) {
+        pattern = g_strdup_printf("%s%%", path);
+    } else {
+        pattern = g_strdup_printf ("%s/%%", path);
+    }
+    int ret = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                             "SELECT v.path FROM VirtualRepo v, SharedRepo s "
+                                             "WHERE v.repo_id = s.repo_id and "
+                                             "v.origin_repo = ? AND v.path LIKE ?",
+                                             get_shared_sub_dirs, sub_dirs,
+                                             2, "string", repo_id, "string", pattern);
+
+    if (ret < 0) {
+        g_free (pattern);
+        seaf_warning ("Failed to get shared sub dirs from db.\n");
+        g_hash_table_destroy (sub_dirs);
+        return NULL;
+    }
+
+    ret = seaf_db_statement_foreach_row (mgr->seaf->db,
+                                         "SELECT v.path FROM VirtualRepo v, RepoGroup r "
+                                         "WHERE v.repo_id = r.repo_id and "
+                                         "v.origin_repo = ? AND v.path LIKE ?",
+                                         get_shared_sub_dirs, sub_dirs,
+                                         2, "string", repo_id, "string", pattern);
+    g_free (pattern);
+
+    if (ret < 0) {
+        seaf_warning ("Failed to get shared sub dirs from db.\n");
+        g_hash_table_destroy (sub_dirs);
+        return NULL;
+    }
+
+    return sub_dirs;
+}
+
+int
+seaf_share_manager_is_repo_shared (SeafShareManager *mgr,
+                                   const char *repo_id)
+{
+    gboolean ret;
+    gboolean db_err = FALSE;
+
+    ret = seaf_db_statement_exists (mgr->seaf->db,
+                                    "SELECT repo_id FROM SharedRepo WHERE "
+                                    "repo_id = ?", &db_err,
+                                    1, "string", repo_id);
+    if (db_err) {
+        seaf_warning ("DB error when check repo exist in SharedRepo.\n");
+        return -1;
+    }
+
+    if (!ret) {
+        ret = seaf_db_statement_exists (mgr->seaf->db,
+                                        "SELECT repo_id FROM RepoGroup WHERE "
+                                        "repo_id = ?", &db_err,
+                                        1, "string", repo_id);
+        if (db_err) {
+            seaf_warning ("DB error when check repo exist in RepoGroup.\n");
+            return -1;
+        }
+    }
+
+    return ret;
+}

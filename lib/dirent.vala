@@ -22,6 +22,8 @@ public class Dirent : Object {
 	public bool is_locked { set; get; }
 	public string lock_owner { set; get; }
 	public int64 lock_time { set; get; }
+
+	public bool is_shared { set; get; }
 }
 
 public class FileLastModifiedInfo : Object {
