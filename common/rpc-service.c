@@ -120,6 +120,25 @@ convert_repo_list (GList *inner_repos)
     return g_list_reverse (ret);
 }
 
+static char*
+format_dir_path (const char *path)
+{
+    int path_len = strlen (path);
+    char *rpath;
+    if (path[0] != '/') {
+        rpath = g_strconcat ("/", path, NULL);
+        path_len++;
+    } else {
+        rpath = g_strdup (path);
+    }
+    while (path_len > 1 && rpath[path_len-1] == '/') {
+        rpath[path_len-1] = '\0';
+        path_len--;
+    }
+
+    return rpath;
+}
+
 /*
  * RPC functions only available for clients.
  */
@@ -1484,17 +1503,14 @@ seafile_list_dir_by_path(const char *repo_id,
         goto out;
     }
 
-    /* strip trailing backslash */
-    while (len > 0 && p[len-1] == '/') {
-        p[len-1] = '\0';
-        len--;
-    }
-
+    char *rpath = format_dir_path (path);
     dir = seaf_fs_manager_get_seafdir_by_path (seaf->fs_mgr,
                                                repo->store_id,
                                                repo->version,
                                                commit->root_id,
-                                               p, error);
+                                               rpath, error);
+    g_free (rpath);
+
     if (!dir) {
         seaf_warning ("Can't find seaf dir for %s in repo %s\n", path, repo->store_id);
         goto out;
@@ -1517,8 +1533,6 @@ seafile_list_dir_by_path(const char *repo_id,
     res = g_list_reverse (res);
 
 out:
-
-    g_free (p);
     seaf_repo_unref (repo);
     seaf_commit_unref (commit);
     return res;
@@ -1542,9 +1556,6 @@ seafile_get_dirid_by_path(const char *repo_id,
     SeafCommit *commit = NULL;
     SeafDir *dir;
 
-    char *p = g_strdup(path);
-    int len = strlen(p);
-
     if (!repo_id || !is_uuid_valid(repo_id) || !commit_id || !path) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Args can't be NULL");
@@ -1567,17 +1578,15 @@ seafile_get_dirid_by_path(const char *repo_id,
         goto out;
     }
 
-    /* strip trailing backslash */
-    while (len > 0 && p[len-1] == '/') {
-        p[len-1] = '\0';
-        len--;
-    }
+    char *rpath = format_dir_path (path);
 
     dir = seaf_fs_manager_get_seafdir_by_path (seaf->fs_mgr,
                                                repo->store_id,
                                                repo->version,
                                                commit->root_id,
-                                               p, error);
+                                               rpath, error);
+    g_free (rpath);
+
     if (!dir) {
         seaf_warning ("Can't find seaf dir for %s in repo %s\n", path, repo->store_id);
         filter_error (error);
@@ -1588,8 +1597,6 @@ seafile_get_dirid_by_path(const char *repo_id,
     seaf_dir_free (dir);
 
  out:
-
-    g_free (p);
     seaf_repo_unref (repo);
     seaf_commit_unref (commit);
     return res;
@@ -2788,12 +2795,17 @@ seafile_post_file (const char *repo_id, const char *temp_file_path,
         return -1;
     }
 
+    char *rpath = format_dir_path (parent_dir);
+
     if (seaf_repo_manager_post_file (seaf->repo_mgr, repo_id,
-                                     temp_file_path, parent_dir,
+                                     temp_file_path, rpath,
                                      file_name, user,
                                      error) < 0) {
+        g_free (rpath);
         return -1;
     }
+
+    g_free (rpath);
 
     return 0;
 }
@@ -2892,11 +2904,14 @@ seafile_put_file (const char *repo_id, const char *temp_file_path,
         return NULL;
     }
 
+    char *rpath = format_dir_path (parent_dir);
     char *new_file_id = NULL;
     seaf_repo_manager_put_file (seaf->repo_mgr, repo_id,
-                                temp_file_path, parent_dir,
+                                temp_file_path, rpath,
                                 file_name, user, head_id,
                                 &new_file_id, error);
+    g_free (rpath);
+
     return new_file_id;
 }
 
@@ -2942,11 +2957,16 @@ seafile_post_dir (const char *repo_id, const char *parent_dir,
         return -1;
     }
 
+    char *rpath = format_dir_path (parent_dir);
+
     if (seaf_repo_manager_post_dir (seaf->repo_mgr, repo_id,
-                                    parent_dir, new_dir_name,
+                                    rpath, new_dir_name,
                                     user, error) < 0) {
+        g_free (rpath);
         return -1;
     }
+
+    g_free (rpath);
 
     return 0;
 }
@@ -2966,11 +2986,16 @@ seafile_post_empty_file (const char *repo_id, const char *parent_dir,
         return -1;
     }
 
+    char *rpath = format_dir_path (parent_dir);
+
     if (seaf_repo_manager_post_empty_file (seaf->repo_mgr, repo_id,
-                                           parent_dir, new_file_name,
+                                           rpath, new_file_name,
                                            user, error) < 0) {
+        g_free (rpath);
         return -1;
     }
+
+    g_free (rpath);
 
     return 0;
 }
@@ -2990,11 +3015,16 @@ seafile_del_file (const char *repo_id, const char *parent_dir,
         return -1;
     }
 
+    char *rpath = format_dir_path (parent_dir);
+
     if (seaf_repo_manager_del_file (seaf->repo_mgr, repo_id,
-                                    parent_dir, file_name,
+                                    rpath, file_name,
                                     user, error) < 0) {
+        g_free (rpath);
         return -1;
     }
+
+    g_free (rpath);
 
     return 0;
 }
@@ -3024,11 +3054,17 @@ seafile_copy_file (const char *src_repo_id,
         return NULL;
     }
 
+    char *rsrc_dir = format_dir_path (src_dir);
+    char *rdst_dir = format_dir_path (dst_dir);
+
     ret = (GObject *)seaf_repo_manager_copy_file (seaf->repo_mgr,
-                                                  src_repo_id, src_dir, src_filename,
-                                                  dst_repo_id, dst_dir, dst_filename,
+                                                  src_repo_id, rsrc_dir, src_filename,
+                                                  dst_repo_id, rdst_dir, dst_filename,
                                                   user, need_progress, synchronous,
                                                   error);
+    g_free (rsrc_dir);
+    g_free (rdst_dir);
+
     return ret;
 }
 
@@ -3057,11 +3093,17 @@ seafile_move_file (const char *src_repo_id,
         return NULL;
     }
 
+    char *rsrc_dir = format_dir_path (src_dir);
+    char *rdst_dir = format_dir_path (dst_dir);
+
     ret = (GObject *)seaf_repo_manager_move_file (seaf->repo_mgr,
-                                                  src_repo_id, src_dir, src_filename,
-                                                  dst_repo_id, dst_dir, dst_filename,
+                                                  src_repo_id, rsrc_dir, src_filename,
+                                                  dst_repo_id, rdst_dir, dst_filename,
                                                   user, need_progress, synchronous,
                                                   error);
+    g_free (rsrc_dir);
+    g_free (rdst_dir);
+
     return ret;
 }
 
@@ -3266,7 +3308,10 @@ char *seafile_get_file_id_by_path (const char *repo_id,
                                    const char *path,
                                    GError **error)
 {
-    char *ret = get_obj_id_by_path (repo_id, path, FALSE, error);
+    char *rpath = format_dir_path (path);
+    char *ret = get_obj_id_by_path (repo_id, rpath, FALSE, error);
+
+    g_free (rpath);
 
     filter_error (error);
 
@@ -3277,7 +3322,10 @@ char *seafile_get_dir_id_by_path (const char *repo_id,
                                   const char *path,
                                   GError **error)
 {
-    char *ret = get_obj_id_by_path (repo_id, path, TRUE, error);
+    char *rpath = format_dir_path (path);
+    char *ret = get_obj_id_by_path (repo_id, rpath, TRUE, error);
+
+    g_free (rpath);
 
     filter_error (error);
 
@@ -3300,10 +3348,11 @@ seafile_get_dirent_by_path (const char *repo_id, const char *path,
         return NULL;
     }
 
-    int path_len = strlen (path);
-    if (path_len == 0) {
+    char *rpath = format_dir_path (path);
+    if (strcmp (rpath, "/") == 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "invalid path");
+        g_free (rpath);
         return NULL;
     }
 
@@ -3324,24 +3373,14 @@ seafile_get_dirent_by_path (const char *repo_id, const char *path,
         return NULL;
     }
 
-    char *tmp_path = g_strdup (path);
-    while (path_len > 0 && tmp_path[path_len-1] == '/') {
-        tmp_path[path_len-1] = '\0';
-        path_len--;
-    }
-
     SeafDirent *dirent = seaf_fs_manager_get_dirent_by_path (seaf->fs_mgr,
                                                              repo_id, repo->version,
-                                                             commit->root_id, tmp_path,
+                                                             commit->root_id, rpath,
                                                              error);
+    g_free (rpath);
+
     if (!dirent) {
-        if (!*error) {
-            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
-                         "Get dirent error");
-        } else {
-            filter_error (error);
-        }
-        g_free (tmp_path);
+        filter_error (error);
         seaf_repo_unref (repo);
         seaf_commit_unref (commit);
         return NULL;
@@ -3357,7 +3396,6 @@ seafile_get_dirent_by_path (const char *repo_id, const char *path,
                                  "modifier", dirent->modifier,
                                  NULL);
 
-    g_free (tmp_path);
     seaf_repo_unref (repo);
     seaf_commit_unref (commit);
     seaf_dirent_free (dirent);
@@ -3516,11 +3554,15 @@ seafile_list_file_revisions (const char *repo_id,
         return NULL;
     }
 
+    char *rpath = format_dir_path (path);
+
     GList *commit_list;
     commit_list = seaf_repo_manager_list_file_revisions (seaf->repo_mgr,
-                                                         repo_id, NULL, path,
+                                                         repo_id, NULL, rpath,
                                                          max_revision,
                                                          limit, show_days, error);
+    g_free (rpath);
+
     return commit_list;
 }
 
@@ -3541,8 +3583,14 @@ seafile_calc_files_last_modified (const char *repo_id,
         return NULL;
     }
 
-    return seaf_repo_manager_calc_files_last_modified (seaf->repo_mgr,
-                                repo_id, parent_dir, limit, error);
+    char *rpath = format_dir_path (parent_dir);
+
+    GList *ret = seaf_repo_manager_calc_files_last_modified (seaf->repo_mgr,
+                                                             repo_id, rpath,
+                                                             limit, error);
+    g_free (rpath);
+
+    return ret;
 }
 
 int
@@ -3563,9 +3611,14 @@ seafile_revert_file (const char *repo_id,
         return -1;
     }
 
-    return seaf_repo_manager_revert_file (seaf->repo_mgr,
-                                          repo_id, commit_id,
-                                          path, user, error);
+    char *rpath = format_dir_path (path);
+
+    int ret = seaf_repo_manager_revert_file (seaf->repo_mgr,
+                                             repo_id, commit_id,
+                                             rpath, user, error);
+    g_free (rpath);
+
+    return ret;
 }
 
 int
@@ -3586,9 +3639,14 @@ seafile_revert_dir (const char *repo_id,
         return -1;
     }
 
-    return seaf_repo_manager_revert_dir (seaf->repo_mgr,
-                                         repo_id, commit_id,
-                                         path, user, error);
+    char *rpath = format_dir_path (path);
+
+    int ret = seaf_repo_manager_revert_dir (seaf->repo_mgr,
+                                            repo_id, commit_id,
+                                            rpath, user, error);
+    g_free (rpath);
+
+    return ret;
 }
 
 GList *
@@ -3606,9 +3664,16 @@ seafile_get_deleted (const char *repo_id, int show_days,
         return NULL;
     }
 
-    return seaf_repo_manager_get_deleted_entries (seaf->repo_mgr,
-                                                  repo_id, show_days,
-                                                  path, error);
+    char *rpath = NULL;
+    if (path)
+        rpath = format_dir_path (path);
+
+    GList *ret = seaf_repo_manager_get_deleted_entries (seaf->repo_mgr,
+                                                        repo_id, show_days,
+                                                        rpath, error);
+    g_free (rpath);
+
+    return ret;
 }
 
 char *
@@ -3861,9 +3926,13 @@ seafile_get_file_id_by_commit_and_path(const char *repo_id,
         return NULL;
     }
 
+    char *rpath = format_dir_path (path);
+
     file_id = seaf_fs_manager_path_to_obj_id (seaf->fs_mgr,
                                               repo->store_id, repo->version,
-                                              commit->root_id, path, NULL, error);
+                                              commit->root_id, rpath, NULL, error);
+    g_free (rpath);
+
     filter_error (error);
 
     seaf_commit_unref(commit);
@@ -3894,11 +3963,14 @@ seafile_create_virtual_repo (const char *origin_repo_id,
     }
 
     char *repo_id;
+    char *rpath = format_dir_path (path);
 
     repo_id = seaf_repo_manager_create_virtual_repo (seaf->repo_mgr,
-                                                     origin_repo_id, path,
+                                                     origin_repo_id, rpath,
                                                      repo_name, repo_desc,
                                                      owner, passwd, error);
+    g_free (rpath);
+
     return repo_id;
 }
 
@@ -3967,10 +4039,14 @@ seafile_get_virtual_repo (const char *origin_repo,
     char *repo_id;
     GObject *repo_obj;
 
+    char *rpath = format_dir_path (path);
+
     repo_id = seaf_repo_manager_get_virtual_repo_id (seaf->repo_mgr,
                                                      origin_repo,
-                                                     path,
+                                                     rpath,
                                                      owner);
+    g_free (rpath);
+
     if (!repo_id)
         return NULL;
 
@@ -4053,30 +4129,6 @@ seafile_clean_up_repo_history (const char *repo_id, int keep_days, GError **erro
     return ret;
 }
 
-static char*
-format_subdir_path (const char *path)
-{
-    int path_len = strlen (path);
-    if (path_len == 0) {
-        return NULL;
-    }
-
-    char *rpath;
-    if (path[0] != '/') {
-        rpath = g_strconcat ("/", path, NULL);
-        path_len++;
-    } else {
-        rpath = g_strdup (path);
-    }
-    while (path_len > 0 && rpath[path_len-1] == '/') {
-        rpath[path_len-1] = '\0';
-        path_len--;
-    }
-
-    return rpath;
-}
-
-
 GList *
 seafile_get_shared_users_for_subdir (const char *repo_id,
                                      const char *path,
@@ -4093,11 +4145,7 @@ seafile_get_shared_users_for_subdir (const char *repo_id,
         return NULL;
     }
 
-    char *rpath = format_subdir_path (path);
-    if (!rpath) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid path");
-        return NULL;
-    }
+    char *rpath = format_dir_path (path);
 
     GList *ret = seaf_repo_manager_get_shared_users_for_subdir (seaf->repo_mgr,
                                                                 repo_id, rpath,
@@ -4123,11 +4171,7 @@ seafile_get_shared_groups_for_subdir (const char *repo_id,
         return NULL;
     }
 
-    char *rpath = format_subdir_path (path);
-    if (!rpath) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid path");
-        return NULL;
-    }
+    char *rpath = format_dir_path (path);
 
     GList *ret = seaf_repo_manager_get_shared_groups_for_subdir (seaf->repo_mgr,
                                                                  repo_id, rpath,
