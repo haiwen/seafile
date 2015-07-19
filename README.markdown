@@ -73,6 +73,12 @@ Why Open Source
 Our primary goal is to build a first-class product. We think this goal can only be achieved by collaborating with the whole world.
 
 
+Contributing
+===========
+
+For more informations read [Contribution](http://manual.seafile.com/contribution.html).
+
+
 License
 =======
 
