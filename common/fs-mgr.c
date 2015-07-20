@@ -2410,9 +2410,12 @@ seaf_fs_manager_get_dirent_by_path (SeafFSManager *mgr,
     parent_dir  = g_path_get_dirname(path);
     file_name = g_path_get_basename(path);
 
-    if (strcmp (parent_dir, ".") == 0)
+    if (strcmp (parent_dir, ".") == 0) {
         dir = seaf_fs_manager_get_seafdir (mgr, repo_id, version, root_id);
-    else
+        if (!dir) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_DIR_MISSING, "directory is missing");
+        }
+    } else
         dir = seaf_fs_manager_get_seafdir_by_path (mgr, repo_id, version,
                                                    root_id, parent_dir, error);
 
