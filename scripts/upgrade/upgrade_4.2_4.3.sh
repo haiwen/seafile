@@ -121,7 +121,7 @@ function update_database() {
     echo
 
     db_update_helper=${UPGRADE_DIR}/db_update_helper.py
-    if ! $PYTHON "${db_update_helper}" 4.2.0; then
+    if ! $PYTHON "${db_update_helper}" 4.3.0; then
         echo
         echo "Failed to upgrade your database"
         echo
