@@ -1971,9 +1971,28 @@ seafile_list_owned_repos (const char *email, GError **error)
 {
     GList *ret = NULL;
     GList *repos, *ptr;
+    char *repo_id = NULL;
+    int is_shared;
 
     repos = seaf_repo_manager_get_repos_by_owner (seaf->repo_mgr, email);
     ret = convert_repo_list (repos);
+
+    for (ptr = ret; ptr; ptr = ptr->next) {
+        g_object_get (ptr->data, "repo_id", &repo_id, NULL);
+        is_shared = seaf_share_manager_is_repo_shared (seaf->share_mgr, repo_id);
+        if (is_shared < 0) {
+            g_free (repo_id);
+            break;
+        } else {
+            g_object_set (ptr->data, "is_shared", is_shared, NULL);
+            g_free (repo_id);
+        }
+    }
+
+    while (ptr) {
+        g_object_set (ptr->data, "is_shared", FALSE, NULL);
+        ptr = ptr->prev;
+    }
 
     for(ptr = repos; ptr; ptr = ptr->next) {
         seaf_repo_unref ((SeafRepo *)ptr->data);
@@ -3841,14 +3860,19 @@ seafile_list_dir_with_perm (const char *repo_id,
                             int limit,
                             GError **error)
 {
-    return seaf_repo_manager_list_dir_with_perm (seaf->repo_mgr,
-                                                 repo_id,
-                                                 path,
-                                                 dir_id,
-                                                 user,
-                                                 offset,
-                                                 limit,
-                                                 error);
+    char *rpath = format_dir_path (path);
+
+    GList *ret = seaf_repo_manager_list_dir_with_perm (seaf->repo_mgr,
+                                                       repo_id,
+                                                       rpath,
+                                                       dir_id,
+                                                       user,
+                                                       offset,
+                                                       limit,
+                                                       error);
+    g_free (rpath);
+
+    return ret;
 }
 
 int
