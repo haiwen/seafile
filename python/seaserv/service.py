@@ -87,7 +87,7 @@ if config.has_option('General', 'SERVICE_URL'):
     if config.has_option('Network', 'PORT'):
         CCNET_SERVER_PORT = config.get('Network', 'PORT')
     else:
-        CCNET_SERVER_PORT = None
+        CCNET_SERVER_PORT = 10001
 else:
     print "Warning: SERVICE_URL not set in ccnet.conf"
     CCNET_SERVER_ADDR = None
