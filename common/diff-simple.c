@@ -865,10 +865,10 @@ diff_results_to_description (GList *results)
 {
     GList *p;
     DiffEntry *de;
-    char *new_file = NULL, *removed_file = NULL;
-    char *renamed_file = NULL, *modified_file = NULL;
+    char *add_mod_file = NULL, *removed_file = NULL;
+    char *renamed_file = NULL;
     char *new_dir = NULL, *removed_dir = NULL;
-    int n_new = 0, n_removed = 0, n_renamed = 0, n_modified = 0;
+    int n_add_mod = 0, n_removed = 0, n_renamed = 0;
     int n_new_dir = 0, n_removed_dir = 0;
     GString *desc;
 
@@ -879,9 +879,9 @@ diff_results_to_description (GList *results)
         de = p->data;
         switch (de->status) {
         case DIFF_STATUS_ADDED:
-            if (n_new == 0)
-                new_file = get_basename(de->name);
-            n_new++;
+            if (n_add_mod == 0)
+                add_mod_file = get_basename(de->name);
+            n_add_mod++;
             break;
         case DIFF_STATUS_DELETED:
             if (n_removed == 0)
@@ -894,9 +894,9 @@ diff_results_to_description (GList *results)
             n_renamed++;
             break;
         case DIFF_STATUS_MODIFIED:
-            if (n_modified == 0)
-                modified_file = get_basename(de->name);
-            n_modified++;
+            if (n_add_mod == 0)
+                add_mod_file = get_basename(de->name);
+            n_add_mod++;
             break;
         case DIFF_STATUS_DIR_ADDED:
             if (n_new_dir == 0)
@@ -913,11 +913,11 @@ diff_results_to_description (GList *results)
 
     desc = g_string_new ("");
 
-    if (n_new == 1)
-        g_string_append_printf (desc, "Added \"%s\".\n", new_file);
-    else if (n_new > 1)
-        g_string_append_printf (desc, "Added \"%s\" and %d more files.\n",
-                                new_file, n_new - 1);
+    if (n_add_mod == 1)
+        g_string_append_printf (desc, "Added or modified \"%s\".\n", add_mod_file);
+    else if (n_add_mod > 1)
+        g_string_append_printf (desc, "Added or modified \"%s\" and %d more files.\n",
+                                add_mod_file, n_add_mod - 1);
 
     if (n_removed == 1)
         g_string_append_printf (desc, "Deleted \"%s\".\n", removed_file);
@@ -930,12 +930,6 @@ diff_results_to_description (GList *results)
     else if (n_renamed > 1)
         g_string_append_printf (desc, "Renamed \"%s\" and %d more files.\n",
                                 renamed_file, n_renamed - 1);
-
-    if (n_modified == 1)
-        g_string_append_printf (desc, "Modified \"%s\".\n", modified_file);
-    else if (n_modified > 1)
-        g_string_append_printf (desc, "Modified \"%s\" and %d more files.\n",
-                                modified_file, n_modified - 1);
 
     if (n_new_dir == 1)
         g_string_append_printf (desc, "Added directory \"%s\".\n", new_dir);

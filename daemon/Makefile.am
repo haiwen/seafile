@@ -62,6 +62,7 @@ noinst_HEADERS = \
 	sync-status-tree.h \
 	filelock-mgr.h \
 	set-perm.h \
+	change-set.h \
 	$(proc_headers)
 
 if LINUX
@@ -103,6 +104,7 @@ common_src = \
 	sync-status-tree.c \
 	filelock-mgr.c \
 	set-perm.c \
+	change-set.c \
 	processors/check-tx-proc.c \
 	processors/check-tx-v2-proc.c \
 	processors/check-tx-v3-proc.c \

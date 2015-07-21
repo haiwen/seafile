@@ -1578,6 +1578,7 @@ seaf_fs_manager_get_seafdir (SeafFSManager *mgr,
 
     if (memcmp (dir_id, EMPTY_SHA1, 40) == 0) {
         dir = g_new0 (SeafDir, 1);
+        dir->version = version;
         memset (dir->dir_id, '0', 40);
         return dir;
     }

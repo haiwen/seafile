@@ -29,6 +29,7 @@
 #include "index/cache-tree.h"
 #include "unpack-trees.h"
 #include "diff-simple.h"
+#include "change-set.h"
 
 #include "db.h"
 
@@ -997,6 +998,7 @@ index_cb (const char *repo_id,
 
 typedef struct _AddOptions {
     LockedFileSet *fset;
+    ChangeSet *changeset;
     gboolean is_repo_ro;
     gboolean startup_scan;
 } AddOptions;
@@ -1017,6 +1019,7 @@ add_file (const char *repo_id,
     gboolean added = FALSE;
     int ret = 0;
     gboolean is_writable = TRUE, is_locked = FALSE;
+    struct cache_entry *ce;
 
     if (options)
         is_writable = is_path_writable(repo_id,
@@ -1026,11 +1029,9 @@ add_file (const char *repo_id,
                                                       repo_id, path);
 
     if (options && options->startup_scan) {
-        struct cache_entry *ce;
         SyncStatus status;
 
         ce = index_name_exists (istate, path, strlen(path), 0);
-
         if (!ce || ie_match_stat(ce, st, 0) != 0)
             status = SYNC_STATUS_SYNCING;
         else
@@ -1078,6 +1079,18 @@ add_file (const char *repo_id,
                                                   S_IFREG,
                                                   SYNC_STATUS_SYNCED);
         }
+        if (added && options && options->changeset) {
+            /* ce may be updated. */
+            ce = index_name_exists (istate, path, strlen(path), 0);
+            add_to_changeset (options->changeset,
+                              DIFF_STATUS_ADDED,
+                              ce->sha1,
+                              st,
+                              modifier,
+                              path,
+                              NULL,
+                              TRUE);
+        }
     } else if (*remain_files == NULL) {
         ret = add_to_index (repo_id, version, istate, path, full_path,
                             st, 0, crypt, index_cb, modifier, &added);
@@ -1091,6 +1104,18 @@ add_file (const char *repo_id,
                                                   path,
                                                   S_IFREG,
                                                   SYNC_STATUS_SYNCED);
+        }
+        if (added && options && options->changeset) {
+            /* ce may be updated. */
+            ce = index_name_exists (istate, path, strlen(path), 0);
+            add_to_changeset (options->changeset,
+                              DIFF_STATUS_ADDED,
+                              ce->sha1,
+                              st,
+                              modifier,
+                              path,
+                              NULL,
+                              TRUE);
         }
     } else
         g_queue_push_tail (*remain_files, g_strdup(path));
@@ -1227,9 +1252,20 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     }
 
     if (n == 0 && path[0] != 0 && is_writable) {
-        if (!params->remain_files || *(params->remain_files) == NULL)
-            add_empty_dir_to_index (params->istate, path, st);
-        else
+        if (!params->remain_files || *(params->remain_files) == NULL) {
+            int rc = add_empty_dir_to_index (params->istate, path, st);
+            if (rc == 1 && options && options->changeset) {
+                unsigned char allzero[20] = {0};
+                add_to_changeset (options->changeset,
+                                  DIFF_STATUS_DIR_ADDED,
+                                  allzero,
+                                  st,
+                                  NULL,
+                                  path,
+                                  NULL,
+                                  TRUE);
+            }
+        } else
             g_queue_push_tail (*(params->remain_files), g_strdup(path));
     }
 
@@ -1464,9 +1500,20 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     }
 
     if (data.n == 0 && path[0] != 0 && !params->ignore_empty_dir && is_writable) {
-        if (!params->remain_files || *(params->remain_files) == NULL)
-            add_empty_dir_to_index (params->istate, path, st);
-        else
+        if (!params->remain_files || *(params->remain_files) == NULL) {
+            int rc = add_empty_dir_to_index (params->istate, path, st);
+            if (rc == 1 && options && options->changeset) {
+                unsigned char allzero[20] = {0};
+                add_to_changeset (options->changeset,
+                                  DIFF_STATUS_DIR_ADDED,
+                                  allzero,
+                                  st,
+                                  NULL,
+                                  path,
+                                  NULL,
+                                  TRUE);
+            }
+        } else
             g_queue_push_tail (*(params->remain_files), g_strdup(path));
     }
 
@@ -1620,7 +1667,8 @@ check_locked_file_before_remove (LockedFileSet *fset, const char *path)
 static void
 remove_deleted (struct index_state *istate, const char *worktree, const char *prefix,
                 GList *ignore_list, LockedFileSet *fset,
-                const char *repo_id, gboolean is_repo_ro)
+                const char *repo_id, gboolean is_repo_ro,
+                ChangeSet *changeset)
 {
     struct cache_entry **ce_array = istate->cache;
     struct cache_entry *ce;
@@ -1650,10 +1698,24 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
             not_exist = TRUE;
 
         if (S_ISDIR (ce->ce_mode)) {
-            if ((not_exist || (ret == 0 && !S_ISDIR (st.st_mode))
-                 || !is_empty_dir (path, ignore_list)) &&
-                (ce->ce_ctime.sec != 0 || ce_stage(ce) != 0))
-                ce->ce_flags |= CE_REMOVE;
+            if (ce->ce_ctime.sec != 0 || ce_stage(ce) != 0) {
+                if (not_exist || (ret == 0 && !S_ISDIR (st.st_mode))) {
+                    /* Add to changeset only if dir is removed. */
+                    ce->ce_flags |= CE_REMOVE;
+                    if (changeset)
+                        add_to_changeset (changeset,
+                                          DIFF_STATUS_DIR_DELETED,
+                                          NULL,
+                                          NULL,
+                                          NULL,
+                                          ce->name,
+                                          NULL,
+                                          TRUE);
+                } else if (!is_empty_dir (path, ignore_list)) {
+                    /* Don't add to changeset if empty dir became non-empty. */
+                    ce->ce_flags |= CE_REMOVE;
+                }
+            }
         } else {
             /* If ce->ctime is 0 and stage is 0, it was not successfully checked out.
              * In this case we don't want to mistakenly remove the file
@@ -1662,7 +1724,18 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
             if ((not_exist || (ret == 0 && !S_ISREG (st.st_mode))) &&
                 (ce->ce_ctime.sec != 0 || ce_stage(ce) != 0) &&
                 check_locked_file_before_remove (fset, ce->name))
+            {
                 ce_array[i]->ce_flags |= CE_REMOVE;
+                if (changeset)
+                    add_to_changeset (changeset,
+                                      DIFF_STATUS_DELETED,
+                                      NULL,
+                                      NULL,
+                                      NULL,
+                                      ce->name,
+                                      NULL,
+                                      TRUE);
+            }
         }
     }
 
@@ -1677,12 +1750,13 @@ scan_worktree_for_changes (struct index_state *istate, SeafRepo *repo,
                            LockedFileSet *fset)
 {
     remove_deleted (istate, repo->worktree, "", ignore_list, fset,
-                    repo->id, repo->is_readonly);
+                    repo->id, repo->is_readonly, repo->changeset);
 
     AddOptions options;
     memset (&options, 0, sizeof(options));
     options.fset = fset;
     options.is_repo_ro = repo->is_readonly;
+    options.changeset = repo->changeset;
 
     if (add_recursive (repo->id, repo->version, repo->email,
                        istate, repo->worktree, "", crypt, FALSE, ignore_list,
@@ -1737,12 +1811,13 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
      */
     if (path[0] == 0) {
         remove_deleted (istate, repo->worktree, "", ignore_list, fset,
-                        repo->id, repo->is_readonly);
+                        repo->id, repo->is_readonly, repo->changeset);
 
         memset (&options, 0, sizeof(options));
         options.fset = fset;
         options.is_repo_ro = repo->is_readonly;
         options.startup_scan = TRUE;
+        options.changeset = repo->changeset;
 
         add_recursive (repo->id, repo->version, repo->email, istate,
                        repo->worktree, path,
@@ -1792,6 +1867,7 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
     memset (&options, 0, sizeof(options));
     options.fset = fset;
     options.is_repo_ro = repo->is_readonly;
+    options.changeset = repo->changeset;
 
     /* Add is always recursive */
     add_recursive (repo->id, repo->version, repo->email, istate, repo->worktree, path,
@@ -1845,7 +1921,7 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
         return 0;
 
     remove_deleted (istate, repo->worktree, path, ignore_list, NULL,
-                    repo->id, repo->is_readonly);
+                    repo->id, repo->is_readonly, repo->changeset);
 
     *scanned_dirs = g_list_prepend (*scanned_dirs, g_strdup(path));
 
@@ -1853,6 +1929,7 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
     memset (&options, 0, sizeof(options));
     options.fset = fset;
     options.is_repo_ro = repo->is_readonly;
+    options.changeset = repo->changeset;
     /* When something is changed in the root directory, update active path
      * sync status when scanning the worktree. This is inaccurate. This will
      * be changed after we process fs events on Mac more precisely.
@@ -1877,6 +1954,7 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
     char *path;
     char *full_path;
     SeafStat st;
+    struct cache_entry *ce;
 
     while ((path = g_queue_pop_head (remain_files)) != NULL) {
         full_path = g_build_filename (repo->worktree, path, NULL);
@@ -1905,9 +1983,33 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       S_IFREG,
                                                       SYNC_STATUS_SYNCED);
             }
+
+            if (added) {
+                ce = index_name_exists (istate, path, strlen(path), 0);
+                add_to_changeset (repo->changeset,
+                                  DIFF_STATUS_ADDED,
+                                  ce->sha1,
+                                  &st,
+                                  repo->email,
+                                  path,
+                                  NULL,
+                                  TRUE);
+            }
         } else if (S_ISDIR(st.st_mode)) {
-            if (is_empty_dir (full_path, ignore_list))
-                add_empty_dir_to_index (istate, path, &st);
+            if (is_empty_dir (full_path, ignore_list)) {
+                int rc = add_empty_dir_to_index (istate, path, &st);
+                if (rc == 1) {
+                    unsigned char allzero[20] = {0};
+                    add_to_changeset (repo->changeset,
+                                      DIFF_STATUS_DIR_ADDED,
+                                      allzero,
+                                      &st,
+                                      NULL,
+                                      path,
+                                      NULL,
+                                      TRUE);
+                }
+            }
         }
         g_free (path);
         g_free (full_path);
@@ -2024,7 +2126,6 @@ update_ce_mode (struct index_state *istate, const char *worktree, const char *pa
     unsigned int new_mode = create_ce_mode (st.st_mode);
     if (new_mode != ce->ce_mode)
         ce->ce_mode = new_mode;
-    istate->cache_changed = 1;
 }
 
 #ifdef WIN32
@@ -2036,13 +2137,15 @@ scan_subtree_for_deletion (const char *repo_id,
                            GList *ignore_list,
                            LockedFileSet *fset,
                            gboolean is_readonly,
-                           GList **scanned_dirs)
+                           GList **scanned_dirs,
+                           ChangeSet *changeset)
 {
     wchar_t *path_w;
     wchar_t *dir_w = NULL;
     wchar_t *p;
     char *dir = NULL;
     char *p2;
+    gboolean convertion_failed = FALSE;
 
     /* In most file systems, like NTFS, 8.3 format path should contain ~.
      * Also note that *~ files are ignored.
@@ -2060,11 +2163,14 @@ scan_subtree_for_deletion (const char *repo_id,
         p = wcsrchr (path_w, L'\\');
         if (p)
             *p = L'\0';
+        else
+            break;
+
         dir_w = win32_83_path_to_long_path (worktree, path_w, wcslen(path_w));
         if (dir_w)
             break;
-        if (!p)
-            break;
+        else
+            convertion_failed = TRUE;
     }
 
     if (!dir_w)
@@ -2105,7 +2211,28 @@ scan_subtree_for_deletion (const char *repo_id,
     *scanned_dirs = g_list_prepend (*scanned_dirs, g_strdup(dir));
 
     remove_deleted (istate, worktree, dir, ignore_list, fset,
-                    repo_id, is_readonly);
+                    repo_id, is_readonly, changeset);
+
+    /* After remove_deleted(), empty dirs are left not removed in changeset.
+     * This can be fixed by removing the accurate deleted path. In most cases,
+     * basename doesn't contain ~, so we can always get the accurate path.
+     */
+    if (!convertion_failed) {
+        char *basename = strrchr (path, '/');
+        char *deleted_path = NULL;
+        if (basename) {
+            deleted_path = g_build_path ("/", dir, basename, NULL);
+            add_to_changeset (changeset,
+                              DIFF_STATUS_DELETED,
+                              NULL,
+                              NULL,
+                              NULL,
+                              deleted_path,
+                              NULL,
+                              FALSE);
+            g_free (deleted_path);
+        }
+    }
 
 out:
     g_free (path_w);
@@ -2121,7 +2248,8 @@ scan_subtree_for_deletion (const char *repo_id,
                            GList *ignore_list,
                            LockedFileSet *fset,
                            gboolean is_readonly,
-                           GList **scanned_dirs)
+                           GList **scanned_dirs,
+                           ChangeSet *changeset)
 {
 }
 #endif
@@ -2689,6 +2817,111 @@ update_path_sync_status (SeafRepo *repo, WTStatus *status,
     }
 }
 
+static void
+handle_rename (SeafRepo *repo, struct index_state *istate,
+               SeafileCrypt *crypt, GList *ignore_list,
+               LockedFileSet *fset,
+               WTEvent *event, GList **scanned_del_dirs)
+{
+    gboolean not_found, src_ignored, dst_ignored;
+
+    if (!is_path_writable(repo->id,
+                          repo->is_readonly, event->path) ||
+        !is_path_writable(repo->id,
+                          repo->is_readonly, event->new_path)) {
+        seaf_debug ("Rename: %s or %s is not writable, ignore.\n",
+                    event->path, event->new_path);
+        return;
+    }
+
+    if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                              repo->id, event->path) ||
+        seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                              repo->id, event->new_path)) {
+        seaf_debug ("Rename: %s or %s is locked on server, ignore.\n", event->path, event->new_path);
+        return;
+    }
+
+    src_ignored = check_full_path_ignore(repo->worktree, event->path, ignore_list);
+    dst_ignored = check_full_path_ignore(repo->worktree, event->new_path, ignore_list);
+
+    /* If the destination path is ignored, just remove the source path. */
+    if (dst_ignored) {
+        if (check_locked_file_before_remove (fset, event->path)) {
+            not_found = FALSE;
+            remove_from_index_with_prefix (istate, event->path, &not_found);
+            if (not_found)
+                scan_subtree_for_deletion (repo->id,
+                                           istate,
+                                           repo->worktree, event->path,
+                                           ignore_list, fset,
+                                           repo->is_readonly,
+                                           scanned_del_dirs,
+                                           repo->changeset);
+
+            add_to_changeset (repo->changeset,
+                              DIFF_STATUS_DELETED,
+                              NULL,
+                              NULL,
+                              NULL,
+                              event->path,
+                              NULL,
+                              FALSE);
+        }
+        return;
+    }
+
+    if (check_locked_file_before_remove (fset, event->path)) {
+        not_found = FALSE;
+        rename_index_entries (istate, event->path, event->new_path, &not_found,
+                              NULL, NULL);
+        if (not_found)
+            scan_subtree_for_deletion (repo->id,
+                                       istate,
+                                       repo->worktree, event->path,
+                                       ignore_list, fset,
+                                       repo->is_readonly,
+                                       scanned_del_dirs,
+                                       repo->changeset);
+
+        /* Moving files out of a dir may make it empty. */
+        try_add_empty_parent_dir_entry_from_wt (repo->worktree,
+                                                istate,
+                                                ignore_list,
+                                                event->path);
+    }
+
+    if (!dst_ignored && !src_ignored)
+        add_to_changeset (repo->changeset,
+                          DIFF_STATUS_RENAMED,
+                          NULL,
+                          NULL,
+                          NULL,
+                          event->path,
+                          event->new_path,
+                          TRUE);
+
+    AddOptions options;
+    memset (&options, 0, sizeof(options));
+    options.fset = fset;
+    options.is_repo_ro = repo->is_readonly;
+    options.changeset = repo->changeset;
+
+    /* We should always scan the destination to compare with the renamed
+     * index entries. For example, in the following case:
+     * 1. file a.txt is updated;
+     * 2. a.txt is moved to test/a.txt;
+     * If the two operations are executed in a batch, the updated content
+     * of a.txt won't be committed if we don't scan the destination, because
+     * when we process the update event, a.txt is already not in its original
+     * place.
+     */
+    add_recursive (repo->id, repo->version, repo->email,
+                   istate, repo->worktree, event->new_path,
+                   crypt, FALSE, ignore_list,
+                   NULL, NULL, &options);
+}
+
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list,
@@ -2788,7 +3021,17 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                                repo->worktree, event->path,
                                                ignore_list, fset,
                                                repo->is_readonly,
-                                               &scanned_del_dirs);
+                                               &scanned_del_dirs,
+                                               repo->changeset);
+
+                add_to_changeset (repo->changeset,
+                                  DIFF_STATUS_DELETED,
+                                  NULL,
+                                  NULL,
+                                  NULL,
+                                  event->path,
+                                  NULL,
+                                  TRUE);
 
                 try_add_empty_parent_dir_entry_from_wt (repo->worktree,
                                                         istate,
@@ -2797,77 +3040,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             }
             break;
         case WT_EVENT_RENAME:
-            if (!is_path_writable(repo->id,
-                                  repo->is_readonly, event->path) ||
-                !is_path_writable(repo->id,
-                                  repo->is_readonly, event->new_path)) {
-                seaf_debug ("Rename: %s or %s is not writable, ignore.\n",
-                            event->path, event->new_path);
-                break;
-            }
-
-            if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                                      repo->id, event->path) ||
-                seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                                      repo->id, event->new_path)) {
-                seaf_debug ("Rename: %s or %s is locked on server, ignore.\n", event->path, event->new_path);
-                break;
-            }
-
-            /* If the destination path is ignored, just remove the source path. */
-            if (check_full_path_ignore (repo->worktree, event->new_path,
-                                        ignore_list)) {
-                if (check_locked_file_before_remove (fset, event->path)) {
-                    not_found = FALSE;
-                    remove_from_index_with_prefix (istate, event->path, &not_found);
-                    if (not_found)
-                        scan_subtree_for_deletion (repo->id,
-                                                   istate,
-                                                   repo->worktree, event->path,
-                                                   ignore_list, fset,
-                                                   repo->is_readonly,
-                                                   &scanned_del_dirs);
-                }
-                break;
-            }
-
-            if (check_locked_file_before_remove (fset, event->path)) {
-                not_found = FALSE;
-                rename_index_entries (istate, event->path, event->new_path, &not_found,
-                                      NULL, NULL);
-                if (not_found)
-                    scan_subtree_for_deletion (repo->id,
-                                               istate,
-                                               repo->worktree, event->path,
-                                               ignore_list, fset,
-                                               repo->is_readonly,
-                                               &scanned_del_dirs);
-
-                /* Moving files out of a dir may make it empty. */
-                try_add_empty_parent_dir_entry_from_wt (repo->worktree,
-                                                        istate,
-                                                        ignore_list,
-                                                        event->path);
-            }
-
-            AddOptions options;
-            memset (&options, 0, sizeof(options));
-            options.fset = fset;
-            options.is_repo_ro = repo->is_readonly;
-
-            /* We should always scan the destination to compare with the renamed
-             * index entries. For example, in the following case:
-             * 1. file a.txt is updated;
-             * 2. a.txt is moved to test/a.txt;
-             * If the two operations are executed in a batch, the updated content
-             * of a.txt won't be committed if we don't scan the destination, because
-             * when we process the update event, a.txt is already not in its original
-             * place.
-             */
-            add_recursive (repo->id, repo->version, repo->email,
-                           istate, repo->worktree, event->new_path,
-                           crypt, FALSE, ignore_list,
-                           NULL, NULL, &options);
+            handle_rename (repo, istate, crypt, ignore_list, fset, event, &scanned_del_dirs);
             break;
         case WT_EVENT_ATTRIB:
             if (!is_path_writable(repo->id,
@@ -3072,7 +3245,7 @@ seaf_repo_index_worktree_files (const char *repo_id,
                        NULL, NULL, NULL) < 0)
         goto error;
 
-    remove_deleted (&istate, worktree, "", ignore_list, NULL, repo_id, FALSE);
+    remove_deleted (&istate, worktree, "", ignore_list, NULL, repo_id, FALSE, NULL);
 
     it = cache_tree ();
     if (cache_tree_update (repo_id, repo_version, worktree,
@@ -3252,14 +3425,11 @@ seaf_repo_is_index_unmerged (SeafRepo *repo)
 }
 
 static int
-commit_tree (SeafRepo *repo, struct cache_tree *it,
+commit_tree (SeafRepo *repo, const char *root_id,
              const char *desc, char commit_id[],
              gboolean unmerged)
 {
     SeafCommit *commit;
-    char root_id[41];
-
-    rawdata_to_hex (it->sha1, root_id, 20);
 
     commit = seaf_commit_new (NULL, repo->id, root_id,
                               repo->email ? repo->email
@@ -3337,16 +3507,26 @@ print_index (struct index_state *istate)
     return 0;
 }
 
+static inline void
+print_time (const char *desc, GTimeVal *s, GTimeVal *e)
+{
+    seaf_message ("%s: %lu\n", desc,
+                  (e->tv_sec*G_USEC_PER_SEC+e->tv_usec - (s->tv_sec*G_USEC_PER_SEC+s->tv_usec))/1000);
+}
+
 char *
 seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_force_commit,
                         GError **error)
 {
     SeafRepoManager *mgr = repo->manager;
     struct index_state istate;
-    struct cache_tree *it;
     char index_path[SEAF_PATH_MAX];
+    char *root_id = NULL;
     char commit_id[41];
     gboolean unmerged = FALSE;
+    ChangeSet *changeset = NULL;
+    char *my_desc = NULL;
+    char *ret = NULL;
 
     if (!check_worktree_common (repo))
         return NULL;
@@ -3362,62 +3542,63 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_force_comm
     if (need_handle_unmerged_index (repo, &istate))
         unmerged = TRUE;
 
+    GTimeVal s, e;
+
+    g_get_current_time (&s);
+
+    changeset = changeset_new (repo->id);
+    repo->changeset = changeset;
+
     if (index_add (repo, &istate, is_force_commit, unmerged) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Failed to add");
-        goto error;
+        goto out;
     }
 
-    /* Commit before updating the index, so that new blocks won't be GC'ed. */
+    g_get_current_time (&e);
+    print_time ("index_add", &s, &e);
 
-    char *my_desc = g_strdup(desc);
-    if (my_desc[0] == '\0') {
-        char *gen_desc = gen_commit_description (repo, &istate);
-        if (!gen_desc) {
-            /* error not set. */
-            g_free (my_desc);
+    if (!istate.cache_changed)
+        goto out;
 
-            /* Still need to update index even nothing to commit. */
-            update_index (&istate, index_path);
-            discard_index (&istate);
+    g_get_current_time (&s);
 
-            return NULL;
-        }
-        g_free (my_desc);
-        my_desc = gen_desc;
+    my_desc = diff_results_to_description (changeset->diff);
+    if (!my_desc)
+        my_desc = g_strdup("");
+
+    g_get_current_time (&e);
+    print_time ("gen_commit_description", &s, &e);
+
+    g_get_current_time (&s);
+
+    root_id = commit_tree_from_changeset (changeset);
+    if (!root_id) {
+        seaf_warning ("Create commit tree failed for repo %s\n", repo->id);
+        goto out;
     }
 
-    it = cache_tree ();
-    if (cache_tree_update (repo->id, repo->version,
-                           repo->worktree,
-                           it, istate.cache,
-                           istate.cache_nr, 0, 0, commit_trees_cb) < 0) {
-        seaf_warning ("Failed to build cache tree");
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal data structure error");
-        cache_tree_free (&it);
-        goto error;
-    }
+    g_get_current_time (&e);
+    print_time ("cache_tree_update", &s, &e);
 
-    if (commit_tree (repo, it, my_desc, commit_id, unmerged) < 0) {
+    if (commit_tree (repo, root_id, my_desc, commit_id, unmerged) < 0) {
         seaf_warning ("Failed to save commit file");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal error");
-        cache_tree_free (&it);
-        goto error;
+        goto out;
     }
-    g_free (my_desc);
-    cache_tree_free (&it);
 
     if (update_index (&istate, index_path) < 0)
-        goto error;
-
-    discard_index (&istate);
+        goto out;
 
     g_signal_emit_by_name (seaf, "repo-committed", repo);
 
-    return g_strdup(commit_id);
+    ret = g_strdup(commit_id);
 
-error:
+out:
+    g_free (my_desc);
+    g_free (root_id);
+    changeset_free (changeset);
     discard_index (&istate);
-    return NULL;
+    return ret;
 }
 
 #ifdef DEBUG_UNPACK_TREES

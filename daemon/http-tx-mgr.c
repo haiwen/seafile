@@ -1811,7 +1811,6 @@ get_locked_files_thread (void *vdata)
     }
 
     if (status == HTTP_OK) {
-        seaf_message ("%s\n", rsp_content);
         if (parse_locked_files (rsp_content, rsp_size, data) < 0)
             goto out;
         data->success = TRUE;
