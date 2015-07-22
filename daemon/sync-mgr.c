@@ -2527,6 +2527,8 @@ check_folder_permissions_one_server (SeafSyncManager *mgr,
         req->timestamp = timestamp;
 
         requests = g_list_append (requests, req);
+
+        g_free (token);
     }
 
     if (!requests)
@@ -2649,6 +2651,8 @@ check_locked_files_one_server (SeafSyncManager *mgr,
         req->timestamp = timestamp;
 
         requests = g_list_append (requests, req);
+
+        g_free (token);
     }
 
     if (!requests)

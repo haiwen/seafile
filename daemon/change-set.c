@@ -348,6 +348,7 @@ add_to_tree (const char *repo_id,
                                                            root->version,
                                                            dent->id);
                     dent->subdir = seaf_dir_to_changeset_dir (seaf_dir);
+                    seaf_dir_free (seaf_dir);
                 }
                 dir = dent->subdir;
             } else if (S_ISREG(dent->mode)) {
@@ -422,6 +423,7 @@ delete_from_tree (const char *repo_id,
                                                        root->version,
                                                        dent->id);
                 dent->subdir = seaf_dir_to_changeset_dir (seaf_dir);
+                seaf_dir_free (seaf_dir);
             }
             dir = dent->subdir;
         } else if (S_ISREG(dent->mode)) {

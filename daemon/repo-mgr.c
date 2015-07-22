@@ -495,6 +495,8 @@ init_folder_perms (SeafRepoManager *mgr)
             pthread_mutex_unlock (&priv->perm_lock);
         }
     }
+
+    g_list_free (repo_ids);
 }
 
 int
@@ -2126,6 +2128,7 @@ update_ce_mode (struct index_state *istate, const char *worktree, const char *pa
     unsigned int new_mode = create_ce_mode (st.st_mode);
     if (new_mode != ce->ce_mode)
         ce->ce_mode = new_mode;
+    g_free (full_path);
 }
 
 #ifdef WIN32
@@ -2698,6 +2701,8 @@ update_active_path_recursive (SeafRepo *repo,
 
     g_dir_close (dir);
 
+    g_free (full_path);
+
     /* Don't set sync status for read-only paths, since changes to read-only
      * files are ignored.
      */
@@ -2814,6 +2819,8 @@ update_path_sync_status (SeafRepo *repo, WTStatus *status,
 #else
         process_active_path (repo, path, istate, ignore_list);
 #endif
+
+        g_free (path);
     }
 }
 
