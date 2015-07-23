@@ -2854,7 +2854,7 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
 
     /* If the destination path is ignored, just remove the source path. */
     if (dst_ignored) {
-        if (check_locked_file_before_remove (fset, event->path)) {
+        if (!src_ignored && check_locked_file_before_remove (fset, event->path)) {
             not_found = FALSE;
             remove_from_index_with_prefix (istate, event->path, &not_found);
             if (not_found)
@@ -2878,7 +2878,9 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
         return;
     }
 
-    if (check_locked_file_before_remove (fset, event->path)) {
+    /* Now the destination path is not ignored. */
+
+    if (!src_ignored && check_locked_file_before_remove (fset, event->path)) {
         not_found = FALSE;
         rename_index_entries (istate, event->path, event->new_path, &not_found,
                               NULL, NULL);
@@ -2896,9 +2898,7 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
                                                 istate,
                                                 ignore_list,
                                                 event->path);
-    }
 
-    if (!dst_ignored && !src_ignored)
         add_to_changeset (repo->changeset,
                           DIFF_STATUS_RENAMED,
                           NULL,
@@ -2907,6 +2907,7 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
                           event->path,
                           event->new_path,
                           TRUE);
+    }
 
     AddOptions options;
     memset (&options, 0, sizeof(options));
@@ -3007,6 +3008,9 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
 
             break;
         case WT_EVENT_DELETE:
+            if (check_full_path_ignore(repo->worktree, event->path, ignore_list))
+                break;
+
             if (!is_path_writable(repo->id,
                                   repo->is_readonly, event->path)) {
                 seaf_debug ("%s is not writable, ignore.\n", event->path);
