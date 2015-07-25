@@ -606,6 +606,90 @@ create_cdc_for_empty_file (CDCFileDescriptor *cdc)
     memset (cdc, 0, sizeof(CDCFileDescriptor));
 }
 
+static int
+split_file_to_block (const char *repo_id,
+                     int version,
+                     const char *file_path,
+                     gint64 file_size,
+                     SeafileCrypt *crypt,
+                     CDCFileDescriptor *cdc,
+                     gboolean write_data)
+{
+    int fd;
+    int n_blocks;
+    uint8_t *block_sha1s = NULL;
+    CDCDescriptor chunk;
+    int ret = 0;
+
+    memset (&chunk, 0, sizeof(CDCDescriptor));
+
+    fd = seaf_util_open (file_path, O_RDONLY | O_BINARY);
+    if (fd < 0) {
+        seaf_warning ("Failed to open file %s: %s.\n",
+                      file_path, strerror(errno));
+        return -1;
+    }
+
+    n_blocks = (file_size + BLOCK_SZ - 1) / BLOCK_SZ;
+    block_sha1s = g_new0 (uint8_t, n_blocks * CHECKSUM_LENGTH);
+    if (!block_sha1s) {
+        seaf_warning ("Out of memory when split file to block.\n");
+        ret = -1;
+        goto err;
+    }
+
+    int blk_size = file_size > BLOCK_SZ ? BLOCK_SZ : file_size;
+    chunk.block_buf = g_new0 (char, blk_size);
+    if (!chunk.block_buf) {
+        seaf_warning ("Out of memory when split file to block.\n");
+        ret = -1;
+        goto err;
+    }
+
+    int i = 0;
+    ssize_t rsize;
+    uint8_t *ptr = block_sha1s;
+    SHA_CTX file_ctx;
+    SHA1_Init (&file_ctx);
+
+    for (; i < n_blocks; i++) {
+        rsize = readn (fd, chunk.block_buf, blk_size);
+        if (rsize == -1) {
+            seaf_warning ("Failed to read file %s content: %s.\n",
+                          file_path, strerror(errno));
+            ret = -1;
+            goto err;
+        }
+
+        chunk.len = rsize;
+        ret = seafile_write_chunk (repo_id, version, &chunk, crypt,
+                                   ptr, write_data);
+        if (ret < 0) {
+            goto err;
+        }
+
+        SHA1_Update (&file_ctx, ptr, CHECKSUM_LENGTH);
+        ptr += CHECKSUM_LENGTH;
+    }
+
+    cdc->block_nr = n_blocks;
+    cdc->blk_sha1s =  block_sha1s;
+    SHA1_Final (cdc->file_sum, &file_ctx);
+    g_free (chunk.block_buf);
+    close (fd);
+
+    return ret;
+
+err:
+    if (chunk.block_buf)
+        g_free (chunk.block_buf);
+    if (block_sha1s)
+        g_free (block_sha1s);
+    close (fd);
+
+    return ret;
+}
+
 int
 seaf_fs_manager_index_blocks (SeafFSManager *mgr,
                               const char *repo_id,
@@ -614,7 +698,8 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
                               unsigned char sha1[],
                               gint64 *size,
                               SeafileCrypt *crypt,
-                              gboolean write_data)
+                              gboolean write_data,
+                              gboolean use_cdc)
 {
     SeafStat sb;
     CDCFileDescriptor cdc;
@@ -632,18 +717,30 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
         create_cdc_for_empty_file (&cdc);
     } else {
         memset (&cdc, 0, sizeof(cdc));
-        cdc.block_sz = calculate_chunk_size (sb.st_size);
-        cdc.block_min_sz = cdc.block_sz >> 2;
-        cdc.block_max_sz = cdc.block_sz << 2;
-        cdc.write_block = seafile_write_chunk;
-        memcpy (cdc.repo_id, repo_id, 36);
-        cdc.version = version;
-        if (filename_chunk_cdc (file_path, &cdc, crypt, write_data) < 0) {
-            seaf_warning ("Failed to chunk file with CDC.\n");
-            return -1;
+
+        if (use_cdc) {
+            cdc.block_sz = calculate_chunk_size (sb.st_size);
+            cdc.block_min_sz = cdc.block_sz >> 2;
+            cdc.block_max_sz = cdc.block_sz << 2;
+            cdc.write_block = seafile_write_chunk;
+            memcpy (cdc.repo_id, repo_id, 36);
+            cdc.version = version;
+            if (filename_chunk_cdc (file_path, &cdc, crypt, write_data) < 0) {
+                seaf_warning ("Failed to chunk file with CDC.\n");
+                return -1;
+            }
+        } else {
+            memcpy (cdc.repo_id, repo_id, 36);
+            cdc.version = version;
+            cdc.file_size = sb.st_size;
+            if (split_file_to_block (repo_id, version, file_path, sb.st_size,
+                                     crypt, &cdc, write_data) < 0) {
+                return -1;
+            }
         }
 
         if (write_data && write_seafile (mgr, repo_id, version, &cdc, sha1) < 0) {
+            g_free (cdc.blk_sha1s);
             seaf_warning ("Failed to write seafile for %s.\n", file_path);
             return -1;
         }
