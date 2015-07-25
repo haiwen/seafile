@@ -91,5 +91,7 @@
   <?define ShellGuidIconSyncing="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE608" ?>
   <?define   ShellGuidIconError="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE609" ?>
   <?define  ShellGuidIconPaused="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE610" ?>
+  <?define     ShellGuidIconLockedByMe="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE611" ?>
+  <?define ShellGuidIconLockedByOthers="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE612" ?>
 
 </Include>
