@@ -1974,6 +1974,8 @@ auto_delete_repo (SeafSyncManager *manager, SeafRepo *repo)
 
     seaf_message ("Auto deleted repo '%s'.\n", repo->name);
 
+    seaf_sync_manager_cancel_sync_task (seaf->sync_mgr, repo->id);
+
     if (info != NULL && info->in_sync) {
         seaf_repo_manager_mark_repo_deleted (seaf->repo_mgr, repo);
     } else {

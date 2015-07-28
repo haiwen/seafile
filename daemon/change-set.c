@@ -199,6 +199,8 @@ changeset_dir_to_seaf_dir (ChangeSetDir *dir)
 
 /* Change set. */
 
+#define CASE_CONFLICT_PATTERN " \\(case conflict \\d+\\)"
+
 ChangeSet *
 changeset_new (const char *repo_id)
 {
@@ -238,9 +240,19 @@ changeset_new (const char *repo_id)
     if (!changeset_dir)
         goto out;
 
+    GError *error = NULL;
+    GRegex *case_conflict_pattern = g_regex_new(CASE_CONFLICT_PATTERN,
+                                                0, 0, &error);
+    if (error) {
+        seaf_warning ("Failed to create regex '%s': %s\n",
+                      CASE_CONFLICT_PATTERN, error->message);
+        goto out;
+    }
+
     changeset = g_new0 (ChangeSet, 1);
     memcpy (changeset->repo_id, repo_id, 36);
     changeset->tree_root = changeset_dir;
+    changeset->case_conflict_pattern = case_conflict_pattern;
 
 out:
     seaf_commit_unref (commit);
@@ -313,14 +325,43 @@ create_intermediate_dir (ChangeSetDir *parent, const char *dname)
 }
 
 static void
-add_to_tree (const char *repo_id,
-             ChangeSetDir *root,
+handle_case_conflict (ChangeSet *changeset,
+                      ChangeSetDir *dir,
+                      const char *dname)
+{
+    char *conflict_dname;
+    ChangeSetDirent *dent;
+    GError *error = NULL;
+
+    if (g_regex_match (changeset->case_conflict_pattern,
+                       dname, 0, NULL)) {
+        conflict_dname = g_regex_replace_literal (changeset->case_conflict_pattern,
+                                                  dname, -1, 0, "", 0, &error);
+        if (!conflict_dname) {
+            seaf_warning ("Failed to replace regex for %s: %s\n",
+                          dname, error->message);
+            return;
+        }
+
+        dent = g_hash_table_lookup (dir->dents, conflict_dname);
+        if (dent) {
+            remove_dent_from_dir (dir, conflict_dname);
+            changeset_dirent_free (dent);
+        }
+        g_free (conflict_dname);
+    }
+}
+
+static void
+add_to_tree (ChangeSet *changeset,
              unsigned char *sha1,
              SeafStat *st,
              const char *modifier,
              const char *path,
              ChangeSetDirent *new_dent)
 {
+    char *repo_id = changeset->repo_id;
+    ChangeSetDir *root = changeset->tree_root;
     char **parts, *dname;
     int n, i;
     ChangeSetDir *dir;
@@ -374,6 +415,8 @@ add_to_tree (const char *repo_id,
 
                     goto try_again;
                 }
+
+                handle_case_conflict (changeset, dir, dname);
             }
 #endif
 
@@ -389,10 +432,11 @@ add_to_tree (const char *repo_id,
 }
 
 static ChangeSetDirent *
-delete_from_tree (const char *repo_id,
-                  ChangeSetDir *root,
+delete_from_tree (ChangeSet *changeset,
                   const char *path)
 {
+    char *repo_id = changeset->repo_id;
+    ChangeSetDir *root = changeset->tree_root;
     char **parts, *dname;
     int n, i;
     ChangeSetDir *dir;
@@ -441,8 +485,7 @@ delete_from_tree (const char *repo_id,
 }
 
 static void
-apply_to_tree (const char *repo_id,
-               ChangeSetDir *root,
+apply_to_tree (ChangeSet *changeset,
                char status,
                unsigned char *sha1,
                SeafStat *st,
@@ -450,27 +493,29 @@ apply_to_tree (const char *repo_id,
                const char *path,
                const char *new_path)
 {
+    char *repo_id = changeset->repo_id;
+    ChangeSetDir *root = changeset->tree_root;
     ChangeSetDirent *dent, *dent_dst;
 
     switch (status) {
     case DIFF_STATUS_ADDED:
     case DIFF_STATUS_MODIFIED:
     case DIFF_STATUS_DIR_ADDED:
-        add_to_tree (repo_id, root, sha1, st, modifier, path, NULL);
+        add_to_tree (changeset, sha1, st, modifier, path, NULL);
         break;
     case DIFF_STATUS_DELETED:
     case DIFF_STATUS_DIR_DELETED:
-        dent = delete_from_tree (repo_id, root, path);
+        dent = delete_from_tree (changeset, path);
         changeset_dirent_free (dent);
         break;
     case DIFF_STATUS_RENAMED:
-        dent = delete_from_tree (repo_id, root, path);
+        dent = delete_from_tree (changeset, path);
         if (!dent)
             break;
 
-        dent_dst = delete_from_tree (repo_id, root, new_path);
+        dent_dst = delete_from_tree (changeset, new_path);
         changeset_dirent_free (dent_dst);
-        add_to_tree (repo_id, root, NULL, NULL, NULL, new_path, dent);
+        add_to_tree (changeset, NULL, NULL, NULL, new_path, dent);
 
         break;
     }
@@ -494,7 +539,7 @@ add_to_changeset (ChangeSet *changeset,
         changeset->diff = g_list_prepend (changeset->diff, de);
     }
 
-    apply_to_tree (changeset->repo_id, changeset->tree_root,
+    apply_to_tree (changeset,
                    status, sha1, st, modifier, path, new_path);
 }
 

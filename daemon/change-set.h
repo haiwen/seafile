@@ -14,6 +14,8 @@ struct _ChangeSet {
     GList *diff;
     /* A partial tree for all changed directories. */
     struct _ChangeSetDir *tree_root;
+    /* Used to match case conflict paths. */
+    GRegex *case_conflict_pattern;
 };
 typedef struct _ChangeSet ChangeSet;
 

@@ -1,6 +1,8 @@
 #ifndef HTTP_TX_MGR_H
 #define HTTP_TX_MGR_H
 
+#include <pthread.h>
+
 enum {
     HTTP_TASK_TYPE_DOWNLOAD = 0,
     HTTP_TASK_TYPE_UPLOAD,
@@ -81,6 +83,16 @@ struct _HttpTxTask {
     int state;
     int runtime_state;
     int error;
+    /* Used to signify stop transfer for all threads. */
+    gboolean all_stop;
+
+    /* When downloading with multi-thread, a block may be shared by
+     * multiple files. We can't remove a block before all *fetched* files with
+     * this block have been checked out.
+     * block_id -> ref_count.
+     */
+    GHashTable *blk_ref_cnts;
+    pthread_mutex_t ref_cnt_lock;
 
     /* For upload progress */
     int n_blocks;

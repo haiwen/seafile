@@ -125,6 +125,8 @@ http_tx_task_free (HttpTxTask *task)
     g_free (task->passwd);
     g_free (task->worktree);
     g_free (task->email);
+    if (task->type == HTTP_TASK_TYPE_DOWNLOAD)
+        g_hash_table_destroy (task->blk_ref_cnts);
     g_free (task);
 }
 
@@ -2718,7 +2720,7 @@ send_block_callback (void *ptr, size_t size, size_t nmemb, void *userp)
     HttpTxTask *task = data->task;
     int n;
 
-    if (task->state == HTTP_TASK_STATE_CANCELED)
+    if (task->state == HTTP_TASK_STATE_CANCELED || task->all_stop)
         return CURL_READFUNC_ABORT;
 
     n = seaf_block_manager_read_block (seaf->block_mgr,
@@ -2827,6 +2829,119 @@ out:
     g_free (bmd);
     seaf_block_manager_close_block (seaf->block_mgr, block);
     seaf_block_manager_block_handle_free (seaf->block_mgr, block);
+
+    return ret;
+}
+
+typedef struct BlockUploadData {
+    HttpTxTask *http_task;
+    ConnectionPool *cpool;
+    GAsyncQueue *finished_tasks;
+} BlockUploadData;
+
+typedef struct BlockUploadTask {
+    char block_id[41];
+    int result;
+} BlockUploadTask;
+
+static void
+block_upload_task_free (BlockUploadTask *task)
+{
+    g_free (task);
+}
+
+static void
+upload_block_thread_func (gpointer data, gpointer user_data)
+{
+    BlockUploadTask *task = data;
+    BlockUploadData *tx_data = user_data;
+    HttpTxTask *http_task = tx_data->http_task;
+    Connection *conn;
+    int ret = 0;
+
+    conn = connection_pool_get_connection (tx_data->cpool);
+    if (!conn) {
+        seaf_warning ("Failed to get connection to host %s.\n", http_task->host);
+        http_task->error = HTTP_TASK_ERR_NOT_ENOUGH_MEMORY;
+        ret = -1;
+        goto out;
+    }
+
+    ret = send_block (http_task, conn, task->block_id);
+
+    connection_pool_return_connection (tx_data->cpool, conn);
+
+out:
+    task->result = ret;
+    g_async_queue_push (tx_data->finished_tasks, task);
+}
+
+#define DEFAULT_UPLOAD_BLOCK_THREADS 10
+
+static int
+multi_threaded_send_blocks (HttpTxTask *http_task, GList *block_list)
+{
+    HttpTxPriv *priv = seaf->http_tx_mgr->priv;
+    GThreadPool *tpool;
+    GAsyncQueue *finished_tasks;
+    GHashTable *pending_tasks;
+    ConnectionPool *cpool;
+    GList *ptr;
+    char *block_id;
+    BlockUploadTask *task;
+    int ret = 0;
+
+    if (block_list == NULL)
+        return 0;
+
+    cpool = find_connection_pool (priv, http_task->host);
+    if (!cpool) {
+        seaf_warning ("Failed to create connection pool for host %s.\n", http_task->host);
+        http_task->error = HTTP_TASK_ERR_NOT_ENOUGH_MEMORY;
+        return -1;
+    }
+
+    finished_tasks = g_async_queue_new ();
+
+    BlockUploadData data;
+    data.http_task = http_task;
+    data.finished_tasks = finished_tasks;
+    data.cpool = cpool;
+
+    tpool = g_thread_pool_new (upload_block_thread_func, &data,
+                               DEFAULT_UPLOAD_BLOCK_THREADS, FALSE, NULL);
+
+    pending_tasks = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                           g_free,
+                                           (GDestroyNotify)block_upload_task_free);
+
+    for (ptr = block_list; ptr; ptr = ptr->next) {
+        block_id = ptr->data;
+
+        task = g_new0 (BlockUploadTask, 1);
+        memcpy (task->block_id, block_id, 40);
+
+        g_hash_table_insert (pending_tasks, g_strdup(block_id), task);
+        g_thread_pool_push (tpool, task, NULL);
+    }
+
+    while ((task = g_async_queue_pop (finished_tasks)) != NULL) {
+        if (task->result < 0 || http_task->state == HTTP_TASK_STATE_CANCELED) {
+            ret = task->result;
+            http_task->all_stop = TRUE;
+            break;
+        }
+
+        g_hash_table_remove (pending_tasks, task->block_id);
+        if (g_hash_table_size(pending_tasks) == 0)
+            break;
+    }
+
+    g_thread_pool_free (tpool, TRUE, TRUE);
+
+    g_hash_table_destroy (pending_tasks);
+
+    g_async_queue_unref (finished_tasks);
 
     return ret;
 }
@@ -3069,21 +3184,9 @@ http_upload_thread (void *vdata)
     seaf_debug ("%d blocks to send for %s:%s.\n",
                 task->n_blocks, task->host, task->repo_id);
 
-    char *block_id;
-    for (ptr = needed_block_list; ptr; ptr = ptr->next) {
-        block_id = ptr->data;
-
-        if (send_block (task, conn, block_id) < 0) {
-            seaf_warning ("Failed to send block %s for repo %.8s.\n",
-                          block_id, task->repo_id);
-            goto out;
-        }
-
-        if (task->state == HTTP_TASK_STATE_CANCELED)
-            goto out;
-
-        ++(task->done_blocks);
-    }
+    if (multi_threaded_send_blocks(task, needed_block_list) < 0 ||
+        task->state == HTTP_TASK_STATE_CANCELED)
+        goto out;
 
     transition_state (task, task->state, HTTP_TASK_RT_STATE_UPDATE_BRANCH);
 
@@ -3178,6 +3281,10 @@ http_tx_manager_add_download (HttpTxManager *manager,
     task->state = TASK_STATE_NORMAL;
 
     task->use_fileserver_port = use_fileserver_port;
+
+    task->blk_ref_cnts = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                g_free, g_free);
+    pthread_mutex_init (&task->ref_cnt_lock, NULL);
 
     g_hash_table_insert (manager->priv->download_tasks,
                          g_strdup(repo_id),
@@ -3513,7 +3620,7 @@ get_block_callback (void *ptr, size_t size, size_t nmemb, void *userp)
     HttpTxTask *task = data->task;
     size_t n;
 
-    if (task->state == HTTP_TASK_STATE_CANCELED)
+    if (task->state == HTTP_TASK_STATE_CANCELED || task->all_stop)
         return 0;
 
     n = seaf_block_manager_write_block (seaf->block_mgr,
@@ -3558,6 +3665,7 @@ get_block (HttpTxTask *task, Connection *conn, const char *block_id)
     int status;
     BlockHandle *block;
     int ret = 0;
+    int *pcnt;
 
     block = seaf_block_manager_open_block (seaf->block_mgr,
                                            task->repo_id, task->repo_version,
@@ -3605,12 +3713,25 @@ get_block (HttpTxTask *task, Connection *conn, const char *block_id)
 
     seaf_block_manager_close_block (seaf->block_mgr, block);
 
+    pthread_mutex_lock (&task->ref_cnt_lock);
+
     if (seaf_block_manager_commit_block (seaf->block_mgr, block) < 0) {
         seaf_warning ("Failed to commit block %s in repo %.8s.\n",
                       block_id, task->repo_id);
         task->error = HTTP_TASK_ERR_WRITE_LOCAL_DATA;
         ret = -1;
     }
+
+    if (ret == 0) {
+        pcnt = g_hash_table_lookup (task->blk_ref_cnts, block_id);
+        if (!pcnt) {
+            pcnt = g_new0(int, 1);
+            g_hash_table_insert (task->blk_ref_cnts, g_strdup(block_id), pcnt);
+        }
+        *pcnt += 1;
+    }
+
+    pthread_mutex_unlock (&task->ref_cnt_lock);
 
     seaf_block_manager_block_handle_free (seaf->block_mgr, block);
 
@@ -3666,14 +3787,9 @@ http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id)
     char *block_id;
     for (i = 0; i < file->n_blocks; ++i) {
         block_id = file->blk_sha1s[i];
-        if (!seaf_block_manager_block_exists (seaf->block_mgr,
-                                              task->repo_id,
-                                              task->repo_version,
-                                              block_id)) {
-            ret = get_block (task, conn, block_id);
-            if (ret < 0 || task->state == HTTP_TASK_STATE_CANCELED)
-                break;
-        }
+        ret = get_block (task, conn, block_id);
+        if (ret < 0 || task->state == HTTP_TASK_STATE_CANCELED)
+            break;
     }
 
     connection_pool_return_connection (pool, conn);
