@@ -3150,7 +3150,6 @@ seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
     if (!info) {
         repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
         if (!repo) {
-            seaf_warning ("Failed to find repo %s\n", repo_id);
             pthread_mutex_unlock (&mgr->priv->paths_lock);
             return;
         }
