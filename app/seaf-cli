@@ -403,7 +403,7 @@ def seaf_download(args):
     clone_token = tmp['token']
     relay_id = tmp['relay_id']
     relay_addr = tmp['relay_addr']
-    relay_port = tmp['relay_port']
+    relay_port = str(tmp['relay_port'])
     email = tmp['email']
     repo_name = tmp['repo_name']
     version = tmp.get('repo_version', 0)
@@ -486,7 +486,7 @@ def seaf_sync(args):
     clone_token = tmp['token']
     relay_id = tmp['relay_id']
     relay_addr = tmp['relay_addr']
-    relay_port = tmp['relay_port']
+    relay_port = str(tmp['relay_port'])
     email = tmp['email']
     repo_name = tmp['repo_name']
     version = tmp.get('repo_version', 0)

@@ -268,6 +268,7 @@ changeset_free (ChangeSet *changeset)
 
     g_list_free_full (changeset->diff, (GDestroyNotify)diff_entry_free);
     changeset_dir_free (changeset->tree_root);
+    g_regex_unref (changeset->case_conflict_pattern);
     g_free (changeset);
 }
 
