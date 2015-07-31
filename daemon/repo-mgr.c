@@ -989,7 +989,7 @@ index_cb (const char *repo_id,
 
     /* Check in blocks and get object ID. */
     if (seaf_fs_manager_index_blocks (seaf->fs_mgr, repo_id, version,
-                                      path, sha1, &size, crypt, write_data) < 0) {
+                                      path, sha1, &size, crypt, write_data, TRUE) < 0) {
         seaf_warning ("Failed to index file %s.\n", path);
         return -1;
     }
