@@ -102,6 +102,9 @@ seaf_util_rename (const char *oldpath, const char *newpath);
 gboolean
 seaf_util_exists (const char *path);
 
+gint64
+seaf_util_lseek (int fd, gint64 offset, int whence);
+
 #ifdef WIN32
 
 typedef int (*DirentCallback) (wchar_t *parent,

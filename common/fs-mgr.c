@@ -606,6 +606,70 @@ create_cdc_for_empty_file (CDCFileDescriptor *cdc)
     memset (cdc, 0, sizeof(CDCFileDescriptor));
 }
 
+#if defined SEAFILE_SERVER && defined FULL_FEATURE
+
+#define FIXED_BLOCK_SIZE (1<<20)
+
+typedef struct ChunkingData {
+    const char *repo_id;
+    int version;
+    const char *file_path;
+    SeafileCrypt *crypt;
+    guint8 *blk_sha1s;
+    GAsyncQueue *finished_tasks;
+} ChunkingData;
+
+static void
+chunking_worker (gpointer vdata, gpointer user_data)
+{
+    ChunkingData *data = user_data;
+    CDCDescriptor *chunk = vdata;
+    int fd = -1;
+    ssize_t n;
+    int idx;
+
+    chunk->block_buf = g_new0 (char, chunk->len);
+    if (!chunk->block_buf) {
+        seaf_warning ("Failed to allow chunk buffer\n");
+        goto out;
+    }
+
+    fd = seaf_util_open (data->file_path, O_RDONLY | O_BINARY);
+    if (fd < 0) {
+        seaf_warning ("Failed to open %s: %s\n", data->file_path, strerror(errno));
+        chunk->result = -1;
+        goto out;
+    }
+
+    if (seaf_util_lseek (fd, chunk->offset, SEEK_SET) == (gint64)-1) {
+        seaf_warning ("Failed to lseek %s: %s\n", data->file_path, strerror(errno));
+        chunk->result = -1;
+        goto out;
+    }
+
+    n = readn (fd, chunk->block_buf, chunk->len);
+    if (n < 0) {
+        seaf_warning ("Failed to read chunk from %s: %s\n",
+                      data->file_path, strerror(errno));
+        chunk->result = -1;
+        goto out;
+    }
+
+    chunk->result = seafile_write_chunk (data->repo_id, data->version,
+                                         chunk, data->crypt,
+                                         chunk->checksum, 1);
+    if (chunk->result < 0)
+        goto out;
+
+    idx = chunk->offset / FIXED_BLOCK_SIZE;
+    memcpy (data->blk_sha1s + idx * CHECKSUM_LENGTH, chunk->checksum, CHECKSUM_LENGTH);
+
+out:
+    g_free (chunk->block_buf);
+    close (fd);
+    g_async_queue_push (data->finished_tasks, chunk);
+}
+
 static int
 split_file_to_block (const char *repo_id,
                      int version,
@@ -615,80 +679,86 @@ split_file_to_block (const char *repo_id,
                      CDCFileDescriptor *cdc,
                      gboolean write_data)
 {
-    int fd;
     int n_blocks;
     uint8_t *block_sha1s = NULL;
-    CDCDescriptor chunk;
+    GThreadPool *tpool = NULL;
+    GAsyncQueue *finished_tasks = NULL;
+    GList *pending_tasks = NULL;
+    int n_pending = 0;
+    CDCDescriptor *chunk;
     int ret = 0;
-
-    memset (&chunk, 0, sizeof(CDCDescriptor));
-
-    fd = seaf_util_open (file_path, O_RDONLY | O_BINARY);
-    if (fd < 0) {
-        seaf_warning ("Failed to open file %s: %s.\n",
-                      file_path, strerror(errno));
-        return -1;
-    }
 
     n_blocks = (file_size + BLOCK_SZ - 1) / BLOCK_SZ;
     block_sha1s = g_new0 (uint8_t, n_blocks * CHECKSUM_LENGTH);
     if (!block_sha1s) {
-        seaf_warning ("Out of memory when split file to block.\n");
+        seaf_warning ("Failed to allocate block_sha1s.\n");
         ret = -1;
-        goto err;
+        goto out;
     }
 
-    int blk_size = file_size > BLOCK_SZ ? BLOCK_SZ : file_size;
-    chunk.block_buf = g_new0 (char, blk_size);
-    if (!chunk.block_buf) {
-        seaf_warning ("Out of memory when split file to block.\n");
+    finished_tasks = g_async_queue_new ();
+
+    ChunkingData data;
+    memset (&data, 0, sizeof(data));
+    data.repo_id = repo_id;
+    data.version = version;
+    data.file_path = file_path;
+    data.crypt = crypt;
+    data.blk_sha1s = block_sha1s;
+    data.finished_tasks = finished_tasks;
+
+    tpool = g_thread_pool_new (chunking_worker, &data,
+                               seaf->http_server->max_indexing_threads, FALSE, NULL);
+    if (!tpool) {
+        seaf_warning ("Failed to allocate thread pool\n");
         ret = -1;
-        goto err;
+        goto out;
     }
 
-    int i = 0;
-    ssize_t rsize;
-    uint8_t *ptr = block_sha1s;
-    SHA_CTX file_ctx;
-    SHA1_Init (&file_ctx);
+    guint64 offset = 0;
+    guint64 len;
+    guint64 left = (guint64)file_size;
+    while (left > 0) {
+        len = ((left >= FIXED_BLOCK_SIZE) ? FIXED_BLOCK_SIZE : left);
 
-    for (; i < n_blocks; i++) {
-        rsize = readn (fd, chunk.block_buf, blk_size);
-        if (rsize == -1) {
-            seaf_warning ("Failed to read file %s content: %s.\n",
-                          file_path, strerror(errno));
+        chunk = g_new0 (CDCDescriptor, 1);
+        chunk->offset = offset;
+        chunk->len = (guint32)len;
+
+        g_thread_pool_push (tpool, chunk, NULL);
+        pending_tasks = g_list_prepend (pending_tasks, chunk);
+        n_pending++;
+
+        left -= len;
+        offset += len;
+    }
+
+    while ((chunk = g_async_queue_pop (finished_tasks)) != NULL) {
+        if (chunk->result < 0) {
             ret = -1;
-            goto err;
+            goto out;
         }
 
-        chunk.len = rsize;
-        ret = seafile_write_chunk (repo_id, version, &chunk, crypt,
-                                   ptr, write_data);
-        if (ret < 0) {
-            goto err;
-        }
-
-        SHA1_Update (&file_ctx, ptr, CHECKSUM_LENGTH);
-        ptr += CHECKSUM_LENGTH;
+        if ((--n_pending) <= 0)
+            break;
     }
 
     cdc->block_nr = n_blocks;
-    cdc->blk_sha1s =  block_sha1s;
-    SHA1_Final (cdc->file_sum, &file_ctx);
-    g_free (chunk.block_buf);
-    close (fd);
+    cdc->blk_sha1s = block_sha1s;
 
-    return ret;
-
-err:
-    if (chunk.block_buf)
-        g_free (chunk.block_buf);
-    if (block_sha1s)
+out:
+    if (tpool)
+        g_thread_pool_free (tpool, TRUE, TRUE);
+    if (finished_tasks)
+        g_async_queue_unref (finished_tasks);
+    g_list_free_full (pending_tasks, g_free);
+    if (ret < 0)
         g_free (block_sha1s);
-    close (fd);
 
     return ret;
 }
+
+#endif  /* SEAFILE_SERVER */
 
 int
 seaf_fs_manager_index_blocks (SeafFSManager *mgr,
@@ -718,7 +788,8 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
     } else {
         memset (&cdc, 0, sizeof(cdc));
 
-        if (use_cdc) {
+#if defined SEAFILE_SERVER && defined FULL_FEATURE
+        if (use_cdc || version == 0) {
             cdc.block_sz = calculate_chunk_size (sb.st_size);
             cdc.block_min_sz = cdc.block_sz >> 2;
             cdc.block_max_sz = cdc.block_sz << 2;
@@ -738,6 +809,18 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
                 return -1;
             }
         }
+#else
+        cdc.block_sz = calculate_chunk_size (sb.st_size);
+        cdc.block_min_sz = cdc.block_sz >> 2;
+        cdc.block_max_sz = cdc.block_sz << 2;
+        cdc.write_block = seafile_write_chunk;
+        memcpy (cdc.repo_id, repo_id, 36);
+        cdc.version = version;
+        if (filename_chunk_cdc (file_path, &cdc, crypt, write_data) < 0) {
+            seaf_warning ("Failed to chunk file with CDC.\n");
+            return -1;
+        }
+#endif
 
         if (write_data && write_seafile (mgr, repo_id, version, &cdc, sha1) < 0) {
             g_free (cdc.blk_sha1s);
