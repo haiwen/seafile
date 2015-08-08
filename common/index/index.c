@@ -1039,6 +1039,11 @@ int add_to_index(const char *repo_id,
 #endif
     }
 
+    /* As long as the timestamp or mode is changed, we consider
+       the cache enrty as changed. This has been tested by ie_match_stat().
+    */
+    *added = TRUE;
+
 #ifdef WIN32
     /* On Windows, no 'x' bit in file mode.
      * To prevent overwriting 'x' bit, we directly use existing ce mode. 
@@ -1080,9 +1085,6 @@ update_index:
         seaf_warning("unable to add %s to index\n",path);
         return -1;
     }
-
-    if (!alias || memcmp (alias->sha1, sha1, 20) != 0)
-        *added = TRUE;
 
     return 0;
 }

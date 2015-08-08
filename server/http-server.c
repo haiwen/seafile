@@ -1064,12 +1064,6 @@ commit_oper_cb (evhtp_request_t *req, void *arg)
     }
 }
 
-inline static gboolean
-dirent_same (SeafDirent *denta, SeafDirent *dentb)
-{
-    return (strcmp (dentb->id, denta->id) == 0 && denta->mode == dentb->mode);
-}
-
 static int
 collect_file_ids (int n, const char *basedir, SeafDirent *files[], void *data)
 {
@@ -1077,7 +1071,7 @@ collect_file_ids (int n, const char *basedir, SeafDirent *files[], void *data)
     SeafDirent *file2 = files[1];
     GList **pret = data;
 
-    if (file1 && (!file2 || !dirent_same (file1, file2)) &&
+    if (file1 && (!file2 || strcmp(file1->id, file2->id) != 0) &&
         strcmp (file1->id, EMPTY_SHA1) != 0)
         *pret = g_list_prepend (*pret, g_strdup(file1->id));
 
@@ -1092,7 +1086,7 @@ collect_dir_ids (int n, const char *basedir, SeafDirent *dirs[], void *data,
     SeafDirent *dir2 = dirs[1];
     GList **pret = data;
 
-    if (dir1 && (!dir2 || !dirent_same (dir1, dir2)) &&
+    if (dir1 && (!dir2 || strcmp(dir1->id, dir2->id) != 0) &&
         strcmp (dir1->id, EMPTY_SHA1) != 0)
         *pret = g_list_prepend (*pret, g_strdup(dir1->id));
 

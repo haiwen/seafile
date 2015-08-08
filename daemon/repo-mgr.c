@@ -2110,8 +2110,12 @@ out:
 }
 
 static void
-update_ce_mode (struct index_state *istate, const char *worktree, const char *path)
+update_attributes (SeafRepo *repo,
+                   struct index_state *istate,
+                   const char *worktree,
+                   const char *path)
 {
+    ChangeSet *changeset = repo->changeset;
     char *full_path;
     struct cache_entry *ce;
     SeafStat st;
@@ -2128,8 +2132,19 @@ update_ce_mode (struct index_state *istate, const char *worktree, const char *pa
     }
 
     unsigned int new_mode = create_ce_mode (st.st_mode);
-    if (new_mode != ce->ce_mode)
+    if (new_mode != ce->ce_mode || st.st_mtime != ce->ce_mtime.sec) {
         ce->ce_mode = new_mode;
+        ce->ce_mtime.sec = st.st_mtime;
+        istate->cache_changed = 1;
+        add_to_changeset (changeset,
+                          DIFF_STATUS_MODIFIED,
+                          ce->sha1,
+                          &st,
+                          repo->email,
+                          path,
+                          NULL,
+                          TRUE);
+    }
     g_free (full_path);
 }
 
@@ -3061,7 +3076,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 seaf_debug ("%s is not writable, ignore.\n", event->path);
                 break;
             }
-            update_ce_mode (istate, repo->worktree, event->path);
+            update_attributes (repo, istate, repo->worktree, event->path);
             break;
         case WT_EVENT_OVERFLOW:
             seaf_warning ("Kernel event queue overflowed, fall back to scan.\n");
@@ -4362,19 +4377,25 @@ fetch_file_http (FileTxData *data, FileTxTask *file_task)
         if (st.st_mtime == ce->ce_mtime.sec) {
             /* Worktree and index are consistent. */
             if (memcmp (de->sha1, ce->sha1, 20) == 0) {
+                seaf_debug ("wt and index are consistent. no need to checkout.\n");
                 file_task->no_checkout = TRUE;
-                if (de->mode == ce->ce_mode) {
-                    /* Worktree and index are all uptodate, no need to checkout.
-                     * This may happen after an interrupted checkout.
-                     */
-                    seaf_debug ("wt and index are consistent. no need to checkout.\n");
-                    fill_stat_cache_info (ce, &st);
-                } else {
+
+                /* Update mode if necessary. */
+                if (de->mode != ce->ce_mode) {
 #ifndef WIN32
                     chmod (path, de->mode & ~S_IFMT);
                     ce->ce_mode = de->mode;
 #endif
                 }
+
+                /* Update mtime if necessary. */
+                if (de->mtime != ce->ce_mtime.sec) {
+                    seaf_set_file_time (path, de->mtime);
+                    ce->ce_mtime.sec = de->mtime;
+                }
+
+                fill_stat_cache_info (ce, &st);
+
                 return FETCH_CHECKOUT_SUCCESS;
             }
             /* otherwise we have to checkout the file. */
@@ -4769,8 +4790,11 @@ download_files_http (const char *repo_id,
     }
 
     /* If there is no file need to be downloaded, return immediately. */
-    if (http_task->n_files == 0)
+    if (http_task->n_files == 0) {
+        if (results != NULL)
+            update_index (istate, index_path);
         goto out;
+    }
 
     char file_id[41];
     while ((task = g_async_queue_pop (finished_tasks)) != NULL) {
