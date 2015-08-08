@@ -59,6 +59,7 @@ CONF_IP_OR_DOMAIN = 'ip_or_domain'
 
 CONF_SEAHUB_CONF = 'seahub_conf'
 CONF_SEAHUB_DIR = 'seahub_dir'
+CONF_SEAHUB_ADDRESS = 'seahub_address'
 CONF_SEAHUB_PORT = 'seahub_port'
 
 CONF_SEAHUB_PIDFILE = 'seahub_pidfile'
@@ -154,27 +155,6 @@ def run_argv(argv, cwd=None, env=None, suppress_stdout=False, suppress_stderr=Fa
                                 stdout=stdout,
                                 stderr=stderr,
                                 env=env)
-        return proc.wait()
-
-def run(cmdline, cwd=None, env=None, suppress_stdout=False, suppress_stderr=False):
-    '''Like run_argv but specify a command line string instead of argv'''
-    with open(os.devnull, 'w') as devnull:
-        if suppress_stdout:
-            stdout = devnull
-        else:
-            stdout = sys.stdout
-
-        if suppress_stderr:
-            stderr = devnull
-        else:
-            stderr = sys.stderr
-
-        proc = subprocess.Popen(cmdline,
-                                cwd=cwd,
-                                stdout=stdout,
-                                stderr=stderr,
-                                env=env,
-                                shell=True)
         return proc.wait()
 
 def is_running(process):
@@ -605,7 +585,8 @@ def start_seahub_gunicorn():
     argv = [
         'gunicorn_django',
         '-c', conf[CONF_SEAHUB_CONF],
-        '-b', '0.0.0.0:%s' % conf[CONF_SEAHUB_PORT],
+        '-b', '%s:%s' % (conf[CONF_SEAHUB_ADDRESS],
+            conf[CONF_SEAHUB_PORT]),
     ]
 
     info('Starting seahub...')
@@ -613,31 +594,27 @@ def start_seahub_gunicorn():
     if run_argv(argv, cwd=conf[CONF_SEAHUB_DIR], env=env) != 0:
         error('Failed to start seahub')
 
-    info('Seahub running on port %s' % conf[CONF_SEAHUB_PORT])
+    info('Seahub running on %s:%s' %
+            (conf[CONF_SEAHUB_ADDRESS], conf[CONF_SEAHUB_PORT]))
 
 def start_seahub_fastcgi():
     info('Starting seahub in fastcgi mode...')
     argv = [
         PYTHON, 'manage.py', 'runfcgi',
-        'host=127.0.0.1',
-        'port=%(port)s',
-        'pidfile=%(pidfile)s',
-        'outlog=%(outlog)s',
-        'errlog=%(errlog)s',
+        'host=' + str(conf[CONF_SEAHUB_ADDRESS]),
+        'port=' + str(conf[CONF_SEAHUB_PORT]),
+        'pidfile=' + str(conf[CONF_SEAHUB_PIDFILE]),
+        'outlog=' + str(conf[CONF_SEAHUB_OUTLOG]),
+        'errlog=' + str(conf[CONF_SEAHUB_ERRLOG]),
     ]
-
-    cmdline = ' '.join(argv) % \
-              dict(port=conf[CONF_SEAHUB_PORT],
-                   pidfile=conf[CONF_SEAHUB_PIDFILE],
-                   outlog=conf[CONF_SEAHUB_OUTLOG],
-                   errlog=conf[CONF_SEAHUB_ERRLOG])
 
     env = get_seahub_env()
 
-    if run(cmdline, cwd=conf[CONF_SEAHUB_DIR], env=env) != 0:
+    if run_argv(argv, cwd=conf[CONF_SEAHUB_DIR], env=env) != 0:
         error('Failed to start seahub in fastcgi mode')
 
-    info('Seahub running on port %s (fastcgi)' % conf[CONF_SEAHUB_PORT])
+    info('Seahub running on port %s:%s (fastcgi)' %
+            (conf[CONF_SEAHUB_ADDRESS], conf[CONF_SEAHUB_PORT]))
 
 
 def read_seafile_data_dir(ccnet_conf_dir):
@@ -707,7 +684,12 @@ def check_config(args):
         if port <= 0 or port > 65535:
             error('invalid port: %s' % args.port)
 
-    conf[CONF_SEAHUB_PORT]      = port
+    conf[CONF_SEAHUB_PORT] = port
+
+    if args.address == None:
+        conf[CONF_SEAHUB_ADDRESS] = "127.0.0.1" if args.fastcgi else "0.0.0.0"
+    else:
+        conf[CONF_SEAHUB_ADDRESS] = args.address
 
 def check_directory_layout():
     seaf_server_dir = os.path.join(cwd, 'seafile-server')
@@ -771,6 +753,8 @@ def start_seafile(args):
         error(highlight('NOTE: Seafile is already running'))
 
     check_python_dependencies(silent=True)
+
+
     if args.fastcgi:
         check_python_module('flup', 'flup', silent=True)
     else:
@@ -781,15 +765,6 @@ def start_seafile(args):
     check_config(args)
 
     start_controller()
-
-    if args.port:
-        try:
-            port = int(args.port)
-        except ValueError:
-            error('invalid port: %s' % args.port)
-        else:
-            if port <= 0 or port > 65535:
-                error('invalid port: %s' % args.port)
 
     if args.fastcgi:
         start_seahub_fastcgi()
@@ -841,7 +816,11 @@ def main():
     parser_start.add_argument('--fastcgi', help='start seahub in fastcgi mode',
                               action='store_true')
 
-    parser_start.add_argument('--port', help='start seahub in fastcgi mode',
+    parser_start.add_argument('--address', help='address on which seahub is bind, '
+            'defaults to 127.0.0.1 for fastcgi and 0.0.0.0 for gunicorn',
+            default=None)
+
+    parser_start.add_argument('--port', help='port on which seahub is listening',
                               default='8000')
 
     parser_stop = subparsers.add_parser('stop', help='stop the seafile server')
@@ -854,6 +833,7 @@ def main():
     parser_create_admin.set_defaults(func=reset_admin)
 
     args = parser.parse_args()
+
     args.func(args)
 
 if __name__ == '__main__':
