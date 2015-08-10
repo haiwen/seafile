@@ -6,6 +6,10 @@
 
 #include "common.h"
 
+#ifdef WIN32
+#include <windows.h>
+#endif
+
 #include "utils.h"
 
 #include "log.h"
@@ -22,7 +26,11 @@ struct _BHandle {
     char    *store_id;
     int     version;
     char    block_id[41];
+#ifdef WIN32
+    HANDLE  fh;
+#else
     int     fd;
+#endif
     int     rw_type;
     char    *tmp_file;
 };
@@ -56,7 +64,11 @@ block_backend_fs_open_block (BlockBackend *bend,
                              int rw_type)
 {
     BHandle *handle;
+#ifdef WIN32
+    HANDLE h = INVALID_HANDLE_VALUE;
+#else
     int fd = -1;
+#endif
     char *tmp_file;
 
     g_return_val_if_fail (block_id != NULL, NULL);
@@ -66,23 +78,53 @@ block_backend_fs_open_block (BlockBackend *bend,
     if (rw_type == BLOCK_READ) {
         char path[SEAF_PATH_MAX];
         get_block_path (bend, block_id, path, store_id, version);
+#ifdef WIN32
+        wchar_t *wpath = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
+        h = CreateFileW (wpath,
+                         GENERIC_READ,
+                         FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
+                         NULL,
+                         OPEN_EXISTING,
+                         0,
+                         NULL);
+        g_free (wpath);
+        if (h == INVALID_HANDLE_VALUE) {
+            seaf_warning ("[block bend] failed to open block %s:%s for read: %lu\n ",
+                          store_id, block_id, GetLastError());
+            return NULL;
+        }
+#else
         fd = g_open (path, O_RDONLY | O_BINARY, 0);
         if (fd < 0) {
-            ccnet_warning ("[block bend] failed to open block %s for read: %s\n",
-                           block_id, strerror(errno));
+            seaf_warning ("[block bend] failed to open block %s:%s for read: %s\n",
+                          store_id, block_id, strerror(errno));
             return NULL;
         }
+#endif
     } else {
+#ifdef WIN32
+        h = open_tmp_file (bend, block_id, &tmp_file);
+        if (h == INVALID_HANDLE_VALUE) {
+            seaf_warning ("[block bend] failed to open block %s:%s for write: %lu\n",
+                          store_id, block_id, GetLastError());
+            return NULL;
+        }
+#else
         fd = open_tmp_file (bend, block_id, &tmp_file);
         if (fd < 0) {
-            ccnet_warning ("[block bend] failed to open block %s for write: %s\n",
-                           block_id, strerror(errno));
+            seaf_warning ("[block bend] failed to open block %s:%s for write: %s\n",
+                          store_id, block_id, strerror(errno));
             return NULL;
         }
+#endif
     }
 
     handle = g_new0(BHandle, 1);
+#ifdef WIN32
+    handle->fh = h;
+#else
     handle->fd = fd;
+#endif
     memcpy (handle->block_id, block_id, 41);
     handle->rw_type = rw_type;
     if (rw_type == BLOCK_WRITE)
@@ -99,24 +141,52 @@ block_backend_fs_read_block (BlockBackend *bend,
                              BHandle *handle,
                              void *buf, int len)
 {
+#ifdef WIN32
+    DWORD n;
+    if (!ReadFile (handle->fh, buf, len, &n, NULL)) {
+        seaf_warning ("Failed to read block %s:%s: %lu\n",
+                      handle->store_id, handle->block_id, GetLastError());
+        return -1;
+    }
+    return (int)n;
+#else
     return (readn (handle->fd, buf, len));
+#endif
 }
 
 static int
 block_backend_fs_write_block (BlockBackend *bend,
-                                BHandle *handle,
-                                const void *buf, int len)
+                              BHandle *handle,
+                              const void *buf, int len)
 {
+#ifdef WIN32
+    DWORD n;
+    if (!WriteFile (handle->fh, buf, len, &n, NULL)) {
+        seaf_warning ("Failed to write block %s:%s: %lu\n",
+                      handle->store_id, handle->block_id, GetLastError());
+        return -1;
+    }
+    return (int)n;
+#else
     return (writen (handle->fd, buf, len));
+#endif
 }
 
 static int
 block_backend_fs_close_block (BlockBackend *bend,
-                                BHandle *handle)
+                              BHandle *handle)
 {
-    int ret;
+    int ret = 0;
 
+#ifdef WIN32
+    if (!CloseHandle (handle->fh)) {
+        seaf_warning ("Failed to close block %s:%s: %lu\n",
+                      handle->store_id, handle->block_id, GetLastError());
+        ret = -1;
+    }
+#else
     ret = close (handle->fd);
+#endif
 
     return ret;
 }
@@ -135,25 +205,17 @@ block_backend_fs_block_handle_free (BlockBackend *bend,
 }
 
 static int
-create_parent_path (const char *path)
+create_parent_path (BlockBackend *bend,
+                    const char *store_id,
+                    const char *block_id)
 {
-    char *dir = g_path_get_dirname (path);
-    if (!dir)
-        return -1;
+    FsPriv *priv = bend->be_priv;
+    /* store_id(36) + / + block_prefix(2) + '\0' */
+    char new_path[40];
 
-    if (g_file_test (dir, G_FILE_TEST_EXISTS)) {
-        g_free (dir);
-        return 0;
-    }
+    snprintf (new_path, sizeof(new_path), "%s/%.2s", store_id, block_id);
 
-    if (g_mkdir_with_parents (dir, 0777) < 0) {
-        seaf_warning ("Failed to create object parent path: %s.\n", dir);
-        g_free (dir);
-        return -1;
-    }
-
-    g_free (dir);
-    return 0;
+    return seaf_util_mkdir_with_parents (priv->block_dir, new_path, 0777);
 }
 
 static int
@@ -166,8 +228,8 @@ block_backend_fs_commit_block (BlockBackend *bend,
 
     get_block_path (bend, handle->block_id, path, handle->store_id, handle->version);
 
-    if (create_parent_path (path) < 0) {
-        seaf_warning ("Failed to create path for block %s:%s.\n",
+    if (create_parent_path (bend, handle->store_id, handle->block_id) < 0) {
+        seaf_warning ("Failed to create parent path for block %s:%s.\n",
                       handle->store_id, handle->block_id);
         return -1;
     }
@@ -329,7 +391,7 @@ block_backend_fs_copy (BlockBackend *bend,
     if (g_file_test (dst_path, G_FILE_TEST_EXISTS))
         return 0;
 
-    if (create_parent_path (dst_path) < 0) {
+    if (create_parent_path (bend, dst_store_id, block_id) < 0) {
         seaf_warning ("Failed to create dst path %s for block %s.\n",
                       dst_path, block_id);
         return -1;
@@ -433,6 +495,45 @@ get_block_path (BlockBackend *bend,
     return path;
 }
 
+#ifdef WIN32
+static HANDLE
+open_tmp_file (BlockBackend *bend,
+               const char *basename,
+               char **path)
+{
+    FsPriv *priv = bend->be_priv;
+    wchar_t temp_filename_w[MAX_PATH];
+    wchar_t *temp_path_w, *prefix_str_w;
+    HANDLE h = INVALID_HANDLE_VALUE;
+
+    temp_path_w = g_utf8_to_utf16 (priv->tmp_dir, -1, NULL, NULL, NULL);
+    prefix_str_w = g_utf8_to_utf16 (basename, -1, NULL, NULL, NULL);
+
+    if (!GetTempFileNameW (temp_path_w, prefix_str_w, 0, temp_filename_w)) {
+        seaf_warning ("Failed to GetTempFileNameW: %lu\n", GetLastError());
+        goto out;
+    }
+
+    h = CreateFileW (temp_filename_w,
+                     GENERIC_WRITE,
+                     0,
+                     NULL,
+                     CREATE_ALWAYS,
+                     FILE_ATTRIBUTE_NORMAL,
+                     NULL);
+    if (h == INVALID_HANDLE_VALUE) {
+        seaf_warning ("Failed to CreateFileW: %lu\n", GetLastError());
+        goto out;
+    }
+
+    *path = g_utf16_to_utf8 (temp_filename_w, -1, NULL, NULL, NULL);
+
+out:
+    g_free (temp_path_w);
+    g_free (prefix_str_w);
+    return h;
+}
+#else
 static int
 open_tmp_file (BlockBackend *bend,
                const char *basename,
@@ -448,6 +549,7 @@ open_tmp_file (BlockBackend *bend,
 
     return fd;
 }
+#endif
 
 BlockBackend *
 block_backend_fs_new (const char *seaf_dir, const char *tmp_dir)

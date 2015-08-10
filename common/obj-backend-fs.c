@@ -55,6 +55,72 @@ id_to_path (FsPriv *priv, const char *obj_id, char path[],
     memcpy (pos, obj_id + 2, 41 - 2);
 }
 
+#ifdef WIN32
+static int
+win32_get_file_contents (const char *path, void **data, int *len)
+{
+    wchar_t *wpath;
+    HANDLE h;
+    LARGE_INTEGER lint;
+    gint64 size;
+    char *buf;
+    DWORD nread;
+    int ret = 0;
+
+    wpath = g_utf8_to_utf16 (path, -1, NULL, NULL, NULL);
+
+    h = CreateFileW (wpath,
+                     GENERIC_READ,
+                     FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
+                     NULL,
+                     OPEN_EXISTING,
+                     0,
+                     NULL);
+    if (h == INVALID_HANDLE_VALUE) {
+        seaf_warning ("Failed to open %s for read: %lu\n ",
+                      path, GetLastError());
+        ret = -1;
+        goto out;
+    }
+
+    if (!GetFileSizeEx (h, &lint)) {
+        seaf_warning ("Failed to GetFileSizeEx for %s: %lu\n",
+                      path, GetLastError());
+        ret = -1;
+        goto out;
+    }
+
+    size = (gint64)(lint.QuadPart);
+    buf = g_new0 (char, size);
+    if (!buf) {
+        seaf_warning ("Out of memory\n");
+        ret = -1;
+        goto out;
+    }
+
+    if (!ReadFile (h, buf, (DWORD)size, &nread, NULL)) {
+        seaf_warning ("ReadFile failed %s: %lu\n", path, GetLastError());
+        ret = -1;
+        goto out;
+    }
+    if (nread != (DWORD)size) {
+        seaf_warning ("Failed to read whole file %s\n", path);
+        ret = -1;
+        goto out;
+    }
+
+    *len = (int)size;
+    *data = (void *)buf;
+
+out:
+    CloseHandle (h);
+    g_free (wpath);
+    if (ret < 0)
+        g_free (buf);
+    return ret;
+}
+#endif
+
 static int
 obj_backend_fs_read (ObjBackend *bend,
                      const char *repo_id,
@@ -64,12 +130,15 @@ obj_backend_fs_read (ObjBackend *bend,
                      int *len)
 {
     char path[SEAF_PATH_MAX];
-    gsize tmp_len;
-    GError *error = NULL;
 
     id_to_path (bend->priv, obj_id, path, repo_id, version);
 
     /* seaf_debug ("object path: %s\n", path); */
+
+#ifndef WIN32
+
+    gsize tmp_len;
+    GError *error = NULL;
 
     g_file_get_contents (path, (gchar**)data, &tmp_len, &error);
     if (error) {
@@ -93,8 +162,14 @@ obj_backend_fs_read (ObjBackend *bend,
 
     *len = (int)tmp_len;
     return 0;
+
+#else
+
+    return win32_get_file_contents (path, data, len);
+#endif
 }
 
+#ifndef WIN32
 /*
  * Flush operating system and disk caches for @fd.
  */
@@ -126,24 +201,8 @@ fsync_obj_contents (int fd)
     }
     return 0;
 #endif
-
-#ifdef WIN32
-    HANDLE handle;
-
-    handle = (HANDLE)_get_osfhandle (fd);
-    if (handle == INVALID_HANDLE_VALUE) {
-        seaf_warning ("Failed to get handle from fd.\n");
-        return -1;
-    }
-
-    if (!FlushFileBuffers (handle)) {
-        seaf_warning ("FlushFileBuffer() failed: %lu.\n", GetLastError());
-        return -1;
-    }
-
-    return 0;
-#endif
 }
+#endif  /* WIN32 */
 
 /*
  * Rename file from @tmp_path to @obj_path.
@@ -221,10 +280,42 @@ out:
 }
 
 static int
-save_obj_contents (const char *path, const void *data, int len, gboolean need_sync)
+create_parent_dir (ObjBackend *bend,
+                   const char *repo_id,
+                   int version,
+                   const char *obj_id)
 {
+    FsPriv *priv = bend->priv;
+    /* repo_id(36) + / + obj_prefix(2) + '\0' */
+    char new_path[40];
+
+    if (version > 0)
+        snprintf (new_path, sizeof(new_path), "%s/%.2s", repo_id, obj_id);
+    else
+        snprintf (new_path, sizeof(new_path), "%.2s", obj_id);
+
+    return seaf_util_mkdir_with_parents (priv->obj_dir, new_path, 0777);
+}
+
+#ifndef WIN32
+
+static int
+save_obj_contents (ObjBackend *bend,
+                   const char *repo_id,
+                   int version,
+                   const char *obj_id,
+                   const void *data,
+                   int len,
+                   gboolean need_sync)
+{
+    char path[SEAF_PATH_MAX];
     char tmp_path[SEAF_PATH_MAX];
     int fd;
+
+    id_to_path (bend->priv, obj_id, path, repo_id, version);
+
+    if (!create_parent_dir (bend, repo_id, version, obj_id) < 0)
+        return -1;
 
     snprintf (tmp_path, SEAF_PATH_MAX, "%s.XXXXXX", path);
     fd = g_mkstemp (tmp_path);
@@ -264,28 +355,130 @@ save_obj_contents (const char *path, const void *data, int len, gboolean need_sy
     return 0;
 }
 
+#else
+
 static int
-create_parent_path (const char *path)
+create_temp_path (ObjBackend *bend,
+                  const char *repo_id,
+                  int version,
+                  const char *obj_id,
+                  char **temp_path)
 {
-    char *dir = g_path_get_dirname (path);
-    if (!dir)
-        return -1;
+    /* repo_id(36) + / + obj_prefix(2) + '\0' */
+    char new_path[40];
+    int ret = 0;
+    wchar_t temp_path_w[MAX_PATH];
+    wchar_t *temp_path_parent, *temp_path_parent_w, *prefix_str_w;
 
-    if (g_file_test (dir, G_FILE_TEST_EXISTS)) {
-        g_free (dir);
-        return 0;
+    if (version > 0)
+        snprintf (new_path, sizeof(new_path), "%s/%.2s", repo_id, obj_id);
+    else
+        snprintf (new_path, sizeof(new_path), "%.2s", obj_id);
+
+    ret = seaf_util_mkdir_with_parents (bend->priv->obj_dir, new_path, 0777);
+    if (ret < 0) {
+        seaf_warning ("Failed to create parent path for object %s:%s.\n",
+                      repo_id, obj_id);
+        return ret;
     }
 
-    if (g_mkdir_with_parents (dir, 0777) < 0) {
-        seaf_warning ("Failed to create object parent path %s: %s.\n",
-                      dir, strerror(errno));
-        g_free (dir);
+    temp_path_parent = g_build_path ("/", bend->priv->obj_dir, new_path, NULL);
+    temp_path_parent_w = g_utf8_to_utf16 (temp_path_parent, -1, NULL, NULL, NULL);
+    prefix_str_w = g_utf8_to_utf16 (obj_id + 2, -1, NULL, NULL, NULL);
+
+    if (!GetTempFileNameW (temp_path_parent_w, prefix_str_w, 0, temp_path_w)) {
+        seaf_warning ("Failed to GetTempFileNameW: %lu\n", GetLastError());
+        ret = -1;
+        goto out;
+    }
+
+    *temp_path = g_utf16_to_utf8 (temp_path_w, -1, NULL, NULL, NULL);
+
+out:
+    g_free (temp_path_parent);
+    g_free (temp_path_parent_w);
+    g_free (prefix_str_w);
+    return ret;
+}
+
+static int
+save_obj_contents (ObjBackend *bend,
+                   const char *repo_id,
+                   int version,
+                   const char *obj_id,
+                   const void *data,
+                   int len,
+                   gboolean need_sync)
+{
+    char path[SEAF_PATH_MAX];
+    char *temp_path = NULL;
+    wchar_t *temp_path_w = NULL;
+    HANDLE h;
+    int ret = 0;
+
+    id_to_path (bend->priv, obj_id, path, repo_id, version);
+
+    if (create_temp_path (bend, repo_id, version, obj_id, &temp_path) < 0) {
         return -1;
     }
 
-    g_free (dir);
+    temp_path_w = g_utf8_to_utf16 (temp_path, -1, NULL, NULL, NULL);
+    h = CreateFileW (temp_filename_w,
+                     GENERIC_WRITE,
+                     0,
+                     NULL,
+                     CREATE_ALWAYS,
+                     FILE_ATTRIBUTE_NORMAL,
+                     NULL);
+    if (h == INVALID_HANDLE_VALUE) {
+        seaf_warning ("Failed to CreateFileW: %lu\n", GetLastError());
+        ret = -1;
+        goto out;
+    }
+
+    DWORD n;
+    if (!WriteFile (h, data, len, &n, NULL)) {
+        seaf_warning ("Failed to write object %s:%s: %lu\n",
+                      repo_id, obj_id, GetLastError());
+        ret = -1;
+        CloseHandle (h);
+        goto out;
+    }
+
+    if (need_sync) {
+        if (!FlushFileBuffers (h)) {
+            seaf_warning ("FlushFileBuffer() failed: %lu.\n", GetLastError());
+            CloseHandle (h);
+            ret = -1;
+            goto out;
+        }
+    }
+
+    if (!CloseHandle (h)) {
+        seaf_warning ("CloseHandle() failed: %lu\n", GetLastError());
+        ret = -1;
+        goto out;
+    }
+
+    if (need_sync) {
+        if (rename_and_sync (tmp_path, path) < 0) {
+            ret = -1;
+        }
+    } else {
+        if (g_rename (tmp_path, path) < 0) {
+            seaf_warning ("[obj backend] Failed to rename %s: %s.\n",
+                          path, strerror(errno));
+            ret = -1;
+        }
+    }
+
+out:
+    g_free (temp_path);
+    g_free (temp_path_w);
     return 0;
 }
+
+#endif
 
 static int
 obj_backend_fs_write (ObjBackend *bend,
@@ -296,30 +489,11 @@ obj_backend_fs_write (ObjBackend *bend,
                       int len,
                       gboolean need_sync)
 {
-    char path[SEAF_PATH_MAX];
-
-    id_to_path (bend->priv, obj_id, path, repo_id, version);
-
-    /* GTimeVal s, e; */
-
-    /* g_get_current_time (&s); */
-
-    if (create_parent_path (path) < 0) {
-        seaf_warning ("[obj backend] Failed to create path for obj %s:%s.\n",
-                      repo_id, obj_id);
-        return -1;
-    }
-
-    if (save_obj_contents (path, data, len, need_sync) < 0) {
+    if (save_obj_contents (bend, repo_id, version, obj_id, data, len, need_sync) < 0) {
         seaf_warning ("[obj backend] Failed to write obj %s:%s.\n",
                       repo_id, obj_id);
         return -1;
     }
-
-    /* g_get_current_time (&e); */
-
-    /* seaf_message ("write obj time: %ldus.\n", */
-    /*               ((e.tv_sec*1000000+e.tv_usec) - (s.tv_sec*1000000+s.tv_usec))); */
 
     return 0;
 }
@@ -431,7 +605,7 @@ obj_backend_fs_copy (ObjBackend *bend,
     if (g_file_test (dst_path, G_FILE_TEST_EXISTS))
         return 0;
 
-    if (create_parent_path (dst_path) < 0) {
+    if (create_parent_dir (bend, dst_repo_id, dst_version, obj_id) < 0) {
         seaf_warning ("Failed to create dst path %s for obj %s.\n",
                       dst_path, obj_id);
         return -1;

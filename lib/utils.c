@@ -664,6 +664,49 @@ seaf_util_lseek (int fd, gint64 offset, int whence)
 #endif
 }
 
+int
+seaf_util_mkdir_with_parents (const char *basedir, const char *new_path, int mode)
+{
+    char **parts;
+    guint i, n_parts;
+    GString *buf;
+    int ret = 0;
+
+    if (basedir && !seaf_util_exists (basedir)) {
+        g_warning ("seaf_util_mkdir_with_parents: %s does not exist\n",
+                   basedir);
+        return -1;
+    }
+
+    parts = g_strsplit (new_path, "/", -1);
+    n_parts = g_strv_length (parts);
+    buf = g_string_new (basedir);
+    for (i = 0; i < n_parts; ++i) {
+        char *path = NULL, *dname;
+
+        dname = parts[i];
+        path = g_build_path ("/", buf->str, dname, NULL);
+        if (!seaf_util_exists (path)) {
+            if (seaf_util_mkdir (path, mode) < 0) {
+                g_warning ("seaf_util_mkdir_with_parents: "
+                           "failed to create dir %s: %s\n",
+                           path, strerror(errno));
+                ret = -1;
+                g_free (path);
+                goto out;
+            }
+        }
+        g_free (path);
+        g_string_append_printf (buf, "/%s", dname);
+    }
+
+out:
+    g_strfreev (parts);
+    g_string_free (buf, TRUE);
+
+    return ret;
+}
+
 #ifdef WIN32
 
 int

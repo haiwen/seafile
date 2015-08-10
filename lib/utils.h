@@ -105,6 +105,9 @@ seaf_util_exists (const char *path);
 gint64
 seaf_util_lseek (int fd, gint64 offset, int whence);
 
+int
+seaf_util_mkdir_with_parents (const char *basedir, const char *new_path, int mode);
+
 #ifdef WIN32
 
 typedef int (*DirentCallback) (wchar_t *parent,
