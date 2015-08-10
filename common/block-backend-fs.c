@@ -51,10 +51,17 @@ get_block_path (BlockBackend *bend,
                 const char *store_id,
                 int version);
 
+#ifndef WIN32
 static int
 open_tmp_file (BlockBackend *bend,
                const char *basename,
                char **path);
+#else
+static HANDLE
+open_tmp_file (BlockBackend *bend,
+               const char *basename,
+               char **path);
+#endif
 
 static BHandle *
 block_backend_fs_open_block (BlockBackend *bend,
@@ -298,6 +305,7 @@ static BMetadata *
 block_backend_fs_stat_block_by_handle (BlockBackend *bend,
                                        BHandle *handle)
 {
+#ifndef WIN32
     SeafStat st;
     BMetadata *block_md;
 
@@ -311,6 +319,12 @@ block_backend_fs_stat_block_by_handle (BlockBackend *bend,
     block_md->size = (uint32_t) st.st_size;
 
     return block_md;
+#else
+    return block_backend_fs_stat_block (bend,
+                                        handle->store_id,
+                                        handle->version,
+                                        handle->block_id);
+#endif
 }
 
 static int

@@ -1,3 +1,5 @@
+/* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x500
 #endif
@@ -371,11 +373,13 @@ create_temp_path (ObjBackend *bend,
                   const char *obj_id,
                   char **temp_path)
 {
+    FsPriv *priv = bend->priv;
     /* repo_id(36) + / + obj_prefix(2) + '\0' */
     char new_path[40];
     int ret = 0;
     wchar_t temp_path_w[MAX_PATH];
-    wchar_t *temp_path_parent, *temp_path_parent_w, *prefix_str_w;
+    char *temp_path_parent = NULL;
+    wchar_t *temp_path_parent_w, *prefix_str_w;
 
     if (version > 0)
         snprintf (new_path, sizeof(new_path), "%s/%.2s", repo_id, obj_id);
@@ -386,7 +390,7 @@ create_temp_path (ObjBackend *bend,
 
     g_get_current_time (&s);
 
-    ret = seaf_util_mkdir_with_parents (bend->priv->obj_dir, new_path, 0777);
+    ret = seaf_util_mkdir_with_parents (priv->obj_dir, new_path, 0777);
     if (ret < 0) {
         seaf_warning ("Failed to create parent path for object %s:%s.\n",
                       repo_id, obj_id);
@@ -397,7 +401,7 @@ create_temp_path (ObjBackend *bend,
 
     print_time ("mkdir", &s, &e);
 
-    temp_path_parent = g_build_path ("/", bend->priv->obj_dir, new_path, NULL);
+    temp_path_parent = g_build_path ("/", priv->obj_dir, new_path, NULL);
     temp_path_parent_w = g_utf8_to_utf16 (temp_path_parent, -1, NULL, NULL, NULL);
     prefix_str_w = g_utf8_to_utf16 (obj_id + 2, -1, NULL, NULL, NULL);
 
@@ -444,7 +448,7 @@ save_obj_contents (ObjBackend *bend,
     }
 
     temp_path_w = g_utf8_to_utf16 (temp_path, -1, NULL, NULL, NULL);
-    h = CreateFileW (temp_filename_w,
+    h = CreateFileW (temp_path_w,
                      GENERIC_WRITE,
                      0,
                      NULL,
@@ -496,13 +500,13 @@ save_obj_contents (ObjBackend *bend,
     print_time ("Close file", &s, &e);
 
     if (need_sync) {
-        if (rename_and_sync (tmp_path, path) < 0) {
+        if (rename_and_sync (temp_path, path) < 0) {
             ret = -1;
         }
     } else {
         g_get_current_time (&s);
 
-        if (g_rename (tmp_path, path) < 0) {
+        if (g_rename (temp_path, path) < 0) {
             seaf_warning ("[obj backend] Failed to rename %s: %s.\n",
                           path, strerror(errno));
             ret = -1;
