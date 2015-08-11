@@ -270,6 +270,8 @@ static void alloc_index (struct index_state *istate)
     istate->i_name_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                  g_free, NULL);
 #endif
+    istate->added_ces = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                               g_free, NULL);
     istate->initialized = 1;
     istate->name_hash_initialized = 1;
 }
@@ -1083,6 +1085,8 @@ int add_to_index(const char *repo_id,
     */
     *added = TRUE;
 
+    g_hash_table_replace (istate->added_ces, g_strdup(path), ce);
+
     return 0;
 }
 
@@ -1174,6 +1178,8 @@ add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *
     }
 
     ce->ce_flags |= CE_ADDED;
+
+    g_hash_table_replace (istate->added_ces, g_strdup(path), ce);
 
     if (add_index_entry(istate, ce, add_option)) {
         seaf_warning("unable to add %s to index\n",path);
@@ -2102,6 +2108,7 @@ int discard_index(struct index_state *istate)
 #if defined WIN32 || defined __APPLE__
     g_hash_table_destroy (istate->i_name_hash);
 #endif
+    g_hash_table_destroy (istate->added_ces);
     /* cache_tree_free(&(istate->cache_tree)); */
     /* free(istate->alloc); */
     free(istate->cache);

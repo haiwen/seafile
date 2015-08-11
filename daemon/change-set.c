@@ -574,6 +574,8 @@ commit_tree_recursive (const char *repo_id, ChangeSetDir *dir, gint64 *new_mtime
 
     seaf_dir = changeset_dir_to_seaf_dir (dir);
 
+    memcpy (dir->dir_id, seaf_dir->dir_id, 40);
+
     if (!seaf_fs_manager_object_exists (seaf->fs_mgr,
                                         repo_id, dir->version,
                                         seaf_dir->dir_id)) {
@@ -609,4 +611,89 @@ commit_tree_from_changeset (ChangeSet *changeset)
                                            &mtime);
 
     return root_id;
+}
+
+gboolean
+changeset_check_path (ChangeSet *changeset,
+                      const char *path,
+                      unsigned char *sha1,
+                      guint32 mode,
+                      gint64 mtime)
+{
+    char *repo_id = changeset->repo_id;
+    ChangeSetDir *root = changeset->tree_root;
+    char **parts, *dname;
+    int n, i;
+    ChangeSetDir *dir;
+    ChangeSetDirent *dent;
+    SeafDir *seaf_dir;
+    gboolean ret = FALSE;
+    char id[41];
+
+    rawdata_to_hex (sha1, id, 20);
+
+    parts = g_strsplit (path, "/", 0);
+    n = g_strv_length(parts);
+    dir = root;
+    for (i = 0; i < n; i++) {
+        dname = parts[i];
+
+        dent = g_hash_table_lookup (dir->dents, dname);
+        if (!dent) {
+            seaf_message ("Changeset mismatch: path component %s of %s not found\n",
+                          dname, path);
+            break;
+        }
+
+        if (S_ISDIR(dent->mode)) {
+            if (i == (n-1)) {
+                if (dent->mode != mode) {
+                    seaf_message ("Changeset mismatch: %s is not a dir\n", path);
+                    break;
+                } else if (strcmp (dent->id, EMPTY_SHA1) != 0) {
+                    seaf_message ("Changeset mismatch: %s is not a empty dir\n", path);
+                    break;
+                }
+                ret = TRUE;
+                break;
+            }
+
+            if (!dent->subdir) {
+                seaf_message ("Changeset mismatch: path component %s of %s is not in changeset\n",
+                              dname, path);
+                break;
+            }
+            dir = dent->subdir;
+        } else if (S_ISREG(dent->mode)) {
+            if (i == (n-1)) {
+                if (dent->mode != mode) {
+                    seaf_message ("Changeset mismatch: %s mode mismatch, "
+                                  "index: %u, changeset: %u\n",
+                                  path, mode, dent->mode);
+                    break;
+                } else if (dent->mtime != mtime) {
+                    seaf_message ("Changeset mismatch: %s mtime mismatch, "
+                                  "index: %"G_GINT64_FORMAT
+                                  ", changeset: %"G_GINT64_FORMAT"\n",
+                                  path, mtime, dent->mtime);
+                    break;
+                } else if (strcmp (dent->id, id) != 0) {
+                    seaf_message ("Changeset mismatch: %s id mismatch, "
+                                  "index: %s, changeset: %s\n",
+                                  path, id, dent->id);
+                    break;
+                }
+                ret = TRUE;
+                break;
+            }
+
+            /* We find a file in the middle of the path, this is invalid. */
+            seaf_message ("Changeset mismatch: path component %s of %s is a file\n",
+                          dname, path);
+            break;
+        }
+    }
+
+    g_strfreev (parts);
+    return ret;
 }

@@ -337,6 +337,7 @@ struct index_state {
 #if defined WIN32 || defined __APPLE__
     GHashTable *i_name_hash;    /* ignore case */
 #endif
+    GHashTable *added_ces;
     int has_modifier;
 };
 

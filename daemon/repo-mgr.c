@@ -1974,6 +1974,16 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
             add_to_index (repo->id, repo->version, istate, path, full_path,
                           &st, 0, crypt, index_cb, repo->email, &added);
             if (added) {
+                ce = index_name_exists (istate, path, strlen(path), 0);
+                add_to_changeset (repo->changeset,
+                                  DIFF_STATUS_ADDED,
+                                  ce->sha1,
+                                  &st,
+                                  repo->email,
+                                  path,
+                                  NULL,
+                                  TRUE);
+
                 *total_size += (gint64)(st.st_size);
                 if (*total_size >= MAX_COMMIT_SIZE) {
                     g_free (path);
@@ -1986,18 +1996,6 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       path,
                                                       S_IFREG,
                                                       SYNC_STATUS_SYNCED);
-            }
-
-            if (added) {
-                ce = index_name_exists (istate, path, strlen(path), 0);
-                add_to_changeset (repo->changeset,
-                                  DIFF_STATUS_ADDED,
-                                  ce->sha1,
-                                  &st,
-                                  repo->email,
-                                  path,
-                                  NULL,
-                                  TRUE);
             }
         } else if (S_ISDIR(st.st_mode)) {
             if (is_empty_dir (full_path, ignore_list)) {
@@ -3516,6 +3514,41 @@ need_handle_unmerged_index (SeafRepo *repo, struct index_state *istate)
     return TRUE;
 }
 
+static void
+check_ce_changeset (gpointer key, gpointer value, gpointer user_data)
+{
+    ChangeSet *changeset = user_data;
+    struct cache_entry *ce = value;
+
+    changeset_check_path (changeset, ce->name,
+                          ce->sha1, ce->ce_mode, ce->ce_mtime.sec);
+}
+
+static void
+commit_sanity_check (SeafRepo *repo,
+                     struct index_state *istate,
+                     const char *new_root_id)
+{
+    ChangeSet *changeset = repo->changeset;
+    SeafCommit *head = NULL;
+
+    head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                           repo->id, repo->version,
+                                           repo->head->commit_id);
+    if (!head) {
+        seaf_warning ("Head commit %s for repo %s not found\n",
+                      repo->head->commit_id, repo->id);
+        return;
+    }
+
+    if (strcmp (head->root_id, new_root_id) == 0) {
+        seaf_warning ("BUG: repo %s, new root id is the same as current root id %s\n",
+                      repo->id, new_root_id);
+    }
+
+    g_hash_table_foreach (istate->added_ces, check_ce_changeset, changeset);
+}
+
 static int 
 print_index (struct index_state *istate)
 {
@@ -3590,6 +3623,8 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_force_comm
         seaf_warning ("Create commit tree failed for repo %s\n", repo->id);
         goto out;
     }
+
+    commit_sanity_check (repo, &istate, root_id);
 
     if (commit_tree (repo, root_id, my_desc, commit_id, unmerged) < 0) {
         seaf_warning ("Failed to save commit file");

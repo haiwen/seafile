@@ -38,4 +38,11 @@ add_to_changeset (ChangeSet *changeset,
 char *
 commit_tree_from_changeset (ChangeSet *changeset);
 
+gboolean
+changeset_check_path (ChangeSet *changeset,
+                      const char *path,
+                      unsigned char *sha1,
+                      guint32 mode,
+                      gint64 mtime);
+
 #endif
