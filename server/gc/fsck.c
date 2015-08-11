@@ -300,7 +300,7 @@ reset_commit_to_repair (SeafRepo *repo, SeafCommit *parent, char *new_root_id)
     seaf_repo_to_commit (repo, new_commit);
     new_commit->repaired = TRUE;
 
-    seaf_message ("Revert repo %.8s status to commit %.8s.\n",
+    seaf_message ("Reset repo %.8s status to commit %.8s.\n",
                   repo->id, new_commit->commit_id);
     seaf_branch_set_commit (repo->head, new_commit->commit_id);
     if (seaf_branch_manager_add_branch (seaf->branch_mgr, repo->head) < 0) {
