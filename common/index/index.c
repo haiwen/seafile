@@ -270,6 +270,8 @@ static void alloc_index (struct index_state *istate)
     istate->i_name_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                  g_free, NULL);
 #endif
+    istate->added_ces = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                               g_free, NULL);
     istate->initialized = 1;
     istate->name_hash_initialized = 1;
 }
@@ -1019,11 +1021,7 @@ int add_to_index(const char *repo_id,
     alias = index_name_exists(istate, ce->name, ce_namelen(ce), 0);
     if (alias) {
         if (!ce_stage(alias) && !ie_match_stat(alias, st, ce_option)) {
-            /* Nothing changed, really */
             free(ce);
-            if (!S_ISGITLINK(alias->ce_mode))
-                ce_mark_uptodate(alias);
-            alias->ce_flags |= CE_ADDED;
             return 0;
         }
     } else {
@@ -1047,6 +1045,7 @@ int add_to_index(const char *repo_id,
         ce->ce_mode = alias->ce_mode;
 #endif
 
+#if 0
 #ifdef WIN32
     /* Fix daylight saving time bug on Windows.
      * See http://www.codeproject.com/Articles/1144/Beating-the-Daylight-Savings-Time-bug-and-getting
@@ -1065,13 +1064,13 @@ int add_to_index(const char *repo_id,
             goto update_index;
     }
 #endif
+#endif  /* 0 */
 
     if (index_cb (repo_id, version, full_path, sha1, crypt, TRUE) < 0) {
         free (ce);
         return -1;
     }
 
-update_index:
     memcpy (ce->sha1, sha1, 20);
     ce->ce_flags |= CE_ADDED;
     ce->modifier = g_strdup(modifier);
@@ -1081,8 +1080,12 @@ update_index:
         return -1;
     }
 
-    if (!alias || memcmp (alias->sha1, sha1, 20) != 0)
-        *added = TRUE;
+    /* As long as the timestamp or mode is changed, we consider
+       the cache enrty as changed. This has been tested by ie_match_stat().
+    */
+    *added = TRUE;
+
+    g_hash_table_replace (istate->added_ces, g_strdup(path), ce);
 
     return 0;
 }
@@ -1173,6 +1176,10 @@ add_empty_dir_to_index (struct index_state *istate, const char *path, SeafStat *
         }
 #endif
     }
+
+    ce->ce_flags |= CE_ADDED;
+
+    g_hash_table_replace (istate->added_ces, g_strdup(path), ce);
 
     if (add_index_entry(istate, ce, add_option)) {
         seaf_warning("unable to add %s to index\n",path);
@@ -2101,6 +2108,7 @@ int discard_index(struct index_state *istate)
 #if defined WIN32 || defined __APPLE__
     g_hash_table_destroy (istate->i_name_hash);
 #endif
+    g_hash_table_destroy (istate->added_ces);
     /* cache_tree_free(&(istate->cache_tree)); */
     /* free(istate->alloc); */
     free(istate->cache);

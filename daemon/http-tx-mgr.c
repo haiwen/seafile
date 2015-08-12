@@ -1660,7 +1660,7 @@ parse_locked_file_list (json_t *array)
         }
         g_hash_table_insert (ret,
                              g_strdup(json_string_value(string)),
-                             (void*)json_integer_value(integer));
+                             (void*)(long)json_integer_value(integer));
     }
 
     return ret;
@@ -1994,6 +1994,14 @@ http_tx_manager_add_upload (HttpTxManager *manager,
     return 0;
 }
 
+static gboolean
+dirent_same (SeafDirent *dent1, SeafDirent *dent2)
+{
+    return (strcmp(dent1->id, dent2->id) == 0 &&
+            dent1->mode == dent2->mode &&
+            dent1->mtime == dent2->mtime);
+}
+
 typedef struct {
     HttpTxTask *task;
     gint64 delta;
@@ -2015,7 +2023,7 @@ check_quota_and_active_paths_diff_files (int n, const char *basedir,
         size2 = file2->size;
         data->delta += (size1 - size2);
 
-        if (strcmp(file1->id, file2->id) != 0) {
+        if (!dirent_same (file1, file2)) {
             path = g_strconcat(basedir, file1->name, NULL);
             g_hash_table_replace (data->active_paths, path, (void*)(long)S_IFREG);
         }
@@ -2219,12 +2227,6 @@ typedef struct {
     GHashTable *checked_objs;
 } CalcFsListData;
 
-inline static gboolean
-dirent_same (SeafDirent *denta, SeafDirent *dentb)
-{
-    return (strcmp (dentb->id, denta->id) == 0 && denta->mode == dentb->mode);
-}
-
 static int
 collect_file_ids (int n, const char *basedir, SeafDirent *files[], void *vdata)
 {
@@ -2240,7 +2242,7 @@ collect_file_ids (int n, const char *basedir, SeafDirent *files[], void *vdata)
     if (g_hash_table_lookup (data->checked_objs, file1->id))
         return 0;
 
-    if (!file2 || !dirent_same (file1, file2)) {
+    if (!file2 || strcmp (file1->id, file2->id) != 0) {
         *pret = g_list_prepend (*pret, g_strdup(file1->id));
         g_hash_table_insert (data->checked_objs, g_strdup(file1->id), &dummy);
     }
@@ -2264,7 +2266,7 @@ collect_dir_ids (int n, const char *basedir, SeafDirent *dirs[], void *vdata,
     if (g_hash_table_lookup (data->checked_objs, dir1->id))
         return 0;
 
-    if (!dir2 || !dirent_same (dir1, dir2)) {
+    if (!dir2 || strcmp (dir1->id, dir2->id) != 0) {
         *pret = g_list_prepend (*pret, g_strdup(dir1->id));
         g_hash_table_insert (data->checked_objs, g_strdup(dir1->id), &dummy);
     }

@@ -1974,6 +1974,16 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
             add_to_index (repo->id, repo->version, istate, path, full_path,
                           &st, 0, crypt, index_cb, repo->email, &added);
             if (added) {
+                ce = index_name_exists (istate, path, strlen(path), 0);
+                add_to_changeset (repo->changeset,
+                                  DIFF_STATUS_ADDED,
+                                  ce->sha1,
+                                  &st,
+                                  repo->email,
+                                  path,
+                                  NULL,
+                                  TRUE);
+
                 *total_size += (gint64)(st.st_size);
                 if (*total_size >= MAX_COMMIT_SIZE) {
                     g_free (path);
@@ -1986,18 +1996,6 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       path,
                                                       S_IFREG,
                                                       SYNC_STATUS_SYNCED);
-            }
-
-            if (added) {
-                ce = index_name_exists (istate, path, strlen(path), 0);
-                add_to_changeset (repo->changeset,
-                                  DIFF_STATUS_ADDED,
-                                  ce->sha1,
-                                  &st,
-                                  repo->email,
-                                  path,
-                                  NULL,
-                                  TRUE);
             }
         } else if (S_ISDIR(st.st_mode)) {
             if (is_empty_dir (full_path, ignore_list)) {
@@ -2110,8 +2108,12 @@ out:
 }
 
 static void
-update_ce_mode (struct index_state *istate, const char *worktree, const char *path)
+update_attributes (SeafRepo *repo,
+                   struct index_state *istate,
+                   const char *worktree,
+                   const char *path)
 {
+    ChangeSet *changeset = repo->changeset;
     char *full_path;
     struct cache_entry *ce;
     SeafStat st;
@@ -2128,8 +2130,19 @@ update_ce_mode (struct index_state *istate, const char *worktree, const char *pa
     }
 
     unsigned int new_mode = create_ce_mode (st.st_mode);
-    if (new_mode != ce->ce_mode)
+    if (new_mode != ce->ce_mode || st.st_mtime != ce->ce_mtime.sec) {
         ce->ce_mode = new_mode;
+        ce->ce_mtime.sec = st.st_mtime;
+        istate->cache_changed = 1;
+        add_to_changeset (changeset,
+                          DIFF_STATUS_MODIFIED,
+                          ce->sha1,
+                          &st,
+                          repo->email,
+                          path,
+                          NULL,
+                          TRUE);
+    }
     g_free (full_path);
 }
 
@@ -3061,7 +3074,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 seaf_debug ("%s is not writable, ignore.\n", event->path);
                 break;
             }
-            update_ce_mode (istate, repo->worktree, event->path);
+            update_attributes (repo, istate, repo->worktree, event->path);
             break;
         case WT_EVENT_OVERFLOW:
             seaf_warning ("Kernel event queue overflowed, fall back to scan.\n");
@@ -3501,6 +3514,41 @@ need_handle_unmerged_index (SeafRepo *repo, struct index_state *istate)
     return TRUE;
 }
 
+static void
+check_ce_changeset (gpointer key, gpointer value, gpointer user_data)
+{
+    ChangeSet *changeset = user_data;
+    struct cache_entry *ce = value;
+
+    changeset_check_path (changeset, ce->name,
+                          ce->sha1, ce->ce_mode, ce->ce_mtime.sec);
+}
+
+static void
+commit_sanity_check (SeafRepo *repo,
+                     struct index_state *istate,
+                     const char *new_root_id)
+{
+    ChangeSet *changeset = repo->changeset;
+    SeafCommit *head = NULL;
+
+    head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                           repo->id, repo->version,
+                                           repo->head->commit_id);
+    if (!head) {
+        seaf_warning ("Head commit %s for repo %s not found\n",
+                      repo->head->commit_id, repo->id);
+        return;
+    }
+
+    if (strcmp (head->root_id, new_root_id) == 0) {
+        seaf_warning ("BUG: repo %s, new root id is the same as current root id %s\n",
+                      repo->id, new_root_id);
+    }
+
+    g_hash_table_foreach (istate->added_ces, check_ce_changeset, changeset);
+}
+
 static int 
 print_index (struct index_state *istate)
 {
@@ -3575,6 +3623,8 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_force_comm
         seaf_warning ("Create commit tree failed for repo %s\n", repo->id);
         goto out;
     }
+
+    commit_sanity_check (repo, &istate, root_id);
 
     if (commit_tree (repo, root_id, my_desc, commit_id, unmerged) < 0) {
         seaf_warning ("Failed to save commit file");
@@ -4362,19 +4412,25 @@ fetch_file_http (FileTxData *data, FileTxTask *file_task)
         if (st.st_mtime == ce->ce_mtime.sec) {
             /* Worktree and index are consistent. */
             if (memcmp (de->sha1, ce->sha1, 20) == 0) {
+                seaf_debug ("wt and index are consistent. no need to checkout.\n");
                 file_task->no_checkout = TRUE;
-                if (de->mode == ce->ce_mode) {
-                    /* Worktree and index are all uptodate, no need to checkout.
-                     * This may happen after an interrupted checkout.
-                     */
-                    seaf_debug ("wt and index are consistent. no need to checkout.\n");
-                    fill_stat_cache_info (ce, &st);
-                } else {
+
+                /* Update mode if necessary. */
+                if (de->mode != ce->ce_mode) {
 #ifndef WIN32
                     chmod (path, de->mode & ~S_IFMT);
                     ce->ce_mode = de->mode;
 #endif
                 }
+
+                /* Update mtime if necessary. */
+                if (de->mtime != ce->ce_mtime.sec) {
+                    seaf_set_file_time (path, de->mtime);
+                    ce->ce_mtime.sec = de->mtime;
+                }
+
+                fill_stat_cache_info (ce, &st);
+
                 return FETCH_CHECKOUT_SUCCESS;
             }
             /* otherwise we have to checkout the file. */
@@ -4769,8 +4825,11 @@ download_files_http (const char *repo_id,
     }
 
     /* If there is no file need to be downloaded, return immediately. */
-    if (http_task->n_files == 0)
+    if (http_task->n_files == 0) {
+        if (results != NULL)
+            update_index (istate, index_path);
         goto out;
+    }
 
     char file_id[41];
     while ((task = g_async_queue_pop (finished_tasks)) != NULL) {
