@@ -4493,7 +4493,15 @@ fetch_file_thread_func (gpointer data, gpointer user_data)
                                               de->mode,
                                               SYNC_STATUS_SYNCING);
 
+    GTimeVal s, e;
+
+    g_get_current_time (&s);
+
     rc = fetch_file_http (tx_data, task);
+
+    g_get_current_time (&e);
+
+    print_time ("fetch blocks", &s, &e);
 
     /* Even if the file failed to check out, still need to update index.
      * But we have to stop after transfer errors.
@@ -4530,6 +4538,10 @@ schedule_file_fetch (GThreadPool *tpool,
         new_ce = TRUE;
     }
 
+    GTimeVal s, e;
+
+    g_get_current_time (&s);
+
 #ifndef __linux__
     path = build_case_conflict_free_path (worktree, de->name,
                                           conflict_hash, no_conflict_hash,
@@ -4538,6 +4550,10 @@ schedule_file_fetch (GThreadPool *tpool,
 #else
     path = build_checkout_path (worktree, de->name, strlen(de->name));
 #endif
+
+    g_get_current_time (&e);
+
+    print_time ("build path", &s, &e);
 
     if (!path) {
         if (new_ce)
@@ -4669,6 +4685,10 @@ checkout_file_http (FileTxData *data,
         seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
                                               repo_id, de->name);
 
+    GTimeVal s, e;
+
+    g_get_current_time (&s);
+
     /* then checkout the file. */
     gboolean conflicted = FALSE;
     if (seaf_fs_manager_checkout_file (seaf->fs_mgr,
@@ -4695,12 +4715,22 @@ checkout_file_http (FileTxData *data,
         return FETCH_CHECKOUT_FAILED;
     }
 
+    g_get_current_time (&e);
+
+    print_time ("build path", &s, &e);
+
     if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                               repo_id, de->name))
         seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
                                             repo_id, de->name);
 
+    g_get_current_time (&s);
+
     cleanup_file_blocks_http (http_task, file_id);
+
+    g_get_current_time (&e);
+
+    print_time ("cleanup blocks", &s, &e);
 
     /* If case conflict, this file will be checked out to another path.
      * Remove the current entry, otherwise it won't be removed later
@@ -5287,6 +5317,10 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
     GList *ptr;
     DiffEntry *de;
 
+    GTimeVal s, e;
+
+    g_get_current_time (&s);
+
     /* Expand DIR_ADDED diff entries. */
     if (expand_diff_results (repo_id, repo_version,
                              remote_head->root_id,
@@ -5295,6 +5329,10 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         ret = FETCH_CHECKOUT_FAILED;
         goto out;
     }
+
+    g_get_current_time (&e);
+
+    print_time ("expand diff results", &s, &e);
 
 #ifdef WIN32
     for (ptr = results; ptr; ptr = ptr->next) {

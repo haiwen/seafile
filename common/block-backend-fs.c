@@ -268,7 +268,7 @@ block_backend_fs_remove_block (BlockBackend *bend,
 
     get_block_path (bend, block_id, path, store_id, version);
 
-    return g_unlink (path);
+    return seaf_util_unlink (path);
 }
 
 static BMetadata *

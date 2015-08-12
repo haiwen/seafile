@@ -357,6 +357,13 @@ save_obj_contents (ObjBackend *bend,
 
 #else
 
+static inline void
+print_time (const char *desc, GTimeVal *s, GTimeVal *e)
+{
+    seaf_message ("%s: %lu\n", desc,
+                  (e->tv_sec*G_USEC_PER_SEC+e->tv_usec - (s->tv_sec*G_USEC_PER_SEC+s->tv_usec))/1000);
+}
+
 static int
 create_temp_path (ObjBackend *bend,
                   const char *repo_id,
@@ -375,6 +382,10 @@ create_temp_path (ObjBackend *bend,
     else
         snprintf (new_path, sizeof(new_path), "%.2s", obj_id);
 
+    GTimeVal s, e;
+
+    g_get_current_time (&s);
+
     ret = seaf_util_mkdir_with_parents (bend->priv->obj_dir, new_path, 0777);
     if (ret < 0) {
         seaf_warning ("Failed to create parent path for object %s:%s.\n",
@@ -382,15 +393,25 @@ create_temp_path (ObjBackend *bend,
         return ret;
     }
 
+    g_get_current_time (&e);
+
+    print_time ("mkdir", &s, &e);
+
     temp_path_parent = g_build_path ("/", bend->priv->obj_dir, new_path, NULL);
     temp_path_parent_w = g_utf8_to_utf16 (temp_path_parent, -1, NULL, NULL, NULL);
     prefix_str_w = g_utf8_to_utf16 (obj_id + 2, -1, NULL, NULL, NULL);
+
+    g_get_current_time (&s);
 
     if (!GetTempFileNameW (temp_path_parent_w, prefix_str_w, 0, temp_path_w)) {
         seaf_warning ("Failed to GetTempFileNameW: %lu\n", GetLastError());
         ret = -1;
         goto out;
     }
+
+    g_get_current_time (&e);
+
+    print_time ("create temp file", &s, &e);
 
     *temp_path = g_utf16_to_utf8 (temp_path_w, -1, NULL, NULL, NULL);
 
@@ -436,6 +457,10 @@ save_obj_contents (ObjBackend *bend,
         goto out;
     }
 
+    GTimeVal s, e;
+
+    g_get_current_time (&s);
+
     DWORD n;
     if (!WriteFile (h, data, len, &n, NULL)) {
         seaf_warning ("Failed to write object %s:%s: %lu\n",
@@ -444,6 +469,10 @@ save_obj_contents (ObjBackend *bend,
         CloseHandle (h);
         goto out;
     }
+
+    g_get_current_time (&e);
+
+    print_time ("Write file", &s, &e);
 
     if (need_sync) {
         if (!FlushFileBuffers (h)) {
@@ -454,22 +483,34 @@ save_obj_contents (ObjBackend *bend,
         }
     }
 
+    g_get_current_time (&s);
+
     if (!CloseHandle (h)) {
         seaf_warning ("CloseHandle() failed: %lu\n", GetLastError());
         ret = -1;
         goto out;
     }
 
+    g_get_current_time (&e);
+
+    print_time ("Close file", &s, &e);
+
     if (need_sync) {
         if (rename_and_sync (tmp_path, path) < 0) {
             ret = -1;
         }
     } else {
+        g_get_current_time (&s);
+
         if (g_rename (tmp_path, path) < 0) {
             seaf_warning ("[obj backend] Failed to rename %s: %s.\n",
                           path, strerror(errno));
             ret = -1;
         }
+
+        g_get_current_time (&e);
+
+        print_time ("rename", &s, &e);
     }
 
 out:
