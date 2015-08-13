@@ -567,13 +567,13 @@ handle_missing_virtual_repo (SeafRepoManager *mgr,
 
         for (ptr = diff_res; ptr; ptr = ptr->next) {
             de = ptr->data;
-            if (de->status == DIFF_STATUS_DIR_ADDED) {
+            if (de->status == DIFF_STATUS_DIR_RENAMED) {
                 rawdata_to_hex (de->sha1, de_id, 20);
                 if (strcmp (de_id, old_dir_id) == 0) {
                     if (sub_path != NULL)
-                        new_path = g_strconcat ("/", de->name, "/", sub_path, NULL);
+                        new_path = g_strconcat ("/", de->new_name, "/", sub_path, NULL);
                     else
-                        new_path = g_strconcat ("/", de->name, NULL);
+                        new_path = g_strconcat ("/", de->new_name, NULL);
                     seaf_debug ("Updating path of virtual repo %s to %s.\n",
                                 vinfo->repo_id, new_path);
                     set_virtual_repo_base_commit_path (vinfo->repo_id,
