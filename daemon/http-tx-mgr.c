@@ -408,20 +408,26 @@ create_ca_bundle (const char *ca_bundle_path)
     return 0;
 }
 
+#endif	/* WIN32 */
+
 static void
 load_ca_bundle (CURL *curl)
 {
     char *ca_bundle_path = seaf->http_tx_mgr->priv->ca_bundle_path;
 
+    /* On MacOS the certs are loaded by seafile applet instead of seaf-daemon  */
     if (!seaf_util_exists (ca_bundle_path)) {
+#ifdef WIN32
         if (create_ca_bundle (ca_bundle_path) < 0)
             return;
+#else
+        return;
+#endif
     }
 
     curl_easy_setopt (curl, CURLOPT_CAINFO, ca_bundle_path);
 }
 
-#endif	/* WIN32 */
 
 static gboolean
 load_certs (sqlite3_stmt *stmt, void *vdata)
@@ -636,7 +642,7 @@ http_get (CURL *curl, const char *url, const char *token,
 
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
     load_ca_bundle (curl);
 #endif
 
@@ -767,7 +773,7 @@ http_put (CURL *curl, const char *url, const char *token,
 
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
     load_ca_bundle (curl);
 #endif
 
@@ -861,7 +867,7 @@ http_post (CURL *curl, const char *url, const char *token,
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &rsp);
     }
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
     load_ca_bundle (curl);
 #endif
 
