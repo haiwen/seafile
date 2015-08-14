@@ -422,8 +422,10 @@ check_and_recover_repo (SeafRepo *repo, gboolean reset, gboolean repair)
 
     char *root_id = fsck_check_dir_recursive (rep_commit->root_id, "/", &fsck_data);
     g_hash_table_destroy (fsck_data.existing_blocks);
-    if (root_id == NULL)
+    if (root_id == NULL) {
+        seaf_commit_unref (rep_commit);
         return;
+    }
 
     if (repair) {
         if (strcmp (root_id, rep_commit->root_id) != 0) {
