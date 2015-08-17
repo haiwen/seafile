@@ -3532,39 +3532,21 @@ need_handle_unmerged_index (SeafRepo *repo, struct index_state *istate)
     return TRUE;
 }
 
+typedef struct CommitSanityData {
+    ChangeSet *changeset;
+    gboolean result;
+} CommitSanityData;
+
 static void
 check_ce_changeset (gpointer key, gpointer value, gpointer user_data)
 {
-    ChangeSet *changeset = user_data;
+    CommitSanityData *data = user_data;
+    ChangeSet *changeset = data->changeset;
     struct cache_entry *ce = value;
 
-    changeset_check_path (changeset, ce->name,
-                          ce->sha1, ce->ce_mode, ce->ce_mtime.sec);
-}
-
-static void
-commit_sanity_check (SeafRepo *repo,
-                     struct index_state *istate,
-                     const char *new_root_id)
-{
-    ChangeSet *changeset = repo->changeset;
-    SeafCommit *head = NULL;
-
-    head = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                           repo->id, repo->version,
-                                           repo->head->commit_id);
-    if (!head) {
-        seaf_warning ("Head commit %s for repo %s not found\n",
-                      repo->head->commit_id, repo->id);
-        return;
-    }
-
-    if (strcmp (head->root_id, new_root_id) == 0) {
-        seaf_warning ("BUG: repo %s, new root id is the same as current root id %s\n",
-                      repo->id, new_root_id);
-    }
-
-    g_hash_table_foreach (istate->added_ces, check_ce_changeset, changeset);
+    if (!changeset_check_path (changeset, ce->name,
+                               ce->sha1, ce->ce_mode, ce->ce_mtime.sec))
+        data->result = FALSE;
 }
 
 static int 
@@ -3600,7 +3582,8 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_force_comm
     SeafRepoManager *mgr = repo->manager;
     struct index_state istate;
     char index_path[SEAF_PATH_MAX];
-    char *root_id = NULL;
+    SeafCommit *head = NULL;
+    char *new_root_id = NULL;
     char commit_id[41];
     gboolean unmerged = FALSE;
     ChangeSet *changeset = NULL;
@@ -3636,22 +3619,47 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_force_comm
     if (!my_desc)
         my_desc = g_strdup("");
 
-    root_id = commit_tree_from_changeset (changeset);
-    if (!root_id) {
+    new_root_id = commit_tree_from_changeset (changeset);
+    if (!new_root_id) {
         seaf_warning ("Create commit tree failed for repo %s\n", repo->id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Failed to generate commit");
         goto out;
     }
 
-    commit_sanity_check (repo, &istate, root_id);
+    head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                           repo->id, repo->version,
+                                           repo->head->commit_id);
+    if (!head) {
+        seaf_warning ("Head commit %s for repo %s not found\n",
+                      repo->head->commit_id, repo->id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Data corrupt");
+        goto out;
+    }
 
-    if (commit_tree (repo, root_id, my_desc, commit_id, unmerged) < 0) {
+    if (strcmp (head->root_id, new_root_id) == 0) {
+        CommitSanityData data;
+        data.changeset = changeset;
+        data.result = TRUE;
+
+        g_hash_table_foreach (istate.added_ces, check_ce_changeset, &data);
+
+        /* If no file modification and addition are missing, and the new root
+         * id is the same as the old one, skip commiting.
+         */
+        if (data.result)
+            goto out;
+    }
+
+    if (commit_tree (repo, new_root_id, my_desc, commit_id, unmerged) < 0) {
         seaf_warning ("Failed to save commit file");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal error");
         goto out;
     }
 
-    if (update_index (&istate, index_path) < 0)
+    if (update_index (&istate, index_path) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal error");
         goto out;
+    }
 
     g_signal_emit_by_name (seaf, "repo-committed", repo);
 
@@ -3659,7 +3667,8 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_force_comm
 
 out:
     g_free (my_desc);
-    g_free (root_id);
+    seaf_commit_unref (head);
+    g_free (new_root_id);
     changeset_free (changeset);
     discard_index (&istate);
     return ret;
