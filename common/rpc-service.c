@@ -3579,7 +3579,7 @@ seafile_list_file_revisions (const char *repo_id,
     commit_list = seaf_repo_manager_list_file_revisions (seaf->repo_mgr,
                                                          repo_id, NULL, rpath,
                                                          max_revision,
-                                                         limit, show_days, error);
+                                                         limit, show_days, FALSE, error);
     g_free (rpath);
 
     return commit_list;

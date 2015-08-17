@@ -4168,6 +4168,7 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
                                        int max_revision,
                                        int limit,
                                        int show_days,
+                                       gboolean got_latest,
                                        GError **error)
 {
     SeafRepo *repo = NULL;
@@ -4205,6 +4206,7 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
     data.wanted_commits = NULL;
     data.file_id_list = NULL;
     data.file_size_list = NULL;
+    data.got_latest = got_latest;
 
     /* A hash table to cache caculated file info of <path> in <commit> */
     data.file_info_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
@@ -4241,11 +4243,20 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
                                    is_renamed, old_path);
 
     if (is_renamed) {
-        /* Get the revisions of the old path, starting from parent commit. */
-        old_revisions = seaf_repo_manager_list_file_revisions (mgr, repo_id,
-                                                               parent_id, old_path,
-                                                               -1, -1, show_days,
-                                                               error);
+        if (ret) {
+            // if previous scan got revision then set got_latest True for renamend scan
+            /* Get the revisions of the old path, starting from parent commit. */
+            old_revisions = seaf_repo_manager_list_file_revisions (mgr, repo_id,
+                                                                   parent_id, old_path,
+                                                                   -1, -1, show_days,
+                                                                   TRUE, error);
+        } else {
+            /* Get the revisions of the old path, starting from parent commit. */
+            old_revisions = seaf_repo_manager_list_file_revisions (mgr, repo_id,
+                                                                   parent_id, old_path,
+                                                                   -1, -1, show_days,
+                                                                   FALSE, error);
+        }
         ret = g_list_concat (ret, old_revisions);
         g_free (parent_id);
         g_free (old_path);
