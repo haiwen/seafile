@@ -1232,6 +1232,15 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     }
     g_dir_close (dir);
 
+    if (ignored) {
+        seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                              params->repo_id,
+                                              path,
+                                              S_IFDIR,
+                                              SYNC_STATUS_IGNORED);
+        return 0;
+    }
+
     if (options)
         is_writable = is_path_writable(params->repo_id,
                                        options->is_repo_ro, path);
@@ -1477,6 +1486,15 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                               path,
                                               S_IFDIR,
                                               SYNC_STATUS_ERROR);
+        return 0;
+    }
+
+    if (ignored) {
+        seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                              params->repo_id,
+                                              path,
+                                              S_IFDIR,
+                                              SYNC_STATUS_IGNORED);
         return 0;
     }
 
