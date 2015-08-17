@@ -86,7 +86,7 @@ do_create_virtual_repo (SeafRepoManager *mgr,
         repo->enc_version = origin_repo->enc_version;
         seafile_generate_magic (repo->enc_version, repo_id, passwd, repo->magic);
         if (repo->enc_version == 2)
-            seafile_generate_random_key (passwd, repo->random_key);
+            memcpy (repo->random_key, origin_repo->random_key, 96);
     }
 
     /* Virtual repos share fs and block store with origin repo and
