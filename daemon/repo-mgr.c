@@ -3643,6 +3643,7 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_force_comm
     }
 
     if (strcmp (head->root_id, new_root_id) == 0) {
+        seaf_message ("No change to the fs tree of repo %s\n", repo->id);
         /* If no file modification and addition are missing, and the new root
          * id is the same as the old one, skip commiting.
          */
