@@ -2467,12 +2467,13 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
     int total_size;
     unsigned char *package;
     CURL *curl;
-    char *url;
+    char *url = NULL;
     int status;
     int ret = 0;
     int n_sent = 0;
 
     buf = evbuffer_new ();
+    curl = conn->curl;
 
     while (*send_fs_list != NULL) {
         obj_id = (*send_fs_list)->data;
@@ -2508,8 +2509,6 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
                 n_sent, task->host, task->repo_id);
 
     package = evbuffer_pullup (buf, -1);
-
-    curl = conn->curl;
 
     if (!task->use_fileserver_port)
         url = g_strdup_printf ("%s/seafhttp/repo/%s/recv-fs/",

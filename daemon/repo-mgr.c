@@ -3532,21 +3532,27 @@ need_handle_unmerged_index (SeafRepo *repo, struct index_state *istate)
     return TRUE;
 }
 
-typedef struct CommitSanityData {
-    ChangeSet *changeset;
-    gboolean result;
-} CommitSanityData;
-
-static void
-check_ce_changeset (gpointer key, gpointer value, gpointer user_data)
+static gboolean
+compare_index_changeset (struct index_state *istate, ChangeSet *changeset)
 {
-    CommitSanityData *data = user_data;
-    ChangeSet *changeset = data->changeset;
-    struct cache_entry *ce = value;
+    struct cache_entry *ce;
+    int i;
+    gboolean ret = TRUE;
 
-    if (!changeset_check_path (changeset, ce->name,
-                               ce->sha1, ce->ce_mode, ce->ce_mtime.sec))
-        data->result = FALSE;
+    for (i = 0; i < istate->cache_nr; ++i) {
+        ce = istate->cache[i];
+
+        if (!(ce->ce_flags & CE_ADDED))
+            continue;
+
+        seaf_message ("checking %s in changeset.\n", ce->name);
+
+        if (!changeset_check_path (changeset, ce->name,
+                                   ce->sha1, ce->ce_mode, ce->ce_mtime.sec))
+            ret = FALSE;
+    }
+
+    return ret;
 }
 
 static int 
@@ -3637,16 +3643,10 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_force_comm
     }
 
     if (strcmp (head->root_id, new_root_id) == 0) {
-        CommitSanityData data;
-        data.changeset = changeset;
-        data.result = TRUE;
-
-        g_hash_table_foreach (istate.added_ces, check_ce_changeset, &data);
-
         /* If no file modification and addition are missing, and the new root
          * id is the same as the old one, skip commiting.
          */
-        if (data.result)
+        if (compare_index_changeset (&istate, changeset))
             goto out;
     }
 
