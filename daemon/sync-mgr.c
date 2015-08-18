@@ -181,7 +181,7 @@ get_sync_info (SeafSyncManager *manager, const char *repo_id)
     if (info) return info;
 
     info = g_new0 (SyncInfo, 1);
-    memcpy (info->repo_id, repo_id, 41);
+    memcpy (info->repo_id, repo_id, 36);
     g_hash_table_insert (manager->sync_infos, info->repo_id, info);
     return info;
 }

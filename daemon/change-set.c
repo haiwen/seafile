@@ -389,6 +389,11 @@ add_to_tree (ChangeSet *changeset,
                                                            repo_id,
                                                            root->version,
                                                            dent->id);
+                    if (!seaf_dir) {
+                        seaf_warning ("Failed to load seafdir %s:%s\n",
+                                      repo_id, dent->id);
+                        break;
+                    }
                     dent->subdir = seaf_dir_to_changeset_dir (seaf_dir);
                     seaf_dir_free (seaf_dir);
                 }
@@ -467,6 +472,11 @@ delete_from_tree (ChangeSet *changeset,
                                                        repo_id,
                                                        root->version,
                                                        dent->id);
+                if (!seaf_dir) {
+                    seaf_warning ("Failed to load seafdir %s:%s\n",
+                                  repo_id, dent->id);
+                    break;
+                }
                 dent->subdir = seaf_dir_to_changeset_dir (seaf_dir);
                 seaf_dir_free (seaf_dir);
             }

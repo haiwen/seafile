@@ -306,12 +306,14 @@ int read_index_from(struct index_state *istate, const char *path, int repo_versi
 
     if (seaf_fstat(fd, &st)) {
         g_critical("cannot stat the open index\n");
+        close(fd);
         return -1;
     }
 
     mmap_size = (size_t)st.st_size;
     if (mmap_size < sizeof(struct cache_header) + 20) {
         g_critical("index file smaller than expected\n");
+        close(fd);
         return -1;
     }
 

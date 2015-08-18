@@ -1768,7 +1768,7 @@ retry:
     }
 
     memcpy (repo->magic, new_magic, 64);
-    memcpy (repo->random_key, new_random_key, 98);
+    memcpy (repo->random_key, new_random_key, 96);
 
     commit = seaf_commit_new (NULL,
                               repo->id,

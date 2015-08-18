@@ -413,6 +413,11 @@ check_and_recover_repo (SeafRepo *repo, gboolean reset, gboolean repair)
 
     rep_commit = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->id,
                                                  repo->version, repo->head->commit_id);
+    if (!rep_commit) {
+        seaf_warning ("Failed to load commit %s of repo %s\n",
+                      repo->head->commit_id, repo->id);
+        return;
+    }
 
     memset (&fsck_data, 0, sizeof(fsck_data));
     fsck_data.repair = repair;
@@ -564,6 +569,13 @@ repair_repos (GList *repo_id_list, gboolean repair)
             SeafCommit *commit = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->id,
                                                                  repo->version,
                                                                  repo->head->commit_id);
+            if (!commit) {
+                seaf_warning ("Failed to get head commit %s of repo %s\n",
+                              repo->head->commit_id, repo->id);
+                seaf_repo_unref (repo);
+                goto next;
+            }
+
             io_error = FALSE;
             if (!fsck_verify_seafobj (repo->store_id, repo->version,
                                       commit->root_id,  &io_error,

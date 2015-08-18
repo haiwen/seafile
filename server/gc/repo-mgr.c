@@ -408,10 +408,6 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr,
 error:
     *error = TRUE;
     string_list_free (id_list);
-    for (ptr = ret; ptr; ptr = ptr->next) {
-        repo = ptr->data;
-        seaf_repo_unref (repo);
-    }
     return NULL;
 }
 

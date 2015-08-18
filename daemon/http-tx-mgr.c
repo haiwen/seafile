@@ -158,6 +158,8 @@ static const char *http_task_error_strs[] = {
     "Failed to write data on the client",
     "Storage quota full",
     "Files are locked by other application",
+    "Library deleted on server",
+    "Library damaged on server",
     "Unknown error",
 };
 
@@ -2809,7 +2811,7 @@ send_block (HttpTxTask *task, Connection *conn, const char *block_id)
         if (task->state == HTTP_TASK_STATE_CANCELED)
             goto out;
 
-        if (task->error == TASK_OK) {
+        if (task->error == HTTP_TASK_OK) {
             /* Only release connection when it's a network error */
             conn->release = TRUE;
             task->error = HTTP_TASK_ERR_NET;

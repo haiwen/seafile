@@ -3481,8 +3481,7 @@ commit_tree (SeafRepo *repo, const char *root_id,
                               seaf->session->base.id,
                               desc, 0);
 
-    if (repo->head)
-        commit->parent_id = g_strdup (repo->head->commit_id);
+    commit->parent_id = g_strdup (repo->head->commit_id);
 
     if (unmerged) {
         SeafRepoMergeInfo minfo;
@@ -4220,6 +4219,11 @@ cleanup_file_blocks (const char *repo_id, int version, const char *file_id)
     file = seaf_fs_manager_get_seafile (seaf->fs_mgr,
                                         repo_id, version,
                                         file_id);
+    if (!file) {
+        seaf_warning ("Failed to load seafile object %s:%s\n", repo_id, file_id);
+        return;
+    }
+
     for (i = 0; i < file->n_blocks; ++i)
         seaf_block_manager_remove_block (seaf->block_mgr,
                                          repo_id, version,
@@ -4597,6 +4601,12 @@ cleanup_file_blocks_http (HttpTxTask *task, const char *file_id)
     file = seaf_fs_manager_get_seafile (seaf->fs_mgr,
                                         task->repo_id, task->repo_version,
                                         file_id);
+    if (!file) {
+        seaf_warning ("Failed to load seafile object %s:%s\n",
+                      task->repo_id, file_id);
+        return;
+    }
+
     for (i = 0; i < file->n_blocks; ++i) {
         block_id = file->blk_sha1s[i];
 
@@ -5043,6 +5053,11 @@ do_rename_in_worktree (DiffEntry *de, const char *worktree,
         new_path = build_checkout_path (worktree, de->new_name, strlen(de->new_name));
 #endif
 
+        if (!new_path) {
+            ret = -1;
+            goto out;
+        }
+
         if (seaf_util_rename (old_path, new_path) < 0) {
             seaf_warning ("Failed to rename %s to %s: %s.\n",
                           old_path, new_path, strerror(errno));
@@ -5052,6 +5067,7 @@ do_rename_in_worktree (DiffEntry *de, const char *worktree,
         g_free (new_path);
     }
 
+out:
     g_free (old_path);
     return ret;
 }
@@ -6159,8 +6175,10 @@ load_repo_passwd (SeafRepoManager *manager, SeafRepo *repo)
               "SELECT key, iv FROM RepoKeys WHERE repo_id='%s'",
               repo->id);
     n = sqlite_foreach_selected_row (db, sql, load_keys_cb, repo);
-    if (n < 0)
+    if (n < 0) {
+        pthread_mutex_unlock (&manager->priv->db_lock);
         return -1;
+    }
 
     pthread_mutex_unlock (&manager->priv->db_lock);
 
@@ -6969,7 +6987,7 @@ seaf_repo_manager_add_checkout_task (SeafRepoManager *mgr,
     }
 
     CheckoutTask *task = g_new0 (CheckoutTask, 1);
-    memcpy (task->repo_id, repo->id, 41);
+    memcpy (task->repo_id, repo->id, 36);
     g_return_val_if_fail (strlen(worktree) < SEAF_PATH_MAX, -1);
     strcpy (task->worktree, worktree);
 

@@ -107,6 +107,7 @@ seaf_filelock_manager_init (SeafFilelockManager *mgr)
                                      load_locked_files,
                                      mgr->priv->repo_locked_files) < 0) {
         pthread_mutex_unlock (&mgr->priv->db_lock);
+        pthread_mutex_unlock (&mgr->priv->hash_lock);
         g_hash_table_destroy (mgr->priv->repo_locked_files);
         return -1;
     }
