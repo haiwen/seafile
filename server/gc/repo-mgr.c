@@ -98,8 +98,12 @@ seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit)
     repo->repaired = commit->repaired;
     if (repo->encrypted) {
         repo->enc_version = commit->enc_version;
-        if (repo->enc_version >= 1)
-            memcpy (repo->magic, commit->magic, 33);
+        if (repo->enc_version == 1)
+            memcpy (repo->magic, commit->magic, 32);
+        else if (repo->enc_version == 2) {
+            memcpy (repo->magic, commit->magic, 64);
+            memcpy (repo->random_key, commit->random_key, 96);
+        }
     }
     repo->no_local_history = commit->no_local_history;
     repo->version = commit->version;
@@ -114,8 +118,12 @@ seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit)
     commit->repaired = repo->repaired;
     if (commit->encrypted) {
         commit->enc_version = repo->enc_version;
-        if (commit->enc_version >= 1)
+        if (commit->enc_version == 1)
             commit->magic = g_strdup (repo->magic);
+        else if (commit->enc_version == 2) {
+            commit->magic = g_strdup (repo->magic);
+            commit->random_key = g_strdup (repo->random_key);
+        }
     }
     commit->no_local_history = repo->no_local_history;
     commit->version = repo->version;

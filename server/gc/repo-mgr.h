@@ -38,7 +38,8 @@ struct _SeafRepo {
     gchar      *category;       /* not used yet */
     gboolean    encrypted;
     int         enc_version;
-    gchar       magic[33];       /* hash(repo_id + passwd), key stretched. */
+    gchar       magic[65];       /* hash(repo_id + passwd), key stretched. */
+    gchar       random_key[97];
     gboolean    no_local_history;
 
     SeafBranch *head;

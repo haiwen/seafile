@@ -470,6 +470,13 @@ enable_sync_repo (const char *repo_id)
     if (!repo)
         return;
 
+    if (!repo->repaired) {
+        seaf_repo_unref (repo);
+        return;
+    }
+
+    seaf_message ("Enabling sync repo %s.\n", repo_id);
+
     parent_commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
                                                                repo_id,
                                                                repo->head->commit_id);
@@ -523,7 +530,6 @@ enable_sync_repos (GList *repo_id_list)
     GList *ptr;
 
     for (ptr = repo_id_list; ptr; ptr = ptr->next) {
-        seaf_message ("Enabling sync repo %s.\n", (char *)ptr->data);
         enable_sync_repo (ptr->data);
     }
 }
