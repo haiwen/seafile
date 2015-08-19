@@ -64,6 +64,7 @@ typedef struct _CDCDescriptor {
     uint32_t len;
     uint8_t  checksum[CHECKSUM_LENGTH];
     char    *block_buf;
+    int result;
 } CDCDescriptor;
 
 int file_chunk_cdc(int fd_src,

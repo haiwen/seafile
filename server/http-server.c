@@ -32,6 +32,7 @@
 #define DEFAULT_BIND_PORT 8082
 #define DEFAULT_THREADS 50
 #define DEFAULT_MAX_DOWNLOAD_DIR_SIZE 100 * ((gint64)1 << 20) /* 100MB */
+#define DEFAULT_MAX_INDEXING_THREADS 1
 
 #define HOST "host"
 #define PORT "port"
@@ -112,6 +113,7 @@ load_http_config (HttpServerStruct *htp_server, SeafileSession *session)
     int max_upload_size_mb;
     int max_download_dir_size_mb;
     char *encoding;
+    int max_indexing_threads;
 
     host = fileserver_config_get_string (session->config, HOST, &error);
     if (!error) {
@@ -167,12 +169,26 @@ load_http_config (HttpServerStruct *htp_server, SeafileSession *session)
             htp_server->max_download_dir_size = max_download_dir_size_mb * ((gint64)1 << 20);
     }
 
+    max_indexing_threads = fileserver_config_get_integer (session->config,
+                                                          "max_indexing_threads",
+                                                          &error);
+    if (error) {
+        htp_server->max_indexing_threads = DEFAULT_MAX_INDEXING_THREADS;
+        g_clear_error (&error);
+    } else {
+        if (max_indexing_threads <= 0)
+            htp_server->max_indexing_threads = DEFAULT_MAX_INDEXING_THREADS;
+        else
+            htp_server->max_indexing_threads = max_indexing_threads;
+    }
+
     encoding = g_key_file_get_string (session->config,
                                       "zip", "windows_encoding",
                                       &error);
     if (encoding) {
         htp_server->windows_encoding = encoding;
     } else {
+        g_clear_error (&error);
         /* No windows specific encoding is specified. Set the ZIP_UTF8 flag. */
         setlocale (LC_ALL, "en_US.UTF-8");
     }

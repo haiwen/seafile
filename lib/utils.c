@@ -654,6 +654,16 @@ seaf_util_exists (const char *path)
 #endif
 }
 
+gint64
+seaf_util_lseek (int fd, gint64 offset, int whence)
+{
+#ifdef WIN32
+    return _lseeki64 (fd, offset, whence);
+#else
+    return lseek (fd, offset, whence);
+#endif
+}
+
 #ifdef WIN32
 
 int

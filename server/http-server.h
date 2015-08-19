@@ -18,6 +18,7 @@ struct _HttpServerStruct {
     char *windows_encoding;
     gint64 max_upload_size;
     gint64 max_download_dir_size;
+    int max_indexing_threads;
 };
 
 typedef struct _HttpServerStruct HttpServerStruct;
