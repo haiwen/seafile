@@ -633,7 +633,9 @@ def seaf_status(args):
             continue
 
         t = seafile_rpc.get_repo_sync_task(repo.id)
-        if t.state == "error":
+        if not t:
+            print "%s\twaiting for sync" % repo.name
+        elif t.state == "error":
             print "%s\t%s" % (repo.name, t.error)
         else:
             print "%s\t%s" % (repo.name, t.state)
