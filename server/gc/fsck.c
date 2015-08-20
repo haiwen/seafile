@@ -232,7 +232,11 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
     if (is_corrupted) {
         new_dir = seaf_dir_new (NULL, dir->entries, version);
         if (fsck_data->repair) {
-            seaf_dir_save (mgr, store_id, version, new_dir);
+            if (seaf_dir_save (mgr, store_id, version, new_dir) < 0) {
+                seaf_warning ("Failed to save dir\n");
+                seaf_dir_free (new_dir);
+                goto out;
+            }
         }
         dir_id = g_strdup (new_dir->dir_id);
         seaf_dir_free (new_dir);

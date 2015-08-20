@@ -139,6 +139,7 @@ post_file_recursive (SeafRepo *repo,
     char *to_path_dup = NULL;
     char *remain = NULL;
     char *id = NULL;
+    char *ret = NULL;
 
     olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr,
                                                 repo->store_id, repo->version,
@@ -166,9 +167,9 @@ post_file_recursive (SeafRepo *repo,
             newentries = g_list_reverse (newentries);
             newdir = seaf_dir_new (NULL, newentries,
                                    dir_version_from_repo_version(repo->version));
-            seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-            id = g_strndup (newdir->dir_id, 41);
-            id[40] = '\0';
+            if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0) {
+                ret = g_strdup (newdir->dir_id);
+            }
             seaf_dir_free (newdir);
             goto out;
         }
@@ -189,8 +190,8 @@ post_file_recursive (SeafRepo *repo,
 
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup (newdir->dir_id);
         seaf_dir_free (newdir);
 
         goto out;
@@ -229,17 +230,16 @@ post_file_recursive (SeafRepo *repo,
         new_entries = dup_seafdir_entries (olddir->entries);
         newdir = seaf_dir_new (NULL, new_entries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        
-        g_free(id);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
     }
 
 out:
     g_free (to_path_dup);
+    g_free (id);
     seaf_dir_free(olddir);
-    return id;
+    return ret;
 }
 
 static char *
@@ -786,6 +786,7 @@ post_multi_files_recursive (SeafRepo *repo,
     char *to_path_dup = NULL;
     char *remain = NULL;
     char *id = NULL;
+    char *ret = NULL;
 
     olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr,
                                                 repo->store_id,
@@ -807,8 +808,8 @@ post_multi_files_recursive (SeafRepo *repo,
 
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup (newdir->dir_id);
         seaf_dir_free (newdir);
 
         goto out;
@@ -849,17 +850,16 @@ post_multi_files_recursive (SeafRepo *repo,
         new_entries = dup_seafdir_entries (olddir->entries);
         newdir = seaf_dir_new (NULL, new_entries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        
-        g_free(id);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup (newdir->dir_id);
         seaf_dir_free (newdir);
     }
 
 out:
     g_free (to_path_dup);
+    g_free (id);
     seaf_dir_free(olddir);
-    return id;
+    return ret;
 }
 
 static char *
@@ -1228,6 +1228,7 @@ del_file_recursive(SeafRepo *repo,
     char *remain = NULL;
     char *slash;
     char *id = NULL;
+    char *ret = NULL;
 
     olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr,
                                                 repo->store_id, repo->version,
@@ -1252,8 +1253,8 @@ del_file_recursive(SeafRepo *repo,
 
         newdir = seaf_dir_new(NULL, newentries,
                               dir_version_from_repo_version(repo->version));
-        seaf_dir_save(seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup(newdir->dir_id, 40);
+        if (seaf_dir_save(seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup(newdir->dir_id);
         seaf_dir_free(newdir);
 
         goto out;
@@ -1291,17 +1292,16 @@ del_file_recursive(SeafRepo *repo,
         new_entries = dup_seafdir_entries (olddir->entries);
         newdir = seaf_dir_new (NULL, new_entries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        
-        g_free(id);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup (newdir->dir_id);
         seaf_dir_free (newdir);
     }
 
 out:
     g_free (to_path_dup);
+    g_free (id);
     seaf_dir_free(olddir);
-    return id;
+    return ret;
 }
 
 static char *
@@ -2412,6 +2412,7 @@ rename_file_recursive(SeafRepo *repo,
     char *remain = NULL;
     char *slash;
     char *id = NULL;
+    char *ret = NULL;
 
     olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr,
                                                 repo->store_id, repo->version,
@@ -2448,8 +2449,8 @@ rename_file_recursive(SeafRepo *repo,
 
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
 
         goto out;
@@ -2486,17 +2487,16 @@ rename_file_recursive(SeafRepo *repo,
         new_entries = dup_seafdir_entries (olddir->entries);
         newdir = seaf_dir_new (NULL, new_entries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        
-        g_free(id);
-        id = g_strndup(newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup(newdir->dir_id);
         seaf_dir_free (newdir);
     }
 
 out:
     g_free (to_path_dup);
+    g_free (id);
     seaf_dir_free(olddir);
-    return id;
+    return ret;
 }
 
 static char *
@@ -2602,6 +2602,7 @@ put_file_recursive(SeafRepo *repo,
     char *remain = NULL;
     char *slash;
     char *id = NULL;
+    char *ret = NULL;
 
     olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr,
                                                 repo->store_id, repo->version,
@@ -2626,8 +2627,8 @@ put_file_recursive(SeafRepo *repo,
         newentries = g_list_reverse (newentries);
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup (newdir->dir_id);
         seaf_dir_free (newdir);
 
         goto out;
@@ -2666,17 +2667,16 @@ put_file_recursive(SeafRepo *repo,
         new_entries = dup_seafdir_entries (olddir->entries);
         newdir = seaf_dir_new (NULL, new_entries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        
-        g_free(id);
-        id = g_strndup(newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup(newdir->dir_id);
         seaf_dir_free (newdir);
     }
 
 out:
     g_free (to_path_dup);
+    g_free (id);
     seaf_dir_free(olddir);
-    return id;
+    return ret;
 }
 
 static char *
