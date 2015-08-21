@@ -3690,6 +3690,9 @@ free_file_info (gpointer info)
     g_free (file_info);
 }
 
+// compare current commit dir_id with pre commit
+// if dir_id doesn't change, it means subdir doesn't change, append all sub_dir ids of prev to current
+// that is it is no need to traverse all sub dir, if root doesn't change
 static gboolean
 compare_or_add_id (GList *dir_ids,
                    GList **cur_dir_ids,
@@ -3714,8 +3717,10 @@ compare_or_add_id (GList *dir_ids,
     return ret;
 }
 
+// dir_ids: all dir_ids in prev commit, in the order of fs tree
+// cur_dir_ids: all dir_ids in current commit
 // if no error and returned seafdir is NULL, then it means
-// file is not changed
+// searched dir doesn't change in pre and current commit
 static SeafDir*
 get_seafdir_by_path (const char *repo_id,
                      int version,
@@ -3828,6 +3833,9 @@ get_file_info (SeafRepo *repo,
         goto out;
 
     if (!dir) {
+        // if no error and return is null from get_seafdir_by_path, it means dir doesn't
+        // change in pre and current commit, so the last_info (file info of pre commit)
+        // is also the current file info
         file_info = g_new0 (FileInfo, 1);
         file_info->file_id = g_strdup (last_info->file_id);
         file_info->dir_ids = cur_dir_ids;
@@ -3843,6 +3851,7 @@ get_file_info (SeafRepo *repo,
             }
         }
         if (tmp) {
+            // from parent dir find the file, cache file info for the next compare
             file_info = g_new0 (FileInfo, 1);
             file_info->file_id = g_strdup (dirent->id);
             file_info->dir_ids = cur_dir_ids;
