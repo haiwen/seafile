@@ -1620,7 +1620,9 @@ commit_job (void *vtask)
     res->changed = TRUE;
     res->success = TRUE;
 
-    char *commit_id = seaf_repo_index_commit (repo, "", task->is_manual_sync,
+    char *commit_id = seaf_repo_index_commit (repo, "",
+                                              task->is_manual_sync,
+                                              task->is_initial_commit,
                                               &error);
     if (commit_id == NULL && error != NULL) {
         seaf_warning ("[Sync mgr] Failed to commit to repo %s(%.8s).\n",

@@ -167,7 +167,9 @@ gboolean
 seaf_repo_is_index_unmerged (SeafRepo *repo);
 
 char *
-seaf_repo_index_commit (SeafRepo *repo, const char *desc, gboolean is_initial_commit,
+seaf_repo_index_commit (SeafRepo *repo, const char *desc,
+                        gboolean is_force_commit,
+                        gboolean is_initial_commit,
                         GError **error);
 
 int
