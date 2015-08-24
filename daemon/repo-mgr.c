@@ -1090,8 +1090,7 @@ add_file (const char *repo_id,
                               st,
                               modifier,
                               path,
-                              NULL,
-                              TRUE);
+                              NULL);
         }
     } else if (*remain_files == NULL) {
         ret = add_to_index (repo_id, version, istate, path, full_path,
@@ -1116,8 +1115,7 @@ add_file (const char *repo_id,
                               st,
                               modifier,
                               path,
-                              NULL,
-                              TRUE);
+                              NULL);
         }
     } else
         g_queue_push_tail (*remain_files, g_strdup(path));
@@ -1275,8 +1273,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                   st,
                                   NULL,
                                   path,
-                                  NULL,
-                                  TRUE);
+                                  NULL);
             }
         } else
             g_queue_push_tail (*(params->remain_files), g_strdup(path));
@@ -1532,8 +1529,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                   st,
                                   NULL,
                                   path,
-                                  NULL,
-                                  TRUE);
+                                  NULL);
             }
         } else
             g_queue_push_tail (*(params->remain_files), g_strdup(path));
@@ -1725,14 +1721,16 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
                     /* Add to changeset only if dir is removed. */
                     ce->ce_flags |= CE_REMOVE;
                     if (changeset)
-                        add_to_changeset (changeset,
-                                          DIFF_STATUS_DIR_DELETED,
-                                          NULL,
-                                          NULL,
-                                          NULL,
-                                          ce->name,
-                                          NULL,
-                                          TRUE);
+                        /* Remove the parent dir from change set if it becomes
+                         * empty. If in the work tree the empty dir still exist,
+                         * we'll add it back to changeset in add_recursive() later.
+                         */
+                        remove_from_changeset (changeset,
+                                               DIFF_STATUS_DIR_DELETED,
+                                               ce->name,
+                                               TRUE,
+                                               prefix,
+                                               TRUE);
                 } else if (!is_empty_dir (path, ignore_list)) {
                     /* Don't add to changeset if empty dir became non-empty. */
                     ce->ce_flags |= CE_REMOVE;
@@ -1749,14 +1747,12 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
             {
                 ce_array[i]->ce_flags |= CE_REMOVE;
                 if (changeset)
-                    add_to_changeset (changeset,
-                                      DIFF_STATUS_DELETED,
-                                      NULL,
-                                      NULL,
-                                      NULL,
-                                      ce->name,
-                                      NULL,
-                                      TRUE);
+                    remove_from_changeset (changeset,
+                                           DIFF_STATUS_DELETED,
+                                           ce->name,
+                                           TRUE,
+                                           prefix,
+                                           TRUE);
             }
         }
     }
@@ -1999,8 +1995,7 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                   &st,
                                   repo->email,
                                   path,
-                                  NULL,
-                                  TRUE);
+                                  NULL);
 
                 *total_size += (gint64)(st.st_size);
                 if (*total_size >= MAX_COMMIT_SIZE) {
@@ -2026,8 +2021,7 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                       &st,
                                       NULL,
                                       path,
-                                      NULL,
-                                      TRUE);
+                                      NULL);
                 }
             }
         }
@@ -2158,8 +2152,7 @@ update_attributes (SeafRepo *repo,
                           &st,
                           repo->email,
                           path,
-                          NULL,
-                          TRUE);
+                          NULL);
     }
     g_free (full_path);
 }
@@ -2181,7 +2174,6 @@ scan_subtree_for_deletion (const char *repo_id,
     wchar_t *p;
     char *dir = NULL;
     char *p2;
-    gboolean convertion_failed = FALSE;
 
     /* In most file systems, like NTFS, 8.3 format path should contain ~.
      * Also note that *~ files are ignored.
@@ -2205,8 +2197,6 @@ scan_subtree_for_deletion (const char *repo_id,
         dir_w = win32_83_path_to_long_path (worktree, path_w, wcslen(path_w));
         if (dir_w)
             break;
-        else
-            convertion_failed = TRUE;
     }
 
     if (!dir_w)
@@ -2253,22 +2243,22 @@ scan_subtree_for_deletion (const char *repo_id,
      * This can be fixed by removing the accurate deleted path. In most cases,
      * basename doesn't contain ~, so we can always get the accurate path.
      */
-    if (!convertion_failed) {
-        char *basename = strrchr (path, '/');
-        char *deleted_path = NULL;
-        if (basename) {
-            deleted_path = g_build_path ("/", dir, basename, NULL);
-            add_to_changeset (changeset,
-                              DIFF_STATUS_DELETED,
-                              NULL,
-                              NULL,
-                              NULL,
-                              deleted_path,
-                              NULL,
-                              FALSE);
-            g_free (deleted_path);
-        }
-    }
+    /* if (!convertion_failed) { */
+    /*     char *basename = strrchr (path, '/'); */
+    /*     char *deleted_path = NULL; */
+    /*     if (basename) { */
+    /*         deleted_path = g_build_path ("/", dir, basename, NULL); */
+    /*         add_to_changeset (changeset, */
+    /*                           DIFF_STATUS_DELETED, */
+    /*                           NULL, */
+    /*                           NULL, */
+    /*                           NULL, */
+    /*                           deleted_path, */
+    /*                           NULL, */
+    /*                           FALSE); */
+    /*         g_free (deleted_path); */
+    /*     } */
+    /* } */
 
 out:
     g_free (path_w);
@@ -2899,14 +2889,12 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
                                            scanned_del_dirs,
                                            repo->changeset);
 
-            add_to_changeset (repo->changeset,
-                              DIFF_STATUS_DELETED,
-                              NULL,
-                              NULL,
-                              NULL,
-                              event->path,
-                              NULL,
-                              FALSE);
+            remove_from_changeset (repo->changeset,
+                                   DIFF_STATUS_DELETED,
+                                   event->path,
+                                   FALSE,
+                                   NULL,
+                                   FALSE);
         }
         return;
     }
@@ -2938,8 +2926,7 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
                           NULL,
                           NULL,
                           event->path,
-                          event->new_path,
-                          TRUE);
+                          event->new_path);
     }
 
     AddOptions options;
@@ -3068,14 +3055,12 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                                &scanned_del_dirs,
                                                repo->changeset);
 
-                add_to_changeset (repo->changeset,
-                                  DIFF_STATUS_DELETED,
-                                  NULL,
-                                  NULL,
-                                  NULL,
-                                  event->path,
-                                  NULL,
-                                  TRUE);
+                remove_from_changeset (repo->changeset,
+                                       DIFF_STATUS_DELETED,
+                                       event->path,
+                                       FALSE,
+                                       NULL,
+                                       TRUE);
 
                 try_add_empty_parent_dir_entry_from_wt (repo->worktree,
                                                         istate,
