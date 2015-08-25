@@ -1341,8 +1341,6 @@ seaf_repo_manager_del_file (SeafRepoManager *mgr,
     
     if (!check_file_exists(repo->store_id, repo->version,
                            head_commit->root_id, canon_path, file_name, &mode)) {
-        seaf_warning ("[del file] target file %s/%s does not exist in repo %s, skip\n",
-                      canon_path, file_name, repo->store_id);
         goto out;
     }
 
