@@ -828,9 +828,6 @@ parse_range_val (const char *byte_ranges, guint64 *pstart, guint64 *pend,
     if (error)
         return FALSE;
 
-    if (start < 0) {
-        start = 0;
-    }
     if (end > fsize - 1) {
         end = fsize - 1;
     }
@@ -1101,10 +1098,6 @@ out:
         if (zipfile != NULL) {
             g_unlink (zipfile);
             g_free (zipfile);
-        }
-
-        if (zipfd > 0) {
-            close (zipfd);
         }
     }
 

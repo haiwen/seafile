@@ -1768,7 +1768,7 @@ retry:
     }
 
     memcpy (repo->magic, new_magic, 64);
-    memcpy (repo->random_key, new_random_key, 98);
+    memcpy (repo->random_key, new_random_key, 96);
 
     commit = seaf_commit_new (NULL,
                               repo->id,
@@ -3579,7 +3579,7 @@ seafile_list_file_revisions (const char *repo_id,
     commit_list = seaf_repo_manager_list_file_revisions (seaf->repo_mgr,
                                                          repo_id, NULL, rpath,
                                                          max_revision,
-                                                         limit, show_days, error);
+                                                         limit, show_days, FALSE, error);
     g_free (rpath);
 
     return commit_list;

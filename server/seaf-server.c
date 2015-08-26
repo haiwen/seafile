@@ -850,6 +850,7 @@ main (int argc, char **argv)
             break;
         case 'm':
             is_master = 1;
+            break;
         case 'P':
             pidfile = optarg;
             break;

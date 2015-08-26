@@ -151,6 +151,15 @@ function before_start() {
     validate_seahub_running;
     prepare_seahub_log_dir;
 
+    if [[ -z "$LANG" ]]; then
+        echo "LANG is not set in ENV, set to en_US.UTF-8"
+        export LANG='en_US.UTF-8'
+    fi
+    if [[ -z "$LC_ALL" ]]; then
+        echo "LC_ALL is not set in ENV, set to en_US.UTF-8"
+        export LC_ALL='en_US.UTF-8'
+    fi
+
     export CCNET_CONF_DIR=${default_ccnet_conf_dir}
     export SEAFILE_CONF_DIR=${seafile_data_dir}
     export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH

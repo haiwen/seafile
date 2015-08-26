@@ -32,8 +32,18 @@ add_to_changeset (ChangeSet *changeset,
                   SeafStat *st,
                   const char *modifier,
                   const char *path,
-                  const char *new_path,
-                  gboolean add_to_diff);
+                  const char *new_path);
+
+/*
+  @remove_parent: remove the parent dir when it becomes empty.
+*/
+void
+remove_from_changeset (ChangeSet *changeset,
+                       char status,
+                       const char *path,
+                       gboolean remove_parent,
+                       const char *top_dir,
+                       gboolean add_to_diff);
 
 char *
 commit_tree_from_changeset (ChangeSet *changeset);

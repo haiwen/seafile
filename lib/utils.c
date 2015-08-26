@@ -2462,11 +2462,7 @@ seaf_decompress (guint8 *input, int inlen, guint8 **output, int *outlen)
         strm.avail_out = ZLIB_BUF_SIZE;
         strm.next_out = out;
         ret = inflate(&strm, Z_NO_FLUSH);
-        switch (ret) {
-        case Z_NEED_DICT:
-            ret = Z_DATA_ERROR;     /* and fall through */
-        case Z_DATA_ERROR:
-        case Z_MEM_ERROR:
+        if (ret < 0) {
             g_warning ("Failed to inflate.\n");
             goto out;
         }

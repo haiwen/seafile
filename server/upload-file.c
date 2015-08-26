@@ -1420,7 +1420,7 @@ parse_mime_header (char *header, RecvFSM *fsm)
         for (p = params; *p != NULL; ++p)
             *p = g_strstrip (*p);
 
-        if (!params || g_strv_length (params) < 2) {
+        if (g_strv_length (params) < 2) {
             seaf_warning ("[upload] Too little params for mime header.\n");
             g_strfreev (params);
             return -1;

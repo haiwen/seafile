@@ -232,7 +232,11 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
     if (is_corrupted) {
         new_dir = seaf_dir_new (NULL, dir->entries, version);
         if (fsck_data->repair) {
-            seaf_dir_save (mgr, store_id, version, new_dir);
+            if (seaf_dir_save (mgr, store_id, version, new_dir) < 0) {
+                seaf_warning ("Failed to save dir\n");
+                seaf_dir_free (new_dir);
+                goto out;
+            }
         }
         dir_id = g_strdup (new_dir->dir_id);
         seaf_dir_free (new_dir);
@@ -243,11 +247,6 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
 
 out:
     seaf_dir_free (dir);
-
-    if (io_error) {
-        seaf_message ("IO error, stop to run fsck for repo %.8s.\n",
-                      fsck_data->repo->id);
-    }
 
     return dir_id;
 }
@@ -300,11 +299,11 @@ reset_commit_to_repair (SeafRepo *repo, SeafCommit *parent, char *new_root_id)
     seaf_repo_to_commit (repo, new_commit);
     new_commit->repaired = TRUE;
 
-    seaf_message ("Reset repo %.8s status to commit %.8s.\n",
+    seaf_message ("Update repo %.8s status to commit %.8s.\n",
                   repo->id, new_commit->commit_id);
     seaf_branch_set_commit (repo->head, new_commit->commit_id);
     if (seaf_branch_manager_add_branch (seaf->branch_mgr, repo->head) < 0) {
-        seaf_warning ("Reset head of repo %.8s to commit %.8s failed, "
+        seaf_warning ("Update head of repo %.8s to commit %.8s failed, "
                       "recover failed.\n", repo->id, new_commit->commit_id);
     } else {
         seaf_commit_manager_add_commit (seaf->commit_mgr, new_commit);
@@ -360,8 +359,6 @@ get_available_repo (char *repo_id, gboolean repair)
         if (!fsck_verify_seafobj (repo->store_id, 1, temp_commit->root_id,
                                   &io_error, VERIFY_DIR, repair)) {
             if (io_error) {
-                seaf_warning ("IO error, stop to run fsck for repo %.8s.\n",
-                              repo_id);
                 seaf_repo_unref (repo);
                 repo = NULL;
                 goto out;
@@ -413,6 +410,11 @@ check_and_recover_repo (SeafRepo *repo, gboolean reset, gboolean repair)
 
     rep_commit = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->id,
                                                  repo->version, repo->head->commit_id);
+    if (!rep_commit) {
+        seaf_warning ("Failed to load commit %s of repo %s\n",
+                      repo->head->commit_id, repo->id);
+        return;
+    }
 
     memset (&fsck_data, 0, sizeof(fsck_data));
     fsck_data.repair = repair;
@@ -422,8 +424,10 @@ check_and_recover_repo (SeafRepo *repo, gboolean reset, gboolean repair)
 
     char *root_id = fsck_check_dir_recursive (rep_commit->root_id, "/", &fsck_data);
     g_hash_table_destroy (fsck_data.existing_blocks);
-    if (root_id == NULL)
+    if (root_id == NULL) {
+        seaf_commit_unref (rep_commit);
         return;
+    }
 
     if (repair) {
         if (strcmp (root_id, rep_commit->root_id) != 0) {
@@ -462,6 +466,13 @@ enable_sync_repo (const char *repo_id)
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo)
         return;
+
+    if (!repo->repaired) {
+        seaf_repo_unref (repo);
+        return;
+    }
+
+    seaf_message ("Enabling sync repo %s.\n", repo_id);
 
     parent_commit = seaf_commit_manager_get_commit_compatible (seaf->commit_mgr,
                                                                repo_id,
@@ -516,7 +527,6 @@ enable_sync_repos (GList *repo_id_list)
     GList *ptr;
 
     for (ptr = repo_id_list; ptr; ptr = ptr->next) {
-        seaf_message ("Enabling sync repo %s.\n", (char *)ptr->data);
         enable_sync_repo (ptr->data);
     }
 }
@@ -562,13 +572,18 @@ repair_repos (GList *repo_id_list, gboolean repair)
             SeafCommit *commit = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->id,
                                                                  repo->version,
                                                                  repo->head->commit_id);
+            if (!commit) {
+                seaf_warning ("Failed to get head commit %s of repo %s\n",
+                              repo->head->commit_id, repo->id);
+                seaf_repo_unref (repo);
+                goto next;
+            }
+
             io_error = FALSE;
             if (!fsck_verify_seafobj (repo->store_id, repo->version,
                                       commit->root_id,  &io_error,
                                       VERIFY_DIR, repair)) {
                 if (io_error) {
-                    seaf_warning ("IO error, stop to run fsck for repo %s(%.8s).\n",
-                                  repo->id, repo->name);
                     seaf_commit_unref (commit);
                     seaf_repo_unref (repo);
                     goto next;
@@ -904,8 +919,6 @@ get_available_commit (const char *repo_id)
             temp_list = next_list;
 
             if (io_error) {
-                seaf_warning ("IO error, stop to export files for repo %.8s.\n\n",
-                              repo_id);
                 break;
             }
             // fs object of this commit is corrupted,

@@ -181,7 +181,7 @@ get_sync_info (SeafSyncManager *manager, const char *repo_id)
     if (info) return info;
 
     info = g_new0 (SyncInfo, 1);
-    memcpy (info->repo_id, repo_id, 41);
+    memcpy (info->repo_id, repo_id, 36);
     g_hash_table_insert (manager->sync_infos, info->repo_id, info);
     return info;
 }
@@ -1620,7 +1620,9 @@ commit_job (void *vtask)
     res->changed = TRUE;
     res->success = TRUE;
 
-    char *commit_id = seaf_repo_index_commit (repo, "", task->is_manual_sync,
+    char *commit_id = seaf_repo_index_commit (repo, "",
+                                              task->is_manual_sync,
+                                              task->is_initial_commit,
                                               &error);
     if (commit_id == NULL && error != NULL) {
         seaf_warning ("[Sync mgr] Failed to commit to repo %s(%.8s).\n",

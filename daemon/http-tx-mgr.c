@@ -158,6 +158,8 @@ static const char *http_task_error_strs[] = {
     "Failed to write data on the client",
     "Storage quota full",
     "Files are locked by other application",
+    "Library deleted on server",
+    "Library damaged on server",
     "Unknown error",
 };
 
@@ -2473,12 +2475,13 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
     int total_size;
     unsigned char *package;
     CURL *curl;
-    char *url;
+    char *url = NULL;
     int status;
     int ret = 0;
     int n_sent = 0;
 
     buf = evbuffer_new ();
+    curl = conn->curl;
 
     while (*send_fs_list != NULL) {
         obj_id = (*send_fs_list)->data;
@@ -2514,8 +2517,6 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
                 n_sent, task->host, task->repo_id);
 
     package = evbuffer_pullup (buf, -1);
-
-    curl = conn->curl;
 
     if (!task->use_fileserver_port)
         url = g_strdup_printf ("%s/seafhttp/repo/%s/recv-fs/",
@@ -2816,7 +2817,7 @@ send_block (HttpTxTask *task, Connection *conn, const char *block_id)
         if (task->state == HTTP_TASK_STATE_CANCELED)
             goto out;
 
-        if (task->error == TASK_OK) {
+        if (task->error == HTTP_TASK_OK) {
             /* Only release connection when it's a network error */
             conn->release = TRUE;
             task->error = HTTP_TASK_ERR_NET;

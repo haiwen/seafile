@@ -139,6 +139,7 @@ post_file_recursive (SeafRepo *repo,
     char *to_path_dup = NULL;
     char *remain = NULL;
     char *id = NULL;
+    char *ret = NULL;
 
     olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr,
                                                 repo->store_id, repo->version,
@@ -166,9 +167,9 @@ post_file_recursive (SeafRepo *repo,
             newentries = g_list_reverse (newentries);
             newdir = seaf_dir_new (NULL, newentries,
                                    dir_version_from_repo_version(repo->version));
-            seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-            id = g_strndup (newdir->dir_id, 41);
-            id[40] = '\0';
+            if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0) {
+                ret = g_strdup (newdir->dir_id);
+            }
             seaf_dir_free (newdir);
             goto out;
         }
@@ -189,8 +190,8 @@ post_file_recursive (SeafRepo *repo,
 
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup (newdir->dir_id);
         seaf_dir_free (newdir);
 
         goto out;
@@ -229,17 +230,16 @@ post_file_recursive (SeafRepo *repo,
         new_entries = dup_seafdir_entries (olddir->entries);
         newdir = seaf_dir_new (NULL, new_entries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        
-        g_free(id);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
     }
 
 out:
     g_free (to_path_dup);
+    g_free (id);
     seaf_dir_free(olddir);
-    return id;
+    return ret;
 }
 
 static char *
@@ -786,6 +786,7 @@ post_multi_files_recursive (SeafRepo *repo,
     char *to_path_dup = NULL;
     char *remain = NULL;
     char *id = NULL;
+    char *ret = NULL;
 
     olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr,
                                                 repo->store_id,
@@ -807,8 +808,8 @@ post_multi_files_recursive (SeafRepo *repo,
 
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup (newdir->dir_id);
         seaf_dir_free (newdir);
 
         goto out;
@@ -849,17 +850,16 @@ post_multi_files_recursive (SeafRepo *repo,
         new_entries = dup_seafdir_entries (olddir->entries);
         newdir = seaf_dir_new (NULL, new_entries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        
-        g_free(id);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup (newdir->dir_id);
         seaf_dir_free (newdir);
     }
 
 out:
     g_free (to_path_dup);
+    g_free (id);
     seaf_dir_free(olddir);
-    return id;
+    return ret;
 }
 
 static char *
@@ -1228,6 +1228,7 @@ del_file_recursive(SeafRepo *repo,
     char *remain = NULL;
     char *slash;
     char *id = NULL;
+    char *ret = NULL;
 
     olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr,
                                                 repo->store_id, repo->version,
@@ -1252,8 +1253,8 @@ del_file_recursive(SeafRepo *repo,
 
         newdir = seaf_dir_new(NULL, newentries,
                               dir_version_from_repo_version(repo->version));
-        seaf_dir_save(seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup(newdir->dir_id, 40);
+        if (seaf_dir_save(seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup(newdir->dir_id);
         seaf_dir_free(newdir);
 
         goto out;
@@ -1291,17 +1292,16 @@ del_file_recursive(SeafRepo *repo,
         new_entries = dup_seafdir_entries (olddir->entries);
         newdir = seaf_dir_new (NULL, new_entries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        
-        g_free(id);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup (newdir->dir_id);
         seaf_dir_free (newdir);
     }
 
 out:
     g_free (to_path_dup);
+    g_free (id);
     seaf_dir_free(olddir);
-    return id;
+    return ret;
 }
 
 static char *
@@ -1341,8 +1341,6 @@ seaf_repo_manager_del_file (SeafRepoManager *mgr,
     
     if (!check_file_exists(repo->store_id, repo->version,
                            head_commit->root_id, canon_path, file_name, &mode)) {
-        seaf_warning ("[del file] target file %s/%s does not exist in repo %s, skip\n",
-                      canon_path, file_name, repo->store_id);
         goto out;
     }
 
@@ -2412,6 +2410,7 @@ rename_file_recursive(SeafRepo *repo,
     char *remain = NULL;
     char *slash;
     char *id = NULL;
+    char *ret = NULL;
 
     olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr,
                                                 repo->store_id, repo->version,
@@ -2448,8 +2447,8 @@ rename_file_recursive(SeafRepo *repo,
 
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strndup (newdir->dir_id, 40);
         seaf_dir_free (newdir);
 
         goto out;
@@ -2486,17 +2485,16 @@ rename_file_recursive(SeafRepo *repo,
         new_entries = dup_seafdir_entries (olddir->entries);
         newdir = seaf_dir_new (NULL, new_entries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        
-        g_free(id);
-        id = g_strndup(newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup(newdir->dir_id);
         seaf_dir_free (newdir);
     }
 
 out:
     g_free (to_path_dup);
+    g_free (id);
     seaf_dir_free(olddir);
-    return id;
+    return ret;
 }
 
 static char *
@@ -2602,6 +2600,7 @@ put_file_recursive(SeafRepo *repo,
     char *remain = NULL;
     char *slash;
     char *id = NULL;
+    char *ret = NULL;
 
     olddir = seaf_fs_manager_get_seafdir_sorted(seaf->fs_mgr,
                                                 repo->store_id, repo->version,
@@ -2626,8 +2625,8 @@ put_file_recursive(SeafRepo *repo,
         newentries = g_list_reverse (newentries);
         newdir = seaf_dir_new (NULL, newentries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        id = g_strndup (newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup (newdir->dir_id);
         seaf_dir_free (newdir);
 
         goto out;
@@ -2666,17 +2665,16 @@ put_file_recursive(SeafRepo *repo,
         new_entries = dup_seafdir_entries (olddir->entries);
         newdir = seaf_dir_new (NULL, new_entries,
                                dir_version_from_repo_version(repo->version));
-        seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir);
-        
-        g_free(id);
-        id = g_strndup(newdir->dir_id, 40);
+        if (seaf_dir_save (seaf->fs_mgr, repo->store_id, repo->version, newdir) == 0)
+            ret = g_strdup(newdir->dir_id);
         seaf_dir_free (newdir);
     }
 
 out:
     g_free (to_path_dup);
+    g_free (id);
     seaf_dir_free(olddir);
-    return id;
+    return ret;
 }
 
 static char *
@@ -3690,6 +3688,9 @@ free_file_info (gpointer info)
     g_free (file_info);
 }
 
+// compare current commit dir_id with pre commit
+// if dir_id doesn't change, it means subdir doesn't change, append all sub_dir ids of prev to current
+// that is it is no need to traverse all sub dir, if root doesn't change
 static gboolean
 compare_or_add_id (GList *dir_ids,
                    GList **cur_dir_ids,
@@ -3714,8 +3715,10 @@ compare_or_add_id (GList *dir_ids,
     return ret;
 }
 
+// dir_ids: all dir_ids in prev commit, in the order of fs tree
+// cur_dir_ids: all dir_ids in current commit
 // if no error and returned seafdir is NULL, then it means
-// file is not changed
+// searched dir doesn't change in pre and current commit
 static SeafDir*
 get_seafdir_by_path (const char *repo_id,
                      int version,
@@ -3828,6 +3831,9 @@ get_file_info (SeafRepo *repo,
         goto out;
 
     if (!dir) {
+        // if no error and return is null from get_seafdir_by_path, it means dir doesn't
+        // change in pre and current commit, so the last_info (file info of pre commit)
+        // is also the current file info
         file_info = g_new0 (FileInfo, 1);
         file_info->file_id = g_strdup (last_info->file_id);
         file_info->dir_ids = cur_dir_ids;
@@ -3843,6 +3849,7 @@ get_file_info (SeafRepo *repo,
             }
         }
         if (tmp) {
+            // from parent dir find the file, cache file info for the next compare
             file_info = g_new0 (FileInfo, 1);
             file_info->file_id = g_strdup (dirent->id);
             file_info->dir_ids = cur_dir_ids;
@@ -4168,6 +4175,7 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
                                        int max_revision,
                                        int limit,
                                        int show_days,
+                                       gboolean got_latest,
                                        GError **error)
 {
     SeafRepo *repo = NULL;
@@ -4205,6 +4213,7 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
     data.wanted_commits = NULL;
     data.file_id_list = NULL;
     data.file_size_list = NULL;
+    data.got_latest = got_latest;
 
     /* A hash table to cache caculated file info of <path> in <commit> */
     data.file_info_cache = g_hash_table_new_full (g_str_hash, g_str_equal,
@@ -4241,11 +4250,20 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
                                    is_renamed, old_path);
 
     if (is_renamed) {
-        /* Get the revisions of the old path, starting from parent commit. */
-        old_revisions = seaf_repo_manager_list_file_revisions (mgr, repo_id,
-                                                               parent_id, old_path,
-                                                               -1, -1, show_days,
-                                                               error);
+        if (ret) {
+            // if previous scan got revision then set got_latest True for renamend scan
+            /* Get the revisions of the old path, starting from parent commit. */
+            old_revisions = seaf_repo_manager_list_file_revisions (mgr, repo_id,
+                                                                   parent_id, old_path,
+                                                                   -1, -1, show_days,
+                                                                   TRUE, error);
+        } else {
+            /* Get the revisions of the old path, starting from parent commit. */
+            old_revisions = seaf_repo_manager_list_file_revisions (mgr, repo_id,
+                                                                   parent_id, old_path,
+                                                                   -1, -1, show_days,
+                                                                   FALSE, error);
+        }
         ret = g_list_concat (ret, old_revisions);
         g_free (parent_id);
         g_free (old_path);

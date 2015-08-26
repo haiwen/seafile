@@ -389,6 +389,11 @@ add_to_tree (ChangeSet *changeset,
                                                            repo_id,
                                                            root->version,
                                                            dent->id);
+                    if (!seaf_dir) {
+                        seaf_warning ("Failed to load seafdir %s:%s\n",
+                                      repo_id, dent->id);
+                        break;
+                    }
                     dent->subdir = seaf_dir_to_changeset_dir (seaf_dir);
                     seaf_dir_free (seaf_dir);
                 }
@@ -434,7 +439,8 @@ add_to_tree (ChangeSet *changeset,
 
 static ChangeSetDirent *
 delete_from_tree (ChangeSet *changeset,
-                  const char *path)
+                  const char *path,
+                  gboolean *parent_empty)
 {
     char *repo_id = changeset->repo_id;
     ChangeSetDir *root = changeset->tree_root;
@@ -443,6 +449,8 @@ delete_from_tree (ChangeSet *changeset,
     ChangeSetDir *dir;
     ChangeSetDirent *dent, *ret = NULL;
     SeafDir *seaf_dir;
+
+    *parent_empty = FALSE;
 
     parts = g_strsplit (path, "/", 0);
     n = g_strv_length(parts);
@@ -458,6 +466,8 @@ delete_from_tree (ChangeSet *changeset,
             if (i == (n-1)) {
                 /* Remove from hash table without freeing dent. */
                 remove_dent_from_dir (dir, dname);
+                if (g_hash_table_size (dir->dents) == 0)
+                    *parent_empty = TRUE;
                 ret = dent;
                 break;
             }
@@ -467,6 +477,11 @@ delete_from_tree (ChangeSet *changeset,
                                                        repo_id,
                                                        root->version,
                                                        dent->id);
+                if (!seaf_dir) {
+                    seaf_warning ("Failed to load seafdir %s:%s\n",
+                                  repo_id, dent->id);
+                    break;
+                }
                 dent->subdir = seaf_dir_to_changeset_dir (seaf_dir);
                 seaf_dir_free (seaf_dir);
             }
@@ -475,6 +490,8 @@ delete_from_tree (ChangeSet *changeset,
             if (i == (n-1)) {
                 /* Remove from hash table without freeing dent. */
                 remove_dent_from_dir (dir, dname);
+                if (g_hash_table_size (dir->dents) == 0)
+                    *parent_empty = TRUE;
                 ret = dent;
                 break;
             }
@@ -497,6 +514,7 @@ apply_to_tree (ChangeSet *changeset,
     char *repo_id = changeset->repo_id;
     ChangeSetDir *root = changeset->tree_root;
     ChangeSetDirent *dent, *dent_dst;
+    gboolean dummy;
 
     switch (status) {
     case DIFF_STATUS_ADDED:
@@ -504,17 +522,12 @@ apply_to_tree (ChangeSet *changeset,
     case DIFF_STATUS_DIR_ADDED:
         add_to_tree (changeset, sha1, st, modifier, path, NULL);
         break;
-    case DIFF_STATUS_DELETED:
-    case DIFF_STATUS_DIR_DELETED:
-        dent = delete_from_tree (changeset, path);
-        changeset_dirent_free (dent);
-        break;
     case DIFF_STATUS_RENAMED:
-        dent = delete_from_tree (changeset, path);
+        dent = delete_from_tree (changeset, path, &dummy);
         if (!dent)
             break;
 
-        dent_dst = delete_from_tree (changeset, new_path);
+        dent_dst = delete_from_tree (changeset, new_path, &dummy);
         changeset_dirent_free (dent_dst);
         add_to_tree (changeset, NULL, NULL, NULL, new_path, dent);
 
@@ -529,8 +542,54 @@ add_to_changeset (ChangeSet *changeset,
                   SeafStat *st,
                   const char *modifier,
                   const char *path,
-                  const char *new_path,
-                  gboolean add_to_diff)
+                  const char *new_path)
+{
+    DiffEntry *de;
+    unsigned char allzero[20] = {0};
+
+    de = diff_entry_new (DIFF_TYPE_INDEX, status, allzero, path);
+    changeset->diff = g_list_prepend (changeset->diff, de);
+
+    apply_to_tree (changeset,
+                   status, sha1, st, modifier, path, new_path);
+}
+
+static void
+remove_from_changeset_recursive (ChangeSet *changeset,
+                                 const char *path,
+                                 gboolean remove_parent,
+                                 const char *top_dir)
+{
+    ChangeSetDirent *dent;
+    gboolean parent_empty = FALSE;
+
+    dent = delete_from_tree (changeset, path, &parent_empty);
+    changeset_dirent_free (dent);
+
+    if (remove_parent && parent_empty) {
+        char *parent = g_strdup(path);
+        char *slash = strrchr (parent, '/');
+        if (slash) {
+            *slash = '\0';
+            if (g_strcmp0 (top_dir, parent) != 0) {
+                /* Recursively remove parent dirs. */
+                remove_from_changeset_recursive (changeset,
+                                                 parent,
+                                                 remove_parent,
+                                                 top_dir);
+            }
+        }
+        g_free (parent);
+    }
+}
+
+void
+remove_from_changeset (ChangeSet *changeset,
+                       char status,
+                       const char *path,
+                       gboolean remove_parent,
+                       const char *top_dir,
+                       gboolean add_to_diff)
 {
     DiffEntry *de;
     unsigned char allzero[20] = {0};
@@ -540,8 +599,7 @@ add_to_changeset (ChangeSet *changeset,
         changeset->diff = g_list_prepend (changeset->diff, de);
     }
 
-    apply_to_tree (changeset,
-                   status, sha1, st, modifier, path, new_path);
+    remove_from_changeset_recursive (changeset, path, remove_parent, top_dir);
 }
 
 static char *
