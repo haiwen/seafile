@@ -429,4 +429,7 @@ class SeafileAPI(object):
     def empty_repo_trash_by_owner(self, owner):
         return seafserv_threaded_rpc.empty_repo_trash_by_owner(owner)
 
+    def generate_magic_and_random_key(self, enc_version, repo_id, password):
+        return seafserv_threaded_rpc.generate_magic_and_random_key(enc_version, repo_id, password)
+
 seafile_api = SeafileAPI()

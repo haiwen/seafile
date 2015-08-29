@@ -183,4 +183,12 @@ public class SharedGroup : Object {
     public string perm { get; set; }
 }
 
+public class EncryptionInfo: Object {
+    public string repo_id { get; set; }
+    public string passwd { get; set; }
+    public int enc_version { get; set; }
+    public string magic { get; set; }
+    public string random_key { get; set; }
+}
+
 } // namespace

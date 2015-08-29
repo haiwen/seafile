@@ -950,4 +950,9 @@ seafile_get_shared_groups_for_subdir (const char *repo_id,
                                       const char *path,
                                       const char *from_user,
                                       GError **error);
+GObject *
+seafile_generate_magic_and_random_key(int enc_version,
+                                      const char* repo_id,
+                                      const char *passwd,
+                                      GError **error);
 #endif

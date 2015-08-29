@@ -134,12 +134,12 @@ class SeafileRpcClient(ccnet.RpcClientBase):
     def seafile_find_transfer_task(repo_id):
         pass
     find_transfer_task = seafile_find_transfer_task
- 
+
     @searpc_func("object", ["string"])
     def seafile_get_checkout_task(repo_id):
         pass
     get_checkout_task = seafile_get_checkout_task
-    
+
     ### sync
     @searpc_func("int", ["string", "string"])
     def seafile_sync(repo_id, peer_id):
@@ -203,13 +203,17 @@ class SeafileRpcClient(ccnet.RpcClientBase):
         pass
     get_repo_token = seafile_get_repo_token
 
+    @searpc_func("object", ["int", "string", "string"])
+    def seafile_generate_magic_and_random_key(enc_version, repo_id, password):
+        pass
+    generate_magic_and_random_key = seafile_generate_magic_and_random_key
 
 class SeafileThreadedRpcClient(ccnet.RpcClientBase):
     """RPC used in client that run in a thread"""
 
     def __init__(self, ccnet_client_pool, *args, **kwargs):
-        ccnet.RpcClientBase.__init__(self, ccnet_client_pool, 
-                                     "seafile-threaded-rpcserver", 
+        ccnet.RpcClientBase.__init__(self, ccnet_client_pool,
+                                     "seafile-threaded-rpcserver",
                                      *args, **kwargs)
 
     @searpc_func("int", ["string", "string", "string"])
@@ -265,7 +269,7 @@ class SeafServerRpcClient(ccnet.RpcClientBase):
     def seafile_web_get_access_token(repo_id, obj_id, op, username, use_onetime=1):
         pass
     web_get_access_token = seafile_web_get_access_token
-    
+
     @searpc_func("object", ["string"])
     def seafile_web_query_access_token(token):
         pass
@@ -302,7 +306,7 @@ class SeafServerRpcClient(ccnet.RpcClientBase):
     @searpc_func("int", ["string"])
     def cancel_copy_task(task_id):
         pass
-    
+
 class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
 
     def __init__(self, ccnet_client_pool, *args, **kwargs):
@@ -310,7 +314,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
                                      "seafserv-threaded-rpcserver",
                                      *args, **kwargs)
 
-    # repo manipulation 
+    # repo manipulation
     @searpc_func("string", ["string", "string", "string", "string"])
     def seafile_create_repo(name, desc, owner_email, passwd):
         pass
@@ -355,7 +359,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_set_repo_owner(email, repo_id):
         pass
     set_repo_owner = seafile_set_repo_owner
-    
+
     @searpc_func("string", ["string"])
     def seafile_get_repo_owner(repo_id):
         pass
@@ -365,7 +369,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_get_orphan_repo_list():
         pass
     get_orphan_repo_list = seafile_get_orphan_repo_list
-    
+
     @searpc_func("objlist", ["string"])
     def seafile_list_owned_repos(user_id):
         pass
@@ -375,12 +379,12 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_server_repo_size(repo_id):
         pass
     server_repo_size = seafile_server_repo_size
-    
+
     @searpc_func("int", ["string", "string"])
     def seafile_repo_set_access_property(repo_id, role):
         pass
     repo_set_access_property = seafile_repo_set_access_property
-    
+
     @searpc_func("string", ["string"])
     def seafile_repo_query_access_property(repo_id):
         pass
@@ -399,12 +403,12 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("int", ["string", "string", "string", "string", "string"])
     def seafile_post_file(repo_id, tmp_file_path, parent_dir, filename, user):
         pass
-    post_file = seafile_post_file 
+    post_file = seafile_post_file
 
     @searpc_func("int", ["string", "string", "string", "string"])
     def seafile_post_dir(repo_id, parent_dir, new_dir_name, user):
         pass
-    post_dir = seafile_post_dir 
+    post_dir = seafile_post_dir
 
     @searpc_func("int", ["string", "string", "string", "string"])
     def seafile_post_empty_file(repo_id, parent_dir, filename, user):
@@ -414,17 +418,17 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("int", ["string", "string", "string", "string", "string", "string"])
     def seafile_put_file(repo_id, tmp_file_path, parent_dir, filename, user, head_id):
         pass
-    put_file = seafile_put_file 
+    put_file = seafile_put_file
 
     @searpc_func("int", ["string", "string", "string", "string"])
     def seafile_del_file(repo_id, parent_dir, filename, user):
         pass
-    del_file = seafile_del_file 
+    del_file = seafile_del_file
 
     @searpc_func("object", ["string", "string", "string", "string", "string", "string", "string", "int", "int"])
     def seafile_copy_file(src_repo, src_dir, src_filename, dst_repo, dst_dir, dst_filename, user, need_progress, synchronous):
         pass
-    copy_file = seafile_copy_file 
+    copy_file = seafile_copy_file
 
     @searpc_func("object", ["string", "string", "string", "string", "string", "string", "string", "int", "int"])
     def seafile_move_file(src_repo, src_dir, src_filename, dst_repo, dst_dir, dst_filename, user, need_progress, synchronous):
@@ -434,12 +438,12 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("int", ["string", "string", "string", "string", "string"])
     def seafile_rename_file(repo_id, parent_dir, oldname, newname, user):
         pass
-    rename_file = seafile_rename_file 
+    rename_file = seafile_rename_file
 
     @searpc_func("int", ["string", "string"])
     def seafile_is_valid_filename(repo_id, filename):
         pass
-    is_valid_filename = seafile_is_valid_filename 
+    is_valid_filename = seafile_is_valid_filename
 
     @searpc_func("object", ["string", "int", "string"])
     def seafile_get_commit(repo_id, version, commit_id):
@@ -559,7 +563,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_group_share_repo(repo_id, group_id, user_name, permisson):
         pass
     group_share_repo = seafile_group_share_repo
-    
+
     @searpc_func("int", ["string", "int", "string"])
     def seafile_group_unshare_repo(repo_id, group_id, user_name):
         pass
@@ -611,7 +615,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("int", ["int", "string", "string"])
     def set_group_repo_permission(group_id, repo_id, permission):
         pass
-    
+
     # branch and commit
     @searpc_func("objlist", ["string"])
     def seafile_branch_gets(repo_id):
@@ -640,7 +644,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     get_repo_token_nonnull = seafile_get_repo_token_nonnull
 
-    
+
     @searpc_func("string", ["string", "string"])
     def seafile_generate_repo_token(repo_id, email):
         pass
@@ -650,7 +654,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_delete_repo_token(repo_id, token, user):
         pass
     delete_repo_token = seafile_delete_repo_token
-    
+
     @searpc_func("objlist", ["string"])
     def seafile_list_repo_tokens(repo_id):
         pass
@@ -734,7 +738,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def seafile_unset_passwd(repo_id, user, passwd):
         pass
     unset_passwd = seafile_unset_passwd
-    
+
     # repo permission checking
     @searpc_func("string", ["string", "string"])
     def check_permission(repo_id, user):
@@ -754,7 +758,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("int", ["string"])
     def seafile_get_org_id_by_repo_id(repo_id):
         pass
-    get_org_id_by_repo_id = seafile_get_org_id_by_repo_id    
+    get_org_id_by_repo_id = seafile_get_org_id_by_repo_id
 
     @searpc_func("objlist", ["int", "int", "int"])
     def seafile_get_org_repo_list(org_id, start, limit):
@@ -773,7 +777,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("string", ["string"])
     def get_org_repo_owner(repo_id):
         pass
-    
+
     # org group repo
     @searpc_func("int", ["string", "int", "int", "string", "string"])
     def add_org_group_repo(repo_id, org_id, group_id, owner, permission):
@@ -802,7 +806,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("int", ["int", "int", "string", "string"])
     def set_org_group_repo_permission(org_id, group_id, repo_id, permission):
         pass
-    
+
     # inner pub repo
     @searpc_func("int", ["string", "string"])
     def set_inner_pub_repo(repo_id, permission):
@@ -823,7 +827,7 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     @searpc_func("int64", [])
     def count_inner_pub_repos():
         pass
-    
+
     @searpc_func("int", ["string"])
     def is_inner_pub_repo(repo_id):
         pass
@@ -905,4 +909,12 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
 
     @searpc_func("int", ["string"])
     def empty_repo_trash_by_owner(owner):
+        pass
+
+    @searpc_func("object", ["string"])
+    def empty_repo_trash_by_owner(owner):
+        pass
+
+    @searpc_func("object", ["int", "string", "string"])
+    def generate_magic_and_random_key(enc_version, repo_id, password):
         pass
