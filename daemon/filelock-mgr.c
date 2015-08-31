@@ -126,11 +126,6 @@ init_locks (gpointer key, gpointer value, gpointer user_data)
     LockInfo *info = value;
 
     if (!info->locked_by_me) {
-        seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                              repo_id,
-                                              path,
-                                              S_IFREG,
-                                              SYNC_STATUS_LOCKED);
         seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
                                             repo_id,
                                             path);
@@ -269,10 +264,17 @@ update_in_memory (SeafFilelockManager *mgr, const char *repo_id, GHashTable *new
     GHashTableIter iter;
     gpointer key, value;
     gpointer new_key, new_val;
-    char *path;
+    char *path, *fullpath;
     LockInfo *info;
     gboolean exists;
     int locked_by_me;
+    SeafRepo *repo;
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to find repo %s\n", repo_id);
+        return;
+    }
 
     g_hash_table_iter_init (&iter, locks);
     while (g_hash_table_iter_next (&iter, &key, &value)) {
@@ -281,29 +283,29 @@ update_in_memory (SeafFilelockManager *mgr, const char *repo_id, GHashTable *new
 
         exists = g_hash_table_lookup_extended (new_locks, path, &new_key, &new_val);
         if (!exists) {
-            seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                                  repo_id,
-                                                  path,
-                                                  S_IFREG,
-                                                  SYNC_STATUS_SYNCED);
+#ifdef WIN32
+            fullpath = g_build_path ("/", repo->worktree, path, NULL);
+            seaf_sync_manager_add_refresh_path (seaf->sync_mgr, fullpath);
+            g_free (fullpath);
+#endif
             seaf_filelock_manager_unlock_wt_file (mgr, repo_id, path);
             g_hash_table_iter_remove (&iter);
         } else {
             locked_by_me = (int)(long)new_val;
             if (!info->locked_by_me && locked_by_me) {
-                seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                                      repo_id,
-                                                      path,
-                                                      S_IFREG,
-                                                      SYNC_STATUS_SYNCED);
+#ifdef WIN32
+                fullpath = g_build_path ("/", repo->worktree, path, NULL);
+                seaf_sync_manager_add_refresh_path (seaf->sync_mgr, fullpath);
+                g_free (fullpath);
+#endif
                 seaf_filelock_manager_unlock_wt_file (mgr, repo_id, path);
                 info->locked_by_me = locked_by_me;
             } else if (info->locked_by_me && !locked_by_me) {
-                seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                                      repo_id,
-                                                      path,
-                                                      S_IFREG,
-                                                      SYNC_STATUS_LOCKED);
+#ifdef WIN32
+                fullpath = g_build_path ("/", repo->worktree, path, NULL);
+                seaf_sync_manager_add_refresh_path (seaf->sync_mgr, fullpath);
+                g_free (fullpath);
+#endif
                 seaf_filelock_manager_lock_wt_file (mgr, repo_id, path);
                 info->locked_by_me = locked_by_me;
             }
@@ -318,19 +320,13 @@ update_in_memory (SeafFilelockManager *mgr, const char *repo_id, GHashTable *new
             info = g_new0 (LockInfo, 1);
             info->locked_by_me = locked_by_me;
             g_hash_table_insert (locks, g_strdup(path), info);
+#ifdef WIN32
+            fullpath = g_build_path ("/", repo->worktree, path, NULL);
+            seaf_sync_manager_add_refresh_path (seaf->sync_mgr, fullpath);
+            g_free (fullpath);
+#endif
             if (!locked_by_me) {
-                seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                                      repo_id,
-                                                      path,
-                                                      S_IFREG,
-                                                      SYNC_STATUS_LOCKED);
                 seaf_filelock_manager_lock_wt_file (mgr, repo_id, path);
-            } else {
-                seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                                      repo_id,
-                                                      path,
-                                                      S_IFREG,
-                                                      SYNC_STATUS_SYNCED);
             }
         }
     }
