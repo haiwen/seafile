@@ -2887,10 +2887,8 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
     }
 
     if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                              repo->id, event->path) ||
-        seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                               repo->id, event->new_path)) {
-        seaf_debug ("Rename: %s or %s is locked on server, ignore.\n", event->path, event->new_path);
+        seaf_debug ("Rename: %s is locked on server, ignore.\n", event->new_path);
         return;
     }
 
@@ -3056,12 +3054,6 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             if (!is_path_writable(repo->id,
                                   repo->is_readonly, event->path)) {
                 seaf_debug ("%s is not writable, ignore.\n", event->path);
-                break;
-            }
-
-            if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                                      repo->id, event->path)) {
-                seaf_debug ("%s is locked on server, ignore.\n", event->path);
                 break;
             }
 
