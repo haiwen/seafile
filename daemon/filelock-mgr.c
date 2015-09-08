@@ -511,7 +511,7 @@ refresh_locked_path_status (const char *repo_id, const char *path)
         return;
 
     char *fullpath = g_build_path ("/", repo->worktree, path, NULL);
-    seaf_sync_manager_refresh_path (seaf->sync_mgr, path);
+    seaf_sync_manager_refresh_path (seaf->sync_mgr, fullpath);
     g_free (fullpath);
 }
 
