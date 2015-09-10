@@ -4822,7 +4822,7 @@ handle_dir_added_de (const char *repo_id,
         ce->ce_mtime.sec = de->mtime;
 }
 
-#define DEFAULT_DOWNLOAD_THREADS 10
+#define DEFAULT_DOWNLOAD_THREADS 3
 
 static int
 download_files_http (const char *repo_id,
