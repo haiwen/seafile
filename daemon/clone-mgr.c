@@ -867,6 +867,7 @@ add_transfer_task (CloneTask *task, GError **error)
                                                 task->http_protocol_version,
                                                 task->email,
                                                 task->use_fileserver_port,
+                                                task->repo_name,
                                                 error);
         if (ret < 0)
             return -1;

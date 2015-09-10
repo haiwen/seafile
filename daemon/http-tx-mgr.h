@@ -103,6 +103,9 @@ struct _HttpTxTask {
 
     gint tx_bytes;              /* bytes transferred in this second. */
     gint last_tx_bytes;         /* bytes transferred in the last second. */
+
+    uint32_t cevent_id;         /* Used by download task to send notification. */
+    char *repo_name;            /* Used by download task in conflict notification. */
 };
 typedef struct _HttpTxTask HttpTxTask;
 
@@ -125,6 +128,7 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               int protocol_version,
                               const char *email,
                               gboolean use_fileserver_port,
+                              const char *repo_name,
                               GError **error);
 
 int
@@ -268,6 +272,10 @@ void
 http_tx_manager_cancel_task (HttpTxManager *manager,
                              const char *repo_id,
                              int task_type);
+
+/* Only useful for download task. */
+void
+http_tx_manager_notify_conflict (HttpTxTask *task, const char *path);
 
 int
 http_tx_task_get_rate (HttpTxTask *task);

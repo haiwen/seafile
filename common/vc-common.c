@@ -599,17 +599,17 @@ gen_conflict_path (const char *origin_path,
         *dot = '\0';
         ext = dot + 1;
         if (modifier)
-            g_string_printf (conflict_path, "%s (%s %s).%s",
+            g_string_printf (conflict_path, "%s (SFConflict %s %s).%s",
                              copy, modifier, time_buf, ext);
         else
-            g_string_printf (conflict_path, "%s (%s).%s",
+            g_string_printf (conflict_path, "%s (SFConflict %s).%s",
                              copy, time_buf, ext);
     } else {
         if (modifier)
-            g_string_printf (conflict_path, "%s (%s %s)",
+            g_string_printf (conflict_path, "%s (SFConflict %s %s)",
                              copy, modifier, time_buf);
         else
-            g_string_printf (conflict_path, "%s (%s)",
+            g_string_printf (conflict_path, "%s (SFConflict %s)",
                              copy, time_buf);
     }
 

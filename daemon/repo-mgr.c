@@ -64,9 +64,11 @@ static const char *ignore_table[] = {
     NULL,
 };
 
+#define CONFLICT_PATTERN " \\(SFConflict .+\\)"
+
 static GPatternSpec** ignore_patterns;
 static GPatternSpec* office_temp_ignore_patterns[4];
-
+static GRegex *conflict_pattern = NULL;
 
 static SeafRepo *
 load_repo (SeafRepoManager *manager, const char *repo_id);
@@ -4641,6 +4643,23 @@ cleanup_file_blocks_http (HttpTxTask *task, const char *file_id)
     seafile_unref (file);
 }
 
+static gboolean
+check_path_conflict (const char *path, char **orig_path)
+{
+    gboolean is_conflict = FALSE;
+    GError *error = NULL;
+
+    is_conflict = g_regex_match (conflict_pattern, path, 0, NULL);
+    if (is_conflict) {
+        *orig_path = g_regex_replace_literal (conflict_pattern, path, -1,
+                                              0, "", 0, &error);
+        if (!*orig_path)
+            is_conflict = FALSE;
+    }
+
+    return is_conflict;
+}
+
 static int
 checkout_file_http (FileTxData *data,
                     FileTxTask *file_task,
@@ -4748,6 +4767,15 @@ checkout_file_http (FileTxData *data,
                                             repo_id, de->name);
 
     cleanup_file_blocks_http (http_task, file_id);
+
+    if (conflicted) {
+        http_tx_manager_notify_conflict (http_task, path);
+    } else {
+        char *orig_path = NULL;
+        if (check_path_conflict (path, &orig_path))
+            http_tx_manager_notify_conflict (http_task, orig_path);
+        g_free (orig_path);
+    }
 
     /* If case conflict, this file will be checked out to another path.
      * Remove the current entry, otherwise it won't be removed later
@@ -5625,6 +5653,14 @@ seaf_repo_manager_new (SeafileSession *seaf)
     office_temp_ignore_patterns[1] = g_pattern_spec_new("~*.tmp");
     office_temp_ignore_patterns[2] = g_pattern_spec_new(".~lock*#");
     office_temp_ignore_patterns[3] = NULL;
+
+    GError *error = NULL;
+    conflict_pattern = g_regex_new (CONFLICT_PATTERN, 0, 0, &error);
+    if (error) {
+        seaf_warning ("Failed to create regex '%s': %s\n",
+                      CONFLICT_PATTERN, error->message);
+        g_clear_error (&error);
+    }
 
     mgr->priv->repo_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 

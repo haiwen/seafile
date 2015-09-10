@@ -843,6 +843,7 @@ start_fetch_if_necessary (SyncTask *task, const char *remote_head)
                                           task->http_version,
                                           repo->email,
                                           repo->use_fileserver_port,
+                                          repo->name,
                                           &error) < 0) {
             seaf_warning ("Failed to start http download: %s.\n", error->message);
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_START_FETCH);
