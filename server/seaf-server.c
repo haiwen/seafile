@@ -659,6 +659,10 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_empty_repo_trash_by_owner,
                                      "empty_repo_trash_by_owner",
                                      searpc_signature_int__string());
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_generate_magic_and_random_key,
+                                     "generate_magic_and_random_key",
+                                     searpc_signature_object__int_string_string());
 }
 
 static struct event sigusr1;
