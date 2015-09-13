@@ -369,7 +369,10 @@ def seaf_download(args):
     if not repo:
         print "Library id is required"
         sys.exit(1)
-
+    
+    uid = args.uid
+    gid = args.gid
+    
     url = args.server
     if not url:
         print "Seafile server url need to be presented"
@@ -425,6 +428,8 @@ def seaf_download(args):
                          relay_id,
                          repo_name.encode('utf-8'),
                          download_dir.encode('utf-8'),
+                         uid,
+                         gid,
                          clone_token,
                          repo_passwd, magic,
                          relay_addr,
@@ -464,7 +469,10 @@ def seaf_sync(args):
     if not os.path.exists(folder):
         print "The local directory does not exists"
         sys.exit(1)
-
+    
+    uid = args.uid
+    gid = args.gid
+    
     pool = ccnet.ClientPool(conf_dir)
     seafile_rpc = seafile.RpcClient(pool, req_pool=False)
 
@@ -507,6 +515,8 @@ def seaf_sync(args):
                       relay_id,
                       repo_name.encode('utf-8'),
                       folder,
+                      uid,
+                      gid,
                       clone_token,
                       repo_passwd, magic,
                       relay_addr,
@@ -728,6 +738,8 @@ def main():
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
     parser_download.add_argument('-u', '--username', help='username', type=str)
     parser_download.add_argument('-p', '--password', help='password', type=str)
+    parser_sync.add_argument('-n', '--uid', help='uid for local folder', type=str)
+    parser_sync.add_argument('-g', '--gid', help='gid for local folder', type=str)
 
 
     # sync
@@ -740,6 +752,8 @@ def main():
     parser_sync.add_argument('-u', '--username', help='username', type=str)
     parser_sync.add_argument('-p', '--password', help='password', type=str)
     parser_sync.add_argument('-d', '--folder', help='the existing local folder', type=str)
+    parser_sync.add_argument('-n', '--uid', help='uid for local folder', type=str)
+    parser_sync.add_argument('-g', '--gid', help='gid for local folder', type=str)
 
     # desync
     parser_desync = subparsers.add_parser('desync',
