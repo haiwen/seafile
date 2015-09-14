@@ -7258,13 +7258,9 @@ seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath)
 
     str = g_strdup(fullpath);
 
-    /* first check the path is a reg file or a dir */
-    if (seaf_stat(str, &st) < 0) {
-        g_free(str);
-        return FALSE;
-    }
-    if (S_ISDIR(st.st_mode)) {
-        g_free(str);
+    int rc = seaf_stat(str, &st);
+    if (rc == 0 && S_ISDIR(st.st_mode)) {
+        g_free (str);
         str = g_strconcat (fullpath, "/", NULL);
     }
 
