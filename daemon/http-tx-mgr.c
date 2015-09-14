@@ -2888,7 +2888,7 @@ out:
     g_async_queue_push (tx_data->finished_tasks, task);
 }
 
-#define DEFAULT_UPLOAD_BLOCK_THREADS 10
+#define DEFAULT_UPLOAD_BLOCK_THREADS 3
 
 static int
 multi_threaded_send_blocks (HttpTxTask *http_task, GList *block_list)

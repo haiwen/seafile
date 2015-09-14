@@ -501,6 +501,28 @@ init_folder_perms (SeafRepoManager *mgr)
     g_list_free (repo_ids);
 }
 
+static void
+remove_folder_perms (SeafRepoManager *mgr, const char *repo_id)
+{
+    GList *perms = NULL;
+
+    pthread_mutex_lock (&mgr->priv->perm_lock);
+
+    perms = g_hash_table_lookup (mgr->priv->user_perms, repo_id);
+    if (perms) {
+        g_list_free_full (perms, (GDestroyNotify)folder_perm_free);
+        g_hash_table_remove (mgr->priv->user_perms, repo_id);
+    }
+
+    perms = g_hash_table_lookup (mgr->priv->group_perms, repo_id);
+    if (perms) {
+        g_list_free_full (perms, (GDestroyNotify)folder_perm_free);
+        g_hash_table_remove (mgr->priv->group_perms, repo_id);
+    }
+
+    pthread_mutex_unlock (&mgr->priv->perm_lock);
+}
+
 int
 seaf_repo_manager_update_folder_perm_timestamp (SeafRepoManager *mgr,
                                                 const char *repo_id,
@@ -2867,10 +2889,8 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
     }
 
     if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                              repo->id, event->path) ||
-        seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                               repo->id, event->new_path)) {
-        seaf_debug ("Rename: %s or %s is locked on server, ignore.\n", event->path, event->new_path);
+        seaf_debug ("Rename: %s is locked on server, ignore.\n", event->new_path);
         return;
     }
 
@@ -3036,12 +3056,6 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             if (!is_path_writable(repo->id,
                                   repo->is_readonly, event->path)) {
                 seaf_debug ("%s is not writable, ignore.\n", event->path);
-                break;
-            }
-
-            if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                                      repo->id, event->path)) {
-                seaf_debug ("%s is locked on server, ignore.\n", event->path);
                 break;
             }
 
@@ -4836,7 +4850,7 @@ handle_dir_added_de (const char *repo_id,
         ce->ce_mtime.sec = de->mtime;
 }
 
-#define DEFAULT_DOWNLOAD_THREADS 10
+#define DEFAULT_DOWNLOAD_THREADS 3
 
 static int
 download_files_http (const char *repo_id,
@@ -4932,10 +4946,6 @@ download_files_http (const char *repo_id,
             SyncStatus status;
             if (rc == FETCH_CHECKOUT_FAILED)
                 status = SYNC_STATUS_ERROR;
-            else if (seaf_filelock_manager_is_file_locked(seaf->filelock_mgr,
-                                                          repo_id,
-                                                          de->name))
-                status = SYNC_STATUS_LOCKED;
             else
                 status = SYNC_STATUS_SYNCED;
             seaf_sync_manager_update_active_path (seaf->sync_mgr,
@@ -5934,6 +5944,8 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
                                           (repo->version > 0) ? TRUE : FALSE);
 
     seaf_sync_manager_remove_active_path_info (seaf->sync_mgr, repo->id);
+
+    remove_folder_perms (mgr, repo->id);
 
     if (pthread_rwlock_wrlock (&mgr->priv->lock) < 0) {
         seaf_warning ("[repo mgr] failed to lock repo cache.\n");
