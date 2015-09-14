@@ -2871,6 +2871,24 @@ update_path_sync_status (SeafRepo *repo, WTStatus *status,
     }
 }
 
+/* Excel first writes update to a temporary file and then rename the file to
+ * xlsx. Unfortunately the temp file dosen't have specific pattern.
+ * We can only ignore renaming from non xlsx file to xlsx file.
+ */
+static gboolean
+ignore_xlsx_update (const char *src_path, const char *dst_path)
+{
+    GPatternSpec *pattern = g_pattern_spec_new ("*.xlsx");
+    int ret = FALSE;
+
+    if (!g_pattern_match_string(pattern, src_path) &&
+        g_pattern_match_string(pattern, dst_path))
+        ret = TRUE;
+
+    g_pattern_spec_free (pattern);
+    return ret;
+}
+
 static void
 handle_rename (SeafRepo *repo, struct index_state *istate,
                SeafileCrypt *crypt, GList *ignore_list,
@@ -2923,7 +2941,8 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
 
     /* Now the destination path is not ignored. */
 
-    if (!src_ignored && check_locked_file_before_remove (fset, event->path)) {
+    if (!src_ignored && !ignore_xlsx_update (event->path, event->new_path) &&
+        check_locked_file_before_remove (fset, event->path)) {
         not_found = FALSE;
         rename_index_entries (istate, event->path, event->new_path, &not_found,
                               NULL, NULL);
@@ -5659,8 +5678,8 @@ seaf_repo_manager_new (SeafileSession *seaf)
     }
 
     office_temp_ignore_patterns[0] = g_pattern_spec_new("~$*");
-    /* for files like ~WRL0001.tmp */
-    office_temp_ignore_patterns[1] = g_pattern_spec_new("~*.tmp");
+    /* for files like ~WRL0001.tmp for docx and *.tmp for xlsx and pptx */
+    office_temp_ignore_patterns[1] = g_pattern_spec_new("*.tmp");
     office_temp_ignore_patterns[2] = g_pattern_spec_new(".~lock*#");
     office_temp_ignore_patterns[3] = NULL;
 
