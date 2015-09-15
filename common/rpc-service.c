@@ -1470,22 +1470,18 @@ seafile_generate_magic_and_random_key(int enc_version,
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
         return NULL;
     }
-    if (enc_version < 1 || enc_version > CURRENT_ENC_VERSION) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "unknown enc version");
-        return NULL;
-    }
 
     gchar magic[65] = {0};
     gchar random_key[97] = {0};
 
-    seafile_generate_magic (enc_version, repo_id, passwd, magic);
+    seafile_generate_magic (CURRENT_ENC_VERSION, repo_id, passwd, magic);
     seafile_generate_random_key (passwd, random_key);
 
     SeafileEncryptionInfo *sinfo;
     sinfo = g_object_new (SEAFILE_TYPE_ENCRYPTION_INFO,
                           "repo_id", repo_id,
                           "passwd", passwd,
-                          "enc_version", enc_version,
+                          "enc_version", CURRENT_ENC_VERSION,
                           "magic", magic,
                           "random_key", random_key,
                           NULL);
