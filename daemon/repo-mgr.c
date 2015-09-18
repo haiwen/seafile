@@ -4802,10 +4802,10 @@ checkout_file_http (FileTxData *data,
     cleanup_file_blocks_http (http_task, file_id);
 
     if (conflicted) {
-        http_tx_manager_notify_conflict (http_task, path);
+        http_tx_manager_notify_conflict (http_task, de->name);
     } else {
         char *orig_path = NULL;
-        if (check_path_conflict (path, &orig_path))
+        if (check_path_conflict (de->name, &orig_path))
             http_tx_manager_notify_conflict (http_task, orig_path);
         g_free (orig_path);
     }
