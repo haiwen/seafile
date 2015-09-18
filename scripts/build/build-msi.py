@@ -829,17 +829,26 @@ def build_german_msi():
 def move_msi():
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
     src_msi = os.path.join(pack_dir, 'seafile.msi')
-    dst_msi = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s.msi' % conf[CONF_VERSION])
+    if not conf[CONF_WITH_SHIB]:
+        dst_msi = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s.msi' % conf[CONF_VERSION])
+    else:
+        dst_msi = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-shibboleth.msi' % conf[CONF_VERSION])
 
     # move msi to outputdir
     must_copy(src_msi, dst_msi)
 
     if not conf[CONF_ONLY_CHINESE]:
         src_msi_en = os.path.join(pack_dir, 'seafile-en.msi')
-        dst_msi_en = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-en.msi' % conf[CONF_VERSION])
+        if not conf[CONF_WITH_SHIB]:
+            dst_msi_en = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-en.msi' % conf[CONF_VERSION])
+        else:
+            dst_msi_en = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-en-shibboleth.msi' % conf[CONF_VERSION])
         must_copy(src_msi_en, dst_msi_en)
         src_msi_de = os.path.join(pack_dir, 'seafile-de.msi')
-        dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-de.msi' % conf[CONF_VERSION])
+        if not conf[CONF_WITH_SHIB]:
+            dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-de.msi' % conf[CONF_VERSION])
+        else:
+            dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-de-shibboleth.msi' % conf[CONF_VERSION])
         must_copy(src_msi_de, dst_msi_de)
 
     print '---------------------------------------------'
