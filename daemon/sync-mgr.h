@@ -84,6 +84,8 @@ struct _SyncTask {
     gboolean         server_side_merge;
     gboolean         uploaded;
 
+    uid_t			 uid;
+    gid_t			 gid;
     gboolean         http_sync;
     int              http_version;
 

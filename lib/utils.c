@@ -27,6 +27,7 @@
 
 #ifndef WIN32
 #include <pwd.h>
+#include <grp.h>
 #include <uuid/uuid.h>
 #endif
 
@@ -537,9 +538,90 @@ seaf_util_mkdir (const char *path, mode_t mode)
     g_free (wpath);
     return ret;
 #else
-    return mkdir (path, mode);
+    int ret = 0;
+    mode_t mask;
+    mask = umask (002);
+    ret = mkdir (path, mode);
+    umask (mask);
+    return ret;
 #endif
 }
+
+int
+seaf_util_chown (const char *path, uid_t uid, uid_t gid)
+{
+#ifdef WIN32
+    return 0;
+#else
+     return chown (path, uid, gid);
+#endif
+}
+
+int
+seaf_util_mkdir_with_parents (const gchar *pathname, mode_t mode, uid_t uid, gid_t gid)
+{
+	gchar *fn, *p;
+
+	if (pathname == NULL || *pathname == '\0')
+	{
+		errno = EINVAL;
+		return -1;
+	}
+
+	fn = g_strdup (pathname);
+
+	if (g_path_is_absolute (fn))
+		p = (gchar *) g_path_skip_root (fn);
+	else
+		p = fn;
+
+	do
+	{
+		while (*p && !G_IS_DIR_SEPARATOR (*p))
+			p++;
+
+		if (!*p)
+			p = NULL;
+		else
+			*p = '\0';
+
+		if (!g_file_test (fn, G_FILE_TEST_EXISTS))
+		{
+			if (seaf_util_mkdir (fn, mode) == -1)
+			{
+				int errno_save = errno;
+				g_free (fn);
+				errno = errno_save;
+				return -1;
+			}
+			if (seaf_util_chown (fn, uid, gid) == -1)
+			{
+				int errno_save = errno;
+				g_free (fn);
+				errno = errno_save;
+				return -1;
+			}
+		}
+		else if (!g_file_test (fn, G_FILE_TEST_IS_DIR))
+		{
+			g_free (fn);
+			errno = ENOTDIR;
+			return -1;
+		}
+		if (p)
+		{
+			*p++ = G_DIR_SEPARATOR;
+			while (*p && G_IS_DIR_SEPARATOR (*p))
+				p++;
+		}
+	}
+	while (p);
+
+	g_free (fn);
+
+	return 0;
+}
+
 
 int
 seaf_util_open (const char *path, int flags)
@@ -611,7 +693,12 @@ seaf_util_create (const char *path, int flags, mode_t mode)
     g_free (wpath);
     return fd;
 #else
-    return open (path, flags, mode);
+    int ret = 0;
+    mode_t mask;
+    mask = umask (002);
+    ret = open (path, flags, mode);
+    umask (mask);
+    return ret;
 #endif
 }
 
@@ -2483,3 +2570,64 @@ out:
         return -1;
     }
 }
+
+uid_t           /* Return UID corresponding to 'name', or process GID */
+userIdFromName (const char *name)
+{
+    struct passwd *pwd;
+    uid_t u;
+    char *endptr;
+
+    if (name == NULL || *name == '\0')
+        return getuid ();
+
+    u = strtol(name, &endptr, 10);
+    if (*endptr == '\0')
+        return u;
+
+    pwd = getpwnam(name);
+    if (pwd == NULL)
+    	return getuid ();
+
+    return pwd->pw_uid;
+}
+
+gid_t           /* Return GID corresponding to 'name', or process GID */
+groupIdFromName (const char *name)
+{
+    struct group *grp;
+    gid_t g;
+    char *endptr;
+
+    if (name == NULL || *name == '\0')
+    	return getgid ();
+
+    g = strtol(name, &endptr, 10);
+    if (*endptr == '\0')
+        return g;
+
+    grp = getgrnam (name);
+    if (grp == NULL)
+    	return getgid ();
+
+    return grp->gr_gid;
+}
+
+char *          /* Return name corresponding to 'uid', or NULL on error */
+userNameFromId (uid_t uid)
+{
+    struct passwd *pwd;
+
+    pwd = getpwuid (uid);
+    return (pwd == NULL) ? NULL : pwd->pw_name;
+}
+
+char *          /* Return name corresponding to 'gid', or NULL on error */
+groupNameFromId (gid_t gid)
+{
+    struct group *grp;
+
+    grp = getgrgid (gid);
+    return (grp == NULL) ? NULL : grp->gr_name;
+}
+

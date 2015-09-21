@@ -60,6 +60,8 @@ struct _SeafRepo {
 
     gchar      *relay_id;
     gchar      *worktree;
+    uid_t		uid;
+    gid_t		gid;
     gboolean    wt_changed;
     int         wt_check_time;
     int         last_sync_time;

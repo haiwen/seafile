@@ -64,6 +64,8 @@ do_real_merge (SeafRepo *repo,
     opts.version = repo->version;
     opts.index = &istate;
     opts.worktree = repo->worktree;
+    opts.uid = repo->uid;
+    opts.gid = repo->gid;
     opts.ancestor = "common ancestor";
     opts.branch1 = seaf->session->base.user_name;
     opts.branch2 = remote->creator_name;
@@ -301,6 +303,8 @@ get_new_blocks_ff (SeafRepo *repo,
     memcpy (topts.repo_id, repo->id, 36);
     topts.version = repo->version;
     topts.base = repo->worktree;
+    topts.uid = repo->uid;
+    topts.gid = repo->gid;
     topts.head_idx = -1;
     topts.src_index = &istate;
     topts.update = 1;
@@ -353,6 +357,8 @@ get_new_blocks_merge (SeafRepo *repo,
     opts.version = repo->version;
     opts.index = &istate;
     opts.worktree = repo->worktree;
+    opts.uid = repo->uid;
+    opts.gid = repo->gid;
     opts.ancestor = "common ancestor";
     opts.branch1 = seaf->session->base.user_name;
     opts.branch2 = remote->creator_name;

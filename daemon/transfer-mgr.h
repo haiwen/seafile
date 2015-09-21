@@ -165,6 +165,8 @@ struct _TransferTask {
     /* These two fields are only used for new syncing protocol. */
     char        *passwd;
     char        *worktree;
+    uid_t		uid;
+    gid_t		gid;
 
     /* Used to display download progress for new syncing protocol */
     int          n_to_download;
@@ -232,6 +234,8 @@ seaf_transfer_manager_add_download (SeafTransferManager *manager,
                                     gboolean server_side_merge,
                                     const char *passwd,
                                     const char *worktree,
+                                    uid_t uid,
+                                    gid_t gid,
                                     const char *email,
                                     GError **error);
 

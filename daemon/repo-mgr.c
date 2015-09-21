@@ -30,8 +30,8 @@
 #include "unpack-trees.h"
 #include "diff-simple.h"
 #include "change-set.h"
-
 #include "db.h"
+#include "repo-mgr.h"
 
 #define INDEX_DIR "index"
 #define IGNORE_FILE "seafile-ignore.txt"
@@ -3774,6 +3774,8 @@ seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_
     memcpy (topts.repo_id, repo->id, 36);
     topts.version = repo->version;
     topts.base = repo->worktree;
+    topts.uid = repo->uid;
+    topts.gid = repo->gid;
     topts.head_idx = -1;
     topts.src_index = &istate;
     /* topts.dst_index = &istate; */
@@ -3990,7 +3992,9 @@ checkout_file (const char *repo_id,
                                           &case_conflict,
                                           FALSE);
 #else
-    path = build_checkout_path (worktree, name, strlen(name));
+    path = build_checkout_path (worktree, name, strlen(name),
+    							is_http ? http_task->uid : task->uid,
+    							is_http ? http_task->gid : task->gid);
 #endif
 
     if (!path)
@@ -4102,6 +4106,8 @@ checkout_file (const char *repo_id,
                                        repo_version,
                                        file_id,
                                        path,
+                                       is_http ? http_task->uid : task->uid,
+                                       is_http ? http_task->gid : task->gid,
                                        mode,
                                        mtime,
                                        crypt,
@@ -4151,7 +4157,9 @@ update_cache:
 
 int
 checkout_empty_dir (const char *worktree,
-                    const char *name,
+					uid_t uid,
+					gid_t gid,
+					const char *name,
                     gint64 mtime,
                     struct cache_entry *ce,
                     GHashTable *conflict_hash,
@@ -4166,7 +4174,7 @@ checkout_empty_dir (const char *worktree,
                                           &case_conflict,
                                           FALSE);
 #else
-    path = build_checkout_path (worktree, name, strlen(name));
+    path = build_checkout_path (worktree, name, strlen(name), uid, gid);
 #endif
 
     if (!path)
@@ -4177,7 +4185,12 @@ checkout_empty_dir (const char *worktree,
         g_free (path);
         return FETCH_CHECKOUT_FAILED;
     }
-
+    seaf_message ("creation du dossier %s pour %s.\n", path, userNameFromId (uid));
+    if (seaf_util_chown (path, uid, gid) < 0) {
+        seaf_warning ("Failed to chown empty dir %s for %d:%d in checkout.\n", path, uid, gid);
+        g_free (path);
+        return FETCH_CHECKOUT_FAILED;
+    }
     if (mtime != 0 && seaf_set_file_time (path, mtime) < 0) {
         seaf_warning ("Failed to set mtime for %s.\n", path);
     }
@@ -4381,6 +4394,8 @@ download_files_no_http (const char *repo_id,
             }
 
             checkout_empty_dir (worktree,
+            					task->uid,
+            					task->gid,
                                 de->name,
                                 de->mtime,
                                 ce,
@@ -4555,6 +4570,8 @@ out:
 static int
 schedule_file_fetch (GThreadPool *tpool,
                      const char *worktree,
+                     uid_t uid,
+                     gid_t gid,
                      struct index_state *istate,
                      DiffEntry *de,
                      GHashTable *pending_tasks,
@@ -4579,7 +4596,7 @@ schedule_file_fetch (GThreadPool *tpool,
                                           &case_conflict,
                                           FALSE);
 #else
-    path = build_checkout_path (worktree, de->name, strlen(de->name));
+    path = build_checkout_path (worktree, de->name, strlen(de->name), uid, gid);
 #endif
 
     if (!path) {
@@ -4709,7 +4726,7 @@ checkout_file_http (FileTxData *data,
                                           &case_conflict,
                                           FALSE);
 #else
-    path = build_checkout_path (worktree, de->name, strlen(de->name));
+    path = build_checkout_path (worktree, de->name, strlen(de->name), http_task->uid, http_task->gid);
 #endif
 
     if (!path) {
@@ -4742,6 +4759,8 @@ checkout_file_http (FileTxData *data,
                                        repo_version,
                                        file_id,
                                        path,
+                                       http_task->uid,
+                                       http_task->gid,
                                        de->mode,
                                        de->mtime,
                                        crypt,
@@ -4798,6 +4817,8 @@ checkout_file_http (FileTxData *data,
 static void
 handle_dir_added_de (const char *repo_id,
                      const char *worktree,
+                     uid_t uid,
+                     gid_t gid,
                      struct index_state *istate,
                      DiffEntry *de,
                      GHashTable *conflict_hash,
@@ -4815,6 +4836,8 @@ handle_dir_added_de (const char *repo_id,
     }
 
     checkout_empty_dir (worktree,
+    					uid,
+    					gid,
                         de->name,
                         de->mtime,
                         ce,
@@ -4884,12 +4907,14 @@ download_files_http (const char *repo_id,
         de = ptr->data;
 
         if (de->status == DIFF_STATUS_DIR_ADDED) {
-            handle_dir_added_de (repo_id, worktree, istate, de,
+            handle_dir_added_de (repo_id, worktree, http_task->uid, http_task->gid, istate, de,
                                  conflict_hash, no_conflict_hash);
         } else if (de->status == DIFF_STATUS_ADDED ||
                    de->status == DIFF_STATUS_MODIFIED) {
             if (FETCH_CHECKOUT_FAILED == schedule_file_fetch (tpool,
                                                               worktree,
+                                                              http_task->uid,
+                                                              http_task->gid,
                                                               istate,
                                                               de,
                                                               pending_tasks,
@@ -5071,7 +5096,7 @@ error:
 }
 
 static int
-do_rename_in_worktree (DiffEntry *de, const char *worktree,
+do_rename_in_worktree (DiffEntry *de, const char *worktree, uid_t uid, gid_t gid,
                        GHashTable *conflict_hash, GHashTable *no_conflict_hash)
 {
     char *old_path, *new_path;
@@ -5087,7 +5112,7 @@ do_rename_in_worktree (DiffEntry *de, const char *worktree,
                                                   &case_conflict,
                                                   TRUE);
 #else
-        new_path = build_checkout_path (worktree, de->new_name, strlen(de->new_name));
+        new_path = build_checkout_path (worktree, de->new_name, strlen(de->new_name), uid, gid);
 #endif
 
         if (!new_path) {
@@ -5279,6 +5304,8 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
     gboolean is_clone;
     char *worktree;
     char *passwd;
+    uid_t uid;
+    gid_t gid;
 
     SeafRepo *repo = NULL;
     SeafBranch *master = NULL;
@@ -5297,12 +5324,16 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         repo_version = http_task->repo_version;
         is_clone = http_task->is_clone;
         worktree = http_task->worktree;
+        uid = http_task->uid;
+        gid = http_task->gid;
         passwd = http_task->passwd;
     } else {
         repo_id = task->repo_id;
         repo_version = task->repo_version;
         is_clone = task->is_clone;
         worktree = task->worktree;
+        uid = task->uid;
+        gid = task->gid;
         passwd = task->passwd;
     }
 
@@ -5495,7 +5526,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                 seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
                                                       repo_id, de->name);
 
-            do_rename_in_worktree (de, worktree, conflict_hash, no_conflict_hash);
+            do_rename_in_worktree (de, worktree, conflict_hash, no_conflict_hash, uid, gid);
 
             /* update_sync_status updates the sync status for each renamed path.
              * The renamed file/folder becomes "synced" immediately after rename.
@@ -6367,6 +6398,9 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     if (repo->worktree)
         repo->worktree_invalid = FALSE;
 
+    repo->uid = userIdFromName (load_repo_property (manager, repo->id, "uid"));
+    repo->gid = groupIdFromName (load_repo_property (manager, repo->id, "gid"));
+
     repo->relay_id = load_repo_property (manager, repo->id, REPO_RELAY_ID);
     if (repo->relay_id && strlen(repo->relay_id) != 40) {
         g_free (repo->relay_id);
@@ -6561,8 +6595,7 @@ save_repo_property (SeafRepoManager *manager,
                            repo_id, key);
     if (sqlite_check_for_existence(db, sql)) {
         sqlite3_free (sql);
-        sql = sqlite3_mprintf ("UPDATE RepoProperty SET value=%Q"
-                               "WHERE repo_id=%Q and key=%Q",
+        sql = sqlite3_mprintf ("UPDATE RepoProperty SET value=%Q WHERE repo_id=%Q and key=%Q",
                                value, repo_id, key);
         sqlite_query_exec (db, sql);
         sqlite3_free (sql);
@@ -6639,12 +6672,14 @@ seaf_repo_manager_set_repo_property (SeafRepoManager *manager,
         }
 
         if (g_strcmp0(value, "true") == 0) {
+            seaf_message ("on fixe auto_sync.\n");
             repo->auto_sync = 1;
             seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id,
                                         repo->worktree);
             repo->last_sync_time = 0;
         } else {
-            repo->auto_sync = 0;
+            seaf_message ("On fixe pas d'autosync.\n");
+          repo->auto_sync = 0;
             seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
             /* Cancel current sync task if any. */
             seaf_sync_manager_cancel_sync_task (seaf->sync_mgr, repo->id);

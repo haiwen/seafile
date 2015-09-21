@@ -228,6 +228,8 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
                                int version,
                                const char *file_id,
                                const char *file_path,
+                               uid_t uid,
+                               gid_t gid,
                                guint32 mode,
                                guint64 mtime,
                                SeafileCrypt *crypt,
@@ -254,7 +256,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
 
     tmp_path = g_strconcat (file_path, SEAF_TMP_EXT, NULL);
 
-    mode_t rmode = mode & 0100 ? 0777 : 0666;
+    mode_t rmode = mode & 0110 ? 0777 : 0666;
     wfd = seaf_util_create (tmp_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY,
                             rmode & ~S_IFMT);
     if (wfd < 0) {
@@ -334,6 +336,11 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
             seaf_warning ("Failed to set mtime for %s.\n", file_path);
         }
     }
+    seaf_message ("creation du fichier %s pour %s.\n", file_path, userNameFromId (uid));
+
+    if (seaf_util_chown (file_path, uid, gid) < 0)
+        seaf_warning ("Failed to chown file %s with %d:%d for checkout: %s.\n",
+                   file_path, uid, gid, strerror(errno));
 
     g_free (tmp_path);
     seafile_unref (seafile);

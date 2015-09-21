@@ -96,7 +96,9 @@ http_tx_task_new (HttpTxManager *mgr,
                   const char *host,
                   const char *token,
                   const char *passwd,
-                  const char *worktree)
+                  const char *worktree,
+                  uid_t uid,
+                  gid_t gid)
 {
     HttpTxTask *task = g_new0 (HttpTxTask, 1);
 
@@ -113,6 +115,8 @@ http_tx_task_new (HttpTxManager *mgr,
         task->passwd = g_strdup(passwd);
     if (worktree)
         task->worktree = g_strdup(worktree);
+    task->uid = uid;
+    task->gid = gid;
 
     return task;
 }
@@ -1985,7 +1989,7 @@ http_tx_manager_add_upload (HttpTxManager *manager,
 
     task = http_tx_task_new (manager, repo_id, repo_version,
                              HTTP_TASK_TYPE_UPLOAD, FALSE,
-                             host, token, NULL, NULL);
+                             host, token, NULL, NULL, 0, 0);
 
     task->protocol_version = protocol_version;
 
@@ -3260,6 +3264,8 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               gboolean is_clone,
                               const char *passwd,
                               const char *worktree,
+                              uid_t uid,
+                              gid_t gid,
                               int protocol_version,
                               const char *email,
                               gboolean use_fileserver_port,
@@ -3286,7 +3292,7 @@ http_tx_manager_add_download (HttpTxManager *manager,
 
     task = http_tx_task_new (manager, repo_id, repo_version,
                              HTTP_TASK_TYPE_DOWNLOAD, is_clone,
-                             host, token, passwd, worktree);
+                             host, token, passwd, worktree, uid, gid);
 
     memcpy (task->head, server_head_id, 40);
     task->protocol_version = protocol_version;
@@ -3969,6 +3975,7 @@ http_download_thread (void *vdata)
     /* Record download head commit id, so that we can resume download
      * if this download is interrupted.
      */
+    seaf_message ("*valeur pour %s.\n", userNameFromId (task->uid));
     seaf_repo_manager_set_repo_property (seaf->repo_mgr,
                                          task->repo_id,
                                          REPO_PROP_DOWNLOAD_HEAD,
@@ -4032,7 +4039,7 @@ notify_conflict (CEvent *event, void *handler_data)
     str = json_dumps (object, 0);
 
     seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                          "sync.conflict",
+                                          "sync.coict",
                                           str);
 
     free (str);

@@ -90,6 +90,13 @@ seaf_util_rmdir (const char *path);
 int
 seaf_util_mkdir (const char *path, mode_t mode);
 
+
+int
+seaf_util_mkdir_with_parents (const gchar *path, mode_t mode, uid_t uid, gid_t gid);
+
+int
+seaf_util_chown (const char *path, uid_t uid, uid_t gid);
+
 int
 seaf_util_open (const char *path, int flags);
 
@@ -381,3 +388,14 @@ int
 seaf_decompress (guint8 *input, int inlen, guint8 **output, int *outlen);
 
 #endif
+
+uid_t userIdFromName (const char *name);
+
+gid_t groupIdFromName (const char *name);
+
+char *userNameFromId (uid_t uid);
+
+char *groupNameFromId (gid_t gid);
+
+
+

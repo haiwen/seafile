@@ -47,7 +47,7 @@ build_case_conflict_free_path (const char *worktree,
                                gboolean is_rename);
 
 char *
-build_checkout_path (const char *worktree, const char *ce_name, int len);
+build_checkout_path (const char *worktree, const char *ce_name, int len, uid_t uid, gid_t gid);
 
 int
 delete_path (const char *worktree, const char *name,

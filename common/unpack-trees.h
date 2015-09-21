@@ -43,6 +43,8 @@ struct unpack_trees_options {
     int version;
     const char *prefix;
     const char *base;
+    uid_t uid;
+    gid_t gid;
     int cache_bottom;
     merge_fn_t fn;
     const char *msgs[NB_UNPACK_TREES_ERROR_TYPES];

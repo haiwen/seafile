@@ -81,12 +81,17 @@ convert_repo (SeafRepo *r)
 
 #ifndef SEAFILE_SERVER
     g_object_set (repo, "worktree", r->worktree,
+    			  "uid", userNameFromId (r->uid),
+    			  "gid", groupNameFromId (r->gid),
                   "relay-id", r->relay_id,
                   "worktree-invalid", r->worktree_invalid,
                   "last-sync-time", r->last_sync_time,
                   "auto-sync", r->auto_sync,
                   NULL);
-
+/*    g_object_set (repo, "uid", userNameFromId (r->uid),
+    			  "gid", groupNameFromId (r->gid),
+    			  NULL);
+*/
 #endif  /* SEAFILE_SERVER */
 
     return (GObject *)repo;
@@ -293,6 +298,8 @@ seafile_clone (const char *repo_id,
                const char *relay_id,
                const char *repo_name,
                const char *worktree,
+               const char *uid,
+               const char *gid,
                const char *token,
                const char *passwd,
                const char *magic,
@@ -333,6 +340,8 @@ seafile_clone (const char *repo_id,
                                         passwd, magic,
                                         enc_version, random_key,
                                         worktree,
+                                        userIdFromName (uid),
+                                        groupIdFromName (gid),
                                         peer_addr, peer_port,
                                         email, more_info,
                                         error);
@@ -344,6 +353,8 @@ seafile_download (const char *repo_id,
                   const char *relay_id,
                   const char *repo_name,
                   const char *wt_parent,
+                  const char *uid,
+                  const char *gid,
                   const char *token,
                   const char *passwd,
                   const char *magic,
@@ -384,6 +395,8 @@ seafile_download (const char *repo_id,
                                                  passwd, magic,
                                                  enc_version, random_key,
                                                  wt_parent,
+                                                 userIdFromName (uid),
+                                                 groupIdFromName (gid),
                                                  peer_addr, peer_port,
                                                  email, more_info,
                                                  error);

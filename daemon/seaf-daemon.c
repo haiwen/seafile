@@ -207,11 +207,11 @@ start_rpc_service (CcnetClient *client)
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_clone,
                                      "seafile_clone",
-        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int_string());
+        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_string_string_int_string());
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_download,
                                      "seafile_download",
-        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int_string());
+        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_string_string_int_string());
 
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_cancel_clone_task,
@@ -385,7 +385,7 @@ main (int argc, char **argv)
     char *seafile_dir = NULL;
     char *worktree_dir = NULL;
     char *logfile = NULL;
-    const char *debug_str = NULL;
+    const char *debug_str = "debug";
     int daemon_mode = 0;
     CcnetClient *client;
     char *ccnet_debug_level_str = "info";
