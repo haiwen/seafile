@@ -150,6 +150,7 @@ AM_CONDITIONAL([WIN32], [test "$bwin32" = "true"])
 AM_CONDITIONAL([MACOS], [test "$bmac" = "true"])
 AM_CONDITIONAL([LINUX], [test "$blinux" = "true"])
 
+
 # check libraries
 if test "$bwin32" != true; then
   if test "$bmac" = true; then

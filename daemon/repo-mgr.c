@@ -31,7 +31,6 @@
 #include "diff-simple.h"
 #include "change-set.h"
 #include "db.h"
-#include "repo-mgr.h"
 
 #define INDEX_DIR "index"
 #define IGNORE_FILE "seafile-ignore.txt"

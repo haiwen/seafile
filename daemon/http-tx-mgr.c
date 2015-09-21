@@ -4039,7 +4039,7 @@ notify_conflict (CEvent *event, void *handler_data)
     str = json_dumps (object, 0);
 
     seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                          "sync.coict",
+                                          "sync.conflict",
                                           str);
 
     free (str);

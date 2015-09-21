@@ -40,5 +40,3 @@ ACLOCAL_AMFLAGS = -I m4
 
 dist-hook:
 	git log --format='%H' -1 > $(distdir)/latest_commit
-
-AM_CFLAGS = -O0

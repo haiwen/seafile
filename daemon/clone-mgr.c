@@ -415,6 +415,7 @@ clone_task_new (const char *repo_id,
     task->worktree = g_strdup(worktree);
     task->uid = uid;
     task->gid = gid;
+    task->peer_addr = g_strdup(peer_addr);
     task->peer_port = g_strdup(peer_port);
     task->email = g_strdup(email);
     if (repo_name)
