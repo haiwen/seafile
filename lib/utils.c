@@ -560,66 +560,66 @@ seaf_util_chown (const char *path, uid_t uid, uid_t gid)
 int
 seaf_util_mkdir_with_parents (const gchar *pathname, mode_t mode, uid_t uid, gid_t gid)
 {
-	gchar *fn, *p;
+    gchar *fn, *p;
 
-	if (pathname == NULL || *pathname == '\0')
-	{
-		errno = EINVAL;
-		return -1;
-	}
+    if (pathname == NULL || *pathname == '\0')
+    {
+        errno = EINVAL;
+        return -1;
+    }
 
-	fn = g_strdup (pathname);
+    fn = g_strdup (pathname);
 
-	if (g_path_is_absolute (fn))
-		p = (gchar *) g_path_skip_root (fn);
-	else
-		p = fn;
+    if (g_path_is_absolute (fn))
+        p = (gchar *) g_path_skip_root (fn);
+    else
+        p = fn;
 
-	do
-	{
-		while (*p && !G_IS_DIR_SEPARATOR (*p))
-			p++;
+    do
+    {
+        while (*p && !G_IS_DIR_SEPARATOR (*p))
+            p++;
 
-		if (!*p)
-			p = NULL;
-		else
-			*p = '\0';
+        if (!*p)
+            p = NULL;
+        else
+            *p = '\0';
 
-		if (!g_file_test (fn, G_FILE_TEST_EXISTS))
-		{
-			if (seaf_util_mkdir (fn, mode) == -1)
-			{
-				int errno_save = errno;
-				g_free (fn);
-				errno = errno_save;
-				return -1;
-			}
-			if (seaf_util_chown (fn, uid, gid) == -1)
-			{
-				int errno_save = errno;
-				g_free (fn);
-				errno = errno_save;
-				return -1;
-			}
-		}
-		else if (!g_file_test (fn, G_FILE_TEST_IS_DIR))
-		{
-			g_free (fn);
-			errno = ENOTDIR;
-			return -1;
-		}
-		if (p)
-		{
-			*p++ = G_DIR_SEPARATOR;
-			while (*p && G_IS_DIR_SEPARATOR (*p))
-				p++;
-		}
-	}
-	while (p);
+        if (!g_file_test (fn, G_FILE_TEST_EXISTS))
+        {
+            if (seaf_util_mkdir (fn, mode) == -1)
+            {
+                int errno_save = errno;
+                g_free (fn);
+                errno = errno_save;
+                return -1;
+            }
+            if (seaf_util_chown (fn, uid, gid) == -1)
+            {
+                int errno_save = errno;
+                g_free (fn);
+                errno = errno_save;
+                return -1;
+            }
+        }
+        else if (!g_file_test (fn, G_FILE_TEST_IS_DIR))
+        {
+            g_free (fn);
+            errno = ENOTDIR;
+            return -1;
+        }
+        if (p)
+        {
+            *p++ = G_DIR_SEPARATOR;
+            while (*p && G_IS_DIR_SEPARATOR (*p))
+                p++;
+        }
+    }
+    while (p);
 
-	g_free (fn);
+    g_free (fn);
 
-	return 0;
+    return 0;
 }
 
 
@@ -819,109 +819,109 @@ out:
 
 #endif
 
-ssize_t						/* Read "n" bytes from a descriptor. */
+ssize_t                        /* Read "n" bytes from a descriptor. */
 readn(int fd, void *vptr, size_t n)
 {
-	size_t	nleft;
-	ssize_t	nread;
-	char	*ptr;
+    size_t    nleft;
+    ssize_t    nread;
+    char    *ptr;
 
-	ptr = vptr;
-	nleft = n;
-	while (nleft > 0) {
-		if ( (nread = read(fd, ptr, nleft)) < 0) {
-			if (errno == EINTR)
-				nread = 0;		/* and call read() again */
-			else
-				return(-1);
-		} else if (nread == 0)
-			break;				/* EOF */
+    ptr = vptr;
+    nleft = n;
+    while (nleft > 0) {
+        if ( (nread = read(fd, ptr, nleft)) < 0) {
+            if (errno == EINTR)
+                nread = 0;        /* and call read() again */
+            else
+                return(-1);
+        } else if (nread == 0)
+            break;                /* EOF */
 
-		nleft -= nread;
-		ptr   += nread;
-	}
-	return(n - nleft);		/* return >= 0 */
+        nleft -= nread;
+        ptr   += nread;
+    }
+    return(n - nleft);        /* return >= 0 */
 }
 
-ssize_t						/* Write "n" bytes to a descriptor. */
+ssize_t                        /* Write "n" bytes to a descriptor. */
 writen(int fd, const void *vptr, size_t n)
 {
-	size_t		nleft;
-	ssize_t		nwritten;
-	const char	*ptr;
+    size_t        nleft;
+    ssize_t        nwritten;
+    const char    *ptr;
 
-	ptr = vptr;
-	nleft = n;
-	while (nleft > 0) {
-		if ( (nwritten = write(fd, ptr, nleft)) <= 0) {
-			if (nwritten < 0 && errno == EINTR)
-				nwritten = 0;		/* and call write() again */
-			else
-				return(-1);			/* error */
-		}
+    ptr = vptr;
+    nleft = n;
+    while (nleft > 0) {
+        if ( (nwritten = write(fd, ptr, nleft)) <= 0) {
+            if (nwritten < 0 && errno == EINTR)
+                nwritten = 0;        /* and call write() again */
+            else
+                return(-1);            /* error */
+        }
 
-		nleft -= nwritten;
-		ptr   += nwritten;
-	}
-	return(n);
+        nleft -= nwritten;
+        ptr   += nwritten;
+    }
+    return(n);
 }
 
 
-ssize_t						/* Read "n" bytes from a descriptor. */
+ssize_t                        /* Read "n" bytes from a descriptor. */
 recvn(int fd, void *vptr, size_t n)
 {
-	size_t	nleft;
-	ssize_t	nread;
-	char	*ptr;
+    size_t    nleft;
+    ssize_t    nread;
+    char    *ptr;
 
-	ptr = vptr;
-	nleft = n;
-	while (nleft > 0) {
+    ptr = vptr;
+    nleft = n;
+    while (nleft > 0) {
 #ifndef WIN32
         if ( (nread = read(fd, ptr, nleft)) < 0)
 #else
         if ( (nread = recv(fd, ptr, nleft, 0)) < 0)
 #endif
         {
-			if (errno == EINTR)
-				nread = 0;		/* and call read() again */
-			else
-				return(-1);
-		} else if (nread == 0)
-			break;				/* EOF */
+            if (errno == EINTR)
+                nread = 0;        /* and call read() again */
+            else
+                return(-1);
+        } else if (nread == 0)
+            break;                /* EOF */
 
-		nleft -= nread;
-		ptr   += nread;
-	}
-	return(n - nleft);		/* return >= 0 */
+        nleft -= nread;
+        ptr   += nread;
+    }
+    return(n - nleft);        /* return >= 0 */
 }
 
-ssize_t						/* Write "n" bytes to a descriptor. */
+ssize_t                        /* Write "n" bytes to a descriptor. */
 sendn(int fd, const void *vptr, size_t n)
 {
-	size_t		nleft;
-	ssize_t		nwritten;
-	const char	*ptr;
+    size_t        nleft;
+    ssize_t        nwritten;
+    const char    *ptr;
 
-	ptr = vptr;
-	nleft = n;
-	while (nleft > 0) {
+    ptr = vptr;
+    nleft = n;
+    while (nleft > 0) {
 #ifndef WIN32
         if ( (nwritten = write(fd, ptr, nleft)) <= 0)
 #else
         if ( (nwritten = send(fd, ptr, nleft, 0)) <= 0)
 #endif
         {
-			if (nwritten < 0 && errno == EINTR)
-				nwritten = 0;		/* and call write() again */
-			else
-				return(-1);			/* error */
-		}
+            if (nwritten < 0 && errno == EINTR)
+                nwritten = 0;        /* and call write() again */
+            else
+                return(-1);            /* error */
+        }
 
-		nleft -= nwritten;
-		ptr   += nwritten;
-	}
-	return(n);
+        nleft -= nwritten;
+        ptr   += nwritten;
+    }
+    return(n);
 }
 
 int copy_fd (int ifd, int ofd)
@@ -1088,7 +1088,7 @@ calculate_sha1 (unsigned char *sha1, const char *msg, int len)
 
     SHA1_Init(&c);
     SHA1_Update(&c, msg, len);    
-	SHA1_Final(sha1, &c);
+    SHA1_Final(sha1, &c);
     return 0;
 }
 
@@ -2587,7 +2587,7 @@ userIdFromName (const char *name)
 
     pwd = getpwnam(name);
     if (pwd == NULL)
-    	return getuid ();
+        return getuid ();
 
     return pwd->pw_uid;
 }
@@ -2600,7 +2600,7 @@ groupIdFromName (const char *name)
     char *endptr;
 
     if (name == NULL || *name == '\0')
-    	return getgid ();
+        return getgid ();
 
     g = strtol(name, &endptr, 10);
     if (*endptr == '\0')
@@ -2608,7 +2608,7 @@ groupIdFromName (const char *name)
 
     grp = getgrnam (name);
     if (grp == NULL)
-    	return getgid ();
+        return getgid ();
 
     return grp->gr_gid;
 }

@@ -165,8 +165,8 @@ struct _TransferTask {
     /* These two fields are only used for new syncing protocol. */
     char        *passwd;
     char        *worktree;
-    uid_t		uid;
-    gid_t		gid;
+    uid_t        uid;
+    gid_t        gid;
 
     /* Used to display download progress for new syncing protocol */
     int          n_to_download;

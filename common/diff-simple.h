@@ -13,9 +13,9 @@
 
 #define DIFF_STATUS_ADDED               'A'
 #define DIFF_STATUS_DELETED             'D'
-#define DIFF_STATUS_MODIFIED	        'M'
+#define DIFF_STATUS_MODIFIED            'M'
 #define DIFF_STATUS_RENAMED             'R'
-#define DIFF_STATUS_UNMERGED		'U'
+#define DIFF_STATUS_UNMERGED        'U'
 #define DIFF_STATUS_DIR_ADDED           'B'
 #define DIFF_STATUS_DIR_DELETED         'C'
 #define DIFF_STATUS_DIR_RENAMED         'E'

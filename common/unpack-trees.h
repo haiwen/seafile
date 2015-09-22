@@ -68,7 +68,7 @@ struct unpack_trees_options {
 };
 
 extern int unpack_trees(unsigned n, struct tree_desc *t,
-		struct unpack_trees_options *options);
+        struct unpack_trees_options *options);
 
 enum {
     OPR_CHECKOUT,

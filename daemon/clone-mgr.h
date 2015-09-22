@@ -40,84 +40,71 @@ enum {
 };
 
 struct _CloneTask {
-    SeafCloneManager    *manager;
-    int                  state;
-    int                  error;
-    char                 repo_id[37];
-    int                  repo_version;
-    char                 peer_id[41];
-    char                *peer_addr;
-    char                *peer_port; 
-    char                *token;
-    char                *email;
-    char                *repo_name; /* For better display. */
-    char                *tx_id;
-    char                *worktree;
-    uid_t				 uid;
-    gid_t				 gid;
-    char                *passwd;
-    int                  enc_version;
-    char                *random_key;
-    char                 root_id[41];
-    gboolean             is_readonly;
+    SeafCloneManager *manager;
+    int state;
+    int error;
+    char repo_id[37];
+    int repo_version;
+    char peer_id[41];
+    char *peer_addr;
+    char *peer_port;
+    char *token;
+    char *email;
+    char *repo_name; /* For better display. */
+    char *tx_id;
+    char *worktree;
+    uid_t uid;
+    gid_t gid;
+    char *passwd;
+    int enc_version;
+    char *random_key;
+    char root_id[41];
+    gboolean is_readonly;
 
     /* Http sync fields */
-    char                *server_url;
-    char                *effective_url;
-    gboolean             use_fileserver_port;
-    int                  http_protocol_version;
-    gboolean             http_sync;
-    char                 server_head_id[41];
+    char *server_url;
+    char *effective_url;
+    gboolean use_fileserver_port;
+    int http_protocol_version;
+    gboolean http_sync;
+    char server_head_id[41];
 
-    gboolean             server_side_merge;
+    gboolean server_side_merge;
 };
 
 const char *
-clone_task_state_to_str (int state);
+clone_task_state_to_str(int state);
 
 const char *
-clone_task_error_to_str (int error);
+clone_task_error_to_str(int error);
 
 struct _SeafCloneManager {
-    struct _SeafileSession  *seaf;
-    sqlite3                 *db;
-    GHashTable              *tasks;
-    struct CcnetTimer       *check_timer;
+    struct _SeafileSession *seaf;
+    sqlite3 *db;
+    GHashTable *tasks;
+    struct CcnetTimer *check_timer;
 };
 
 SeafCloneManager *
-seaf_clone_manager_new (struct _SeafileSession *session);
+seaf_clone_manager_new(struct _SeafileSession *session);
 
 int
-seaf_clone_manager_init (SeafCloneManager *mgr);
+seaf_clone_manager_init(SeafCloneManager *mgr);
 
 int
-seaf_clone_manager_start (SeafCloneManager *mgr);
+seaf_clone_manager_start(SeafCloneManager *mgr);
 
 char *
-seaf_clone_manager_gen_default_worktree (SeafCloneManager *mgr,
-                                         const char *worktree_parent,
-                                         const char *repo_name);
+seaf_clone_manager_gen_default_worktree(SeafCloneManager *mgr,
+        const char *worktree_parent, const char *repo_name);
 
 char *
-seaf_clone_manager_add_task (SeafCloneManager *mgr, 
-                             const char *repo_id,
-                             int repo_version,
-                             const char *peer_id,
-                             const char *repo_name,
-                             const char *token,
-                             const char *passwd,
-                             const char *magic,
-                             int enc_version,
-                             const char *random_key,
-                             const char *worktree,
-                             uid_t uid,
-                             gid_t gid,
-                             const char *peer_addr,
-                             const char *peer_port,
-                             const char *email,
-                             const char *more_info,
-                             GError **error);
+seaf_clone_manager_add_task(SeafCloneManager *mgr, const char *repo_id,
+        int repo_version, const char *peer_id, const char *repo_name,
+        const char *token, const char *passwd, const char *magic,
+        int enc_version, const char *random_key, const char *worktree,
+        uid_t uid, gid_t gid, const char *peer_addr, const char *peer_port,
+        const char *email, const char *more_info, GError **error);
 
 /*
  * Similar to seaf_clone_manager_add_task. 
@@ -125,41 +112,27 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
  * The semantics is to "download" the repo into @wt_parent.
  */
 char *
-seaf_clone_manager_add_download_task (SeafCloneManager *mgr, 
-                                      const char *repo_id,
-                                      int repo_version,
-                                      const char *peer_id,
-                                      const char *repo_name,
-                                      const char *token,
-                                      const char *passwd,
-                                      const char *magic,
-                                      int enc_version,
-                                      const char *random_key,
-                                      const char *wt_parent,
-                                      uid_t uid,
-                                      gid_t gid,
-                                      const char *peer_addr,
-                                      const char *peer_port,
-                                      const char *email,
-                                      const char *more_info,
-                                      GError **error);
+seaf_clone_manager_add_download_task(SeafCloneManager *mgr, const char *repo_id,
+        int repo_version, const char *peer_id, const char *repo_name,
+        const char *token, const char *passwd, const char *magic,
+        int enc_version, const char *random_key, const char *wt_parent,
+        uid_t uid, gid_t gid, const char *peer_addr, const char *peer_port,
+        const char *email, const char *more_info, GError **error);
 
 int
-seaf_clone_manager_cancel_task (SeafCloneManager *mgr,
-                                const char *repo_id);
+seaf_clone_manager_cancel_task(SeafCloneManager *mgr, const char *repo_id);
 
 int
-seaf_clone_manager_remove_task (SeafCloneManager *mgr,
-                                const char *repo_id);
+seaf_clone_manager_remove_task(SeafCloneManager *mgr, const char *repo_id);
 
 CloneTask *
-seaf_clone_manager_get_task (SeafCloneManager *mgr,
-                             const char *repo_id);
+seaf_clone_manager_get_task(SeafCloneManager *mgr, const char *repo_id);
 
 GList *
-seaf_clone_manager_get_tasks (SeafCloneManager *mgr);
+seaf_clone_manager_get_tasks(SeafCloneManager *mgr);
 
 gboolean
-seaf_clone_manager_check_worktree_path (SeafCloneManager *mgr, const char *path, GError **error);
+seaf_clone_manager_check_worktree_path(SeafCloneManager *mgr, const char *path,
+        GError **error);
 
 #endif

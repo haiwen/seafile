@@ -176,19 +176,19 @@ start_clone_v2 (CloneTask *task)
         seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, repo->id,
                                                task->peer_addr, task->peer_port);
         seaf_repo_manager_set_repo_relay_id (seaf->repo_mgr, repo, task->peer_id);
-    	if (task->uid) {
-    		seaf_message ("on fixe %s.\n", userNameFromId (task->uid));
-    		seaf_repo_manager_set_repo_property (seaf->repo_mgr,
-    		                                     repo->id,
-    		                                     "uid",
-    		                                     userNameFromId (task->uid));
-       		seaf_repo_manager_set_repo_property (seaf->repo_mgr,
-      		                                     repo->id,
-       		                                     "gid",
-       		                                     groupNameFromId (task->gid));
-    	repo->uid = task->uid;
-    	repo->gid = task->gid;
-    	}
+        if (task->uid) {
+            seaf_message ("on fixe %s.\n", userNameFromId (task->uid));
+            seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                                 repo->id,
+                                                 "uid",
+                                                 userNameFromId (task->uid));
+               seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                                   repo->id,
+                                                    "gid",
+                                                    groupNameFromId (task->gid));
+        repo->uid = task->uid;
+        repo->gid = task->gid;
+        }
 
         if (task->server_url) {
             seaf_repo_manager_set_repo_property (seaf->repo_mgr,
@@ -2388,19 +2388,19 @@ on_repo_http_fetched (SeafileSession *seaf,
                                              REPO_PROP_SERVER_URL,
                                              task->server_url);
     }
-	if (task->uid) {
-		seaf_message ("on fixe %s.\n", userNameFromId (task->uid));
-		seaf_repo_manager_set_repo_property (seaf->repo_mgr,
-		                                     repo->id,
-		                                     "uid",
-		                                     userNameFromId (task->uid));
-   		seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+    if (task->uid) {
+        seaf_message ("on fixe %s.\n", userNameFromId (task->uid));
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             "uid",
+                                             userNameFromId (task->uid));
+           seaf_repo_manager_set_repo_property (seaf->repo_mgr,
                                              repo->id,
                                              "gid",
                                              groupNameFromId (task->gid));
-   		repo->uid = task->uid;
-   		repo->gid = task->gid;
-	}
+           repo->uid = task->uid;
+           repo->gid = task->gid;
+    }
 
     check_folder_permissions (task);
 }

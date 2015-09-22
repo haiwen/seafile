@@ -182,11 +182,11 @@ void objstore_get_path (char *path, const char *base, const char *obj_id);
 char** strsplit_by_space (char *string, int *length);
 
 /* Read "n" bytes from a descriptor. */
-ssize_t	readn(int fd, void *vptr, size_t n);
+ssize_t    readn(int fd, void *vptr, size_t n);
 ssize_t writen(int fd, const void *vptr, size_t n);
 
 /* Read "n" bytes from a socket. */
-ssize_t	recvn(evutil_socket_t fd, void *vptr, size_t n);
+ssize_t    recvn(evutil_socket_t fd, void *vptr, size_t n);
 ssize_t sendn(evutil_socket_t fd, const void *vptr, size_t n);
 
 int copy_fd (int ifd, int ofd);

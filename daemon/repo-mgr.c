@@ -3688,19 +3688,19 @@ out:
 static void
 print_unpack_result (struct index_state *result)
 {
-	int i;
-	struct cache_entry *ce;
+    int i;
+    struct cache_entry *ce;
 
-	for (i = 0; i < result->cache_nr; ++i) {
-		ce = result->cache[i];
-		printf ("%s\t", ce->name);
-		if (ce->ce_flags & CE_UPDATE)
-			printf ("update/add\n");
-		else if (ce->ce_flags & CE_WT_REMOVE)
-			printf ("remove\n");
-		else
-			printf ("unchange\n");
-	}
+    for (i = 0; i < result->cache_nr; ++i) {
+        ce = result->cache[i];
+        printf ("%s\t", ce->name);
+        if (ce->ce_flags & CE_UPDATE)
+            printf ("update/add\n");
+        else if (ce->ce_flags & CE_WT_REMOVE)
+            printf ("remove\n");
+        else
+            printf ("unchange\n");
+    }
 }
 
 static int 
@@ -3992,8 +3992,8 @@ checkout_file (const char *repo_id,
                                           FALSE);
 #else
     path = build_checkout_path (worktree, name, strlen(name),
-    							is_http ? http_task->uid : task->uid,
-    							is_http ? http_task->gid : task->gid);
+                                is_http ? http_task->uid : task->uid,
+                                is_http ? http_task->gid : task->gid);
 #endif
 
     if (!path)
@@ -4156,9 +4156,9 @@ update_cache:
 
 int
 checkout_empty_dir (const char *worktree,
-					uid_t uid,
-					gid_t gid,
-					const char *name,
+                    uid_t uid,
+                    gid_t gid,
+                    const char *name,
                     gint64 mtime,
                     struct cache_entry *ce,
                     GHashTable *conflict_hash,
@@ -4393,8 +4393,8 @@ download_files_no_http (const char *repo_id,
             }
 
             checkout_empty_dir (worktree,
-            					task->uid,
-            					task->gid,
+                                task->uid,
+                                task->gid,
                                 de->name,
                                 de->mtime,
                                 ce,
@@ -4835,8 +4835,8 @@ handle_dir_added_de (const char *repo_id,
     }
 
     checkout_empty_dir (worktree,
-    					uid,
-    					gid,
+                        uid,
+                        gid,
                         de->name,
                         de->mtime,
                         ce,

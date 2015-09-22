@@ -684,8 +684,8 @@ build_checkout_path (const char *worktree, const char *ce_name, int len, uid_t u
 
     /* first create all leading directories. */
 /*    if (seaf_util_mkdir_with_parents (path, 0777, uid, gid) < 0) {
-    	seaf_warning ("Failed to create directory %s.\n", path);
-    	            return NULL;
+        seaf_warning ("Failed to create directory %s.\n", path);
+                    return NULL;
     }
 */
     full_len = base_len + len + 1;
