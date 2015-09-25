@@ -1,0 +1,36 @@
+#!/bin/bash
+
+export PYTHONPATH=
+export PATH=
+
+OS=`uname -s`
+
+rm_sync_data() {
+    rm -rf $1/ccnet.sock $1/seafile.ini $1/$1/logs $1/misc $1/seafile $1/seafile-data
+}
+
+run_test() {
+    nosetests -v -s test_cases/test_simple.py test_cases/test_release.py
+    if [ ${OS} != "Linux" -a ${OS} != "Darwin" ];
+    then
+        rm_sync_data cli1
+        rm_sync_data cli2
+    fi
+}
+
+case $1 in
+    "test")
+        run_test
+        sleep 10
+        export ENCRYPTED_REPO=true
+        run_test;;
+    "clean")
+        if [ ${OS} = "Linux" -o ${OS} = "Darwin" ];
+        then
+            pkill -f "ccnet --daemon -c $(pwd)/cli1"
+            pkill -f "ccnet --daemon -c $(pwd)/cli2"
+        fi
+        rm -rf worktree1 worktree2
+        rm_sync_data cli1
+        rm_sync_data cli2;;
+esac
