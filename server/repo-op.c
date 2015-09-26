@@ -3802,6 +3802,10 @@ out:
     return dir;
 }
 
+/*
+ * Return NULL if file is not found, error is still NULL;
+ * If we have IO errors, error is set.
+ */
 static FileInfo*
 get_file_info (SeafRepo *repo,
                SeafCommit *commit,
@@ -3827,8 +3831,11 @@ get_file_info (SeafRepo *repo,
     dir = get_seafdir_by_path (repo->store_id, repo->version,
                                commit->root_id, dir_name, dir_ids,
                                &cur_dir_ids, error);
-    if (*error)
+    if (*error) {
+        if ((*error)->code == SEAF_ERR_PATH_NO_EXIST)
+            g_clear_error (error);
         goto out;
+    }
 
     if (!dir) {
         // if no error and return is null from get_seafdir_by_path, it means dir doesn't
@@ -3932,6 +3939,8 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
     file_info = get_file_info (data->repo, commit, path,
                                file_info_cache, NULL, error);
     if (*error) {
+        seaf_warning ("Error when finding %s under %s:%s\n",
+                      path, data->repo->id, commit->commit_id);
         ret = FALSE;
         goto out;
     }
@@ -3951,8 +3960,7 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
                                                     repo->id, repo->version,
                                                     commit->parent_id);
     if (!parent_commit) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "Faild to get commit %s", commit->parent_id);
+        seaf_warning ("Failed to get commit %s:%s\n", repo->id, commit->parent_id);
         ret = FALSE;
         goto out;
     }
@@ -3960,6 +3968,8 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
     parent1_info = get_file_info (data->repo, parent_commit, path,
                                   file_info_cache, file_info, error);
     if (*error) {
+        seaf_warning ("Error when finding %s under %s:%s\n",
+                      path, data->repo->id, parent_commit->commit_id);
         ret = FALSE;
         goto out;
     }
@@ -3976,8 +3986,8 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
                                                          repo->id, repo->version,
                                                          commit->second_parent_id);
         if (!parent_commit2) {
-            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                         "Faild to get commit %s", commit->second_parent_id);
+            seaf_warning ("Failed to get commit %s:%s\n",
+                          repo->id, commit->second_parent_id);
             ret = FALSE;
             goto out;
         }
@@ -3985,6 +3995,8 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
         parent2_info = get_file_info (data->repo, parent_commit2, path,
                                       file_info_cache, file_info, error);
         if (*error) {
+            seaf_warning ("Error when finding %s under %s:%s\n",
+                          path, data->repo->id, parent_commit2->commit_id);
             ret = FALSE;
             goto out;
         }
