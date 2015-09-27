@@ -3946,7 +3946,11 @@ collect_file_revisions (SeafCommit *commit, void *vdata, gboolean *stop)
     }
 
     if (!file_info) {
-        /* Target file is not present in this commit. */
+        /* Target file is not present in this commit.
+         * Stop traversing after finding the initial version.
+         * Deleted files with the same path are not included in history.
+         */
+        *stop = TRUE;
         goto out;
     }
 
