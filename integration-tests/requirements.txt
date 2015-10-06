@@ -1,0 +1,3 @@
+termcolor==1.1.0
+prettytable==0.7.2
+pexpect==4.0
