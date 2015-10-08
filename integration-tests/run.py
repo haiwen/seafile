@@ -6,7 +6,7 @@ import re
 import termcolor
 import glob
 import logging
-import pexpect
+from pexpect import spawn
 from os.path import abspath, basename, exists, expanduser, join
 from contextlib import contextmanager
 from subprocess import check_call
@@ -14,8 +14,11 @@ from subprocess import check_call
 TOPDIR = abspath(join(os.getcwd(), '..'))
 PREFIX = expanduser('~/opt/local')
 SRCDIR = '/tmp/src'
+INSTALLDIR = '/tmp/haiwen'
 THIRDPARTDIR = expanduser('~/thirdpart')
-os.chdir(TOPDIR)
+
+ADMIN_PASSWORD = 'adminadmin'
+ADMIN_USERNAME = 'admin@seafiletest.com'
 
 logger = logging.getLogger(__file__)
 seafile_version = ''
@@ -200,9 +203,6 @@ def build_server(libsearpc, ccnet, seafile):
     shell(cmd, shell=False, env=make_build_env())
 
 def fetch_and_build():
-    if not exists(SRCDIR):
-        os.mkdir(SRCDIR)
-
     libsearpc = Project('libsearpc')
     ccnet = Project('ccnet')
     seafile = Seafile()
@@ -213,7 +213,8 @@ def fetch_and_build():
     for project in (libsearpc, ccnet, seafile, seahub, seafdav, seafobj):
         if project.name != 'seafile':
             project.clone()
-        # TODO: switch to proper branch based on current seafile branch being built
+        # TODO: switch to proper branch based on current seafile branch being
+        # built
         project.copy_dist()
 
     build_server(libsearpc, ccnet, seafile)
@@ -222,10 +223,57 @@ def setup_server():
     '''Setup seafile server with the setup-seafile.sh script. We use pexpect to
     interactive with the setup process of the script.
     '''
-    pass
+    info('uncompressing server tarball')
+    shell('tar xf seafile-server_{}_x86-64.tar.gz -C {}'
+          .format(seafile_version, INSTALLDIR))
+    setup_script = get_script('setup-seafile.sh')
+
+    info('setting up seafile server with pexepct, script %s', setup_script)
+    child = spawn(setup_script)
+    def autofill(pattern, line):
+        child.expect(pattern)
+        child.sendline(line)
+
+    answers = [
+        (r'\[ENTER\]', ''),
+        # server name
+        ('server name', 'my-seafile'),
+        # ip or domain
+        ('ip or domain', '127.0.0.1'),
+        # seafile data dir
+        ('seafile-data', ''),
+        # fileserver port
+        ('seafile fileserver', ''),
+        (r'\[ENTER\]', ''),
+        (r'\[ENTER\]', ''),
+    ]
+    for k, v in answers:
+        autofill(k, v)
+    shell('ls -lht')
+
+def get_script(path):
+    return join(INSTALLDIR, 'seafile-server-{}/{}'.format(
+        seafile_version, path))
 
 def start_server():
-    pass
+    seafile_sh = get_script('seafile.sh')
+    shell('{} start'.format(seafile_sh))
+
+    info('starting seahub')
+    seahub_sh = get_script('seahub.sh')
+    child = spawn('{} start'.format(abspath(seahub_sh)))
+    def autofill(pattern, line):
+        child.expect(pattern)
+        child.sendline(line)
+    answers = [
+        # admin email/pass
+        ('admin email', ADMIN_USERNAME),
+        ('admin password', ADMIN_PASSWORD),
+        ('admin password again', ADMIN_PASSWORD),
+    ]
+    for k, v in answers:
+        autofill(k, v)
+    child.interact()
 
 def run_tests():
     pass
@@ -239,9 +287,16 @@ def setup_logging():
     }
 
     logging.basicConfig(**kw)
-    logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(logging.WARNING)
+    logging.getLogger(
+        'requests.packages.urllib3.connectionpool').setLevel(logging.WARNING)
+
+def _mkdirs(*paths):
+    for path in paths:
+        if not exists(path):
+            os.mkdir(path)
 
 def main():
+    _mkdirs(SRCDIR, INSTALLDIR)
     setup_logging()
     fetch_and_build()
     setup_server()
@@ -249,4 +304,5 @@ def main():
     run_tests()
 
 if __name__ == '__main__':
+    os.chdir(TOPDIR)
     main()
