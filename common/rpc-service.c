@@ -76,7 +76,7 @@ convert_repo (SeafRepo *r)
 
     g_object_set (repo, "store_id", r->store_id,
                   "repaired", r->repaired,
-                  "size", r->size, NULL);
+                  "size", r->size, "file_count", r->file_count, NULL);
 #endif
 
 #ifndef SEAFILE_SERVER

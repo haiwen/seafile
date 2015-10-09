@@ -41,6 +41,7 @@ struct _SeafRepo {
     gboolean    no_local_history;
     gint64      last_modify;
     gint64      size;
+    gint64      file_count;
 
     SeafBranch *head;
     gchar root_id[41];
@@ -751,5 +752,4 @@ seaf_repo_manager_get_shared_groups_for_subdir (SeafRepoManager *mgr,
                                                 const char *path,
                                                 const char *from_user,
                                                 GError **error);
-
 #endif
