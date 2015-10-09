@@ -6,6 +6,7 @@ import re
 import termcolor
 import glob
 import logging
+import requests
 from pexpect import spawn
 from os.path import abspath, basename, exists, expanduser, join
 from contextlib import contextmanager
@@ -17,35 +18,45 @@ SRCDIR = '/tmp/src'
 INSTALLDIR = '/tmp/haiwen'
 THIRDPARTDIR = expanduser('~/thirdpart')
 
-ADMIN_PASSWORD = 'adminadmin'
+USERNAME = 'test@seafiletest.com'
+PASSWORD = 'testtest'
 ADMIN_USERNAME = 'admin@seafiletest.com'
+ADMIN_PASSWORD = 'adminadmin'
 
 logger = logging.getLogger(__file__)
 seafile_version = ''
+
 
 def _color(s, color):
     return s if not os.isatty(sys.stdout.fileno()) \
         else termcolor.colored(str(s), color)
 
+
 def green(s):
     return _color(s, 'green')
+
 
 def red(s):
     return _color(s, 'red')
 
+
 def debug(fmt, *a):
     logger.debug(green(fmt), *a)
+
 
 def info(fmt, *a):
     logger.info(green(fmt), *a)
 
+
 def warning(fmt, *a):
     logger.warn(red(fmt), *a)
+
 
 def shell(cmd, **kw):
     kw['shell'] = not isinstance(cmd, list)
     info('calling "%s" in %s', cmd, kw.get('cwd', os.getcwd()))
     check_call(cmd, **kw)
+
 
 @contextmanager
 def cd(path):
@@ -56,11 +67,13 @@ def cd(path):
     finally:
         os.chdir(olddir)
 
+
 def chdir(func):
     def wrapped(self, *w, **kw):
         with cd(self.projectdir):
             return func(self, *w, **kw)
     return wrapped
+
 
 def make_build_env():
     env = dict(os.environ)
@@ -94,6 +107,7 @@ def make_build_env():
         info('%s: %s', key, env.get(key, ''))
     return env
 
+
 def prepend_env_value(name, value, seperator=':', env=None):
     '''append a new value to a list'''
     env = env or os.environ
@@ -104,6 +118,7 @@ def prepend_env_value(name, value, seperator=':', env=None):
 
     env[name] = new_value
     return env
+
 
 class Project(object):
     configure_cmd = './configure'
@@ -146,6 +161,7 @@ class Project(object):
     def use_branch(self, branch):
         shell('git checkout {}'.format(branch))
 
+
 class Seafile(Project):
     configure_cmd = './configure --disable-fuse --enable-client --enable-server'
 
@@ -158,7 +174,9 @@ class Seafile(Project):
         global seafile_version
         seafile_version = self.version
 
+
 class Seahub(Project):
+
     def __init__(self):
         super(Seahub, self).__init__('seahub')
 
@@ -167,12 +185,15 @@ class Seahub(Project):
         cmds = [
             # 'git add -f media/css/*.css',
             # 'git commit -a -m "%s"' % msg,
-            './tools/gen-tarball.py --version={} --branch=HEAD >/dev/null'.format(seafile_version),
+            './tools/gen-tarball.py --version={} --branch=HEAD >/dev/null'.format(
+                seafile_version),
         ]
         for cmd in cmds:
             shell(cmd, env=make_build_env())
 
+
 class SeafDAV(Project):
+
     def __init__(self):
         super(SeafDAV, self).__init__('seafdav')
 
@@ -180,13 +201,16 @@ class SeafDAV(Project):
     def make_dist(self):
         shell('make')
 
+
 class SeafObj(Project):
+
     def __init__(self):
         super(SeafObj, self).__init__('seafobj')
 
     @chdir
     def make_dist(self):
         shell('make dist')
+
 
 def build_server(libsearpc, ccnet, seafile):
     cmd = [
@@ -201,6 +225,7 @@ def build_server(libsearpc, ccnet, seafile):
         '--srcdir=%s' % SRCDIR,
     ]
     shell(cmd, shell=False, env=make_build_env())
+
 
 def fetch_and_build():
     libsearpc = Project('libsearpc')
@@ -219,6 +244,7 @@ def fetch_and_build():
 
     build_server(libsearpc, ccnet, seafile)
 
+
 def setup_server():
     '''Setup seafile server with the setup-seafile.sh script. We use pexpect to
     interactive with the setup process of the script.
@@ -229,12 +255,6 @@ def setup_server():
     setup_script = get_script('setup-seafile.sh')
 
     info('setting up seafile server with pexepct, script %s', setup_script)
-    child = spawn(setup_script)
-    child.logfile = sys.stdout
-    def autofill(pattern, line):
-        child.expect(pattern)
-        child.sendline(line)
-
     answers = [
         (r'\[ENTER\]', ''),
         # server name
@@ -248,11 +268,7 @@ def setup_server():
         (r'\[ENTER\]', ''),
         (r'\[ENTER\]', ''),
     ]
-    for k, v in answers:
-        debug('expect: waiting for %s', k)
-        autofill(k, v)
-    child.sendline('')
-    child.interact()
+    autosetup(setup_script, answers)
 
     with open(join(INSTALLDIR, 'seahub_settings.py'), 'a') as fp:
         fp.write('\n')
@@ -262,9 +278,25 @@ def setup_server():
         shell('find . -maxdepth 2 | xargs ls -lhtd')
         shell('sqlite3 seahub.db .schema')
 
+
 def get_script(path):
     return join(INSTALLDIR, 'seafile-server-{}/{}'.format(
         seafile_version, path))
+
+
+def autosetup(cmd, answers):
+    info('expect: spawing %s', cmd)
+    child = spawn(cmd)
+    child.logfile = sys.stdout
+
+    def autofill(pattern, line):
+        child.expect(pattern)
+        child.sendline(line)
+    for k, v in answers:
+        autofill(k, v)
+    child.sendline('')
+    child.interact()
+
 
 def start_server():
     seafile_sh = get_script('seafile.sh')
@@ -272,28 +304,46 @@ def start_server():
 
     info('starting seahub')
     seahub_sh = get_script('seahub.sh')
-    child = spawn('{} start'.format(abspath(seahub_sh)))
-    child.logfile = sys.stdout
-    def autofill(pattern, line):
-        child.expect(pattern)
-        child.sendline(line)
     answers = [
         # admin email/pass
         ('admin email', ADMIN_USERNAME),
         ('admin password', ADMIN_PASSWORD),
         ('admin password again', ADMIN_PASSWORD),
     ]
-    for k, v in answers:
-        autofill(k, v)
-    child.sendline('')
-    child.interact()
+    autosetup('{} start'.format(abspath(seahub_sh)), answers)
+
+
+def apiurl(path):
+    path = path.lstrip('/')
+    return 'http://127.0.0.1:8000/api2/' + path
+
+
+def create_test_user():
+    data = {
+        'username': ADMIN_USERNAME,
+        'password': ADMIN_PASSWORD,
+    }
+    res = requests.post(apiurl('/auth-token/'), data=data)
+    token = res.json()['token']
+    data = {
+        'password': PASSWORD,
+    }
+    headers = {'Authorization', 'Token ' + token}
+    res = requests.put(apiurl('/accounts/{}/'.format(USERNAME)),
+                       data=data, headers=headers)
+    assert res.status_code == 201
+
 
 def run_tests():
     python_seafile = Project('python-seafile')
     python_seafile.clone()
+
+    create_test_user()
+
     with cd(python_seafile.projectdir):
         shell('pip install -r requirements.txt')
         shell('py.test')
+
 
 def setup_logging():
     kw = {
@@ -307,10 +357,12 @@ def setup_logging():
     logging.getLogger(
         'requests.packages.urllib3.connectionpool').setLevel(logging.WARNING)
 
+
 def _mkdirs(*paths):
     for path in paths:
         if not exists(path):
             os.mkdir(path)
+
 
 def main():
     _mkdirs(SRCDIR, INSTALLDIR)
