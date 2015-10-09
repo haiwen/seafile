@@ -230,6 +230,7 @@ def setup_server():
 
     info('setting up seafile server with pexepct, script %s', setup_script)
     child = spawn(setup_script)
+    child.logfile = sys.stdout
     def autofill(pattern, line):
         child.expect(pattern)
         child.sendline(line)
@@ -248,8 +249,18 @@ def setup_server():
         (r'\[ENTER\]', ''),
     ]
     for k, v in answers:
+        debug('expect: waiting for %s', k)
         autofill(k, v)
-    shell('ls -lht')
+    child.sendline('')
+    child.interact()
+
+    with open(join(INSTALLDIR, 'seahub_settings.py'), 'a') as fp:
+        fp.write('\n')
+        fp.write('DEBUG = True')
+        fp.write('\n')
+    with cd(INSTALLDIR):
+        shell('find . -maxdepth 2 | xargs ls -lhtd')
+        shell('sqlite3 seahub.db .schema')
 
 def get_script(path):
     return join(INSTALLDIR, 'seafile-server-{}/{}'.format(
@@ -262,6 +273,7 @@ def start_server():
     info('starting seahub')
     seahub_sh = get_script('seahub.sh')
     child = spawn('{} start'.format(abspath(seahub_sh)))
+    child.logfile = sys.stdout
     def autofill(pattern, line):
         child.expect(pattern)
         child.sendline(line)
@@ -273,10 +285,15 @@ def start_server():
     ]
     for k, v in answers:
         autofill(k, v)
+    child.sendline('')
     child.interact()
 
 def run_tests():
-    pass
+    python_seafile = Project('python-seafile')
+    python_seafile.clone()
+    with cd(python_seafile.projectdir):
+        shell('pip install -r requirements.txt')
+        shell('py.test')
 
 def setup_logging():
     kw = {

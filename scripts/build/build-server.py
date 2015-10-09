@@ -58,6 +58,7 @@ CONF_THIRDPARTDIR       = 'thirdpartdir'
 CONF_NO_STRIP           = 'nostrip'
 CONF_ENABLE_S3          = 's3'
 CONF_YES                = 'yes'
+CONF_JOBS               = 'jobs'
 
 ####################
 ### Common helper functions
@@ -191,7 +192,7 @@ class Libsearpc(Project):
         Project.__init__(self)
         self.build_commands = [
             './configure --prefix=%s' % self.prefix,
-            'make',
+            'make -j{}'.format(conf[CONF_JOBS]),
             'make install'
         ]
 
@@ -204,7 +205,7 @@ class Ccnet(Project):
         Project.__init__(self)
         self.build_commands = [
             './configure --prefix=%s --disable-client --enable-server --enable-pgsql --enable-ldap' % self.prefix,
-            'make',
+            'make -j{}'.format(conf[CONF_JOBS]),
             'make install'
         ]
 
@@ -222,7 +223,7 @@ class Seafile(Project):
         self.build_commands = [
             './configure --prefix=%s --disable-client --enable-server --enable-pgsql %s' \
                 % (self.prefix, s3_support),
-            'make',
+            'make -j{}'.format(conf[CONF_JOBS]),
             'make install'
         ]
 
@@ -361,6 +362,9 @@ def validate_args(usage, options):
     # [ yes ]
     yes = get_option(CONF_YES)
 
+    # [ jobs ]
+    jobs = get_option(CONF_JOBS)
+
     # [ keep ]
     keep = get_option(CONF_KEEP)
 
@@ -383,6 +387,7 @@ def validate_args(usage, options):
     conf[CONF_NO_STRIP] = nostrip
     conf[CONF_ENABLE_S3] = s3
     conf[CONF_YES] = yes
+    conf[CONF_JOBS] = jobs
 
     prepare_builddir(builddir)
     show_build_info()
@@ -431,6 +436,11 @@ def parse_args():
     parser.add_option(long_opt(CONF_YES),
                       dest=CONF_YES,
                       action='store_true')
+
+    parser.add_option(long_opt(CONF_JOBS),
+                      dest=CONF_JOBS,
+                      default=2,
+                      type=int)
 
     parser.add_option(long_opt(CONF_THIRDPARTDIR),
                       dest=CONF_THIRDPARTDIR,
