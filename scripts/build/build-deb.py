@@ -433,7 +433,7 @@ def parse_args():
 
 def setup_build_env():
     '''Setup environment variables, such as export PATH=$BUILDDDIR/bin:$PATH'''
-    prefix = os.path.join(Seafile().projdir, 'debian', 'seafile', 'usr')
+    prefix = os.path.join(Seafile().projdir, 'debian', 'horizonbase', 'usr')
 
     prepend_env_value('DEB_CPPFLAGS_APPEND',
                      '-DSEAFILE_CLIENT_VERSION=\\"%s\\"' % conf[CONF_VERSION],
