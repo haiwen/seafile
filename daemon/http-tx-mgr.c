@@ -3734,7 +3734,14 @@ get_block (HttpTxTask *task, Connection *conn, const char *block_id)
 
     pthread_mutex_lock (&task->ref_cnt_lock);
 
-    if (seaf_block_manager_commit_block (seaf->block_mgr, block) < 0) {
+    /* Don't overwrite the block if other thread already downloaded it.
+     * Since we've locked ref_cnt_lock, we can be sure the block won't be removed.
+     */
+    if (!seaf_block_manager_block_exists (seaf->block_mgr,
+                                          task->repo_id, task->repo_version,
+                                          block_id) &&
+        seaf_block_manager_commit_block (seaf->block_mgr, block) < 0)
+    {
         seaf_warning ("Failed to commit block %s in repo %.8s.\n",
                       block_id, task->repo_id);
         task->error = HTTP_TASK_ERR_WRITE_LOCAL_DATA;
