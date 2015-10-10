@@ -162,6 +162,11 @@ class Project(object):
     def use_branch(self, branch):
         shell('git checkout {}'.format(branch))
 
+class Ccnet(Project):
+    branch = 'merge-server-config'
+
+    def __init__(self):
+        super(Ccnet, self).__init__('ccnet')
 
 class Seafile(Project):
     configure_cmd = './configure --disable-fuse --enable-client --enable-server'
@@ -231,7 +236,7 @@ def build_server(libsearpc, ccnet, seafile):
 
 def fetch_and_build():
     libsearpc = Project('libsearpc')
-    ccnet = Project('ccnet')
+    ccnet = Ccnet()
     seafile = Seafile()
     seahub = Seahub()
     seafobj = SeafObj()
