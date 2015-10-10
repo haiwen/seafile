@@ -122,6 +122,7 @@ def prepend_env_value(name, value, seperator=':', env=None):
 
 class Project(object):
     configure_cmd = './configure'
+    branch = 'master'
 
     def __init__(self, name):
         self.name = name
@@ -136,7 +137,7 @@ class Project(object):
         return join(TOPDIR, self.name)
 
     def clone(self):
-        shell('git clone --depth=1 {}'.format(self.url))
+        shell('git clone --depth=1 --branch {} {}'.format(self.branch, self.url))
 
     @chdir
     def make_dist(self):
@@ -176,6 +177,7 @@ class Seafile(Project):
 
 
 class Seahub(Project):
+    branch = 'v4.4.1-server'
 
     def __init__(self):
         super(Seahub, self).__init__('seahub')
@@ -274,9 +276,6 @@ def setup_server():
         fp.write('\n')
         fp.write('DEBUG = True')
         fp.write('\n')
-    with cd(INSTALLDIR):
-        shell('find . -maxdepth 2 | xargs ls -lhtd')
-        shell('sqlite3 seahub.db .schema')
 
 
 def get_script(path):
@@ -295,6 +294,7 @@ def autosetup(cmd, answers):
     for k, v in answers:
         autofill(k, v)
     child.sendline('')
+    child.logfile = None
     child.interact()
 
 
@@ -311,6 +311,11 @@ def start_server():
         ('admin password again', ADMIN_PASSWORD),
     ]
     autosetup('{} start'.format(abspath(seahub_sh)), answers)
+    with cd(INSTALLDIR):
+        shell('find . -maxdepth 3 | sort | xargs ls -lhd')
+    # shell('sqlite3 ccnet/PeerMgr/usermgr.db "select * from EmailUser"', cwd=INSTALLDIR)
+    shell('http -v localhost:8000/api2/server-info/ || true')
+    # shell('http -v -f POST localhost:8000/api2/auth-token/ username=admin@seafiletest.com password=adminadmin || true')
 
 
 def apiurl(path):
@@ -324,11 +329,12 @@ def create_test_user():
         'password': ADMIN_PASSWORD,
     }
     res = requests.post(apiurl('/auth-token/'), data=data)
+    debug('%s %s', res.status_code, res.text)
     token = res.json()['token']
     data = {
         'password': PASSWORD,
     }
-    headers = {'Authorization', 'Token ' + token}
+    headers = {'Authorization': 'Token ' + token}
     res = requests.put(apiurl('/accounts/{}/'.format(USERNAME)),
                        data=data, headers=headers)
     assert res.status_code == 201
@@ -338,11 +344,17 @@ def run_tests():
     python_seafile = Project('python-seafile')
     python_seafile.clone()
 
-    create_test_user()
-
     with cd(python_seafile.projectdir):
         shell('pip install -r requirements.txt')
-        shell('py.test')
+        try:
+            create_test_user()
+            shell('py.test')
+        finally:
+            for logfile in glob.glob('{}/logs/*.log'.format(INSTALLDIR)):
+                shell('echo {0}; cat {0}'.format(logfile))
+            for logfile in glob.glob(
+                    '{}/seafile-server-{}/runtime/*.log'.format(INSTALLDIR, seafile_version)):
+                shell('echo {0}; cat {0}'.format(logfile))
 
 
 def setup_logging():
