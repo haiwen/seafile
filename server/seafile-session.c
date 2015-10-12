@@ -288,6 +288,13 @@ set_system_default_repo_id (SeafileSession *session, const char *repo_id)
     return seaf_db_query (session->db, sql);
 }
 
+static int
+del_system_default_repo_id (SeafileSession *session)
+{
+    const char *sql = "DELETE FROM SystemInfo WHERE info_key='default_repo_id'";
+    return seaf_db_query (session->db, sql);
+}
+
 #define DEFAULT_TEMPLATE_DIR "library-template"
 
 static void
@@ -357,10 +364,20 @@ create_system_default_repo (void *data)
     char *repo_id;
     char *template_path;
 
-    /* If it already exists, don't need to create. */
+    /* If default repo is not set or doesn't exist, create a new one. */
     repo_id = get_system_default_repo_id (session);
-    if (repo_id != NULL)
-        return data;
+    if (repo_id != NULL) {
+        SeafRepo *repo;
+        repo = seaf_repo_manager_get_repo (session->repo_mgr, repo_id);
+        if (!repo) {
+            seaf_warning ("Failed to get system default repo. Create a new one.\n");
+            del_system_default_repo_id (session);
+            seaf_repo_manager_del_repo (session->repo_mgr, repo_id, NULL);
+        } else {
+            seaf_repo_unref (repo);
+            return data;
+        }
+    }
 
     repo_id = seaf_repo_manager_create_new_repo (session->repo_mgr,
                                                  "My Library Template",
