@@ -56,7 +56,7 @@ static struct option long_options[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
     { "config-file", required_argument, NULL, 'c' },
-    { "server-config-dir", required_argument, NULL, 'F' },
+    { "central-config-dir", required_argument, NULL, 'F' },
     { "seafdir", required_argument, NULL, 'd' },
     { "log", required_argument, NULL, 'l' },
     { "debug", required_argument, NULL, 'D' },

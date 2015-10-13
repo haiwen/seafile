@@ -283,7 +283,9 @@ class RPC(object):
     def __init__(self):
         import ccnet
         ccnet_dir = os.environ['CCNET_CONF_DIR']
-        self.rpc_client = ccnet.CcnetThreadedRpcClient(ccnet.ClientPool(ccnet_dir))
+        central_config_dir = os.environ['SEAFILE_CENTRAL_CONF_DIR']
+        self.rpc_client = ccnet.CcnetThreadedRpcClient(
+            ccnet.ClientPool(ccnet_dir, central_config_dir=central_config_dir))
 
     def get_db_email_users(self):
         return self.rpc_client.get_emailusers('DB', 0, 1)

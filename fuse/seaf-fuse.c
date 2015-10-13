@@ -259,7 +259,7 @@ static struct fuse_opt seaf_fuse_opts[] = {
     SEAF_FUSE_OPT_KEY("-c %s", config_dir, 0),
     SEAF_FUSE_OPT_KEY("--config %s", config_dir, 0),
     SEAF_FUSE_OPT_KEY("-F %s", central_config_dir, 0),
-    SEAF_FUSE_OPT_KEY("---server-config-dir %s", central_config_dir, 0),
+    SEAF_FUSE_OPT_KEY("--central-config-dir %s", central_config_dir, 0),
     SEAF_FUSE_OPT_KEY("-d %s", seafile_dir, 0),
     SEAF_FUSE_OPT_KEY("--seafdir %s", seafile_dir, 0),
     SEAF_FUSE_OPT_KEY("-l %s", log_file, 0),

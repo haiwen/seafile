@@ -18,12 +18,12 @@ static char *central_config_dir = NULL;
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvc:d:VDi";
+static const char *short_opts = "hvc:d:VDiF:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
     { "config-file", required_argument, NULL, 'c', },
-    { "server-config-dir", required_argument, NULL, 'F' },
+    { "central-config-dir", required_argument, NULL, 'F' },
     { "seafdir", required_argument, NULL, 'd', },
 };
 

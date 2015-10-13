@@ -403,7 +403,11 @@ seaf_server_init=${INSTALLPATH}/seafile/bin/seaf-server-init
 if [[ "${use_existing_ccnet}" != "true" ]]; then
     echo "Generating ccnet configuration in ${default_ccnet_conf_dir}..."
     echo
-    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH "${ccnet_init}" -c "${default_ccnet_conf_dir}" --name "${server_name}" --host "${ip_or_domain}"; then
+    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH "${ccnet_init}" \
+         -F "${default_conf_dir}" \
+         -c "${default_ccnet_conf_dir}" \
+         --name "${server_name}" \
+         --host "${ip_or_domain}"; then
         err_and_quit;
     fi
 

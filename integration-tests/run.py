@@ -182,7 +182,7 @@ class Seafile(Project):
 
 
 class Seahub(Project):
-    branch = 'v4.4.1-server'
+    branch = 'merge-server-config'
 
     def __init__(self):
         super(Seahub, self).__init__('seahub')
@@ -304,6 +304,8 @@ def autosetup(cmd, answers):
 
 
 def start_server():
+    with cd(INSTALLDIR):
+        shell('find . -maxdepth 2 | sort | xargs ls -lhd')
     seafile_sh = get_script('seafile.sh')
     shell('{} start'.format(seafile_sh))
 
@@ -317,7 +319,7 @@ def start_server():
     ]
     autosetup('{} start'.format(abspath(seahub_sh)), answers)
     with cd(INSTALLDIR):
-        shell('find . -maxdepth 3 | sort | xargs ls -lhd')
+        shell('find . -maxdepth 2 | sort | xargs ls -lhd')
     # shell('sqlite3 ccnet/PeerMgr/usermgr.db "select * from EmailUser"', cwd=INSTALLDIR)
     shell('http -v localhost:8000/api2/server-info/ || true')
     # shell('http -v -f POST localhost:8000/api2/auth-token/ username=admin@seafiletest.com password=adminadmin || true')
@@ -351,15 +353,8 @@ def run_tests():
 
     with cd(python_seafile.projectdir):
         shell('pip install -r requirements.txt')
-        try:
-            create_test_user()
-            shell('py.test')
-        finally:
-            for logfile in glob.glob('{}/logs/*.log'.format(INSTALLDIR)):
-                shell('echo {0}; cat {0}'.format(logfile))
-            for logfile in glob.glob(
-                    '{}/seafile-server-{}/runtime/*.log'.format(INSTALLDIR, seafile_version)):
-                shell('echo {0}; cat {0}'.format(logfile))
+        create_test_user()
+        shell('py.test')
 
 
 def setup_logging():
@@ -386,8 +381,16 @@ def main():
     setup_logging()
     fetch_and_build()
     setup_server()
-    start_server()
-    run_tests()
+
+    try:
+        start_server()
+        run_tests()
+    finally:
+        for logfile in glob.glob('{}/logs/*.log'.format(INSTALLDIR)):
+            shell('echo {0}; cat {0}'.format(logfile))
+        for logfile in glob.glob(
+                '{}/seafile-server-{}/runtime/*.log'.format(INSTALLDIR, seafile_version)):
+            shell('echo {0}; cat {0}'.format(logfile))
 
 if __name__ == '__main__':
     os.chdir(TOPDIR)

@@ -29,7 +29,7 @@ char *topdir = NULL;
 
 char *seafile_ld_library_path = NULL;
 
-static const char *short_opts = "hvftCc:d:L:g:G:P:";
+static const char *short_opts = "hvftCc:d:L:g:G:P:F:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -38,7 +38,7 @@ static const struct option long_opts[] = {
     { "cloud-mode", no_argument, NULL, 'C', },
     { "config-dir", required_argument, NULL, 'c', },
     { "seafile-dir", required_argument, NULL, 'd', },
-    { "server-config-dir", required_argument, NULL, 'F' },
+    { "central-config-dir", required_argument, NULL, 'F' },
     { "logdir", required_argument, NULL, 'L', },
     { "ccnet-debug-level", required_argument, NULL, 'g' },
     { "seafile-debug-level", required_argument, NULL, 'G' },
@@ -162,6 +162,7 @@ start_ccnet_server ()
 
     char *argv[] = {
         "ccnet-server",
+        "-F", ctl->central_config_dir,
         "-c", ctl->config_dir,
         "-f", logfile,
         "-d",
@@ -191,6 +192,7 @@ start_seaf_server ()
 
     char *argv[] = {
         "seaf-server",
+        "-F", ctl->central_config_dir,
         "-c", ctl->config_dir,
         "-d", ctl->seafile_dir,
         "-l", logfile,
@@ -321,9 +323,7 @@ setup_env ()
 {
     g_setenv ("CCNET_CONF_DIR", ctl->config_dir, TRUE);
     g_setenv ("SEAFILE_CONF_DIR", ctl->seafile_dir, TRUE);
-    if (ctl->central_config_dir) {
-        g_setenv ("SEAFILE_CENTRAL_CONF_DIR", ctl->central_config_dir, TRUE);
-    }
+    g_setenv ("SEAFILE_CENTRAL_CONF_DIR", ctl->central_config_dir, TRUE);
 
     char *seahub_dir = g_build_filename (installpath, "seahub", NULL);
     char *seafdav_conf = g_build_filename (topdir, "conf", "seafdav.conf", NULL);
@@ -752,15 +752,11 @@ test_config (const char *central_config_dir,
     char *child_stdout = NULL;
     char *child_stderr = NULL;
 
-    if (central_config_dir) {
-        snprintf(buf,
-                 sizeof(buf),
-                 "ccnet-server -F \"%s\" -c \"%s\" -t",
-                 central_config_dir,
-                 ccnet_dir);
-    } else {
-        snprintf(buf, sizeof(buf), "ccnet-server -c \"%s\" -t", ccnet_dir);
-    }
+    snprintf(buf,
+             sizeof(buf),
+             "ccnet-server -F \"%s\" -c \"%s\" -t",
+             central_config_dir,
+             ccnet_dir);
 
     g_spawn_command_line_sync (buf,
                                &child_stdout, /* stdout */
@@ -922,7 +918,7 @@ int main (int argc, char **argv)
             config_dir = optarg;
             break;
         case 'F':
-            central_config_dir = optarg;
+            central_config_dir = g_strdup(optarg);
             break;
         case 'd':
             seafile_dir = g_strdup(optarg);
@@ -963,10 +959,13 @@ int main (int argc, char **argv)
         exit(1);
     }
 
-    config_dir = ccnet_expand_path (config_dir);
-    if (central_config_dir) {
-        central_config_dir = ccnet_expand_path (central_config_dir);
+    if (!central_config_dir) {
+        fprintf (stderr, "<central_config_dir> must be specified with --central-config-dir\n");
+        exit(1);
     }
+
+    central_config_dir = ccnet_expand_path (central_config_dir);
+    config_dir = ccnet_expand_path (config_dir);
     seafile_dir = ccnet_expand_path (seafile_dir);
 
     if (test_conf) {

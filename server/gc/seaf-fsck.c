@@ -17,7 +17,7 @@ static char *central_config_dir = NULL;
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvc:d:reE:";
+static const char *short_opts = "hvc:d:reE:F:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
@@ -25,7 +25,7 @@ static const struct option long_opts[] = {
     { "enable-sync", no_argument, NULL, 'e', },
     { "export", required_argument, NULL, 'E', },
     { "config-file", required_argument, NULL, 'c', },
-    { "server-config-dir", required_argument, NULL, 'F' },
+    { "central-config-dir", required_argument, NULL, 'F' },
     { "seafdir", required_argument, NULL, 'd', },
 };
 
