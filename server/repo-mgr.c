@@ -489,8 +489,22 @@ remove_virtual_repo_ondisk (SeafRepoManager *mgr,
                                  1, "string", repo_id);
     }
 
-    seaf_db_statement_query (db, "DELETE FROM RepoUserToken WHERE repo_id = ?",
+    seaf_db_statement_query (mgr->seaf->db,
+                             "DELETE FROM RepoUserToken WHERE repo_id = ?",
                              1, "string", repo_id);
+
+    seaf_db_statement_query (mgr->seaf->db,
+                             "DELETE FROM RepoValidSince WHERE repo_id = ?",
+                             1, "string", repo_id);
+
+    seaf_db_statement_query (mgr->seaf->db,
+                             "DELETE FROM RepoSize WHERE repo_id = ?",
+                             1, "string", repo_id);
+
+    /* For GC commit objects for this virtual repo. Fs and blocks are GC
+     * from the parent repo.
+     */
+    add_deleted_repo_record (mgr, repo_id);
 
     return 0;
 }
@@ -590,7 +604,20 @@ del_repo:
                                  1, "string", repo_id);
     }
 
-    seaf_db_statement_query (mgr->seaf->db, "DELETE FROM RepoUserToken WHERE repo_id = ?",
+    seaf_db_statement_query (mgr->seaf->db,
+                             "DELETE FROM RepoUserToken WHERE repo_id = ?",
+                             1, "string", repo_id);
+
+    seaf_db_statement_query (mgr->seaf->db,
+                             "DELETE FROM RepoHistoryLimit WHERE repo_id = ?",
+                             1, "string", repo_id);
+
+    seaf_db_statement_query (mgr->seaf->db,
+                             "DELETE FROM RepoValidSince WHERE repo_id = ?",
+                             1, "string", repo_id);
+
+    seaf_db_statement_query (mgr->seaf->db,
+                             "DELETE FROM RepoSize WHERE repo_id = ?",
                              1, "string", repo_id);
 
     /* Remove virtual repos when origin repo is deleted. */
@@ -1842,6 +1869,12 @@ seaf_repo_manager_set_repo_owner (SeafRepoManager *mgr,
 {
     SeafDB *db = mgr->seaf->db;
     char sql[256];
+    char *orig_owner = NULL;
+    int ret = 0;
+
+    orig_owner = seaf_repo_manager_get_repo_owner (mgr, repo_id);
+    if (g_strcmp0 (orig_owner, email) == 0)
+        goto out;
 
     if (seaf_db_type(db) == SEAF_DB_TYPE_PGSQL) {
         gboolean err;
@@ -1855,17 +1888,57 @@ seaf_repo_manager_set_repo_owner (SeafRepoManager *mgr,
             snprintf(sql, sizeof(sql),
                      "INSERT INTO RepoOwner VALUES ('%s', '%s')",
                      repo_id, email);
-        if (err)
-            return -1;
-        if (seaf_db_query (db, sql) < 0)
-            return -1;
+        if (err) {
+            ret = -1;
+            goto out;
+        }
+
+        if (seaf_db_query (db, sql) < 0) {
+            ret = -1;
+            goto out;
+        }
     } else {
         if (seaf_db_statement_query (db, "REPLACE INTO RepoOwner VALUES (?, ?)",
-                                     2, "string", repo_id, "string", email) < 0)
-            return -1;
+                                     2, "string", repo_id, "string", email) < 0) {
+            ret = -1;
+            goto out;
+        }
     }
 
-    return 0;
+    /* If the repo was newly created, no need to remove share and virtual repos. */
+    if (!orig_owner)
+        goto out;
+
+    seaf_db_statement_query (mgr->seaf->db, "DELETE FROM SharedRepo WHERE repo_id = ?",
+                             1, "string", repo_id);
+
+    seaf_db_statement_query (mgr->seaf->db, "DELETE FROM RepoGroup WHERE repo_id = ?",
+                             1, "string", repo_id);
+
+    if (!seaf->cloud_mode) {
+        seaf_db_statement_query (mgr->seaf->db, "DELETE FROM InnerPubRepo WHERE repo_id = ?",
+                                 1, "string", repo_id);
+    }
+
+    /* Remove all tokens except for the new owner. */
+    seaf_db_statement_query (mgr->seaf->db,
+                             "DELETE FROM RepoUserToken WHERE repo_id = ? AND email != ?",
+                             2, "string", repo_id, "string", email);
+
+    /* Remove virtual repos when repo ownership changes. */
+    GList *vrepos, *ptr;
+    vrepos = seaf_repo_manager_get_virtual_repo_ids_by_origin (mgr, repo_id);
+    for (ptr = vrepos; ptr != NULL; ptr = ptr->next)
+        remove_virtual_repo_ondisk (mgr, (char *)ptr->data);
+    string_list_free (vrepos);
+
+    seaf_db_statement_query (mgr->seaf->db, "DELETE FROM VirtualRepo "
+                             "WHERE repo_id=? OR origin_repo=?",
+                             2, "string", repo_id, "string", repo_id);
+
+out:
+    g_free (orig_owner);
+    return ret;
 }
 
 static gboolean
