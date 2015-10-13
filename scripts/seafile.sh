@@ -16,7 +16,7 @@ SCRIPT=$(readlink -f "$0")
 INSTALLPATH=$(dirname "${SCRIPT}")
 TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
-ccnet_pidfile=${INSTALLPATH}/runtime/ccnet.pid
+central_config_dir=${TOPDIR}/conf
 seaf_controller="${INSTALLPATH}/seafile/bin/seafile-controller"
 
 
@@ -102,7 +102,10 @@ function start_seafile_server () {
 
     echo "Starting seafile server, please wait ..."
 
-    LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_controller} -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}"
+    LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_controller} \
+                   -c "${default_ccnet_conf_dir}" \
+                   -d "${seafile_data_dir}"
+                   # -F "${central_config_dir}"
 
     sleep 3
 

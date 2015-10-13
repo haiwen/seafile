@@ -38,6 +38,7 @@ static const struct option long_opts[] = {
     { "cloud-mode", no_argument, NULL, 'C', },
     { "config-dir", required_argument, NULL, 'c', },
     { "seafile-dir", required_argument, NULL, 'd', },
+    { "server-config-dir", required_argument, NULL, 'F' },
     { "logdir", required_argument, NULL, 'L', },
     { "ccnet-debug-level", required_argument, NULL, 'g' },
     { "seafile-debug-level", required_argument, NULL, 'G' },
@@ -320,6 +321,9 @@ setup_env ()
 {
     g_setenv ("CCNET_CONF_DIR", ctl->config_dir, TRUE);
     g_setenv ("SEAFILE_CONF_DIR", ctl->seafile_dir, TRUE);
+    if (ctl->central_config_dir) {
+        g_setenv ("SEAFILE_CENTRAL_CONF_DIR", ctl->central_config_dir, TRUE);
+    }
 
     char *seahub_dir = g_build_filename (installpath, "seahub", NULL);
     char *seafdav_conf = g_build_filename (topdir, "conf", "seafdav.conf", NULL);
@@ -592,6 +596,7 @@ init_pidfile_path (SeafileController *ctl)
 
 static int
 seaf_controller_init (SeafileController *ctl,
+                      char *central_config_dir,
                       char *config_dir,
                       char *seafile_dir,
                       char *logdir,
@@ -611,12 +616,12 @@ seaf_controller_init (SeafileController *ctl,
     ctl->client = ccnet_client_new ();
     ctl->sync_client = ccnet_client_new ();
 
-    if (ccnet_client_load_confdir (ctl->client, config_dir) < 0) {
+    if (ccnet_client_load_confdir (ctl->client, central_config_dir, config_dir) < 0) {
         seaf_warning ("Failed to load ccnet confdir\n");
         return -1;
     }
 
-    if (ccnet_client_load_confdir (ctl->sync_client, config_dir) < 0) {
+    if (ccnet_client_load_confdir (ctl->sync_client, central_config_dir, config_dir) < 0) {
         seaf_warning ("Failed to load ccnet confdir\n");
         return -1;
     }
@@ -632,6 +637,7 @@ seaf_controller_init (SeafileController *ctl,
         g_free (topdir);
     }
 
+    ctl->central_config_dir = central_config_dir;
     ctl->config_dir = config_dir;
     ctl->seafile_dir = seafile_dir;
     ctl->logdir = logdir;
@@ -736,7 +742,9 @@ usage ()
 
 /* seafile-controller -t is used to test whether config file is valid */
 static void
-test_config (const char *ccnet_dir, const char *seafile_dir)
+test_config (const char *central_config_dir,
+             const char *ccnet_dir,
+             const char *seafile_dir)
 {
     char buf[1024];
     GError *error = NULL;
@@ -744,7 +752,15 @@ test_config (const char *ccnet_dir, const char *seafile_dir)
     char *child_stdout = NULL;
     char *child_stderr = NULL;
 
-    snprintf (buf, sizeof(buf), "ccnet-server -c \"%s\" -t", ccnet_dir);
+    if (central_config_dir) {
+        snprintf(buf,
+                 sizeof(buf),
+                 "ccnet-server -F \"%s\" -c \"%s\" -t",
+                 central_config_dir,
+                 ccnet_dir);
+    } else {
+        snprintf(buf, sizeof(buf), "ccnet-server -c \"%s\" -t", ccnet_dir);
+    }
 
     g_spawn_command_line_sync (buf,
                                &child_stdout, /* stdout */
@@ -878,6 +894,7 @@ int main (int argc, char **argv)
     }
 
     char *config_dir = DEFAULT_CONFIG_DIR;
+    char *central_config_dir = NULL;
     char *seafile_dir = NULL;
     char *logdir = NULL;
     char *ccnet_debug_level_str = "info";
@@ -903,6 +920,9 @@ int main (int argc, char **argv)
             break;
         case 'c':
             config_dir = optarg;
+            break;
+        case 'F':
+            central_config_dir = optarg;
             break;
         case 'd':
             seafile_dir = g_strdup(optarg);
@@ -944,14 +964,17 @@ int main (int argc, char **argv)
     }
 
     config_dir = ccnet_expand_path (config_dir);
+    if (central_config_dir) {
+        central_config_dir = ccnet_expand_path (central_config_dir);
+    }
     seafile_dir = ccnet_expand_path (seafile_dir);
 
     if (test_conf) {
-        test_config (config_dir, seafile_dir);
+        test_config (central_config_dir, config_dir, seafile_dir);
     }
 
     ctl = g_new0 (SeafileController, 1);
-    if (seaf_controller_init (ctl, config_dir, seafile_dir, logdir, cloud_mode) < 0) {
+    if (seaf_controller_init (ctl, central_config_dir, config_dir, seafile_dir, logdir, cloud_mode) < 0) {
         controller_exit(1);
     }
 

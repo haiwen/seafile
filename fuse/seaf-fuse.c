@@ -242,6 +242,7 @@ out:
 }
 
 struct options {
+    char *central_config_dir;
     char *config_dir;
     char *seafile_dir;
     char *log_file;
@@ -257,6 +258,8 @@ enum {
 static struct fuse_opt seaf_fuse_opts[] = {
     SEAF_FUSE_OPT_KEY("-c %s", config_dir, 0),
     SEAF_FUSE_OPT_KEY("--config %s", config_dir, 0),
+    SEAF_FUSE_OPT_KEY("-F %s", central_config_dir, 0),
+    SEAF_FUSE_OPT_KEY("---server-config-dir %s", central_config_dir, 0),
     SEAF_FUSE_OPT_KEY("-d %s", seafile_dir, 0),
     SEAF_FUSE_OPT_KEY("--seafdir %s", seafile_dir, 0),
     SEAF_FUSE_OPT_KEY("-l %s", log_file, 0),
@@ -281,6 +284,7 @@ int main(int argc, char *argv[])
     struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
     const char *debug_str = NULL;
     char *config_dir = DEFAULT_CONFIG_DIR;
+    char *central_config_dir = NULL;
     char *seafile_dir = NULL;
     char *logfile = NULL;
     char *ccnet_debug_level_str = "info";
@@ -320,7 +324,7 @@ int main(int argc, char *argv[])
     }
 
     ccnet_client = ccnet_client_new();
-    if ((ccnet_client_load_confdir(ccnet_client, config_dir)) < 0) {
+    if ((ccnet_client_load_confdir(ccnet_client, central_config_dir, config_dir)) < 0) {
         seaf_warning("Read config dir error\n");
         exit(1);
     }
@@ -336,7 +340,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    seaf->client_pool = ccnet_client_pool_new(config_dir);
+    seaf->client_pool = ccnet_client_pool_new(central_config_dir, config_dir);
     if (!seaf->client_pool) {
         seaf_warning("Failed to creat client pool\n");
         exit(1);

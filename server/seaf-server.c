@@ -51,11 +51,12 @@ SearpcClient *async_ccnetrpc_client_t;
 
 char *pidfile = NULL;
 
-static const char *short_options = "hvc:d:l:fg:G:P:mCD:";
+static const char *short_options = "hvc:d:l:fg:G:P:mCD:F:";
 static struct option long_options[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
     { "config-file", required_argument, NULL, 'c' },
+    { "server-config-dir", required_argument, NULL, 'F' },
     { "seafdir", required_argument, NULL, 'd' },
     { "log", required_argument, NULL, 'l' },
     { "debug", required_argument, NULL, 'D' },
@@ -685,13 +686,13 @@ set_signal_handlers (SeafileSession *session)
 }
 
 static void
-create_sync_rpc_clients (const char *config_dir)
+create_sync_rpc_clients (const char *central_config_dir, const char *config_dir)
 {
     CcnetClient *sync_client;
 
     /* sync client and rpc client */
     sync_client = ccnet_client_new ();
-    if ( (ccnet_client_load_confdir(sync_client, config_dir)) < 0 ) {
+    if ( (ccnet_client_load_confdir(sync_client, central_config_dir, config_dir)) < 0 ) {
         seaf_warning ("Read config dir error\n");
         exit(1);
     }
@@ -808,6 +809,7 @@ main (int argc, char **argv)
     int c;
     char *config_dir = DEFAULT_CONFIG_DIR;
     char *seafile_dir = NULL;
+    char *central_config_dir = NULL;
     char *logfile = NULL;
     const char *debug_str = NULL;
     int daemon_mode = 1;
@@ -836,6 +838,9 @@ main (int argc, char **argv)
             break;
         case 'd':
             seafile_dir = g_strdup(optarg);
+            break;
+        case 'F':
+            central_config_dir = g_strdup(optarg);
             break;
         case 'f':
             daemon_mode = 0;
@@ -918,7 +923,7 @@ main (int argc, char **argv)
         exit (1);
     }
 
-    client = ccnet_init (config_dir);
+    client = ccnet_init (central_config_dir, config_dir);
     if (!client)
         exit (1);
 
@@ -926,7 +931,7 @@ main (int argc, char **argv)
 
     start_rpc_service (client, cloud_mode);
 
-    create_sync_rpc_clients (config_dir);
+    create_sync_rpc_clients (central_config_dir, config_dir);
     create_async_rpc_clients (client);
 
     seaf = seafile_session_new (seafile_dir, client);
@@ -939,7 +944,7 @@ main (int argc, char **argv)
     seaf->async_ccnetrpc_client = async_ccnetrpc_client;
     seaf->ccnetrpc_client_t = ccnetrpc_client_t;
     seaf->async_ccnetrpc_client_t = async_ccnetrpc_client_t;
-    seaf->client_pool = ccnet_client_pool_new (config_dir);
+    seaf->client_pool = ccnet_client_pool_new (central_config_dir, config_dir);
     seaf->cloud_mode = cloud_mode;
 
     load_history_config ();

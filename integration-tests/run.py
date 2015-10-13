@@ -169,7 +169,7 @@ class Ccnet(Project):
         super(Ccnet, self).__init__('ccnet')
 
 class Seafile(Project):
-    configure_cmd = './configure --disable-fuse --enable-client --enable-server'
+    configure_cmd = './configure --enable-client --enable-server'
 
     def __init__(self):
         super(Seafile, self).__init__('seafile')
