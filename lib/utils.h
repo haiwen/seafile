@@ -158,6 +158,8 @@ char* gen_uuid ();
 void gen_uuid_inplace (char *buf);
 gboolean is_uuid_valid (const char *uuid_str);
 
+gboolean
+is_object_id_valid (const char *obj_id);
 
 /* dir operations */
 int checkdir (const char *dir);
