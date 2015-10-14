@@ -385,7 +385,7 @@ main (int argc, char **argv)
     char *seafile_dir = NULL;
     char *worktree_dir = NULL;
     char *logfile = NULL;
-    const char *debug_str = "debug";
+    const char *debug_str = NULL;
     int daemon_mode = 0;
     CcnetClient *client;
     char *ccnet_debug_level_str = "info";
