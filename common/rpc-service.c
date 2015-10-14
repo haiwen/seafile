@@ -1128,6 +1128,16 @@ seafile_get_commit (const char *repo_id, int version,
     SeafileCommit *commit;
     SeafCommit *c;
 
+    if (!is_uuid_valid(repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
+    if (!is_object_id_valid(id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid commit id");
+        return NULL;
+    }
+
     c = seaf_commit_manager_get_commit (seaf->commit_mgr, repo_id, version, id);
     if (!c)
         return NULL;
@@ -1513,9 +1523,21 @@ seafile_list_dir_by_path(const char *repo_id,
     char *p = g_strdup(path);
     int len = strlen(p);
 
-    if (!repo_id || !is_uuid_valid (repo_id) || !commit_id || !path) {
+    if (!repo_id || !commit_id || !path) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Args can't be NULL");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid repo id");
+        return NULL;
+    }
+
+    if (!is_object_id_valid (commit_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid commit id");
         return NULL;
     }
 
@@ -1549,6 +1571,10 @@ seafile_list_dir_by_path(const char *repo_id,
 
     for (ptr = dir->entries; ptr != NULL; ptr = ptr->next) {
         dent = ptr->data;
+
+        if (!is_object_id_valid (dent->id))
+            continue;
+
         d = g_object_new (SEAFILE_TYPE_DIRENT,
                           "obj_id", dent->id,
                           "obj_name", dent->name,
@@ -1587,12 +1613,23 @@ seafile_get_dirid_by_path(const char *repo_id,
     SeafCommit *commit = NULL;
     SeafDir *dir;
 
-    if (!repo_id || !is_uuid_valid(repo_id) || !commit_id || !path) {
+    if (!repo_id || !commit_id || !path) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Args can't be NULL");
         return NULL;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid repo id");
+        return NULL;
+    }
+
+    if (!is_object_id_valid (commit_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid commit id");
+        return NULL;
+    }
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
@@ -1876,6 +1913,11 @@ seafile_diff (const char *repo_id, const char *arg1, const char *arg2, int fold_
 
     if (!is_uuid_valid (repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
+    if (!is_object_id_valid (arg1) || !is_object_id_valid(arg2)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid commit id");
         return NULL;
     }
 
@@ -2668,9 +2710,15 @@ seafile_get_file_size (const char *store_id, int version,
 {
     gint64 file_size;
 
-    if (!store_id || !is_uuid_valid(store_id) || !file_id) {
+    if (!store_id || !is_uuid_valid(store_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
-                     "Store id and file id can not be NULL");
+                     "Invalid store id");
+        return -1;
+    }
+
+    if (!file_id || !is_object_id_valid (file_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid file id");
         return -1;
     }
 
@@ -2690,9 +2738,15 @@ seafile_get_dir_size (const char *store_id, int version,
 {
     gint64 dir_size;
 
-    if (!store_id || !is_uuid_valid (store_id) || !dir_id) {
+    if (!store_id || !is_uuid_valid (store_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
-                     "Store id and dir id can not be NULL");
+                     "Invalid store id");
+        return -1;
+    }
+
+    if (!dir_id || !is_object_id_valid (dir_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid dir id");
         return -1;
     }
 
@@ -2818,6 +2872,11 @@ seafile_revert_on_server (const char *repo_id,
 
     if (!is_uuid_valid (repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
+    if (!is_object_id_valid (commit_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid commit id");
         return -1;
     }
 
@@ -3462,7 +3521,12 @@ seafile_list_file (const char *repo_id,
     GString *buf = g_string_new ("");
     int index = 0;
 
-    if (!repo_id || !is_uuid_valid(repo_id) || file_id == NULL) {
+    if (!repo_id || !is_uuid_valid(repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_DIR_ID, "Bad repo id");
+        return NULL;
+    }
+
+    if (!file_id || !is_object_id_valid(file_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_DIR_ID, "Bad file id");
         return NULL;
     }
@@ -3530,7 +3594,12 @@ seafile_list_dir (const char *repo_id,
     GList *res = NULL;
     GList *p;
 
-    if (!repo_id || !is_uuid_valid(repo_id) || dir_id == NULL) {
+    if (!repo_id || !is_uuid_valid(repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_DIR_ID, "Bad repo id");
+        return NULL;
+    }
+
+    if (!dir_id || !is_object_id_valid (dir_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_DIR_ID, "Bad dir id");
         return NULL;
     }
@@ -3661,6 +3730,11 @@ seafile_revert_file (const char *repo_id,
         return -1;
     }
 
+    if (!is_object_id_valid (commit_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid commit id");
+        return -1;
+    }
+
     char *rpath = format_dir_path (path);
 
     int ret = seaf_repo_manager_revert_file (seaf->repo_mgr,
@@ -3686,6 +3760,11 @@ seafile_revert_dir (const char *repo_id,
 
     if (!is_uuid_valid (repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return -1;
+    }
+
+    if (!is_object_id_valid (commit_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid commit id");
         return -1;
     }
 
@@ -3891,6 +3970,16 @@ seafile_list_dir_with_perm (const char *repo_id,
                             int limit,
                             GError **error)
 {
+    if (!repo_id || !is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
+    if (!dir_id || !is_object_id_valid (dir_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid dir id");
+        return NULL;
+    }
+
     char *rpath = format_dir_path (path);
 
     GList *ret = seaf_repo_manager_list_dir_with_perm (seaf->repo_mgr,

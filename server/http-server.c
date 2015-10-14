@@ -888,7 +888,7 @@ put_update_branch_cb (evhtp_request_t *req, void *arg)
     SeafCommit *new_commit = NULL, *base = NULL;
 
     const char *new_commit_id = evhtp_kv_find (req->uri->query, "head");
-    if (new_commit_id == NULL || strlen (new_commit_id) != 40) {
+    if (new_commit_id == NULL || !is_object_id_valid (new_commit_id)) {
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
     }
@@ -1181,8 +1181,17 @@ get_fs_obj_id_cb (evhtp_request_t *req, void *arg)
     SeafRepo *repo = NULL;
 
     const char *server_head = evhtp_kv_find (req->uri->query, "server-head");
-    if (server_head == NULL || strlen (server_head) != 40) {
+    if (server_head == NULL || !is_object_id_valid (server_head)) {
         char *error = "Invalid server-head parameter.\n";
+        seaf_warning ("%s", error);
+        evbuffer_add (req->buffer_out, error, strlen (error));
+        evhtp_send_reply (req, EVHTP_RES_BADREQ);
+        return;
+    }
+
+    const char *client_head = evhtp_kv_find (req->uri->query, "client-head");
+    if (client_head && !is_object_id_valid (client_head)) {
+        char *error = "Invalid client-head parameter.\n";
         seaf_warning ("%s", error);
         evbuffer_add (req->buffer_out, error, strlen (error));
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
@@ -1198,7 +1207,6 @@ get_fs_obj_id_cb (evhtp_request_t *req, void *arg)
         goto out;
     }
 
-    const char *client_head = evhtp_kv_find (req->uri->query, "client-head");
     GList *list = NULL, *ptr;
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
@@ -1460,7 +1468,7 @@ post_check_exist_cb (evhtp_request_t *req, void *arg, CheckExistType type)
     for (; index < array_size; ++index) {
         obj = json_array_get (obj_array, index);
         obj_id = json_string_value (obj);
-        if (strlen (obj_id) != 40)
+        if (!is_object_id_valid (obj_id))
             continue;
 
         if (type == CHECK_FS_EXIST) {
@@ -1559,6 +1567,11 @@ post_recv_fs_cb (evhtp_request_t *req, void *arg)
         memcpy (obj_id, hdr->obj_id, 40);
         obj_id[40] = 0;
 
+        if (!is_object_id_valid (obj_id)) {
+            evhtp_send_reply (req, EVHTP_RES_BADREQ);
+            break;
+        }
+
         obj_con = g_new0 (char, con_len);
         if (!obj_con) {
             evhtp_send_reply (req, EVHTP_RES_SERVERR);
@@ -1651,7 +1664,7 @@ post_pack_fs_cb (evhtp_request_t *req, void *arg)
         obj = json_array_get (fs_id_array, index);
         obj_id = json_string_value (obj);
 
-        if (strlen (obj_id) != 40) {
+        if (!is_object_id_valid (obj_id)) {
             seaf_warning ("Invalid fs id %s.\n", obj_id);
             evhtp_send_reply (req, EVHTP_RES_BADREQ);
             json_decref (fs_id_array);

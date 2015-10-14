@@ -2509,6 +2509,10 @@ seaf_fs_manager_path_to_obj_id (SeafFSManager *mgr,
 
     for (p = base_dir->entries; p != NULL; p = p->next) {
         dent = p->data;
+
+        if (!is_object_id_valid (dent->id))
+            continue;
+
         if (strcmp (dent->name, name) == 0) {
             obj_id = g_strdup (dent->id);
             if (mode) {
