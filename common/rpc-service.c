@@ -1916,7 +1916,7 @@ seafile_diff (const char *repo_id, const char *arg1, const char *arg2, int fold_
         return NULL;
     }
 
-    if (!is_object_id_valid (arg1) || !is_object_id_valid(arg2)) {
+    if ((arg1[0] != 0 && !is_object_id_valid (arg1)) || !is_object_id_valid(arg2)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid commit id");
         return NULL;
     }
