@@ -3636,6 +3636,10 @@ seafile_list_dir (const char *repo_id,
         }
 
         dent = p->data;
+
+        if (!is_object_id_valid (dent->id))
+            continue;
+
         d = g_object_new (SEAFILE_TYPE_DIRENT,
                           "obj_id", dent->id,
                           "obj_name", dent->name,

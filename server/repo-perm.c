@@ -258,6 +258,10 @@ seaf_repo_manager_list_dir_with_perm (SeafRepoManager *mgr,
         }
 
         dent = p->data;
+
+        if (!is_object_id_valid (dent->id))
+            continue;
+
         d = g_object_new (SEAFILE_TYPE_DIRENT,
                           "obj_id", dent->id,
                           "obj_name", dent->name,
