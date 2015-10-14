@@ -644,7 +644,7 @@ def seaf_status(args):
 
     # show repo status
     print ""
-    print "# Name\tStatus"
+    print "# Name\tStatus\tUid\tGid"
     repos = seafile_rpc.get_repo_list(-1, -1)
     for repo in repos:
         auto_sync_enabled = seafile_rpc.is_auto_sync_enabled()
@@ -658,7 +658,7 @@ def seaf_status(args):
         elif t.state == "error":
             print "%s\t%s" % (repo.name, t.error)
         else:
-            print "%s\t%s" % (repo.name, t.state)
+            print "%s\t%s\t%s\t%s" % (repo.name, t.state, t.uid, t.gid)
 
 def create_repo(url, token, args):
     headers = { 'Authorization': 'Token %s' % token }

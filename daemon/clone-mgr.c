@@ -133,14 +133,9 @@ mark_clone_done_v2 (SeafRepo *repo, CloneTask *task)
             transition_to_error (task, CLONE_ERROR_INTERNAL);
             return;
         }
-        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
-                                                 repo->id,
-                                                 REPO_AUTO_SYNC,
-                                                 repo->auto_sync ? "true" : "false");
     }
-    seaf_message ("**valeur pour %s.\n", userNameFromId (task->uid));
-
-    /* For compatibility, still set these two properties.
+ 
+     /* For compatibility, still set these two properties.
      * So that if we downgrade to an old version, the syncing can still work.
      */
     seaf_repo_manager_set_repo_property (seaf->repo_mgr,
@@ -159,8 +154,7 @@ static void
 start_clone_v2 (CloneTask *task)
 {
     GError *error = NULL;
-    seaf_message ("2 /on crée le dossier %s pour %s.\n", task->worktree, userNameFromId (task->uid));
-
+ 
     if (g_access (task->worktree, F_OK) != 0 &&
         seaf_util_mkdir_with_parents (task->worktree, 0777, task->uid, task->gid) < 0) {
         seaf_warning ("[clone mgr] Failed to create worktree %s.\n",
@@ -182,10 +176,10 @@ start_clone_v2 (CloneTask *task)
                                                  repo->id,
                                                  "uid",
                                                  userNameFromId (task->uid));
-               seaf_repo_manager_set_repo_property (seaf->repo_mgr,
-                                                   repo->id,
-                                                    "gid",
-                                                    groupNameFromId (task->gid));
+            seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                                 repo->id,
+                                                 "gid",
+                                                 groupNameFromId (task->gid));
         repo->uid = task->uid;
         repo->gid = task->gid;
         }
@@ -2195,6 +2189,13 @@ out:
 static void
 start_checkout (SeafRepo *repo, CloneTask *task)
 {
+/* essai de fixer uid et gid avant le checkout
+ *
+ *
+
+    repo->uid = task->uid;
+    repo->gid = task->gid;
+*/
     if (repo->encrypted && task->passwd != NULL) {
         if (seaf_repo_manager_set_repo_passwd (seaf->repo_mgr,
                                                repo,

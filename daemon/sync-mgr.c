@@ -465,6 +465,7 @@ seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
     }
 
     SeafRepo *repo;
+    
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
         seaf_warning ("[sync mgr] cannot find repo %s.\n", repo_id);
@@ -653,10 +654,11 @@ transition_sync_state (SyncTask *task, int new_state)
     if (task->state != new_state) {
         if (!(task->state == SYNC_STATE_DONE && new_state == SYNC_STATE_INIT) &&
             !(task->state == SYNC_STATE_INIT && new_state == SYNC_STATE_DONE)) {
-            seaf_message ("Repo '%s' sync state transition from '%s' to '%s'.\n",
+            seaf_message ("Repo '%s' sync state transition from '%s' to '%s' for uid '%s'.\n",
                           task->repo->name,
                           sync_state_str[task->state],
-                          sync_state_str[new_state]);
+                          sync_state_str[new_state],
+                          userNameFromId(task->uid));
         }
 
         if (!task->server_side_merge) {
@@ -1759,9 +1761,9 @@ start_sync (SeafSyncManager *manager, SeafRepo *repo,
     task->info->current_task = task;
     task->info->in_sync = TRUE;
     task->repo = repo;
-    task->uid = repo->uid;
+/*    task->uid = repo->uid;
     task->gid = repo->gid;
-
+*/
     if (need_commit) {
         repo->create_partial_commit = FALSE;
         commit_repo (task);
@@ -1841,8 +1843,10 @@ create_sync_task_v2 (SeafSyncManager *manager, SeafRepo *repo,
     task->info->current_task = task;
     task->info->in_sync = TRUE;
     task->repo = repo;
-    task->uid = repo->uid;
-    task->gid = repo->gid;
+    if (repo->uid)
+        task->uid = repo->uid;
+    if (repo->gid)
+        task->gid = repo->gid;
 
     if (repo->server_url) {
         HttpServerState *state = g_hash_table_lookup (manager->http_server_states,
@@ -3051,7 +3055,6 @@ disable_auto_sync_for_repos (SeafSyncManager *mgr)
         seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
         seaf_sync_manager_cancel_sync_task (mgr, repo->id);
         seaf_sync_manager_remove_active_path_info (mgr, repo->id);
-        repo->auto_sync = 0;
     }
 
     g_list_free (repos);
@@ -3083,7 +3086,6 @@ enable_auto_sync_for_repos (SeafSyncManager *mgr)
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
         seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree);
-        repo->auto_sync = 1;
     }
 
     g_list_free (repos);

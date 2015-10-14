@@ -30,6 +30,7 @@
 #include "unpack-trees.h"
 #include "diff-simple.h"
 #include "change-set.h"
+
 #include "db.h"
 
 #define INDEX_DIR "index"
@@ -5525,7 +5526,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                 seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
                                                       repo_id, de->name);
 
-            do_rename_in_worktree (de, worktree, conflict_hash, no_conflict_hash, uid, gid);
+            do_rename_in_worktree (de, worktree, uid, gid, conflict_hash, no_conflict_hash);
 
             /* update_sync_status updates the sync status for each renamed path.
              * The renamed file/folder becomes "synced" immediately after rename.
@@ -7061,7 +7062,7 @@ seaf_repo_manager_add_checkout_task (SeafRepoManager *mgr,
                                      void *cb_data)
 {
     if (!repo || !worktree) {
-        seaf_warning ("Invaid args\n");
+        seaf_warning ("Invalid args\n");
         return -1;
     }
 
@@ -7069,7 +7070,7 @@ seaf_repo_manager_add_checkout_task (SeafRepoManager *mgr,
     memcpy (task->repo_id, repo->id, 36);
     g_return_val_if_fail (strlen(worktree) < SEAF_PATH_MAX, -1);
     strcpy (task->worktree, worktree);
-
+    
     g_hash_table_insert (mgr->priv->checkout_tasks_hash,
                          g_strdup(repo->id), task);
 

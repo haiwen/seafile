@@ -81,17 +81,15 @@ convert_repo (SeafRepo *r)
 
 #ifndef SEAFILE_SERVER
     g_object_set (repo, "worktree", r->worktree,
-                  "uid", userNameFromId (r->uid),
-                  "gid", groupNameFromId (r->gid),
                   "relay-id", r->relay_id,
                   "worktree-invalid", r->worktree_invalid,
                   "last-sync-time", r->last_sync_time,
                   "auto-sync", r->auto_sync,
                   NULL);
-/*    g_object_set (repo, "uid", userNameFromId (r->uid),
+    g_object_set (repo, "uid", userNameFromId (r->uid),
                   "gid", groupNameFromId (r->gid),
                   NULL);
-*/
+
 #endif  /* SEAFILE_SERVER */
 
     return (GObject *)repo;
@@ -631,6 +629,8 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
                            "force_upload", task->is_manual_sync,
                            "state", sync_state,
                            "error", sync_error_to_str(task->error),
+                           "uid", userNameFromId(task->uid),
+                           "gid", groupNameFromId(task->gid),
                            "repo_id", info->repo_id,
                            NULL);
 
