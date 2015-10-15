@@ -59,6 +59,7 @@ def shell(cmd, inputdata=None, **kw):
     p = Popen(cmd, **kw)
     if inputdata:
         p.communicate(inputdata)
+    p.wait()
     if p.returncode:
         raise CalledProcessError(p.returncode, cmd)
 
@@ -306,7 +307,8 @@ GRANT ALL PRIVILEGES ON `seahub-existing`.* to `seafile`@localhost;
 
 def autosetup_mysql():
     createdbs()
-    setup_script = sys.argv[1] if len(sys.argv) > 1 else 'setup-seafile-mysql.sh'
+    setup_script = get_script('setup-seafile-mysql.sh')
+    info('setting up seafile server with pexepct, script %s', setup_script)
     if not exists(setup_script):
         print 'please specify seafile script path'
     answers = [
