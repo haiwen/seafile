@@ -348,6 +348,12 @@ def create_test_user():
 
 
 def run_tests():
+    run_python_seafile_tests()
+    # must stop seafile server before running seaf-gc
+    shell('{} stop'.format(get_script('seafile.sh')))
+    shell('{} --verbose --rm-deleted'.format(get_script('seaf-gc.sh')))
+
+def run_python_seafile_tests():
     python_seafile = Project('python-seafile')
     python_seafile.clone()
 
