@@ -10,7 +10,7 @@ import requests
 from pexpect import spawn
 from os.path import abspath, basename, exists, expanduser, join
 from contextlib import contextmanager
-from subprocess import check_call
+from subprocess import Popen, PIPE, CalledProcessError
 
 TOPDIR = abspath(join(os.getcwd(), '..'))
 PREFIX = expanduser('~/opt/local')
@@ -52,10 +52,15 @@ def warning(fmt, *a):
     logger.warn(red(fmt), *a)
 
 
-def shell(cmd, **kw):
-    kw['shell'] = not isinstance(cmd, list)
+def shell(cmd, inputdata=None, **kw):
     info('calling "%s" in %s', cmd, kw.get('cwd', os.getcwd()))
-    check_call(cmd, **kw)
+    kw['shell'] = not isinstance(cmd, list)
+    kw['stdin'] = PIPE if inputdata else None
+    p = Popen(cmd, **kw)
+    if inputdata:
+        p.communicate(inputdata)
+    if p.returncode:
+        raise CalledProcessError(p.returncode, cmd)
 
 
 @contextmanager
@@ -251,19 +256,27 @@ def fetch_and_build():
 
     build_server(libsearpc, ccnet, seafile)
 
-
-def setup_server():
+def setup_server(db):
     '''Setup seafile server with the setup-seafile.sh script. We use pexpect to
     interactive with the setup process of the script.
     '''
     info('uncompressing server tarball')
     shell('tar xf seafile-server_{}_x86-64.tar.gz -C {}'
           .format(seafile_version, INSTALLDIR))
-    setup_script = get_script('setup-seafile.sh')
+    if db == 'mysql':
+        autosetup_mysql()
+    else:
+        autosetup_sqlite3()
+    with open(join(INSTALLDIR, 'seahub_settings.py'), 'a') as fp:
+        fp.write('\n')
+        fp.write('DEBUG = True')
+        fp.write('\n')
 
+def autosetup_sqlite3():
+    setup_script = get_script('setup-seafile.sh')
     info('setting up seafile server with pexepct, script %s', setup_script)
     answers = [
-        (r'\[ENTER\]', ''),
+        ('ENTER', ''),
         # server name
         ('server name', 'my-seafile'),
         # ip or domain
@@ -272,23 +285,59 @@ def setup_server():
         ('seafile-data', ''),
         # fileserver port
         ('seafile fileserver', ''),
-        (r'\[ENTER\]', ''),
-        (r'\[ENTER\]', ''),
+        ('ENTER', ''),
+        ('ENTER', ''),
     ]
-    autosetup(setup_script, answers)
+    _answer_questions(setup_script, answers)
 
-    with open(join(INSTALLDIR, 'seahub_settings.py'), 'a') as fp:
-        fp.write('\n')
-        fp.write('DEBUG = True')
-        fp.write('\n')
+def createdbs():
+    sql = '''\
+create database `ccnet-existing` character set = 'utf8';
+create database `seafile-existing` character set = 'utf8';
+create database `seahub-existing` character set = 'utf8';
 
+create user 'seafile'@'localhost' identified by 'seafile';
+
+GRANT ALL PRIVILEGES ON `ccnet-existing`.* to `seafile`@localhost;
+GRANT ALL PRIVILEGES ON `seafile-existing`.* to `seafile`@localhost;
+GRANT ALL PRIVILEGES ON `seahub-existing`.* to `seafile`@localhost;
+    '''
+    shell('mysql -u root', inputdata=sql)
+
+def autosetup_mysql():
+    createdbs()
+    setup_script = sys.argv[1] if len(sys.argv) > 1 else 'setup-seafile-mysql.sh'
+    if not exists(setup_script):
+        print 'please specify seafile script path'
+    answers = [
+        ('ENTER', ''),
+        # server name
+        ('server name', 'my-seafile'),
+        # ip or domain
+        ('ip or domain', '127.0.0.1'),
+        # seafile data dir
+        ('seafile-data', ''),
+        # fileserver port
+        ('seafile fileserver', ''),
+        # use existing
+        ('choose a way to initialize seafile databases', '2'),
+        ('host of mysql server', ''),
+        ('port of mysql server', ''),
+        ('Which mysql user', 'seafile'),
+        ('password for mysql user', 'seafile'),
+        ('ccnet database', 'ccnet-existing'),
+        ('seafile database', 'seafile-existing'),
+        ('seahub database', 'seahub-existing'),
+        ('ENTER', ''),
+    ]
+    _answer_questions(abspath(setup_script), answers)
 
 def get_script(path):
     return join(INSTALLDIR, 'seafile-server-{}/{}'.format(
         seafile_version, path))
 
 
-def autosetup(cmd, answers):
+def _answer_questions(cmd, answers):
     info('expect: spawing %s', cmd)
     child = spawn(cmd)
     child.logfile = sys.stdout
@@ -317,7 +366,7 @@ def start_server():
         ('admin password', ADMIN_PASSWORD),
         ('admin password again', ADMIN_PASSWORD),
     ]
-    autosetup('{} start'.format(abspath(seahub_sh)), answers)
+    _answer_questions('{} start'.format(abspath(seahub_sh)), answers)
     with cd(INSTALLDIR):
         shell('find . -maxdepth 2 | sort | xargs ls -lhd')
     # shell('sqlite3 ccnet/PeerMgr/usermgr.db "select * from EmailUser"', cwd=INSTALLDIR)
@@ -328,7 +377,6 @@ def start_server():
 def apiurl(path):
     path = path.lstrip('/')
     return 'http://127.0.0.1:8000/api2/' + path
-
 
 def create_test_user():
     data = {
@@ -345,7 +393,6 @@ def create_test_user():
     res = requests.put(apiurl('/accounts/{}/'.format(USERNAME)),
                        data=data, headers=headers)
     assert res.status_code == 201
-
 
 def run_tests():
     run_python_seafile_tests()
@@ -381,22 +428,28 @@ def _mkdirs(*paths):
         if not exists(path):
             os.mkdir(path)
 
-
 def main():
     _mkdirs(SRCDIR, INSTALLDIR)
     setup_logging()
     fetch_and_build()
-    setup_server()
+    for db in ('sqlite3', 'mysql'):
+        shell('rm -rf {}/*'.format(INSTALLDIR))
+        setup_and_test(db)
 
+def setup_and_test(db):
+    warning('Setting up seafile server with %s database', db)
+    setup_server(db)
     try:
         start_server()
+        warning('Testing up seafile server with %s database', db)
         run_tests()
-    finally:
+    except:
         for logfile in glob.glob('{}/logs/*.log'.format(INSTALLDIR)):
             shell('echo {0}; cat {0}'.format(logfile))
         for logfile in glob.glob(
                 '{}/seafile-server-{}/runtime/*.log'.format(INSTALLDIR, seafile_version)):
             shell('echo {0}; cat {0}'.format(logfile))
+        raise
 
 if __name__ == '__main__':
     os.chdir(TOPDIR)
