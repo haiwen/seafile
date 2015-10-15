@@ -934,7 +934,7 @@ main (int argc, char **argv)
     create_sync_rpc_clients (central_config_dir, config_dir);
     create_async_rpc_clients (client);
 
-    seaf = seafile_session_new (seafile_dir, client);
+    seaf = seafile_session_new (central_config_dir, seafile_dir, client);
     if (!seaf) {
         seaf_warning ("Failed to create seafile session.\n");
         exit (1);

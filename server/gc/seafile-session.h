@@ -37,7 +37,8 @@ struct _SeafileSession {
 extern SeafileSession *seaf;
 
 SeafileSession *
-seafile_session_new (const char *seafile_dir,
-                     struct _CcnetClient *ccnet);
+seafile_session_new(const char *central_config_dir,
+                    const char *seafile_dir,
+                    struct _CcnetClient *ccnet);
 
 #endif

@@ -422,8 +422,10 @@ sleep 0.5
 if [[ "${use_existing_seafile}" != "true" ]]; then
     echo "Generating seafile configuration in ${seafile_data_dir} ..."
     echo
-    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_server_init} --seafile-dir "${seafile_data_dir}" \
-        --fileserver-port ${fileserver_port}; then
+    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_server_init} \
+         --central-config-dir "${default_conf_dir}" \
+         --seafile-dir "${seafile_data_dir}" \
+         --fileserver-port ${fileserver_port}; then
         
         echo "Failed to generate seafile configuration"
         err_and_quit;
