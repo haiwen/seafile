@@ -45,6 +45,9 @@ struct ObjBackend {
                          int dst_version,
                          const char *obj_id);
 
+    int        (*remove_store) (ObjBackend *bend,
+                                const char *store_id);
+
     void *priv;
 };
 

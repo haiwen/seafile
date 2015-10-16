@@ -378,6 +378,7 @@ block_backend_fs_remove_store (BlockBackend *bend, const char *store_id)
             seaf_warning ("Failed to open block dir %s.\n", path1);
             g_dir_close (dir1);
             g_free (path1);
+            g_free (block_dir);
             return -1;
         }
 

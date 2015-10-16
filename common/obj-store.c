@@ -534,3 +534,12 @@ seaf_obj_store_async_write (struct SeafObjStore *obj_store,
 
     return 0;
 }
+
+int
+seaf_obj_store_remove_store (struct SeafObjStore *obj_store,
+                             const char *store_id)
+{
+    ObjBackend *bend = obj_store->bend;
+
+    return bend->remove_store (bend, store_id);
+}
