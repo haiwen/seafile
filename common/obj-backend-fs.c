@@ -455,6 +455,53 @@ obj_backend_fs_copy (ObjBackend *bend,
 #endif
 }
 
+static int
+obj_backend_fs_remove_store (ObjBackend *bend, const char *store_id)
+{
+    FsPriv *priv = bend->priv;
+    char *obj_dir = NULL;
+    GDir *dir1, *dir2;
+    const char *dname1, *dname2;
+    char *path1, *path2;
+
+    obj_dir = g_build_filename (priv->obj_dir, store_id, NULL);
+
+    dir1 = g_dir_open (obj_dir, 0, NULL);
+    if (!dir1) {
+        g_free (obj_dir);
+        return 0;
+    }
+
+    while ((dname1 = g_dir_read_name(dir1)) != NULL) {
+        path1 = g_build_filename (obj_dir, dname1, NULL);
+
+        dir2 = g_dir_open (path1, 0, NULL);
+        if (!dir2) {
+            seaf_warning ("Failed to open obj dir %s.\n", path1);
+            g_dir_close (dir1);
+            g_free (path1);
+            g_free (obj_dir);
+            return -1;
+        }
+
+        while ((dname2 = g_dir_read_name(dir2)) != NULL) {
+            path2 = g_build_filename (path1, dname2, NULL);
+            g_unlink (path2);
+            g_free (path2);
+        }
+        g_dir_close (dir2);
+
+        g_rmdir (path1);
+        g_free (path1);
+    }
+
+    g_dir_close (dir1);
+    g_rmdir (obj_dir);
+    g_free (obj_dir);
+
+    return 0;
+}
+
 ObjBackend *
 obj_backend_fs_new (const char *seaf_dir, const char *obj_type)
 {
@@ -489,6 +536,7 @@ obj_backend_fs_new (const char *seaf_dir, const char *obj_type)
     bend->delete = obj_backend_fs_delete;
     bend->foreach_obj = obj_backend_fs_foreach_obj;
     bend->copy = obj_backend_fs_copy;
+    bend->remove_store = obj_backend_fs_remove_store;
 
     return bend;
 

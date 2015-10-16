@@ -2910,3 +2910,10 @@ seafile_version_from_repo_version (int repo_version)
     else
         return CURRENT_SEAFILE_OBJ_VERSION;
 }
+
+int
+seaf_fs_manager_remove_store (SeafFSManager *mgr,
+                              const char *store_id)
+{
+    return seaf_obj_store_remove_store (mgr->obj_store, store_id);
+}

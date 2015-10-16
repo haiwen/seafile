@@ -868,3 +868,10 @@ delete_commit (SeafCommitManager *mgr,
 {
     seaf_obj_store_delete_obj (mgr->obj_store, repo_id, version, id);
 }
+
+int
+seaf_commit_manager_remove_store (SeafCommitManager *mgr,
+                                  const char *store_id)
+{
+    return seaf_obj_store_remove_store (mgr->obj_store, store_id);
+}

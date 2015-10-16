@@ -134,4 +134,7 @@ seaf_obj_store_async_stat (struct SeafObjStore *obj_store,
                            guint32 stat_id,
                            const char *obj_id);
 
+int
+seaf_obj_store_remove_store (struct SeafObjStore *obj_store,
+                             const char *store_id);
 #endif
