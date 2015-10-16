@@ -1064,26 +1064,6 @@ is_uuid_valid (const char *uuid_str)
     return TRUE;
 }
 
-gboolean
-is_object_id_valid (const char *obj_id)
-{
-    int len = strlen(obj_id);
-    int i;
-    char c;
-
-    if (len != 40)
-        return FALSE;
-
-    for (i = 0; i < len; ++i) {
-        c = obj_id[i];
-        if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))
-            continue;
-        return FALSE;
-    }
-
-    return TRUE;
-}
-
 #else
 char* gen_uuid ()
 {
@@ -1119,6 +1099,26 @@ is_uuid_valid (const char *uuid_str)
 }
 
 #endif
+
+gboolean
+is_object_id_valid (const char *obj_id)
+{
+    int len = strlen(obj_id);
+    int i;
+    char c;
+
+    if (len != 40)
+        return FALSE;
+
+    for (i = 0; i < len; ++i) {
+        c = obj_id[i];
+        if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))
+            continue;
+        return FALSE;
+    }
+
+    return TRUE;
+}
 
 char** strsplit_by_space (char *string, int *length)
 {
