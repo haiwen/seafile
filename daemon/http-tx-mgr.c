@@ -2944,6 +2944,8 @@ multi_threaded_send_blocks (HttpTxTask *http_task, GList *block_list)
             break;
         }
 
+        ++(http_task->done_blocks);
+
         g_hash_table_remove (pending_tasks, task->block_id);
         if (g_hash_table_size(pending_tasks) == 0)
             break;
