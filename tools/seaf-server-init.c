@@ -127,14 +127,21 @@ int main (int argc, char **argv)
     }
 
     struct stat st;
-    const char *confdir = config.central_config_dir ? config.central_config_dir : config.seafile_dir;
-    if (g_lstat (confdir, &st) < 0) {
-        if (g_mkdir (confdir, 0700) < 0) {
+    if (g_lstat (config.seafile_dir, &st) < 0) {
+        if (g_mkdir (config.seafile_dir, 0700) < 0) {
             fprintf (stderr, "Directory %s cannot be created.\n", config.seafile_dir);
             return 1;
         }
     }
 
+    if (g_lstat (config.central_config_dir, &st) < 0) {
+        if (g_mkdir (config.central_config_dir, 0700) < 0) {
+            fprintf (stderr, "Directory %s cannot be created.\n", config.central_config_dir);
+            return 1;
+        }
+    }
+
+    const char *confdir = config.central_config_dir ? config.central_config_dir : config.seafile_dir;
     char *seafile_conf = g_build_filename (confdir, "seafile.conf", NULL);
 
     if (verbose)

@@ -400,14 +400,16 @@ def run_tests():
     run_python_seafile_tests()
     # must stop seafile server before running seaf-gc
     shell('{} stop'.format(get_script('seafile.sh')))
+    shell('{} stop'.format(get_script('seahub.sh')))
     shell('{} --verbose --rm-deleted'.format(get_script('seaf-gc.sh')))
 
 def run_python_seafile_tests():
     python_seafile = Project('python-seafile')
-    python_seafile.clone()
+    if not exists(python_seafile.projectdir):
+        python_seafile.clone()
+        shell('pip install -r {}/requirements.txt'.format(python_seafile.projectdir))
 
     with cd(python_seafile.projectdir):
-        shell('pip install -r requirements.txt')
         create_test_user()
         shell('py.test')
 
@@ -443,7 +445,7 @@ def setup_and_test(db):
     setup_server(db)
     try:
         start_server()
-        warning('Testing up seafile server with %s database', db)
+        warning('Testing seafile server with %s database', db)
         run_tests()
     except:
         for logfile in glob.glob('{}/logs/*.log'.format(INSTALLDIR)):
