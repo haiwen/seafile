@@ -936,7 +936,7 @@ class SeahubConfigurator(AbstractConfigurator):
         AbstractConfigurator.__init__(self)
         self.admin_email = ''
         self.admin_password = ''
-        self.seahub_settings_py = os.path.join(env_mgr.top_dir, 'seahub_settings.py')
+        self.seahub_settings_py = os.path.join(env_mgr.central_config_dir, 'seahub_settings.py')
 
     def hashed_admin_password(self):
         return hashlib.sha1(self.admin_password).hexdigest() # pylint: disable=E1101
@@ -1190,7 +1190,7 @@ def set_file_perm():
     filemode = 0600
     dirmode = 0700
     files = [
-        os.path.join(env_mgr.top_dir, 'seahub_settings.py'),
+        seahub_config.seahub_settings_py,
     ]
     dirs = [
         env_mgr.central_config_dir,

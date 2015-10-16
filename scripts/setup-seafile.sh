@@ -449,7 +449,7 @@ gen_seafdav_conf;
 # -------------------------------------------
 # generate seahub/settings.py
 # -------------------------------------------
-dest_settings_py=${TOPDIR}/seahub_settings.py
+dest_settings_py=${TOPDIR}/conf/seahub_settings.py
 seahub_secret_keygen=${INSTALLPATH}/seahub/tools/secret_key_generator.py
 
 if [[ ! -f ${dest_settings_py} ]]; then
