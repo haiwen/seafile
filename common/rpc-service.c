@@ -85,11 +85,9 @@ convert_repo (SeafRepo *r)
                   "worktree-invalid", r->worktree_invalid,
                   "last-sync-time", r->last_sync_time,
                   "auto-sync", r->auto_sync,
-                  NULL);
-    g_object_set (repo, "uid", userNameFromId (r->uid),
+                  "uid", userNameFromId (r->uid),
                   "gid", groupNameFromId (r->gid),
                   NULL);
-
 #endif  /* SEAFILE_SERVER */
 
     return (GObject *)repo;
