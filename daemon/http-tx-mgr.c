@@ -96,7 +96,9 @@ http_tx_task_new (HttpTxManager *mgr,
                   const char *host,
                   const char *token,
                   const char *passwd,
-                  const char *worktree)
+                  const char *worktree,
+                  uid_t uid,
+                  gid_t gid)
 {
     HttpTxTask *task = g_new0 (HttpTxTask, 1);
 
@@ -113,6 +115,8 @@ http_tx_task_new (HttpTxManager *mgr,
         task->passwd = g_strdup(passwd);
     if (worktree)
         task->worktree = g_strdup(worktree);
+    task->uid = uid;
+    task->gid = gid;
 
     return task;
 }
@@ -413,7 +417,7 @@ create_ca_bundle (const char *ca_bundle_path)
     return 0;
 }
 
-#endif	/* WIN32 */
+#endif    /* WIN32 */
 
 static void
 load_ca_bundle (CURL *curl)
@@ -1985,7 +1989,7 @@ http_tx_manager_add_upload (HttpTxManager *manager,
 
     task = http_tx_task_new (manager, repo_id, repo_version,
                              HTTP_TASK_TYPE_UPLOAD, FALSE,
-                             host, token, NULL, NULL);
+                             host, token, NULL, NULL, 0, 0);
 
     task->protocol_version = protocol_version;
 
@@ -2062,7 +2066,7 @@ check_quota_and_active_paths_diff_dirs (int n, const char *basedir,
 
     /* When a new empty dir is created, or a dir became empty. */
     if ((!dir2 && dir1 && strcmp(dir1->id, EMPTY_SHA1) == 0) ||
-	(dir2 && dir1 && strcmp(dir1->id, EMPTY_SHA1) == 0 && strcmp(dir2->id, EMPTY_SHA1) != 0)) {
+    (dir2 && dir1 && strcmp(dir1->id, EMPTY_SHA1) == 0 && strcmp(dir2->id, EMPTY_SHA1) != 0)) {
         path = g_strconcat (basedir, dir1->name, NULL);
         g_hash_table_replace (data->active_paths, path, (void*)(long)S_IFDIR);
     }
@@ -3260,6 +3264,8 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               gboolean is_clone,
                               const char *passwd,
                               const char *worktree,
+                              uid_t uid,
+                              gid_t gid,
                               int protocol_version,
                               const char *email,
                               gboolean use_fileserver_port,
@@ -3286,7 +3292,7 @@ http_tx_manager_add_download (HttpTxManager *manager,
 
     task = http_tx_task_new (manager, repo_id, repo_version,
                              HTTP_TASK_TYPE_DOWNLOAD, is_clone,
-                             host, token, passwd, worktree);
+                             host, token, passwd, worktree, uid, gid);
 
     memcpy (task->head, server_head_id, 40);
     task->protocol_version = protocol_version;
@@ -3976,6 +3982,7 @@ http_download_thread (void *vdata)
     /* Record download head commit id, so that we can resume download
      * if this download is interrupted.
      */
+    seaf_message ("*valeur pour %s.\n", userNameFromId (task->uid));
     seaf_repo_manager_set_repo_property (seaf->repo_mgr,
                                          task->repo_id,
                                          REPO_PROP_DOWNLOAD_HEAD,

@@ -88,6 +88,8 @@ static int seafile_merge_trees(struct merge_options *o,
     opts->merge = 1;
     opts->head_idx = 2;
     opts->base = o->worktree;
+    opts->uid = o->uid;
+    opts->gid = o->gid;
     opts->fn = threeway_merge;
     opts->src_index = o->index;
     opts->dst_index = o->index;
@@ -413,7 +415,7 @@ static int would_lose_untracked(struct index_state *index, const char *path, con
 }
 #endif
 
-static int create_leading_directories(int base_len,
+static int create_leading_directories(struct merge_options *o, int base_len,
                                       const char *path, char **new_path,
                                       const char *conflict_suffix,
                                       int *clean)
@@ -461,6 +463,8 @@ static int create_leading_directories(int base_len,
             g_warning ("Failed to create directory %s.\n", buf);
             return -1;
         }
+        if (!seaf_util_chown (buf, o->uid, o->gid))
+            g_warning ("Failed to chown empty dir %s for %d:%d in merge.\n", buf, o->uid, o->gid);
     }
 
     *new_path = g_strdup(buf);
@@ -468,7 +472,7 @@ static int create_leading_directories(int base_len,
     return 0;
 }
 
-static int make_room_for_path(struct index_state *index, const char *path, 
+static int make_room_for_path(struct merge_options *o, struct index_state *index, const char *path,
                               const char *real_path, char **new_path,
                               const char *conflict_suffix, int *clean)
 {
@@ -476,7 +480,7 @@ static int make_room_for_path(struct index_state *index, const char *path,
     SeafStat st;
     int base_len = strlen(real_path) - strlen(path);
 
-    status = create_leading_directories(base_len, real_path, new_path, conflict_suffix, clean);
+    status = create_leading_directories(o, base_len, real_path, new_path, conflict_suffix, clean);
     if (status) {
         return -1;
     }
@@ -540,7 +544,7 @@ static int update_file_flags(struct merge_options *o,
          * This is because there may be more than one conflicting file
          * under this directory, each has different changer.
          */
-        if (make_room_for_path(o->index, path, real_path, 
+        if (make_room_for_path(o, o->index, path, real_path,
                                &new_path, o->branch2, &clean) < 0) {
             g_free (real_path);
             refresh = 0;
@@ -557,6 +561,8 @@ static int update_file_flags(struct merge_options *o,
             }
             if (mtime != 0 && seaf_set_file_time (real_path, mtime) < 0)
                 g_warning ("Failed to set mtime for %s.\n", real_path);
+            if (!seaf_util_chown (real_path, o->uid, o->gid))
+                g_warning ("Failed to chown empty dir %s for %d:%d in merge.\n", real_path, o->uid, o->gid);
             goto update_cache;
         }
 
@@ -584,6 +590,8 @@ static int update_file_flags(struct merge_options *o,
                                           o->version,
                                           file_id,
                                           real_path,
+                                          o->uid,
+                                          o->gid,
                                           mode,
                                           mtime,
                                           o->crypt,

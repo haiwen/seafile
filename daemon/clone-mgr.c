@@ -134,8 +134,8 @@ mark_clone_done_v2 (SeafRepo *repo, CloneTask *task)
             return;
         }
     }
-
-    /* For compatibility, still set these two properties.
+ 
+     /* For compatibility, still set these two properties.
      * So that if we downgrade to an old version, the syncing can still work.
      */
     seaf_repo_manager_set_repo_property (seaf->repo_mgr,
@@ -154,9 +154,9 @@ static void
 start_clone_v2 (CloneTask *task)
 {
     GError *error = NULL;
-
+ 
     if (g_access (task->worktree, F_OK) != 0 &&
-        g_mkdir_with_parents (task->worktree, 0777) < 0) {
+        seaf_util_mkdir_with_parents (task->worktree, 0777, task->uid, task->gid) < 0) {
         seaf_warning ("[clone mgr] Failed to create worktree %s.\n",
                       task->worktree);
         transition_to_error (task, CLONE_ERROR_FETCH);
@@ -170,6 +170,20 @@ start_clone_v2 (CloneTask *task)
         seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, repo->id,
                                                task->peer_addr, task->peer_port);
         seaf_repo_manager_set_repo_relay_id (seaf->repo_mgr, repo, task->peer_id);
+        if (task->uid) {
+            seaf_message ("on fixe %s.\n", userNameFromId (task->uid));
+            seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                                 repo->id,
+                                                 "uid",
+                                                 userNameFromId (task->uid));
+            seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                                 repo->id,
+                                                 "gid",
+                                                 groupNameFromId (task->gid));
+        repo->uid = task->uid;
+        repo->gid = task->gid;
+        }
+
         if (task->server_url) {
             seaf_repo_manager_set_repo_property (seaf->repo_mgr,
                                                  repo->id,
@@ -380,6 +394,8 @@ clone_task_new (const char *repo_id,
                 const char *repo_name,
                 const char *token,
                 const char *worktree,
+                uid_t uid,
+                gid_t gid,
                 const char *passwd,
                 const char *peer_addr,
                 const char *peer_port,
@@ -391,6 +407,8 @@ clone_task_new (const char *repo_id,
     memcpy (task->peer_id, peer_id, 41);
     task->token = g_strdup (token);
     task->worktree = g_strdup(worktree);
+    task->uid = uid;
+    task->gid = gid;
     task->peer_addr = g_strdup(peer_addr);
     task->peer_port = g_strdup(peer_port);
     task->email = g_strdup(email);
@@ -561,6 +579,8 @@ restart_task (sqlite3_stmt *stmt, void *data)
     SeafCloneManager *mgr = data;
     const char *repo_id, *repo_name, *token, *peer_id, *worktree, *passwd;
     const char *peer_addr, *peer_port, *email;
+    uid_t uid;
+    gid_t gid;
     CloneTask *task;
     SeafRepo *repo;
 
@@ -573,9 +593,11 @@ restart_task (sqlite3_stmt *stmt, void *data)
     peer_addr = (const char *)sqlite3_column_text (stmt, 6);
     peer_port = (const char *)sqlite3_column_text (stmt, 7);
     email = (const char *)sqlite3_column_text (stmt, 8);
+    uid = userIdFromName (sqlite3_column_text (stmt, 9));
+    gid = groupIdFromName (sqlite3_column_text (stmt, 10));
 
     task = clone_task_new (repo_id, peer_id, repo_name, 
-                           token, worktree, passwd,
+                           token, worktree, uid, gid, passwd,
                            peer_addr, peer_port, email);
     task->manager = mgr;
     /* Default to 1. */
@@ -623,7 +645,8 @@ seaf_clone_manager_init (SeafCloneManager *mgr)
         "(repo_id TEXT PRIMARY KEY, repo_name TEXT, "
         "token TEXT, dest_id TEXT,"
         "worktree_parent TEXT, passwd TEXT, "
-        "server_addr TEXT, server_port TEXT, email TEXT);";
+        "server_addr TEXT, server_port TEXT, email TEXT, "
+        "uid TEXT, gid TEXT);";
     if (sqlite_query_exec (mgr->db, sql) < 0)
         return -1;
 
@@ -707,18 +730,21 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
 
     if (task->passwd)
         sql = sqlite3_mprintf ("REPLACE INTO CloneTasks VALUES "
-            "('%q', '%q', '%q', '%q', '%q', '%q', '%q', '%q', '%q')",
+            "('%q', '%q', '%q', '%q', '%q', '%q', '%q', '%q', '%q', '%q', '%q')",
                                 task->repo_id, task->repo_name,
                                 task->token, task->peer_id,
                                 task->worktree, task->passwd,
-                                task->peer_addr, task->peer_port, task->email);
+                                task->peer_addr, task->peer_port, task->email,
+                                userNameFromId (task->uid), groupNameFromId (task->gid));
     else
         sql = sqlite3_mprintf ("REPLACE INTO CloneTasks VALUES "
-            "('%q', '%q', '%q', '%q', '%q', NULL, '%q', '%q', '%q')",
+            "('%q', '%q', '%q', '%q', '%q', NULL, '%q', '%q', '%q', '%q', '%q')",
                                 task->repo_id, task->repo_name,
                                 task->token, task->peer_id,
                                 task->worktree, task->peer_addr,
-                                task->peer_port, task->email);
+                                task->peer_port, task->email,
+                                userNameFromId (task->uid), groupNameFromId (task->gid));
+
 
     if (sqlite_query_exec (mgr->db, sql) < 0) {
         sqlite3_free (sql);
@@ -850,6 +876,8 @@ add_transfer_task (CloneTask *task, GError **error)
                                                           task->server_side_merge,
                                                           task->passwd,
                                                           task->worktree,
+                                                          task->uid,
+                                                          task->gid,
                                                           task->email,
                                                           error);
         if (!task->tx_id)
@@ -864,6 +892,8 @@ add_transfer_task (CloneTask *task, GError **error)
                                                 TRUE,
                                                 task->passwd,
                                                 task->worktree,
+                                                task->uid,
+                                                task->gid,
                                                 task->http_protocol_version,
                                                 task->email,
                                                 task->use_fileserver_port,
@@ -1277,6 +1307,8 @@ add_task_common (SeafCloneManager *mgr,
                  int enc_version,
                  const char *random_key,
                  const char *worktree,
+                 uid_t uid,
+                 gid_t gid,
                  const char *peer_addr,
                  const char *peer_port,
                  const char *email,
@@ -1286,7 +1318,7 @@ add_task_common (SeafCloneManager *mgr,
     CloneTask *task;
 
     task = clone_task_new (repo_id, peer_id, repo_name,
-                           token, worktree, passwd,
+                           token, worktree, uid, gid, passwd,
                            peer_addr, peer_port, email);
     task->manager = mgr;
     task->enc_version = enc_version;
@@ -1377,6 +1409,8 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
                              int enc_version,
                              const char *random_key,
                              const char *worktree_in,
+                             uid_t uid,
+                             gid_t gid,
                              const char *peer_addr,
                              const char *peer_port,
                              const char *email,
@@ -1454,7 +1488,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     ret = add_task_common (mgr, repo_id, repo_version,
                            peer_id, repo_name, token, passwd,
                            enc_version, random_key,
-                           worktree, peer_addr, peer_port,
+                           worktree, uid, gid, peer_addr, peer_port,
                            email, more_info,
                            error);
     g_free (worktree);
@@ -1495,6 +1529,8 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
                                       int enc_version,
                                       const char *random_key,
                                       const char *wt_parent,
+                                      uid_t uid,
+                                      gid_t gid,
                                       const char *peer_addr,
                                       const char *peer_port,
                                       const char *email,
@@ -1569,7 +1605,7 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
     ret = add_task_common (mgr, repo_id, repo_version,
                            peer_id, repo_name, token, passwd,
                            enc_version, random_key,
-                           worktree, peer_addr, peer_port,
+                           worktree, uid, gid, peer_addr, peer_port,
                            email, more_info, error);
     g_free (worktree);
     g_free (wt_tmp);
@@ -1770,6 +1806,8 @@ real_merge (SeafRepo *repo, SeafCommit *head, CloneTask *task)
     opts.version = repo->version;
     opts.index = &istate;
     opts.worktree = task->worktree;
+    opts.uid = task->uid;
+    opts.gid = task->gid;
     opts.ancestor = "common ancestor";
     opts.branch1 = seaf->session->base.user_name;
     opts.branch2 = head->creator_name;
@@ -1830,6 +1868,8 @@ fast_forward_checkout (SeafRepo *repo, SeafCommit *head, CloneTask *task)
     memcpy (topts.repo_id, repo->id, 36);
     topts.version = repo->version;
     topts.base = task->worktree;
+    topts.uid = task->uid;
+    topts.gid = task->gid;
     topts.head_idx = -1;
     topts.src_index = &istate;
     topts.update = 1;
@@ -2149,6 +2189,13 @@ out:
 static void
 start_checkout (SeafRepo *repo, CloneTask *task)
 {
+/* essai de fixer uid et gid avant le checkout
+ *
+ *
+
+    repo->uid = task->uid;
+    repo->gid = task->gid;
+*/
     if (repo->encrypted && task->passwd != NULL) {
         if (seaf_repo_manager_set_repo_passwd (seaf->repo_mgr,
                                                repo,
@@ -2163,9 +2210,10 @@ start_checkout (SeafRepo *repo, CloneTask *task)
         transition_to_error (task, CLONE_ERROR_PASSWD);
         return;
     }
+    seaf_message ("1/ on crée le dossier %s pour %s.\n", task->worktree, userNameFromId (task->uid));
 
     if (g_access (task->worktree, F_OK) != 0 &&
-        g_mkdir_with_parents (task->worktree, 0777) < 0) {
+        seaf_util_mkdir_with_parents (task->worktree, 0777, task->uid, task->gid) < 0) {
         seaf_warning ("[clone mgr] Failed to create worktree %s.\n",
                       task->worktree);
         transition_to_error (task, CLONE_ERROR_CHECKOUT);
@@ -2340,6 +2388,19 @@ on_repo_http_fetched (SeafileSession *seaf,
                                              repo->id,
                                              REPO_PROP_SERVER_URL,
                                              task->server_url);
+    }
+    if (task->uid) {
+        seaf_message ("on fixe %s.\n", userNameFromId (task->uid));
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             "uid",
+                                             userNameFromId (task->uid));
+           seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             "gid",
+                                             groupNameFromId (task->gid));
+           repo->uid = task->uid;
+           repo->gid = task->gid;
     }
 
     check_folder_permissions (task);

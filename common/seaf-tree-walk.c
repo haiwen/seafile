@@ -39,21 +39,21 @@ fill_tree_descriptor(const char *repo_id, int version,
 
 char *make_traverse_path(char *path, const struct traverse_info *info, const struct name_entry *n)
 {
-	int len = n->pathlen;
-	int pathlen = info->pathlen;
+    int len = n->pathlen;
+    int pathlen = info->pathlen;
 
-	path[pathlen + len] = 0;
-	for (;;) {
-		memcpy(path + pathlen, n->path, len);
-		if (!pathlen)
-			break;
-		path[--pathlen] = '/';
-		n = &info->name;
-		len = n->pathlen;
-		info = info->prev;
-		pathlen -= len;
-	}
-	return path;
+    path[pathlen + len] = 0;
+    for (;;) {
+        memcpy(path + pathlen, n->path, len);
+        if (!pathlen)
+            break;
+        path[--pathlen] = '/';
+        n = &info->name;
+        len = n->pathlen;
+        info = info->prev;
+        pathlen -= len;
+    }
+    return path;
 }
 
 int

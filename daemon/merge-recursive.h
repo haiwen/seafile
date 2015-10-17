@@ -18,6 +18,8 @@ struct merge_options {
     const char *remote_head;
     int call_depth;
     char *worktree;
+    uid_t uid;
+    gid_t gid;
     struct index_state *index;
     GString *obuf;
     GHashTable *current_file_set;

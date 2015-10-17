@@ -18,8 +18,8 @@ struct tree_desc {
 
 inline static void tree_desc_free (struct tree_desc *t)
 {
-	if (t->tree)
-		seaf_dir_free (t->tree);
+    if (t->tree)
+        seaf_dir_free (t->tree);
 }
 
 struct traverse_info;
@@ -27,14 +27,14 @@ struct traverse_info;
 typedef int (*traverse_callback_t)(int n, unsigned long mask, unsigned long dirmask, struct name_entry *entry, struct traverse_info *);
 
 struct traverse_info {
-	struct traverse_info *prev;
-	struct name_entry name;
-	int pathlen;
+    struct traverse_info *prev;
+    struct name_entry name;
+    int pathlen;
 
-	unsigned long conflicts;
-	traverse_callback_t fn;
-	void *data;
-	int show_all_errors;
+    unsigned long conflicts;
+    traverse_callback_t fn;
+    void *data;
+    int show_all_errors;
 };
 
 void fill_tree_descriptor(const char *repo_id, int version,
@@ -44,7 +44,7 @@ char *make_traverse_path(char *path, const struct traverse_info *info, const str
 
 static inline int traverse_path_len(const struct traverse_info *info, const struct name_entry *n)
 {
-	return info->pathlen + n->pathlen;
+    return info->pathlen + n->pathlen;
 }
 
 

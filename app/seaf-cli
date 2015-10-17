@@ -339,9 +339,9 @@ def seaf_list(args):
     seafile_rpc = seafile.RpcClient(pool, req_pool=False)
 
     repos = seafile_rpc.get_repo_list(-1, -1)
-    print "Name\tID\tPath"
+    print "Name\tID\tPath\tUid\tGid"
     for repo in repos:
-        print repo.name, repo.id, repo.worktree
+        print repo.name, repo.id, repo.worktree, repo.uid, repo.gid
 
 def get_base_url(url):
     parse_result = urlparse(url)
@@ -369,6 +369,14 @@ def seaf_download(args):
     if not repo:
         print "Library id is required"
         sys.exit(1)
+    
+    uid = args.uid
+    if not uid:
+	uid = os.geteuid()
+    	
+    gid = args.gid
+    if not gid:
+	gid = os.getegid()
 
     url = args.server
     if not url:
@@ -425,6 +433,8 @@ def seaf_download(args):
                          relay_id,
                          repo_name.encode('utf-8'),
                          download_dir.encode('utf-8'),
+                         uid,
+                         gid,
                          clone_token,
                          repo_passwd, magic,
                          relay_addr,
@@ -464,7 +474,15 @@ def seaf_sync(args):
     if not os.path.exists(folder):
         print "The local directory does not exists"
         sys.exit(1)
-
+    
+    uid = args.uid
+    if not uid:
+	uid = os.geteuid()
+    	
+    gid = args.gid
+    if not gid:
+	gid = os.getegid()
+    
     pool = ccnet.ClientPool(conf_dir)
     seafile_rpc = seafile.RpcClient(pool, req_pool=False)
 
@@ -507,6 +525,8 @@ def seaf_sync(args):
                       relay_id,
                       repo_name.encode('utf-8'),
                       folder,
+                      uid,
+                      gid,
                       clone_token,
                       repo_passwd, magic,
                       relay_addr,
@@ -624,7 +644,7 @@ def seaf_status(args):
 
     # show repo status
     print ""
-    print "# Name\tStatus"
+    print "# Name\tStatus\tUid\tGid"
     repos = seafile_rpc.get_repo_list(-1, -1)
     for repo in repos:
         auto_sync_enabled = seafile_rpc.is_auto_sync_enabled()
@@ -638,7 +658,7 @@ def seaf_status(args):
         elif t.state == "error":
             print "%s\t%s" % (repo.name, t.error)
         else:
-            print "%s\t%s" % (repo.name, t.state)
+            print "%s\t%s\t%s\t%s" % (repo.name, t.state, repo.uid, repo.gid)
 
 def create_repo(url, token, args):
     headers = { 'Authorization': 'Token %s' % token }
@@ -728,6 +748,8 @@ def main():
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
     parser_download.add_argument('-u', '--username', help='username', type=str)
     parser_download.add_argument('-p', '--password', help='password', type=str)
+    parser_download.add_argument('-U', '--uid', help='uid for local folder', type=str)
+    parser_download.add_argument('-G', '--gid', help='gid for local folder', type=str)
 
 
     # sync
@@ -740,6 +762,8 @@ def main():
     parser_sync.add_argument('-u', '--username', help='username', type=str)
     parser_sync.add_argument('-p', '--password', help='password', type=str)
     parser_sync.add_argument('-d', '--folder', help='the existing local folder', type=str)
+    parser_sync.add_argument('-U', '--uid', help='uid for local folder', type=str)
+    parser_sync.add_argument('-G', '--gid', help='gid for local folder', type=str)
 
     # desync
     parser_desync = subparsers.add_parser('desync',

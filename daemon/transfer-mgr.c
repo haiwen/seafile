@@ -586,6 +586,8 @@ seaf_transfer_manager_add_download (SeafTransferManager *manager,
                                     gboolean server_side_merge,
                                     const char *passwd,
                                     const char *worktree,
+                                    uid_t uid,
+                                    gid_t gid,
                                     const char *email,
                                     GError **error)
 {
@@ -618,6 +620,8 @@ seaf_transfer_manager_add_download (SeafTransferManager *manager,
     if (task->is_clone) {
         task->passwd = g_strdup(passwd);
         task->worktree = g_strdup(worktree);
+        task->uid = uid;
+        task->gid = gid;
     }
 
     g_hash_table_insert (manager->download_tasks,

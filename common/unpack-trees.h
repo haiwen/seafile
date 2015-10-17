@@ -43,6 +43,8 @@ struct unpack_trees_options {
     int version;
     const char *prefix;
     const char *base;
+    uid_t uid;
+    gid_t gid;
     int cache_bottom;
     merge_fn_t fn;
     const char *msgs[NB_UNPACK_TREES_ERROR_TYPES];
@@ -66,7 +68,7 @@ struct unpack_trees_options {
 };
 
 extern int unpack_trees(unsigned n, struct tree_desc *t,
-		struct unpack_trees_options *options);
+        struct unpack_trees_options *options);
 
 enum {
     OPR_CHECKOUT,

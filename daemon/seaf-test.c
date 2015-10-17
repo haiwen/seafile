@@ -645,8 +645,8 @@ test_merge_conflicts ()
         fprintf (stderr, "Bug: %s should exist.\n", file_c);
         return -1;
     }
-	time_t t = time(NULL);
-	strftime(buf, 64, "--plt_%Y-%m-%d", localtime(&t));
+    time_t t = time(NULL);
+    strftime(buf, 64, "--plt_%Y-%m-%d", localtime(&t));
 
     char *file_a_local = g_strconcat (file_a, buf, NULL);
     char *file_a_test = g_strconcat (file_a, "", NULL);

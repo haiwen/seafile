@@ -79,6 +79,8 @@ struct _HttpTxTask {
 
     char *passwd;
     char *worktree;
+    uid_t uid;
+    gid_t gid;
 
     int state;
     int runtime_state;
@@ -125,6 +127,8 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               gboolean is_clone,
                               const char *passwd,
                               const char *worktree,
+                              uid_t uid,
+                              gid_t gid,
                               int protocol_version,
                               const char *email,
                               gboolean use_fileserver_port,

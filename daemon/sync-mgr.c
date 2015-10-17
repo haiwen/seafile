@@ -465,7 +465,7 @@ seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
     }
 
     SeafRepo *repo;
-
+    
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
         seaf_warning ("[sync mgr] cannot find repo %s.\n", repo_id);
@@ -654,10 +654,11 @@ transition_sync_state (SyncTask *task, int new_state)
     if (task->state != new_state) {
         if (!(task->state == SYNC_STATE_DONE && new_state == SYNC_STATE_INIT) &&
             !(task->state == SYNC_STATE_INIT && new_state == SYNC_STATE_DONE)) {
-            seaf_message ("Repo '%s' sync state transition from '%s' to '%s'.\n",
+            seaf_message ("Repo '%s' sync state transition from '%s' to '%s' for uid '%s'.\n",
                           task->repo->name,
                           sync_state_str[task->state],
-                          sync_state_str[new_state]);
+                          sync_state_str[new_state],
+                          userNameFromId(task->uid));
         }
 
         if (!task->server_side_merge) {
@@ -821,6 +822,8 @@ start_fetch_if_necessary (SyncTask *task, const char *remote_head)
                                                     task->server_side_merge,
                                                     NULL,
                                                     NULL,
+                                                    task->uid,
+                                                    task->gid,
                                                     repo->email,
                                                     &error);
 
@@ -840,6 +843,8 @@ start_fetch_if_necessary (SyncTask *task, const char *remote_head)
                                           remote_head,
                                           FALSE,
                                           NULL, NULL,
+                                          task->uid,
+                                          task->gid,
                                           task->http_version,
                                           repo->email,
                                           repo->use_fileserver_port,
@@ -1756,7 +1761,9 @@ start_sync (SeafSyncManager *manager, SeafRepo *repo,
     task->info->current_task = task;
     task->info->in_sync = TRUE;
     task->repo = repo;
-
+/*    task->uid = repo->uid;
+    task->gid = repo->gid;
+*/
     if (need_commit) {
         repo->create_partial_commit = FALSE;
         commit_repo (task);
@@ -1836,6 +1843,10 @@ create_sync_task_v2 (SeafSyncManager *manager, SeafRepo *repo,
     task->info->current_task = task;
     task->info->in_sync = TRUE;
     task->repo = repo;
+    if (repo->uid)
+        task->uid = repo->uid;
+    if (repo->gid)
+        task->gid = repo->gid;
 
     if (repo->server_url) {
         HttpServerState *state = g_hash_table_lookup (manager->http_server_states,

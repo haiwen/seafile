@@ -171,8 +171,8 @@ inline static gboolean
 dirent_same (SeafDirent *denta, SeafDirent *dentb)
 {
     return (strcmp (dentb->id, denta->id) == 0 &&
-	    denta->mode == dentb->mode &&
-	    denta->mtime == dentb->mtime);
+        denta->mode == dentb->mode &&
+        denta->mtime == dentb->mtime);
 }
 
 static int

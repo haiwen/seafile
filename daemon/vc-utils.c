@@ -667,7 +667,7 @@ error:
 #ifdef __linux__
 
 char *
-build_checkout_path (const char *worktree, const char *ce_name, int len)
+build_checkout_path (const char *worktree, const char *ce_name, int len, uid_t uid, gid_t gid)
 {
     int base_len = strlen(worktree);
     int full_len;
@@ -683,6 +683,11 @@ build_checkout_path (const char *worktree, const char *ce_name, int len)
     snprintf (path, SEAF_PATH_MAX, "%s/", worktree);
 
     /* first create all leading directories. */
+/*    if (seaf_util_mkdir_with_parents (path, 0777, uid, gid) < 0) {
+        seaf_warning ("Failed to create directory %s.\n", path);
+                    return NULL;
+    }
+*/
     full_len = base_len + len + 1;
     offset = base_len + 1;
     while (offset < full_len) {
@@ -701,9 +706,12 @@ build_checkout_path (const char *worktree, const char *ce_name, int len)
             seaf_warning ("Failed to create directory %s.\n", path);
             return NULL;
         }
+        if (seaf_util_chown (path, uid, gid) < 0) {
+            seaf_warning ("Failed to chown directory %s.\n", path);
+            return NULL;
+        }
     }
     path[offset] = 0;
-
     return g_strdup(path);
 }
 
@@ -730,7 +738,7 @@ checkout_entry (struct cache_entry *ce,
                                           &case_conflict,
                                           FALSE);
 #else
-    path = build_checkout_path (o->base, ce->name, ce_namelen(ce));
+    path = build_checkout_path (o->base, ce->name, ce_namelen(ce), o->uid, o->gid);
 #endif
 
     g_free (path_in);
@@ -756,6 +764,9 @@ checkout_entry (struct cache_entry *ce,
         if (ce->ce_mtime.sec != 0 &&
             seaf_set_file_time (path, ce->ce_mtime.sec) < 0) {
             seaf_warning ("Failed to set mtime for %s.\n", path);
+        }
+        if (!seaf_util_chown (path, o->uid, o->gid)) {
+             seaf_warning ("Failed to chown empty dir %s for %d:%d in checkout.\n", path, o->uid, o->gid);
         }
         goto update_cache;
     }
@@ -789,6 +800,8 @@ checkout_entry (struct cache_entry *ce,
                                        o->version,
                                        file_id,
                                        path,
+                                       o->uid,
+                                       o->gid,
                                        ce->ce_mode,
                                        ce->ce_mtime.sec,
                                        o->crypt,
