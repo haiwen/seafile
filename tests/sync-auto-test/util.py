@@ -136,9 +136,17 @@ class TestUtil():
                 items = d.split(' ')
                 dattr = items[0]
                 name = items[1]
+
+                # Output format difference between rsync versions:
                 # rsync 3.1.1 : '.d..t.......'
                 # rsync 3.0.9 : '.d..t......'
-                if not all([c in ('d', 't', '.') for c in dattr]):
+
+                # On Windows, file timestamp may have 1 second difference
+                # between two clients after sync. That's caused by the
+                # precision lose when converting Windows timestamp to
+                # Unix timestamp. So we don't check timestamp difference
+                # for files either.
+                if not all([c in ('f', 'd', 't', '.') for c in dattr]):
                     assert False, 'Sync with two client have different result: %s %s' % (dattr, name)
 
     def verify_result(self, callable=None):
