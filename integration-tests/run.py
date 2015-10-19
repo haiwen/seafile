@@ -206,6 +206,7 @@ class Seahub(Project):
 
 
 class SeafDAV(Project):
+    branch = 'merge-server-config'
 
     def __init__(self):
         super(SeafDAV, self).__init__('seafdav')
@@ -268,9 +269,18 @@ def setup_server(db):
         autosetup_mysql()
     else:
         autosetup_sqlite3()
-    with open(join(INSTALLDIR, 'seahub_settings.py'), 'a') as fp:
+    with open(join(INSTALLDIR, 'conf/seahub_settings.py'), 'a') as fp:
         fp.write('\n')
         fp.write('DEBUG = True')
+        fp.write('\n')
+        fp.write('''\
+REST_FRAMEWORK = {
+    'DEFAULT_THROTTLE_RATES': {
+        'ping': '600/minute',
+        'anon': '1000/minute',
+        'user': '1000/minute',
+    },
+}''')
         fp.write('\n')
 
 def autosetup_sqlite3():
@@ -334,10 +344,11 @@ def autosetup_mysql():
     ]
     _answer_questions(abspath(setup_script), answers)
 
-def get_script(path):
-    return join(INSTALLDIR, 'seafile-server-{}/{}'.format(
-        seafile_version, path))
+def _server_dir():
+    return join(INSTALLDIR, 'seafile-server-{}'.format(seafile_version))
 
+def get_script(path):
+    return join(_server_dir(), path)
 
 def _answer_questions(cmd, answers):
     info('expect: spawing %s', cmd)
@@ -374,6 +385,7 @@ def start_server():
     # shell('sqlite3 ccnet/PeerMgr/usermgr.db "select * from EmailUser"', cwd=INSTALLDIR)
     shell('http -v localhost:8000/api2/server-info/ || true')
     # shell('http -v -f POST localhost:8000/api2/auth-token/ username=admin@seafiletest.com password=adminadmin || true')
+    shell('netstat -nltp')
 
 
 def apiurl(path):
@@ -398,6 +410,7 @@ def create_test_user():
 
 def run_tests():
     run_python_seafile_tests()
+    run_seafdav_tests()
     # must stop seafile server before running seaf-gc
     shell('{} stop'.format(get_script('seafile.sh')))
     shell('{} stop'.format(get_script('seahub.sh')))
@@ -410,9 +423,24 @@ def run_python_seafile_tests():
         shell('pip install -r {}/requirements.txt'.format(python_seafile.projectdir))
 
     with cd(python_seafile.projectdir):
-        create_test_user()
+        # install python-seafile because seafdav tests needs it
+        shell('python setup.py install')
         shell('py.test')
 
+def _seafdav_env():
+    env = dict(os.environ)
+    env['CCNET_CONF_DIR'] = join(INSTALLDIR, 'ccnet')
+    env['SEAFILE_CONF_DIR'] = join(INSTALLDIR, 'seafile-data')
+    env['SEAFILE_CENTRAL_CONF_DIR'] = join(INSTALLDIR, 'conf')
+    for path in glob.glob(join(_server_dir(), 'seafile/lib*/python*/*-packages')):
+        prepend_env_value('PYTHONPATH', path, env=env)
+    return env
+
+def run_seafdav_tests():
+    seafdav = SeafDAV()
+    shell('pip install -r {}/test-requirements.txt'.format(seafdav.projectdir))
+    with cd(seafdav.projectdir):
+        shell('nosetests -v -s', env=_seafdav_env())
 
 def setup_logging():
     kw = {
@@ -441,11 +469,15 @@ def main():
         setup_and_test(db)
 
 def setup_and_test(db):
-    warning('Setting up seafile server with %s database', db)
+    info('Setting up seafile server with %s database', db)
     setup_server(db)
+    # enable webdav, we're going to seafdav tests later
+    shell('''sed -i -e "s/enabled = false/enabled = true/g" {}'''
+          .format(join(INSTALLDIR, 'conf/seafdav.conf')))
     try:
         start_server()
-        warning('Testing seafile server with %s database', db)
+        create_test_user()
+        info('Testing seafile server with %s database', db)
         run_tests()
     except:
         for logfile in glob.glob('{}/logs/*.log'.format(INSTALLDIR)):

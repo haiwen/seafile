@@ -17,6 +17,7 @@ addons:
       - libjansson-dev
       - libonig-dev
       - libfuse-dev
+      - net-tools
 cache:
   directories:
     - $HOME/.cache/pip
