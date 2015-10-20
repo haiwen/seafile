@@ -192,14 +192,6 @@ function move_old_customdir_outside() {
     cp -rf "${old_customdir}" "${seahub_data_dir}/"
 }
 
-function regenerate_secret_key() {
-    regenerate_secret_key_script=$UPGRADE_DIR/regenerate_secret_key.sh
-    if ! $regenerate_secret_key_script ; then
-        echo "Failed to regenerate the seahub secret key"
-        exit 1
-    fi
-}
-
 #################
 # The main execution flow of the script
 ################
@@ -207,8 +199,6 @@ function regenerate_secret_key() {
 check_python_executable;
 read_seafile_data_dir;
 ensure_server_not_running;
-
-regenerate_secret_key;
 
 update_database;
 
