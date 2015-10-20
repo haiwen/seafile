@@ -2118,7 +2118,7 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
     else
         rc = seaf_db_statement_foreach_row (mgr->seaf->db,
                                             "SELECT r.repo_id, c.file_count FROM Repo r LEFT JOIN RepoFileCount c "
-                                            "ON r.repo_id = c.repo_id ORDER BY repo_id LIMIT ? OFFSET ?",
+                                            "ON r.repo_id = c.repo_id ORDER BY r.repo_id LIMIT ? OFFSET ?",
                                             get_file_count_cb, &file_counts,
                                             2, "int", limit, "int", start);
 
