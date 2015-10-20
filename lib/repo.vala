@@ -32,6 +32,7 @@ public class Repo : Object {
 
     public int    last_modify { get; set; }
     public int64  size { get; set; }
+    public int64  file_count { get; set; }
     public string head_cmmt_id { get; set; }
     public string root { get; set; }
 

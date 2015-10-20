@@ -207,6 +207,29 @@ get_cached_head_id (SeafDB *db, const char *repo_id)
     return seaf_db_statement_get_string (db, sql, 1, "string", repo_id);
 }
 
+static void
+set_file_count (SeafDB *db, const char *repo_id, gint64 file_count)
+{
+    gboolean exist;
+    gboolean db_err;
+
+    exist = seaf_db_statement_exists (db,
+                                      "SELECT 1 FROM RepoFileCount WHERE repo_id=?",
+                                      &db_err, 1, "string", repo_id);
+    if (db_err)
+        return;
+
+    if (exist) {
+        seaf_db_statement_query (db,
+                                 "UPDATE RepoFileCount SET file_count=? WHERE repo_id=?",
+                                 2, "int64", file_count, "string", repo_id);
+    } else {
+        seaf_db_statement_query (db,
+                                 "INSERT INTO RepoFileCount (repo_id,file_count) VALUES (?,?)",
+                                 2, "string", repo_id, "int64", file_count);
+    }
+}
+
 static void*
 compute_repo_size (void *vjob)
 {
@@ -262,6 +285,11 @@ retry:
         head = NULL;
         cached_head_id = NULL;
         goto retry;
+    } else {
+        gint64 file_count = seaf_fs_manager_count_fs_files (sched->seaf->fs_mgr,
+                                                            repo->store_id, repo->version,
+                                                            head->root_id);
+        set_file_count (sched->seaf->db, repo->id, file_count);
     }
 
 out:

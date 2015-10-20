@@ -939,6 +939,12 @@ create_tables_mysql (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
+    sql = "CREATE TABLE IF NOT EXISTS RepoFileCount ("
+        "repo_id CHAR(36) PRIMARY KEY,"
+        "file_count BIGINT UNSIGNED)ENGINE=INNODB";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
     return 0;
 }
 
@@ -1074,6 +1080,12 @@ create_tables_sqlite (SeafRepoManager *mgr)
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
+    sql = "CREATE TABLE IF NOT EXISTS RepoFileCount ("
+        "repo_id CHAR(36) PRIMARY KEY,"
+        "file_count BIGINT UNSIGNED)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
+
     return 0;
 }
 
@@ -1204,6 +1216,12 @@ create_tables_pgsql (SeafRepoManager *mgr)
         if (seaf_db_query (db, sql) < 0)
             return -1;
     }
+
+    sql = "CREATE TABLE IF NOT EXISTS RepoFileCount ("
+        "repo_id CHAR(36) PRIMARY KEY,"
+        "file_count BIGINT)";
+    if (seaf_db_query (db, sql) < 0)
+        return -1;
 
     return 0;
 }
@@ -2051,37 +2069,72 @@ seaf_repo_manager_get_repo_id_list (SeafRepoManager *mgr)
     return ret;
 }
 
+typedef struct FileCount {
+    char *repo_id;
+    gint64 file_count;
+} FileCount;
+
+static void
+free_file_count (gpointer data)
+{
+    if (!data)
+        return;
+
+    FileCount *file_count = data;
+    g_free (file_count->repo_id);
+    g_free (file_count);
+}
+
+static gboolean
+get_file_count_cb (SeafDBRow *row, void *data)
+{
+    GList **file_counts = data;
+    const char *repo_id = seaf_db_row_get_column_text (row, 0);
+    gint64 fcount = seaf_db_row_get_column_int64 (row, 1);
+
+    FileCount *file_count = g_new0 (FileCount, 1);
+    file_count->repo_id = g_strdup (repo_id);
+    file_count->file_count = fcount;
+    *file_counts = g_list_prepend (*file_counts, file_count);
+
+    return TRUE;
+}
+
 GList *
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit)
 {
-    GList *id_list = NULL, *ptr;
+    GList *file_counts = NULL, *ptr;
     GList *ret = NULL;
     SeafRepo *repo;
+    FileCount *file_count;
     int rc;
 
     if (start == -1 && limit == -1)
         rc = seaf_db_statement_foreach_row (mgr->seaf->db,
-                                       "SELECT repo_id FROM Repo",
-                                       collect_repo_id, &id_list,
-                                       0);
+                                            "SELECT r.repo_id, c.file_count FROM Repo r LEFT JOIN RepoFileCount c "
+                                            "ON r.repo_id = c.repo_id",
+                                            get_file_count_cb, &file_counts,
+                                            0);
     else
         rc = seaf_db_statement_foreach_row (mgr->seaf->db,
-                                            "SELECT repo_id FROM Repo "
-                                            "ORDER BY repo_id LIMIT ? OFFSET ?",
-                                            collect_repo_id, &id_list,
+                                            "SELECT r.repo_id, c.file_count FROM Repo r LEFT JOIN RepoFileCount c "
+                                            "ON r.repo_id = c.repo_id ORDER BY repo_id LIMIT ? OFFSET ?",
+                                            get_file_count_cb, &file_counts,
                                             2, "int", limit, "int", start);
 
     if (rc < 0)
         return NULL;
 
-    for (ptr = id_list; ptr; ptr = ptr->next) {
-        char *repo_id = ptr->data;
-        repo = seaf_repo_manager_get_repo_ex (mgr, repo_id);
-        if (repo != NULL)
+    for (ptr = file_counts; ptr; ptr = ptr->next) {
+        file_count = ptr->data;
+        repo = seaf_repo_manager_get_repo_ex (mgr, file_count->repo_id);
+        if (repo != NULL) {
+            repo->file_count = file_count->file_count;
             ret = g_list_prepend (ret, repo);
+        }
     }
 
-    string_list_free (id_list);
+    g_list_free_full (file_counts, free_file_count);
 
     return ret;
 }
