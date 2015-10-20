@@ -119,8 +119,7 @@ function start_seafile_server () {
     LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_controller} \
                    -c "${default_ccnet_conf_dir}" \
                    -d "${seafile_data_dir}" \
-                   -F "${central_config_dir}" \
-                   -f > $TOPDIR/logs/controller-stdout.log 2>&1 &
+                   -F "${central_config_dir}"
 
     sleep 3
 
