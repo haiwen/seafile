@@ -26,6 +26,10 @@ class TestUtil():
         except Exception:
             pass
         self.repo_id = None
+        self.test_root = ''
+
+    def set_test_root(self, root):
+        self.test_root = root
 
     @staticmethod
     def clean_sync_data(conf):
@@ -110,11 +114,8 @@ class TestUtil():
             pass
 
     def wait_sync(self):
-        max_retry = 12
-        cur_retry = 0
-        while cur_retry < max_retry:
+        while True:
             time.sleep(5)
-            cur_retry += 1
             repo1 = seaf_op.seaf_get_repo(self.cli1_dir, self.repo_id)
             if repo1 is None:
                 continue
@@ -162,15 +163,15 @@ class TestUtil():
     # worktree: 1(worktree1), 2(worktree2)
     def mkdir(self, worktree, path):
         if worktree == 1:
-            os.makedirs(os.path.join(self.worktree1, path))
+            os.makedirs(os.path.join(self.worktree1, self.test_root, path))
         elif worktree == 2:
-            os.makedirs(os.path.join(self.worktree2, path))
+            os.makedirs(os.path.join(self.worktree2, self.test_root, path))
 
     def rmdir(self, worktree, path):
         if worktree == 1:
-            shutil.rmtree(os.path.join(self.worktree1, path))
+            shutil.rmtree(os.path.join(self.worktree1, self.test_root, path))
         elif worktree == 2:
-            shutil.rmtree(os.path.join(self.worktree2, path))
+            shutil.rmtree(os.path.join(self.worktree2, self.test_root, path))
 
     def mkfile(self, worktree, fpath, con=''):
         if worktree == 1:
@@ -179,7 +180,7 @@ class TestUtil():
             pdir = self.worktree2
         else:
             return
-        abs_path = os.path.join(pdir, fpath)
+        abs_path = os.path.join(pdir, self.test_root, fpath)
         dirname = os.path.dirname(abs_path)
         if not os.path.exists(dirname):
             os.makedirs(dirname)
@@ -188,9 +189,9 @@ class TestUtil():
 
     def rmfile(self, worktree, fpath):
         if worktree == 1:
-            os.remove(os.path.join(self.worktree1, fpath))
+            os.remove(os.path.join(self.worktree1, self.test_root, fpath))
         elif worktree == 2:
-            os.remove(os.path.join(self.worktree2, fpath))
+            os.remove(os.path.join(self.worktree2, self.test_root, fpath))
 
     def modfile(self, worktree, fpath, con=''):
         if worktree == 1:
@@ -199,17 +200,17 @@ class TestUtil():
             pdir = self.worktree2
         else:
             return
-        abs_path = os.path.join(pdir, fpath)
+        abs_path = os.path.join(pdir, self.test_root, fpath)
         with open(abs_path, 'a') as fd:
             fd.write(con)
 
     def move(self, worktree, org_path, dest_path):
         if worktree == 1:
-            shutil.move(os.path.join(self.worktree1, org_path),
-                        os.path.join(self.worktree1, dest_path))
+            shutil.move(os.path.join(self.worktree1, self.test_root, org_path),
+                        os.path.join(self.worktree1, self.test_root, dest_path))
         elif worktree == 2:
-            shutil.move(os.path.join(self.worktree2, org_path),
-                        os.path.join(self.worktree2, dest_path))
+            shutil.move(os.path.join(self.worktree2, self.test_root, org_path),
+                        os.path.join(self.worktree2, self.test_root, dest_path))
 
     def batchmove(self, worktree, regex, dest_path):
         if worktree == 1:
@@ -218,28 +219,28 @@ class TestUtil():
             pdir = self.worktree2
         else:
             return
-        files = glob.glob(os.path.join(pdir, regex))
-        dest = os.path.join(pdir, dest_path)
+        files = glob.glob(os.path.join(pdir, self.test_root, regex))
+        dest = os.path.join(pdir, self.test_root, dest_path)
         for f in files:
             shutil.move(f, dest)
 
     def copy(self, worktree, org_path, dest_path):
         if worktree == 1:
-            shutil.copytree(os.path.join(self.worktree1, org_path),
-                            os.path.join(self.worktree1, dest_path))
+            shutil.copytree(os.path.join(self.worktree1, self.test_root, org_path),
+                            os.path.join(self.worktree1, self.test_root, dest_path))
         elif worktree == 2:
-            shutil.copytree(os.path.join(self.worktree2, org_path),
-                            os.path.join(self.worktree2, dest_path))
+            shutil.copytree(os.path.join(self.worktree2, self.test_root, org_path),
+                            os.path.join(self.worktree2, self.test_root, dest_path))
 
     def touch(self, worktree, path, time=None):
         if worktree == 1:
-            os.utime(os.path.join(self.worktree1, path), time)
+            os.utime(os.path.join(self.worktree1, self.test_root, path), time)
         if worktree == 2:
-            os.utime(os.path.join(self.worktree2, path), time)
+            os.utime(os.path.join(self.worktree2, self.test_root, path), time)
 
     def getpath(self, worktree, path):
         if worktree == 1:
-            return os.path.join(self.worktree1, path)
+            return os.path.join(self.worktree1, self.test_root, path)
         elif worktree == 2:
-            return os.path.join(self.worktree2, path)
+            return os.path.join(self.worktree2, self.test_root, path)
         raise Exception('Invalid worktree')
