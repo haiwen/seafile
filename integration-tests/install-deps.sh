@@ -42,6 +42,8 @@ urls=(
     https://pypi.python.org/packages/source/s/six/six-1.9.0.tar.gz
     https://pypi.python.org/packages/source/d/django-statici18n/django-statici18n-1.1.3.tar.gz
     https://pypi.python.org/packages/source/d/django_compressor/django_compressor-1.4.tar.gz
+    https://pypi.python.org/packages/source/d/django-picklefield/django-picklefield-0.3.2.tar.gz
+    https://pypi.python.org/packages/source/d/django-constance/django-constance-1.0.1.tar.gz
 )
 # The basename of the download url is different from the tarball name.
 [[ -e Django-1.5.12.tar.gz ]] || $WGET https://www.djangoproject.com/download/1.5.12/tarball -O Django-1.5.12.tar.gz

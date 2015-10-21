@@ -266,7 +266,9 @@ def check_seahub_thirdpart(thirdpartdir):
         'gunicorn',
         'flup',
         'chardet',
-        'python_dateutil'
+        'python_dateutil',
+        'django_picklefield',
+        'django_constance',
         # 'SQLAlchemy',
         # 'python_daemon',
         # 'lockfile',
