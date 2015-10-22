@@ -54,8 +54,10 @@ MAX_INT = 2147483647
 
 def _load_path_from_env(key, check=True):
     v = os.environ.get(key, '')
-    if not v and check:
-        raise ImportError("Seaserv cannot be imported, because environment variable %s is undefined." % key)
+    if not v:
+        if check:
+            raise ImportError("Seaserv cannot be imported, because environment variable %s is undefined." % key)
+        return None
     if _DEBUG:
         print "Loading %s from %s" % (key, v)
     return os.path.normpath(os.path.expanduser(v))
