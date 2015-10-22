@@ -209,6 +209,24 @@ function start_seahub_fastcgi () {
     echo
 }
 
+function clear_sessions () {
+    check_python_executable;
+    validate_ccnet_conf_dir;
+    read_seafile_data_dir;
+
+    export CCNET_CONF_DIR=${default_ccnet_conf_dir}
+    export SEAFILE_CONF_DIR=${seafile_data_dir}
+    export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
+    export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seafile/lib64/python2.7/site-packages:$PYTHONPATH
+
+    echo "Start clear expired session records ..."
+    $PYTHON "${manage_py}" clearsessions
+
+    echo
+    echo "Done"
+    echo
+}
+
 function stop_seahub () {
     if [[ -f ${pidfile} ]]; then
         pid=$(cat "${pidfile}")
@@ -247,6 +265,9 @@ case $1 in
         stop_seahub
         sleep 2
         start_seahub_fastcgi
+        ;;
+    "clearsessions" )
+        clear_sessions
         ;;
 esac
 
