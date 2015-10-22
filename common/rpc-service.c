@@ -1128,12 +1128,12 @@ seafile_get_commit (const char *repo_id, int version,
     SeafileCommit *commit;
     SeafCommit *c;
 
-    if (!is_uuid_valid(repo_id)) {
+    if (!repo_id || !is_uuid_valid(repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return NULL;
     }
 
-    if (!is_object_id_valid(id)) {
+    if (!id || !is_object_id_valid(id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid commit id");
         return NULL;
     }

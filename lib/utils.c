@@ -1059,6 +1059,9 @@ is_uuid_valid (const char *uuid_str)
 {
     uuid_t uuid;
 
+    if (!uuid_str)
+        return FALSE;
+
     if (uuid_parse (uuid_str, uuid) < 0)
         return FALSE;
     return TRUE;
@@ -1092,6 +1095,9 @@ void gen_uuid_inplace (char *buf)
 gboolean
 is_uuid_valid (const char *uuid_str)
 {
+    if (!uuid_str)
+        return FALSE;
+
     UUID uuid;
     if (UuidFromString((unsigned char *)uuid_str, &uuid) != RPC_S_OK)
         return FALSE;
@@ -1103,6 +1109,9 @@ is_uuid_valid (const char *uuid_str)
 gboolean
 is_object_id_valid (const char *obj_id)
 {
+    if (!obj_id)
+        return FALSE;
+
     int len = strlen(obj_id);
     int i;
     char c;

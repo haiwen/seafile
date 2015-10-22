@@ -172,7 +172,8 @@ seaf_obj_store_read_obj (struct SeafObjStore *obj_store,
 {
     ObjBackend *bend = obj_store->bend;
 
-    if (!is_uuid_valid(repo_id) || !is_object_id_valid(obj_id))
+    if (!repo_id || !is_uuid_valid(repo_id) ||
+        !obj_id || !is_object_id_valid(obj_id))
         return -1;
 
     return bend->read (bend, repo_id, version, obj_id, data, len);
@@ -189,7 +190,8 @@ seaf_obj_store_write_obj (struct SeafObjStore *obj_store,
 {
     ObjBackend *bend = obj_store->bend;
 
-    if (!is_uuid_valid(repo_id) || !is_object_id_valid(obj_id))
+    if (!repo_id || !is_uuid_valid(repo_id) ||
+        !obj_id || !is_object_id_valid(obj_id))
         return -1;
 
     return bend->write (bend, repo_id, version, obj_id, data, len, need_sync);
@@ -203,7 +205,8 @@ seaf_obj_store_obj_exists (struct SeafObjStore *obj_store,
 {
     ObjBackend *bend = obj_store->bend;
 
-    if (!is_uuid_valid(repo_id) || !is_object_id_valid(obj_id))
+    if (!repo_id || !is_uuid_valid(repo_id) ||
+        !obj_id || !is_object_id_valid(obj_id))
         return FALSE;
 
     return bend->exists (bend, repo_id, version, obj_id);
@@ -217,7 +220,8 @@ seaf_obj_store_delete_obj (struct SeafObjStore *obj_store,
 {
     ObjBackend *bend = obj_store->bend;
 
-    if (!is_uuid_valid(repo_id) || !is_object_id_valid(obj_id))
+    if (!repo_id || !is_uuid_valid(repo_id) ||
+        !obj_id || !is_object_id_valid(obj_id))
         return;
 
     return bend->delete (bend, repo_id, version, obj_id);

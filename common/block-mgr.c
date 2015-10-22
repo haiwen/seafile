@@ -63,7 +63,8 @@ seaf_block_manager_open_block (SeafBlockManager *mgr,
                                const char *block_id,
                                int rw_type)
 {
-    if (!is_uuid_valid(store_id) || !is_object_id_valid(block_id))
+    if (!store_id || !is_uuid_valid(store_id) ||
+        !block_id || !is_object_id_valid(block_id))
         return NULL;
 
     return mgr->backend->open_block (mgr->backend,
@@ -113,7 +114,8 @@ gboolean seaf_block_manager_block_exists (SeafBlockManager *mgr,
                                           int version,
                                           const char *block_id)
 {
-    if (!is_uuid_valid(store_id) || !is_object_id_valid(block_id))
+    if (!store_id || !is_uuid_valid(store_id) ||
+        !block_id || !is_object_id_valid(block_id))
         return FALSE;
 
     return mgr->backend->exists (mgr->backend, store_id, version, block_id);
@@ -125,7 +127,8 @@ seaf_block_manager_remove_block (SeafBlockManager *mgr,
                                  int version,
                                  const char *block_id)
 {
-    if (!is_uuid_valid(store_id) || !is_object_id_valid(block_id))
+    if (!store_id || !is_uuid_valid(store_id) ||
+        !block_id || !is_object_id_valid(block_id))
         return -1;
 
     return mgr->backend->remove_block (mgr->backend, store_id, version, block_id);
@@ -137,7 +140,8 @@ seaf_block_manager_stat_block (SeafBlockManager *mgr,
                                int version,
                                const char *block_id)
 {
-    if (!is_uuid_valid(store_id) || !is_object_id_valid(block_id))
+    if (!store_id || !is_uuid_valid(store_id) ||
+        !block_id || !is_object_id_valid(block_id))
         return NULL;
 
     return mgr->backend->stat_block (mgr->backend, store_id, version, block_id);
