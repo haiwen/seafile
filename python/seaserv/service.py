@@ -152,9 +152,9 @@ logger = logging.getLogger(__name__)
 
 #### Basic ccnet API ####
 
-def get_emailusers(source, start, limit):
+def get_emailusers(source, start, limit, status=''):
     try:
-        users = ccnet_threaded_rpc.get_emailusers(source, start, limit)
+        users = ccnet_threaded_rpc.get_emailusers(source, start, limit, status)
     except SearpcError:
         users = []
     return users
