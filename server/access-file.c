@@ -1443,7 +1443,7 @@ int
 access_file_init (evhtp_t *htp)
 {
     evhtp_set_regex_cb (htp, "^/files/.*", access_cb, NULL);
-    /* evhtp_set_regex_cb (htp, "^/blks/.*", access_blks_cb, NULL); */
+    evhtp_set_regex_cb (htp, "^/blks/.*", access_blks_cb, NULL);
 
     return 0;
 }

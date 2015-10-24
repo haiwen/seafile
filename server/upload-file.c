@@ -384,6 +384,14 @@ upload_api_cb(evhtp_request_t *req, void *arg)
     char *filenames_json, *tmp_files_json;
     int replace = 0;
 
+     if (evhtp_request_get_method(req) == htp_method_OPTIONS) {
+        /* If CORS preflight header, then create an empty body response (200 OK)
+         * and return it.
+         */
+        send_success_reply (req);
+        return;
+    }
+
     /* After upload_headers_cb() returns an error, libevhtp may still
      * receive data from the web browser and call into this cb.
      * In this case fsm will be NULL.
@@ -513,6 +521,7 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
     size_str = g_hash_table_lookup (fsm->form_kvs, "file_size");
     if (size_str)
         file_size = atoll(size_str);
+
     if (!file_name || !parent_dir || !size_str || file_size < 0) {
         seaf_warning ("[upload-blks] No parent dir or file name given.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
@@ -530,7 +539,7 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
     blockids_json = file_list_to_json (fsm->filenames);
     tmp_files_json = file_list_to_json (fsm->files);
 
-    char *new_file_ids = NULL;
+    char *new_file_id = NULL;
     int rc = seaf_repo_manager_post_file_blocks (seaf->repo_mgr,
                                                  fsm->repo_id,
                                                  parent_dir,
@@ -540,7 +549,7 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
                                                  fsm->user,
                                                  file_size,
                                                  replace,
-                                                 &new_file_ids,
+                                                 &new_file_id,
                                                  &error);
     g_free (blockids_json);
     g_free (tmp_files_json);
@@ -554,8 +563,20 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    evbuffer_add (req->buffer_out, new_file_ids, strlen(new_file_ids));
-    g_free (new_file_ids);
+    const char *use_json = evhtp_kv_find (req->uri->query, "ret-json");
+    if (use_json) {
+        json_t *json = json_object ();
+        json_object_set_string_member(json, "id", new_file_id);
+        char *json_data = json_dumps (json, 0);
+        evbuffer_add (req->buffer_out, json_data, strlen(json_data));
+        json_decref (json);
+        free (json_data);
+    } else {
+        evbuffer_add (req->buffer_out, "\"", 1);
+        evbuffer_add (req->buffer_out, new_file_id, strlen(new_file_id));
+        evbuffer_add (req->buffer_out, "\"", 1);
+    }
+    g_free (new_file_id);
     send_success_reply (req);
     return;
 
