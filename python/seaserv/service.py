@@ -169,6 +169,9 @@ def count_emailusers():
         ret = -1
     return 0 if ret < 0 else ret
 
+def get_emailuser_with_import(email):
+    return ccnet_threaded_rpc.get_emailuser_with_import(email)
+
 def get_session_info():
     return ccnet_rpc.get_session_info()
 
