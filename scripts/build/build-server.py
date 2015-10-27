@@ -192,7 +192,7 @@ class Libsearpc(Project):
         Project.__init__(self)
         self.build_commands = [
             './configure --prefix=%s' % self.prefix,
-            'make -j{}'.format(conf[CONF_JOBS]),
+            'make -j%s' % conf[CONF_JOBS],
             'make install'
         ]
 
@@ -205,7 +205,7 @@ class Ccnet(Project):
         Project.__init__(self)
         self.build_commands = [
             './configure --prefix=%s --disable-client --enable-server --enable-pgsql --enable-ldap' % self.prefix,
-            'make -j{}'.format(conf[CONF_JOBS]),
+            'make -j%s' % conf[CONF_JOBS],
             'make install'
         ]
 
@@ -223,7 +223,7 @@ class Seafile(Project):
         self.build_commands = [
             './configure --prefix=%s --disable-client --enable-server --enable-pgsql %s' \
                 % (self.prefix, s3_support),
-            'make -j{}'.format(conf[CONF_JOBS]),
+            'make -j%s' % conf[CONF_JOBS],
             'make install'
         ]
 
