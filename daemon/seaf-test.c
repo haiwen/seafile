@@ -36,7 +36,7 @@ SeafileSession *seaf;
 static void setup()
 {
     client = ccnet_client_new ();
-    if ( ccnet_client_load_confdir(client, CCNET_DIR) < 0 ) {
+    if ( ccnet_client_load_confdir(client, NULL, CCNET_DIR) < 0 ) {
         fprintf (stderr, "Read config dir error\n");
         exit(1);
     }

@@ -124,6 +124,8 @@ Press ENTER to continue
     @staticmethod
     def must_mkdir(path):
         '''Create a directory, exit on failure'''
+        if os.path.exists(path):
+            return
         try:
             os.mkdir(path)
         except OSError, e:
@@ -286,6 +288,8 @@ class EnvManager(object):
         self.install_path = os.path.dirname(os.path.abspath(__file__))
         self.top_dir = os.path.dirname(self.install_path)
         self.bin_dir = os.path.join(self.install_path, 'seafile', 'bin')
+        self.central_config_dir = os.path.join(self.top_dir, 'conf')
+        Utils.must_mkdir(self.central_config_dir)
 
     def check_pre_condiction(self):
         def error_if_not_exists(path):
@@ -681,8 +685,7 @@ class ExistingDBConfigurator(AbstractDBConfigurator):
 
     def ask_db_name(self, program):
         def validate(db_name):
-            if self.seafile_mysql_user != 'root':
-                self.check_user_db_access(db_name)
+            self.check_user_db_access(db_name)
 
             return db_name
 
@@ -704,6 +707,9 @@ class ExistingDBConfigurator(AbstractDBConfigurator):
                                    passwd=password,
                                    db=db_name)
 
+            cursor = conn.cursor()
+            cursor.execute('show tables')
+            cursor.close()
         except Exception, e:
             if isinstance(e, MySQLdb.OperationalError):
                 raise InvalidAnswer('Failed to access database %s using user "%s" and password "***": %s' \
@@ -728,6 +734,7 @@ class CcnetConfigurator(AbstractConfigurator):
         self.port = 10001
         self.server_name = 'my-seafile'
         self.ip_or_domain = None
+        self.ccnet_conf = os.path.join(env_mgr.central_config_dir, 'ccnet.conf')
 
     def ask_questions(self):
         self.ask_server_name()
@@ -739,6 +746,7 @@ class CcnetConfigurator(AbstractConfigurator):
         ccnet_init = os.path.join(env_mgr.bin_dir, 'ccnet-init')
         argv = [
             ccnet_init,
+            '-F', env_mgr.central_config_dir,
             '--config-dir', self.ccnet_dir,
             '--name', self.server_name,
             '--host', self.ip_or_domain,
@@ -751,8 +759,7 @@ class CcnetConfigurator(AbstractConfigurator):
         self.generate_db_conf()
 
     def generate_db_conf(self):
-        ccnet_conf = os.path.join(self.ccnet_dir, 'ccnet.conf')
-        config = Utils.read_config(ccnet_conf)
+        config = Utils.read_config(self.ccnet_conf)
         # [Database]
         # ENGINE=
         # HOST=
@@ -770,7 +777,7 @@ class CcnetConfigurator(AbstractConfigurator):
         config.set(db_section, 'DB', db_config.ccnet_db_name)
         config.set(db_section, 'CONNECTION_CHARSET', 'utf8')
 
-        Utils.write_config(config, ccnet_conf)
+        Utils.write_config(config, self.ccnet_conf)
 
     def ask_server_name(self):
         def validate(name):
@@ -819,6 +826,7 @@ class SeafileConfigurator(AbstractConfigurator):
         self.seafile_dir = os.path.join(env_mgr.top_dir, 'seafile-data')
         self.port = 12001
         self.fileserver_port = 8082
+        self.seafile_conf = os.path.join(env_mgr.central_config_dir, 'seafile.conf')
 
     def ask_questions(self):
         self.ask_seafile_dir()
@@ -830,6 +838,7 @@ class SeafileConfigurator(AbstractConfigurator):
         seafserv_init = os.path.join(env_mgr.bin_dir, 'seaf-server-init')
         argv = [
             seafserv_init,
+            '-F', env_mgr.central_config_dir,
             '--seafile-dir', self.seafile_dir,
             '--fileserver-port', str(self.fileserver_port),
         ]
@@ -843,8 +852,7 @@ class SeafileConfigurator(AbstractConfigurator):
         print 'done'
 
     def generate_db_conf(self):
-        seafile_conf = os.path.join(self.seafile_dir, 'seafile.conf')
-        config = Utils.read_config(seafile_conf)
+        config = Utils.read_config(self.seafile_conf)
         # [database]
         # type=
         # host=
@@ -863,7 +871,7 @@ class SeafileConfigurator(AbstractConfigurator):
         config.set(db_section, 'db_name', db_config.seafile_db_name)
         config.set(db_section, 'connection_charset', 'utf8')
 
-        Utils.write_config(config, seafile_conf)
+        Utils.write_config(config, self.seafile_conf)
 
     def ask_seafile_dir(self):
         def validate(path):
@@ -928,7 +936,7 @@ class SeahubConfigurator(AbstractConfigurator):
         AbstractConfigurator.__init__(self)
         self.admin_email = ''
         self.admin_password = ''
-        self.seahub_settings_py = os.path.join(env_mgr.top_dir, 'seahub_settings.py')
+        self.seahub_settings_py = os.path.join(env_mgr.central_config_dir, 'seahub_settings.py')
 
     def hashed_admin_password(self):
         return hashlib.sha1(self.admin_password).hexdigest() # pylint: disable=E1101
@@ -1087,18 +1095,13 @@ DATABASES = {
 class SeafDavConfigurator(AbstractConfigurator):
     def __init__(self):
         AbstractConfigurator.__init__(self)
-        self.conf_dir = None
         self.seafdav_conf = None
 
     def ask_questions(self):
         pass
 
     def generate(self):
-        self.conf_dir = os.path.join(env_mgr.top_dir, 'conf')
-        if not os.path.exists('conf'):
-            Utils.must_mkdir(self.conf_dir)
-
-        self.seafdav_conf = os.path.join(self.conf_dir, 'seafdav.conf')
+        self.seafdav_conf = os.path.join(env_mgr.central_config_dir, 'seafdav.conf')
         text = '''
 [WEBDAV]
 enabled = false
@@ -1155,7 +1158,7 @@ def report_config():
         'admin_email' :         seahub_config.admin_email,
 
 
-        'use_existing_db':       'use exising' if db_config.use_existing_db else 'create new',
+        'use_existing_db':       'use existing' if db_config.use_existing_db else 'create new',
         'ccnet_db_name':        db_config.ccnet_db_name,
         'seafile_db_name':      db_config.seafile_db_name,
         'seahub_db_name':       db_config.seahub_db_name,
@@ -1187,13 +1190,13 @@ def set_file_perm():
     filemode = 0600
     dirmode = 0700
     files = [
-        os.path.join(env_mgr.top_dir, 'seahub_settings.py'),
+        seahub_config.seahub_settings_py,
     ]
     dirs = [
+        env_mgr.central_config_dir,
         ccnet_config.ccnet_dir,
         seafile_config.seafile_dir,
         seahub_config.seahub_settings_py,
-        seafdav_config.conf_dir,
     ]
     for fpath in files:
         os.chmod(fpath, filemode)

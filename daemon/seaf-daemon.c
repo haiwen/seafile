@@ -308,7 +308,7 @@ create_sync_rpc_clients (const char *config_dir)
 
     /* sync client and rpc client */
     sync_client = ccnet_client_new ();
-    if ( (ccnet_client_load_confdir(sync_client, config_dir)) < 0 ) {
+    if ( (ccnet_client_load_confdir(sync_client, NULL, config_dir)) < 0 ) {
         seaf_warning ("Read config dir error\n");
         exit(1);
     }
@@ -358,7 +358,7 @@ bind_ccnet_service (const char *config_dir)
     gboolean ret = TRUE;
 
     bind_client = ccnet_client_new ();
-    if ( (ccnet_client_load_confdir(bind_client, config_dir)) < 0 ) {
+    if ( (ccnet_client_load_confdir(bind_client, NULL, config_dir)) < 0 ) {
         seaf_warning ("Read config dir error\n");
         exit(1);
     }
@@ -492,7 +492,7 @@ main (int argc, char **argv)
     }
 
     /* init ccnet */
-    client = ccnet_init (config_dir);
+    client = ccnet_init (NULL, config_dir);
     if (!client)
         exit (1);
 

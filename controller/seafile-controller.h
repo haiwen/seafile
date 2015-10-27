@@ -42,6 +42,7 @@ typedef struct SeafDavConfig {
 } SeafDavConfig;
 
 struct _SeafileController {
+    char *central_config_dir;
     char *config_dir;
     char *seafile_dir;
     char *logdir;

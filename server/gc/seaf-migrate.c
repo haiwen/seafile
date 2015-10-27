@@ -13,15 +13,17 @@
 
 static char *config_dir = NULL;
 static char *seafile_dir = NULL;
+static char *central_config_dir = NULL;
 
 CcnetClient *ccnet_client;
 SeafileSession *seaf;
 
-static const char *short_opts = "hvc:d:VDi";
+static const char *short_opts = "hvc:d:VDiF:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
     { "config-file", required_argument, NULL, 'c', },
+    { "central-config-dir", required_argument, NULL, 'F' },
     { "seafdir", required_argument, NULL, 'd', },
 };
 
@@ -101,6 +103,9 @@ main(int argc, char *argv[])
         case 'd':
             seafile_dir = strdup(optarg);
             break;
+        case 'F':
+            central_config_dir = strdup(optarg);
+            break;
         default:
             usage();
             exit(-1);
@@ -117,7 +122,7 @@ main(int argc, char *argv[])
     }
 
     ccnet_client = ccnet_client_new();
-    if ((ccnet_client_load_confdir(ccnet_client, config_dir)) < 0) {
+    if ((ccnet_client_load_confdir(ccnet_client, central_config_dir, config_dir)) < 0) {
         seaf_warning ("Read config dir error\n");
         return -1;
     }
@@ -125,7 +130,7 @@ main(int argc, char *argv[])
     if (seafile_dir == NULL)
         seafile_dir = g_build_filename (config_dir, "seafile-data", NULL);
     
-    seaf = seafile_session_new(seafile_dir, ccnet_client);
+    seaf = seafile_session_new(central_config_dir, seafile_dir, ccnet_client);
     if (!seaf) {
         seaf_warning ("Failed to create seafile session.\n");
         exit (1);

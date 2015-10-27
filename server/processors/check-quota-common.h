@@ -6,7 +6,7 @@
 #include <ccnet/ccnetrpc-transport.h>
 
 static SearpcClient *
-create_sync_ccnetrpc_client (const char *config_dir, const char *service)
+create_sync_ccnetrpc_client (const char *central_config_dir, const char *config_dir, const char *service)
 {
     if (!config_dir || !service)
         return NULL;
@@ -15,7 +15,7 @@ create_sync_ccnetrpc_client (const char *config_dir, const char *service)
     SearpcClient *rpc_client;
 
     sync_client = ccnet_client_new ();
-    if ((ccnet_client_load_confdir(sync_client, config_dir)) < 0 ) {
+    if ((ccnet_client_load_confdir(sync_client, central_config_dir, config_dir)) < 0 ) {
         return NULL;
     }
 

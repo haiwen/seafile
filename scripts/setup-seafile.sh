@@ -403,7 +403,11 @@ seaf_server_init=${INSTALLPATH}/seafile/bin/seaf-server-init
 if [[ "${use_existing_ccnet}" != "true" ]]; then
     echo "Generating ccnet configuration in ${default_ccnet_conf_dir}..."
     echo
-    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH "${ccnet_init}" -c "${default_ccnet_conf_dir}" --name "${server_name}" --host "${ip_or_domain}"; then
+    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH "${ccnet_init}" \
+         -F "${default_conf_dir}" \
+         -c "${default_ccnet_conf_dir}" \
+         --name "${server_name}" \
+         --host "${ip_or_domain}"; then
         err_and_quit;
     fi
 
@@ -418,8 +422,10 @@ sleep 0.5
 if [[ "${use_existing_seafile}" != "true" ]]; then
     echo "Generating seafile configuration in ${seafile_data_dir} ..."
     echo
-    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_server_init} --seafile-dir "${seafile_data_dir}" \
-        --fileserver-port ${fileserver_port}; then
+    if ! LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_server_init} \
+         --central-config-dir "${default_conf_dir}" \
+         --seafile-dir "${seafile_data_dir}" \
+         --fileserver-port ${fileserver_port}; then
         
         echo "Failed to generate seafile configuration"
         err_and_quit;
@@ -443,7 +449,7 @@ gen_seafdav_conf;
 # -------------------------------------------
 # generate seahub/settings.py
 # -------------------------------------------
-dest_settings_py=${TOPDIR}/seahub_settings.py
+dest_settings_py=${TOPDIR}/conf/seahub_settings.py
 seahub_secret_keygen=${INSTALLPATH}/seahub/tools/secret_key_generator.py
 
 if [[ ! -f ${dest_settings_py} ]]; then

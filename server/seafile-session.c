@@ -37,9 +37,11 @@ static int
 load_thread_pool_config (SeafileSession *session);
 
 SeafileSession *
-seafile_session_new(const char *seafile_dir,
+seafile_session_new(const char *central_config_dir,
+                    const char *seafile_dir,
                     CcnetClient *ccnet_session)
 {
+    char *abs_central_config_dir = NULL;
     char *abs_seafile_dir;
     char *tmp_file_dir;
     char *config_file_path;
@@ -51,7 +53,12 @@ seafile_session_new(const char *seafile_dir,
 
     abs_seafile_dir = ccnet_expand_path (seafile_dir);
     tmp_file_dir = g_build_filename (abs_seafile_dir, "tmpfiles", NULL);
-    config_file_path = g_build_filename (abs_seafile_dir, "seafile.conf", NULL);
+    if (central_config_dir) {
+        abs_central_config_dir = ccnet_expand_path (central_config_dir);
+    }
+    config_file_path = g_build_filename(
+        abs_central_config_dir ? abs_central_config_dir : abs_seafile_dir,
+        "seafile.conf", NULL);
 
     if (checkdir_with_mkdir (abs_seafile_dir) < 0) {
         seaf_warning ("Config dir %s does not exist and is unable to create\n",

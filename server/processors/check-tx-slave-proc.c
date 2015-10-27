@@ -196,7 +196,7 @@ check_tx (void *vprocessor)
     char *repo_id = priv->repo_id;
 
     rpc_client = create_sync_ccnetrpc_client
-        (seaf->session->config_dir, "ccnet-threaded-rpcserver");
+        (seaf->session->central_config_dir, seaf->session->config_dir, "ccnet-threaded-rpcserver");
 
     if (!rpc_client) {
         priv->rsp_code = g_strdup(SC_SERVER_ERROR);

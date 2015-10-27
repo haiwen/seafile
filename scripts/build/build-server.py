@@ -57,6 +57,8 @@ CONF_OUTPUTDIR          = 'outputdir'
 CONF_THIRDPARTDIR       = 'thirdpartdir'
 CONF_NO_STRIP           = 'nostrip'
 CONF_ENABLE_S3          = 's3'
+CONF_YES                = 'yes'
+CONF_JOBS               = 'jobs'
 
 ####################
 ### Common helper functions
@@ -190,7 +192,7 @@ class Libsearpc(Project):
         Project.__init__(self)
         self.build_commands = [
             './configure --prefix=%s' % self.prefix,
-            'make',
+            'make -j{}'.format(conf[CONF_JOBS]),
             'make install'
         ]
 
@@ -203,7 +205,7 @@ class Ccnet(Project):
         Project.__init__(self)
         self.build_commands = [
             './configure --prefix=%s --disable-client --enable-server --enable-pgsql --enable-ldap' % self.prefix,
-            'make',
+            'make -j{}'.format(conf[CONF_JOBS]),
             'make install'
         ]
 
@@ -221,7 +223,7 @@ class Seafile(Project):
         self.build_commands = [
             './configure --prefix=%s --disable-client --enable-server --enable-pgsql %s' \
                 % (self.prefix, s3_support),
-            'make',
+            'make -j{}'.format(conf[CONF_JOBS]),
             'make install'
         ]
 
@@ -264,16 +266,18 @@ def check_seahub_thirdpart(thirdpartdir):
         'gunicorn',
         'flup',
         'chardet',
-        'python_dateutil'
+        'python_dateutil',
+        'django_picklefield',
+        'django_constance',
         # 'SQLAlchemy',
         # 'python_daemon',
         # 'lockfile',
         # 'six',
     ]
     def check_thirdpart_lib(name):
-        name += '*/'
+        name += '*'
         if not glob.glob(os.path.join(thirdpartdir, name)):
-            error('%s not find in %s' % (name, thirdpartdir))
+            error('%s not found in %s' % (name, thirdpartdir))
 
     for lib in thirdpart_libs:
         check_thirdpart_lib(lib)
@@ -357,6 +361,12 @@ def validate_args(usage, options):
     else:
         outputdir = os.getcwd()
 
+    # [ yes ]
+    yes = get_option(CONF_YES)
+
+    # [ jobs ]
+    jobs = get_option(CONF_JOBS)
+
     # [ keep ]
     keep = get_option(CONF_KEEP)
 
@@ -378,6 +388,8 @@ def validate_args(usage, options):
     conf[CONF_THIRDPARTDIR] = thirdpartdir
     conf[CONF_NO_STRIP] = nostrip
     conf[CONF_ENABLE_S3] = s3
+    conf[CONF_YES] = yes
+    conf[CONF_JOBS] = jobs
 
     prepare_builddir(builddir)
     show_build_info()
@@ -396,10 +408,12 @@ def show_build_info():
     info('strip symbols:    %s' % (not conf[CONF_NO_STRIP]))
     info('s3 support:       %s' % (conf[CONF_ENABLE_S3]))
     info('clean on exit:    %s' % (not conf[CONF_KEEP]))
+    if conf[CONF_YES]:
+        return
     info('------------------------------------------')
     info('press any key to continue ')
     info('------------------------------------------')
-    dummy = raw_input()
+    raw_input()
 
 def prepare_builddir(builddir):
     must_mkdir(builddir)
@@ -420,6 +434,15 @@ def parse_args():
     parser = optparse.OptionParser()
     def long_opt(opt):
         return '--' + opt
+
+    parser.add_option(long_opt(CONF_YES),
+                      dest=CONF_YES,
+                      action='store_true')
+
+    parser.add_option(long_opt(CONF_JOBS),
+                      dest=CONF_JOBS,
+                      default=2,
+                      type=int)
 
     parser.add_option(long_opt(CONF_THIRDPARTDIR),
                       dest=CONF_THIRDPARTDIR,
@@ -788,7 +811,7 @@ def create_tarball(tarball_name):
     excludes_list = [ '--exclude=%s' % pattern for pattern in ignored_patterns ]
     excludes = ' '.join(excludes_list)
 
-    tar_cmd = 'tar czvf %(tarball_name)s %(versioned_serverdir)s %(excludes)s' \
+    tar_cmd = 'tar czf %(tarball_name)s %(versioned_serverdir)s %(excludes)s' \
               % dict(tarball_name=tarball_name,
                      versioned_serverdir=versioned_serverdir,
                      excludes=excludes)

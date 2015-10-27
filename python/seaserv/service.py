@@ -50,23 +50,23 @@ _DEBUG = 'SEAFILE_DEBUG' in os.environ
 ENVIRONMENT_VARIABLES = ('CCNET_CONF_DIR', 'SEAFILE_CONF_DIR')
 
 # Used to fix bug in some rpc calls, will be removed in near future.
-MAX_INT = 2147483647            
+MAX_INT = 2147483647
 
-### Loading ccnet and seafile configurations ###
-'''ccnet'''
-try:
-    CCNET_CONF_PATH = os.environ[ENVIRONMENT_VARIABLES[0]]
-    if not CCNET_CONF_PATH: # If it's set but is an empty string.
-        raise KeyError
-except KeyError:
-    raise ImportError("Seaserv cannot be imported, because environment variable %s is undefined." % ENVIRONMENT_VARIABLES[0])
-else:
+def _load_path_from_env(key, check=True):
+    v = os.environ.get(key, '')
+    if not v:
+        if check:
+            raise ImportError("Seaserv cannot be imported, because environment variable %s is undefined." % key)
+        return None
     if _DEBUG:
-        print "Loading ccnet config from " + CCNET_CONF_PATH
+        print "Loading %s from %s" % (key, v)
+    return os.path.normpath(os.path.expanduser(v))
 
-CCNET_CONF_PATH = os.path.normpath(os.path.expanduser(CCNET_CONF_PATH))
+CCNET_CONF_PATH = _load_path_from_env('CCNET_CONF_DIR')
+SEAFILE_CONF_DIR = _load_path_from_env('SEAFILE_CONF_DIR')
+SEAFILE_CENTRAL_CONF_DIR = _load_path_from_env('SEAFILE_CENTRAL_CONF_DIR', check=False)
 
-pool = ccnet.ClientPool(CCNET_CONF_PATH)
+pool = ccnet.ClientPool(CCNET_CONF_PATH, central_config_dir=SEAFILE_CENTRAL_CONF_DIR)
 ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
 ccnet_threaded_rpc = ccnet.CcnetThreadedRpcClient(pool, req_pool=True)
 monitor_rpc = seafile.MonitorRpcClient(pool)
@@ -76,7 +76,8 @@ seafserv_threaded_rpc = seafile.ServerThreadedRpcClient(pool, req_pool=True)
 # load ccnet server addr and port from ccnet.conf.
 # 'addr:port' is used when downloading a repo
 config = ConfigParser.ConfigParser()
-config.read(os.path.join(CCNET_CONF_PATH, 'ccnet.conf'))
+config.read(os.path.join(SEAFILE_CENTRAL_CONF_DIR if SEAFILE_CENTRAL_CONF_DIR else CCNET_CONF_PATH,
+                         'ccnet.conf'))
 
 if config.has_option('General', 'SERVICE_URL'):
     service_url = config.get('General', 'SERVICE_URL')
@@ -95,20 +96,8 @@ else:
     SERVICE_URL = None
 
 SERVER_ID = config.get('General', 'ID')
-
-'''seafile'''
-try:
-    SEAFILE_CONF_DIR = os.environ[ENVIRONMENT_VARIABLES[1]]
-    if not SEAFILE_CONF_DIR: # If it's set but is an empty string.
-        raise KeyError
-except KeyError:
-    raise ImportError("Seaserv cannot be imported, because environment variable %s is undefined." % ENVIRONMENT_VARIABLES[1])
-else:
-    if _DEBUG:
-        print "Loading seafile config from " + SEAFILE_CONF_DIR
-
-SEAFILE_CONF_DIR = os.path.normpath(os.path.expanduser(SEAFILE_CONF_DIR))
-config.read(os.path.join(SEAFILE_CONF_DIR, 'seafile.conf'))
+config.read(os.path.join(SEAFILE_CENTRAL_CONF_DIR if SEAFILE_CENTRAL_CONF_DIR else SEAFILE_CONF_DIR,
+                         'seafile.conf'))
 
 def get_fileserver_option(key, default):
     '''

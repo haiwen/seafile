@@ -6,6 +6,7 @@ SCRIPT=$(readlink -f "$0")
 INSTALLPATH=$(dirname "${SCRIPT}")
 TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
+default_conf_dir=${TOPDIR}/conf
 seaf_fuse=${INSTALLPATH}/seafile/bin/seaf-fuse
 
 export PATH=${INSTALLPATH}/seafile/bin:$PATH
@@ -85,7 +86,10 @@ function start_seaf_fuse () {
     logfile=${TOPDIR}/logs/seaf-fuse.log
 
     LD_LIBRARY_PATH=$SEAFILE_LD_LIBRARY_PATH ${seaf_fuse} \
-        -c "${default_ccnet_conf_dir}" -d "${seafile_data_dir}" -l "${logfile}" \
+        -c "${default_ccnet_conf_dir}" \
+        -d "${seafile_data_dir}" \
+        -F "${default_conf_dir}" \
+        -l "${logfile}" \
         "$@"
 
     sleep 2

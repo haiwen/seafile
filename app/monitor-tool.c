@@ -86,12 +86,15 @@ SEARPC_CLIENT_DEFUN_STRING__VOID(monitor_list_chunk_servers)
 
 static gboolean print_version = FALSE;
 static char *config_dir = NULL;
+static char *central_config_dir = NULL;
 
 static GOptionEntry entries[] = 
 {
     { "version", 0, 0, G_OPTION_ARG_NONE, &print_version, "show version", NULL },
     { "config-file", 'c', 0, G_OPTION_ARG_STRING, &config_dir, 
       "ccnet configuration directory", NULL },
+    { "server-conf-dir", 'F', 0, G_OPTION_ARG_STRING, &central_config_dir,
+      "server configuration directory", NULL },
     { NULL },
 };
 
@@ -135,7 +138,7 @@ int main (int argc, char *argv[])
     }
 
     client = ccnet_client_new ();
-    if ( (ccnet_client_load_confdir(client, config_dir)) < 0 ) {
+    if ( (ccnet_client_load_confdir(client, central_config_dir, config_dir)) < 0 ) {
         fprintf (stderr, "Read config dir error\n");
         exit(1);
     }
