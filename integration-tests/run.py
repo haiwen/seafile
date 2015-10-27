@@ -169,7 +169,7 @@ class Project(object):
         shell('git checkout {}'.format(branch))
 
 class Ccnet(Project):
-    branch = 'merge-server-config'
+    branch = 'master'
 
     def __init__(self):
         super(Ccnet, self).__init__('ccnet')
@@ -188,7 +188,7 @@ class Seafile(Project):
 
 
 class Seahub(Project):
-    branch = 'merge-server-config'
+    branch = 'master'
 
     def __init__(self):
         super(Seahub, self).__init__('seahub')
@@ -206,7 +206,7 @@ class Seahub(Project):
 
 
 class SeafDAV(Project):
-    branch = 'merge-server-config'
+    branch = 'master'
 
     def __init__(self):
         super(SeafDAV, self).__init__('seafdav')
