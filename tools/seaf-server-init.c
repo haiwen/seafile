@@ -134,7 +134,7 @@ int main (int argc, char **argv)
         }
     }
 
-    if (g_lstat (config.central_config_dir, &st) < 0) {
+    if (config.central_config_dir && g_lstat (config.central_config_dir, &st) < 0) {
         if (g_mkdir (config.central_config_dir, 0700) < 0) {
             fprintf (stderr, "Directory %s cannot be created.\n", config.central_config_dir);
             return 1;
