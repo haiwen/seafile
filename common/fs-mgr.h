@@ -402,4 +402,8 @@ seaf_fs_manager_calculate_seafile_id_json (int repo_version,
                                            struct _CDCFileDescriptor *cdc,
                                            guint8 *file_id_sha1);
 
+int
+seaf_fs_manager_remove_store (SeafFSManager *mgr,
+                              const char *store_id);
+
 #endif

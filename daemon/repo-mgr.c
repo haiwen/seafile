@@ -3033,6 +3033,19 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
         if (!event)
             break;
 
+        /* Scanned dirs list is used to avoid redundant scan of consecutive
+           CREATE_OR_UPDATE events. When we see other events, we should
+           clear the list. Otherwise in some cases we'll get wrong result.
+           For example, the following sequence (run with a script):
+           1. Add a dir with files
+           2. Delete the dir with files
+           3. Add back the same dir again.
+        */
+        if (event->ev_type != WT_EVENT_CREATE_OR_UPDATE) {
+            g_list_free_full (scanned_dirs, g_free);
+            scanned_dirs = NULL;
+        }
+
         switch (event->ev_type) {
         case WT_EVENT_CREATE_OR_UPDATE:
             /* If consecutive CREATE_OR_UPDATE events present

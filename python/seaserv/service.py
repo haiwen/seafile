@@ -141,12 +141,15 @@ logger = logging.getLogger(__name__)
 
 #### Basic ccnet API ####
 
-def get_emailusers(source, start, limit):
-    try:
-        users = ccnet_threaded_rpc.get_emailusers(source, start, limit)
-    except SearpcError:
-        users = []
-    return users
+def get_emailusers(source, start, limit, is_active=None):
+    if is_active is True:
+        status = "active"       # list active users
+    elif is_active is False:
+        status = "inactive"     # list inactive users
+    else:
+        status = ""             # list all users
+
+    return ccnet_threaded_rpc.get_emailusers(source, start, limit, status)
 
 def count_emailusers():
     try:
@@ -154,6 +157,9 @@ def count_emailusers():
     except SearpcError:
         ret = -1
     return 0 if ret < 0 else ret
+
+def get_emailuser_with_import(email):
+    return ccnet_threaded_rpc.get_emailuser_with_import(email)
 
 def get_session_info():
     return ccnet_rpc.get_session_info()

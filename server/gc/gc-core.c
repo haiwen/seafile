@@ -390,6 +390,8 @@ delete_garbaged_repos (int dry_run)
         if (!seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id)) {
             if (!dry_run) {
                 seaf_message ("GC deleted repo %.8s.\n", repo_id);
+                seaf_commit_manager_remove_store (seaf->commit_mgr, repo_id);
+                seaf_fs_manager_remove_store (seaf->fs_mgr, repo_id);
                 seaf_block_manager_remove_store (seaf->block_mgr, repo_id);
             } else {
                 seaf_message ("Repo %.8s can be GC'ed.\n", repo_id);

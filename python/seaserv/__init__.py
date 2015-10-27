@@ -5,7 +5,8 @@ from service import ccnet_rpc, monitor_rpc, seafserv_rpc, \
 from service import send_command, check_quota, web_get_access_token, \
     unset_repo_passwd, get_user_quota_usage, get_user_share_usage, \
     get_user_quota
-from service import get_emailusers, count_emailusers, get_session_info
+from service import get_emailusers, count_emailusers, get_session_info, \
+    get_emailuser_with_import
 from service import get_org_groups, get_personal_groups_by_user, \
     get_group_repoids, get_personal_groups, list_share_repos, remove_share, \
     check_group_staff, remove_group_user, get_group, get_org_id_by_group, \
