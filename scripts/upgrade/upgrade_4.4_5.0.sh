@@ -211,10 +211,10 @@ function copy_confs_to_central_conf_dir() {
         fi
         cp $conffile $conffile.seafile-5.0.0-bak
         cp -v $conffile $default_conf_dir/
-        chmod a-w $conffile
         cat >$conffile<<EOF
 # This file has been moved to $default_conf_dir/$(basename $conffile) in seafile 5.0.0
 EOF
+        chmod a-w $conffile
     done
 }
 
