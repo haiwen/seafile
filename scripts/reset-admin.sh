@@ -4,6 +4,7 @@ SCRIPT=$(readlink -f "$0")
 INSTALLPATH=$(dirname "${SCRIPT}")
 TOPDIR=$(dirname "${INSTALLPATH}")
 default_ccnet_conf_dir=${TOPDIR}/ccnet
+central_config_dir=${TOPDIR}/conf
 
 function check_python_executable() {
     if [[ "$PYTHON" != "" && -x $PYTHON ]]; then
@@ -48,6 +49,7 @@ read_seafile_data_dir;
 
 export CCNET_CONF_DIR=${default_ccnet_conf_dir}
 export SEAFILE_CONF_DIR=${seafile_data_dir}
+export SEAFILE_CENTRAL_CONF_DIR=${central_config_dir}
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seafile/lib64/python2.7/site-packages:$PYTHONPATH
 
