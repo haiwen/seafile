@@ -1729,6 +1729,12 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
         if (!is_path_writable (repo_id, is_repo_ro, ce->name))
             continue;
 
+        if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                  repo_id, ce->name)) {
+            seaf_debug ("Remove deleted: %s is locked on server, ignore.\n", ce->name);
+            continue;
+        }
+
         if (prefix[0] != 0 && strcmp (ce->name, prefix) != 0 &&
             strncmp (ce->name, full_prefix, len) != 0)
             continue;
@@ -2907,6 +2913,12 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
     }
 
     if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                              repo->id, event->path)) {
+        seaf_debug ("Rename: %s is locked on server, ignore.\n", event->path);
+        return;
+    }
+
+    if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                               repo->id, event->new_path)) {
         seaf_debug ("Rename: %s is locked on server, ignore.\n", event->new_path);
         return;
@@ -3089,6 +3101,12 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                   repo->is_readonly, event->path)) {
                 seaf_debug ("%s is not writable, ignore.\n", event->path);
                 break;
+            }
+
+            if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                      repo->id, event->path)) {
+                seaf_debug ("Delete: %s is locked on server, ignore.\n", event->path);
+                return;
             }
 
             if (check_locked_file_before_remove (fset, event->path)) {
