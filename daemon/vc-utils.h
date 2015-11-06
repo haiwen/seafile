@@ -64,7 +64,7 @@ delete_dir_with_check (const char *repo_id,
                        struct index_state *istate);
 
 gboolean
-do_check_file_locked (const char *path, const char *worktree);
+do_check_file_locked (const char *path, const char *worktree, gboolean locked_on_server);
 
 gboolean
 do_check_dir_locked (const char *path, const char *worktree);

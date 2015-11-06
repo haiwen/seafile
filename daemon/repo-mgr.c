@@ -4352,7 +4352,7 @@ download_files_no_http (const char *repo_id,
 
             if (!should_ignore_on_checkout (de->name)) {
 #ifdef WIN32
-                is_locked = do_check_file_locked (de->name, worktree);
+                is_locked = do_check_file_locked (de->name, worktree, FALSE);
 #endif
 
                 if (!is_clone)
@@ -4746,14 +4746,18 @@ checkout_file_http (FileTxData *data,
     SeafStat st;
     char *path = NULL;
     char file_id[41];
+    gboolean locked_on_server = FALSE;
 
     if (no_checkout)
         return FETCH_CHECKOUT_SUCCESS;
 
     rawdata_to_hex (de->sha1, file_id, 20);
 
+    locked_on_server = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                             repo_id, de->name);
+
 #ifdef WIN32
-    if (do_check_file_locked (de->name, worktree)) {
+    if (do_check_file_locked (de->name, worktree, locked_on_server)) {
         locked_file_set_add_update (fset, de->name, LOCKED_OP_UPDATE,
                                     ce->ce_mtime.sec, file_id);
         /* Stay in syncing status if the file is locked. */
@@ -4794,8 +4798,7 @@ checkout_file_http (FileTxData *data,
     /* Temporarily unlock the file if it's locked on server, so that the client
      * itself can write to it. 
      */
-    if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                              repo_id, de->name))
+    if (locked_on_server)
         seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
                                               repo_id, de->name);
 
@@ -4825,8 +4828,7 @@ checkout_file_http (FileTxData *data,
         return FETCH_CHECKOUT_FAILED;
     }
 
-    if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                              repo_id, de->name))
+    if (locked_on_server)
         seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
                                             repo_id, de->name);
 
@@ -5449,7 +5451,11 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                 goto out;
             }
         } else if (de->status == DIFF_STATUS_RENAMED) {
-            if (do_check_file_locked (de->name, worktree)) {
+            gboolean locked_on_server = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                                              repo_id,
+                                                                              de->name);
+
+            if (do_check_file_locked (de->name, worktree, locked_on_server)) {
                 seaf_message ("File %s is locked by other program, skip rename.\n",
                               de->name);
                 ret = FETCH_CHECKOUT_LOCKED;
@@ -5507,13 +5513,15 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             if (!ce)
                 continue;
 
-            if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                                      repo_id, de->name))
+            gboolean locked_on_server = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                                              repo_id,
+                                                                              de->name);
+            if (locked_on_server)
                 seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
                                                       repo_id, de->name);
 
 #ifdef WIN32
-            if (!do_check_file_locked (de->name, worktree)) {
+            if (!do_check_file_locked (de->name, worktree, locked_on_server)) {
                 locked_file_set_remove (fset, de->name, FALSE);
                 delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
             } else {

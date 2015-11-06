@@ -2261,6 +2261,7 @@ static gboolean
 handle_locked_file_update (SeafRepo *repo, struct index_state *istate,
                            LockedFileSet *fset, const char *path, LockedFile *locked)
 {
+    gboolean locked_on_server = FALSE;
     struct cache_entry *ce;
     char file_id[41];
     char *fullpath = NULL;
@@ -2270,8 +2271,11 @@ handle_locked_file_update (SeafRepo *repo, struct index_state *istate,
     SeafBranch *master = NULL;
     gboolean ret = TRUE;
 
+    locked_on_server = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                             repo->id,
+                                                             path);
     /* File is still locked, do nothing. */
-    if (do_check_file_locked (path, repo->worktree))
+    if (do_check_file_locked (path, repo->worktree, locked_on_server))
         return FALSE;
 
     seaf_debug ("Update previously locked file %s in repo %.8s.\n",
@@ -2335,6 +2339,14 @@ handle_locked_file_update (SeafRepo *repo, struct index_state *istate,
                                           S_IFREG,
                                           SYNC_STATUS_SYNCED);
 
+    /* In checkout, the file was overwritten by rename, so the file attributes
+       are gone. We have to set read-only state again.
+    */
+    if (locked_on_server)
+        seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
+                                            repo->id,
+                                            path);
+
 out:
     cleanup_file_blocks (repo->id, repo->version, file_id);
 
@@ -2352,13 +2364,18 @@ static gboolean
 handle_locked_file_delete (SeafRepo *repo, struct index_state *istate,
                            LockedFileSet *fset, const char *path, LockedFile *locked)
 {
+    gboolean locked_on_server = FALSE;
     char *fullpath = NULL;
     SeafStat st;
     gboolean file_exists = TRUE;
     gboolean ret = TRUE;
 
+    locked_on_server = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                             repo->id,
+                                                             path);
+
     /* File is still locked, do nothing. */
-    if (do_check_file_locked (path, repo->worktree))
+    if (do_check_file_locked (path, repo->worktree, locked_on_server))
         return FALSE;
 
     seaf_debug ("Delete previously locked file %s in repo %.8s.\n",

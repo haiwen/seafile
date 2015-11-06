@@ -930,12 +930,19 @@ delete_path (const char *worktree, const char *name,
 #ifdef WIN32
 
 static gboolean
-check_file_locked (const wchar_t *path_w)
+check_file_locked (const wchar_t *path_w, gboolean locked_on_server)
 {
     HANDLE handle;
+    /* If the file is locked on server, its local access right has been set to
+     * read-only. So trying to test GENERIC_WRITE access will certainly return
+     * ACCESS_DENIED. In this case, we can only test for GENERIC_READ.
+     * MS Office seems to gain exclusive read/write access to the file. So even
+     * trying read access can return a SHARING_VIOLATION error.
+     */
+    DWORD access_mode = locked_on_server ? GENERIC_READ : GENERIC_WRITE;
 
     handle = CreateFileW (path_w,
-                          GENERIC_WRITE,
+                          access_mode,
                           0,
                           NULL,
                           OPEN_EXISTING,
@@ -951,14 +958,14 @@ check_file_locked (const wchar_t *path_w)
 }
 
 gboolean
-do_check_file_locked (const char *path, const char *worktree)
+do_check_file_locked (const char *path, const char *worktree, gboolean locked_on_server)
 {
     char *real_path;
     wchar_t *real_path_w;
     gboolean ret;
     real_path = g_build_path(PATH_SEPERATOR, worktree, path, NULL);
     real_path_w = win32_long_path (real_path);
-    ret = check_file_locked (real_path_w);
+    ret = check_file_locked (real_path_w, locked_on_server);
     g_free (real_path);
     g_free (real_path_w);
     return ret;
@@ -1032,7 +1039,7 @@ check_dir_locked_recursive (const wchar_t *path_w)
                 goto out;
             }
         } else {
-            if (check_file_locked (sub_path_w)) {
+            if (check_file_locked (sub_path_w, FALSE)) {
                 ret = TRUE;
                 g_free (sub_path_w);
                 goto out;
@@ -1099,13 +1106,13 @@ files_locked_on_windows (struct index_state *index, const char *worktree)
                 mask == 6 ||    /* both added */
                 mask == 3)      /* others removed */
             {
-                if (do_check_file_locked (ce->name, worktree))
+                if (do_check_file_locked (ce->name, worktree, FALSE))
                     ret = TRUE;
                     break;
             }
         } else if (ce->ce_flags & CE_UPDATE ||
                    ce->ce_flags & CE_WT_REMOVE) {
-            if (do_check_file_locked (ce->name, worktree)) {
+            if (do_check_file_locked (ce->name, worktree, FALSE)) {
                 ret = TRUE;
                 break;
             }
