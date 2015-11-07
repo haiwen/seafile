@@ -69,6 +69,7 @@ CONF_SEAFILE_CONF_EXISTS = 'seafile_conf_exists'
 
 CONF_ADMIN_EMAIL = 'admin_email'
 CONF_ADMIN_PASSWORD = 'admin_password'
+CONF_SEAFILE_CENTRAL_CONF_DIR = 'central_config_dir'
 
 ####################
 ### Common helper functions
@@ -281,6 +282,7 @@ def get_seahub_env():
     env['PYTHONPATH'] = newpypath
     env['CCNET_CONF_DIR'] = conf[CONF_CCNET_DIR]
     env['SEAFILE_CONF_DIR'] = conf[CONF_SEAFILE_DIR]
+    env['SEAFILE_CENTRAL_CONF_DIR'] = conf[CONF_SEAFILE_CENTRAL_CONF_DIR]
     return env
 
 
@@ -333,21 +335,17 @@ def get_server_ip_or_domain():
 
 def get_ccnet_conf_dir():
     ccnet_conf_dir = os.path.join(cwd, 'ccnet')
-    ccnet_conf = os.path.join(ccnet_conf_dir, 'ccnet.conf')
 
     if os.path.exists(ccnet_conf_dir):
-        if os.path.exists(ccnet_conf):
-            question = 'It seems there already exists ccnet config files in %s, Do you want to use them?' % ccnet_conf_dir
-            yesno = ask_question(question, yes_or_no=True)
-            if not yesno:
-                print highlight(
-                    '\nRemove the directory %s first, and run the script again.\n'
-                    % ccnet_conf_dir)
-                sys.exit(1)
-            else:
-                conf[CONF_CCNET_CONF_EXISTS] = True
+        question = 'It seems there already exists ccnet config files in %s, Do you want to use them?' % ccnet_conf_dir
+        yesno = ask_question(question, yes_or_no=True)
+        if not yesno:
+            print highlight(
+                '\nRemove the directory %s first, and run the script again.\n'
+                % ccnet_conf_dir)
+            sys.exit(1)
         else:
-            print 'Please remove the directory %s first, and run the script again' % ccnet_conf_dir
+            conf[CONF_CCNET_CONF_EXISTS] = True
     else:
         conf[CONF_CCNET_CONF_EXISTS] = False
 
@@ -417,23 +415,17 @@ def get_seafile_data_dir():
                                     key=key,
                                     note=note,
                                     default=default)
-    seafile_conf = os.path.join(seafile_data_dir, 'seafile.conf')
 
     if os.path.exists(seafile_data_dir):
-        if os.path.exists(seafile_conf):
-            question = 'It seems there already exists seafile data in %s, Do you want to use them?' % seafile_data_dir
-            yesno = ask_question(question, yes_or_no=True)
-            if not yesno:
-                print highlight(
-                    '\nRemove the directory %s first, and run the script again.\n'
-                    % seafile_data_dir)
-                sys.exit(1)
-            else:
-                conf[CONF_SEAFILE_CONF_EXISTS] = True
-        else:
-            info(
-                'Please remove the directory %s first, and run the script again'
+        question = 'It seems there already exists seafile data in %s, Do you want to use them?' % seafile_data_dir
+        yesno = ask_question(question, yes_or_no=True)
+        if not yesno:
+            print highlight(
+                '\nRemove the directory %s first, and run the script again.\n'
                 % seafile_data_dir)
+            sys.exit(1)
+        else:
+            conf[CONF_SEAFILE_CONF_EXISTS] = True
     else:
         conf[CONF_SEAFILE_CONF_EXISTS] = False
 
@@ -475,7 +467,7 @@ def gen_seahub_secret_key():
 
 
 def create_seahub_settings_py():
-    seahub_settings_py = os.path.join(cwd, 'seahub_settings.py')
+    seahub_settings_py = os.path.join(cwd, 'conf', 'seahub_settings.py')
     try:
         with open(seahub_settings_py, 'w') as fp:
             line = "SECRET_KEY = '%s'" % gen_seahub_secret_key()
@@ -608,6 +600,8 @@ def init_ccnet_seafile():
         info('Generating ccnet configuration...')
         argv = [
             'ccnet-init',
+            '-F',
+            conf[CONF_SEAFILE_CENTRAL_CONF_DIR],
             '-c',
             conf[CONF_CCNET_DIR],
             '--name',
@@ -627,6 +621,8 @@ def init_ccnet_seafile():
         info('Generating seafile configuration...')
         argv = [
             'seaf-server-init',
+            '-F',
+            conf[CONF_SEAFILE_CENTRAL_CONF_DIR],
             '--seafile-dir',
             conf[CONF_SEAFILE_DIR],
             '--port',
@@ -655,6 +651,8 @@ def start_controller():
         conf[CONF_CCNET_DIR],
         '-d',
         conf[CONF_SEAFILE_DIR],
+        '-F',
+        conf[CONF_SEAFILE_CENTRAL_CONF_DIR],
     ]
 
     info('Starting seafile-server...')
@@ -691,15 +689,17 @@ def start_seahub_fastcgi():
         PYTHON,
         'manage.py',
         'runfcgi',
-        'host=127.0.0.1',
+        'host=%(host)s',
         'port=%(port)s',
         'pidfile=%(pidfile)s',
         'outlog=%(outlog)s',
         'errlog=%(errlog)s',
     ]
 
+    host = os.environ.get('SEAFILE_FASTCGI_HOST', '127.0.0.1')
     cmdline = ' '.join(argv) % \
-              dict(port=conf[CONF_SEAHUB_PORT],
+              dict(host=host,
+                   port=conf[CONF_SEAHUB_PORT],
                    pidfile=conf[CONF_SEAHUB_PIDFILE],
                    outlog=conf[CONF_SEAHUB_OUTLOG],
                    errlog=conf[CONF_SEAHUB_ERRLOG])
@@ -741,7 +741,9 @@ def check_layout(args):
     if not os.path.exists(ccnet_conf_dir):
         error_not_found(ccnet_conf_dir)
 
-    ccnet_conf = os.path.join(ccnet_conf_dir, 'ccnet.conf')
+    central_config_dir = os.path.join(cwd, 'conf')
+
+    ccnet_conf = os.path.join(central_config_dir, 'ccnet.conf')
     if not os.path.exists(ccnet_conf):
         error_not_found(ccnet_conf)
 
@@ -749,7 +751,7 @@ def check_layout(args):
     if not os.path.exists(seafile_data_dir):
         error_not_found(seafile_data_dir)
 
-    seafile_conf = os.path.join(seafile_data_dir, 'seafile.conf')
+    seafile_conf = os.path.join(central_config_dir, 'seafile.conf')
     if not os.path.exists(seafile_conf):
         error_not_found(seafile_conf)
 
@@ -762,6 +764,7 @@ def check_layout(args):
     if not os.path.exists(seahub_conf):
         error_not_found(seahub_dir)
 
+    conf[CONF_SEAFILE_CENTRAL_CONF_DIR] = central_config_dir
     conf[CONF_CCNET_DIR] = ccnet_conf_dir
     conf[CONF_SEAFILE_DIR] = seafile_data_dir
     conf[CONF_SEAHUB_DIR] = seahub_dir
@@ -805,6 +808,7 @@ def setup_seafile(args):
 
     welcome()
     check_python_dependencies()
+    conf[CONF_SEAFILE_CENTRAL_CONF_DIR] = os.path.join(cwd, 'conf')
     config_ccnet_seafile()
     init_ccnet_seafile()
     init_seahub()
@@ -835,10 +839,10 @@ def setup_seafile(args):
 
 def check_necessary_files():
     files = [
-        os.path.join(cwd, 'ccnet', 'ccnet.conf'),
+        os.path.join(cwd, 'conf', 'ccnet.conf'),
         os.path.join(cwd, 'seafile-server', 'runtime', 'seahub.conf'),
         os.path.join(cwd, 'seahub.db'),
-        os.path.join(cwd, 'seahub_settings.py'),
+        os.path.join(cwd, 'conf', 'seahub_settings.py'),
     ]
 
     for fpath in files:
