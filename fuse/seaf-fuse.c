@@ -302,6 +302,7 @@ int main(int argc, char *argv[])
 
     config_dir = options.config_dir ? : DEFAULT_CONFIG_DIR;
     config_dir = ccnet_expand_path (config_dir);
+    central_config_dir = options.central_config_dir;
 
     if (!debug_str)
         debug_str = g_getenv("SEAFILE_DEBUG");
@@ -329,7 +330,7 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    seaf = seafile_session_new(seafile_dir, ccnet_client);
+    seaf = seafile_session_new(central_config_dir, seafile_dir, ccnet_client);
     if (!seaf) {
         seaf_warning("Failed to create seafile session.\n");
         exit(1);
