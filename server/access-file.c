@@ -107,7 +107,6 @@ extern SeafileSession *seaf;
 
 static struct file_type_map ftmap[] = {
     { "txt", "text/plain" },
-    { "html", "text/html" },
     { "doc", "application/vnd.ms-word" },
     { "docx", "application/vnd.ms-word" },
     { "ppt", "application/vnd.ms-powerpoint" },
@@ -594,6 +593,10 @@ do_file(evhtp_request_t *req, SeafRepo *repo, const char *file_id,
                              evhtp_header_new("Content-Disposition", cont_filename,
                                               1, 1));
 
+    evhtp_headers_add_header(req->headers_out,
+                             evhtp_header_new("X-Content-Type-Options", "nosniff",
+                                              1, 1));
+
     /* If it's an empty file, send an empty reply. */
     if (file->n_blocks == 0) {
         evhtp_send_reply (req, EVHTP_RES_OK);
@@ -936,6 +939,9 @@ do_file_range (evhtp_request_t *req, SeafRepo *repo, const char *file_id,
 
     set_resp_disposition (req, operation, filename);
 
+    evhtp_headers_add_header(req->headers_out,
+                             evhtp_header_new("X-Content-Type-Options", "nosniff",
+                                              1, 1));
     data = g_new0 (SendFileRangeData, 1);
     if (!data) {
         seafile_unref (file);
