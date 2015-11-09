@@ -201,7 +201,7 @@ start_seaf_server ()
         NULL};
 
     if (!ctl->cloud_mode) {
-        argv[9] = NULL;
+        argv[g_strv_length(argv)] = NULL;
     }
 
     int pid = spawn_process (argv);
