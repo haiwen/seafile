@@ -29,13 +29,12 @@ char *topdir = NULL;
 
 char *seafile_ld_library_path = NULL;
 
-static const char *short_opts = "hvftCc:d:L:g:G:P:F:";
+static const char *short_opts = "hvftc:d:L:g:G:P:F:";
 static const struct option long_opts[] = {
     { "help", no_argument, NULL, 'h', },
     { "version", no_argument, NULL, 'v', },
     { "foreground", no_argument, NULL, 'f', },
     { "test", no_argument, NULL, 't', },
-    { "cloud-mode", no_argument, NULL, 'C', },
     { "config-dir", required_argument, NULL, 'c', },
     { "seafile-dir", required_argument, NULL, 'd', },
     { "central-config-dir", required_argument, NULL, 'F' },
@@ -197,12 +196,7 @@ start_seaf_server ()
         "-d", ctl->seafile_dir,
         "-l", logfile,
         "-P", ctl->pidfile[PID_SERVER],
-        "-C",
         NULL};
-
-    if (!ctl->cloud_mode) {
-        argv[g_strv_length(argv)] = NULL;
-    }
 
     int pid = spawn_process (argv);
     if (pid <= 0) {
@@ -599,8 +593,7 @@ seaf_controller_init (SeafileController *ctl,
                       char *central_config_dir,
                       char *config_dir,
                       char *seafile_dir,
-                      char *logdir,
-                      gboolean cloud_mode)
+                      char *logdir)
 {
     init_seafile_path ();
     if (!g_file_test (config_dir, G_FILE_TEST_IS_DIR)) {
@@ -641,7 +634,6 @@ seaf_controller_init (SeafileController *ctl,
     ctl->config_dir = config_dir;
     ctl->seafile_dir = seafile_dir;
     ctl->logdir = logdir;
-    ctl->cloud_mode = cloud_mode;
 
     if (read_seafdav_config() < 0) {
         return -1;
@@ -896,7 +888,6 @@ int main (int argc, char **argv)
     char *ccnet_debug_level_str = "info";
     char *seafile_debug_level_str = "debug";
     int daemon_mode = 1;
-    gboolean cloud_mode = FALSE;
     gboolean test_conf = FALSE;
 
     int c;
@@ -928,9 +919,6 @@ int main (int argc, char **argv)
             break;
         case 'L':
             logdir = g_strdup(optarg);
-            break;
-        case 'C':
-            cloud_mode = TRUE;
             break;
         case 'g':
             ccnet_debug_level_str = optarg;
@@ -973,7 +961,7 @@ int main (int argc, char **argv)
     }
 
     ctl = g_new0 (SeafileController, 1);
-    if (seaf_controller_init (ctl, central_config_dir, config_dir, seafile_dir, logdir, cloud_mode) < 0) {
+    if (seaf_controller_init (ctl, central_config_dir, config_dir, seafile_dir, logdir) < 0) {
         controller_exit(1);
     }
 
