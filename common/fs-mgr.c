@@ -21,6 +21,7 @@
 #include "block-mgr.h"
 #include "utils.h"
 #include "seaf-utils.h"
+#define DEBUG_FLAG SEAFILE_DEBUG_OTHER
 #include "log.h"
 #include "../common/seafile-crypt.h"
 
@@ -1061,14 +1062,14 @@ seafile_from_json_object (const char *id, json_t *object)
     /* Sanity checks. */
     type = json_object_get_int_member (object, "type");
     if (type != SEAF_METADATA_TYPE_FILE) {
-        seaf_warning ("Object %s is not a file.\n", id);
+        seaf_debug ("Object %s is not a file.\n", id);
         return NULL;
     }
 
     version = (int) json_object_get_int_member (object, "version");
     if (version < 1) {
-        seaf_warning ("Seafile object %s version should be > 0, version is %d.\n",
-                      id, version);
+        seaf_debug ("Seafile object %s version should be > 0, version is %d.\n",
+                    id, version);
         return NULL;
     }
 
@@ -1076,7 +1077,7 @@ seafile_from_json_object (const char *id, json_t *object)
 
     block_id_array = json_object_get (object, "block_ids");
     if (!block_id_array) {
-        seaf_warning ("No block id array in seafile object %s.\n", id);
+        seaf_debug ("No block id array in seafile object %s.\n", id);
         return NULL;
     }
 
@@ -1096,7 +1097,7 @@ seafile_from_json_object (const char *id, json_t *object)
     for (i = 0; i < seafile->n_blocks; ++i) {
         block_id_obj = json_array_get (block_id_array, i);
         block_id = json_string_value (block_id_obj);
-        if (!block_id) {
+        if (!block_id || !is_object_id_valid(block_id)) {
             seafile_free (seafile);
             return NULL;
         }
@@ -1482,13 +1483,17 @@ parse_dirent (const char *dir_id, int version, json_t *object)
 
     id = json_object_get_string_member (object, "id");
     if (!id) {
-        seaf_warning ("Dirent id not set for dir object %s.\n", dir_id);
+        seaf_debug ("Dirent id not set for dir object %s.\n", dir_id);
+        return NULL;
+    }
+    if (!is_object_id_valid (id)) {
+        seaf_debug ("Dirent id is invalid for dir object %s.\n", dir_id);
         return NULL;
     }
 
     name = json_object_get_string_member (object, "name");
     if (!name) {
-        seaf_warning ("Dirent name not set for dir object %s.\n", dir_id);
+        seaf_debug ("Dirent name not set for dir object %s.\n", dir_id);
         return NULL;
     }
 
@@ -1496,7 +1501,7 @@ parse_dirent (const char *dir_id, int version, json_t *object)
     if (S_ISREG(mode)) {
         modifier = json_object_get_string_member (object, "modifier");
         if (!modifier) {
-            seaf_warning ("Dirent modifier not set for dir object %s.\n", dir_id);
+            seaf_debug ("Dirent modifier not set for dir object %s.\n", dir_id);
             return NULL;
         }
         size = json_object_get_int_member (object, "size");
@@ -1528,20 +1533,20 @@ seaf_dir_from_json_object (const char *dir_id, json_t *object)
     /* Sanity checks. */
     type = json_object_get_int_member (object, "type");
     if (type != SEAF_METADATA_TYPE_DIR) {
-        seaf_warning ("Object %s is not a dir.\n", dir_id);
+        seaf_debug ("Object %s is not a dir.\n", dir_id);
         return NULL;
     }
 
     version = (int) json_object_get_int_member (object, "version");
     if (version < 1) {
-        seaf_warning ("Dir object %s version should be > 0, version is %d.\n",
-                      dir_id, version);
+        seaf_debug ("Dir object %s version should be > 0, version is %d.\n",
+                    dir_id, version);
         return NULL;
     }
 
     dirent_array = json_object_get (object, "dirents");
     if (!dirent_array) {
-        seaf_warning ("No dirents in dir object %s.\n", dir_id);
+        seaf_debug ("No dirents in dir object %s.\n", dir_id);
         return NULL;
     }
 

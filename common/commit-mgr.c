@@ -680,7 +680,11 @@ commit_from_json_object (const char *commit_id, json_t *object)
     second_parent_id = json_object_get_string_or_null_member (object, "second_parent_id");
 
     repo_name = json_object_get_string_member (object, "repo_name");
+    if (!repo_name)
+        repo_name = "";
     repo_desc = json_object_get_string_member (object, "repo_desc");
+    if (!repo_desc)
+        repo_desc = "";
     repo_category = json_object_get_string_or_null_member (object, "repo_category");
     if (json_object_has_member (object, "encrypted"))
         encrypted = json_object_get_string_or_null_member (object, "encrypted");
@@ -710,12 +714,12 @@ commit_from_json_object (const char *commit_id, json_t *object)
 
 
     /* sanity check for incoming values. */
-    if (!repo_id || strlen(repo_id) != 36 ||
-        !root_id || strlen(root_id) != 40 ||
+    if (!repo_id || !is_uuid_valid(repo_id)  ||
+        !root_id || !is_object_id_valid(root_id) ||
         !creator || strlen(creator) != 40 ||
-        (parent_id && strlen(parent_id) != 40) ||
-        (second_parent_id && strlen(second_parent_id) != 40) ||
-        (enc_version >= 1 && magic == NULL))
+        !creator_name ||
+        (parent_id && !is_object_id_valid(parent_id)) ||
+        (second_parent_id && !is_object_id_valid(second_parent_id)))
         return commit;
 
     switch (enc_version) {
@@ -738,7 +742,7 @@ commit_from_json_object (const char *commit_id, json_t *object)
 
     char *creator_name_l = g_ascii_strdown (creator_name, -1);
     commit = seaf_commit_new (commit_id, repo_id, root_id,
-                              creator_name, creator, desc, ctime);
+                              creator_name_l, creator, desc, ctime);
     g_free (creator_name_l);
 
     commit->parent_id = parent_id ? g_strdup(parent_id) : NULL;
