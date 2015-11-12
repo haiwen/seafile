@@ -332,6 +332,10 @@ class MySQLDBUpdater(DBUpdater):
 
 
 def main():
+    skipdb = os.environ.get('SEAFILE_SKIP_DB_UPGRADE', '').lower()
+    if skipdb in ('1', 'true', 'on'):
+        print 'Database upgrade skipped'
+        sys.exit()
     version = sys.argv[1]
     db_updater = DBUpdater.get_instance(version)
     db_updater.update_db()
