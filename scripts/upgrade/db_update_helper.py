@@ -24,6 +24,7 @@ class EnvManager(object):
         self.top_dir = os.path.dirname(self.install_path)
         self.ccnet_dir = os.environ['CCNET_CONF_DIR']
         self.seafile_dir = os.environ['SEAFILE_CONF_DIR']
+        self.central_config_dir = os.environ.get('SEAFILE_CENTRAL_CONF_DIR')
 
 env_mgr = EnvManager()
 
@@ -181,6 +182,8 @@ class DBUpdater(object):
     @staticmethod
     def get_seahub_mysql_info():
         sys.path.insert(0, env_mgr.top_dir)
+        if env_mgr.central_config_dir:
+            sys.path.insert(0, env_mgr.central_config_dir)
         try:
             import seahub_settings # pylint: disable=F0401
         except ImportError, e:
@@ -334,7 +337,7 @@ class MySQLDBUpdater(DBUpdater):
 def main():
     skipdb = os.environ.get('SEAFILE_SKIP_DB_UPGRADE', '').lower()
     if skipdb in ('1', 'true', 'on'):
-        print 'Database upgrade skipped'
+        print 'Database upgrade skipped because SEAFILE_SKIP_DB_UPGRADE=%s' % skipdb
         sys.exit()
     version = sys.argv[1]
     db_updater = DBUpdater.get_instance(version)

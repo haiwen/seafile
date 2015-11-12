@@ -13,6 +13,7 @@ seahub_settings_py=${TOPDIR}/seahub_settings.py
 manage_py=${INSTALLPATH}/seahub/manage.py
 
 export CCNET_CONF_DIR=${default_ccnet_conf_dir}
+export SEAFILE_CENTRAL_CONF_DIR=${default_conf_dir}
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.6/site-packages:${INSTALLPATH}/seafile/lib64/python2.6/site-packages:${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seahub/thirdpart:$PYTHONPATH
 export PYTHONPATH=${INSTALLPATH}/seafile/lib/python2.7/site-packages:${INSTALLPATH}/seafile/lib64/python2.7/site-packages:$PYTHONPATH
 export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafile/lib64:${LD_LIBRARY_PATH}
