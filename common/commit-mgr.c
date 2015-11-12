@@ -717,7 +717,6 @@ commit_from_json_object (const char *commit_id, json_t *object)
     if (!repo_id || !is_uuid_valid(repo_id)  ||
         !root_id || !is_object_id_valid(root_id) ||
         !creator || strlen(creator) != 40 ||
-        !creator_name ||
         (parent_id && !is_object_id_valid(parent_id)) ||
         (second_parent_id && !is_object_id_valid(second_parent_id)))
         return commit;
@@ -740,7 +739,7 @@ commit_from_json_object (const char *commit_id, json_t *object)
         return NULL;
     }
 
-    char *creator_name_l = g_ascii_strdown (creator_name, -1);
+    char *creator_name_l = creator_name ? g_ascii_strdown (creator_name, -1) : NULL;
     commit = seaf_commit_new (commit_id, repo_id, root_id,
                               creator_name_l, creator, desc, ctime);
     g_free (creator_name_l);
