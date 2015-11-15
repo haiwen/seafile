@@ -25,7 +25,7 @@ if [[ "$1" != "start" && "$1" != "stop" && "$1" != "restart" ]]; then
     exit 1;
 fi
 
-if [[ ($1 == "start" || $1 == "restart" ) && $# < 2 ]]; then
+if [[ ($1 == "start" || $1 == "restart" ) && $# -lt 2 ]]; then
     usage;
     exit 1
 fi
