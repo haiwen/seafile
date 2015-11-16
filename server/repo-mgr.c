@@ -1760,7 +1760,7 @@ seaf_repo_manager_set_repo_history_limit (SeafRepoManager *mgr,
 
         if (exists)
             rc = seaf_db_statement_query (db,
-                                          "UPDATE RepoHistoryLimit SET days=%d"
+                                          "UPDATE RepoHistoryLimit SET days=%d "
                                           "WHERE repo_id=?",
                                           2, "int", days, "string", repo_id);
         else
