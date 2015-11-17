@@ -4586,8 +4586,11 @@ fetch_file_thread_func (gpointer data, gpointer user_data)
     gboolean is_locked = FALSE;
     int rc = FETCH_CHECKOUT_SUCCESS;
 
-    if (should_ignore_on_checkout (de->name))
+    if (should_ignore_on_checkout (de->name)) {
+        seaf_message ("Path %s is invalid on Windows, skip checkout\n",
+                      de->name);
         goto out;
+    }
 
     rawdata_to_hex (de->sha1, file_id, 20);
 
@@ -4749,6 +4752,9 @@ checkout_file_http (FileTxData *data,
     gboolean locked_on_server = FALSE;
 
     if (no_checkout)
+        return FETCH_CHECKOUT_SUCCESS;
+
+    if (should_ignore_on_checkout (de->name))
         return FETCH_CHECKOUT_SUCCESS;
 
     rawdata_to_hex (de->sha1, file_id, 20);
@@ -4966,7 +4972,7 @@ download_files_http (const char *repo_id,
     }
 
     /* If there is no file need to be downloaded, return immediately. */
-    if (http_task->n_files == 0) {
+    if (g_hash_table_size(pending_tasks) == 0) {
         if (results != NULL)
             update_index (istate, index_path);
         goto out;
@@ -5025,7 +5031,7 @@ download_files_http (const char *repo_id,
 
         g_hash_table_remove (pending_tasks, de->name);
 
-        if (http_task->done_files == http_task->n_files)
+        if (g_hash_table_size (pending_tasks) == 0)
             break;
 
         /* Save index file to disk after checking out some size of files.
@@ -5330,6 +5336,61 @@ update_sync_status (struct cache_entry *ce, void *user_data)
                                           SYNC_STATUS_SYNCED);
 }
 
+static int
+convert_rename_to_checkout (const char *repo_id,
+                            int repo_version,
+                            const char *root_id,
+                            DiffEntry *de,
+                            GList **entries)
+{
+    if (de->status == DIFF_STATUS_RENAMED) {
+        char file_id[41];
+        SeafDirent *dent = NULL;
+        DiffEntry *new_de = NULL;
+
+        rawdata_to_hex (de->sha1, file_id, 20);
+        dent = seaf_fs_manager_get_dirent_by_path (seaf->fs_mgr,
+                                                   repo_id,
+                                                   repo_version,
+                                                   root_id,
+                                                   de->new_name,
+                                                   NULL);
+        if (!dent) {
+            seaf_warning ("Failed to find %s in repo %s\n",
+                          de->new_name, repo_id);
+            return -1;
+        }
+
+        new_de = diff_entry_new (DIFF_TYPE_COMMITS, DIFF_STATUS_ADDED,
+                                 de->sha1, de->new_name);
+        if (new_de) {
+            new_de->mtime = dent->mtime;
+            new_de->mode = dent->mode;
+            new_de->modifier = g_strdup(dent->modifier);
+            new_de->size = dent->size;
+            *entries = g_list_prepend (*entries, new_de);
+        }
+
+        seaf_dirent_free (dent);
+    } else if (de->status == DIFF_STATUS_DIR_RENAMED) {
+        GList *expanded = NULL;
+
+        if (seaf_fs_manager_traverse_path (seaf->fs_mgr,
+                                           repo_id, repo_version,
+                                           root_id,
+                                           de->new_name,
+                                           expand_dir_added_cb,
+                                           &expanded) < 0) {
+            g_list_free_full (expanded, (GDestroyNotify)diff_entry_free);
+            return -1;
+        }
+
+        *entries = g_list_concat (*entries, expanded);
+    }
+
+    return 0;
+}
+
 int
 seaf_repo_fetch_and_checkout (TransferTask *task,
                               HttpTxTask *http_task,
@@ -5490,16 +5551,6 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 
     struct cache_entry *ce;
 
-    for (ptr = results; ptr; ptr = ptr->next) {
-        de = ptr->data;
-        if (de->status == DIFF_STATUS_ADDED || de->status == DIFF_STATUS_MODIFIED) {
-            if (!is_http)
-                ++(task->n_to_download);
-            else
-                ++(http_task->n_files);
-        }
-    }
-
 #ifdef WIN32
     fset = seaf_repo_manager_get_locked_file_set (seaf->repo_mgr, repo_id);
 #endif
@@ -5508,6 +5559,12 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         de = ptr->data;
         if (de->status == DIFF_STATUS_DELETED) {
             seaf_debug ("Delete file %s.\n", de->name);
+
+            if (should_ignore_on_checkout (de->name)) {
+                seaf_message ("Path %s is invalid on Windows, skip delete.\n",
+                              de->name);
+                continue;
+            }
 
             ce = index_name_exists (&istate, de->name, strlen(de->name), 0);
             if (!ce)
@@ -5539,6 +5596,12 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         } else if (de->status == DIFF_STATUS_DIR_DELETED) {
             seaf_debug ("Delete dir %s.\n", de->name);
 
+            if (should_ignore_on_checkout (de->name)) {
+                seaf_message ("Path %s is invalid on Windows, skip delete.\n",
+                              de->name);
+                continue;
+            }
+
             /* Nothing to delete. */
             if (!master_head || strcmp(master_head->root_id, EMPTY_SHA1) == 0)
                 continue;
@@ -5557,6 +5620,22 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         if (de->status == DIFF_STATUS_RENAMED ||
             de->status == DIFF_STATUS_DIR_RENAMED) {
             seaf_debug ("Rename %s to %s.\n", de->name, de->new_name);
+
+#ifdef WIN32
+            if (should_ignore_on_checkout (de->new_name)) {
+                seaf_message ("Path %s is invalid on Windows, skip rename.\n");
+                continue;
+            } else if (should_ignore_on_checkout (de->name)) {
+                /* If the server renames an invalid path to a valid path,
+                 * directly checkout the valid path. The checkout will merge
+                 * with any existing files.
+                 */
+                convert_rename_to_checkout (repo_id, repo_version,
+                                            remote_head->root_id,
+                                            de, &results);
+                continue;
+            }
+#endif
 
             if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                       repo_id, de->name))
@@ -5582,6 +5661,16 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 
     if (istate.cache_changed)
         update_index (&istate, index_path);
+
+    for (ptr = results; ptr; ptr = ptr->next) {
+        de = ptr->data;
+        if (de->status == DIFF_STATUS_ADDED || de->status == DIFF_STATUS_MODIFIED) {
+            if (!is_http)
+                ++(task->n_to_download);
+            else
+                ++(http_task->n_files);
+        }
+    }
 
     if (is_http) {
         ret = download_files_http (repo_id,
