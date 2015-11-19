@@ -5939,15 +5939,15 @@ seaf_repo_manager_init (SeafRepoManager *mgr)
         return -1;
     }
 
-    /* Load all the repos into memory on the client side. */
-    load_repos (mgr, mgr->seaf->seaf_dir);
-
     /* Load folder permissions from db. */
     init_folder_perms (mgr);
 
     mgr->priv->cevent_id = cevent_manager_register (seaf->ev_mgr,
                                                     (cevent_handler)notify_sync_error,
                                                     NULL);
+
+    /* Load all the repos into memory on the client side. */
+    load_repos (mgr, mgr->seaf->seaf_dir);
 
     return 0;
 }
