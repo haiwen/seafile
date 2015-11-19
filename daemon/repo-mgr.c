@@ -3195,7 +3195,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 seaf_debug ("Delete: %s is locked on server, ignore.\n", event->path);
                 send_sync_error_notification (repo->id, NULL, event->path,
                                               SYNC_ERROR_ID_FILE_LOCKED);
-                return;
+                break;
             }
 
             if (check_locked_file_before_remove (fset, event->path)) {
