@@ -50,6 +50,8 @@ struct _SeafRepoManagerPriv {
     GHashTable *user_perms;     /* repo_id -> folder user perms */
     GHashTable *group_perms;    /* repo_id -> folder group perms */
     pthread_mutex_t perm_lock;
+
+    uint32_t cevent_id;         /* Used to notify sync error */
 };
 
 static const char *ignore_table[] = {
@@ -652,6 +654,68 @@ is_repo_id_valid (const char *id)
     return is_uuid_valid (id);
 }
 
+#define SYNC_ERROR_ID_FILE_LOCKED_BY_APP 0
+#define SYNC_ERROR_ID_FOLDER_LOCKED_BY_APP 1
+#define SYNC_ERROR_ID_FILE_LOCKED 2
+#define SYNC_ERROR_ID_INVALID_PATH 3
+#define SYNC_ERROR_ID_INDEX_ERROR 4
+
+typedef struct SyncErrorData {
+    char *repo_id;
+    char *repo_name;
+    char *path;
+    int err_id;
+} SyncErrorData;
+
+static void
+notify_sync_error (CEvent *event, void *handler_data)
+{
+    SyncErrorData *data = event->data;
+    json_t *object;
+    char *str;
+
+    object = json_object ();
+    json_object_set_new (object, "repo_id", json_string(data->repo_id));
+    json_object_set_new (object, "repo_name", json_string(data->repo_name));
+    json_object_set_new (object, "path", json_string(data->path));
+    json_object_set_new (object, "err_id", json_integer(data->err_id));
+
+    str = json_dumps (object, 0);
+
+    seaf_mq_manager_publish_notification (seaf->mq_mgr,
+                                          "sync.error",
+                                          str);
+
+    free (str);
+    json_decref (object);
+    g_free (data->repo_id);
+    g_free (data->repo_name);
+    g_free (data->path);
+    g_free (data);
+}
+
+static void
+send_sync_error_notification (const char *repo_id,
+                              const char *repo_name,
+                              const char *path,
+                              int err_id)
+{
+    if (!repo_name) {
+        SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+        if (!repo)
+            return;
+        repo_name = repo->name;
+    }
+
+    SyncErrorData *data = g_new0 (SyncErrorData, 1);
+    data->repo_id = g_strdup(repo_id);
+    data->repo_name = g_strdup(repo_name);
+    data->path = g_strdup(path);
+    data->err_id = err_id;
+
+    cevent_manager_add_event (seaf->ev_mgr, seaf->repo_mgr->priv->cevent_id, data);
+}
+
 SeafRepo*
 seaf_repo_new (const char *id, const char *name, const char *desc)
 {
@@ -1053,6 +1117,10 @@ add_file (const char *repo_id,
 
     is_locked = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                       repo_id, path);
+    if (is_locked) {
+        send_sync_error_notification (repo_id, NULL, path,
+                                      SYNC_ERROR_ID_FILE_LOCKED);
+    }
 
     if (options && options->startup_scan) {
         SyncStatus status;
@@ -1144,12 +1212,15 @@ add_file (const char *repo_id,
     } else
         g_queue_push_tail (*remain_files, g_strdup(path));
 
-    if (ret < 0)
+    if (ret < 0) {
         seaf_sync_manager_update_active_path (seaf->sync_mgr,
                                               repo_id,
                                               path,
                                               S_IFREG,
                                               SYNC_STATUS_ERROR);
+        send_sync_error_notification (repo_id, NULL, path,
+                                      SYNC_ERROR_ID_INDEX_ERROR);
+    }
 
     return ret;
 }
@@ -1732,6 +1803,8 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
         if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                   repo_id, ce->name)) {
             seaf_debug ("Remove deleted: %s is locked on server, ignore.\n", ce->name);
+            send_sync_error_notification (repo_id, NULL, ce->name,
+                                          SYNC_ERROR_ID_FILE_LOCKED);
             continue;
         }
 
@@ -2015,8 +2088,9 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
 
         if (S_ISREG(st.st_mode)) {
             gboolean added = FALSE;
-            add_to_index (repo->id, repo->version, istate, path, full_path,
-                          &st, 0, crypt, index_cb, repo->email, &added);
+            int ret = 0;
+            ret = add_to_index (repo->id, repo->version, istate, path, full_path,
+                                &st, 0, crypt, index_cb, repo->email, &added);
             if (added) {
                 ce = index_name_exists (istate, path, strlen(path), 0);
                 add_to_changeset (repo->changeset,
@@ -2039,6 +2113,15 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       path,
                                                       S_IFREG,
                                                       SYNC_STATUS_SYNCED);
+            }
+            if (ret < 0) {
+                seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                      repo->id,
+                                                      path,
+                                                      S_IFREG,
+                                                      SYNC_STATUS_ERROR);
+                send_sync_error_notification (repo->id, NULL, path,
+                                              SYNC_ERROR_ID_INDEX_ERROR);
             }
         } else if (S_ISDIR(st.st_mode)) {
             if (is_empty_dir (full_path, ignore_list)) {
@@ -2915,12 +2998,16 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
     if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                               repo->id, event->path)) {
         seaf_debug ("Rename: %s is locked on server, ignore.\n", event->path);
+        send_sync_error_notification (repo->id, NULL, event->path,
+                                      SYNC_ERROR_ID_FILE_LOCKED);
         return;
     }
 
     if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                               repo->id, event->new_path)) {
         seaf_debug ("Rename: %s is locked on server, ignore.\n", event->new_path);
+        send_sync_error_notification (repo->id, NULL, event->new_path,
+                                      SYNC_ERROR_ID_FILE_LOCKED);
         return;
     }
 
@@ -3106,6 +3193,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                       repo->id, event->path)) {
                 seaf_debug ("Delete: %s is locked on server, ignore.\n", event->path);
+                send_sync_error_notification (repo->id, NULL, event->path,
+                                              SYNC_ERROR_ID_FILE_LOCKED);
                 return;
             }
 
@@ -4589,6 +4678,9 @@ fetch_file_thread_func (gpointer data, gpointer user_data)
     if (should_ignore_on_checkout (de->name)) {
         seaf_message ("Path %s is invalid on Windows, skip checkout\n",
                       de->name);
+        send_sync_error_notification (repo_id, tx_data->http_task->repo_name,
+                                      de->name,
+                                      SYNC_ERROR_ID_INVALID_PATH);
         goto out;
     }
 
@@ -4764,6 +4856,10 @@ checkout_file_http (FileTxData *data,
 
 #ifdef WIN32
     if (do_check_file_locked (de->name, worktree, locked_on_server)) {
+        if (!locked_file_set_lookup (fset, de->name))
+            send_sync_error_notification (repo_id, NULL, de->name,
+                                          SYNC_ERROR_ID_FILE_LOCKED_BY_APP);
+
         locked_file_set_add_update (fset, de->name, LOCKED_OP_UPDATE,
                                     ce->ce_mtime.sec, file_id);
         /* Stay in syncing status if the file is locked. */
@@ -5582,6 +5678,10 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                 locked_file_set_remove (fset, de->name, FALSE);
                 delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
             } else {
+                if (is_http && !locked_file_set_lookup (fset, de->name))
+                    send_sync_error_notification (repo_id, http_task->repo_name, de->name,
+                                                  SYNC_ERROR_ID_FILE_LOCKED_BY_APP);
+
                 locked_file_set_add_update (fset, de->name, LOCKED_OP_DELETE,
                                             ce->ce_mtime.sec, NULL);
             }
@@ -5624,6 +5724,10 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 #ifdef WIN32
             if (should_ignore_on_checkout (de->new_name)) {
                 seaf_message ("Path %s is invalid on Windows, skip rename.\n");
+                if (is_http)
+                    send_sync_error_notification (repo_id, http_task->repo_name,
+                                                  de->new_name,
+                                                  SYNC_ERROR_ID_INVALID_PATH);
                 continue;
             } else if (should_ignore_on_checkout (de->name)) {
                 /* If the server renames an invalid path to a valid path,
@@ -5840,6 +5944,10 @@ seaf_repo_manager_init (SeafRepoManager *mgr)
 
     /* Load folder permissions from db. */
     init_folder_perms (mgr);
+
+    mgr->priv->cevent_id = cevent_manager_register (seaf->ev_mgr,
+                                                    (cevent_handler)notify_sync_error,
+                                                    NULL);
 
     return 0;
 }
