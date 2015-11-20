@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#include "net.h"
+
 #include <pthread.h>
 #include <curl/curl.h>
 #include <jansson.h>
@@ -562,6 +564,39 @@ set_proxy (CURL *curl, gboolean is_https)
     }
 }
 
+static int
+sockopt_callback (void *clientp, curl_socket_t curlfd, curlsocktype purpose)
+{
+    /* Set large enough TCP buffer size.
+     * This greatly enhances sync speed for high latency network.
+     * Windows by default use 8KB buffers, which is too small for such case.
+     * Linux has auto-tuning for TCP buffers, so don't need to set manually.
+     * OSX is TBD.
+     */
+
+#define DEFAULT_SNDBUF_SIZE (1 << 17) /* 128KB */
+
+    /* Set send buffer size. */
+    int sndbuf_size;
+    int optlen;
+
+    optlen = sizeof(int);
+    getsockopt (curlfd, SOL_SOCKET, SO_SNDBUF, (char *)&sndbuf_size, &optlen);
+
+    if (sndbuf_size < DEFAULT_SNDBUF_SIZE) {
+        sndbuf_size = DEFAULT_SNDBUF_SIZE;
+        optlen = sizeof(int);
+        setsockopt (curlfd, SOL_SOCKET, SO_SNDBUF, (char *)&sndbuf_size, optlen);
+    }
+
+    /* Disable Nagle's algorithm. */
+    int val = 1;
+    optlen = sizeof(int);
+    setsockopt (curlfd, IPPROTO_TCP, TCP_NODELAY, (char *)&val, optlen);
+
+    return CURL_SOCKOPT_OK;
+}
+
 typedef struct _HttpResponse {
     char *content;
     size_t size;
@@ -655,6 +690,10 @@ http_get (CURL *curl, const char *url, const char *token,
         curl_easy_setopt (curl, CURLOPT_SSL_CTX_FUNCTION, ssl_callback);
         curl_easy_setopt (curl, CURLOPT_SSL_CTX_DATA, url);
     }
+
+#ifdef WIN32
+    curl_easy_setopt (curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
+#endif
 
     int rc = curl_easy_perform (curl);
     if (rc != 0) {
@@ -787,6 +826,10 @@ http_put (CURL *curl, const char *url, const char *token,
         curl_easy_setopt (curl, CURLOPT_SSL_CTX_DATA, url);
     }
 
+#ifdef WIN32
+    curl_easy_setopt (curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
+#endif
+
     int rc = curl_easy_perform (curl);
     if (rc != 0) {
         seaf_warning ("libcurl failed to PUT %s: %s.\n",
@@ -887,6 +930,10 @@ http_post (CURL *curl, const char *url, const char *token,
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     /* All POST requests should remain POST after redirect. */
     curl_easy_setopt(curl, CURLOPT_POSTREDIR, CURL_REDIR_POST_ALL);
+
+#ifdef WIN32
+    curl_easy_setopt (curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
+#endif
 
     int rc = curl_easy_perform (curl);
     if (rc != 0) {
