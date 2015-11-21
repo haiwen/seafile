@@ -209,7 +209,7 @@ objstore_get_path (char *path, const char *base, const char *obj_id)
  */
 #define UNIX_EPOCH 116444736000000000ULL
 
-inline static __time64_t
+__time64_t
 file_time_to_unix_time (FILETIME *ftime)
 {
     guint64 win_time, unix_time;

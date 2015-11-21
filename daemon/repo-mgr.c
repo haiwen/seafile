@@ -5275,19 +5275,26 @@ out:
 
 #ifdef WIN32
 
-static void
-delete_worktree_dir_recursive_win32 (const char *worktree,
+/*
+ * @path: path relative to the worktree, utf-8 encoded
+ * @path_w: absolute path include worktree, utf-16 encoded.
+ * Return 0 when successfully deleted the folder; otherwise -1.
+ */
+static int
+delete_worktree_dir_recursive_win32 (struct index_state *istate,
+                                     const char *path,
                                      const wchar_t *path_w)
 {
+    struct cache_entry *ce;
     WIN32_FIND_DATAW fdata;
     HANDLE handle;
     wchar_t *pattern;
     wchar_t *sub_path_w;
-    char *path, *sub_path;
+    char *sub_path, *dname;
     int path_len_w;
     DWORD error;
-
-    path = g_utf16_to_utf8 (path_w, -1, NULL, NULL, NULL);
+    int ret = 0;
+    guint64 mtime;
 
     path_len_w = wcslen(path_w);
 
@@ -5296,12 +5303,12 @@ delete_worktree_dir_recursive_win32 (const char *worktree,
     wcscat (pattern, L"\\*");
 
     handle = FindFirstFileW (pattern, &fdata);
+    g_free (pattern);
+
     if (handle == INVALID_HANDLE_VALUE) {
         seaf_warning ("FindFirstFile failed %s: %lu.\n",
                       path, GetLastError());
-        g_free (path);
-        g_free (pattern);
-        return;
+        return -1;
     }
 
     do {
@@ -5314,107 +5321,157 @@ delete_worktree_dir_recursive_win32 (const char *worktree,
         wcscat (sub_path_w, L"\\");
         wcscat (sub_path_w, fdata.cFileName);
 
+        dname = g_utf16_to_utf8 (fdata.cFileName, -1, NULL, NULL, NULL);
+        sub_path = g_strconcat (path, "/", dname, NULL);
+        g_free (dname);
+
         if (fdata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-            delete_worktree_dir_recursive_win32 (worktree, sub_path_w);
+            if (delete_worktree_dir_recursive_win32 (istate, sub_path, sub_path_w) < 0) {
+                ret = -1;
+            }
         } else {
+            mtime = (guint64)file_time_to_unix_time (&fdata.ftLastWriteTime);
+            ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
+            if (!ce || ce->ce_mtime.sec != mtime) {
+                g_free (sub_path_w);
+                g_free (sub_path);
+                ret = -1;
+                continue;
+            }
+
             if (!DeleteFileW (sub_path_w)) {
                 error = GetLastError();
-
-                sub_path = g_utf16_to_utf8 (sub_path_w, -1,
-                                            NULL, NULL, NULL);
                 seaf_warning ("Failed to delete file %s: %lu.\n",
                               sub_path, error);
-
-                g_free (sub_path);
+                ret = -1;
             }
         }
 
         g_free (sub_path_w);
+        g_free (sub_path);
     } while (FindNextFileW (handle, &fdata) != 0);
 
     error = GetLastError();
     if (error != ERROR_NO_MORE_FILES) {
         seaf_warning ("FindNextFile failed %s: %lu.\n",
                       path, error);
+        ret = -1;
     }
 
     FindClose (handle);
+
+    if (ret < 0)
+        return ret;
 
     int n = 0;
     while (!RemoveDirectoryW (path_w)) {
         error = GetLastError();
         seaf_warning ("Failed to remove dir %s: %lu.\n",
                       path, error);
-        if (error != ERROR_DIR_NOT_EMPTY)
+        if (error != ERROR_DIR_NOT_EMPTY) {
+            ret = -1;
             break;
-        if (++n >= 3)
+        }
+        if (++n >= 3) {
+            ret = -1;
             break;
+        }
         /* Sleep 100ms and retry. */
         g_usleep (100000);
         seaf_warning ("Retry remove dir %s.\n", path);
     }
-    g_free (path);
-    g_free (pattern);
+
+    return ret;
 }
 
 #else
 
-static void
-delete_worktree_dir_recursive (const char *path)
+static int
+delete_worktree_dir_recursive (struct index_state *istate,
+                               const char *path,
+                               const char *full_path)
 {
     GDir *dir;
     const char *dname;
+    char *dname_nfc;
     GError *error = NULL;
-    char *sub_path;
+    char *sub_path, *full_sub_path;
     SeafStat st;
+    struct cache_entry *ce;
+    int ret = 0;
 
-    dir = g_dir_open (path, 0, &error);
+    dir = g_dir_open (full_path, 0, &error);
     if (!dir) {
-        seaf_warning ("Failed to open dir %s: %s.\n", path, error->message);
-        return;
+        seaf_warning ("Failed to open dir %s: %s.\n", full_path, error->message);
+        return -1;
     }
 
     while ((dname = g_dir_read_name (dir)) != NULL) {
-        sub_path = g_build_filename (path, dname, NULL);
+        dname_nfc = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
+        sub_path = g_build_path ("/", path, dname_nfc, NULL);
+        full_sub_path = g_build_path ("/", full_path, dname_nfc, NULL);
+        g_free (dname_nfc);
 
-        if (lstat (sub_path, &st) < 0) {
-            seaf_warning ("Failed to stat %s.\n", sub_path);
+        if (lstat (full_sub_path, &st) < 0) {
+            seaf_warning ("Failed to stat %s.\n", full_sub_path);
+            g_free (sub_path);
+            g_free (full_sub_path);
+            ret = -1;
             continue;
         }
 
         if (S_ISDIR(st.st_mode)) {
-            delete_worktree_dir_recursive (sub_path);
+            if (delete_worktree_dir_recursive (istate, sub_path, full_sub_path) < 0)
+                ret = -1;
         } else {
+            ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
+            if (!ce || ce->ce_mtime.sec != st.st_mtime) {
+                g_free (sub_path);
+                g_free (full_sub_path);
+                ret = -1;
+                continue;
+            }
+
             /* Delete all other file types. */
-            if (seaf_util_unlink (sub_path) < 0) {
+            if (seaf_util_unlink (full_sub_path) < 0) {
                 seaf_warning ("Failed to delete file %s: %s.\n",
-                              sub_path, strerror(errno));
+                              full_sub_path, strerror(errno));
+                ret = -1;
             }
         }
 
         g_free (sub_path);
+        g_free (full_sub_path);
     }
 
     g_dir_close (dir);
 
-    if (g_rmdir (path) < 0) {
-        seaf_warning ("Failed to delete dir %s: %s.\n", path, strerror(errno));
+    if (ret < 0)
+        return ret;
+
+    if (g_rmdir (full_path) < 0) {
+        seaf_warning ("Failed to delete dir %s: %s.\n", full_path, strerror(errno));
+        ret = -1;
     }
+
+    return ret;
 }
 
 #endif  /* WIN32 */
 
 static void
-delete_worktree_dir (const char *worktree, const char *path)
+delete_worktree_dir (struct index_state *istate,
+                     const char *worktree,
+                     const char *path)
 {
     char *full_path = g_build_path ("/", worktree, path, NULL);
 
 #ifdef WIN32
     wchar_t *full_path_w = win32_long_path (full_path);
-    delete_worktree_dir_recursive_win32 (worktree, full_path_w);
+    delete_worktree_dir_recursive_win32 (istate, path, full_path_w);
     g_free (full_path_w);
 #else
-    delete_worktree_dir_recursive(full_path);
+    delete_worktree_dir_recursive(istate, path, full_path);
 #endif
 
     g_free (full_path);
@@ -5706,7 +5763,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             if (!master_head || strcmp(master_head->root_id, EMPTY_SHA1) == 0)
                 continue;
 
-            delete_worktree_dir (worktree, de->name);
+            delete_worktree_dir (&istate, worktree, de->name);
 
             /* Remove all index entries under this directory */
             remove_from_index_with_prefix (&istate, de->name, NULL);

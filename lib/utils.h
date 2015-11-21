@@ -3,6 +3,13 @@
 #ifndef CCNET_UTILS_H
 #define CCNET_UTILS_H
 
+#ifdef WIN32
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x500
+#endif
+#include <windows.h>
+#endif
+
 #include <sys/time.h>
 #include <time.h>
 #include <stdint.h>
@@ -79,6 +86,9 @@ win32_long_path (const char *path);
 /* Convert a (possible) 8.3 format path to long path */
 wchar_t *
 win32_83_path_to_long_path (const char *worktree, const wchar_t *path, int path_len);
+
+__time64_t
+file_time_to_unix_time (FILETIME *ftime);
 #endif
 
 int
