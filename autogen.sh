@@ -96,7 +96,7 @@ echo processing $dr
 aclocalinclude="$aclocalinclude -I m4"
 
 if test x"$MSYSTEM" = x"MINGW32"; then
-    aclocalinclude="$aclocalinclude -I /local/share/aclocal"
+    aclocalinclude="$aclocalinclude -I /mingw32/share/aclocal"
 elif test "$(uname)" = "Darwin"; then
     aclocalinclude="$aclocalinclude -I /opt/local/share/aclocal"
 fi
