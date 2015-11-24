@@ -1055,9 +1055,8 @@ check_dir_locked_recursive (const wchar_t *path_w)
                       path, error);
     }
 
-    FindClose (handle);
-
 out:
+    FindClose (handle);
     g_free (path);
     g_free (pattern);
     return ret;
