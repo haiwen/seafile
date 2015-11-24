@@ -1218,8 +1218,8 @@ add_file (const char *repo_id,
                                               path,
                                               S_IFREG,
                                               SYNC_STATUS_ERROR);
-        send_sync_error_notification (repo_id, NULL, path,
-                                      SYNC_ERROR_ID_INDEX_ERROR);
+        /* send_sync_error_notification (repo_id, NULL, path, */
+        /*                               SYNC_ERROR_ID_INDEX_ERROR); */
     }
 
     return ret;
@@ -2120,8 +2120,8 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       path,
                                                       S_IFREG,
                                                       SYNC_STATUS_ERROR);
-                send_sync_error_notification (repo->id, NULL, path,
-                                              SYNC_ERROR_ID_INDEX_ERROR);
+                /* send_sync_error_notification (repo->id, NULL, path, */
+                /*                               SYNC_ERROR_ID_INDEX_ERROR); */
             }
         } else if (S_ISDIR(st.st_mode)) {
             if (is_empty_dir (full_path, ignore_list)) {
