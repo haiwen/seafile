@@ -349,7 +349,7 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_deleted,
                                      "get_deleted",
-                                     searpc_signature_objlist__string_int_string());
+                                     searpc_signature_objlist__string_int_string_string_int());
 
     /* share repo to user */
     searpc_server_register_function ("seafserv-threaded-rpcserver",
