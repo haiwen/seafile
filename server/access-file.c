@@ -220,10 +220,11 @@ write_block_data_cb (struct bufferevent *bev, void *ctx)
         bev->errorcb = data->saved_event_cb;
         bev->cbarg = data->saved_cb_arg;
 
+        evhtp_send_reply_end (data->req);
+
         /* Resume reading incomming requests. */
         evhtp_request_resume (data->req);
 
-        evhtp_send_reply_end (data->req);
 
         free_sendblock_data (data);
         return;
@@ -305,10 +306,11 @@ next:
             bev->errorcb = data->saved_event_cb;
             bev->cbarg = data->saved_cb_arg;
 
+            evhtp_send_reply_end (data->req);
+
             /* Resume reading incomming requests. */
             evhtp_request_resume (data->req);
 
-            evhtp_send_reply_end (data->req);
 
             free_sendfile_data (data);
             return;
@@ -402,10 +404,11 @@ write_dir_data_cb (struct bufferevent *bev, void *ctx)
             bev->errorcb = data->saved_event_cb;
             bev->cbarg = data->saved_cb_arg;
 
+            evhtp_send_reply_end (data->req);
+
             /* Resume reading incomming requests. */
             evhtp_request_resume (data->req);
 
-            evhtp_send_reply_end (data->req);
 
             free_senddir_data (data);
             return;
@@ -709,10 +712,11 @@ finish_file_range_request (struct bufferevent *bev, SendFileRangeData *data)
     bev->errorcb = data->saved_event_cb;
     bev->cbarg = data->saved_cb_arg;
 
+    evhtp_send_reply_end (data->req);
+
     /* Resume reading incomming requests. */
     evhtp_request_resume (data->req);
 
-    evhtp_send_reply_end (data->req);
 
     free_send_file_range_data (data);
 }
