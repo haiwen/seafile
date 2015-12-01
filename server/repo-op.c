@@ -4768,6 +4768,9 @@ find_deleted (SeafRepo *repo,
 
     ret = find_deleted_recursive (repo, d1, d2, base, child, parent, entries);
 
+    seaf_dir_free (d2);
+    seaf_dir_free (d1);
+
     return ret;
 }
 
