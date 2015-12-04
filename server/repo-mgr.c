@@ -564,10 +564,9 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
     }
 
     if (add_deleted_repo_to_trash (mgr, repo_id, head_commit) < 0) {
-        seaf_commit_unref (head_commit);
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "Failed to remove repo to trash ");
-        return -1;
+        // Add repo to trash failed, del repo directly
+        seaf_warning ("Failed to add repo %.8s to trash, delete directly.\n",
+                      repo_id);
     }
 
     seaf_commit_unref (head_commit);
@@ -2445,6 +2444,26 @@ seaf_repo_manager_restore_repo_from_trash (SeafRepoManager *mgr,
         if (ret < 0) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                          "DB error: Set RepoHead.");
+            seaf_db_rollback (trans);
+            seaf_db_trans_close (trans);
+            goto out;
+        }
+    }
+
+    // Restore repo size
+    exists = seaf_db_trans_check_for_existence (trans,
+                                                "SELECT 1 FROM RepoSize WHERE repo_id=?",
+                                                &db_err, 1, "string", repo_id);
+
+    if (!exists) {
+        ret = seaf_db_trans_query (trans,
+                                   "INSERT INTO RepoSize VALUES (?, ?, ?)",
+                                   3, "string", repo_id,
+                                   "int64", seafile_trash_repo_get_size (repo),
+                                   "string", seafile_trash_repo_get_head_id (repo));
+        if (ret < 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "DB error: Insert Repo Size.");
             seaf_db_rollback (trans);
             seaf_db_trans_close (trans);
             goto out;
