@@ -3784,8 +3784,7 @@ seafile_revert_dir (const char *repo_id,
 
 GList *
 seafile_get_deleted (const char *repo_id, int show_days,
-                     const char *path, const char *scan_stat,
-                     int limit, GError **error)
+                     const char *path, GError **error)
 {
     if (!repo_id) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
@@ -3804,8 +3803,7 @@ seafile_get_deleted (const char *repo_id, int show_days,
 
     GList *ret = seaf_repo_manager_get_deleted_entries (seaf->repo_mgr,
                                                         repo_id, show_days,
-                                                        rpath, scan_stat,
-                                                        limit, error);
+                                                        rpath, error);
     g_free (rpath);
 
     return ret;

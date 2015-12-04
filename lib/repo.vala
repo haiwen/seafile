@@ -157,7 +157,6 @@ public class DeletedEntry : Object {
     public int mode { get; set; }
     public int delete_time { get; set; }
     public int64 file_size { get; set; }
-    public string scan_stat { get; set; }
 }
 
 public class RepoTokenInfo: Object {
