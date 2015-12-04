@@ -12,6 +12,8 @@ typedef struct FsckData {
     gboolean repair;
     SeafRepo *repo;
     GHashTable *existing_blocks;
+    GList *repaired_files;
+    GList *repaired_folders;
 } FsckData;
 
 typedef enum VerifyType {
@@ -188,6 +190,10 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
                     seaf_dent->size = 0;
                 }
             }
+
+            if (is_corrupted)
+                fsck_data->repaired_files = g_list_prepend (fsck_data->repaired_files,
+                                                            g_strdup(path));
             g_free (path);
         } else if (S_ISDIR(seaf_dent->mode)) {
             path = g_strdup_printf ("%s%s/", parent_dir, seaf_dent->name);
@@ -213,21 +219,24 @@ fsck_check_dir_recursive (const char *id, const char *parent_dir, FsckData *fsck
                 is_corrupted = TRUE;
                 // dir corrupted, set it empty
                 memcpy (seaf_dent->id, EMPTY_SHA1, 40);
+
+                fsck_data->repaired_folders = g_list_prepend (fsck_data->repaired_folders,
+                                                              g_strdup(path));
             } else {
-               dir_id = fsck_check_dir_recursive (seaf_dent->id, path, fsck_data);
-               if (dir_id == NULL) {
-                   // IO error
-                   g_free (path);
-                   goto out;
-               }
-               if (strcmp (dir_id, seaf_dent->id) != 0) {
-                   is_corrupted = TRUE;
-                   // dir corrupted, set it to new dir_id
-                   memcpy (seaf_dent->id, dir_id, 41);
-               }
-               g_free (dir_id);
-           }
-           g_free (path);
+                dir_id = fsck_check_dir_recursive (seaf_dent->id, path, fsck_data);
+                if (dir_id == NULL) {
+                    // IO error
+                    g_free (path);
+                    goto out;
+                }
+                if (strcmp (dir_id, seaf_dent->id) != 0) {
+                    is_corrupted = TRUE;
+                    // dir corrupted, set it to new dir_id
+                    memcpy (seaf_dent->id, dir_id, 41);
+                }
+                g_free (dir_id);
+            }
+            g_free (path);
         }
     }
 
@@ -324,18 +333,51 @@ out:
     return ret;
 }
 
+static char *
+gen_repair_commit_desc (GList *repaired_files, GList *repaired_folders)
+{
+    GString *desc = g_string_new("Repaired by system.");
+    GList *p;
+    char *path;
+
+    if (!repaired_files && !repaired_folders)
+        return g_string_free (desc, FALSE);
+
+    if (repaired_files) {
+        g_string_append (desc, "\nCorrupted files:\n");
+        for (p = repaired_files; p; p = p->next) {
+            path = p->data;
+            g_string_append_printf (desc, "%s\n", path);
+        }
+    }
+
+    if (repaired_folders) {
+        g_string_append (desc, "\nCorrupted folders:\n");
+        for (p = repaired_folders; p; p = p->next) {
+            path = p->data;
+            g_string_append_printf (desc, "%s\n", path);
+        }
+    }
+
+    return g_string_free (desc, FALSE);
+}
+
 static void
-reset_commit_to_repair (SeafRepo *repo, SeafCommit *parent, char *new_root_id)
+reset_commit_to_repair (SeafRepo *repo, SeafCommit *parent, char *new_root_id,
+                        GList *repaired_files, GList *repaired_folders)
 {
     if (delete_repo_tokens (repo) < 0) {
         seaf_warning ("Failed to delete repo sync tokens, abort repair.\n");
         return;
     }
 
+    char *desc = gen_repair_commit_desc (repaired_files, repaired_folders);
+
     SeafCommit *new_commit = NULL;
     new_commit = seaf_commit_new (NULL, repo->id, new_root_id,
                                   parent->creator_name, parent->creator_id,
-                                  "Repaired by system", 0);
+                                  desc, 0);
+    g_free (desc);
     if (!new_commit) {
         seaf_warning ("Out of memory, stop to run fsck for repo %.8s.\n",
                       repo->id);
@@ -364,7 +406,8 @@ static void
 check_and_recover_repo (SeafRepo *repo, gboolean reset, gboolean repair)
 {
     FsckData fsck_data;
-    SeafCommit *rep_commit;
+    SeafCommit *rep_commit = NULL;
+    char *root_id = NULL;
 
     seaf_message ("Checking file system integrity of repo %s(%.8s)...\n",
                   repo->name, repo->id);
@@ -383,24 +426,29 @@ check_and_recover_repo (SeafRepo *repo, gboolean reset, gboolean repair)
     fsck_data.existing_blocks = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                        g_free, NULL);
 
-    char *root_id = fsck_check_dir_recursive (rep_commit->root_id, "/", &fsck_data);
+    root_id = fsck_check_dir_recursive (rep_commit->root_id, "/", &fsck_data);
     g_hash_table_destroy (fsck_data.existing_blocks);
     if (root_id == NULL) {
-        seaf_commit_unref (rep_commit);
-        return;
+        goto out;
     }
 
     if (repair) {
         if (strcmp (root_id, rep_commit->root_id) != 0) {
             // some fs objects corrupted for the head commit,
             // create new head commit using the new root_id
-            reset_commit_to_repair (repo, rep_commit, root_id);
+            reset_commit_to_repair (repo, rep_commit, root_id,
+                                    fsck_data.repaired_files,
+                                    fsck_data.repaired_folders);
         } else if (reset) {
             // for reset commit but fs objects not corrupted, also create a repaired commit
-            reset_commit_to_repair (repo, rep_commit, rep_commit->root_id);
+            reset_commit_to_repair (repo, rep_commit, rep_commit->root_id,
+                                    NULL, NULL);
         }
     }
 
+out:
+    g_list_free_full (fsck_data.repaired_files, g_free);
+    g_list_free_full (fsck_data.repaired_folders, g_free);
     g_free (root_id);
     seaf_commit_unref (rep_commit);
 }
