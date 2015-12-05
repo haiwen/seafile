@@ -109,7 +109,7 @@ class SeafileAPI(object):
 
     def get_orphan_repo_list(self):
         return seafserv_threaded_rpc.get_orphan_repo_list()
-        
+
     def get_repo_size(self, repo_id):
         return seafserv_threaded_rpc.server_repo_size(repo_id)
 
@@ -245,7 +245,7 @@ class SeafileAPI(object):
 
     def cancel_copy_task(self, task_id):
         return seafserv_rpc.cancel_copy_task(task_id)
-    
+
     def rename_file(self, repo_id, parent_dir, oldname, newname, username):
         return seafserv_threaded_rpc.rename_file(repo_id, parent_dir,
                                                  oldname, newname, username)
@@ -304,6 +304,9 @@ class SeafileAPI(object):
         Set repo history limit in days. Pass -1 if set to unlimited.
         """
         return seafserv_threaded_rpc.set_repo_history_limit(repo_id, days)
+
+    def check_repo_blocks_missing(self, repo_id, blklist):
+        return seafserv_threaded_rpc.check_repo_blocks_missing(repo_id, blklist)
 
     # file lock
     def check_file_lock(self, repo_id, path, user):
@@ -402,7 +405,7 @@ class SeafileAPI(object):
             if r is None:
                 continue
             ret.append(r)
-        return ret    
+        return ret
 
     def get_repos_by_group(self, group_id):
         """

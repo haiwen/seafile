@@ -796,6 +796,11 @@ seafile_revert_dir (const char *repo_id,
                     const char *user,
                     GError **error);
 
+char *
+seafile_check_repo_blocks_missing (const char *repo_id,
+                                   const char *blockids_json,
+                                   GError **error);
+
 /*
  * @show_days: return deleted files in how many days, return all if 0.
  */

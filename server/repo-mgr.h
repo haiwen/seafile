@@ -329,6 +329,25 @@ seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
                                     int replace_existed,
                                     char **new_id,
                                     GError **error);
+int
+seaf_repo_manager_post_blocks (SeafRepoManager *mgr,
+                               const char *repo_id,
+                               const char *blockids_json,
+                               const char *paths_json,
+                               const char *user,
+                               GError **error);
+
+int
+seaf_repo_manager_commit_file_blocks (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      const char *parent_dir,
+                                      const char *file_name,
+                                      const char *blockids_json,
+                                      const char *user,
+                                      gint64 file_size,
+                                      int replace_existed,
+                                      char **new_id,
+                                      GError **error);
 
 int
 seaf_repo_manager_post_empty_file (SeafRepoManager *mgr,

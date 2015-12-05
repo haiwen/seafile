@@ -1214,6 +1214,163 @@ out:
     return ret;
 }
 
+int
+seaf_repo_manager_post_blocks (SeafRepoManager *mgr,
+                               const char *repo_id,
+                               const char *blockids_json,
+                               const char *paths_json,
+                               const char *user,
+                               GError **error)
+{
+    SeafRepo *repo = NULL;
+    char buf[SEAF_PATH_MAX];
+    GList *blockids = NULL, *paths = NULL, *ptr;
+    int ret = 0;
+
+    blockids = json_to_file_list (blockids_json);
+    paths = json_to_file_list (paths_json);
+    if (g_list_length(blockids) != g_list_length(paths)) {
+        seaf_warning ("[post-blks] Invalid blockids or paths.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid files");
+        ret = -1;
+        goto out;
+    }
+
+    for (ptr = paths; ptr; ptr = ptr->next) {
+        char *temp_file_path = ptr->data;
+        if (g_access (temp_file_path, R_OK) != 0) {
+            seaf_warning ("[post-blks] File block %s doesn't exist or not readable.\n",
+                          temp_file_path);
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                         "Invalid input file");
+            ret = -1;
+            goto out;
+        }
+    }
+
+    GET_REPO_OR_FAIL(repo, repo_id);
+
+    /* Write blocks. */
+    if (seaf_fs_manager_index_raw_blocks (seaf->fs_mgr,
+                                          repo->store_id,
+                                          repo->version,
+                                          paths,
+                                          blockids) < 0) {
+        seaf_warning ("Failed to index file blocks.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to index blocks");
+        ret = -1;
+        goto out;
+    }
+
+out:
+    if (repo)
+        seaf_repo_unref (repo);
+    string_list_free (blockids);
+    string_list_free (paths);
+
+    if (ret == 0)
+        update_repo_size(repo_id);
+
+    return ret;
+}
+
+int
+seaf_repo_manager_commit_file_blocks (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      const char *parent_dir,
+                                      const char *file_name,
+                                      const char *blockids_json,
+                                      const char *user,
+                                      gint64 file_size,
+                                      int replace_existed,
+                                      char **new_id,
+                                      GError **error)
+{
+    SeafRepo *repo = NULL;
+    SeafCommit *head_commit = NULL;
+    char *canon_path = NULL;
+    unsigned char sha1[20];
+    char buf[SEAF_PATH_MAX];
+    char *root_id = NULL;
+    SeafDirent *new_dent = NULL;
+    GList *blockids = NULL;
+    char hex[41];
+    int ret = 0;
+
+    blockids = json_to_file_list (blockids_json);
+
+    GET_REPO_OR_FAIL(repo, repo_id);
+    GET_COMMIT_OR_FAIL(head_commit, repo->id, repo->version, repo->head->commit_id);
+
+    if (!canon_path)
+        canon_path = get_canonical_path (parent_dir);
+
+    if (should_ignore_file (file_name, NULL)) {
+        seaf_warning ("[post-blks] Invalid filename %s.\n", file_name);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid filename");
+        ret = -1;
+        goto out;
+    }
+
+    if (strstr (parent_dir, "//") != NULL) {
+        seaf_warning ("[post-blks] parent_dir cantains // sequence.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid parent dir");
+        ret = -1;
+        goto out;
+    }
+
+    /* Write blocks. */
+    if (seaf_fs_manager_index_existed_file_blocks (
+            seaf->fs_mgr, repo->store_id, repo->version,
+            blockids, sha1, file_size) < 0) {
+        seaf_warning ("Failed to index existed file  blocks.\n");
+        g_set_error (error, SEAFILE_DOMAIN, POST_FILE_ERR_BLOCK_MISSING,
+                     "Failed to index file blocks");
+        ret = -1;
+        goto out;
+    }
+
+    rawdata_to_hex(sha1, hex, 20);
+    new_dent = seaf_dirent_new (dir_version_from_repo_version(repo->version),
+                                hex, STD_FILE_MODE, file_name,
+                                (gint64)time(NULL), user, file_size);
+
+    root_id = do_post_file_replace (repo, head_commit->root_id,
+                                    canon_path, replace_existed, new_dent);
+    if (!root_id) {
+        seaf_warning ("[post-blks] Failed to post file to %s in repo %s.\n",
+                      canon_path, repo->id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to put file");
+        ret = -1;
+        goto out;
+    }
+
+    *new_id = g_strdup(hex);
+    snprintf(buf, SEAF_PATH_MAX, "Added \"%s\"", file_name);
+    if (gen_new_commit (repo_id, head_commit, root_id,
+                        user, buf, NULL, error) < 0)
+        ret = -1;
+
+out:
+    if (repo)
+        seaf_repo_unref (repo);
+    if (head_commit)
+        seaf_commit_unref(head_commit);
+    string_list_free (blockids);
+    seaf_dirent_free (new_dent);
+    g_free (root_id);
+    g_free (canon_path);
+
+    if (ret == 0)
+        update_repo_size(repo_id);
+
+    return ret;
+}
+
 static char *
 del_file_recursive(SeafRepo *repo,
                    const char *dir_id,

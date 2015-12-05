@@ -40,6 +40,7 @@ enum UploadError {
     ERROR_SIZE,
     ERROR_QUOTA,
     ERROR_RECV,
+    ERROR_BLOCK_MISSING,
     ERROR_INTERNAL,
 };
 
@@ -75,6 +76,7 @@ typedef struct RecvFSM {
 #define MAX_CONTENT_LINE 10240
 
 #define POST_FILE_ERR_FILENAME 401
+#define POST_FILE_ERR_BLOCK_MISSING 402
 
 static GHashTable *upload_progress;
 static pthread_mutex_t pg_lock;
@@ -564,11 +566,81 @@ error:
     }
 }
 
+
+static void
+upload_raw_blks_api_cb(evhtp_request_t *req, void *arg)
+{
+    RecvFSM *fsm = arg;
+    GError *error = NULL;
+    int error_code = ERROR_INTERNAL;
+    char *blockids_json, *tmp_files_json;
+
+    /* After upload_headers_cb() returns an error, libevhtp may still
+     * receive data from the web browser and call into this cb.
+     * In this case fsm will be NULL.
+     */
+    if (!fsm || fsm->state == RECV_ERROR)
+        return;
+
+    if (!check_tmp_file_list (fsm->files, &error_code))
+        goto error;
+
+    if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
+        error_code = ERROR_QUOTA;
+        goto error;
+    }
+
+    blockids_json = file_list_to_json (fsm->filenames);
+    tmp_files_json = file_list_to_json (fsm->files);
+
+    int rc = seaf_repo_manager_post_blocks (seaf->repo_mgr,
+                                            fsm->repo_id,
+                                            blockids_json,
+                                            tmp_files_json,
+                                            fsm->user,
+                                            &error);
+    g_free (blockids_json);
+    g_free (tmp_files_json);
+    if (rc < 0) {
+        if (error) {
+            if (error->code == POST_FILE_ERR_FILENAME) {
+                error_code = ERROR_FILENAME;
+            }
+            g_clear_error (&error);
+        }
+        goto error;
+    }
+
+    evbuffer_add (req->buffer_out, "\"OK\"", 4);
+    send_success_reply (req);
+    return;
+
+error:
+    switch (error_code) {
+    case ERROR_FILENAME:
+        send_error_reply (req, SEAF_HTTP_RES_BADFILENAME, "Invalid filename.\n");
+        break;
+    case ERROR_EXISTS:
+        send_error_reply (req, SEAF_HTTP_RES_EXISTS, "File already exists.\n");
+        break;
+    case ERROR_SIZE:
+        send_error_reply (req, SEAF_HTTP_RES_TOOLARGE, "File size is too large.\n");
+        break;
+    case ERROR_QUOTA:
+        send_error_reply (req, SEAF_HTTP_RES_NOQUOTA, "Out of quota.\n");
+        break;
+    case ERROR_RECV:
+    case ERROR_INTERNAL:
+        send_error_reply (req, EVHTP_RES_SERVERR, "Internal error.\n");
+        break;
+    }
+}
+
 static void
 upload_blks_api_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
-    char *parent_dir, *file_name, *size_str, *replace_str;
+    const char *parent_dir, *file_name, *size_str, *replace_str, *commitonly_str;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
     char *blockids_json, *tmp_files_json;
@@ -606,19 +678,21 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
     if (!check_parent_dir (req, fsm->repo_id, parent_dir))
         return;
 
-    if (!check_tmp_file_list (fsm->files, &error_code))
-        goto error;
-
     if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
         error_code = ERROR_QUOTA;
         goto error;
     }
 
-    blockids_json = file_list_to_json (fsm->filenames);
-    tmp_files_json = file_list_to_json (fsm->files);
-
     char *new_file_id = NULL;
-    int rc = seaf_repo_manager_post_file_blocks (seaf->repo_mgr,
+    int rc = 0;
+    commitonly_str = evhtp_kv_find (req->uri->query, "commitonly");
+    if (!commitonly_str) {
+        if (!check_tmp_file_list (fsm->files, &error_code))
+            goto error;
+        blockids_json = file_list_to_json (fsm->filenames);
+        tmp_files_json = file_list_to_json (fsm->files);
+
+        rc = seaf_repo_manager_post_file_blocks (seaf->repo_mgr,
                                                  fsm->repo_id,
                                                  parent_dir,
                                                  file_name,
@@ -629,12 +703,32 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
                                                  replace,
                                                  &new_file_id,
                                                  &error);
-    g_free (blockids_json);
-    g_free (tmp_files_json);
+        g_free (blockids_json);
+        g_free (tmp_files_json);
+    } else {
+        blockids_json = g_hash_table_lookup (fsm->form_kvs, "blockids");
+        if (blockids_json == NULL) {
+            seaf_warning ("[upload-blks] No blockids given.\n");
+            send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
+            return;
+        }
+        rc = seaf_repo_manager_commit_file_blocks (seaf->repo_mgr,
+                                                   fsm->repo_id,
+                                                   parent_dir,
+                                                   file_name,
+                                                   blockids_json,
+                                                   fsm->user,
+                                                   file_size,
+                                                   replace,
+                                                   &new_file_id,
+                                                   &error);
+    }
     if (rc < 0) {
         if (error) {
             if (error->code == POST_FILE_ERR_FILENAME) {
                 error_code = ERROR_FILENAME;
+            } else if (error->code == POST_FILE_ERR_BLOCK_MISSING) {
+                error_code = ERROR_BLOCK_MISSING;
             }
             g_clear_error (&error);
         }
@@ -671,6 +765,9 @@ error:
         break;
     case ERROR_QUOTA:
         send_error_reply (req, SEAF_HTTP_RES_NOQUOTA, "Out of quota.\n");
+        break;
+    case ERROR_BLOCK_MISSING:
+        send_error_reply (req, SEAF_HTTP_RES_BLOCK_MISSING, "Block missing.\n");
         break;
     case ERROR_RECV:
     case ERROR_INTERNAL:
@@ -1093,6 +1190,7 @@ update_blks_api_cb(evhtp_request_t *req, void *arg)
 {
     RecvFSM *fsm = arg;
     char *target_file, *parent_dir = NULL, *filename = NULL, *size_str = NULL;
+    const char *commitonly_str;
     const char *head_id = NULL;
     GError *error = NULL;
     int error_code = ERROR_INTERNAL;
@@ -1117,9 +1215,6 @@ update_blks_api_cb(evhtp_request_t *req, void *arg)
     if (!check_parent_dir (req, fsm->repo_id, parent_dir))
         return;
 
-    if (!check_tmp_file_list (fsm->files, &error_code))
-        goto error;
-
     head_id = evhtp_kv_find (req->uri->query, "head");
 
     if (seaf_quota_manager_check_quota (seaf->quota_mgr, fsm->repo_id) < 0) {
@@ -1127,9 +1222,16 @@ update_blks_api_cb(evhtp_request_t *req, void *arg)
         goto error;
     }
 
-    blockids_json = file_list_to_json (fsm->filenames);
-    tmp_files_json = file_list_to_json (fsm->files);
-    int rc = seaf_repo_manager_put_file_blocks (seaf->repo_mgr,
+
+    int rc = 0;
+    commitonly_str = evhtp_kv_find (req->uri->query, "commitonly");
+    if (!commitonly_str) {
+        if (!check_tmp_file_list (fsm->files, &error_code))
+            goto error;
+
+        blockids_json = file_list_to_json (fsm->filenames);
+        tmp_files_json = file_list_to_json (fsm->files);
+        rc = seaf_repo_manager_put_file_blocks (seaf->repo_mgr,
                                                 fsm->repo_id,
                                                 parent_dir,
                                                 filename,
@@ -1140,8 +1242,26 @@ update_blks_api_cb(evhtp_request_t *req, void *arg)
                                                 file_size,
                                                 &new_file_id,
                                                 &error);
-    g_free (blockids_json);
-    g_free (tmp_files_json);
+        g_free (blockids_json);
+        g_free (tmp_files_json);
+    } else {
+        blockids_json = g_hash_table_lookup (fsm->form_kvs, "blockids");
+        if (blockids_json == NULL) {
+            seaf_warning ("[upload-blks] No blockids given.\n");
+            send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
+            return;
+        }
+        rc = seaf_repo_manager_commit_file_blocks (seaf->repo_mgr,
+                                                   fsm->repo_id,
+                                                   parent_dir,
+                                                   filename,
+                                                   blockids_json,
+                                                   fsm->user,
+                                                   file_size,
+                                                   1,
+                                                   &new_file_id,
+                                                   &error);
+    }
     g_free (parent_dir);
     g_free (filename);
 
@@ -2117,6 +2237,10 @@ upload_file_init (evhtp_t *htp, const char *http_temp_dir)
     evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
     cb = evhtp_set_regex_cb (htp, "^/upload-api/.*", upload_api_cb, NULL);
+    evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
+
+    cb = evhtp_set_regex_cb (htp, "^/upload-raw-blks-api/.*",
+                             upload_raw_blks_api_cb, NULL);
     evhtp_set_hook(&cb->hooks, evhtp_hook_on_headers, upload_headers_cb, NULL);
 
     cb = evhtp_set_regex_cb (htp, "^/upload-blks-api/.*", upload_blks_api_cb, NULL);

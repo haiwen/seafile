@@ -23,6 +23,7 @@
 #include "seafile-config.h"
 #endif
 
+#define DEBUG_FLAG SEAFILE_DEBUG_OTHER
 #include "log.h"
 
 #ifndef SEAFILE_SERVER
@@ -1535,9 +1536,6 @@ seafile_list_dir_by_path(const char *repo_id,
 
     GList *ptr;
     GList *res = NULL;
-
-    char *p = g_strdup(path);
-    int len = strlen(p);
 
     if (!repo_id || !commit_id || !path) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
@@ -3802,6 +3800,57 @@ seafile_revert_dir (const char *repo_id,
 
     return ret;
 }
+
+
+char *
+seafile_check_repo_blocks_missing (const char *repo_id,
+                                   const char *blockids_json,
+                                   GError **error)
+{
+    json_t *array, *value, *ret_json;
+    json_error_t err;
+    size_t index;
+    char *json_data, *ret;
+    SeafRepo *repo = NULL;
+
+    array = json_loadb (blockids_json, strlen(blockids_json), 0, &err);
+    if (!array) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Bad arguments");
+        return NULL;
+    }
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        seaf_warning ("Failed to get repo %.8s.\n", repo_id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Repo not found");
+        json_decref (array);
+        return NULL;
+    }
+
+    ret_json = json_array();
+    size_t n = json_array_size (array);
+    for (index = 0; index < n; index++) {
+        value = json_array_get (array, index);
+        const char *blockid = json_string_value (value);
+        if (!blockid)
+            continue;
+        if (!seaf_block_manager_block_exists(seaf->block_mgr, repo_id,
+                                             repo->version, blockid)) {
+            json_array_append_new (ret_json, json_string(blockid));
+        }
+    }
+
+    json_data = json_dumps (ret_json, 0);
+    ret = g_strdup (json_data);
+
+    free (json_data);
+    json_decref (ret_json);
+    json_decref (array);
+    return ret;
+}
+
 
 GList *
 seafile_get_deleted (const char *repo_id, int show_days,

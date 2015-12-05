@@ -122,6 +122,7 @@ seafile_post_file (SearpcClient *client,
                    GError **error);
 
 #define POST_FILE_ERR_FILENAME 401
+#define POST_FILE_ERR_BLOCK_MISSING 402
 
 char *
 seafile_post_file_blocks (SearpcClient *client,

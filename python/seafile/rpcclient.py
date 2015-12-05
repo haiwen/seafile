@@ -519,6 +519,11 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     revert_file = seafile_revert_file
 
+    @searpc_func("string", ["string", "string"])
+    def seafile_check_repo_blocks_missing(repo_id, blklist):
+        pass
+    check_repo_blocks_missing = seafile_check_repo_blocks_missing
+
     @searpc_func("int", ["string", "string", "string", "string"])
     def seafile_revert_dir(repo_id, commit_id, path, user):
         pass

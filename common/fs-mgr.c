@@ -910,6 +910,38 @@ out:
 }
 
 static int
+check_existed_file_blocks (CDCFileDescriptor *cdc, GList *blockids)
+{
+    GList *q;
+    SHA_CTX file_ctx;
+    int ret = 0;
+
+    SHA1_Init (&file_ctx);
+    for (q = blockids; q; q = q->next) {
+        char *blk_id = q->data;
+        unsigned char sha1[20];
+
+        if (!seaf_block_manager_block_exists (
+                seaf->block_mgr, cdc->repo_id, cdc->version, blk_id)) {
+            ret = -1;
+            goto out;
+        }
+
+        hex_to_rawdata (blk_id, sha1, 20);
+        memcpy (cdc->blk_sha1s + cdc->block_nr * CHECKSUM_LENGTH,
+                sha1, CHECKSUM_LENGTH);
+        cdc->block_nr++;
+
+        SHA1_Update (&file_ctx, sha1, 20);
+    }
+
+    SHA1_Final (cdc->file_sum, &file_ctx);
+
+out:
+    return ret;
+}
+
+static int
 init_file_cdc (CDCFileDescriptor *cdc,
                const char *repo_id, int version,
                int block_nr, gint64 file_size)
@@ -955,6 +987,76 @@ seaf_fs_manager_index_file_blocks (SeafFSManager *mgr,
         }
 
         if (check_and_write_file_blocks (&cdc, paths, blockids) < 0) {
+            seaf_warning ("Failed to check and write file blocks.\n");
+            ret = -1;
+            goto out;
+        }
+
+        if (write_seafile (mgr, repo_id, version, &cdc, sha1) < 0) {
+            seaf_warning ("Failed to write seafile.\n");
+            ret = -1;
+            goto out;
+        }
+    }
+
+out:
+    if (cdc.blk_sha1s)
+        free (cdc.blk_sha1s);
+
+    return ret;
+}
+
+int
+seaf_fs_manager_index_raw_blocks (SeafFSManager *mgr,
+                                  const char *repo_id,
+                                  int version,
+                                  GList *paths,
+                                  GList *blockids)
+{
+    int ret = 0;
+    GList *ptr, *q;
+
+    if (!paths)
+        return -1;
+
+    for (ptr = paths, q = blockids; ptr; ptr = ptr->next, q = q->next) {
+        char *path = ptr->data;
+        char *blk_id = q->data;
+        unsigned char sha1[20];
+
+        hex_to_rawdata (blk_id, sha1, 20);
+        ret = check_and_write_block (repo_id, version, path, sha1, blk_id);
+        if (ret < 0)
+            break;
+
+    }
+
+    return ret;
+}
+
+int
+seaf_fs_manager_index_existed_file_blocks (SeafFSManager *mgr,
+                                           const char *repo_id,
+                                           int version,
+                                           GList *blockids,
+                                           unsigned char sha1[],
+                                           gint64 file_size)
+{
+    int ret = 0;
+    CDCFileDescriptor cdc;
+
+    int block_nr = g_list_length (blockids);
+    if (block_nr == 0) {
+        /* handle empty file. */
+        memset (sha1, 0, 20);
+        create_cdc_for_empty_file (&cdc);
+    } else {
+        if (init_file_cdc (&cdc, repo_id, version, block_nr, file_size) < 0) {
+            ret = -1;
+            goto out;
+        }
+
+        if (check_existed_file_blocks (&cdc, blockids) < 0) {
             seaf_warning ("Failed to check and write file blocks.\n");
             ret = -1;
             goto out;

@@ -198,6 +198,20 @@ seaf_fs_manager_index_file_blocks (SeafFSManager *mgr,
                                    gint64 file_size);
 
 int
+seaf_fs_manager_index_raw_blocks (SeafFSManager *mgr,
+                                  const char *repo_id,
+                                  int version,
+                                  GList *paths,
+                                  GList *blockids);
+
+int
+seaf_fs_manager_index_existed_file_blocks (SeafFSManager *mgr,
+                                           const char *repo_id,
+                                           int version,
+                                           GList *blockids,
+                                           unsigned char sha1[],
+                                           gint64 file_size);
+int
 seaf_fs_manager_index_blocks (SeafFSManager *mgr,
                               const char *repo_id,
                               int version,

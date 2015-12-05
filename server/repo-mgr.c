@@ -1227,7 +1227,7 @@ create_tables_pgsql (SeafRepoManager *mgr)
     return 0;
 }
 
-static int 
+static int
 create_db_tables_if_not_exist (SeafRepoManager *mgr)
 {
     SeafDB *db = mgr->seaf->db;
