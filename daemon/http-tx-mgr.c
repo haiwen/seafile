@@ -478,8 +478,6 @@ out:
     g_free (pem);
     if (b)
         BIO_free (b);
-    if (saved)
-        X509_free (saved);
 
     return ret;
 }
