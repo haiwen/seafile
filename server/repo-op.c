@@ -1585,7 +1585,7 @@ copy_recursive (SeafRepo *src_repo, SeafRepo *dst_repo,
 
             new_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
                                         new_id, dent->mode, dent->name,
-                                        (gint64)time(NULL), modifier, new_size);
+                                        dent->mtime, modifier, new_size);
             dst_ents = g_list_prepend (dst_ents, new_dent);
             g_free (new_id);
         }
@@ -1656,7 +1656,7 @@ cross_repo_copy (const char *src_repo_id,
 
     dst_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
                                 new_id, src_dent->mode, dst_filename,
-                                (gint64)time(NULL), modifier, new_size);
+                                src_dent->mtime, modifier, new_size);
     g_free (new_id);
 
     if (put_dirent_and_commit (dst_repo,
@@ -1823,7 +1823,7 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
         /* duplicate src dirent with new name */
         dst_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
                                     src_dent->id, src_dent->mode, dst_filename,
-                                    (gint64)time(NULL), user, file_size);
+                                    src_dent->mtime, user, file_size);
 
         if (put_dirent_and_commit (dst_repo,
                                    dst_canon_path,
@@ -2019,7 +2019,7 @@ cross_repo_move (const char *src_repo_id,
 
     dst_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
                                 new_id, src_dent->mode, dst_filename,
-                                (gint64)time(NULL), modifier, new_size);
+                                src_dent->mtime, modifier, new_size);
     g_free (new_id);
 
     if (put_dirent_and_commit (dst_repo,
@@ -2126,7 +2126,7 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
         /* duplicate src dirent with new name */
         dst_dent = seaf_dirent_new (dir_version_from_repo_version (dst_repo->version),
                                     src_dent->id, src_dent->mode, dst_filename,
-                                    (gint64)time(NULL), user, file_size);
+                                    src_dent->mtime, user, file_size);
 
         /* move file within the same repo */
         if (move_file_same_repo (src_repo_id,
@@ -2148,7 +2148,7 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
             /* duplicate src dirent with new name */
             dst_dent = seaf_dirent_new (dir_version_from_repo_version(dst_repo->version),
                                         src_dent->id, src_dent->mode, dst_filename,
-                                        (gint64)time(NULL), user, file_size);
+                                        src_dent->mtime, user, file_size);
 
             /* add this dirent to dst repo */
             if (put_dirent_and_commit (dst_repo,
