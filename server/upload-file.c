@@ -249,6 +249,75 @@ check_tmp_file_list (GList *tmp_files, int *error_code)
 }
 
 static char *
+get_canonical_path (const char *path)
+{
+    char *ret = g_strdup (path);
+    char *p;
+
+    for (p = ret; *p != 0; ++p) {
+        if (*p == '\\')
+            *p = '/';
+    }
+
+    /* Remove trailing slashes from dir path. */
+    int len = strlen(ret);
+    int i = len - 1;
+    while (i >= 0 && ret[i] == '/')
+        ret[i--] = 0;
+
+    return ret;
+}
+
+static gboolean
+check_parent_dir (evhtp_request_t *req, const char *repo_id,
+                  const char *parent_dir)
+{
+    char *canon_path = NULL;
+    SeafRepo *repo = NULL;
+    SeafCommit *commit = NULL;
+    SeafDir *dir = NULL;
+    GError *error = NULL;
+    gboolean ret = TRUE;
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        seaf_warning ("[upload] Failed to get repo %.8s.\n", repo_id);
+        send_error_reply (req, EVHTP_RES_SERVERR, "Failed to get repo.\n");
+        return FALSE;
+    }
+
+    commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             repo->id, repo->version,
+                                             repo->head->commit_id);
+    if (!commit) {
+        seaf_warning ("[upload] Failed to get head commit for repo %.8s.\n", repo_id);
+        send_error_reply (req, EVHTP_RES_SERVERR, "Failed to get head commit.\n");
+        seaf_repo_unref (repo);
+        return FALSE;
+    }
+
+    canon_path = get_canonical_path (parent_dir);
+
+    dir = seaf_fs_manager_get_seafdir_by_path (seaf->fs_mgr,
+                                               repo->store_id, repo->version,
+                                               commit->root_id,
+                                               canon_path, &error);
+    if (dir) {
+        seaf_dir_free (dir);
+    } else {
+        send_error_reply (req, EVHTP_RES_BADREQ, "Parent dir doesn't exist.\n");
+        ret = FALSE;
+    }
+
+    g_clear_error (&error);
+    g_free (canon_path);
+    seaf_commit_unref (commit);
+    seaf_repo_unref (repo);
+
+    return ret;
+}
+
+static char *
 file_list_to_json (GList *files)
 {
     json_t *array;
@@ -301,6 +370,9 @@ upload_cb(evhtp_request_t *req, void *arg)
         send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
+
+    if (!check_parent_dir (req, fsm->repo_id, parent_dir))
+        return;
 
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
@@ -421,6 +493,9 @@ upload_api_cb(evhtp_request_t *req, void *arg)
         return;
     }
 
+    if (!check_parent_dir (req, fsm->repo_id, parent_dir))
+        return;
+
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
@@ -527,6 +602,9 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
         send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
+
+    if (!check_parent_dir (req, fsm->repo_id, parent_dir))
+        return;
 
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
@@ -650,6 +728,9 @@ upload_blks_ajax_cb(evhtp_request_t *req, void *arg)
         return;
     }
 
+    if (!check_parent_dir (req, fsm->repo_id, parent_dir))
+        return;
+
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
@@ -762,6 +843,9 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
         return;
     }
 
+    if (!check_parent_dir (req, fsm->repo_id, parent_dir))
+        return;
+
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
@@ -864,6 +948,9 @@ update_cb(evhtp_request_t *req, void *arg)
     parent_dir = g_path_get_dirname (target_file);
     filename = g_path_get_basename (target_file);
 
+    if (!check_parent_dir (req, fsm->repo_id, parent_dir))
+        return;
+
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
 
@@ -933,6 +1020,9 @@ update_api_cb(evhtp_request_t *req, void *arg)
 
     parent_dir = g_path_get_dirname (target_file);
     filename = g_path_get_basename (target_file);
+
+    if (!check_parent_dir (req, fsm->repo_id, parent_dir))
+        return;
 
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
@@ -1023,6 +1113,9 @@ update_blks_api_cb(evhtp_request_t *req, void *arg)
 
     parent_dir = g_path_get_dirname (target_file);
     filename = g_path_get_basename (target_file);
+
+    if (!check_parent_dir (req, fsm->repo_id, parent_dir))
+        return;
 
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
@@ -1139,6 +1232,9 @@ update_blks_ajax_cb(evhtp_request_t *req, void *arg)
 
     parent_dir = g_path_get_dirname (target_file);
     filename = g_path_get_basename (target_file);
+
+    if (!check_parent_dir (req, fsm->repo_id, parent_dir))
+        return;
 
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
@@ -1281,6 +1377,9 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
 
     parent_dir = g_path_get_dirname (target_file);
     filename = g_path_get_basename (target_file);
+
+    if (!check_parent_dir (req, fsm->repo_id, parent_dir))
+        return;
 
     if (!check_tmp_file_list (fsm->files, &error_code))
         goto error;
