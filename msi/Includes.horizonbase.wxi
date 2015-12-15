@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Include Id="SeafileInclude">
+  <?define CurrentSeafileVersion="4.3.5" ?>
+
+  <!-- Update Guid 不能变 -->
+  <?define CurrentUpdateGuid="271FE528-47B4-4600-AC43-9D59733EF8DD" ?>
+
+  <!-- 每个新版本必须重新生成 Product Guid  -->
+  <!-- <?define ProductGuid="1AD3CFFB-21A2-49B0-9969-F6DD2F6294F5" ?> (4.0.3) -->
+  <!-- <?define ProductGuid="EDB340A7-5A62-4327-AD12-D2F8710E371A" ?> (4.0.7) -->
+  <!-- <?define ProductGuid="D34A4222-23AB-4FF2-9568-D26AAE7B38A0" ?> (4.1.4) -->
+  <!-- <?define ProductGuid="7999bb80-43e5-11e5-8c42-6c40088d6ccc" ?> (4.3.1) -->
+  <!-- <?define ProductGuid="93F0FFC6-6135-439A-A41A-0C68018D5720" ?> (4.3.4) -->
+  <?define ProductGuid="AD634F95-4FA3-41A1-B1C9-8989CEEAE95D" ?>
+
+
+</Include>

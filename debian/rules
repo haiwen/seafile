@@ -28,7 +28,7 @@ include /usr/share/dpkg/buildflags.mk
 searpc_dir = $(LIBSEARPC_SOURCE_DIR)
 ccnet_dir = $(CCNET_SOURCE_DIR)
 seafile_client_dir = $(SEAFILE_CLIENT_SOURCE_DIR)
-destdir = $(CURDIR)/debian/seafile
+destdir = $(CURDIR)/debian/horizonbase
 install_prefix = $(destdir)/usr
 
 build:

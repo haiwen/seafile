@@ -1,4 +1,4 @@
-Source: seafile
+Source: horizonbase
 Section: net
 Priority: extra
 Maintainer: Lingtao Pan <freeplant@gmail.com>
@@ -15,9 +15,9 @@ Build-Depends:
     libqt4-dev,
     libqtwebkit-dev
 Standards-Version: 3.9.4
-Homepage: http://seafile.com
+Homepage: https://horizonbase.ch
 
-Package: seafile
+Package: horizonbase
 Architecture: any
 Depends:
 	${shlibs:Depends},
@@ -31,10 +31,10 @@ Depends:
     libqtcore4,
     libqtgui4,
     libqtwebkit4
-Description: Client of seafile, an online file storage and collaboration tool
- Seafile enables you to build private cloud for file sharing and collaboration
+Description: Client of horizonbase, an online file storage and collaboration tool
+ Horizonbase enables you to build private cloud for file sharing and collaboration
  among team members in your company/organization. This is the Linux desktop
- client of the seafile system.
+ client of the Horizonbase system.
  .
  First you create a file library in the web and upload files to it. Then you
  share it into a team or with another user.
