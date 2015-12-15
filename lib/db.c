@@ -167,6 +167,8 @@ int sqlite_get_int (sqlite3 *db, const char *sql)
         sqlite3_finalize (stmt);
         return 0;
     }
+
+    sqlite3_finalize(stmt);
     return ret;
 }
 
@@ -193,6 +195,8 @@ gint64 sqlite_get_int64 (sqlite3 *db, const char *sql)
         sqlite3_finalize (stmt);
         return 0;
     }
+
+    sqlite3_finalize(stmt);
     return ret;
 }
 
@@ -221,5 +225,7 @@ char *sqlite_get_string (sqlite3 *db, const char *sql)
         sqlite3_finalize (stmt);
         return NULL;
     }
+
+    sqlite3_finalize(stmt);
     return NULL;
 }
