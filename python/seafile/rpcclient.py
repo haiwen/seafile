@@ -370,8 +370,8 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
         pass
     get_orphan_repo_list = seafile_get_orphan_repo_list
 
-    @searpc_func("objlist", ["string"])
-    def seafile_list_owned_repos(user_id):
+    @searpc_func("objlist", ["string", "int"])
+    def seafile_list_owned_repos(user_id, ret_corrupted):
         pass
     list_owned_repos = seafile_list_owned_repos
 

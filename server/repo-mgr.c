@@ -2028,11 +2028,13 @@ seaf_repo_manager_get_orphan_repo_list (SeafRepoManager *mgr)
 
 GList *
 seaf_repo_manager_get_repos_by_owner (SeafRepoManager *mgr,
-                                      const char *email)
+                                      const char *email,
+                                      int ret_corrupted)
 {
     GList *id_list = NULL, *ptr;
     GList *ret = NULL;
     char *sql;
+    SeafRepo *repo = NULL;
 
     sql = "SELECT repo_id FROM RepoOwner WHERE owner_id=?";
 
@@ -2043,7 +2045,11 @@ seaf_repo_manager_get_repos_by_owner (SeafRepoManager *mgr,
 
     for (ptr = id_list; ptr; ptr = ptr->next) {
         char *repo_id = ptr->data;
-        SeafRepo *repo = seaf_repo_manager_get_repo (mgr, repo_id);
+        if (ret_corrupted) {
+            repo = seaf_repo_manager_get_repo_ex (mgr, repo_id);
+        } else {
+            repo = seaf_repo_manager_get_repo (mgr, repo_id);
+        }
         if (repo != NULL)
             ret = g_list_prepend (ret, repo);
     }

@@ -433,7 +433,7 @@ GList *
 seafile_get_orphan_repo_list(GError **error);
 
 GList *
-seafile_list_owned_repos (const char *email, GError **error);
+seafile_list_owned_repos (const char *email, int ret_corrupted, GError **error);
 
 /**
  * seafile_add_chunk_server:
