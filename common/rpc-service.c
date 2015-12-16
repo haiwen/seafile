@@ -2040,14 +2040,14 @@ seafile_get_orphan_repo_list(GError **error)
 }
 
 GList *
-seafile_list_owned_repos (const char *email, GError **error)
+seafile_list_owned_repos (const char *email, int ret_corrupted, GError **error)
 {
     GList *ret = NULL;
     GList *repos, *ptr;
     char *repo_id = NULL;
     int is_shared;
 
-    repos = seaf_repo_manager_get_repos_by_owner (seaf->repo_mgr, email);
+    repos = seaf_repo_manager_get_repos_by_owner (seaf->repo_mgr, email, ret_corrupted);
     ret = convert_repo_list (repos);
 
     for (ptr = ret; ptr; ptr = ptr->next) {

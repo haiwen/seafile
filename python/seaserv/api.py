@@ -76,8 +76,9 @@ class SeafileAPI(object):
     def get_repo_owner(self, repo_id):
         return seafserv_threaded_rpc.get_repo_owner(repo_id)
 
-    def get_owned_repo_list(self, username):
-        return seafserv_threaded_rpc.list_owned_repos(username)
+    def get_owned_repo_list(self, username, ret_corrupted=False):
+        return seafserv_threaded_rpc.list_owned_repos(username,
+                                                      1 if ret_corrupted else 0)
 
     def get_orphan_repo_list(self):
         return seafserv_threaded_rpc.get_orphan_repo_list()
