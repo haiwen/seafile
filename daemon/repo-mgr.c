@@ -2986,6 +2986,8 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
 {
     gboolean not_found, src_ignored, dst_ignored;
 
+    seaf_sync_manager_delete_active_path (seaf->sync_mgr, repo->id, event->path);
+
     if (!is_path_writable(repo->id,
                           repo->is_readonly, event->path) ||
         !is_path_writable(repo->id,
@@ -3181,6 +3183,10 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
 
             break;
         case WT_EVENT_DELETE:
+            seaf_sync_manager_delete_active_path (seaf->sync_mgr,
+                                                  repo->id,
+                                                  event->path);
+
             if (check_full_path_ignore(repo->worktree, event->path, ignore_list))
                 break;
 
