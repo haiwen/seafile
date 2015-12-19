@@ -1,3 +1,8 @@
+seafile (5.0.1) stable; urgency=low
+
+  * Several improvments for seafile-client
+
+ -- plt <freeplant@gmail.com>  Sat, 19 Dec 2015 11:43:40 +0800
 seafile (5.0.0) stable; urgency=low
 
   * Several improvments for seafile-client
