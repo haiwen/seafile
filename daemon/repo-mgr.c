@@ -1117,7 +1117,7 @@ add_file (const char *repo_id,
 
     is_locked = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                       repo_id, path);
-    if (is_locked) {
+    if (is_locked && !options->startup_scan) {
         send_sync_error_notification (repo_id, NULL, path,
                                       SYNC_ERROR_ID_FILE_LOCKED);
     }
