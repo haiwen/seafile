@@ -7,6 +7,7 @@ import subprocess
 import ccnet
 import glob
 
+
 # Directory layout:
 #
 # - SeafileProgram/
@@ -36,6 +37,7 @@ program_top_dir = os.path.dirname(install_path)
 seafserv_dir = ''
 ccnet_dir = ''
 seafile_dir = ''
+central_config_dir = ''
 
 def run_argv(argv, cwd=None, env=None, suppress_stdout=False, suppress_stderr=False):
     '''Run a program and wait it to finish, and return its exit code. The
@@ -65,7 +67,7 @@ def error(message):
     sys.exit(1)
 
 def read_seafserv_dir():
-    global seafserv_dir, ccnet_dir, seafile_dir
+    global seafserv_dir, ccnet_dir, seafile_dir, central_config_dir
     seafserv_ini = os.path.join(program_top_dir, 'seafserv.ini')
     if not os.path.exists(seafserv_ini):
         error('%s not found' % seafserv_ini)
@@ -75,6 +77,7 @@ def read_seafserv_dir():
 
     ccnet_dir = os.path.join(seafserv_dir, 'ccnet')
     seafile_dir = os.path.join(seafserv_dir, 'seafile-data')
+    central_config_dir = os.path.join(seafserv_dir, 'conf')
 
 def apply_sqls(db_path, sql_path):
     with open(sql_path, 'r') as fp:
@@ -132,8 +135,15 @@ def upgrade_db(version):
         print '    upgrading seahub databases ...'
         apply_sqls(seahub_db, seahub_sql)
 
+def get_current_version():
+    return os.path.basename(install_path).split('-')[-1]
+
 def ensure_server_not_running():
-    client = ccnet.SyncClient(ccnet_dir)
+    if os.path.exists(os.path.join(central_config_dir, 'ccnet.conf')):
+        client = ccnet.SyncClient(ccnet_dir,
+                                  central_config_dir=central_config_dir)
+    else:
+        client = ccnet.SyncClient(ccnet_dir)
     try:
         client.connect_daemon()
     except ccnet.NetworkError:
