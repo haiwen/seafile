@@ -2721,6 +2721,13 @@ print_active_paths (SeafSyncManager *mgr)
 }
 #endif
 
+inline static gboolean
+periodic_sync_due (SeafRepo *repo)
+{
+    int now = (int)time(NULL);
+    return (now > (repo->last_sync_time + repo->sync_interval));
+}
+
 static int
 auto_sync_pulse (void *vmanager)
 {
@@ -2817,7 +2824,10 @@ auto_sync_pulse (void *vmanager)
         if (repo->version > 0) {
             /* For repo version > 0, only use http sync. */
             if (check_http_protocol (manager, repo)) {
-                sync_repo_v2 (manager, repo, FALSE);
+                if (repo->sync_interval == 0)
+                    sync_repo_v2 (manager, repo, FALSE);
+                else if (periodic_sync_due (repo))
+                    sync_repo_v2 (manager, repo, TRUE);
             }
         } else {
             /* If relay is not ready or protocol version is not determined,
@@ -3058,7 +3068,8 @@ disable_auto_sync_for_repos (SeafSyncManager *mgr)
     repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
-        seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
+        if (repo->sync_interval == 0)
+            seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
         seaf_sync_manager_cancel_sync_task (mgr, repo->id);
         seaf_sync_manager_remove_active_path_info (mgr, repo->id);
     }
@@ -3091,7 +3102,8 @@ enable_auto_sync_for_repos (SeafSyncManager *mgr)
     repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, -1, -1);
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
-        seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree);
+        if (repo->sync_interval == 0)
+            seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree);
     }
 
     g_list_free (repos);

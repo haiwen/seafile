@@ -5923,7 +5923,7 @@ seaf_repo_manager_invalidate_repo_worktree (SeafRepoManager *mgr,
 
     repo->worktree_invalid = TRUE;
 
-    if (repo->auto_sync) {
+    if (repo->auto_sync && (repo->sync_interval == 0)) {
         if (seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id) < 0) {
             seaf_warning ("failed to unwatch repo %s.\n", repo->id);
         }
@@ -5939,7 +5939,7 @@ seaf_repo_manager_validate_repo_worktree (SeafRepoManager *mgr,
 
     repo->worktree_invalid = FALSE;
 
-    if (repo->auto_sync) {
+    if (repo->auto_sync && (repo->sync_interval == 0)) {
         if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
             seaf_warning ("failed to watch repo %s.\n", repo->id);
         }
@@ -6025,7 +6025,7 @@ watch_repos (SeafRepoManager *mgr)
     g_hash_table_iter_init (&iter, mgr->priv->repo_hash);
     while (g_hash_table_iter_next (&iter, &key, &value)) {
         repo = value;
-        if (repo->auto_sync && !repo->worktree_invalid) {
+        if (repo->auto_sync && !repo->worktree_invalid && (repo->sync_interval == 0)) {
             if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
                 seaf_warning ("failed to watch repo %s.\n", repo->id);
                 /* If we fail to add watch at the beginning, sync manager
@@ -6734,6 +6734,16 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
         repo->is_readonly = TRUE;
     else
         repo->is_readonly = FALSE;
+    g_free (value);
+
+    /* load sync period property */
+    value = load_repo_property (manager, repo->id, REPO_PROP_SYNC_INTERVAL);
+    if (value) {
+        int interval = atoi(value);
+        if (interval > 0)
+            repo->sync_interval = interval;
+    }
+    g_free (value);
 
     g_hash_table_insert (manager->priv->repo_hash, g_strdup(repo->id), repo);
 
@@ -6970,17 +6980,40 @@ seaf_repo_manager_set_repo_property (SeafRepoManager *manager,
 
         if (g_strcmp0(value, "true") == 0) {
             repo->auto_sync = 1;
-            seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id,
-                                        repo->worktree);
+            if (repo->sync_interval == 0)
+                seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id,
+                                            repo->worktree);
             repo->last_sync_time = 0;
         } else {
             repo->auto_sync = 0;
-            seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
+            if (repo->sync_interval == 0)
+                seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
             /* Cancel current sync task if any. */
             seaf_sync_manager_cancel_sync_task (seaf->sync_mgr, repo->id);
             seaf_sync_manager_remove_active_path_info (seaf->sync_mgr, repo->id);
         }
     }
+
+    if (strcmp(key, REPO_PROP_SYNC_INTERVAL) == 0) {
+        if (!seaf->started) {
+            seaf_message ("System not started, skip setting auto sync value.\n");
+            return 0;
+        }
+
+        int interval = atoi(value);
+
+        if (interval > 0) {
+            repo->sync_interval = interval;
+            if (repo->auto_sync)
+                seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
+        } else {
+            repo->sync_interval = 0;
+            if (repo->auto_sync)
+                seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id,
+                                            repo->worktree);
+        }
+    }
+
     if (strcmp(key, REPO_NET_BROWSABLE) == 0) {
         if (g_strcmp0(value, "true") == 0)
             repo->net_browsable = 1;
@@ -7305,7 +7338,7 @@ checkout_job_done (void *vresult)
     seaf_repo_set_head (repo, local);
     seaf_branch_unref (local);
 
-    if (repo->auto_sync) {
+    if (repo->auto_sync && (repo->sync_interval == 0)) {
         if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
             seaf_warning ("failed to watch repo %s(%.10s).\n", repo->name, repo->id);
             return;

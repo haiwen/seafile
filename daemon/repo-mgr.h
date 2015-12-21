@@ -29,6 +29,7 @@
 #define REPO_PROP_DOWNLOAD_HEAD "download-head"
 #define REPO_PROP_IS_READONLY "is-readonly"
 #define REPO_PROP_SERVER_URL  "server-url"
+#define REPO_PROP_SYNC_INTERVAL "sync-interval"
 
 struct _SeafRepoManager;
 typedef struct _SeafRepo SeafRepo;
@@ -98,6 +99,9 @@ struct _SeafRepo {
     /* Detected file change set during indexing.
      * Added to here to avoid passing additional arguments. */
     struct _ChangeSet *changeset;
+
+    /* Non-zero if periodic sync is set for this repo. */
+    int sync_interval;
 };
 
 
