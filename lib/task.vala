@@ -26,6 +26,9 @@ public class Task : Object {
     public int block_total { get; set; }
     public int block_done { get; set; } // the number of blocks sent or received
 
+    public int fs_objects_total { get; set; }
+    public int fs_objects_done { get; set; }
+
 	public int rate { get; set; }
 
 	public int64 _rsize;		// the size remain

@@ -3492,6 +3492,8 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
     seaf_debug ("Received fs object list size %lu from %s:%s.\n",
                 n, task->host, task->repo_id);
 
+    task->n_fs_objs = (int)n;
+
     GHashTable *checked_objs = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                       g_free, NULL);
 
@@ -3507,8 +3509,10 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
 
         obj_id = json_string_value(str);
 
-        if (g_hash_table_lookup (checked_objs, obj_id))
+        if (g_hash_table_lookup (checked_objs, obj_id)) {
+            ++(task->done_fs_objs);
             continue;
+        }
         char *key = g_strdup(obj_id);
         g_hash_table_replace (checked_objs, key, key);
 
@@ -3522,8 +3526,13 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
             sound = seaf_fs_manager_verify_object (seaf->fs_mgr,
                                                    task->repo_id, task->repo_version,
                                                    obj_id, FALSE, &io_error);
-            if (!sound && !io_error)
+            if (!sound && !io_error) {
                 *fs_id_list = g_list_prepend (*fs_id_list, g_strdup(obj_id));
+            } else {
+                ++(task->done_fs_objs);
+            }
+        } else {
+            ++(task->done_fs_objs);
         }
     }
 
@@ -3644,6 +3653,8 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
         }
 
         g_hash_table_remove (requested, recv_obj_id);
+
+        ++(task->done_fs_objs);
 
         p += (sizeof(ObjectHeader) + size);
         n += (sizeof(ObjectHeader) + size);

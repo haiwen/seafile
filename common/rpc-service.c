@@ -518,6 +518,10 @@ convert_http_task (HttpTxTask *task)
                           "block_done", task->done_files,
                           NULL);
             g_object_set (t, "rate", http_tx_task_get_rate(task), NULL);
+        } else if (task->runtime_state == HTTP_TASK_RT_STATE_FS) {
+            g_object_set (t, "fs_objects_total", task->n_fs_objs,
+                          "fs_objects_done", task->done_fs_objs,
+                          NULL);
         }
     } else {
         g_object_set (t, "ttype", "upload", NULL);

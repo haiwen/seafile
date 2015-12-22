@@ -94,6 +94,10 @@ struct _HttpTxTask {
     GHashTable *blk_ref_cnts;
     pthread_mutex_t ref_cnt_lock;
 
+    /* For clone fs object progress */
+    int n_fs_objs;
+    int done_fs_objs;
+
     /* For upload progress */
     int n_blocks;
     int done_blocks;
