@@ -788,7 +788,8 @@ seafile_revert_dir (const char *repo_id,
  */
 GList *
 seafile_get_deleted (const char *repo_id, int show_days,
-                     const char *path, GError **error);
+                     const char *path, const char *scan_stat,
+                     int limit, GError **error);
 
 /**
  * Generate a new token for (repo_id, email) and return it

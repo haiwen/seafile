@@ -211,8 +211,8 @@ class SeafileAPI(object):
     def revert_dir(self, repo_id, commit_id, path, username):
         return seafserv_threaded_rpc.revert_dir(repo_id, commit_id, path, username)
 
-    def get_deleted(self, repo_id, show_days, path='/'):
-        return seafserv_threaded_rpc.get_deleted(repo_id, show_days, path)
+    def get_deleted(self, repo_id, show_days, path='/', scan_stat=None, limit=100):
+        return seafserv_threaded_rpc.get_deleted(repo_id, show_days, path, scan_stat, limit)
 
     # file lock
     def check_file_lock(self, repo_id, path, user):

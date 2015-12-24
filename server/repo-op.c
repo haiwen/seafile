@@ -4918,16 +4918,168 @@ hash_to_list (gpointer key, gpointer value, gpointer user_data)
     return TRUE;
 }
 
+static gint
+compare_commit_by_time (gconstpointer a, gconstpointer b, gpointer unused)
+{
+    const SeafCommit *commit_a = a;
+    const SeafCommit *commit_b = b;
+
+    /* Latest commit comes first in the list. */
+    return (commit_b->ctime - commit_a->ctime);
+}
+
+static int
+insert_parent_commit (GList **list, GHashTable *hash,
+                      const char *repo_id, int version,
+                      const char *parent_id)
+{
+    SeafCommit *p;
+    char *key;
+
+    if (g_hash_table_lookup (hash, parent_id) != NULL)
+        return 0;
+
+    p = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                        repo_id, version,
+                                        parent_id);
+    if (!p) {
+        seaf_warning ("Failed to find commit %s\n", parent_id);
+        return -1;
+    }
+
+    *list = g_list_insert_sorted_with_data (*list, p,
+                                           compare_commit_by_time,
+                                           NULL);
+
+    key = g_strdup (parent_id);
+    g_hash_table_replace (hash, key, key);
+
+    return 0;
+}
+
+static int
+scan_commits_for_collect_deleted (CollectDelData *data,
+                                  const char *prev_scan_stat,
+                                  int limit,
+                                  char **next_scan_stat)
+{
+    GList *list = NULL;
+    SeafCommit *commit;
+    GHashTable *commit_hash;
+    SeafRepo *repo = data->repo;
+    int scan_num = 0;
+    gboolean ret = TRUE;
+
+    /* A hash table for recording id of traversed commits. */
+    commit_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+
+    char *key;
+    if (prev_scan_stat == NULL) {
+        commit = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->id,
+                                                 repo->version, repo->head->commit_id);
+        if (!commit) {
+            ret = FALSE;
+            goto out;
+        }
+        list = g_list_prepend (list, commit);
+        key = g_strdup (commit->commit_id);
+        g_hash_table_replace (commit_hash, key, key);
+    } else {
+        commit = seaf_commit_manager_get_commit (seaf->commit_mgr, repo->id,
+                                                 repo->version, prev_scan_stat);
+        if (!commit) {
+            ret = FALSE;
+            goto out;
+        }
+        list = g_list_append (list, commit);
+        key = g_strdup (commit->commit_id);
+        g_hash_table_replace (commit_hash, key, key);
+    }
+
+    while (list) {
+        gboolean stop = FALSE;
+        commit = list->data;
+        list = g_list_delete_link (list, list);
+
+        if (!collect_deleted (commit, data, &stop)) {
+            seaf_warning("[comit-mgr] CommitTraverseFunc failed\n");
+            seaf_commit_unref (commit);
+            ret = FALSE;
+            goto out;
+        }
+
+        if (stop) {
+            seaf_commit_unref (commit);
+            /* stop traverse down from this commit,
+             * but not stop traversing the tree
+             */
+            continue;
+        }
+
+        if (commit->parent_id) {
+            if (insert_parent_commit (&list, commit_hash, repo->id,
+                                      repo->version,
+                                      commit->parent_id) < 0) {
+                seaf_warning("[comit-mgr] insert parent commit failed\n");
+                seaf_commit_unref (commit);
+                ret = FALSE;
+                goto out;
+            }
+        }
+        if (commit->second_parent_id) {
+            if (insert_parent_commit (&list, commit_hash, repo->id,
+                                      repo->version,
+                                      commit->second_parent_id) < 0) {
+                seaf_warning("[comit-mgr]insert second parent commit failed\n");
+                seaf_commit_unref (commit);
+                ret = FALSE;
+                goto out;
+            }
+        }
+        seaf_commit_unref (commit);
+
+        if (++scan_num == limit && (!list || !list->next)) {
+            break;
+        }
+    }
+
+    // two scenarios:
+    // 1. list is empty, indicate scan end
+    // 2. list only have one commit, as start for next scan
+    if (list) {
+        commit = list->data;
+        *next_scan_stat = g_strdup (commit->commit_id);
+        seaf_commit_unref (commit);
+        list = g_list_delete_link (list, list);
+    }
+    g_hash_table_destroy (commit_hash);
+
+    return ret;
+
+out:
+    g_hash_table_destroy (commit_hash);
+    while (list) {
+        commit = list->data;
+        seaf_commit_unref (commit);
+        list = g_list_delete_link (list, list);
+    }
+
+    return ret;
+}
+
 GList *
 seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
                                        const char *repo_id,
                                        int show_days,
                                        const char *path,
+                                       const char *scan_stat,
+                                       int limit,
                                        GError **error)
 {
     SeafRepo *repo;
     gint64 truncate_time, show_time;
     GList *ret = NULL;
+    char *next_scan_stat = NULL;
 
     truncate_time = seaf_repo_manager_get_repo_truncate_time (mgr, repo_id);
     if (truncate_time == 0)
@@ -4961,13 +5113,7 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
         data.path = g_strdup ("/");
     }
 
-    if (!seaf_commit_manager_traverse_commit_tree (seaf->commit_mgr,
-                                                   repo->id, repo->version,
-                                                   repo->head->commit_id,
-                                                   collect_deleted,
-                                                   &data,
-                                                   TRUE))
-    {
+    if (!scan_commits_for_collect_deleted (&data, scan_stat, limit, &next_scan_stat)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
                      "Internal error");
         g_hash_table_destroy (entries);
@@ -4985,6 +5131,11 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
         g_hash_table_foreach_steal (entries, hash_to_list, &ret);
     }
 
+    // Append scan_stat entry to the end to indicate the end of scan result
+    ret = g_list_append (ret, g_object_new (SEAFILE_TYPE_DELETED_ENTRY,
+                                            "scan_stat", next_scan_stat,
+                                            NULL));
+
     g_hash_table_destroy (entries);
 
     seaf_repo_unref (repo);
@@ -4992,8 +5143,6 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
 
     return ret;
 }
-
-
 
 static SeafCommit *
 get_commit(SeafRepo *repo, const char *branch_or_commit)
