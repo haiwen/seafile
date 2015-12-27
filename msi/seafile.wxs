@@ -28,7 +28,7 @@
 
       <Directory Id='AppDataFolder' Name='AFiles'>
         <Directory Id='SeafileExtDir' Name='!(loc.AppName)'>
-          <Component Id="seafile_shell_ext" Guid="A2B35A93-F6DD-4524-BFF1-158C81011E93">
+          <Component Id="seafile_shell_ext" Guid="$(var.GuidOfShellExtComponent)">
             <RemoveFolder Id="SeafileExtDir" On="uninstall" />
             <RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]"
                            Name="shellext" Type="integer" Value="1" KeyPath='yes' />
@@ -41,12 +41,12 @@
 
       <Directory Id='ProgramFilesFolder' Name='PFiles'>
         <Directory Id='INSTALLDIR' Name='!(loc.AppName)'>
-          <Component Id="comp_manual" KeyPath="yes" Guid="F0CC8900-F8B9-11E1-83FD-000C295059FB">
+          <Component Id="comp_manual" KeyPath="yes" Guid="$(var.GuidOfManualComponent)">
             <File Id="manual.txt" Name="!(loc.UserManualName)" Source="!(loc.UserManualSource)" />
           </Component>
 
           <Directory Id='bin_Dir' Name='bin'>
-            <Component Id='comp_custom' Guid='A8CD54F6-9BFB-11E1-9B0E-001CBFC5CA1D'>
+            <Component Id='comp_custom' Guid="$(var.GuidOfCustomComponent)">
               <RegistryKey Root="HKCU" Key="Software\[Manufacturer]\[ProductName]" Action="createAndRemoveOnUninstall">
                 <RegistryValue Name="CustomComponent" Value="1" Type="integer" KeyPath='yes' />
               </RegistryKey>
@@ -69,7 +69,7 @@
 
     <!-- Auto-start via Registry -->
     <DirectoryRef Id="INSTALLDIR">
-      <Component Id="SeafileAutoStart" Guid="FED41B85-BA5A-4C95-8ABF-4A35852EE04E">
+      <Component Id="SeafileAutoStart" Guid="$(var.GuidOfAutoStartComponent)">
         <RegistryKey Root="HKCU"
                      Key="Software\Microsoft\Windows\CurrentVersion\Run"
                      Action="create">
@@ -82,7 +82,7 @@
 
 
     <DirectoryRef Id="SeafileStartMenuFolder" >
-      <Component Id="Seafile_StartMenuShortCut" Guid="F1662C95-6C0A-4CDD-B009-C5E66A4F8C80" >
+      <Component Id="Seafile_StartMenuShortCut" Guid="$(var.GuidOfStartMenuShortCutComponent)" >
         <RemoveFolder Id="SeafileStartMenuFolder" On="uninstall" />
         <RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]"
                        Name="installed" Type="integer" Value="1" KeyPath='yes' />
