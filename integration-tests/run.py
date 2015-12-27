@@ -188,7 +188,7 @@ class Seafile(Project):
 
 
 class Seahub(Project):
-    branch = 'master'
+    branch = '5.0'
 
     def __init__(self):
         super(Seahub, self).__init__('seahub')
