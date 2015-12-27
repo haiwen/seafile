@@ -2,7 +2,7 @@
 
 set -e -x
 
-pip install PIL --allow-all-external --allow-unverified PIL
+pip install http://effbot.org/media/downloads/PIL-1.1.7.tar.gz
 pip install -r ./integration-tests/requirements.txt
 
 pushd $HOME
@@ -44,6 +44,9 @@ urls=(
     https://pypi.python.org/packages/source/d/django_compressor/django_compressor-1.4.tar.gz
     https://pypi.python.org/packages/source/d/django-picklefield/django-picklefield-0.3.2.tar.gz
     https://pypi.python.org/packages/source/d/django-constance/django-constance-1.0.1.tar.gz
+    https://pypi.python.org/packages/source/j/jdcal/jdcal-1.2.tar.gz
+    https://pypi.python.org/packages/source/e/et_xmlfile/et_xmlfile-1.0.1.tar.gz
+    https://pypi.python.org/packages/source/o/openpyxl/openpyxl-2.3.0.tar.gz
 )
 # The basename of the download url is different from the tarball name.
 [[ -e Django-1.5.12.tar.gz ]] || $WGET https://www.djangoproject.com/download/1.5.12/tarball -O Django-1.5.12.tar.gz

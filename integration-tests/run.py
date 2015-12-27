@@ -5,6 +5,7 @@ import sys
 import re
 import termcolor
 import glob
+import json
 import logging
 import requests
 from pexpect import spawn
@@ -25,6 +26,8 @@ ADMIN_PASSWORD = 'adminadmin'
 
 logger = logging.getLogger(__file__)
 seafile_version = ''
+
+TRAVIS_BRANCH = os.environ.get('TRAVIS_BRANCH', 'master')
 
 
 def _color(s, color):
@@ -78,6 +81,7 @@ def chdir(func):
     def wrapped(self, *w, **kw):
         with cd(self.projectdir):
             return func(self, *w, **kw)
+
     return wrapped
 
 
@@ -90,17 +94,11 @@ def make_build_env():
         kw['env'] = env
         return prepend_env_value(*a, **kw)
 
-    _env_add('CPPFLAGS',
-             '-I%s' % join(PREFIX, 'include'),
-             seperator=' ')
+    _env_add('CPPFLAGS', '-I%s' % join(PREFIX, 'include'), seperator=' ')
 
-    _env_add('LDFLAGS',
-             '-L%s' % os.path.join(PREFIX, 'lib'),
-             seperator=' ')
+    _env_add('LDFLAGS', '-L%s' % os.path.join(PREFIX, 'lib'), seperator=' ')
 
-    _env_add('LDFLAGS',
-             '-L%s' % os.path.join(PREFIX, 'lib64'),
-             seperator=' ')
+    _env_add('LDFLAGS', '-L%s' % os.path.join(PREFIX, 'lib64'), seperator=' ')
 
     _env_add('PATH', os.path.join(PREFIX, 'bin'))
     _env_add('PATH', THIRDPARTDIR)
@@ -109,7 +107,8 @@ def make_build_env():
     _env_add('PKG_CONFIG_PATH', libsearpc_dir)
     _env_add('PKG_CONFIG_PATH', ccnet_dir)
 
-    for key in ('PATH', 'PKG_CONFIG_PATH', 'CPPFLAGS', 'LDFLAGS', 'PYTHONPATH'):
+    for key in ('PATH', 'PKG_CONFIG_PATH', 'CPPFLAGS', 'LDFLAGS',
+                'PYTHONPATH'):
         info('%s: %s', key, env.get(key, ''))
     return env
 
@@ -126,9 +125,18 @@ def prepend_env_value(name, value, seperator=':', env=None):
     return env
 
 
+def get_project_branch(project, default_branch='master'):
+    if project.name == 'seafile':
+        return TRAVIS_BRANCH
+    conf = json.loads(requests.get(
+        'https://raw.githubusercontent.com/haiwen/seafile-test-deploy/master/branches.json').text)
+    return conf.get(TRAVIS_BRANCH, conf.get('master', {})).get(project.name,
+                                                               default_branch)
+
+
+
 class Project(object):
     configure_cmd = './configure'
-    branch = 'master'
 
     def __init__(self, name):
         self.name = name
@@ -142,8 +150,13 @@ class Project(object):
     def projectdir(self):
         return join(TOPDIR, self.name)
 
+    @property
+    def branch(self):
+        return get_project_branch(self)
+
     def clone(self):
-        shell('git clone --depth=1 --branch {} {}'.format(self.branch, self.url))
+        shell('git clone --depth=1 --branch {} {}'.format(self.branch,
+                                                          self.url))
 
     @chdir
     def make_dist(self):
@@ -159,8 +172,7 @@ class Project(object):
         tarball = glob.glob('*.tar.gz')[0]
         info('copying %s to %s', tarball, SRCDIR)
         shell('cp {} {}'.format(tarball, SRCDIR))
-        m = re.match(
-            '{}-(.*).tar.gz'.format(self.name), basename(tarball))
+        m = re.match('{}-(.*).tar.gz'.format(self.name), basename(tarball))
         if m:
             self.version = m.group(1)
 
@@ -168,11 +180,11 @@ class Project(object):
     def use_branch(self, branch):
         shell('git checkout {}'.format(branch))
 
-class Ccnet(Project):
-    branch = 'master'
 
+class Ccnet(Project):
     def __init__(self):
         super(Ccnet, self).__init__('ccnet')
+
 
 class Seafile(Project):
     configure_cmd = './configure --enable-client --enable-server'
@@ -188,8 +200,6 @@ class Seafile(Project):
 
 
 class Seahub(Project):
-    branch = '5.0'
-
     def __init__(self):
         super(Seahub, self).__init__('seahub')
 
@@ -198,16 +208,14 @@ class Seahub(Project):
         cmds = [
             # 'git add -f media/css/*.css',
             # 'git commit -a -m "%s"' % msg,
-            './tools/gen-tarball.py --version={} --branch=HEAD >/dev/null'.format(
-                seafile_version),
+            './tools/gen-tarball.py --version={} --branch=HEAD >/dev/null'
+            .format(seafile_version),
         ]
         for cmd in cmds:
             shell(cmd, env=make_build_env())
 
 
 class SeafDAV(Project):
-    branch = 'master'
-
     def __init__(self):
         super(SeafDAV, self).__init__('seafdav')
 
@@ -217,7 +225,6 @@ class SeafDAV(Project):
 
 
 class SeafObj(Project):
-
     def __init__(self):
         super(SeafObj, self).__init__('seafobj')
 
@@ -258,6 +265,7 @@ def fetch_and_build():
 
     build_server(libsearpc, ccnet, seafile)
 
+
 def setup_server(db):
     '''Setup seafile server with the setup-seafile.sh script. We use pexpect to
     interactive with the setup process of the script.
@@ -283,6 +291,7 @@ REST_FRAMEWORK = {
 }''')
         fp.write('\n')
 
+
 def autosetup_sqlite3():
     setup_script = get_script('setup-seafile.sh')
     info('setting up seafile server with pexepct, script %s', setup_script)
@@ -301,6 +310,7 @@ def autosetup_sqlite3():
     ]
     _answer_questions(setup_script, answers)
 
+
 def createdbs():
     sql = '''\
 create database `ccnet-existing` character set = 'utf8';
@@ -313,7 +323,9 @@ GRANT ALL PRIVILEGES ON `ccnet-existing`.* to `seafile`@localhost;
 GRANT ALL PRIVILEGES ON `seafile-existing`.* to `seafile`@localhost;
 GRANT ALL PRIVILEGES ON `seahub-existing`.* to `seafile`@localhost;
     '''
+
     shell('mysql -u root', inputdata=sql)
+
 
 def autosetup_mysql():
     createdbs()
@@ -344,11 +356,14 @@ def autosetup_mysql():
     ]
     _answer_questions(abspath(setup_script), answers)
 
+
 def _server_dir():
     return join(INSTALLDIR, 'seafile-server-{}'.format(seafile_version))
 
+
 def get_script(path):
     return join(_server_dir(), path)
+
 
 def _answer_questions(cmd, answers):
     info('expect: spawing %s', cmd)
@@ -358,6 +373,7 @@ def _answer_questions(cmd, answers):
     def autofill(pattern, line):
         child.expect(pattern)
         child.sendline(line)
+
     for k, v in answers:
         autofill(k, v)
     child.sendline('')
@@ -392,21 +408,20 @@ def apiurl(path):
     path = path.lstrip('/')
     return 'http://127.0.0.1:8000/api2/' + path
 
+
 def create_test_user():
-    data = {
-        'username': ADMIN_USERNAME,
-        'password': ADMIN_PASSWORD,
-    }
+    data = {'username': ADMIN_USERNAME, 'password': ADMIN_PASSWORD, }
     res = requests.post(apiurl('/auth-token/'), data=data)
     debug('%s %s', res.status_code, res.text)
     token = res.json()['token']
-    data = {
-        'password': PASSWORD,
-    }
+    data = {'password': PASSWORD, }
     headers = {'Authorization': 'Token ' + token}
-    res = requests.put(apiurl('/accounts/{}/'.format(USERNAME)),
-                       data=data, headers=headers)
+    res = requests.put(
+        apiurl('/accounts/{}/'.format(USERNAME)),
+        data=data,
+        headers=headers)
     assert res.status_code == 201
+
 
 def run_tests():
     run_python_seafile_tests()
@@ -416,31 +431,37 @@ def run_tests():
     shell('{} stop'.format(get_script('seahub.sh')))
     shell('{} --verbose --rm-deleted'.format(get_script('seaf-gc.sh')))
 
+
 def run_python_seafile_tests():
     python_seafile = Project('python-seafile')
     if not exists(python_seafile.projectdir):
         python_seafile.clone()
-        shell('pip install -r {}/requirements.txt'.format(python_seafile.projectdir))
+        shell('pip install -r {}/requirements.txt'.format(
+            python_seafile.projectdir))
 
     with cd(python_seafile.projectdir):
         # install python-seafile because seafdav tests needs it
         shell('python setup.py install')
         shell('py.test')
 
+
 def _seafdav_env():
     env = dict(os.environ)
     env['CCNET_CONF_DIR'] = join(INSTALLDIR, 'ccnet')
     env['SEAFILE_CONF_DIR'] = join(INSTALLDIR, 'seafile-data')
     env['SEAFILE_CENTRAL_CONF_DIR'] = join(INSTALLDIR, 'conf')
-    for path in glob.glob(join(_server_dir(), 'seafile/lib*/python*/*-packages')):
+    for path in glob.glob(join(_server_dir(),
+                               'seafile/lib*/python*/*-packages')):
         prepend_env_value('PYTHONPATH', path, env=env)
     return env
+
 
 def run_seafdav_tests():
     seafdav = SeafDAV()
     shell('pip install -r {}/test-requirements.txt'.format(seafdav.projectdir))
     with cd(seafdav.projectdir):
         shell('nosetests -v -s', env=_seafdav_env())
+
 
 def setup_logging():
     kw = {
@@ -451,14 +472,15 @@ def setup_logging():
     }
 
     logging.basicConfig(**kw)
-    logging.getLogger(
-        'requests.packages.urllib3.connectionpool').setLevel(logging.WARNING)
+    logging.getLogger('requests.packages.urllib3.connectionpool').setLevel(
+        logging.WARNING)
 
 
 def _mkdirs(*paths):
     for path in paths:
         if not exists(path):
             os.mkdir(path)
+
 
 def main():
     _mkdirs(SRCDIR, INSTALLDIR)
@@ -467,6 +489,7 @@ def main():
     for db in ('sqlite3', 'mysql'):
         shell('rm -rf {}/*'.format(INSTALLDIR))
         setup_and_test(db)
+
 
 def setup_and_test(db):
     info('Setting up seafile server with %s database', db)
@@ -482,10 +505,11 @@ def setup_and_test(db):
     except:
         for logfile in glob.glob('{}/logs/*.log'.format(INSTALLDIR)):
             shell('echo {0}; cat {0}'.format(logfile))
-        for logfile in glob.glob(
-                '{}/seafile-server-{}/runtime/*.log'.format(INSTALLDIR, seafile_version)):
+        for logfile in glob.glob('{}/seafile-server-{}/runtime/*.log'.format(
+                INSTALLDIR, seafile_version)):
             shell('echo {0}; cat {0}'.format(logfile))
         raise
+
 
 if __name__ == '__main__':
     os.chdir(TOPDIR)
