@@ -108,5 +108,7 @@
   <?define GuidOfCustomComponent="A8CD54F6-9BFB-11E1-9B0E-001CBFC5CA1D" ?>
   <?define GuidOfAutoStartComponent="FED41B85-BA5A-4C95-8ABF-4A35852EE04E" ?>
   <?define GuidOfStartMenuShortCutComponent="F1662C95-6C0A-4CDD-B009-C5E66A4F8C80" ?>
+  <?define GuidOf32BitShellComponent="DAB96469-FFCE-4723-BD50-03AEBA4D36BD" ?>
+  <?define GuidOf64BitShellComponent="EEA7C4A2-4CCB-4185-BDA0-BDBD8D90B817" ?>
 
 </Include>

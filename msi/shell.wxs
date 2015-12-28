@@ -4,7 +4,7 @@
   <Fragment>
     <DirectoryRef Id="INSTALLDIR">
       <Directory Id="shell_bin_dir" Name="bin">
-        <Component Id="comp_shell" Guid="DAB96469-FFCE-4723-BD50-03AEBA4D36BD" Win64="no">
+        <Component Id="comp_shell" Guid="$(var.GuidOf32BitShellComponent)" Win64="no">
           <Condition>NOT VersionNT64</Condition>
           <!-- Context Menu Extension -->
           <RegistryKey Root="HKLM" Key="Software\Classes\Directory\shellex\ContextMenuHandlers\!(loc.AppName)" />
@@ -79,7 +79,7 @@
           <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Shell Extensions\Approved" Name="{$(var.ShellGuidIconLockedByOthers)}" Value="!(loc.AppName)IconLockedByOthers" Type="string" />
 
         </Component>
-        <Component Id="comp_shell64" Guid="EEA7C4A2-4CCB-4185-BDA0-BDBD8D90B817" Win64="yes">
+        <Component Id="comp_shell64" Guid="$(var.GuidOf64BitShellComponent)" Win64="yes">
           <Condition>VersionNT64</Condition>
           <!-- Context Menu Extension -->
           <RegistryKey Root="HKLM" Key="Software\Classes\Directory\shellex\ContextMenuHandlers\!(loc.AppName)" />
