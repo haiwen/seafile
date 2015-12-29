@@ -90,6 +90,48 @@ seafile_session_class_init (SeafileSessionClass *klass)
                       G_TYPE_NONE, 1, G_TYPE_POINTER);
 }
 
+static int
+create_deleted_store_dirs (const char *deleted_store)
+{
+    char *commits = NULL, *fs = NULL, *blocks = NULL;
+    int ret = 0;
+
+    if (checkdir_with_mkdir (deleted_store) < 0) {
+        seaf_warning ("Directory %s does not exist and is unable to create\n",
+                      deleted_store);
+        return -1;
+    }
+
+    commits = g_build_filename (deleted_store, "commits", NULL);
+    if (checkdir_with_mkdir (commits) < 0) {
+        seaf_warning ("Directory %s does not exist and is unable to create\n",
+                      commits);
+        ret = -1;
+        goto out;
+    }
+
+    fs = g_build_filename (deleted_store, "fs", NULL);
+    if (checkdir_with_mkdir (fs) < 0) {
+        seaf_warning ("Directory %s does not exist and is unable to create\n",
+                      fs);
+        ret = -1;
+        goto out;
+    }
+
+    blocks = g_build_filename (deleted_store, "blocks", NULL);
+    if (checkdir_with_mkdir (blocks) < 0) {
+        seaf_warning ("Directory %s does not exist and is unable to create\n",
+                      blocks);
+        ret = -1;
+        goto out;
+    }
+
+out:
+    g_free (commits);
+    g_free (fs);
+    g_free (blocks);
+    return ret;
+}
 
 SeafileSession *
 seafile_session_new(const char *seafile_dir,
@@ -100,6 +142,7 @@ seafile_session_new(const char *seafile_dir,
     char *abs_worktree_dir;
     char *tmp_file_dir;
     char *db_path;
+    char *deleted_store;
     sqlite3 *config_db;
     SeafileSession *session = NULL;
 
@@ -112,24 +155,28 @@ seafile_session_new(const char *seafile_dir,
     abs_seafile_dir = ccnet_expand_path (seafile_dir);
     tmp_file_dir = g_build_filename (abs_seafile_dir, "tmpfiles", NULL);
     db_path = g_build_filename (abs_seafile_dir, "config.db", NULL);
+    deleted_store = g_build_filename (abs_seafile_dir, "deleted_store", NULL);
 
     if (checkdir_with_mkdir (abs_seafile_dir) < 0) {
         seaf_warning ("Config dir %s does not exist and is unable to create\n",
-                   abs_seafile_dir);
+                      abs_seafile_dir);
         goto onerror;
     }
 
     if (checkdir_with_mkdir (abs_worktree_dir) < 0) {
         seaf_warning ("Worktree %s does not exist and is unable to create\n",
-                   abs_worktree_dir);
+                      abs_worktree_dir);
         goto onerror;
     }
 
     if (checkdir_with_mkdir (tmp_file_dir) < 0) {
         seaf_warning ("Temp file dir %s does not exist and is unable to create\n",
-                   tmp_file_dir);
+                      tmp_file_dir);
         goto onerror;
     }
+
+    if (create_deleted_store_dirs (deleted_store) < 0)
+        goto onerror;
 
     config_db = seafile_session_config_open_db (db_path);
     if (!config_db) {
@@ -143,6 +190,7 @@ seafile_session_new(const char *seafile_dir,
     session->worktree_dir = abs_worktree_dir;
     session->session = ccnet_session;
     session->config_db = config_db;
+    session->deleted_store = deleted_store;
 
     session->fs_mgr = seaf_fs_manager_new (session, abs_seafile_dir);
     if (!session->fs_mgr)
@@ -196,6 +244,7 @@ onerror:
     free (abs_worktree_dir);
     g_free (tmp_file_dir);
     g_free (db_path);
+    g_free (deleted_store);
     g_free (session);
     return NULL;    
 }
@@ -281,7 +330,7 @@ seafile_session_prepare (SeafileSession *session)
 /* } */
 
 static gboolean
-is_repo_block_store_in_use (const char *repo_id)
+is_repo_store_in_use (const char *repo_id)
 {
     if (seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id))
         return TRUE;
@@ -296,30 +345,30 @@ is_repo_block_store_in_use (const char *repo_id)
 }
 
 static void
-cleanup_unused_repo_block_stores ()
+cleanup_unused_repo_stores (const char *type)
 {
-    char *top_block_dir;
+    char *top_store_dir;
     const char *repo_id;
 
-    top_block_dir = g_build_filename (seaf->seaf_dir, "storage", "blocks", NULL);
+    top_store_dir = g_build_filename (seaf->seaf_dir, "storage", type, NULL);
 
     GError *error = NULL;
-    GDir *dir = g_dir_open (top_block_dir, 0, &error);
+    GDir *dir = g_dir_open (top_store_dir, 0, &error);
     if (!dir) {
-        seaf_warning ("Failed to open block dir %s: %s.\n",
-                      top_block_dir, error->message);
-        g_free (top_block_dir);
+        seaf_warning ("Failed to open store dir %s: %s.\n",
+                      top_store_dir, error->message);
+        g_free (top_store_dir);
         return;
     }
 
     while ((repo_id = g_dir_read_name(dir)) != NULL) {
-        if (!is_repo_block_store_in_use (repo_id)) {
-            seaf_message ("Removing blocks for deleted repo %s.\n", repo_id);
-            seaf_block_manager_remove_store (seaf->block_mgr, repo_id);
+        if (!is_repo_store_in_use (repo_id)) {
+            seaf_message ("Moving %s for deleted repo %s.\n", type, repo_id);
+            seaf_repo_manager_move_repo_store (seaf->repo_mgr, type, repo_id);
         }
     }
 
-    g_free (top_block_dir);
+    g_free (top_store_dir);
     g_dir_close (dir);
 }
 
@@ -332,9 +381,11 @@ on_start_cleanup_job (void *vdata)
      * there will be some sync error in run time. The user has to recover the
      * error by resyncing.
      */
-    migrate_client_v0_repos ();
+    /* migrate_client_v0_repos (); */
 
-    cleanup_unused_repo_block_stores ();
+    cleanup_unused_repo_stores ("commits");
+    cleanup_unused_repo_stores ("fs");
+    cleanup_unused_repo_stores ("blocks");
 
     return vdata;
 }

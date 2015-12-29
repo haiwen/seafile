@@ -6034,10 +6034,111 @@ watch_repos (SeafRepoManager *mgr)
     }
 }
 
+#define REMOVE_OBJECTS_BATCH 1000
+
+static int
+remove_store (const char *top_store_dir, const char *store_id, int *count)
+{
+    char *obj_dir = NULL;
+    GDir *dir1, *dir2;
+    const char *dname1, *dname2;
+    char *path1, *path2;
+
+    obj_dir = g_build_filename (top_store_dir, store_id, NULL);
+
+    dir1 = g_dir_open (obj_dir, 0, NULL);
+    if (!dir1) {
+        g_free (obj_dir);
+        return 0;
+    }
+
+    seaf_message ("Removing store %s\n", obj_dir);
+
+    while ((dname1 = g_dir_read_name(dir1)) != NULL) {
+        path1 = g_build_filename (obj_dir, dname1, NULL);
+
+        dir2 = g_dir_open (path1, 0, NULL);
+        if (!dir2) {
+            seaf_warning ("Failed to open obj dir %s.\n", path1);
+            g_dir_close (dir1);
+            g_free (path1);
+            g_free (obj_dir);
+            return -1;
+        }
+
+        while ((dname2 = g_dir_read_name(dir2)) != NULL) {
+            path2 = g_build_filename (path1, dname2, NULL);
+            g_unlink (path2);
+
+            /* To prevent using too much IO, only remove 1000 objects per 5 seconds.
+             */
+            if (++(*count) > REMOVE_OBJECTS_BATCH) {
+                g_usleep (5 * G_USEC_PER_SEC);
+                *count = 0;
+            }
+
+            g_free (path2);
+        }
+        g_dir_close (dir2);
+
+        g_rmdir (path1);
+        g_free (path1);
+    }
+
+    g_dir_close (dir1);
+    g_rmdir (obj_dir);
+    g_free (obj_dir);
+
+    return 0;
+}
+
+static void
+cleanup_deleted_stores_by_type (const char *type)
+{
+    char *top_store_dir;
+    const char *repo_id;
+
+    top_store_dir = g_build_filename (seaf->seaf_dir, "deleted_store", type, NULL);
+
+    GError *error = NULL;
+    GDir *dir = g_dir_open (top_store_dir, 0, &error);
+    if (!dir) {
+        seaf_warning ("Failed to open store dir %s: %s.\n",
+                      top_store_dir, error->message);
+        g_free (top_store_dir);
+        return;
+    }
+
+    int count = 0;
+    while ((repo_id = g_dir_read_name(dir)) != NULL) {
+        remove_store (top_store_dir, repo_id, &count);
+    }
+
+    g_free (top_store_dir);
+    g_dir_close (dir);
+}
+
+static void *
+cleanup_deleted_stores (void *vdata)
+{
+    while (1) {
+        cleanup_deleted_stores_by_type ("commits");
+        cleanup_deleted_stores_by_type ("fs");
+        cleanup_deleted_stores_by_type ("blocks");
+        g_usleep (60 * G_USEC_PER_SEC);
+    }
+}
+
 int
 seaf_repo_manager_start (SeafRepoManager *mgr)
 {
     watch_repos (mgr);
+
+    pthread_t tid;
+    int rc = pthread_create (&tid, NULL, cleanup_deleted_stores, NULL);
+    if (rc != 0) {
+        seaf_warning ("Failed to start cleanup thread: %s\n", strerror(rc));
+    }
 
     return 0;
 }
@@ -6252,6 +6353,55 @@ out:
     pthread_mutex_unlock (&mgr->priv->db_lock);
 }
 
+static char *
+gen_deleted_store_path (const char *type, const char *repo_id)
+{
+    int n = 1;
+    char *path = NULL;
+    char *name = NULL;
+
+    path = g_build_filename (seaf->deleted_store, type, repo_id, NULL);
+    while (g_access(path, F_OK) == 0 && n < 10) {
+        g_free (path);
+        name = g_strdup_printf ("%s(%d)", repo_id, n);
+        path = g_build_filename (seaf->deleted_store, type, name, NULL);
+        g_free (name);
+        ++n;
+    }
+
+    if (n == 10) {
+        g_free (path);
+        return NULL;
+    }
+
+    return path;
+}
+
+void
+seaf_repo_manager_move_repo_store (SeafRepoManager *mgr,
+                                   const char *type,
+                                   const char *repo_id)
+{
+    char *src = NULL;
+    char *dst = NULL;
+
+    src = g_build_filename (seaf->seaf_dir, "storage", type, repo_id, NULL);
+    dst = gen_deleted_store_path (type, repo_id);
+    if (dst) {
+        g_rename (src, dst);
+    }
+    g_free (src);
+    g_free (dst);
+}
+
+/* Move commits, fs stores into "deleted_store" directory. */
+static void
+move_repo_stores (SeafRepoManager *mgr, SeafRepo *repo)
+{
+    seaf_repo_manager_move_repo_store (mgr, "commits", repo->id);
+    seaf_repo_manager_move_repo_store (mgr, "fs", repo->id);
+}
+
 int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr,
                             SeafRepo *repo)
@@ -6262,6 +6412,8 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
     seaf_sync_manager_remove_active_path_info (seaf->sync_mgr, repo->id);
 
     remove_folder_perms (mgr, repo->id);
+
+    move_repo_stores (mgr, repo);
 
     if (pthread_rwlock_wrlock (&mgr->priv->lock) < 0) {
         seaf_warning ("[repo mgr] failed to lock repo cache.\n");

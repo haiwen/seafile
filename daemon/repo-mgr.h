@@ -229,6 +229,11 @@ int
 seaf_repo_manager_del_repo (SeafRepoManager *mgr, SeafRepo *repo);
 
 void
+seaf_repo_manager_move_repo_store (SeafRepoManager *mgr,
+                                   const char *type,
+                                   const char *repo_id);
+
+void
 seaf_repo_manager_remove_repo_ondisk (SeafRepoManager *mgr, const char *repo_id,
                                       gboolean add_deleted_record);
 
