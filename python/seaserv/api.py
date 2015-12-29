@@ -294,6 +294,9 @@ class SeafileAPI(object):
     def get_group_repos_by_owner(self, username):
         return seafserv_threaded_rpc.get_group_repos_by_owner(username)
 
+    def remove_group_repos_by_owner(self, group_id, username):
+        return seafserv_threaded_rpc.remove_repo_group(group_id, username)
+
     def set_group_repo_permission(self, group_id, repo_id, permission):
         return seafserv_threaded_rpc.set_group_repo_permission(group_id, repo_id,
                                                                permission)
