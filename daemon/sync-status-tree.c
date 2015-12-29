@@ -117,6 +117,7 @@ sync_status_tree_free (struct SyncStatusTree *tree)
     sync_status_dir_free (tree->root);
 
     g_free (tree->worktree);
+    g_free (tree);
 }
 
 void
