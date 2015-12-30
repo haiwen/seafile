@@ -1520,65 +1520,85 @@ get_current_time()
 }
 
 #ifdef WIN32
+static SOCKET pg_serv_sock = INVALID_SOCKET;
+static struct sockaddr_in pg_serv_addr;
+
+/* pgpipe() should only be called in the main loop,
+ * since it accesses the static global socket.
+ */
 int
 pgpipe (ccnet_pipe_t handles[2])
 {
-    SOCKET s;
-    struct sockaddr_in serv_addr;
-    int len = sizeof( serv_addr );
+    int len = sizeof( pg_serv_addr );
 
     handles[0] = handles[1] = INVALID_SOCKET;
 
-    if ( ( s = socket( AF_INET, SOCK_STREAM, 0 ) ) == INVALID_SOCKET )
-    {
-        g_warning("pgpipe failed to create socket: %d\n", WSAGetLastError());
-        return -1;
+    if (pg_serv_sock == INVALID_SOCKET) {
+        if ((pg_serv_sock = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) {
+            g_warning("pgpipe failed to create socket: %d\n", WSAGetLastError());
+            return -1;
+        }
+
+        memset(&pg_serv_addr, 0, sizeof(pg_serv_addr));
+        pg_serv_addr.sin_family = AF_INET;
+        pg_serv_addr.sin_port = htons(0);
+        pg_serv_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+        if (bind(pg_serv_sock, (SOCKADDR *)&pg_serv_addr, len) == SOCKET_ERROR) {
+            g_warning("pgpipe failed to bind: %d\n", WSAGetLastError());
+            closesocket(pg_serv_sock);
+            pg_serv_sock = INVALID_SOCKET;
+            return -1;
+        }
+
+        if (listen(pg_serv_sock, SOMAXCONN) == SOCKET_ERROR) {
+            g_warning("pgpipe failed to listen: %d\n", WSAGetLastError());
+            closesocket(pg_serv_sock);
+            pg_serv_sock = INVALID_SOCKET;
+            return -1;
+        }
+
+        struct sockaddr_in tmp_addr;
+        int tmp_len = sizeof(tmp_addr);
+        if (getsockname(pg_serv_sock, (SOCKADDR *)&tmp_addr, &tmp_len) == SOCKET_ERROR) {
+            g_warning("pgpipe failed to getsockname: %d\n", WSAGetLastError());
+            closesocket(pg_serv_sock);
+            pg_serv_sock = INVALID_SOCKET;
+            return -1;
+        }
+        pg_serv_addr.sin_port = tmp_addr.sin_port;
     }
 
-    memset( &serv_addr, 0, sizeof( serv_addr ) );
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(0);
-    serv_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    if (bind(s, (SOCKADDR *) & serv_addr, len) == SOCKET_ERROR)
-    {
-        g_warning("pgpipe failed to bind: %d\n", WSAGetLastError());
-        closesocket(s);
-        return -1;
-    }
-    if (listen(s, 1) == SOCKET_ERROR)
-    {
-        g_warning("pgpipe failed to listen: %d\n", WSAGetLastError());
-        closesocket(s);
-        return -1;
-    }
-    if (getsockname(s, (SOCKADDR *) & serv_addr, &len) == SOCKET_ERROR)
-    {
-        g_warning("pgpipe failed to getsockname: %d\n", WSAGetLastError());
-        closesocket(s);
-        return -1;
-    }
     if ((handles[1] = socket(PF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
     {
         g_warning("pgpipe failed to create socket 2: %d\n", WSAGetLastError());
-        closesocket(s);
+        closesocket(pg_serv_sock);
+        pg_serv_sock = INVALID_SOCKET;
         return -1;
     }
 
-    if (connect(handles[1], (SOCKADDR *) & serv_addr, len) == SOCKET_ERROR)
+    if (connect(handles[1], (SOCKADDR *)&pg_serv_addr, len) == SOCKET_ERROR)
     {
         g_warning("pgpipe failed to connect socket: %d\n", WSAGetLastError());
-        closesocket(s);
+        closesocket(handles[1]);
+        handles[1] = INVALID_SOCKET;
+        closesocket(pg_serv_sock);
+        pg_serv_sock = INVALID_SOCKET;
         return -1;
     }
-    if ((handles[0] = accept(s, (SOCKADDR *) & serv_addr, &len)) == INVALID_SOCKET)
+
+    struct sockaddr_in client_addr;
+    int client_len = sizeof(client_addr);
+    if ((handles[0] = accept(pg_serv_sock, (SOCKADDR *)&client_addr, &client_len)) == INVALID_SOCKET)
     {
         g_warning("pgpipe failed to accept socket: %d\n", WSAGetLastError());
         closesocket(handles[1]);
         handles[1] = INVALID_SOCKET;
-        closesocket(s);
+        closesocket(pg_serv_sock);
+        pg_serv_sock = INVALID_SOCKET;
         return -1;
     }
-    closesocket(s);
+
     return 0;
 }
 #endif

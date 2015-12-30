@@ -46,6 +46,7 @@
 #define ccnet_pipe_t intptr_t
 
 int pgpipe (ccnet_pipe_t handles[2]);
+/* Should only be called in main loop. */
 #define ccnet_pipe(a) pgpipe((a))
 #define piperead(a,b,c) recv((a),(b),(c),0)
 #define pipewrite(a,b,c) send((a),(b),(c),0)
