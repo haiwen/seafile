@@ -1596,6 +1596,9 @@ check_head_commit_http (SyncTask *task)
                                                  task);
     if (ret == 0)
         transition_sync_state (task, SYNC_STATE_INIT);
+    else if (ret < 0)
+        seaf_sync_manager_set_task_error (task, SYNC_ERROR_GET_SYNC_INFO);
+
     return ret;
 }
 
@@ -1706,10 +1709,11 @@ commit_repo (SyncTask *task)
 
     transition_sync_state (task, SYNC_STATE_COMMIT);
 
-    ccnet_job_manager_schedule_job (seaf->job_mgr, 
-                                    commit_job, 
-                                    commit_job_done,
-                                    task);
+    if (ccnet_job_manager_schedule_job (seaf->job_mgr, 
+                                        commit_job, 
+                                        commit_job_done,
+                                        task) < 0)
+        seaf_sync_manager_set_task_error (task, SYNC_ERROR_COMMIT);
 }
 
 static int
@@ -2112,11 +2116,12 @@ check_http_protocol_done (HttpProtocolVersion *result, void *user_data)
         state->checking = FALSE;
     } else if (strncmp(state->testing_host, "https", 5) != 0) {
         char *host_fileserver = http_fileserver_url(state->testing_host);
-        http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
-                                                host_fileserver,
-                                                TRUE,
-                                                check_http_fileserver_protocol_done,
-                                                state);
+        if (http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
+                                                    host_fileserver,
+                                                    TRUE,
+                                                    check_http_fileserver_protocol_done,
+                                                    state) < 0)
+            state->checking = FALSE;
         g_free (host_fileserver);
     } else {
         state->checking = FALSE;
@@ -2168,11 +2173,13 @@ check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo)
 
     state->last_http_check_time = (gint64)time(NULL);
 
-    http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
-                                            repo->server_url,
-                                            FALSE,
-                                            check_http_protocol_done,
-                                            state);
+    if (http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
+                                                repo->server_url,
+                                                FALSE,
+                                                check_http_protocol_done,
+                                                state) < 0)
+        return FALSE;
+
     state->checking = TRUE;
 
     return FALSE;
@@ -2559,12 +2566,15 @@ check_folder_permissions_one_server (SeafSyncManager *mgr,
     server_state->checking_folder_perms = TRUE;
 
     /* The requests list will be freed in http tx manager. */
-    http_tx_manager_get_folder_perms (seaf->http_tx_mgr,
-                                      server_state->effective_host,
-                                      server_state->use_fileserver_port,
-                                      requests,
-                                      check_folder_perms_done,
-                                      server_state);
+    if (http_tx_manager_get_folder_perms (seaf->http_tx_mgr,
+                                          server_state->effective_host,
+                                          server_state->use_fileserver_port,
+                                          requests,
+                                          check_folder_perms_done,
+                                          server_state) < 0) {
+        seaf_warning ("Failed to schedule check folder permissions\n");
+        server_state->checking_folder_perms = FALSE;
+    }
 }
 
 static void
@@ -2683,12 +2693,15 @@ check_locked_files_one_server (SeafSyncManager *mgr,
     server_state->checking_locked_files = TRUE;
 
     /* The requests list will be freed in http tx manager. */
-    http_tx_manager_get_locked_files (seaf->http_tx_mgr,
-                                      server_state->effective_host,
-                                      server_state->use_fileserver_port,
-                                      requests,
-                                      check_server_locked_files_done,
-                                      server_state);
+    if (http_tx_manager_get_locked_files (seaf->http_tx_mgr,
+                                          server_state->effective_host,
+                                          server_state->use_fileserver_port,
+                                          requests,
+                                          check_server_locked_files_done,
+                                          server_state) < 0) {
+        seaf_warning ("Failed to schedule check server locked files\n");
+        server_state->checking_locked_files = FALSE;
+    }
 }
 
 static void
@@ -2799,11 +2812,15 @@ auto_sync_pulse (void *vmanager)
                 now - repo->last_check_locked_time >= CHECK_LOCKED_FILES_INTERVAL)
             {
                 repo->checking_locked_files = TRUE;
-                ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                                check_locked_files,
-                                                check_locked_files_done,
-                                                repo);
-                repo->last_check_locked_time = now;
+                if (ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                                    check_locked_files,
+                                                    check_locked_files_done,
+                                                    repo) < 0) {
+                    seaf_warning ("Failed to schedule check local locked files\n");
+                    repo->checking_locked_files = FALSE;
+                } else {
+                    repo->last_check_locked_time = now;
+                }
 
             }
         }
