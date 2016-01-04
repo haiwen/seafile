@@ -1147,12 +1147,16 @@ http_tx_manager_check_protocol_version (HttpTxManager *manager,
     data->callback = callback;
     data->user_data = user_data;
 
-    ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                    check_protocol_version_thread,
-                                    check_protocol_version_done,
-                                    data);
+    int ret = ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                              check_protocol_version_thread,
+                                              check_protocol_version_done,
+                                              data);
+    if (ret < 0) {
+        g_free (data->host);
+        g_free (data);
+    }
 
-    return 0;
+    return ret;
 }
 
 /* Check Head Commit. */
@@ -1302,10 +1306,15 @@ http_tx_manager_check_head_commit (HttpTxManager *manager,
     data->user_data = user_data;
     data->use_fileserver_port = use_fileserver_port;
 
-    ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                    check_head_commit_thread,
-                                    check_head_commit_done,
-                                    data);
+    if (ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                        check_head_commit_thread,
+                                        check_head_commit_done,
+                                        data) < 0) {
+        g_free (data->host);
+        g_free (data->token);
+        g_free (data);
+        return -1;
+    }
 
     return 0;
 }
@@ -1651,10 +1660,14 @@ http_tx_manager_get_folder_perms (HttpTxManager *manager,
     data->user_data = user_data;
     data->use_fileserver_port = use_fileserver_port;
 
-    ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                    get_folder_perms_thread,
-                                    get_folder_perms_done,
-                                    data);
+    if (ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                        get_folder_perms_thread,
+                                        get_folder_perms_done,
+                                        data) < 0) {
+        g_free (data->host);
+        g_free (data);
+        return -1;
+    }
 
     return 0;
 }
@@ -1924,10 +1937,14 @@ http_tx_manager_get_locked_files (HttpTxManager *manager,
     data->user_data = user_data;
     data->use_fileserver_port = use_fileserver_port;
 
-    ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                    get_locked_files_thread,
-                                    get_locked_files_done,
-                                    data);
+    if (ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                        get_locked_files_thread,
+                                        get_locked_files_done,
+                                        data) < 0) {
+        g_free (data->host);
+        g_free (data);
+        return -1;
+    }
 
     return 0;
 }
@@ -2044,10 +2061,13 @@ http_tx_manager_add_upload (HttpTxManager *manager,
                          g_strdup(repo_id),
                          task);
 
-    ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                    http_upload_thread,
-                                    http_upload_done,
-                                    task);
+    if (ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                        http_upload_thread,
+                                        http_upload_done,
+                                        task) < 0) {
+        g_hash_table_remove (manager->priv->upload_tasks, repo_id);
+        return -1;
+    }
 
     return 0;
 }
@@ -3358,10 +3378,13 @@ http_tx_manager_add_download (HttpTxManager *manager,
                                                NULL);
     task->repo_name = g_strdup(repo_name);
 
-    ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                    http_download_thread,
-                                    http_download_done,
-                                    task);
+    if (ccnet_job_manager_schedule_job (seaf->job_mgr,
+                                        http_download_thread,
+                                        http_download_done,
+                                        task) < 0) {
+        g_hash_table_remove (manager->priv->download_tasks, repo_id);
+        return -1;
+    }
 
     return 0;
 }

@@ -285,14 +285,16 @@ check_head_commit_done (HttpHeadCommit *result, void *user_data)
 static void
 http_check_head_commit (CloneTask *task)
 {
-    http_tx_manager_check_head_commit (seaf->http_tx_mgr,
-                                       task->repo_id,
-                                       task->repo_version,
-                                       task->effective_url,
-                                       task->token,
-                                       task->use_fileserver_port,
-                                       check_head_commit_done,
-                                       task);
+    int ret = http_tx_manager_check_head_commit (seaf->http_tx_mgr,
+                                                 task->repo_id,
+                                                 task->repo_version,
+                                                 task->effective_url,
+                                                 task->token,
+                                                 task->use_fileserver_port,
+                                                 check_head_commit_done,
+                                                 task);
+    if (ret < 0)
+        transition_to_error (task, CLONE_ERROR_CONNECT);
 }
 
 static char *
@@ -351,11 +353,12 @@ check_http_protocol_done (HttpProtocolVersion *result, void *user_data)
         http_check_head_commit (task);
     } else if (strncmp(task->server_url, "https", 5) != 0) {
         char *host_fileserver = http_fileserver_url(task->server_url);
-        http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
-                                                host_fileserver,
-                                                TRUE,
-                                                check_http_fileserver_protocol_done,
-                                                task);
+        if (http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
+                                                    host_fileserver,
+                                                    TRUE,
+                                                    check_http_fileserver_protocol_done,
+                                                    task) < 0)
+            transition_state (task, CLONE_STATE_CONNECT);
         g_free (host_fileserver);
     } else {
         /* Wait for periodic retry. */
@@ -366,11 +369,15 @@ check_http_protocol_done (HttpProtocolVersion *result, void *user_data)
 static void
 check_http_protocol (CloneTask *task)
 {
-    http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
-                                            task->server_url,
-                                            FALSE,
-                                            check_http_protocol_done,
-                                            task);
+    if (http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
+                                                task->server_url,
+                                                FALSE,
+                                                check_http_protocol_done,
+                                                task) < 0) {
+        transition_to_error (task, CLONE_ERROR_CONNECT);
+        return;
+    }
+
     transition_state (task, CLONE_STATE_CHECK_HTTP);
 }
 
@@ -2425,10 +2432,11 @@ check_folder_permissions (CloneTask *task)
     requests = g_list_append (requests, req);
 
     /* The requests list will be freed in http tx manager. */
-    http_tx_manager_get_folder_perms (seaf->http_tx_mgr,
-                                      task->effective_url,
-                                      task->use_fileserver_port,
-                                      requests,
-                                      check_folder_perms_done,
-                                      task);
+    if (http_tx_manager_get_folder_perms (seaf->http_tx_mgr,
+                                          task->effective_url,
+                                          task->use_fileserver_port,
+                                          requests,
+                                          check_folder_perms_done,
+                                          task) < 0)
+        transition_to_error (task, CLONE_ERROR_INTERNAL);
 }
