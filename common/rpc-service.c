@@ -1297,7 +1297,7 @@ int do_unsync_repo(SeafRepo *repo)
         return -1;
     }
 
-    if (repo->auto_sync)
+    if (repo->auto_sync && (repo->sync_interval == 0))
         seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
 
     seaf_sync_manager_cancel_sync_task (seaf->sync_mgr, repo->id);
