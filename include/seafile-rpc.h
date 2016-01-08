@@ -235,15 +235,17 @@ GList * seafile_list_dir (const char *repo_id,
                           const char *dir_id, int offset, int limit, GError **error);
 
 /**
- * seafile_list_file:
+ * seafile_list_file_blocks:
  * List the blocks of a file.
  *
  * Returns: a list of block ids speprated by '\n'.
  * 
  * @limit: if limit <= 0, all blocks start from @offset will be returned.
  */
-char * seafile_list_file (const char *repo_id,
-                          const char *file_id, int offset, int limit, GError **error);
+char * seafile_list_file_blocks (const char *repo_id,
+                                 const char *file_id,
+                                 int offset, int limit,
+                                 GError **error);
 
 /**
  * seafile_list_dir_by_path:
@@ -255,13 +257,15 @@ GList * seafile_list_dir_by_path (const char *repo_id,
                                   const char *commit_id, const char *path, GError **error);
 
 /**
- * seafile_get_dirid_by_path:
+ * seafile_get_dir_id_by_commit_and_path:
  * Get the dir_id of the path
  *
  * Returns: the dir_id of the path
  */
-char * seafile_get_dirid_by_path (const char *repo_id,
-                                  const char *commit_id, const char *path, GError **error);
+char * seafile_get_dir_id_by_commit_and_path (const char *repo_id,
+                                              const char *commit_id,
+                                              const char *path,
+                                              GError **error);
 
 /**
  * seafile_revert:
