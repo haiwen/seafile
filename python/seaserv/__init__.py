@@ -1,7 +1,6 @@
 
 import service
-from service import ccnet_rpc, monitor_rpc, seafserv_rpc, \
-    seafserv_threaded_rpc, ccnet_threaded_rpc
+from service import ccnet_rpc, seafserv_rpc, seafserv_threaded_rpc, ccnet_threaded_rpc
 from service import send_command, check_quota, web_get_access_token, \
     unset_repo_passwd, get_user_quota_usage, get_user_share_usage, \
     get_user_quota
@@ -41,4 +40,4 @@ from service import CCNET_CONF_PATH, CCNET_SERVER_ADDR, CCNET_SERVER_PORT, \
 
 from service import send_message
 
-from api import seafile_api
+from api import seafile_api, ccnet_api
