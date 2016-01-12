@@ -4750,9 +4750,7 @@ find_deleted (SeafRepo *repo,
                                                      repo->version,
                                                      child->root_id, base);
     if (!d1) {
-        seaf_warning ("Failed to find dir %s on root %s of repo %s.\n",
-                      base, child->root_id, repo->id);
-        return -1;
+        return ret;
     }
 
     d2 = seaf_fs_manager_get_seafdir_sorted_by_path (seaf->fs_mgr,
@@ -4760,10 +4758,8 @@ find_deleted (SeafRepo *repo,
                                                      repo->version,
                                                      parent->root_id, base);
     if (!d2) {
-        seaf_warning ("Failed to find dir %s on root %s of repo %s.\n",
-                      base, parent->root_id, repo->id);
         seaf_dir_free (d1);
-        return -1;
+        return ret;
     }
 
     ret = find_deleted_recursive (repo, d1, d2, base, child, parent, entries);
@@ -5082,8 +5078,13 @@ seaf_repo_manager_get_deleted_entries (SeafRepoManager *mgr,
     char *next_scan_stat = NULL;
 
     truncate_time = seaf_repo_manager_get_repo_truncate_time (mgr, repo_id);
-    if (truncate_time == 0)
-        return NULL;
+    if (truncate_time == 0) {
+        // Don't keep history, set scan_stat as NULL, indicate no need for next scan
+        ret = g_list_append (ret, g_object_new (SEAFILE_TYPE_DELETED_ENTRY,
+                                                "scan_stat", NULL,
+                                                NULL));
+        return ret;
+    }
 
     if (show_days <= 0)
         show_time = -1;
