@@ -4691,7 +4691,7 @@ find_deleted_recursive (SeafRepo *repo,
             if ((dent1->mode & S_IFMT) != (dent2->mode & S_IFMT)) {
                 /* both exists but with diffent type. */
                 add_deleted_entry (repo, entries, dent2, base, child, parent);
-            } else if (S_ISDIR(dent1->mode)) {
+            } else if (S_ISDIR(dent1->mode) && strcmp(dent1->id, dent2->id) != 0) {
                 SeafDir *n1 = seaf_fs_manager_get_seafdir_sorted (seaf->fs_mgr,
                                                                   repo->id,
                                                                   repo->version,
