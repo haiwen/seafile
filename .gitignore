@@ -125,3 +125,5 @@ fuse/seaf-fuse
 server/gc/seaf-migrate
 /compile
 /test-driver
+*.dmp
+/symbols

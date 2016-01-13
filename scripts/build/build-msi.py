@@ -297,8 +297,12 @@ class Seafile(Project):
     name = 'seafile'
     def __init__(self):
         Project.__init__(self)
+        if breakpad_enabled():
+            enable_breakpad = '--enable-breakpad'
+        else:
+            enable_breakpad = ''
         self.build_commands = [
-            'sh ./configure --prefix=%s' % to_mingw_path(self.prefix),
+            'sh ./configure %s --prefix=%s' % (enable_breakpad, to_mingw_path(self.prefix)),
             get_make_path(),
             '%s install' % get_make_path(),
         ]
@@ -800,8 +804,27 @@ def edit_fragment_wxs():
     with open(file_path, 'w') as fp:
         fp.write(content)
 
+def breakpad_enabled():
+    return conf[CONF_VERSION] >= '5.0.3'
+
+def generate_breakpad_symbols():
+    seafiledir = Seafile().projdir
+    script = os.path.join(seafiledir, 'scripts/breakpad.py')
+    symbol_file = 'seaf-daemon.exe.sym-%s' % conf[CONF_VERSION]
+    output = os.path.join(seafiledir, symbol_file)
+
+    # generate the breakpad symbols
+    if run('python %s --output %s' % (script, output)) != 0:
+        error('Error when generating breakpad symbols')
+
+    # move symbols to output directory
+    dst_symbol_file = os.path.join(conf[CONF_OUTPUTDIR], symbol_file)
+    must_copy(output, dst_symbol_file)
+
 def build_msi():
     prepare_msi()
+    if breakpad_enabled():
+        generate_breakpad_symbols()
     strip_symbols()
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
     if run('make fragment.wxs', cwd=pack_dir) != 0:

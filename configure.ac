@@ -328,6 +328,19 @@ if test "${compile_gnome_keyring}" = "yes"; then
    AC_DEFINE(HAVE_KEYSTORAGE_GK, 1, [Have Gnome-Keyring support])
 fi
 
+BPWRAPPER_REQUIRED=0.1
+AC_ARG_ENABLE(breakpad, AC_HELP_STRING([--enable-breakpad], [build google breadpad support]),
+                               [compile_breakpad=$enableval],[compile_breakpad="no"])
+
+AM_CONDITIONAL([HAVE_BREAKPAD_SUPPORT], [test "${compile_breakpad}" = "yes"])
+if test "${compile_breakpad}" = "yes"; then
+   PKG_CHECK_MODULES(BPWRAPPER, [bpwrapper])
+   AC_DEFINE(HAVE_BREAKPAD_SUPPORT, 1, [Breakpad support enabled])
+   AC_SUBST(BPWRAPPER_CFLAGS)
+   AC_SUBST(BPWRAPPER_LIBS)
+fi
+
+
 ac_configure_args="$ac_configure_args -q"
 
 AC_CONFIG_FILES(
