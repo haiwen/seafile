@@ -1778,6 +1778,16 @@ seaf_repo_manager_set_repo_history_limit (SeafRepoManager *mgr,
     return 0;
 }
 
+static gboolean
+get_history_limit_cb (SeafDBRow *row, void *data)
+{
+    int *limit = data;
+
+    *limit = seaf_db_row_get_column_int (row, 0);
+
+    return FALSE;
+}
+
 int
 seaf_repo_manager_get_repo_history_limit (SeafRepoManager *mgr,
                                           const char *repo_id)
@@ -1785,21 +1795,27 @@ seaf_repo_manager_get_repo_history_limit (SeafRepoManager *mgr,
     SeafVirtRepo *vinfo;
     const char *r_repo_id = repo_id;
     char *sql;
-    int per_repo_days;
+    int per_repo_days = -1;
+    int ret;
 
     vinfo = seaf_repo_manager_get_virtual_repo_info (mgr, repo_id);
     if (vinfo)
         r_repo_id = vinfo->origin_repo_id;
 
     sql = "SELECT days FROM RepoHistoryLimit WHERE repo_id=?";
-    per_repo_days = seaf_db_statement_get_int (mgr->seaf->db, sql,
-                                               1, "string", r_repo_id);
+
+    ret = seaf_db_statement_foreach_row (mgr->seaf->db, sql, get_history_limit_cb,
+                                         &per_repo_days, 1, "string", r_repo_id);
+    if (ret == 0) {
+        // limit not set, return global one
+        per_repo_days = mgr->seaf->keep_history_days;
+    }
+
+    // db error or limit set as negative, means keep full history, return -1
+    if (per_repo_days < 0)
+        per_repo_days = -1;
 
     seaf_virtual_repo_info_free (vinfo);
-
-    /* If per repo value is not set or DB error, return the global one. */
-    if (per_repo_days < 0)
-        return mgr->seaf->keep_history_days;
 
     return per_repo_days;
 }

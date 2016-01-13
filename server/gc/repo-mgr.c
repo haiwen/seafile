@@ -479,6 +479,7 @@ seaf_repo_manager_get_repo_history_limit (SeafRepoManager *mgr,
     const char *r_repo_id = repo_id;
     char sql[256];
     int per_repo_days = -1;
+    int ret;
 
     vinfo = seaf_repo_manager_get_virtual_repo_info (mgr, repo_id);
     if (vinfo)
@@ -495,15 +496,16 @@ seaf_repo_manager_get_repo_history_limit (SeafRepoManager *mgr,
      * since the global value may be smaller than per repo one.
      * This can lead to data lose in GC.
      */
-    if (seaf_db_foreach_selected_row (mgr->seaf->db, sql,
-                                      get_limit, &per_repo_days) < 0) {
-        seaf_warning ("DB error.\n");
-        return -1;
+    ret = seaf_db_foreach_selected_row (mgr->seaf->db, sql,
+                                        get_limit, &per_repo_days);
+    if (ret == 0) {
+        /* If per repo value is not set, return the global one. */
+        return mgr->seaf->keep_history_days;
     }
 
-    /* If per repo value is not set, return the global one. */
-    if (per_repo_days < 0)
-        return mgr->seaf->keep_history_days;
+    if (per_repo_days < 0) {
+        per_repo_days = -1;
+    }
 
     return per_repo_days;
 }
