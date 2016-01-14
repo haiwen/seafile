@@ -152,6 +152,9 @@ class SeafileAPI(object):
     def get_file_size(self, store_id, version, file_id):
         return seafserv_threaded_rpc.get_file_size(store_id, version, file_id)
 
+    def get_dir_size(self, store_id, version, dir_id):
+        return seafserv_threaded_rpc.get_dir_size(store_id, version, dir_id)
+
     def get_file_id_by_path(self, repo_id, path):
         return seafserv_threaded_rpc.get_file_id_by_path(repo_id, path)
 
