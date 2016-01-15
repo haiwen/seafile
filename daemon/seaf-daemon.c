@@ -16,6 +16,10 @@
 #include <glib.h>
 #include <glib-object.h>
 
+#ifdef HAVE_BREAKPAD_SUPPORT
+#include <c_bpwrapper.h>
+#endif // HAVE_BREAKPAD_SUPPORT
+
 #include <ccnet.h>
 #include <searpc-server.h>
 #include <searpc-client.h>
@@ -380,6 +384,16 @@ bind_ccnet_service (const char *config_dir)
 int
 main (int argc, char **argv)
 {
+#ifdef HAVE_BREAKPAD_SUPPORT
+#ifdef WIN32
+#define DUMPS_DIR "~/ccnet/logs/dumps/"
+#else
+#define DUMPS_DIR "~/.ccnet/logs/dumps/"
+#endif
+    const char *dump_dir = ccnet_expand_path(DUMPS_DIR);
+    checkdir_with_mkdir(dump_dir);
+    CBPWrapperExceptionHandler bp_exception_handler = newCBPWrapperExceptionHandler(dump_dir);
+#endif
     int c;
     char *config_dir = DEFAULT_CONFIG_DIR;
     char *seafile_dir = NULL;
