@@ -885,7 +885,9 @@ create_tables_mysql (SeafRepoManager *mgr)
         "peer_id CHAR(41), "
         "peer_ip VARCHAR(41), "
         "peer_name VARCHAR(255), "
-        "sync_time BIGINT)";
+        "sync_time BIGINT, "
+        "client_ver VARCHAR(20))"
+        "ENGINE=INNODB";
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
@@ -1020,7 +1022,8 @@ create_tables_sqlite (SeafRepoManager *mgr)
         "peer_id CHAR(41), "
         "peer_ip VARCHAR(41), "
         "peer_name VARCHAR(255), "
-        "sync_time BIGINT)";
+        "sync_time BIGINT, "
+        "client_ver VARCHAR(20))";
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
@@ -1153,7 +1156,8 @@ create_tables_pgsql (SeafRepoManager *mgr)
         "peer_id CHAR(40), "
         "peer_ip VARCHAR(40), "
         "peer_name VARCHAR(255), "
-        "sync_time BIGINT)";
+        "sync_time BIGINT, "
+        "client_ver VARCHAR(20))";
     if (seaf_db_query (db, sql) < 0)
         return -1;
 
@@ -1307,18 +1311,20 @@ seaf_repo_manager_add_token_peer_info (SeafRepoManager *mgr,
                                        const char *peer_id,
                                        const char *peer_ip,
                                        const char *peer_name,
-                                       gint64 sync_time)
+                                       gint64 sync_time,
+                                       const char *client_ver)
 {
     int ret = 0;
 
     if (seaf_db_statement_query (mgr->seaf->db,
                                  "INSERT INTO RepoTokenPeerInfo VALUES ("
-                                 "?, ?, ?, ?, ?)",
-                                 5, "string", token,
+                                 "?, ?, ?, ?, ?, ?)",
+                                 6, "string", token,
                                  "string", peer_id,
                                  "string", peer_ip,
                                  "string", peer_name,
-                                 "int64", sync_time) < 0)
+                                 "int64", sync_time,
+                                 "string", client_ver) < 0)
         ret = -1;
 
     return ret;
@@ -1328,15 +1334,17 @@ int
 seaf_repo_manager_update_token_peer_info (SeafRepoManager *mgr,
                                           const char *token,
                                           const char *peer_ip,
-                                          gint64 sync_time)
+                                          gint64 sync_time,
+                                          const char *client_ver)
 {
     int ret = 0;
 
     if (seaf_db_statement_query (mgr->seaf->db,
                                  "UPDATE RepoTokenPeerInfo SET "
-                                 "peer_ip=?, sync_time=? WHERE token=?",
-                                 3, "string", peer_ip,
+                                 "peer_ip=?, sync_time=?, client_ver=? WHERE token=?",
+                                 4, "string", peer_ip,
                                  "int64", sync_time,
+                                 "string", client_ver,
                                  "string", token) < 0)
         ret = -1;
 
@@ -1401,6 +1409,7 @@ collect_repo_token (SeafDBRow *row, void *data)
     const char *repo_id, *repo_owner, *email, *token;
     const char *peer_id, *peer_ip, *peer_name;
     gint64 sync_time;
+    const char *client_ver;
 
     repo_id = seaf_db_row_get_column_text (row, 0);
     repo_owner = seaf_db_row_get_column_text (row, 1);
@@ -1411,6 +1420,7 @@ collect_repo_token (SeafDBRow *row, void *data)
     peer_ip = seaf_db_row_get_column_text (row, 5);
     peer_name = seaf_db_row_get_column_text (row, 6);
     sync_time = seaf_db_row_get_column_int64 (row, 7);
+    client_ver = seaf_db_row_get_column_text (row, 8);
 
     char *owner_l = g_ascii_strdown (repo_owner, -1);
     char *email_l = g_ascii_strdown (email, -1);
@@ -1425,10 +1435,14 @@ collect_repo_token (SeafDBRow *row, void *data)
                                     "peer_ip", peer_ip,
                                     "peer_name", peer_name,
                                     "sync_time", sync_time,
+                                    "client_ver", client_ver,
                                     NULL);
 
     *ret_list = g_list_prepend (*ret_list, repo_token_info);
-    
+
+    g_free (owner_l);
+    g_free (email_l);
+
     return TRUE;
 }
 
@@ -1472,7 +1486,7 @@ seaf_repo_manager_list_repo_tokens (SeafRepoManager *mgr,
     }
 
     sql = "SELECT u.repo_id, o.owner_id, u.email, u.token, "
-        "p.peer_id, p.peer_ip, p.peer_name, p.sync_time "
+        "p.peer_id, p.peer_ip, p.peer_name, p.sync_time, p.client_ver "
         "FROM RepoUserToken u LEFT JOIN RepoTokenPeerInfo p "
         "ON u.token = p.token, RepoOwner o "
         "WHERE u.repo_id = ? and o.repo_id = ? ";
@@ -1501,7 +1515,7 @@ seaf_repo_manager_list_repo_tokens_by_email (SeafRepoManager *mgr,
     char *sql;
 
     sql = "SELECT u.repo_id, o.owner_id, u.email, u.token, "
-        "p.peer_id, p.peer_ip, p.peer_name, p.sync_time "
+        "p.peer_id, p.peer_ip, p.peer_name, p.sync_time, p.client_ver "
         "FROM RepoUserToken u LEFT JOIN RepoTokenPeerInfo p "
         "ON u.token = p.token, RepoOwner o "
         "WHERE u.email = ? and u.repo_id = o.repo_id";
