@@ -260,8 +260,24 @@ class SeafileAPI(object):
     def revert_dir(self, repo_id, commit_id, path, username):
         return seafserv_threaded_rpc.revert_dir(repo_id, commit_id, path, username)
 
-    def get_deleted(self, repo_id, show_days, path='/'):
-        return seafserv_threaded_rpc.get_deleted(repo_id, show_days, path)
+    def get_deleted(self, repo_id, show_days, path='/', scan_stat=None, limit=100):
+        """
+        Get list of deleted paths.
+
+        @show_days: return deleted path in the last @show_days
+        @path: return deleted files under this path. The path will be recursively traversed.
+        @scan_stat: An opaque status returned by the last call. In the first call, None
+                    must be passed. The last entry of the result list contains a 'scan_stat'
+                    attribute. In the next call, pass in the returned 'scan_stat'.
+        @limit: Advisory maximum number of result entries returned. Sometimes more than @limit
+                entries will be returned.
+
+        Return a list of DeletedEntry objects (lib/repo.vala).
+        If no more deleted entries can be returned within the given time frame (specified by
+        @show_days) or all deleted entries in the history have been returned, 'None' will be
+        returned.
+        """
+        return seafserv_threaded_rpc.get_deleted(repo_id, show_days, path, scan_stat, limit)
 
     def get_file_revisions(self, repo_id, path, max_revision, limit, show_days=-1):
         return seafserv_threaded_rpc.list_file_revisions(repo_id, path,
@@ -283,16 +299,11 @@ class SeafileAPI(object):
         """
         return seafserv_threaded_rpc.get_repo_history_limit(repo_id)
 
-<<<<<<< HEAD
-    def get_deleted(self, repo_id, show_days, path='/', scan_stat=None, limit=100):
-        return seafserv_threaded_rpc.get_deleted(repo_id, show_days, path, scan_stat, limit)
-=======
     def set_repo_history_limit(self, repo_id, days):
         """
         Set repo history limit in days. Pass -1 if set to unlimited.
         """
         return seafserv_threaded_rpc.set_repo_history_limit(repo_id, days)
->>>>>>> 1f89269... [Python] Clean up Seafile API and add Ccnet API.
 
     # file lock
     def check_file_lock(self, repo_id, path, user):
