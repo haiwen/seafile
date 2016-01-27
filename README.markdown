@@ -58,8 +58,10 @@ See <http://manual.seafile.com/build_seafile/server.html>
 Internationalization (I18n)
 ==========
 
-* [Translate seafile web ui](https://github.com/haiwen/seafile/wiki/Seahub-Translation)
-* [Translate seafile desktop client](https://github.com/haiwen/seafile-client/#internationalization)
+* [Translate Seafile web ui](https://github.com/haiwen/seafile/wiki/Seahub-Translation)
+* [Translate Seafile desktop client](https://github.com/haiwen/seafile-client/#internationalization)
+* [Translate Seafile Android app](https://github.com/haiwen/seadroid#internationalization)
+* [Translate Seafile iOS app](https://github.com/haiwen/seafile-ios#internationalization-i18n)
 
 Change Logs
 ===========
