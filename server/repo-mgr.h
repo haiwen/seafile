@@ -211,13 +211,15 @@ seaf_repo_manager_add_token_peer_info (SeafRepoManager *mgr,
                                        const char *peer_id,
                                        const char *peer_ip,
                                        const char *peer_name,
-                                       gint64 sync_time);
+                                       gint64 sync_time,
+                                       const char *client_ver);
 
 int
 seaf_repo_manager_update_token_peer_info (SeafRepoManager *mgr,
                                           const char *token,
                                           const char *peer_ip,
-                                          gint64 sync_time);
+                                          gint64 sync_time,
+                                          const char *client_ver);
 
 gboolean
 seaf_repo_manager_token_peer_info_exists (SeafRepoManager *mgr,
