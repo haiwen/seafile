@@ -1470,7 +1470,7 @@ bad:
 }
 
 static SeafDirent *
-parse_dirent (const char *dir_id, int version, json_t *object)
+parse_dirent (const char *dir_id, int version, json_t *object, gboolean *invalid_name)
 {
     guint32 mode;
     const char *id;
@@ -1494,6 +1494,11 @@ parse_dirent (const char *dir_id, int version, json_t *object)
     name = json_object_get_string_member (object, "name");
     if (!name) {
         seaf_debug ("Dirent name not set for dir object %s.\n", dir_id);
+        return NULL;
+    }
+    if (!g_utf8_validate (name, -1, NULL)) {
+        seaf_debug ("Dirent name %s is invalid.\n", name);
+        *invalid_name = TRUE;
         return NULL;
     }
 
@@ -1561,12 +1566,18 @@ seaf_dir_from_json_object (const char *dir_id, json_t *object)
     int i;
     json_t *dirent_obj;
     SeafDirent *dirent;
+    gboolean invalid_name;
     for (i = 0; i < n_dirents; ++i) {
         dirent_obj = json_array_get (dirent_array, i);
-        dirent = parse_dirent (dir_id, version, dirent_obj);
+        invalid_name = FALSE;
+        dirent = parse_dirent (dir_id, version, dirent_obj, &invalid_name);
         if (!dirent) {
-            seaf_dir_free (dir);
-            return NULL;
+            if (invalid_name) {
+                continue;
+            } else {
+                seaf_dir_free (dir);
+                return NULL;
+            }
         }
         dir->entries = g_list_prepend (dir->entries, dirent);
     }
