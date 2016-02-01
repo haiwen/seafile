@@ -954,6 +954,18 @@ main (int argc, char **argv)
 
     set_signal_handlers (seaf);
 
+    /* Create pid file before connecting to database.
+     * Connecting to database and creating tables may take long if the db
+     * is on a remote host. This may make controller think seaf-server fails
+     * to start and restart it.
+     */
+    if (pidfile) {
+        if (write_pidfile (pidfile) < 0) {
+            ccnet_message ("Failed to write pidfile\n");
+            return -1;
+        }
+    }
+
     /* init seaf */
     if (seafile_session_init (seaf) < 0)
         exit (1);
@@ -961,12 +973,6 @@ main (int argc, char **argv)
     if (seafile_session_start (seaf) < 0)
         exit (1);
 
-    if (pidfile) {
-        if (write_pidfile (pidfile) < 0) {
-            ccnet_message ("Failed to write pidfile\n");
-            return -1;
-        }
-    }
     atexit (on_seaf_server_exit);
 
     /* Create a system default repo to contain the tutorial file. */
