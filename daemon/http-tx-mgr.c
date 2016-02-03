@@ -3000,8 +3000,12 @@ multi_threaded_send_blocks (HttpTxTask *http_task, GList *block_list)
         task = g_new0 (BlockUploadTask, 1);
         memcpy (task->block_id, block_id, 40);
 
-        g_hash_table_insert (pending_tasks, g_strdup(block_id), task);
-        g_thread_pool_push (tpool, task, NULL);
+        if (!g_hash_table_lookup (pending_tasks, block_id)) {
+            g_hash_table_insert (pending_tasks, g_strdup(block_id), task);
+            g_thread_pool_push (tpool, task, NULL);
+        } else {
+            g_free (task);
+        }
     }
 
     while ((task = g_async_queue_pop (finished_tasks)) != NULL) {

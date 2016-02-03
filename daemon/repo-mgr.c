@@ -4757,9 +4757,12 @@ schedule_file_fetch (GThreadPool *tpool,
     file_task->path = path;
     file_task->new_ce = new_ce;
 
-    g_hash_table_insert (pending_tasks, g_strdup(de->name), file_task);
-
-    g_thread_pool_push (tpool, file_task, NULL);
+    if (!g_hash_table_lookup (pending_tasks, de->name)) {
+        g_hash_table_insert (pending_tasks, g_strdup(de->name), file_task);
+        g_thread_pool_push (tpool, file_task, NULL);
+    } else {
+        file_tx_task_free (file_task);
+    }
 
     return FETCH_CHECKOUT_SUCCESS;
 }
