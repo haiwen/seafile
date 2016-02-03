@@ -987,12 +987,8 @@ should_ignore_on_checkout (const char *file_path)
     int i;
     char c;
 
-    seaf_message ("checking path %s\n", file_path);
-
     for (; j < n_comps; ++j) {
         file_name = components[j];
-
-        seaf_message ("checking component %s\n", file_name);
 
         if (has_trailing_space_or_period (file_name)) {
             /* Ignore files/dir whose path has trailing spaces. It would cause
@@ -1002,8 +998,6 @@ should_ignore_on_checkout (const char *file_path)
             goto out;
         }
 
-        seaf_message ("No trailing space or period\n");
-
         for (i = 0; i < G_N_ELEMENTS(illegals); i++) {
             if (strchr (file_name, illegals[i])) {
                 ret = TRUE;
@@ -1011,16 +1005,12 @@ should_ignore_on_checkout (const char *file_path)
             }
         }
 
-        seaf_message ("No illegal characters\n");
-
         for (c = 1; c <= 31; c++) {
             if (strchr (file_name, c)) {
                 ret = TRUE;
                 goto out;
             }
         }
-
-        seaf_message ("No characters in 1 to 31\n");
     }
 
 out:
@@ -4689,7 +4679,6 @@ fetch_file_thread_func (gpointer data, gpointer user_data)
     gboolean is_locked = FALSE;
     int rc = FETCH_CHECKOUT_SUCCESS;
 
-    seaf_message ("Fetching %s\n", de->name);
     if (should_ignore_on_checkout (de->name)) {
         seaf_message ("Path %s is invalid on Windows, skip checkout\n",
                       de->name);
@@ -4741,6 +4730,8 @@ schedule_file_fetch (GThreadPool *tpool,
     char *path;
     FileTxTask *file_task;
 
+    seaf_message ("Scheduling fetch %s\n", de->name);
+
     ce = index_name_exists (istate, de->name, strlen(de->name), 0);
     if (!ce) {
         ce = cache_entry_from_diff_entry (de);
@@ -4768,9 +4759,12 @@ schedule_file_fetch (GThreadPool *tpool,
     file_task->path = path;
     file_task->new_ce = new_ce;
 
-    g_hash_table_insert (pending_tasks, g_strdup(de->name), file_task);
-
-    g_thread_pool_push (tpool, file_task, NULL);
+    if (!g_hash_table_lookup (pending_tasks, de->name)) {
+        g_hash_table_insert (pending_tasks, g_strdup(de->name), file_task);
+        g_thread_pool_push (tpool, file_task, NULL);
+    } else {
+        file_tx_task_free (file_task);
+    }
 
     return FETCH_CHECKOUT_SUCCESS;
 }
