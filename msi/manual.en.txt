@@ -1,12 +1,12 @@
-Welcome to use Seafile client.
+Welcome to use PaFile client.
 
-Seafile client is used to download a "library" from a Seafile website, which is
+PaFile client is used to download a "library" from a PaFile website, which is
 different from other file sync service like dropbox.
 
-1. Create a library on Seafile website;
+1. Create a library on PaFile website;
 
-2. Download the library from Seafile website;
+2. Download the library from PaFile website;
 
-3. Files added to this donwloaded library will automatically appear on Seafile website.
+3. Files added to this donwloaded library will automatically appear on PaFile website.
 
-Don't add files to the "Seafile" folder. That would not make it appear on the website.
+Don't add files to the "PaFile" folder. That would not make it appear on the website.

@@ -70,7 +70,7 @@ out:
 /* Remove auto start entry for seafile when uninstall. Error is ignored. */
 UINT __stdcall RemoveExtDll(HANDLE hModule)
 {
-    const char *dll_path_key = "SOFTWARE\\Classes\\CLSID\\{D14BEDD3-4E05-4F2F-B0DE-C0381E6AE606}\\InProcServer32";
+    const char *dll_path_key = "SOFTWARE\\Classes\\CLSID\\{E14BEDD3-4E05-4F2F-B0DE-C0381E6AE606}\\InProcServer32";
     char *path = NULL;
     if (!readRegValue(HKEY_LOCAL_MACHINE, dll_path_key, "", &path)) {
         return ERROR_SUCCESS;

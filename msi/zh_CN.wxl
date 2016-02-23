@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="zh-cn" xmlns="http://schemas.microsoft.com/wix/2006/localization">
-  
-  <String Id="AppName">Seafile</String>
-  <String Id="PackageDescription">Seafile 安装包</String>
-  <String Id="PackageComments">Seafile 安装包</String>
-  <String Id="Manufacturer">北京海文互知网络技术有限公司</String>
-  <String Id="DowngradeErrorMessage">检测到您已经安装了更新版本的 Seafile 。安装程序将自动退出</String>
-  <String Id="UserManualName">Seafile使用帮助.txt</String>
+
+  <String Id="AppName">平安文件云</String>
+  <String Id="PackageDescription">平安文件云安装包</String>
+  <String Id="PackageComments">平安文件云安装包</String>
+  <String Id="Manufacturer">平安科技</String>
+  <String Id="DowngradeErrorMessage">检测到您已经安装了更新版本的平安文件云 。安装程序将自动退出</String>
+  <String Id="UserManualName">平安文件云使用帮助.txt</String>
   <String Id="UserManualSource">manual.txt</String>
-  <String Id="UninstallSeafile">删除 Seafile</String>
-  <String Id="StartSeafile">启动 Seafile</String>
-  <String Id="AutoStartText">开机自动启动 Seafile</String>
+  <String Id="UninstallSeafile">删除平安文件云</String>
+  <String Id="StartSeafile">启动平安文件云</String>
+  <String Id="AutoStartText">开机自动启动平安文件云</String>
 
 </WixLocalization>

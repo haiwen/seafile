@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <?include Includes.wxi?>
+  <?include Includes.pafile.wxi?>
   <Fragment>
     <DirectoryRef Id="INSTALLDIR">
       <Directory Id="shell_bin_dir" Name="bin">

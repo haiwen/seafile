@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
-  <?include Includes.wxi?>
+  <?include Includes.pafile.wxi?>
   <Product Id="$(var.ProductGuid)"
            Name='!(loc.AppName) $(var.CurrentSeafileVersion)'
            Language='1033'
@@ -130,14 +130,10 @@
     <UI>
       <UIRef Id='WixUI_InstallDir_NoLicense' />
       <UIRef Id='WixUI_ErrorProgressText' />
-      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication">
-        <!-- Launch Seafile after setup. -->
-        NOT Installed
-      </Publish>
     </UI>
 
-    <Property Id="WixShellExecTarget" Value="[#seafileapplet.exe]" />
-    <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" />
+    <!-- <Property Id="WixShellExecTarget" Value="[#seafileapplet.exe]" /> -->
+    <!-- <CustomAction Id="LaunchApplication" BinaryKey="WixCA" DllEntry="WixShellExec" Impersonate="yes" /> -->
 
     <Feature Id='Main' Level='1'>
       <ComponentRef Id='Seafile_StartMenuShortCut' />

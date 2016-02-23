@@ -57,6 +57,7 @@ CONF_ONLY_CHINESE       = 'onlychinese'
 CONF_QT_ROOT            = 'qt_root'
 CONF_QT5                = 'qt5'
 CONF_WITH_SHIB          = 'with_shib'
+CONF_BRAND              = 'brand'
 
 ####################
 ### Common helper functions
@@ -422,6 +423,7 @@ def validate_args(usage, options):
     # [qt5]
     qt5 = get_option(CONF_QT5)
     with_shib = get_option(CONF_WITH_SHIB)
+    brand = get_option(CONF_BRAND)
 
     conf[CONF_VERSION] = version
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
@@ -438,6 +440,7 @@ def validate_args(usage, options):
     conf[CONF_QT_ROOT] = qt_root
     conf[CONF_QT5] = qt5
     conf[CONF_WITH_SHIB] = with_shib
+    conf[CONF_BRAND] = brand
 
     prepare_builddir(builddir)
     show_build_info()
@@ -553,6 +556,11 @@ def parse_args():
                       dest=CONF_WITH_SHIB,
                       action='store_true',
                       help='''build seafile client with shibboleth support''')
+
+    parser.add_option(long_opt(CONF_BRAND),
+                      dest=CONF_BRAND,
+                      default='seafile',
+                      help='''brand name of the package''')
 
     usage = parser.format_help()
     options, remain = parser.parse_args()
@@ -829,10 +837,11 @@ def build_german_msi():
 def move_msi():
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
     src_msi = os.path.join(pack_dir, 'seafile.msi')
+    brand = conf[CONF_BRAND]
     if not conf[CONF_WITH_SHIB]:
-        dst_msi = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s.msi' % conf[CONF_VERSION])
+        dst_msi = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s.msi' % (brand, conf[CONF_VERSION]))
     else:
-        dst_msi = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-shibboleth.msi' % conf[CONF_VERSION])
+        dst_msi = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-shibboleth.msi' % (brand, conf[CONF_VERSION]))
 
     # move msi to outputdir
     must_copy(src_msi, dst_msi)
@@ -840,15 +849,15 @@ def move_msi():
     if not conf[CONF_ONLY_CHINESE]:
         src_msi_en = os.path.join(pack_dir, 'seafile-en.msi')
         if not conf[CONF_WITH_SHIB]:
-            dst_msi_en = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-en.msi' % conf[CONF_VERSION])
+            dst_msi_en = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-en.msi' % (brand, conf[CONF_VERSION]))
         else:
-            dst_msi_en = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-en-shibboleth.msi' % conf[CONF_VERSION])
+            dst_msi_en = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-en-shibboleth.msi' % (brand, conf[CONF_VERSION]))
         must_copy(src_msi_en, dst_msi_en)
         src_msi_de = os.path.join(pack_dir, 'seafile-de.msi')
         if not conf[CONF_WITH_SHIB]:
-            dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-de.msi' % conf[CONF_VERSION])
+            dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-de.msi' % (brand, conf[CONF_VERSION]))
         else:
-            dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], 'seafile-%s-de-shibboleth.msi' % conf[CONF_VERSION])
+            dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-de-shibboleth.msi' % (brand, conf[CONF_VERSION]))
         must_copy(src_msi_de, dst_msi_de)
 
     print '---------------------------------------------'
