@@ -31,6 +31,7 @@
 #include "utils.h"
 #include "vc-utils.h"
 #include "seafile-config.h"
+#include "curl-init.h"
 
 #include "processors/check-tx-slave-proc.h"
 
@@ -541,11 +542,13 @@ main (int argc, char **argv)
 
     set_signal_handlers (seaf);
 
+    seafile_curl_init();
     seafile_session_prepare (seaf);
     seafile_session_start (seaf);
 
     seafile_session_config_set_string (seaf, "wktree", seaf->worktree_dir);
     ccnet_main (client);
+    seafile_curl_deinit();
 
     return 0;
 }
