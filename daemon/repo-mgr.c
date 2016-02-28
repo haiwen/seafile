@@ -5280,6 +5280,20 @@ out:
     return ret;
 }
 
+static gboolean
+is_built_in_ignored_file (const char *filename)
+{
+    GPatternSpec **spec = ignore_patterns;
+
+    while (*spec) {
+        if (g_pattern_match_string(*spec, filename))
+            return TRUE;
+        spec++;
+    }
+
+    return FALSE;
+}
+
 #ifdef WIN32
 
 /*
@@ -5302,6 +5316,7 @@ delete_worktree_dir_recursive_win32 (struct index_state *istate,
     DWORD error;
     int ret = 0;
     guint64 mtime;
+    gboolean builtin_ignored = FALSE;
 
     path_len_w = wcslen(path_w);
 
@@ -5330,6 +5345,7 @@ delete_worktree_dir_recursive_win32 (struct index_state *istate,
 
         dname = g_utf16_to_utf8 (fdata.cFileName, -1, NULL, NULL, NULL);
         sub_path = g_strconcat (path, "/", dname, NULL);
+        builtin_ignored = is_built_in_ignored_file(dname);
         g_free (dname);
 
         if (fdata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
@@ -5337,13 +5353,16 @@ delete_worktree_dir_recursive_win32 (struct index_state *istate,
                 ret = -1;
             }
         } else {
-            mtime = (guint64)file_time_to_unix_time (&fdata.ftLastWriteTime);
-            ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
-            if (!ce || ce->ce_mtime.sec != mtime) {
-                g_free (sub_path_w);
-                g_free (sub_path);
-                ret = -1;
-                continue;
+            /* Files like .DS_Store and Thumbs.db should be deleted any way. */
+            if (!builtin_ignored) {
+                mtime = (guint64)file_time_to_unix_time (&fdata.ftLastWriteTime);
+                ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
+                if (!ce || ce->ce_mtime.sec != mtime) {
+                    g_free (sub_path_w);
+                    g_free (sub_path);
+                    ret = -1;
+                    continue;
+                }
             }
 
             if (!DeleteFileW (sub_path_w)) {
@@ -5406,6 +5425,7 @@ delete_worktree_dir_recursive (struct index_state *istate,
     SeafStat st;
     struct cache_entry *ce;
     int ret = 0;
+    gboolean builtin_ignored = FALSE;
 
     dir = g_dir_open (full_path, 0, &error);
     if (!dir) {
@@ -5417,6 +5437,7 @@ delete_worktree_dir_recursive (struct index_state *istate,
         dname_nfc = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
         sub_path = g_build_path ("/", path, dname_nfc, NULL);
         full_sub_path = g_build_path ("/", full_path, dname_nfc, NULL);
+        builtin_ignored = is_built_in_ignored_file (dname_nfc);
         g_free (dname_nfc);
 
         if (lstat (full_sub_path, &st) < 0) {
@@ -5431,12 +5452,15 @@ delete_worktree_dir_recursive (struct index_state *istate,
             if (delete_worktree_dir_recursive (istate, sub_path, full_sub_path) < 0)
                 ret = -1;
         } else {
-            ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
-            if (!ce || ce->ce_mtime.sec != st.st_mtime) {
-                g_free (sub_path);
-                g_free (full_sub_path);
-                ret = -1;
-                continue;
+            /* Files like .DS_Store and Thumbs.db should be deleted any way. */
+            if (!builtin_ignored) {
+                ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
+                if (!ce || ce->ce_mtime.sec != st.st_mtime) {
+                    g_free (sub_path);
+                    g_free (full_sub_path);
+                    ret = -1;
+                    continue;
+                }
             }
 
             /* Delete all other file types. */
