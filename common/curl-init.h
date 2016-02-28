@@ -3,7 +3,7 @@
 #ifndef __CURL_INIT_H__
 #define __CURL_INIT_H__
 
-void seaf_curl_init(void);
-void seaf_curl_deinit(void);
+void seafile_curl_init(void);
+void seafile_curl_deinit(void);
 
 #endif
