@@ -99,6 +99,7 @@ common_src = \
 	../common/block-backend.c \
 	../common/block-backend-fs.c \
 	../common/mq-mgr.c \
+	../common/curl-init.c \
 	block-tx-client.c \
 	../common/block-tx-utils.c \
 	client-migrate.c \
