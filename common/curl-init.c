@@ -25,7 +25,14 @@ void seafile_curl_init()
         pthread_mutex_init (&curl_locks[i], NULL);
     }
 
+#ifndef WIN32
+    /* On Windows it's better to use the default id_function.
+     * As per http://linux.die.net/man/3/crypto_set_id_callback,
+     * the default id_functioin uses system's default thread
+     * identifying API.
+     */
     CRYPTO_set_id_callback (pthread_self);
+#endif
     CRYPTO_set_locking_callback (seafile_curl_locking_callback);
 }
 
