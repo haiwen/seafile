@@ -621,7 +621,7 @@ recv_response (void *contents, size_t size, size_t nmemb, void *userp)
     return realsize;
 }
 
-#define HTTP_TIMEOUT_SEC 45
+#define HTTP_TIMEOUT_SEC 120
 
 typedef size_t (*HttpRecvCallback) (void *, size_t, size_t, void *);
 
