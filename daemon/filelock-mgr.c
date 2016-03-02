@@ -264,7 +264,10 @@ update_in_memory (SeafFilelockManager *mgr, const char *repo_id, GHashTable *new
     GHashTableIter iter;
     gpointer key, value;
     gpointer new_key, new_val;
-    char *path, *fullpath;
+    char *path;
+#ifdef WIN32
+    char *fullpath;
+#endif
     LockInfo *info;
     gboolean exists;
     int locked_by_me;

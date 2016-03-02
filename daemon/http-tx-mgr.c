@@ -417,6 +417,7 @@ create_ca_bundle (const char *ca_bundle_path)
 
 #endif	/* WIN32 */
 
+#ifndef __linux__
 static void
 load_ca_bundle (CURL *curl)
 {
@@ -434,7 +435,7 @@ load_ca_bundle (CURL *curl)
 
     curl_easy_setopt (curl, CURLOPT_CAINFO, ca_bundle_path);
 }
-
+#endif  /* __linux__ */
 
 static gboolean
 load_certs (sqlite3_stmt *stmt, void *vdata)
@@ -564,6 +565,7 @@ set_proxy (CURL *curl, gboolean is_https)
     }
 }
 
+#ifdef WIN32
 static int
 sockopt_callback (void *clientp, curl_socket_t curlfd, curlsocktype purpose)
 {
@@ -596,6 +598,7 @@ sockopt_callback (void *clientp, curl_socket_t curlfd, curlsocktype purpose)
 
     return CURL_SOCKOPT_OK;
 }
+#endif  /* WIN32 */
 
 typedef struct _HttpResponse {
     char *content;

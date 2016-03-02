@@ -2682,7 +2682,6 @@ update_active_path_cb (wchar_t *full_parent_w,
     UpdatePathData *upd_data = user_data;
     char *dname;
     char *path;
-    SyncStatus status;
     gboolean ignored = FALSE;
     SeafStat st;
 
@@ -2710,6 +2709,8 @@ update_active_path_cb (wchar_t *full_parent_w,
 
     g_free (dname);
     g_free (path);
+
+    return 0;
 }
 
 static void
@@ -2722,7 +2723,6 @@ update_active_path_recursive (SeafRepo *repo,
     char *full_path;
     wchar_t *full_path_w;
     int ret = 0;
-    SyncStatus status;
     UpdatePathData upd_data;
 
     full_path = g_build_filename (repo->worktree, path, NULL);
@@ -3664,6 +3664,7 @@ compare_index_changeset (struct index_state *istate, ChangeSet *changeset)
     return ret;
 }
 
+#if 0
 static int 
 print_index (struct index_state *istate)
 {
@@ -3682,6 +3683,7 @@ print_index (struct index_state *istate)
 
     return 0;
 }
+#endif
 
 static inline void
 print_time (const char *desc, GTimeVal *s, GTimeVal *e)
@@ -4688,7 +4690,6 @@ schedule_file_fetch (GThreadPool *tpool,
 {
     struct cache_entry *ce;
     gboolean new_ce = FALSE;
-    gboolean case_conflict = FALSE;
     char *path;
     FileTxTask *file_task;
 
@@ -4699,6 +4700,7 @@ schedule_file_fetch (GThreadPool *tpool,
     }
 
 #ifndef __linux__
+    gboolean case_conflict = FALSE;
     path = build_case_conflict_free_path (worktree, de->name,
                                           conflict_hash, no_conflict_hash,
                                           &case_conflict,
@@ -5207,13 +5209,13 @@ do_rename_in_worktree (DiffEntry *de, const char *worktree,
                        GHashTable *conflict_hash, GHashTable *no_conflict_hash)
 {
     char *old_path, *new_path;
-    gboolean case_conflict;
     int ret = 0;
 
     old_path = g_build_filename (worktree, de->name, NULL);
 
     if (seaf_util_exists (old_path)) {
 #ifndef __linux__
+        gboolean case_conflict;
         new_path = build_case_conflict_free_path (worktree, de->new_name,
                                                   conflict_hash, no_conflict_hash,
                                                   &case_conflict,
@@ -5481,6 +5483,7 @@ update_sync_status (struct cache_entry *ce, void *user_data)
                                           SYNC_STATUS_SYNCED);
 }
 
+#ifdef WIN32
 static int
 convert_rename_to_checkout (const char *repo_id,
                             int repo_version,
@@ -5535,6 +5538,7 @@ convert_rename_to_checkout (const char *repo_id,
 
     return 0;
 }
+#endif  /* WIN32 */
 
 int
 seaf_repo_fetch_and_checkout (TransferTask *task,
@@ -5772,7 +5776,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 
 #ifdef WIN32
             if (should_ignore_on_checkout (de->new_name)) {
-                seaf_message ("Path %s is invalid on Windows, skip rename.\n");
+                seaf_message ("Path %s is invalid on Windows, skip rename.\n", de->new_name);
                 if (is_http)
                     send_sync_error_notification (repo_id, http_task->repo_name,
                                                   de->new_name,

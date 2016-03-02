@@ -20,6 +20,7 @@
 #include "status.h"
 #include "mq-mgr.h"
 #include "utils.h"
+#include "vc-utils.h"
 
 #include "sync-status-tree.h"
 
@@ -3455,6 +3456,8 @@ refresh_windows_explorer_thread (void *vdata)
             count = 0;
         }
     }
+
+    return NULL;
 }
 
 void

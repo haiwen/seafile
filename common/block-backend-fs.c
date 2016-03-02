@@ -337,7 +337,7 @@ block_backend_fs_copy (BlockBackend *bend,
 
 #ifdef WIN32
     if (!CreateHardLink (dst_path, src_path, NULL)) {
-        seaf_warning ("Failed to link %s to %s: %d.\n",
+        seaf_warning ("Failed to link %s to %s: %lu.\n",
                       src_path, dst_path, GetLastError());
         return -1;
     }

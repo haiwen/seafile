@@ -955,7 +955,7 @@ is_non_empty_directory (const char *path)
 #else
 
 static int
-check_empty_cb (wchar_t *parent, wchar_t *dname, void *user_data, gboolean *stop)
+check_empty_cb (wchar_t *parent, WIN32_FIND_DATAW *fdata, void *user_data, gboolean *stop)
 {
     gboolean *res = user_data;
 

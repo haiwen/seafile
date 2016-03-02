@@ -999,7 +999,7 @@ check_dir_locked_recursive (const wchar_t *path_w)
     HANDLE handle;
     wchar_t *pattern;
     wchar_t *sub_path_w;
-    char *path, *sub_path;
+    char *path;
     int path_len_w;
     DWORD error;
     gboolean ret = FALSE;

@@ -325,6 +325,7 @@ create_intermediate_dir (ChangeSetDir *parent, const char *dname)
     return dent->subdir;
 }
 
+#if defined WIN32 || defined __APPLE__
 static void
 handle_case_conflict (ChangeSet *changeset,
                       ChangeSetDir *dir,
@@ -352,6 +353,7 @@ handle_case_conflict (ChangeSet *changeset,
         g_free (conflict_dname);
     }
 }
+#endif
 
 static void
 add_to_tree (ChangeSet *changeset,
@@ -368,13 +370,14 @@ add_to_tree (ChangeSet *changeset,
     ChangeSetDir *dir;
     ChangeSetDirent *dent;
     SeafDir *seaf_dir;
-    char *search_key;
 
     parts = g_strsplit (path, "/", 0);
     n = g_strv_length(parts);
     dir = root;
     for (i = 0; i < n; i++) {
+#if defined WIN32 || defined __APPLE__
     try_again:
+#endif
         dname = parts[i];
         dent = g_hash_table_lookup (dir->dents, dname);
 
@@ -409,7 +412,7 @@ add_to_tree (ChangeSet *changeset,
 #if defined WIN32 || defined __APPLE__
             /* Only effective for add operation, not applicable to rename. */
             if (!new_dent) {
-                search_key = g_utf8_strdown (dname, -1);
+                char *search_key = g_utf8_strdown (dname, -1);
                 dent = g_hash_table_lookup (dir->dents_i, search_key);
                 g_free (search_key);
                 if (dent) {

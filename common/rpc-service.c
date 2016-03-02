@@ -120,25 +120,6 @@ convert_repo_list (GList *inner_repos)
     return g_list_reverse (ret);
 }
 
-static char*
-format_dir_path (const char *path)
-{
-    int path_len = strlen (path);
-    char *rpath;
-    if (path[0] != '/') {
-        rpath = g_strconcat ("/", path, NULL);
-        path_len++;
-    } else {
-        rpath = g_strdup (path);
-    }
-    while (path_len > 1 && rpath[path_len-1] == '/') {
-        rpath[path_len-1] = '\0';
-        path_len--;
-    }
-
-    return rpath;
-}
-
 /*
  * RPC functions only available for clients.
  */
@@ -1509,6 +1490,25 @@ seafile_generate_magic_and_random_key(int enc_version,
  */
 
 #ifdef SEAFILE_SERVER
+
+static char*
+format_dir_path (const char *path)
+{
+    int path_len = strlen (path);
+    char *rpath;
+    if (path[0] != '/') {
+        rpath = g_strconcat ("/", path, NULL);
+        path_len++;
+    } else {
+        rpath = g_strdup (path);
+    }
+    while (path_len > 1 && rpath[path_len-1] == '/') {
+        rpath[path_len-1] = '\0';
+        path_len--;
+    }
+
+    return rpath;
+}
 
 GList *
 seafile_list_dir_by_path(const char *repo_id,
