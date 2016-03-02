@@ -55,8 +55,8 @@ load_locked_files (sqlite3_stmt *stmt, void *data)
     const char *repo_id, *path;
     int locked_by_me;
 
-    repo_id = sqlite3_column_text (stmt, 0);
-    path = sqlite3_column_text (stmt, 1);
+    repo_id = (const char *)sqlite3_column_text (stmt, 0);
+    path = (const char *)sqlite3_column_text (stmt, 1);
     locked_by_me = sqlite3_column_int (stmt, 2);
 
     files = g_hash_table_lookup (repo_locked_files, repo_id);
@@ -615,7 +615,6 @@ seaf_filelock_manager_mark_file_unlocked (SeafFilelockManager *mgr,
                                           const char *path)
 {
     GHashTable *locks;
-    LockInfo *info;
 
     pthread_mutex_lock (&mgr->priv->hash_lock);
 

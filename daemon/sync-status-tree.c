@@ -237,7 +237,6 @@ sync_status_tree_del (SyncStatusTree *tree,
 
     delete_recursive (dir, dnames, n, 0, tree->worktree);
 
-out:
     g_strfreev (dnames);
 }
 

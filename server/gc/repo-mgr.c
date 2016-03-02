@@ -181,12 +181,6 @@ out:
     return commits;
 }
 
-static int 
-compare_repo (const SeafRepo *srepo, const SeafRepo *trepo)
-{
-    return g_strcmp0 (srepo->id, trepo->id);
-}
-
 SeafRepoManager*
 seaf_repo_manager_new (SeafileSession *seaf)
 {

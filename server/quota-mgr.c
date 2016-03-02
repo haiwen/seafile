@@ -379,9 +379,9 @@ get_num_shared_to (const char *user, const char *repo_id)
     groups = seaf_repo_manager_get_groups_by_repo (seaf->repo_mgr,
                                                    repo_id, NULL);
     for (p = groups; p; p = p->next) {
-        members = ccnet_get_group_members (client, (int)p->data);
+        members = ccnet_get_group_members (client, (int)(long)p->data);
         if (!members) {
-            seaf_warning ("Cannot get member list for groupd %d.\n", (int)p->data);
+            seaf_warning ("Cannot get member list for groupd %d.\n", (int)(long)p->data);
             goto out;
         }
 

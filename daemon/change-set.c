@@ -511,8 +511,6 @@ apply_to_tree (ChangeSet *changeset,
                const char *path,
                const char *new_path)
 {
-    char *repo_id = changeset->repo_id;
-    ChangeSetDir *root = changeset->tree_root;
     ChangeSetDirent *dent, *dent_dst;
     gboolean dummy;
 
@@ -678,13 +676,11 @@ changeset_check_path (ChangeSet *changeset,
                       guint32 mode,
                       gint64 mtime)
 {
-    char *repo_id = changeset->repo_id;
     ChangeSetDir *root = changeset->tree_root;
     char **parts, *dname;
     int n, i;
     ChangeSetDir *dir;
     ChangeSetDirent *dent;
-    SeafDir *seaf_dir;
     gboolean ret = FALSE;
     char id[41];
 

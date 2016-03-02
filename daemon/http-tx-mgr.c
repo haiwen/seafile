@@ -578,7 +578,7 @@ sockopt_callback (void *clientp, curl_socket_t curlfd, curlsocktype purpose)
 
     /* Set send buffer size. */
     int sndbuf_size;
-    int optlen;
+    socklen_t optlen;
 
     optlen = sizeof(int);
     getsockopt (curlfd, SOL_SOCKET, SO_SNDBUF, (char *)&sndbuf_size, &optlen);
@@ -1744,7 +1744,7 @@ parse_locked_files (const char *rsp_content, int rsp_size, GetLockedFilesData *d
     json_error_t jerror;
     size_t n;
     int i;
-    GList *results = NULL, *ptr;
+    GList *results = NULL;
     HttpLockedFilesRes *res;
     const char *repo_id;
     int ret = 0;
@@ -1854,7 +1854,6 @@ get_locked_files_thread (void *vdata)
     int status;
     char *rsp_content = NULL;
     gint64 rsp_size;
-    GList *ptr;
 
     pool = find_connection_pool (priv, data->host);
     if (!pool) {
@@ -2596,7 +2595,7 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
                                task->host, task->repo_id);
 
     if (http_post (curl, url, task->token,
-                   package, evbuffer_get_length(buf),
+                   (char *)package, evbuffer_get_length(buf),
                    &status, NULL, NULL, FALSE) < 0) {
         conn->release = TRUE;
         task->error = HTTP_TASK_ERR_NET;
@@ -3125,7 +3124,6 @@ http_upload_thread (void *vdata)
     char *url = NULL;
     GList *send_fs_list = NULL, *needed_fs_list = NULL;
     GList *block_list = NULL, *needed_block_list = NULL;
-    GList *ptr;
     GHashTable *active_paths = NULL;
 
     SeafBranch *local = seaf_branch_manager_get_branch (seaf->branch_mgr,
@@ -3580,7 +3578,6 @@ static int
 get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
 {
     json_t *array;
-    json_error_t jerror;
     char *obj_id;
     int n_sent = 0;
     char *data = NULL;

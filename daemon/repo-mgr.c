@@ -419,8 +419,8 @@ load_folder_perm (sqlite3_stmt *stmt, void *data)
     GList **p_perms = data;
     const char *path, *permission;
 
-    path = sqlite3_column_text (stmt, 0);
-    permission = sqlite3_column_text (stmt, 1);
+    path = (const char *)sqlite3_column_text (stmt, 0);
+    permission = (const char *)sqlite3_column_text (stmt, 1);
 
     FolderPerm *perm = folder_perm_new (path, permission);
     *p_perms = g_list_prepend (*p_perms, perm);
@@ -2874,7 +2874,6 @@ process_active_path (SeafRepo *repo, const char *path,
                      struct index_state *istate, GList *ignore_list)
 {
     SeafStat st;
-    SyncStatus status;
     gboolean ignored = FALSE;
 
     char *fullpath = g_build_filename (repo->worktree, path, NULL);
@@ -2938,7 +2937,7 @@ static void
 update_path_sync_status (SeafRepo *repo, WTStatus *status,
                          struct index_state *istate, GList *ignore_list)
 {
-    char *path, *dir;
+    char *path;
 
     while (1) {
         pthread_mutex_lock (&status->ap_q_lock);
@@ -3337,7 +3336,6 @@ index_add (SeafRepo *repo, struct index_state *istate,
     SeafileCrypt *crypt = NULL;
     LockedFileSet *fset = NULL;
     GList *ignore_list = NULL;
-    GList *ptr;
     int ret = 0;
 
     if (repo->encrypted) {
@@ -3553,38 +3551,6 @@ changed:
 
 error:
     return FALSE;
-}
-
-/*
- * Generate commit description based on files to be commited.
- * It only checks index status, not worktree status.
- * So it should be called after "add" completes.
- * This way we can always get the correct list of files to be
- * commited, even we were interrupted in the last add-commit
- * sequence.
- */
-static char *
-gen_commit_description (SeafRepo *repo, struct index_state *istate)
-{
-    GList *p;
-    GList *results = NULL;
-    char *desc;
-    
-    wt_status_collect_changes_index (istate, &results, repo);
-    diff_resolve_empty_dirs (&results);
-    diff_resolve_renames (&results);
-
-    desc = diff_results_to_description (results);
-    if (!desc)
-        return NULL;
-
-    for (p = results; p; p = p->next) {
-        DiffEntry *de = p->data;
-        diff_entry_free (de);
-    }
-    g_list_free (results);
-
-    return desc;
 }
 
 gboolean
@@ -4592,12 +4558,10 @@ file_tx_task_free (FileTxTask *task)
 static int
 fetch_file_http (FileTxData *data, FileTxTask *file_task)
 {
-    char *repo_id = data->repo_id;
     int repo_version = data->repo_version;
     struct cache_entry *ce = file_task->ce;
     DiffEntry *de = file_task->de;
     SeafileCrypt *crypt = data->crypt;
-    char *conflict_head_id = data->conflict_head_id;
     char *path = file_task->path;
     HttpTxTask *http_task = data->http_task;
     SeafStat st;
@@ -4672,11 +4636,9 @@ fetch_file_thread_func (gpointer data, gpointer user_data)
     FileTxData *tx_data = user_data;
     GAsyncQueue *finished_tasks = tx_data->finished_tasks;
     DiffEntry *de = task->de;
-    struct cache_entry *ce = task->ce;
     char *repo_id = tx_data->repo_id;
     char file_id[41];
     gboolean is_clone = tx_data->http_task->is_clone;
-    gboolean is_locked = FALSE;
     int rc = FETCH_CHECKOUT_SUCCESS;
 
     if (should_ignore_on_checkout (de->name)) {
@@ -5034,7 +4996,6 @@ download_files_http (const char *repo_id,
     GAsyncQueue *finished_tasks;
     GHashTable *pending_tasks;
     GList *ptr;
-    int n_pending, n_done;
     FileTxTask *task;
     int ret = FETCH_CHECKOUT_SUCCESS;
 
@@ -5969,12 +5930,6 @@ seaf_repo_manager_validate_repo_worktree (SeafRepoManager *mgr,
             seaf_warning ("failed to watch repo %s.\n", repo->id);
         }
     }
-}
-
-static int 
-compare_repo (const SeafRepo *srepo, const SeafRepo *trepo)
-{
-    return g_strcmp0 (srepo->id, trepo->id);
 }
 
 SeafRepoManager*
