@@ -12,7 +12,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@MSVC_CFLAGS@ \
 	@CURL_CFLAGS@ \
 	@BPWRAPPER_CFLAGS@ \
-	-Wall -Werror
+	-Wall
 
 bin_PROGRAMS =
 if !SERVER_ONLY
