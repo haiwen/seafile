@@ -393,4 +393,7 @@ seaf_compress (guint8 *input, int inlen, guint8 **output, int *outlen);
 int
 seaf_decompress (guint8 *input, int inlen, guint8 **output, int *outlen);
 
+char*
+format_dir_path (const char *path);
+
 #endif

@@ -1586,9 +1586,11 @@ static int
 open_temp_file (RecvFSM *fsm)
 {
     GString *temp_file = g_string_new (NULL);
+    char *base_name = get_basename(fsm->file_name);
 
     g_string_printf (temp_file, "%s/%sXXXXXX",
-                     seaf->http_server->http_temp_dir, get_basename(fsm->file_name));
+                     seaf->http_server->http_temp_dir, base_name);
+    g_free (base_name);
 
     fsm->fd = g_mkstemp (temp_file->str);
     if (fsm->fd < 0) {

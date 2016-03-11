@@ -30,6 +30,7 @@
 
 #define FILE_TYPE_MAP_DEFAULT_LEN 1
 #define BUFFER_SIZE 1024 * 64
+#define MULTI_DOWNLOAD_FILE_PREFIX "documents-export-"
 
 struct file_type_map {
     char *suffix;
@@ -988,70 +989,21 @@ do_file_range (evhtp_request_t *req, SeafRepo *repo, const char *file_id,
 }
 
 static int
-do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
-        const char *filename, const char *operation,
-        SeafileCryptKey *crypt_key)
+start_download_zip_file (evhtp_request_t *req, const char *zipname,
+                         char *zipfile)
 {
-    char *zipfile = NULL;
-    char *filename_escaped = NULL;
-    char cont_filename[SEAF_PATH_MAX];
-    char file_size[255];
     SeafStat st;
-    char *key_hex, *iv_hex;
-    unsigned char enc_key[32], enc_iv[16];
-    SeafileCrypt *crypt = NULL;
+    char file_size[255];
+    char cont_filename[SEAF_PATH_MAX];
     int zipfd = 0;
-    int ret = 0;
-    gint64 dir_size = 0;
-
-    /* ensure file size does not exceed limit */
-    dir_size = seaf_fs_manager_get_fs_size (seaf->fs_mgr,
-                                            repo->store_id, repo->version,
-                                            dir_id);
-    if (dir_size < 0 || dir_size > seaf->http_server->max_download_dir_size) {
-        seaf_warning ("invalid dir size: %"G_GINT64_FORMAT"\n", dir_size);
-        ret = -1;
-        goto out;
-    }
-
-    /* Let's zip the directory first */
-    filename_escaped = g_uri_unescape_string (filename, NULL);
-    if (!filename_escaped) {
-        seaf_warning ("failed to unescape string %s\n", filename);
-        ret = -1;
-        goto out;
-    }
-
-    if (crypt_key != NULL) {
-        g_object_get (crypt_key,
-                      "key", &key_hex,
-                      "iv", &iv_hex,
-                      NULL);
-        if (repo->enc_version == 1)
-            hex_to_rawdata (key_hex, enc_key, 16);
-        else
-            hex_to_rawdata (key_hex, enc_key, 32);
-        hex_to_rawdata (iv_hex, enc_iv, 16);
-        crypt = seafile_crypt_new (repo->enc_version, enc_key, enc_iv);
-        g_free (key_hex);
-        g_free (iv_hex);
-    }
-
-    zipfile = pack_dir (repo->store_id, repo->version,
-                        filename_escaped, dir_id, crypt, test_windows(req));
-    if (!zipfile) {
-        ret = -1;
-        goto out;
-    }
-
-    /* OK, the dir is zipped */
-    evhtp_headers_add_header(req->headers_out,
-                evhtp_header_new("Content-Type", "application/zip", 1, 1));
 
     if (seaf_stat(zipfile, &st) < 0) {
-        ret = -1;
-        goto out;
+        seaf_warning ("Failed to stat %s: %s.\n", zipfile, strerror(errno));
+        return -1;
     }
+
+    evhtp_headers_add_header(req->headers_out,
+                             evhtp_header_new("Content-Type", "application/zip", 1, 1));
 
     snprintf (file_size, sizeof(file_size), "%"G_GUINT64_FORMAT"", st.st_size);
     evhtp_headers_add_header (req->headers_out,
@@ -1059,10 +1011,10 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
 
     if (test_firefox (req)) {
         snprintf(cont_filename, SEAF_PATH_MAX,
-                 "attachment;filename*=\"utf8\' \'%s.zip\"", filename);
+                 "attachment;filename*=\"utf8\' \'%s.zip\"", zipname);
     } else {
         snprintf(cont_filename, SEAF_PATH_MAX,
-                 "attachment;filename=\"%s.zip\"", filename);
+                 "attachment;filename=\"%s.zip\"", zipname);
     }
 
     evhtp_headers_add_header(req->headers_out,
@@ -1070,9 +1022,8 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
 
     zipfd = g_open (zipfile, O_RDONLY | O_BINARY, 0);
     if (zipfd < 0) {
-        seaf_warning ("failed to open zipfile %s\n", zipfile);
-        ret = -1;
-        goto out;
+        seaf_warning ("Failed to open zipfile %s: %s.\n", zipfile, strerror(errno));
+        return -1;
     }
 
     SendDirData *data;
@@ -1103,14 +1054,265 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
     /* Kick start data transfer by sending out http headers. */
     evhtp_send_reply_start(req, EVHTP_RES_OK);
 
-out:
-    g_free (filename_escaped);
+    return 0;
+}
+
+static int
+do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
+        const char *filename, SeafileCryptKey *crypt_key)
+{
+    char *zipfile = NULL;
+    char *filename_escaped = NULL;
+    char *key_hex, *iv_hex;
+    unsigned char enc_key[32], enc_iv[16];
+    SeafileCrypt *crypt = NULL;
+    int ret = 0;
+    gint64 dir_size = 0;
+
+    /* ensure file size does not exceed limit */
+    dir_size = seaf_fs_manager_get_fs_size (seaf->fs_mgr,
+                                            repo->store_id, repo->version,
+                                            dir_id);
+    if (dir_size < 0 || dir_size > seaf->http_server->max_download_dir_size) {
+        seaf_warning ("invalid dir size: %"G_GINT64_FORMAT"\n", dir_size);
+        return -1;
+    }
+
+    /* Let's zip the directory first */
+    filename_escaped = g_uri_unescape_string (filename, NULL);
+    if (!filename_escaped) {
+        seaf_warning ("failed to unescape string %s\n", filename);
+        return -1;
+    }
+
+    if (crypt_key != NULL) {
+        g_object_get (crypt_key,
+                      "key", &key_hex,
+                      "iv", &iv_hex,
+                      NULL);
+        if (repo->enc_version == 1)
+            hex_to_rawdata (key_hex, enc_key, 16);
+        else
+            hex_to_rawdata (key_hex, enc_key, 32);
+        hex_to_rawdata (iv_hex, enc_iv, 16);
+        crypt = seafile_crypt_new (repo->enc_version, enc_key, enc_iv);
+        g_free (key_hex);
+        g_free (iv_hex);
+    }
+
+    zipfile = pack_dir (repo->store_id, repo->version,
+                        filename_escaped, dir_id, crypt, test_windows(req));
+
+    if (crypt) {
+        g_free (crypt);
+    }
+
+    if (!zipfile) {
+        g_free (filename_escaped);
+        return -1;
+    }
+
+    ret = start_download_zip_file (req, filename_escaped, zipfile);
     if (ret < 0) {
-        if (zipfile != NULL) {
-            g_unlink (zipfile);
-            g_free (zipfile);
+        g_unlink (zipfile);
+        g_free (zipfile);
+    }
+
+    g_free (filename_escaped);
+
+    return ret;
+}
+
+static GList *
+get_download_dirent_list (SeafRepo *repo, const char *data)
+{
+    json_t *obj;
+    const char *tmp_parent_dir;
+    char *parent_dir;
+    gboolean is_root_dir;
+    json_t *name_array;
+    json_error_t jerror;
+    int i;
+    int len;
+    const char *file_name;
+    char *file_path;
+    SeafDirent *dirent;
+    GList *dirent_list = NULL;
+    GError *error = NULL;
+
+    obj = json_loadb (data, strlen(data), 0, &jerror);
+    if (!obj) {
+        seaf_warning ("Failed to parse download file list: %s.\n", jerror.text);
+        return NULL;
+    }
+
+    tmp_parent_dir = json_object_get_string_member (obj, "parent_dir");
+    if (!tmp_parent_dir || strcmp (tmp_parent_dir, "") == 0) {
+        seaf_warning ("Invalid download file list data, no parent_dir field.\n");
+        json_decref (obj);
+        return NULL;
+    }
+    name_array = json_object_get (obj, "file_list");
+    if (!name_array) {
+        seaf_warning ("Invalid download file list data, no file_list field.\n");
+        json_decref (obj);
+        return NULL;
+    }
+    len = json_array_size (name_array);
+    if (len == 0) {
+        seaf_warning ("Invalid download file list data, no download file name.\n");
+        json_decref (obj);
+        return NULL;
+    }
+    parent_dir = format_dir_path (tmp_parent_dir);
+    is_root_dir = strcmp (parent_dir, "/") == 0;
+
+    for (i = 0; i < len; i++) {
+        file_name = json_string_value (json_array_get (name_array, i));
+        if (strcmp (file_name, "") == 0 || strchr (file_name, '/') != NULL) {
+            seaf_warning ("Invalid download file name: %s.\n", file_name);
+            if (dirent_list) {
+                g_list_free_full (dirent_list, (GDestroyNotify)seaf_dirent_free);
+                dirent_list = NULL;
+            }
+            break;
+        }
+
+        if (is_root_dir) {
+            file_path = g_strconcat (parent_dir, file_name, NULL);
+        } else {
+            file_path = g_strconcat (parent_dir, "/", file_name, NULL);
+        }
+
+        dirent = seaf_fs_manager_get_dirent_by_path (seaf->fs_mgr, repo->store_id,
+                                                     repo->version, repo->root_id,
+                                                     file_path, &error);
+        if (!dirent) {
+            if (error) {
+                seaf_warning ("Failed to get dirent for %s: %s, stop download multi files.\n",
+                              file_path, error->message);
+                g_clear_error (&error);
+            } else {
+                seaf_warning ("Failed to get dirent for %s, stop download multi files.\n",
+                              file_path);
+            }
+            g_free (file_path);
+            if (dirent_list) {
+                g_list_free_full (dirent_list, (GDestroyNotify)seaf_dirent_free);
+                dirent_list = NULL;
+            }
+            break;
+        }
+
+        g_free (file_path);
+        dirent_list = g_list_prepend (dirent_list, dirent);
+    }
+
+    g_free (parent_dir);
+    json_decref (obj);
+
+    return dirent_list;
+}
+
+static gint64
+calcuate_download_size (SeafRepo *repo, GList *dirent_list)
+{
+    GList *iter = dirent_list;
+    SeafDirent *dirent;
+    gint64 size;
+    gint64 total_size = 0;
+
+    for (; iter; iter = iter->next) {
+        dirent = iter->data;
+        if (S_ISREG(dirent->mode)) {
+            if (repo->version > 0) {
+                size = dirent->size;
+            } else {
+                size = seaf_fs_manager_get_file_size (seaf->fs_mgr, repo->store_id,
+                                                      repo->version, dirent->id);
+            }
+            if (size < 0) {
+                seaf_warning ("Failed to get file %s size.\n", dirent->name);
+                return -1;
+            }
+            total_size += size;
+        } else if (S_ISDIR(dirent->mode)) {
+            size = seaf_fs_manager_get_fs_size (seaf->fs_mgr, repo->store_id,
+                                                repo->version, dirent->id);
+            if (size < 0) {
+                seaf_warning ("Failed to get dir %s size.\n", dirent->name);
+                return -1;
+            }
+            total_size += size;
         }
     }
+
+    return total_size;
+}
+
+static int
+download_multi (evhtp_request_t *req, SeafRepo *repo,
+                GList *dirent_list, SeafileCryptKey *crypt_key)
+{
+    gint64 total_size;
+    char *zipfile = NULL;
+    char *key_hex, *iv_hex;
+    unsigned char enc_key[32], enc_iv[16];
+    SeafileCrypt *crypt = NULL;
+    char date_str[11];
+    time_t now;
+    char *filename;
+    int ret = 0;
+
+    total_size = calcuate_download_size (repo, dirent_list);
+    if (total_size < 0) {
+        seaf_warning ("Failed to calcuate download size, stop download multi files.\n");
+        return -1;
+    } else if (total_size > seaf->http_server->max_download_dir_size) {
+        seaf_warning ("Total download size %"G_GINT64_FORMAT
+                      ", exceed max download dir size %"G_GINT64_FORMAT
+                      ", stop download multi files.\n",
+                      total_size, seaf->http_server->max_download_dir_size);
+        return -1;
+    }
+
+    if (crypt_key != NULL) {
+        g_object_get (crypt_key,
+                      "key", &key_hex,
+                      "iv", &iv_hex,
+                      NULL);
+        if (repo->enc_version == 1)
+            hex_to_rawdata (key_hex, enc_key, 16);
+        else
+            hex_to_rawdata (key_hex, enc_key, 32);
+        hex_to_rawdata (iv_hex, enc_iv, 16);
+        crypt = seafile_crypt_new (repo->enc_version, enc_key, enc_iv);
+        g_free (key_hex);
+        g_free (iv_hex);
+    }
+
+    zipfile = pack_mutli_files (repo->store_id, repo->version,
+                                dirent_list, crypt, test_windows(req));
+
+    if (crypt) {
+        g_free (crypt);
+    }
+
+    if (!zipfile) {
+        return -1;
+    }
+
+    now = time(NULL);
+    strftime(date_str, sizeof(date_str), "%Y-%m-%d", localtime(&now));
+    filename = g_strconcat (MULTI_DOWNLOAD_FILE_PREFIX, date_str, NULL);
+
+    ret = start_download_zip_file (req, filename, zipfile);
+    if (ret < 0) {
+        g_unlink (zipfile);
+        g_free (zipfile);
+    }
+
+    g_free (filename);
 
     return ret;
 }
@@ -1123,10 +1325,11 @@ access_cb(evhtp_request_t *req, void *arg)
     char *token = NULL;
     char *filename = NULL;
     const char *repo_id = NULL;
-    const char *id = NULL;
+    const char *data = NULL;
     const char *operation = NULL;
     const char *user = NULL;
     const char *byte_ranges = NULL;
+    GList *dirent_list = NULL;
 
     GError *err = NULL;
     SeafileCryptKey *key = NULL;
@@ -1134,14 +1337,17 @@ access_cb(evhtp_request_t *req, void *arg)
 
     /* Skip the first '/'. */
     char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
-    if (!parts || g_strv_length (parts) < 3 ||
+    if (!parts || g_strv_length (parts) < 2 ||
         strcmp (parts[0], "files") != 0) {
         error = "Invalid URL";
         goto bad_req;
     }
 
     token = parts[1];
-    filename = parts[2];
+    // For upload-multi, no filename parameter
+    if (g_strv_length (parts) > 2) {
+        filename = parts[2];
+    }
 
     webaccess = seaf_web_at_manager_query_access_token (seaf->web_at_mgr, token);
     if (!webaccess) {
@@ -1150,13 +1356,14 @@ access_cb(evhtp_request_t *req, void *arg)
     }
 
     repo_id = seafile_web_access_get_repo_id (webaccess);
-    id = seafile_web_access_get_obj_id (webaccess);
+    data = seafile_web_access_get_obj_id (webaccess);
     operation = seafile_web_access_get_op (webaccess);
     user = seafile_web_access_get_username (webaccess);
 
     if (strcmp(operation, "view") != 0 &&
         strcmp(operation, "download") != 0 &&
-        strcmp(operation, "download-dir") != 0) {
+        strcmp(operation, "download-dir") != 0 &&
+        strcmp(operation, "download-multi") != 0) {
         error = "Bad access token";
         goto bad_req;
     }
@@ -1206,26 +1413,38 @@ access_cb(evhtp_request_t *req, void *arg)
         }
     }
 
-    if (!seaf_fs_manager_object_exists (seaf->fs_mgr,
-                                        repo->store_id, repo->version, id)) {
-        error = "Invalid file id\n";
-        goto bad_req;
-    }
-
-    if (strcmp(operation, "download-dir") == 0) {
-        if (do_dir(req, repo, id, filename, operation, key) < 0) {
-            error = "Internal server error\n";
+    if (strcmp (operation, "download-multi") == 0) {
+        dirent_list = get_download_dirent_list (repo, data);
+        if (!dirent_list) {
+            error = "Invalid file list info\n";
             goto bad_req;
         }
 
-    } else if (!repo->encrypted && byte_ranges) {
-        if (do_file_range (req, repo, id, filename, operation, byte_ranges) < 0) {
+        if (download_multi (req, repo, dirent_list, key) < 0) {
             error = "Internal server error\n";
             goto bad_req;
         }
-    } else if (do_file(req, repo, id, filename, operation, key) < 0) {
-        error = "Internal server error\n";
-        goto bad_req;
+    } else {
+        if (!seaf_fs_manager_object_exists (seaf->fs_mgr,
+                                            repo->store_id, repo->version, data)) {
+            error = "Invalid file id\n";
+            goto bad_req;
+        }
+
+        if (strcmp(operation, "download-dir") == 0) {
+            if (do_dir(req, repo, data, filename, key) < 0) {
+                error = "Internal server error\n";
+                goto bad_req;
+            }
+        } else if (!repo->encrypted && byte_ranges) {
+            if (do_file_range (req, repo, data, filename, operation, byte_ranges) < 0) {
+                error = "Internal server error\n";
+                goto bad_req;
+            }
+        } else if (do_file(req, repo, data, filename, operation, key) < 0) {
+            error = "Internal server error\n";
+            goto bad_req;
+        }
     }
 
 success:
@@ -1236,6 +1455,8 @@ success:
         g_object_unref (key);
     if (webaccess)
         g_object_unref (webaccess);
+    if (dirent_list)
+        g_list_free_full (dirent_list, (GDestroyNotify)seaf_dirent_free);
 
     return;
 
@@ -1247,6 +1468,8 @@ bad_req:
         g_object_unref (key);
     if (webaccess != NULL)
         g_object_unref (webaccess);
+    if (dirent_list)
+        g_list_free_full (dirent_list, (GDestroyNotify)seaf_dirent_free);
 
     evbuffer_add_printf(req->buffer_out, "%s\n", error);
     evhtp_send_reply(req, EVHTP_RES_BADREQ);

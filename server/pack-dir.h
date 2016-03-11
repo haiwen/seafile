@@ -10,4 +10,11 @@ char *pack_dir (const char *repo_id,
                 const char *root_id,
                 SeafileCrypt *crypt,
                 gboolean is_windows);
+
+char *
+pack_mutli_files (const char *store_id,
+                  int repo_version,
+                  GList *dirent_list,
+                  SeafileCrypt *crypt,
+                  gboolean is_windows);
 #endif
