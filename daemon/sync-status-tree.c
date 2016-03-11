@@ -79,6 +79,7 @@ sync_status_tree_new (const char *worktree)
     return tree;
 }
 
+#if 0
 #ifdef WIN32
 static void
 refresh_recursive (const char *basedir, SyncStatusDir *dir)
@@ -103,6 +104,7 @@ refresh_recursive (const char *basedir, SyncStatusDir *dir)
     }
 }
 #endif
+#endif	/* 0 */
 
 void
 sync_status_tree_free (struct SyncStatusTree *tree)
@@ -237,7 +239,6 @@ sync_status_tree_del (SyncStatusTree *tree,
 
     delete_recursive (dir, dnames, n, 0, tree->worktree);
 
-out:
     g_strfreev (dnames);
 }
 

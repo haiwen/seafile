@@ -10,10 +10,11 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@SEARPC_CFLAGS@ \
 	@GLIB2_CFLAGS@ \
 	@MSVC_CFLAGS@ \
-	@CURL_CFLAGS@
+	@CURL_CFLAGS@ \
+	@BPWRAPPER_CFLAGS@ \
 	-Wall
 
-bin_PROGRAMS = 
+bin_PROGRAMS =
 if !SERVER_ONLY
 bin_PROGRAMS += seaf-daemon
 endif
@@ -98,6 +99,7 @@ common_src = \
 	../common/block-backend.c \
 	../common/block-backend-fs.c \
 	../common/mq-mgr.c \
+	../common/curl-init.c \
 	block-tx-client.c \
 	../common/block-tx-utils.c \
 	client-migrate.c \
@@ -135,13 +137,13 @@ seaf_daemon_LDADD = $(top_builddir)/lib/libseafile_common.la \
 	@GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 @LIBEVENT_LIBS@ \
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/common/index/libindex.la @LIB_WS32@ @LIB_CRYPT32@ \
-	@SEARPC_LIBS@ @CCNET_LIBS@ @GNOME_KEYRING_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@ @CURL_LIBS@
+	@SEARPC_LIBS@ @CCNET_LIBS@ @GNOME_KEYRING_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@ @CURL_LIBS@ @BPWRAPPER_LIBS@
 
 seaf_daemon_LDFLAGS = @STATIC_COMPILE@ @CONSOLE@
 
 # seaf_tool_CFLAGS = $(AM_CFLAGS) -DSEAF_TOOL
 
-# seaf_tool_SOURCES = seaf-tool.c $(common_src) 
+# seaf_tool_SOURCES = seaf-tool.c $(common_src)
 
 # seaf_tool_LDADD = $(seaf_daemon_LDADD)
 

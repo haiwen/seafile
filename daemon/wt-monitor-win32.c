@@ -703,8 +703,6 @@ static int handle_add_repo (SeafWTMonitor *monitor,
 
 static int handle_rm_repo (SeafWTMonitorPriv *priv, const char *repo_id, gpointer handle)
 {
-    HANDLE h = (HANDLE)handle;
-
     pthread_mutex_lock (&priv->hash_lock);
     g_hash_table_remove (priv->handle_hash, repo_id);
     g_hash_table_remove (priv->info_hash, handle);

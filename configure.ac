@@ -2,7 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 
 
 AC_PREREQ(2.61)
-AC_INIT([seafile], [5.0.3], [freeplant@gmail.com])
+AC_INIT([seafile], [5.0.6], [freeplant@gmail.com])
 AC_CONFIG_HEADER([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
@@ -327,6 +327,19 @@ if test "${compile_gnome_keyring}" = "yes"; then
    AC_SUBST(GNOME_KEYRING_LIBS)
    AC_DEFINE(HAVE_KEYSTORAGE_GK, 1, [Have Gnome-Keyring support])
 fi
+
+BPWRAPPER_REQUIRED=0.1
+AC_ARG_ENABLE(breakpad, AC_HELP_STRING([--enable-breakpad], [build google breadpad support]),
+                               [compile_breakpad=$enableval],[compile_breakpad="no"])
+
+AM_CONDITIONAL([HAVE_BREAKPAD_SUPPORT], [test "${compile_breakpad}" = "yes"])
+if test "${compile_breakpad}" = "yes"; then
+   PKG_CHECK_MODULES(BPWRAPPER, [bpwrapper])
+   AC_DEFINE(HAVE_BREAKPAD_SUPPORT, 1, [Breakpad support enabled])
+   AC_SUBST(BPWRAPPER_CFLAGS)
+   AC_SUBST(BPWRAPPER_LIBS)
+fi
+
 
 ac_configure_args="$ac_configure_args -q"
 

@@ -12,17 +12,52 @@
 #include "seaf-db.h"
 #include "quota-mgr.h"
 
+#define KB 1000L
+#define MB 1000000L
+#define GB 1000000000L
+#define TB 1000000000000L
+
 static gint64
 get_default_quota (GKeyFile *config)
 {
-    gint quota_gb;
+    char *quota_str;
+    char *end;
+    gint64 quota_int;
+    gint64 multiplier = GB;
+    gint64 quota;
 
-    /* Get default quota configuration in GB. */
-    quota_gb = g_key_file_get_integer (config, "quota", "default", NULL);
-    if (quota_gb <= 0)
+    quota_str = g_key_file_get_string (config, "quota", "default", NULL);
+    if (!quota_str)
         return INFINITE_QUOTA;
 
-    return quota_gb * ((gint64)1 << 30);
+    quota_int = strtoll (quota_str, &end, 10);
+    if (quota_int == LLONG_MIN || quota_int == LLONG_MAX) {
+        seaf_warning ("Default quota value out of range. Use unlimited.\n");
+        quota = INFINITE_QUOTA;
+        goto out;
+    }
+
+    if (*end != '\0') {
+        if (strcasecmp(end, "kb") == 0 || strcasecmp(end, "k") == 0)
+            multiplier = KB;
+        else if (strcasecmp(end, "mb") == 0 || strcasecmp(end, "m") == 0)
+            multiplier = MB;
+        else if (strcasecmp(end, "gb") == 0 || strcasecmp(end, "g") == 0)
+            multiplier = GB;
+        else if (strcasecmp(end, "tb") == 0 || strcasecmp(end, "t") == 0)
+            multiplier = TB;
+        else {
+            seaf_warning ("Invalid default quota format %s. Use unlimited.\n", quota_str);
+            quota = INFINITE_QUOTA;
+            goto out;
+        }
+    }
+
+    quota = quota_int * multiplier;
+
+out:
+    g_free (quota_str);
+    return quota;
 }
 
 SeafQuotaManager *
@@ -344,9 +379,9 @@ get_num_shared_to (const char *user, const char *repo_id)
     groups = seaf_repo_manager_get_groups_by_repo (seaf->repo_mgr,
                                                    repo_id, NULL);
     for (p = groups; p; p = p->next) {
-        members = ccnet_get_group_members (client, (int)p->data);
+        members = ccnet_get_group_members (client, (int)(long)p->data);
         if (!members) {
-            seaf_warning ("Cannot get member list for groupd %d.\n", (int)p->data);
+            seaf_warning ("Cannot get member list for groupd %d.\n", (int)(long)p->data);
             goto out;
         }
 

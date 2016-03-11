@@ -828,7 +828,7 @@ retry:
     block_tx_client_run_command (info, BLOCK_CLIENT_CMD_TRANSFER);
 
     /* Wait until block download is done. */
-    piperead (info->done_pipe[0], &rsp, sizeof(rsp));
+    piperead (info->done_pipe[0], (char*)&rsp, sizeof(rsp));
 
     /* The server closes the socket after 30 seconds without data,
      * so just retry if we encounter network error.
@@ -836,7 +836,7 @@ retry:
     if (rsp == BLOCK_CLIENT_NET_ERROR) {
         block_tx_client_run_command (info, BLOCK_CLIENT_CMD_RESTART);
 
-        piperead (info->done_pipe[0], &rsp, sizeof(rsp));
+        piperead (info->done_pipe[0], (char*)&rsp, sizeof(rsp));
         if (rsp == BLOCK_CLIENT_READY)
             goto retry;
     }
@@ -1381,14 +1381,14 @@ download_and_checkout_files_thread (void *vdata)
     TransferTask *task = data->task;
     int rsp;
 
-    piperead (task->tx_info->done_pipe[0], &rsp, sizeof(rsp));
+    piperead (task->tx_info->done_pipe[0], (char*)&rsp, sizeof(rsp));
 
     if (rsp == BLOCK_CLIENT_READY) {
         data->status = seaf_repo_fetch_and_checkout (task, NULL, FALSE, task->head);
 
         block_tx_client_run_command (task->tx_info, BLOCK_CLIENT_CMD_END);
 
-        piperead (task->tx_info->done_pipe[0], &rsp, sizeof(rsp));
+        piperead (task->tx_info->done_pipe[0], (char*)&rsp, sizeof(rsp));
     } else
         /* block-tx-client thread should have exited. */
         data->status = FETCH_CHECKOUT_FAILED;

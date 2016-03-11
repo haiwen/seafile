@@ -309,7 +309,7 @@ handle_auth_rsp_content_cb (char *content, int clen, void *cbarg)
 
         if (!client->info->transfer_once) {
             int rsp = BLOCK_CLIENT_READY;
-            pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
+            pipewrite (client->info->done_pipe[1], (char*)&rsp, sizeof(rsp));
         }
 
         /* If in interactive mode, wait for TRANSFER command to start transfer. */
@@ -828,7 +828,7 @@ handle_command (BlockTxClient *client, int command)
 
         if (transfer_next_block (client) < 0) {
             rsp = client->info->result;
-            pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
+            pipewrite (client->info->done_pipe[1], (char*)&rsp, sizeof(rsp));
 
             shutdown_client (client);
 
@@ -849,7 +849,7 @@ handle_command (BlockTxClient *client, int command)
             ret = TRUE;
         } else {
             rsp = client->info->result;
-            pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
+            pipewrite (client->info->done_pipe[1], (char*)&rsp, sizeof(rsp));
 
             shutdown_client (client);
 
@@ -863,7 +863,7 @@ handle_command (BlockTxClient *client, int command)
         client->info->result = BLOCK_CLIENT_ENDED;
 
         rsp = client->info->result;
-        pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
+        pipewrite (client->info->done_pipe[1], (char*)&rsp, sizeof(rsp));
 
         /* Don't need to shutdown_client() if it's already called. */
         if (client->recv_state != RECV_STATE_DONE)
@@ -886,7 +886,7 @@ do_break_loop (BlockTxClient *client)
         return TRUE;
     } else {
         int rsp = client->info->result;
-        pipewrite (client->info->done_pipe[1], &rsp, sizeof(rsp));
+        pipewrite (client->info->done_pipe[1], (char*)&rsp, sizeof(rsp));
 
         if (client->info->result != BLOCK_CLIENT_SUCCESS)
             shutdown_client (client);
@@ -955,7 +955,7 @@ client_thread_loop (BlockTxClient *client)
 
         if (FD_ISSET (info->cmd_pipe[0], &fds)) {
             int cmd;
-            piperead (info->cmd_pipe[0], &cmd, sizeof(int));
+            piperead (info->cmd_pipe[0], (char*)&cmd, sizeof(int));
 
             if (cmd == BLOCK_CLIENT_CMD_RESTART) {
                 restart = TRUE;
@@ -984,10 +984,10 @@ retry:
     if (data_fd < 0) {
         info->result = BLOCK_CLIENT_NET_ERROR;
         if (!info->transfer_once) {
-            pipewrite (info->done_pipe[1], &info->result, sizeof(info->result));
+            pipewrite (info->done_pipe[1], (char*)&info->result, sizeof(info->result));
             /* Transfer manager always expects an ENDED response. */
             int rsp = BLOCK_CLIENT_ENDED;
-            pipewrite (info->done_pipe[1], &rsp, sizeof(rsp));
+            pipewrite (info->done_pipe[1], (char*)&rsp, sizeof(rsp));
         }
         return vdata;
     }
@@ -995,9 +995,9 @@ retry:
 
     if (send_handshake (data_fd, info) < 0) {
         if (!info->transfer_once) {
-            pipewrite (info->done_pipe[1], &info->result, sizeof(info->result));
+            pipewrite (info->done_pipe[1], (char*)&info->result, sizeof(info->result));
             int rsp = BLOCK_CLIENT_ENDED;
-            pipewrite (info->done_pipe[1], &rsp, sizeof(rsp));
+            pipewrite (info->done_pipe[1], (char*)&rsp, sizeof(rsp));
         }
         evutil_closesocket (client->data_fd);
         return vdata;
@@ -1053,5 +1053,5 @@ block_tx_client_start (BlockTxInfo *info, BlockTxClientDoneCB cb)
 void
 block_tx_client_run_command (BlockTxInfo *info, int command)
 {
-    pipewrite (info->cmd_pipe[1], &command, sizeof(int));
+    pipewrite (info->cmd_pipe[1], (char*)&command, sizeof(int));
 }

@@ -30,6 +30,7 @@ noinst_HEADERS = \
 	seaf-db.h \
 	merge-new.h \
 	block-tx-utils.h \
+	curl-init.h \
 	$(proc_headers)
 
 #check_PROGRAMS = riak-http-test

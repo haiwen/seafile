@@ -29,7 +29,7 @@ unset_permissions (PACL dacl)
 
     if (!GetAclInformation (dacl, &size_info,
                             sizeof(size_info), AclSizeInformation)) {
-        seaf_warning ("GetAclInformation Error: %u\n", GetLastError());
+        seaf_warning ("GetAclInformation Error: %lu\n", GetLastError());
         return -1;
     }
 
@@ -39,7 +39,7 @@ unset_permissions (PACL dacl)
     ACCESS_ALLOWED_ACE *allowed_ace;
     for (i = 0; i < size_info.AceCount; ++i) {
         if (!GetAce(dacl, i, (void**)&ace)) {
-            seaf_warning ("GetAce Error: %u\n", GetLastError());
+            seaf_warning ("GetAce Error: %lu\n", GetLastError());
             return -1;
         }
 
@@ -88,7 +88,7 @@ seaf_set_path_permission (const char *path, SeafPathPerm perm, gboolean recursiv
                                 DACL_SECURITY_INFORMATION,
                                 NULL, NULL, &old_dacl, NULL, &sd);
     if (ERROR_SUCCESS != res) {
-        seaf_warning( "GetNamedSecurityInfo Error for path %s: %u\n", path, res );
+        seaf_warning( "GetNamedSecurityInfo Error for path %s: %lu\n", path, res );
         ret = -1;
         goto cleanup;
     }
@@ -110,7 +110,7 @@ seaf_set_path_permission (const char *path, SeafPathPerm perm, gboolean recursiv
 
     res = SetEntriesInAcl(1, &ea, old_dacl, &new_dacl);
     if (ERROR_SUCCESS != res)  {
-        seaf_warning( "SetEntriesInAcl Error %u\n", res );
+        seaf_warning( "SetEntriesInAcl Error %lu\n", res );
         ret = -1;
         goto cleanup;
     }  
@@ -122,7 +122,7 @@ seaf_set_path_permission (const char *path, SeafPathPerm perm, gboolean recursiv
                                     DACL_SECURITY_INFORMATION,
                                     NULL, NULL, new_dacl, NULL);
         if (ERROR_SUCCESS != res)  {
-            seaf_warning( "SetNamedSecurityInfo Error %u\n", res );
+            seaf_warning( "SetNamedSecurityInfo Error %lu\n", res );
             ret = -1;
             goto cleanup;
         }
@@ -133,7 +133,7 @@ seaf_set_path_permission (const char *path, SeafPathPerm perm, gboolean recursiv
         SetSecurityDescriptorDacl (&new_sd, TRUE, new_dacl, FALSE);
 
         if (!SetFileSecurityW (wpath, DACL_SECURITY_INFORMATION, &new_sd)) {
-            seaf_warning ("SetFileSecurity Error %u\n", GetLastError());
+            seaf_warning ("SetFileSecurity Error %lu\n", GetLastError());
             ret = -1;
             goto cleanup;
         }
@@ -168,7 +168,7 @@ seaf_unset_path_permission (const char *path, gboolean recursive)
                                 DACL_SECURITY_INFORMATION,
                                 NULL, NULL, &old_dacl, NULL, &sd);
     if (ERROR_SUCCESS != res) {
-        seaf_warning( "GetNamedSecurityInfo Error %u\n", res );
+        seaf_warning( "GetNamedSecurityInfo Error %lu\n", res );
         ret = -1;
         goto cleanup;
     }
@@ -177,7 +177,7 @@ seaf_unset_path_permission (const char *path, gboolean recursive)
 
     res = SetEntriesInAcl(0, NULL, old_dacl, &new_dacl);
     if (ERROR_SUCCESS != res)  {
-        seaf_warning( "SetEntriesInAcl Error %u\n", res );
+        seaf_warning( "SetEntriesInAcl Error %lu\n", res );
         ret = -1;
         goto cleanup;
     }  
@@ -191,7 +191,7 @@ seaf_unset_path_permission (const char *path, gboolean recursive)
                                     DACL_SECURITY_INFORMATION,
                                     NULL, NULL, new_dacl, NULL);
         if (ERROR_SUCCESS != res)  {
-            seaf_warning( "SetNamedSecurityInfo Error %u\n", res );
+            seaf_warning( "SetNamedSecurityInfo Error %lu\n", res );
             ret = -1;
             goto cleanup;
         }
@@ -202,7 +202,7 @@ seaf_unset_path_permission (const char *path, gboolean recursive)
         SetSecurityDescriptorDacl (&new_sd, TRUE, new_dacl, FALSE);
 
         if (!SetFileSecurityW (wpath, DACL_SECURITY_INFORMATION, &new_sd)) {
-            seaf_warning ("SetFileSecurity Error %u\n", GetLastError());
+            seaf_warning ("SetFileSecurity Error %lu\n", GetLastError());
             ret = -1;
             goto cleanup;
         }
@@ -234,7 +234,7 @@ seaf_get_path_permission (const char *path)
                                 DACL_SECURITY_INFORMATION,
                                 NULL, NULL, &dacl, NULL, &sd);
     if (ERROR_SUCCESS != res) {
-        seaf_warning( "GetNamedSecurityInfo Error %u\n", res );
+        seaf_warning( "GetNamedSecurityInfo Error %lu\n", res );
         goto cleanup;
     }
 
@@ -242,7 +242,7 @@ seaf_get_path_permission (const char *path)
 
     if (!GetAclInformation (dacl, &size_info,
                             sizeof(size_info), AclSizeInformation)) {
-        seaf_warning ("GetAclInformation Error: %u\n", GetLastError());
+        seaf_warning ("GetAclInformation Error: %lu\n", GetLastError());
         goto cleanup;
     }
 
@@ -252,7 +252,7 @@ seaf_get_path_permission (const char *path)
     ACCESS_ALLOWED_ACE *allowed_ace;
     for (i = 0; i < size_info.AceCount; ++i) {
         if (!GetAce(dacl, i, (void**)&ace)) {
-            seaf_warning ("GetAce Error: %u\n", GetLastError());
+            seaf_warning ("GetAce Error: %lu\n", GetLastError());
             goto cleanup;
         }
 

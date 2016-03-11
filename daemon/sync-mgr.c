@@ -20,6 +20,7 @@
 #include "status.h"
 #include "mq-mgr.h"
 #include "utils.h"
+#include "vc-utils.h"
 
 #include "sync-status-tree.h"
 
@@ -119,9 +120,6 @@ static void sync_task_free (SyncTask *task);
 
 static gboolean
 check_relay_status (SeafSyncManager *mgr, SeafRepo *repo);
-
-static gboolean
-has_old_commits_to_upload (SeafRepo *repo);
 
 static int
 sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync);
@@ -2185,57 +2183,6 @@ check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo)
     return FALSE;
 }
 
-/*
- * If the user upgarde from 3.0.x, there may be more than one commit to upload
- * on the local branch. The new syncing protocol can't handle more than one
- * commit. So if we detect this case, fall back to old protocol.
- * After the repo is synced this time, we can use new protocol in the future.
- */
-static gboolean
-has_old_commits_to_upload (SeafRepo *repo)
-{
-    SeafBranch *master = NULL, *local = NULL;
-    SeafCommit *head = NULL;
-    gboolean ret = TRUE;
-
-    master = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "master");
-    if (!master) {
-        seaf_warning ("No master branch found for repo %s(%.8s).\n",
-                      repo->name, repo->id);
-        goto out;
-    }
-    local = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "local");
-    if (!local) {
-        seaf_warning ("No local branch found for repo %s(%.8s).\n",
-                      repo->name, repo->id);
-        goto out;
-    }
-
-    if (strcmp (local->commit_id, master->commit_id) == 0) {
-        ret = FALSE;
-        goto out;
-    }
-
-    head = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                           repo->id, repo->version,
-                                           local->commit_id);
-    if (!head) {
-        seaf_warning ("Failed to get head commit of repo %s(%.8s).\n",
-                      repo->name, repo->id);
-        goto out;
-    }
-
-    if (head->second_parent_id == NULL &&
-        g_strcmp0 (head->parent_id, master->commit_id) == 0)
-        ret = FALSE;
-
-out:
-    seaf_branch_unref (master);
-    seaf_branch_unref (local);
-    seaf_commit_unref (head);
-    return ret;
-}
-
 gint
 cmp_repos_by_sync_time (gconstpointer a, gconstpointer b, gpointer user_data)
 {
@@ -2614,7 +2561,6 @@ check_server_locked_files_done (HttpLockedFiles *result, void *user_data)
     }
 
     SyncInfo *info;
-    GList *p;
     for (ptr = result->results; ptr; ptr = ptr->next) {
         locked_res = ptr->data;
 
@@ -2747,7 +2693,6 @@ auto_sync_pulse (void *vmanager)
     SeafSyncManager *manager = vmanager;
     GList *repos, *ptr;
     SeafRepo *repo;
-    gint64 now;
 
     repos = seaf_repo_manager_get_repo_list (manager->seaf->repo_mgr, -1, -1);
 
@@ -2814,7 +2759,7 @@ auto_sync_pulse (void *vmanager)
             if (repo->checking_locked_files)
                 continue;
 
-            now = (gint64)time(NULL);
+            gint64 now = (gint64)time(NULL);
             if (repo->last_check_locked_time == 0 ||
                 now - repo->last_check_locked_time >= CHECK_LOCKED_FILES_INTERVAL)
             {
@@ -3458,8 +3403,6 @@ seaf_sync_manager_active_paths_number (SeafSyncManager *mgr)
 void
 seaf_sync_manager_remove_active_path_info (SeafSyncManager *mgr, const char *repo_id)
 {
-    ActivePathsInfo *info;
-
     pthread_mutex_lock (&mgr->priv->paths_lock);
 
     g_hash_table_remove (mgr->priv->active_paths, repo_id);
@@ -3513,6 +3456,8 @@ refresh_windows_explorer_thread (void *vdata)
             count = 0;
         }
     }
+
+    return NULL;
 }
 
 void

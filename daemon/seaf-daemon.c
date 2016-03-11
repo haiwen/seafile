@@ -16,6 +16,10 @@
 #include <glib.h>
 #include <glib-object.h>
 
+#ifdef HAVE_BREAKPAD_SUPPORT
+#include <c_bpwrapper.h>
+#endif // HAVE_BREAKPAD_SUPPORT
+
 #include <ccnet.h>
 #include <searpc-server.h>
 #include <searpc-client.h>
@@ -27,6 +31,7 @@
 #include "utils.h"
 #include "vc-utils.h"
 #include "seafile-config.h"
+#include "curl-init.h"
 
 #include "processors/check-tx-slave-proc.h"
 
@@ -380,6 +385,16 @@ bind_ccnet_service (const char *config_dir)
 int
 main (int argc, char **argv)
 {
+#ifdef HAVE_BREAKPAD_SUPPORT
+#ifdef WIN32
+#define DUMPS_DIR "~/ccnet/logs/dumps/"
+#else
+#define DUMPS_DIR "~/.ccnet/logs/dumps/"
+#endif
+    const char *dump_dir = ccnet_expand_path(DUMPS_DIR);
+    checkdir_with_mkdir(dump_dir);
+    CBPWrapperExceptionHandler bp_exception_handler = newCBPWrapperExceptionHandler(dump_dir);
+#endif
     int c;
     char *config_dir = DEFAULT_CONFIG_DIR;
     char *seafile_dir = NULL;
@@ -527,11 +542,13 @@ main (int argc, char **argv)
 
     set_signal_handlers (seaf);
 
+    seafile_curl_init();
     seafile_session_prepare (seaf);
     seafile_session_start (seaf);
 
     seafile_session_config_set_string (seaf, "wktree", seaf->worktree_dir);
     ccnet_main (client);
+    seafile_curl_deinit();
 
     return 0;
 }

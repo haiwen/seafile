@@ -419,8 +419,8 @@ load_folder_perm (sqlite3_stmt *stmt, void *data)
     GList **p_perms = data;
     const char *path, *permission;
 
-    path = sqlite3_column_text (stmt, 0);
-    permission = sqlite3_column_text (stmt, 1);
+    path = (const char *)sqlite3_column_text (stmt, 0);
+    permission = (const char *)sqlite3_column_text (stmt, 1);
 
     FolderPerm *perm = folder_perm_new (path, permission);
     *p_perms = g_list_prepend (*p_perms, perm);
@@ -2682,7 +2682,6 @@ update_active_path_cb (wchar_t *full_parent_w,
     UpdatePathData *upd_data = user_data;
     char *dname;
     char *path;
-    SyncStatus status;
     gboolean ignored = FALSE;
     SeafStat st;
 
@@ -2710,6 +2709,8 @@ update_active_path_cb (wchar_t *full_parent_w,
 
     g_free (dname);
     g_free (path);
+
+    return 0;
 }
 
 static void
@@ -2722,7 +2723,6 @@ update_active_path_recursive (SeafRepo *repo,
     char *full_path;
     wchar_t *full_path_w;
     int ret = 0;
-    SyncStatus status;
     UpdatePathData upd_data;
 
     full_path = g_build_filename (repo->worktree, path, NULL);
@@ -2874,7 +2874,6 @@ process_active_path (SeafRepo *repo, const char *path,
                      struct index_state *istate, GList *ignore_list)
 {
     SeafStat st;
-    SyncStatus status;
     gboolean ignored = FALSE;
 
     char *fullpath = g_build_filename (repo->worktree, path, NULL);
@@ -2938,7 +2937,7 @@ static void
 update_path_sync_status (SeafRepo *repo, WTStatus *status,
                          struct index_state *istate, GList *ignore_list)
 {
-    char *path, *dir;
+    char *path;
 
     while (1) {
         pthread_mutex_lock (&status->ap_q_lock);
@@ -3337,7 +3336,6 @@ index_add (SeafRepo *repo, struct index_state *istate,
     SeafileCrypt *crypt = NULL;
     LockedFileSet *fset = NULL;
     GList *ignore_list = NULL;
-    GList *ptr;
     int ret = 0;
 
     if (repo->encrypted) {
@@ -3555,38 +3553,6 @@ error:
     return FALSE;
 }
 
-/*
- * Generate commit description based on files to be commited.
- * It only checks index status, not worktree status.
- * So it should be called after "add" completes.
- * This way we can always get the correct list of files to be
- * commited, even we were interrupted in the last add-commit
- * sequence.
- */
-static char *
-gen_commit_description (SeafRepo *repo, struct index_state *istate)
-{
-    GList *p;
-    GList *results = NULL;
-    char *desc;
-    
-    wt_status_collect_changes_index (istate, &results, repo);
-    diff_resolve_empty_dirs (&results);
-    diff_resolve_renames (&results);
-
-    desc = diff_results_to_description (results);
-    if (!desc)
-        return NULL;
-
-    for (p = results; p; p = p->next) {
-        DiffEntry *de = p->data;
-        diff_entry_free (de);
-    }
-    g_list_free (results);
-
-    return desc;
-}
-
 gboolean
 seaf_repo_is_index_unmerged (SeafRepo *repo)
 {
@@ -3698,6 +3664,7 @@ compare_index_changeset (struct index_state *istate, ChangeSet *changeset)
     return ret;
 }
 
+#if 0
 static int 
 print_index (struct index_state *istate)
 {
@@ -3716,6 +3683,7 @@ print_index (struct index_state *istate)
 
     return 0;
 }
+#endif
 
 static inline void
 print_time (const char *desc, GTimeVal *s, GTimeVal *e)
@@ -4592,12 +4560,10 @@ file_tx_task_free (FileTxTask *task)
 static int
 fetch_file_http (FileTxData *data, FileTxTask *file_task)
 {
-    char *repo_id = data->repo_id;
     int repo_version = data->repo_version;
     struct cache_entry *ce = file_task->ce;
     DiffEntry *de = file_task->de;
     SeafileCrypt *crypt = data->crypt;
-    char *conflict_head_id = data->conflict_head_id;
     char *path = file_task->path;
     HttpTxTask *http_task = data->http_task;
     SeafStat st;
@@ -4672,11 +4638,9 @@ fetch_file_thread_func (gpointer data, gpointer user_data)
     FileTxData *tx_data = user_data;
     GAsyncQueue *finished_tasks = tx_data->finished_tasks;
     DiffEntry *de = task->de;
-    struct cache_entry *ce = task->ce;
     char *repo_id = tx_data->repo_id;
     char file_id[41];
     gboolean is_clone = tx_data->http_task->is_clone;
-    gboolean is_locked = FALSE;
     int rc = FETCH_CHECKOUT_SUCCESS;
 
     if (should_ignore_on_checkout (de->name)) {
@@ -4726,7 +4690,6 @@ schedule_file_fetch (GThreadPool *tpool,
 {
     struct cache_entry *ce;
     gboolean new_ce = FALSE;
-    gboolean case_conflict = FALSE;
     char *path;
     FileTxTask *file_task;
 
@@ -4737,6 +4700,7 @@ schedule_file_fetch (GThreadPool *tpool,
     }
 
 #ifndef __linux__
+    gboolean case_conflict = FALSE;
     path = build_case_conflict_free_path (worktree, de->name,
                                           conflict_hash, no_conflict_hash,
                                           &case_conflict,
@@ -4757,9 +4721,12 @@ schedule_file_fetch (GThreadPool *tpool,
     file_task->path = path;
     file_task->new_ce = new_ce;
 
-    g_hash_table_insert (pending_tasks, g_strdup(de->name), file_task);
-
-    g_thread_pool_push (tpool, file_task, NULL);
+    if (!g_hash_table_lookup (pending_tasks, de->name)) {
+        g_hash_table_insert (pending_tasks, g_strdup(de->name), file_task);
+        g_thread_pool_push (tpool, file_task, NULL);
+    } else {
+        file_tx_task_free (file_task);
+    }
 
     return FETCH_CHECKOUT_SUCCESS;
 }
@@ -5031,7 +4998,6 @@ download_files_http (const char *repo_id,
     GAsyncQueue *finished_tasks;
     GHashTable *pending_tasks;
     GList *ptr;
-    int n_pending, n_done;
     FileTxTask *task;
     int ret = FETCH_CHECKOUT_SUCCESS;
 
@@ -5243,13 +5209,13 @@ do_rename_in_worktree (DiffEntry *de, const char *worktree,
                        GHashTable *conflict_hash, GHashTable *no_conflict_hash)
 {
     char *old_path, *new_path;
-    gboolean case_conflict;
     int ret = 0;
 
     old_path = g_build_filename (worktree, de->name, NULL);
 
     if (seaf_util_exists (old_path)) {
 #ifndef __linux__
+        gboolean case_conflict;
         new_path = build_case_conflict_free_path (worktree, de->new_name,
                                                   conflict_hash, no_conflict_hash,
                                                   &case_conflict,
@@ -5277,6 +5243,20 @@ out:
     return ret;
 }
 
+static gboolean
+is_built_in_ignored_file (const char *filename)
+{
+    GPatternSpec **spec = ignore_patterns;
+
+    while (*spec) {
+        if (g_pattern_match_string(*spec, filename))
+            return TRUE;
+        spec++;
+    }
+
+    return FALSE;
+}
+
 #ifdef WIN32
 
 /*
@@ -5299,6 +5279,7 @@ delete_worktree_dir_recursive_win32 (struct index_state *istate,
     DWORD error;
     int ret = 0;
     guint64 mtime;
+    gboolean builtin_ignored = FALSE;
 
     path_len_w = wcslen(path_w);
 
@@ -5327,6 +5308,7 @@ delete_worktree_dir_recursive_win32 (struct index_state *istate,
 
         dname = g_utf16_to_utf8 (fdata.cFileName, -1, NULL, NULL, NULL);
         sub_path = g_strconcat (path, "/", dname, NULL);
+        builtin_ignored = is_built_in_ignored_file(dname);
         g_free (dname);
 
         if (fdata.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
@@ -5334,13 +5316,16 @@ delete_worktree_dir_recursive_win32 (struct index_state *istate,
                 ret = -1;
             }
         } else {
-            mtime = (guint64)file_time_to_unix_time (&fdata.ftLastWriteTime);
-            ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
-            if (!ce || ce->ce_mtime.sec != mtime) {
-                g_free (sub_path_w);
-                g_free (sub_path);
-                ret = -1;
-                continue;
+            /* Files like .DS_Store and Thumbs.db should be deleted any way. */
+            if (!builtin_ignored) {
+                mtime = (guint64)file_time_to_unix_time (&fdata.ftLastWriteTime);
+                ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
+                if (!ce || ce->ce_mtime.sec != mtime) {
+                    g_free (sub_path_w);
+                    g_free (sub_path);
+                    ret = -1;
+                    continue;
+                }
             }
 
             if (!DeleteFileW (sub_path_w)) {
@@ -5403,6 +5388,7 @@ delete_worktree_dir_recursive (struct index_state *istate,
     SeafStat st;
     struct cache_entry *ce;
     int ret = 0;
+    gboolean builtin_ignored = FALSE;
 
     dir = g_dir_open (full_path, 0, &error);
     if (!dir) {
@@ -5414,6 +5400,7 @@ delete_worktree_dir_recursive (struct index_state *istate,
         dname_nfc = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
         sub_path = g_build_path ("/", path, dname_nfc, NULL);
         full_sub_path = g_build_path ("/", full_path, dname_nfc, NULL);
+        builtin_ignored = is_built_in_ignored_file (dname_nfc);
         g_free (dname_nfc);
 
         if (lstat (full_sub_path, &st) < 0) {
@@ -5428,12 +5415,15 @@ delete_worktree_dir_recursive (struct index_state *istate,
             if (delete_worktree_dir_recursive (istate, sub_path, full_sub_path) < 0)
                 ret = -1;
         } else {
-            ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
-            if (!ce || ce->ce_mtime.sec != st.st_mtime) {
-                g_free (sub_path);
-                g_free (full_sub_path);
-                ret = -1;
-                continue;
+            /* Files like .DS_Store and Thumbs.db should be deleted any way. */
+            if (!builtin_ignored) {
+                ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
+                if (!ce || ce->ce_mtime.sec != st.st_mtime) {
+                    g_free (sub_path);
+                    g_free (full_sub_path);
+                    ret = -1;
+                    continue;
+                }
             }
 
             /* Delete all other file types. */
@@ -5493,6 +5483,7 @@ update_sync_status (struct cache_entry *ce, void *user_data)
                                           SYNC_STATUS_SYNCED);
 }
 
+#ifdef WIN32
 static int
 convert_rename_to_checkout (const char *repo_id,
                             int repo_version,
@@ -5547,6 +5538,7 @@ convert_rename_to_checkout (const char *repo_id,
 
     return 0;
 }
+#endif  /* WIN32 */
 
 int
 seaf_repo_fetch_and_checkout (TransferTask *task,
@@ -5784,7 +5776,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
 
 #ifdef WIN32
             if (should_ignore_on_checkout (de->new_name)) {
-                seaf_message ("Path %s is invalid on Windows, skip rename.\n");
+                seaf_message ("Path %s is invalid on Windows, skip rename.\n", de->new_name);
                 if (is_http)
                     send_sync_error_notification (repo_id, http_task->repo_name,
                                                   de->new_name,
@@ -5942,12 +5934,6 @@ seaf_repo_manager_validate_repo_worktree (SeafRepoManager *mgr,
             seaf_warning ("failed to watch repo %s.\n", repo->id);
         }
     }
-}
-
-static int 
-compare_repo (const SeafRepo *srepo, const SeafRepo *trepo)
-{
-    return g_strcmp0 (srepo->id, trepo->id);
 }
 
 SeafRepoManager*

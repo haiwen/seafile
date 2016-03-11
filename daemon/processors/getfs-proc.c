@@ -315,7 +315,7 @@ check_objects_thread (void *vdata)
     thread_data_ref (tdata);
 
     while (1) {
-        int n = piperead (tdata->cmd_pipe, &cmd, sizeof(cmd));
+        int n = piperead (tdata->cmd_pipe, (char*)&cmd, sizeof(cmd));
         if (n < 0) {
             seaf_warning ("Failed to read commnd pipe: %s.\n", strerror(errno));
             goto out;
@@ -370,7 +370,7 @@ check_fs_tree_from (ThreadData *tdata, const char *root_id)
     tdata->fetch_objs = NULL;
 
     int cmd = 1;
-    pipewrite (priv->cmd_pipe[1], &cmd, sizeof(cmd));
+    pipewrite (priv->cmd_pipe[1], (char*)&cmd, sizeof(cmd));
 
     priv->worker_checking = TRUE;
     return 0;
