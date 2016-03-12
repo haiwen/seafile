@@ -343,6 +343,44 @@ def seaf_list(args):
     for repo in repos:
         print repo.name, repo.id, repo.worktree
 
+
+def seaf_list_remote(args):
+    '''List remote libraries'''
+
+    conf_dir = DEFAULT_CONF_DIR
+    if args.confdir:
+        conf_dir = args.confdir
+    conf_dir = os.path.abspath(conf_dir)
+
+    if not _config_valid(conf_dir):
+        print "Invalid config directory"
+        sys.exit(1)
+
+    url = args.server
+    if not url:
+        print "Seafile server url need to be presented"
+        sys.exit(1)
+
+    pool = ccnet.ClientPool(conf_dir)
+    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
+
+    username = args.username
+    if not username:
+        username = raw_input("Enter username: ")
+    password = args.password
+    if not password:
+        password = getpass.getpass("Enter password for user %s : " % username)
+
+    # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
+    token = get_token(url, username, password, conf_dir)
+
+    repos = get_repo_downlod_info("%s/api2/repos/" % (url), token)
+
+    print "Name\tID"
+    for repo in repos:
+        print repo['name'], repo['id']
+
+
 def get_base_url(url):
     parse_result = urlparse(url)
     scheme = parse_result.scheme
@@ -431,6 +469,57 @@ def seaf_download(args):
                          relay_port,
                          email, random_key, enc_version, more_info)
 
+
+def seaf_download_by_name(args):
+    '''Download a library defined by name from seafile server'''
+    id = None
+
+    conf_dir = DEFAULT_CONF_DIR
+    if args.confdir:
+        conf_dir = args.confdir
+    conf_dir = os.path.abspath(conf_dir)
+
+    if not _config_valid(conf_dir):
+        print "Invalid config directory"
+        sys.exit(1)
+
+    libraryname = args.libraryname
+    if not libraryname:
+        print "Library name is required"
+        sys.exit(1)
+
+    url = args.server
+    if not url:
+        print "Seafile server url need to be presented"
+        sys.exit(1)
+
+    pool = ccnet.ClientPool(conf_dir)
+    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
+
+    username = args.username
+    if not username:
+        username = raw_input("Enter username: ")
+        args.username = username
+    password = args.password
+    if not password:
+        password = getpass.getpass("Enter password for user %s : " % username)
+        args.password = password
+
+    # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
+    token = get_token(url, username, password, conf_dir)
+
+    tmp = get_repo_downlod_info("%s/api2/repos/" % (url), token)
+
+    for i in tmp:
+        if libraryname == i['name']:
+             id = i['id']
+
+    if not id:
+        print "Defined library name not found"
+        sys.exit(1)
+
+    args.library = id
+    seaf_download(args)
 
 
 def seaf_sync(args):
@@ -713,6 +802,14 @@ def main():
     parser_list.set_defaults(func=seaf_list)
     parser_list.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
 
+    # list-remote
+    parser_download = subparsers.add_parser('list-remote', help='List remote libraries')
+    parser_download.set_defaults(func=seaf_list_remote)
+    parser_download.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
+    parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
+    parser_download.add_argument('-u', '--username', help='username', type=str)
+    parser_download.add_argument('-p', '--password', help='password', type=str)
+
     # status
     parser_status = subparsers.add_parser('status', help='Show syncing status')
     parser_status.set_defaults(func=seaf_status)
@@ -724,6 +821,17 @@ def main():
     parser_download.set_defaults(func=seaf_download)
     parser_download.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
     parser_download.add_argument('-l', '--library', help='library id', type=str)
+    parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
+    parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
+    parser_download.add_argument('-u', '--username', help='username', type=str)
+    parser_download.add_argument('-p', '--password', help='password', type=str)
+
+    # download-by-name
+    parser_download = subparsers.add_parser('download-by-name',
+                                         help='Download a library defined by name from seafile server')
+    parser_download.set_defaults(func=seaf_download_by_name)
+    parser_download.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
+    parser_download.add_argument('-L', '--libraryname', help='library name', type=str)
     parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
     parser_download.add_argument('-u', '--username', help='username', type=str)
