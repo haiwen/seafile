@@ -1241,7 +1241,8 @@ def main():
     seafile_config.ask_questions()
     seahub_config.ask_questions()
 
-    if AbstractDBConfigurator.ask_use_existing_db():
+    use_existing_db = AbstractDBConfigurator.ask_use_existing_db()
+    if use_existing_db:
         db_config = ExistingDBConfigurator()
     else:
         db_config = NewDBConfigurator()
@@ -1257,7 +1258,8 @@ def main():
     seafdav_config.generate()
     seahub_config.generate()
 
-    seahub_config.do_syncdb()
+    if not use_existing_db:
+        seahub_config.do_syncdb()
     seahub_config.prepare_avatar_dir()
     # db_config.create_seahub_admin()
     user_manuals_handler.copy_user_manuals()
