@@ -8,6 +8,8 @@
 #include <shlobj.h>
 #endif
 
+#include <pthread.h>
+
 #include <ccnet.h>
 #include "utils.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_SYNC
@@ -68,9 +70,12 @@ static const char *ignore_table[] = {
 
 #define CONFLICT_PATTERN " \\(SFConflict .+\\)"
 
+#define OFFICE_LOCK_PATTERN "~\\$(.+)$"
+
 static GPatternSpec** ignore_patterns;
 static GPatternSpec* office_temp_ignore_patterns[4];
 static GRegex *conflict_pattern = NULL;
+static GRegex *office_lock_pattern = NULL;
 
 static SeafRepo *
 load_repo (SeafRepoManager *manager, const char *repo_id);
@@ -3089,6 +3094,249 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
                    NULL, NULL, &options);
 }
 
+#ifdef WIN32
+
+typedef struct FindOfficeData {
+    const char *lock_file_name;
+    char *office_file_name;
+} FindOfficeData;
+
+static int
+find_office_file_cb (wchar_t *parent,
+                     WIN32_FIND_DATAW *fdata,
+                     void *user_data,
+                     gboolean *stop)
+{
+    FindOfficeData *data = user_data;
+    const wchar_t *dname_w = fdata->cFileName;
+    wchar_t *lock_name_w = NULL;
+
+    if (wcslen(dname_w) < 2)
+        return 0;
+    if (wcsncmp (dname_w, L"~$", 2) == 0)
+        return 0;
+
+    lock_name_w = g_utf8_to_utf16 (data->lock_file_name,
+                                   -1, NULL, NULL, NULL);
+    /* Skip "~$" at the beginning. */
+    if (wcscmp (dname_w + 2, lock_name_w) == 0) {
+        data->office_file_name = g_utf16_to_utf8 (dname_w, -1, NULL, NULL, NULL);
+        *stop = TRUE;
+    }
+    g_free (lock_name_w);
+
+    return 0;
+}
+
+static gboolean
+find_office_file_path (const char *worktree,
+                       const char *parent_dir,
+                       const char *lock_file_name,
+                       char **office_path)
+{
+    char *fullpath = NULL;
+    wchar_t *fullpath_w = NULL;
+    FindOfficeData data;
+    gboolean ret = FALSE;
+
+    fullpath = g_build_path ("/", worktree, parent_dir, NULL);
+    fullpath_w = win32_long_path (fullpath);
+
+    data.lock_file_name = lock_file_name;
+    data.office_file_name = NULL;
+
+    if (traverse_directory_win32 (fullpath_w, find_office_file_cb, &data) < 0) {
+        goto out;
+    }
+
+    if (data.office_file_name != NULL) {
+        *office_path = g_build_path ("/", parent_dir, data.office_file_name, NULL);
+        ret = TRUE;
+    }
+
+out:
+    g_free (fullpath);
+    g_free (fullpath_w);
+    return ret;
+}
+
+static gboolean
+is_office_lock_file (const char *worktree,
+                     const char *path,
+                     char **office_path)
+{
+    gboolean ret;
+
+    if (!g_regex_match (office_lock_pattern, path, 0, NULL))
+        return FALSE;
+
+    /* Replace ~$abc.docx with abc.docx */
+    *office_path = g_regex_replace (office_lock_pattern,
+                                    path, -1, 0,
+                                    "\\1", 0, NULL);
+
+    /* When the filename is long, sometimes the first two characters
+       in the filename will be directly replaced with ~$.
+       So if the office_path file doesn't exist, we have to match
+       against all filenames in this directory, to find the office
+       file's name.
+    */
+    char *fullpath = g_build_path ("/", worktree, *office_path, NULL);
+    if (seaf_util_exists (fullpath)) {
+        g_free (fullpath);
+        return TRUE;
+    }
+    g_free (fullpath);
+
+    char *lock_file_name = g_path_get_basename(*office_path);
+    char *parent_dir = g_path_get_dirname(*office_path);
+    if (strcmp(parent_dir, ".") == 0) {
+        g_free (parent_dir);
+        parent_dir = g_strdup("");
+    }
+    g_free (*office_path);
+    *office_path = NULL;
+
+    ret = find_office_file_path (worktree, parent_dir, lock_file_name,
+                                 office_path);
+
+    g_free (lock_file_name);
+    g_free (parent_dir);
+    return ret;
+}
+
+typedef struct LockOfficeAux {
+    SeafRepo *repo;
+    char *path;
+} LockOfficeAux;
+
+static void
+lock_office_aux_free (LockOfficeAux *aux)
+{
+    if (!aux)
+        return;
+    g_free (aux->path);
+    g_free (aux);
+}
+
+static void *
+lock_office_file_thread (void *vdata)
+{
+    LockOfficeAux *aux = vdata;
+    SeafRepo *repo = aux->repo;
+    char *fullpath = NULL;
+    SeafStat st;
+
+    fullpath = g_build_path ("/", repo->worktree, aux->path, NULL);
+    if (seaf_stat (fullpath, &st) < 0 || !S_ISREG(st.st_mode)) {
+        g_free (fullpath);
+        goto out;
+    }
+    g_free (fullpath);
+
+    int status = seaf_filelock_manager_get_lock_status (seaf->filelock_mgr,
+                                                        repo->id, aux->path);
+    if (status != FILE_NOT_LOCKED) {
+        goto out;
+    }
+
+    if (http_tx_manager_lock_file (seaf->http_tx_mgr,
+                                   repo->effective_host,
+                                   repo->use_fileserver_port,
+                                   repo->token,
+                                   repo->id,
+                                   aux->path) < 0) {
+        seaf_warning ("Failed to lock %s in repo %.8s on server.\n",
+                      aux->path, repo->id);
+        goto out;
+    }
+
+    /* Mark file as locked locally so that the user can see the effect immediately. */
+    seaf_filelock_manager_mark_file_locked (seaf->filelock_mgr, repo->id, aux->path, TRUE);
+
+out:
+    lock_office_aux_free (aux);
+    return NULL;
+}
+
+static void
+lock_office_file_on_server (SeafRepo *repo, const char *path)
+{
+    pthread_t tid;
+    int err;
+    LockOfficeAux *aux;
+
+    aux = g_new0 (LockOfficeAux, 1);
+    aux->repo = repo;
+    aux->path = g_strdup(path);
+
+    err = pthread_create (&tid, NULL, lock_office_file_thread, aux);
+    if (err != 0) {
+        seaf_warning ("Failed to create thread: %s\n", strerror(err));
+        lock_office_aux_free (aux);
+    }
+}
+
+static void *
+unlock_office_file_thread (void *vdata)
+{
+    LockOfficeAux *aux = vdata;
+    SeafRepo *repo = aux->repo;
+    char *fullpath = NULL;
+    SeafStat st;
+
+    fullpath = g_build_path ("/", repo->worktree, aux->path, NULL);
+    if (seaf_stat (fullpath, &st) < 0 || !S_ISREG(st.st_mode)) {
+        g_free (fullpath);
+        goto out;
+    }
+    g_free (fullpath);
+
+    int status = seaf_filelock_manager_get_lock_status (seaf->filelock_mgr,
+                                                        repo->id, aux->path);
+    if (status != FILE_LOCKED_BY_ME_AUTO) {
+        goto out;
+    }
+
+    if (http_tx_manager_unlock_file (seaf->http_tx_mgr,
+                                     repo->effective_host,
+                                     repo->use_fileserver_port,
+                                     repo->token,
+                                     repo->id,
+                                     aux->path) < 0) {
+        seaf_warning ("Failed to unlock %s in repo %.8s on server.\n",
+                      aux->path, repo->id);
+        goto out;
+    }
+
+    /* Mark file as unlocked locally so that the user can see the effect immediately. */
+    seaf_filelock_manager_mark_file_unlocked (seaf->filelock_mgr, repo->id, aux->path);
+
+out:
+    lock_office_aux_free (aux);
+    return NULL;
+}
+
+static void
+unlock_office_file_on_server (SeafRepo *repo, const char *path)
+{
+    pthread_t tid;
+    int err;
+    LockOfficeAux *aux;
+
+    aux = g_new0 (LockOfficeAux, 1);
+    aux->repo = repo;
+    aux->path = g_strdup(path);
+
+    err = pthread_create (&tid, NULL, unlock_office_file_thread, aux);
+    if (err != 0) {
+        seaf_warning ("Failed to create thread: %s\n", strerror(err));
+        lock_office_aux_free (aux);
+    }
+}
+
+#endif  /* WIN32 */
+
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list,
@@ -3097,6 +3345,9 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
     WTStatus *status;
     WTEvent *event, *next_event;
     gboolean not_found;
+#ifdef WIN32
+    char *office_path = NULL;
+#endif
 
     status = seaf_wt_monitor_get_worktree_status (seaf->wt_monitor, repo->id);
     if (!status) {
@@ -3164,6 +3415,13 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 break;
             }
 
+#ifdef WIN32
+            office_path = NULL;
+            if (is_office_lock_file (repo->worktree, event->path, &office_path))
+                lock_office_file_on_server (repo, office_path);
+            g_free (office_path);
+#endif
+
             if (handle_add_files (repo, istate, crypt, ignore_list,
                                   fset,
                                   status, event,
@@ -3183,6 +3441,13 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             seaf_sync_manager_delete_active_path (seaf->sync_mgr,
                                                   repo->id,
                                                   event->path);
+
+#ifdef WIN32
+            office_path = NULL;
+            if (is_office_lock_file (repo->worktree, event->path, &office_path))
+                unlock_office_file_on_server (repo, office_path);
+            g_free (office_path);
+#endif
 
             if (check_full_path_ignore(repo->worktree, event->path, ignore_list))
                 break;
@@ -5967,6 +6232,13 @@ seaf_repo_manager_new (SeafileSession *seaf)
     if (error) {
         seaf_warning ("Failed to create regex '%s': %s\n",
                       CONFLICT_PATTERN, error->message);
+        g_clear_error (&error);
+    }
+
+    office_lock_pattern = g_regex_new (OFFICE_LOCK_PATTERN, 0, 0, &error);
+    if (error) {
+        seaf_warning ("Failed to create regex '%s': %s\n",
+                      OFFICE_LOCK_PATTERN, error->message);
         g_clear_error (&error);
     }
 

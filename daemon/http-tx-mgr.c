@@ -1951,6 +1951,118 @@ http_tx_manager_get_locked_files (HttpTxManager *manager,
     return 0;
 }
 
+/* Synchronous interfaces for locking/unlocking a file on the server. */
+
+int
+http_tx_manager_lock_file (HttpTxManager *manager,
+                           const char *host,
+                           gboolean use_fileserver_port,
+                           const char *token,
+                           const char *repo_id,
+                           const char *path)
+{
+    HttpTxPriv *priv = seaf->http_tx_mgr->priv;
+    ConnectionPool *pool;
+    Connection *conn;
+    CURL *curl;
+    char *url;
+    int status;
+    int ret = 0;
+
+    pool = find_connection_pool (priv, host);
+    if (!pool) {
+        seaf_warning ("Failed to create connection pool for host %s.\n", host);
+        return -1;
+    }
+
+    conn = connection_pool_get_connection (pool);
+    if (!conn) {
+        seaf_warning ("Failed to get connection to host %s.\n", host);
+        return -1;
+    }
+
+    curl = conn->curl;
+
+    char *esc_path = g_uri_escape_string(path, NULL, FALSE);
+    if (!use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/lock-file?p=%s", host, repo_id, esc_path);
+    else
+        url = g_strdup_printf ("%s/repo/%s/lock-file?p=%s", host, repo_id, esc_path);
+    g_free (esc_path);
+
+    if (http_put (curl, url, token, NULL, 0, NULL, NULL,
+                  &status, NULL, NULL, FALSE) < 0) {
+        conn->release = TRUE;
+        ret = -1;
+        goto out;
+    }
+
+    if (status != HTTP_OK) {
+        seaf_warning ("Bad response code for PUT %s: %d.\n", url, status);
+        ret = -1;
+    }
+
+out:
+    g_free (url);
+    connection_pool_return_connection (pool, conn);
+    return ret;
+}
+
+int
+http_tx_manager_unlock_file (HttpTxManager *manager,
+                             const char *host,
+                             gboolean use_fileserver_port,
+                             const char *token,
+                             const char *repo_id,
+                             const char *path)
+{
+    HttpTxPriv *priv = seaf->http_tx_mgr->priv;
+    ConnectionPool *pool;
+    Connection *conn;
+    CURL *curl;
+    char *url;
+    int status;
+    int ret = 0;
+
+    pool = find_connection_pool (priv, host);
+    if (!pool) {
+        seaf_warning ("Failed to create connection pool for host %s.\n", host);
+        return -1;
+    }
+
+    conn = connection_pool_get_connection (pool);
+    if (!conn) {
+        seaf_warning ("Failed to get connection to host %s.\n", host);
+        return -1;
+    }
+
+    curl = conn->curl;
+
+    char *esc_path = g_uri_escape_string(path, NULL, FALSE);
+    if (!use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/unlock-file?p=%s", host, repo_id, esc_path);
+    else
+        url = g_strdup_printf ("%s/repo/%s/unlock-file?p=%s", host, repo_id, esc_path);
+    g_free (esc_path);
+
+    if (http_put (curl, url, token, NULL, 0, NULL, NULL,
+                  &status, NULL, NULL, FALSE) < 0) {
+        conn->release = TRUE;
+        ret = -1;
+        goto out;
+    }
+
+    if (status != HTTP_OK) {
+        seaf_warning ("Bad response code for PUT %s: %d.\n", url, status);
+        ret = -1;
+    }
+
+out:
+    g_free (url);
+    connection_pool_return_connection (pool, conn);
+    return ret;
+}
+
 static gboolean
 remove_task_help (gpointer key, gpointer value, gpointer user_data)
 {

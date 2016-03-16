@@ -27,6 +27,16 @@ seaf_filelock_manager_is_file_locked (SeafFilelockManager *mgr,
                                       const char *repo_id,
                                       const char *path);
 
+#define FILE_NOT_LOCKED 0
+#define FILE_LOCKED_BY_OTHERS 1
+#define FILE_LOCKED_BY_ME_MANUAL 2
+#define FILE_LOCKED_BY_ME_AUTO 3
+
+int
+seaf_filelock_manager_get_lock_status (SeafFilelockManager *mgr,
+                                       const char *repo_id,
+                                       const char *path);
+
 gboolean
 seaf_filelock_manager_is_file_locked_by_me (SeafFilelockManager *mgr,
                                             const char *repo_id,
@@ -65,7 +75,8 @@ seaf_filelock_manager_remove (SeafFilelockManager *mgr,
 int
 seaf_filelock_manager_mark_file_locked (SeafFilelockManager *mgr,
                                         const char *repo_id,
-                                        const char *path);
+                                        const char *path,
+                                        gboolean is_auto_lock);
 
 int
 seaf_filelock_manager_mark_file_unlocked (SeafFilelockManager *mgr,
