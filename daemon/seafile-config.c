@@ -121,7 +121,8 @@ seafile_session_config_set_string (SeafileSession *session,
     }
 
     if (g_strcmp0(key, KEY_PROXY_TYPE) == 0) {
-        session->http_proxy_type = g_strdup(value);
+        session->http_proxy_type =
+            g_strcmp0(value, "none") == 0 ? NULL : g_strdup(value);
     }
 
     if (g_strcmp0(key, KEY_PROXY_ADDR) == 0) {
