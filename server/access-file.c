@@ -1123,28 +1123,17 @@ do_dir (evhtp_request_t *req, SeafRepo *repo, const char *dir_id,
     return ret;
 }
 
-void
-free_dirent_list (GList *dirent_list)
-{
-    GList *iter = dirent_list;
-    SeafDirent *dirent;
-
-    while (iter) {
-        dirent = iter->data;
-        seaf_dirent_free (dirent);
-        iter = g_list_delete_link (iter, iter);
-    }
-}
-
 static GList *
 get_download_dirent_list (SeafRepo *repo, const char *data)
 {
     json_t *obj;
+    const char *tmp_parent_dir;
     char *parent_dir;
     gboolean is_root_dir;
     json_t *name_array;
     json_error_t jerror;
     int i;
+    int len;
     const char *file_name;
     char *file_path;
     SeafDirent *dirent;
@@ -1157,12 +1146,38 @@ get_download_dirent_list (SeafRepo *repo, const char *data)
         return NULL;
     }
 
-    parent_dir = format_dir_path (json_object_get_string_member (obj, "parent_dir"));
-    is_root_dir = strcmp (parent_dir, "/") == 0;
+    tmp_parent_dir = json_object_get_string_member (obj, "parent_dir");
+    if (!tmp_parent_dir || strcmp (tmp_parent_dir, "") == 0) {
+        seaf_warning ("Invalid download file list data, no parent_dir field.\n");
+        json_decref (obj);
+        return NULL;
+    }
     name_array = json_object_get (obj, "file_list");
+    if (!name_array) {
+        seaf_warning ("Invalid download file list data, no file_list field.\n");
+        json_decref (obj);
+        return NULL;
+    }
+    len = json_array_size (name_array);
+    if (len == 0) {
+        seaf_warning ("Invalid download file list data, no download file name.\n");
+        json_decref (obj);
+        return NULL;
+    }
+    parent_dir = format_dir_path (tmp_parent_dir);
+    is_root_dir = strcmp (parent_dir, "/") == 0;
 
-    for (i = 0; i < json_array_size (name_array); i++) {
+    for (i = 0; i < len; i++) {
         file_name = json_string_value (json_array_get (name_array, i));
+        if (strcmp (file_name, "") == 0 || strchr (file_name, '/') != NULL) {
+            seaf_warning ("Invalid download file name: %s.\n", file_name);
+            if (dirent_list) {
+                g_list_free_full (dirent_list, (GDestroyNotify)seaf_dirent_free);
+                dirent_list = NULL;
+            }
+            break;
+        }
+
         if (is_root_dir) {
             file_path = g_strconcat (parent_dir, file_name, NULL);
         } else {
@@ -1183,7 +1198,7 @@ get_download_dirent_list (SeafRepo *repo, const char *data)
             }
             g_free (file_path);
             if (dirent_list) {
-                free_dirent_list (dirent_list);
+                g_list_free_full (dirent_list, (GDestroyNotify)seaf_dirent_free);
                 dirent_list = NULL;
             }
             break;
@@ -1210,8 +1225,12 @@ calcuate_download_size (SeafRepo *repo, GList *dirent_list)
     for (; iter; iter = iter->next) {
         dirent = iter->data;
         if (S_ISREG(dirent->mode)) {
-            size = seaf_fs_manager_get_file_size (seaf->fs_mgr, repo->store_id,
-                                                  repo->version, dirent->id);
+            if (repo->version > 0) {
+                size = dirent->size;
+            } else {
+                size = seaf_fs_manager_get_file_size (seaf->fs_mgr, repo->store_id,
+                                                      repo->version, dirent->id);
+            }
             if (size < 0) {
                 seaf_warning ("Failed to get file %s size.\n", dirent->name);
                 return -1;
@@ -1437,7 +1456,7 @@ success:
     if (webaccess)
         g_object_unref (webaccess);
     if (dirent_list)
-        free_dirent_list (dirent_list);
+        g_list_free_full (dirent_list, (GDestroyNotify)seaf_dirent_free);
 
     return;
 
@@ -1450,7 +1469,7 @@ bad_req:
     if (webaccess != NULL)
         g_object_unref (webaccess);
     if (dirent_list)
-        free_dirent_list (dirent_list);
+        g_list_free_full (dirent_list, (GDestroyNotify)seaf_dirent_free);
 
     evbuffer_add_printf(req->buffer_out, "%s\n", error);
     evhtp_send_reply(req, EVHTP_RES_BADREQ);
