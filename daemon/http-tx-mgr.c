@@ -535,8 +535,11 @@ ssl_callback (CURL *curl, void *ssl_ctx, void *userptr)
 static void
 set_proxy (CURL *curl, gboolean is_https)
 {
-    if (!seaf->use_http_proxy || !seaf->http_proxy_type || !seaf->http_proxy_addr)
+    /* Disable proxy if proxy options are not set properly. */
+    if (!seaf->use_http_proxy || !seaf->http_proxy_type || !seaf->http_proxy_addr) {
+        curl_easy_setopt (curl, CURLOPT_PROXY, NULL);
         return;
+    }
 
     if (g_strcmp0(seaf->http_proxy_type, PROXY_TYPE_HTTP) == 0) {
         curl_easy_setopt(curl, CURLOPT_PROXYTYPE, CURLPROXY_HTTP);
