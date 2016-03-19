@@ -1,0 +1,1 @@
+alter table RepoTokenPeerInfo add client_ver varchar(20);
