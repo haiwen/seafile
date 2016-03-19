@@ -23,7 +23,6 @@ cache:
     - $HOME/.cache/pip
     - $HOME/.ccache
     - $HOME/downloads
-    - $HOME/thirdpart
 before_install:
   - ccache -s
   - export PATH=/usr/lib/ccache:${PATH}
