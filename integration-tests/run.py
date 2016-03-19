@@ -72,8 +72,8 @@ def get_project_branch(project, default_branch='master'):
         return TRAVIS_BRANCH
     conf = json.loads(requests.get(
         'https://raw.githubusercontent.com/haiwen/seafile-test-deploy/master/branches.json').text)
-    return conf.get(TRAVIS_BRANCH, conf.get('master', {})).get(project.name,
-                                                               default_branch)
+    return conf.get(TRAVIS_BRANCH, {}).get(project.name,
+                                           default_branch)
 
 
 class Project(object):
