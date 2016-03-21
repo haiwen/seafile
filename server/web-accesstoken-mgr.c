@@ -139,6 +139,7 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
         strcmp(op, "download") != 0 &&
         strcmp(op, "downloadblks") != 0 &&
         strcmp(op, "download-dir") != 0 &&
+        strcmp(op, "download-multi") != 0 &&
         strcmp(op, "upload") != 0 &&
         strcmp(op, "update") != 0 &&
         strcmp(op, "upload-blks-api") != 0 &&

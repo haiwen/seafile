@@ -2532,3 +2532,22 @@ out:
         return -1;
     }
 }
+
+char*
+format_dir_path (const char *path)
+{
+    int path_len = strlen (path);
+    char *rpath;
+    if (path[0] != '/') {
+        rpath = g_strconcat ("/", path, NULL);
+        path_len++;
+    } else {
+        rpath = g_strdup (path);
+    }
+    while (path_len > 1 && rpath[path_len-1] == '/') {
+        rpath[path_len-1] = '\0';
+        path_len--;
+    }
+
+    return rpath;
+}
