@@ -105,9 +105,6 @@ seafile_session_get_tmp_file_path (SeafileSession *session,
                                    const char *basename,
                                    char path[]);
 
-int
-seafile_session_set_monitor (SeafileSession *session, const char *peer_id);
-
 void
 schedule_create_system_default_repo (SeafileSession *session);
 

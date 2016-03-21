@@ -27,8 +27,6 @@
 #include "seaf-utils.h"
 #include "log.h"
 
-#include "client-migrate.h"
-
 #define MAX_THREADS 50
 
 enum {
@@ -384,7 +382,7 @@ on_start_cleanup_job (void *vdata)
      * there will be some sync error in run time. The user has to recover the
      * error by resyncing.
      */
-    migrate_client_v0_repos ();
+    /* migrate_client_v0_repos (); */
 
     cleanup_unused_repo_block_stores ();
 

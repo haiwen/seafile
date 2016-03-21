@@ -21,8 +21,6 @@
 #include "seafile-error.h"
 #include "seafile-crypt.h"
 
-#include "monitor-rpc-wrappers.h"
-
 #include "seaf-db.h"
 
 #define REAP_TOKEN_INTERVAL 300 /* 5 mins */

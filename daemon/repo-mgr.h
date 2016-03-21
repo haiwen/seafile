@@ -12,20 +12,13 @@
 #include "branch-mgr.h"
 
 #define REPO_AUTO_SYNC        "auto-sync"
-#define REPO_AUTO_FETCH       "auto-fetch"
-#define REPO_AUTO_UPLOAD      "auto-upload"
-#define REPO_AUTO_MERGE       "auto-merge"
-#define REPO_AUTO_COMMIT      "auto-commit"
 #define REPO_RELAY_ID         "relay-id"
-#define REPO_NET_BROWSABLE    "net-browsable"
-#define REPO_DOUBLE_SYNC      "double-sync"
 #define REPO_REMOTE_HEAD      "remote-head"
 #define REPO_LOCAL_HEAD       "local-head"
 #define REPO_PROP_EMAIL       "email"
 #define REPO_PROP_TOKEN       "token"
 #define REPO_PROP_RELAY_ADDR  "relay-address"
 #define REPO_PROP_RELAY_PORT  "relay-port"
-#define REPO_ENCRYPTED 0x1
 #define REPO_PROP_DOWNLOAD_HEAD "download-head"
 #define REPO_PROP_IS_READONLY "is-readonly"
 #define REPO_PROP_SERVER_URL  "server-url"
@@ -82,7 +75,6 @@ struct _SeafRepo {
     gboolean      is_readonly;
 
     unsigned int  auto_sync : 1;
-    unsigned int  net_browsable : 1;
     unsigned int  quota_full_notified : 1;
     unsigned int  access_denied_notified : 1;
 
@@ -180,12 +172,6 @@ int
 seaf_repo_checkout (SeafRepo *repo, const char *worktree_parent, char **error);
 
 int
-seaf_repo_reset (SeafRepo *repo, const char *commit_id, char **error);
-
-int
-seaf_repo_revert (SeafRepo *repo, const char *commit_id, char **error);
-
-int
 seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_merge,
                            char **error);
 
@@ -199,9 +185,6 @@ enum {
 int
 seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
                  int *merge_status);
-
-GList *
-seaf_repo_diff (SeafRepo *repo, const char *arg1, const char *arg2, char **error);
 
 typedef struct _SeafRepoManager SeafRepoManager;
 typedef struct _SeafRepoManagerPriv SeafRepoManagerPriv;
@@ -287,29 +270,6 @@ seaf_repo_manager_get_repo_relay_info (SeafRepoManager *mgr,
 
 int
 seaf_repo_manager_branch_repo_unmap (SeafRepoManager *manager, SeafBranch *branch);
-
-char *
-seaf_repo_manager_get_repo_lantoken (SeafRepoManager *manager,
-                                     const char *repo_id);
-int
-seaf_repo_manager_set_repo_lantoken (SeafRepoManager *manager,
-                                     const char *repo_id,
-                                     const char *token);
-int
-seaf_repo_manager_verify_repo_lantoken (SeafRepoManager *manager,
-                                        const char *repo_id,
-                                        const char *token);
-
-char *
-seaf_repo_manager_generate_tmp_token (SeafRepoManager *manager,
-                                      const char *repo_id,
-                                      const char *peer_id);
-
-int
-seaf_repo_manager_verify_tmp_token (SeafRepoManager *manager,
-                                    const char *repo_id,
-                                    const char *peer_id,
-                                    const char *token);
 
 int
 seaf_repo_manager_set_repo_property (SeafRepoManager *manager,
@@ -398,15 +358,6 @@ seaf_repo_manager_add_checkout_task (SeafRepoManager *mgr,
                                      const char *worktree,
                                      CheckoutDoneCallback done_cb,
                                      void *cb_data);
-
-/* Remove all the files in the worktree and then checkout again.
- * Can be used to re-checkout if wrong password was given.
- */
-int
-seaf_repo_manager_add_recheckout_task (SeafRepoManager *mgr,
-                                       SeafRepo *repo,
-                                       CheckoutDoneCallback done_cb,
-                                       void *cb_data);
 
 CheckoutTask *
 seaf_repo_manager_get_checkout_task (SeafRepoManager *mgr,

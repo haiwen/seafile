@@ -16,7 +16,6 @@
 #include "seafile-rpc.h"
 
 #ifdef SEAFILE_SERVER
-#include "monitor-rpc-wrappers.h"
 #include "web-accesstoken-mgr.h"
 #endif
 

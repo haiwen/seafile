@@ -738,7 +738,6 @@ seaf_repo_new (const char *id, const char *name, const char *desc)
 
     repo->worktree_invalid = TRUE;
     repo->auto_sync = 1;
-    repo->net_browsable = 0;
     pthread_mutex_init (&repo->lock, NULL);
 
     return repo;
@@ -6578,137 +6577,6 @@ seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id)
     return FALSE;
 }
 
-static gboolean
-get_token (sqlite3_stmt *stmt, void *data)
-{
-    char **token = data;
-
-    *token = g_strdup((char *)sqlite3_column_text (stmt, 0));
-    /* There should be only one result. */
-    return FALSE;
-}
-
-char *
-seaf_repo_manager_get_repo_lantoken (SeafRepoManager *manager,
-                                     const char *repo_id)
-{
-    char sql[256];
-    char *ret = NULL;
-
-    pthread_mutex_lock (&manager->priv->db_lock);
-
-    snprintf (sql, sizeof(sql),
-              "SELECT token FROM RepoLanToken WHERE repo_id='%s'",
-              repo_id);
-    if (sqlite_foreach_selected_row (manager->priv->db, sql,
-                                     get_token, &ret) < 0) {
-        seaf_warning ("DB error when get token for repo %s.\n", repo_id);
-        pthread_mutex_unlock (&manager->priv->db_lock);
-        return NULL;
-    }
-
-    pthread_mutex_unlock (&manager->priv->db_lock);
-
-    return ret;
-}
-
-int
-seaf_repo_manager_set_repo_lantoken (SeafRepoManager *manager,
-                                     const char *repo_id,
-                                     const char *token)
-{
-    char sql[256];
-    sqlite3 *db = manager->priv->db;
-
-    pthread_mutex_lock (&manager->priv->db_lock);
-
-    snprintf (sql, sizeof(sql), "REPLACE INTO RepoLanToken VALUES ('%s', '%s');",
-              repo_id, token);
-    if (sqlite_query_exec (db, sql) < 0) {
-        pthread_mutex_unlock (&manager->priv->db_lock);
-        return -1;
-    }
-
-    pthread_mutex_unlock (&manager->priv->db_lock);
-
-    return 0;
-}
-
-int
-seaf_repo_manager_verify_repo_lantoken (SeafRepoManager *manager,
-                                        const char *repo_id,
-                                        const char *token)
-{
-    int ret = 0;
-    if (!token)
-        return 0;
-
-    char *my_token = seaf_repo_manager_get_repo_lantoken (manager, repo_id);
-
-    if (!my_token) {
-        if (memcmp (DEFAULT_REPO_TOKEN, token, strlen(token)) == 0)
-            ret = 1;
-    } else {
-        if (memcmp (my_token, token, strlen(token)) == 0)
-            ret = 1;
-        g_free (my_token);
-    }
-
-    return ret;
-}
-
-char *
-seaf_repo_manager_generate_tmp_token (SeafRepoManager *manager,
-                                      const char *repo_id,
-                                      const char *peer_id)
-{
-    char sql[256];
-    sqlite3 *db = manager->priv->db;
-
-    int now = time(NULL);
-    char *token = gen_uuid();
-    pthread_mutex_lock (&manager->priv->db_lock);
-
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO RepoTmpToken VALUES ('%s', '%s', '%s', %d);",
-              repo_id, peer_id, token, now);
-    if (sqlite_query_exec (db, sql) < 0) {
-        pthread_mutex_unlock (&manager->priv->db_lock);
-        g_free (token);
-        return NULL;
-    }
-
-    pthread_mutex_unlock (&manager->priv->db_lock);
-    return token;
-}
-
-int
-seaf_repo_manager_verify_tmp_token (SeafRepoManager *manager,
-                                    const char *repo_id,
-                                    const char *peer_id,
-                                    const char *token)
-{
-    int ret;
-    char sql[512];
-    if (!repo_id || !peer_id || !token)
-        return 0;
-
-    pthread_mutex_lock (&manager->priv->db_lock);
-    snprintf (sql, 512, "SELECT timestamp FROM RepoTmpToken "
-              "WHERE repo_id='%s' AND peer_id='%s' AND token='%s'",
-              repo_id, peer_id, token);
-    ret = sqlite_check_for_existence (manager->priv->db, sql);
-    if (ret) {
-        snprintf (sql, 512, "DELETE FROM RepoTmpToken WHERE "
-                  "repo_id='%s' AND peer_id='%s'",
-                  repo_id, peer_id);
-        sqlite_query_exec (manager->priv->db, sql);
-    }
-    pthread_mutex_unlock (&manager->priv->db_lock);
-
-    return ret;
-}
-
 static int
 save_branch_repo_map (SeafRepoManager *manager, SeafBranch *branch)
 {
@@ -6958,12 +6826,6 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
         g_free (repo->relay_id);
         repo->relay_id = NULL;
     }
-
-    value = load_repo_property (manager, repo->id, REPO_NET_BROWSABLE);
-    if (g_strcmp0(value, "true") == 0) {
-        repo->net_browsable = 1;
-    }
-    g_free (value);
 
     repo->email = load_repo_property (manager, repo->id, REPO_PROP_EMAIL);
     repo->token = load_repo_property (manager, repo->id, REPO_PROP_TOKEN);
@@ -7268,13 +7130,6 @@ seaf_repo_manager_set_repo_property (SeafRepoManager *manager,
                 seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id,
                                             repo->worktree);
         }
-    }
-
-    if (strcmp(key, REPO_NET_BROWSABLE) == 0) {
-        if (g_strcmp0(value, "true") == 0)
-            repo->net_browsable = 1;
-        else
-            repo->net_browsable = 0;
     }
 
     if (strcmp(key, REPO_RELAY_ID) == 0)

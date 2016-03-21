@@ -33,8 +33,6 @@
 #include "seafile-config.h"
 #include "curl-init.h"
 
-#include "processors/check-tx-slave-proc.h"
-
 #include "cdc/cdc.h"
 
 #ifndef SEAFILE_CLIENT_VERSION
