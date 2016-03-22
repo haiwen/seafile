@@ -94,6 +94,9 @@ function validate_seahub_running () {
     if pgrep -f "${manage_py}" 2>/dev/null 1>&2; then
         echo "Seahub is already running."
         exit 1;
+    elif pgrep -f "seahub.wsgi:application" 2>/dev/null 1>&2; then
+        echo "Seahub is already running."
+        exit 1;
     fi
 }
 
@@ -157,7 +160,7 @@ function start_seahub () {
 
     # Ensure seahub is started successfully
     sleep 5
-    if ! pgrep -f "${manage_py}" 2>/dev/null 1>&2; then
+    if ! pgrep -f "seahub.wsgi:application" 2>/dev/null 1>&2; then
         printf "\033[33mError:Seahub failed to start.\033[m\n"
         echo "Please try to run \"./seahub.sh start\" again"
         exit 1;
