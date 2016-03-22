@@ -33,7 +33,7 @@ proc_headers = $(addprefix processors/, \
 	checkbl-proc.h \
 	checkff-proc.h \
 	putca-proc.h \
-	processors/check-protocol-slave-proc.h \
+	check-protocol-slave-proc.h \
 	recvfs-v2-proc.h \
 	recvbranch-v2-proc.h \
 	putfs-v2-proc.h)
