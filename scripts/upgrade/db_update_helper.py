@@ -48,6 +48,9 @@ class Utils(object):
 
     @staticmethod
     def read_config(config_path, defaults):
+        if not os.path.exists(config_path):
+            Utils.error('Config path %s doesn\'t exist, stop db upgrade' %
+                        config_path)
         cp = ConfigParser.ConfigParser(defaults)
         cp.read(config_path)
         return cp
@@ -70,8 +73,8 @@ class DBUpdater(object):
     @staticmethod
     def get_instance(version):
         '''Detect whether we are using mysql or sqlite3'''
-        ccnet_db_info = DBUpdater.get_ccnet_mysql_info()
-        seafile_db_info = DBUpdater.get_seafile_mysql_info()
+        ccnet_db_info = DBUpdater.get_ccnet_mysql_info(version)
+        seafile_db_info = DBUpdater.get_seafile_mysql_info(version)
         seahub_db_info = DBUpdater.get_seahub_mysql_info()
 
         if ccnet_db_info and seafile_db_info and seahub_db_info:
@@ -117,8 +120,13 @@ class DBUpdater(object):
             self.update_seahub_sql(seahub_sql)
 
     @staticmethod
-    def get_ccnet_mysql_info():
-        ccnet_conf = os.path.join(env_mgr.ccnet_dir, 'ccnet.conf')
+    def get_ccnet_mysql_info(version):
+        if version > '5.0.0':
+            config_path = env_mgr.central_config_dir
+        else:
+            config_path = env_mgr.ccnet_dir
+
+        ccnet_conf = os.path.join(config_path, 'ccnet.conf')
         defaults = {
             'HOST': '127.0.0.1',
             'PORT': '3306',
@@ -149,8 +157,13 @@ class DBUpdater(object):
         return info
 
     @staticmethod
-    def get_seafile_mysql_info():
-        seafile_conf = os.path.join(env_mgr.seafile_dir, 'seafile.conf')
+    def get_seafile_mysql_info(version):
+        if version > '5.0.0':
+            config_path = env_mgr.central_config_dir
+        else:
+            config_path = env_mgr.seafile_dir
+
+        seafile_conf = os.path.join(config_path, 'seafile.conf')
         defaults = {
             'HOST': '127.0.0.1',
             'PORT': '3306',
