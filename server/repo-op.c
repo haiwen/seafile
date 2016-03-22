@@ -24,7 +24,6 @@
 #include "seafile-crypt.h"
 #include "diff-simple.h"
 #include "merge-new.h"
-#include "monitor-rpc-wrappers.h"
 
 #include "seaf-db.h"
 

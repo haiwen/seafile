@@ -223,6 +223,15 @@ seafile_mark_file_locked (const char *repo_id, const char *path, GError **error)
 int
 seafile_mark_file_unlocked (const char *repo_id, const char *path, GError **error);
 
+char *
+seafile_get_server_property (const char *server_url, const char *key, GError **error);
+
+int
+seafile_set_server_property (const char *server_url,
+                             const char *key,
+                             const char *value,
+                             GError **error);
+
 /**
  * seafile_list_dir:
  * List a directory.

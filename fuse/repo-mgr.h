@@ -9,17 +9,6 @@
 #include "commit-mgr.h"
 #include "branch-mgr.h"
 
-#define REPO_AUTO_SYNC        "auto-sync"
-#define REPO_AUTO_FETCH       "auto-fetch"
-#define REPO_AUTO_UPLOAD      "auto-upload"
-#define REPO_AUTO_MERGE       "auto-merge"
-#define REPO_AUTO_COMMIT      "auto-commit"
-#define REPO_RELAY_ID         "relay-id"
-#define REPO_NET_BROWSABLE    "net-browsable"
-#define REPO_DOUBLE_SYNC      "double-sync"
-#define REPO_REMOTE_HEAD      "remote-head"
-#define REPO_ENCRYPTED 0x1
-
 struct _SeafRepoManager;
 typedef struct _SeafRepo SeafRepo;
 

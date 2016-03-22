@@ -8,6 +8,8 @@
 #include <shlobj.h>
 #endif
 
+#include <pthread.h>
+
 #include <ccnet.h>
 #include "utils.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_SYNC
@@ -68,9 +70,12 @@ static const char *ignore_table[] = {
 
 #define CONFLICT_PATTERN " \\(SFConflict .+\\)"
 
+#define OFFICE_LOCK_PATTERN "~\\$(.+)$"
+
 static GPatternSpec** ignore_patterns;
 static GPatternSpec* office_temp_ignore_patterns[4];
 static GRegex *conflict_pattern = NULL;
+static GRegex *office_lock_pattern = NULL;
 
 static SeafRepo *
 load_repo (SeafRepoManager *manager, const char *repo_id);
@@ -733,7 +738,6 @@ seaf_repo_new (const char *id, const char *name, const char *desc)
 
     repo->worktree_invalid = TRUE;
     repo->auto_sync = 1;
-    repo->net_browsable = 0;
     pthread_mutex_init (&repo->lock, NULL);
 
     return repo;
@@ -3089,6 +3093,255 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
                    NULL, NULL, &options);
 }
 
+#ifdef WIN32
+
+typedef struct FindOfficeData {
+    const char *lock_file_name;
+    char *office_file_name;
+} FindOfficeData;
+
+static int
+find_office_file_cb (wchar_t *parent,
+                     WIN32_FIND_DATAW *fdata,
+                     void *user_data,
+                     gboolean *stop)
+{
+    FindOfficeData *data = user_data;
+    const wchar_t *dname_w = fdata->cFileName;
+    wchar_t *lock_name_w = NULL;
+
+    if (wcslen(dname_w) < 2)
+        return 0;
+    if (wcsncmp (dname_w, L"~$", 2) == 0)
+        return 0;
+
+    lock_name_w = g_utf8_to_utf16 (data->lock_file_name,
+                                   -1, NULL, NULL, NULL);
+    /* Skip "~$" at the beginning. */
+    if (wcscmp (dname_w + 2, lock_name_w) == 0) {
+        data->office_file_name = g_utf16_to_utf8 (dname_w, -1, NULL, NULL, NULL);
+        *stop = TRUE;
+    }
+    g_free (lock_name_w);
+
+    return 0;
+}
+
+static gboolean
+find_office_file_path (const char *worktree,
+                       const char *parent_dir,
+                       const char *lock_file_name,
+                       char **office_path)
+{
+    char *fullpath = NULL;
+    wchar_t *fullpath_w = NULL;
+    FindOfficeData data;
+    gboolean ret = FALSE;
+
+    fullpath = g_build_path ("/", worktree, parent_dir, NULL);
+    fullpath_w = win32_long_path (fullpath);
+
+    data.lock_file_name = lock_file_name;
+    data.office_file_name = NULL;
+
+    if (traverse_directory_win32 (fullpath_w, find_office_file_cb, &data) < 0) {
+        goto out;
+    }
+
+    if (data.office_file_name != NULL) {
+        *office_path = g_build_path ("/", parent_dir, data.office_file_name, NULL);
+        ret = TRUE;
+    }
+
+out:
+    g_free (fullpath);
+    g_free (fullpath_w);
+    return ret;
+}
+
+static gboolean
+is_office_lock_file (const char *worktree,
+                     const char *path,
+                     char **office_path)
+{
+    gboolean ret;
+
+    if (!g_regex_match (office_lock_pattern, path, 0, NULL))
+        return FALSE;
+
+    /* Replace ~$abc.docx with abc.docx */
+    *office_path = g_regex_replace (office_lock_pattern,
+                                    path, -1, 0,
+                                    "\\1", 0, NULL);
+
+    /* When the filename is long, sometimes the first two characters
+       in the filename will be directly replaced with ~$.
+       So if the office_path file doesn't exist, we have to match
+       against all filenames in this directory, to find the office
+       file's name.
+    */
+    char *fullpath = g_build_path ("/", worktree, *office_path, NULL);
+    if (seaf_util_exists (fullpath)) {
+        g_free (fullpath);
+        return TRUE;
+    }
+    g_free (fullpath);
+
+    char *lock_file_name = g_path_get_basename(*office_path);
+    char *parent_dir = g_path_get_dirname(*office_path);
+    if (strcmp(parent_dir, ".") == 0) {
+        g_free (parent_dir);
+        parent_dir = g_strdup("");
+    }
+    g_free (*office_path);
+    *office_path = NULL;
+
+    ret = find_office_file_path (worktree, parent_dir, lock_file_name,
+                                 office_path);
+
+    g_free (lock_file_name);
+    g_free (parent_dir);
+    return ret;
+}
+
+typedef struct LockOfficeAux {
+    SeafRepo *repo;
+    char *path;
+} LockOfficeAux;
+
+static void
+lock_office_aux_free (LockOfficeAux *aux)
+{
+    if (!aux)
+        return;
+    g_free (aux->path);
+    g_free (aux);
+}
+
+static void *
+lock_office_file_thread (void *vdata)
+{
+    LockOfficeAux *aux = vdata;
+    SeafRepo *repo = aux->repo;
+    char *fullpath = NULL;
+    SeafStat st;
+
+    fullpath = g_build_path ("/", repo->worktree, aux->path, NULL);
+    if (seaf_stat (fullpath, &st) < 0 || !S_ISREG(st.st_mode)) {
+        g_free (fullpath);
+        goto out;
+    }
+    g_free (fullpath);
+
+    int status = seaf_filelock_manager_get_lock_status (seaf->filelock_mgr,
+                                                        repo->id, aux->path);
+    if (status != FILE_NOT_LOCKED) {
+        goto out;
+    }
+
+    if (http_tx_manager_lock_file (seaf->http_tx_mgr,
+                                   repo->effective_host,
+                                   repo->use_fileserver_port,
+                                   repo->token,
+                                   repo->id,
+                                   aux->path) < 0) {
+        seaf_warning ("Failed to lock %s in repo %.8s on server.\n",
+                      aux->path, repo->id);
+        goto out;
+    }
+
+    /* Mark file as locked locally so that the user can see the effect immediately. */
+    seaf_filelock_manager_mark_file_locked (seaf->filelock_mgr, repo->id, aux->path, TRUE);
+
+out:
+    lock_office_aux_free (aux);
+    return NULL;
+}
+
+static void
+lock_office_file_on_server (SeafRepo *repo, const char *path)
+{
+    pthread_t tid;
+    int err;
+    LockOfficeAux *aux;
+
+    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, repo->server_url))
+        return;
+
+    aux = g_new0 (LockOfficeAux, 1);
+    aux->repo = repo;
+    aux->path = g_strdup(path);
+
+    err = pthread_create (&tid, NULL, lock_office_file_thread, aux);
+    if (err != 0) {
+        seaf_warning ("Failed to create thread: %s\n", strerror(err));
+        lock_office_aux_free (aux);
+    }
+}
+
+static void *
+unlock_office_file_thread (void *vdata)
+{
+    LockOfficeAux *aux = vdata;
+    SeafRepo *repo = aux->repo;
+    char *fullpath = NULL;
+    SeafStat st;
+
+    fullpath = g_build_path ("/", repo->worktree, aux->path, NULL);
+    if (seaf_stat (fullpath, &st) < 0 || !S_ISREG(st.st_mode)) {
+        g_free (fullpath);
+        goto out;
+    }
+    g_free (fullpath);
+
+    int status = seaf_filelock_manager_get_lock_status (seaf->filelock_mgr,
+                                                        repo->id, aux->path);
+    if (status != FILE_LOCKED_BY_ME_AUTO) {
+        goto out;
+    }
+
+    if (http_tx_manager_unlock_file (seaf->http_tx_mgr,
+                                     repo->effective_host,
+                                     repo->use_fileserver_port,
+                                     repo->token,
+                                     repo->id,
+                                     aux->path) < 0) {
+        seaf_warning ("Failed to unlock %s in repo %.8s on server.\n",
+                      aux->path, repo->id);
+        goto out;
+    }
+
+    /* Mark file as unlocked locally so that the user can see the effect immediately. */
+    seaf_filelock_manager_mark_file_unlocked (seaf->filelock_mgr, repo->id, aux->path);
+
+out:
+    lock_office_aux_free (aux);
+    return NULL;
+}
+
+static void
+unlock_office_file_on_server (SeafRepo *repo, const char *path)
+{
+    pthread_t tid;
+    int err;
+    LockOfficeAux *aux;
+
+    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, repo->server_url))
+        return;
+
+    aux = g_new0 (LockOfficeAux, 1);
+    aux->repo = repo;
+    aux->path = g_strdup(path);
+
+    err = pthread_create (&tid, NULL, unlock_office_file_thread, aux);
+    if (err != 0) {
+        seaf_warning ("Failed to create thread: %s\n", strerror(err));
+        lock_office_aux_free (aux);
+    }
+}
+
+#endif  /* WIN32 */
+
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list,
@@ -3097,6 +3350,9 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
     WTStatus *status;
     WTEvent *event, *next_event;
     gboolean not_found;
+#ifdef WIN32
+    char *office_path = NULL;
+#endif
 
     status = seaf_wt_monitor_get_worktree_status (seaf->wt_monitor, repo->id);
     if (!status) {
@@ -3164,6 +3420,13 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 break;
             }
 
+#ifdef WIN32
+            office_path = NULL;
+            if (is_office_lock_file (repo->worktree, event->path, &office_path))
+                lock_office_file_on_server (repo, office_path);
+            g_free (office_path);
+#endif
+
             if (handle_add_files (repo, istate, crypt, ignore_list,
                                   fset,
                                   status, event,
@@ -3183,6 +3446,13 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             seaf_sync_manager_delete_active_path (seaf->sync_mgr,
                                                   repo->id,
                                                   event->path);
+
+#ifdef WIN32
+            office_path = NULL;
+            if (is_office_lock_file (repo->worktree, event->path, &office_path))
+                unlock_office_file_on_server (repo, office_path);
+            g_free (office_path);
+#endif
 
             if (check_full_path_ignore(repo->worktree, event->path, ignore_list))
                 break;
@@ -5970,6 +6240,13 @@ seaf_repo_manager_new (SeafileSession *seaf)
         g_clear_error (&error);
     }
 
+    office_lock_pattern = g_regex_new (OFFICE_LOCK_PATTERN, 0, 0, &error);
+    if (error) {
+        seaf_warning ("Failed to create regex '%s': %s\n",
+                      OFFICE_LOCK_PATTERN, error->message);
+        g_clear_error (&error);
+    }
+
     mgr->priv->repo_hash = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
 
     pthread_rwlock_init (&mgr->priv->lock, NULL);
@@ -6306,137 +6583,6 @@ seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id)
     return FALSE;
 }
 
-static gboolean
-get_token (sqlite3_stmt *stmt, void *data)
-{
-    char **token = data;
-
-    *token = g_strdup((char *)sqlite3_column_text (stmt, 0));
-    /* There should be only one result. */
-    return FALSE;
-}
-
-char *
-seaf_repo_manager_get_repo_lantoken (SeafRepoManager *manager,
-                                     const char *repo_id)
-{
-    char sql[256];
-    char *ret = NULL;
-
-    pthread_mutex_lock (&manager->priv->db_lock);
-
-    snprintf (sql, sizeof(sql),
-              "SELECT token FROM RepoLanToken WHERE repo_id='%s'",
-              repo_id);
-    if (sqlite_foreach_selected_row (manager->priv->db, sql,
-                                     get_token, &ret) < 0) {
-        seaf_warning ("DB error when get token for repo %s.\n", repo_id);
-        pthread_mutex_unlock (&manager->priv->db_lock);
-        return NULL;
-    }
-
-    pthread_mutex_unlock (&manager->priv->db_lock);
-
-    return ret;
-}
-
-int
-seaf_repo_manager_set_repo_lantoken (SeafRepoManager *manager,
-                                     const char *repo_id,
-                                     const char *token)
-{
-    char sql[256];
-    sqlite3 *db = manager->priv->db;
-
-    pthread_mutex_lock (&manager->priv->db_lock);
-
-    snprintf (sql, sizeof(sql), "REPLACE INTO RepoLanToken VALUES ('%s', '%s');",
-              repo_id, token);
-    if (sqlite_query_exec (db, sql) < 0) {
-        pthread_mutex_unlock (&manager->priv->db_lock);
-        return -1;
-    }
-
-    pthread_mutex_unlock (&manager->priv->db_lock);
-
-    return 0;
-}
-
-int
-seaf_repo_manager_verify_repo_lantoken (SeafRepoManager *manager,
-                                        const char *repo_id,
-                                        const char *token)
-{
-    int ret = 0;
-    if (!token)
-        return 0;
-
-    char *my_token = seaf_repo_manager_get_repo_lantoken (manager, repo_id);
-
-    if (!my_token) {
-        if (memcmp (DEFAULT_REPO_TOKEN, token, strlen(token)) == 0)
-            ret = 1;
-    } else {
-        if (memcmp (my_token, token, strlen(token)) == 0)
-            ret = 1;
-        g_free (my_token);
-    }
-
-    return ret;
-}
-
-char *
-seaf_repo_manager_generate_tmp_token (SeafRepoManager *manager,
-                                      const char *repo_id,
-                                      const char *peer_id)
-{
-    char sql[256];
-    sqlite3 *db = manager->priv->db;
-
-    int now = time(NULL);
-    char *token = gen_uuid();
-    pthread_mutex_lock (&manager->priv->db_lock);
-
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO RepoTmpToken VALUES ('%s', '%s', '%s', %d);",
-              repo_id, peer_id, token, now);
-    if (sqlite_query_exec (db, sql) < 0) {
-        pthread_mutex_unlock (&manager->priv->db_lock);
-        g_free (token);
-        return NULL;
-    }
-
-    pthread_mutex_unlock (&manager->priv->db_lock);
-    return token;
-}
-
-int
-seaf_repo_manager_verify_tmp_token (SeafRepoManager *manager,
-                                    const char *repo_id,
-                                    const char *peer_id,
-                                    const char *token)
-{
-    int ret;
-    char sql[512];
-    if (!repo_id || !peer_id || !token)
-        return 0;
-
-    pthread_mutex_lock (&manager->priv->db_lock);
-    snprintf (sql, 512, "SELECT timestamp FROM RepoTmpToken "
-              "WHERE repo_id='%s' AND peer_id='%s' AND token='%s'",
-              repo_id, peer_id, token);
-    ret = sqlite_check_for_existence (manager->priv->db, sql);
-    if (ret) {
-        snprintf (sql, 512, "DELETE FROM RepoTmpToken WHERE "
-                  "repo_id='%s' AND peer_id='%s'",
-                  repo_id, peer_id);
-        sqlite_query_exec (manager->priv->db, sql);
-    }
-    pthread_mutex_unlock (&manager->priv->db_lock);
-
-    return ret;
-}
-
 static int
 save_branch_repo_map (SeafRepoManager *manager, SeafBranch *branch)
 {
@@ -6687,12 +6833,6 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
         repo->relay_id = NULL;
     }
 
-    value = load_repo_property (manager, repo->id, REPO_NET_BROWSABLE);
-    if (g_strcmp0(value, "true") == 0) {
-        repo->net_browsable = 1;
-    }
-    g_free (value);
-
     repo->email = load_repo_property (manager, repo->id, REPO_PROP_EMAIL);
     repo->token = load_repo_property (manager, repo->id, REPO_PROP_TOKEN);
 
@@ -6819,6 +6959,13 @@ open_db (SeafRepoManager *manager, const char *seaf_dir)
 
     sql = "CREATE TABLE IF NOT EXISTS FolderPermTimestamp ("
         "repo_id TEXT, timestamp INTEGER, PRIMARY KEY (repo_id));";
+    sqlite_query_exec (db, sql);
+
+    sql = "CREATE TABLE IF NOT EXISTS ServerProperty ("
+        "server_url TEXT, key TEXT, value TEXT);";
+    sqlite_query_exec (db, sql);
+
+    sql = "CREATE INDEX IF NOT EXISTS ServerIndex ON ServerProperty (server_url);";
     sqlite_query_exec (db, sql);
 
     return db;
@@ -6996,13 +7143,6 @@ seaf_repo_manager_set_repo_property (SeafRepoManager *manager,
                 seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id,
                                             repo->worktree);
         }
-    }
-
-    if (strcmp(key, REPO_NET_BROWSABLE) == 0) {
-        if (g_strcmp0(value, "true") == 0)
-            repo->net_browsable = 1;
-        else
-            repo->net_browsable = 0;
     }
 
     if (strcmp(key, REPO_RELAY_ID) == 0)
@@ -7505,6 +7645,31 @@ seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
     return 0;
 }
 
+static void
+update_server_properties (SeafRepoManager *mgr,
+                          const char *repo_id,
+                          const char *new_server_url)
+{
+    char *old_server_url = NULL;
+    char *sql = NULL;
+
+    old_server_url = seaf_repo_manager_get_repo_property (mgr, repo_id,
+                                                          REPO_PROP_SERVER_URL);
+    if (!old_server_url)
+        return;
+
+    pthread_mutex_lock (&mgr->priv->db_lock);
+
+    sql = sqlite3_mprintf ("UPDATE ServerProperty SET server_url=%Q WHERE "
+                           "server_url=%Q;", new_server_url, old_server_url);
+    sqlite_query_exec (mgr->priv->db, sql);
+
+    pthread_mutex_unlock (&mgr->priv->db_lock);
+
+    sqlite3_free (sql);
+    g_free (old_server_url);
+}
+
 int
 seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
                                             const char *old_host,
@@ -7513,6 +7678,8 @@ seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
 {
     GList *ptr, *repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, 0, -1);
     SeafRepo *r;
+    char *canon_server_url = canonical_server_url(new_server_url);
+
     for (ptr = repos; ptr; ptr = ptr->next) {
         r = ptr->data;
                 
@@ -7523,8 +7690,12 @@ seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
         if (g_strcmp0(relay_addr, old_host) == 0) {
             seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, r->id,
                                                    new_host, relay_port);
+
+            /* Update server property before server_url is changed. */
+            update_server_properties (mgr, r->id, canon_server_url);
+
             seaf_repo_manager_set_repo_property (
-                seaf->repo_mgr, r->id, REPO_PROP_SERVER_URL, new_server_url);
+                seaf->repo_mgr, r->id, REPO_PROP_SERVER_URL, canon_server_url);
         }
 
         g_free (relay_addr);
@@ -7532,8 +7703,65 @@ seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
     }
 
     g_list_free (repos);
+    g_free (canon_server_url);
 
     return 0;
+}
+
+char *
+seaf_repo_manager_get_server_property (SeafRepoManager *mgr,
+                                       const char *server_url,
+                                       const char *key)
+{
+    char *sql = sqlite3_mprintf ("SELECT value FROM ServerProperty WHERE "
+                                 "server_url=%Q AND key=%Q;",
+                                 server_url, key);
+    char *value;
+
+    pthread_mutex_lock (&mgr->priv->db_lock);
+
+    value = sqlite_get_string (mgr->priv->db, sql);
+
+    pthread_mutex_unlock (&mgr->priv->db_lock);
+
+    sqlite3_free (sql);
+    return value;
+}
+
+int
+seaf_repo_manager_set_server_property (SeafRepoManager *mgr,
+                                       const char *server_url,
+                                       const char *key,
+                                       const char *value)
+{
+    char *sql = sqlite3_mprintf ("INSERT INTO ServerProperty VALUES (%Q, %Q, %Q);",
+                                 server_url, key, value);
+    int ret;
+
+    pthread_mutex_lock (&mgr->priv->db_lock);
+
+    ret = sqlite_query_exec (mgr->priv->db, sql);
+
+    pthread_mutex_unlock (&mgr->priv->db_lock);
+
+    sqlite3_free (sql);
+    return ret;
+}
+
+gboolean
+seaf_repo_manager_server_is_pro (SeafRepoManager *mgr,
+                                 const char *server_url)
+{
+    gboolean ret = FALSE;
+
+    char *is_pro = seaf_repo_manager_get_server_property (seaf->repo_mgr,
+                                                          server_url,
+                                                          SERVER_PROP_IS_PRO);
+    if (is_pro != NULL && strcasecmp (is_pro, "true") == 0)
+        ret = TRUE;
+
+    g_free (is_pro);
+    return ret;
 }
 
 /*

@@ -21,8 +21,6 @@
 
 #include "seafile-session.h"
 
-#include "monitor-rpc-wrappers.h"
-
 #include "seaf-db.h"
 #include "seaf-utils.h"
 

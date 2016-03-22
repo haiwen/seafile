@@ -23,7 +23,6 @@
 #include "log.h"
 #include "utils.h"
 
-#include "processors/check-tx-slave-v2-proc.h"
 #include "processors/check-tx-slave-v3-proc.h"
 #include "processors/recvfs-proc.h"
 #include "processors/putfs-proc.h"
@@ -76,8 +75,6 @@ static void usage ()
 
 static void register_processors (CcnetClient *client)
 {
-    ccnet_register_service (client, "seafile-check-tx-slave-v2", "basic",
-                            SEAFILE_TYPE_CHECK_TX_SLAVE_V2_PROC, NULL);
     ccnet_register_service (client, "seafile-check-tx-slave-v3", "basic",
                             SEAFILE_TYPE_CHECK_TX_SLAVE_V3_PROC, NULL);
     ccnet_register_service (client, "seafile-recvfs", "basic",
