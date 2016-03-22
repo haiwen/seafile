@@ -88,3 +88,5 @@ CREATE TABLE IF NOT EXISTS `institutions_institutionadmin` (
   KEY `i_institution_id_5f792d6fe9a87ac9_fk_institutions_institution_id` (`institution_id`),
   CONSTRAINT `i_institution_id_5f792d6fe9a87ac9_fk_institutions_institution_id` FOREIGN KEY (`institution_id`) REFERENCES `institutions_institution` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+ALTER TABLE `sysadmin_extra_userloginlog` MODIFY `login_ip` VARCHAR(128);
