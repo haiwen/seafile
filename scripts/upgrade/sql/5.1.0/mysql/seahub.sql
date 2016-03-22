@@ -17,6 +17,23 @@ CREATE TABLE IF NOT EXISTS `post_office_attachment_emails` (
   CONSTRAINT `email_id_refs_id_061d81d8` FOREIGN KEY (`email_id`) REFERENCES `post_office_email` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+CREATE TABLE IF NOT EXISTS `post_office_emailtemplate` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `description` longtext NOT NULL,
+  `created` datetime NOT NULL,
+  `last_updated` datetime NOT NULL,
+  `subject` varchar(255) NOT NULL,
+  `content` longtext NOT NULL,
+  `html_content` longtext NOT NULL,
+  `language` varchar(12) NOT NULL,
+  `default_template_id` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `language` (`language`,`default_template_id`),
+  KEY `post_office_emailtemplate_84c7951d` (`default_template_id`),
+  CONSTRAINT `default_template_id_refs_id_a2bc649e` FOREIGN KEY (`default_template_id`) REFERENCES `post_office_emailtemplate` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
 CREATE TABLE IF NOT EXISTS `post_office_email` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `from_email` varchar(254) NOT NULL,
@@ -44,22 +61,6 @@ CREATE TABLE IF NOT EXISTS `post_office_email` (
   CONSTRAINT `template_id_refs_id_a5d97662` FOREIGN KEY (`template_id`) REFERENCES `post_office_emailtemplate` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
-CREATE TABLE IF NOT EXISTS `post_office_emailtemplate` (
-  `id` int(11) NOT NULL AUTO_INCREMENT,
-  `name` varchar(255) NOT NULL,
-  `description` longtext NOT NULL,
-  `created` datetime NOT NULL,
-  `last_updated` datetime NOT NULL,
-  `subject` varchar(255) NOT NULL,
-  `content` longtext NOT NULL,
-  `html_content` longtext NOT NULL,
-  `language` varchar(12) NOT NULL,
-  `default_template_id` int(11) DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `language` (`language`,`default_template_id`),
-  KEY `post_office_emailtemplate_84c7951d` (`default_template_id`),
-  CONSTRAINT `default_template_id_refs_id_a2bc649e` FOREIGN KEY (`default_template_id`) REFERENCES `post_office_emailtemplate` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 CREATE TABLE IF NOT EXISTS `post_office_log` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
@@ -76,7 +77,7 @@ CREATE TABLE IF NOT EXISTS `post_office_log` (
 CREATE TABLE IF NOT EXISTS `institutions_institution` (
   `id` int(11) NOT NULL AUTO_INCREMENT,
   `name` varchar(200) NOT NULL,
-  `create_time` datetime(6) NOT NULL,
+  `create_time` datetime NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
