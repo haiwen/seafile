@@ -3265,6 +3265,9 @@ lock_office_file_on_server (SeafRepo *repo, const char *path)
     int err;
     LockOfficeAux *aux;
 
+    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, repo->server_url))
+        return;
+
     aux = g_new0 (LockOfficeAux, 1);
     aux->repo = repo;
     aux->path = g_strdup(path);
@@ -3322,6 +3325,9 @@ unlock_office_file_on_server (SeafRepo *repo, const char *path)
     pthread_t tid;
     int err;
     LockOfficeAux *aux;
+
+    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, repo->server_url))
+        return;
 
     aux = g_new0 (LockOfficeAux, 1);
     aux->repo = repo;
@@ -6955,6 +6961,13 @@ open_db (SeafRepoManager *manager, const char *seaf_dir)
         "repo_id TEXT, timestamp INTEGER, PRIMARY KEY (repo_id));";
     sqlite_query_exec (db, sql);
 
+    sql = "CREATE TABLE IF NOT EXISTS ServerProperty ("
+        "server_url TEXT, key TEXT, value TEXT);";
+    sqlite_query_exec (db, sql);
+
+    sql = "CREATE INDEX IF NOT EXISTS ServerIndex ON ServerProperty (server_url);";
+    sqlite_query_exec (db, sql);
+
     return db;
 }
 
@@ -7632,6 +7645,31 @@ seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
     return 0;
 }
 
+static void
+update_server_properties (SeafRepoManager *mgr,
+                          const char *repo_id,
+                          const char *new_server_url)
+{
+    char *old_server_url = NULL;
+    char *sql = NULL;
+
+    old_server_url = seaf_repo_manager_get_repo_property (mgr, repo_id,
+                                                          REPO_PROP_SERVER_URL);
+    if (!old_server_url)
+        return;
+
+    pthread_mutex_lock (&mgr->priv->db_lock);
+
+    sql = sqlite3_mprintf ("UPDATE ServerProperty SET server_url=%Q WHERE "
+                           "server_url=%Q;", new_server_url, old_server_url);
+    sqlite_query_exec (mgr->priv->db, sql);
+
+    pthread_mutex_unlock (&mgr->priv->db_lock);
+
+    sqlite3_free (sql);
+    g_free (old_server_url);
+}
+
 int
 seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
                                             const char *old_host,
@@ -7640,6 +7678,8 @@ seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
 {
     GList *ptr, *repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, 0, -1);
     SeafRepo *r;
+    char *canon_server_url = canonical_server_url(new_server_url);
+
     for (ptr = repos; ptr; ptr = ptr->next) {
         r = ptr->data;
                 
@@ -7650,8 +7690,12 @@ seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
         if (g_strcmp0(relay_addr, old_host) == 0) {
             seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, r->id,
                                                    new_host, relay_port);
+
+            /* Update server property before server_url is changed. */
+            update_server_properties (mgr, r->id, canon_server_url);
+
             seaf_repo_manager_set_repo_property (
-                seaf->repo_mgr, r->id, REPO_PROP_SERVER_URL, new_server_url);
+                seaf->repo_mgr, r->id, REPO_PROP_SERVER_URL, canon_server_url);
         }
 
         g_free (relay_addr);
@@ -7659,8 +7703,65 @@ seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
     }
 
     g_list_free (repos);
+    g_free (canon_server_url);
 
     return 0;
+}
+
+char *
+seaf_repo_manager_get_server_property (SeafRepoManager *mgr,
+                                       const char *server_url,
+                                       const char *key)
+{
+    char *sql = sqlite3_mprintf ("SELECT value FROM ServerProperty WHERE "
+                                 "server_url=%Q AND key=%Q;",
+                                 server_url, key);
+    char *value;
+
+    pthread_mutex_lock (&mgr->priv->db_lock);
+
+    value = sqlite_get_string (mgr->priv->db, sql);
+
+    pthread_mutex_unlock (&mgr->priv->db_lock);
+
+    sqlite3_free (sql);
+    return value;
+}
+
+int
+seaf_repo_manager_set_server_property (SeafRepoManager *mgr,
+                                       const char *server_url,
+                                       const char *key,
+                                       const char *value)
+{
+    char *sql = sqlite3_mprintf ("INSERT INTO ServerProperty VALUES (%Q, %Q, %Q);",
+                                 server_url, key, value);
+    int ret;
+
+    pthread_mutex_lock (&mgr->priv->db_lock);
+
+    ret = sqlite_query_exec (mgr->priv->db, sql);
+
+    pthread_mutex_unlock (&mgr->priv->db_lock);
+
+    sqlite3_free (sql);
+    return ret;
+}
+
+gboolean
+seaf_repo_manager_server_is_pro (SeafRepoManager *mgr,
+                                 const char *server_url)
+{
+    gboolean ret = FALSE;
+
+    char *is_pro = seaf_repo_manager_get_server_property (seaf->repo_mgr,
+                                                          server_url,
+                                                          SERVER_PROP_IS_PRO);
+    if (is_pro != NULL && strcasecmp (is_pro, "true") == 0)
+        ret = TRUE;
+
+    g_free (is_pro);
+    return ret;
 }
 
 /*

@@ -374,6 +374,23 @@ seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
                                             const char *new_host,
                                             const char *new_server_url);
 
+#define SERVER_PROP_IS_PRO "is_pro"
+
+char *
+seaf_repo_manager_get_server_property (SeafRepoManager *mgr,
+                                       const char *server_url,
+                                       const char *key);
+
+int
+seaf_repo_manager_set_server_property (SeafRepoManager *mgr,
+                                       const char *server_url,
+                                       const char *key,
+                                       const char *value);
+
+gboolean
+seaf_repo_manager_server_is_pro (SeafRepoManager *mgr,
+                                 const char *server_url);
+
 GList *
 seaf_repo_load_ignore_files (const char *worktree);
 
