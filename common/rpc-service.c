@@ -920,6 +920,37 @@ seafile_mark_file_unlocked (const char *repo_id, const char *path, GError **erro
     return ret;
 }
 
+char *
+seafile_get_server_property (const char *server_url, const char *key, GError **error)
+{
+    if (!server_url || !key) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Argument should not be null");
+        return NULL;
+    }
+
+    return seaf_repo_manager_get_server_property (seaf->repo_mgr,
+                                                  server_url,
+                                                  key);
+}
+
+int
+seafile_set_server_property (const char *server_url,
+                             const char *key,
+                             const char *value,
+                             GError **error)
+{
+    if (!server_url || !key || !value) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Argument should not be null");
+        return -1;
+    }
+
+    return seaf_repo_manager_set_server_property (seaf->repo_mgr,
+                                                  server_url,
+                                                  key, value);
+}
+
 #endif  /* not define SEAFILE_SERVER */
 
 /*

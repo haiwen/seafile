@@ -2421,8 +2421,22 @@ out:
 static void
 check_folder_permissions (CloneTask *task)
 {
+    SeafRepo *repo = NULL;
     HttpFolderPermReq *req;
     GList *requests = NULL;
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, task->repo_id);
+    if (repo == NULL) {
+        seaf_warning ("[Clone mgr] cannot find repo %s after fetched.\n", 
+                      task->repo_id);
+        transition_to_error (task, CLONE_ERROR_INTERNAL);
+        return;
+    }
+
+    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, task->server_url)) {
+        mark_clone_done_v2 (repo, task);
+        return;
+    }
 
     req = g_new0 (HttpFolderPermReq, 1);
     memcpy (req->repo_id, task->repo_id, 36);

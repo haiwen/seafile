@@ -294,6 +294,16 @@ start_rpc_service (CcnetClient *client)
                                      seafile_generate_magic_and_random_key,
                                      "seafile_generate_magic_and_random_key",
                                      searpc_signature_object__int_string_string());
+
+    searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_get_server_property,
+                                     "seafile_get_server_property",
+                                     searpc_signature_string__string_string());
+
+    searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_set_server_property,
+                                     "seafile_set_server_property",
+                                     searpc_signature_int__string_string_string());
 }
 
 static void
