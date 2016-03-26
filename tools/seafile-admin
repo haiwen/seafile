@@ -518,10 +518,10 @@ def init_seahub():
 
 
 def check_django_version():
-    '''Requires django 1.5'''
+    '''Requires django 1.8'''
     import django
-    if django.VERSION[1] != 5:
-        error('Django 1.5 is required')
+    if django.VERSION[1] != 8:
+        error('Django 1.8 is required')
     else:
         del django
 
@@ -543,7 +543,7 @@ def check_python_dependencies(silent=False):
         info('check python modules ...')
     check_python_module('sqlite3', 'sqlite3', silent=silent)
     check_python_module('PIL', 'python imaging library(PIL)', silent=silent)
-    check_python_module('django', 'django 1.5', silent=silent)
+    check_python_module('django', 'django 1.8', silent=silent)
     check_python_module('djblets', 'djblets', silent=silent)
     check_django_version()
 
