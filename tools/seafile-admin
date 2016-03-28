@@ -683,7 +683,8 @@ def start_controller():
 
 def start_seahub_gunicorn():
     argv = [
-        'gunicorn_django',
+        'gunicorn',
+        'seahub.wsgi:application',
         '-c',
         conf[CONF_SEAHUB_CONF],
         '-b',
