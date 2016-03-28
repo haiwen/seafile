@@ -6965,7 +6965,7 @@ open_db (SeafRepoManager *manager, const char *seaf_dir)
     sqlite_query_exec (db, sql);
 
     sql = "CREATE TABLE IF NOT EXISTS ServerProperty ("
-        "server_url TEXT, key TEXT, value TEXT);";
+        "server_url TEXT, key TEXT, value TEXT, PRIMARY KEY (server_url, key));";
     sqlite_query_exec (db, sql);
 
     sql = "CREATE INDEX IF NOT EXISTS ServerIndex ON ServerProperty (server_url);";
@@ -7737,17 +7737,20 @@ seaf_repo_manager_set_server_property (SeafRepoManager *mgr,
                                        const char *key,
                                        const char *value)
 {
-    char *sql = sqlite3_mprintf ("INSERT INTO ServerProperty VALUES (%Q, %Q, %Q);",
-                                 server_url, key, value);
+    char *sql;
     int ret;
+    char *canon_server_url = canonical_server_url(server_url);
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
+    sql = sqlite3_mprintf ("REPLACE INTO ServerProperty VALUES (%Q, %Q, %Q);",
+                           canon_server_url, key, value);
     ret = sqlite_query_exec (mgr->priv->db, sql);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
     sqlite3_free (sql);
+    g_free (canon_server_url);
     return ret;
 }
 
