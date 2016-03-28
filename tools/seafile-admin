@@ -520,13 +520,13 @@ def init_seahub():
 def check_django_version():
     '''Requires django 1.8'''
     import django
-    if django.VERSION[1] != 8:
+    if django.VERSION[0] != 1 or django.VERSION[1] != 8:
         error('Django 1.8 is required')
-    else:
-        del django
+    del django
 
 
-def check_python_module(import_name, package_name, silent=False):
+def check_python_module(import_name, package_name=None, silent=False):
+    package_name = package_name or import_name
     if not silent:
         info('checking %s' % package_name)
     try:
@@ -541,11 +541,26 @@ def check_python_dependencies(silent=False):
 
     if not silent:
         info('check python modules ...')
-    check_python_module('sqlite3', 'sqlite3', silent=silent)
-    check_python_module('PIL', 'python imaging library(PIL)', silent=silent)
-    check_python_module('django', 'django 1.8', silent=silent)
-    check_python_module('djblets', 'djblets', silent=silent)
     check_django_version()
+    def check(*a, **kw):
+        kw.setdefault('silent', silent)
+        check_python_module(*a, **kw)
+    pkgs = [
+        'sqlite3',
+        'chardet',
+        'six',
+        'pytz',
+        'rest_framework',
+        'compressor',
+        'statici18n',
+        'jsonfield',
+        'dateutil',
+        'constance',
+        'openpyxl',
+    ] # yapf: disable
+    for pkg in pkgs:
+        check(pkg)
+    check('PIL', 'python imaging library(PIL)')
 
     print
 
