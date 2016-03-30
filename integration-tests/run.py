@@ -70,6 +70,9 @@ def prepend_env_value(name, value, seperator=':', env=None):
 def get_project_branch(project, default_branch='master'):
     if project.name == 'seafile':
         return TRAVIS_BRANCH
+    env_branch = os.environ.get('PROJECT_' + project.name.upper() + '_BRANCH')
+    if env_branch:
+        return env_branch
     conf = json.loads(requests.get(
         'https://raw.githubusercontent.com/haiwen/seafile-test-deploy/master/branches.json').text)
     return conf.get(TRAVIS_BRANCH, {}).get(project.name,
@@ -85,7 +88,8 @@ class Project(object):
 
     @property
     def url(self):
-        return 'https://www.github.com/haiwen/{}.git'.format(self.name)
+        default_url = 'https://www.github.com/haiwen/{}.git'.format(self.name)
+        return os.environ.get('PROJECT_' + self.name.upper() + '_URL', default_url)
 
     @property
     def projectdir(self):
