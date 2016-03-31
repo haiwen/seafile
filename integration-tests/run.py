@@ -70,7 +70,8 @@ def prepend_env_value(name, value, seperator=':', env=None):
 def get_project_branch(project, default_branch='master'):
     if project.name == 'seafile':
         return TRAVIS_BRANCH
-    env_branch = os.environ.get('PROJECT_' + project.name.upper() + '_BRANCH')
+    env_branch = (os.environ.get('PROJECT_' + project.name.upper() + '_BRANCH') or
+                  os.environ.get('PROJECT_ALL_BRANCH'))
     if env_branch:
         return env_branch
     conf = json.loads(requests.get(
@@ -88,7 +89,9 @@ class Project(object):
 
     @property
     def url(self):
-        default_url = 'https://www.github.com/haiwen/{}.git'.format(self.name)
+        base_url = os.environ.get('PROJECT_ALL_BASE_URL',
+                                  'https://www.github.com/haiwen')
+        default_url = '{}/{}.git'.format(base_url, self.name)
         return os.environ.get('PROJECT_' + self.name.upper() + '_URL', default_url)
 
     @property
