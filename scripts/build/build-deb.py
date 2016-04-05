@@ -331,7 +331,7 @@ def validate_args(usage, options):
     conf[CONF_BUILDDIR] = builddir
     conf[CONF_SRCDIR] = srcdir
     conf[CONF_OUTPUTDIR] = outputdir
-    conf[CONF_KEEP] = keep
+    conf[CONF_KEEP] = True
     conf[CONF_NO_STRIP] = nostrip
 
     prepare_builddir(builddir)

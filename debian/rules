@@ -9,7 +9,6 @@
 # Uncomment this to turn on verbose mode.
 #export DH_VERBOSE=1
 
-
 # These are used for cross-compiling and for saving the configure script
 # from having to guess our platform (since we know it already)
 DEB_HOST_GNU_TYPE   ?= $(shell dpkg-architecture -qDEB_HOST_GNU_TYPE)
@@ -46,7 +45,7 @@ build:
 	./configure --prefix=/usr CFLAGS="$(CFLAGS)" && make && make install DESTDIR=$(destdir)
 
 	# build and install seafile-client
-	cd $(seafile_client_dir) && cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DBUILD_SHIBBOLETH_SUPPORT=ON . && make -j2 && make install DESTDIR=$(destdir)
+	export QT_SELECT=5 && cd $(seafile_client_dir) && cmake -DUSE_QT5=ON -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=Release -DBUILD_SHIBBOLETH_SUPPORT=ON . && make -j2 && make install DESTDIR=$(destdir)
 
 	# remove development files
 	rm -rf $(install_prefix)/include
