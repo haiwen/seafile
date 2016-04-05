@@ -7,7 +7,6 @@
 #include "seafile-session.h"
 #include "recvbranch-v2-proc.h"
 #include "vc-common.h"
-#include "monitor-rpc-wrappers.h"
 
 #include "merge-new.h"
 #include "diff-simple.h"

@@ -16,7 +16,6 @@
 #include "seafile-rpc.h"
 
 #ifdef SEAFILE_SERVER
-#include "monitor-rpc-wrappers.h"
 #include "web-accesstoken-mgr.h"
 #endif
 
@@ -883,7 +882,7 @@ seafile_mark_file_locked (const char *repo_id, const char *path, GError **error)
         canon_path[len-1] = 0;
 
     ret = seaf_filelock_manager_mark_file_locked (seaf->filelock_mgr,
-                                                  repo_id, path);
+                                                  repo_id, path, FALSE);
 
     g_free (canon_path);
     return ret;
@@ -919,6 +918,37 @@ seafile_mark_file_unlocked (const char *repo_id, const char *path, GError **erro
 
     g_free (canon_path);
     return ret;
+}
+
+char *
+seafile_get_server_property (const char *server_url, const char *key, GError **error)
+{
+    if (!server_url || !key) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Argument should not be null");
+        return NULL;
+    }
+
+    return seaf_repo_manager_get_server_property (seaf->repo_mgr,
+                                                  server_url,
+                                                  key);
+}
+
+int
+seafile_set_server_property (const char *server_url,
+                             const char *key,
+                             const char *value,
+                             GError **error)
+{
+    if (!server_url || !key || !value) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Argument should not be null");
+        return -1;
+    }
+
+    return seaf_repo_manager_set_server_property (seaf->repo_mgr,
+                                                  server_url,
+                                                  key, value);
 }
 
 #endif  /* not define SEAFILE_SERVER */
@@ -1102,6 +1132,7 @@ convert_to_seafile_commit (SeafCommit *c)
                   "version", c->version,
                   "new_merge", c->new_merge,
                   "conflict", c->conflict,
+                  "device_name", c->device_name,
                   NULL);
     return commit;
 }

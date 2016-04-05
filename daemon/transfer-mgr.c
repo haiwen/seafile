@@ -29,7 +29,6 @@
 #include "mq-mgr.h"
 #include "seafile-config.h"
 
-#include "processors/check-tx-v2-proc.h"
 #include "processors/check-tx-v3-proc.h"
 #include "processors/sendfs-proc.h"
 #include "processors/getfs-proc.h"
@@ -445,10 +444,6 @@ seaf_transfer_manager_new (struct _SeafileSession *seaf)
 
 static void register_processors (CcnetClient *client)
 {
-    ccnet_proc_factory_register_processor (client->proc_factory,
-                                           "seafile-check-tx-v2",
-                                           SEAFILE_TYPE_CHECK_TX_V2_PROC);
-
     ccnet_proc_factory_register_processor (client->proc_factory,
                                            "seafile-check-tx-v3",
                                            SEAFILE_TYPE_CHECK_TX_V3_PROC);

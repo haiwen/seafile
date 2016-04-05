@@ -20,15 +20,12 @@ bin_PROGRAMS += seaf-daemon
 endif
 
 proc_headers = $(addprefix processors/, \
-	check-tx-proc.h \
-	check-tx-v2-proc.h \
 	check-tx-v3-proc.h \
 	sendfs-proc.h \
 	getfs-proc.h \
 	sendbranch-proc.h \
 	getcs-proc.h \
 	sync-repo-proc.h \
-	check-tx-slave-proc.h \
 	getcommit-v2-proc.h \
 	sendcommit-v3-proc.h \
 	sendcommit-v3-new-proc.h \
@@ -42,10 +39,7 @@ proc_headers = $(addprefix processors/, \
 	sendfs-v2-proc.h \
 	getfs-v2-proc.h)
 
-proc_headers += ../common/processors/objecttx-common.h \
-				../common/processors/blocktx-common.h \
-				../common/processors/blocktx-common-impl.h \
-				../common/processors/blocktx-common-impl-v2.h
+proc_headers += ../common/processors/objecttx-common.h
 
 noinst_HEADERS = \
 	repo-mgr.h \
@@ -58,7 +52,6 @@ noinst_HEADERS = \
 	../common/sync-repo-common.h \
 	block-tx-client.h \
 	seafile-config.h \
-	client-migrate.h \
 	http-tx-mgr.h \
 	sync-status-tree.h \
 	filelock-mgr.h \
@@ -102,20 +95,16 @@ common_src = \
 	../common/curl-init.c \
 	block-tx-client.c \
 	../common/block-tx-utils.c \
-	client-migrate.c \
 	sync-status-tree.c \
 	filelock-mgr.c \
 	set-perm.c \
 	change-set.c \
-	processors/check-tx-proc.c \
-	processors/check-tx-v2-proc.c \
 	processors/check-tx-v3-proc.c \
 	processors/sendfs-proc.c \
 	processors/getfs-proc.c \
 	processors/sendbranch-proc.c \
 	processors/getcs-proc.c \
 	processors/sync-repo-proc.c \
-	processors/check-tx-slave-proc.c \
 	processors/getcommit-v2-proc.c \
 	processors/sendcommit-v3-proc.c \
 	processors/sendcommit-v3-new-proc.c \
@@ -140,59 +129,3 @@ seaf_daemon_LDADD = $(top_builddir)/lib/libseafile_common.la \
 	@SEARPC_LIBS@ @CCNET_LIBS@ @GNOME_KEYRING_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@ @CURL_LIBS@ @BPWRAPPER_LIBS@
 
 seaf_daemon_LDFLAGS = @STATIC_COMPILE@ @CONSOLE@
-
-# seaf_tool_CFLAGS = $(AM_CFLAGS) -DSEAF_TOOL
-
-# seaf_tool_SOURCES = seaf-tool.c $(common_src)
-
-# seaf_tool_LDADD = $(seaf_daemon_LDADD)
-
-# seaf_tool_LDFLAGS = @STATIC_COMPILE@ # @CONSOLE@
-
-#check_PROGRAMS = seaf-test
-
-#seaf_test_SOURCES = \
-#	seaf-test.c transfer-mgr.c \
-#	merge.c merge-recursive.c vc-utils.c \
-#	status.c sync-mgr.c seafile-session.c \
-#	../common/seafile-crypt.c ../common/diff-simple.c ${wt_monitor_src} \
-#	../common/seafile-config.c ../common/bitfield.c clone-mgr.c \
-#	../common/branch-mgr.c ../common/fs-mgr.c \
-#	repo-mgr.c ../common/commit-mgr.c \
-#	../common/log.c ../common/object-list.c \
-#	../common/rpc-service.c \
-#	../common/gc.c ../common/vc-common.c ../common/seaf-utils.c \
-#	../common/unpack-trees.c ../common/seaf-tree-walk.c \
-#	../common/mq-mgr.c \
-#	../common/obj-store.c \
-#	../common/obj-backend-fs.c \
-#	../common/block-mgr.c \
-#	../common/block-backend.c \
-#	../common/block-backend-fs.c \
-#	processors/check-tx-proc.c \
-#	processors/getcommit-proc.c \
-#	processors/sendcommit-proc.c \
-#	processors/sendfs-proc.c \
-#	processors/getfs-proc.c \
-#	processors/getblock-proc.c \
-#	processors/sendblock-proc.c \
-#	processors/sendbranch-proc.c \
-#	processors/getcs-proc.c \
-#	processors/notifysync-proc.c \
-#	processors/notifysync-slave-proc.c \
-#	processors/sync-repo-proc.c \
-#	processors/getcommit-v2-proc.c \
-#	processors/sendcommit-v2-proc.c
-
-#seaf_test_CPPFLAGS = -DDEBUG_UNPACK_TREES -DSEAF_TEST
-#seaf_test_LDADD = @CCNET_LIBS@ \
-#	@LIB_INTL@ \
-#	$(top_builddir)/lib/libseafile_common.la \
-#	@GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 @LIBEVENT_LIBS@ \
-#	$(top_builddir)/common/cdc/libcdc.la \
-#	$(top_builddir)/common/index/libindex.la ${LIB_WS32} \
-#	@SEARPC_LIBS@ @LIB_DIRWATCH@
-
-#seaf_test_LDFLAGS = @STATIC_COMPILE@  @CONSOLE@
-
-#TESTS = seaf-test

@@ -260,6 +260,23 @@ http_tx_manager_get_locked_files (HttpTxManager *manager,
                                   HttpGetLockedFilesCallback callback,
                                   void *user_data);
 
+/* Synchronous interface for locking/unlocking a file on the server. */
+int
+http_tx_manager_lock_file (HttpTxManager *manager,
+                           const char *host,
+                           gboolean use_fileserver_port,
+                           const char *token,
+                           const char *repo_id,
+                           const char *path);
+
+int
+http_tx_manager_unlock_file (HttpTxManager *manager,
+                             const char *host,
+                             gboolean use_fileserver_port,
+                             const char *token,
+                             const char *repo_id,
+                             const char *path);
+
 int
 http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id);
 

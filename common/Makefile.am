@@ -2,10 +2,7 @@ SUBDIRS = cdc index
 
 proc_headers =
 	$(addprefix processors/, \
-	objecttx-common.h \
-	putblock-proc.h \
-	blocktx-common.h \
-	blocktx-common-impl.h)
+	objecttx-common.h)
 
 noinst_HEADERS = \
 	unpack-trees.h \
@@ -23,7 +20,6 @@ noinst_HEADERS = \
 	seaf-utils.h \
 	obj-store.h \
 	obj-backend.h \
-	riak-client.h \
 	block-backend.h \
 	block.h \
 	mq-mgr.h \
@@ -32,11 +28,3 @@ noinst_HEADERS = \
 	block-tx-utils.h \
 	curl-init.h \
 	$(proc_headers)
-
-#check_PROGRAMS = riak-http-test
-
-#riak_http_test_SOURCES = riak-http-test.c riak-http-client.c
-
-#riak_http_test_CPPFLAGS = -DRIAK_TEST
-#riak_http_test_CFLAGS = @GLIB2_CFLAGS@ -I$(top_srcdir)/lib
-#riak_http_test_LDADD = @GLIB2_LIBS@ -lcurl

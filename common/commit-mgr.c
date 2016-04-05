@@ -620,6 +620,9 @@ commit_to_json_object (SeafCommit *commit)
                                    commit->repo_desc);
     json_object_set_string_or_null_member (object, "repo_category",
                                            commit->repo_category);
+    if (commit->device_name)
+        json_object_set_string_member (object, "device_name", commit->device_name);
+
     if (commit->encrypted)
         json_object_set_string_member (object, "encrypted", "true");
 
@@ -658,6 +661,7 @@ commit_from_json_object (const char *commit_id, json_t *object)
     const char *repo_name;
     const char *repo_desc;
     const char *repo_category;
+    const char *device_name;
     const char *encrypted = NULL;
     int enc_version = 0;
     const char *magic = NULL;
@@ -686,6 +690,8 @@ commit_from_json_object (const char *commit_id, json_t *object)
     if (!repo_desc)
         repo_desc = "";
     repo_category = json_object_get_string_or_null_member (object, "repo_category");
+    device_name = json_object_get_string_or_null_member (object, "device_name");
+
     if (json_object_has_member (object, "encrypted"))
         encrypted = json_object_get_string_or_null_member (object, "encrypted");
 
@@ -755,6 +761,7 @@ commit_from_json_object (const char *commit_id, json_t *object)
         commit->encrypted = FALSE;
     if (repo_category)
         commit->repo_category = g_strdup(repo_category);
+    commit->device_name = g_strdup(device_name);
 
     if (commit->encrypted) {
         commit->enc_version = enc_version;

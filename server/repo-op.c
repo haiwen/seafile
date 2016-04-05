@@ -24,7 +24,6 @@
 #include "seafile-crypt.h"
 #include "diff-simple.h"
 #include "merge-new.h"
-#include "monitor-rpc-wrappers.h"
 
 #include "seaf-db.h"
 
@@ -4147,6 +4146,7 @@ convert_to_seafile_commit (SeafCommit *c)
                   "version", c->version,
                   "new_merge", c->new_merge,
                   "conflict", c->conflict,
+                  "device_name", c->device_name,
                   NULL);
     return commit;
 }

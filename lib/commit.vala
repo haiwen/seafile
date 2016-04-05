@@ -63,6 +63,8 @@ public class Commit : Object {
 	public int64 rev_file_size { get; set; }
 	// Set if this commit renames a revision of a file
 	public string rev_renamed_old_path { get; set; }
+
+	public string device_name { get; set; }
 }
 
 } // namespace

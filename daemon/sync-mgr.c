@@ -2467,6 +2467,9 @@ check_folder_permissions_one_server (SeafSyncManager *mgr,
     HttpFolderPermReq *req;
     GList *requests = NULL;
 
+    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, host))
+        return;
+
     gint64 now = (gint64)time(NULL);
 
     if (server_state->http_version == 0 ||
@@ -2582,9 +2585,9 @@ check_server_locked_files_done (HttpLockedFiles *result, void *user_data)
 
 static void
 check_locked_files_one_server (SeafSyncManager *mgr,
-                                     const char *host,
-                                     HttpServerState *server_state,
-                                     GList *repos)
+                               const char *host,
+                               HttpServerState *server_state,
+                               GList *repos)
 {
     GList *ptr;
     SeafRepo *repo;
@@ -2592,6 +2595,9 @@ check_locked_files_one_server (SeafSyncManager *mgr,
     gint64 timestamp;
     HttpLockedFilesReq *req;
     GList *requests = NULL;
+
+    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, host))
+        return;
 
     gint64 now = (gint64)time(NULL);
 

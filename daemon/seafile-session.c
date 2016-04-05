@@ -27,8 +27,6 @@
 #include "seaf-utils.h"
 #include "log.h"
 
-#include "client-migrate.h"
-
 #define MAX_THREADS 50
 
 enum {
@@ -206,6 +204,50 @@ seafile_session_init (SeafileSession *session)
 {
 }
 
+static void
+load_system_proxy (SeafileSession *session)
+{
+    char *system_proxy_txt = g_build_filename (seaf->seaf_dir, "system-proxy.txt", NULL);
+    json_t *json = NULL;
+    if (!g_file_test (system_proxy_txt, G_FILE_TEST_EXISTS)) {
+        seaf_warning ("Can't load system proxy: file %s doesn't exist\n", system_proxy_txt);
+        goto out;
+    }
+
+    json_error_t jerror;
+    json = json_load_file(system_proxy_txt, 0, &jerror);
+    if (!json) {
+        if (strlen(jerror.text) > 0)
+            seaf_warning ("Failed to load system proxy information: %s.\n", jerror.text);
+        else
+            seaf_warning ("Failed to load system proxy information\n");
+        goto out;
+    }
+    const char *type;
+    type = json_object_get_string_member (json, "type");
+    if (!type) {
+        seaf_warning ("Failed to load system proxy information: proxy type missing\n");
+        goto out;
+    }
+    if (strcmp(type, "none") != 0 && strcmp(type, "socks") != 0 && strcmp(type, "http") != 0) {
+        seaf_warning ("Failed to load system proxy information: invalid proxy type %s\n", type);
+        goto out;
+    }
+    if (g_strcmp0(type, "none") == 0) {
+        goto out;
+    }
+    session->http_proxy_type = g_strdup(type);
+    session->http_proxy_addr = g_strdup(json_object_get_string_member (json, "addr"));
+    session->http_proxy_port = json_object_get_int_member (json, "port");
+    session->http_proxy_username = g_strdup(json_object_get_string_member (json, "username"));
+    session->http_proxy_password = g_strdup(json_object_get_string_member (json, "password"));
+
+out:
+    g_free (system_proxy_txt);
+    if (json)
+        json_decref(json);
+}
+
 void
 seafile_session_prepare (SeafileSession *session)
 {
@@ -219,18 +261,26 @@ seafile_session_prepare (SeafileSession *session)
     session->disable_verify_certificate = seafile_session_config_get_bool
         (session, KEY_DISABLE_VERIFY_CERTIFICATE);
 
-    session->use_http_proxy = seafile_session_config_get_bool
-        (session, KEY_USE_PROXY);
-    session->http_proxy_type = seafile_session_config_get_string
-        (session, KEY_PROXY_TYPE);
-    session->http_proxy_addr = seafile_session_config_get_string
-        (session, KEY_PROXY_ADDR);
-    session->http_proxy_port = seafile_session_config_get_int
-        (session, KEY_PROXY_PORT, NULL);
-    session->http_proxy_username = seafile_session_config_get_string
-        (session, KEY_PROXY_USERNAME);
-    session->http_proxy_password = seafile_session_config_get_string
-        (session, KEY_PROXY_PASSWORD);
+    session->use_http_proxy =
+        seafile_session_config_get_bool(session, KEY_USE_PROXY);
+
+    gboolean use_system_proxy =
+        seafile_session_config_get_bool(session, "use_system_proxy");
+
+    if (use_system_proxy) {
+        load_system_proxy(session);
+    } else {
+        session->http_proxy_type =
+            seafile_session_config_get_string(session, KEY_PROXY_TYPE);
+        session->http_proxy_addr =
+            seafile_session_config_get_string(session, KEY_PROXY_ADDR);
+        session->http_proxy_port =
+            seafile_session_config_get_int(session, KEY_PROXY_PORT, NULL);
+        session->http_proxy_username =
+            seafile_session_config_get_string(session, KEY_PROXY_USERNAME);
+        session->http_proxy_password =
+            seafile_session_config_get_string(session, KEY_PROXY_PASSWORD);
+    }
 
     /* Start mq manager earlier, so that we can send notifications
      * when start repo manager. */
@@ -332,7 +382,7 @@ on_start_cleanup_job (void *vdata)
      * there will be some sync error in run time. The user has to recover the
      * error by resyncing.
      */
-    migrate_client_v0_repos ();
+    /* migrate_client_v0_repos (); */
 
     cleanup_unused_repo_block_stores ();
 
