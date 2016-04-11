@@ -102,6 +102,15 @@ CREATE TABLE IF NOT EXISTS `institutions_institutionadmin` (
   CONSTRAINT `i_institution_id_5f792d6fe9a87ac9_fk_institutions_institution_id` FOREIGN KEY (`institution_id`) REFERENCES `institutions_institution` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
+CREATE TABLE IF NOT EXISTS `sysadmin_extra_userloginlog` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `username` varchar(255) NOT NULL,
+  `login_date` datetime NOT NULL,
+  `login_ip` varchar(128) NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `sysadmin_extra_userloginlog_14c4b06b` (`username`),
+  KEY `sysadmin_extra_userloginlog_28ed1ef0` (`login_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 ALTER TABLE `sysadmin_extra_userloginlog` MODIFY `login_ip` VARCHAR(128);
 
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
