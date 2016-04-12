@@ -622,9 +622,10 @@ get_check_permission_cb (evhtp_request_t *req, void *arg)
 
     if (strcmp (op, "download") == 0) {
         on_repo_oper (htp_server, "repo-download-sync", repo_id, username, ip, client_name);
-    } else if (strcmp (op, "upload") == 0) {
-        on_repo_oper (htp_server, "repo-upload-sync", repo_id, username, ip, client_name);
     }
+    /* else if (strcmp (op, "upload") == 0) { */
+    /*     on_repo_oper (htp_server, "repo-upload-sync", repo_id, username, ip, client_name); */
+    /* } */
 
     if (client_id && client_name) {
         token = evhtp_kv_find (req->headers_in, "Seafile-Repo-Token");
