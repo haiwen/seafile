@@ -1371,7 +1371,13 @@ seaf_dirent_new (int version, const char *sha1, int mode, const char *name,
     dent->version = version;
     memcpy(dent->id, sha1, 40);
     dent->id[40] = '\0';
-    dent->mode = mode;
+    /* Mode for files must have 0644 set. To prevent the caller from forgetting,
+     * we set the bits here.
+     */
+    if (S_ISREG(mode))
+        dent->mode = (mode | 0644);
+    else
+        dent->mode = mode;
     dent->name = g_strdup(name);
     dent->name_len = strlen(name);
 
