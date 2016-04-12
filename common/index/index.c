@@ -529,15 +529,15 @@ static int ce_match_stat_basic(struct cache_entry *ce, SeafStat *st)
     /* if (ce->ce_ctime.sec != st->st_ctime) */
     /*     changed |= CTIME_CHANGED; */
 
+    if (ce->ce_size != st->st_size)
+        changed |= DATA_CHANGED;
+
 #if 0
     if (ce->ce_uid != (unsigned int) st->st_uid ||
         ce->ce_gid != (unsigned int) st->st_gid)
         changed |= OWNER_CHANGED;
     if (ce->ce_ino != (unsigned int) st->st_ino)
         changed |= INODE_CHANGED;
-
-    if (ce->ce_size != st->st_size)
-        changed |= DATA_CHANGED;
 
     /* Racily smudged entry? */
     if (!ce->ce_size) {
