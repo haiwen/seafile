@@ -5349,12 +5349,12 @@ seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, int fold_dir_d
     if (old == NULL || old[0] == '\0') {
         if (c2->parent_id && c2->second_parent_id) {
             ret = diff_merge (c2, &diff_entries, fold_dir_diff);
+            seaf_commit_unref (c2);
             if (ret < 0) {
                 *error = g_strdup("Failed to do diff");
-                seaf_commit_unref (c2);
+                g_list_free_full (diff_entries, (GDestroyNotify)diff_entry_free);
                 return NULL;
             }
-            seaf_commit_unref (c2);
             return diff_entries;
         }
 
@@ -5377,8 +5377,11 @@ seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, int fold_dir_d
 
     /* do diff */
     ret = diff_commits (c1, c2, &diff_entries, fold_dir_diff);
-    if (ret < 0)
+    if (ret < 0) {
+        g_list_free_full (diff_entries, (GDestroyNotify)diff_entry_free);
+        diff_entries = NULL;
         *error = g_strdup("Failed to do diff");
+    }
 
     seaf_commit_unref (c1);
     seaf_commit_unref (c2);

@@ -27,6 +27,7 @@
 #include "seafile-session.h"
 #include "seafile-rpc.h"
 #include <ccnet/rpcserver-proc.h>
+#include <ccnet/threaded-rpcserver-proc.h>
 #include "log.h"
 #include "utils.h"
 #include "vc-utils.h"
@@ -78,10 +79,9 @@ start_rpc_service (CcnetClient *client)
     ccnet_register_service (client, "seafile-rpcserver", "rpc-inner",
                             CCNET_TYPE_RPCSERVER_PROC, NULL);
 
-    /* searpc_create_service ("seafile-threaded-rpcserver"); */
-    /* ccnet_register_service (client, "seafile-threaded-rpcserver", "rpc-inner", */
-    /*                         CCNET_TYPE_THREADED_RPCSERVER_PROC, */
-    /*                         seafile_register_service_cb); */
+    searpc_create_service ("seafile-threaded-rpcserver");
+    ccnet_register_service (client, "seafile-threaded-rpcserver", "rpc-inner",
+                            CCNET_TYPE_THREADED_RPCSERVER_PROC, NULL);
 
     /* seafile-rpcserver */
     searpc_server_register_function ("seafile-rpcserver",
@@ -304,6 +304,12 @@ start_rpc_service (CcnetClient *client)
                                      seafile_set_server_property,
                                      "seafile_set_server_property",
                                      searpc_signature_int__string_string_string());
+
+    /* Need to run in a thread since diff may take long. */
+    searpc_server_register_function ("seafile-threaded-rpcserver",
+                                     seafile_diff,
+                                     "seafile_diff",
+                                     searpc_signature_objlist__string_string_string_int());
 }
 
 static void

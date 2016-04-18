@@ -186,6 +186,9 @@ int
 seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
                  int *merge_status);
 
+GList *
+seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, int fold_dir_diff, char **error);
+
 typedef struct _SeafRepoManager SeafRepoManager;
 typedef struct _SeafRepoManagerPriv SeafRepoManagerPriv;
 

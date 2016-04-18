@@ -4356,6 +4356,65 @@ error:
     return -1;
 }
 
+GList *
+seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, int fold_dir_diff, char **error)
+{
+    SeafCommit *c1 = NULL, *c2 = NULL;
+    int ret = 0;
+    GList *diff_entries = NULL;
+
+    c2 = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                         repo->id, repo->version,
+                                         new);
+    if (!c2) {
+        *error = g_strdup("Can't find new commit");
+        return NULL;
+    }
+
+    if (old == NULL || old[0] == '\0') {
+        if (c2->parent_id && c2->second_parent_id) {
+            ret = diff_merge (c2, &diff_entries, fold_dir_diff);
+            seaf_commit_unref (c2);
+            if (ret < 0) {
+                *error = g_strdup("Failed to do diff");
+                g_list_free_full (diff_entries, (GDestroyNotify)diff_entry_free);
+                return NULL;
+            }
+            return diff_entries;
+        }
+
+        if (!c2->parent_id) {
+            seaf_commit_unref (c2);
+            return NULL;
+        }
+        c1 = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             repo->id, repo->version,
+                                             c2->parent_id);
+    } else {
+        c1 = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                             repo->id, repo->version, old);
+    }
+
+    if (!c1) {
+        *error = g_strdup("Can't find old commit");
+        seaf_commit_unref (c2);
+        return NULL;
+    }
+
+    /* do diff */
+    ret = diff_commits (c1, c2, &diff_entries, fold_dir_diff);
+    if (ret < 0) {
+        g_list_free_full (diff_entries, (GDestroyNotify)diff_entry_free);
+        diff_entries = NULL;
+        *error = g_strdup("Failed to do diff");
+    }
+
+    seaf_commit_unref (c1);
+    seaf_commit_unref (c2);
+
+    return diff_entries;
+}
+
 int
 checkout_file (const char *repo_id,
                int repo_version,
@@ -6393,6 +6452,7 @@ cleanup_deleted_stores (void *vdata)
         cleanup_deleted_stores_by_type ("blocks");
         g_usleep (60 * G_USEC_PER_SEC);
     }
+    return NULL;
 }
 
 int
