@@ -5182,7 +5182,7 @@ checkout_file_http (FileTxData *data,
 
     if (conflicted) {
         http_tx_manager_notify_conflict (http_task, de->name);
-    } else {
+    } else if (!http_task->is_clone) {
         char *orig_path = NULL;
         if (check_path_conflict (de->name, &orig_path))
             http_tx_manager_notify_conflict (http_task, orig_path);
