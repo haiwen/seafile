@@ -874,6 +874,29 @@ out:
     return ret;
 }
 
+static int
+init_syslog_config ()
+{
+    char *seafile_conf = g_build_filename (ctl->central_config_dir, "seafile.conf", NULL);
+    GKeyFile *key_file = g_key_file_new ();
+    int ret = 0;
+
+    if (!g_key_file_load_from_file (key_file, seafile_conf,
+                                    G_KEY_FILE_KEEP_COMMENTS, NULL)) {
+        seaf_warning("Failed to load seafile.conf.\n");
+        ret = -1;
+        goto out;
+    }
+
+    set_syslog_config (key_file);
+
+out:
+    g_key_file_free (key_file);
+    g_free (seafile_conf);
+
+    return ret;
+}
+
 int main (int argc, char **argv)
 {
     if (argc <= 1) {
@@ -969,6 +992,10 @@ int main (int argc, char **argv)
     if (seafile_log_init (logfile, ccnet_debug_level_str,
                           seafile_debug_level_str) < 0) {
         seaf_warning ("Failed to init log.\n");
+        controller_exit (1);
+    }
+
+    if (init_syslog_config () < 0) {
         controller_exit (1);
     }
 
