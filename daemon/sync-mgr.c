@@ -615,9 +615,11 @@ notify_sync (SeafRepo *repo)
         return;
 
     GString *buf = g_string_new (NULL);
-    g_string_append_printf (buf, "%s\t%s\t%s",
+    g_string_append_printf (buf, "%s\t%s\t%s\t%s\t%s",
                             repo->name,
                             repo->id,
+                            head->commit_id,
+                            head->parent_id,
                             head->desc);
     seaf_mq_manager_publish_notification (seaf->mq_mgr,
                                           "sync.done",
