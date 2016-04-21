@@ -212,7 +212,7 @@ def get_token(url, username, password, conf_dir):
     token = tmp['token']
     return token
 
-def get_repo_downlod_info(url, token):
+def get_repo_download_info(url, token):
     headers = { 'Authorization': 'Token %s' % token }
     repo_info = urlopen(url, headers=headers)
     return json.loads(repo_info)
@@ -374,10 +374,16 @@ def seaf_list_remote(args):
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
     token = get_token(url, username, password, conf_dir)
 
-    repos = get_repo_downlod_info("%s/api2/repos/" % (url), token)
+    repos = get_repo_download_info("%s/api2/repos/" % (url), token)
+
+    printed = {}
 
     print "Name\tID"
     for repo in repos:
+        if repo['id'] in printed:
+            continue
+
+        printed[repo['id']] = repo['id']
         print repo['name'], repo['id']
 
 
@@ -431,7 +437,7 @@ def seaf_download(args):
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
     token = get_token(url, username, password, conf_dir)
 
-    tmp = get_repo_downlod_info("%s/api2/repos/%s/download-info/" % (url, repo), token)
+    tmp = get_repo_download_info("%s/api2/repos/%s/download-info/" % (url, repo), token)
 
     encrypted = tmp['encrypted']
     magic = tmp.get('magic', None)
@@ -508,7 +514,7 @@ def seaf_download_by_name(args):
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
     token = get_token(url, username, password, conf_dir)
 
-    tmp = get_repo_downlod_info("%s/api2/repos/" % (url), token)
+    tmp = get_repo_download_info("%s/api2/repos/" % (url), token)
 
     for i in tmp:
         if libraryname == i['name']:
@@ -565,7 +571,7 @@ def seaf_sync(args):
         password = getpass.getpass("Enter password for user %s : " % username)
 
     token = get_token(url, username, password, conf_dir)
-    tmp = get_repo_downlod_info("%s/api2/repos/%s/download-info/" % (url, repo), token)
+    tmp = get_repo_download_info("%s/api2/repos/%s/download-info/" % (url, repo), token)
 
     encrypted = tmp['encrypted']
     magic = tmp.get('magic', None)
