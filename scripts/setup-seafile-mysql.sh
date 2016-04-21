@@ -86,4 +86,4 @@ check_python;
 
 export PYTHON=$PYTHON
 
-exec $PYTHON "$python_script"
+exec $PYTHON "$python_script" "$@"

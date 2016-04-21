@@ -342,30 +342,117 @@ function copy_user_manuals() {
     cp -f ${src_docs_dir}/*.doc ${library_template_dir}
 }
 
+function parse_params() {
+    while getopts n:i:p:d:h arg; do
+        case $arg in
+            n)
+                server_name=${OPTARG}
+                ;;
+            i)
+                ip_or_domain=${OPTARG}
+                ;;
+            p)
+                fileserver_port=${OPTARG}
+                ;;
+            d)
+                seafile_data_dir=${OPTARG}
+                ;;
+            h)
+                echo -e "usage `basename $0`:\n" \
+                    "-n server name\n" \
+                    "-i ip or domain\n" \
+                    "-p fileserver port\n" \
+                    "-d seafile dir to store seafile data"
+                exit 0
+            ;;
+        esac
+    done
+}
+
+function validate_params() {
+    if [[ "$server_name" == "" ]]; then
+        server_name=${SERVER_NAME}
+    fi
+    if [[ "$server_name" != "" && ! ${server_name} =~ ^[a-zA-Z0-9_-]{3,14}$ ]]; then
+        echo "Invalid server name param"
+        err_and_quit;
+    fi
+
+    if [[ "$ip_or_domain" == "" ]]; then
+        ip_or_domain=${SERVER_IP}
+    fi
+    if [[ "$ip_or_domain" != "" && ! ${ip_or_domain} =~ ^[^.].+\..+[^.]$ ]]; then
+        echo "Invalid ip or domain param"
+        err_and_quit;
+    fi
+
+    if [[ "${fileserver_port}" == "" ]]; then
+        fileserver_port=${FILESERVER_PORT}
+    fi
+    if [[ "${fileserver_port}" != "" && ! ${fileserver_port} =~ ^[0-9]+$ ]]; then
+        echo "Invalid fileserver port param"
+        err_and_quit;
+    fi
+
+    if [[ "${seafile_data_dir}" == "" ]]; then
+        seafile_data_dir=${SEAFILE_DIR}
+    fi
+    if [[ "${seafile_data_dir}" != "" ]]; then
+        if [[ -d ${seafile_data_dir} && $(ls -A ${seafile_data_dir}) != "" ]]; then
+            echo "${seafile_data_dir} is an existing non-empty directory. Please specify a different directory"
+            err_and_quit
+        elif [[ ! ${seafile_data_dir} =~ ^/ ]]; then
+            echo "\"${seafile_data_dir}\" is not an absolute path. Please specify an absolute path."
+            err_and_quit
+        elif [[ ! -d $(dirname ${seafile_data_dir}) ]]; then
+            echo "The path $(dirname ${seafile_data_dir}) does not exist."
+            err_and_quit
+        fi
+    fi
+
+    # all parameters set and corret, then no need pause in follow process
+    if [[ "$server_name" != "" && "$ip_or_domain" != "" && \
+        "${fileserver_port}" != "" && "${seafile_data_dir}" != "" ]]; then
+        need_pause=0
+    fi
+}
 
 # -------------------------------------------
 # Main workflow of this script 
 # -------------------------------------------
 
+parse_params $@;
+need_pause=1
+validate_params;
 check_root;
 sleep .5
 check_sanity;
-welcome;
+if [[ "${need_pause}" == "1" ]]; then
+    welcome;
+fi
 sleep .5
 check_system_dependency;
 sleep .5
 
 check_existing_ccnet;
 if [[ ${use_existing_ccnet} != "true" ]]; then
-    get_server_name;
-    get_server_ip_or_domain;
+    if [[ "${server_name}" == "" ]]; then
+        get_server_name;
+    fi
+    if [[ "${ip_or_domain}" == "" ]]; then
+        get_server_ip_or_domain;
+    fi
     # get_ccnet_server_port;
 fi
 
-get_seafile_data_dir;
+if [[ "$seafile_data_dir" == "" ]]; then
+    get_seafile_data_dir;
+fi
 if [[ ${use_existing_seafile} != "true" ]]; then
     # get_seafile_server_port
-    get_fileserver_port
+    if [[ "$fileserver_port" == "" ]]; then
+        get_fileserver_port
+    fi
 fi
 
 sleep .5
@@ -386,9 +473,11 @@ else
     printf "seafile data dir:   use existing data in    \033[33m${seafile_data_dir}\033[m\n"
 fi
 
-echo
-echo "If you are OK with the configuration, press [ENTER] to continue."
-read dummy
+if [[ "${need_pause}" == "1" ]]; then
+    echo
+    echo "If you are OK with the configuration, press [ENTER] to continue."
+    read dummy
+fi
 
 ccnet_init=${INSTALLPATH}/seafile/bin/ccnet-init
 seaf_server_init=${INSTALLPATH}/seafile/bin/seaf-server-init
@@ -457,12 +546,14 @@ fi
 # -------------------------------------------
 # Seahub related config
 # -------------------------------------------
-echo "-----------------------------------------------------------------"
-echo "Seahub is the web interface for seafile server."
-echo "Now let's setup seahub configuration. Press [ENTER] to continue"
-echo "-----------------------------------------------------------------"
-echo
-read dummy
+if [[ "${need_pause}" == "1" ]]; then
+    echo "-----------------------------------------------------------------"
+    echo "Seahub is the web interface for seafile server."
+    echo "Now let's setup seahub configuration. Press [ENTER] to continue"
+    echo "-----------------------------------------------------------------"
+    echo
+    read dummy
+fi
 
 # echo "Please specify the email address and password for the seahub administrator."
 # echo "You can use them to login as admin on your seahub website."
