@@ -4873,6 +4873,7 @@ typedef struct FileTxTask {
     struct cache_entry *ce;
     DiffEntry *de;
     gboolean new_ce;
+    gboolean skip_fetch;
 
     int result;
     gboolean no_checkout;
@@ -4975,14 +4976,8 @@ fetch_file_thread_func (gpointer data, gpointer user_data)
     gboolean is_clone = tx_data->http_task->is_clone;
     int rc = FETCH_CHECKOUT_SUCCESS;
 
-    if (should_ignore_on_checkout (de->name)) {
-        seaf_message ("Path %s is invalid on Windows, skip checkout\n",
-                      de->name);
-        send_sync_error_notification (repo_id, tx_data->http_task->repo_name,
-                                      de->name,
-                                      SYNC_ERROR_ID_INVALID_PATH);
+    if (task->skip_fetch)
         goto out;
-    }
 
     rawdata_to_hex (de->sha1, file_id, 20);
 
@@ -5013,6 +5008,8 @@ out:
 
 static int
 schedule_file_fetch (GThreadPool *tpool,
+                     const char *repo_id,
+                     const char *repo_name,
                      const char *worktree,
                      struct index_state *istate,
                      DiffEntry *de,
@@ -5022,6 +5019,7 @@ schedule_file_fetch (GThreadPool *tpool,
 {
     struct cache_entry *ce;
     gboolean new_ce = FALSE;
+    gboolean skip_fetch = FALSE;
     char *path;
     FileTxTask *file_task;
 
@@ -5031,20 +5029,30 @@ schedule_file_fetch (GThreadPool *tpool,
         new_ce = TRUE;
     }
 
+    if (should_ignore_on_checkout (de->name)) {
+        seaf_message ("Path %s is invalid on Windows, skip checkout\n",
+                      de->name);
+        send_sync_error_notification (repo_id, repo_name, de->name,
+                                      SYNC_ERROR_ID_INVALID_PATH);
+        skip_fetch = TRUE;
+    }
+
+    if (!skip_fetch) {
 #ifndef __linux__
-    gboolean case_conflict = FALSE;
-    path = build_case_conflict_free_path (worktree, de->name,
-                                          conflict_hash, no_conflict_hash,
-                                          &case_conflict,
-                                          FALSE);
+        gboolean case_conflict = FALSE;
+        path = build_case_conflict_free_path (worktree, de->name,
+                                              conflict_hash, no_conflict_hash,
+                                              &case_conflict,
+                                              FALSE);
 #else
-    path = build_checkout_path (worktree, de->name, strlen(de->name));
+        path = build_checkout_path (worktree, de->name, strlen(de->name));
 #endif
 
-    if (!path) {
-        if (new_ce)
-            cache_entry_free (ce);
-        return FETCH_CHECKOUT_FAILED;
+        if (!path) {
+            if (new_ce)
+                cache_entry_free (ce);
+            return FETCH_CHECKOUT_FAILED;
+        }
     }
 
     file_task = g_new0 (FileTxTask, 1);
@@ -5052,6 +5060,7 @@ schedule_file_fetch (GThreadPool *tpool,
     file_task->ce = ce;
     file_task->path = path;
     file_task->new_ce = new_ce;
+    file_task->skip_fetch = skip_fetch;
 
     if (!g_hash_table_lookup (pending_tasks, de->name)) {
         g_hash_table_insert (pending_tasks, g_strdup(de->name), file_task);
@@ -5268,6 +5277,7 @@ checkout_file_http (FileTxData *data,
 
 static void
 handle_dir_added_de (const char *repo_id,
+                     const char *repo_name,
                      const char *worktree,
                      struct index_state *istate,
                      DiffEntry *de,
@@ -5285,6 +5295,14 @@ handle_dir_added_de (const char *repo_id,
         add_ce = TRUE;
     }
 
+    if (should_ignore_on_checkout (de->name)) {
+        seaf_message ("Path %s is invalid on Windows, skip checkout\n",
+                      de->name);
+        send_sync_error_notification (repo_id, repo_name, de->name,
+                                      SYNC_ERROR_ID_INVALID_PATH);
+        goto update_index;
+    }
+
     checkout_empty_dir (worktree,
                         de->name,
                         de->mtime,
@@ -5298,6 +5316,7 @@ handle_dir_added_de (const char *repo_id,
                                           de->mode,
                                           SYNC_STATUS_SYNCED);
 
+update_index:
     if (add_ce) {
         if (!(ce->ce_flags & CE_REMOVE)) {
             add_index_entry (istate, ce,
@@ -5354,11 +5373,13 @@ download_files_http (const char *repo_id,
         de = ptr->data;
 
         if (de->status == DIFF_STATUS_DIR_ADDED) {
-            handle_dir_added_de (repo_id, worktree, istate, de,
+            handle_dir_added_de (repo_id, http_task->repo_name, worktree, istate, de,
                                  conflict_hash, no_conflict_hash);
         } else if (de->status == DIFF_STATUS_ADDED ||
                    de->status == DIFF_STATUS_MODIFIED) {
             if (FETCH_CHECKOUT_FAILED == schedule_file_fetch (tpool,
+                                                              repo_id,
+                                                              http_task->repo_name,
                                                               worktree,
                                                               istate,
                                                               de,
