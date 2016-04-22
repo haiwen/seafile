@@ -227,6 +227,7 @@ seafile_session_new(const char *seafile_dir,
         goto onerror;
 
     session->job_mgr = ccnet_job_manager_new (MAX_THREADS);
+    ccnet_session->job_mgr = ccnet_job_manager_new (MAX_THREADS);
     session->ev_mgr = cevent_manager_new ();
     if (!session->ev_mgr)
         goto onerror;

@@ -1517,6 +1517,89 @@ seafile_generate_magic_and_random_key(int enc_version,
 
 }
 
+#include "diff-simple.h"
+
+inline static const char*
+get_diff_status_str(char status)
+{
+    if (status == DIFF_STATUS_ADDED)
+        return "add";
+    if (status == DIFF_STATUS_DELETED)
+        return "del";
+    if (status == DIFF_STATUS_MODIFIED)
+        return "mod";
+    if (status == DIFF_STATUS_RENAMED)
+        return "mov";
+    if (status == DIFF_STATUS_DIR_ADDED)
+        return "newdir";
+    if (status == DIFF_STATUS_DIR_DELETED)
+        return "deldir";
+    return NULL;
+}
+
+GList *
+seafile_diff (const char *repo_id, const char *arg1, const char *arg2, int fold_dir_diff, GError **error)
+{
+    SeafRepo *repo;
+    char *err_msgs = NULL;
+    GList *diff_entries, *p;
+    GList *ret = NULL;
+
+    if (!repo_id || !arg1 || !arg2) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
+        return NULL;
+    }
+
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
+        return NULL;
+    }
+
+    if ((arg1[0] != 0 && !is_object_id_valid (arg1)) || !is_object_id_valid(arg2)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid commit id");
+        return NULL;
+    }
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such repository");
+        return NULL;
+    }
+
+    diff_entries = seaf_repo_diff (repo, arg1, arg2, fold_dir_diff, &err_msgs);
+    if (err_msgs) {
+        g_set_error (error, SEAFILE_DOMAIN, -1, "%s", err_msgs);
+        g_free (err_msgs);
+#ifdef SEAFILE_SERVER
+        seaf_repo_unref (repo);
+#endif
+        return NULL;
+    }
+
+#ifdef SEAFILE_SERVER
+    seaf_repo_unref (repo);
+#endif
+
+    for (p = diff_entries; p != NULL; p = p->next) {
+        DiffEntry *de = p->data;
+        SeafileDiffEntry *entry = g_object_new (
+            SEAFILE_TYPE_DIFF_ENTRY,
+            "status", get_diff_status_str(de->status),
+            "name", de->name,
+            "new_name", de->new_name,
+            NULL);
+        ret = g_list_prepend (ret, entry);
+    }
+
+    for (p = diff_entries; p != NULL; p = p->next) {
+        DiffEntry *de = p->data;
+        diff_entry_free (de);
+    }
+    g_list_free (diff_entries);
+
+    return g_list_reverse (ret);
+}
+
 /*
  * RPC functions only available for server.
  */
@@ -1893,89 +1976,6 @@ out:
     seaf_repo_unref (repo);
 
     return ret;
-}
-
-#include "diff-simple.h"
-
-inline static const char*
-get_diff_status_str(char status)
-{
-    if (status == DIFF_STATUS_ADDED)
-        return "add";
-    if (status == DIFF_STATUS_DELETED)
-        return "del";
-    if (status == DIFF_STATUS_MODIFIED)
-        return "mod";
-    if (status == DIFF_STATUS_RENAMED)
-        return "mov";
-    if (status == DIFF_STATUS_DIR_ADDED)
-        return "newdir";
-    if (status == DIFF_STATUS_DIR_DELETED)
-        return "deldir";
-    return NULL;
-}
-
-GList *
-seafile_diff (const char *repo_id, const char *arg1, const char *arg2, int fold_dir_diff, GError **error)
-{
-    SeafRepo *repo;
-    char *err_msgs = NULL;
-    GList *diff_entries, *p;
-    GList *ret = NULL;
-
-    if (!repo_id || !arg1 || !arg2) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
-        return NULL;
-    }
-
-    if (!is_uuid_valid (repo_id)) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
-        return NULL;
-    }
-
-    if ((arg1[0] != 0 && !is_object_id_valid (arg1)) || !is_object_id_valid(arg2)) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid commit id");
-        return NULL;
-    }
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "No such repository");
-        return NULL;
-    }
-
-    diff_entries = seaf_repo_diff (repo, arg1, arg2, fold_dir_diff, &err_msgs);
-    if (err_msgs) {
-        g_set_error (error, SEAFILE_DOMAIN, -1, "%s", err_msgs);
-        g_free (err_msgs);
-#ifdef SEAFILE_SERVER
-        seaf_repo_unref (repo);
-#endif
-        return NULL;
-    }
-
-#ifdef SEAFILE_SERVER
-    seaf_repo_unref (repo);
-#endif
-
-    for (p = diff_entries; p != NULL; p = p->next) {
-        DiffEntry *de = p->data;
-        SeafileDiffEntry *entry = g_object_new (
-            SEAFILE_TYPE_DIFF_ENTRY,
-            "status", get_diff_status_str(de->status),
-            "name", de->name,
-            "new_name", de->new_name,
-            NULL);
-        ret = g_list_prepend (ret, entry);
-    }
-
-    for (p = diff_entries; p != NULL; p = p->next) {
-        DiffEntry *de = p->data;
-        diff_entry_free (de);
-    }
-    g_list_free (diff_entries);
-
-    return g_list_reverse (ret);
 }
 
 int
