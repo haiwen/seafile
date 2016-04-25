@@ -213,6 +213,7 @@ class Libsearpc(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
+	    './autogen.sh ',
             './configure --prefix=%s --disable-compile-demo' % self.prefix,
             'make',
             'make install'
@@ -226,6 +227,7 @@ class Ccnet(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
+	    './autogen.sh ',
             './configure --prefix=%s --disable-compile-demo' % self.prefix,
             'make',
             'make install'
@@ -237,7 +239,7 @@ class Ccnet(Project):
     def before_build(self):
         macros = {}
         # SET CCNET_SOURCE_COMMIT_ID, so it can be printed in the log
-        macros['CCNET_SOURCE_COMMIT_ID'] = '\\"%s\\"' % self.get_source_commit_id()
+        #macros['CCNET_SOURCE_COMMIT_ID'] = '\\"%s\\"' % self.get_source_commit_id()
 
         self.append_cflags(macros)
 
@@ -246,7 +248,8 @@ class Seafile(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
-            './configure --prefix=%s --disable-gui' % self.prefix,
+	    './autogen.sh ',
+            './configure --prefix=%s --disable-gui --disable-fuse' % self.prefix,
             'make',
             'make install'
         ]
@@ -274,7 +277,7 @@ class Seafile(Project):
         self.update_cli_version()
         macros = {}
         # SET SEAFILE_SOURCE_COMMIT_ID, so it can be printed in the log
-        macros['SEAFILE_SOURCE_COMMIT_ID'] = '\\"%s\\"' % self.get_source_commit_id()
+        #macros['SEAFILE_SOURCE_COMMIT_ID'] = '\\"%s\\"' % self.get_source_commit_id()
         self.append_cflags(macros)
 
 def check_targz_src(proj, version, srcdir):
