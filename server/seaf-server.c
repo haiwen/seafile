@@ -951,6 +951,8 @@ main (int argc, char **argv)
 
     load_history_config ();
 
+    set_syslog_config (seaf->config);
+
     g_free (seafile_dir);
     g_free (logfile);
 

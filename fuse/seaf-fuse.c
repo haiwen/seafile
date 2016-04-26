@@ -347,6 +347,8 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
+    set_syslog_config (seaf->config);
+
     ret = fuse_main(args.argc, args.argv, &seaf_fuse_ops, NULL);
     fuse_opt_free_args(&args);
     return ret;

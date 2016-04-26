@@ -17,6 +17,9 @@ int seafile_log_init (const char *logfile, const char *ccnet_debug_level_str,
 int seafile_log_reopen ();
 
 void
+set_syslog_config (GKeyFile *config);
+
+void
 seafile_debug_set_flags_string (const gchar *flags_string);
 
 typedef enum
