@@ -153,8 +153,6 @@ main(int argc, char *argv[])
         exit (1);
     }
 
-    set_syslog_config (seaf->config);
-
     if (rm_garbage) {
         delete_garbaged_repos (!rm_garbage);
         return 0;

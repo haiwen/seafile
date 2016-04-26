@@ -163,8 +163,6 @@ main(int argc, char *argv[])
         exit (1);
     }
 
-    set_syslog_config (seaf->config);
-
     GList *repo_id_list = NULL;
     int i;
     for (i = optind; i < argc; i++)
