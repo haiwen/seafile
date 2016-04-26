@@ -231,7 +231,7 @@ def seaf_init(args):
     seafile_path = os.path.abspath(seafile_path)
 
     if os.path.exists(ccnet_conf_dir):
-        print "%s already existed" % ccnet_conf_dir
+        print "%s already exists" % ccnet_conf_dir
         sys.exit(0)
 
     cmd = [ "ccnet-init", "-c", ccnet_conf_dir, "-n", "anonymous" ]
