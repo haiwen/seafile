@@ -218,7 +218,7 @@ def get_repo_download_info(url, token):
     return json.loads(repo_info)
 
 def seaf_init(args):
-    ''' initialize config directorys'''
+    ''' Initialize config directories'''
 
     ccnet_conf_dir = DEFAULT_CONF_DIR
     if args.confdir:
@@ -236,7 +236,7 @@ def seaf_init(args):
 
     cmd = [ "ccnet-init", "-c", ccnet_conf_dir, "-n", "anonymous" ]
     if run_argv(cmd, env=get_env()) != 0:
-        print 'failed to init ccnet'
+        print "Failed to init ccnet"
         sys.exit(1)
 
     if not os.path.exists(seafile_path):
@@ -251,7 +251,7 @@ def seaf_init(args):
 
 
 def seaf_start_all(args):
-    ''' start ccnet and seafile daemon '''
+    ''' Start ccnet and seafile daemon '''
 
     seaf_start_ccnet(args)
     # wait ccnet process
@@ -260,7 +260,7 @@ def seaf_start_all(args):
 
 
 def seaf_start_ccnet(args):
-    ''' start ccnet daemon '''
+    ''' Start ccnet daemon '''
 
     conf_dir = DEFAULT_CONF_DIR
     if args.confdir:
@@ -271,11 +271,11 @@ def seaf_start_ccnet(args):
         print "Invalid config directory"
         sys.exit(1)
 
-    print "starting ccnet daemon ..."
+    print "Starting ccnet daemon ..."
 
     cmd = [ "ccnet", "--daemon", "-c", conf_dir ]
     if run_argv(cmd, env=get_env()) != 0:
-        print 'CCNet daemon failed to start.'
+        print "CCNet daemon failed to start."
         sys.exit(1)
 
     print "Started: ccnet daemon ..."
@@ -292,7 +292,7 @@ def seaf_start_seafile(args):
         print "Invalid config directory"
         sys.exit(1)
 
-    print "starting seafile daemon ..."
+    print "Starting seafile daemon ..."
 
     cmd = [ "seaf-daemon", "--daemon", "-c", conf_dir, "-d", seafile_datadir,
             "-w", seafile_worktree ]
@@ -303,7 +303,7 @@ def seaf_start_seafile(args):
     print "Started: seafile daemon ..."
 
 def seaf_stop(args):
-    '''stop seafile daemon '''
+    '''Stop seafile daemon '''
 
     conf_dir = DEFAULT_CONF_DIR
     if args.confdir:
