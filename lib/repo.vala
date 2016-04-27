@@ -30,7 +30,7 @@ public class Repo : Object {
     // data format version
     public int version { get; set; }
 
-    public int    last_modify { get; set; }
+    public int64  last_modify { get; set; }
     public int64  size { get; set; }
     public int64  file_count { get; set; }
     public string head_cmmt_id { get; set; }
@@ -40,7 +40,7 @@ public class Repo : Object {
     public string repo_id { get; set; }
     public string repo_name { get; set; }
     public string repo_desc { get; set; }
-    public int last_modified { get; set; }
+    public int64 last_modified { get; set; }
 
     // Section 2: Encryption related
     // Members in this section should be set for every Repo object
@@ -63,7 +63,7 @@ public class Repo : Object {
         get { return _relay_id; }
         set { _relay_id = value; }
     }
-    public int  last_sync_time { get; set; }
+    public int64  last_sync_time { get; set; }
     public bool auto_sync { get; set; }
     public bool worktree_invalid { get; set; }
 
@@ -155,7 +155,7 @@ public class DeletedEntry : Object {
     public string obj_name { get; set; }
     public string basedir { get; set; }
     public int mode { get; set; }
-    public int delete_time { get; set; }
+    public int64 delete_time { get; set; }
     public int64 file_size { get; set; }
     public string scan_stat { get; set; }
 }
