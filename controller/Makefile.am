@@ -1,6 +1,7 @@
 bin_PROGRAMS = seafile-controller
 
 AM_CFLAGS = \
+	-DSEAFILE_SERVER \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/lib \
 	-I$(top_builddir)/lib \
