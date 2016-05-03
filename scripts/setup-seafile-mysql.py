@@ -15,6 +15,7 @@ import uuid
 import warnings
 import MySQLdb
 import argparse
+import socket
 
 from ConfigParser import ConfigParser
 
@@ -1232,47 +1233,40 @@ user_manuals_handler = UserManualHandler()
 db_config = None
 need_pause = True
 
-def get_param_val(arg, env):
-    return arg if arg else os.environ.get(env)
+def get_param_val(arg, env, default=None):
+    return arg if arg else os.environ.get(env, default)
 
 def check_params(args):
-    server_name = get_param_val(args.server_name, 'SERVER_NAME')
-    if server_name:
-        ccnet_config.server_name = ccnet_config.validate_server_name(server_name)
+    server_name = get_param_val(args.server_name, 'SERVER_NAME', socket.gethostname())
+    ccnet_config.server_name = ccnet_config.validate_server_name(server_name)
 
-    server_ip = get_param_val(args.server_ip, 'SERVER_IP')
-    if server_ip:
-        ccnet_config.ip_or_domain = ccnet_config.validate_server_ip(server_ip)
+    server_ip = get_param_val(args.server_ip, 'SERVER_IP',
+                              socket.gethostbyname(socket.gethostname()))
+    ccnet_config.ip_or_domain = ccnet_config.validate_server_ip(server_ip)
 
-    fileserver_port = get_param_val(args.fileserver_port, 'FILESERVER_PORT')
-    if fileserver_port:
-        seafile_config.fileserver_port = Utils.validate_port(fileserver_port)
+    fileserver_port = get_param_val(args.fileserver_port, 'FILESERVER_PORT', '8082')
+    seafile_config.fileserver_port = Utils.validate_port(fileserver_port)
 
-    seafile_dir = get_param_val(args.seafile_dir, 'SEAFILE_DIR')
-    if seafile_dir:
-        seafile_config.seafile_dir = seafile_config.validate_seafile_dir(seafile_dir)
+    seafile_dir = get_param_val(args.seafile_dir, 'SEAFILE_DIR',
+                                os.path.join(env_mgr.top_dir, 'seafile-data'))
+    seafile_config.seafile_dir = seafile_config.validate_seafile_dir(seafile_dir)
 
     global db_config
 
-    use_existing_db = get_param_val(args.use_existing_db, 'USE_EXISTING_DB')
+    use_existing_db = get_param_val(args.use_existing_db, 'USE_EXISTING_DB', '1')
     if use_existing_db == '1':
         db_config = NewDBConfigurator()
     elif use_existing_db == '2':
         db_config = ExistingDBConfigurator()
     else:
-        return
+        raise InvalidParams('Invalid use-existing-db parameter, the value can only be 1 or 2')
 
-    # if use_existing_db option is set correctly,
-    # then all mysql related options must be set correctly
-
-    mysql_host = get_param_val(args.mysql_host, 'MYSQL_HOST')
+    mysql_host = get_param_val(args.mysql_host, 'MYSQL_HOST', '127.0.0.1')
     if not mysql_host:
         raise InvalidParams('Incomplete mysql parameters, miss mysql host')
     db_config.mysql_host = db_config.validate_mysql_host(mysql_host)
 
-    mysql_port = get_param_val(args.mysql_port, 'MYSQL_PORT')
-    if not mysql_port:
-        raise InvalidParams('Incomplete mysql parameters, miss mysql port')
+    mysql_port = get_param_val(args.mysql_port, 'MYSQL_PORT', '3306')
     db_config.mysql_port = Utils.validate_port(mysql_port)
 
     mysql_user = get_param_val(args.mysql_user, 'MYSQL_USER')
@@ -1283,15 +1277,15 @@ def check_params(args):
     if not mysql_user_passwd:
         raise InvalidParams('Incomplete mysql parameters, miss mysql user passwd')
 
-    ccnet_db = get_param_val(args.ccnet_db, 'CCNET_DB')
+    ccnet_db = get_param_val(args.ccnet_db, 'CCNET_DB', 'ccnet-db')
     if not ccnet_db:
         raise InvalidParams('Incomplete mysql parameters, miss ccnet db')
 
-    seafile_db = get_param_val(args.seafile_db, 'SEAFILE_DB')
+    seafile_db = get_param_val(args.seafile_db, 'SEAFILE_DB', 'seafile-db')
     if not seafile_db:
         raise InvalidParams('Incomplete mysql parameters, miss seafile db')
 
-    seahub_db = get_param_val(args.seahub_db, 'SEAHUB_DB')
+    seahub_db = get_param_val(args.seahub_db, 'SEAHUB_DB', 'seahub-db')
     if not seahub_db:
         raise InvalidParams('Incomplete mysql parameters, miss seahub db')
 
@@ -1334,25 +1328,27 @@ def check_params(args):
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-n', '--server-name', help='server name')
-    parser.add_argument('-i', '--server-ip', help='server ip or domain')
-    parser.add_argument('-p', '--fileserver-port', help='fileserver port')
-    parser.add_argument('-d', '--seafile-dir', help='seafile dir to store seafile data')
-    parser.add_argument('-e', '--use-existing-db',
-                        help='use mysql existing db, 1: create new 2: use exist')
-    parser.add_argument('-o', '--mysql-host', help='mysql host')
-    parser.add_argument('-t', '--mysql-port', help='mysql port')
-    parser.add_argument('-u', '--mysql-user', help='mysql user')
-    parser.add_argument('-w', '--mysql-user-passwd', help='mysql user password')
-    parser.add_argument('-q', '--mysql-user-host', help='mysql user host')
-    parser.add_argument('-r', '--mysql-root-passwd', help='mysql root password')
-    parser.add_argument('-c', '--ccnet-db', help='ccnet db')
-    parser.add_argument('-s', '--seafile-db', help='seafile db')
-    parser.add_argument('-b', '--seahub-db', help='seahub db')
-    args = parser.parse_args()
+    if len(sys.argv) > 2 and sys.argv[1] == 'auto':
+        sys.argv.remove('auto')
+        parser = argparse.ArgumentParser()
+        parser.add_argument('-n', '--server-name', help='server name')
+        parser.add_argument('-i', '--server-ip', help='server ip or domain')
+        parser.add_argument('-p', '--fileserver-port', help='fileserver port')
+        parser.add_argument('-d', '--seafile-dir', help='seafile dir to store seafile data')
+        parser.add_argument('-e', '--use-existing-db',
+                            help='use mysql existing db, 1: create new 2: use exist')
+        parser.add_argument('-o', '--mysql-host', help='mysql host')
+        parser.add_argument('-t', '--mysql-port', help='mysql port')
+        parser.add_argument('-u', '--mysql-user', help='mysql user')
+        parser.add_argument('-w', '--mysql-user-passwd', help='mysql user password')
+        parser.add_argument('-q', '--mysql-user-host', help='mysql user host')
+        parser.add_argument('-r', '--mysql-root-passwd', help='mysql root password')
+        parser.add_argument('-c', '--ccnet-db', help='ccnet db')
+        parser.add_argument('-s', '--seafile-db', help='seafile db')
+        parser.add_argument('-b', '--seahub-db', help='seahub db')
 
-    check_params(args)
+        args = parser.parse_args()
+        check_params(args)
 
     global db_config
 

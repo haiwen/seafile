@@ -343,7 +343,7 @@ function copy_user_manuals() {
 }
 
 function parse_params() {
-    while getopts n:i:p:d:h arg; do
+    while getopts n:i:p:d arg; do
         case $arg in
             n)
                 server_name=${OPTARG}
@@ -357,73 +357,85 @@ function parse_params() {
             d)
                 seafile_data_dir=${OPTARG}
                 ;;
-            h)
-                echo -e "usage `basename $0`:\n" \
-                    "-n server name\n" \
-                    "-i ip or domain\n" \
-                    "-p fileserver port\n" \
-                    "-d seafile dir to store seafile data"
-                exit 0
-            ;;
         esac
     done
 }
 
 function validate_params() {
+    # server_name default hostname -s
     if [[ "$server_name" == "" ]]; then
-        server_name=${SERVER_NAME}
+        server_name=${SERVER_NAME:-`hostname -s`}
     fi
-    if [[ "$server_name" != "" && ! ${server_name} =~ ^[a-zA-Z0-9_-]{3,14}$ ]]; then
+    if [[ ! ${server_name} =~ ^[a-zA-Z0-9_-]{3,14}$ ]]; then
         echo "Invalid server name param"
         err_and_quit;
     fi
 
+    # ip_or_domain default hostname -i
     if [[ "$ip_or_domain" == "" ]]; then
-        ip_or_domain=${SERVER_IP}
+        ip_or_domain=${SERVER_IP:-`hostname -i`}
     fi
     if [[ "$ip_or_domain" != "" && ! ${ip_or_domain} =~ ^[^.].+\..+[^.]$ ]]; then
         echo "Invalid ip or domain param"
         err_and_quit;
     fi
 
+    # fileserver_port default 8082
     if [[ "${fileserver_port}" == "" ]]; then
-        fileserver_port=${FILESERVER_PORT}
+        fileserver_port=${FILESERVER_PORT:-8082}
     fi
-    if [[ "${fileserver_port}" != "" && ! ${fileserver_port} =~ ^[0-9]+$ ]]; then
+    if [[ ! ${fileserver_port} =~ ^[0-9]+$ ]]; then
         echo "Invalid fileserver port param"
         err_and_quit;
     fi
 
     if [[ "${seafile_data_dir}" == "" ]]; then
-        seafile_data_dir=${SEAFILE_DIR}
+        seafile_data_dir=${SEAFILE_DIR:-${default_seafile_data_dir}}
     fi
-    if [[ "${seafile_data_dir}" != "" ]]; then
-        if [[ -d ${seafile_data_dir} && $(ls -A ${seafile_data_dir}) != "" ]]; then
-            echo "${seafile_data_dir} is an existing non-empty directory. Please specify a different directory"
-            err_and_quit
-        elif [[ ! ${seafile_data_dir} =~ ^/ ]]; then
-            echo "\"${seafile_data_dir}\" is not an absolute path. Please specify an absolute path."
-            err_and_quit
-        elif [[ ! -d $(dirname ${seafile_data_dir}) ]]; then
-            echo "The path $(dirname ${seafile_data_dir}) does not exist."
-            err_and_quit
-        fi
+    if [[ -d ${seafile_data_dir} && $(ls -A ${seafile_data_dir}) != "" ]]; then
+        echo "${seafile_data_dir} is an existing non-empty directory. Please specify a different directory"
+        err_and_quit
+    elif [[ ! ${seafile_data_dir} =~ ^/ ]]; then
+        echo "\"${seafile_data_dir}\" is not an absolute path. Please specify an absolute path."
+        err_and_quit
+    elif [[ ! -d $(dirname ${seafile_data_dir}) ]]; then
+        echo "The path $(dirname ${seafile_data_dir}) does not exist."
+        err_and_quit
     fi
+}
 
-    # all parameters set and corret, then no need pause in follow process
-    if [[ "$server_name" != "" && "$ip_or_domain" != "" && \
-        "${fileserver_port}" != "" && "${seafile_data_dir}" != "" ]]; then
-        need_pause=0
-    fi
+function usage() {
+    echo "auto mode:"
+    echo -e "$0 auto\n" \
+        "-n server name\n" \
+        "-i ip or domain\n" \
+        "-p fileserver port\n" \
+        "-d seafile dir to store seafile data"
+    echo ""
+    echo "interactive mode:"
+    echo "$0"
 }
 
 # -------------------------------------------
 # Main workflow of this script 
 # -------------------------------------------
 
-parse_params $@;
+for param in $@; do
+    if [[ "$param" == "-h" || "$param" == "--help" ]]; then
+        usage;
+        exit 0
+    fi
+done
+
 need_pause=1
-validate_params;
+if [[ $# -ge 1 && "$1" == "auto" ]]; then
+    # auto mode, no pause
+    shift
+    parse_params $@;
+    validate_params;
+    need_pause=0
+fi
+
 check_root;
 sleep .5
 check_sanity;
