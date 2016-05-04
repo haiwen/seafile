@@ -2254,14 +2254,14 @@ seaf_repo_manager_get_trash_repo_list (SeafRepoManager *mgr,
     if (start == -1 && limit == -1)
         rc = seaf_db_statement_foreach_row (mgr->seaf->db,
                                             "SELECT repo_id, repo_name, head_id, owner_id, "
-                                            "size, del_time FROM RepoTrash",
+                                            "size, del_time FROM RepoTrash ORDER BY del_time DESC",
                                             collect_trash_repo, &trash_repos,
                                             0);
     else
         rc = seaf_db_statement_foreach_row (mgr->seaf->db,
                                             "SELECT repo_id, repo_name, head_id, owner_id, "
                                             "size, del_time FROM RepoTrash "
-                                            "ORDER BY repo_id LIMIT ? OFFSET ?",
+                                            "ORDER BY del_time DESC LIMIT ? OFFSET ?",
                                             collect_trash_repo, &trash_repos,
                                             2, "int", limit, "int", start);
 
@@ -2275,7 +2275,7 @@ seaf_repo_manager_get_trash_repo_list (SeafRepoManager *mgr,
         return NULL;
     }
 
-    return trash_repos;
+    return g_list_reverse (trash_repos);
 }
 
 GList *
