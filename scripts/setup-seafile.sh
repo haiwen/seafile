@@ -68,24 +68,6 @@ function read_yes_no () {
     fi
 }
 
-function check_root () {
-    # -------------------------------------------
-    # If running as root, ask the user to ensure it.
-    # -------------------------------------------
-    username="$(whoami)"
-    if [[ "${username}" == "root" ]]; then 
-        echo
-        echo "You are running this script as ROOT. Are you sure to continue?"
-
-        if ! read_yes_no; then
-            echo "You should re-run this script as non-root user."
-            echo
-            exit 1;
-        fi
-        echo
-    fi
-}
-
 function check_existing_ccnet () {
     if [[ -d ${default_ccnet_conf_dir} ]]; then
         echo "It seems that you have created a ccnet configuration before. "
@@ -436,8 +418,6 @@ if [[ $# -ge 1 && "$1" == "auto" ]]; then
     need_pause=0
 fi
 
-check_root;
-sleep .5
 check_sanity;
 if [[ "${need_pause}" == "1" ]]; then
     welcome;

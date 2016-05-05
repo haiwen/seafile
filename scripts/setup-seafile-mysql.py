@@ -1234,7 +1234,7 @@ db_config = None
 need_pause = True
 
 def get_param_val(arg, env, default=None):
-    return arg if arg else os.environ.get(env, default)
+    return arg or os.environ.get(env, default)
 
 def check_params(args):
     server_name = get_param_val(args.server_name, 'SERVER_NAME', socket.gethostname())
@@ -1253,17 +1253,18 @@ def check_params(args):
 
     global db_config
 
-    use_existing_db = get_param_val(args.use_existing_db, 'USE_EXISTING_DB', '1')
-    if use_existing_db == '1':
+    use_existing_db = get_param_val(args.use_existing_db, 'USE_EXISTING_DB', '0')
+    if use_existing_db == '0':
         db_config = NewDBConfigurator()
-    elif use_existing_db == '2':
+    elif use_existing_db == '1':
         db_config = ExistingDBConfigurator()
     else:
-        raise InvalidParams('Invalid use-existing-db parameter, the value can only be 1 or 2')
+        raise InvalidParams('Invalid use existing db parameter, the value can only be 0 or 1')
 
     mysql_host = get_param_val(args.mysql_host, 'MYSQL_HOST', '127.0.0.1')
     if not mysql_host:
-        raise InvalidParams('Incomplete mysql parameters, miss mysql host')
+        raise InvalidParams('Incomplete mysql configuration parameters, ' \
+                            'missing mysql host parameter')
     db_config.mysql_host = db_config.validate_mysql_host(mysql_host)
 
     mysql_port = get_param_val(args.mysql_port, 'MYSQL_PORT', '3306')
@@ -1271,23 +1272,28 @@ def check_params(args):
 
     mysql_user = get_param_val(args.mysql_user, 'MYSQL_USER')
     if not mysql_user:
-        raise InvalidParams('Incomplete mysql parameters, miss mysql user')
+        raise InvalidParams('Incomplete mysql configuration parameters, ' \
+                            'missing mysql user name parameter')
 
     mysql_user_passwd = get_param_val(args.mysql_user_passwd, 'MYSQL_USER_PASSWD')
     if not mysql_user_passwd:
-        raise InvalidParams('Incomplete mysql parameters, miss mysql user passwd')
+        raise InvalidParams('Incomplete mysql configuration parameters, ' \
+                            'missing mysql user password parameter')
 
     ccnet_db = get_param_val(args.ccnet_db, 'CCNET_DB', 'ccnet-db')
     if not ccnet_db:
-        raise InvalidParams('Incomplete mysql parameters, miss ccnet db')
+        raise InvalidParams('Incomplete mysql configuration parameters, ' \
+                            'missing ccnet db name parameter')
 
     seafile_db = get_param_val(args.seafile_db, 'SEAFILE_DB', 'seafile-db')
     if not seafile_db:
-        raise InvalidParams('Incomplete mysql parameters, miss seafile db')
+        raise InvalidParams('Incomplete mysql configuration parameters, ' \
+                            'missing seafile db name parameter')
 
     seahub_db = get_param_val(args.seahub_db, 'SEAHUB_DB', 'seahub-db')
     if not seahub_db:
-        raise InvalidParams('Incomplete mysql parameters, miss seahub db')
+        raise InvalidParams('Incomplete mysql configuration parameters, ' \
+                            'missing seahub db name parameter')
 
     mysql_user_host = get_param_val(args.mysql_user_host, 'MYSQL_USER_HOST')
     mysql_root_passwd = get_param_val(args.mysql_root_passwd, 'MYSQL_ROOT_PASSWD')
@@ -1301,14 +1307,14 @@ def check_params(args):
         db_config.seahub_db_name = db_config.validate_db_name(seahub_db)
     else:
         if db_config.mysql_host != '127.0.0.1' and not mysql_user_host:
-            raise InvalidParams('In create db mode, miss mysql user host parameter')
+            raise InvalidParams('mysql user host parameter is missing in creating new db mode')
         if not mysql_user_host:
             db_config.mysql_userhost = 'localhost'
         else:
             db_config.mysql_userhost = db_config.validate_mysql_user_host(mysql_user_host)
 
         if not mysql_root_passwd:
-            raise InvalidParams('In create db mode, miss mysql root passwd parameter')
+            raise InvalidParams('mysql root password parameter is missing in creating new db mode')
         db_config.root_password = db_config.validate_root_passwd(mysql_root_passwd)
 
         if mysql_user == 'root':
@@ -1336,19 +1342,25 @@ def main():
         parser.add_argument('-p', '--fileserver-port', help='fileserver port')
         parser.add_argument('-d', '--seafile-dir', help='seafile dir to store seafile data')
         parser.add_argument('-e', '--use-existing-db',
-                            help='use mysql existing db, 1: create new 2: use exist')
+                            help='use mysql existing dbs or create new dbs, '
+                            '0: create new dbs 1: use existing dbs')
         parser.add_argument('-o', '--mysql-host', help='mysql host')
         parser.add_argument('-t', '--mysql-port', help='mysql port')
-        parser.add_argument('-u', '--mysql-user', help='mysql user')
+        parser.add_argument('-u', '--mysql-user', help='mysql user name')
         parser.add_argument('-w', '--mysql-user-passwd', help='mysql user password')
         parser.add_argument('-q', '--mysql-user-host', help='mysql user host')
         parser.add_argument('-r', '--mysql-root-passwd', help='mysql root password')
-        parser.add_argument('-c', '--ccnet-db', help='ccnet db')
-        parser.add_argument('-s', '--seafile-db', help='seafile db')
-        parser.add_argument('-b', '--seahub-db', help='seahub db')
+        parser.add_argument('-c', '--ccnet-db', help='ccnet db name')
+        parser.add_argument('-s', '--seafile-db', help='seafile db name')
+        parser.add_argument('-b', '--seahub-db', help='seahub db name')
 
         args = parser.parse_args()
-        check_params(args)
+
+        try:
+            check_params(args)
+        except (InvalidAnswer, InvalidParams) as e:
+            print Utils.highlight('\n%s\n' % e)
+            sys.exit(-1)
 
     global db_config
 

@@ -148,7 +148,7 @@ def setup_mysql_auto(setup_script):
     env['CCNET_DB'] = 'ccnet-new'
     env['SEAFILE_DB'] = 'seafile-new'
     env['SEAHUB_DB'] = 'seahub-new'
-    shell('%s auto -n my-seafile -e 1' % setup_script, env=env)
+    shell('%s auto -n my-seafile -e 0' % setup_script, env=env)
 
 def start_server(cfg):
     with cd(cfg.installdir):
