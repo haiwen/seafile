@@ -68,24 +68,6 @@ function read_yes_no () {
     fi
 }
 
-function check_root () {
-    # -------------------------------------------
-    # If running as root, ask the user to ensure it.
-    # -------------------------------------------
-    username="$(whoami)"
-    if [[ "${username}" == "root" ]]; then 
-        echo
-        echo "You are running this script as ROOT. Are you sure to continue?"
-
-        if ! read_yes_no; then
-            echo "You should re-run this script as non-root user."
-            echo
-            exit 1;
-        fi
-        echo
-    fi
-}
-
 function check_existing_ccnet () {
     if [[ -d ${default_ccnet_conf_dir} ]]; then
         echo "It seems that you have created a ccnet configuration before. "
@@ -342,30 +324,127 @@ function copy_user_manuals() {
     cp -f ${src_docs_dir}/*.doc ${library_template_dir}
 }
 
+function parse_params() {
+    while getopts n:i:p:d arg; do
+        case $arg in
+            n)
+                server_name=${OPTARG}
+                ;;
+            i)
+                ip_or_domain=${OPTARG}
+                ;;
+            p)
+                fileserver_port=${OPTARG}
+                ;;
+            d)
+                seafile_data_dir=${OPTARG}
+                ;;
+        esac
+    done
+}
+
+function validate_params() {
+    # server_name default hostname -s
+    if [[ "$server_name" == "" ]]; then
+        server_name=${SERVER_NAME:-`hostname -s`}
+    fi
+    if [[ ! ${server_name} =~ ^[a-zA-Z0-9_-]{3,14}$ ]]; then
+        echo "Invalid server name param"
+        err_and_quit;
+    fi
+
+    # ip_or_domain default hostname -i
+    if [[ "$ip_or_domain" == "" ]]; then
+        ip_or_domain=${SERVER_IP:-`hostname -i`}
+    fi
+    if [[ "$ip_or_domain" != "" && ! ${ip_or_domain} =~ ^[^.].+\..+[^.]$ ]]; then
+        echo "Invalid ip or domain param"
+        err_and_quit;
+    fi
+
+    # fileserver_port default 8082
+    if [[ "${fileserver_port}" == "" ]]; then
+        fileserver_port=${FILESERVER_PORT:-8082}
+    fi
+    if [[ ! ${fileserver_port} =~ ^[0-9]+$ ]]; then
+        echo "Invalid fileserver port param"
+        err_and_quit;
+    fi
+
+    if [[ "${seafile_data_dir}" == "" ]]; then
+        seafile_data_dir=${SEAFILE_DIR:-${default_seafile_data_dir}}
+    fi
+    if [[ -d ${seafile_data_dir} && $(ls -A ${seafile_data_dir}) != "" ]]; then
+        echo "${seafile_data_dir} is an existing non-empty directory. Please specify a different directory"
+        err_and_quit
+    elif [[ ! ${seafile_data_dir} =~ ^/ ]]; then
+        echo "\"${seafile_data_dir}\" is not an absolute path. Please specify an absolute path."
+        err_and_quit
+    elif [[ ! -d $(dirname ${seafile_data_dir}) ]]; then
+        echo "The path $(dirname ${seafile_data_dir}) does not exist."
+        err_and_quit
+    fi
+}
+
+function usage() {
+    echo "auto mode:"
+    echo -e "$0 auto\n" \
+        "-n server name\n" \
+        "-i ip or domain\n" \
+        "-p fileserver port\n" \
+        "-d seafile dir to store seafile data"
+    echo ""
+    echo "interactive mode:"
+    echo "$0"
+}
 
 # -------------------------------------------
 # Main workflow of this script 
 # -------------------------------------------
 
-check_root;
-sleep .5
+for param in $@; do
+    if [[ "$param" == "-h" || "$param" == "--help" ]]; then
+        usage;
+        exit 0
+    fi
+done
+
+need_pause=1
+if [[ $# -ge 1 && "$1" == "auto" ]]; then
+    # auto mode, no pause
+    shift
+    parse_params $@;
+    validate_params;
+    need_pause=0
+fi
+
 check_sanity;
-welcome;
+if [[ "${need_pause}" == "1" ]]; then
+    welcome;
+fi
 sleep .5
 check_system_dependency;
 sleep .5
 
 check_existing_ccnet;
 if [[ ${use_existing_ccnet} != "true" ]]; then
-    get_server_name;
-    get_server_ip_or_domain;
+    if [[ "${server_name}" == "" ]]; then
+        get_server_name;
+    fi
+    if [[ "${ip_or_domain}" == "" ]]; then
+        get_server_ip_or_domain;
+    fi
     # get_ccnet_server_port;
 fi
 
-get_seafile_data_dir;
+if [[ "$seafile_data_dir" == "" ]]; then
+    get_seafile_data_dir;
+fi
 if [[ ${use_existing_seafile} != "true" ]]; then
     # get_seafile_server_port
-    get_fileserver_port
+    if [[ "$fileserver_port" == "" ]]; then
+        get_fileserver_port
+    fi
 fi
 
 sleep .5
@@ -386,9 +465,11 @@ else
     printf "seafile data dir:   use existing data in    \033[33m${seafile_data_dir}\033[m\n"
 fi
 
-echo
-echo "If you are OK with the configuration, press [ENTER] to continue."
-read dummy
+if [[ "${need_pause}" == "1" ]]; then
+    echo
+    echo "If you are OK with the configuration, press [ENTER] to continue."
+    read dummy
+fi
 
 ccnet_init=${INSTALLPATH}/seafile/bin/ccnet-init
 seaf_server_init=${INSTALLPATH}/seafile/bin/seaf-server-init
@@ -457,12 +538,14 @@ fi
 # -------------------------------------------
 # Seahub related config
 # -------------------------------------------
-echo "-----------------------------------------------------------------"
-echo "Seahub is the web interface for seafile server."
-echo "Now let's setup seahub configuration. Press [ENTER] to continue"
-echo "-----------------------------------------------------------------"
-echo
-read dummy
+if [[ "${need_pause}" == "1" ]]; then
+    echo "-----------------------------------------------------------------"
+    echo "Seahub is the web interface for seafile server."
+    echo "Now let's setup seahub configuration. Press [ENTER] to continue"
+    echo "-----------------------------------------------------------------"
+    echo
+    read dummy
+fi
 
 # echo "Please specify the email address and password for the seahub administrator."
 # echo "You can use them to login as admin on your seahub website."

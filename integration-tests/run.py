@@ -13,7 +13,7 @@ import termcolor
 from pexpect import spawn
 from utils import green, red, debug, info, warning, cd, shell, chdir, setup_logging
 from autosetup import (setup_server, ServerConfig, get_script, server_dir,
-                       start_server, create_test_user)
+                       start_server, create_test_user, MYSQL_ROOT_PASSWD)
 
 TOPDIR = abspath(join(os.getcwd(), '..'))
 PREFIX = expanduser('~/opt/local')
@@ -261,16 +261,20 @@ def main():
     setup_logging()
     fetch_and_build()
     for db in ('sqlite3', 'mysql'):
-        shell('rm -rf {}/*'.format(INSTALLDIR))
-        setup_and_test(db)
+        if db == 'mysql':
+            shell('mysqladmin -u root password %s' % MYSQL_ROOT_PASSWD)
+        for i in ('prompt', 'auto'):
+            shell('rm -rf {}/*'.format(INSTALLDIR))
+            setup_and_test(db, i)
 
 
-def setup_and_test(db):
+def setup_and_test(db, initmode):
     cfg = ServerConfig(
         installdir=INSTALLDIR,
         tarball=join(TOPDIR, 'seafile-server_{}_x86-64.tar.gz'.format(
             seafile_version)),
-        version=seafile_version)
+        version=seafile_version,
+        initmode=initmode)
     info('Setting up seafile server with %s database', db)
     setup_server(cfg, db)
     # enable webdav, we're going to seafdav tests later
