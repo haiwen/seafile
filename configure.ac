@@ -206,6 +206,7 @@ elif test "$bmac" = true ; then
   MSVC_CFLAGS=
   LIB_MAC="-framework CoreServices"
   LIB_CRYPT32=
+  LIB_ICONV=-liconv
 else
   LIB_WS32=
   LIB_GDI32=
@@ -233,6 +234,7 @@ AC_SUBST(LIB_PSAPI)
 AC_SUBST(LIB_MAC)
 AC_SUBST(MSVC_CFLAGS)
 AC_SUBST(LIB_CRYPT32)
+AC_SUBST(LIB_ICONV)
 
 
 LIBEVENT_REQUIRED=2.0
