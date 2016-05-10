@@ -166,21 +166,13 @@ seafile_decrypt_repo_enc_key (int enc_version,
         unsigned char enc_random_key[48], *dec_random_key;
         int outlen;
         SeafileCrypt *crypt;
-        char buf[65];
 
         if (random_key == NULL || random_key[0] == 0) {
             seaf_warning ("Empty random key.\n");
             return -1;
         }
 
-        rawdata_to_hex (key, buf, 32);
-        seaf_message ("key derived from password: %s\n", buf);
-        rawdata_to_hex (iv, buf, 16);
-        seaf_message ("iv derived from password: %s\n", buf);
-
         hex_to_rawdata (random_key, enc_random_key, 48);
-
-        seaf_message ("enc_random_key: %s, len: 48 bytes\n", random_key);
 
         crypt = seafile_crypt_new (enc_version, key, iv);
         if (seafile_decrypt ((char **)&dec_random_key, &outlen,
@@ -192,19 +184,10 @@ seafile_decrypt_repo_enc_key (int enc_version,
         }
         g_free (crypt);
 
-        seaf_message ("outlen: %d\n", outlen);
-        rawdata_to_hex (dec_random_key, buf, 32);
-        seaf_message ("dec_random_key: %s\n", buf);
-
         seafile_derive_key ((char *)dec_random_key, 32, enc_version,
                                   key, iv);
         memcpy (key_out, key, 32);
         memcpy (iv_out, iv, 16);
-
-        rawdata_to_hex (key_out, buf, 32);
-        seaf_message ("key: %s\n", buf);
-        rawdata_to_hex (iv_out, buf, 16);
-        seaf_message ("iv: %s\n", buf);
 
         g_free (dec_random_key);
         return 0;
