@@ -343,9 +343,12 @@ pack_dir_data_new (const char *store_id,
     int fd = -1;
     PackDirData *data = NULL;
 
-    fd = g_file_open_tmp ("seafile-XXXXXX.zip", &tmpfile_name, NULL);
+    tmpfile_name = g_strdup_printf ("%s/seafile-XXXXXX.zip",
+                                    seaf->http_server->http_temp_dir);
+    fd = g_mkstemp (tmpfile_name);
     if (fd < 0) {
         seaf_warning ("Failed to open temp file: %s.\n", strerror (errno));
+        g_free (tmpfile_name);
         return NULL;
     }
 
