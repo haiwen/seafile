@@ -754,7 +754,7 @@ class ExistingDBConfigurator(AbstractDBConfigurator):
 
 
 class CcnetConfigurator(AbstractConfigurator):
-    SERVER_NAME_REGEX = r'^[a-zA-Z0-9_\-]{3,14}$'
+    SERVER_NAME_REGEX = r'^[a-zA-Z0-9_\-]{3,15}$'
     SERVER_IP_OR_DOMAIN_REGEX = r'^[^.].+\..+[^.]$'
 
     def __init__(self):
@@ -972,17 +972,19 @@ class SeahubConfigurator(AbstractConfigurator):
         '''Generating seahub_settings.py'''
         print 'Generating seahub configuration ...\n'
         time.sleep(1)
-        with open(self.seahub_settings_py, 'w') as fp:
-            self.write_secret_key(fp)
+        self.write_secret_key()
+        with open(self.seahub_settings_py, 'a') as fp:
             self.write_database_config(fp)
 
-    def write_secret_key(self, fp):
-        text = 'SECRET_KEY = "%s"\n\n' % self.gen_secret_key()
-        fp.write(text)
+    def write_secret_key(self):
+        Utils.run_argv([Utils.get_python_executable(),
+                        os.path.join(env_mgr.install_path, 'seahub',
+                                     'tools', 'secret_key_generator.py'),
+                        self.seahub_settings_py])
 
     def write_database_config(self, fp):
         template = '''\
-DATABASES = {
+\nDATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': '%(name)s',
@@ -1001,10 +1003,6 @@ DATABASES = {
                                port=db_config.mysql_port)
 
         fp.write(text)
-
-    def gen_secret_key(self):
-        data = str(uuid.uuid4()) + str(uuid.uuid4())
-        return data[:40]
 
     def ask_admin_email(self):
         print
@@ -1237,7 +1235,10 @@ def get_param_val(arg, env, default=None):
     return arg or os.environ.get(env, default)
 
 def check_params(args):
-    server_name = get_param_val(args.server_name, 'SERVER_NAME', socket.gethostname())
+    host_name = socket.gethostname()
+    if len(host_name) > 15:
+        host_name = host_name[0:15]
+    server_name = get_param_val(args.server_name, 'SERVER_NAME', host_name)
     ccnet_config.server_name = ccnet_config.validate_server_name(server_name)
 
     server_ip = get_param_val(args.server_ip, 'SERVER_IP',
@@ -1280,17 +1281,17 @@ def check_params(args):
         raise InvalidParams('Incomplete mysql configuration parameters, ' \
                             'missing mysql user password parameter')
 
-    ccnet_db = get_param_val(args.ccnet_db, 'CCNET_DB', 'ccnet-db')
+    ccnet_db = get_param_val(args.ccnet_db, 'CCNET_DB', 'ccnet_db')
     if not ccnet_db:
         raise InvalidParams('Incomplete mysql configuration parameters, ' \
                             'missing ccnet db name parameter')
 
-    seafile_db = get_param_val(args.seafile_db, 'SEAFILE_DB', 'seafile-db')
+    seafile_db = get_param_val(args.seafile_db, 'SEAFILE_DB', 'seafile_db')
     if not seafile_db:
         raise InvalidParams('Incomplete mysql configuration parameters, ' \
                             'missing seafile db name parameter')
 
-    seahub_db = get_param_val(args.seahub_db, 'SEAHUB_DB', 'seahub-db')
+    seahub_db = get_param_val(args.seahub_db, 'SEAHUB_DB', 'seahub_db')
     if not seahub_db:
         raise InvalidParams('Incomplete mysql configuration parameters, ' \
                             'missing seahub db name parameter')
