@@ -79,6 +79,29 @@ function test_config() {
     fi
 }
 
+function check_component_stopped() {
+    name=$1
+    cmd=$2
+    count=0
+    while [ $count -lt 10 ]; do
+        if pid=$(pgrep -f "$cmd" 2>/dev/null); then
+            echo "[$name] is running, pid $pid. Will wait and check again "
+       	    sleep 1
+	    let count = count+1
+        else 
+            count=11
+        fi
+    done
+    if pid=$(pgrep -f "$cmd" 2>/dev/null); then
+	echo "[$name] is still running, pid $pid. Giving up and exiting."
+	echo " You may try stop it by: "
+	echo 
+	echo "        kill $pid"
+	echo 
+	exit
+    fi
+}
+
 function check_component_running() {
     name=$1
     cmd=$2
@@ -146,6 +169,11 @@ function stop_seafile_server () {
     pkill -f "fileserver -c ${default_ccnet_conf_dir}"
     pkill -f "soffice.*--invisible --nocrashreport"
     pkill -f  "wsgidav.server.run_server"
+    check_component_stopped "seafile controller" "seafile-controller -c ${default_ccnet_conf_dir}"
+    check_component_stopped "ccnet-server" "ccnet-server -c ${default_ccnet_conf_dir}"
+    check_component_stopped "seaf-server" "seaf-server -c ${default_ccnet_conf_dir}"
+    check_component_stopped "fileserver" "fileserver -c ${default_ccnet_conf_dir}"
+    check_component_stopped "seafdav" "wsgidav.server.run_server"
     return 0
 }
 
