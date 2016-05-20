@@ -55,11 +55,13 @@ noinst_HEADERS = web-accesstoken-mgr.h chunkserv-mgr.h seafile-session.h \
 	pack-dir.h \
 	fileserver-config.h \
 	http-status-codes.h \
+	zip-download-mgr.h \
 	$(proc_headers)
 
 seaf_server_SOURCES = \
 	seaf-server.c \
 	web-accesstoken-mgr.c chunkserv-mgr.c seafile-session.c \
+	zip-download-mgr.c \
 	share-mgr.c \
 	token-mgr.c \
 	passwd-mgr.c \

@@ -28,7 +28,8 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
                                       const char *obj_id,
                                       const char *op,
                                       const char *username,
-                                      int use_onetime);
+                                      int use_onetime,
+                                      GError **error);
 
 /*
  * Returns access info for the given token.

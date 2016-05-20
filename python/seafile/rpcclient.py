@@ -275,6 +275,11 @@ class SeafServerRpcClient(ccnet.RpcClientBase):
         pass
     web_query_access_token = seafile_web_query_access_token
 
+    @searpc_func("string", ["string"])
+    def seafile_query_zip_progress(token):
+        pass
+    query_zip_progress = seafile_query_zip_progress
+
     ###### GC    ####################
     @searpc_func("int", [])
     def seafile_gc():

@@ -515,6 +515,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "seafile_web_query_access_token",
                                      searpc_signature_object__string());
 
+    searpc_server_register_function ("seafserv-rpcserver",
+                                     seafile_query_zip_progress,
+                                     "seafile_query_zip_progress",
+                                     searpc_signature_string__string());
+
     /* Copy task related. */
 
     searpc_server_register_function ("seafserv-rpcserver",

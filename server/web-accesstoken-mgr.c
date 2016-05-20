@@ -8,6 +8,7 @@
 
 #include "seafile-session.h"
 #include "web-accesstoken-mgr.h"
+#include "seafile-error.h"
 
 #include "utils.h"
 
@@ -127,7 +128,8 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
                                       const char *obj_id,
                                       const char *op,
                                       const char *username,
-                                      int use_onetime)
+                                      int use_onetime,
+                                      GError **error)
 {
     GString *key;
     AccessInfo *info;
@@ -145,8 +147,11 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
         strcmp(op, "upload-blks-api") != 0 &&
         strcmp(op, "upload-blks-aj") != 0 &&
         strcmp(op, "update-blks-api") != 0 &&
-        strcmp(op, "update-blks-aj") != 0)
+        strcmp(op, "update-blks-aj") != 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Invalid operation type.");
         return NULL;
+    }
 
     pthread_mutex_lock (&mgr->priv->lock);
 
@@ -166,6 +171,20 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
     g_hash_table_insert (mgr->priv->access_token_hash, g_strdup(t), info);
 
     pthread_mutex_unlock (&mgr->priv->lock);
+
+    if (strcmp(op, "download-dir") == 0 ||
+        strcmp(op, "download-multi") == 0) {
+        if (zip_download_mgr_start_zip_task (seaf->zip_download_mgr,
+                                             t, error) < 0) {
+            if (!use_onetime) {
+                pthread_mutex_lock (&mgr->priv->lock);
+                g_hash_table_remove (mgr->priv->access_token_hash, t);
+                pthread_mutex_unlock (&mgr->priv->lock);
+            }
+            g_free (t);
+            return NULL;
+        }
+    }
 
     return t;
 }
