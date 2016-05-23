@@ -162,10 +162,10 @@ int sqlite_get_int (sqlite3 *db, const char *sql)
 
     if (result == SQLITE_ERROR) {
         const gchar *str = sqlite3_errmsg (db);
-        g_warning ("Couldn't prepare query, error: %d->'%s'\n",
+        g_warning ("Couldn't execute query, error: %d->'%s'\n",
                    result, str ? str : "no error given");
         sqlite3_finalize (stmt);
-        return 0;
+        return -1;
     }
 
     sqlite3_finalize(stmt);
@@ -190,10 +190,10 @@ gint64 sqlite_get_int64 (sqlite3 *db, const char *sql)
 
     if (result == SQLITE_ERROR) {
         const gchar *str = sqlite3_errmsg (db);
-        g_warning ("Couldn't prepare query, error: %d->'%s'\n",
+        g_warning ("Couldn't execute query, error: %d->'%s'\n",
                    result, str ? str : "no error given");
         sqlite3_finalize (stmt);
-        return 0;
+        return -1;
     }
 
     sqlite3_finalize(stmt);
@@ -220,7 +220,7 @@ char *sqlite_get_string (sqlite3 *db, const char *sql)
 
     if (result == SQLITE_ERROR) {
         const gchar *str = sqlite3_errmsg (db);
-        g_warning ("Couldn't prepare query, error: %d->'%s'\n",
+        g_warning ("Couldn't execute query, error: %d->'%s'\n",
                    result, str ? str : "no error given");
         sqlite3_finalize (stmt);
         return NULL;
