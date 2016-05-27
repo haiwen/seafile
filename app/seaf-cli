@@ -145,7 +145,7 @@ def _config_valid(conf):
     return True
 
 
-def _conf_dir():
+def _conf_dir(args):
     ''' Determine and return the value of conf_dir '''
     conf_dir = DEFAULT_CONF_DIR
     if args.confdir:
@@ -277,7 +277,7 @@ def seaf_start_all(args):
 def seaf_start_ccnet(args):
     ''' Start ccnet daemon '''
 
-    conf_dir = _conf_dir()
+    conf_dir = _conf_dir(args)
 
     print "Starting ccnet daemon ..."
 
@@ -291,7 +291,7 @@ def seaf_start_ccnet(args):
 def seaf_start_seafile(args):
     ''' start seafile daemon '''
 
-    conf_dir = _conf_dir()
+    conf_dir = _conf_dir(args)
 
     print "Starting seafile daemon ..."
 
@@ -306,7 +306,7 @@ def seaf_start_seafile(args):
 def seaf_stop(args):
     '''Stop seafile daemon '''
 
-    conf_dir = _conf_dir()
+    conf_dir = _conf_dir(args)
 
     pool = ccnet.ClientPool(conf_dir)
     client = pool.get_client()
@@ -320,7 +320,7 @@ def seaf_stop(args):
 def seaf_list(args):
     '''List local libraries'''
 
-    conf_dir = _conf_dir()
+    conf_dir = _conf_dir(args)
 
     pool = ccnet.ClientPool(conf_dir)
     seafile_rpc = seafile.RpcClient(pool, req_pool=False)
@@ -334,7 +334,7 @@ def seaf_list(args):
 def seaf_list_remote(args):
     '''List remote libraries'''
 
-    conf_dir = _conf_dir()
+    conf_dir = _conf_dir(args)
 
     url = args.server
     if not url:
@@ -380,7 +380,7 @@ def get_base_url(url):
 def seaf_download(args):
     '''Download a library from seafile server '''
 
-    conf_dir = _conf_dir()
+    conf_dir = _conf_dir(args)
 
     repo = args.library
     if not repo:
@@ -453,7 +453,7 @@ def seaf_download_by_name(args):
     '''Download a library defined by name from seafile server'''
     id = None
 
-    conf_dir = _conf_dir()
+    conf_dir = _conf_dir(args)
 
     libraryname = args.libraryname
     if not libraryname:
@@ -497,7 +497,7 @@ def seaf_download_by_name(args):
 def seaf_sync(args):
     ''' synchronize a library from seafile server '''
 
-    conf_dir = _conf_dir()
+    conf_dir = _conf_dir(args)
 
     repo = args.library
     if not repo:
@@ -571,7 +571,7 @@ def seaf_sync(args):
 def seaf_desync(args):
     '''Desynchronize a library from seafile server'''
 
-    conf_dir = _conf_dir()
+    conf_dir = _conf_dir(args)
 
     repo_path = args.folder
     if not repo_path:
@@ -599,7 +599,7 @@ def seaf_desync(args):
 def seaf_config(args):
     '''Configure the seafile client'''
 
-    conf_dir = _conf_dir()
+    conf_dir = _conf_dir(args)
 
     config_key = args.key
     if not config_key:
@@ -623,7 +623,7 @@ def seaf_config(args):
 def seaf_status(args):
     '''Show status'''
 
-    conf_dir = _conf_dir()
+    conf_dir = _conf_dir(args)
 
     pool = ccnet.ClientPool(conf_dir)
     ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=False)
