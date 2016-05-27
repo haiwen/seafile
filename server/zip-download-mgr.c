@@ -7,7 +7,6 @@
 #include "utils.h"
 #include "log.h"
 #include "seafile-error.h"
-#include "seafile-object.h"
 #include "seafile-session.h"
 #include "pack-dir.h"
 #include "web-accesstoken-mgr.h"
@@ -458,9 +457,10 @@ get_download_file_count (DownloadObj *obj, GError **error)
 
 int
 zip_download_mgr_start_zip_task (ZipDownloadMgr *mgr,
-                                 const char *token, GError **error)
+                                 const char *token,
+                                 SeafileWebAccess *info,
+                                 GError **error)
 {
-    SeafileWebAccess *info;
     const char *repo_id;
     const char *data;
     const char *operation;
@@ -472,21 +472,12 @@ zip_download_mgr_start_zip_task (ZipDownloadMgr *mgr,
     int ret = 0;
     ZipDownloadMgrPriv *priv = mgr->priv;
 
-    info = seaf_web_at_manager_query_access_token (seaf->web_at_mgr, token);
-    if (!info) {
-        seaf_warning ("Token info expired or doesn't exist.\n");
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "Token info expired or doesn't exist.");
-        return -1;
-    }
-
     repo_id = seafile_web_access_get_repo_id (info);
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
         seaf_warning ("Failed to get repo %.8s.\n", repo_id);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Failed to get repo.");
-        g_object_unref (info);
         return -1;
     }
     data = seafile_web_access_get_obj_id (info);
@@ -550,7 +541,6 @@ out:
     if (ret < 0) {
         free_download_obj (obj);
     }
-    g_object_unref (info);
 
     return ret;
 }

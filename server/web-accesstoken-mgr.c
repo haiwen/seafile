@@ -136,6 +136,7 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
     long now = (long)time(NULL);
     long expire;
     char *t;
+    SeafileWebAccess *webaccess;
 
     if (strcmp(op, "view") != 0 &&
         strcmp(op, "download") != 0 &&
@@ -174,16 +175,25 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
 
     if (strcmp(op, "download-dir") == 0 ||
         strcmp(op, "download-multi") == 0) {
+
+        webaccess = g_object_new (SEAFILE_TYPE_WEB_ACCESS,
+                                  "repo_id", info->repo_id,
+                                  "obj_id", info->obj_id,
+                                  "op", info->op,
+                                  "username", info->username,
+                                  NULL);
+
         if (zip_download_mgr_start_zip_task (seaf->zip_download_mgr,
-                                             t, error) < 0) {
-            if (!use_onetime) {
-                pthread_mutex_lock (&mgr->priv->lock);
-                g_hash_table_remove (mgr->priv->access_token_hash, t);
-                pthread_mutex_unlock (&mgr->priv->lock);
-            }
+                                             t, webaccess, error) < 0) {
+            pthread_mutex_lock (&mgr->priv->lock);
+            g_hash_table_remove (mgr->priv->access_token_hash, t);
+            pthread_mutex_unlock (&mgr->priv->lock);
+
+            g_object_unref (webaccess);
             g_free (t);
             return NULL;
         }
+        g_object_unref (webaccess);
     }
 
     return t;

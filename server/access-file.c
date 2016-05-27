@@ -1097,6 +1097,7 @@ static void
 access_zip_cb (evhtp_request_t *req, void *arg)
 {
     char *token;
+    SeafileWebAccess *info;
     char *filename = NULL;
     char *zip_file_path;
     const char *error;
@@ -1109,11 +1110,22 @@ access_zip_cb (evhtp_request_t *req, void *arg)
         goto err;
     }
 
+    token = parts[1];
+    info = seaf_web_at_manager_query_access_token (seaf->web_at_mgr, token);
+    // Here only check token exist, follow will get zip file path, if zip file path exist
+    // then the token is valid, because it pass some validations in zip stage
+    if (!info) {
+        seaf_warning ("Token doesn't exist.\n");
+        error = "Invalid token\n";
+        error_code = EVHTP_RES_BADREQ;
+        goto err;
+    }
+    g_object_unref (info);
+
     if (can_use_cached_content (req)) {
         goto success;
     }
 
-    token = parts[1];
     if (g_strv_length (parts) > 2) {
         filename = g_uri_unescape_string (parts[2], NULL);
         if (!filename) {
