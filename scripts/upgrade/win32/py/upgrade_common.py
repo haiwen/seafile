@@ -149,7 +149,7 @@ def ensure_server_not_running():
     except ccnet.NetworkError:
         pass
     else:
-        raise Exception('Seafile server is running! You must turn it off before gc!')
+        raise Exception('Seafile server is running! You must turn it off before running this script!')
 
 
 read_seafserv_dir()
