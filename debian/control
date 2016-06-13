@@ -1,47 +1,57 @@
-Source: seafile
+Source: libseafile
 Section: net
 Priority: extra
-Maintainer: Lingtao Pan <freeplant@gmail.com>
+Maintainer: m.eik michalke <meik.michalke@hhu.de>
 Build-Depends:
-	debhelper (>= 7),
-	autotools-dev,
-	libssl-dev,
-	libsqlite3-dev,
-	intltool,
-	libglib2.0-dev,
-	libevent-dev,
-	uuid-dev,
-	libgtk2.0-dev,
-    qtbase5-dev,
-    libqt5webkit5-dev,
-    qttools5-dev
-Standards-Version: 3.9.4
+    debhelper (>= 7),
+    autotools-dev,
+    libssl-dev,
+    libsqlite3-dev,
+    intltool,
+    libglib2.0-dev,
+    libevent-dev,
+    uuid-dev,
+    libtool,
+    libcurl4-openssl-dev,
+    valac,
+    libjansson-dev,
+    python,
+    libfuse-dev,
+    libsearpc-dev,
+    libccnet-dev
+Standards-Version: 3.9.5
 Homepage: http://seafile.com
 
-Package: seafile
+Package: libseafile
+Section: libs
 Architecture: any
 Depends:
-	${shlibs:Depends},
-	${misc:Depends},
-	libglib2.0-0,
-	libsqlite3-0,
-	libuuid1,
-	libssl0.9.8 | libssl1.0.0,
-	libevent-2.0-5,
-    libqt5network5 (>=5.5),
-    libqt5core5a (>=5.5),
-    libqt5gui5 (>=5.5),
-    libqt5webkit5 (>=5.5),
-    libqt5test5 (>=5.5)
-Description: Client of seafile, an online file storage and collaboration tool
- Seafile enables you to build private cloud for file sharing and collaboration
- among team members in your company/organization. This is the Linux desktop
- client of the seafile system.
- .
- First you create a file library in the web and upload files to it. Then you
- share it into a team or with another user.
- .
- File libraries can also be synchronized among computers and mobile devices. You
- download a library to your PC. Whenever you add, delete or edit a file, the
- latest version be uploaded to the server automatically and then be synchronized
- to everyone's computer.
+    ${shlibs:Depends},
+    ${misc:Depends},
+    libglib2.0-0,
+    libsqlite3-0,
+    libuuid1,
+    libssl0.9.8 | libssl1.0.0,
+    libevent-2.0-5,
+    python,
+    libsearpc,
+    libccnet
+Description: Seafile libraries
+  File syncing and sharing software with file encryption and group sharing, emphasis on reliability and high performance.
+  .
+  This package contains the main library files as well as the daemon.
+
+Package: seafile-cli
+Section: utils
+Architecture: any
+Depends:
+    libseafile (= ${binary:Version})
+Description: Seafile command line interface.
+  This package contains the command line interface to manage Seafile libraries.
+
+Package: libseafile-dev
+Section: libdevel
+Architecture: any
+Depends:
+    libseafile (= ${binary:Version})
+Description: Development files for the libseafile package.
