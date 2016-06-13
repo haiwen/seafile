@@ -1,0 +1,5 @@
+usr/include/seafile
+usr/lib/pkgconfig
+usr/lib/libseafile.a
+usr/lib/libseafile.la
+usr/lib/libseafile.so

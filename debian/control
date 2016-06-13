@@ -1,47 +1,73 @@
-Source: seafile
+Source: seafile-daemon
 Section: net
 Priority: extra
-Maintainer: Lingtao Pan <freeplant@gmail.com>
+Maintainer: m.eik michalke <meik.michalke@hhu.de>
 Build-Depends:
-	debhelper (>= 7),
-	autotools-dev,
-	libssl-dev,
-	libsqlite3-dev,
-	intltool,
-	libglib2.0-dev,
-	libevent-dev,
-	uuid-dev,
-	libgtk2.0-dev,
-    qtbase5-dev,
-    libqt5webkit5-dev,
-    qttools5-dev
-Standards-Version: 3.9.4
+    debhelper (>= 7),
+    autotools-dev,
+    libssl-dev,
+    libsqlite3-dev,
+    intltool,
+    libglib2.0-dev,
+    libevent-dev,
+    uuid-dev,
+    libtool,
+    libcurl4-openssl-dev,
+    valac,
+    libjansson-dev,
+    python,
+    libsearpc-dev,
+    libccnet-dev
+Standards-Version: 3.9.5
 Homepage: http://seafile.com
 
-Package: seafile
+Package: seafile-daemon
+Section: net
 Architecture: any
 Depends:
-	${shlibs:Depends},
-	${misc:Depends},
-	libglib2.0-0,
-	libsqlite3-0,
-	libuuid1,
-	libssl0.9.8 | libssl1.0.0,
-	libevent-2.0-5,
-    libqt5network5,
-    libqt5core5a,
-    libqt5gui5,
-    libqt5webkit5,
-    libqt5test5
-Description: Client of seafile, an online file storage and collaboration tool
- Seafile enables you to build private cloud for file sharing and collaboration
- among team members in your company/organization. This is the Linux desktop
- client of the seafile system.
+    ${shlibs:Depends},
+    ${misc:Depends},
+    ${python:Depends},
+    ccnet (>= 5.1.2)
+Conflicts: seafile
+Suggests: seafile-gui, seafile-cli
+Description: Seafile daemon
+ File syncing and sharing software with file encryption and group
+ sharing, emphasis on reliability and high performance.
  .
- First you create a file library in the web and upload files to it. Then you
- share it into a team or with another user.
- .
- File libraries can also be synchronized among computers and mobile devices. You
- download a library to your PC. Whenever you add, delete or edit a file, the
- latest version be uploaded to the server automatically and then be synchronized
- to everyone's computer.
+ This package contains the Seafile daemon.
+
+Package: libseafile0
+Section: libs
+Architecture: any
+Depends:
+    ${shlibs:Depends},
+    ${misc:Depends},
+    ${python:Depends}
+Conflicts: seafile
+Description: Shared libraries for Seafile
+ This package contains the shared libraries for the Seafile daemon.
+
+Package: seafile-cli
+Section: utils
+Architecture: any
+Depends:
+    ${shlibs:Depends},
+    ${misc:Depends},
+    ${python:Depends},
+    libseafile0 (>= ${binary:Version}),
+    ccnet (>= 5.1.2),
+    seafile-daemon (>= ${binary:Version})
+Conflicts: seafile
+Description: Seafile command line interface.
+ This package contains the command line interface to manage Seafile libraries.
+
+Package: libseafile-dev
+Section: libdevel
+Architecture: any
+Depends:
+    ${misc:Depends},
+    libseafile0 (= ${binary:Version})
+Conflicts: seafile
+Description: Development files for package libseafile0.
+ This package contains the development files for the libseafile0 package.
