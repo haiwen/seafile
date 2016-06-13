@@ -1,0 +1,22 @@
+Fixing wrong pkgconfig paths.
+--- a/lib/libseafile.pc.in
++++ b/lib/libseafile.pc.in
+@@ -1,4 +1,4 @@
+-prefix=(DESTDIR)@prefix@
++prefix=@prefix@
+ exec_prefix=@exec_prefix@
+ libdir=@libdir@
+ includedir=@includedir@
+--- a/lib/Makefile.am
++++ b/lib/Makefile.am
+@@ -85,10 +85,3 @@
+ 	rm -f rpc_table.stamp
+ 	rm -f rpc_table.tmp
+ 	rm -f vala.tmp vala.stamp ${valac_gen}
+-
+-install-data-local:
+-if MACOS
+-	sed -i '' -e "s|(DESTDIR)|${DESTDIR}|g" $(pcfiles)
+-else
+-	${SED} -i "s|(DESTDIR)|${DESTDIR}|g" $(pcfiles)
+-endif

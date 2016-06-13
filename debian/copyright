@@ -1,18 +1,44 @@
-This package was debianized by Lingtao Pan <freeplant@gmail.com> on
-Thu, 15 March 2012 14:45:30 +0800.
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: seafile
+Upstream-Contact: Lingtao Pan <freeplant@gmail.com>
+Source: https://github.com/haiwen/seafile
 
-It was downloaded from http://www.gonggeng.org/seasite/download/
+Files: *
+Copyright: 2012 plt
+License: GPL-2 with OpenSSL exception
+  This program is released under GPL-2, with the following addition
+  permission to link with OpenSSL library.
+  .
+  If you modify this program, or any covered work, by linking or
+  combining it with the OpenSSL project's OpenSSL library (or a
+  modified version of that library), containing parts covered by the
+  terms of the OpenSSL or SSLeay licenses, Seafile Ltd.
+  grants you additional permission to convey the resulting work.
+  Corresponding Source for a non-source form of such a combination
+  shall include the source code for the parts of OpenSSL used as well
+  as that of the covered work.
+  .
+  This software is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+  or FITNESS FOR A PARTICULAR PURPOSE.
+  .
+  You should have received a copy of the license with your Debian system,
+  in the file /usr/share/common-licenses/GPL-2, or with the
+  source package as the file COPYING or LICENSE.
 
-Upstream Author(s):
-
-    Lingtao Pan <freeplant@gmail.com>
-
-Copyright:
-
-    Copyright (C) 2012 by plt.
-
-License:
-    GPLv3
-
-The Debian packaging is copyright 2012, Lingtao Pan <freeplant@gmail.com> and
-is licensed under the GPL, see `/usr/share/common-licenses/GPL'.
+Files: debian/*
+Copyright: 2016 m.eik michalke
+License: GPL-2
+  This program is free software; you can redistribute it
+  and/or modify it under the terms of the GNU General Public
+  License as published by the Free Software Foundation; either
+  version 2 of the License, or (at your option) any later
+  version.
+  .
+  This software is distributed in the hope that it will be useful, but
+  WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+  or FITNESS FOR A PARTICULAR PURPOSE.
+  .
+  You should have received a copy of the license with your Debian system,
+  in the file /usr/share/common-licenses/GPL-2, or with the
+  source package as the file COPYING or LICENSE.
