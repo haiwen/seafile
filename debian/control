@@ -1,4 +1,4 @@
-Source: libseafile
+Source: seafile-daemon
 Section: net
 Priority: extra
 Maintainer: m.eik michalke <meik.michalke@hhu.de>
@@ -22,8 +22,8 @@ Build-Depends:
 Standards-Version: 3.9.5
 Homepage: http://seafile.com
 
-Package: libseafile
-Section: libs
+Package: seafile-daemon
+Section: net
 Architecture: any
 Depends:
     ${shlibs:Depends},
@@ -34,18 +34,30 @@ Depends:
     libssl0.9.8 | libssl1.0.0,
     libevent-2.0-5,
     python,
-    libsearpc,
-    libccnet
-Description: Seafile libraries
+    ccnet,
+    libsearpc1,
+    libccnet0
+Description: Seafile daemon
   File syncing and sharing software with file encryption and group sharing, emphasis on reliability and high performance.
   .
-  This package contains the main library files as well as the daemon.
+  This package contains the Seafile daemon.
+
+Package: libseafile0
+Section: libs
+Architecture: any
+Depends:
+    ${shlibs:Depends},
+    ${misc:Depends},
+    python,
+    libglib2.0-0,
+    libsearpc1
+Description: Shared libraries for Seafile
 
 Package: seafile-cli
 Section: utils
 Architecture: any
 Depends:
-    libseafile (= ${binary:Version})
+    libseafile0 (= ${binary:Version})
 Description: Seafile command line interface.
   This package contains the command line interface to manage Seafile libraries.
 
@@ -53,5 +65,5 @@ Package: libseafile-dev
 Section: libdevel
 Architecture: any
 Depends:
-    libseafile (= ${binary:Version})
-Description: Development files for the libseafile package.
+    libseafile0 (= ${binary:Version})
+Description: Development files for package libseafile0.

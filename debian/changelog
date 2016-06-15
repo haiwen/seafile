@@ -1,8 +1,8 @@
-libseafile (5.1.2-4) unstable; urgency=medium
+seafile-daemon (5.1.2-4) unstable; urgency=medium
 
-  * split package libseafile, libseafile-dev and seafile-cli
+  * split package into seafile-daemon, libseafile0, libseafile-dev and seafile-cli
   * updated the debian/copyright notice so people know who's responisble for the packaging
   * rewrote the rules file, much simpler now
   * prep for release on github
 
- -- m.eik michalke <meik.michalke@hhu.de>  Mon, 13 Jun 2016 19:45:15 +0200
+ -- m.eik michalke <meik.michalke@hhu.de>  Wed, 15 Jun 2016 22:38:24 +0200
