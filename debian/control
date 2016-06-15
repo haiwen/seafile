@@ -37,6 +37,7 @@ Depends:
     ccnet,
     libsearpc1,
     libccnet0
+Conflicts: seafile
 Description: Seafile daemon
   File syncing and sharing software with file encryption and group sharing, emphasis on reliability and high performance.
   .
@@ -51,6 +52,7 @@ Depends:
     python,
     libglib2.0-0,
     libsearpc1
+Conflicts: seafile
 Description: Shared libraries for Seafile
 
 Package: seafile-cli
@@ -58,6 +60,7 @@ Section: utils
 Architecture: any
 Depends:
     libseafile0 (= ${binary:Version})
+Conflicts: seafile
 Description: Seafile command line interface.
   This package contains the command line interface to manage Seafile libraries.
 
@@ -66,4 +69,5 @@ Section: libdevel
 Architecture: any
 Depends:
     libseafile0 (= ${binary:Version})
+Conflicts: seafile
 Description: Development files for package libseafile0.
