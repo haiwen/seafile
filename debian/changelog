@@ -1,3 +1,9 @@
+seafile-daemon (5.1.2-5) UNRELEASED; urgency=medium
+
+  * repackaging with cleaned up orig.tar.xz archives
+
+ -- m.eik michalke <meik.michalke@hhu.de>  Thu, 16 Jun 2016 14:33:40 +0200
+
 seafile-daemon (5.1.2-4) unstable; urgency=medium
 
   * split package into seafile-daemon, libseafile0, libseafile-dev and seafile-cli
