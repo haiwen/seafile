@@ -32,7 +32,8 @@ Depends:
 Conflicts: seafile
 Suggests: seafile-gui, seafile-cli
 Description: Seafile daemon
- File syncing and sharing software with file encryption and group sharing, emphasis on reliability and high performance.
+ File syncing and sharing software with file encryption and group
+ sharing, emphasis on reliability and high performance.
  .
  This package contains the Seafile daemon.
 

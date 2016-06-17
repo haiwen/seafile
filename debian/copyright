@@ -5,10 +5,18 @@ Source: https://github.com/haiwen/seafile
 
 Files: *
 Copyright: 2012 plt
-License: GPL-2
-  This program is free software; you can redistribute it
-  and/or modify it under the terms of the GNU Lesser General Public
-  License version 2 as published by the Free Software Foundation.
+License: GPL-2 with OpenSSL exception
+  This program is released under GPL-2, with the following addition
+  permission to link with OpenSSL library.
+  .
+  If you modify this program, or any covered work, by linking or
+  combining it with the OpenSSL project's OpenSSL library (or a
+  modified version of that library), containing parts covered by the
+  terms of the OpenSSL or SSLeay licenses, Seafile Ltd.
+  grants you additional permission to convey the resulting work.
+  Corresponding Source for a non-source form of such a combination
+  shall include the source code for the parts of OpenSSL used as well
+  as that of the covered work.
   .
   This software is distributed in the hope that it will be useful, but
   WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
