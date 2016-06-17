@@ -28,21 +28,13 @@ Architecture: any
 Depends:
     ${shlibs:Depends},
     ${misc:Depends},
-    libglib2.0-0,
-    libsqlite3-0,
-    libuuid1,
-    libssl0.9.8 | libssl1.0.0,
-    libevent-2.0-5,
-    python,
-    ccnet,
-    libsearpc1,
-    libccnet0
+    ${python:Depends}
 Conflicts: seafile
 Suggests: seafile-gui, seafile-cli
 Description: Seafile daemon
-  File syncing and sharing software with file encryption and group sharing, emphasis on reliability and high performance.
-  .
-  This package contains the Seafile daemon.
+ File syncing and sharing software with file encryption and group sharing, emphasis on reliability and high performance.
+ .
+ This package contains the Seafile daemon.
 
 Package: libseafile0
 Section: libs
@@ -50,25 +42,29 @@ Architecture: any
 Depends:
     ${shlibs:Depends},
     ${misc:Depends},
-    python,
-    libglib2.0-0,
-    libsearpc1
+    ${python:Depends}
 Conflicts: seafile
 Description: Shared libraries for Seafile
+ This package contains the shared libraries for the Seafile daemon.
 
 Package: seafile-cli
 Section: utils
 Architecture: any
 Depends:
+    ${shlibs:Depends},
+    ${misc:Depends},
+    ${python:Depends},
     libseafile0 (= ${binary:Version})
 Conflicts: seafile
 Description: Seafile command line interface.
-  This package contains the command line interface to manage Seafile libraries.
+ This package contains the command line interface to manage Seafile libraries.
 
 Package: libseafile-dev
 Section: libdevel
 Architecture: any
 Depends:
+    ${misc:Depends},
     libseafile0 (= ${binary:Version})
 Conflicts: seafile
 Description: Development files for package libseafile0.
+ This package contains the development files for the libseafile0 package.

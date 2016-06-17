@@ -1,8 +1,9 @@
-seafile-daemon (5.1.2-5) UNRELEASED; urgency=medium
+seafile-daemon (5.1.2-5ubuntu1) UNRELEASED; urgency=medium
 
   * repackaging with cleaned up orig.tar.xz archives
+  * added symbols file
 
- -- m.eik michalke <meik.michalke@hhu.de>  Thu, 16 Jun 2016 14:33:40 +0200
+ -- m.eik michalke <meik.michalke@hhu.de>  Fri, 17 Jun 2016 19:04:41 +0200
 
 seafile-daemon (5.1.2-4) unstable; urgency=medium
 

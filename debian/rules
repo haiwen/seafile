@@ -10,3 +10,8 @@ override_dh_auto_configure:
 
 override_dh_auto_test:
 # make check seems to be broken
+
+override_dh_strip:
+	# emptying the dependency_libs field in .la files
+	sed -i "/dependency_libs/ s/'.*'/''/" `find debian/ -name '*.la'`
+	dh_strip
