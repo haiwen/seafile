@@ -503,6 +503,15 @@ GList *
 seafile_get_sync_task_list (GError **error);
 
 int
+seafile_share_subdir_to_user (const char *repo_id,
+                              const char *path,
+                              const char *owner,
+                              const char *share_user,
+                              const char *permission,
+                              const char *passwd,
+                              GError **error);
+
+int
 seafile_add_share (const char *repo_id, const char *from_email,
                    const char *to_email, const char *permission,
                    GError **error);
@@ -522,6 +531,15 @@ seafile_list_repo_shared_group (const char *from_user, const char *repo_id,
 int
 seafile_remove_share (const char *repo_id, const char *from_email,
                       const char *to_email, GError **error);
+
+int
+seafile_share_subdir_to_group (const char *repo_id,
+                               const char *path,
+                               const char *owner,
+                               int share_group,
+                               const char *permission,
+                               const char *passwd,
+                               GError **error);
 
 int
 seafile_group_share_repo (const char *repo_id, int group_id,

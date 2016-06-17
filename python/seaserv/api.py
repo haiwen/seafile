@@ -328,6 +328,11 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.set_share_permission(repo_id, from_username,
                                                           to_username, permission)
 
+    def share_subdir_to_user (self, repo_id, path, owner, share_user, permission, passwd=''):
+        return seafserv_threaded_rpc.share_subdir_to_user(repo_id, path, owner,
+                                                          share_user, permission, passwd)
+
+
     def get_share_out_repo_list(self, username, start, limit):
         """
         Get repo list shared by this user.
@@ -382,6 +387,10 @@ class SeafileAPI(object):
         Return: a list of SharedGroup objects (lib/repo.vala)
         """
         return seafserv_threaded_rpc.list_repo_shared_group(from_user, repo_id)
+
+    def share_subdir_to_group (self, repo_id, path, owner, share_group, permission, passwd=''):
+        return seafserv_threaded_rpc.share_subdir_to_group(repo_id, path, owner,
+                                                           share_group, permission, passwd)
 
     def get_group_repoids(self, group_id):
         """

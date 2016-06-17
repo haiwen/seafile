@@ -396,4 +396,10 @@ seaf_decompress (guint8 *input, int inlen, guint8 **output, int *outlen);
 char*
 format_dir_path (const char *path);
 
+gboolean
+is_empty_string (const char *str);
+
+gboolean
+is_permission_valid (const char *perm);
+
 #endif
