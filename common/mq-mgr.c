@@ -103,7 +103,7 @@ seaf_mq_manager_set_heartbeat_name (SeafMqManager *mgr, const char *app)
     if (priv->heartbeat_msg)
         return;
 
-    seaf_message ("[mq mgr] publish to hearbeat mq: %s\n", app);
+    seaf_message ("[mq mgr] publish to heartbeat mq: %s\n", app);
 
     priv->heartbeat_msg =
         create_message (seaf->mq_mgr, app, "heartbeat", 0);
