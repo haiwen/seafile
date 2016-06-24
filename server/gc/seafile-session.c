@@ -15,7 +15,8 @@
 SeafileSession *
 seafile_session_new(const char *central_config_dir,
                     const char *seafile_dir,
-                    CcnetClient *ccnet_session)
+                    CcnetClient *ccnet_session,
+                    gboolean need_db)
 {
     char *abs_central_config_dir = NULL;
     char *abs_seafile_dir;
@@ -69,9 +70,11 @@ seafile_session_new(const char *central_config_dir,
     session->session = ccnet_session;
     session->config = config;
 
-    if (load_database_config (session) < 0) {
-        seaf_warning ("Failed to load database config.\n");
-        goto onerror;
+    if (need_db) {
+        if (load_database_config (session) < 0) {
+            seaf_warning ("Failed to load database config.\n");
+            goto onerror;
+        }
     }
 
     session->fs_mgr = seaf_fs_manager_new (session, abs_seafile_dir);
