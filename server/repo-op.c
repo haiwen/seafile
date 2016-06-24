@@ -4360,7 +4360,8 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
     gboolean is_renamed = FALSE;
     char *parent_id = NULL, *old_path = NULL;
     GList *old_revisions = NULL;
-    int show_time;
+    gint64 truncate_time;
+    gint64 show_time;
 
     repo = seaf_repo_manager_get_repo (mgr, repo_id);
     if (!repo) {
@@ -4380,9 +4381,15 @@ seaf_repo_manager_list_file_revisions (SeafRepoManager *mgr,
     data.error = error;
     data.max_revision = max_revision;
 
-    show_time = show_days > 0 ? time(NULL) - show_days*24*3600 : -1;
-    data.truncate_time = MAX (show_time,
-                              seaf_repo_manager_get_repo_truncate_time (mgr, repo_id));
+    truncate_time = seaf_repo_manager_get_repo_truncate_time (mgr, repo_id);
+    if (truncate_time == 0) {
+        // Don't keep history
+        data.truncate_time = 0;
+    } else {
+        show_time = show_days > 0 ? time(NULL) - show_days*24*3600 : -1;
+        data.truncate_time = MAX (truncate_time, show_time);
+    }
+
     data.wanted_commits = NULL;
     data.file_id_list = NULL;
     data.file_size_list = NULL;
