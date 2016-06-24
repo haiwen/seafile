@@ -2369,9 +2369,21 @@ seafile_add_share (const char *repo_id, const char *from_email,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid repo_id parameter");
+        return -1;
+    }
+
     if (g_strcmp0 (from_email, to_email) == 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Can not share repo to myself");
+        return -1;
+    }
+
+    if (!is_permission_valid (permission)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid permission parameter");
         return -1;
     }
 
@@ -2415,6 +2427,82 @@ seafile_list_repo_shared_to (const char *from_user, const char *repo_id,
     return seaf_share_manager_list_repo_shared_to (seaf->share_mgr,
                                                    from_user, repo_id,
                                                    error);
+}
+
+int
+seafile_share_subdir_to_user (const char *repo_id,
+                              const char *path,
+                              const char *owner,
+                              const char *share_user,
+                              const char *permission,
+                              const char *passwd,
+                              GError **error)
+{
+    if (is_empty_string (repo_id) || !is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid repo_id parameter");
+        return -1;
+    }
+
+    if (is_empty_string (path) || strcmp (path, "/") == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid path parameter");
+        return -1;
+    }
+
+    if (is_empty_string (owner)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid owner parameter");
+        return -1;
+    }
+
+    if (is_empty_string (share_user)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid share_user parameter");
+        return -1;
+    }
+
+    if (strcmp (owner, share_user) == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Can't share subdir to myself");
+        return -1;
+    }
+
+    if (!is_permission_valid (permission)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid permission parameter");
+        return -1;
+    }
+
+    char *real_path;
+    char *vrepo_name;
+    char *vrepo_id;
+    int ret = 0;
+
+    real_path = format_dir_path (path);
+    // Use subdir name as virtual repo name and description
+    vrepo_name = g_path_get_basename (real_path);
+    vrepo_id = seaf_repo_manager_create_virtual_repo (seaf->repo_mgr,
+                                                      repo_id, real_path,
+                                                      vrepo_name, vrepo_name,
+                                                      owner, passwd, error);
+    if (!vrepo_id) {
+        ret = -1;
+        goto out;
+    }
+
+    ret = seaf_share_manager_add_share (seaf->share_mgr, vrepo_id, owner,
+                                        share_user, permission);
+    if (ret < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to share subdir to user");
+    }
+    g_free (vrepo_id);
+
+out:
+    g_free (vrepo_name);
+    g_free (real_path);
+    return ret;
 }
 
 GList *
@@ -2475,6 +2563,12 @@ seafile_group_share_repo (const char *repo_id, int group_id,
         return -1;
     }
 
+    if (!is_permission_valid (permission)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid permission parameter");
+        return -1;
+    }
+
     ret = seaf_repo_manager_add_group_repo (mgr, repo_id, group_id, user_name,
                                             permission, error);
 
@@ -2503,6 +2597,76 @@ seafile_group_unshare_repo (const char *repo_id, int group_id,
 
     return ret;
 
+}
+
+int
+seafile_share_subdir_to_group (const char *repo_id,
+                               const char *path,
+                               const char *owner,
+                               int share_group,
+                               const char *permission,
+                               const char *passwd,
+                               GError **error)
+{
+    if (is_empty_string (repo_id) || !is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid repo_id parameter");
+        return -1;
+    }
+
+    if (is_empty_string (path) || strcmp (path, "/") == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid path parameter");
+        return -1;
+    }
+
+    if (is_empty_string (owner)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid owner parameter");
+        return -1;
+    }
+
+    if (share_group < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid share_group parameter");
+        return -1;
+    }
+
+    if (!is_permission_valid (permission)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid permission parameter");
+        return -1;
+    }
+
+    char *real_path;
+    char *vrepo_name;
+    char *vrepo_id;
+    int ret = 0;
+
+    real_path = format_dir_path (path);
+    // Use subdir name as virtual repo name and description
+    vrepo_name = g_path_get_basename (real_path);
+    vrepo_id = seaf_repo_manager_create_virtual_repo (seaf->repo_mgr,
+                                                      repo_id, real_path,
+                                                      vrepo_name, vrepo_name,
+                                                      owner, passwd, error);
+    if (!vrepo_id) {
+        ret = -1;
+        goto out;
+    }
+
+    ret = seaf_repo_manager_add_group_repo (seaf->repo_mgr, vrepo_id, share_group,
+                                            owner, permission, error);
+    if (ret < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to share subdir to group");
+    }
+    g_free (vrepo_id);
+
+out:
+    g_free (vrepo_name);
+    g_free (real_path);
+    return ret;
 }
 
 char *
@@ -4083,6 +4247,18 @@ seafile_set_share_permission (const char *repo_id,
         return -1;
     }
 
+    if (!is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid repo_id parameter");
+        return -1;
+    }
+
+    if (!is_permission_valid (permission)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid permission parameter");
+        return -1;
+    }
+
     return seaf_share_manager_set_permission (seaf->share_mgr,
                                               repo_id,
                                               from_email,
@@ -4104,6 +4280,13 @@ seafile_set_group_repo_permission (int group_id,
     if (!is_uuid_valid (repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid repo id");
         return -1;
+    }
+
+    if (!is_permission_valid (permission)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid permission parameter");
+        return -1;
+
     }
 
     return seaf_repo_manager_set_group_repo_perm (seaf->repo_mgr,

@@ -2551,3 +2551,19 @@ format_dir_path (const char *path)
 
     return rpath;
 }
+
+gboolean
+is_empty_string (const char *str)
+{
+    return !str || strcmp (str, "") == 0;
+}
+
+gboolean
+is_permission_valid (const char *perm)
+{
+    if (is_empty_string (perm)) {
+        return FALSE;
+    }
+
+    return strcmp (perm, "r") == 0 || strcmp (perm, "rw") == 0;
+}
