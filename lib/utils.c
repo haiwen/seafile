@@ -2431,6 +2431,14 @@ clean_utf8_data (char *data, int len)
     }
 }
 
+char *
+normalize_utf8_path (const char *path)
+{
+    if (!g_utf8_validate (path, -1, NULL))
+        return NULL;
+    return g_utf8_normalize (path, -1, G_NORMALIZE_NFC);
+}
+
 /* zlib related wrapper functions. */
 
 #define ZLIB_BUF_SIZE 16384

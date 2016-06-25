@@ -242,7 +242,7 @@ check_tmp_file_list (GList *tmp_files, int *error_code)
 
     if (seaf->http_server->max_upload_size != -1 &&
         total_size > seaf->http_server->max_upload_size) {
-        seaf_warning ("[upload] File size is too large.\n");
+        seaf_debug ("[upload] File size is too large.\n");
         *error_code = ERROR_SIZE;
         return FALSE;
     }
@@ -361,14 +361,14 @@ upload_cb(evhtp_request_t *req, void *arg)
         return;
 
     if (!fsm->files) {
-        seaf_warning ("[upload] No file uploaded.\n");
+        seaf_debug ("[upload] No file uploaded.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "No file.\n");
         return;
     }
 
     parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
     if (!parent_dir) {
-        seaf_warning ("[upload] No parent dir given.\n");
+        seaf_debug ("[upload] No parent dir given.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
@@ -474,7 +474,7 @@ upload_api_cb(evhtp_request_t *req, void *arg)
         return;
 
     if (!fsm->files) {
-        seaf_warning ("[upload] No file uploaded.\n");
+        seaf_debug ("[upload] No file uploaded.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "No file.\n");
         return;
     }
@@ -483,14 +483,14 @@ upload_api_cb(evhtp_request_t *req, void *arg)
     if (replace_str) {
         replace = atoi(replace_str);
         if (replace != 0 && replace != 1) {
-            seaf_warning ("[Upload] Invalid argument replace: %s.\n", replace_str);
+            seaf_debug ("[Upload] Invalid argument replace: %s.\n", replace_str);
             send_error_reply (req, EVHTP_RES_BADREQ, "Invalid argument.\n");
             return;
         }
     }
     parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
     if (!parent_dir) {
-        seaf_warning ("[upload] No parent dir given.\n");
+        seaf_debug ("[upload] No parent dir given.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
@@ -658,7 +658,7 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
     if (replace_str) {
         replace = atoi(replace_str);
         if (replace != 0 && replace != 1) {
-            seaf_warning ("[Upload-blks] Invalid argument replace: %s.\n", replace_str);
+            seaf_debug ("[Upload-blks] Invalid argument replace: %s.\n", replace_str);
             send_error_reply (req, EVHTP_RES_BADREQ, "Invalid argument.\n");
             return;
         }
@@ -670,7 +670,7 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
         file_size = atoll(size_str);
 
     if (!file_name || !parent_dir || !size_str || file_size < 0) {
-        seaf_warning ("[upload-blks] No parent dir or file name given.\n");
+        seaf_debug ("[upload-blks] No parent dir or file name given.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
@@ -708,7 +708,7 @@ upload_blks_api_cb(evhtp_request_t *req, void *arg)
     } else {
         blockids_json = g_hash_table_lookup (fsm->form_kvs, "blockids");
         if (blockids_json == NULL) {
-            seaf_warning ("[upload-blks] No blockids given.\n");
+            seaf_debug ("[upload-blks] No blockids given.\n");
             send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
             return;
         }
@@ -820,7 +820,7 @@ upload_blks_ajax_cb(evhtp_request_t *req, void *arg)
     if (size_str)
         file_size = atoll(size_str);
     if (!file_name || !parent_dir || !size_str || file_size < 0) {
-        seaf_warning ("[upload-blks] No parent dir or file name given.\n");
+        seaf_debug ("[upload-blks] No parent dir or file name given.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
@@ -928,14 +928,14 @@ upload_ajax_cb(evhtp_request_t *req, void *arg)
         return;
 
     if (!fsm->files) {
-        seaf_warning ("[upload] No file uploaded.\n");
+        seaf_debug ("[upload] No file uploaded.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "No file.\n");
         return;
     }
 
     parent_dir = g_hash_table_lookup (fsm->form_kvs, "parent_dir");
     if (!parent_dir) {
-        seaf_warning ("[upload] No parent dir given.\n");
+        seaf_debug ("[upload] No parent dir given.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.");
         return;
     }
@@ -1030,14 +1030,14 @@ update_cb(evhtp_request_t *req, void *arg)
         return;
 
     if (!fsm->files) {
-        seaf_warning ("[update] No file uploaded.\n");
+        seaf_debug ("[update] No file uploaded.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "No file.\n");
         return;
     }
 
     target_file = g_hash_table_lookup (fsm->form_kvs, "target_file");
     if (!target_file) {
-        seaf_warning ("[Update] No target file given.\n");
+        seaf_debug ("[Update] No target file given.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
@@ -1103,14 +1103,14 @@ update_api_cb(evhtp_request_t *req, void *arg)
         return;
 
     if (!fsm->files) {
-        seaf_warning ("[update] No file uploaded.\n");
+        seaf_debug ("[update] No file uploaded.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "No file.\n");
         return;
     }
 
     target_file = g_hash_table_lookup (fsm->form_kvs, "target_file");
     if (!target_file) {
-        seaf_warning ("[Update] No target file given.\n");
+        seaf_debug ("[Update] No target file given.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
@@ -1204,7 +1204,7 @@ update_blks_api_cb(evhtp_request_t *req, void *arg)
     size_str = g_hash_table_lookup (fsm->form_kvs, "file_size");
     if (size_str)  file_size = atoll(size_str);
     if (!target_file || !size_str || file_size < 0) {
-        seaf_warning ("[Update-blks] No target file given.\n");
+        seaf_debug ("[Update-blks] No target file given.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
@@ -1247,7 +1247,7 @@ update_blks_api_cb(evhtp_request_t *req, void *arg)
     } else {
         blockids_json = g_hash_table_lookup (fsm->form_kvs, "blockids");
         if (blockids_json == NULL) {
-            seaf_warning ("[upload-blks] No blockids given.\n");
+            seaf_debug ("[upload-blks] No blockids given.\n");
             send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
             return;
         }
@@ -1345,7 +1345,7 @@ update_blks_ajax_cb(evhtp_request_t *req, void *arg)
     size_str = g_hash_table_lookup (fsm->form_kvs, "file_size");
     if (size_str)  file_size = atoll(size_str);
     if (!target_file || !size_str || file_size < 0) {
-        seaf_warning ("[Update-blks] No target file given.\n");
+        seaf_debug ("[Update-blks] No target file given.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.\n");
         return;
     }
@@ -1483,14 +1483,14 @@ update_ajax_cb(evhtp_request_t *req, void *arg)
         return;
 
     if (!fsm->files) {
-        seaf_warning ("[update] No file uploaded.\n");
+        seaf_debug ("[update] No file uploaded.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "No file.\n");
         return;
     }
 
     target_file = g_hash_table_lookup (fsm->form_kvs, "target_file");
     if (!target_file) {
-        seaf_warning ("[Update] No target file given.\n");
+        seaf_debug ("[Update] No target file given.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "Invalid URL.");
         return;
     }
@@ -1634,7 +1634,7 @@ get_mime_header_param_value (const char *param)
     first_quote = strchr (param, '\"');
     last_quote = strrchr (param, '\"');
     if (!first_quote || !last_quote || first_quote == last_quote) {
-        seaf_warning ("[upload] Invalid mime param %s.\n", param);
+        seaf_debug ("[upload] Invalid mime param %s.\n", param);
         return NULL;
     }
 
@@ -1650,7 +1650,7 @@ parse_mime_header (char *header, RecvFSM *fsm)
 
     colon = strchr (header, ':');
     if (!colon) {
-        seaf_warning ("[upload] bad mime header format.\n");
+        seaf_debug ("[upload] bad mime header format.\n");
         return -1;
     }
 
@@ -1661,12 +1661,12 @@ parse_mime_header (char *header, RecvFSM *fsm)
             *p = g_strstrip (*p);
 
         if (g_strv_length (params) < 2) {
-            seaf_warning ("[upload] Too little params for mime header.\n");
+            seaf_debug ("[upload] Too little params for mime header.\n");
             g_strfreev (params);
             return -1;
         }
         if (strcasecmp (params[0], "form-data") != 0) {
-            seaf_warning ("[upload] Invalid Content-Disposition\n");
+            seaf_debug ("[upload] Invalid Content-Disposition\n");
             g_strfreev (params);
             return -1;
         }
@@ -1678,20 +1678,25 @@ parse_mime_header (char *header, RecvFSM *fsm)
             }
         }
         if (!fsm->input_name) {
-            seaf_warning ("[upload] No input-name given.\n");
+            seaf_debug ("[upload] No input-name given.\n");
             g_strfreev (params);
             return -1;
         }
 
         if (strcmp (fsm->input_name, "file") == 0) {
+            char *file_name;
             for (p = params; *p != NULL; ++p) {
                 if (strncasecmp (*p, "filename", strlen("filename")) == 0) {
-                    fsm->file_name = get_mime_header_param_value (*p);
+                    file_name = get_mime_header_param_value (*p);
+                    fsm->file_name = normalize_utf8_path (file_name);
+                    if (!fsm->file_name)
+                        seaf_debug ("File name is not valid utf8 encoding.\n");
+                    g_free (file_name);
                     break;
                 }
             }
             if (!fsm->file_name) {
-                seaf_warning ("[upload] No filename given.\n");
+                seaf_debug ("[upload] No filename given.\n");
                 g_strfreev (params);
                 return -1;
             }
@@ -1728,7 +1733,7 @@ open_temp_file (RecvFSM *fsm)
 static evhtp_res
 recv_form_field (RecvFSM *fsm, gboolean *no_line)
 {
-    char *line;
+    char *line, *norm_line;
     size_t len;
 
     *no_line = FALSE;
@@ -1744,9 +1749,12 @@ recv_form_field (RecvFSM *fsm, gboolean *no_line)
         } else {
             seaf_debug ("[upload] form field is %s.\n", line);
 
-            g_hash_table_insert (fsm->form_kvs,
-                                 g_strdup(fsm->input_name),
-                                 g_strdup(line));
+            norm_line = normalize_utf8_path (line);
+            if (norm_line) {
+                g_hash_table_insert (fsm->form_kvs,
+                                     g_strdup(fsm->input_name),
+                                     norm_line);
+            }
         }
         free (line);
     } else {
@@ -1888,7 +1896,7 @@ upload_read_cb (evhtp_request_t *req, evbuf_t *buf, void *arg)
             if (line != NULL) {
                 seaf_debug ("[upload] boundary line: %s.\n", line);
                 if (!strstr (line, fsm->boundary)) {
-                    seaf_warning ("[upload] no boundary found in the first line.\n");
+                    seaf_debug ("[upload] no boundary found in the first line.\n");
                     free (line);
                     res = EVHTP_RES_BADREQ;
                     goto out;
@@ -1969,7 +1977,7 @@ get_http_header_param_value (const char *param)
 
     equal = strchr (param, '=');
     if (!equal) {
-        seaf_warning ("[upload] Invalid http header param %s.\n", param);
+        seaf_debug ("[upload] Invalid http header param %s.\n", param);
         return NULL;
     }
 
@@ -1986,7 +1994,7 @@ get_boundary (evhtp_headers_t *hdr)
 
     content_type = evhtp_kv_find (hdr, "Content-Type");
     if (!content_type) {
-        seaf_warning ("[upload] Missing Content-Type header\n");
+        seaf_debug ("[upload] Missing Content-Type header\n");
         return boundary;
     }
 
@@ -1995,12 +2003,12 @@ get_boundary (evhtp_headers_t *hdr)
         *p = g_strstrip (*p);
 
     if (!params || g_strv_length (params) < 2) {
-        seaf_warning ("[upload] Too little params Content-Type header\n");
+        seaf_debug ("[upload] Too little params Content-Type header\n");
         g_strfreev (params);
         return boundary;
     }
     if (strcasecmp (params[0], "multipart/form-data") != 0) {
-        seaf_warning ("[upload] Invalid Content-Type\n");
+        seaf_debug ("[upload] Invalid Content-Type\n");
         g_strfreev (params);
         return boundary;
     }
@@ -2013,7 +2021,7 @@ get_boundary (evhtp_headers_t *hdr)
     }
     g_strfreev (params);
     if (!boundary) {
-        seaf_warning ("[upload] boundary not given\n");
+        seaf_debug ("[upload] boundary not given\n");
     }
 
     return boundary;
@@ -2067,7 +2075,7 @@ get_progress_info (evhtp_request_t *req,
 
     content_len_str = evhtp_kv_find (hdr, "Content-Length");
     if (!content_len_str) {
-        seaf_warning ("[upload] Content-Length not found.\n");
+        seaf_debug ("[upload] Content-Length not found.\n");
         return -1;
     }
     *content_len = strtoll (content_len_str, NULL, 10);
@@ -2094,7 +2102,7 @@ upload_headers_cb (evhtp_request_t *req, evhtp_headers_t *hdr, void *arg)
     /* URL format: http://host:port/[upload|update]/<token>?X-Progress-ID=<uuid> */
     token = req->uri->path->file;
     if (!token) {
-        seaf_warning ("[upload] No token in url.\n");
+        seaf_debug ("[upload] No token in url.\n");
         err_msg = "Invalid URL";
         goto err;
     }
@@ -2186,14 +2194,14 @@ upload_progress_cb(evhtp_request_t *req, void *arg)
 
     progress_id = evhtp_kv_find (req->uri->query, "X-Progress-ID");
     if (!progress_id) {
-        seaf_warning ("[get pg] Progress id not found in url.\n");
+        seaf_debug ("[get pg] Progress id not found in url.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "Progress id not found");
         return;
     }
 
     callback = evhtp_kv_find (req->uri->query, "callback");
     if (!callback) {
-        seaf_warning ("[get pg] callback not found in url.\n");
+        seaf_debug ("[get pg] callback not found in url.\n");
         send_error_reply (req, EVHTP_RES_BADREQ, "Callback not found");
         return;
     }
