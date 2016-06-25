@@ -681,3 +681,52 @@ seaf_filelock_manager_mark_file_unlocked (SeafFilelockManager *mgr,
 
     return remove_locked_file_from_db (mgr, repo_id, path);
 }
+
+void file_lock_info_free (FileLockInfo *info)
+{
+    if (!info)
+        return;
+    g_free (info->path);
+    g_free (info);
+}
+
+static gboolean
+collect_auto_locked_files (sqlite3_stmt *stmt, void *vret)
+{
+    GList **pret = vret;
+    const char *repo_id, *path;
+    FileLockInfo *info;
+
+    repo_id = (const char *)sqlite3_column_text (stmt, 0);
+    path = (const char *)sqlite3_column_text (stmt, 1);
+
+    info = g_new0 (FileLockInfo, 1);
+    memcpy (info->repo_id, repo_id, 36);
+    info->path = g_strdup(path);
+
+    *pret = g_list_prepend (*pret, info);
+
+    return TRUE;
+}
+
+GList *
+seaf_filelock_manager_get_auto_locked_files (SeafFilelockManager *mgr)
+{
+    char *sql;
+    GList *ret = NULL;
+
+    pthread_mutex_lock (&mgr->priv->db_lock);
+
+    sql = sqlite3_mprintf ("SELECT repo_id, path FROM ServerLockedFiles "
+                           "WHERE locked_by_me = %d", _LOCKED_AUTO);
+    sqlite_foreach_selected_row (mgr->priv->db, sql,
+                                 collect_auto_locked_files,
+                                 &ret);
+
+    pthread_mutex_unlock (&mgr->priv->db_lock);
+
+    ret = g_list_reverse (ret);
+
+    sqlite3_free (sql);
+    return ret;
+}

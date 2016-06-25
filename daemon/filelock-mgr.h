@@ -1,3 +1,5 @@
+/* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+
 #ifndef SEAF_FILELOCK_MGR_H
 #define SEAF_FILELOCK_MGR_H
 
@@ -82,5 +84,17 @@ int
 seaf_filelock_manager_mark_file_unlocked (SeafFilelockManager *mgr,
                                           const char *repo_id,
                                           const char *path);
+
+struct FileLockInfo {
+    char repo_id[37];
+    char *path;
+    int status;
+};
+typedef struct FileLockInfo FileLockInfo;
+
+void file_lock_info_free (FileLockInfo *info);
+
+GList *
+seaf_filelock_manager_get_auto_locked_files (SeafFilelockManager *mgr);
 
 #endif
