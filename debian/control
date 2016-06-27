@@ -56,7 +56,7 @@ Depends:
     ${shlibs:Depends},
     ${misc:Depends},
     ${python:Depends},
-    libseafile0 (>= ${binary:Version})
+    libseafile0 (>= ${binary:Version}),
     ccnet (>= 5.1.2),
     seafile-daemon (>= ${binary:Version})
 Conflicts: seafile
