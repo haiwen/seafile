@@ -1,4 +1,10 @@
-seafile-daemon (5.1.2-5ubuntu1) UNRELEASED; urgency=medium
+seafile-daemon (5.1.2-5ubuntu2) UNRELEASED; urgency=medium
+
+  * fixed dependencies for seafile-daemon and seafile-cli
+
+ -- m.eik michalke <meik.michalke@hhu.de>  Mon, 27 Jun 2016 11:16:33 +0200
+
+seafile-daemon (5.1.2-5ubuntu1) unstable; urgency=medium
 
   * repackaging with cleaned up orig.tar.xz archives
   * added symbols file

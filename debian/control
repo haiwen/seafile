@@ -29,6 +29,7 @@ Depends:
     ${shlibs:Depends},
     ${misc:Depends},
     ${python:Depends}
+    ccnet (>= ${binary:Version})
 Conflicts: seafile
 Suggests: seafile-gui, seafile-cli
 Description: Seafile daemon
@@ -55,7 +56,9 @@ Depends:
     ${shlibs:Depends},
     ${misc:Depends},
     ${python:Depends},
-    libseafile0 (= ${binary:Version})
+    libseafile0 (>= ${binary:Version})
+    ccnet (>= 5.1.2),
+    seafile-daemon (>= ${binary:Version})
 Conflicts: seafile
 Description: Seafile command line interface.
  This package contains the command line interface to manage Seafile libraries.
