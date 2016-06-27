@@ -628,7 +628,7 @@ seaf_repo_manager_post_file (SeafRepoManager *mgr,
         canon_path = get_canonical_path (parent_dir);
 
     if (should_ignore_file (file_name, NULL)) {
-        seaf_warning ("[post file] Invalid filename %s.\n", file_name);
+        seaf_debug ("[post file] Invalid filename %s.\n", file_name);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Invalid filename");
         ret = -1;
@@ -636,7 +636,7 @@ seaf_repo_manager_post_file (SeafRepoManager *mgr,
     }
 
     if (strstr (parent_dir, "//") != NULL) {
-        seaf_warning ("[post file] parent_dir cantains // sequence.\n");
+        seaf_debug ("[post file] parent_dir cantains // sequence.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Invalid parent dir");
         ret = -1;
@@ -649,7 +649,7 @@ seaf_repo_manager_post_file (SeafRepoManager *mgr,
         if (seaf_passwd_manager_get_decrypt_key_raw (seaf->passwd_mgr,
                                                      repo_id, user,
                                                      key, iv) < 0) {
-            seaf_warning ("Passwd for repo %s is not set.\n", repo_id);
+            seaf_debug ("Passwd for repo %s is not set.\n", repo_id);
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                          "Passwd is not set");
             ret = -1;
@@ -889,6 +889,8 @@ json_to_file_list (const char *files_json)
     json_error_t jerror;
     size_t index;
     json_t *value;
+    const char *file;
+    char *norm_file;
 
     array = json_loadb (files_json, strlen(files_json), 0, &jerror);
     if (!array) {
@@ -899,10 +901,21 @@ json_to_file_list (const char *files_json)
     size_t n = json_array_size (array);
     for (index = 0; index < n; index++) {
         value = json_array_get (array, index);
-        const char *file = json_string_value (value);
-        if (!file)
-            continue;
-        files = g_list_prepend (files, g_strdup (file));
+        file = json_string_value (value);
+        if (!file) {
+            g_list_free_full (files, g_free);
+            files = NULL;
+            break;
+        }
+
+        norm_file = normalize_utf8_path (file);
+        if (!norm_file) {
+            g_list_free_full (files, g_free);
+            files = NULL;
+            break;
+        }
+
+        files = g_list_prepend (files, norm_file);
     }
 
     json_decref (array);
@@ -979,7 +992,7 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
     filenames = json_to_file_list (filenames_json);
     paths = json_to_file_list (paths_json);
     if (!filenames || !paths) {
-        seaf_warning ("[post files] Invalid filenames or paths.\n");
+        seaf_debug ("[post files] Invalid filenames or paths.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid files");
         ret = -1;
         goto out;
@@ -989,7 +1002,7 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
     for (ptr = filenames; ptr; ptr = ptr->next) {
         filename = ptr->data;
         if (should_ignore_file (filename, NULL)) {
-            seaf_warning ("[post files] Invalid filename %s.\n", filename);
+            seaf_debug ("[post files] Invalid filename %s.\n", filename);
             g_set_error (error, SEAFILE_DOMAIN, POST_FILE_ERR_FILENAME,
                          "%s", filename);
             ret = -1;
@@ -998,7 +1011,7 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
     }
 
     if (strstr (parent_dir, "//") != NULL) {
-        seaf_warning ("[post file] parent_dir cantains // sequence.\n");
+        seaf_debug ("[post file] parent_dir cantains // sequence.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Invalid parent dir");
         ret = -1;
@@ -1011,7 +1024,7 @@ seaf_repo_manager_post_multi_files (SeafRepoManager *mgr,
         if (seaf_passwd_manager_get_decrypt_key_raw (seaf->passwd_mgr,
                                                      repo_id, user,
                                                      key, iv) < 0) {
-            seaf_warning ("Passwd for repo %s is not set.\n", repo_id);
+            seaf_debug ("Passwd for repo %s is not set.\n", repo_id);
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                          "Passwd is not set");
             ret = -1;
@@ -1123,7 +1136,7 @@ seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
     blockids = json_to_file_list (blockids_json);
     paths = json_to_file_list (paths_json);
     if (g_list_length(blockids) != g_list_length(paths)) {
-        seaf_warning ("[post-blks] Invalid blockids or paths.\n");
+        seaf_debug ("[post-blks] Invalid blockids or paths.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid files");
         ret = -1;
         goto out;
@@ -1148,7 +1161,7 @@ seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
         canon_path = get_canonical_path (parent_dir);
 
     if (should_ignore_file (file_name, NULL)) {
-        seaf_warning ("[post-blks] Invalid filename %s.\n", file_name);
+        seaf_debug ("[post-blks] Invalid filename %s.\n", file_name);
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Invalid filename");
         ret = -1;
@@ -1156,7 +1169,7 @@ seaf_repo_manager_post_file_blocks (SeafRepoManager *mgr,
     }
 
     if (strstr (parent_dir, "//") != NULL) {
-        seaf_warning ("[post-blks] parent_dir cantains // sequence.\n");
+        seaf_debug ("[post-blks] parent_dir cantains // sequence.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Invalid parent dir");
         ret = -1;

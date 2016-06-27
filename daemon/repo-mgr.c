@@ -5254,7 +5254,9 @@ checkout_file_http (FileTxData *data,
     path_exists = (seaf_stat (path, &st) == 0);
 
     /* The worktree file may have been changed when we're downloading the blocks. */
-    if (path_exists && S_ISREG(st.st_mode) && !force_conflict) {
+    if (!file_task->new_ce &&
+        path_exists && S_ISREG(st.st_mode) &&
+        !force_conflict) {
         if (st.st_mtime != ce->ce_mtime.sec) {
             seaf_message ("File %s is updated by user. "
                           "Will checkout to conflict file later.\n", path);

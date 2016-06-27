@@ -413,6 +413,11 @@ case_conflict_exists (const char *dir_path, const char *new_dname,
     gboolean is_case_conflict = FALSE;
     GError *error = NULL;
 
+    /* Don't generate "case conflict" files for a case-conflicted file. */
+    if (strstr (new_dname, "case conflict") != NULL) {
+        return is_case_conflict;
+    }
+
     dir = g_dir_open (dir_path, 0, &error);
     if (!dir && error) {
         seaf_warning ("Failed to open dir %s: %s.\n", dir_path, error->message);
@@ -469,9 +474,16 @@ static gboolean
 case_conflict_exists (const char *dir_path, const char *new_dname,
                       char **conflict_dname)
 {
-    wchar_t *dir_path_w = win32_long_path (dir_path);
+    wchar_t *dir_path_w;
     gboolean is_case_conflict = FALSE;
     CaseConflictData data;
+
+    /* Don't generate "case conflict" files for a case-conflicted file. */
+    if (strstr (new_dname, "case conflict") != NULL) {
+        return is_case_conflict;
+    }
+
+    dir_path_w = win32_long_path (dir_path);
 
     memset (&data, 0, sizeof(data));
     data.new_dname = new_dname;
@@ -493,6 +505,10 @@ out:
  * If files "test (case conflict 1).txt" and "Test (case conflict 2).txt" exist,
  * and we have to checkout "TEST.txt", it will be checked out to "TEST
  * (case conflict 3).txt".
+ * To prevent generating too many case conflict files (in case of bug or other
+ * reasons), no more than 10 case conflict files will be generated for the same
+ * filename. After that, all later confilcted files will use the last conflict
+ * file name.
  */
 static char *
 gen_case_conflict_free_dname (const char *dir_path, const char *dname)
@@ -505,7 +521,7 @@ gen_case_conflict_free_dname (const char *dir_path, const char *dname)
 
     dot = strrchr (copy, '.');
 
-    while (cnt < 255) {
+    while (cnt < 11) {
         if (dot != NULL) {
             *dot = '\0';
             ext = dot + 1;

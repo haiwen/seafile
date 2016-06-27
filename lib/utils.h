@@ -385,6 +385,9 @@ json_object_set_int_member (json_t *object, const char *key, gint64 value);
 void
 clean_utf8_data (char *data, int len);
 
+char *
+normalize_utf8_path (const char *path);
+
 /* zlib related functions. */
 
 int
