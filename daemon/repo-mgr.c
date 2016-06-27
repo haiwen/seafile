@@ -54,6 +54,8 @@ struct _SeafRepoManagerPriv {
     pthread_mutex_t perm_lock;
 
     uint32_t cevent_id;         /* Used to notify sync error */
+
+    GAsyncQueue *lock_office_job_queue;
 };
 
 static const char *ignore_table[] = {
@@ -3204,39 +3206,43 @@ is_office_lock_file (const char *worktree,
     return ret;
 }
 
-typedef struct LockOfficeAux {
-    SeafRepo *repo;
+typedef struct LockOfficeJob {
+    char repo_id[37];
     char *path;
-} LockOfficeAux;
+    gboolean lock;              /* False if unlock */
+} LockOfficeJob;
 
 static void
-lock_office_aux_free (LockOfficeAux *aux)
+lock_office_job_free (LockOfficeJob *job)
 {
-    if (!aux)
+    if (!job)
         return;
-    g_free (aux->path);
-    g_free (aux);
+    g_free (job->path);
+    g_free (job);
 }
 
-static void *
-lock_office_file_thread (void *vdata)
+static void
+do_lock_office_file (LockOfficeJob *job)
 {
-    LockOfficeAux *aux = vdata;
-    SeafRepo *repo = aux->repo;
+    SeafRepo *repo;
     char *fullpath = NULL;
     SeafStat st;
 
-    fullpath = g_build_path ("/", repo->worktree, aux->path, NULL);
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, job->repo_id);
+    if (!repo)
+        return;
+
+    fullpath = g_build_path ("/", repo->worktree, job->path, NULL);
     if (seaf_stat (fullpath, &st) < 0 || !S_ISREG(st.st_mode)) {
         g_free (fullpath);
-        goto out;
+        return;
     }
     g_free (fullpath);
 
     int status = seaf_filelock_manager_get_lock_status (seaf->filelock_mgr,
-                                                        repo->id, aux->path);
+                                                        repo->id, job->path);
     if (status != FILE_NOT_LOCKED) {
-        goto out;
+        return;
     }
 
     if (http_tx_manager_lock_file (seaf->http_tx_mgr,
@@ -3244,60 +3250,38 @@ lock_office_file_thread (void *vdata)
                                    repo->use_fileserver_port,
                                    repo->token,
                                    repo->id,
-                                   aux->path) < 0) {
+                                   job->path) < 0) {
         seaf_warning ("Failed to lock %s in repo %.8s on server.\n",
-                      aux->path, repo->id);
-        goto out;
+                      job->path, repo->id);
+        return;
     }
 
     /* Mark file as locked locally so that the user can see the effect immediately. */
-    seaf_filelock_manager_mark_file_locked (seaf->filelock_mgr, repo->id, aux->path, TRUE);
-
-out:
-    lock_office_aux_free (aux);
-    return NULL;
+    seaf_filelock_manager_mark_file_locked (seaf->filelock_mgr, repo->id, job->path, TRUE);
 }
 
 static void
-lock_office_file_on_server (SeafRepo *repo, const char *path)
+do_unlock_office_file (LockOfficeJob *job)
 {
-    pthread_t tid;
-    int err;
-    LockOfficeAux *aux;
-
-    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, repo->server_url))
-        return;
-
-    aux = g_new0 (LockOfficeAux, 1);
-    aux->repo = repo;
-    aux->path = g_strdup(path);
-
-    err = pthread_create (&tid, NULL, lock_office_file_thread, aux);
-    if (err != 0) {
-        seaf_warning ("Failed to create thread: %s\n", strerror(err));
-        lock_office_aux_free (aux);
-    }
-}
-
-static void *
-unlock_office_file_thread (void *vdata)
-{
-    LockOfficeAux *aux = vdata;
-    SeafRepo *repo = aux->repo;
+    SeafRepo *repo;
     char *fullpath = NULL;
     SeafStat st;
 
-    fullpath = g_build_path ("/", repo->worktree, aux->path, NULL);
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, job->repo_id);
+    if (!repo)
+        return;
+
+    fullpath = g_build_path ("/", repo->worktree, job->path, NULL);
     if (seaf_stat (fullpath, &st) < 0 || !S_ISREG(st.st_mode)) {
         g_free (fullpath);
-        goto out;
+        return;
     }
     g_free (fullpath);
 
     int status = seaf_filelock_manager_get_lock_status (seaf->filelock_mgr,
-                                                        repo->id, aux->path);
+                                                        repo->id, job->path);
     if (status != FILE_LOCKED_BY_ME_AUTO) {
-        goto out;
+        return;
     }
 
     if (http_tx_manager_unlock_file (seaf->http_tx_mgr,
@@ -3305,39 +3289,108 @@ unlock_office_file_thread (void *vdata)
                                      repo->use_fileserver_port,
                                      repo->token,
                                      repo->id,
-                                     aux->path) < 0) {
+                                     job->path) < 0) {
         seaf_warning ("Failed to unlock %s in repo %.8s on server.\n",
-                      aux->path, repo->id);
-        goto out;
+                      job->path, repo->id);
+        return;
     }
 
     /* Mark file as unlocked locally so that the user can see the effect immediately. */
-    seaf_filelock_manager_mark_file_unlocked (seaf->filelock_mgr, repo->id, aux->path);
+    seaf_filelock_manager_mark_file_unlocked (seaf->filelock_mgr, repo->id, job->path);
+}
 
-out:
-    lock_office_aux_free (aux);
+#if 0
+static void
+unlock_closed_office_files ()
+{
+    GList *locked_files, *ptr;
+    SeafRepo *repo;
+    FileLockInfo *info;
+    LockOfficeJob *job;
+
+    locked_files = seaf_filelock_manager_get_auto_locked_files (seaf->filelock_mgr);
+    for (ptr = locked_files; ptr; ptr = ptr->next) {
+        info = ptr->data;
+
+        seaf_message ("%s %s.\n", info->repo_id, info->path);
+
+        repo = seaf_repo_manager_get_repo (seaf->repo_mgr, info->repo_id);
+        if (!repo)
+            continue;
+
+        seaf_message ("1\n");
+
+        if (!do_check_file_locked (info->path, repo->worktree, FALSE)) {
+            seaf_message ("2\n");
+
+            job = g_new0 (LockOfficeJob, 1);
+            memcpy (job->repo_id, info->repo_id, 36);
+            job->path = g_strdup(info->path);
+            do_unlock_office_file (job);
+            lock_office_job_free (job);
+        }
+    }
+
+    g_list_free_full (locked_files, (GDestroyNotify)file_lock_info_free);
+}
+#endif
+
+static void *
+lock_office_file_worker (void *vdata)
+{
+    GAsyncQueue *queue = (GAsyncQueue *)vdata;
+    LockOfficeJob *job;
+
+    /* unlock_closed_office_files (); */
+
+    while (1) {
+        job = g_async_queue_pop (queue);
+        if (!job)
+            break;
+
+        if (job->lock)
+            do_lock_office_file (job);
+        else
+            do_unlock_office_file (job);
+
+        lock_office_job_free (job);
+    }
+
     return NULL;
+}
+
+static void
+lock_office_file_on_server (SeafRepo *repo, const char *path)
+{
+    LockOfficeJob *job;
+    GAsyncQueue *queue = seaf->repo_mgr->priv->lock_office_job_queue;
+
+    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, repo->server_url))
+        return;
+
+    job = g_new0 (LockOfficeJob, 1);
+    memcpy (job->repo_id, repo->id, 36);
+    job->path = g_strdup(path);
+    job->lock = TRUE;
+
+    g_async_queue_push (queue, job);
 }
 
 static void
 unlock_office_file_on_server (SeafRepo *repo, const char *path)
 {
-    pthread_t tid;
-    int err;
-    LockOfficeAux *aux;
+    LockOfficeJob *job;
+    GAsyncQueue *queue = seaf->repo_mgr->priv->lock_office_job_queue;
 
     if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, repo->server_url))
         return;
 
-    aux = g_new0 (LockOfficeAux, 1);
-    aux->repo = repo;
-    aux->path = g_strdup(path);
+    job = g_new0 (LockOfficeJob, 1);
+    memcpy (job->repo_id, repo->id, 36);
+    job->path = g_strdup(path);
+    job->lock = FALSE;
 
-    err = pthread_create (&tid, NULL, unlock_office_file_thread, aux);
-    if (err != 0) {
-        seaf_warning ("Failed to create thread: %s\n", strerror(err));
-        lock_office_aux_free (aux);
-    }
+    g_async_queue_push (queue, job);
 }
 
 #endif  /* WIN32 */
@@ -6334,6 +6387,8 @@ seaf_repo_manager_new (SeafileSession *seaf)
 
     pthread_rwlock_init (&mgr->priv->lock, NULL);
 
+    mgr->priv->lock_office_job_queue = g_async_queue_new ();
+
     return mgr;
 }
 
@@ -6479,13 +6534,23 @@ cleanup_deleted_stores (void *vdata)
 int
 seaf_repo_manager_start (SeafRepoManager *mgr)
 {
+    pthread_t tid;
+    int rc;
+
     watch_repos (mgr);
 
-    pthread_t tid;
-    int rc = pthread_create (&tid, NULL, cleanup_deleted_stores, NULL);
+    rc = pthread_create (&tid, NULL, cleanup_deleted_stores, NULL);
     if (rc != 0) {
         seaf_warning ("Failed to start cleanup thread: %s\n", strerror(rc));
     }
+
+#ifdef WIN32
+    rc = pthread_create (&tid, NULL, lock_office_file_worker,
+                         mgr->priv->lock_office_job_queue);
+    if (rc != 0) {
+        seaf_warning ("Failed to start lock office file thread: %s\n", strerror(rc));
+    }
+#endif
 
     return 0;
 }
