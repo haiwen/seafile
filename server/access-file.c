@@ -1097,17 +1097,20 @@ static void
 access_zip_cb (evhtp_request_t *req, void *arg)
 {
     char *token;
-    SeafileWebAccess *info;
+    SeafileWebAccess *info = NULL;
+    char *info_str = NULL;
+    json_t *info_obj = NULL;
+    json_error_t jerror;
     char *filename = NULL;
     char *zip_file_path;
-    const char *error;
+    const char *error = NULL;
     int error_code;
 
     char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
-    if (g_strv_length (parts) < 2) {
+    if (g_strv_length (parts) != 2) {
         error = "Invalid URL\n";
         error_code = EVHTP_RES_BADREQ;
-        goto err;
+        goto out;
     }
 
     token = parts[1];
@@ -1118,27 +1121,39 @@ access_zip_cb (evhtp_request_t *req, void *arg)
         seaf_warning ("Token doesn't exist.\n");
         error = "Invalid token\n";
         error_code = EVHTP_RES_BADREQ;
-        goto err;
-    }
-    g_object_unref (info);
-
-    if (can_use_cached_content (req)) {
-        goto success;
+        goto out;
     }
 
-    if (g_strv_length (parts) > 2) {
-        filename = g_uri_unescape_string (parts[2], NULL);
-        if (!filename) {
-            seaf_warning ("Failed to unescape string %s.\n", parts[2]);
-            error = "Invalid file name\n";
-            error_code = EVHTP_RES_BADREQ;
-            goto err;
-        }
-    } else {
+    g_object_get (info, "obj_id", &info_str, NULL);
+    if (!info_str) {
+        seaf_warning ("Invalid token.\n");
+        error = "Invalid token\n";
+        error_code = EVHTP_RES_BADREQ;
+        goto out;
+    }
+
+    info_obj = json_loadb (info_str, strlen(info_str), 0, &jerror);
+    if (!info_obj) {
+        seaf_warning ("Failed to parse obj_id field: %s.\n", jerror.text);
+        error = "Invalid token\n";
+        error_code = EVHTP_RES_BADREQ;
+        goto out;
+    }
+
+    if (json_object_has_member (info_obj, "dir_name")) {
+        // Download dir
+        filename = g_strdup (json_object_get_string_member (info_obj, "dir_name"));
+    } else if (json_object_has_member (info_obj, "file_list")) {
+        // Download multi
         time_t now = time(NULL);
         char date_str[11];
         strftime(date_str, sizeof(date_str), "%Y-%m-%d", localtime(&now));
         filename = g_strconcat (MULTI_DOWNLOAD_FILE_PREFIX, date_str, NULL);
+    } else {
+        seaf_warning ("Invalid token.\n");
+        error = "Invalid token\n";
+        error_code = EVHTP_RES_BADREQ;
+        goto out;
     }
 
     zip_file_path = zip_download_mgr_get_zip_file_path (seaf->zip_download_mgr, token);
@@ -1146,25 +1161,36 @@ access_zip_cb (evhtp_request_t *req, void *arg)
         seaf_warning ("Failed to get zip file path.\n");
         error = "Invalid token\n";
         error_code = EVHTP_RES_BADREQ;
-        goto err;
+        goto out;
+    }
+
+    if (can_use_cached_content (req)) {
+        // Clean zip progress related resource
+        zip_download_mgr_del_zip_progress (seaf->zip_download_mgr, token);
+        goto out;
     }
 
     int ret = start_download_zip_file (req, token, filename, zip_file_path);
-    g_free (filename);
     if (ret < 0) {
         error = "Internal server error\n";
         error_code = EVHTP_RES_SERVERR;
-        goto err;
     }
 
-success:
+out:
     g_strfreev (parts);
-    return;
+    if (info)
+        g_object_unref (info);
+    if (info_str)
+        g_free (info_str);
+    if (info_obj)
+        json_decref (info_obj);
+    if (filename)
+        g_free (filename);
 
-err:
-    g_strfreev (parts);
-    evbuffer_add_printf(req->buffer_out, "%s\n", error);
-    evhtp_send_reply(req, error_code);
+    if (error) {
+        evbuffer_add_printf(req->buffer_out, "%s\n", error);
+        evhtp_send_reply(req, error_code);
+    }
 }
 
 static void
