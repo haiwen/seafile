@@ -385,6 +385,9 @@ json_object_set_int_member (json_t *object, const char *key, gint64 value);
 void
 clean_utf8_data (char *data, int len);
 
+char *
+normalize_utf8_path (const char *path);
+
 /* zlib related functions. */
 
 int
@@ -395,5 +398,11 @@ seaf_decompress (guint8 *input, int inlen, guint8 **output, int *outlen);
 
 char*
 format_dir_path (const char *path);
+
+gboolean
+is_empty_string (const char *str);
+
+gboolean
+is_permission_valid (const char *perm);
 
 #endif

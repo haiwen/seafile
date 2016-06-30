@@ -130,7 +130,7 @@ main(int argc, char *argv[])
     if (seafile_dir == NULL)
         seafile_dir = g_build_filename (config_dir, "seafile-data", NULL);
     
-    seaf = seafile_session_new(central_config_dir, seafile_dir, ccnet_client);
+    seaf = seafile_session_new(central_config_dir, seafile_dir, ccnet_client, TRUE);
     if (!seaf) {
         seaf_warning ("Failed to create seafile session.\n");
         exit (1);

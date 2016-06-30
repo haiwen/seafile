@@ -2170,7 +2170,7 @@ http_tx_manager_add_upload (HttpTxManager *manager,
 
     task->protocol_version = protocol_version;
 
-    task->state = TASK_STATE_NORMAL;
+    task->state = HTTP_TASK_STATE_NORMAL;
 
     task->use_fileserver_port = use_fileserver_port;
 
@@ -3481,7 +3481,7 @@ http_tx_manager_add_download (HttpTxManager *manager,
     task->protocol_version = protocol_version;
     task->email = g_strdup(email);
 
-    task->state = TASK_STATE_NORMAL;
+    task->state = HTTP_TASK_STATE_NORMAL;
 
     task->use_fileserver_port = use_fileserver_port;
 
@@ -4309,12 +4309,12 @@ http_tx_manager_cancel_task (HttpTxManager *manager,
     }
 
     if (task->runtime_state == HTTP_TASK_RT_STATE_INIT) {
-        transition_state (task, TASK_STATE_CANCELED, TASK_RT_STATE_FINISHED);
+        transition_state (task, HTTP_TASK_STATE_CANCELED, TASK_RT_STATE_FINISHED);
         return;
     }
 
     /* Only change state. runtime_state will be changed in worker thread. */
-    transition_state (task, TASK_STATE_CANCELED, task->runtime_state);
+    transition_state (task, HTTP_TASK_STATE_CANCELED, task->runtime_state);
 }
 
 int

@@ -1149,6 +1149,12 @@ collect_file_ids (int n, const char *basedir, SeafDirent *files[], void *data)
 }
 
 static int
+collect_file_ids_nop (int n, const char *basedir, SeafDirent *files[], void *data)
+{
+    return 0;
+}
+
+static int
 collect_dir_ids (int n, const char *basedir, SeafDirent *dirs[], void *data,
                  gboolean *recurse)
 {
@@ -1167,6 +1173,7 @@ static int
 calculate_send_object_list (SeafRepo *repo,
                             const char *server_head,
                             const char *client_head,
+                            gboolean dir_only,
                             GList **results)
 {
     SeafCommit *remote_head = NULL, *master_head = NULL;
@@ -1206,7 +1213,10 @@ calculate_send_object_list (SeafRepo *repo,
     memset (&opts, 0, sizeof(opts));
     memcpy (opts.store_id, repo->store_id, 36);
     opts.version = repo->version;
-    opts.file_cb = collect_file_ids;
+    if (!dir_only)
+        opts.file_cb = collect_file_ids;
+    else
+        opts.file_cb = collect_file_ids_nop;
     opts.dir_cb = collect_dir_ids;
     opts.data = results;
 
@@ -1233,6 +1243,7 @@ get_fs_obj_id_cb (evhtp_request_t *req, void *arg)
     char **parts;
     char *repo_id;
     SeafRepo *repo = NULL;
+    gboolean dir_only = FALSE;
 
     const char *server_head = evhtp_kv_find (req->uri->query, "server-head");
     if (server_head == NULL || !is_object_id_valid (server_head)) {
@@ -1252,6 +1263,10 @@ get_fs_obj_id_cb (evhtp_request_t *req, void *arg)
         return;
     }
 
+    const char *dir_only_arg = evhtp_kv_find (req->uri->query, "dir-only");
+    if (dir_only_arg)
+        dir_only = TRUE;
+
     parts = g_strsplit (req->uri->path->full + 1, "/", 0);
     repo_id = parts[1];
 
@@ -1270,7 +1285,7 @@ get_fs_obj_id_cb (evhtp_request_t *req, void *arg)
         goto out;
     }
 
-    if (calculate_send_object_list (repo, server_head, client_head, &list) < 0) {
+    if (calculate_send_object_list (repo, server_head, client_head, dir_only, &list) < 0) {
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
         goto out;
     }

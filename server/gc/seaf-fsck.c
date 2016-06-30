@@ -156,8 +156,9 @@ main(int argc, char *argv[])
         exit(1);
     }
 #endif
-    
-    seaf = seafile_session_new(central_config_dir, seafile_dir, ccnet_client);
+
+    seaf = seafile_session_new(central_config_dir, seafile_dir, ccnet_client,
+                               export_path == NULL);
     if (!seaf) {
         seaf_warning ("Failed to create seafile session.\n");
         exit (1);
