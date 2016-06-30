@@ -512,6 +512,13 @@ seafile_share_subdir_to_user (const char *repo_id,
                               GError **error);
 
 int
+seafile_unshare_subdir_for_user (const char *repo_id,
+                                 const char *path,
+                                 const char *owner,
+                                 const char *share_user,
+                                 GError **error);
+
+int
 seafile_add_share (const char *repo_id, const char *from_email,
                    const char *to_email, const char *permission,
                    GError **error);
@@ -540,6 +547,13 @@ seafile_share_subdir_to_group (const char *repo_id,
                                const char *permission,
                                const char *passwd,
                                GError **error);
+
+int
+seafile_unshare_subdir_for_group (const char *repo_id,
+                                  const char *path,
+                                  const char *owner,
+                                  int share_group,
+                                  GError **error);
 
 int
 seafile_group_share_repo (const char *repo_id, int group_id,

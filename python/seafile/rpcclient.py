@@ -553,6 +553,10 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
     def share_subdir_to_user(repo_id, path, owner, share_user, permission, passwd):
         pass
 
+    @searpc_func("int", ["string", "string", "string", "string"])
+    def unshare_subdir_for_user(repo_id, path, owner, share_user):
+        pass
+
     @searpc_func("objlist", ["int", "string", "string", "int", "int"])
     def seafile_list_org_share_repos(org_id, email, query_col, start, limit):
         pass
@@ -600,6 +604,10 @@ class SeafServerThreadedRpcClient(ccnet.RpcClientBase):
 
     @searpc_func("int", ["string", "string", "string", "int", "string", "string"])
     def share_subdir_to_group(repo_id, path, owner, share_group, permission, passwd):
+        pass
+
+    @searpc_func("int", ["string", "string", "string", "int"])
+    def unshare_subdir_for_group(repo_id, path, owner, share_group):
         pass
 
     @searpc_func("string", ["int"])
