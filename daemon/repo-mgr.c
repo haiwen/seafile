@@ -4050,6 +4050,11 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
         unmerged = TRUE;
 
     changeset = changeset_new (repo->id);
+    if (!changeset) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal data structure error");
+        goto out;
+    }
+
     repo->changeset = changeset;
 
     if (index_add (repo, &istate, is_force_commit, unmerged) < 0) {
