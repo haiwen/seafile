@@ -26,12 +26,12 @@
 #endif
 
 #ifdef WIN32
-    #define ECONNREFUSED WSAECONNREFUSED
-    #define ECONNRESET   WSAECONNRESET
-    #define EHOSTUNREACH WSAEHOSTUNREACH
-    #define EINPROGRESS  WSAEINPROGRESS
-    #define ENOTCONN     WSAENOTCONN
-    #define EWOULDBLOCK  WSAEWOULDBLOCK
+    /* #define ECONNREFUSED WSAECONNREFUSED */
+    /* #define ECONNRESET   WSAECONNRESET */
+    /* #define EHOSTUNREACH WSAEHOSTUNREACH */
+    /* #define EINPROGRESS  WSAEINPROGRESS */
+    /* #define ENOTCONN     WSAENOTCONN */
+    /* #define EWOULDBLOCK  WSAEWOULDBLOCK */
     #define sockerrno WSAGetLastError( )
 #else
     #include <errno.h>

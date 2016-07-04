@@ -3249,7 +3249,7 @@ http_upload_thread (void *vdata)
     if (!local) {
         seaf_warning ("Failed to get branch local of repo %.8s.\n", task->repo_id);
         task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
-        goto out;
+        return NULL;
     }
     memcpy (task->head, local->commit_id, 40);
     seaf_branch_unref (local);

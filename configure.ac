@@ -9,7 +9,8 @@ AC_CONFIG_MACRO_DIR([m4])
 
 AM_INIT_AUTOMAKE([1.9 foreign])
 
-AC_MINGW32
+#AC_MINGW32
+AC_CANONICAL_BUILD
 
 dnl enable the build of share library by default
 AC_ENABLE_SHARED
@@ -35,9 +36,9 @@ AC_SYS_LARGEFILE
 
 # check platform
 AC_MSG_CHECKING(for WIN32)
-if test "$MINGW32" = yes; then
+if test "$build_os" = "mingw32" -o "$build_os" = "mingw64"; then
   bwin32=true
-  AC_MSG_RESULT(compile in mingw32)
+  AC_MSG_RESULT(compile in mingw)
 else
   AC_MSG_RESULT(no)
 fi
