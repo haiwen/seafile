@@ -235,10 +235,10 @@ class SeafileAPI(object):
                                                username, need_progress, synchronous)
 
     def move_file(self, src_repo, src_dir, src_filename, dst_repo, dst_dir,
-                  dst_filename, username, need_progress, synchronous=0):
+                  dst_filename, replace, username, need_progress, synchronous=0):
         return seafserv_threaded_rpc.move_file(src_repo, src_dir, src_filename,
                                                dst_repo, dst_dir, dst_filename,
-                                               username, need_progress, synchronous)
+                                               replace, username, need_progress, synchronous)
 
     def get_copy_task(self, task_id):
         return seafserv_rpc.get_copy_task(task_id)

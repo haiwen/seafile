@@ -119,6 +119,8 @@ mysql_db_start (SeafileSession *session)
     g_free (db);
     g_free (unix_socket);
     g_free (charset);
+    if (error)
+        g_clear_error (&error);
 
     return 0;
 }
@@ -176,24 +178,24 @@ load_database_config (SeafileSession *session)
 {
     char *type;
     GError *error = NULL;
+    int ret = 0;
 
     type = g_key_file_get_string (session->config, "database", "type", &error);
     /* Default to use sqlite if not set. */
-    if (!type)
-        type = "sqlite";
-
-    if (strcasecmp (type, "sqlite") == 0) {
-        return sqlite_db_start (session);
+    if (!type || strcasecmp (type, "sqlite") == 0) {
+        ret = sqlite_db_start (session);
     } else if (strcasecmp (type, "mysql") == 0) {
-        return mysql_db_start (session);
+        ret = mysql_db_start (session);
     } else if (strcasecmp (type, "pgsql") == 0) {
-        return pgsql_db_start (session);
+        ret = pgsql_db_start (session);
     } else {
         seaf_warning ("Unsupported db type %s.\n", type);
-        return -1;
+        ret = -1;
     }
 
-    return 0;
+    g_free (type);
+
+    return ret;
 }
 
 #endif

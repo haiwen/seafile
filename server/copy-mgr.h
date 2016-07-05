@@ -35,7 +35,7 @@ seaf_copy_manager_start (SeafCopyManager *mgr);
 
 typedef int (*CopyTaskFunc) (const char *, const char *, const char *,
                              const char *, const char *, const char *,
-                             const char *, CopyTask *);
+                             int, const char *, CopyTask *);
 
 char *
 seaf_copy_manager_add_task (SeafCopyManager *mgr,
@@ -45,6 +45,7 @@ seaf_copy_manager_add_task (SeafCopyManager *mgr,
                             const char *dst_repo_id,
                             const char *dst_path,
                             const char *dst_filename,
+                            int replace,
                             const char *modifier,
                             gint64 total_files,
                             CopyTaskFunc function,

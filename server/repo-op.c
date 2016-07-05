@@ -1618,6 +1618,7 @@ static int
 put_dirent_and_commit (SeafRepo *repo,
                        const char *path,
                        SeafDirent *dent,
+                       int replace,
                        const char *user,
                        GError **error)
 {
@@ -1628,8 +1629,9 @@ put_dirent_and_commit (SeafRepo *repo,
 
     GET_COMMIT_OR_FAIL(head_commit, repo->id, repo->version, repo->head->commit_id);
 
-    root_id = do_post_file (repo,
-                            head_commit->root_id, path, dent);
+    root_id = do_post_file_replace (repo,
+                                    head_commit->root_id, path,
+                                    replace, dent);
     if (!root_id) {
         seaf_warning ("[cp file] Failed to cp file %s to %s in repo %s.\n",
                       dent->name, path, repo->id);
@@ -1788,6 +1790,7 @@ cross_repo_copy (const char *src_repo_id,
                  const char *dst_repo_id,
                  const char *dst_path,
                  const char *dst_filename,
+                 int replace,
                  const char *modifier,
                  CopyTask *task)
 {
@@ -1831,6 +1834,7 @@ cross_repo_copy (const char *src_repo_id,
     if (put_dirent_and_commit (dst_repo,
                                dst_path,
                                dst_dent,
+                               replace,
                                modifier,
                                NULL) < 0) {
         ret = -1;
@@ -1997,6 +2001,7 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
         if (put_dirent_and_commit (dst_repo,
                                    dst_canon_path,
                                    dst_dent,
+                                   0,
                                    user,
                                    error) < 0) {
             if (!error)
@@ -2038,6 +2043,7 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
                                               dst_repo_id,
                                               dst_canon_path,
                                               dst_filename,
+                                              0,
                                               user,
                                               total_files,
                                               cross_repo_copy,
@@ -2057,6 +2063,7 @@ seaf_repo_manager_copy_file (SeafRepoManager *mgr,
                              dst_repo_id,
                              dst_canon_path,
                              dst_filename,
+                             0,
                              user,
                              NULL) < 0) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
@@ -2095,6 +2102,7 @@ static int
 move_file_same_repo (const char *repo_id,
                      const char *src_path, SeafDirent *src_dent,
                      const char *dst_path, SeafDirent *dst_dent,
+                     int replace,
                      const char *user,
                      GError **error)
 {
@@ -2107,8 +2115,9 @@ move_file_same_repo (const char *repo_id,
     GET_REPO_OR_FAIL(repo, repo_id);
     GET_COMMIT_OR_FAIL(head_commit, repo->id, repo->version, repo->head->commit_id);
     
-    root_id_after_put = do_post_file (repo,
-                                      head_commit->root_id, dst_path, dst_dent);
+    root_id_after_put = do_post_file_replace (repo,
+                                              head_commit->root_id, dst_path,
+                                              replace, dst_dent);
     if (!root_id_after_put) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "move file failed");
         ret = -1;
@@ -2151,6 +2160,7 @@ cross_repo_move (const char *src_repo_id,
                  const char *dst_repo_id,
                  const char *dst_path,
                  const char *dst_filename,
+                 int replace,
                  const char *modifier,
                  CopyTask *task)
 {
@@ -2194,6 +2204,7 @@ cross_repo_move (const char *src_repo_id,
     if (put_dirent_and_commit (dst_repo,
                                dst_path,
                                dst_dent,
+                               replace,
                                modifier,
                                NULL) < 0) {
         ret = -1;
@@ -2241,6 +2252,7 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
                              const char *dst_repo_id,
                              const char *dst_path,
                              const char *dst_filename,
+                             int replace,
                              const char *user,
                              int need_progress,
                              int synchronous,
@@ -2278,8 +2290,8 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
     GET_COMMIT_OR_FAIL(dst_head_commit,
                        dst_repo->id, dst_repo->version, 
                        dst_repo->head->commit_id);
-    FAIL_IF_FILE_EXISTS(dst_repo->store_id, dst_repo->version,
-                        dst_head_commit->root_id, dst_canon_path, dst_filename, NULL);
+    /*FAIL_IF_FILE_EXISTS(dst_repo->store_id, dst_repo->version,
+                        dst_head_commit->root_id, dst_canon_path, dst_filename, NULL);*/
 
     /* get src dirent */
     src_dent = get_dirent_by_path (src_repo, NULL,
@@ -2301,7 +2313,7 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
         if (move_file_same_repo (src_repo_id,
                                  src_canon_path, src_dent,
                                  dst_canon_path, dst_dent,
-                                 user, error) < 0) {
+                                 replace, user, error) < 0) {
             ret = -1;
             goto out;
         }
@@ -2323,6 +2335,7 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
             if (put_dirent_and_commit (dst_repo,
                                        dst_canon_path,
                                        dst_dent,
+                                       replace,
                                        user,
                                        error) < 0) {
                 if (!error)
@@ -2372,6 +2385,7 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
                                                   dst_repo_id,
                                                   dst_canon_path,
                                                   dst_filename,
+                                                  replace,
                                                   user,
                                                   total_files,
                                                   cross_repo_move,
@@ -2391,6 +2405,7 @@ seaf_repo_manager_move_file (SeafRepoManager *mgr,
                                  dst_repo_id,
                                  dst_canon_path,
                                  dst_filename,
+                                 replace,
                                  user,
                                  NULL) < 0) {
                 g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,

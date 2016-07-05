@@ -78,6 +78,7 @@ seafile_session_new(const char *central_config_dir,
         g_key_file_free (config);
         goto onerror;
     }
+    g_free (config_file_path);
 
     session = g_new0(SeafileSession, 1);
     session->seaf_dir = abs_seafile_dir;
@@ -378,8 +379,10 @@ create_system_default_repo (void *data)
             seaf_warning ("Failed to get system default repo. Create a new one.\n");
             del_system_default_repo_id (session);
             seaf_repo_manager_del_repo (session->repo_mgr, repo_id, NULL);
+            g_free (repo_id);
         } else {
             seaf_repo_unref (repo);
+            g_free (repo_id);
             return data;
         }
     }
