@@ -2505,6 +2505,65 @@ out:
     return ret;
 }
 
+int
+seafile_unshare_subdir_for_user (const char *repo_id,
+                                 const char *path,
+                                 const char *owner,
+                                 const char *share_user,
+                                 GError **error)
+{
+    if (is_empty_string (repo_id) || !is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid repo_id parameter");
+        return -1;
+    }
+
+    if (is_empty_string (path) || strcmp (path, "/") == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid path parameter");
+        return -1;
+    }
+
+    if (is_empty_string (owner)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid owner parameter");
+        return -1;
+    }
+
+    if (is_empty_string (share_user) ||
+        strcmp (owner, share_user) == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid share_user parameter");
+        return -1;
+    }
+
+    char *real_path;
+    char *vrepo_id;
+    int ret = 0;
+
+    real_path = format_dir_path (path);
+
+    vrepo_id = seaf_repo_manager_get_virtual_repo_id (seaf->repo_mgr, repo_id,
+                                                      real_path, owner);
+    if (!vrepo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to get shared sub repo");
+        ret = -1;
+        goto out;
+    }
+
+    ret = seaf_share_manager_remove_share (seaf->share_mgr, vrepo_id, owner, share_user);
+    if (ret < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to unshare subdir for user");
+    }
+    g_free (vrepo_id);
+
+out:
+    g_free (real_path);
+    return ret;
+}
+
 GList *
 seafile_list_repo_shared_group (const char *from_user, const char *repo_id,
                                 GError **error)
@@ -2665,6 +2724,65 @@ seafile_share_subdir_to_group (const char *repo_id,
 
 out:
     g_free (vrepo_name);
+    g_free (real_path);
+    return ret;
+}
+
+int
+seafile_unshare_subdir_for_group (const char *repo_id,
+                                  const char *path,
+                                  const char *owner,
+                                  int share_group,
+                                  GError **error)
+{
+    if (is_empty_string (repo_id) || !is_uuid_valid (repo_id)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid repo_id parameter");
+        return -1;
+    }
+
+    if (is_empty_string (path) || strcmp (path, "/") == 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid path parameter");
+        return -1;
+    }
+
+    if (is_empty_string (owner)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid owner parameter");
+        return -1;
+    }
+
+    if (share_group < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Invalid share_group parameter");
+        return -1;
+    }
+
+    char *real_path;
+    char *vrepo_id;
+    int ret = 0;
+
+    real_path = format_dir_path (path);
+
+    vrepo_id = seaf_repo_manager_get_virtual_repo_id (seaf->repo_mgr, repo_id,
+                                                      real_path, owner);
+    if (!vrepo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to get shared sub repo");
+        ret = -1;
+        goto out;
+    }
+
+    ret = seaf_repo_manager_del_group_repo (seaf->repo_mgr, vrepo_id,
+                                            share_group, error);
+    if (ret < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to unshare subdir for group");
+    }
+    g_free (vrepo_id);
+
+out:
     g_free (real_path);
     return ret;
 }

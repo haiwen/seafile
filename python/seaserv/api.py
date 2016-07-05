@@ -328,10 +328,13 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.set_share_permission(repo_id, from_username,
                                                           to_username, permission)
 
-    def share_subdir_to_user (self, repo_id, path, owner, share_user, permission, passwd=''):
+    def share_subdir_to_user(self, repo_id, path, owner, share_user, permission, passwd=''):
         return seafserv_threaded_rpc.share_subdir_to_user(repo_id, path, owner,
                                                           share_user, permission, passwd)
 
+    def unshare_subdir_for_user(self, repo_id, path, owner, share_user):
+        return seafserv_threaded_rpc.unshare_subdir_for_user(repo_id, path, owner,
+                                                             share_user)
 
     def get_share_out_repo_list(self, username, start, limit):
         """
@@ -388,9 +391,13 @@ class SeafileAPI(object):
         """
         return seafserv_threaded_rpc.list_repo_shared_group(from_user, repo_id)
 
-    def share_subdir_to_group (self, repo_id, path, owner, share_group, permission, passwd=''):
+    def share_subdir_to_group(self, repo_id, path, owner, share_group, permission, passwd=''):
         return seafserv_threaded_rpc.share_subdir_to_group(repo_id, path, owner,
                                                            share_group, permission, passwd)
+
+    def unshare_subdir_for_group(self, repo_id, path, owner, share_group):
+        return seafserv_threaded_rpc.unshare_subdir_for_group(repo_id, path, owner,
+                                                              share_group)
 
     def get_group_repoids(self, group_id):
         """
@@ -465,6 +472,12 @@ class SeafileAPI(object):
         Return: a list of Repo objects.
         """
         return seafserv_threaded_rpc.list_inner_pub_repos()
+
+    def list_inner_pub_repos_by_owner(self, repo_owner):
+        """
+        Return: a list of Repo objects.
+        """
+        return seafserv_threaded_rpc.list_inner_pub_repos_by_owner(repo_owner)
 
     def count_inner_pub_repos(self):
         return seafserv_threaded_rpc.count_inner_pub_repos()
