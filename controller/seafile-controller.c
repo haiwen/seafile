@@ -320,7 +320,7 @@ setup_env ()
     g_setenv ("SEAFILE_CENTRAL_CONF_DIR", ctl->central_config_dir, TRUE);
 
     char *seahub_dir = g_build_filename (installpath, "seahub", NULL);
-    char *seafdav_conf = g_build_filename (topdir, "conf", "seafdav.conf", NULL);
+    char *seafdav_conf = g_build_filename (ctl->central_config_dir, "seafdav.conf", NULL);
     g_setenv ("SEAHUB_DIR", seahub_dir, TRUE);
     g_setenv ("SEAFDAV_CONF", seafdav_conf, TRUE);
 
@@ -788,7 +788,7 @@ read_seafdav_config()
     GKeyFile *key_file = NULL;
     GError *error = NULL;
 
-    seafdav_conf = g_build_filename(topdir, "conf", "seafdav.conf", NULL);
+    seafdav_conf = g_build_filename(ctl->central_config_dir, "seafdav.conf", NULL);
     if (!g_file_test(seafdav_conf, G_FILE_TEST_EXISTS)) {
         goto out;
     }
