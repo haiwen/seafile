@@ -336,6 +336,11 @@ class SeafileAPI(object):
         return seafserv_threaded_rpc.unshare_subdir_for_user(repo_id, path, owner,
                                                              share_user)
 
+    def update_share_subdir_perm_for_user(self, repo_id, path, owner,
+                                          share_user, permission):
+        return seafserv_threaded_rpc.update_share_subdir_perm_for_user(repo_id, path, owner,
+                                                                       share_user, permission)
+
     def get_share_out_repo_list(self, username, start, limit):
         """
         Get repo list shared by this user.
@@ -398,6 +403,11 @@ class SeafileAPI(object):
     def unshare_subdir_for_group(self, repo_id, path, owner, share_group):
         return seafserv_threaded_rpc.unshare_subdir_for_group(repo_id, path, owner,
                                                               share_group)
+
+    def update_share_subdir_perm_for_group(self, repo_id, path, owner,
+                                           share_group, permission):
+        return seafserv_threaded_rpc.update_share_subdir_perm_for_group(repo_id, path, owner,
+                                                                        share_group, permission)
 
     def get_group_repoids(self, group_id):
         """

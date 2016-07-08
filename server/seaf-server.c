@@ -386,6 +386,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      "unshare_subdir_for_user",
                                      searpc_signature_int__string_string_string_string());
 
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_update_share_subdir_perm_for_user,
+                                     "update_share_subdir_perm_for_user",
+                                     searpc_signature_int__string_string_string_string_string());
+
     /* share repo to group */
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_group_share_repo,
@@ -409,6 +414,11 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
                                      seafile_unshare_subdir_for_group,
                                      "unshare_subdir_for_group",
                                      searpc_signature_int__string_string_string_int());
+
+    searpc_server_register_function ("seafserv-threaded-rpcserver",
+                                     seafile_update_share_subdir_perm_for_group,
+                                     "update_share_subdir_perm_for_group",
+                                     searpc_signature_int__string_string_string_int_string());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_get_group_repoids,
