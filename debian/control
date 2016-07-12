@@ -28,11 +28,11 @@ Depends:
 	libuuid1,
 	libssl0.9.8 | libssl1.0.0,
 	libevent-2.0-5,
-    libqt5network5 (>=5.5),
-    libqt5core5a (>=5.5),
-    libqt5gui5 (>=5.5),
-    libqt5webkit5 (>=5.5),
-    libqt5test5 (>=5.5)
+    libqt5network5,
+    libqt5core5a,
+    libqt5gui5,
+    libqt5webkit5,
+    libqt5test5
 Description: Client of seafile, an online file storage and collaboration tool
  Seafile enables you to build private cloud for file sharing and collaboration
  among team members in your company/organization. This is the Linux desktop
