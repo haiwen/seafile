@@ -459,6 +459,13 @@ class SeafileAPI(object):
         """
         return seafserv_threaded_rpc.remove_repo_group(group_id, username)
 
+    def remove_group_repos(self, group_id):
+        """
+        Remove all repos under group.
+        Return: 0 success; -1 failed
+        """
+        return seafserv_threaded_rpc.remove_repo_group(group_id, None)
+
     def set_group_repo_permission(self, group_id, repo_id, permission):
         return seafserv_threaded_rpc.set_group_repo_permission(group_id, repo_id,
                                                                permission)
@@ -752,11 +759,11 @@ class CcnetAPI(object):
     def create_org_group(self, org_id, group_name, user_name):
         return ccnet_threaded_rpc.create_org_group(org_id, group_name, user_name)
     
-    def remove_group(self, group_id, user_name):
+    def remove_group(self, group_id):
         """
-        user_name: unused. permission check should be done before calling this function.
+        permission check should be done before calling this function.
         """
-        return ccnet_threaded_rpc.remove_group(group_id, user_name)
+        return ccnet_threaded_rpc.remove_group(group_id)
 
     def group_add_member(self, group_id, user_name, member_name):
         """
