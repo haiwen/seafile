@@ -2335,7 +2335,7 @@ seafile_web_get_access_token (const char *repo_id,
 
     token = seaf_web_at_manager_get_access_token (seaf->web_at_mgr,
                                                   repo_id, obj_id, op,
-                                                  username, use_onetime);
+                                                  username, use_onetime, error);
     return token;
 }
 
@@ -2356,6 +2356,13 @@ seafile_web_query_access_token (const char *token, GError **error)
         return (GObject *)webaccess;
 
     return NULL;
+}
+
+char *
+seafile_query_zip_progress (const char *token, GError **error)
+{
+    return zip_download_mgr_query_zip_progress (seaf->zip_download_mgr,
+                                                token, error);
 }
 
 int

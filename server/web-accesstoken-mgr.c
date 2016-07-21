@@ -8,6 +8,7 @@
 
 #include "seafile-session.h"
 #include "web-accesstoken-mgr.h"
+#include "seafile-error.h"
 
 #include "utils.h"
 
@@ -127,13 +128,15 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
                                       const char *obj_id,
                                       const char *op,
                                       const char *username,
-                                      int use_onetime)
+                                      int use_onetime,
+                                      GError **error)
 {
     GString *key;
     AccessInfo *info;
     long now = (long)time(NULL);
     long expire;
     char *t;
+    SeafileWebAccess *webaccess;
 
     if (strcmp(op, "view") != 0 &&
         strcmp(op, "download") != 0 &&
@@ -145,8 +148,11 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
         strcmp(op, "upload-blks-api") != 0 &&
         strcmp(op, "upload-blks-aj") != 0 &&
         strcmp(op, "update-blks-api") != 0 &&
-        strcmp(op, "update-blks-aj") != 0)
+        strcmp(op, "update-blks-aj") != 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Invalid operation type.");
         return NULL;
+    }
 
     pthread_mutex_lock (&mgr->priv->lock);
 
@@ -166,6 +172,29 @@ seaf_web_at_manager_get_access_token (SeafWebAccessTokenManager *mgr,
     g_hash_table_insert (mgr->priv->access_token_hash, g_strdup(t), info);
 
     pthread_mutex_unlock (&mgr->priv->lock);
+
+    if (strcmp(op, "download-dir") == 0 ||
+        strcmp(op, "download-multi") == 0) {
+
+        webaccess = g_object_new (SEAFILE_TYPE_WEB_ACCESS,
+                                  "repo_id", info->repo_id,
+                                  "obj_id", info->obj_id,
+                                  "op", info->op,
+                                  "username", info->username,
+                                  NULL);
+
+        if (zip_download_mgr_start_zip_task (seaf->zip_download_mgr,
+                                             t, webaccess, error) < 0) {
+            pthread_mutex_lock (&mgr->priv->lock);
+            g_hash_table_remove (mgr->priv->access_token_hash, t);
+            pthread_mutex_unlock (&mgr->priv->lock);
+
+            g_object_unref (webaccess);
+            g_free (t);
+            return NULL;
+        }
+        g_object_unref (webaccess);
+    }
 
     return t;
 }

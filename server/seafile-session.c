@@ -160,6 +160,10 @@ seafile_session_new(const char *central_config_dir,
     if (!session->http_server)
         goto onerror;
 
+    session->zip_download_mgr = zip_download_mgr_new ();
+    if (!session->zip_download_mgr)
+        goto onerror;
+
     return session;
 
 onerror:

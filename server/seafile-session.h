@@ -28,6 +28,7 @@
 #include "mq-mgr.h"
 
 #include "http-server.h"
+#include "zip-download-mgr.h"
 
 #include <searpc-client.h>
 
@@ -86,6 +87,7 @@ struct _SeafileSession {
     int                  sync_thread_pool_size;
 
     HttpServerStruct    *http_server;
+    ZipDownloadMgr      *zip_download_mgr;
 };
 
 extern SeafileSession *seaf;

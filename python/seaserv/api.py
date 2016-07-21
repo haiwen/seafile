@@ -42,6 +42,13 @@ class SeafileAPI(object):
         """
         return seafserv_rpc.web_query_access_token(token)
 
+    def query_zip_progress(self, token):
+        """Query zip progress for download-dir, download-multi
+        token: obtained by get_fileserver_access_token
+        Return: json formated string `{"zipped":, "total":}`, otherwise None.
+        """
+        return seafserv_rpc.query_zip_progress(token)
+
     # password
 
     def is_password_set(self, repo_id, username):

@@ -164,6 +164,7 @@ seaf_commit_free (SeafCommit *commit)
     if (commit->second_parent_id) g_free (commit->second_parent_id);
     if (commit->repo_name) g_free (commit->repo_name);
     if (commit->repo_desc) g_free (commit->repo_desc);
+    if (commit->device_name) g_free (commit->device_name);
     g_free (commit->magic);
     g_free (commit->random_key);
     g_free (commit);

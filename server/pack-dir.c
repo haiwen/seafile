@@ -12,6 +12,7 @@
 #include "utils.h"
 
 #include "seafile-session.h"
+#include "pack-dir.h"
 
 #include <archive.h>
 #include <archive_entry.h>
@@ -272,7 +273,8 @@ out:
 static int
 archive_dir (PackDirData *data,
              const char *root_id,
-             const char *dirpath)
+             const char *dirpath,
+             Progress *progress)
 {
     SeafDir *dir = NULL;
     SeafDirent *dent;
@@ -292,7 +294,9 @@ archive_dir (PackDirData *data,
         dent = ptr->data;
         if (S_ISREG(dent->mode)) {
             ret = add_file_to_archive (data, dirpath, dent);
-
+            if (ret == 0) {
+                g_atomic_int_inc (&progress->zipped);
+            }
         } else if (S_ISLNK(dent->mode)) {
             if (archive_version_number() >= 3000001) {
                 /* Symlink in zip arhive is not supported in earlier version
@@ -302,7 +306,7 @@ archive_dir (PackDirData *data,
 
         } else if (S_ISDIR(dent->mode)) {
             subpath = g_build_filename (dirpath, dent->name, NULL);
-            ret = archive_dir (data, dent->id, subpath);
+            ret = archive_dir (data, dent->id, subpath, progress);
             g_free (subpath);
         }
 
@@ -316,18 +320,6 @@ out:
         seaf_dir_free (dir);
 
     return ret;
-}
-
-static void
-pack_dir_data_free (PackDirData *data)
-{
-    if (!data)
-        return;
-
-    if (data->tmp_zip_file) {
-        g_free (data->tmp_zip_file);
-    }
-    g_free (data);
 }
 
 static PackDirData *
@@ -371,93 +363,74 @@ pack_dir_data_new (const char *store_id,
     return data;
 }
 
-char *
-pack_dir (const char *store_id,
-          int repo_version,
-          const char *dirname,
-          const char *root_id,
-          SeafileCrypt *crypt,
-          gboolean is_windows)
+static int
+archive_multi (PackDirData *data, GList *dirent_list,
+               Progress *progress)
 {
-    char *ret = NULL;
-    PackDirData *data = NULL;
-
-    data = pack_dir_data_new (store_id, repo_version, dirname,
-                              crypt, is_windows);
-    if (!data) {
-        seaf_warning ("Failed to create pack dir data.\n");
-        return NULL;
-    }
-
-    if (archive_dir (data, root_id, "") < 0) {
-        g_debug ("failed to archive_dir\n");
-        goto out;
-    }
-
-    if (archive_write_finish(data->a) < 0) {
-        goto out;
-    }
-
-    ret = g_strdup (data->tmp_zip_file);
-
-out:
-    close (data->tmp_fd);
-    if (!ret) {
-        /* zip failed: remove tmp file */
-        g_unlink (data->tmp_zip_file);
-    }
-    pack_dir_data_free (data);
-
-    return ret;
-}
-
-char *
-pack_mutli_files (const char *store_id,
-                  int repo_version,
-                  GList *dirent_list,
-                  SeafileCrypt *crypt,
-                  gboolean is_windows)
-{
-    char *ret = NULL;
-    PackDirData *data = NULL;
     GList *iter;
     SeafDirent *dirent;
-
-    data = pack_dir_data_new (store_id, repo_version, "",
-                              crypt, is_windows);
-    if (!data) {
-        seaf_warning ("Failed to create pack dir data.\n");
-        return NULL;
-    }
 
     for (iter = dirent_list; iter; iter = iter->next) {
         dirent = iter->data;
         if (S_ISREG(dirent->mode)) {
             if (add_file_to_archive (data, "", dirent) < 0) {
                 seaf_warning ("Failed to archive file: %s.\n", dirent->name);
-                goto out;
+                return -1;
             }
+            g_atomic_int_inc (&progress->zipped);
         } else if (S_ISDIR(dirent->mode)) {
-            if (archive_dir (data, dirent->id, dirent->name) < 0) {
+            if (archive_dir (data, dirent->id, dirent->name, progress) < 0) {
                 seaf_warning ("Failed to archive dir: %s.\n", dirent->name);
-                goto out;
+                return -1;
             }
         }
     }
 
+    return 0;
+}
+
+int
+pack_files (const char *store_id,
+            int repo_version,
+            const char *dirname,
+            void *internal,
+            SeafileCrypt *crypt,
+            gboolean is_windows,
+            Progress *progress)
+{
+    int ret = 0;
+    PackDirData *data = NULL;
+
+    data = pack_dir_data_new (store_id, repo_version, dirname,
+                              crypt, is_windows);
+    if (!data) {
+        seaf_warning ("Failed to create pack dir data.\n");
+        return -1;
+    }
+
+    progress->zip_file_path = data->tmp_zip_file;
+
+    if (strcmp (dirname, "") != 0) {
+        // Pack dir
+        if (archive_dir (data, (char *)internal, "", progress) < 0) {
+            seaf_warning ("Failed to archive dir.\n");
+            ret = -1;
+        }
+    } else {
+        // Pack multi
+        if (archive_multi (data, (GList *)internal, progress) < 0) {
+            seaf_warning ("Failed to archive multi files.\n");
+            ret = -1;
+        }
+    }
+
     if (archive_write_finish(data->a) < 0) {
-        goto out;
+        seaf_warning ("Failed to archive write finish.\n");
+        ret = -1;
     }
 
-    ret = g_strdup (data->tmp_zip_file);
-
-out:
     close (data->tmp_fd);
-    if (!ret) {
-        /* zip failed: remove tmp file */
-        g_unlink (data->tmp_zip_file);
-    }
-    pack_dir_data_free (data);
+    free (data);
 
     return ret;
 }
