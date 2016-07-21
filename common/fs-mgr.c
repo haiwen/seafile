@@ -2516,6 +2516,7 @@ seaf_fs_manager_get_seafdir_by_path (SeafFSManager *mgr,
     dir = seaf_fs_manager_get_seafdir (mgr, repo_id, version, dir_id);
     if (!dir) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_DIR_MISSING, "directory is missing");
+        g_free (tmp_path);
         return NULL;
     }
 

@@ -81,6 +81,7 @@ seaf_db_new_mysql (const char *host,
     ConnectionPool_setMaxConnections (db->pool, max_connections);
     ConnectionPool_start (db->pool);
     db->type = SEAF_DB_TYPE_MYSQL;
+    g_string_free (url, TRUE);
 
     return db;
 }

@@ -3823,6 +3823,7 @@ seafile_move_file (const char *src_repo_id,
                    const char *dst_repo_id,
                    const char *dst_dir,
                    const char *dst_filename,
+                   int replace,
                    const char *user,
                    int need_progress,
                    int synchronous,
@@ -3878,7 +3879,7 @@ seafile_move_file (const char *src_repo_id,
     ret = (GObject *)seaf_repo_manager_move_file (seaf->repo_mgr,
                                                   src_repo_id, rsrc_dir, norm_src_filename,
                                                   dst_repo_id, rdst_dir, norm_dst_filename,
-                                                  user, need_progress, synchronous,
+                                                  replace, user, need_progress, synchronous,
                                                   error);
 
 out:
@@ -4194,7 +4195,7 @@ seafile_get_dirent_by_path (const char *repo_id, const char *path,
     }
 
     SeafDirent *dirent = seaf_fs_manager_get_dirent_by_path (seaf->fs_mgr,
-                                                             repo_id, repo->version,
+                                                             repo->store_id, repo->version,
                                                              commit->root_id, rpath,
                                                              error);
     g_free (rpath);

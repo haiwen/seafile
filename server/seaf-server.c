@@ -246,7 +246,7 @@ static void start_rpc_service (CcnetClient *client, int cloud_mode)
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_move_file,
                                      "seafile_move_file",
-       searpc_signature_object__string_string_string_string_string_string_string_int_int());
+       searpc_signature_object__string_string_string_string_string_string_int_string_int_int());
 
     searpc_server_register_function ("seafserv-threaded-rpcserver",
                                      seafile_rename_file,
@@ -805,6 +805,8 @@ load_history_config ()
                                                 &error);
     if (error == NULL)
         seaf->keep_history_days = keep_history_days;
+    else
+        g_clear_error (&error);
 }
 
 static void
