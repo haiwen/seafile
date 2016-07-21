@@ -570,16 +570,19 @@ class NewDBConfigurator(AbstractDBConfigurator):
     def mysql_user_exists(self, user):
         cursor = self.root_conn.cursor()
 
-        sql = '''SELECT EXISTS(SELECT 1 FROM mysql.user WHERE user = '%s')''' % user
+        sql = '''SELECT EXISTS(SELECT 1 FROM mysql.user WHERE user = '%s' and host = '%s')''' % \
+                (user, self.mysql_userhost)
 
         try:
             cursor.execute(sql)
             return cursor.fetchall()[0][0]
         except Exception, e:
             if isinstance(e, MySQLdb.OperationalError):
-                Utils.error('Failed to check mysql user %s: %s' % (user, e.args[1]))
+                Utils.error('Failed to check mysql user %s@%s: %s' % \
+                            (user, self.mysql_userhost, e.args[1]))
             else:
-                Utils.error('Failed to check mysql user %s: %s' % (user, e))
+                Utils.error('Failed to check mysql user %s@%s: %s' % \
+                            (user, self.mysql_userhost, e))
         finally:
             cursor.close()
 
