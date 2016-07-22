@@ -107,4 +107,4 @@ Contact
 
 Twitter: @seafile <https://twitter.com/seafile>
 
-Forum: <https://forum.seafile.io>
+Forum: <https://forum.seafile.com>
