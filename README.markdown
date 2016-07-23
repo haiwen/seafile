@@ -65,7 +65,7 @@ Please only submit bugs in GitHub issues (Pro customers should contact us via Em
 * Android client: https://github.com/haiwen/seadroid/issues
 * iOS client: https://github.com/haiwen/seafile-iOS/issues
 
-Feature requests and installation/usage problem should be asked in the forum https://forum.seafile-server.org/.
+Feature requests and installation/usage problem should be asked in the forum https://forum.seafile.com/.
 
 Internationalization (I18n)
 ===========================
