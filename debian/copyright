@@ -28,11 +28,11 @@ License: GPL-2 with OpenSSL exception
 
 Files: debian/*
 Copyright: 2016 m.eik michalke
-License: GPL-3
+License: GPL-2
   This program is free software; you can redistribute it
   and/or modify it under the terms of the GNU General Public
   License as published by the Free Software Foundation; either
-  version 3 of the License, or (at your option) any later
+  version 2 of the License, or (at your option) any later
   version.
   .
   This software is distributed in the hope that it will be useful, but
@@ -40,5 +40,5 @@ License: GPL-3
   or FITNESS FOR A PARTICULAR PURPOSE.
   .
   You should have received a copy of the license with your Debian system,
-  in the file /usr/share/common-licenses/GPL-3, or with the
+  in the file /usr/share/common-licenses/GPL-2, or with the
   source package as the file COPYING or LICENSE.
