@@ -16,7 +16,6 @@ Build-Depends:
     valac,
     libjansson-dev,
     python,
-    libfuse-dev,
     libsearpc-dev,
     libccnet-dev
 Standards-Version: 3.9.5
