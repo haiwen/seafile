@@ -103,6 +103,7 @@ const char *POST_CHECK_FS_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\
 const char *POST_CHECK_BLOCK_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{12}/check-blocks";
 const char *POST_RECV_FS_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{12}/recv-fs";
 const char *POST_PACK_FS_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{12}/pack-fs";
+const char *GET_BLOCK_MAP_REGEX = "^/repo/[\\da-z]{8}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{4}-[\\da-z]{12}/block-map/[\\da-z]{40}";
 
 static void
 load_http_config (HttpServerStruct *htp_server, SeafileSession *session)
@@ -1772,6 +1773,72 @@ out:
 }
 
 static void
+get_block_map_cb (evhtp_request_t *req, void *arg)
+{
+    const char *repo_id = NULL;
+    char *file_id = NULL;
+    char *store_id = NULL;
+    HttpServer *htp_server = arg;
+    Seafile *file = NULL;
+    char *block_id;
+    BlockMetadata *blk_meta = NULL;
+    json_t *array = NULL;
+    char *data = NULL;
+
+    char **parts = g_strsplit (req->uri->path->full + 1, "/", 0);
+    repo_id = parts[1];
+    file_id = parts[3];
+
+    int token_status = validate_token (htp_server, req, repo_id, NULL, FALSE);
+    if (token_status != EVHTP_RES_OK) {
+        evhtp_send_reply (req, token_status);
+        goto out;
+    }
+
+    store_id = get_repo_store_id (htp_server, repo_id);
+    if (!store_id) {
+        evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        goto out;
+    }
+
+    file = seaf_fs_manager_get_seafile (seaf->fs_mgr, store_id, 1, file_id);
+    if (!file) {
+        evhtp_send_reply (req, EVHTP_RES_NOTFOUND);
+        goto out;
+    }
+
+    array = json_array ();
+
+    int i;
+    for (i = 0; i < file->n_blocks; ++i) {
+        block_id = file->blk_sha1s[i];
+        blk_meta = seaf_block_manager_stat_block (seaf->block_mgr,
+                                                  store_id, 1, block_id);
+        if (blk_meta == NULL) {
+            seaf_warning ("Failed to find block %s/%s\n", store_id, block_id);
+            evhtp_send_reply (req, EVHTP_RES_SERVERR);
+            g_free (blk_meta);
+            goto out;
+        }
+        json_array_append_new (array, json_integer(blk_meta->size));
+        g_free (blk_meta);
+    }
+
+    data = json_dumps (array, JSON_COMPACT);
+    evbuffer_add (req->buffer_out, data, strlen (data));
+    evhtp_send_reply (req, EVHTP_RES_OK);
+
+out:
+    g_free (store_id);
+    seafile_unref (file);
+    if (array)
+        json_decref (array);
+    if (data)
+        free (data);
+    g_strfreev (parts);
+}
+
+static void
 http_request_init (HttpServerStruct *server)
 {
     HttpServer *priv = server->priv;
@@ -1818,6 +1885,10 @@ http_request_init (HttpServerStruct *server)
 
     evhtp_set_regex_cb (priv->evhtp,
                         POST_PACK_FS_REGEX, post_pack_fs_cb,
+                        priv);
+
+    evhtp_set_regex_cb (priv->evhtp,
+                        GET_BLOCK_MAP_REGEX, get_block_map_cb,
                         priv);
 
     /* Web access file */
