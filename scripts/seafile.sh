@@ -38,11 +38,12 @@ if [[ $# != 1 || ( "$1" != "start" && "$1" != "stop" && "$1" != "restart" ) ]]; 
 fi
 
 function validate_running_user () {
+    real_data_dir=`readlink -f ${seafile_data_dir}`
     running_user=`id -un`
-    data_dir_owner=`stat -c %U ${seafile_data_dir}`
+    data_dir_owner=`stat -c %U ${real_data_dir}`
 
     if [[ "${running_user}" != "${data_dir_owner}" ]]; then
-        echo "Error: the user running the script (\"${running_user}\") is not the owner of \"${seafile_data_dir}\" folder, you should use the user \"${data_dir_owner}\" to run the script."
+        echo "Error: the user running the script (\"${running_user}\") is not the owner of \"${real_data_dir}\" folder, you should use the user \"${data_dir_owner}\" to run the script."
         exit -1;
     fi
 }
