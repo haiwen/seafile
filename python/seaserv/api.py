@@ -662,7 +662,7 @@ class CcnetAPI(object):
         It first lookup user from local database, if not found, lookup imported
         LDAP user.
         Return: a list of EmailUser objects (ccnet/lib/ccnetobj.vala)
-        The 'source' attribute of EmailUser object is set to 'LDAPImported' for LDAP
+        The 'source' attribute of EmailUser object is set to 'LDAPImport' for LDAP
         imported user, and 'DB' for local database user.
         """
         return ccnet_threaded_rpc.get_emailuser(email)
@@ -684,7 +684,7 @@ class CcnetAPI(object):
         """
         source:
           - 'DB': return local db users
-          - 'LDAPImported': return imported LDAP users
+          - 'LDAPImport': return imported LDAP users
           - 'LDAP': retrieve users directly from LDAP server
         start: offset to start retrieving, -1 to start from the beginning
         limit: number of users to get, -1 to get all user from start
