@@ -31,6 +31,8 @@ typedef struct {
     time_t mtime;
     char store_id[37];
     int repo_version;
+    int tmp_fd;
+    char *tmp_zip_file;
 } PackDirData;
 
 static char *
@@ -271,7 +273,6 @@ static int
 archive_dir (PackDirData *data,
              const char *root_id,
              const char *dirpath)
-             
 {
     SeafDir *dir = NULL;
     SeafDirent *dent;
@@ -317,12 +318,24 @@ out:
     return ret;
 }
 
-char *pack_dir (const char *store_id,
-                int repo_version,
-                const char *dirname,
-                const char *root_id,
-                SeafileCrypt *crypt,
-                gboolean is_windows)
+static void
+pack_dir_data_free (PackDirData *data)
+{
+    if (!data)
+        return;
+
+    if (data->tmp_zip_file) {
+        g_free (data->tmp_zip_file);
+    }
+    g_free (data);
+}
+
+static PackDirData *
+pack_dir_data_new (const char *store_id,
+                   int repo_version,
+                   const char *dirname,
+                   SeafileCrypt *crypt,
+                   gboolean is_windows)
 {
     struct archive *a = NULL;
     char *tmpfile_name = NULL ;
@@ -332,7 +345,8 @@ char *pack_dir (const char *store_id,
 
     fd = g_file_open_tmp ("seafile-XXXXXX.zip", &tmpfile_name, NULL);
     if (fd < 0) {
-        goto out;
+        seaf_warning ("Failed to open temp file: %s.\n", strerror (errno));
+        return NULL;
     }
 
     a = archive_write_new ();
@@ -348,27 +362,99 @@ char *pack_dir (const char *store_id,
     data->mtime = time(NULL);
     memcpy (data->store_id, store_id, 36);
     data->repo_version = repo_version;
+    data->tmp_fd = fd;
+    data->tmp_zip_file = tmpfile_name;
+
+    return data;
+}
+
+char *
+pack_dir (const char *store_id,
+          int repo_version,
+          const char *dirname,
+          const char *root_id,
+          SeafileCrypt *crypt,
+          gboolean is_windows)
+{
+    char *ret = NULL;
+    PackDirData *data = NULL;
+
+    data = pack_dir_data_new (store_id, repo_version, dirname,
+                              crypt, is_windows);
+    if (!data) {
+        seaf_warning ("Failed to create pack dir data.\n");
+        return NULL;
+    }
 
     if (archive_dir (data, root_id, "") < 0) {
         g_debug ("failed to archive_dir\n");
         goto out;
     }
 
-    if (archive_write_finish(a) < 0) {
+    if (archive_write_finish(data->a) < 0) {
         goto out;
     }
 
-    ret = g_strdup (tmpfile_name);
+    ret = g_strdup (data->tmp_zip_file);
 
 out:
-    if (data) g_free (data);
-    if (fd > 0) close (fd);
-    
-    if (!ret && tmpfile_name) {
+    close (data->tmp_fd);
+    if (!ret) {
         /* zip failed: remove tmp file */
-        g_unlink (tmpfile_name);
+        g_unlink (data->tmp_zip_file);
     }
-    g_free (tmpfile_name);
+    pack_dir_data_free (data);
+
+    return ret;
+}
+
+char *
+pack_mutli_files (const char *store_id,
+                  int repo_version,
+                  GList *dirent_list,
+                  SeafileCrypt *crypt,
+                  gboolean is_windows)
+{
+    char *ret = NULL;
+    PackDirData *data = NULL;
+    GList *iter;
+    SeafDirent *dirent;
+
+    data = pack_dir_data_new (store_id, repo_version, "",
+                              crypt, is_windows);
+    if (!data) {
+        seaf_warning ("Failed to create pack dir data.\n");
+        return NULL;
+    }
+
+    for (iter = dirent_list; iter; iter = iter->next) {
+        dirent = iter->data;
+        if (S_ISREG(dirent->mode)) {
+            if (add_file_to_archive (data, "", dirent) < 0) {
+                seaf_warning ("Failed to archive file: %s.\n", dirent->name);
+                goto out;
+            }
+        } else if (S_ISDIR(dirent->mode)) {
+            if (archive_dir (data, dirent->id, dirent->name) < 0) {
+                seaf_warning ("Failed to archive dir: %s.\n", dirent->name);
+                goto out;
+            }
+        }
+    }
+
+    if (archive_write_finish(data->a) < 0) {
+        goto out;
+    }
+
+    ret = g_strdup (data->tmp_zip_file);
+
+out:
+    close (data->tmp_fd);
+    if (!ret) {
+        /* zip failed: remove tmp file */
+        g_unlink (data->tmp_zip_file);
+    }
+    pack_dir_data_free (data);
 
     return ret;
 }

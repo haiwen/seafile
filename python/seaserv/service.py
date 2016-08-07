@@ -1,37 +1,3 @@
-"""
-
-Repo:
-    id:                      Repo ID
-    name:                    Repo Name
-    desc:                    Repo description
-    worktree:                The full path of the worktree of the repo
-    worktree_changed:        True if the worktree is changed
-    worktree_checktime:      The last check time of whether worktree is changed
-    head_branch:             The name of the head branch
-    enctrypted:              True if the repo is encrypted
-    passwd:                  The password
-    
-
-Branch:
-    name:
-    commit_id:
-    repo_id:
-
-Commit:
-    id:
-    creator_name:
-    creator:                 The id of the creator
-    desc:
-    ctime:
-    repo_id:
-    root_id:
-    parent_id:
-    second_parent_id:
-
-
-"""
-
-
 from datetime import datetime
 import json
 import logging
@@ -69,7 +35,6 @@ SEAFILE_CENTRAL_CONF_DIR = _load_path_from_env('SEAFILE_CENTRAL_CONF_DIR', check
 pool = ccnet.ClientPool(CCNET_CONF_PATH, central_config_dir=SEAFILE_CENTRAL_CONF_DIR)
 ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=True)
 ccnet_threaded_rpc = ccnet.CcnetThreadedRpcClient(pool, req_pool=True)
-monitor_rpc = seafile.MonitorRpcClient(pool)
 seafserv_rpc = seafile.ServerRpcClient(pool, req_pool=True)
 seafserv_threaded_rpc = seafile.ServerThreadedRpcClient(pool, req_pool=True)
 

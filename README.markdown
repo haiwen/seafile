@@ -55,11 +55,25 @@ Build and Run
 
 See <http://manual.seafile.com/build_seafile/server.html>
 
-Internationalization (I18n)
-==========
+Bug and Feature Request Reports
+===============================
 
-* [Translate seafile web ui](https://github.com/haiwen/seafile/wiki/Seahub-Translation)
-* [Translate seafile desktop client](https://github.com/haiwen/seafile-client/#internationalization)
+Please only submit bugs in GitHub issues (Pro customers should contact us via Email):
+
+* Server: https://github.com/haiwen/seafile/issues
+* Desktop client: https://github.com/haiwen/seafile-client/issues
+* Android client: https://github.com/haiwen/seadroid/issues
+* iOS client: https://github.com/haiwen/seafile-iOS/issues
+
+Feature requests and installation/usage problem should be asked in the forum https://forum.seafile-server.org/.
+
+Internationalization (I18n)
+===========================
+
+* [Translate Seafile web ui](https://github.com/haiwen/seafile/wiki/Seahub-Translation)
+* [Translate Seafile desktop client](https://github.com/haiwen/seafile-client/#internationalization)
+* [Translate Seafile Android app](https://github.com/haiwen/seadroid#internationalization)
+* [Translate Seafile iOS app](https://github.com/haiwen/seafile-ios#internationalization-i18n)
 
 Change Logs
 ===========
