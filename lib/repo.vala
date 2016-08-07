@@ -171,6 +171,7 @@ public class RepoTokenInfo: Object {
     public string peer_ip { get; set; }
     public string peer_name { get; set; }
     public int64 sync_time { get; set; }
+    public string client_ver { get; set; }
 }
 
 public class SharedUser : Object {

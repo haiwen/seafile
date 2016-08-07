@@ -511,6 +511,45 @@ get_client_ip_addr (evhtp_request_t *req)
     return g_strdup (ip);
 }
 
+static int
+validate_client_ver (const char *client_ver)
+{
+    int n_major;
+    int n_minor;
+    int n_build;
+    char **versions = NULL;
+    char *next_str = NULL;
+
+    versions = g_strsplit (client_ver, ".", 3);
+    if (g_strv_length (versions) != 3) {
+        g_strfreev (versions);
+        return EVHTP_RES_BADREQ;
+    }
+
+    n_major = strtoll (versions[0], &next_str, 10);
+    if (versions[0] == next_str) {
+        g_strfreev (versions);
+        return EVHTP_RES_BADREQ;
+    }
+
+    n_minor = strtoll (versions[1], &next_str, 10);
+    if (versions[1] == next_str) {
+        g_strfreev (versions);
+        return EVHTP_RES_BADREQ;
+    }
+
+    n_build = strtoll (versions[2], &next_str, 10);
+    if (versions[2] == next_str) {
+        g_strfreev (versions);
+        return EVHTP_RES_BADREQ;
+    }
+
+    // todo: judge whether version is too old, then return 426
+
+    g_strfreev (versions);
+    return EVHTP_RES_OK;
+}
+
 static void
 get_check_permission_cb (evhtp_request_t *req, void *arg)
 {
@@ -524,6 +563,15 @@ get_check_permission_cb (evhtp_request_t *req, void *arg)
     if (client_id && strlen(client_id) != 40) {
         evhtp_send_reply (req, EVHTP_RES_BADREQ);
         return;
+    }
+
+    const char *client_ver = evhtp_kv_find (req->uri->query, "client_ver");
+    if (client_ver) {
+        int status = validate_client_ver (client_ver);
+        if (status != EVHTP_RES_OK) {
+            evhtp_send_reply (req, status);
+            return;
+        }
     }
 
     char *client_name = NULL;
@@ -567,6 +615,8 @@ get_check_permission_cb (evhtp_request_t *req, void *arg)
     ip = get_client_ip_addr (req);
     if (!ip) {
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        token = evhtp_kv_find (req->headers_in, "Seafile-Repo-Token");
+        seaf_warning ("[%s] Failed to get client ip.\n", token);
         goto out;
     }
 
@@ -588,12 +638,14 @@ get_check_permission_cb (evhtp_request_t *req, void *arg)
                                                    client_id,
                                                    ip,
                                                    client_name,
-                                                   (gint64)time(NULL));
+                                                   (gint64)time(NULL),
+                                                   client_ver);
         else
             seaf_repo_manager_update_token_peer_info (seaf->repo_mgr,
                                                       token,
                                                       ip,
-                                                      (gint64)time(NULL));
+                                                      (gint64)time(NULL),
+                                                      client_ver);
     }
 
     evhtp_send_reply (req, EVHTP_RES_OK);
@@ -943,7 +995,7 @@ put_update_branch_cb (evhtp_request_t *req, void *arg)
     }
 
     if (fast_forward_or_merge (repo_id, base, new_commit) < 0) {
-        seaf_warning ("Fast forward merge is failed.\n");
+        seaf_warning ("Fast forward merge for repo %s is failed.\n", repo_id);
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
         goto out;
     }
@@ -1040,6 +1092,7 @@ put_commit_cb (evhtp_request_t *req, void *arg)
     data = g_new0 (char, con_len);
     if (!data) {
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        seaf_warning ("Failed to allocate %d bytes memory.\n", con_len);
         goto out;
     }
 
@@ -1285,6 +1338,7 @@ get_block_cb (evhtp_request_t *req, void *arg)
     void *block_con = g_new0 (char, blk_meta->size);
     if (!block_con) {
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        seaf_warning ("Failed to allocate %d bytes memeory.\n", blk_meta->size);
         goto free_handle;
     }
 
@@ -1353,6 +1407,7 @@ put_send_block_cb (evhtp_request_t *req, void *arg)
     blk_con = g_new0 (char, blk_len);
     if (!blk_con) {
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        seaf_warning ("Failed to allocate %d bytes memory.\n", blk_len);
         goto out;
     }
 
@@ -1443,6 +1498,7 @@ post_check_exist_cb (evhtp_request_t *req, void *arg, CheckExistType type)
     char *obj_list_con = g_new0 (char, list_len);
     if (!obj_list_con) {
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        seaf_warning ("Failed to allocate %zu bytes memory.\n", list_len);
         goto out;
     }
 
@@ -1635,6 +1691,7 @@ post_pack_fs_cb (evhtp_request_t *req, void *arg)
     char *fs_id_list = g_new0 (char, fs_id_list_len);
     if (!fs_id_list) {
         evhtp_send_reply (req, EVHTP_RES_SERVERR);
+        seaf_warning ("Failed to allocate %d bytes memory.\n", fs_id_list_len);
         goto out;
     }
 

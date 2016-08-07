@@ -65,11 +65,12 @@ void usage(int code) {
 "\nUsage: seaf-server-init [OPTIONS]\n"
 "Initialize your seafile server configuration\n\n"
 "Required arguments are:\n\n" 
-"  -h, --help             output help and quit\n"
-"  -v, --verbose          output more information\n"
-"  -d, --seafile-dir      specify a diretory to put your seafile server config and data\n" 
-"  -p, --port             specify a port to to transmit data\n" 
-"  -P, --fileserver-port  specify the port to use by fileserver\n" 
+"  -h, --help                output help and quit\n"
+"  -v, --verbose             output more information\n"
+"  -d, --seafile-dir         specify a directory to put your seafile server config and data\n"
+"  -F, --central-config-dir  specify a central config dir\n"
+"  -p, --port                specify a port to to transmit data\n"
+"  -P, --fileserver-port     specify the port to use by fileserver\n"
         );
     exit(code);
 }

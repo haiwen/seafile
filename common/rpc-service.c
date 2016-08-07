@@ -1631,7 +1631,8 @@ out:
 }
 
 static void
-filter_error (GError **error) {
+filter_error (GError **error)
+{
     if (*error && g_error_matches(*error,
                                   SEAFILE_DOMAIN,
                                   SEAF_ERR_PATH_NO_EXIST)) {
@@ -1640,8 +1641,10 @@ filter_error (GError **error) {
 }
 
 char *
-seafile_get_dirid_by_path(const char *repo_id,
-                          const char *commit_id, const char *path, GError **error)
+seafile_get_dir_id_by_commit_and_path(const char *repo_id,
+                                      const char *commit_id,
+                                      const char *path,
+                                      GError **error)
 {
     SeafRepo *repo = NULL;
     char *res = NULL;
@@ -3548,8 +3551,10 @@ seafile_get_dirent_by_path (const char *repo_id, const char *path,
 }
 
 char *
-seafile_list_file (const char *repo_id,
-                   const char *file_id, int offset, int limit, GError **error)
+seafile_list_file_blocks (const char *repo_id,
+                          const char *file_id,
+                          int offset, int limit,
+                          GError **error)
 {
     SeafRepo *repo;
     Seafile *file;

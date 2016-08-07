@@ -286,12 +286,12 @@ check_tx (void *vprocessor)
                                                processor->peer_id,
                                                priv->peer_addr,
                                                priv->peer_name,
-                                               (gint64)time(NULL));
+                                               (gint64)time(NULL), NULL);
     else
         seaf_repo_manager_update_token_peer_info (seaf->repo_mgr,
                                                   priv->token,
                                                   priv->peer_addr,
-                                                  (gint64)time(NULL));
+                                                  (gint64)time(NULL), NULL);
 
     get_branch_head (processor);
 

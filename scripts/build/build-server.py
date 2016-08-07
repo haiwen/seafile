@@ -262,7 +262,7 @@ def check_seahub_thirdpart(thirdpartdir):
     '''
     thirdpart_libs = [
         'Django',
-        'Djblets',
+        # 'Djblets',
         'gunicorn',
         'flup',
         'chardet',
