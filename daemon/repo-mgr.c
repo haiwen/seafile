@@ -61,6 +61,8 @@ struct _SeafRepoManagerPriv {
 static const char *ignore_table[] = {
     /* tmp files under Linux */
     "*~",
+    /* Seafile's backup file */
+    "*.sbak",
     /* Emacs tmp files */
     "#*#",
     /* windows image cache */
@@ -2981,6 +2983,19 @@ ignore_xlsx_update (const char *src_path, const char *dst_path)
     return ret;
 }
 
+static gboolean
+is_seafile_backup_file (const char *path)
+{
+    GPatternSpec *pattern = g_pattern_spec_new ("*.sbak");
+    int ret = FALSE;
+
+    if (g_pattern_match_string(pattern, path))
+        ret = TRUE;
+
+    g_pattern_spec_free (pattern);
+    return ret;
+}
+
 static void
 handle_rename (SeafRepo *repo, struct index_state *istate,
                SeafileCrypt *crypt, GList *ignore_list,
@@ -3021,7 +3036,9 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
 
     /* If the destination path is ignored, just remove the source path. */
     if (dst_ignored) {
-        if (!src_ignored && check_locked_file_before_remove (fset, event->path)) {
+        if (!src_ignored &&
+            !is_seafile_backup_file (event->new_path) &&
+            check_locked_file_before_remove (fset, event->path)) {
             not_found = FALSE;
             remove_from_index_with_prefix (istate, event->path, &not_found);
             if (not_found)
