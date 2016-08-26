@@ -18,10 +18,10 @@ if [ ! -d ${conf3}/logs ]; then
     mkdir ${conf3}/logs
 fi
 
-gnome-terminal -e "${ccnet} -c ${conf1} -D ${debug} -f -"
+bash -c "${ccnet} -c ${conf1} -D ${debug} -f -" &
 sleep 3
-gnome-terminal -e "${seaf_daemon} -c ${conf1} -d ${conf1}/seafile-data -w worktree/wt1 -D all -l -"
+bash -c "${seaf_daemon} -c ${conf1} -d ${conf1}/seafile-data -w worktree/wt1 -D all -l -" &
 
-gnome-terminal -e "${ccnet} -c ${conf3} -D ${debug} -f -"
+bash -c "${ccnet} -c ${conf3} -D ${debug} -f -" &
 sleep 3
-gnome-terminal -e "${seaf_daemon} -c ${conf3} -d ${conf3}/seafile-data -w worktree/wt3 -D all -l -"
+bash -c "${seaf_daemon} -c ${conf3} -d ${conf3}/seafile-data -w worktree/wt3 -D all -l -" &

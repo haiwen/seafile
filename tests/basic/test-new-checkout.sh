@@ -16,9 +16,9 @@ mkdir -p ${worktree}/wt1
 rm ${conf1}/seafile/repo.db
 rm -rf /tmp/ccnet1
 
-gnome-terminal -e "${ccnet} -c ${conf1} -D all -f - --no-multicast"
+bash -c "${ccnet} -c ${conf1} -D all -f - --no-multicast" &
 sleep 3
-gnome-terminal -e "${seaf_daemon} -c ${conf1} -w ${worktree}/wt1 -l -"
+bash -c "${seaf_daemon} -c ${conf1} -w ${worktree}/wt1 -l -" &
 sleep 3
 
 # create a repo
