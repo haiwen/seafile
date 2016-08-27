@@ -289,6 +289,7 @@ is_modify_close_write (EventInfo *e1, struct inotify_event *e2)
     return ((e1->mask & IN_MODIFY) && (e2->mask & IN_CLOSE_WRITE));
 }
 
+#if 0
 static gboolean
 handle_consecutive_duplicate_event (RepoWatchInfo *info, struct inotify_event *event)
 {
@@ -309,6 +310,7 @@ handle_consecutive_duplicate_event (RepoWatchInfo *info, struct inotify_event *e
 
     return duplicate;
 }
+#endif
 
 static void
 process_one_event (int in_fd,
@@ -333,8 +335,8 @@ process_one_event (int in_fd,
         return;
     }
 
-    if (handle_consecutive_duplicate_event (info, event))
-        add_to_queue = FALSE;
+    /* if (handle_consecutive_duplicate_event (info, event)) */
+    /*     add_to_queue = FALSE; */
 
     filename = g_build_filename (parent, event->name, NULL);
 
