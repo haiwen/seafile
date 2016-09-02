@@ -21,4 +21,4 @@ CREATE INDEX IF NOT EXISTS "invitations_invitation_94a08da1" ON "invitations_inv
 CREATE INDEX IF NOT EXISTS "invitations_invitation_d5dd16f8" ON "invitations_invitation" ("inviter");
 
 ALTER TABLE api2_tokenv2 ADD COLUMN wiped_at datetime DEFAULT NULL;
-ALTER TABLE api2_tokenv2 ADD COLUMN created_at datetime NOT NULL DEFAULT '0000-00-00 00:00:00';
+ALTER TABLE api2_tokenv2 ADD COLUMN created_at datetime NOT NULL DEFAULT '1970-01-01 00:00:00';
