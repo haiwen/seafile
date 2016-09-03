@@ -1,7 +1,7 @@
 Introduction [![Build Status](https://secure.travis-ci.org/haiwen/seafile.svg?branch=master)](http://travis-ci.org/haiwen/seafile)
 ============
 
-Seafile is an open source cloud storage system with features on privacy protection and teamwork. Collections of files are called libraries, and each library can be synced separately. A library can also be encrypted with a user chosen password. Seafile also allows users to create groups and easily sharing files into groups.
+Seafile is an open source cloud storage system with privacy protection and teamwork features. Collections of files are called libraries. Each library can be synced separately. A library can also be encrypted with a user chosen password. Seafile also allows users to create groups and easily sharing files into groups.
 
 Feature Summary
 ===============
@@ -10,9 +10,9 @@ Seafile has the following features:
 
 ### File syncing
 
-1. Selective synchronization for any folder.
-2. Correct handling of file conflicts based on history instead of timestamp.
-3. Only transfering contents not in the server, and incomplete transfers can be resumed.
+1. Selective sync for any folder.
+2. Correctly handles file conflicts based on history instead of timestamp.
+3. Only transfer content delta to the server. Interrupted transfers can be resumed.
 4. Sync with two or more servers.
 5. Sync with existing folders.
 
@@ -37,7 +37,24 @@ Seafile's version control model is similar to Git, but it is simplified for auto
 Each Seafile library behaves like a Git repository. It has its own unique history, which consists of a list of commits.
 A commit points to the root of a file system snapshot. The snapshot consists of directories and files.
 Files are further divided into blocks for more efficient network transfer and storage usage.
+However, Seafile doesn't rely on Git to run.
 
+Source repositories for Seafile components
+==========================================
+
+Each component of Seafile has its own source code repository on Github.
+
+* Sync client daemon (this repository): https://github.com/haiwen/seafile
+* Sync client GUI: https://github.com/haiwen/seafile-client
+* Server core: https://github.com/haiwen/seafile-server
+* Server web UI: https://github.com/haiwen/seahub
+* iOS app: https://github.com/haiwen/seafile-iOS
+* Android app: https://github.com/haiwen/seadroid
+* WebDAV: https://github.com/haiwen/seafdav
+
+Before version 6.0, the source code of "sync client daemon" and "server core" are mixed together in https://github.com/haiwen/seafile.
+But after 6.0 version, the server core is separated into its own repository.
+For this reason, the sync client daemon repository is still the "front page" for Seafile project on Github.
 
 Build and Run
 =============
@@ -85,11 +102,11 @@ For more informations read [Contribution](http://manual.seafile.com/contribution
 License
 =======
 
-Seafile server and its desktop clients are published under GPLv2.
-
-Mobile clients are published under the GPLv3.
-
-The Seafile server's web end, i.e. Seahub, is published under the Apache License.
+- Seafile iOS client: Apache License v2
+- Seafile Android client: GPLv3
+- Desktop syncing client (this repository): GPLv2
+- Seafile Server core: AGPLv3
+- Seahub (Seafile server Web UI): Apache License v2
 
 Contact
 =======
