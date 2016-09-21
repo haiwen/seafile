@@ -2100,8 +2100,8 @@ check_permission (HttpTxTask *task, Connection *conn)
 
     const char *type = (task->type == HTTP_TASK_TYPE_DOWNLOAD) ? "download" : "upload";
     const char *url_prefix = (task->use_fileserver_port) ? "" : "seafhttp/";
-    if (seaf->session->base.name) {
-        char *client_name = g_uri_escape_string (seaf->session->base.name,
+    if (seaf->client_name) {
+        char *client_name = g_uri_escape_string (seaf->client_name,
                                                  NULL, FALSE);
         url = g_strdup_printf ("%s/%srepo/%s/permission-check/?op=%s"
                                "&client_id=%s&client_name=%s",

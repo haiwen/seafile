@@ -6,6 +6,8 @@
 #include "seafile-session.h"
 #include "db.h"
 
+#define KEY_CLIENT_NAME "client_name"
+
 #define KEY_MONITOR_ID  "monitor_id"
 #define KEY_CHECK_REPO_PERIOD "check_repo_period"
 #define KEY_DB_HOST "db_host"

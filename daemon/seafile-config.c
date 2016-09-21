@@ -99,6 +99,11 @@ seafile_session_config_set_string (SeafileSession *session,
     if (sqlite_query_exec (session->config_db, sql) < 0)
         return -1;
 
+    if (g_strcmp0 (key, KEY_CLIENT_NAME) == 0) {
+        g_free (session->client_name);
+        session->client_name = g_strdup(value);
+    }
+
     if (g_strcmp0(key, KEY_SYNC_EXTRA_TEMP_FILE) == 0) {
         if (g_strcmp0(value, "true") == 0)
             session->sync_extra_temp_file = TRUE;

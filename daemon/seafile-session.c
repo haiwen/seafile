@@ -301,6 +301,11 @@ out:
 void
 seafile_session_prepare (SeafileSession *session)
 {
+    session->client_name = seafile_session_config_get_string (session, KEY_CLIENT_NAME);
+    if (!session->client_name) {
+        session->client_name = g_strdup(session->session->base.name);
+    }
+
     /* load config */
     session->sync_extra_temp_file = seafile_session_config_get_bool
         (session, KEY_SYNC_EXTRA_TEMP_FILE);

@@ -45,6 +45,8 @@ struct _SeafileSession {
 
     struct _CcnetClient *session;
 
+    char                *client_name;
+
     SearpcClient        *ccnetrpc_client;
     SearpcClient        *appletrpc_client;
 
