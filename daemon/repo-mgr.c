@@ -3935,6 +3935,7 @@ commit_tree (SeafRepo *repo, const char *root_id,
 
     /* Add this computer's name to commit. */
     commit->device_name = g_strdup(seaf->client_name);
+    commit->client_version = g_strdup (PACKAGE_VERSION);
 
     if (unmerged) {
         SeafRepoMergeInfo minfo;

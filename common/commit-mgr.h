@@ -29,6 +29,7 @@ struct _SeafCommit {
     char       *repo_desc;
     char       *repo_category;
     char       *device_name;
+    char       *client_version;
 
     gboolean    encrypted;         
     int         enc_version;
