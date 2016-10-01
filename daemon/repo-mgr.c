@@ -42,6 +42,10 @@
 #include "repokey/seafile-gnome-keyring.h"
 #endif // HAVE_KEYSTORAGE_GK
 
+#ifndef SEAFILE_CLIENT_VERSION
+#define SEAFILE_CLIENT_VERSION PACKAGE_VERSION
+#endif
+
 struct _SeafRepoManagerPriv {
     GHashTable *repo_hash;
     sqlite3    *db;
@@ -3935,7 +3939,7 @@ commit_tree (SeafRepo *repo, const char *root_id,
 
     /* Add this computer's name to commit. */
     commit->device_name = g_strdup(seaf->client_name);
-    commit->client_version = g_strdup (PACKAGE_VERSION);
+    commit->client_version = g_strdup (SEAFILE_CLIENT_VERSION);
 
     if (unmerged) {
         SeafRepoMergeInfo minfo;
