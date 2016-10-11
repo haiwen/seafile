@@ -58,6 +58,7 @@ CONF_QT_ROOT            = 'qt_root'
 CONF_QT5                = 'qt5'
 CONF_WITH_SHIB          = 'with_shib'
 CONF_BRAND              = 'brand'
+CONF_CERTFILE           = 'certfile'
 
 ####################
 ### Common helper functions
@@ -428,6 +429,10 @@ def validate_args(usage, options):
     qt5 = get_option(CONF_QT5)
     with_shib = get_option(CONF_WITH_SHIB)
     brand = get_option(CONF_BRAND)
+    cert = get_option(CONF_CERTFILE)
+    if cert is not None:
+        if not os.path.exists(cert):
+            error('cert file "{}" does not exist'.format(cert))
 
     conf[CONF_VERSION] = version
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
@@ -445,6 +450,7 @@ def validate_args(usage, options):
     conf[CONF_QT5] = qt5
     conf[CONF_WITH_SHIB] = with_shib
     conf[CONF_BRAND] = brand
+    conf[CONF_CERTFILE] = cert
 
     prepare_builddir(builddir)
     show_build_info()
@@ -565,6 +571,12 @@ def parse_args():
                       dest=CONF_BRAND,
                       default='seafile',
                       help='''brand name of the package''')
+
+    parser.add_option(long_opt(CONF_CERTFILE),
+                      nargs=1,
+                      default=None,
+                      dest=CONF_CERTFILE,
+                      help='''The cert for signing the executables and the installer.''')
 
     usage = parser.format_help()
     options, remain = parser.parse_args()
@@ -775,6 +787,42 @@ def prepare_msi():
 
     copy_dll_exe()
 
+def sign_executables():
+    certfile = conf.get(CONF_CERTFILE)
+    if certfile is None:
+        info('exectuable signing is skipped since no cert is provided.')
+        return
+
+    pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
+    exectuables = glob.glob(os.path.join(pack_dir, 'bin', '*.exe'))
+    for exe in exectuables:
+        do_sign(certfile, exe)
+
+def sign_installers():
+    certfile = conf.get(CONF_CERTFILE)
+    if certfile is None:
+        info('msi signing is skipped since no cert is provided.')
+        return
+
+    pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
+    installers = glob.glob(os.path.join(pack_dir, '*.msi'))
+    for fn in installers:
+        do_sign(certfile, fn, desc='Seafile Installer')
+
+def do_sign(certfile, fn, desc=None):
+    certfile = to_win_path(certfile)
+    fn = to_win_path(fn)
+    info('signing file {} using cert "{}"'.format(fn, certfile))
+
+    if desc:
+        desc_flags = '-d "{}"'.format(desc)
+    else:
+        desc_flags = ''
+
+    signcmd = 'signtool.exe sign -fd sha256 -t http://timestamp.digicert.com -f {} {} {}'.format(certfile, desc_flags, fn)
+    if run(signcmd, cwd=os.path.dirname(fn)) != 0:
+        error('Failed to sign file "{}"'.format(fn))
+
 def strip_symbols():
     bin_dir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'bin')
     def do_strip(fn, stripcmd='strip'):
@@ -834,6 +882,10 @@ def build_msi():
     if breakpad_enabled():
         generate_breakpad_symbols()
     strip_symbols()
+
+    # Only sign the exectuables after stripping symbols.
+    sign_executables()
+
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
     if run('make fragment.wxs', cwd=pack_dir) != 0:
         error('Error when make fragement.wxs')
@@ -936,6 +988,7 @@ def main():
         build_english_msi()
         build_german_msi()
 
+    sign_installers()
     move_msi()
 
 if __name__ == '__main__':
