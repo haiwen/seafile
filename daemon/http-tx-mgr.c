@@ -60,6 +60,10 @@
 #define USER_AGENT_OS "Linux"
 #endif
 
+#if defined __FreeBSD__ || defined __NetBSD__ || defined __OpenBSD__
+#define USER_AGENT_OS "BSD"
+#endif
+
 struct _Connection {
     CURL *curl;
     gint64 ctime;               /* Used to clean up unused connection. */
