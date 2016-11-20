@@ -376,7 +376,7 @@ compare_file_content (const char *path, SeafStat *st, const unsigned char *ce_sh
     return hashcmp (sha1, ce_sha1);
 }
 
-#if defined WIN32 || defined __APPLE__ || defined __FreeBSD__ || defined __NetBSD__ || defined __OpenBSD__ || defined __Dragonfly__
+#if defined WIN32 || defined __APPLE__ || defined __FreeBSD__ || defined __NetBSD__ || defined __OpenBSD__ || defined __DragonFly__
 
 /*
  * If the names are different case-sensitively but the same case-insensitively,
@@ -678,7 +678,7 @@ error:
     return NULL;
 }
 
-#endif  /* defined WIN32 || defined __APPLE__ || defined __FreeBSD__ || defined __NetBSD__ || defined __OpenBSD__ || defined __Dragonfly__ */
+#endif  /* defined WIN32 || defined __APPLE__ || defined __FreeBSD__ || defined __NetBSD__ || defined __OpenBSD__ || defined __DragonFly__ */
 
 #ifdef __linux__
 
