@@ -71,3 +71,21 @@ Depends:
 Conflicts: seafile
 Description: Development files for package libseafile0.
  This package contains the development files for the libseafile0 package.
+
+Package: seafile-daemon-dbg
+Section: debug
+Architecture: any
+Depends:
+    seafile-daemon (= ${binary:Version}),
+    ${misc:Depends},
+Description: Debugging symbols for the seafile-daemon package.
+ This package contains the debugging symbols for the seafile-daemon package.
+
+Package: libseafile-dbg
+Section: debug
+Architecture: any
+Depends:
+    libseafile0 (= ${binary:Version}),
+    ${misc:Depends},
+Description: Debugging symbols for the libseafile0 package.
+ This package contains the debugging symbols for the libseafile0 package.

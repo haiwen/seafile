@@ -14,4 +14,5 @@ override_dh_auto_test:
 override_dh_strip:
 	# emptying the dependency_libs field in .la files
 	sed -i "/dependency_libs/ s/'.*'/''/" `find debian/ -name '*.la'`
-	dh_strip
+	dh_strip -pseafile-daemon --dbg-package=seafile-daemon-dbg
+	dh_strip -plibseafile0 --dbg-package=libseafile-dbg
