@@ -325,7 +325,7 @@ function copy_user_manuals() {
 }
 
 function parse_params() {
-    while getopts n:i:p:d arg; do
+    while getopts n:i:p:d: arg; do
         case $arg in
             n)
                 server_name=${OPTARG}
