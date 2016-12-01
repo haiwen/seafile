@@ -680,8 +680,6 @@ error:
 
 #endif  /* defined WIN32 || defined __APPLE__ */
 
-#ifdef __linux__
-
 char *
 build_checkout_path (const char *worktree, const char *ce_name, int len)
 {
@@ -722,8 +720,6 @@ build_checkout_path (const char *worktree, const char *ce_name, int len)
 
     return g_strdup(path);
 }
-
-#endif  /* __linux__ */
 
 static int
 checkout_entry (struct cache_entry *ce,

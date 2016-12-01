@@ -4521,14 +4521,7 @@ checkout_file (const char *repo_id,
     gboolean force_conflict = FALSE;
     gboolean update_mode_only = FALSE;
 
-#ifndef __linux__
-    path = build_case_conflict_free_path (worktree, name,
-                                          conflict_hash, no_conflict_hash,
-                                          &case_conflict,
-                                          FALSE);
-#else
     path = build_checkout_path (worktree, name, strlen(name));
-#endif
 
     if (!path)
         return FETCH_CHECKOUT_FAILED;
@@ -4697,14 +4690,7 @@ checkout_empty_dir (const char *worktree,
     char *path;
     gboolean case_conflict = FALSE;
 
-#ifndef __linux__
-    path = build_case_conflict_free_path (worktree, name,
-                                          conflict_hash, no_conflict_hash,
-                                          &case_conflict,
-                                          FALSE);
-#else
     path = build_checkout_path (worktree, name, strlen(name));
-#endif
 
     if (!path)
         return FETCH_CHECKOUT_FAILED;
@@ -5118,16 +5104,7 @@ schedule_file_fetch (GThreadPool *tpool,
     }
 
     if (!skip_fetch) {
-#ifndef __linux__
-        gboolean case_conflict = FALSE;
-        path = build_case_conflict_free_path (worktree, de->name,
-                                              conflict_hash, no_conflict_hash,
-                                              &case_conflict,
-                                              FALSE);
-#else
         path = build_checkout_path (worktree, de->name, strlen(de->name));
-#endif
-
         if (!path) {
             if (new_ce)
                 cache_entry_free (ce);
@@ -5265,14 +5242,7 @@ checkout_file_http (FileTxData *data,
      * A.txt to checkout, we can only detect case conflict after one file is checkecd
      * out. So we need to generate a new one here.
      */
-#ifndef __linux__
-    path = build_case_conflict_free_path (worktree, de->name,
-                                          conflict_hash, no_conflict_hash,
-                                          &case_conflict,
-                                          FALSE);
-#else
     path = build_checkout_path (worktree, de->name, strlen(de->name));
-#endif
 
     if (!path) {
         return FETCH_CHECKOUT_FAILED;
@@ -5649,16 +5619,7 @@ do_rename_in_worktree (DiffEntry *de, const char *worktree,
     old_path = g_build_filename (worktree, de->name, NULL);
 
     if (seaf_util_exists (old_path)) {
-#ifndef __linux__
-        gboolean case_conflict;
-        new_path = build_case_conflict_free_path (worktree, de->new_name,
-                                                  conflict_hash, no_conflict_hash,
-                                                  &case_conflict,
-                                                  TRUE);
-#else
         new_path = build_checkout_path (worktree, de->new_name, strlen(de->new_name));
-#endif
-
         if (!new_path) {
             ret = -1;
             goto out;
