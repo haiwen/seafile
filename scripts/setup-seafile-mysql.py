@@ -241,6 +241,8 @@ Press ENTER to continue
             if not answer:
                 if default:
                     answer = default
+                elif password:
+                    return answer
                 else:
                     continue
 
