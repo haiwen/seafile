@@ -5208,7 +5208,6 @@ checkout_file_http (FileTxData *data,
     gboolean path_exists;
     gboolean case_conflict = FALSE;
     SeafStat st;
-    char *path = NULL;
     char file_id[41];
     gboolean locked_on_server = FALSE;
 
@@ -5237,18 +5236,7 @@ checkout_file_http (FileTxData *data,
     }
 #endif
 
-    /* The path in file_task struct may be incorrect when we have case conflict.
-     * That path was generated before files are checked out. If we have a.txt and
-     * A.txt to checkout, we can only detect case conflict after one file is checkecd
-     * out. So we need to generate a new one here.
-     */
-    path = build_checkout_path (worktree, de->name, strlen(de->name));
-
-    if (!path) {
-        return FETCH_CHECKOUT_FAILED;
-    }
-
-    path_exists = (seaf_stat (path, &st) == 0);
+    path_exists = (seaf_stat (file_task->path, &st) == 0);
 
     /* The worktree file may have been changed when we're downloading the blocks. */
     if (!file_task->new_ce &&
@@ -5256,7 +5244,7 @@ checkout_file_http (FileTxData *data,
         !force_conflict) {
         if (st.st_mtime != ce->ce_mtime.sec) {
             seaf_message ("File %s is updated by user. "
-                          "Will checkout to conflict file later.\n", path);
+                          "Will checkout to conflict file later.\n", file_task->path);
             force_conflict = TRUE;
         }
     }
@@ -5274,7 +5262,7 @@ checkout_file_http (FileTxData *data,
                                        repo_id,
                                        repo_version,
                                        file_id,
-                                       path,
+                                       file_task->path,
                                        de->mode,
                                        de->mtime,
                                        crypt,
@@ -5283,14 +5271,13 @@ checkout_file_http (FileTxData *data,
                                        force_conflict,
                                        &conflicted,
                                        http_task->email) < 0) {
-        seaf_warning ("Failed to checkout file %s.\n", path);
+        seaf_warning ("Failed to checkout file %s.\n", file_task->path);
 
         if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                   repo_id, de->name))
             seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
                                                 repo_id, de->name);
 
-        g_free (path);
         return FETCH_CHECKOUT_FAILED;
     }
 
@@ -5320,10 +5307,9 @@ checkout_file_http (FileTxData *data,
     /* Only update index if we checked out the file without any error
      * or conflicts. The ctime of the entry will remain 0 if error.
      */
-    seaf_stat (path, &st);
+    seaf_stat (file_task->path, &st);
     fill_stat_cache_info (ce, &st);
 
-    g_free (path);
     return FETCH_CHECKOUT_SUCCESS;
 }
 
