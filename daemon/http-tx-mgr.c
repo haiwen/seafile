@@ -154,8 +154,15 @@ static const char *http_task_rt_state_str[] = {
 
 static const char *http_task_error_strs[] = {
     "Successful",
-    "Permission denied",
+    "Permission denied on server",
     "Network error",
+    "Cannot resolve proxy address",
+    "Cannot resolve server address",
+    "Cannot connect to server",
+    "Failed to establish secure connection",
+    "Data transfer was interrupted",
+    "Data transfer timed out",
+    "Unhandled http redirect from server",
     "Server error",
     "Bad request",
     "Internal data corrupt on the client",
@@ -643,7 +650,7 @@ static int
 http_get (CURL *curl, const char *url, const char *token,
           int *rsp_status, char **rsp_content, gint64 *rsp_size,
           HttpRecvCallback callback, void *cb_data,
-          gboolean timeout)
+          gboolean timeout, int *pcurl_error)
 {
     char *token_header;
     struct curl_slist *headers = NULL;
@@ -705,6 +712,8 @@ http_get (CURL *curl, const char *url, const char *token,
     if (rc != 0) {
         seaf_warning ("libcurl failed to GET %s: %s.\n",
                       url, curl_easy_strerror(rc));
+        if (pcurl_error)
+            *pcurl_error = rc;
         ret = -1;
         goto out;
     }
@@ -761,7 +770,7 @@ http_put (CURL *curl, const char *url, const char *token,
           const char *req_content, gint64 req_size,
           HttpSendCallback callback, void *cb_data,
           int *rsp_status, char **rsp_content, gint64 *rsp_size,
-          gboolean timeout)
+          gboolean timeout, int *pcurl_error)
 {
     char *token_header;
     struct curl_slist *headers = NULL;
@@ -840,6 +849,8 @@ http_put (CURL *curl, const char *url, const char *token,
     if (rc != 0) {
         seaf_warning ("libcurl failed to PUT %s: %s.\n",
                       url, curl_easy_strerror(rc));
+        if (pcurl_error)
+            *pcurl_error = rc;
         ret = -1;
         goto out;
     }
@@ -870,7 +881,7 @@ static int
 http_post (CURL *curl, const char *url, const char *token,
            const char *req_content, gint64 req_size,
            int *rsp_status, char **rsp_content, gint64 *rsp_size,
-           gboolean timeout)
+           gboolean timeout, int *pcurl_error)
 {
     char *token_header;
     struct curl_slist *headers = NULL;
@@ -945,6 +956,8 @@ http_post (CURL *curl, const char *url, const char *token,
     if (rc != 0) {
         seaf_warning ("libcurl failed to POST %s: %s.\n",
                       url, curl_easy_strerror(rc));
+        if (pcurl_error)
+            *pcurl_error = rc;
         ret = -1;
         goto out;
     }
@@ -971,25 +984,67 @@ out:
     return ret;
 }
 
+static int
+http_error_to_http_task_error (int status)
+{
+    if (status == HTTP_BAD_REQUEST)
+        return HTTP_TASK_ERR_BAD_REQUEST;
+    else if (status == HTTP_FORBIDDEN)
+        return HTTP_TASK_ERR_FORBIDDEN;
+    else if (status >= HTTP_INTERNAL_SERVER_ERROR)
+        return HTTP_TASK_ERR_SERVER;
+    else if (status == HTTP_NOT_FOUND)
+        return HTTP_TASK_ERR_SERVER;
+    else if (status == HTTP_NO_QUOTA)
+        return HTTP_TASK_ERR_NO_QUOTA;
+    else if (status == HTTP_REPO_DELETED)
+        return HTTP_TASK_ERR_REPO_DELETED;
+    else if (status == HTTP_REPO_CORRUPTED)
+        return HTTP_TASK_ERR_REPO_CORRUPTED;
+    else
+        return HTTP_TASK_ERR_UNKNOWN;
+}
+
 static void
 handle_http_errors (HttpTxTask *task, int status)
 {
-    if (status == HTTP_BAD_REQUEST)
-        task->error = HTTP_TASK_ERR_BAD_REQUEST;
-    else if (status == HTTP_FORBIDDEN)
-        task->error = HTTP_TASK_ERR_FORBIDDEN;
-    else if (status >= HTTP_INTERNAL_SERVER_ERROR)
-        task->error = HTTP_TASK_ERR_SERVER;
-    else if (status == HTTP_NOT_FOUND)
-        task->error = HTTP_TASK_ERR_SERVER;
-    else if (status == HTTP_NO_QUOTA)
-        task->error = HTTP_TASK_ERR_NO_QUOTA;
-    else if (status == HTTP_REPO_DELETED)
-        task->error = HTTP_TASK_ERR_REPO_DELETED;
-    else if (status == HTTP_REPO_CORRUPTED)
-        task->error = HTTP_TASK_ERR_REPO_CORRUPTED;
-    else
-        task->error = HTTP_TASK_ERR_UNKNOWN;
+    task->error = http_error_to_http_task_error (status);
+}
+
+static int
+curl_error_to_http_task_error (int curl_error)
+{
+    switch (curl_error) {
+    case CURLE_COULDNT_RESOLVE_PROXY:
+        return HTTP_TASK_ERR_RESOLVE_PROXY;
+    case CURLE_COULDNT_RESOLVE_HOST:
+        return HTTP_TASK_ERR_RESOLVE_HOST;
+    case CURLE_COULDNT_CONNECT:
+        return HTTP_TASK_ERR_CONNECT;
+    case CURLE_OPERATION_TIMEDOUT:
+        return HTTP_TASK_ERR_TX_TIMEOUT;
+    case CURLE_SSL_CONNECT_ERROR:
+    case CURLE_PEER_FAILED_VERIFICATION:
+    case CURLE_SSL_CERTPROBLEM:
+    case CURLE_SSL_CACERT:
+    case CURLE_SSL_CACERT_BADFILE:
+    case CURLE_SSL_ISSUER_ERROR:
+        return HTTP_TASK_ERR_SSL;
+    case CURLE_GOT_NOTHING:
+    case CURLE_SEND_ERROR:
+    case CURLE_RECV_ERROR:
+        return HTTP_TASK_ERR_TX;
+    case CURLE_SEND_FAIL_REWIND:
+        return HTTP_TASK_ERR_UNHANDLED_REDIRECT;
+    default:
+        return HTTP_TASK_ERR_NET;
+    }
+}
+
+static void
+handle_curl_errors (HttpTxTask *task, int curl_error)
+{
+    task->error = curl_error_to_http_task_error (curl_error);
 }
 
 static void
@@ -1037,6 +1092,7 @@ typedef struct {
     gboolean success;
     gboolean not_supported;
     int version;
+    int error_code;
 } CheckProtocolData;
 
 static int
@@ -1097,8 +1153,10 @@ check_protocol_version_thread (void *vdata)
     else
         url = g_strdup_printf ("%s/protocol-version", data->host);
 
-    if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL, FALSE) < 0) {
+    int curl_error;
+    if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL, FALSE, &curl_error) < 0) {
         conn->release = TRUE;
+        data->error_code = curl_error_to_http_task_error (curl_error);
         goto out;
     }
 
@@ -1112,6 +1170,7 @@ check_protocol_version_thread (void *vdata)
     } else {
         seaf_warning ("Bad response code for GET %s: %d.\n", url, status);
         data->not_supported = TRUE;
+        data->error_code = http_error_to_http_task_error (status);
     }
 
 out:
@@ -1132,6 +1191,7 @@ check_protocol_version_done (void *vdata)
     result.check_success = data->success;
     result.not_supported = data->not_supported;
     result.version = data->version;
+    result.error_code = data->error_code;
 
     data->callback (&result, data->user_data);
 
@@ -1180,6 +1240,7 @@ typedef struct {
     gboolean is_corrupt;
     gboolean is_deleted;
     char head_commit[41];
+    int error_code;
 } CheckHeadData;
 
 static int
@@ -1249,9 +1310,11 @@ check_head_commit_thread (void *vdata)
         url = g_strdup_printf ("%s/repo/%s/commit/HEAD",
                                data->host, data->repo_id);
 
+    int curl_error;
     if (http_get (curl, url, data->token, &status, &rsp_content, &rsp_size,
-                  NULL, NULL, FALSE) < 0) {
+                  NULL, NULL, FALSE, &curl_error) < 0) {
         conn->release = TRUE;
+        data->error_code = curl_error_to_http_task_error (curl_error);
         goto out;
     }
 
@@ -1264,6 +1327,7 @@ check_head_commit_thread (void *vdata)
         data->success = TRUE;
     } else {
         seaf_warning ("Bad response code for GET %s: %d.\n", url, status);
+        data->error_code = http_error_to_http_task_error (status);
     }
 
 out:
@@ -1284,6 +1348,7 @@ check_head_commit_done (void *vdata)
     result.is_corrupt = data->is_corrupt;
     result.is_deleted = data->is_deleted;
     memcpy (result.head_commit, data->head_commit, 40);
+    result.error_code = data->error_code;
 
     data->callback (&result, data->user_data);
 
@@ -1604,7 +1669,7 @@ get_folder_perms_thread (void *vdata)
         goto out;
 
     if (http_post (curl, url, NULL, req_content, strlen(req_content),
-                   &status, &rsp_content, &rsp_size, FALSE) < 0) {
+                   &status, &rsp_content, &rsp_size, FALSE, NULL) < 0) {
         conn->release = TRUE;
         goto out;
     }
@@ -1885,7 +1950,7 @@ get_locked_files_thread (void *vdata)
         goto out;
 
     if (http_post (curl, url, NULL, req_content, strlen(req_content),
-                   &status, &rsp_content, &rsp_size, FALSE) < 0) {
+                   &status, &rsp_content, &rsp_size, FALSE, NULL) < 0) {
         conn->release = TRUE;
         goto out;
     }
@@ -1994,7 +2059,7 @@ http_tx_manager_lock_file (HttpTxManager *manager,
     g_free (esc_path);
 
     if (http_put (curl, url, token, NULL, 0, NULL, NULL,
-                  &status, NULL, NULL, FALSE) < 0) {
+                  &status, NULL, NULL, FALSE, NULL) < 0) {
         conn->release = TRUE;
         ret = -1;
         goto out;
@@ -2049,7 +2114,7 @@ http_tx_manager_unlock_file (HttpTxManager *manager,
     g_free (esc_path);
 
     if (http_put (curl, url, token, NULL, 0, NULL, NULL,
-                  &status, NULL, NULL, FALSE) < 0) {
+                  &status, NULL, NULL, FALSE, NULL) < 0) {
         conn->release = TRUE;
         ret = -1;
         goto out;
@@ -2113,9 +2178,10 @@ check_permission (HttpTxTask *task, Connection *conn)
                                task->host, url_prefix, task->repo_id, type);
     }
 
-    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE) < 0) {
+    int curl_error;
+    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE, &curl_error) < 0) {
         conn->release = TRUE;
-        task->error = HTTP_TASK_ERR_NET;
+        handle_curl_errors (task, curl_error);
         ret = -1;
         goto out;
     }
@@ -2346,9 +2412,10 @@ check_quota (HttpTxTask *task, Connection *conn, gint64 delta)
         url = g_strdup_printf ("%s/repo/%s/quota-check/?delta=%"G_GINT64_FORMAT"",
                                task->host, task->repo_id, delta);
 
-    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE) < 0) {
+    int curl_error;
+    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE, &curl_error) < 0) {
         conn->release = TRUE;
-        task->error = HTTP_TASK_ERR_NET;
+        handle_curl_errors (task, curl_error);
         ret = -1;
         goto out;
     }
@@ -2393,12 +2460,13 @@ send_commit_object (HttpTxTask *task, Connection *conn)
         url = g_strdup_printf ("%s/repo/%s/commit/%s",
                                task->host, task->repo_id, task->head);
 
+    int curl_error;
     if (http_put (curl, url, task->token,
                   data, len,
                   NULL, NULL,
-                  &status, NULL, NULL, TRUE) < 0) {
+                  &status, NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
-        task->error = HTTP_TASK_ERR_NET;
+        handle_curl_errors (task, curl_error);
         ret = -1;
         goto out;
     }
@@ -2588,11 +2656,12 @@ upload_check_id_list_segment (HttpTxTask *task, Connection *conn, const char *ur
 
     curl = conn->curl;
 
+    int curl_error;
     if (http_post (curl, url, task->token,
                    data, len,
-                   &status, &rsp_content, &rsp_size, FALSE) < 0) {
+                   &status, &rsp_content, &rsp_size, FALSE, &curl_error) < 0) {
         conn->release = TRUE;
-        task->error = HTTP_TASK_ERR_NET;
+        handle_curl_errors (task, curl_error);
         ret = -1;
         goto out;
     }
@@ -2712,11 +2781,12 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
         url = g_strdup_printf ("%s/repo/%s/recv-fs/",
                                task->host, task->repo_id);
 
+    int curl_error;
     if (http_post (curl, url, task->token,
                    (char *)package, evbuffer_get_length(buf),
-                   &status, NULL, NULL, FALSE) < 0) {
+                   &status, NULL, NULL, FALSE, &curl_error) < 0) {
         conn->release = TRUE;
-        task->error = HTTP_TASK_ERR_NET;
+        handle_curl_errors (task, curl_error);
         ret = -1;
         goto out;
     }
@@ -2997,17 +3067,18 @@ send_block (HttpTxTask *task, Connection *conn, const char *block_id)
         url = g_strdup_printf ("%s/repo/%s/block/%s",
                                task->host, task->repo_id, block_id);
 
+    int curl_error;
     if (http_put (curl, url, task->token,
                   NULL, bmd->size,
                   send_block_callback, &data,
-                  &status, NULL, NULL, TRUE) < 0) {
+                  &status, NULL, NULL, TRUE, &curl_error) < 0) {
         if (task->state == HTTP_TASK_STATE_CANCELED)
             goto out;
 
         if (task->error == HTTP_TASK_OK) {
             /* Only release connection when it's a network error */
             conn->release = TRUE;
-            task->error = HTTP_TASK_ERR_NET;
+            handle_curl_errors (task, curl_error);
         }
         ret = -1;
         goto out;
@@ -3165,12 +3236,13 @@ update_branch (HttpTxTask *task, Connection *conn)
         url = g_strdup_printf ("%s/repo/%s/commit/HEAD/?head=%s",
                                task->host, task->repo_id, task->head);
 
+    int curl_error;
     if (http_put (curl, url, task->token,
                   NULL, 0,
                   NULL, NULL,
-                  &status, NULL, NULL, FALSE) < 0) {
+                  &status, NULL, NULL, FALSE, &curl_error) < 0) {
         conn->release = TRUE;
-        task->error = HTTP_TASK_ERR_NET;
+        handle_curl_errors (task, curl_error);
         ret = -1;
         goto out;
     }
@@ -3528,11 +3600,12 @@ get_commit_object (HttpTxTask *task, Connection *conn)
         url = g_strdup_printf ("%s/repo/%s/commit/%s",
                                task->host, task->repo_id, task->head);
 
+    int curl_error;
     if (http_get (curl, url, task->token, &status,
                   &rsp_content, &rsp_size,
-                  NULL, NULL, TRUE) < 0) {
+                  NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
-        task->error = HTTP_TASK_ERR_NET;
+        handle_curl_errors (task, curl_error);
         ret = -1;
         goto out;
     }
@@ -3604,11 +3677,12 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
 
     curl = conn->curl;
 
+    int curl_error;
     if (http_get (curl, url, task->token, &status,
                   &rsp_content, &rsp_size,
-                  NULL, NULL, FALSE) < 0) {
+                  NULL, NULL, FALSE, &curl_error) < 0) {
         conn->release = TRUE;
-        task->error = HTTP_TASK_ERR_NET;
+        handle_curl_errors (task, curl_error);
         ret = -1;
         goto out;
     }
@@ -3742,11 +3816,12 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
     else
         url = g_strdup_printf ("%s/repo/%s/pack-fs/", task->host, task->repo_id);
 
+    int curl_error;
     if (http_post (curl, url, task->token,
                    data, len,
-                   &status, &rsp_content, &rsp_size, FALSE) < 0) {
+                   &status, &rsp_content, &rsp_size, FALSE, &curl_error) < 0) {
         conn->release = TRUE;
-        task->error = HTTP_TASK_ERR_NET;
+        handle_curl_errors (task, curl_error);
         ret = -1;
         goto out;
     }
@@ -3850,7 +3925,7 @@ get_block_callback (void *ptr, size_t size, size_t nmemb, void *userp)
     if (n < realsize) {
         seaf_warning ("Failed to write block %s in repo %.8s.\n",
                       data->block_id, task->repo_id);
-        task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+        task->error = HTTP_TASK_ERR_WRITE_LOCAL_DATA;
         return n;
     }
 
@@ -3911,15 +3986,16 @@ get_block (HttpTxTask *task, Connection *conn, const char *block_id)
         url = g_strdup_printf ("%s/repo/%s/block/%s",
                                task->host, task->repo_id, block_id);
 
+    int curl_error;
     if (http_get (curl, url, task->token, &status, NULL, NULL,
-                  get_block_callback, &data, TRUE) < 0) {
+                  get_block_callback, &data, TRUE, &curl_error) < 0) {
         if (task->state == HTTP_TASK_STATE_CANCELED)
             goto error;
 
         if (task->error == HTTP_TASK_OK) {
             /* Only release the connection when it's a network error. */
             conn->release = TRUE;
-            task->error = HTTP_TASK_ERR_NET;
+            handle_curl_errors (task, curl_error);
         }
         ret = -1;
         goto error;

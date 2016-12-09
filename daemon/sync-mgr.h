@@ -77,6 +77,7 @@ struct _SyncTask {
     gboolean         is_initial_commit;
     int              state;
     int              error;
+    char            *err_detail;
     char            *tx_id;
     char            *token;
     struct CcnetTimer *commit_timer;

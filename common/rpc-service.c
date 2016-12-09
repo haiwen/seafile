@@ -396,6 +396,7 @@ seafile_get_clone_tasks (GError **error)
         t = g_object_new (SEAFILE_TYPE_CLONE_TASK,
                           "state", clone_task_state_to_str(task->state),
                           "error_str", clone_task_error_to_str(task->error),
+                          "err_detail", task->err_detail,
                           "repo_id", task->repo_id,
                           "repo_name", task->repo_name,
                           "worktree", task->worktree,
@@ -597,12 +598,12 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
             sync_state = "synchronized";
     }
 
-
     SeafileSyncTask *s_task;
     s_task = g_object_new (SEAFILE_TYPE_SYNC_TASK,
                            "force_upload", task->is_manual_sync,
                            "state", sync_state,
                            "error", sync_error_to_str(task->error),
+                           "err_detail", task->err_detail,
                            "repo_id", info->repo_id,
                            NULL);
 

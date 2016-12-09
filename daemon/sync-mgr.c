@@ -635,8 +635,7 @@ update_sync_info_error_state (SyncTask *task, int new_state)
 {
     SyncInfo *info = task->info;
 
-    if (new_state == SYNC_STATE_ERROR &&
-        task->error != SYNC_ERROR_FILES_LOCKED) {
+    if (new_state == SYNC_STATE_ERROR) {
         info->err_cnt++;
         if (info->err_cnt == IN_ERROR_THRESHOLD)
             info->in_error = TRUE;
@@ -757,6 +756,7 @@ sync_task_free (SyncTask *task)
     g_free (task->tx_id);
     g_free (task->dest_id);
     g_free (task->token);
+    g_free (task->err_detail);
     g_free (task);
 }
 
@@ -1572,6 +1572,7 @@ check_head_commit_done (HttpHeadCommit *result, void *user_data)
 
     if (!result->check_success) {
         seaf_sync_manager_set_task_error (task, SYNC_ERROR_GET_SYNC_INFO);
+        task->err_detail = g_strdup(http_task_error_str(result->error_code));
         return;
     }
 
@@ -2954,6 +2955,7 @@ on_repo_http_fetched (SeafileSession *seaf,
             on_repo_deleted_on_server (task, task->repo);
         } else
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_FETCH);
+        task->err_detail = g_strdup(http_task_error_str(tx_task->error));
     }
 }
 
@@ -3003,6 +3005,7 @@ on_repo_http_uploaded (SeafileSession *seaf,
             on_repo_deleted_on_server (task, task->repo);
         } else
             seaf_sync_manager_set_task_error (task, SYNC_ERROR_UPLOAD);
+        task->err_detail = g_strdup(http_task_error_str(tx_task->error));
     }
 }
 

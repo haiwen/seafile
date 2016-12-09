@@ -126,6 +126,7 @@ public class SyncTask : Object {
     public string repo_id { get; set; }
     public string state { get; set; }
     public string error { get; set; }
+    public string err_detail { get; set; }
     public string tx_id { get; set; }
 }
 

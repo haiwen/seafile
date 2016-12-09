@@ -48,6 +48,7 @@ public class Task : Object {
 public class CloneTask : Object {
        public string state { get; set; }
        public string error_str { get; set; }
+       public string err_detail { get; set; }
        public string repo_id { get; set; }
        public string peer_id { get; set; }
        public string repo_name { get; set; }

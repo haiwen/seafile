@@ -20,7 +20,7 @@
 
 #define CLONE_DB "clone.db"
 
-#define CHECK_CONNECT_INTERVAL 5 /* 5s */
+#define CHECK_CONNECT_INTERVAL 5
 
 static void
 on_repo_fetched (SeafileSession *seaf,
@@ -55,22 +55,23 @@ add_transfer_task (CloneTask *task, GError **error);
 
 static const char *state_str[] = {
     "init",
-    "connect",
-    "connect",
-    "connect",                  /* Use "connect" for CHECK_PROTOCOL */
-    "index",
+    "check server",
     "fetch",
-    "checkout",
-    "merge",
     "done",
     "error",
     "canceling",
     "canceled",
+    /* States only used by old protocol. */
+    "connect",
+    "connect",                  /* Use "connect" for CHECK_PROTOCOL */
+    "index",
+    "checkout",
+    "merge",
 };
 
 static const char *error_str[] = {
     "ok",
-    "connect",
+    "check server",
     "index",
     "fetch",
     "password",
@@ -274,11 +275,18 @@ check_head_commit_done (HttpHeadCommit *result, void *user_data)
 {
     CloneTask *task = user_data;
 
+    if (task->state == CLONE_STATE_CANCEL_PENDING) {
+        transition_state (task, CLONE_STATE_CANCELED);
+        return;
+    }
+
     if (result->check_success && !result->is_corrupt && !result->is_deleted) {
         memcpy (task->server_head_id, result->head_commit, 40);
         start_clone_v2 (task);
     } else {
-        transition_to_error (task, CLONE_ERROR_CONNECT);
+        transition_to_error (task, CLONE_ERROR_CHECK_SERVER);
+        if (result->error_code != 0)
+            task->err_detail = g_strdup(http_task_error_str(result->error_code));
     }
 }
 
@@ -294,7 +302,7 @@ http_check_head_commit (CloneTask *task)
                                                  check_head_commit_done,
                                                  task);
     if (ret < 0)
-        transition_to_error (task, CLONE_ERROR_CONNECT);
+        transition_to_error (task, CLONE_ERROR_CHECK_SERVER);
 }
 
 static char *
@@ -329,6 +337,11 @@ check_http_fileserver_protocol_done (HttpProtocolVersion *result, void *user_dat
 {
     CloneTask *task = user_data;
 
+    if (task->state == CLONE_STATE_CANCEL_PENDING) {
+        transition_state (task, CLONE_STATE_CANCELED);
+        return;
+    }
+
     if (result->check_success && !result->not_supported) {
         task->http_protocol_version = result->version;
         task->effective_url = http_fileserver_url (task->server_url);
@@ -337,7 +350,9 @@ check_http_fileserver_protocol_done (HttpProtocolVersion *result, void *user_dat
         http_check_head_commit (task);
     } else {
         /* Wait for periodic retry. */
-        transition_state (task, CLONE_STATE_CONNECT);
+        transition_to_error (task, CLONE_ERROR_CHECK_SERVER);
+        if (result->error_code != 0)
+            task->err_detail = g_strdup(http_task_error_str(result->error_code));
     }
 }
 
@@ -345,6 +360,11 @@ static void
 check_http_protocol_done (HttpProtocolVersion *result, void *user_data)
 {
     CloneTask *task = user_data;
+
+    if (task->state == CLONE_STATE_CANCEL_PENDING) {
+        transition_state (task, CLONE_STATE_CANCELED);
+        return;
+    }
 
     if (result->check_success && !result->not_supported) {
         task->http_protocol_version = result->version;
@@ -358,11 +378,13 @@ check_http_protocol_done (HttpProtocolVersion *result, void *user_data)
                                                     TRUE,
                                                     check_http_fileserver_protocol_done,
                                                     task) < 0)
-            transition_state (task, CLONE_STATE_CONNECT);
+            transition_to_error (task, CLONE_ERROR_CHECK_SERVER);
         g_free (host_fileserver);
     } else {
         /* Wait for periodic retry. */
-        transition_state (task, CLONE_STATE_CONNECT);
+        transition_to_error (task, CLONE_ERROR_CHECK_SERVER);
+        if (result->error_code != 0)
+            task->err_detail = g_strdup(http_task_error_str(result->error_code));
     }
 }
 
@@ -374,11 +396,11 @@ check_http_protocol (CloneTask *task)
                                                 FALSE,
                                                 check_http_protocol_done,
                                                 task) < 0) {
-        transition_to_error (task, CLONE_ERROR_CONNECT);
+        transition_to_error (task, CLONE_ERROR_CHECK_SERVER);
         return;
     }
 
-    transition_state (task, CLONE_STATE_CHECK_HTTP);
+    transition_state (task, CLONE_STATE_CHECK_SERVER);
 }
 
 static CloneTask *
@@ -423,6 +445,7 @@ clone_task_free (CloneTask *task)
     g_free (task->random_key);
     g_free (task->server_url);
     g_free (task->effective_url);
+    g_free (task->err_detail);
 
     g_free (task);
 }
@@ -609,7 +632,7 @@ restart_task (sqlite3_stmt *stmt, void *data)
         if (task->server_url) {
             check_http_protocol (task);
         } else {
-            transition_to_error (task, CLONE_ERROR_CONNECT);
+            transition_to_error (task, CLONE_ERROR_CHECK_SERVER);
             return TRUE;
         }
     } else {
@@ -674,11 +697,12 @@ static int check_connect_pulse (void *vmanager)
     g_hash_table_iter_init (&iter, mgr->tasks);
     while (g_hash_table_iter_next (&iter, &key, &value)) {
         task = value;
-        if (task->state == CLONE_STATE_CONNECT) {
-            if (task->repo_version == 0)
-                continue_task_when_peer_connected (task);
-            else
-                check_http_protocol (task);
+        if (task->state == CLONE_STATE_ERROR && task->repo_version > 0) {
+            g_free (task->err_detail);
+            task->err_detail = NULL;
+            check_http_protocol (task);
+        } else if (task->state == CLONE_STATE_CONNECT) {
+            continue_task_when_peer_connected (task);
         }
     }
 
@@ -819,7 +843,6 @@ transition_state (CloneTask *task, int new_state)
                   state_str[task->state], state_str[new_state]);
 
     if (new_state == CLONE_STATE_DONE ||
-        new_state == CLONE_STATE_ERROR ||
         new_state == CLONE_STATE_CANCELED) {
         /* Remove from db but leave in memory. */
         remove_task_from_db (task->manager, task->repo_id);
@@ -835,9 +858,6 @@ transition_to_error (CloneTask *task, int error)
                   task->repo_id,
                   state_str[task->state], 
                   error_str[error]);
-
-    /* Remove from db but leave in memory. */
-    remove_task_from_db (task->manager, task->repo_id);
 
     task->state = CLONE_STATE_ERROR;
     task->error = error;
@@ -1011,7 +1031,6 @@ is_duplicate_task (SeafCloneManager *mgr, const char *repo_id)
     CloneTask *task = g_hash_table_lookup (mgr->tasks, repo_id);
     if (task != NULL &&
         task->state != CLONE_STATE_DONE &&
-        task->state != CLONE_STATE_ERROR &&
         task->state != CLONE_STATE_CANCELED)
         return TRUE;
     return FALSE;
@@ -1040,7 +1059,6 @@ is_worktree_of_repo (SeafCloneManager *mgr, const char *path)
     while (g_hash_table_iter_next (&iter, &key, &value)) {
         task = value;
         if (task->state == CLONE_STATE_DONE ||
-            task->state == CLONE_STATE_ERROR ||
             task->state == CLONE_STATE_CANCELED)
             continue;
         if (g_strcmp0 (path, task->worktree) == 0)
@@ -1246,7 +1264,6 @@ seaf_clone_manager_check_worktree_path (SeafCloneManager *mgr, const char *path,
     while (g_hash_table_iter_next (&iter, &key, &value)) {
         task = value;
         if (task->state == CLONE_STATE_DONE ||
-            task->state == CLONE_STATE_ERROR ||
             task->state == CLONE_STATE_CANCELED)
             continue;
         if (check_dir_inclusiveness (path, task->worktree) != 0) {
@@ -1602,8 +1619,11 @@ seaf_clone_manager_cancel_task (SeafCloneManager *mgr,
     switch (task->state) {
     case CLONE_STATE_INIT:
     case CLONE_STATE_CONNECT:
+    case CLONE_STATE_ERROR:
         transition_state (task, CLONE_STATE_CANCELED);
         break;
+    case CLONE_STATE_CHECK_SERVER:
+        transition_state (task, CLONE_STATE_CANCEL_PENDING);
     case CLONE_STATE_FETCH:
         if (!task->http_sync)
             seaf_transfer_manager_cancel_task (seaf->transfer_mgr,
@@ -1618,6 +1638,7 @@ seaf_clone_manager_cancel_task (SeafCloneManager *mgr,
     case CLONE_STATE_INDEX:
     case CLONE_STATE_CHECKOUT:
     case CLONE_STATE_MERGE:
+    case CLONE_STATE_CHECK_PROTOCOL:
         /* We cannot cancel an in-progress checkout, just
          * wait until it finishes.
          */
@@ -1649,7 +1670,6 @@ seaf_clone_manager_remove_task (SeafCloneManager *mgr,
         return -1;
 
     if (task->state != CLONE_STATE_DONE &&
-        task->state != CLONE_STATE_ERROR &&
         task->state != CLONE_STATE_CANCELED) {
         seaf_warning ("[Clone mgr] cannot remove running task.\n");
         return -1;
@@ -2321,10 +2341,8 @@ on_repo_http_fetched (SeafileSession *seaf,
         transition_state (task, CLONE_STATE_CANCELED);
         return;
     } else if (tx_task->state == HTTP_TASK_STATE_ERROR) {
-        if (add_transfer_task (task, NULL) == 0)
-            transition_state (task, CLONE_STATE_FETCH);
-        else
-            transition_to_error (task, CLONE_ERROR_FETCH);
+        transition_to_error (task, CLONE_ERROR_FETCH);
+        task->err_detail = g_strdup(http_task_error_str(tx_task->error));
         return;
     }
 
