@@ -35,6 +35,8 @@
 
 #include "db.h"
 
+#include "seafile-object.h"
+
 #define INDEX_DIR "index"
 #define IGNORE_FILE "seafile-ignore.txt"
 
@@ -672,6 +674,112 @@ is_repo_id_valid (const char *id)
 #define SYNC_ERROR_ID_FILE_LOCKED 2
 #define SYNC_ERROR_ID_INVALID_PATH 3
 #define SYNC_ERROR_ID_INDEX_ERROR 4
+#define SYNC_ERROR_ID_PATH_END_SPACE_PERIOD 5
+#define SYNC_ERROR_ID_PATH_INVALID_CHARACTER 6
+
+typedef struct FileErrorAux {
+    char *repo_id;
+    char *path;
+    int err_id;
+} FileErrorAux;
+
+static gboolean
+get_last_file_sync_error (sqlite3_stmt *stmt, void *data)
+{
+    FileErrorAux *aux = data;
+
+    aux->repo_id = g_strdup((const char *)sqlite3_column_text (stmt, 0));
+    aux->path = g_strdup((const char *)sqlite3_column_text (stmt, 1));
+    aux->err_id = sqlite3_column_int (stmt, 2);
+
+    return FALSE;
+}
+
+static void
+save_file_sync_error (const char *repo_id, const char *repo_name, const char *path,
+                      int err_id)
+{
+    char *sql;
+    FileErrorAux aux;
+    int n;
+
+    memset (&aux, 0, sizeof(aux));
+
+    pthread_mutex_lock (&seaf->repo_mgr->priv->db_lock);
+
+    sql = "SELECT repo_id, path, err_id FROM FileSyncError "
+        "ORDER BY id DESC LIMIT 1 OFFSET 0";
+    n = sqlite_foreach_selected_row (seaf->repo_mgr->priv->db,
+                                     sql, get_last_file_sync_error, &aux);
+
+    if (n > 0 &&
+        g_strcmp0(repo_id, aux.repo_id) == 0 &&
+        g_strcmp0(path, aux.path) == 0 &&
+        err_id == aux.err_id)
+        goto out;
+
+    sql = sqlite3_mprintf ("INSERT INTO FileSyncError "
+                           "(repo_id, repo_name, path, err_id, timestamp) "
+                           "VALUES ('%q', '%q', '%q', %d, %"G_GINT64_FORMAT")",
+                           repo_id, repo_name, path, err_id, (gint64)time(NULL));
+    sqlite_query_exec (seaf->repo_mgr->priv->db, sql);
+    sqlite3_free (sql);
+
+out:
+    pthread_mutex_unlock (&seaf->repo_mgr->priv->db_lock);
+    g_free (aux.repo_id);
+    g_free (aux.path);
+    return;
+}
+
+static gboolean
+collect_file_sync_errors (sqlite3_stmt *stmt, void *data)
+{
+    GList **pret = data;
+    const char *repo_id, *repo_name, *path;
+    int err_id;
+    gint64 timestamp;
+    SeafileFileSyncError *error;
+
+    repo_id = (const char *)sqlite3_column_text (stmt, 0);
+    repo_name = (const char *)sqlite3_column_text (stmt, 1);
+    path = (const char *)sqlite3_column_text (stmt, 2);
+    err_id = sqlite3_column_int (stmt, 3);
+    timestamp = sqlite3_column_int64 (stmt, 4);
+
+    error = g_object_new (SEAFILE_TYPE_FILE_SYNC_ERROR,
+                          "repo_id", repo_id,
+                          "repo_name", repo_name,
+                          "path", path,
+                          "err_id", err_id,
+                          "timestamp", timestamp,
+                          NULL);
+    *pret = g_list_prepend (*pret, error);
+
+    return TRUE;
+}
+
+GList *
+seaf_repo_manager_get_file_sync_errors (SeafRepoManager *mgr, int offset, int limit)
+{
+    GList *ret = NULL;
+    char *sql;
+
+    pthread_mutex_lock (&mgr->priv->db_lock);
+
+    sql = sqlite3_mprintf ("SELECT repo_id, repo_name, path, err_id, timestamp FROM "
+                           "FileSyncError ORDER BY id DESC LIMIT %d OFFSET %d",
+                           limit, offset);
+    sqlite_foreach_selected_row (mgr->priv->db, sql,
+                                 collect_file_sync_errors, &ret);
+    sqlite3_free (sql);
+
+    pthread_mutex_unlock (&mgr->priv->db_lock);
+
+    ret = g_list_reverse (ret);
+
+    return ret;
+}
 
 typedef struct SyncErrorData {
     char *repo_id;
@@ -727,6 +835,8 @@ send_sync_error_notification (const char *repo_id,
     data->err_id = err_id;
 
     cevent_manager_add_event (seaf->ev_mgr, seaf->repo_mgr->priv->cevent_id, data);
+
+    save_file_sync_error (repo_id, repo_name, path, err_id);
 }
 
 SeafRepo*
@@ -985,8 +1095,13 @@ has_trailing_space_or_period (const char *path)
     return FALSE;
 }
 
+typedef enum IgnoreReason {
+    IGNORE_REASON_END_SPACE_PERIOD = 0,
+    IGNORE_REASON_INVALID_CHARACTER = 1,
+} IgnoreReason;
+
 static gboolean
-should_ignore_on_checkout (const char *file_path)
+should_ignore_on_checkout (const char *file_path, IgnoreReason *ignore_reason)
 {
     gboolean ret = FALSE;
 
@@ -1007,12 +1122,16 @@ should_ignore_on_checkout (const char *file_path)
              * problem on windows. */
             /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */
             ret = TRUE;
+            if (ignore_reason)
+                *ignore_reason = IGNORE_REASON_END_SPACE_PERIOD;
             goto out;
         }
 
         for (i = 0; i < G_N_ELEMENTS(illegals); i++) {
             if (strchr (file_name, illegals[i])) {
                 ret = TRUE;
+                if (ignore_reason)
+                    *ignore_reason = IGNORE_REASON_INVALID_CHARACTER;
                 goto out;
             }
         }
@@ -1020,6 +1139,8 @@ should_ignore_on_checkout (const char *file_path)
         for (c = 1; c <= 31; c++) {
             if (strchr (file_name, c)) {
                 ret = TRUE;
+                if (ignore_reason)
+                    *ignore_reason = IGNORE_REASON_INVALID_CHARACTER;
                 goto out;
             }
         }
@@ -1130,8 +1251,8 @@ add_file (const char *repo_id,
     is_locked = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                       repo_id, path);
     if (is_locked && options && !(options->startup_scan)) {
-        send_sync_error_notification (repo_id, NULL, path,
-                                      SYNC_ERROR_ID_FILE_LOCKED);
+        /* send_sync_error_notification (repo_id, NULL, path, */
+        /*                               SYNC_ERROR_ID_FILE_LOCKED); */
     }
 
     if (options && options->startup_scan) {
@@ -3022,16 +3143,16 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
     if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                               repo->id, event->path)) {
         seaf_debug ("Rename: %s is locked on server, ignore.\n", event->path);
-        send_sync_error_notification (repo->id, NULL, event->path,
-                                      SYNC_ERROR_ID_FILE_LOCKED);
+        /* send_sync_error_notification (repo->id, NULL, event->path, */
+        /*                               SYNC_ERROR_ID_FILE_LOCKED); */
         return;
     }
 
     if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                               repo->id, event->new_path)) {
         seaf_debug ("Rename: %s is locked on server, ignore.\n", event->new_path);
-        send_sync_error_notification (repo->id, NULL, event->new_path,
-                                      SYNC_ERROR_ID_FILE_LOCKED);
+        /* send_sync_error_notification (repo->id, NULL, event->new_path, */
+        /*                               SYNC_ERROR_ID_FILE_LOCKED); */
         return;
     }
 
@@ -3540,8 +3661,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                       repo->id, event->path)) {
                 seaf_debug ("Delete: %s is locked on server, ignore.\n", event->path);
-                send_sync_error_notification (repo->id, NULL, event->path,
-                                              SYNC_ERROR_ID_FILE_LOCKED);
+                /* send_sync_error_notification (repo->id, NULL, event->path, */
+                /*                               SYNC_ERROR_ID_FILE_LOCKED); */
                 break;
             }
 
@@ -4809,7 +4930,7 @@ download_files_no_http (const char *repo_id,
                 add_ce = TRUE;
             }
 
-            if (!should_ignore_on_checkout (de->name)) {
+            if (!should_ignore_on_checkout (de->name, NULL)) {
 #ifdef WIN32
                 is_locked = do_check_file_locked (de->name, worktree, FALSE);
 #endif
@@ -5095,11 +5216,16 @@ schedule_file_fetch (GThreadPool *tpool,
         new_ce = TRUE;
     }
 
-    if (should_ignore_on_checkout (de->name)) {
+    IgnoreReason reason;
+    if (should_ignore_on_checkout (de->name, &reason)) {
         seaf_message ("Path %s is invalid on Windows, skip checkout\n",
                       de->name);
-        send_sync_error_notification (repo_id, repo_name, de->name,
-                                      SYNC_ERROR_ID_INVALID_PATH);
+        if (reason == IGNORE_REASON_END_SPACE_PERIOD)
+            send_sync_error_notification (repo_id, repo_name, de->name,
+                                          SYNC_ERROR_ID_PATH_END_SPACE_PERIOD);
+        else if (reason == IGNORE_REASON_INVALID_CHARACTER)
+            send_sync_error_notification (repo_id, repo_name, de->name,
+                                          SYNC_ERROR_ID_PATH_INVALID_CHARACTER);
         skip_fetch = TRUE;
     }
 
@@ -5214,7 +5340,7 @@ checkout_file_http (FileTxData *data,
     if (no_checkout)
         return FETCH_CHECKOUT_SUCCESS;
 
-    if (should_ignore_on_checkout (de->name))
+    if (should_ignore_on_checkout (de->name, NULL))
         return FETCH_CHECKOUT_SUCCESS;
 
     rawdata_to_hex (de->sha1, file_id, 20);
@@ -5333,11 +5459,16 @@ handle_dir_added_de (const char *repo_id,
         add_ce = TRUE;
     }
 
-    if (should_ignore_on_checkout (de->name)) {
+    IgnoreReason reason;
+    if (should_ignore_on_checkout (de->name, &reason)) {
         seaf_message ("Path %s is invalid on Windows, skip checkout\n",
                       de->name);
-        send_sync_error_notification (repo_id, repo_name, de->name,
-                                      SYNC_ERROR_ID_INVALID_PATH);
+        if (reason == IGNORE_REASON_END_SPACE_PERIOD)
+            send_sync_error_notification (repo_id, repo_name, de->name,
+                                          SYNC_ERROR_ID_PATH_END_SPACE_PERIOD);
+        else if (reason == IGNORE_REASON_INVALID_CHARACTER)
+            send_sync_error_notification (repo_id, repo_name, de->name,
+                                          SYNC_ERROR_ID_PATH_INVALID_CHARACTER);
         goto update_index;
     }
 
@@ -6039,6 +6170,8 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             if (do_check_dir_locked (de->name, worktree)) {
                 seaf_message ("File(s) in dir %s are locked by other program, "
                               "skip rename/delete.\n", de->name);
+                send_sync_error_notification (repo_id, NULL, de->name,
+                                              SYNC_ERROR_ID_FOLDER_LOCKED_BY_APP);
                 ret = FETCH_CHECKOUT_LOCKED;
                 goto out;
             }
@@ -6050,6 +6183,8 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             if (do_check_file_locked (de->name, worktree, locked_on_server)) {
                 seaf_message ("File %s is locked by other program, skip rename.\n",
                               de->name);
+                send_sync_error_notification (repo_id, NULL, de->name,
+                                              SYNC_ERROR_ID_FILE_LOCKED_BY_APP);
                 ret = FETCH_CHECKOUT_LOCKED;
                 goto out;
             }
@@ -6091,7 +6226,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         if (de->status == DIFF_STATUS_DELETED) {
             seaf_debug ("Delete file %s.\n", de->name);
 
-            if (should_ignore_on_checkout (de->name)) {
+            if (should_ignore_on_checkout (de->name, NULL)) {
                 seaf_message ("Path %s is invalid on Windows, skip delete.\n",
                               de->name);
                 continue;
@@ -6131,7 +6266,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
         } else if (de->status == DIFF_STATUS_DIR_DELETED) {
             seaf_debug ("Delete dir %s.\n", de->name);
 
-            if (should_ignore_on_checkout (de->name)) {
+            if (should_ignore_on_checkout (de->name, NULL)) {
                 seaf_message ("Path %s is invalid on Windows, skip delete.\n",
                               de->name);
                 continue;
@@ -6157,14 +6292,21 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             seaf_debug ("Rename %s to %s.\n", de->name, de->new_name);
 
 #ifdef WIN32
-            if (should_ignore_on_checkout (de->new_name)) {
+            IgnoreReason reason;
+            if (should_ignore_on_checkout (de->new_name, &reason)) {
                 seaf_message ("Path %s is invalid on Windows, skip rename.\n", de->new_name);
-                if (is_http)
-                    send_sync_error_notification (repo_id, http_task->repo_name,
-                                                  de->new_name,
-                                                  SYNC_ERROR_ID_INVALID_PATH);
+                if (is_http) {
+                    if (reason == IGNORE_REASON_END_SPACE_PERIOD)
+                        send_sync_error_notification (repo_id, http_task->repo_name,
+                                                      de->new_name,
+                                                      SYNC_ERROR_ID_PATH_END_SPACE_PERIOD);
+                    else if (reason == IGNORE_REASON_INVALID_CHARACTER)
+                        send_sync_error_notification (repo_id, http_task->repo_name,
+                                                      de->new_name,
+                                                      SYNC_ERROR_ID_PATH_INVALID_CHARACTER);
+                }
                 continue;
-            } else if (should_ignore_on_checkout (de->name)) {
+            } else if (should_ignore_on_checkout (de->name, NULL)) {
                 /* If the server renames an invalid path to a valid path,
                  * directly checkout the valid path. The checkout will merge
                  * with any existing files.
@@ -7243,6 +7385,11 @@ open_db (SeafRepoManager *manager, const char *seaf_dir)
     sqlite_query_exec (db, sql);
 
     sql = "CREATE INDEX IF NOT EXISTS ServerIndex ON ServerProperty (server_url);";
+    sqlite_query_exec (db, sql);
+
+    sql = "CREATE TABLE IF NOT EXISTS FileSyncError ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, repo_id TEXT, repo_name TEXT, "
+        "path TEXT, err_id INTEGER, timestamp INTEGER);";
     sqlite_query_exec (db, sql);
 
     return db;

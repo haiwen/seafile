@@ -305,6 +305,11 @@ start_rpc_service (CcnetClient *client)
                                      "seafile_set_server_property",
                                      searpc_signature_int__string_string_string());
 
+    searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_get_file_sync_errors,
+                                     "seafile_get_file_sync_errors",
+                                     searpc_signature_objlist__int_int());
+
     /* Need to run in a thread since diff may take long. */
     searpc_server_register_function ("seafile-threaded-rpcserver",
                                      seafile_diff,

@@ -195,4 +195,12 @@ public class EncryptionInfo: Object {
     public string random_key { get; set; }
 }
 
+public class FileSyncError: Object {
+    public string repo_id { get; set; }
+    public string repo_name { get; set; }
+    public string path { get; set; }
+    public int err_id { get; set; }
+    public int64 timestamp { get; set; }
+}
+
 } // namespace

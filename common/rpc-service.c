@@ -953,6 +953,12 @@ seafile_set_server_property (const char *server_url,
                                                   key, value);
 }
 
+GList *
+seafile_get_file_sync_errors (int offset, int limit, GError **error)
+{
+    return seaf_repo_manager_get_file_sync_errors (seaf->repo_mgr, offset, limit);
+}
+
 #endif  /* not define SEAFILE_SERVER */
 
 /*

@@ -232,6 +232,9 @@ seafile_set_server_property (const char *server_url,
                              const char *value,
                              GError **error);
 
+GList *
+seafile_get_file_sync_errors (int offset, int limit, GError **error);
+
 /**
  * seafile_list_dir:
  * List a directory.

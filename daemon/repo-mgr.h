@@ -499,4 +499,9 @@ seaf_repo_manager_is_path_writable (SeafRepoManager *mgr,
                                     const char *repo_id,
                                     const char *path);
 
+/* File Sync Errors. */
+
+GList *
+seaf_repo_manager_get_file_sync_errors (SeafRepoManager *mgr, int offset, int limit);
+
 #endif
