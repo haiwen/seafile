@@ -5207,7 +5207,7 @@ schedule_file_fetch (GThreadPool *tpool,
     struct cache_entry *ce;
     gboolean new_ce = FALSE;
     gboolean skip_fetch = FALSE;
-    char *path;
+    char *path = NULL;
     FileTxTask *file_task;
 
     ce = index_name_exists (istate, de->name, strlen(de->name), 0);
