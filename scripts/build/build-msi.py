@@ -884,7 +884,8 @@ def build_msi():
     strip_symbols()
 
     # Only sign the exectuables after stripping symbols.
-    sign_executables()
+    if need_sign():
+        sign_executables()
 
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
     if run('make fragment.wxs', cwd=pack_dir) != 0:
@@ -960,6 +961,9 @@ def dump_env():
     for k, v in os.environ.iteritems():
         print '%s: %s' % (k, v)
 
+def need_sign():
+    return conf[CONF_BRAND].lower() == 'seafile'
+
 def main():
     dump_env()
     parse_args()
@@ -988,7 +992,8 @@ def main():
         build_english_msi()
         build_german_msi()
 
-    sign_installers()
+    if need_sign():
+        sign_installers()
     move_msi()
 
 if __name__ == '__main__':
