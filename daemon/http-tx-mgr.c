@@ -382,22 +382,13 @@ write_cert_to_pem_file (FILE *f, PCCERT_CONTEXT pc)
 }
 
 static int
-create_ca_bundle (const char *ca_bundle_path)
+load_ca_from_store (FILE *f, const wchar_t *store_name)
 {
     HCERTSTORE store;
-    FILE *f;
 
-    store = CertOpenSystemStoreW (0, L"ROOT");
+    store = CertOpenSystemStoreW (0, store_name);
     if (!store) {
         seaf_warning ("Failed to open system cert store: %lu\n", GetLastError());
-        return -1;
-    }
-
-    f = g_fopen (ca_bundle_path, "w+b");
-    if (!f) {
-        seaf_warning ("Failed to open cabundle file %s: %s\n",
-                      ca_bundle_path, strerror(errno));
-        CertCloseStore(store, 0);
         return -1;
     }
 
@@ -410,9 +401,38 @@ create_ca_bundle (const char *ca_bundle_path)
     }
 
     CertCloseStore(store, 0);
-    fclose (f);
 
     return 0;
+}
+
+static int
+create_ca_bundle (const char *ca_bundle_path)
+{
+    FILE *f;
+    int ret = 0;
+
+    f = g_fopen (ca_bundle_path, "w+b");
+    if (!f) {
+        seaf_warning ("Failed to open cabundle file %s: %s\n",
+                      ca_bundle_path, strerror(errno));
+        return -1;
+    }
+
+    if (load_ca_from_store (f, L"ROOT") < 0) {
+        seaf_warning ("Failed to load ca from ROOT store.\n");
+        ret = -1;
+        goto out;
+    }
+
+    if (load_ca_from_store (f, L"CA") < 0) {
+        seaf_warning ("Failed to load ca from CA store.\n");
+        ret = -1;
+        goto out;
+    }
+
+out:
+    fclose (f);
+    return ret;
 }
 
 #endif	/* WIN32 */
