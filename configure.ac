@@ -59,94 +59,6 @@ else
   AC_MSG_RESULT(no)
 fi
 
-# test which sub-component to compile
-
-if test "$bwin32" = true; then
-   compile_client=yes
-   compile_cli=no
-   compile_tools=no
-   compile_server=no
-fi
-
-if test "$bmac" = true; then
-   compile_client=yes
-   compile_cli=no
-   compile_tools=no
-   compile_server=no
-fi
-
-if test "$blinux" = true; then
-   compile_cli=yes
-   compile_tools=yes
-
-   compile_server=no
-
-#   AC_ARG_ENABLE(seablock, AC_HELP_STRING([--enable-seablock],
-#      [enable seablock]), [compile_seablock=$enableval],
-#      [compile_seablock="no"])
-
-   AC_ARG_ENABLE(riak, AC_HELP_STRING([--enable-riak], [enable riak backend]),
-      [compile_riak=$enableval],[compile_riak="no"])
-fi
-
-if test "$bwin32" != true; then
-   AC_ARG_ENABLE(fuse, AC_HELP_STRING([--enable-fuse], [enable fuse virtual file system]),
-      [compile_fuse=$enableval],[compile_fuse="yes"])
-fi
-
-AC_ARG_ENABLE(client, AC_HELP_STRING([--enable-client], [enable client]),
-   [compile_client=$enableval],[compile_client="yes"])
-
-AC_ARG_ENABLE(server, AC_HELP_STRING([--enable-server], [enable server]),
-   [compile_server=$enableval],[compile_server="no"])
-
-AC_ARG_ENABLE(python,
-              AC_HELP_STRING([--enable-python],[build ccnet python binding]),
-              [compile_python=$enableval],
-              [compile_python=yes])
-
-
-AC_ARG_ENABLE(server-pkg, AC_HELP_STRING([--enable-server-pkg], [enable static compile]),
-    [server_pkg=$enableval],[server_pkg="no"])
-
-AM_CONDITIONAL([SERVER_ONLY], [test "${server_pkg}" = "yes"])
-
-
-AC_ARG_ENABLE(static-build, AC_HELP_STRING([--enable-static-build], [enable static compile]),
-    [static_comp=$enableval],[static_comp="no"])
-
-if test x${static_comp} = xyes; then
-  STATIC_COMPILE=-static
-fi
-AC_SUBST(STATIC_COMPILE)
-
-
-# If we're building server release package, set the run-time path
-# for the executables. So that the loader will lookup shared libs
-# in 'lib' dir of the release package.
-# Read "man ld.so" for description of $ORIGIN.
-# Refer to http://blog.linuxgamepublishing.com/2009/02/08/our-new-way-to-meet-the-lgpl/
-if test x${server_pkg} = xyes; then
-  compile_client=no
-  compile_cli=yes
-  compile_tools=yes
-  compile_server=yes
-  SERVER_PKG_RPATH=-Wl,-R,\'\$\$ORIGIN/../lib\'
-  SERVER_PKG_PY_RPATH=-Wl,-R,\'\$\$ORIGIN/../../..\'
-fi
-AC_SUBST(SERVER_PKG_RPATH)
-AC_SUBST(SERVER_PKG_PY_RPATH)
-
-
-AM_CONDITIONAL([COMPILE_CLI], [test "${compile_cli}" = "yes"])
-AM_CONDITIONAL([COMPILE_TOOLS], [test "${compile_tools}" = "yes"])
-AM_CONDITIONAL([COMPILE_PYTHON], [test "${compile_python}" = "yes"])
-AM_CONDITIONAL([COMPILE_CLIENT], [test "${compile_client}" = "yes"])
-AM_CONDITIONAL([COMPILE_SERVER], [test "${compile_server}" = "yes"])
-#AM_CONDITIONAL([COMPILE_SEABLOCK], [test "${compile_seablock}" = "yes"])
-AM_CONDITIONAL([COMPILE_RIAK], [test "${compile_riak}" = "yes"])
-AM_CONDITIONAL([COMPILE_FUSE], [test "${compile_fuse}" = "yes"])
-
 AM_CONDITIONAL([WIN32], [test "$bwin32" = "true"])
 AM_CONDITIONAL([MACOS], [test "$bmac" = "true"])
 AM_CONDITIONAL([LINUX], [test "$blinux" = "true"])
@@ -243,10 +155,7 @@ GLIB_REQUIRED=2.16.0
 CCNET_REQUIRED=0.9.3
 SEARPC_REQUIRED=1.0
 JANSSON_REQUIRED=2.2.1
-ZDB_REQUIRED=2.10
-#LIBNAUTILUS_EXTENSION_REQUIRED=2.30.1
 CURL_REQUIRED=7.17
-FUSE_REQUIRED=2.7.3
 ZLIB_REQUIRED=1.2.0
 
 PKG_CHECK_MODULES(SSL, [openssl])
@@ -281,55 +190,21 @@ PKG_CHECK_MODULES(ZLIB, [zlib >= $ZLIB_REQUIRED])
 AC_SUBST(ZLIB_CFLAGS)
 AC_SUBST(ZLIB_LIBS)
 
-if test x${compile_python} = xyes; then
-   AM_PATH_PYTHON([2.6])
+PKG_CHECK_MODULES(CURL, [libcurl >= $CURL_REQUIRED])
+AC_SUBST(CURL_CFLAGS)
+AC_SUBST(CURL_LIBS)
 
-   if test "$bwin32" = true; then
-       # set pyexecdir to somewhere like /c/Python26/Lib/site-packages
-       pyexecdir=${PYTHON_DIR}/Lib/site-packages
-       pythondir=${pyexecdir}
-       pkgpyexecdir=${pyexecdir}/${PACKAGE}
-       pkgpythondir=${pythondir}/${PACKAGE}
+AM_PATH_PYTHON([2.6])
 
-   fi # end for bwin32
+if test "$bwin32" = true; then
+    # set pyexecdir to somewhere like /c/Python26/Lib/site-packages
+    pyexecdir=${PYTHON_DIR}/Lib/site-packages
+    pythondir=${pyexecdir}
+    pkgpyexecdir=${pyexecdir}/${PACKAGE}
+    pkgpythondir=${pythondir}/${PACKAGE}
 
-fi
+fi # end for bwin32
 
-
-# Check libzdb if compile seafile server
-if test "${compile_server}" = "yes"; then
-   PKG_CHECK_MODULES(ZDB, [zdb >= $ZDB_REQUIRED])
-   AC_SUBST(ZDB_CFLAGS)
-   AC_SUBST(ZDB_LIBS)
-fi
-
-if test "${compile_fuse}" = "yes"; then
-   PKG_CHECK_MODULES(FUSE, [fuse >= $FUSE_REQUIRED])
-   AC_SUBST(FUSE_CFLAGS)
-   AC_SUBST(FUSE_LIBS)
-fi
-
-if test x${compile_server} = xyes; then
-   dnl check libarchive
-   LIBARCHIVE_REQUIRED=2.8.5
-   PKG_CHECK_MODULES(LIBARCHIVE, [libarchive >= $LIBARCHIVE_REQUIRED])
-   AC_SUBST(LIBARCHIVE_CFLAGS)
-   AC_SUBST(LIBARCHIVE_LIBS)
-fi
-
-if test "${compile_client}" = "yes"; then
-   PKG_CHECK_MODULES(CURL, [libcurl >= $CURL_REQUIRED])
-   AC_SUBST(CURL_CFLAGS)
-   AC_SUBST(CURL_LIBS)
-fi
-
-AM_CONDITIONAL([HAVE_KEYSTORAGE_GK], [test "${compile_gnome_keyring}" = "yes"])
-if test "${compile_gnome_keyring}" = "yes"; then
-   PKG_CHECK_MODULES(GNOME_KEYRING, [gnome-keyring-1])
-   AC_SUBST(GNOME_KEYRING_CFLAGS)
-   AC_SUBST(GNOME_KEYRING_LIBS)
-   AC_DEFINE(HAVE_KEYSTORAGE_GK, 1, [Have Gnome-Keyring support])
-fi
 
 BPWRAPPER_REQUIRED=0.1
 AC_ARG_ENABLE(breakpad, AC_HELP_STRING([--enable-breakpad], [build google breadpad support]),
@@ -349,37 +224,14 @@ ac_configure_args="$ac_configure_args -q"
 AC_CONFIG_FILES(
     Makefile
     include/Makefile
-    fuse/Makefile
     lib/Makefile
     lib/libseafile.pc
     common/Makefile
     common/cdc/Makefile
     common/index/Makefile
     daemon/Makefile
-    server/Makefile
-    server/gc/Makefile
     app/Makefile
-    python/Makefile
-    python/seafile/Makefile
-    python/seaserv/Makefile
-    controller/Makefile
-    tools/Makefile
-    tests/Makefile
-    tests/common-conf.sh
     doc/Makefile
 )
 
 AC_OUTPUT
-
-
-echo
-echo "The following modules will be built:"
-echo
-if test x${compile_client} = xyes; then
-    echo "seaf-daemon"
-fi
-if test x${compile_server} = xyes; then
-   echo    "seaf-server"
-fi
-
-echo

@@ -14,10 +14,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@BPWRAPPER_CFLAGS@ \
 	-Wall
 
-bin_PROGRAMS =
-if !SERVER_ONLY
-bin_PROGRAMS += seaf-daemon
-endif
+bin_PROGRAMS = seaf-daemon
 
 proc_headers = $(addprefix processors/, \
 	check-tx-v3-proc.h \
@@ -122,10 +119,9 @@ common_src = \
 seaf_daemon_SOURCES = seaf-daemon.c $(common_src)
 
 seaf_daemon_LDADD = $(top_builddir)/lib/libseafile_common.la \
-	@LIB_INTL@ \
 	@GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ @LIB_RT@ @LIB_UUID@ -lsqlite3 @LIBEVENT_LIBS@ \
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/common/index/libindex.la @LIB_WS32@ @LIB_CRYPT32@ \
-	@SEARPC_LIBS@ @CCNET_LIBS@ @GNOME_KEYRING_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@ @CURL_LIBS@ @BPWRAPPER_LIBS@
+	@SEARPC_LIBS@ @CCNET_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@ @CURL_LIBS@ @BPWRAPPER_LIBS@
 
-seaf_daemon_LDFLAGS = @STATIC_COMPILE@ @CONSOLE@
+seaf_daemon_LDFLAGS = @CONSOLE@

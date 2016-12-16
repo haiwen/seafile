@@ -1,1 +1,0 @@
-CREATE INDEX IF NOT EXISTS repousertoken_email on RepoUserToken(email);
