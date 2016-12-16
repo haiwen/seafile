@@ -508,9 +508,16 @@ convert_http_task (HttpTxTask *task)
     } else {
         g_object_set (t, "ttype", "upload", NULL);
         if (task->runtime_state == HTTP_TASK_RT_STATE_BLOCK) {
-            g_object_set (t, "block_total", task->n_blocks,
-                          "block_done", task->done_blocks,
-                          NULL);
+            SyncInfo *info = seaf_sync_manager_get_sync_info (seaf->sync_mgr, task->repo_id);
+            if (info && info->multipart_upload) {
+                g_object_set (t, "block_total", info->total_bytes,
+                              "block_done", info->uploaded_bytes,
+                              NULL);
+            } else {
+                g_object_set (t, "block_total", task->n_blocks,
+                              "block_done", task->done_blocks,
+                              NULL);
+            }
             g_object_set (t, "rate", http_tx_task_get_rate(task), NULL);
         }
     }

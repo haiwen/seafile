@@ -1342,8 +1342,10 @@ add_file (const char *repo_id,
                               path,
                               NULL);
         }
-    } else
+    } else {
+        *total_size += (gint64)(st->st_size);
         g_queue_push_tail (*remain_files, g_strdup(path));
+    }
 
     if (ret < 0) {
         seaf_sync_manager_update_active_path (seaf->sync_mgr,
@@ -2532,6 +2534,8 @@ handle_add_files (SeafRepo *repo, struct index_state *istate,
                   WTStatus *status, WTEvent *event,
                   GList **scanned_dirs, gint64 *total_size)
 {
+    SyncInfo *info;
+
     if (!repo->create_partial_commit) {
         /* XXX: We now use remain_files = NULL to signify not creating
          * partial commits. It's better to use total_size = NULL for
@@ -2571,6 +2575,12 @@ handle_add_files (SeafRepo *repo, struct index_state *istate,
                 pthread_mutex_lock (&status->q_lock);
                 g_queue_push_head (status->event_q, event);
                 pthread_mutex_unlock (&status->q_lock);
+
+                info = seaf_sync_manager_get_sync_info (seaf->sync_mgr, repo->id);
+                if (!info->multipart_upload) {
+                    info->multipart_upload = TRUE;
+                    info->total_bytes = *total_size;
+                }
             }
 
             return TRUE;
@@ -2585,6 +2595,9 @@ handle_add_files (SeafRepo *repo, struct index_state *istate,
             g_queue_push_head (status->event_q, event);
             pthread_mutex_unlock (&status->q_lock);
             return TRUE;
+        } else {
+            info = seaf_sync_manager_get_sync_info (seaf->sync_mgr, repo->id);
+            info->end_multipart_upload = TRUE;
         }
         if (*total_size >= MAX_COMMIT_SIZE)
             return TRUE;

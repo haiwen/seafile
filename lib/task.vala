@@ -23,8 +23,8 @@ public class Task : Object {
 
 	public string error_str { get; set; }
 
-    public int block_total { get; set; }
-    public int block_done { get; set; } // the number of blocks sent or received
+    public int64 block_total { get; set; }
+    public int64 block_done { get; set; } // the number of blocks sent or received
 
     public int fs_objects_total { get; set; }
     public int fs_objects_done { get; set; }

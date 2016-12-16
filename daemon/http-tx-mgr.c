@@ -3024,7 +3024,7 @@ send_block_callback (void *ptr, size_t size, size_t nmemb, void *userp)
 }
 
 static int
-send_block (HttpTxTask *task, Connection *conn, const char *block_id)
+send_block (HttpTxTask *task, Connection *conn, const char *block_id, guint32 *psize)
 {
     CURL *curl;
     char *url;
@@ -3088,7 +3088,11 @@ send_block (HttpTxTask *task, Connection *conn, const char *block_id)
         seaf_warning ("Bad response code for PUT %s: %d.\n", url, status);
         handle_http_errors (task, status);
         ret = -1;
+        goto out;
     }
+
+    if (psize)
+        *psize = bmd->size;
 
 out:
     g_free (url);
@@ -3109,6 +3113,7 @@ typedef struct BlockUploadData {
 typedef struct BlockUploadTask {
     char block_id[41];
     int result;
+    guint32 block_size;
 } BlockUploadTask;
 
 static void
@@ -3134,7 +3139,7 @@ upload_block_thread_func (gpointer data, gpointer user_data)
         goto out;
     }
 
-    ret = send_block (http_task, conn, task->block_id);
+    ret = send_block (http_task, conn, task->block_id, &task->block_size);
 
     connection_pool_return_connection (tx_data->cpool, conn);
 
@@ -3156,6 +3161,7 @@ multi_threaded_send_blocks (HttpTxTask *http_task, GList *block_list)
     GList *ptr;
     char *block_id;
     BlockUploadTask *task;
+    SyncInfo *info;
     int ret = 0;
 
     if (block_list == NULL)
@@ -3182,6 +3188,8 @@ multi_threaded_send_blocks (HttpTxTask *http_task, GList *block_list)
                                            g_free,
                                            (GDestroyNotify)block_upload_task_free);
 
+    info = seaf_sync_manager_get_sync_info (seaf->sync_mgr, http_task->repo_id);
+
     for (ptr = block_list; ptr; ptr = ptr->next) {
         block_id = ptr->data;
 
@@ -3204,6 +3212,10 @@ multi_threaded_send_blocks (HttpTxTask *http_task, GList *block_list)
         }
 
         ++(http_task->done_blocks);
+
+        if (info && info->multipart_upload) {
+            info->uploaded_bytes += (gint64)task->block_size;
+        }
 
         g_hash_table_remove (pending_tasks, task->block_id);
         if (g_hash_table_size(pending_tasks) == 0)

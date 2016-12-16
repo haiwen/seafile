@@ -599,7 +599,7 @@ find_meaningful_commit (SeafCommit *commit, void *data, gboolean *stop)
 }
 
 static void
-notify_sync (SeafRepo *repo)
+notify_sync (SeafRepo *repo, gboolean is_multipart_upload)
 {
     SeafCommit *head = NULL;
 
@@ -621,9 +621,14 @@ notify_sync (SeafRepo *repo)
                             head->commit_id,
                             head->parent_id,
                             head->desc);
-    seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                          "sync.done",
-                                          buf->str);
+    if (!is_multipart_upload)
+        seaf_mq_manager_publish_notification (seaf->mq_mgr,
+                                              "sync.done",
+                                              buf->str);
+    else
+        seaf_mq_manager_publish_notification (seaf->mq_mgr,
+                                              "sync.multipart_upload",
+                                              buf->str);
     g_string_free (buf, TRUE);
     seaf_commit_unref (head);
 }
@@ -645,12 +650,41 @@ update_sync_info_error_state (SyncTask *task, int new_state)
     }
 }
 
+static void commit_repo (SyncTask *task);
+
 static inline void
 transition_sync_state (SyncTask *task, int new_state)
 {
     g_return_if_fail (new_state >= 0 && new_state < SYNC_STATE_NUM);
 
+    SyncInfo *info = task->info;
+
     if (task->state != new_state) {
+        if (!task->server_side_merge) {
+            if ((task->state == SYNC_STATE_MERGE ||
+                 task->state == SYNC_STATE_UPLOAD) &&
+                new_state == SYNC_STATE_DONE &&
+                need_notify_sync(task->repo))
+                notify_sync (task->repo, FALSE);
+        } else {
+            if (((task->state == SYNC_STATE_INIT && task->uploaded) ||
+                 task->state == SYNC_STATE_FETCH) &&
+                new_state == SYNC_STATE_DONE &&
+                need_notify_sync(task->repo))
+                notify_sync (task->repo, (info->multipart_upload && !info->end_multipart_upload));
+        }
+
+        /* If we're in the process of uploading large set of files, they'll be splitted
+         * into multiple batches for upload. We want to immediately start the next batch
+         * after previous one is done.
+         */
+        if (new_state == SYNC_STATE_DONE &&
+            info->multipart_upload &&
+            !info->end_multipart_upload) {
+            commit_repo (task);
+            return;
+        }
+
         if (!(task->state == SYNC_STATE_DONE && new_state == SYNC_STATE_INIT) &&
             !(task->state == SYNC_STATE_INIT && new_state == SYNC_STATE_DONE)) {
             seaf_message ("Repo '%s' sync state transition from '%s' to '%s'.\n",
@@ -659,27 +693,21 @@ transition_sync_state (SyncTask *task, int new_state)
                           sync_state_str[new_state]);
         }
 
-        if (!task->server_side_merge) {
-            if ((task->state == SYNC_STATE_MERGE ||
-                 task->state == SYNC_STATE_UPLOAD) &&
-                new_state == SYNC_STATE_DONE &&
-                need_notify_sync(task->repo))
-                notify_sync (task->repo);
-        } else {
-            if (((task->state == SYNC_STATE_INIT && task->uploaded) ||
-                 task->state == SYNC_STATE_FETCH) &&
-                new_state == SYNC_STATE_DONE &&
-                need_notify_sync(task->repo))
-                notify_sync (task->repo);
-        }
-
         task->state = new_state;
         if (new_state == SYNC_STATE_DONE || 
             new_state == SYNC_STATE_CANCELED ||
             new_state == SYNC_STATE_ERROR) {
-            task->info->in_sync = FALSE;
+            info->in_sync = FALSE;
             --(task->mgr->n_running_tasks);
             update_sync_info_error_state (task, new_state);
+
+            /* Keep previous upload progress if sync task is canceled or failed. */
+            if (new_state == SYNC_STATE_DONE) {
+                info->multipart_upload = FALSE;
+                info->end_multipart_upload = FALSE;
+                info->total_bytes = 0;
+                info->uploaded_bytes = 0;
+            }
         }
 
 #ifdef WIN32

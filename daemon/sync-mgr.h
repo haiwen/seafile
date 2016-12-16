@@ -27,6 +27,12 @@ struct _SyncInfo {
     gboolean   need_fetch;
     gboolean   need_upload;
     gboolean   need_merge;
+
+    /* Used by multipart upload. */
+    gboolean   multipart_upload;
+    gint64     total_bytes;
+    gint64     uploaded_bytes;
+    gboolean   end_multipart_upload;
 };
 
 enum {
