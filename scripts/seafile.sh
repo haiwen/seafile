@@ -27,12 +27,12 @@ export SEAFILE_LD_LIBRARY_PATH=${INSTALLPATH}/seafile/lib/:${INSTALLPATH}/seafil
 script_name=$0
 function usage () {
     echo "usage : "
-    echo "$(basename ${script_name}) { start | stop | restart } "
+    echo "$(basename ${script_name}) { start | stop | restart | status } "
     echo ""
 }
 
 # check args
-if [[ $# != 1 || ( "$1" != "start" && "$1" != "stop" && "$1" != "restart" ) ]]; then
+if [[ $# != 1 || ( "$1" != "start" && "$1" != "stop" && "$1" != "restart" && "$1" != "status"  ) ]]; then
     usage;
     exit 1;
 fi
@@ -117,6 +117,11 @@ function validate_already_running () {
     check_component_running "seafdav" "wsgidav.server.run_server"
 }
 
+function status_seafile_server () {
+    validate_already_running;
+    echo "Seafile server is not running"
+}
+
 function start_seafile_server () {
     validate_already_running;
     validate_central_conf_dir;
@@ -168,6 +173,9 @@ function restart_seafile_server () {
 }
 
 case $1 in
+    "status" )
+        status_seafile_server;
+        ;;
     "start" )
         start_seafile_server;
         ;;
