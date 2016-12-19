@@ -40,23 +40,25 @@ commit_from_json_object (const char *id, json_t *object);
 
 static void compute_commit_id (SeafCommit* commit)
 {
-    SHA_CTX ctx;
+    GChecksum *ctx = g_checksum_new(G_CHECKSUM_SHA1);
     uint8_t sha1[20];    
     gint64 ctime_n;
 
-    SHA1_Init (&ctx);
-    SHA1_Update (&ctx, commit->root_id, 41);
-    SHA1_Update (&ctx, commit->creator_id, 41);
+    g_checksum_update (ctx, (guchar *)commit->root_id, 41);
+    g_checksum_update (ctx, (guchar *)commit->creator_id, 41);
     if (commit->creator_name)
-        SHA1_Update (&ctx, commit->creator_name, strlen(commit->creator_name)+1);
-    SHA1_Update (&ctx, commit->desc, strlen(commit->desc)+1);
+        g_checksum_update (ctx, (guchar *)commit->creator_name, strlen(commit->creator_name)+1);
+    g_checksum_update (ctx, (guchar *)commit->desc, strlen(commit->desc)+1);
 
     /* convert to network byte order */
     ctime_n = hton64 (commit->ctime);
-    SHA1_Update (&ctx, &ctime_n, sizeof(ctime_n));
-    SHA1_Final (sha1, &ctx);
+    g_checksum_update (ctx, (guchar *)&ctime_n, sizeof(ctime_n));
+
+    gsize len = 20;
+    g_checksum_get_digest (ctx, sha1, &len);
     
     rawdata_to_hex (sha1, commit->commit_id, 20);
+    g_checksum_free (ctx);
 }
 
 SeafCommit*

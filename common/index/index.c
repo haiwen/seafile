@@ -75,8 +75,9 @@ static void replace_index_entry(struct index_state *istate, int nr, struct cache
 
 static int verify_hdr(struct cache_header *hdr, unsigned long size)
 {
-    SHA_CTX c;
+    GChecksum *c;
     unsigned char sha1[20];
+    gsize len = 20;
 
     if (hdr->hdr_signature != htonl(CACHE_SIGNATURE)) {
         g_critical("bad signature\n");
@@ -87,9 +88,10 @@ static int verify_hdr(struct cache_header *hdr, unsigned long size)
         g_critical("bad index version\n");
         return -1;
     }
-    SHA1_Init(&c);
-    SHA1_Update(&c, hdr, size - 20);
-    SHA1_Final(sha1, &c);
+    c = g_checksum_new (G_CHECKSUM_SHA1);
+    g_checksum_update(c, (unsigned char *)hdr, size - 20);
+    g_checksum_get_digest (c, sha1, &len);
+    g_checksum_free (c);
     if (hashcmp(sha1, (unsigned char *)hdr + size - 20)) {
         g_critical("bad index file sha1 signature\n");
         return -1;
@@ -1736,12 +1738,14 @@ static int type_from_string(const char *str)
 static void hash_sha1_file(const void *buf, unsigned long len,
                            const char *type, unsigned char *sha1)
 {
-    SHA_CTX c;
+    GChecksum *c;
+    gsize cs_len = 20;
 
     /* Sha1.. */
-    SHA1_Init(&c);
-    SHA1_Update(&c, buf, len);
-    SHA1_Final(sha1, &c);
+    c = g_checksum_new (G_CHECKSUM_SHA1);
+    g_checksum_update(c, buf, len);
+    g_checksum_get_digest (c, sha1, &cs_len);
+    g_checksum_free (c);
 }
 
 static int index_mem(unsigned char *sha1, void *buf, uint64_t size,
@@ -1825,7 +1829,7 @@ static unsigned long write_buffer_len;
 #define WRITE_BUFFER_SIZE 8192
 
 typedef struct {
-    SHA_CTX context;
+    GChecksum *context;
     unsigned char write_buffer[WRITE_BUFFER_SIZE];
     unsigned long write_buffer_len;
 } WriteIndexInfo;
@@ -1834,7 +1838,7 @@ static int ce_write_flush(WriteIndexInfo *info, int fd)
 {
     unsigned int buffered = info->write_buffer_len;
     if (buffered) {
-        SHA1_Update(&info->context, info->write_buffer, buffered);
+        g_checksum_update(info->context, info->write_buffer, buffered);
         if (writen(fd, info->write_buffer, buffered) != buffered)
             return -1;
         info->write_buffer_len = 0;
@@ -1876,10 +1880,11 @@ static int write_index_ext_header(WriteIndexInfo *info, int fd,
 static int ce_flush(WriteIndexInfo *info, int fd)
 {
     unsigned int left = info->write_buffer_len;
+    gsize len = 20;
 
     if (left) {
         info->write_buffer_len = 0;
-        SHA1_Update(&info->context, info->write_buffer, left);
+        g_checksum_update(info->context, info->write_buffer, left);
     }
 
     /* Flush first if not enough space for SHA1 signature */
@@ -1890,7 +1895,7 @@ static int ce_flush(WriteIndexInfo *info, int fd)
     }
 
     /* Append the SHA1 signature at the end */
-    SHA1_Final(info->write_buffer + left, &info->context);
+    g_checksum_get_digest (info->context, info->write_buffer + left, &len);
     left += 20;
     return (writen(fd, info->write_buffer, left) != left) ? -1 : 0;
 }
@@ -2031,6 +2036,7 @@ int write_index(struct index_state *istate, int newfd)
     struct cache_entry **cache = istate->cache;
     int entries = istate->cache_nr;
     SeafStat st;
+    int ret = 0;
 
     memset (&info, 0, sizeof(info));
 
@@ -2051,9 +2057,11 @@ int write_index(struct index_state *istate, int newfd)
     hdr.hdr_version = htonl(4);
     hdr.hdr_entries = htonl(entries - removed);
 
-    SHA1_Init(&info.context);
-    if (ce_write(&info, newfd, &hdr, sizeof(hdr)) < 0)
-        return -1;
+    info.context = g_checksum_new (G_CHECKSUM_SHA1);
+    if (ce_write(&info, newfd, &hdr, sizeof(hdr)) < 0) {
+        ret = -1;
+        goto out;
+    }
 
     for (i = 0; i < entries; i++) {
         struct cache_entry *ce = cache[i];
@@ -2061,8 +2069,10 @@ int write_index(struct index_state *istate, int newfd)
             continue;
         /* if (!ce_uptodate(ce) && is_racy_timestamp(istate, ce)) */
         /*     ce_smudge_racily_clean_entry(ce); */
-        if (ce_write_entry2(&info, newfd, ce) < 0)
-            return -1;
+        if (ce_write_entry2(&info, newfd, ce) < 0) {
+            ret = -1;
+            goto out;
+        }
     }
 
     /* Write extension data here */
@@ -2072,21 +2082,30 @@ int write_index(struct index_state *istate, int newfd)
 
         if (modifiers_to_string (buf, istate) < 0) {
             g_string_free (buf, TRUE);
-            return -1;
+            ret = -1;
+            goto out;
         }
 
         err = write_index_ext_header(&info, newfd, CACHE_EXT_MODIFIER, buf->len) < 0
             || ce_write(&info, newfd, buf->str, buf->len) < 0;
         g_string_free (buf, TRUE);
-        if (err)
-            return -1;
+        if (err) {
+            ret = -1;
+            goto out;
+        }
     }
 
-    if (ce_flush(&info, newfd) || seaf_fstat(newfd, &st))
-        return -1;
+    if (ce_flush(&info, newfd) || seaf_fstat(newfd, &st)) {
+        ret = -1;
+        goto out;
+    }
+
     istate->timestamp.sec = (unsigned int)st.st_mtime;
     istate->timestamp.nsec = 0;
-    return 0;
+
+out:
+    g_checksum_free (info.context);
+    return ret;
 }
 
 int discard_index(struct index_state *istate)

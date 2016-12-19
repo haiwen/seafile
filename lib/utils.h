@@ -235,24 +235,6 @@ void nfree_string_array (char **array, int n);
 /* 64bit time */
 gint64 get_current_time();
 
-int
-ccnet_encrypt (char **data_out,
-               int *out_len,
-               const char *data_in,
-               const int in_len,
-               const char *code,
-               const int code_len);
-
-
-int
-ccnet_decrypt (char **data_out,
-               int *out_len,
-               const char *data_in,
-               const int in_len,
-               const char *code,
-               const int code_len);
-
-
 /*
  * Utility functions for converting data to/from network byte order.
  */

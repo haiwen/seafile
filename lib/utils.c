@@ -38,13 +38,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
-
 #include <string.h>
-#include <openssl/sha.h>
-#include <openssl/hmac.h>
-#include <openssl/evp.h>
-#include <openssl/bio.h>
-#include <openssl/buffer.h>
 
 #include <glib.h>
 #include <glib/gstdio.h>
@@ -994,14 +988,16 @@ ccnet_expand_path (const char *src)
 int
 calculate_sha1 (unsigned char *sha1, const char *msg, int len)
 {
-    SHA_CTX c;
+    GChecksum *c;
+    gsize cs_len = 20;
 
     if (len < 0)
         len = strlen(msg);
 
-    SHA1_Init(&c);
-    SHA1_Update(&c, msg, len);    
-	SHA1_Final(sha1, &c);
+    c = g_checksum_new (G_CHECKSUM_SHA1);
+    g_checksum_update(c, (const unsigned char *)msg, len);    
+    g_checksum_get_digest (c, sha1, &cs_len);
+    g_checksum_free (c);
     return 0;
 }
 
@@ -1602,247 +1598,6 @@ pgpipe (ccnet_pipe_t handles[2])
     return 0;
 }
 #endif
-
-/*
-  The EVP_EncryptXXX and EVP_DecryptXXX series of functions have a
-  weird choice of returned value.
-*/
-#define ENC_SUCCESS 1
-#define ENC_FAILURE 0
-#define DEC_SUCCESS 1
-#define DEC_FAILURE 0
-
-
-#include <openssl/aes.h>
-#include <openssl/evp.h>
-
-/* Block size, in bytes. For AES it can only be 16 bytes. */
-#define BLK_SIZE 16
-#define ENCRYPT_BLK_SIZE BLK_SIZE
-
-
-int
-ccnet_encrypt (char **data_out,
-               int *out_len,
-               const char *data_in,
-               const int in_len,
-               const char *code,
-               const int code_len)
-{
-    *data_out = NULL;
-    *out_len = -1;
-
-    /* check validation */
-    if ( data_in == NULL || in_len <= 0 ||
-         code == NULL || code_len <= 0) {
-
-        g_warning ("Invalid params.\n");
-        return -1;
-    }
-
-    EVP_CIPHER_CTX ctx;
-    int ret, key_len;
-    unsigned char key[16], iv[16];
-    int blks;                   
-
-    
-    /* Generate the derived key. We use AES 128 bits key,
-       Electroic-Code-Book cipher mode, and SHA1 as the message digest
-       when generating the key. IV is not used in ecb mode,
-       actually. */
-    key_len  = EVP_BytesToKey (EVP_aes_128_ecb(), /* cipher mode */
-                               EVP_sha1(),        /* message digest */
-                               NULL,              /* salt */
-                               (unsigned char*)code, /* passwd */
-                               code_len,
-                               3,   /* iteration times */
-                               key, /* the derived key */
-                               iv); /* IV, initial vector */
-
-    /* The key should be 16 bytes long for our 128 bit key. */
-    if (key_len != 16) {
-        g_warning ("failed to init EVP_CIPHER_CTX.\n");
-        return -1;
-    }
-
-    /* Prepare CTX for encryption. */
-    EVP_CIPHER_CTX_init (&ctx);
-
-    ret = EVP_EncryptInit_ex (&ctx,
-                              EVP_aes_128_ecb(), /* cipher mode */
-                              NULL, /* engine, NULL for default */
-                              key,  /* derived key */
-                              iv);  /* initial vector */
-
-    if (ret == ENC_FAILURE)
-        return -1;
-
-    /* Allocating output buffer. */
-    
-    /*
-      For EVP symmetric encryption, padding is always used __even if__
-      data size is a multiple of block size, in which case the padding
-      length is the block size. so we have the following:
-    */
-    
-    blks = (in_len / BLK_SIZE) + 1;
-
-    *data_out = (char *)g_malloc (blks * BLK_SIZE);
-
-    if (*data_out == NULL) {
-        g_warning ("failed to allocate the output buffer.\n");
-        goto enc_error;
-    }                
-
-    int update_len, final_len;
-
-    /* Do the encryption. */
-    ret = EVP_EncryptUpdate (&ctx,
-                             (unsigned char*)*data_out,
-                             &update_len,
-                             (unsigned char*)data_in,
-                             in_len);
-
-    if (ret == ENC_FAILURE)
-        goto enc_error;
-
-
-    /* Finish the possible partial block. */
-    ret = EVP_EncryptFinal_ex (&ctx,
-                               (unsigned char*)*data_out + update_len,
-                               &final_len);
-
-    *out_len = update_len + final_len;
-
-    /* out_len should be equal to the allocated buffer size. */
-    if (ret == ENC_FAILURE || *out_len != (blks * BLK_SIZE))
-        goto enc_error;
-    
-    EVP_CIPHER_CTX_cleanup (&ctx);
-
-    return 0;
-
-enc_error:
-
-    EVP_CIPHER_CTX_cleanup (&ctx);
-
-    *out_len = -1;
-
-    if (*data_out != NULL)
-        g_free (*data_out);
-
-    *data_out = NULL;
-
-    return -1;   
-}
-
-int
-ccnet_decrypt (char **data_out,
-               int *out_len,
-               const char *data_in,
-               const int in_len,
-               const char *code,
-               const int code_len)
-{
-    *data_out = NULL;
-    *out_len = -1;
-
-    /* Check validation. Because padding is always used, in_len must
-     * be a multiple of BLK_SIZE */
-    if ( data_in == NULL || in_len <= 0 || in_len % BLK_SIZE != 0 ||
-         code == NULL || code_len <= 0) {
-
-        g_warning ("Invalid param(s).\n");
-        return -1;
-    }
-
-    EVP_CIPHER_CTX ctx;
-    int ret, key_len;
-    unsigned char key[16], iv[16];
-
-   
-    /* Generate the derived key. We use AES 128 bits key,
-       Electroic-Code-Book cipher mode, and SHA1 as the message digest
-       when generating the key. IV is not used in ecb mode,
-       actually. */
-    key_len  = EVP_BytesToKey (EVP_aes_128_ecb(), /* cipher mode */
-                               EVP_sha1(),        /* message digest */
-                               NULL,              /* salt */
-                               (unsigned char*)code, /* passwd */
-                               code_len,
-                               3,   /* iteration times */
-                               key, /* the derived key */
-                               iv); /* IV, initial vector */
-
-    /* The key should be 16 bytes long for our 128 bit key. */
-    if (key_len != 16) {
-        g_warning ("failed to init EVP_CIPHER_CTX.\n");
-        return -1;
-    }
-
-
-    /* Prepare CTX for decryption. */
-    EVP_CIPHER_CTX_init (&ctx);
-
-    ret = EVP_DecryptInit_ex (&ctx,
-                              EVP_aes_128_ecb(), /* cipher mode */
-                              NULL, /* engine, NULL for default */
-                              key,  /* derived key */
-                              iv);  /* initial vector */
-
-    if (ret == DEC_FAILURE)
-        return -1;
-
-    /* Allocating output buffer. */
-    
-    *data_out = (char *)g_malloc (in_len);
-
-    if (*data_out == NULL) {
-        g_warning ("failed to allocate the output buffer.\n");
-        goto dec_error;
-    }                
-
-    int update_len, final_len;
-
-    /* Do the decryption. */
-    ret = EVP_DecryptUpdate (&ctx,
-                             (unsigned char*)*data_out,
-                             &update_len,
-                             (unsigned char*)data_in,
-                             in_len);
-
-    if (ret == DEC_FAILURE)
-        goto dec_error;
-
-
-    /* Finish the possible partial block. */
-    ret = EVP_DecryptFinal_ex (&ctx,
-                               (unsigned char*)*data_out + update_len,
-                               &final_len);
-
-    *out_len = update_len + final_len;
-
-    /* out_len should be smaller than in_len. */
-    if (ret == DEC_FAILURE || *out_len > in_len)
-        goto dec_error;
-
-    EVP_CIPHER_CTX_cleanup (&ctx);
-    
-    return 0;
-
-dec_error:
-
-    EVP_CIPHER_CTX_cleanup (&ctx);
-
-    *out_len = -1;
-    if (*data_out != NULL)
-        g_free (*data_out);
-
-    *data_out = NULL;
-
-    return -1;
-    
-}
 
 /* convert locale specific input to utf8 encoded string  */
 char *ccnet_locale_to_utf8 (const gchar *src)

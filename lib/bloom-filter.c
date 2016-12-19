@@ -3,8 +3,9 @@
 #include <limits.h>
 #include <stdint.h>
 #include <string.h>
-#include <openssl/sha.h>
 #include <assert.h>
+
+#include <glib.h>
 
 #include "bloom-filter.h"
 
@@ -121,17 +122,21 @@ decr_bit (Bloom *bf, unsigned int bit_idx)
     bf->counters[char_idx] = value;
 }
 
+#define SHA256_DIGEST_LENGTH 32
+
 int bloom_add(Bloom *bloom, const char *s)
 {
     int i;
-    SHA256_CTX c;
+    GChecksum *c;
     unsigned char sha256[SHA256_DIGEST_LENGTH];
+    gsize cs_len = SHA256_DIGEST_LENGTH;
     size_t *sha_int = (size_t *)&sha256;
-    
-    SHA256_Init(&c);
-    SHA256_Update(&c, s, strlen(s));
-    SHA256_Final (sha256, &c);
-    
+
+    c = g_checksum_new (G_CHECKSUM_SHA256);
+    g_checksum_update(c, (const guchar *)s, strlen(s));
+    g_checksum_get_digest (c, sha256, &cs_len);
+    g_checksum_free (c);
+
     for (i=0; i < bloom->k; ++i)
         incr_bit (bloom, sha_int[i] % bloom->asize);
 
@@ -141,17 +146,19 @@ int bloom_add(Bloom *bloom, const char *s)
 int bloom_remove(Bloom *bloom, const char *s)
 {
     int i;
-    SHA256_CTX c;
+    GChecksum *c;
     unsigned char sha256[SHA256_DIGEST_LENGTH];
+    gsize cs_len = SHA256_DIGEST_LENGTH;
     size_t *sha_int = (size_t *)&sha256;
-    
+
     if (!bloom->counting)
         return -1;
 
-    SHA256_Init(&c);
-    SHA256_Update(&c, s, strlen(s));
-    SHA256_Final (sha256, &c);
-    
+    c = g_checksum_new (G_CHECKSUM_SHA256);
+    g_checksum_update(c, (const guchar *)s, strlen(s));
+    g_checksum_get_digest (c, sha256, &cs_len);
+    g_checksum_free (c);
+
     for (i=0; i < bloom->k; ++i)
         decr_bit (bloom, sha_int[i] % bloom->asize);
 
@@ -161,14 +168,16 @@ int bloom_remove(Bloom *bloom, const char *s)
 int bloom_test(Bloom *bloom, const char *s)
 {
     int i;
-    SHA256_CTX c;
+    GChecksum *c;
     unsigned char sha256[SHA256_DIGEST_LENGTH];
+    gsize cs_len = SHA256_DIGEST_LENGTH;
     size_t *sha_int = (size_t *)&sha256;
-    
-    SHA256_Init(&c);
-    SHA256_Update(&c, s, strlen(s));
-    SHA256_Final (sha256, &c);
-    
+
+    c = g_checksum_new (G_CHECKSUM_SHA256);
+    g_checksum_update(c, (const guchar *)s, strlen(s));
+    g_checksum_get_digest (c, sha256, &cs_len);
+    g_checksum_free (c);
+
     for (i=0; i < bloom->k; ++i)
         if(!(GETBIT(bloom->a, sha_int[i] % bloom->asize))) return 0;
 
