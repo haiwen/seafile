@@ -1,4 +1,7 @@
 #include "common.h"
+
+#ifndef USE_GPL_CRYPTO
+
 #define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
 #include "log.h"
 
@@ -294,3 +297,5 @@ handle_frame_fragments (struct evbuffer *buf, FrameParser *parser)
         return handle_frame_fragment_content (buf, parser);
     }
 }
+
+#endif

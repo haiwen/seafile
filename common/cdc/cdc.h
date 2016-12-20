@@ -15,16 +15,7 @@
 
 #define BREAK_VALUE     0x0013    ///0x0513
 
-
-#ifdef HAVE_MD5
-#include "md5.h"
-#define get_checksum md5
-#define CHECKSUM_LENGTH 16
-#else
-#include <openssl/sha.h>
-#define get_checksum sha1
 #define CHECKSUM_LENGTH 20
-#endif
 
 #ifndef O_BINARY
 #define O_BINARY 0

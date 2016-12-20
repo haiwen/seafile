@@ -8,5 +8,5 @@ noinst_HEADERS = cdc.h rabin-checksum.h
 libcdc_la_SOURCES = cdc.c rabin-checksum.c
 
 libcdc_la_LDFLAGS = -Wl,-z -Wl,defs
-libcdc_la_LIBADD = @SSL_LIBS@ @GLIB2_LIBS@ \
+libcdc_la_LIBADD = @GLIB2_LIBS@ \
 	$(top_builddir)/lib/libseafile_common.la

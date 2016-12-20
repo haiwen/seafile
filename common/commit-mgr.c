@@ -5,7 +5,6 @@
 #include "log.h"
 
 #include <jansson.h>
-#include <openssl/sha.h>
 
 #include "utils.h"
 #include "db.h"

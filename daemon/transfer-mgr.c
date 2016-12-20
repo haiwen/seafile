@@ -13,7 +13,9 @@
 #include "utils.h"
 #include "db.h"
 
+#ifndef USE_GPL_CRYPTO
 #include <openssl/rand.h>
+#endif
 
 #include "seafile-session.h"
 #include "transfer-mgr.h"
@@ -29,7 +31,9 @@
 #include "mq-mgr.h"
 #include "seafile-config.h"
 
+#ifndef USE_GPL_CRYPTO
 #include "processors/check-tx-v3-proc.h"
+#endif
 #include "processors/sendfs-proc.h"
 #include "processors/getfs-proc.h"
 #include "processors/getcs-proc.h"
@@ -444,9 +448,11 @@ seaf_transfer_manager_new (struct _SeafileSession *seaf)
 
 static void register_processors (CcnetClient *client)
 {
+#ifndef USE_GPL_CRYPTO
     ccnet_proc_factory_register_processor (client->proc_factory,
                                            "seafile-check-tx-v3",
                                            SEAFILE_TYPE_CHECK_TX_V3_PROC);
+#endif
 
     ccnet_proc_factory_register_processor (client->proc_factory,
                                            "seafile-sendfs",
@@ -1220,11 +1226,13 @@ generate_session_key (BlockTxInfo *info, const char *peer_id)
     char *sk_base64, *sk_enc_base64;
     gsize enc_key_len;
 
+#ifndef USE_GPL_CRYPTO
     if (RAND_bytes (info->session_key, sizeof(info->session_key)) != 1) {
         seaf_warning ("Failed to generate random session key with RAND_bytes(), "
                       "switch to RAND_pseudo_bytes().\n");
         RAND_pseudo_bytes (info->session_key, sizeof(info->session_key));
     }
+#endif
 
     sk_base64 = g_base64_encode (info->session_key, sizeof(info->session_key));
     sk_enc_base64 = ccnet_pubkey_encrypt (seaf->ccnetrpc_client,
@@ -1731,6 +1739,7 @@ start_download (TransferTask *task)
     if (!ccnet_peer_is_ready (seaf->ccnetrpc_client, dest_id))
         return -1;
 
+#ifndef USE_GPL_CRYPTO
     processor = ccnet_proc_factory_create_remote_master_processor (
         seaf->session->proc_factory, "seafile-check-tx-v3", dest_id);
     if (!processor) {
@@ -1746,6 +1755,7 @@ start_download (TransferTask *task)
         seaf_warning ("failed to start check-tx proc for download.\n");
         return -1;
     }
+#endif
 
     transition_state (task, task->state, TASK_RT_STATE_CHECK);
     return 0;
@@ -2200,6 +2210,7 @@ start_upload (TransferTask *task)
     memcpy (task->head, branch->commit_id, 41);
     seaf_branch_unref (branch);
 
+#ifndef USE_GPL_CRYPTO
     processor = ccnet_proc_factory_create_remote_master_processor (
         seaf->session->proc_factory, "seafile-check-tx-v3", dest_id);
     if (!processor) {
@@ -2216,6 +2227,7 @@ start_upload (TransferTask *task)
         seaf_warning ("failed to start check-tx-v3 proc for upload.\n");
         return -1;
     }
+#endif
 
     transition_state (task, task->state, TASK_RT_STATE_CHECK);
     return 0;

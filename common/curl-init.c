@@ -1,5 +1,9 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include "common.h"
+
+#ifndef USE_GPL_CRYPTO
+
 #include <curl/curl.h>
 #include <openssl/crypto.h>
 #include <pthread.h>
@@ -47,3 +51,5 @@ void seafile_curl_deinit()
     }
     free (curl_locks);
 }
+
+#endif

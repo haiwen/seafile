@@ -1029,6 +1029,8 @@ block_tx_client_thread_done (void *vdata)
     g_free (client);
 }
 
+#ifndef USE_GPL_CRYPTO
+
 int
 block_tx_client_start (BlockTxInfo *info, BlockTxClientDoneCB cb)
 {
@@ -1055,3 +1057,19 @@ block_tx_client_run_command (BlockTxInfo *info, int command)
 {
     pipewrite (info->cmd_pipe[1], (char*)&command, sizeof(int));
 }
+
+#else
+
+int
+block_tx_client_start (BlockTxInfo *info, BlockTxClientDoneCB cb)
+{
+    return 0;
+}
+
+void
+block_tx_client_run_command (BlockTxInfo *info, int command)
+{
+    return;
+}
+
+#endif

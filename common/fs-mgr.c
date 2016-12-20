@@ -12,7 +12,6 @@
     #include <arpa/inet.h>
 #endif
 
-#include <openssl/sha.h>
 #include <searpc-utils.h>
 
 #include "seafile-session.h"

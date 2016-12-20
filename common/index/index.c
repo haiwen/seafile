@@ -22,7 +22,6 @@
 
 #include <glib.h>
 #include <glib/gstdio.h>
-#include <openssl/sha.h>
 
 #ifdef WIN32
 

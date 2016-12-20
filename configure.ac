@@ -77,7 +77,6 @@ fi
 
 AC_CHECK_LIB(pthread, pthread_create, [echo "found library pthread"], AC_MSG_ERROR([*** Unable to find pthread library]), )
 AC_CHECK_LIB(sqlite3, sqlite3_open,[echo "found library sqlite3"] , AC_MSG_ERROR([*** Unable to find sqlite3 library]), )
-AC_CHECK_LIB(crypto, SHA1_Init, [echo "found library crypto"], AC_MSG_ERROR([*** Unable to find openssl crypto library]), )
 
 dnl Do we need to use AX_LIB_SQLITE3 to check sqlite?
 dnl AX_LIB_SQLITE3
@@ -157,10 +156,7 @@ SEARPC_REQUIRED=1.0
 JANSSON_REQUIRED=2.2.1
 CURL_REQUIRED=7.17
 ZLIB_REQUIRED=1.2.0
-
-PKG_CHECK_MODULES(SSL, [openssl])
-AC_SUBST(SSL_CFLAGS)
-AC_SUBST(SSL_LIBS)
+GNUTLS_REQUIRED=3.3.0
 
 PKG_CHECK_MODULES(GLIB2, [glib-2.0 >= $GLIB_REQUIRED])
 AC_SUBST(GLIB2_CFLAGS)
@@ -218,6 +214,29 @@ if test "${compile_breakpad}" = "yes"; then
    AC_SUBST(BPWRAPPER_LIBS)
 fi
 
+AC_ARG_WITH([gpl-crypto],
+            AS_HELP_STRING([--with-gpl-crypto=[yes|no]],
+                [Use GPL compatible crypto libraries. Default no.]),
+            [ gpl_crypto=$with_gpl_crypto ],
+            [ gpl_crypto="no"])
+if test "xyes" = "x$gpl_crypto"; then
+   PKG_CHECK_MODULES(GNUTLS, [gnutls >= $GNUTLS_REQUIRED])
+   AC_SUBST(GNUTLS_CFLAGS)
+   AC_SUBST(GNUTLS_LIBS)
+
+   PKG_CHECK_MODULES(NETTLE, [nettle])
+   AC_SUBST(NETTLE_CFLAGS)
+   AC_SUBST(NETTLE_LIBS)
+
+   AC_DEFINE(USE_GPL_CRYPTO, 1, [Use GPL-compatible crypto libraries])
+   AM_CONDITIONAL([USE_GPL_CRYPTO], [test "x$gpl_crypto" = "xyes"])
+else
+   AC_CHECK_LIB(crypto, SHA1_Init, [echo "found library crypto"], AC_MSG_ERROR([*** Unable to find openssl crypto library]), )
+
+   PKG_CHECK_MODULES(SSL, [openssl])
+   AC_SUBST(SSL_CFLAGS)
+   AC_SUBST(SSL_LIBS)
+fi
 
 ac_configure_args="$ac_configure_args -q"
 

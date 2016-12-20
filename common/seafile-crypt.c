@@ -1,9 +1,20 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include "common.h"
+
 #include <string.h>
 #include <glib.h>
 #include "seafile-crypt.h"
+
+#ifdef USE_GPL_CRYPTO
+#include <gnutls/gnutls.h>
+#include <gnutls/crypto.h>
+#include <nettle/pbkdf2.h>
+#else
+#include <openssl/aes.h>
+#include <openssl/evp.h>
 #include <openssl/rand.h>
+#endif
 
 #include "utils.h"
 #include "log.h"
@@ -39,6 +50,18 @@ int
 seafile_derive_key (const char *data_in, int in_len, int version,
                     unsigned char *key, unsigned char *iv)
 {
+#ifdef USE_GPL_CRYPTO
+    if (version != 2) {
+        seaf_warning ("Encrypted library version %d is not supported.\n", version);
+        return -1;
+    }
+
+    pbkdf2_hmac_sha256 (in_len, (const guchar *)data_in, KEYGEN_ITERATION2,
+                        sizeof(salt), salt, 32, key);
+    pbkdf2_hmac_sha256 (32, (const guchar *)key, 10, sizeof(salt), salt, 16, iv);
+
+    return 0;
+#else
     if (version == 2) {
         PKCS5_PBKDF2_HMAC (data_in, in_len,
                            salt, sizeof(salt),
@@ -51,27 +74,31 @@ seafile_derive_key (const char *data_in, int in_len, int version,
                            EVP_sha256(),
                            16, iv);
         return 0;
-    } else if (version == 1)
-        return EVP_BytesToKey (EVP_aes_128_cbc(), /* cipher mode */
-                               EVP_sha1(),        /* message digest */
-                               salt,              /* salt */
-                               (unsigned char*)data_in,
-                               in_len,
-                               KEYGEN_ITERATION,   /* iteration times */
-                               key, /* the derived key */
-                               iv); /* IV, initial vector */
-    else
-        return EVP_BytesToKey (EVP_aes_128_ecb(), /* cipher mode */
-                               EVP_sha1(),        /* message digest */
-                               NULL,              /* salt */
-                               (unsigned char*)data_in,
-                               in_len,
-                               3,   /* iteration times */
-                               key, /* the derived key */
-                               iv); /* IV, initial vector */
+    } else if (version == 1) {
+        EVP_BytesToKey (EVP_aes_128_cbc(), /* cipher mode */
+                        EVP_sha1(),        /* message digest */
+                        salt,              /* salt */
+                        (unsigned char*)data_in,
+                        in_len,
+                        KEYGEN_ITERATION,   /* iteration times */
+                        key, /* the derived key */
+                        iv); /* IV, initial vector */
+        return 0;
+    } else {
+        EVP_BytesToKey (EVP_aes_128_ecb(), /* cipher mode */
+                        EVP_sha1(),        /* message digest */
+                        NULL,              /* salt */
+                        (unsigned char*)data_in,
+                        in_len,
+                        3,   /* iteration times */
+                        key, /* the derived key */
+                        iv); /* IV, initial vector */
+        return 0;
+    }
+#endif
 }
 
-void
+int
 seafile_generate_random_key (const char *passwd, char *random_key)
 {
     SeafileCrypt *crypt;
@@ -79,11 +106,18 @@ seafile_generate_random_key (const char *passwd, char *random_key)
     int outlen;
     unsigned char key[32], iv[16];
 
+#ifdef USE_GPL_CRYPTO
+    if (gnutls_rnd (GNUTLS_RND_RANDOM, secret_key, sizeof(secret_key)) < 0) {
+        seaf_warning ("Failed to generate secret key for repo encryption.\n");
+        return -1;
+    }
+#else
     if (RAND_bytes (secret_key, sizeof(secret_key)) != 1) {
         seaf_warning ("Failed to generate secret key for repo encryption "
                       "with RAND_bytes(), use RAND_pseudo_bytes().\n");
         RAND_pseudo_bytes (secret_key, sizeof(secret_key));
     }
+#endif
 
     seafile_derive_key (passwd, strlen(passwd), 2, key, iv);
 
@@ -96,6 +130,8 @@ seafile_generate_random_key (const char *passwd, char *random_key)
 
     g_free (crypt);
     g_free (rand_key);
+
+    return 0;
 }
 
 void
@@ -237,6 +273,121 @@ seafile_update_random_key (const char *old_passwd, const char *old_random_key,
     return 0;
 }
 
+#ifdef USE_GPL_CRYPTO
+
+int
+seafile_encrypt (char **data_out,
+                 int *out_len,
+                 const char *data_in,
+                 const int in_len,
+                 SeafileCrypt *crypt)
+{
+    char *buf = NULL, *enc_buf = NULL;
+    int buf_size, remain;
+    guint8 padding;
+    gnutls_cipher_hd_t handle;
+    gnutls_datum_t key, iv;
+    int rc, ret = 0;
+
+    buf_size = BLK_SIZE * ((in_len / BLK_SIZE) + 1);
+    remain = buf_size - in_len;
+    buf = g_new (char, buf_size);
+
+    memcpy (buf, data_in, in_len);
+    padding = (guint8)remain;
+    memset (buf + in_len, padding, remain);
+
+    key.data = crypt->key;
+    key.size = sizeof(crypt->key);
+    iv.data = crypt->iv;
+    iv.size = sizeof(crypt->iv);
+    rc = gnutls_cipher_init (&handle, GNUTLS_CIPHER_AES_256_CBC, &key, &iv);
+    if (rc < 0) {
+        seaf_warning ("Failed to init cipher: %s\n", gnutls_strerror(rc));
+        ret = -1;
+        goto out;
+    }
+
+    enc_buf = g_new (char, buf_size);
+    rc = gnutls_cipher_encrypt2 (handle, buf, buf_size, enc_buf, buf_size);
+    if (rc < 0) {
+        seaf_warning ("Failed to encrypt: %s\n", gnutls_strerror(rc));
+        ret = -1;
+        gnutls_cipher_deinit (handle);
+        goto out;
+    }
+
+    gnutls_cipher_deinit (handle);
+
+out:
+    g_free (buf);
+    if (ret < 0) {
+        g_free (enc_buf);
+        *data_out = NULL;
+        *out_len = -1;
+    } else {
+        *data_out = enc_buf;
+        *out_len = buf_size;
+    }
+    return ret;
+}
+
+int
+seafile_decrypt (char **data_out,
+                 int *out_len,
+                 const char *data_in,
+                 const int in_len,
+                 SeafileCrypt *crypt)
+{
+    char *dec_buf = NULL;
+    gnutls_cipher_hd_t handle;
+    gnutls_datum_t key, iv;
+    int rc, ret = 0;
+    guint8 padding;
+    int remain;
+
+    if (in_len <= 0 || in_len % BLK_SIZE != 0) {
+        seaf_warning ("Invalid encrypted buffer size.\n");
+        return -1;
+    }
+
+    key.data = crypt->key;
+    key.size = sizeof(crypt->key);
+    iv.data = crypt->iv;
+    iv.size = sizeof(crypt->iv);
+    rc = gnutls_cipher_init (&handle, GNUTLS_CIPHER_AES_256_CBC, &key, &iv);
+    if (rc < 0) {
+        seaf_warning ("Failed to init cipher: %s\n", gnutls_strerror(rc));
+        ret = -1;
+        goto out;
+    }
+
+    dec_buf = g_new (char, in_len);
+    rc = gnutls_cipher_decrypt2 (handle, data_in, in_len, dec_buf, in_len);
+    if (rc < 0) {
+        seaf_warning ("Failed to decrypt data: %s\n", gnutls_strerror(rc));
+        ret = -1;
+        gnutls_cipher_deinit (handle);
+        goto out;
+    }
+
+    padding = dec_buf[in_len - 1];
+    remain = padding;
+    *out_len = (in_len - remain);
+    *data_out = dec_buf;
+
+    gnutls_cipher_deinit (handle);
+out:
+    if (ret < 0) {
+        g_free (dec_buf);
+        *data_out = NULL;
+        *out_len = -1;
+    }
+    return ret;
+}
+
+#else
+
 int
 seafile_encrypt (char **data_out,
                  int *out_len,
@@ -342,9 +493,6 @@ enc_error:
     
 }
                                
-
-    
-
 int
 seafile_decrypt (char **data_out,
                  int *out_len,
@@ -443,38 +591,4 @@ dec_error:
     
 }
 
-int
-seafile_decrypt_init (EVP_CIPHER_CTX *ctx,
-                      int version,
-                      const unsigned char *key,
-                      const unsigned char *iv)
-{
-    int ret;
-
-    /* Prepare CTX for decryption. */
-    EVP_CIPHER_CTX_init (ctx);
-
-    if (version == 2)
-        ret = EVP_DecryptInit_ex (ctx,
-                                  EVP_aes_256_cbc(), /* cipher mode */
-                                  NULL, /* engine, NULL for default */
-                                  key,  /* derived key */
-                                  iv);  /* initial vector */
-    else if (version == 1)
-        ret = EVP_DecryptInit_ex (ctx,
-                                  EVP_aes_128_cbc(), /* cipher mode */
-                                  NULL, /* engine, NULL for default */
-                                  key,  /* derived key */
-                                  iv);  /* initial vector */
-    else
-        ret = EVP_DecryptInit_ex (ctx,
-                                  EVP_aes_128_ecb(), /* cipher mode */
-                                  NULL, /* engine, NULL for default */
-                                  key,  /* derived key */
-                                  iv);  /* initial vector */
-
-    if (ret == DEC_FAILURE)
-        return -1;
-
-    return 0;
-}
+#endif  /* USE_GPL_CRYPTO */

@@ -14,10 +14,12 @@
 #include <wincrypt.h>
 #endif
 
+#ifndef USE_GPL_CRYPTO
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
+#endif
 
 #include <ccnet/ccnet-client.h>
 
@@ -326,6 +328,8 @@ http_tx_manager_start (HttpTxManager *mgr)
 
 /* Common Utility Functions. */
 
+#ifndef USE_GPL_CRYPTO
+
 #ifdef WIN32
 
 static void
@@ -559,6 +563,8 @@ ssl_callback (CURL *curl, void *ssl_ctx, void *userptr)
     return CURLE_OK;
 }
 
+#endif  /* USE_GPL_CRYPTO */
+
 static void
 set_proxy (CURL *curl, gboolean is_https)
 {
@@ -715,14 +721,18 @@ http_get (CURL *curl, const char *url, const char *token,
 
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
+#ifndef USE_GPL_CRYPTO
 #if defined WIN32 || defined __APPLE__
     load_ca_bundle (curl);
 #endif
+#endif
 
+#ifndef USE_GPL_CRYPTO
     if (!seaf->disable_verify_certificate) {
         curl_easy_setopt (curl, CURLOPT_SSL_CTX_FUNCTION, ssl_callback);
         curl_easy_setopt (curl, CURLOPT_SSL_CTX_DATA, url);
     }
+#endif
 
 #ifdef WIN32
     curl_easy_setopt (curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
@@ -852,14 +862,18 @@ http_put (CURL *curl, const char *url, const char *token,
 
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
 
+#ifndef USE_GPL_CRYPTO
 #if defined WIN32 || defined __APPLE__
     load_ca_bundle (curl);
 #endif
+#endif
 
+#ifndef USE_GPL_CRYPTO
     if (!seaf->disable_verify_certificate) {
         curl_easy_setopt (curl, CURLOPT_SSL_CTX_FUNCTION, ssl_callback);
         curl_easy_setopt (curl, CURLOPT_SSL_CTX_DATA, url);
     }
+#endif
 
 #ifdef WIN32
     curl_easy_setopt (curl, CURLOPT_SOCKOPTFUNCTION, sockopt_callback);
@@ -952,14 +966,18 @@ http_post (CURL *curl, const char *url, const char *token,
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, &rsp);
     }
 
+#ifndef USE_GPL_CRYPTO
 #if defined WIN32 || defined __APPLE__
     load_ca_bundle (curl);
 #endif
+#endif
 
+#ifndef USE_GPL_CRYPTO
     if (!seaf->disable_verify_certificate) {
         curl_easy_setopt (curl, CURLOPT_SSL_CTX_FUNCTION, ssl_callback);
         curl_easy_setopt (curl, CURLOPT_SSL_CTX_DATA, url);
     }
+#endif
 
     gboolean is_https = (strncasecmp(url, "https", strlen("https")) == 0);
     set_proxy (curl, is_https);

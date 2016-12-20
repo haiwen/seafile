@@ -1,19 +1,7 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
-/*
-  Description:
-  
-  The function pair "seafile_encrypt/seafile_decrypt" are used to
-  encrypt/decrypt data in the seafile system, using AES 128 bit ecb
-  algorithm provided by openssl.
-*/  
-
 #ifndef _SEAFILE_CRYPT_H
 #define _SEAFILE_CRYPT_H
-
-#include <openssl/aes.h>
-#include <openssl/evp.h>
-
 
 /* Block size, in bytes. For AES it can only be 16 bytes. */
 #define BLK_SIZE 16
@@ -60,7 +48,7 @@ seafile_derive_key (const char *data_in, int in_len, int version,
  * Generate the real key used to encrypt data.
  * The key 32 bytes long and encrpted with @passwd.
  */
-void
+int
 seafile_generate_random_key (const char *passwd, char *random_key);
 
 void
@@ -96,11 +84,5 @@ seafile_decrypt (char **data_out,
                  const char *data_in,
                  const int in_len,
                  SeafileCrypt *crypt);
-
-int
-seafile_decrypt_init (EVP_CIPHER_CTX *ctx,
-                      int version,
-                      const unsigned char *key,
-                      const unsigned char *iv);
 
 #endif  /* _SEAFILE_CRYPT_H */

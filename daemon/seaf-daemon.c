@@ -32,7 +32,9 @@
 #include "utils.h"
 #include "vc-utils.h"
 #include "seafile-config.h"
+#ifndef USE_GPL_CRYPTO
 #include "curl-init.h"
+#endif
 
 #include "cdc/cdc.h"
 
@@ -561,13 +563,17 @@ main (int argc, char **argv)
 
     set_signal_handlers (seaf);
 
+#ifndef USE_GPL_CRYPTO
     seafile_curl_init();
+#endif
     seafile_session_prepare (seaf);
     seafile_session_start (seaf);
 
     seafile_session_config_set_string (seaf, "wktree", seaf->worktree_dir);
     ccnet_main (client);
+#ifndef USE_GPL_CRYPTO
     seafile_curl_deinit();
+#endif
 
     return 0;
 }

@@ -2,6 +2,8 @@
 
 #include "common.h"
 
+#ifndef USE_GPL_CRYPTO
+
 #include <string.h>
 #include <ccnet.h>
 #include <openssl/aes.h>
@@ -329,3 +331,5 @@ handle_response (CcnetProcessor *processor,
         ccnet_processor_done (processor, FALSE);
     }
 }
+
+#endif

@@ -477,6 +477,15 @@ seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
         return -1;
     }
 
+#ifdef USE_GPL_CRYPTO
+    if (repo->version == 0 || (repo->encrypted && repo->enc_version < 2)) {
+        seaf_warning ("Don't support syncing old version libraries.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Don't support syncing old version libraries");
+        return -1;
+    }
+#endif
+
     SyncInfo *info = get_sync_info (mgr, repo->id);
 
     if (info->in_sync)
@@ -2776,6 +2785,12 @@ auto_sync_pulse (void *vmanager)
         }
 
         repo->worktree_invalid = FALSE;
+
+#ifdef USE_GPL_CRYPTO
+        if (repo->version == 0 || (repo->encrypted && repo->enc_version < 2)) {
+            continue;
+        }
+#endif
 
         if (!repo->token) {
             /* If the user has logged out of the account, the repo token would

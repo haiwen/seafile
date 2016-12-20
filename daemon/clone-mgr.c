@@ -1416,6 +1416,15 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         return NULL;
     }
 
+#ifdef USE_GPL_CRYPTO
+    if (repo_version == 0 || (passwd && enc_version < 2)) {
+        seaf_warning ("Don't support syncing old version libraries.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Don't support syncing old version libraries");
+        return NULL;
+    }
+#endif
+
     if (passwd &&
         !check_encryption_args (magic, enc_version, random_key, error))
         return NULL;
@@ -1534,6 +1543,15 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         return NULL;
     }
 
+#ifdef USE_GPL_CRYPTO
+    if (repo_version == 0 || (passwd && enc_version < 2)) {
+        seaf_warning ("Don't support syncing old version libraries.\n");
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Don't support syncing old version libraries");
+        return NULL;
+    }
+#endif
+
     if (passwd &&
         !check_encryption_args (magic, enc_version, random_key, error))
         return NULL;
@@ -1556,7 +1574,7 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Repo already exists");
         return NULL;
-    }   
+    }
 
     if (is_duplicate_task (mgr, repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, 
