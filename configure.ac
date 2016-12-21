@@ -229,7 +229,6 @@ if test "xyes" = "x$gpl_crypto"; then
    AC_SUBST(NETTLE_LIBS)
 
    AC_DEFINE(USE_GPL_CRYPTO, 1, [Use GPL-compatible crypto libraries])
-   AM_CONDITIONAL([USE_GPL_CRYPTO], [test "x$gpl_crypto" = "xyes"])
 else
    AC_CHECK_LIB(crypto, SHA1_Init, [echo "found library crypto"], AC_MSG_ERROR([*** Unable to find openssl crypto library]), )
 
