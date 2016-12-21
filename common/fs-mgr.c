@@ -634,6 +634,7 @@ seafile_write_chunk (const char *repo_id,
         }
 
         g_checksum_update (ctx, (unsigned char *)encrypted_buf, enc_len);
+        g_checksum_get_digest (ctx, checksum, &len);
 
         if (write_data)
             ret = do_write_chunk (repo_id, version, checksum, encrypted_buf, enc_len);
@@ -641,12 +642,12 @@ seafile_write_chunk (const char *repo_id,
     } else {
         /* not a encrypted repo, go ahead */
         g_checksum_update (ctx, (unsigned char *)chunk->block_buf, chunk->len);
+        g_checksum_get_digest (ctx, checksum, &len);
 
         if (write_data)
             ret = do_write_chunk (repo_id, version, checksum, chunk->block_buf, chunk->len);
     }
 
-    g_checksum_get_digest (ctx, checksum, &len);
     g_checksum_free (ctx);
 
     return ret;
