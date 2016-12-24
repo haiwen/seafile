@@ -1,6 +1,11 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
 #include "common.h"
+
+#include "block-tx-client.h"
+
+#ifndef USE_GPL_CRYPTO
+
 #define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
 #include "log.h"
 
@@ -15,7 +20,6 @@
 #include <ccnet/job-mgr.h>
 
 #include "seafile-session.h"
-#include "block-tx-client.h"
 #include "block-tx-utils.h"
 #include "utils.h"
 
@@ -1028,8 +1032,6 @@ block_tx_client_thread_done (void *vdata)
 
     g_free (client);
 }
-
-#ifndef USE_GPL_CRYPTO
 
 int
 block_tx_client_start (BlockTxInfo *info, BlockTxClientDoneCB cb)
