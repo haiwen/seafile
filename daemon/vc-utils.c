@@ -736,7 +736,7 @@ checkout_entry (struct cache_entry *ce,
     gboolean force_conflict = FALSE;
 
     path_in = g_build_path ("/", o->base, ce->name, NULL);
-#ifndef __linux__
+#if defined WIN32 || defined __APPLE__
     path = build_case_conflict_free_path (o->base, ce->name,
                                           conflict_hash, no_conflict_hash,
                                           &case_conflict,
