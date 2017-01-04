@@ -849,6 +849,7 @@ transition_state (CloneTask *task, int new_state)
     }
 
     task->state = new_state;
+    task->error = 0;
 }
 
 static void
