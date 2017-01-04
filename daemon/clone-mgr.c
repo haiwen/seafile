@@ -700,6 +700,7 @@ static int check_connect_pulse (void *vmanager)
         if (task->state == CLONE_STATE_ERROR && task->repo_version > 0) {
             g_free (task->err_detail);
             task->err_detail = NULL;
+            task->error = 0;
             check_http_protocol (task);
         } else if (task->state == CLONE_STATE_CONNECT) {
             continue_task_when_peer_connected (task);
