@@ -250,6 +250,8 @@ AC_CONFIG_FILES(
     daemon/Makefile
     app/Makefile
     doc/Makefile
+    python/Makefile
+    python/seafile/Makefile
 )
 
 AC_OUTPUT
