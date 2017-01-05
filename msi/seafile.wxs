@@ -41,10 +41,6 @@
 
       <Directory Id='ProgramFilesFolder' Name='PFiles'>
         <Directory Id='INSTALLDIR' Name='!(loc.AppName)'>
-          <Component Id="comp_manual" KeyPath="yes" Guid="$(var.GuidOfManualComponent)">
-            <File Id="manual.txt" Name="!(loc.UserManualName)" Source="!(loc.UserManualSource)" />
-          </Component>
-
           <Directory Id='bin_Dir' Name='bin'>
             <Component Id='comp_custom' Guid="$(var.GuidOfCustomComponent)">
               <RegistryKey Root="HKCU" Key="Software\[Manufacturer]\[ProductName]" Action="createAndRemoveOnUninstall">
@@ -143,7 +139,6 @@
       <ComponentRef Id='Seafile_StartMenuShortCut' />
       <ComponentRef Id="SeafileAutoStart" />
       <ComponentRef Id='comp_custom' />
-      <ComponentRef Id='comp_manual' />
       <!-- defined in fragment.wxs -->
       <ComponentGroupRef Id='group_bin' />
       <!-- defined in shell.wxs -->

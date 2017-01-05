@@ -118,7 +118,6 @@
   <?define ShellGuidIconLockedByOthers="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE612" ?>
 
   <?define GuidOfShellExtComponent="A2B35A93-F6DD-4524-BFF1-158C81011E93" ?>
-  <?define GuidOfManualComponent="F0CC8900-F8B9-11E1-83FD-000C295059FB" ?>
   <?define GuidOfCustomComponent="A8CD54F6-9BFB-11E1-9B0E-001CBFC5CA1D" ?>
   <?define GuidOfAutoStartComponent="FED41B85-BA5A-4C95-8ABF-4A35852EE04E" ?>
   <?define GuidOfStartMenuShortCutComponent="F1662C95-6C0A-4CDD-B009-C5E66A4F8C80" ?>

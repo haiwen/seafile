@@ -6,8 +6,6 @@
   <String Id="PackageComments">Seafile Installation</String>
   <String Id="Manufacturer">HaiWenHuZhi ltd.</String>
   <String Id="DowngradeErrorMessage">Eine neuere Version von Seafile wurde auf Ihrem System gefunden. Die Installation wird jetzt beendet</String>
-  <String Id="UserManualName">Seafile help.txt</String>
-  <String Id="UserManualSource">manual.de.txt</String>
   <String Id="UninstallSeafile">Seafile deinstallieren</String>
   <String Id="StartSeafile">Seafile starten</String>
   <String Id="AutoStartText">Seafile beim Systemstart ausführen</String>
