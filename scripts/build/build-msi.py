@@ -25,6 +25,7 @@ if sys.version_info[1] < 6:
     print 'Python 2.6 or above is required. Quit now.'
     sys.exit(1)
 
+import multiprocessing
 import os
 import glob
 import shutil
@@ -260,6 +261,9 @@ class Project(object):
 def get_make_path():
     return find_in_path('make.exe')
 
+def concurrent_make():
+    return '%s -j%s' % (get_make_path(), multiprocessing.cpu_count())
+
 class Libsearpc(Project):
     name = 'libsearpc'
 
@@ -267,7 +271,7 @@ class Libsearpc(Project):
         Project.__init__(self)
         self.build_commands = [
             'sh ./configure --prefix=%s --disable-compile-demo' % to_mingw_path(self.prefix),
-            get_make_path(),
+            concurrent_make(),
             '%s install' % get_make_path(),
         ]
 
@@ -281,7 +285,7 @@ class Ccnet(Project):
         Project.__init__(self)
         self.build_commands = [
             'sh ./configure --prefix=%s --disable-compile-demo' % to_mingw_path(self.prefix),
-            get_make_path(),
+            concurrent_make(),
             '%s install' % get_make_path(),
         ]
 
@@ -305,7 +309,7 @@ class Seafile(Project):
             enable_breakpad = ''
         self.build_commands = [
             'sh ./configure %s --prefix=%s' % (enable_breakpad, to_mingw_path(self.prefix)),
-            get_make_path(),
+            concurrent_make(),
             '%s install' % get_make_path(),
         ]
 
@@ -334,7 +338,7 @@ class SeafileClient(Project):
             'CMAKE_EXE_LINKER_FLAGS_RELEASE': '-L%s' % (os.path.join(seafile_prefix, 'lib') if ninja else to_mingw_path(os.path.join(seafile_prefix, 'lib'))),
         }
         flags = ' '.join(['-D%s=%s' % (k, v) for k, v in flags.iteritems()])
-        make = ninja or get_make_path()
+        make = ninja or concurrent_make()
         self.build_commands = [
             'cmake -G "%s" %s -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%s .' % (generator, flags, to_mingw_path(self.prefix)),
             make,
