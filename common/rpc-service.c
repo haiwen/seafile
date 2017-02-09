@@ -55,11 +55,11 @@ convert_repo (SeafRepo *r)
                   "magic", r->magic, "enc_version", r->enc_version,
                   "head_cmmt_id", r->head ? r->head->commit_id : NULL,
                   "root", r->root_id,
-                  "version", r->version, "last_modify", r->last_modify,
+                  "version", r->version, "last_modify", (int)r->last_modify,
                   NULL);
     g_object_set (repo,
                   "repo_id", r->id, "repo_name", r->name,
-                  "repo_desc", r->desc, "last_modified", r->last_modify,
+                  "repo_desc", r->desc, "last_modified", (int)r->last_modify,
                   NULL);
 
 #ifdef SEAFILE_SERVER
@@ -459,20 +459,20 @@ convert_task (TransferTask *task)
         g_object_set (t, "ttype", "download", NULL);
         if (task->runtime_state == TASK_RT_STATE_DATA) {
             if (task->protocol_version >= 7)
-                g_object_set (t, "block_total", task->n_to_download,
-                              "block_done", transfer_task_get_done_blocks (task),
+                g_object_set (t, "block_total", (gint64)task->n_to_download,
+                              "block_done", (gint64)transfer_task_get_done_blocks (task),
                               NULL);
             else
-                g_object_set (t, "block_total", task->block_list->n_blocks,
-                              "block_done", transfer_task_get_done_blocks (task),
+                g_object_set (t, "block_total", (gint64)task->block_list->n_blocks,
+                              "block_done", (gint64)transfer_task_get_done_blocks (task),
                               NULL);
             g_object_set (t, "rate", transfer_task_get_rate(task), NULL);
         }
     } else {
         g_object_set (t, "ttype", "upload", NULL);
         if (task->runtime_state == TASK_RT_STATE_DATA) {
-            g_object_set (t, "block_total", task->block_list->n_blocks,
-                          "block_done", transfer_task_get_done_blocks (task),
+            g_object_set (t, "block_total", (gint64)task->block_list->n_blocks,
+                          "block_done", (gint64)transfer_task_get_done_blocks (task),
                           NULL);
             g_object_set (t, "rate", transfer_task_get_rate(task), NULL);
         }
@@ -496,8 +496,8 @@ convert_http_task (HttpTxTask *task)
     if (task->type == HTTP_TASK_TYPE_DOWNLOAD) {
         g_object_set (t, "ttype", "download", NULL);
         if (task->runtime_state == HTTP_TASK_RT_STATE_BLOCK) {
-            g_object_set (t, "block_total", task->n_files,
-                          "block_done", task->done_files,
+            g_object_set (t, "block_total", (gint64)task->n_files,
+                          "block_done", (gint64)task->done_files,
                           NULL);
             g_object_set (t, "rate", http_tx_task_get_rate(task), NULL);
         } else if (task->runtime_state == HTTP_TASK_RT_STATE_FS) {
@@ -514,8 +514,8 @@ convert_http_task (HttpTxTask *task)
                               "block_done", info->uploaded_bytes,
                               NULL);
             } else {
-                g_object_set (t, "block_total", task->n_blocks,
-                              "block_done", task->done_blocks,
+                g_object_set (t, "block_total", (gint64)task->n_blocks,
+                              "block_done", (gint64)task->done_blocks,
                               NULL);
             }
             g_object_set (t, "rate", http_tx_task_get_rate(task), NULL);
