@@ -60,6 +60,7 @@ CONF_QT5                = 'qt5'
 CONF_WITH_SHIB          = 'with_shib'
 CONF_BRAND              = 'brand'
 CONF_CERTFILE           = 'certfile'
+CONF_NO_STRIP           = 'nostrip'
 
 ####################
 ### Common helper functions
@@ -329,18 +330,21 @@ class SeafileClient(Project):
         ninja = find_in_path('ninja.exe')
         seafile_prefix = Seafile().prefix
         generator = 'Ninja' if ninja else 'MSYS Makefiles'
+        build_type = 'Debug' if conf[CONF_DEBUG] else 'Release'
         flags = {
             'USE_QT5': 'ON' if conf[CONF_QT5] else 'OFF',
             'BUILD_SHIBBOLETH_SUPPORT': 'ON' if conf[CONF_WITH_SHIB] else 'OFF',
+            'CMAKE_BUILD_TYPE': build_type,
+            'CMAKE_INSTALL_PREFIX': to_mingw_path(self.prefix),
             # ninja invokes cmd.exe which doesn't support msys/mingw path
             # change the value but don't override CMAKE_EXE_LINKER_FLAGS,
             # which is in use
-            'CMAKE_EXE_LINKER_FLAGS_RELEASE': '-L%s' % (os.path.join(seafile_prefix, 'lib') if ninja else to_mingw_path(os.path.join(seafile_prefix, 'lib'))),
+            'CMAKE_EXE_LINKER_FLAGS_%s' % build_type.upper(): '-L%s' % (os.path.join(seafile_prefix, 'lib') if ninja else to_mingw_path(os.path.join(seafile_prefix, 'lib'))),
         }
-        flags = ' '.join(['-D%s=%s' % (k, v) for k, v in flags.iteritems()])
+        flags_str = ' '.join(['-D%s=%s' % (k, v) for k, v in flags.iteritems()])
         make = ninja or concurrent_make()
         self.build_commands = [
-            'cmake -G "%s" %s -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=%s .' % (generator, flags, to_mingw_path(self.prefix)),
+            'cmake -G "%s" %s .' % (generator, flags_str),
             make,
             '%s install' % make,
             "bash extensions/build.sh",
@@ -419,6 +423,9 @@ def validate_args(usage, options):
     # [ no strip]
     debug = get_option(CONF_DEBUG)
 
+    # [ no strip]
+    nostrip = get_option(CONF_NO_STRIP)
+
     # [only chinese]
     onlychinese = get_option(CONF_ONLY_CHINESE)
 
@@ -448,7 +455,8 @@ def validate_args(usage, options):
     conf[CONF_SRCDIR] = srcdir
     conf[CONF_OUTPUTDIR] = outputdir
     conf[CONF_KEEP] = True
-    conf[CONF_DEBUG] = debug
+    conf[CONF_DEBUG] = debug or nostrip
+    conf[CONF_NO_STRIP] = debug or nostrip
     conf[CONF_ONLY_CHINESE] = onlychinese
     conf[CONF_QT_ROOT] = qt_root
     conf[CONF_QT5] = qt5
@@ -581,6 +589,11 @@ def parse_args():
                       default=None,
                       dest=CONF_CERTFILE,
                       help='''The cert for signing the executables and the installer.''')
+
+    parser.add_option(long_opt(CONF_NO_STRIP),
+                      dest=CONF_NO_STRIP,
+                      action='store_true',
+                      help='''do not strip the symbols.''')
 
     usage = parser.format_help()
     options, remain = parser.parse_args()
@@ -885,7 +898,10 @@ def build_msi():
     prepare_msi()
     if breakpad_enabled():
         generate_breakpad_symbols()
-    strip_symbols()
+    if conf[CONF_DEBUG] or conf[CONF_NO_STRIP]:
+        info('Would not strip exe/dll symbols since --debug or --nostrip is specified')
+    else:
+        strip_symbols()
 
     # Only sign the exectuables after stripping symbols.
     if need_sign():
