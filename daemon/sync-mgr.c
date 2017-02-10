@@ -3331,8 +3331,10 @@ seaf_sync_manager_get_path_sync_status (SeafSyncManager *mgr,
 
     /* If the repo is in error, all files in it should show no sync status. */
     sync_info = get_sync_info (mgr, repo_id);
-    if (sync_info && sync_info->in_error)
-        return SYNC_STATUS_NONE;
+    if (sync_info && sync_info->in_error) {
+        ret = SYNC_STATUS_NONE;
+        goto out;
+    }
 
     pthread_mutex_lock (&mgr->priv->paths_lock);
 

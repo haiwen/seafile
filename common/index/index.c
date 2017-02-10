@@ -98,20 +98,6 @@ static int verify_hdr(struct cache_header *hdr, unsigned long size)
     return 0;
 }
 
-static inline size_t estimate_cache_size(size_t ondisk_size, unsigned int entries)
-{
-    long per_entry;
-
-    per_entry = sizeof(struct cache_entry) - sizeof(struct ondisk_cache_entry);
-
-    /*
-     * Alignment can cause differences. This should be "alignof", but
-     * since that's a gcc'ism, just use the size of a pointer.
-     */
-    per_entry += sizeof(void *);
-    return ondisk_size + entries*per_entry;
-}
-
 static int convert_from_disk(struct ondisk_cache_entry *ondisk, struct cache_entry **ce)
 {
     size_t len;
@@ -477,20 +463,6 @@ void mark_all_ce_unused(struct index_state *index)
         index->cache[i]->ce_flags &= ~(CE_UNPACKED | CE_ADDED | CE_NEW_SKIP_WORKTREE);
 }
 
-
-static int is_empty_blob_sha1(const unsigned char *sha1)
-{
-    /* static const unsigned char empty_blob_sha1[20] = { */
-    /*     0xe6,0x9d,0xe2,0x9b,0xb2,0xd1,0xd6,0x43,0x4b,0x8b, */
-    /*     0x29,0xae,0x77,0x5a,0xd8,0xc2,0xe4,0x8c,0x53,0x91 */
-    /* }; */
-
-    static const unsigned char empty_blob_sha1[20] = {
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-    };
-    return !hashcmp(sha1, empty_blob_sha1);
-}
 
 static int ce_match_stat_basic(struct cache_entry *ce, SeafStat *st)
 {
@@ -1948,38 +1920,6 @@ static void ce_smudge_racily_clean_entry(struct cache_entry *ce)
     ce->ce_size = 0;
 }
 #endif
-
-static int ce_write_entry(WriteIndexInfo *info, int fd, struct cache_entry *ce)
-{
-    int size = ondisk_ce_size(ce);
-    struct ondisk_cache_entry *ondisk = calloc(1, size);
-    char *name;
-    int result;
-
-    ondisk->ctime.sec = htonl((unsigned int)ce->ce_ctime.sec);
-    ondisk->mtime.sec = htonl((unsigned int)ce->ce_mtime.sec);
-    ondisk->dev  = htonl(ce->ce_dev);
-    ondisk->ino  = htonl(ce->ce_ino);
-    ondisk->mode = htonl(ce->ce_mode);
-    ondisk->uid  = htonl(ce->ce_uid);
-    ondisk->gid  = htonl(ce->ce_gid);
-    ondisk->size = hton64(ce->ce_size);
-    hashcpy(ondisk->sha1, ce->sha1);
-    ondisk->flags = htons(ce->ce_flags);
-    /* if (ce->ce_flags & CE_EXTENDED) { */
-    /*     struct ondisk_cache_entry_extended *ondisk2; */
-    /*     ondisk2 = (struct ondisk_cache_entry_extended *)ondisk; */
-    /*     ondisk2->flags2 = htons((ce->ce_flags & CE_EXTENDED_FLAGS) >> 16); */
-    /*     name = ondisk2->name; */
-    /* } */
-    /* else */
-    name = ondisk->name;
-    memcpy(name, ce->name, ce_namelen(ce));
-
-    result = ce_write(info, fd, ondisk, size);
-    free(ondisk);
-    return result;
-}
 
 static int ce_write_entry2(WriteIndexInfo *info, int fd, struct cache_entry *ce)
 {

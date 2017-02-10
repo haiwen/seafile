@@ -554,11 +554,7 @@ load_more_info_cb (sqlite3_stmt *stmt, void *data)
     more_info = (const char *)sqlite3_column_text (stmt, 0);
     object = json_loads (more_info, 0, &jerror);
     if (!object) {
-        if (jerror.text)
-            seaf_warning ("Failed to load more sync info from json: %s.\n", jerror.text);
-        else
-            seaf_warning ("Failed to load more sync info from json.\n");
-
+        seaf_warning ("Failed to load more sync info from json: %s.\n", jerror.text);
         return FALSE;
     }
         
@@ -1323,11 +1319,7 @@ add_task_common (SeafCloneManager *mgr,
 
         object = json_loads (more_info, 0, &jerror);
         if (!object) {
-            if (jerror.text)
-                seaf_warning ("Failed to load more sync info from json: %s.\n", jerror.text);
-            else
-                seaf_warning ("Failed to load more sync info from json.\n");
-
+            seaf_warning ("Failed to load more sync info from json: %s.\n", jerror.text);
             clone_task_free (task);
             return NULL;
         }

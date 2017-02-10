@@ -381,38 +381,6 @@ static int remove_file(struct merge_options *o, int clean,
     return 0;
 }
 
-inline static int file_exists(const char *f)
-{
-    SeafStat sb;
-    return (seaf_stat (f, &sb) == 0);
-}
-
-#if 0
-static int would_lose_untracked(struct index_state *index, const char *path, const char *real_path)
-{
-    int pos = index_name_pos(index, path, strlen(path));
-
-    if (pos < 0)
-        pos = -1 - pos;
-    while (pos < index->cache_nr &&
-           !strcmp(path, index->cache[pos]->name)) {
-        /*
-         * If stage #0, it is definitely tracked.
-         * If it has stage #2 then it was tracked
-         * before this merge started.  All other
-         * cases the path was not tracked.
-         */
-        switch (ce_stage(index->cache[pos])) {
-        case 0:
-        case 2:
-            return 0;
-        }
-        pos++;
-    }
-    return file_exists(real_path);
-}
-#endif
-
 static int create_leading_directories(int base_len,
                                       const char *path, char **new_path,
                                       const char *conflict_suffix,

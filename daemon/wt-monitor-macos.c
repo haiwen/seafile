@@ -236,11 +236,9 @@ stream_callback (ConstFSEventStreamRef streamRef,
                       const FSEventStreamEventId eventIds[])
 {
     RepoWatchInfo *info;
-    char *repo_id;
     SeafWTMonitor *monitor = (SeafWTMonitor *)clientCallBackInfo;
     SeafWTMonitorPriv *priv = monitor->priv;
     char **paths = (char **)eventPaths;
-    char *dir;
 
     info = g_hash_table_lookup (priv->info_hash, (gpointer)(long)streamRef);
     if (!info) {

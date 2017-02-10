@@ -141,10 +141,7 @@ seaf_commit_from_data (const char *id, char *data, gsize len)
 
         object = json_loadb (data, len, 0, &jerror);
         if (!object) {
-            if (jerror.text)
-                seaf_warning ("Failed to load commit json: %s.\n", jerror.text);
-            else
-                seaf_warning ("Failed to load commit json.\n");
+            seaf_warning ("Failed to load commit json: %s.\n", jerror.text);
             return NULL;
         }
     }
@@ -821,10 +818,7 @@ load_commit (SeafCommitManager *mgr,
 
         object = json_loadb (data, len, 0, &jerror);
         if (!object) {
-            if (jerror.text)
-                seaf_warning ("Failed to load commit json object: %s.\n", jerror.text);
-            else
-                seaf_warning ("Failed to load commit json object.\n");
+            seaf_warning ("Failed to load commit json object: %s.\n", jerror.text);
             goto out;
         }
     }

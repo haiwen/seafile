@@ -406,18 +406,6 @@ transfer_task_with_proc_failure (TransferTask *task,
     }
 }
 
-inline static gboolean is_peer_relay (const char *peer_id)
-{
-    CcnetPeer *peer = ccnet_get_peer(seaf->ccnetrpc_client, peer_id);
-
-    if (!peer)
-        return FALSE;
-
-    gboolean is_relay = string_list_is_exists(peer->role_list, "MyRelay");
-    g_object_unref (peer);
-    return is_relay;
-}
-
 /*
  * Transfer Manager.
  */
