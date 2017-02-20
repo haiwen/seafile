@@ -13,6 +13,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@CURL_CFLAGS@ \
 	@BPWRAPPER_CFLAGS@ \
 	@GNUTLS_CFLAGS@ \
+	@SSL_CFLAGS@ \
 	-Wall
 
 bin_PROGRAMS = seaf-daemon
