@@ -1307,17 +1307,20 @@ add_file (const char *repo_id,
                                                   path,
                                                   S_IFREG,
                                                   SYNC_STATUS_SYNCED);
-        }
-        if (added && options && options->changeset) {
-            /* ce may be updated. */
-            ce = index_name_exists (istate, path, strlen(path), 0);
-            add_to_changeset (options->changeset,
-                              DIFF_STATUS_ADDED,
-                              ce->sha1,
-                              st,
-                              modifier,
-                              path,
-                              NULL);
+        } else {
+            if (total_size)
+                *total_size += (gint64)(st->st_size);
+            if (options && options->changeset) {
+                /* ce may be updated. */
+                ce = index_name_exists (istate, path, strlen(path), 0);
+                add_to_changeset (options->changeset,
+                                  DIFF_STATUS_ADDED,
+                                  ce->sha1,
+                                  st,
+                                  modifier,
+                                  path,
+                                  NULL);
+            }
         }
     } else if (*remain_files == NULL) {
         ret = add_to_index (repo_id, version, istate, path, full_path,
@@ -3138,7 +3141,8 @@ static void
 handle_rename (SeafRepo *repo, struct index_state *istate,
                SeafileCrypt *crypt, GList *ignore_list,
                LockedFileSet *fset,
-               WTEvent *event, GList **scanned_del_dirs)
+               WTEvent *event, GList **scanned_del_dirs,
+               gint64 *total_size)
 {
     gboolean not_found, src_ignored, dst_ignored;
 
@@ -3247,7 +3251,7 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
     add_recursive (repo->id, repo->version, repo->email,
                    istate, repo->worktree, event->new_path,
                    crypt, FALSE, ignore_list,
-                   NULL, NULL, &options);
+                   total_size, NULL, &options);
 }
 
 #ifdef WIN32
@@ -3705,7 +3709,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             }
             break;
         case WT_EVENT_RENAME:
-            handle_rename (repo, istate, crypt, ignore_list, fset, event, &scanned_del_dirs);
+            handle_rename (repo, istate, crypt, ignore_list, fset, event, &scanned_del_dirs, &total_size);
             break;
         case WT_EVENT_ATTRIB:
             if (!is_path_writable(repo->id,
