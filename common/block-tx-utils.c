@@ -27,43 +27,47 @@ blocktx_generate_encrypt_key (unsigned char *session_key, int sk_len,
 }
 
 int
-blocktx_encrypt_init (EVP_CIPHER_CTX *ctx,
+blocktx_encrypt_init (EVP_CIPHER_CTX **ctx,
                       const unsigned char *key,
                       const unsigned char *iv)
 {
     int ret;
 
     /* Prepare CTX for encryption. */
-    EVP_CIPHER_CTX_init (ctx);
+    *ctx = EVP_CIPHER_CTX_new ();
 
-    ret = EVP_EncryptInit_ex (ctx,
+    ret = EVP_EncryptInit_ex (*ctx,
                               EVP_aes_256_cbc(), /* cipher mode */
                               NULL, /* engine, NULL for default */
                               key,  /* derived key */
                               iv);  /* initial vector */
-    if (ret == 0)
+    if (ret == 0) {
+        EVP_CIPHER_CTX_free (*ctx);
         return -1;
+    }
 
     return 0;
 }
 
 int
-blocktx_decrypt_init (EVP_CIPHER_CTX *ctx,
+blocktx_decrypt_init (EVP_CIPHER_CTX **ctx,
                       const unsigned char *key,
                       const unsigned char *iv)
 {
     int ret;
 
     /* Prepare CTX for decryption. */
-    EVP_CIPHER_CTX_init (ctx);
+    *ctx = EVP_CIPHER_CTX_new ();
 
-    ret = EVP_DecryptInit_ex (ctx,
+    ret = EVP_DecryptInit_ex (*ctx,
                               EVP_aes_256_cbc(), /* cipher mode */
                               NULL, /* engine, NULL for default */
                               key,  /* derived key */
                               iv);  /* initial vector */
-    if (ret == 0)
+    if (ret == 0) {
+        EVP_CIPHER_CTX_free (*ctx);
         return -1;
+    }
 
     return 0;
 }
@@ -141,7 +145,7 @@ static int
 handle_frame_content (struct evbuffer *buf, FrameParser *parser)
 {
     char *frame;
-    EVP_CIPHER_CTX ctx;
+    EVP_CIPHER_CTX *ctx;
     char *out;
     int outlen, outlen2;
     int ret = 0;
@@ -161,7 +165,7 @@ handle_frame_content (struct evbuffer *buf, FrameParser *parser)
 
     evbuffer_remove (input, frame, parser->enc_frame_len);
 
-    if (EVP_DecryptUpdate (&ctx,
+    if (EVP_DecryptUpdate (ctx,
                            (unsigned char *)out, &outlen,
                            (unsigned char *)frame,
                            parser->enc_frame_len) == 0) {
@@ -170,7 +174,7 @@ handle_frame_content (struct evbuffer *buf, FrameParser *parser)
         goto out;
     }
 
-    if (EVP_DecryptFinal_ex (&ctx, (unsigned char *)(out + outlen), &outlen2) == 0)
+    if (EVP_DecryptFinal_ex (ctx, (unsigned char *)(out + outlen), &outlen2) == 0)
     {
         seaf_warning ("Failed to decrypt frame content.\n");
         ret = -1;
@@ -183,7 +187,7 @@ out:
     g_free (frame);
     g_free (out);
     parser->enc_frame_len = 0;
-    EVP_CIPHER_CTX_cleanup (&ctx);
+    EVP_CIPHER_CTX_free (ctx);
     return ret;
 }
 
@@ -225,7 +229,7 @@ handle_frame_fragment_content (struct evbuffer *buf, FrameParser *parser)
 
     out = g_malloc (fragment_len + ENC_BLOCK_SIZE);
 
-    if (EVP_DecryptUpdate (&parser->ctx,
+    if (EVP_DecryptUpdate (parser->ctx,
                            (unsigned char *)out, &outlen,
                            (unsigned char *)fragment, fragment_len) == 0) {
         seaf_warning ("Failed to decrypt frame fragment.\n");
@@ -240,7 +244,7 @@ handle_frame_fragment_content (struct evbuffer *buf, FrameParser *parser)
     parser->remain -= fragment_len;
 
     if (parser->remain <= 0) {
-        if (EVP_DecryptFinal_ex (&parser->ctx,
+        if (EVP_DecryptFinal_ex (parser->ctx,
                                  (unsigned char *)out,
                                  &outlen) == 0) {
             seaf_warning ("Failed to decrypt frame fragment.\n");
@@ -252,7 +256,7 @@ handle_frame_fragment_content (struct evbuffer *buf, FrameParser *parser)
         if (ret < 0)
             goto out;
 
-        EVP_CIPHER_CTX_cleanup (&parser->ctx);
+        EVP_CIPHER_CTX_free (parser->ctx);
         parser->enc_init = FALSE;
         parser->enc_frame_len = 0;
     }
@@ -261,7 +265,7 @@ out:
     g_free (fragment);
     g_free (out);
     if (ret < 0) {
-        EVP_CIPHER_CTX_cleanup (&parser->ctx);
+        EVP_CIPHER_CTX_free (parser->ctx);
         parser->enc_init = FALSE;
         parser->enc_frame_len = 0;
     }

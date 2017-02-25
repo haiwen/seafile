@@ -68,12 +68,12 @@ blocktx_generate_encrypt_key (unsigned char *session_key, int sk_len,
                               unsigned char *key, unsigned char *iv);
 
 int
-blocktx_encrypt_init (EVP_CIPHER_CTX *ctx,
+blocktx_encrypt_init (EVP_CIPHER_CTX **ctx,
                       const unsigned char *key,
                       const unsigned char *iv);
 
 int
-blocktx_decrypt_init (EVP_CIPHER_CTX *ctx,
+blocktx_decrypt_init (EVP_CIPHER_CTX **ctx,
                       const unsigned char *key,
                       const unsigned char *iv);
 
@@ -112,7 +112,7 @@ typedef struct _FrameParser {
     unsigned char key[ENC_KEY_SIZE];
     unsigned char iv[ENC_BLOCK_SIZE];
     gboolean enc_init;
-    EVP_CIPHER_CTX ctx;
+    EVP_CIPHER_CTX *ctx;
 
     unsigned char key_v2[ENC_KEY_SIZE];
     unsigned char iv_v2[ENC_BLOCK_SIZE];
