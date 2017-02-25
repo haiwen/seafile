@@ -5,7 +5,7 @@ Maintainer: m.eik michalke <meik.michalke@hhu.de>
 Build-Depends:
     debhelper (>= 7),
     autotools-dev,
-    libssl-dev,
+    libssl1.0-dev | libssl-dev (<< 1.1),
     libsqlite3-dev,
     intltool,
     libglib2.0-dev,
