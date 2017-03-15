@@ -57,7 +57,8 @@ Depends:
     ${python:Depends},
     libseafile0 (>= ${binary:Version}),
     ccnet (>= 5.1.2),
-    seafile-daemon (>= ${binary:Version})
+    seafile-daemon (>= ${binary:Version}),
+    python-searpc
 Conflicts: seafile
 Description: Seafile command line interface.
  This package contains the command line interface to manage Seafile libraries.
