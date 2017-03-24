@@ -15,6 +15,10 @@
              InstallPrivileges='elevated' InstallScope='perMachine'
              Compressed='yes' />
 
+    <!-- http://wixtoolset.org/documentation/manual/v3/howtos/ui_and_localization/configure_arp_appearance.html -->
+    <Icon Id="icon.ico" SourceFile="seafile.ico"/>
+    <Property Id="ARPPRODUCTICON" Value="icon.ico" />
+
     <!-- Don't allow downgrade. -->
     <MajorUpgrade DowngradeErrorMessage='!(loc.DowngradeErrorMessage)' />
 
