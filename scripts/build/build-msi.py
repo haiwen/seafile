@@ -56,6 +56,7 @@ CONF_OUTPUTDIR          = 'outputdir'
 CONF_DEBUG              = 'debug'
 CONF_ONLY_CHINESE       = 'onlychinese'
 CONF_QT_ROOT            = 'qt_root'
+CONF_EXTRA_LIBS_DIR     = 'extra_libs_dir'
 CONF_QT5                = 'qt5'
 CONF_WITH_SHIB          = 'with_shib'
 CONF_BRAND              = 'brand'
@@ -332,6 +333,7 @@ class SeafileClient(Project):
         generator = 'Ninja' if ninja else 'MSYS Makefiles'
         build_type = 'Debug' if conf[CONF_DEBUG] else 'Release'
         flags = {
+            'BUILD_SPARKLE_SUPPORT': 'ON',
             'USE_QT5': 'ON' if conf[CONF_QT5] else 'OFF',
             'BUILD_SHIBBOLETH_SUPPORT': 'ON' if conf[CONF_WITH_SHIB] else 'OFF',
             'CMAKE_BUILD_TYPE': build_type,
@@ -354,7 +356,7 @@ class SeafileClient(Project):
         return conf[CONF_SEAFILE_CLIENT_VERSION]
 
     def before_build(self):
-        pass
+        shutil.copy(os.path.join(conf[CONF_EXTRA_LIBS_DIR], 'winsparkle.lib'), self.projdir)
 
 def check_targz_src(proj, version, srcdir):
     src_tarball = os.path.join(srcdir, '%s-%s.tar.gz' % (proj, version))
@@ -370,6 +372,7 @@ def validate_args(usage, options):
         CONF_SEAFILE_CLIENT_VERSION,
         CONF_SRCDIR,
         CONF_QT_ROOT,
+        CONF_EXTRA_LIBS_DIR,
     ]
 
     # fist check required args
@@ -436,6 +439,14 @@ def validate_args(usage, options):
             error('%s is not a valid qt root' % qt_root)
     check_qt_root(qt_root)
 
+    # [ sparkle dir]
+    extra_libs_dir = get_option(CONF_EXTRA_LIBS_DIR)
+    def check_extra_libs_dir(extra_libs_dir):
+        for fn in ['winsparkle.lib']:
+            if not os.path.exists(os.path.join(extra_libs_dir, fn)):
+                error('%s is missing in %s' % (fn, extra_libs_dir))
+    check_extra_libs_dir(extra_libs_dir)
+
     # [qt5]
     qt5 = get_option(CONF_QT5)
     with_shib = get_option(CONF_WITH_SHIB)
@@ -459,6 +470,7 @@ def validate_args(usage, options):
     conf[CONF_NO_STRIP] = debug or nostrip
     conf[CONF_ONLY_CHINESE] = onlychinese
     conf[CONF_QT_ROOT] = qt_root
+    conf[CONF_EXTRA_LIBS_DIR] = extra_libs_dir
     conf[CONF_QT5] = qt5
     conf[CONF_WITH_SHIB] = with_shib
     conf[CONF_BRAND] = brand
@@ -553,6 +565,11 @@ def parse_args():
                       dest=CONF_QT_ROOT,
                       nargs=1,
                       help='''qt root directory.''')
+
+    parser.add_option(long_opt(CONF_EXTRA_LIBS_DIR),
+                      dest=CONF_EXTRA_LIBS_DIR,
+                      nargs=1,
+                      help='''where we can find winsparkle.lib''')
 
     parser.add_option(long_opt(CONF_KEEP),
                       dest=CONF_KEEP,
