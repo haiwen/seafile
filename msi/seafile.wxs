@@ -109,6 +109,8 @@
 
     <CustomAction Id="RemoveSeafileUserData" FileKey="seafileapplet.exe" ExeCommand="--remove-user-data"
                   Execute="immediate" Impersonate="yes" Return="ignore" />
+    <CustomAction Id="StopSeafile" FileKey="seafileapplet.exe" ExeCommand="--stop"
+                  Execute="immediate" Impersonate="yes" Return="ignore" />
 
     <InstallExecuteSequence>
       <!-- Move away seafile shell extension so we don't need to kill explorer during uninstall. -->
@@ -117,6 +119,9 @@
       </Custom>
       <Custom Action="MoveExtDll64" Before="InstallValidate">
         Installed AND VersionNT64
+      </Custom>
+      <Custom Action="StopSeafile" Before="InstallValidate">
+        Installed
       </Custom>
 
       <!-- Remove User data, as well as seafile QSettings in registry -->
