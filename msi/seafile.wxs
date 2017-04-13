@@ -121,7 +121,7 @@
         Installed AND VersionNT64
       </Custom>
       <Custom Action="StopSeafile" Before="InstallValidate">
-        Installed
+        UPGRADINGPRODUCTCODE OR WIX_UPGRADE_DETECTED
       </Custom>
 
       <!-- Remove User data, as well as seafile QSettings in registry -->
