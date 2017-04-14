@@ -57,7 +57,7 @@ start_mq_client (CcnetMqclientProc *mqclient)
         return -1;
     }
 
-    seaf_message ("[mq client] mq cilent is started\n");
+    seaf_message ("[mq client] mq client is started\n");
 
     return 0;
 }
