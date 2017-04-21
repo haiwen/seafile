@@ -65,6 +65,8 @@ CONF_OUTPUTDIR          = 'outputdir'
 CONF_THIRDPARTDIR       = 'thirdpartdir'
 CONF_NO_STRIP           = 'nostrip'
 CONF_SLAVE_HOST         = 'slave_host'
+CONF_BRAND              = 'brand'
+CONF_LOCAL              = 'local'
 # pylint: enable=bad-whitespace
 
 NUM_CPU = multiprocessing.cpu_count()
@@ -379,6 +381,13 @@ class SeafileClient(Project):
     def before_build(self):
         pass
 
+class SeafileDMGLayout(Seafile):
+
+    def __init__(self):
+        Seafile.__init__(self)
+        self.build_commands = [
+        ]
+
 class SeafileFinderSyncPlugin(SeafileClient):
 
     def __init__(self):
@@ -418,6 +427,7 @@ def validate_args(usage, options):
 
     mode = get_option(CONF_MODE).lower()
     assert mode in ('master', 'slave')
+
     version = get_option(CONF_VERSION)
     seafile_version = get_option(CONF_SEAFILE_VERSION)
     seafile_client_version = get_option(CONF_SEAFILE_CLIENT_VERSION)
@@ -438,6 +448,9 @@ def validate_args(usage, options):
 
     # [ keep ]
     keep = get_option(CONF_KEEP)
+
+    # [ local ]
+    build_local = get_option(CONF_LOCAL)
 
     # [ builddir ]
     builddir = get_option(CONF_BUILDDIR)
@@ -468,7 +481,10 @@ def validate_args(usage, options):
 
     slave_host = get_option(CONF_SLAVE_HOST)
 
+    brand = get_option(CONF_BRAND)
+
     conf[CONF_MODE] = mode
+    conf[CONF_LOCAL] = build_local
     conf[CONF_VERSION] = version
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
     conf[CONF_SEAFILE_VERSION] = seafile_version
@@ -481,6 +497,7 @@ def validate_args(usage, options):
     conf[CONF_KEEP] = keep
     conf[CONF_NO_STRIP] = nostrip
     conf[CONF_SLAVE_HOST] = slave_host
+    conf[CONF_BRAND] = brand
     # TODO: remove this
     # conf[CONF_SLAVE_HOST] = 'lion'
     # conf[CONF_SLAVE_HOST] = 'sierra'
@@ -588,6 +605,15 @@ def parse_args():
                       dest=CONF_SLAVE_HOST,
                       default='lion',
                       help='the hostname of the lower version osx slave')
+
+    parser.add_option(long_opt(CONF_BRAND),
+                      dest=CONF_BRAND,
+                      help='the brand')
+
+    parser.add_option(long_opt(CONF_LOCAL),
+                      dest=CONF_LOCAL,
+                      action='store_true',
+                      help='build locally instead of using an old 10.7 vm')
     usage = parser.format_help()
     options, remain = parser.parse_args()
     if remain:
@@ -764,13 +790,16 @@ def gen_dmg():
     appdir = join(parentdir, 'seafile-applet.app')
     app_plugins_dir = join(appdir, 'Contents/PlugIns')
 
+    layout = SeafileDMGLayout()
+    layout.uncompress()
+    layout_folder = join(layout.projdir, 'dmg/seafileLayout')
+
     args = [
         DROPDMG,
         parentdir,
         '--format', 'bzip2',
-        # TODO: where to keep the seafileLayout folder? seafile-client repo?
-        '--layout-folder', expanduser('~/seafileLayout'),
-        '--volume-name', 'Seafile Client',
+        '--layout-folder', layout_folder,
+        '--volume-name', conf[CONF_BRAND] or 'Seafile Client',
     ]
 
     with cd(conf[CONF_BUILDDIR]):
@@ -789,7 +818,12 @@ def gen_dmg():
 
         # Rename the .app dir to 'Seafile Client.app', and create the shortcut
         # to '/Applications' so the user can drag into it when opening the DMG.
-        must_run('mv {}/seafile-applet.app "{}/{}"'.format(parentdir, parentdir, FINAL_APP))
+        brand = conf.get(CONF_BRAND, '')
+        if brand:
+            final_app = '{}.app'.format(brand)
+        else:
+            final_app = FINAL_APP
+        must_run('mv {}/seafile-applet.app "{}/{}"'.format(parentdir, parentdir, final_app))
         must_run('ln -sf /Applications {}/'.format(parentdir))
 
         # Sometimes DropDmg would fail if there are two many Finder windows.
@@ -950,12 +984,12 @@ def build_on_slave():
 
 def get_app_tgz_from_slave():
     fn = 'seafile-applet.app.tar.gz'
-    src = join(SLAVE_BUILDDIR, fn)
+    src = join(SLAVE_BUILDDIR, 'seafile-mac-build', fn)
     dst = join(conf[CONF_BUILDDIR], fn)
     get_file_from_slave(src, dst)
 
 def copy_dmg():
-    brand = 'seafile-client'
+    brand = conf[CONF_BRAND] or 'seafile-client'
     branded_dmg = '{}-{}.dmg'.format(brand, conf[CONF_VERSION])
     src_dmg = os.path.join(conf[CONF_BUILDDIR], 'app-{}.dmg'.format(conf[CONF_VERSION]))
     dst_dmg = os.path.join(conf[CONF_OUTPUTDIR], branded_dmg)
@@ -1007,15 +1041,7 @@ def copy_sparkle_framework():
     # -P` would keep symlinks as is.
     must_run('cp -R -P "{}" "{}"'.format(src, dst))
 
-def master_workflow():
-    send_sources_to_slave()
-    build_on_slave()
-    get_app_tgz_from_slave()
-    build_and_sign_fsplugin()
-    gen_dmg()
-    copy_dmg()
-
-def slave_workflow():
+def build_projects():
     libsearpc = Libsearpc()
     ccnet = Ccnet()
     seafile = Seafile()
@@ -1037,8 +1063,31 @@ def slave_workflow():
 
     copy_shared_libs()
 
-    output_app_tgz = join(conf[CONF_BUILDDIR], '..', 'seafile-applet.app.tar.gz')
-    with cd(seafile_client.projdir):
+def local_workflow():
+    build_projects()
+    generate_app_tar_gz()
+
+    build_and_sign_fsplugin()
+    gen_dmg()
+    copy_dmg()
+
+def master_workflow():
+    send_sources_to_slave()
+    build_on_slave()
+    get_app_tgz_from_slave()
+
+    build_and_sign_fsplugin()
+    gen_dmg()
+    copy_dmg()
+
+def slave_workflow():
+    build_projects()
+    generate_app_tar_gz()
+
+def generate_app_tar_gz():
+    # output_app_tgz = join(conf[CONF_BUILDDIR], '..', 'seafile-applet.app.tar.gz')
+    output_app_tgz = join(conf[CONF_BUILDDIR], 'seafile-applet.app.tar.gz')
+    with cd(SeafileClient().projdir):
         run('tar czf {} seafile-applet.app'.format(output_app_tgz))
 
 def setup_logging(level=logging.INFO):
@@ -1060,7 +1109,9 @@ def main():
     info('NUM_CPU = {}'.format(NUM_CPU))
     setup_build_env()
 
-    if conf[CONF_MODE] == 'master':
+    if conf[CONF_LOCAL]:
+        local_workflow()
+    elif conf[CONF_MODE] == 'master':
         info('entering master workflow')
         master_workflow()
     else:
