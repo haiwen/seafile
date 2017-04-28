@@ -22,6 +22,38 @@
     <!-- Don't allow downgrade. -->
     <MajorUpgrade DowngradeErrorMessage='!(loc.DowngradeErrorMessage)' />
 
+    <Property Id="SUPPRESS_LAUNCH_SEAFILE_AFTER_INSTALL_FINISH">
+      <RegistrySearch Id="SuppressLaunchSeafileHKCU"
+                      Root="HKCU"
+                      Key="SOFTWARE\!(loc.AppName)"
+                      Name="PreconfigureSuppressLaunchAfterInstall"
+                      Type="raw"
+                        />
+
+      <RegistrySearch Id="SuppressLaunchSeafileHKCU64"
+                      Root="HKCU"
+                      Key="SOFTWARE\!(loc.AppName)"
+                      Name="PreconfigureSuppressLaunchAfterInstall"
+                      Type="raw"
+                      Win64="yes"
+                      />
+
+      <RegistrySearch Id="SuppressLaunchSeafileHKLM"
+                      Root="HKLM"
+                      Key="SOFTWARE\!(loc.AppName)"
+                      Name="PreconfigureSuppressLaunchAfterInstall"
+                      Type="raw"
+                      />
+
+      <RegistrySearch Id="SuppressLaunchSeafileHKLM64"
+                      Root="HKLM"
+                      Key="SOFTWARE\!(loc.AppName)"
+                      Name="PreconfigureSuppressLaunchAfterInstall"
+                      Type="raw"
+                      Win64="yes"
+                      />
+    </Property>
+
     <Media Id='1' Cabinet='seafile.cab' EmbedCab='yes' />
 
     <Directory Id='TARGETDIR' Name='SourceDir'>
@@ -137,7 +169,7 @@
       <UIRef Id='WixUI_ErrorProgressText' />
       <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchApplication">
         <!-- Launch Seafile after setup. -->
-        NOT Installed
+        (NOT Installed) AND  (NOT SUPPRESS_LAUNCH_SEAFILE_AFTER_INSTALL_FINISH)
       </Publish>
     </UI>
 
