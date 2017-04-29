@@ -8,16 +8,19 @@ seaf-cli is command line interface for seafile client.
 
 Subcommands:
 
-    init:           create config files for seafile client
-    start:          start and run seafile client as daemon
-    stop:           stop seafile client
-    list:           list local liraries
-    status:         show syncing status
-    download:       download a library from seafile server
-    sync:           synchronize an existing folder with a library in
-                        seafile server
-    desync:         desynchronize a library with seafile server
-    create:         create a new library
+    init:             create config files for seafile client
+    start:            start and run seafile client as daemon
+    stop:             stop seafile client
+    list:             list local liraries
+    status:           show syncing status
+    download:         download a library from seafile server
+                          (using libary id)
+    download-by-name: download a library from seafile server
+                          (using library name)
+    sync:             synchronize an existing folder with a library in
+                          seafile server
+    desync:           desynchronize a library with seafile server
+    create:           create a new library
 
 
 Detail
@@ -44,11 +47,18 @@ Stop seafile client.
     seaf-cli stop [-c <config-dir>]
 
 
-Download
+Download by id
 --------
-Download a library from seafile server
+Download a library from seafile server (using library id)
 
     seaf-cli download -l <library-id> -s <seahub-server-url> -d <parent-directory> -u <username> -p <password>
+
+
+Download by name
+--------
+Download a library from seafile server (using library name)
+
+    seaf-cli download -L <library-name> -s <seahub-server-url> -d <parent-directory> -u <username> -p <password>
 
 
 sync
