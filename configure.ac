@@ -7,7 +7,7 @@ AC_CONFIG_HEADER([config.h])
 
 AC_CONFIG_MACRO_DIR([m4])
 
-AM_INIT_AUTOMAKE([1.9 foreign])
+AM_INIT_AUTOMAKE([1.9 foreign subdir-objects])
 
 #AC_MINGW32
 AC_CANONICAL_BUILD
