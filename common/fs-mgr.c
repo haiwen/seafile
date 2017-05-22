@@ -29,6 +29,17 @@
 #include "vc-common.h"
 #endif  /* SEAFILE_SERVER */
 
+#ifndef __has_attribute
+#define __has_attribute(x) 0
+#endif
+#if defined(__GNUC__) && !defined(__clang__) /* it is a gcc compiler */
+#define SEAFILE_PACKED_STRUCT __attribute__((gcc_struct, __packed__))
+#elif __has_attribute(__packed__)
+#define SEAFILE_PACKED_STRUCT __attribute__((__packed__))
+#else
+#define SEAFILE_PACKED_STRUCT /* warning: no packed struct feature found ! */
+#endif
+
 #include "db.h"
 
 struct _SeafFSManagerPriv {
@@ -40,19 +51,19 @@ typedef struct SeafileOndisk {
     guint32          type;
     guint64          file_size;
     unsigned char    block_ids[0];
-} __attribute__((gcc_struct, __packed__)) SeafileOndisk;
+} SEAFILE_PACKED_STRUCT SeafileOndisk;
 
 typedef struct DirentOndisk {
     guint32 mode;
     char    id[40];
     guint32 name_len;
     char    name[0];
-} __attribute__((gcc_struct, __packed__)) DirentOndisk;
+} SEAFILE_PACKED_STRUCT DirentOndisk;
 
 typedef struct SeafdirOndisk {
     guint32 type;
     char    dirents[0];
-} __attribute__((gcc_struct, __packed__)) SeafdirOndisk;
+} SEAFILE_PACKED_STRUCT SeafdirOndisk;
 
 #ifndef SEAFILE_SERVER
 uint32_t
