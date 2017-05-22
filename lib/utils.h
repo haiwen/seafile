@@ -26,13 +26,54 @@
 #include <evutil.h>
 #endif
 
-#ifdef __linux__
+#include <sys/types.h> /* This will likely define BYTE_ORDER */
+#if defined(__linux__)
 #include <endian.h>
+#else /* defined(__linux__) */
+#ifndef BYTE_ORDER
+/* BSD (FreeBSD, OpenBSD, NetBSD, and Apple's OSX, iOS) */
+#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__) || \
+    defined(__APPLE__)
+#include <machine/endian.h>
+#endif /* BSD */
+#endif /* BYTE_ORDER */
+#endif /* defined(__linux__) */
+
+/* Sometimes after including an OS-specific header that defines the
+ * endianess we end with __BYTE_ORDER but not with BYTE_ORDER. */
+#ifndef BYTE_ORDER
+#ifdef __BYTE_ORDER
+#if defined(__LITTLE_ENDIAN) && defined(__BIG_ENDIAN)
+#ifndef LITTLE_ENDIAN
+#define LITTLE_ENDIAN __LITTLE_ENDIAN
+#endif /* LITTLE_ENDIAN */
+#ifndef BIG_ENDIAN
+#define BIG_ENDIAN __BIG_ENDIAN
+#endif /* !BIG_ENDIAN */
+#if (__BYTE_ORDER == __LITTLE_ENDIAN)
+#define BYTE_ORDER LITTLE_ENDIAN
+#else
+#define BYTE_ORDER BIG_ENDIAN
+#endif /* __BYTE_ORDER == __LITTLE_ENDIAN */
+#endif /* defined(__LITTLE_ENDIAN) && defined(__BIG_ENDIAN) */
+#endif /* __BYTE_ORDER */
+#endif /* BYTE_ORDER */
+
+/* Hack for WIN32 */
+#ifdef WIN32
+#ifndef BYTE_ORDER
+#ifndef LITTLE_ENDIAN
+#define LITTLE_ENDIAN 1234
+#endif /* LITTLE_ENDIAN */
+#define BYTE_ORDER LITTLE_ENDIAN
+#endif /* !BYTE_ORDER */
+#endif /* WIN32 */
+
+#if !defined(BYTE_ORDER) || \
+      (BYTE_ORDER != BIG_ENDIAN && BYTE_ORDER != LITTLE_ENDIAN)
+#error "Undefined or invalid BYTE_ORDER"
 #endif
 
-#ifdef __OpenBSD__
-#include <machine/endian.h>
-#endif
 
 #ifdef WIN32
 #include <errno.h>
@@ -40,7 +81,7 @@
 
 #ifndef WEXITSTATUS
 #define WEXITSTATUS(status) (((status) & 0xff00) >> 8)
-#endif
+#endif /* WIN32 */
 
 /* Borrowed from libevent */
 #define ccnet_pipe_t intptr_t
@@ -262,7 +303,7 @@ bswap64 (uint64_t val)
 static inline uint64_t
 hton64(uint64_t val)
 {
-#if __BYTE_ORDER == __LITTLE_ENDIAN || defined WIN32 || defined __APPLE__
+#if (BYTE_ORDER == LITTLE_ENDIAN)
     return bswap64 (val);
 #else
     return val;
@@ -272,7 +313,7 @@ hton64(uint64_t val)
 static inline uint64_t 
 ntoh64(uint64_t val) 
 {
-#if __BYTE_ORDER == __LITTLE_ENDIAN || defined WIN32 || defined __APPLE__
+#if (BYTE_ORDER == LITTLE_ENDIAN)
     return bswap64 (val);
 #else
     return val;
