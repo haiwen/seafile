@@ -15,6 +15,7 @@
 
 #include <glib.h>
 #include <glib-object.h>
+#include <curl/curl.h>
 
 #ifdef HAVE_BREAKPAD_SUPPORT
 #include <c_bpwrapper.h>
