@@ -503,6 +503,8 @@ main (int argc, char **argv)
 
     cdc_init ();
 
+    curl_global_init (CURL_GLOBAL_ALL);
+
 #if !GLIB_CHECK_VERSION(2, 35, 0)
     g_type_init();
 #endif

@@ -314,8 +314,6 @@ reset_bytes (void *vdata)
 int
 http_tx_manager_start (HttpTxManager *mgr)
 {
-    curl_global_init (CURL_GLOBAL_ALL);
-
 #ifdef WIN32
     /* Remove existing ca-bundle file on start. */
     g_unlink (mgr->priv->ca_bundle_path);
