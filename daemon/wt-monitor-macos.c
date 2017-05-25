@@ -282,7 +282,7 @@ add_watch (SeafWTMonitor *monitor, const char* repo_id, const char* worktree)
                                  pathsToWatch,
                                  kFSEventStreamEventIdSinceNow,
                                  latency,
-                                 kFSEventStreamCreateFlagWatchRoot
+                                 0
                                  );
 
     CFRelease (mypaths[0]);
