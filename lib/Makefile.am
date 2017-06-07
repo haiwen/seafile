@@ -33,7 +33,7 @@ seafile-rpc-wrapper.c: seafile-object.h
 
 seafile-object.h: ${seafile_object_define}
 	rm -f $@
-	valac --pkg posix ${seafile_object_define} -C -H seafile-object.h
+	@VALAC@ --pkg posix ${seafile_object_define} -C -H seafile-object.h
 
 DISTCLEANFILES = ${searpc_gen}
 
@@ -72,7 +72,7 @@ vala.stamp: ${seafile_object_define}
 	rm -f ${seafile_object_gen}
 	@rm -f vala.tmp
 	@touch vala.tmp
-	valac -C --pkg posix $^
+	@VALAC@ -C --pkg posix $^
 	@mv -f vala.tmp $@
 
 ${seafile_object_gen}: vala.stamp
