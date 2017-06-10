@@ -305,10 +305,7 @@ class Seafile(Project):
     name = 'seafile'
     def __init__(self):
         Project.__init__(self)
-        if breakpad_enabled():
-            enable_breakpad = '--enable-breakpad'
-        else:
-            enable_breakpad = ''
+        enable_breakpad = '--enable-breakpad'
         self.build_commands = [
             'sh ./configure %s --prefix=%s' % (enable_breakpad, to_mingw_path(self.prefix)),
             concurrent_make(),
@@ -894,9 +891,6 @@ def edit_fragment_wxs():
     with open(file_path, 'w') as fp:
         fp.write(content)
 
-def breakpad_enabled():
-    return conf[CONF_VERSION] >= '5.0.3'
-
 def generate_breakpad_symbols():
     seafiledir = Seafile().projdir
     script = os.path.join(seafiledir, 'scripts/breakpad.py')
@@ -913,8 +907,7 @@ def generate_breakpad_symbols():
 
 def build_msi():
     prepare_msi()
-    if breakpad_enabled():
-        generate_breakpad_symbols()
+    generate_breakpad_symbols()
     if conf[CONF_DEBUG] or conf[CONF_NO_STRIP]:
         info('Would not strip exe/dll symbols since --debug or --nostrip is specified')
     else:
