@@ -27,6 +27,9 @@ unset_permissions (PACL dacl)
 {
     ACL_SIZE_INFORMATION size_info;
 
+    if (!dacl)
+        return 0;
+
     if (!GetAclInformation (dacl, &size_info,
                             sizeof(size_info), AclSizeInformation)) {
         seaf_warning ("GetAclInformation Error: %lu\n", GetLastError());
@@ -180,7 +183,11 @@ seaf_unset_path_permission (const char *path, gboolean recursive)
         seaf_warning( "SetEntriesInAcl Error %lu\n", res );
         ret = -1;
         goto cleanup;
-    }  
+    }
+
+    if (!new_dacl) {
+        goto cleanup;
+    }
 
     unset_permissions (new_dacl);
 
