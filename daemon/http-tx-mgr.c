@@ -687,7 +687,7 @@ recv_response (void *contents, size_t size, size_t nmemb, void *userp)
     return realsize;
 }
 
-#define HTTP_TIMEOUT_SEC 120
+#define HTTP_TIMEOUT_SEC 300
 
 typedef size_t (*HttpRecvCallback) (void *, size_t, size_t, void *);
 
@@ -1219,7 +1219,7 @@ check_protocol_version_thread (void *vdata)
         url = g_strdup_printf ("%s/protocol-version", data->host);
 
     int curl_error;
-    if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL, FALSE, &curl_error) < 0) {
+    if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         data->error_code = curl_error_to_http_task_error (curl_error);
         goto out;
@@ -1377,7 +1377,7 @@ check_head_commit_thread (void *vdata)
 
     int curl_error;
     if (http_get (curl, url, data->token, &status, &rsp_content, &rsp_size,
-                  NULL, NULL, FALSE, &curl_error) < 0) {
+                  NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         data->error_code = curl_error_to_http_task_error (curl_error);
         goto out;
@@ -1734,7 +1734,7 @@ get_folder_perms_thread (void *vdata)
         goto out;
 
     if (http_post (curl, url, NULL, req_content, strlen(req_content),
-                   &status, &rsp_content, &rsp_size, FALSE, NULL) < 0) {
+                   &status, &rsp_content, &rsp_size, TRUE, NULL) < 0) {
         conn->release = TRUE;
         goto out;
     }
@@ -2015,7 +2015,7 @@ get_locked_files_thread (void *vdata)
         goto out;
 
     if (http_post (curl, url, NULL, req_content, strlen(req_content),
-                   &status, &rsp_content, &rsp_size, FALSE, NULL) < 0) {
+                   &status, &rsp_content, &rsp_size, TRUE, NULL) < 0) {
         conn->release = TRUE;
         goto out;
     }
@@ -2124,7 +2124,7 @@ http_tx_manager_lock_file (HttpTxManager *manager,
     g_free (esc_path);
 
     if (http_put (curl, url, token, NULL, 0, NULL, NULL,
-                  &status, NULL, NULL, FALSE, NULL) < 0) {
+                  &status, NULL, NULL, TRUE, NULL) < 0) {
         conn->release = TRUE;
         ret = -1;
         goto out;
@@ -2179,7 +2179,7 @@ http_tx_manager_unlock_file (HttpTxManager *manager,
     g_free (esc_path);
 
     if (http_put (curl, url, token, NULL, 0, NULL, NULL,
-                  &status, NULL, NULL, FALSE, NULL) < 0) {
+                  &status, NULL, NULL, TRUE, NULL) < 0) {
         conn->release = TRUE;
         ret = -1;
         goto out;
@@ -2244,7 +2244,7 @@ check_permission (HttpTxTask *task, Connection *conn)
     }
 
     int curl_error;
-    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE, &curl_error) < 0) {
+    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -2478,7 +2478,7 @@ check_quota (HttpTxTask *task, Connection *conn, gint64 delta)
                                task->host, task->repo_id, delta);
 
     int curl_error;
-    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE, &curl_error) < 0) {
+    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -2724,7 +2724,7 @@ upload_check_id_list_segment (HttpTxTask *task, Connection *conn, const char *ur
     int curl_error;
     if (http_post (curl, url, task->token,
                    data, len,
-                   &status, &rsp_content, &rsp_size, FALSE, &curl_error) < 0) {
+                   &status, &rsp_content, &rsp_size, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -2849,7 +2849,7 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
     int curl_error;
     if (http_post (curl, url, task->token,
                    (char *)package, evbuffer_get_length(buf),
-                   &status, NULL, NULL, FALSE, &curl_error) < 0) {
+                   &status, NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -3319,7 +3319,7 @@ update_branch (HttpTxTask *task, Connection *conn)
     if (http_put (curl, url, task->token,
                   NULL, 0,
                   NULL, NULL,
-                  &status, NULL, NULL, FALSE, &curl_error) < 0) {
+                  &status, NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -3759,7 +3759,7 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
     int curl_error;
     if (http_get (curl, url, task->token, &status,
                   &rsp_content, &rsp_size,
-                  NULL, NULL, FALSE, &curl_error) < 0) {
+                  NULL, NULL, (!task->is_clone), &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -3898,7 +3898,7 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
     int curl_error;
     if (http_post (curl, url, task->token,
                    data, len,
-                   &status, &rsp_content, &rsp_size, FALSE, &curl_error) < 0) {
+                   &status, &rsp_content, &rsp_size, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
