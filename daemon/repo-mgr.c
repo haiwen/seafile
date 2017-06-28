@@ -1005,6 +1005,14 @@ seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit)
     commit->version = repo->version;
 }
 
+void
+seaf_repo_set_name (SeafRepo *repo, const char *new_name)
+{
+    char *old_name = repo->name;
+    repo->name = g_strdup(new_name);
+    g_free (old_name);
+}
+
 static gboolean
 collect_commit (SeafCommit *commit, void *vlist, gboolean *stop)
 {

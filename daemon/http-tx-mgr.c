@@ -4251,6 +4251,9 @@ update_local_repo (HttpTxTask *task)
         /* Update repo head branch. */
         seaf_branch_set_commit (repo->head, new_head->commit_id);
         seaf_branch_manager_update_branch (seaf->branch_mgr, repo->head);
+
+        if (g_strcmp0 (repo->name, new_head->repo_name) != 0)
+            seaf_repo_set_name (repo, new_head->repo_name);
     }
 
 out:

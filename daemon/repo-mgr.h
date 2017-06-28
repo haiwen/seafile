@@ -130,6 +130,9 @@ seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit);
 void
 seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit);
 
+void
+seaf_repo_set_name (SeafRepo *repo, const char *new_name);
+
 /*
  * Returns a list of all commits belongs to the repo.
  * The commits in the repos are all unique.
