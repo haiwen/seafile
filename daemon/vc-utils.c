@@ -337,43 +337,66 @@ unlink_entry (struct cache_entry *ce, struct unpack_trees_options *o)
     return 0;
 }
 
+static int
+compute_file_id_with_cdc (const char *path, SeafStat *st,
+                          SeafileCrypt *crypt, int repo_version,
+                          uint32_t blk_avg_size, uint32_t blk_min_size, uint32_t blk_max_size,
+                          unsigned char sha1[])
+{
+    CDCFileDescriptor cdc;
+
+    memset (&cdc, 0, sizeof(cdc));
+    cdc.block_sz = blk_avg_size;
+    cdc.block_min_sz = blk_min_size;
+    cdc.block_max_sz = blk_max_size;
+    cdc.write_block = seafile_write_chunk;
+    if (filename_chunk_cdc (path, &cdc, crypt, FALSE) < 0) {
+        seaf_warning ("Failed to chunk file.\n");
+        return -1;
+    }
+
+    if (repo_version > 0)
+        seaf_fs_manager_calculate_seafile_id_json (repo_version, &cdc, sha1);
+    else
+        memcpy (sha1, cdc.file_sum, 20);
+
+    if (cdc.blk_sha1s)
+        free (cdc.blk_sha1s);
+
+    return 0;
+}
+
 int
 compare_file_content (const char *path, SeafStat *st, const unsigned char *ce_sha1,
                       SeafileCrypt *crypt, int repo_version)
 {
-    CDCFileDescriptor cdc;
     unsigned char sha1[20];
 
     if (st->st_size == 0) {
         memset (sha1, 0, 20);
+        return hashcmp (sha1, ce_sha1);
     } else {
-        memset (&cdc, 0, sizeof(cdc));
-        cdc.block_sz = calculate_chunk_size (st->st_size);
-        cdc.block_min_sz = cdc.block_sz >> 2;
-        cdc.block_max_sz = cdc.block_sz << 2;
-        cdc.write_block = seafile_write_chunk;
-        if (filename_chunk_cdc (path, &cdc, crypt, FALSE) < 0) {
-            seaf_warning ("Failed to chunk file.\n");
+        if (compute_file_id_with_cdc (path, st, crypt, repo_version,
+                                      CDC_AVERAGE_BLOCK_SIZE,
+                                      CDC_MIN_BLOCK_SIZE,
+                                      CDC_MAX_BLOCK_SIZE,
+                                      sha1) < 0) {
             return -1;
         }
+        if (hashcmp (sha1, ce_sha1) == 0)
+            return 0;
 
-        if (repo_version > 0)
-            seaf_fs_manager_calculate_seafile_id_json (repo_version, &cdc, sha1);
-        else
-            memcpy (sha1, cdc.file_sum, 20);
-
-        if (cdc.blk_sha1s)
-            free (cdc.blk_sha1s);
+        /* Compare with old cdc block size. */
+        uint32_t block_size = calculate_chunk_size (st->st_size);
+        if (compute_file_id_with_cdc (path, st, crypt, repo_version,
+                                      block_size,
+                                      block_size >> 2,
+                                      block_size << 2,
+                                      sha1) < 0) {
+            return -1;
+        }
+        return hashcmp (sha1, ce_sha1);
     }
-
-#if 0
-    char id1[41], id2[41];
-    rawdata_to_hex (sha1, id1, 20);
-    rawdata_to_hex (ce_sha1, id2, 20);
-    seaf_debug ("id1: %s, id2: %s.\n", id1, id2);
-#endif
-
-    return hashcmp (sha1, ce_sha1);
 }
 
 #if defined WIN32 || defined __APPLE__
