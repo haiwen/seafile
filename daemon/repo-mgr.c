@@ -2609,6 +2609,7 @@ handle_add_files (SeafRepo *repo, struct index_state *istate,
         } else {
             info = seaf_sync_manager_get_sync_info (seaf->sync_mgr, repo->id);
             info->end_multipart_upload = TRUE;
+            return TRUE;
         }
         if (*total_size >= MAX_COMMIT_SIZE)
             return TRUE;
