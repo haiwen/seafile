@@ -15,6 +15,10 @@
 #define CURRENT_DIR_OBJ_VERSION 1
 #define CURRENT_SEAFILE_OBJ_VERSION 1
 
+#define CDC_AVERAGE_BLOCK_SIZE (1 << 23) /* 8MB */
+#define CDC_MIN_BLOCK_SIZE (6 * (1 << 20)) /* 6MB */
+#define CDC_MAX_BLOCK_SIZE (10 * (1 << 20)) /* 10MB */
+
 typedef struct _SeafFSManager SeafFSManager;
 typedef struct _SeafFSObject SeafFSObject;
 typedef struct _Seafile Seafile;

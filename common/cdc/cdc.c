@@ -22,6 +22,15 @@
 #define finger rabin_checksum
 #define rolling_finger rabin_rolling_checksum
 
+#define BLOCK_SZ        (1024*1024*1)
+#define BLOCK_MIN_SZ    (1024*256)
+#define BLOCK_MAX_SZ    (1024*1024*4)
+#define BLOCK_WIN_SZ    48
+
+#define NAME_MAX_SZ     4096
+
+#define BREAK_VALUE     0x0013    ///0x0513
+
 #define READ_SIZE 1024 * 4
 
 #define BYTE_TO_HEX(b)  (((b)>=10)?('a'+b-10):('0'+b))

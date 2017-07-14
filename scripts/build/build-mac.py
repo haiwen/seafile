@@ -826,6 +826,11 @@ def gen_dmg():
         must_run('mv {}/seafile-applet.app "{}/{}"'.format(parentdir, parentdir, final_app))
         must_run('ln -sf /Applications {}/'.format(parentdir))
 
+        # Open DropDMG manually, or dropdmg command line may fail.
+        run(''' osascript -e 'tell application "DropDMG" to quit' || true ''')
+        run(''' osascript -e 'open application "DropDMG"' || true ''')
+        run(''' osascript -e 'activate application "DropDMG"' || true ''')
+
         # Sometimes DropDmg would fail if there are two many Finder windows.
         run(''' osascript -e 'tell application "Finder" to close every window' ''')
         if run_argv(args) != 0:

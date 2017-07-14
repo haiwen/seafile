@@ -234,3 +234,9 @@ set_syslog_config (GKeyFile *config)
 }
 #endif
 #endif
+
+FILE *
+seafile_get_log_fp ()
+{
+    return logfp;
+}

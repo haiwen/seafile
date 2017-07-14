@@ -46,6 +46,8 @@
 
 #define RESET_BYTES_INTERVAL_MSEC 1000
 
+#define CLEAR_POOL_ERR_CNT 3
+
 #ifndef SEAFILE_CLIENT_VERSION
 #define SEAFILE_CLIENT_VERSION PACKAGE_VERSION
 #endif
@@ -77,6 +79,7 @@ struct _ConnectionPool {
     char *host;
     GQueue *queue;
     pthread_mutex_t lock;
+    int err_cnt;
 };
 typedef struct _ConnectionPool ConnectionPool;
 
@@ -243,6 +246,19 @@ connection_pool_get_connection (ConnectionPool *pool)
 }
 
 static void
+connection_pool_clear (ConnectionPool *pool)
+{
+    Connection *conn = NULL;
+
+    while (1) {
+        conn = g_queue_pop_head (pool->queue);
+        if (!conn)
+            break;
+        connection_free (conn);
+    }
+}
+
+static void
 connection_pool_return_connection (ConnectionPool *pool, Connection *conn)
 {
     if (!conn)
@@ -250,12 +266,21 @@ connection_pool_return_connection (ConnectionPool *pool, Connection *conn)
 
     if (conn->release) {
         connection_free (conn);
+
+        pthread_mutex_lock (&pool->lock);
+        if (++pool->err_cnt >= CLEAR_POOL_ERR_CNT) {
+            connection_pool_clear (pool);
+        }
+        pthread_mutex_unlock (&pool->lock);
+
         return;
     }
 
     curl_easy_reset (conn->curl);
 
+    /* Reset error count when one connection succeeded. */
     pthread_mutex_lock (&pool->lock);
+    pool->err_cnt = 0;
     g_queue_push_tail (pool->queue, conn);
     pthread_mutex_unlock (&pool->lock);
 }
@@ -662,7 +687,7 @@ recv_response (void *contents, size_t size, size_t nmemb, void *userp)
     return realsize;
 }
 
-#define HTTP_TIMEOUT_SEC 120
+#define HTTP_TIMEOUT_SEC 300
 
 typedef size_t (*HttpRecvCallback) (void *, size_t, size_t, void *);
 
@@ -1194,7 +1219,7 @@ check_protocol_version_thread (void *vdata)
         url = g_strdup_printf ("%s/protocol-version", data->host);
 
     int curl_error;
-    if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL, FALSE, &curl_error) < 0) {
+    if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         data->error_code = curl_error_to_http_task_error (curl_error);
         goto out;
@@ -1352,7 +1377,7 @@ check_head_commit_thread (void *vdata)
 
     int curl_error;
     if (http_get (curl, url, data->token, &status, &rsp_content, &rsp_size,
-                  NULL, NULL, FALSE, &curl_error) < 0) {
+                  NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         data->error_code = curl_error_to_http_task_error (curl_error);
         goto out;
@@ -1709,7 +1734,7 @@ get_folder_perms_thread (void *vdata)
         goto out;
 
     if (http_post (curl, url, NULL, req_content, strlen(req_content),
-                   &status, &rsp_content, &rsp_size, FALSE, NULL) < 0) {
+                   &status, &rsp_content, &rsp_size, TRUE, NULL) < 0) {
         conn->release = TRUE;
         goto out;
     }
@@ -1990,7 +2015,7 @@ get_locked_files_thread (void *vdata)
         goto out;
 
     if (http_post (curl, url, NULL, req_content, strlen(req_content),
-                   &status, &rsp_content, &rsp_size, FALSE, NULL) < 0) {
+                   &status, &rsp_content, &rsp_size, TRUE, NULL) < 0) {
         conn->release = TRUE;
         goto out;
     }
@@ -2099,7 +2124,7 @@ http_tx_manager_lock_file (HttpTxManager *manager,
     g_free (esc_path);
 
     if (http_put (curl, url, token, NULL, 0, NULL, NULL,
-                  &status, NULL, NULL, FALSE, NULL) < 0) {
+                  &status, NULL, NULL, TRUE, NULL) < 0) {
         conn->release = TRUE;
         ret = -1;
         goto out;
@@ -2154,7 +2179,7 @@ http_tx_manager_unlock_file (HttpTxManager *manager,
     g_free (esc_path);
 
     if (http_put (curl, url, token, NULL, 0, NULL, NULL,
-                  &status, NULL, NULL, FALSE, NULL) < 0) {
+                  &status, NULL, NULL, TRUE, NULL) < 0) {
         conn->release = TRUE;
         ret = -1;
         goto out;
@@ -2219,7 +2244,7 @@ check_permission (HttpTxTask *task, Connection *conn)
     }
 
     int curl_error;
-    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE, &curl_error) < 0) {
+    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -2453,7 +2478,7 @@ check_quota (HttpTxTask *task, Connection *conn, gint64 delta)
                                task->host, task->repo_id, delta);
 
     int curl_error;
-    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, FALSE, &curl_error) < 0) {
+    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -2699,7 +2724,7 @@ upload_check_id_list_segment (HttpTxTask *task, Connection *conn, const char *ur
     int curl_error;
     if (http_post (curl, url, task->token,
                    data, len,
-                   &status, &rsp_content, &rsp_size, FALSE, &curl_error) < 0) {
+                   &status, &rsp_content, &rsp_size, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -2824,7 +2849,7 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
     int curl_error;
     if (http_post (curl, url, task->token,
                    (char *)package, evbuffer_get_length(buf),
-                   &status, NULL, NULL, FALSE, &curl_error) < 0) {
+                   &status, NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -3294,7 +3319,7 @@ update_branch (HttpTxTask *task, Connection *conn)
     if (http_put (curl, url, task->token,
                   NULL, 0,
                   NULL, NULL,
-                  &status, NULL, NULL, FALSE, &curl_error) < 0) {
+                  &status, NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -3734,7 +3759,7 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
     int curl_error;
     if (http_get (curl, url, task->token, &status,
                   &rsp_content, &rsp_size,
-                  NULL, NULL, FALSE, &curl_error) < 0) {
+                  NULL, NULL, (!task->is_clone), &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -3873,7 +3898,7 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
     int curl_error;
     if (http_post (curl, url, task->token,
                    data, len,
-                   &status, &rsp_content, &rsp_size, FALSE, &curl_error) < 0) {
+                   &status, &rsp_content, &rsp_size, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -4226,6 +4251,9 @@ update_local_repo (HttpTxTask *task)
         /* Update repo head branch. */
         seaf_branch_set_commit (repo->head, new_head->commit_id);
         seaf_branch_manager_update_branch (seaf->branch_mgr, repo->head);
+
+        if (g_strcmp0 (repo->name, new_head->repo_name) != 0)
+            seaf_repo_set_name (repo, new_head->repo_name);
     }
 
 out:
