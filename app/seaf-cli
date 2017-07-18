@@ -443,7 +443,7 @@ def seaf_download(args):
     print "Starting to download ..."
     print "Library %s will be downloaded to %s" % (repo, download_dir)
     if encrypted == 1:
-        repo_passwd = getpass.getpass("Enter password for the library: ")
+        repo_passwd = args.libpasswd if args.libpasswd else getpass.getpass("Enter password for the library: ")
     else:
         repo_passwd = None
 
@@ -562,7 +562,7 @@ def seaf_sync(args):
 
     print "Starting to download ..."
     if encrypted == 1:
-        repo_passwd = getpass.getpass("Enter password for the library: ")
+        repo_passwd = args.libpasswd if args.libpasswd else getpass.getpass("Enter password for the library: ")
     else:
         repo_passwd = None
 
@@ -779,6 +779,7 @@ def main():
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
     parser_download.add_argument('-u', '--username', help='username', type=str)
     parser_download.add_argument('-p', '--password', help='password', type=str)
+    parser_download.add_argument('-e', '--libpasswd', help='library password', type=str)
 
     # download-by-name
     parser_download = subparsers.add_parser('download-by-name',
@@ -790,6 +791,7 @@ def main():
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
     parser_download.add_argument('-u', '--username', help='username', type=str)
     parser_download.add_argument('-p', '--password', help='password', type=str)
+    parser_download.add_argument('-e', '--libpasswd', help='library password', type=str)
 
 
     # sync
@@ -802,6 +804,7 @@ def main():
     parser_sync.add_argument('-u', '--username', help='username', type=str)
     parser_sync.add_argument('-p', '--password', help='password', type=str)
     parser_sync.add_argument('-d', '--folder', help='the existing local folder', type=str)
+    parser_sync.add_argument('-e', '--libpasswd', help='library password', type=str)
 
     # desync
     parser_desync = subparsers.add_parser('desync',
