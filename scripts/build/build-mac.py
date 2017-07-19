@@ -878,6 +878,16 @@ def sign_in_parallel(files_to_sign):
         threads[i].join()
 
 def sign_files(appdir):
+    webengine_app = join(
+        appdir,
+        'Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app'
+    )
+
+    # The webengine app must be signed first, otherwise the sign of
+    # QtWebengineCore.framework would fail.
+    if exists(webengine_app):
+        do_sign(webengine_app)
+
     patterns = [
         'Contents/Frameworks/*.framework',
         'Contents/PlugIns/*/*.dylib',
