@@ -1020,7 +1020,7 @@ def main():
     build_msi()
     if not conf[CONF_ONLY_CHINESE]:
         build_english_msi()
-        build_german_msi()
+        # build_german_msi()
 
     if need_sign():
         sign_installers()
