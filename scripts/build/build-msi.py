@@ -838,7 +838,10 @@ def sign_installers():
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
     installers = glob.glob(os.path.join(pack_dir, '*.msi'))
     for fn in installers:
-        do_sign(certfile, fn, desc='Seafile Installer')
+        name = conf[CONF_BRAND]
+        if name == 'seafile':
+            name = 'Seafile'
+        do_sign(certfile, fn, desc='{} Installer'.format(name))
 
 def do_sign(certfile, fn, desc=None):
     certfile = to_win_path(certfile)
