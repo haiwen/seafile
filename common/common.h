@@ -29,6 +29,8 @@
 
 #define CURRENT_REPO_VERSION 1
 
+#define CURRENT_SYNC_PROTO_VERSION 2
+
 /* For compatibility with the old protocol, use an UUID for signature.
  * Listen manager on the server will use the new block tx protocol if it
  * receives this signature as "token".

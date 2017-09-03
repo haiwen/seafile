@@ -246,6 +246,9 @@ GList*
 seaf_repo_manager_get_repo_list (SeafRepoManager *mgr, int start, int limit);
 
 GList *
+seaf_repo_manager_get_repo_id_list_by_server (SeafRepoManager *mgr, const char *server_url);
+
+GList *
 seaf_repo_manager_list_garbage_repos (SeafRepoManager *mgr);
 
 void

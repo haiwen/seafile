@@ -7874,6 +7874,31 @@ seaf_repo_manager_get_repo_list (SeafRepoManager *manager, int start, int limit)
     return repo_list;
 }
 
+GList *
+seaf_repo_manager_get_repo_id_list_by_server (SeafRepoManager *manager, const char *server_url)
+{
+    GList *repo_id_list = NULL;
+    GHashTableIter iter;
+    SeafRepo *repo;
+    gpointer key, value;
+
+    if (pthread_rwlock_rdlock (&manager->priv->lock) < 0) {
+        seaf_warning ("[repo mgr] failed to lock repo cache.\n");
+        return NULL;
+    }
+    g_hash_table_iter_init (&iter, manager->priv->repo_hash);
+
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        repo = value;
+        if (!repo->delete_pending && g_strcmp0 (repo->server_url, server_url) == 0)
+            repo_id_list = g_list_prepend (repo_id_list, g_strdup(repo->id));
+    }
+
+    pthread_rwlock_unlock (&manager->priv->lock);
+
+    return repo_id_list;
+}
+
 typedef struct {
     SeafRepo                *repo;
     CheckoutTask            *task;

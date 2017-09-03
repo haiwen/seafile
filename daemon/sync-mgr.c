@@ -66,6 +66,15 @@ struct _HttpServerState {
     gboolean locked_files_not_supported;
     gint64 last_check_locked_files_time;
     gboolean checking_locked_files;
+
+    /*
+     * repo_id -> head commit id mapping.
+     * Caches the head commit ids of synced repos.
+     */
+    GHashTable *head_commit_map;
+    pthread_mutex_t head_commit_map_lock;
+    gboolean head_commit_map_init;
+    gint64 last_update_head_commit_map_time;
 };
 typedef struct _HttpServerState HttpServerState;
 
@@ -130,6 +139,25 @@ check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo);
 static void
 active_paths_info_free (ActivePathsInfo *info);
 
+static HttpServerState *
+http_server_state_new ()
+{
+    HttpServerState *state = g_new0 (HttpServerState, 1);
+    state->head_commit_map = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+    pthread_mutex_init (&state->head_commit_map_lock, NULL);
+    return state;
+}
+
+static void
+http_server_state_free (HttpServerState *state)
+{
+    if (!state)
+        return;
+    g_hash_table_destroy (state->head_commit_map);
+    pthread_mutex_destroy (&state->head_commit_map_lock);
+    g_free (state);
+}
+
 SeafSyncManager*
 seaf_sync_manager_new (SeafileSession *seaf)
 {
@@ -145,7 +173,8 @@ seaf_sync_manager_new (SeafileSession *seaf)
                                                 g_free, g_free);
 
     mgr->http_server_states = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                                     g_free, g_free);
+                                                     g_free,
+                                                     (GDestroyNotify)http_server_state_free);
 
     gboolean exists;
     int download_limit = seafile_session_config_get_int (seaf,
@@ -410,6 +439,8 @@ refresh_all_windows_on_startup (void *vdata)
 }
 #endif
 
+static void *update_cached_head_commit_ids (void *arg);
+
 int
 seaf_sync_manager_start (SeafSyncManager *mgr)
 {
@@ -448,6 +479,12 @@ seaf_sync_manager_start (SeafSyncManager *mgr)
     mgr->priv->refresh_windows_timer = ccnet_timer_new (
         refresh_all_windows_on_startup, mgr, STARTUP_REFRESH_WINDOWS_DELAY);
 #endif
+
+    pthread_t tid;
+    if (pthread_create (&tid, NULL, update_cached_head_commit_ids, mgr) < 0) {
+        seaf_warning ("Failed to create update cached head commit id thread.\n");
+        return -1;
+    }
 
     return 0;
 }
@@ -1945,6 +1982,50 @@ can_schedule_repo (SeafSyncManager *manager, SeafRepo *repo)
             manager->n_running_tasks < MAX_RUNNING_SYNC_TASKS);
 }
 
+static gboolean
+need_check_on_server (SeafSyncManager *manager, SeafRepo *repo, const char *master_head_id)
+{
+#define HEAD_COMMIT_MAP_TTL 90
+    HttpServerState *state;
+    gboolean ret = FALSE;
+    SyncInfo *info;
+
+    /* If sync state is in error, always retry. */
+    info = get_sync_info (manager, repo->id);
+    if (info && info->current_task && info->current_task->state == SYNC_STATE_ERROR)
+        return TRUE;
+
+    state = g_hash_table_lookup (manager->http_server_states, repo->server_url);
+    if (!state)
+        return TRUE;
+
+    pthread_mutex_lock (&state->head_commit_map_lock);
+
+    if (!state->head_commit_map_init) {
+        ret = TRUE;
+        goto out;
+    }
+
+    gint64 now = (gint64)time(NULL);
+    if (now - state->last_update_head_commit_map_time >= HEAD_COMMIT_MAP_TTL) {
+        ret = TRUE;
+        goto out;
+    }
+
+    char *server_head = g_hash_table_lookup (state->head_commit_map, repo->id);
+    if (!server_head) {
+        /* Repo was removed on server. Just return "changed on server". */
+        ret = TRUE;
+        goto out;
+    }
+    if (g_strcmp0 (server_head, master_head_id) != 0)
+        ret = TRUE;
+
+out:
+    pthread_mutex_unlock (&state->head_commit_map_lock);
+    return ret;
+}
+
 static int
 sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
 {
@@ -1997,6 +2078,15 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
         goto out;
 
     if (is_manual_sync || can_schedule_repo (manager, repo)) {
+        /* If file syncing protocol version is higher than 2, we check for all head commit ids
+         * for synced repos regularly.
+         */
+        if (!is_manual_sync && !need_check_on_server (manager, repo, master->commit_id)) {
+            seaf_debug ("Repo %s is not changed on server %s.\n", repo->name, repo->server_url);
+            repo->last_sync_time = time(NULL);
+            goto out;
+        }
+
         task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
         if (task->http_sync)
             check_head_commit_http (task);
@@ -2137,9 +2227,13 @@ check_http_fileserver_protocol_done (HttpProtocolVersion *result, void *user_dat
     state->checking = FALSE;
 
     if (result->check_success && !result->not_supported) {
-        state->http_version = result->version;
+        state->http_version = MIN(result->version, CURRENT_SYNC_PROTO_VERSION);
         state->effective_host = http_fileserver_url(state->testing_host);
         state->use_fileserver_port = TRUE;
+        seaf_message ("File syncing protocol version on server %s is %d. "
+                      "Client file syncing protocol version is %d. Use version %d.\n",
+                      state->effective_host, result->version, CURRENT_SYNC_PROTO_VERSION,
+                      state->http_version);
     }
 }
 
@@ -2149,9 +2243,13 @@ check_http_protocol_done (HttpProtocolVersion *result, void *user_data)
     HttpServerState *state = user_data;
 
     if (result->check_success && !result->not_supported) {
-        state->http_version = result->version;
+        state->http_version = MIN(result->version, CURRENT_SYNC_PROTO_VERSION);
         state->effective_host = g_strdup(state->testing_host);
         state->checking = FALSE;
+        seaf_message ("File syncing protocol version on server %s is %d. "
+                      "Client file syncing protocol version is %d. Use version %d.\n",
+                      state->effective_host, result->version, CURRENT_SYNC_PROTO_VERSION,
+                      state->http_version);
     } else if (strncmp(state->testing_host, "https", 5) != 0) {
         char *host_fileserver = http_fileserver_url(state->testing_host);
         if (http_tx_manager_check_protocol_version (seaf->http_tx_mgr,
@@ -2181,7 +2279,7 @@ check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo)
     HttpServerState *state = g_hash_table_lookup (mgr->http_server_states,
                                                   repo->server_url);
     if (!state) {
-        state = g_new0 (HttpServerState, 1);
+        state = http_server_state_new ();
         g_hash_table_insert (mgr->http_server_states,
                              g_strdup(repo->server_url), state);
     }
@@ -3533,3 +3631,51 @@ seaf_sync_manager_refresh_path (SeafSyncManager *mgr, const char *path)
 }
 
 #endif
+
+static void
+update_head_commit_ids_for_server (gpointer key, gpointer value, gpointer user_data)
+{
+    char *server_url = key;
+    HttpServerState *state = value;
+
+    /* Only get head commit ids from server if:
+     * 1. syncing protocol version has been checked, and
+     * 2. protocol version is at least 2.
+     */
+    if (state->http_version >= 2) {
+        seaf_debug ("Updating repo head commit ids for server %s.\n", server_url);
+        GList *repo_id_list = seaf_repo_manager_get_repo_id_list_by_server (seaf->repo_mgr,
+                                                                            server_url);
+        if (!repo_id_list) {
+            return;
+        }
+
+        GHashTable *new_map = http_tx_manager_get_head_commit_ids (seaf->http_tx_mgr,
+                                                                   state->effective_host,
+                                                                   state->use_fileserver_port,
+                                                                   repo_id_list);
+        if (new_map) {
+            pthread_mutex_lock (&state->head_commit_map_lock);
+            g_hash_table_destroy (state->head_commit_map);
+            state->head_commit_map = new_map;
+            if (!state->head_commit_map_init)
+                state->head_commit_map_init = TRUE;
+            state->last_update_head_commit_map_time = (gint64)time(NULL);
+            pthread_mutex_unlock (&state->head_commit_map_lock);
+        }
+
+        g_list_free_full (repo_id_list, g_free);
+    }
+}
+
+static void *
+update_cached_head_commit_ids (void *arg)
+{
+    SeafSyncManager *mgr = (SeafSyncManager *)arg;
+
+    while (1) {
+        g_usleep (30 * G_USEC_PER_SEC);
+
+        g_hash_table_foreach (mgr->http_server_states, update_head_commit_ids_for_server, mgr);
+    }
+}

@@ -2196,6 +2196,126 @@ out:
     return ret;
 }
 
+static char *
+repo_id_list_to_json (GList *repo_id_list)
+{
+    json_t *array = json_array();
+    GList *ptr;
+    char *repo_id;
+
+    for (ptr = repo_id_list; ptr; ptr = ptr->next) {
+        repo_id = ptr->data;
+        json_array_append_new (array, json_string(repo_id));
+    }
+
+    char *data = json_dumps (array, JSON_COMPACT);
+    if (!data) {
+        seaf_warning ("Failed to dump json.\n");
+        json_decref (array);
+        return NULL;
+    }
+
+    json_decref (array);
+    return data;
+}
+
+static GHashTable *
+repo_head_commit_map_from_json (const char *json_str, gint64 len)
+{
+    json_t *object;
+    json_error_t jerror;
+    GHashTable *ret;
+
+    object = json_loadb (json_str, (size_t)len, 0, &jerror);
+    if (!object) {
+        seaf_warning ("Failed to load json: %s\n", jerror.text);
+        return NULL;
+    }
+
+    ret = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+
+    void *iter = json_object_iter (object);
+    const char *key;
+    json_t *value;
+    while (iter) {
+        key = json_object_iter_key (iter);
+        value = json_object_iter_value (iter);
+        if (json_typeof(value) != JSON_STRING) {
+            seaf_warning ("Bad json object format when parsing head commit id map.\n");
+            g_hash_table_destroy (ret);
+            goto out;
+        }
+        g_hash_table_replace (ret, g_strdup (key), g_strdup(json_string_value(value)));
+        iter = json_object_iter_next (object, iter);
+    }
+
+out:
+    json_decref (object);
+    return ret;
+}
+
+GHashTable *
+http_tx_manager_get_head_commit_ids (HttpTxManager *manager,
+                                     const char *host,
+                                     gboolean use_fileserver_port,
+                                     GList *repo_id_list)
+{
+    HttpTxPriv *priv = seaf->http_tx_mgr->priv;
+    ConnectionPool *pool;
+    Connection *conn;
+    CURL *curl;
+    char *url;
+    char *req_content = NULL;
+    gint64 req_size;
+    int status;
+    char *rsp_content = NULL;
+    gint64 rsp_size;
+    GHashTable *map = NULL;
+
+    pool = find_connection_pool (priv, host);
+    if (!pool) {
+        seaf_warning ("Failed to create connection pool for host %s.\n", host);
+        return NULL;
+    }
+
+    conn = connection_pool_get_connection (pool);
+    if (!conn) {
+        seaf_warning ("Failed to get connection to host %s.\n", host);
+        return NULL;
+    }
+
+    curl = conn->curl;
+
+    if (!use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/head-commits-multi/", host);
+    else
+        url = g_strdup_printf ("%s/repo/head-commits-multi/", host);
+
+    req_content = repo_id_list_to_json (repo_id_list);
+    req_size = strlen(req_content);
+
+    if (http_post (curl, url, NULL, req_content, req_size,
+                   &status, &rsp_content, &rsp_size, TRUE, NULL) < 0) {
+        conn->release = TRUE;
+        goto out;
+    }
+
+    if (status != HTTP_OK) {
+        seaf_warning ("Bad response code for POST %s: %d\n", url, status);
+        goto out;
+    }
+
+    map = repo_head_commit_map_from_json (rsp_content, rsp_size);
+
+out:
+    g_free (url);
+    connection_pool_return_connection (pool, conn);
+    /* returned by json_dumps(). */
+    free (req_content);
+    g_free (rsp_content);
+    return map;
+}
+
 static gboolean
 remove_task_help (gpointer key, gpointer value, gpointer user_data)
 {
@@ -3419,8 +3539,8 @@ http_upload_thread (void *vdata)
         goto out;
     }
 
-    seaf_message ("Upload with HTTP sync protocol version %d.\n",
-                  task->protocol_version);
+    /* seaf_message ("Upload with HTTP sync protocol version %d.\n", */
+    /*               task->protocol_version); */
 
     transition_state (task, task->state, HTTP_TASK_RT_STATE_CHECK);
 
@@ -4284,8 +4404,8 @@ http_download_thread (void *vdata)
         goto out;
     }
 
-    seaf_message ("Download with HTTP sync protocol version %d.\n",
-                  task->protocol_version);
+    /* seaf_message ("Download with HTTP sync protocol version %d.\n", */
+    /*               task->protocol_version); */
 
     transition_state (task, task->state, HTTP_TASK_RT_STATE_CHECK);
 
