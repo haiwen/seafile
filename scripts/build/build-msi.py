@@ -962,19 +962,19 @@ def move_msi():
         else:
             dst_msi_en = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-en-shibboleth.msi' % (brand, conf[CONF_VERSION]))
         must_copy(src_msi_en, dst_msi_en)
-        src_msi_de = os.path.join(pack_dir, 'seafile-de.msi')
-        if not conf[CONF_WITH_SHIB]:
-            dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-de.msi' % (brand, conf[CONF_VERSION]))
-        else:
-            dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-de-shibboleth.msi' % (brand, conf[CONF_VERSION]))
-        must_copy(src_msi_de, dst_msi_de)
+        # src_msi_de = os.path.join(pack_dir, 'seafile-de.msi')
+        # if not conf[CONF_WITH_SHIB]:
+        #     dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-de.msi' % (brand, conf[CONF_VERSION]))
+        # else:
+        #     dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-de-shibboleth.msi' % (brand, conf[CONF_VERSION]))
+        # must_copy(src_msi_de, dst_msi_de)
 
     print '---------------------------------------------'
     print 'The build is successfully. Output is:'
     print '>>\t%s' % dst_msi
     if not conf[CONF_ONLY_CHINESE]:
         print '>>\t%s' % dst_msi_en
-        print '>>\t%s' % dst_msi_de
+        # print '>>\t%s' % dst_msi_de
     print '---------------------------------------------'
 
 def check_tools():
