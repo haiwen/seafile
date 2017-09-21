@@ -726,6 +726,72 @@ out:
 
 #endif
 
+#ifdef WIN32
+static inline gboolean
+has_trailing_space_or_period (const char *path)
+{
+    int len = strlen(path);
+    if (path[len - 1] == ' ' || path[len - 1] == '.') {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+#endif
+
+gboolean
+should_ignore_on_checkout (const char *file_path, IgnoreReason *ignore_reason)
+{
+    gboolean ret = FALSE;
+
+#ifdef WIN32
+    static char illegals[] = {'\\', ':', '*', '?', '"', '<', '>', '|', '\b', '\t'};
+    char **components = g_strsplit (file_path, "/", -1);
+    int n_comps = g_strv_length (components);
+    int j = 0;
+    char *file_name;
+    int i;
+    char c;
+
+    for (; j < n_comps; ++j) {
+        file_name = components[j];
+
+        if (has_trailing_space_or_period (file_name)) {
+            /* Ignore files/dir whose path has trailing spaces. It would cause
+             * problem on windows. */
+            /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */
+            ret = TRUE;
+            if (ignore_reason)
+                *ignore_reason = IGNORE_REASON_END_SPACE_PERIOD;
+            goto out;
+        }
+
+        for (i = 0; i < G_N_ELEMENTS(illegals); i++) {
+            if (strchr (file_name, illegals[i])) {
+                ret = TRUE;
+                if (ignore_reason)
+                    *ignore_reason = IGNORE_REASON_INVALID_CHARACTER;
+                goto out;
+            }
+        }
+
+        for (c = 1; c <= 31; c++) {
+            if (strchr (file_name, c)) {
+                ret = TRUE;
+                if (ignore_reason)
+                    *ignore_reason = IGNORE_REASON_INVALID_CHARACTER;
+                goto out;
+            }
+        }
+    }
+
+out:
+    g_strfreev (components);
+#endif
+
+    return ret;
+}
+
 ssize_t						/* Read "n" bytes from a descriptor. */
 readn(int fd, void *vptr, size_t n)
 {

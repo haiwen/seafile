@@ -133,6 +133,14 @@ traverse_directory_win32 (wchar_t *path_w,
 #define O_BINARY 0
 #endif
 
+typedef enum IgnoreReason {
+    IGNORE_REASON_END_SPACE_PERIOD = 0,
+    IGNORE_REASON_INVALID_CHARACTER = 1,
+} IgnoreReason;
+
+gboolean
+should_ignore_on_checkout (const char *file_path, IgnoreReason *ignore_reason);
+
 /* for debug */
 #ifndef ccnet_warning
 #define ccnet_warning(fmt, ...) g_warning("%s(%d): " fmt, __FILE__, __LINE__, ##__VA_ARGS__)

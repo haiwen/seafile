@@ -1582,6 +1582,17 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         return NULL;
     }
 
+    IgnoreReason reason;
+    if (should_ignore_on_checkout (repo_name, &reason)) {
+        if (reason == IGNORE_REASON_END_SPACE_PERIOD)
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                         "Library name ends with space or period character");
+        else
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                         "Library name contains invalid characters such as ':', '*', '|', '?'");
+        return NULL;
+    }
+
     wt_tmp = g_build_filename (wt_parent, repo_name, NULL);
 
     worktree = make_worktree_for_download (mgr, wt_tmp, error);
