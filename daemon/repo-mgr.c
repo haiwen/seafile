@@ -1005,12 +1005,54 @@ seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit)
     commit->version = repo->version;
 }
 
+static void
+update_repo_worktree_name (SeafRepo *repo, const char *new_name)
+{
+    char *dirname = NULL, *basename = NULL;
+    char *new_worktree = NULL;
+
+    dirname = g_path_get_dirname (repo->worktree);
+    if (g_strcmp0 (dirname, ".") == 0)
+        return;
+    basename = g_path_get_basename (repo->worktree);
+
+    new_worktree = g_build_filename (dirname, new_name, NULL);
+
+    if (seaf_util_rename (repo->worktree, new_worktree) < 0) {
+        seaf_warning ("Failed to rename worktree from %s to %s: %s.\n",
+                      repo->worktree, new_worktree, strerror(errno));
+        goto out;
+    }
+
+    if (seaf_repo_manager_set_repo_worktree (seaf->repo_mgr, repo, new_worktree) < 0) {
+        goto out;
+    }
+
+#ifdef __APPLE__
+    if (seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id) < 0) {
+        seaf_warning ("Failed to unwatch repo %s old worktree.\n", repo->id);
+        goto out;
+    }
+
+    if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
+        seaf_warning ("Failed to watch repo %s new worktree.\n", repo->id);
+    }
+#endif
+
+out:
+    g_free (dirname);
+    g_free (basename);
+    g_free (new_worktree);
+}
+
 void
 seaf_repo_set_name (SeafRepo *repo, const char *new_name)
 {
     char *old_name = repo->name;
     repo->name = g_strdup(new_name);
     g_free (old_name);
+
+    update_repo_worktree_name (repo, new_name);
 }
 
 static gboolean
