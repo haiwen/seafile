@@ -1005,11 +1005,25 @@ seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit)
     commit->version = repo->version;
 }
 
+static gboolean
+need_to_sync_worktree_name (const char *repo_id)
+{
+    char *need_sync_wt_name = seaf_repo_manager_get_repo_property (seaf->repo_mgr,
+                                                                   repo_id,
+                                                                   REPO_SYNC_WORKTREE_NAME);
+    gboolean ret = (g_strcmp0(need_sync_wt_name, "true") == 0);
+    g_free (need_sync_wt_name);
+    return ret;
+}
+
 static void
-update_repo_worktree_name (SeafRepo *repo, const char *new_name)
+update_repo_worktree_name (SeafRepo *repo, const char *new_name, gboolean rewatch)
 {
     char *dirname = NULL, *basename = NULL;
     char *new_worktree = NULL;
+
+    seaf_message ("Update worktree folder name of repo %s to %s.\n",
+                  repo->id, new_name);
 
     dirname = g_path_get_dirname (repo->worktree);
     if (g_strcmp0 (dirname, ".") == 0)
@@ -1018,6 +1032,9 @@ update_repo_worktree_name (SeafRepo *repo, const char *new_name)
 
     new_worktree = g_build_filename (dirname, new_name, NULL);
 
+    /* This can possibly fail on Windows if some files are opened under the worktree.
+     * The rename operation will be retried on next restart.
+     */
     if (seaf_util_rename (repo->worktree, new_worktree) < 0) {
         seaf_warning ("Failed to rename worktree from %s to %s: %s.\n",
                       repo->worktree, new_worktree, strerror(errno));
@@ -1028,16 +1045,16 @@ update_repo_worktree_name (SeafRepo *repo, const char *new_name)
         goto out;
     }
 
-#ifdef __APPLE__
-    if (seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id) < 0) {
-        seaf_warning ("Failed to unwatch repo %s old worktree.\n", repo->id);
-        goto out;
-    }
+    if (rewatch) {
+        if (seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id) < 0) {
+            seaf_warning ("Failed to unwatch repo %s old worktree.\n", repo->id);
+            goto out;
+        }
 
-    if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
-        seaf_warning ("Failed to watch repo %s new worktree.\n", repo->id);
+        if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
+            seaf_warning ("Failed to watch repo %s new worktree.\n", repo->id);
+        }
     }
-#endif
 
 out:
     g_free (dirname);
@@ -1052,7 +1069,8 @@ seaf_repo_set_name (SeafRepo *repo, const char *new_name)
     repo->name = g_strdup(new_name);
     g_free (old_name);
 
-    update_repo_worktree_name (repo, new_name);
+    if (need_to_sync_worktree_name (repo->id))
+        update_repo_worktree_name (repo, new_name, TRUE);
 }
 
 static gboolean
@@ -7158,6 +7176,16 @@ load_branch_cb (sqlite3_stmt *stmt, void *vrepo)
     return FALSE;
 }
 
+static gboolean
+is_wt_repo_name_same (const char *worktree, const char *repo_name)
+{
+    char *basename = g_path_get_basename (worktree);
+    gboolean ret = FALSE;
+    ret = (strcmp (basename, repo_name) == 0);
+    g_free (basename);
+    return ret;
+}
+
 static SeafRepo *
 load_repo (SeafRepoManager *manager, const char *repo_id)
 {
@@ -7275,6 +7303,21 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
         int interval = atoi(value);
         if (interval > 0)
             repo->sync_interval = interval;
+    }
+    g_free (value);
+
+    gboolean wt_repo_name_same = is_wt_repo_name_same (repo->worktree, repo->name);
+    value = load_repo_property (manager, repo->id, REPO_SYNC_WORKTREE_NAME);
+    if (g_strcmp0 (value, "true") == 0) {
+        /* If need to sync worktree name with library name, update worktree folder name. */
+        if (!wt_repo_name_same)
+            update_repo_worktree_name (repo, repo->name, FALSE);
+    } else {
+        /* If an existing repo's worktree folder name is the same as repo name, but
+         * sync_worktree_name property is not set, set it.
+         */
+        if (wt_repo_name_same)
+            save_repo_property (manager, repo->id, REPO_SYNC_WORKTREE_NAME, "true");
     }
     g_free (value);
 

@@ -124,6 +124,13 @@ mark_clone_done_v2 (SeafRepo *repo, CloneTask *task)
         seaf_repo_set_readonly (repo);
     }
 
+    if (task->sync_wt_name) {
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             REPO_SYNC_WORKTREE_NAME,
+                                             "true");
+    }
+
     if (task->server_url)
         repo->server_url = g_strdup(task->server_url);
 
@@ -1302,6 +1309,7 @@ add_task_common (SeafCloneManager *mgr,
                  const char *peer_port,
                  const char *email,
                  const char *more_info,
+                 gboolean sync_wt_name,
                  GError **error)
 {
     CloneTask *task;
@@ -1313,6 +1321,7 @@ add_task_common (SeafCloneManager *mgr,
     task->enc_version = enc_version;
     task->random_key = g_strdup (random_key);
     task->repo_version = repo_version;
+    task->sync_wt_name = sync_wt_name;
     if (more_info) {
         json_error_t jerror;
         json_t *object = NULL;
@@ -1382,6 +1391,16 @@ check_encryption_args (const char *magic, int enc_version, const char *random_ke
     return TRUE;
 }
 
+static gboolean
+is_wt_repo_name_same (const char *worktree, const char *repo_name)
+{
+    char *basename = g_path_get_basename (worktree);
+    gboolean ret = FALSE;
+    ret = (strcmp (basename, repo_name) == 0);
+    g_free (basename);
+    return ret;
+}
+
 char *
 seaf_clone_manager_add_task (SeafCloneManager *mgr, 
                              const char *repo_id,
@@ -1403,6 +1422,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     SeafRepo *repo;
     char *worktree;
     char *ret;
+    gboolean sync_wt_name = FALSE;
 
     if (!seaf->started) {
         seaf_message ("System not started, skip adding clone task.\n");
@@ -1466,6 +1486,11 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         return NULL;
     }
 
+    /* Don't sync worktree folder name with library name later if they're not the same
+     * at the beginning.
+     */
+    sync_wt_name = is_wt_repo_name_same (worktree, repo_name);
+
     /* If a repo was unsynced and then downloaded again, there may be
      * a garbage record for this repo. We don't want the downloaded blocks
      * be removed by GC.
@@ -1482,6 +1507,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
                            enc_version, random_key,
                            worktree, peer_addr, peer_port,
                            email, more_info,
+                           sync_wt_name,
                            error);
     g_free (worktree);
 
@@ -1616,7 +1642,7 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
                            peer_id, repo_name, token, passwd,
                            enc_version, random_key,
                            worktree, peer_addr, peer_port,
-                           email, more_info, error);
+                           email, more_info, TRUE, error);
     g_free (worktree);
     g_free (wt_tmp);
 

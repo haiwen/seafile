@@ -60,6 +60,10 @@ struct _CloneTask {
     char                *random_key;
     char                 root_id[41];
     gboolean             is_readonly;
+    /* Set to true when the local folder name is the same as library name.
+     * Worktree folder name will be kept in sync with library name if this is true.
+     */
+    gboolean             sync_wt_name;
 
     /* Http sync fields */
     char                *server_url;

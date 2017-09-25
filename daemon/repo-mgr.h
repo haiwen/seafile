@@ -23,6 +23,7 @@
 #define REPO_PROP_IS_READONLY "is-readonly"
 #define REPO_PROP_SERVER_URL  "server-url"
 #define REPO_PROP_SYNC_INTERVAL "sync-interval"
+#define REPO_SYNC_WORKTREE_NAME "sync-worktree-name"
 
 struct _SeafRepoManager;
 typedef struct _SeafRepo SeafRepo;
