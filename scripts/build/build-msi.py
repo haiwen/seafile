@@ -58,7 +58,6 @@ CONF_ONLY_CHINESE       = 'onlychinese'
 CONF_QT_ROOT            = 'qt_root'
 CONF_EXTRA_LIBS_DIR     = 'extra_libs_dir'
 CONF_QT5                = 'qt5'
-CONF_WITH_SHIB          = 'with_shib'
 CONF_BRAND              = 'brand'
 CONF_CERTFILE           = 'certfile'
 CONF_NO_STRIP           = 'nostrip'
@@ -332,7 +331,7 @@ class SeafileClient(Project):
         flags = {
             'BUILD_SPARKLE_SUPPORT': 'ON',
             'USE_QT5': 'ON' if conf[CONF_QT5] else 'OFF',
-            'BUILD_SHIBBOLETH_SUPPORT': 'ON' if conf[CONF_WITH_SHIB] else 'OFF',
+            'BUILD_SHIBBOLETH_SUPPORT': 'ON',
             'CMAKE_BUILD_TYPE': build_type,
             'CMAKE_INSTALL_PREFIX': to_mingw_path(self.prefix),
             # ninja invokes cmd.exe which doesn't support msys/mingw path
@@ -446,7 +445,6 @@ def validate_args(usage, options):
 
     # [qt5]
     qt5 = get_option(CONF_QT5)
-    with_shib = get_option(CONF_WITH_SHIB)
     brand = get_option(CONF_BRAND)
     cert = get_option(CONF_CERTFILE)
     if cert is not None:
@@ -469,7 +467,6 @@ def validate_args(usage, options):
     conf[CONF_QT_ROOT] = qt_root
     conf[CONF_EXTRA_LIBS_DIR] = extra_libs_dir
     conf[CONF_QT5] = qt5
-    conf[CONF_WITH_SHIB] = with_shib
     conf[CONF_BRAND] = brand
     conf[CONF_CERTFILE] = cert
 
@@ -587,11 +584,6 @@ def parse_args():
                       dest=CONF_QT5,
                       action='store_true',
                       help='''build seafile client with qt5''')
-
-    parser.add_option(long_opt(CONF_WITH_SHIB),
-                      dest=CONF_WITH_SHIB,
-                      action='store_true',
-                      help='''build seafile client with shibboleth support''')
 
     parser.add_option(long_opt(CONF_BRAND),
                       dest=CONF_BRAND,
@@ -947,27 +939,15 @@ def move_msi():
     pack_dir = os.path.join(conf[CONF_BUILDDIR], 'pack')
     src_msi = os.path.join(pack_dir, 'seafile.msi')
     brand = conf[CONF_BRAND]
-    if not conf[CONF_WITH_SHIB]:
-        dst_msi = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s.msi' % (brand, conf[CONF_VERSION]))
-    else:
-        dst_msi = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-shibboleth.msi' % (brand, conf[CONF_VERSION]))
+    dst_msi = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s.msi' % (brand, conf[CONF_VERSION]))
 
     # move msi to outputdir
     must_copy(src_msi, dst_msi)
 
     if not conf[CONF_ONLY_CHINESE]:
         src_msi_en = os.path.join(pack_dir, 'seafile-en.msi')
-        if not conf[CONF_WITH_SHIB]:
-            dst_msi_en = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-en.msi' % (brand, conf[CONF_VERSION]))
-        else:
-            dst_msi_en = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-en-shibboleth.msi' % (brand, conf[CONF_VERSION]))
+        dst_msi_en = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-en.msi' % (brand, conf[CONF_VERSION]))
         must_copy(src_msi_en, dst_msi_en)
-        # src_msi_de = os.path.join(pack_dir, 'seafile-de.msi')
-        # if not conf[CONF_WITH_SHIB]:
-        #     dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-de.msi' % (brand, conf[CONF_VERSION]))
-        # else:
-        #     dst_msi_de = os.path.join(conf[CONF_OUTPUTDIR], '%s-%s-de-shibboleth.msi' % (brand, conf[CONF_VERSION]))
-        # must_copy(src_msi_de, dst_msi_de)
 
     print '---------------------------------------------'
     print 'The build is successfully. Output is:'
