@@ -572,7 +572,7 @@ remove_from_changeset_recursive (ChangeSet *changeset,
         char *slash = strrchr (parent, '/');
         if (slash) {
             *slash = '\0';
-            if (g_strcmp0 (top_dir, parent) != 0) {
+            if (strlen(parent) >= strlen(top_dir)) {
                 /* Recursively remove parent dirs. */
                 remove_from_changeset_recursive (changeset,
                                                  parent,
