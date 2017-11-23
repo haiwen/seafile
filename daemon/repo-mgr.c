@@ -5775,6 +5775,15 @@ is_built_in_ignored_file (const char *filename)
         spec++;
     }
 
+    if (!seaf->sync_extra_temp_file) {
+        spec = office_temp_ignore_patterns;
+        while (*spec) {
+            if (g_pattern_match_string(*spec, filename))
+                return TRUE;
+            spec++;
+        }
+    }
+
     return FALSE;
 }
 
@@ -5842,6 +5851,7 @@ delete_worktree_dir_recursive_win32 (struct index_state *istate,
                 mtime = (guint64)file_time_to_unix_time (&fdata.ftLastWriteTime);
                 ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
                 if (!ce || ce->ce_mtime.sec != mtime) {
+                    seaf_message ("File %s is changed, skip deleting it.\n", sub_path);
                     g_free (sub_path_w);
                     g_free (sub_path);
                     ret = -1;
@@ -5940,6 +5950,7 @@ delete_worktree_dir_recursive (struct index_state *istate,
             if (!builtin_ignored) {
                 ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
                 if (!ce || ce->ce_mtime.sec != st.st_mtime) {
+                    seaf_message ("File %s is changed, skip deleting it.\n", full_sub_path);
                     g_free (sub_path);
                     g_free (full_sub_path);
                     ret = -1;
