@@ -5847,17 +5847,17 @@ delete_worktree_dir_recursive_win32 (struct index_state *istate,
             }
         } else {
             /* Files like .DS_Store and Thumbs.db should be deleted any way. */
-            if (!builtin_ignored) {
-                mtime = (guint64)file_time_to_unix_time (&fdata.ftLastWriteTime);
-                ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
-                if (!ce || ce->ce_mtime.sec != mtime) {
-                    seaf_message ("File %s is changed, skip deleting it.\n", sub_path);
-                    g_free (sub_path_w);
-                    g_free (sub_path);
-                    ret = -1;
-                    continue;
-                }
-            }
+            /* if (!builtin_ignored) { */
+            /*     mtime = (guint64)file_time_to_unix_time (&fdata.ftLastWriteTime); */
+            /*     ce = index_name_exists (istate, sub_path, strlen(sub_path), 0); */
+            /*     if (!ce || ce->ce_mtime.sec != mtime) { */
+            /*         seaf_message ("File %s is changed, skip deleting it.\n", sub_path); */
+            /*         g_free (sub_path_w); */
+            /*         g_free (sub_path); */
+            /*         ret = -1; */
+            /*         continue; */
+            /*     } */
+            /* } */
 
             if (!DeleteFileW (sub_path_w)) {
                 error = GetLastError();
@@ -5947,16 +5947,16 @@ delete_worktree_dir_recursive (struct index_state *istate,
                 ret = -1;
         } else {
             /* Files like .DS_Store and Thumbs.db should be deleted any way. */
-            if (!builtin_ignored) {
-                ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
-                if (!ce || ce->ce_mtime.sec != st.st_mtime) {
-                    seaf_message ("File %s is changed, skip deleting it.\n", full_sub_path);
-                    g_free (sub_path);
-                    g_free (full_sub_path);
-                    ret = -1;
-                    continue;
-                }
-            }
+            /* if (!builtin_ignored) { */
+            /*     ce = index_name_exists (istate, sub_path, strlen(sub_path), 0); */
+            /*     if (!ce || ce->ce_mtime.sec != st.st_mtime) { */
+            /*         seaf_message ("File %s is changed, skip deleting it.\n", full_sub_path); */
+            /*         g_free (sub_path); */
+            /*         g_free (full_sub_path); */
+            /*         ret = -1; */
+            /*         continue; */
+            /*     } */
+            /* } */
 
             /* Delete all other file types. */
             if (seaf_util_unlink (full_sub_path) < 0) {
