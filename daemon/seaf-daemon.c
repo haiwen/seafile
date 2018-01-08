@@ -23,6 +23,7 @@
 
 #include <ccnet.h>
 #include <searpc-server.h>
+#include <searpc-named-pipe-transport.h>
 #include <searpc-client.h>
 
 #include "seafile-session.h"
@@ -73,18 +74,15 @@ static void usage ()
 #include "searpc-signature.h"
 #include "searpc-marshal.h"
 
+#define SEAFILE_SOCKET_NAME "seafile.sock"
+
 static void
-start_rpc_service (CcnetClient *client)
+register_rpc_service ()
 {
     searpc_server_init (register_marshals);
 
     searpc_create_service ("seafile-rpcserver");
-    ccnet_register_service (client, "seafile-rpcserver", "rpc-inner",
-                            CCNET_TYPE_RPCSERVER_PROC, NULL);
-
     searpc_create_service ("seafile-threaded-rpcserver");
-    ccnet_register_service (client, "seafile-threaded-rpcserver", "rpc-inner",
-                            CCNET_TYPE_THREADED_RPCSERVER_PROC, NULL);
 
     /* seafile-rpcserver */
     searpc_server_register_function ("seafile-rpcserver",
@@ -208,7 +206,7 @@ start_rpc_service (CcnetClient *client)
                                      seafile_check_path_for_clone,
                                      "seafile_check_path_for_clone",
                                      searpc_signature_int__string());
-    
+
     /* clone means sync with existing folder, download means sync to a new folder. */
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_clone,
@@ -320,6 +318,38 @@ start_rpc_service (CcnetClient *client)
                                      searpc_signature_objlist__string_string_string_int());
 }
 
+static int
+start_searpc_server ()
+{
+    register_rpc_service ();
+
+#ifdef WIN32
+    DWORD bufCharCount = 32767;
+    char userNameBuf[bufCharCount];
+    if (GetUserName(userNameBuf, &bufCharCount) == 0) {
+        seaf_warning ("Failed to get user name, GLE=%lu, required size is %lu\n",
+                      GetLastError(), bufCharCount);
+        return -1;
+    }
+
+    char *path = g_strdup_printf("\\\\.\\pipe\\seafile_%s", userNameBuf);
+#else
+    char *path = g_build_filename (seaf->seaf_dir, SEAFILE_SOCKET_NAME, NULL);
+#endif
+
+    SearpcNamedPipeServer *server = searpc_create_named_pipe_server (path);
+    if (!server) {
+        seaf_warning ("Failed to create named pipe server.\n");
+        g_free (path);
+        return -1;
+    }
+
+    seaf->rpc_socket_path = path;
+
+    return searpc_named_pipe_server_start (server);
+}
+
+
 static void
 set_signal_handlers (SeafileSession *session)
 {
@@ -360,7 +390,7 @@ get_argv_utf8 (int *argc)
     wchar_t **argv_w = NULL;
 
     cmdline = GetCommandLineW();
-    argv_w = CommandLineToArgvW (cmdline, argc); 
+    argv_w = CommandLineToArgvW (cmdline, argc);
     if (!argv_w) {
         printf("failed to CommandLineToArgvW(), GLE=%lu\n", GetLastError());
         return NULL;
@@ -434,7 +464,7 @@ main (int argc, char **argv)
     argv = get_argv_utf8 (&argc);
 #endif
 
-    while ((c = getopt_long (argc, argv, short_options, 
+    while ((c = getopt_long (argc, argv, short_options,
                              long_options, NULL)) != EOF)
     {
         switch (c) {
@@ -535,10 +565,8 @@ main (int argc, char **argv)
     if (!client)
         exit (1);
 
-    start_rpc_service (client);
-
     create_sync_rpc_clients (config_dir);
-    appletrpc_client = ccnet_create_async_rpc_client (client, NULL, 
+    appletrpc_client = ccnet_create_async_rpc_client (client, NULL,
                                                       "applet-rpcserver");
 
     /* init seafile */
@@ -571,6 +599,14 @@ main (int argc, char **argv)
 #endif
     seafile_session_prepare (seaf);
     seafile_session_start (seaf);
+
+    if (start_searpc_server () < 0) {
+        seaf_warning ("Failed to start searpc server.\n");
+        exit (1);
+    }
+
+    seaf_message ("rpc server started.\n");
+
 
     seafile_session_config_set_string (seaf, "wktree", seaf->worktree_dir);
     ccnet_main (client);
