@@ -675,6 +675,8 @@ traverse_directory_win32 (wchar_t *path_w,
     int ret = 0;
 
     path = g_utf16_to_utf8 (path_w, -1, NULL, NULL, NULL);
+    if (!path)
+        return -1;
 
     path_len_w = wcslen(path_w);
 

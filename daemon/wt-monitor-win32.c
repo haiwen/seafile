@@ -444,6 +444,9 @@ convert_to_unix_path (const char *worktree, const wchar_t *path, int path_len,
     } else
         utf8_path = g_utf16_to_utf8 (path, path_len/sizeof(wchar_t), NULL, NULL, NULL);
 
+    if (!utf8_path)
+        return NULL;
+
     char *p;
     for (p = utf8_path; *p != 0; ++p)
         if (*p == '\\')
@@ -471,6 +474,8 @@ process_one_event (RepoWatchInfo *info,
                                    event->Action == FILE_ACTION_REMOVED);
     filename = convert_to_unix_path (worktree, event->FileName, event->FileNameLength,
                                      convert_long_path);
+    if (!filename)
+        goto out;
 
     handle_rename (info, event, worktree, filename, last_event);
 

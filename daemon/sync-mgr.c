@@ -3678,4 +3678,6 @@ update_cached_head_commit_ids (void *arg)
 
         g_hash_table_foreach (mgr->http_server_states, update_head_commit_ids_for_server, mgr);
     }
+
+    return NULL;
 }
