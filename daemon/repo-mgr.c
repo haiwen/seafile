@@ -7209,7 +7209,7 @@ is_wt_repo_name_same (const char *worktree, const char *repo_name)
 {
     char *basename = g_path_get_basename (worktree);
     gboolean ret = FALSE;
-    ret = (strcmp (basename, repo_name) == 0);
+    ret = (g_strcmp0 (basename, repo_name) == 0);
     g_free (basename);
     return ret;
 }
@@ -7334,20 +7334,22 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     }
     g_free (value);
 
-    gboolean wt_repo_name_same = is_wt_repo_name_same (repo->worktree, repo->name);
-    value = load_repo_property (manager, repo->id, REPO_SYNC_WORKTREE_NAME);
-    if (g_strcmp0 (value, "true") == 0) {
-        /* If need to sync worktree name with library name, update worktree folder name. */
-        if (!wt_repo_name_same)
-            update_repo_worktree_name (repo, repo->name, FALSE);
-    } else {
-        /* If an existing repo's worktree folder name is the same as repo name, but
-         * sync_worktree_name property is not set, set it.
-         */
-        if (wt_repo_name_same)
-            save_repo_property (manager, repo->id, REPO_SYNC_WORKTREE_NAME, "true");
+    if (repo->worktree) {
+        gboolean wt_repo_name_same = is_wt_repo_name_same (repo->worktree, repo->name);
+        value = load_repo_property (manager, repo->id, REPO_SYNC_WORKTREE_NAME);
+        if (g_strcmp0 (value, "true") == 0) {
+            /* If need to sync worktree name with library name, update worktree folder name. */
+            if (!wt_repo_name_same)
+                update_repo_worktree_name (repo, repo->name, FALSE);
+        } else {
+            /* If an existing repo's worktree folder name is the same as repo name, but
+             * sync_worktree_name property is not set, set it.
+             */
+            if (wt_repo_name_same)
+                save_repo_property (manager, repo->id, REPO_SYNC_WORKTREE_NAME, "true");
+        }
+        g_free (value);
     }
-    g_free (value);
 
     g_hash_table_insert (manager->priv->repo_hash, g_strdup(repo->id), repo);
 
