@@ -224,7 +224,7 @@ remove_hidden_file (wchar_t *parent, WIN32_FIND_DATAW *fdata,
     dname = g_utf16_to_utf8 (fdata->cFileName, -1, NULL, NULL, NULL);
 
     if (!(fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
-        seaf_repo_manager_is_ignored_hidden_file(dname)) {
+        (!dname || seaf_repo_manager_is_ignored_hidden_file(dname))) {
         subpath_w = g_new0 (wchar_t, wcslen(parent) + wcslen(fdata->cFileName) + 2);
         wcscpy (subpath_w, parent);
         wcscat (subpath_w, L"\\");
@@ -1043,6 +1043,8 @@ check_dir_locked_recursive (const wchar_t *path_w)
         return TRUE;
 
     path = g_utf16_to_utf8 (path_w, -1, NULL, NULL, NULL);
+    if (!path)
+        return FALSE;
 
     path_len_w = wcslen(path_w);
 

@@ -1642,6 +1642,9 @@ iter_dir_cb (wchar_t *full_parent_w,
     int ret = 0;
 
     dname = g_utf16_to_utf8 (fdata->cFileName, -1, NULL, NULL, NULL);
+    if (!dname) {
+        goto out;
+    }
 
     path = g_build_path ("/", data->parent, dname, NULL);
     full_path = g_build_path ("/", params->worktree, path, NULL);
@@ -1869,7 +1872,7 @@ is_empty_dir (const char *path, GList *ignore_list)
             continue;
 
         dname = g_utf16_to_utf8 (fdata.cFileName, -1, NULL, NULL, NULL);
-        if (!should_ignore (path, dname, ignore_list)) {
+        if (!dname || !should_ignore (path, dname, ignore_list)) {
             ret = FALSE;
             g_free (dname);
             FindClose (handle);
@@ -2348,6 +2351,11 @@ try_add_empty_parent_dir_entry_from_wt (const char *worktree,
         }
 
         char *utf8_path = g_utf16_to_utf8 (long_path, -1, NULL, NULL, NULL);
+        if (!utf8_path) {
+            g_free (long_path);
+            goto out;
+        }
+
         char *p;
         for (p = utf8_path; *p != 0; ++p)
             if (*p == '\\')
@@ -2415,7 +2423,7 @@ scan_subtree_for_deletion (const char *repo_id,
                            GList **scanned_dirs,
                            ChangeSet *changeset)
 {
-    wchar_t *path_w;
+    wchar_t *path_w = NULL;
     wchar_t *dir_w = NULL;
     wchar_t *p;
     char *dir = NULL;
@@ -2449,6 +2457,9 @@ scan_subtree_for_deletion (const char *repo_id,
         dir_w = wcsdup(L"");
 
     dir = g_utf16_to_utf8 (dir_w, -1, NULL, NULL, NULL);
+    if (!dir)
+        goto out;
+
     for (p2 = dir; *p2 != 0; ++p2)
         if (*p2 == '\\')
             *p2 = '/';
@@ -2833,6 +2844,9 @@ update_active_path_cb (wchar_t *full_parent_w,
     SeafStat st;
 
     dname = g_utf16_to_utf8 (fdata->cFileName, -1, NULL, NULL, NULL);
+    if (!dname)
+        return 0;
+
     path = g_build_path ("/", upd_data->parent, dname, NULL);
 
     if (upd_data->ignored || should_ignore (upd_data->full_parent, dname, upd_data->ignore_list))
@@ -5831,12 +5845,15 @@ delete_worktree_dir_recursive_win32 (struct index_state *istate,
             wcscmp (fdata.cFileName, L"..") == 0)
             continue;
 
+        dname = g_utf16_to_utf8 (fdata.cFileName, -1, NULL, NULL, NULL);
+        if (!dname)
+            continue;
+
         sub_path_w = g_new0 (wchar_t, path_len_w + wcslen(fdata.cFileName) + 2);
         wcscpy (sub_path_w, path_w);
         wcscat (sub_path_w, L"\\");
         wcscat (sub_path_w, fdata.cFileName);
 
-        dname = g_utf16_to_utf8 (fdata.cFileName, -1, NULL, NULL, NULL);
         sub_path = g_strconcat (path, "/", dname, NULL);
         builtin_ignored = is_built_in_ignored_file(dname);
         g_free (dname);
