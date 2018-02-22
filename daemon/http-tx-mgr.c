@@ -93,6 +93,10 @@ struct _HttpTxPriv {
     CcnetTimer *reset_bytes_timer;
 
     char *ca_bundle_path;
+
+    /* Regex to parse error message returned by update-branch. */
+    GRegex *locked_error_regex;
+    GRegex *folder_perm_error_regex;
 };
 typedef struct _HttpTxPriv HttpTxPriv;
 
@@ -285,6 +289,9 @@ connection_pool_return_connection (ConnectionPool *pool, Connection *conn)
     pthread_mutex_unlock (&pool->lock);
 }
 
+#define LOCKED_ERROR_PATTERN "File (.+) is locked"
+#define FOLDER_PERM_ERROR_PATTERN "Update to path (.+) is not allowed by folder permission settings"
+
 HttpTxManager *
 http_tx_manager_new (struct _SeafileSession *seaf)
 {
@@ -304,6 +311,19 @@ http_tx_manager_new (struct _SeafileSession *seaf)
     pthread_mutex_init (&priv->pools_lock, NULL);
 
     priv->ca_bundle_path = g_build_filename (seaf->seaf_dir, "ca-bundle.pem", NULL);
+
+    GError *error = NULL;
+    priv->locked_error_regex = g_regex_new (LOCKED_ERROR_PATTERN, 0, 0, &error);
+    if (error) {
+        seaf_warning ("Failed to create regex '%s': %s\n", LOCKED_ERROR_PATTERN, error->message);
+        g_clear_error (&error);
+    }
+
+    priv->folder_perm_error_regex = g_regex_new (FOLDER_PERM_ERROR_PATTERN, 0, 0, &error);
+    if (error) {
+        seaf_warning ("Failed to create regex '%s': %s\n", FOLDER_PERM_ERROR_PATTERN, error->message);
+        g_clear_error (&error);
+    }
 
     mgr->priv = priv;
 
@@ -3418,12 +3438,38 @@ multi_threaded_send_blocks (HttpTxTask *http_task, GList *block_list)
     return ret;
 }
 
+static void
+notify_permission_error (HttpTxTask *task, const char *error_str)
+{
+    HttpTxPriv *priv = seaf->http_tx_mgr->priv;
+    GMatchInfo *match_info;
+    char *path;
+
+    if (g_regex_match (priv->locked_error_regex, error_str, 0, &match_info)) {
+        path = g_match_info_fetch (match_info, 1);
+        send_file_sync_error_notification (task->repo_id, task->repo_name, path,
+                                           SYNC_ERROR_ID_FILE_LOCKED);
+        g_free (path);
+    } else if (g_regex_match (priv->folder_perm_error_regex, error_str, 0, &match_info)) {
+        path = g_match_info_fetch (match_info, 1);
+        /* The path returned by server begins with '/'. */
+        send_file_sync_error_notification (task->repo_id, task->repo_name,
+                                           (path[0] == '/') ? (path + 1) : path,
+                                           SYNC_ERROR_ID_FOLDER_PERM_DENIED);
+        g_free (path);
+    }
+
+    g_match_info_free (match_info);
+}
+
 static int
 update_branch (HttpTxTask *task, Connection *conn)
 {
     CURL *curl;
     char *url;
     int status;
+    char *rsp_content;
+    gint64 rsp_size;
     int ret = 0;
 
     curl = conn->curl;
@@ -3439,7 +3485,7 @@ update_branch (HttpTxTask *task, Connection *conn)
     if (http_put (curl, url, task->token,
                   NULL, 0,
                   NULL, NULL,
-                  &status, NULL, NULL, TRUE, &curl_error) < 0) {
+                  &status, &rsp_content, &rsp_size, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -3449,6 +3495,13 @@ update_branch (HttpTxTask *task, Connection *conn)
     if (status != HTTP_OK) {
         seaf_warning ("Bad response code for PUT %s: %d.\n", url, status);
         handle_http_errors (task, status);
+
+        if (status == HTTP_FORBIDDEN) {
+            rsp_content[rsp_size] = '\0';
+            seaf_warning ("%s\n", rsp_content);
+            notify_permission_error (task, rsp_content);
+        }
+
         ret = -1;
     }
 

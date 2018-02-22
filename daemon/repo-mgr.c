@@ -669,14 +669,6 @@ is_repo_id_valid (const char *id)
     return is_uuid_valid (id);
 }
 
-#define SYNC_ERROR_ID_FILE_LOCKED_BY_APP 0
-#define SYNC_ERROR_ID_FOLDER_LOCKED_BY_APP 1
-#define SYNC_ERROR_ID_FILE_LOCKED 2
-#define SYNC_ERROR_ID_INVALID_PATH 3
-#define SYNC_ERROR_ID_INDEX_ERROR 4
-#define SYNC_ERROR_ID_PATH_END_SPACE_PERIOD 5
-#define SYNC_ERROR_ID_PATH_INVALID_CHARACTER 6
-
 typedef struct FileErrorAux {
     char *repo_id;
     char *path;
@@ -697,7 +689,7 @@ get_last_file_sync_error (sqlite3_stmt *stmt, void *data)
 
 static void
 save_file_sync_error (const char *repo_id, const char *repo_name, const char *path,
-                      int err_id)
+                      int err_id, gboolean *duplicated)
 {
     char *sql;
     FileErrorAux aux;
@@ -715,8 +707,10 @@ save_file_sync_error (const char *repo_id, const char *repo_name, const char *pa
     if (n > 0 &&
         g_strcmp0(repo_id, aux.repo_id) == 0 &&
         g_strcmp0(path, aux.path) == 0 &&
-        err_id == aux.err_id)
+        err_id == aux.err_id) {
+        *duplicated = TRUE;
         goto out;
+    }
 
     sql = sqlite3_mprintf ("INSERT INTO FileSyncError "
                            "(repo_id, repo_name, path, err_id, timestamp) "
@@ -815,11 +809,14 @@ notify_sync_error (CEvent *event, void *handler_data)
     g_free (data);
 }
 
-static void
-send_sync_error_notification (const char *repo_id,
-                              const char *repo_name,
-                              const char *path,
-                              int err_id)
+/*
+ * FIXME: This function should be placed in sync manager.
+ */
+void
+send_file_sync_error_notification (const char *repo_id,
+                                   const char *repo_name,
+                                   const char *path,
+                                   int err_id)
 {
     if (!repo_name) {
         SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
@@ -834,9 +831,11 @@ send_sync_error_notification (const char *repo_id,
     data->path = g_strdup(path);
     data->err_id = err_id;
 
-    cevent_manager_add_event (seaf->ev_mgr, seaf->repo_mgr->priv->cevent_id, data);
+    gboolean duplicated = FALSE;
+    save_file_sync_error (repo_id, repo_name, path, err_id, &duplicated);
 
-    save_file_sync_error (repo_id, repo_name, path, err_id);
+    if (!duplicated)
+        cevent_manager_add_event (seaf->ev_mgr, seaf->repo_mgr->priv->cevent_id, data);
 }
 
 SeafRepo*
@@ -5243,11 +5242,11 @@ schedule_file_fetch (GThreadPool *tpool,
         seaf_message ("Path %s is invalid on Windows, skip checkout\n",
                       de->name);
         if (reason == IGNORE_REASON_END_SPACE_PERIOD)
-            send_sync_error_notification (repo_id, repo_name, de->name,
-                                          SYNC_ERROR_ID_PATH_END_SPACE_PERIOD);
+            send_file_sync_error_notification (repo_id, repo_name, de->name,
+                                               SYNC_ERROR_ID_PATH_END_SPACE_PERIOD);
         else if (reason == IGNORE_REASON_INVALID_CHARACTER)
-            send_sync_error_notification (repo_id, repo_name, de->name,
-                                          SYNC_ERROR_ID_PATH_INVALID_CHARACTER);
+            send_file_sync_error_notification (repo_id, repo_name, de->name,
+                                               SYNC_ERROR_ID_PATH_INVALID_CHARACTER);
         skip_fetch = TRUE;
     }
 
@@ -5373,8 +5372,8 @@ checkout_file_http (FileTxData *data,
 #ifdef WIN32
     if (do_check_file_locked (de->name, worktree, locked_on_server)) {
         if (!locked_file_set_lookup (fset, de->name))
-            send_sync_error_notification (repo_id, NULL, de->name,
-                                          SYNC_ERROR_ID_FILE_LOCKED_BY_APP);
+            send_file_sync_error_notification (repo_id, NULL, de->name,
+                                               SYNC_ERROR_ID_FILE_LOCKED_BY_APP);
 
         locked_file_set_add_update (fset, de->name, LOCKED_OP_UPDATE,
                                     ce->ce_mtime.sec, file_id);
@@ -5486,11 +5485,11 @@ handle_dir_added_de (const char *repo_id,
         seaf_message ("Path %s is invalid on Windows, skip checkout\n",
                       de->name);
         if (reason == IGNORE_REASON_END_SPACE_PERIOD)
-            send_sync_error_notification (repo_id, repo_name, de->name,
-                                          SYNC_ERROR_ID_PATH_END_SPACE_PERIOD);
+            send_file_sync_error_notification (repo_id, repo_name, de->name,
+                                               SYNC_ERROR_ID_PATH_END_SPACE_PERIOD);
         else if (reason == IGNORE_REASON_INVALID_CHARACTER)
-            send_sync_error_notification (repo_id, repo_name, de->name,
-                                          SYNC_ERROR_ID_PATH_INVALID_CHARACTER);
+            send_file_sync_error_notification (repo_id, repo_name, de->name,
+                                               SYNC_ERROR_ID_PATH_INVALID_CHARACTER);
         goto update_index;
     }
 
@@ -6206,8 +6205,8 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             if (do_check_dir_locked (de->name, worktree)) {
                 seaf_message ("File(s) in dir %s are locked by other program, "
                               "skip rename/delete.\n", de->name);
-                send_sync_error_notification (repo_id, NULL, de->name,
-                                              SYNC_ERROR_ID_FOLDER_LOCKED_BY_APP);
+                send_file_sync_error_notification (repo_id, NULL, de->name,
+                                                   SYNC_ERROR_ID_FOLDER_LOCKED_BY_APP);
                 ret = FETCH_CHECKOUT_LOCKED;
                 goto out;
             }
@@ -6219,8 +6218,8 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             if (do_check_file_locked (de->name, worktree, locked_on_server)) {
                 seaf_message ("File %s is locked by other program, skip rename.\n",
                               de->name);
-                send_sync_error_notification (repo_id, NULL, de->name,
-                                              SYNC_ERROR_ID_FILE_LOCKED_BY_APP);
+                send_file_sync_error_notification (repo_id, NULL, de->name,
+                                                   SYNC_ERROR_ID_FILE_LOCKED_BY_APP);
                 ret = FETCH_CHECKOUT_LOCKED;
                 goto out;
             }
@@ -6285,8 +6284,8 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                 delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
             } else {
                 if (is_http && !locked_file_set_lookup (fset, de->name))
-                    send_sync_error_notification (repo_id, http_task->repo_name, de->name,
-                                                  SYNC_ERROR_ID_FILE_LOCKED_BY_APP);
+                    send_file_sync_error_notification (repo_id, http_task->repo_name, de->name,
+                                                       SYNC_ERROR_ID_FILE_LOCKED_BY_APP);
 
                 locked_file_set_add_update (fset, de->name, LOCKED_OP_DELETE,
                                             ce->ce_mtime.sec, NULL);
@@ -6333,13 +6332,13 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                 seaf_message ("Path %s is invalid on Windows, skip rename.\n", de->new_name);
                 if (is_http) {
                     if (reason == IGNORE_REASON_END_SPACE_PERIOD)
-                        send_sync_error_notification (repo_id, http_task->repo_name,
-                                                      de->new_name,
-                                                      SYNC_ERROR_ID_PATH_END_SPACE_PERIOD);
+                        send_file_sync_error_notification (repo_id, http_task->repo_name,
+                                                           de->new_name,
+                                                           SYNC_ERROR_ID_PATH_END_SPACE_PERIOD);
                     else if (reason == IGNORE_REASON_INVALID_CHARACTER)
-                        send_sync_error_notification (repo_id, http_task->repo_name,
-                                                      de->new_name,
-                                                      SYNC_ERROR_ID_PATH_INVALID_CHARACTER);
+                        send_file_sync_error_notification (repo_id, http_task->repo_name,
+                                                           de->new_name,
+                                                           SYNC_ERROR_ID_PATH_INVALID_CHARACTER);
                 }
                 continue;
             } else if (should_ignore_on_checkout (de->name, NULL)) {
