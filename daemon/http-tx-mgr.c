@@ -185,6 +185,7 @@ static const char *http_task_error_strs[] = {
     "Files are locked by other application",
     "Library deleted on server",
     "Library damaged on server",
+    "File is locked by another user on server",
     "Unknown error",
 };
 
@@ -3450,6 +3451,9 @@ notify_permission_error (HttpTxTask *task, const char *error_str)
         send_file_sync_error_notification (task->repo_id, task->repo_name, path,
                                            SYNC_ERROR_ID_FILE_LOCKED);
         g_free (path);
+
+        /* Set more accurate error. */
+        task->error = HTTP_TASK_ERR_FILE_LOCKED_ON_SERVER;
     } else if (g_regex_match (priv->folder_perm_error_regex, error_str, 0, &match_info)) {
         path = g_match_info_fetch (match_info, 1);
         /* The path returned by server begins with '/'. */
