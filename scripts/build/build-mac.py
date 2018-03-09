@@ -697,6 +697,15 @@ def copy_shared_libs():
     libs.update(get_dependent_libs(ccnet_path))
     libs.update(get_dependent_libs(seafile_path))
 
+    # Get deps of deps recursively until no more deps can be included
+    while True:
+        newlibs = set(libs)
+        for lib in libs:
+            newlibs.update(get_dependent_libs(lib))
+        if newlibs == libs:
+            break
+        libs = newlibs
+
     for lib in libs:
         dst_file = join(frameworks_dir, basename(lib))
         if exists(dst_file):
