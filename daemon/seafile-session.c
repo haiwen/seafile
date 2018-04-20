@@ -232,7 +232,7 @@ seafile_session_new(const char *seafile_dir,
     if (!session->ev_mgr)
         goto onerror;
     
-    session->mq_mgr = seaf_mq_manager_new (session);
+    session->mq_mgr = seaf_mq_manager_new ();
     if (!session->mq_mgr)
         goto onerror;
 
@@ -349,8 +349,6 @@ seafile_session_prepare (SeafileSession *session)
 #ifndef SEAF_TOOL    
     seaf_sync_manager_init (session->sync_mgr);
 #endif
-    seaf_mq_manager_set_heartbeat_name (session->mq_mgr,
-                                        "seafile.heartbeat");
 }
 
 /* static void */
@@ -508,12 +506,6 @@ on_start_cleanup (SeafileSession *session)
 void
 seafile_session_start (SeafileSession *session)
 {
-    /* MQ must be started to send heartbeat message to applet. */
-    if (seaf_mq_manager_start (session->mq_mgr) < 0) {
-        g_error ("Failed to start mq manager.\n");
-        return;
-    }
-
     /* Finish cleanup task before anything is run. */
     on_start_cleanup (session);
 }
