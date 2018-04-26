@@ -311,6 +311,11 @@ register_rpc_service ()
                                      "seafile_get_file_sync_errors",
                                      searpc_signature_objlist__int_int());
 
+    searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_get_sync_notification,
+                                     "seafile_get_sync_notification",
+                                     searpc_signature_json__void());
+
     /* Need to run in a thread since diff may take long. */
     searpc_server_register_function ("seafile-threaded-rpcserver",
                                      seafile_diff,

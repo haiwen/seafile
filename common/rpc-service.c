@@ -14,6 +14,7 @@
 #include "repo-mgr.h"
 #include "seafile-error.h"
 #include "seafile-rpc.h"
+#include "common/mq-mgr.h"
 
 #ifdef SEAFILE_SERVER
 #include "web-accesstoken-mgr.h"
@@ -927,6 +928,12 @@ seafile_mark_file_unlocked (const char *repo_id, const char *path, GError **erro
 
     g_free (canon_path);
     return ret;
+}
+
+json_t *
+seafile_get_sync_notification (GError **error)
+{
+    return seaf_mq_manager_pop_message (seaf->mq_mgr);
 }
 
 char *

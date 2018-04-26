@@ -2,6 +2,7 @@
 #ifndef _SEAFILE_RPC_H
 #define _SEAFILE_RPC_H
 
+#include <jansson.h>
 #include "seafile-object.h"
 
 /**
@@ -1029,4 +1030,5 @@ seafile_generate_magic_and_random_key(int enc_version,
                                       const char* repo_id,
                                       const char *passwd,
                                       GError **error);
+json_t * seafile_get_sync_notification (GError **error);
 #endif
