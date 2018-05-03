@@ -397,4 +397,7 @@ is_empty_string (const char *str);
 gboolean
 is_permission_valid (const char *perm);
 
+gboolean
+is_eml_file (const char *path);
+
 #endif

@@ -463,18 +463,6 @@ void mark_all_ce_unused(struct index_state *index)
         index->cache[i]->ce_flags &= ~(CE_UNPACKED | CE_ADDED | CE_NEW_SKIP_WORKTREE);
 }
 
-static gboolean
-is_eml_file (const char *path)
-{
-    int len = strlen(path);
-    const char *ext;
-
-    if (len < 5)
-        return FALSE;
-    ext = &path[len-4];
-    return (strcasecmp (ext, ".eml") == 0);
-}
-
 static int ce_match_stat_basic(struct cache_entry *ce, SeafStat *st)
 {
     unsigned int changed = 0;

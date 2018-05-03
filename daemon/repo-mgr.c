@@ -5866,7 +5866,7 @@ delete_worktree_dir_recursive_win32 (struct index_state *istate,
             if (!builtin_ignored) {
                 mtime = (guint64)file_time_to_unix_time (&fdata.ftLastWriteTime);
                 ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
-                if (!ce || ce->ce_mtime.sec != mtime) {
+                if (!ce || (!is_eml_file (dname) && ce->ce_mtime.sec != mtime)) {
                     seaf_message ("File %s is changed, skip deleting it.\n", sub_path);
                     g_free (sub_path_w);
                     g_free (sub_path);
