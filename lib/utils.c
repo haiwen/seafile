@@ -2455,3 +2455,15 @@ is_permission_valid (const char *perm)
 
     return strcmp (perm, "r") == 0 || strcmp (perm, "rw") == 0;
 }
+
+gboolean
+is_eml_file (const char *path)
+{
+    int len = strlen(path);
+    const char *ext;
+
+    if (len < 5)
+        return FALSE;
+    ext = &path[len-4];
+    return (strcasecmp (ext, ".eml") == 0);
+}

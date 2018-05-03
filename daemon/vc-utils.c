@@ -405,7 +405,7 @@ delete_path (const char *worktree, const char *name,
         }
 
         /* file has been changed. */
-        if (old_mtime != st.st_mtime) {
+        if (!is_eml_file (name) && (old_mtime != st.st_mtime)) {
             seaf_warning ("File %s is changed. Skip removing the file.\n", path);
             return -1;
         }
