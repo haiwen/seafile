@@ -16,7 +16,6 @@
 #include "clone-mgr.h"
 #include "db.h"
 
-#include "transfer-mgr.h"
 #include "sync-mgr.h"
 #include "wt-monitor.h"
 #include "mq-mgr.h"
@@ -63,7 +62,6 @@ struct _SeafileSession {
     SeafCommitManager   *commit_mgr;
     SeafBranchManager   *branch_mgr;
     SeafRepoManager     *repo_mgr;
-    SeafTransferManager *transfer_mgr;
     SeafCloneManager    *clone_mgr;
     SeafSyncManager     *sync_mgr;
     SeafWTMonitor       *wt_monitor;

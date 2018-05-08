@@ -17,31 +17,8 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 
 bin_PROGRAMS = seaf-daemon
 
-proc_headers = $(addprefix processors/, \
-	check-tx-v3-proc.h \
-	sendfs-proc.h \
-	getfs-proc.h \
-	sendbranch-proc.h \
-	getcs-proc.h \
-	sync-repo-proc.h \
-	getcommit-v2-proc.h \
-	sendcommit-v3-proc.h \
-	sendcommit-v3-new-proc.h \
-	getcs-v2-proc.h \
-	checkbl-proc.h \
-	getcommit-v3-proc.h \
-	checkff-proc.h \
-	getca-proc.h \
-	check-protocol-proc.h \
-	sendcommit-v4-proc.h \
-	sendfs-v2-proc.h \
-	getfs-v2-proc.h)
-
-proc_headers += ../common/processors/objecttx-common.h
-
 noinst_HEADERS = \
 	repo-mgr.h \
-	transfer-mgr.h \
 	status.h sync-mgr.h  \
 	wt-monitor.h \
 	merge.h merge-recursive.h vc-utils.h seafile-session.h \
@@ -54,8 +31,7 @@ noinst_HEADERS = \
 	sync-status-tree.h \
 	filelock-mgr.h \
 	set-perm.h \
-	change-set.h \
-	$(proc_headers)
+	change-set.h
 
 if LINUX
 wt_monitor_src = wt-monitor.c wt-monitor-linux.c wt-monitor-structs.c
@@ -71,7 +47,6 @@ endif
 
 common_src = \
 	http-tx-mgr.c \
-	transfer-mgr.c \
 	../common/unpack-trees.c ../common/seaf-tree-walk.c \
 	merge.c merge-recursive.c vc-utils.c \
 	status.c sync-mgr.c seafile-session.c \
@@ -96,25 +71,7 @@ common_src = \
 	sync-status-tree.c \
 	filelock-mgr.c \
 	set-perm.c \
-	change-set.c \
-	processors/check-tx-v3-proc.c \
-	processors/sendfs-proc.c \
-	processors/getfs-proc.c \
-	processors/sendbranch-proc.c \
-	processors/getcs-proc.c \
-	processors/sync-repo-proc.c \
-	processors/getcommit-v2-proc.c \
-	processors/sendcommit-v3-proc.c \
-	processors/sendcommit-v3-new-proc.c \
-	processors/getcs-v2-proc.c \
-	processors/checkbl-proc.c \
-	processors/getcommit-v3-proc.c \
-	processors/checkff-proc.c \
-	processors/getca-proc.c \
-	processors/check-protocol-proc.c \
-	processors/sendcommit-v4-proc.c \
-	processors/sendfs-v2-proc.c \
-	processors/getfs-v2-proc.c
+	change-set.c
 
 
 seaf_daemon_SOURCES = seaf-daemon.c $(common_src)

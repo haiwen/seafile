@@ -532,10 +532,6 @@ seafile_find_transfer_task (const char *repo_id, GError *error)
     TransferTask *task;
     HttpTxTask *http_task;
 
-    task = seaf_transfer_manager_find_transfer_by_repo (seaf->transfer_mgr, repo_id);
-    if (task)
-        return (GObject *)convert_task (task);
-
     http_task = http_tx_manager_find_task (seaf->http_tx_mgr, repo_id);
     if (http_task)
         return (GObject *)convert_http_task (http_task);

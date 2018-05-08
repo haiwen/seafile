@@ -1,9 +1,5 @@
 SUBDIRS = cdc index
 
-proc_headers =
-	$(addprefix processors/, \
-	objecttx-common.h)
-
 noinst_HEADERS = \
 	unpack-trees.h \
 	seaf-tree-walk.h \
@@ -26,5 +22,4 @@ noinst_HEADERS = \
 	seaf-db.h \
 	merge-new.h \
 	block-tx-utils.h \
-	curl-init.h \
-	$(proc_headers)
+	curl-init.h

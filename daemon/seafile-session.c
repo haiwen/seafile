@@ -206,9 +206,6 @@ seafile_session_new(const char *seafile_dir,
     if (!session->branch_mgr)
         goto onerror;
 
-    session->transfer_mgr = seaf_transfer_manager_new (session);
-    if (!session->transfer_mgr)
-        goto onerror;
     session->clone_mgr = seaf_clone_manager_new (session);
     if (!session->clone_mgr)
         goto onerror;
@@ -451,11 +448,6 @@ cleanup_job_done (void *vdata)
 
     if (cevent_manager_start (session->ev_mgr) < 0) {
         g_error ("Failed to start event manager.\n");
-        return;
-    }
-
-    if (seaf_transfer_manager_start (session->transfer_mgr) < 0) {
-        g_error ("Failed to start transfer manager.\n");
         return;
     }
 

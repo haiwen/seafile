@@ -4716,32 +4716,14 @@ checkout_file (const char *repo_id,
 
     /* Download the blocks of this file. */
     int rc;
-    if (!is_http) {
-        rc = seaf_transfer_manager_download_file_blocks (seaf->transfer_mgr,
-                                                         task, file_id);
-        switch (rc) {
-        case BLOCK_CLIENT_SUCCESS:
-            break;
-        case BLOCK_CLIENT_UNKNOWN:
-        case BLOCK_CLIENT_FAILED:
-        case BLOCK_CLIENT_NET_ERROR:
-        case BLOCK_CLIENT_SERVER_ERROR:
-            g_free (path);
-            return FETCH_CHECKOUT_TRANSFER_ERROR;
-        case BLOCK_CLIENT_CANCELED:
-            g_free (path);
-            return FETCH_CHECKOUT_CANCELED;
-        }
-    } else {
-        rc = http_tx_task_download_file_blocks (http_task, file_id);
-        if (http_task->state == HTTP_TASK_STATE_CANCELED) {
-            g_free (path);
-            return FETCH_CHECKOUT_CANCELED;
-        }
-        if (rc < 0) {
-            g_free (path);
-            return FETCH_CHECKOUT_TRANSFER_ERROR;
-        }
+    rc = http_tx_task_download_file_blocks (http_task, file_id);
+    if (http_task->state == HTTP_TASK_STATE_CANCELED) {
+        g_free (path);
+        return FETCH_CHECKOUT_CANCELED;
+    }
+    if (rc < 0) {
+        g_free (path);
+        return FETCH_CHECKOUT_TRANSFER_ERROR;
     }
 
     if (download_only) {
