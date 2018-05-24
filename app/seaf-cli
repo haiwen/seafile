@@ -51,21 +51,21 @@ Download by id
 --------
 Download a library from seafile server (using library id)
 
-    seaf-cli download -l <library-id> -s <seahub-server-url> -d <parent-directory> -u <username> -p <password>
+    seaf-cli download -l <library-id> -s <seahub-server-url> -d <parent-directory> -u <username> -p <password> -a <2fa-code>
 
 
 Download by name
 --------
 Download a library from seafile server (using library name)
 
-    seaf-cli download -L <library-name> -s <seahub-server-url> -d <parent-directory> -u <username> -p <password>
+    seaf-cli download -L <library-name> -s <seahub-server-url> -d <parent-directory> -u <username> -p <password> -a <2fa-code>
 
 
 sync
 ----
 Synchronize a library with an existing folder.
 
-    seaf-cli sync -l <library-id> -s <seahub-server-url> -d <existing-folder> -u <username> -p <password>
+    seaf-cli sync -l <library-id> -s <seahub-server-url> -d <existing-folder> -u <username> -p <password> -a <2fa-code>
 
 desync
 ------
@@ -77,7 +77,7 @@ create
 ------
 Create a new library
 
-    seaf-cli create -s <seahub-server-url> -n <library-name> -u <username> -p <password> -t <description> [-e <library-password>]
+    seaf-cli create -s <seahub-server-url> -n <library-name> -u <username> -p <password> -a <2fa-code> -t <description> [-e <library-password>]
 
 '''
 
