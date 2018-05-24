@@ -217,7 +217,7 @@ def get_peer_id(conf_dir):
     info = ccnet_rpc.get_session_info()
     return info.id
 
-def get_token(url, username, password, conf_dir):
+def get_token(url, username, password, tfa, conf_dir):
     platform = 'linux'
     device_id = get_peer_id(conf_dir)
     device_name = 'terminal-' + os.uname()[1]
@@ -232,7 +232,10 @@ def get_token(url, username, password, conf_dir):
         'client_version': client_version,
         'platform_version': platform_version,
     }
-    token_json = urlopen("%s/api2/auth-token/" % url, data=data)
+    headers = {
+        'X-SEAFILE-OTP': tfa,
+    }
+    token_json = urlopen("%s/api2/auth-token/" % url, data=data, headers=headers)
     tmp = json.loads(token_json)
     token = tmp['token']
     return token
@@ -360,9 +363,10 @@ def seaf_list_remote(args):
     password = args.password
     if not password:
         password = getpass.getpass("Enter password for user %s : " % username)
+    tfa = args.tfa
 
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
-    token = get_token(url, username, password, conf_dir)
+    token = get_token(url, username, password, tfa, conf_dir)
 
     repos = get_repo_download_info("%s/api2/repos/" % (url), token)
 
@@ -416,9 +420,10 @@ def seaf_download(args):
     password = args.password
     if not password:
         password = getpass.getpass("Enter password for user %s : " % username)
+    tfa = args.tfa
 
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
-    token = get_token(url, username, password, conf_dir)
+    token = get_token(url, username, password, tfa, conf_dir)
 
     tmp = get_repo_download_info("%s/api2/repos/%s/download-info/" % (url, repo), token)
 
@@ -486,9 +491,10 @@ def seaf_download_by_name(args):
     if not password:
         password = getpass.getpass("Enter password for user %s : " % username)
         args.password = password
+    tfa = args.tfa
 
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
-    token = get_token(url, username, password, conf_dir)
+    token = get_token(url, username, password, tfa, conf_dir)
 
     tmp = get_repo_download_info("%s/api2/repos/" % (url), token)
 
@@ -538,8 +544,9 @@ def seaf_sync(args):
     password = args.password
     if not password:
         password = getpass.getpass("Enter password for user %s : " % username)
+    tfa = args.tfa
 
-    token = get_token(url, username, password, conf_dir)
+    token = get_token(url, username, password, tfa, conf_dir)
     tmp = get_repo_download_info("%s/api2/repos/%s/download-info/" % (url, repo), token)
 
     encrypted = tmp['encrypted']
@@ -709,6 +716,7 @@ def seaf_create(args):
     password = args.password
     if not password:
         password = getpass.getpass("Enter password for user %s " % username)
+    tfa = args.tfa
 
     # check url
     url = args.server
@@ -717,7 +725,7 @@ def seaf_create(args):
         sys.exit(1)
 
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
-    token = get_token(url, username, password, conf_dir)
+    token = get_token(url, username, password, tfa, conf_dir)
 
     repo_id = create_repo("%s/api2/repos/" % (url), token, args)
     print repo_id
@@ -763,6 +771,7 @@ def main():
     parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_download.add_argument('-u', '--username', help='username', type=str)
     parser_download.add_argument('-p', '--password', help='password', type=str)
+    parser_download.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
 
     # status
     parser_status = subparsers.add_parser('status', help='Show syncing status')
@@ -779,6 +788,7 @@ def main():
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
     parser_download.add_argument('-u', '--username', help='username', type=str)
     parser_download.add_argument('-p', '--password', help='password', type=str)
+    parser_download.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
     parser_download.add_argument('-e', '--libpasswd', help='library password', type=str)
 
     # download-by-name
@@ -791,6 +801,7 @@ def main():
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
     parser_download.add_argument('-u', '--username', help='username', type=str)
     parser_download.add_argument('-p', '--password', help='password', type=str)
+    parser_download.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
     parser_download.add_argument('-e', '--libpasswd', help='library password', type=str)
 
 
@@ -803,6 +814,7 @@ def main():
     parser_sync.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_sync.add_argument('-u', '--username', help='username', type=str)
     parser_sync.add_argument('-p', '--password', help='password', type=str)
+    parser_sync.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
     parser_sync.add_argument('-d', '--folder', help='the existing local folder', type=str)
     parser_sync.add_argument('-e', '--libpasswd', help='library password', type=str)
 
@@ -823,6 +835,7 @@ def main():
     parser_create.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_create.add_argument('-u', '--username', help='username', type=str)
     parser_create.add_argument('-p', '--password', help='password', type=str)
+    parser_create.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
     parser_create.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
 
     # config 
