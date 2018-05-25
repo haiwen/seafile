@@ -232,9 +232,12 @@ def get_token(url, username, password, tfa, conf_dir):
         'client_version': client_version,
         'platform_version': platform_version,
     }
-    headers = {
-        'X-SEAFILE-OTP': tfa,
-    }
+    if tfa:
+        headers = {
+            'X-SEAFILE-OTP': tfa,
+        }
+    else:
+        headers = None
     token_json = urlopen("%s/api2/auth-token/" % url, data=data, headers=headers)
     tmp = json.loads(token_json)
     token = tmp['token']
