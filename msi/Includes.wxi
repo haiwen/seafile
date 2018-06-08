@@ -122,19 +122,7 @@
   <!-- <?define ProductGuid="D67C7342-2DE3-485C-B8E2-5838EC64F49D" ?> (6.1.7) -->
   <?define ProductGuid="7A5BD4DF-4698-415C-ADA8-A16009B73F37" ?>
 
-  <?define ShellGuidContextMenu="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE606" ?>
-  <?define  ShellGuidIconNormal="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE607" ?>
-  <?define ShellGuidIconSyncing="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE608" ?>
-  <?define   ShellGuidIconError="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE609" ?>
-  <?define  ShellGuidIconPaused="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE610" ?>
-  <?define     ShellGuidIconLockedByMe="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE611" ?>
-  <?define ShellGuidIconLockedByOthers="D14BEDD3-4E05-4F2F-B0DE-C0381E6AE612" ?>
-
-  <?define GuidOfShellExtComponent="A2B35A93-F6DD-4524-BFF1-158C81011E93" ?>
   <?define GuidOfCustomComponent="A8CD54F6-9BFB-11E1-9B0E-001CBFC5CA1D" ?>
   <?define GuidOfAutoStartComponent="FED41B85-BA5A-4C95-8ABF-4A35852EE04E" ?>
   <?define GuidOfStartMenuShortCutComponent="F1662C95-6C0A-4CDD-B009-C5E66A4F8C80" ?>
-  <?define GuidOf32BitShellComponent="DAB96469-FFCE-4723-BD50-03AEBA4D36BD" ?>
-  <?define GuidOf64BitShellComponent="EEA7C4A2-4CCB-4185-BDA0-BDBD8D90B817" ?>
-
 </Include>

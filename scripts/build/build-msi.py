@@ -354,6 +354,17 @@ class SeafileClient(Project):
     def before_build(self):
         shutil.copy(os.path.join(conf[CONF_EXTRA_LIBS_DIR], 'winsparkle.lib'), self.projdir)
 
+class SeafileShellExt(Project):
+    name = 'seafile-shell-ext'
+    def __init__(self):
+        Project.__init__(self)
+        self.build_commands = [
+            "bash extensions/build.sh",
+        ]
+
+    def get_version(self):
+        return conf[CONF_SEAFILE_CLIENT_VERSION]
+
 def check_targz_src(proj, version, srcdir):
     src_tarball = os.path.join(srcdir, '%s-%s.tar.gz' % (proj, version))
     if not os.path.exists(src_tarball):
@@ -390,12 +401,14 @@ def validate_args(usage, options):
     ccnet_version = get_option(CONF_CCNET_VERSION)
     seafile_version = get_option(CONF_SEAFILE_VERSION)
     seafile_client_version = get_option(CONF_SEAFILE_CLIENT_VERSION)
+    seafile_shell_ext_version = get_option(CONF_SEAFILE_CLIENT_VERSION)
 
     check_project_version(version)
     check_project_version(libsearpc_version)
     check_project_version(ccnet_version)
     check_project_version(seafile_version)
     check_project_version(seafile_client_version)
+    check_project_version(seafile_shell_ext_version)
 
     # [ srcdir ]
     srcdir = to_win_path(get_option(CONF_SRCDIR))
@@ -403,6 +416,7 @@ def validate_args(usage, options):
     check_targz_src('ccnet', ccnet_version, srcdir)
     check_targz_src('seafile', seafile_version, srcdir)
     check_targz_src('seafile-client', seafile_client_version, srcdir)
+    check_targz_src('seafile-shell-ext', seafile_shell_ext_version, srcdir)
 
     # [ builddir ]
     builddir = to_win_path(get_option(CONF_BUILDDIR))
@@ -726,8 +740,8 @@ def copy_dll_exe():
         must_copy(name, destdir)
 
     extdlls = [
-        os.path.join(SeafileClient().projdir, 'extensions', 'lib', 'seafile_shell_ext.dll'),
-        os.path.join(SeafileClient().projdir, 'extensions', 'lib', 'seafile_shell_ext64.dll'),
+        os.path.join(SeafileShellExt().projdir, 'extensions', 'lib', 'seafile_ext.dll'),
+        os.path.join(SeafileShellExt().projdir, 'extensions', 'lib', 'seafile_ext64.dll'),
     ]
 
     customdir = os.path.join(conf[CONF_BUILDDIR], 'pack', 'custom')
@@ -802,6 +816,12 @@ def prepare_msi():
 
     msi_dir = os.path.join(Seafile().projdir, 'msi')
 
+    # These files are in seafile-shell-ext because they're shared between seafile/seadrive
+    ext_wxi = os.path.join(SeafileShellExt().projdir, 'msi', 'ext.wxi')
+    must_copy(ext_wxi, msi_dir)
+    shell_wxs = os.path.join(SeafileShellExt().projdir, 'msi', 'shell.wxs')
+    must_copy(shell_wxs, msi_dir)
+
     must_copytree(msi_dir, pack_dir)
     must_mkdir(os.path.join(pack_dir, 'bin'))
 
@@ -859,9 +879,9 @@ def strip_symbols():
         name = os.path.basename(dll).lower()
         if 'qt' in name:
             do_strip(dll)
-        if name == 'seafile_shell_ext.dll':
+        if name == 'seafile_ext.dll':
             do_strip(dll)
-        elif name == 'seafile_shell_ext64.dll':
+        elif name == 'seafile_ext64.dll':
             do_strip(dll, stripcmd='x86_64-w64-mingw32-strip')
 
 def edit_fragment_wxs():
@@ -987,6 +1007,7 @@ def main():
     ccnet = Ccnet()
     seafile = Seafile()
     seafile_client = SeafileClient()
+    seafile_shell_ext = SeafileShellExt()
 
     libsearpc.uncompress()
     libsearpc.build()
@@ -998,7 +1019,10 @@ def main():
     seafile.build()
 
     seafile_client.uncompress()
+    seafile_shell_ext.uncompress()
+
     seafile_client.build()
+    seafile_shell_ext.build()
 
     build_msi()
     if not conf[CONF_ONLY_CHINESE]:

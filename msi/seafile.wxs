@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
   <?include Includes.wxi?>
+  <?include ext.wxi?>
   <Product Id="$(var.ProductGuid)"
            Name='!(loc.AppName) $(var.CurrentSeafileVersion)'
            Language='1033'
@@ -63,14 +64,14 @@
       </Directory>
 
       <Directory Id='AppDataFolder' Name='AFiles'>
-        <Directory Id='SeafileExtDir' Name='!(loc.AppName)'>
-          <Component Id="seafile_shell_ext" Guid="$(var.GuidOfShellExtComponent)">
+        <Directory Id='SeafileExtDir' Name='$(var.ExtName)'>
+          <Component Id="seafile_ext" Guid="$(var.GuidOfShellExtComponent)">
             <RemoveFolder Id="SeafileExtDir" On="uninstall" />
             <RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]"
                            Name="shellext" Type="integer" Value="1" KeyPath='yes' />
 
-            <File Id="seafile_shell_ext.dll" Name="seafile_shell_ext.dll" Source="custom\seafile_shell_ext.dll" />
-            <File Id="seafile_shell_ext64.dll" Name="seafile_shell_ext64.dll" Source="custom\seafile_shell_ext64.dll" />
+            <File Id="seafile_ext.dll" Name="seafile_ext.dll" Source="custom\seafile_ext.dll" />
+            <File Id="seafile_ext64.dll" Name="seafile_ext64.dll" Source="custom\seafile_ext64.dll" />
           </Component>
         </Directory>
       </Directory>
@@ -185,7 +186,7 @@
       <!-- defined in shell.wxs -->
       <ComponentRef Id='comp_shell' />
       <ComponentRef Id='comp_shell64' />
-      <ComponentRef Id='seafile_shell_ext' />
+      <ComponentRef Id='seafile_ext' />
     </Feature>
 
     <Property Id="CHECKBOX_DEL_SEAFILE_DATA" Secure="yes" />
