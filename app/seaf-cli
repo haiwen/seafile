@@ -11,7 +11,7 @@ Subcommands:
     init:             create config files for seafile client
     start:            start and run seafile client as daemon
     stop:             stop seafile client
-    list:             list local liraries
+    list:             list local libraries
     status:           show syncing status
     download:         download a library from seafile server
                           (using libary id)
