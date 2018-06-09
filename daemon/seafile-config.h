@@ -6,6 +6,7 @@
 #include "seafile-session.h"
 #include "db.h"
 
+#define KEY_CLIENT_ID "client_id"
 #define KEY_CLIENT_NAME "client_name"
 
 #define KEY_MONITOR_ID  "monitor_id"

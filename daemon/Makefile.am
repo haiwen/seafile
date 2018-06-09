@@ -6,7 +6,6 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	-I$(top_srcdir)/lib \
 	-I$(top_builddir)/lib \
 	-I$(top_srcdir)/common \
-	@CCNET_CFLAGS@ \
 	@SEARPC_CFLAGS@ \
 	@GLIB2_CFLAGS@ \
 	@MSVC_CFLAGS@ \
@@ -18,14 +17,15 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 bin_PROGRAMS = seaf-daemon
 
 noinst_HEADERS = \
+	job-mgr.h \
+	timer.h \
+	cevent.h \
 	repo-mgr.h \
-	status.h sync-mgr.h  \
+	sync-mgr.h  \
 	wt-monitor.h \
-	merge.h merge-recursive.h vc-utils.h seafile-session.h \
+	vc-utils.h seafile-session.h \
 	clone-mgr.h \
 	wt-monitor-structs.h \
-	../common/sync-repo-common.h \
-	block-tx-client.h \
 	seafile-config.h \
 	http-tx-mgr.h \
 	sync-status-tree.h \
@@ -46,19 +46,18 @@ wt_monitor_src = wt-monitor.c wt-monitor-macos.c wt-monitor-structs.c
 endif
 
 common_src = \
+	job-mgr.c timer.c cevent.c \
 	http-tx-mgr.c \
-	../common/unpack-trees.c ../common/seaf-tree-walk.c \
-	merge.c merge-recursive.c vc-utils.c \
-	status.c sync-mgr.c seafile-session.c \
+	vc-utils.c \
+	sync-mgr.c seafile-session.c \
 	../common/seafile-crypt.c ../common/diff-simple.c $(wt_monitor_src) \
 	clone-mgr.c \
 	seafile-config.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \
 	repo-mgr.c ../common/commit-mgr.c \
-	../common/log.c ../common/object-list.c \
+	../common/log.c \
 	../common/rpc-service.c \
 	../common/vc-common.c \
-	../common/seaf-utils.c \
 	../common/obj-store.c \
 	../common/obj-backend-fs.c \
 	../common/block-mgr.c \
@@ -66,8 +65,6 @@ common_src = \
 	../common/block-backend-fs.c \
 	../common/mq-mgr.c \
 	../common/curl-init.c \
-	block-tx-client.c \
-	../common/block-tx-utils.c \
 	sync-status-tree.c \
 	filelock-mgr.c \
 	set-perm.c \
@@ -81,6 +78,6 @@ seaf_daemon_LDADD = $(top_builddir)/lib/libseafile_common.la \
 	@LIB_RT@ @LIB_UUID@ -lsqlite3 @LIBEVENT_LIBS@ \
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/common/index/libindex.la @LIB_WS32@ @LIB_CRYPT32@ \
-	@SEARPC_LIBS@ @CCNET_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@ @CURL_LIBS@ @BPWRAPPER_LIBS@
+	@SEARPC_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@ @CURL_LIBS@ @BPWRAPPER_LIBS@
 
 seaf_daemon_LDFLAGS = @CONSOLE@

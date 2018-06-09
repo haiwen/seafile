@@ -42,33 +42,13 @@
 #define WEXITSTATUS(status) (((status) & 0xff00) >> 8)
 #endif
 
-/* Borrowed from libevent */
-#define ccnet_pipe_t intptr_t
-
-int pgpipe (ccnet_pipe_t handles[2]);
-/* Should only be called in main loop. */
-#define ccnet_pipe(a) pgpipe((a))
-#define piperead(a,b,c) recv((a),(b),(c),0)
-#define pipewrite(a,b,c) send((a),(b),(c),0)
-#define pipeclose(a) closesocket((a))
-
 #define SeafStat struct __stat64
 
 #else
 
-#define ccnet_pipe_t int
-
-#define ccnet_pipe(a) pipe((a))
-#define piperead(a,b,c) read((a),(b),(c))
-#define pipewrite(a,b,c) write((a),(b),(c))
-#define pipeclose(a) close((a))
-
 #define SeafStat struct stat
 
 #endif
-
-#define pipereadn(a,b,c) recvn((a),(b),(c))
-#define pipewriten(a,b,c) sendn((a),(b),(c))
 
 int seaf_stat (const char *path, SeafStat *st);
 int seaf_fstat (int fd, SeafStat *st);
@@ -133,6 +113,24 @@ traverse_directory_win32 (wchar_t *path_w,
 #define O_BINARY 0
 #endif
 
+#ifdef WIN32
+#define seaf_pipe_t intptr_t
+#else
+#define seaf_pipe_t int
+#endif
+
+int
+seaf_pipe (seaf_pipe_t handles[2]);
+int
+seaf_pipe_read (seaf_pipe_t fd, char *buf, int len);
+int
+seaf_pipe_write (seaf_pipe_t fd, const char *buf, int len);
+int
+seaf_pipe_close (seaf_pipe_t fd);
+
+ssize_t seaf_pipe_readn (seaf_pipe_t fd, void *vptr, size_t n);
+ssize_t seaf_pipe_writen (seaf_pipe_t fd, const void *vptr, size_t n);
+
 typedef enum IgnoreReason {
     IGNORE_REASON_END_SPACE_PERIOD = 0,
     IGNORE_REASON_INVALID_CHARACTER = 1,
@@ -155,9 +153,6 @@ should_ignore_on_checkout (const char *file_path, IgnoreReason *ignore_reason);
 #endif
 
 #define CCNET_DOMAIN g_quark_from_string("ccnet")
-
-
-struct timeval timeval_from_msec (uint64_t milliseconds);
 
 
 size_t ccnet_strlcpy (char *dst, const char *src, size_t size);

@@ -12,7 +12,6 @@
 
 #include "seafile-session.h"
 #include "commit-mgr.h"
-#include "seaf-utils.h"
 
 #define MAX_TIME_SKEW 259200    /* 3 days */
 

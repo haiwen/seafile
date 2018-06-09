@@ -4,7 +4,6 @@
 
 #include "seafile-session.h"
 #include "utils.h"
-#include "seaf-utils.h"
 #include "block-mgr.h"
 #include "log.h"
 

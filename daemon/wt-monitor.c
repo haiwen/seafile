@@ -9,26 +9,26 @@
 #define DEBUG_FLAG SEAFILE_DEBUG_WATCH
 #include "log.h"
 
-#include <ccnet/job-mgr.h>
+#include "job-mgr.h"
 
 int
 seaf_wt_monitor_start (SeafWTMonitor *monitor)
 {
-    if (ccnet_pipe (monitor->cmd_pipe) < 0) {
+    if (seaf_pipe (monitor->cmd_pipe) < 0) {
         seaf_warning ("[wt mon] failed to create command pipe: %s.\n",
                       strerror(errno));
         return -1;
     }
 
-    if (ccnet_pipe (monitor->res_pipe) < 0) {
+    if (seaf_pipe (monitor->res_pipe) < 0) {
         seaf_warning ("[wt mon] failed to create result pipe: %s.\n",
                       strerror(errno));
         return -1;
     }
 
-    if (ccnet_job_manager_schedule_job (monitor->seaf->job_mgr,
-                                        monitor->job_func,
-                                        NULL, monitor) < 0) {
+    if (seaf_job_manager_schedule_job (monitor->seaf->job_mgr,
+                                       monitor->job_func,
+                                       NULL, monitor) < 0) {
         seaf_warning ("[wt mon] failed to start monitor thread.\n");
         return -1;
     }
@@ -49,7 +49,7 @@ seaf_wt_monitor_watch_repo (SeafWTMonitor *monitor,
     cmd.type = CMD_ADD_WATCH;
     g_strlcpy (cmd.worktree, worktree, SEAF_PATH_MAX);
 
-    int n = pipewriten (monitor->cmd_pipe[1], &cmd, sizeof(cmd));
+    int n = seaf_pipe_writen (monitor->cmd_pipe[1], &cmd, sizeof(cmd));
     
     if (n != sizeof(cmd)) {
         seaf_warning ("[wt mon] fail to write command pipe.\n");
@@ -58,7 +58,7 @@ seaf_wt_monitor_watch_repo (SeafWTMonitor *monitor,
 
     seaf_debug ("send a watch command, repo %s\n", repo_id);
 
-    n = pipereadn (monitor->res_pipe[0], &res, sizeof(int));
+    n = seaf_pipe_readn (monitor->res_pipe[0], &res, sizeof(int));
     if (n != sizeof(int)) {
         seaf_warning ("[wt mon] fail to read result pipe.\n");
         return -1;
@@ -77,7 +77,7 @@ seaf_wt_monitor_unwatch_repo (SeafWTMonitor *monitor, const char *repo_id)
     memcpy (cmd.repo_id, repo_id, 37);
     cmd.type = CMD_DELETE_WATCH;
 
-    int n = pipewriten (monitor->cmd_pipe[1], &cmd, sizeof(cmd));
+    int n = seaf_pipe_writen (monitor->cmd_pipe[1], &cmd, sizeof(cmd));
 
     if (n != sizeof(cmd)) {
         seaf_warning ("[wt mon] fail to write command pipe.\n");
@@ -86,7 +86,7 @@ seaf_wt_monitor_unwatch_repo (SeafWTMonitor *monitor, const char *repo_id)
 
     seaf_debug ("send an unwatch command, repo %s\n", repo_id);
 
-    n = pipereadn (monitor->res_pipe[0], &res, sizeof(int));
+    n = seaf_pipe_readn (monitor->res_pipe[0], &res, sizeof(int));
     if (n != sizeof(int)) {
         seaf_warning ("[wt mon] fail to read result pipe.\n");
         return -1;
@@ -105,7 +105,7 @@ seaf_wt_monitor_refresh_repo (SeafWTMonitor *monitor, const char *repo_id)
     memcpy (cmd.repo_id, repo_id, 37);
     cmd.type = CMD_REFRESH_WATCH;
 
-    int n = pipewriten (monitor->cmd_pipe[1], &cmd, sizeof(cmd));
+    int n = seaf_pipe_writen (monitor->cmd_pipe[1], &cmd, sizeof(cmd));
 
     if (n != sizeof(cmd)) {
         seaf_warning ("[wt mon] fail to write command pipe.\n");
@@ -114,7 +114,7 @@ seaf_wt_monitor_refresh_repo (SeafWTMonitor *monitor, const char *repo_id)
 
     seaf_debug ("send a refresh command, repo %s\n", repo_id);
 
-    n = pipereadn (monitor->res_pipe[0], &res, sizeof(int));
+    n = seaf_pipe_readn (monitor->res_pipe[0], &res, sizeof(int));
     if (n != sizeof(int)) {
         seaf_warning ("[wt mon] fail to read result pipe.\n");
         return -1;

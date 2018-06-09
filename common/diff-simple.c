@@ -3,10 +3,6 @@
 #include "utils.h"
 #include "log.h"
 
-#ifndef SEAFILE_SERVER
-#include "unpack-trees.h"
-#endif
-
 DiffEntry *
 diff_entry_new (char type, char status, unsigned char *sha1, const char *name)
 {
@@ -36,7 +32,6 @@ diff_entry_new_from_dirent (char type, char status,
     memcpy (de->sha1, sha1, 20);
     de->name = path;
 
-#ifdef SEAFILE_CLIENT
     if (type == DIFF_TYPE_COMMITS &&
         (status == DIFF_STATUS_ADDED ||
          status == DIFF_STATUS_MODIFIED ||
@@ -47,7 +42,6 @@ diff_entry_new_from_dirent (char type, char status,
         de->modifier = g_strdup(dent->modifier);
         de->size = dent->size;
     }
-#endif
 
     return de;
 }
@@ -59,113 +53,10 @@ diff_entry_free (DiffEntry *de)
     if (de->new_name)
         g_free (de->new_name);
 
-#ifdef SEAFILE_CLIENT
     g_free (de->modifier);
-#endif
 
     g_free (de);
 }
-
-#ifndef SEAFILE_SERVER
-
-static void
-diff_two_cache_entries (struct cache_entry *tree1,
-                        struct cache_entry *tree2,
-                        int diff_type,
-                        GList **results)
-{
-    DiffEntry *de;
-
-    if (!tree1) {
-        if (S_ISDIR(tree2->ce_mode)) {
-            de = diff_entry_new (diff_type, DIFF_STATUS_DIR_ADDED,
-                                 tree2->sha1, tree2->name);
-        } else {
-            de = diff_entry_new (diff_type, DIFF_STATUS_ADDED,
-                                 tree2->sha1, tree2->name);
-        }
-        *results = g_list_prepend (*results, de);
-        return;
-    }
-
-    if (!tree2) {
-        if (S_ISDIR(tree1->ce_mode)) {
-            de = diff_entry_new (diff_type, DIFF_STATUS_DIR_DELETED,
-                                 tree1->sha1, tree1->name);
-        } else {
-            de = diff_entry_new (diff_type, DIFF_STATUS_DELETED,
-                                 tree1->sha1, tree1->name);
-        }
-        *results = g_list_prepend (*results, de);
-        return;
-    }
-
-    if (tree2->ce_mode != tree1->ce_mode || hashcmp(tree2->sha1, tree1->sha1) != 0) {
-        if (S_ISDIR(tree2->ce_mode)) {
-            de = diff_entry_new (diff_type, DIFF_STATUS_DELETED,
-                                 tree1->sha1, tree1->name);
-            *results = g_list_prepend (*results, de);
-            de = diff_entry_new (diff_type, DIFF_STATUS_DIR_ADDED,
-                                 tree2->sha1, tree2->name);
-            *results = g_list_prepend (*results, de);
-        } else if (S_ISDIR(tree1->ce_mode)) {
-            de = diff_entry_new (diff_type, DIFF_STATUS_DIR_DELETED,
-                                 tree1->sha1, tree1->name);
-            *results = g_list_prepend (*results, de);
-            de = diff_entry_new (diff_type, DIFF_STATUS_ADDED,
-                                 tree2->sha1, tree2->name);
-            *results = g_list_prepend (*results, de);
-        } else {
-            de = diff_entry_new (diff_type, DIFF_STATUS_MODIFIED,
-                                 tree2->sha1, tree2->name);
-            *results = g_list_prepend (*results, de);
-        }
-    }
-}
-
-static int oneway_diff(struct cache_entry **src, struct unpack_trees_options *o)
-{
-    struct cache_entry *idx = src[0];
-    struct cache_entry *tree = src[1];
-    GList **results = o->unpack_data;
-
-    if (idx == o->df_conflict_entry)
-        idx = NULL;
-    if (tree == o->df_conflict_entry)
-        tree = NULL;
-
-    diff_two_cache_entries (tree, idx, DIFF_TYPE_INDEX, results);
-
-    return 0;
-}
-
-int diff_index(const char *repo_id, int version,
-               struct index_state *istate, SeafDir *root, GList **results)
-{
-    struct tree_desc t;
-    struct unpack_trees_options opts;
-
-    memset(&opts, 0, sizeof(opts));
-    memcpy (opts.repo_id, repo_id, 36);
-    opts.version = version;
-    opts.head_idx = 1;
-    opts.index_only = 1;
-    /* Unmerged entries are handled in diff worktree. */
-    opts.skip_unmerged = 1;
-    opts.merge = 1;
-    opts.fn = oneway_diff;
-    opts.unpack_data = results;
-    opts.src_index = istate;
-    opts.dst_index = NULL;
-
-    fill_tree_descriptor(repo_id, version, &t, root->dir_id);
-    int ret = unpack_trees(1, &t, &opts);
-
-    tree_desc_free (&t);
-    return ret;
-}
-
-#endif  /* not SEAFILE_SERVER */
 
 inline static gboolean
 dirent_same (SeafDirent *denta, SeafDirent *dentb)
@@ -456,19 +347,11 @@ diff_commits (SeafCommit *commit1, SeafCommit *commit2, GList **results,
     data.fold_dir_diff = fold_dir_diff;
 
     memset (&opt, 0, sizeof(opt));
-#ifdef SEAFILE_SERVER
-    memcpy (opt.store_id, repo->store_id, 36);
-#else
     memcpy (opt.store_id, repo->id, 36);
-#endif
     opt.version = repo->version;
     opt.file_cb = twoway_diff_files;
     opt.dir_cb = twoway_diff_dirs;
     opt.data = &data;
-
-#ifdef SEAFILE_SERVER
-    seaf_repo_unref (repo);
-#endif
 
     roots[0] = commit1->root_id;
     roots[1] = commit2->root_id;
@@ -608,19 +491,11 @@ diff_merge (SeafCommit *merge, GList **results, gboolean fold_dir_diff)
     data.fold_dir_diff = fold_dir_diff;
 
     memset (&opt, 0, sizeof(opt));
-#ifdef SEAFILE_SERVER
-    memcpy (opt.store_id, repo->store_id, 36);
-#else
     memcpy (opt.store_id, repo->id, 36);
-#endif
     opt.version = repo->version;
     opt.file_cb = threeway_diff_files;
     opt.dir_cb = threeway_diff_dirs;
     opt.data = &data;
-
-#ifdef SEAFILE_SERVER
-    seaf_repo_unref (repo);
-#endif
 
     roots[0] = merge->root_id;
     roots[1] = parent1->root_id;

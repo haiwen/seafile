@@ -10,14 +10,11 @@
 
 #include <pthread.h>
 
-#include <ccnet.h>
 #include "utils.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_SYNC
 #include "log.h"
 
-#include "status.h"
 #include "vc-utils.h"
-#include "merge.h"
 
 #include "seafile-session.h"
 #include "seafile-config.h"
@@ -29,7 +26,6 @@
 #include "seafile-crypt.h"
 #include "index/index.h"
 #include "index/cache-tree.h"
-#include "unpack-trees.h"
 #include "diff-simple.h"
 #include "change-set.h"
 
@@ -3753,78 +3749,8 @@ out:
     return 0;
 }
 
-static void
-handle_unmerged_index_entries (SeafRepo *repo, struct index_state *istate,
-                               SeafileCrypt *crypt, GList *ignore_list)
-{
-    struct cache_entry **ce_array = istate->cache;
-    struct cache_entry *ce;
-    char path[SEAF_PATH_MAX];
-    unsigned int i;
-    SeafStat st;
-    int ret;
-    GList *unmerged_paths = NULL;
-    char *last_name = "";
-
-retry:
-    for (i = 0; i < istate->cache_nr; ++i) {
-        ce = ce_array[i];
-
-        if (ce_stage(ce) == 0)
-            continue;
-
-        snprintf (path, SEAF_PATH_MAX, "%s/%s", repo->worktree, ce->name);
-        ret = seaf_stat (path, &st);
-
-        if (S_ISDIR (ce->ce_mode)) {
-            if (ret < 0 || !S_ISDIR (st.st_mode)
-                || !is_empty_dir (path, ignore_list))
-                ce->ce_flags |= CE_REMOVE;
-            else if (strcmp (ce->name, last_name) != 0) {
-                unmerged_paths = g_list_append (unmerged_paths, g_strdup(ce->name));
-                last_name = ce->name;
-            }
-        } else {
-            if (ret < 0 || !S_ISREG (st.st_mode))
-                ce->ce_flags |= CE_REMOVE;
-            else if (strcmp (ce->name, last_name) != 0) {
-                unmerged_paths = g_list_append (unmerged_paths, g_strdup(ce->name));
-                last_name = ce->name;
-            }
-        }
-    }
-
-    remove_marked_cache_entries (istate);
-
-    GList *ptr;
-    char *ce_name;
-    for (ptr = unmerged_paths; ptr; ptr = ptr->next) {
-        ce_name = ptr->data;
-        snprintf (path, SEAF_PATH_MAX, "%s/%s", repo->worktree, ce_name);
-        ret = seaf_stat (path, &st);
-        if (ret < 0) {
-            seaf_warning ("Failed to stat %s: %s.\n", path, strerror(errno));
-            string_list_free (unmerged_paths);
-            unmerged_paths = NULL;
-            goto retry;
-        }
-
-        if (S_ISDIR (st.st_mode)) {
-            if (is_empty_dir (path, ignore_list))
-                add_empty_dir_to_index (istate, ce_name, &st);
-        } else {
-            gboolean added;
-            add_to_index (repo->id, repo->version, istate, ce_name, path,
-                          &st, 0, crypt, index_cb, repo->email, &added);
-        }
-    }
-
-    string_list_free (unmerged_paths);
-}
-
 static int
-index_add (SeafRepo *repo, struct index_state *istate,
-           gboolean is_force_commit, gboolean handle_unmerged)
+index_add (SeafRepo *repo, struct index_state *istate, gboolean is_force_commit)
 {
     SeafileCrypt *crypt = NULL;
     LockedFileSet *fset = NULL;
@@ -3852,13 +3778,6 @@ index_add (SeafRepo *repo, struct index_state *istate,
         ret = -1;
     }
 
-    /* If the index contains unmerged entries, check and remove those entries
-     * in the end, in cases where they were not completely handled in
-     * apply_worktree_changes_to_index().
-     */
-    if (handle_unmerged)
-        handle_unmerged_index_entries (repo, istate, crypt, ignore_list);
-
     seaf_repo_free_ignore_files (ignore_list);
 
 #ifdef WIN32
@@ -3870,218 +3789,16 @@ index_add (SeafRepo *repo, struct index_state *istate,
     return ret;
 }
 
-/*
- * Add the files in @worktree to index and return the corresponding
- * @root_id. The repo doesn't have to exist.
- */
-int
-seaf_repo_index_worktree_files (const char *repo_id,
-                                int repo_version,
-                                const char *modifier,
-                                const char *worktree,
-                                const char *passwd,
-                                int enc_version,
-                                const char *random_key,
-                                char *root_id)
-{
-    char index_path[SEAF_PATH_MAX];
-    struct index_state istate;
-    unsigned char key[32], iv[16];
-    SeafileCrypt *crypt = NULL;
-    struct cache_tree *it = NULL;
-    GList *ignore_list = NULL;
-
-    memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", seaf->repo_mgr->index_dir, repo_id);
-
-    /* Remove existing index. An existing index signifies an interrupted
-     * clone-merge. Removing it assures that new blocks from the worktree
-     * get added into the repo again (they're deleted by GC).
-     */
-    seaf_util_unlink (index_path);
-
-    if (read_index_from (&istate, index_path, repo_version) < 0) {
-        seaf_warning ("Failed to load index.\n");
-        return -1;
-    }
-
-    if (passwd != NULL) {
-        if (seafile_decrypt_repo_enc_key (enc_version, passwd,
-                                          random_key, key, iv) < 0) {
-            seaf_warning ("Failed to generate enc key for repo %s.\n", repo_id);
-            goto error;
-        }
-        crypt = seafile_crypt_new (enc_version, key, iv);
-    }
-
-    ignore_list = seaf_repo_load_ignore_files(worktree);
-
-    /* Add empty dir to index. Otherwise if the repo on relay contains an empty
-     * dir, we'll fail to detect fast-forward relationship later.
-     */
-    if (add_recursive (repo_id, repo_version, modifier,
-                       &istate, worktree, "", crypt, FALSE, ignore_list,
-                       NULL, NULL, NULL) < 0)
-        goto error;
-
-    remove_deleted (&istate, worktree, "", ignore_list, NULL, repo_id, FALSE, NULL);
-
-    it = cache_tree ();
-    if (cache_tree_update (repo_id, repo_version, worktree,
-                           it, istate.cache, istate.cache_nr,
-                           0, 0, commit_trees_cb) < 0) {
-        seaf_warning ("Failed to build cache tree");
-        goto error;
-    }
-
-    rawdata_to_hex (it->sha1, root_id, 20);
-
-    if (update_index (&istate, index_path) < 0)
-        goto error;
-
-    discard_index (&istate);
-    g_free (crypt);
-    if (it)
-        cache_tree_free (&it);
-    seaf_repo_free_ignore_files(ignore_list);
-    return 0;
-
-error:
-    discard_index (&istate);
-    g_free (crypt);
-    if (it)
-        cache_tree_free (&it);
-    seaf_repo_free_ignore_files(ignore_list);
-    return -1;
-}
-
-gboolean
-seaf_repo_is_worktree_changed (SeafRepo *repo)
-{
-    SeafRepoManager *mgr = repo->manager;
-    GList *res = NULL, *p;
-    struct index_state istate;
-    char index_path[SEAF_PATH_MAX];
-
-    DiffEntry *de;
-    int pos;
-    struct cache_entry *ce;
-    SeafStat sb;
-    char *full_path;
-
-    if (!check_worktree_common (repo))
-        return FALSE;
-
-    memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path, repo->version) < 0) {
-        repo->index_corrupted = TRUE;
-        seaf_warning ("Failed to load index.\n");
-        goto error;
-    }
-    repo->index_corrupted = FALSE;
-
-    wt_status_collect_changes_worktree (&istate, &res, repo->worktree);
-    if (res != NULL)
-        goto changed;
-
-    wt_status_collect_untracked (&istate, &res, repo->worktree, should_ignore);
-    if (res != NULL)
-        goto changed;
-
-    wt_status_collect_changes_index (&istate, &res, repo);
-    if (res != NULL)
-        goto changed;
-
-    discard_index (&istate);
-
-    repo->wt_changed = FALSE;
-
-    /* g_debug ("%s worktree is changed\n", repo->id); */
-    return FALSE;
-
-changed:
-
-    g_message ("Worktree changes (at most 5 files are shown):\n");
-    int i = 0;
-    for (p = res; p != NULL && i < 5; p = p->next, ++i) {
-        de = p->data;
-
-        full_path = g_build_path ("/", repo->worktree, de->name, NULL);
-        if (seaf_stat (full_path, &sb) < 0) {
-            seaf_warning ("Failed to stat %s: %s.\n", full_path, strerror(errno));
-            g_free (full_path);
-            continue;
-        }
-        g_free (full_path);
-
-        pos = index_name_pos (&istate, de->name, strlen(de->name));
-        if (pos < 0) {
-            seaf_warning ("Cannot find diff entry %s in index.\n", de->name);
-            continue;
-        }
-        ce = istate.cache[pos];
-
-        g_message ("type: %c, status: %c, name: %s, "
-                   "ce mtime: %"G_GINT64_FORMAT", ce size: %" G_GUINT64_FORMAT ", "
-                   "file mtime: %d, file size: %" G_GUINT64_FORMAT "\n",
-                   de->type, de->status, de->name,
-                   ce->ce_mtime.sec, ce->ce_size, (int)sb.st_mtime, sb.st_size);
-    }
-
-    for (p = res; p; p = p->next) {
-        de = p->data;
-        diff_entry_free (de);
-    }
-    g_list_free (res);
-
-    discard_index (&istate);
-
-    repo->wt_changed = TRUE;
-
-    /* g_debug ("%s worktree is changed\n", repo->id); */
-    return TRUE;
-
-error:
-    return FALSE;
-}
-
-gboolean
-seaf_repo_is_index_unmerged (SeafRepo *repo)
-{
-    SeafRepoManager *mgr = repo->manager;
-    struct index_state istate;
-    char index_path[SEAF_PATH_MAX];
-    gboolean ret = FALSE;
-
-    if (!repo->head)
-        return FALSE;
-
-    memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path, repo->version) < 0) {
-        seaf_warning ("Failed to load index.\n");
-        return FALSE;
-    }
-
-    if (unmerged_index (&istate))
-        ret = TRUE;
-
-    discard_index (&istate);
-    return ret;
-}
-
 static int
 commit_tree (SeafRepo *repo, const char *root_id,
-             const char *desc, char commit_id[],
-             gboolean unmerged)
+             const char *desc, char commit_id[])
 {
     SeafCommit *commit;
 
     commit = seaf_commit_new (NULL, repo->id, root_id,
                               repo->email ? repo->email
-                              : seaf->session->base.user_name,
-                              seaf->session->base.id,
+                              : "unknown",
+                              seaf->client_id,
                               desc, 0);
 
     commit->parent_id = g_strdup (repo->head->commit_id);
@@ -4089,23 +3806,6 @@ commit_tree (SeafRepo *repo, const char *root_id,
     /* Add this computer's name to commit. */
     commit->device_name = g_strdup(seaf->client_name);
     commit->client_version = g_strdup (SEAFILE_CLIENT_VERSION);
-
-    if (unmerged) {
-        SeafRepoMergeInfo minfo;
-
-        /* Don't use head commit of master branch since that branch may have
-         * been updated after the last merge.
-         */
-        memset (&minfo, 0, sizeof(minfo));
-        if (seaf_repo_manager_get_merge_info (repo->manager, repo->id, &minfo) < 0) {
-            seaf_warning ("Failed to get merge info of repo %.10s.\n", repo->id);
-            return -1;
-        }
-
-        commit->second_parent_id = g_strdup (minfo.remote_head);
-        commit->new_merge = TRUE;
-        commit->conflict = TRUE;
-    }
 
     seaf_repo_to_commit (repo, commit);
 
@@ -4119,23 +3819,6 @@ commit_tree (SeafRepo *repo, const char *root_id,
     seaf_commit_unref (commit);
 
     return 0;
-}
-
-static gboolean
-need_handle_unmerged_index (SeafRepo *repo, struct index_state *istate)
-{
-    if (!unmerged_index (istate))
-        return FALSE;
-
-    /* Syncing with an existing directory may require a real merge.
-     * If the merge produced conflicts, the index will be unmerged.
-     * But we don't want to generate a merge commit in this case.
-     * An "index" branch should exist in this case.
-     */
-    if (seaf_branch_manager_branch_exists (seaf->branch_mgr, repo->id, "index"))
-        return FALSE;
-
-    return TRUE;
 }
 
 static gboolean
@@ -4194,7 +3877,6 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
     SeafCommit *head = NULL;
     char *new_root_id = NULL;
     char commit_id[41];
-    gboolean unmerged = FALSE;
     ChangeSet *changeset = NULL;
     char *my_desc = NULL;
     char *ret = NULL;
@@ -4210,9 +3892,6 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
         return NULL;
     }
 
-    if (need_handle_unmerged_index (repo, &istate))
-        unmerged = TRUE;
-
     changeset = changeset_new (repo->id);
     if (!changeset) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal data structure error");
@@ -4221,7 +3900,7 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
 
     repo->changeset = changeset;
 
-    if (index_add (repo, &istate, is_force_commit, unmerged) < 0) {
+    if (index_add (repo, &istate, is_force_commit) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Failed to add");
         goto out;
     }
@@ -4281,7 +3960,7 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
         goto out;
     }
 
-    if (commit_tree (repo, new_root_id, my_desc, commit_id, unmerged) < 0) {
+    if (commit_tree (repo, new_root_id, my_desc, commit_id) < 0) {
         seaf_warning ("Failed to save commit file");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal error");
         goto out;
@@ -4344,240 +4023,6 @@ print_index (struct index_state *istate)
 }
 #endif  /* DEBUG_UNPACK_TREES */
 
-int
-seaf_repo_checkout_commit (SeafRepo *repo, SeafCommit *commit, gboolean recover_merge,
-                           char **error)
-{
-    SeafRepoManager *mgr = repo->manager;
-    char index_path[SEAF_PATH_MAX];
-    struct tree_desc trees[2];
-    struct unpack_trees_options topts;
-    struct index_state istate;
-    gboolean initial_checkout;
-    GString *err_msgs;
-    int ret = 0;
-
-    memset (&istate, 0, sizeof(istate));
-    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", mgr->index_dir, repo->id);
-    if (read_index_from (&istate, index_path, repo->version) < 0) {
-        seaf_warning ("Failed to load index.\n");
-        return -1;
-    }
-    repo->index_corrupted = FALSE;
-    initial_checkout = is_index_unborn(&istate);
-
-    if (!initial_checkout) {
-        if (!repo->head) {
-            /* TODO: Set error string*/
-            seaf_warning ("Repo corrupt: Index exists but head branch is not set\n");
-            return -1;
-        }
-        SeafCommit *head =
-            seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                            repo->id, repo->version,
-                                            repo->head->commit_id);
-        if (!head) {
-            seaf_warning ("Failed to get commit %s:%s.\n",
-                          repo->id, repo->head->commit_id);
-            discard_index (&istate);
-            return -1;
-        }
-        fill_tree_descriptor (repo->id, repo->version, &trees[0], head->root_id);
-        seaf_commit_unref (head);
-    } else {
-        fill_tree_descriptor (repo->id, repo->version, &trees[0], NULL);
-    }
-    fill_tree_descriptor (repo->id, repo->version, &trees[1], commit->root_id);
-
-    /* 2-way merge to the new branch */
-    memset(&topts, 0, sizeof(topts));
-    memcpy (topts.repo_id, repo->id, 36);
-    topts.version = repo->version;
-    topts.base = repo->worktree;
-    topts.head_idx = -1;
-    topts.src_index = &istate;
-    /* topts.dst_index = &istate; */
-    topts.initial_checkout = initial_checkout;
-    topts.update = 1;
-    topts.merge = 1;
-    topts.gently = 0;
-    topts.verbose_update = 0;
-    /* topts.debug_unpack = 1; */
-    topts.fn = twoway_merge;
-    if (repo->encrypted) {
-        topts.crypt = seafile_crypt_new (repo->enc_version, 
-                                         repo->enc_key, 
-                                         repo->enc_iv);
-    }
-
-    if (unpack_trees (2, trees, &topts) < 0) {
-        seaf_warning ("Failed to merge commit %s with work tree.\n", commit->commit_id);
-        ret = -1;
-        goto out;
-    }
-
-#ifdef WIN32
-    if (!initial_checkout && !recover_merge &&
-        files_locked_on_windows(&topts.result, repo->worktree)) {
-        g_debug ("[checkout] files are locked, quit checkout now.\n");
-        ret = -1;
-        goto out;
-    }
-#endif
-
-    int *finished_entries = NULL;
-    CheckoutTask *c_task = seaf_repo_manager_get_checkout_task (repo->manager, repo->id);
-    if (c_task) {
-        finished_entries = &c_task->finished_files;
-    }
-    if (update_worktree (&topts, recover_merge,
-                         initial_checkout ? NULL : commit->commit_id,
-                         commit->creator_name,
-                         finished_entries) < 0) {
-        seaf_warning ("Failed to update worktree.\n");
-        /* Still finish checkout even have I/O errors. */
-    }
-
-    discard_index (&istate);
-    istate = topts.result;
-    if (update_index (&istate, index_path) < 0) {
-        seaf_warning ("Failed to update index.\n");
-        ret = -1;
-        goto out;
-    }
-
-out:
-    err_msgs = g_string_new ("");
-    get_unpack_trees_error_msgs (&topts, err_msgs, OPR_CHECKOUT);
-    *error = g_string_free (err_msgs, FALSE);
-
-    tree_desc_free (&trees[0]);
-    tree_desc_free (&trees[1]);
-
-    g_free (topts.crypt);
-
-    discard_index (&istate);
-
-    return ret;
-}
-
-
-/**
- * Checkout the content of "local" branch to <worktree_parent>/repo-name.
- * The worktree will be set to this place too.
- */
-int
-seaf_repo_checkout (SeafRepo *repo, const char *worktree, char **error)
-{
-    const char *commit_id;
-    SeafBranch *branch;
-    SeafCommit *commit;
-    GString *err_msgs;
-
-    /* remove original index */
-    char index_path[SEAF_PATH_MAX];
-    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
-    seaf_util_unlink (index_path);
-
-    branch = seaf_branch_manager_get_branch (seaf->branch_mgr,
-                                             repo->id, "local");
-    if (!branch) {
-        seaf_warning ("[repo-mgr] Checkout repo failed: local branch does not exists\n");
-        *error = g_strdup ("Repo's local branch does not exists.");
-        goto error;
-    }
-    commit_id = branch->commit_id;
-        
-    commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                             repo->id,
-                                             repo->version,
-                                             commit_id);
-    if (!commit) {
-        err_msgs = g_string_new ("");
-        g_string_append_printf (err_msgs, "Commit %s does not exist.\n",
-                                commit_id);
-        seaf_warning ("%s", err_msgs->str);
-        *error = g_string_free (err_msgs, FALSE);
-        seaf_branch_unref (branch);
-        goto error;
-    }
-
-    if (strcmp(repo->id, commit->repo_id) != 0) {
-        err_msgs = g_string_new ("");
-        g_string_append_printf (err_msgs, "Commit %s is not in Repo %s.\n", 
-                                commit_id, repo->id);
-        seaf_warning ("%s", err_msgs->str);
-        *error = g_string_free (err_msgs, FALSE);
-        seaf_commit_unref (commit);
-        if (branch)
-            seaf_branch_unref (branch);
-        goto error;
-    }
-
-    CheckoutTask *task = seaf_repo_manager_get_checkout_task (seaf->repo_mgr,
-                                                              repo->id);
-    if (!task) {
-        seaf_warning ("No checkout task found for repo %.10s.\n", repo->id);
-        goto error;
-    }
-    task->total_files = seaf_fs_manager_count_fs_files (seaf->fs_mgr,
-                                                        repo->id, repo->version,
-                                                        commit->root_id);
-
-    if (task->total_files < 0) {
-        seaf_warning ("Failed to count files for repo %.10s .\n", repo->id);
-        goto error;
-    }
-
-    if (seaf_repo_checkout_commit (repo, commit, FALSE, error) < 0) {
-        seaf_commit_unref (commit);
-        if (branch)
-            seaf_branch_unref (branch);
-        goto error;
-    }
-
-    seaf_branch_unref (branch);
-    seaf_commit_unref (commit);
-
-    return 0;
-
-error:
-    return -1;
-}
-
-int
-seaf_repo_merge (SeafRepo *repo, const char *branch, char **error,
-                 int *merge_status)
-{
-    SeafBranch *remote_branch;
-    int ret = 0;
-
-    if (!check_worktree_common (repo))
-        return -1;
-
-    remote_branch = seaf_branch_manager_get_branch (seaf->branch_mgr,
-                                                    repo->id,
-                                                    branch);
-    if (!remote_branch) {
-        *error = g_strdup("Invalid remote branch.\n");
-        goto error;
-    }
-
-    if (g_strcmp0 (remote_branch->repo_id, repo->id) != 0) {
-        *error = g_strdup ("Remote branch is not in this repository.\n");
-        seaf_branch_unref (remote_branch);
-        goto error;
-    }
-
-    ret = merge_branches (repo, remote_branch, error, merge_status);
-    seaf_branch_unref (remote_branch);
-
-    return ret;
-
-error:
-    return -1;
-}
-
 GList *
 seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, int fold_dir_diff, char **error)
 {
@@ -4635,172 +4080,6 @@ seaf_repo_diff (SeafRepo *repo, const char *old, const char *new, int fold_dir_d
     seaf_commit_unref (c2);
 
     return diff_entries;
-}
-
-int
-checkout_file (const char *repo_id,
-               int repo_version,
-               const char *worktree,
-               const char *name,
-               const char *file_id,
-               gint64 mtime,
-               unsigned int mode,
-               SeafileCrypt *crypt,
-               struct cache_entry *ce,
-               TransferTask *task,
-               HttpTxTask *http_task,
-               gboolean is_http,
-               const char *conflict_head_id,
-               GHashTable *conflict_hash,
-               GHashTable *no_conflict_hash,
-               gboolean download_only)
-{
-    char *path;
-    SeafStat st, st2;
-    unsigned char sha1[20];
-    gboolean path_exists = FALSE;
-    gboolean case_conflict = FALSE;
-    gboolean force_conflict = FALSE;
-    gboolean update_mode_only = FALSE;
-
-    path = build_checkout_path (worktree, name, strlen(name));
-
-    if (!path)
-        return FETCH_CHECKOUT_FAILED;
-
-    hex_to_rawdata (file_id, sha1, 20);
-
-    path_exists = (seaf_stat (path, &st) == 0);
-
-    if (path_exists && S_ISREG(st.st_mode)) {
-        if (st.st_mtime == ce->ce_mtime.sec) {
-            /* Worktree and index are consistent. */
-            if (memcmp (sha1, ce->sha1, 20) == 0) {
-                if (mode == ce->ce_mode) {
-                    /* Worktree and index are all uptodate, no need to checkout.
-                     * This may happen after an interrupted checkout.
-                     */
-                    seaf_debug ("wt and index are consistent. no need to checkout.\n");
-                    goto update_cache;
-                } else
-                    update_mode_only = TRUE;
-            }
-            /* otherwise we have to checkout the file. */
-        } else {
-            if (compare_file_content (path, &st, sha1, crypt, repo_version) == 0) {
-                /* This happens after the worktree file was updated,
-                 * but the index was not. Just need to update the index.
-                 */
-                seaf_debug ("update index only.\n");
-                goto update_cache;
-            } else {
-                /* Conflict. The worktree file was updated by the user. */
-                seaf_message ("File %s is updated by user. "
-                              "Will checkout to conflict file later.\n", path);
-                force_conflict = TRUE;
-            }
-        }
-    }
-
-    if (update_mode_only) {
-#ifdef WIN32
-        g_free (path);
-        return FETCH_CHECKOUT_SUCCESS;
-#else
-        chmod (path, mode & ~S_IFMT);
-        ce->ce_mode = mode;
-        g_free (path);
-        return FETCH_CHECKOUT_SUCCESS;
-#endif
-    }
-
-    /* Download the blocks of this file. */
-    int rc;
-    rc = http_tx_task_download_file_blocks (http_task, file_id);
-    if (http_task->state == HTTP_TASK_STATE_CANCELED) {
-        g_free (path);
-        return FETCH_CHECKOUT_CANCELED;
-    }
-    if (rc < 0) {
-        g_free (path);
-        return FETCH_CHECKOUT_TRANSFER_ERROR;
-    }
-
-    if (download_only) {
-        g_free (path);
-        return FETCH_CHECKOUT_SUCCESS;
-    }
-
-    /* The worktree file may have been changed when we're downloading the blocks. */
-    if (path_exists && S_ISREG(st.st_mode) && !force_conflict) {
-        seaf_stat (path, &st2);
-        if (st.st_mtime != st2.st_mtime) {
-            seaf_message ("File %s is updated by user. "
-                          "Will checkout to conflict file later.\n", path);
-            force_conflict = TRUE;
-        }
-    }
-
-    /* Temporarily unlock the file if it's locked on server, so that the client
-     * itself can write to it. 
-     */
-    if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                              repo_id, name))
-        seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
-                                              repo_id, name);
-
-    /* then checkout the file. */
-    gboolean conflicted = FALSE;
-    if (seaf_fs_manager_checkout_file (seaf->fs_mgr,
-                                       repo_id,
-                                       repo_version,
-                                       file_id,
-                                       path,
-                                       mode,
-                                       mtime,
-                                       crypt,
-                                       name,
-                                       conflict_head_id,
-                                       force_conflict,
-                                       &conflicted,
-                                       is_http ? http_task->email : task->email) < 0) {
-        seaf_warning ("Failed to checkout file %s.\n", path);
-        g_free (path);
-
-        if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                                  repo_id, name))
-            seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
-                                                repo_id, name);
-
-        return FETCH_CHECKOUT_FAILED;
-    }
-
-    if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                              repo_id, name))
-        seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
-                                            repo_id, name);
-
-    /* If case conflict, this file has been checked out to another path.
-     * Remove the current entry, otherwise it won't be removed later
-     * since it's timestamp is 0.
-     */
-    if (case_conflict) {
-        ce->ce_flags |= CE_REMOVE;
-        g_free (path);
-        return FETCH_CHECKOUT_SUCCESS;
-    }
-
-update_cache:
-    /* finally fill cache_entry info */
-    /* Only update index if we checked out the file without any error
-     * or conflicts. The timestamp of the entry will remain 0 if error
-     * or conflicted.
-     */
-    seaf_stat (path, &st);
-    fill_stat_cache_info (ce, &st);
-
-    g_free (path);
-    return FETCH_CHECKOUT_SUCCESS;
 }
 
 int
@@ -4868,186 +4147,7 @@ cache_entry_from_diff_entry (DiffEntry *de)
     return ce;
 }
 
-static void
-cleanup_file_blocks (const char *repo_id, int version, const char *file_id)
-{
-    Seafile *file;
-    int i;
-
-    file = seaf_fs_manager_get_seafile (seaf->fs_mgr,
-                                        repo_id, version,
-                                        file_id);
-    if (!file) {
-        seaf_warning ("Failed to load seafile object %s:%s\n", repo_id, file_id);
-        return;
-    }
-
-    for (i = 0; i < file->n_blocks; ++i)
-        seaf_block_manager_remove_block (seaf->block_mgr,
-                                         repo_id, version,
-                                         file->blk_sha1s[i]);
-
-    seafile_unref (file);
-}
-
 #define UPDATE_CACHE_SIZE_LIMIT 100 * (1 << 20) /* 100MB */
-
-static int
-download_files_no_http (const char *repo_id,
-                        int repo_version,
-                        const char *worktree,
-                        struct index_state *istate,
-                        const char *index_path,
-                        SeafileCrypt *crypt,
-                        TransferTask *task,
-                        GList *results,
-                        GHashTable *conflict_hash,
-                        GHashTable *no_conflict_hash,
-                        const char *remote_head_id,
-                        LockedFileSet *fset)
-{
-    GList *ptr;
-    struct cache_entry *ce;
-    DiffEntry *de;
-    gint64 checkout_size = 0;
-    int rc;
-    gboolean is_clone = task->is_clone;
-    int ret = FETCH_CHECKOUT_SUCCESS;
-
-    for (ptr = results; ptr; ptr = ptr->next) {
-        de = ptr->data;
-
-        if (de->status == DIFF_STATUS_ADDED ||
-            de->status == DIFF_STATUS_MODIFIED) {
-            seaf_debug ("Checkout file %s.\n", de->name);
-
-            gboolean add_ce = FALSE;
-            gboolean is_locked = FALSE;
-            char file_id[41];
-
-            rawdata_to_hex (de->sha1, file_id, 20);
-
-            ce = index_name_exists (istate, de->name, strlen(de->name), 0);
-            if (!ce) {
-                ce = cache_entry_from_diff_entry (de);
-                add_ce = TRUE;
-            }
-
-            if (!should_ignore_on_checkout (de->name, NULL)) {
-#ifdef WIN32
-                is_locked = do_check_file_locked (de->name, worktree, FALSE);
-#endif
-
-                if (!is_clone)
-                    seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                                          repo_id,
-                                                          de->name,
-                                                          de->mode,
-                                                          SYNC_STATUS_SYNCING);
-
-                rc = checkout_file (repo_id,
-                                    repo_version,
-                                    worktree,
-                                    de->name,
-                                    file_id,
-                                    de->mtime,
-                                    de->mode,
-                                    crypt,
-                                    ce,
-                                    task,
-                                    NULL,
-                                    FALSE,
-                                    remote_head_id,
-                                    conflict_hash,
-                                    no_conflict_hash,
-                                    is_locked);
-
-                /* Even if the file failed to check out, still need to update index.
-                 * But we have to stop after transfer errors.
-                 */
-                if (rc == FETCH_CHECKOUT_CANCELED) {
-                    seaf_debug ("Transfer canceled.\n");
-                    ret = FETCH_CHECKOUT_CANCELED;
-                    if (add_ce)
-                        cache_entry_free (ce);
-                    return ret;
-                } else if (rc == FETCH_CHECKOUT_TRANSFER_ERROR) {
-                    seaf_warning ("Transfer failed.\n");
-                    ret = FETCH_CHECKOUT_TRANSFER_ERROR;
-                    if (add_ce)
-                        cache_entry_free (ce);
-                    return ret;
-                }
-
-                if (!is_locked) {
-                    cleanup_file_blocks (repo_id, repo_version, file_id);
-                } else {
-#ifdef WIN32
-                    locked_file_set_add_update (fset, de->name, LOCKED_OP_UPDATE,
-                                                ce->ce_mtime.sec, file_id);
-                    /* Stay in syncing status if the file is locked. */
-#endif
-                }
-            }
-
-            ++(task->n_downloaded);
-
-            if (add_ce) {
-                if (!(ce->ce_flags & CE_REMOVE)) {
-                    add_index_entry (istate, ce,
-                                     (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE));
-                }
-            } else {
-                ce->ce_mtime.sec = de->mtime;
-                ce->ce_size = de->size;
-                memcpy (ce->sha1, de->sha1, 20);
-                if (ce->modifier) g_free (ce->modifier);
-                ce->modifier = g_strdup(de->modifier);
-                ce->ce_mode = create_ce_mode (de->mode);
-            }
-
-            /* Save index file to disk after checking out some size of files.
-             * This way we don't need to re-compare too many files if this
-             * checkout is interrupted.
-             */
-            checkout_size += ce->ce_size;
-            if (checkout_size >= UPDATE_CACHE_SIZE_LIMIT) {
-                seaf_debug ("Save index file.\n");
-                update_index (istate, index_path);
-                checkout_size = 0;
-            }
-        } else if (de->status == DIFF_STATUS_DIR_ADDED) {
-            seaf_debug ("Checkout empty dir %s.\n", de->name);
-
-            gboolean add_ce = FALSE;
-
-            ce = index_name_exists (istate, de->name, strlen(de->name), 0);
-            if (!ce) {
-                ce = cache_entry_from_diff_entry (de);
-                add_ce = TRUE;
-            }
-
-            checkout_empty_dir (worktree,
-                                de->name,
-                                de->mtime,
-                                ce,
-                                conflict_hash,
-                                no_conflict_hash);
-
-            if (add_ce) {
-                if (!(ce->ce_flags & CE_REMOVE)) {
-                    add_index_entry (istate, ce,
-                                     (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE));
-                }
-            } else
-                ce->ce_mtime.sec = de->mtime;
-        }
-    }
-
-    update_index (istate, index_path);
-
-    return FETCH_CHECKOUT_SUCCESS;
-}
 
 typedef struct FileTxData {
     char repo_id[37];
@@ -6071,10 +5171,7 @@ convert_rename_to_checkout (const char *repo_id,
 #endif  /* WIN32 */
 
 int
-seaf_repo_fetch_and_checkout (TransferTask *task,
-                              HttpTxTask *http_task,
-                              gboolean is_http,
-                              const char *remote_head_id)
+seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
 {
     char *repo_id;
     int repo_version;
@@ -6094,19 +5191,11 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
     GList *ignore_list = NULL;
     LockedFileSet *fset = NULL;
 
-    if (is_http) {
-        repo_id = http_task->repo_id;
-        repo_version = http_task->repo_version;
-        is_clone = http_task->is_clone;
-        worktree = http_task->worktree;
-        passwd = http_task->passwd;
-    } else {
-        repo_id = task->repo_id;
-        repo_version = task->repo_version;
-        is_clone = task->is_clone;
-        worktree = task->worktree;
-        passwd = task->passwd;
-    }
+    repo_id = http_task->repo_id;
+    repo_version = http_task->repo_version;
+    is_clone = http_task->is_clone;
+    worktree = http_task->worktree;
+    passwd = http_task->passwd;
 
     memset (&istate, 0, sizeof(istate));
     snprintf (index_path, SEAF_PATH_MAX, "%s/%s",
@@ -6265,7 +5354,7 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
                 locked_file_set_remove (fset, de->name, FALSE);
                 delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
             } else {
-                if (is_http && !locked_file_set_lookup (fset, de->name))
+                if (!locked_file_set_lookup (fset, de->name))
                     send_file_sync_error_notification (repo_id, http_task->repo_name, de->name,
                                                        SYNC_ERROR_ID_FILE_LOCKED_BY_APP);
 
@@ -6312,16 +5401,15 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
             IgnoreReason reason;
             if (should_ignore_on_checkout (de->new_name, &reason)) {
                 seaf_message ("Path %s is invalid on Windows, skip rename.\n", de->new_name);
-                if (is_http) {
-                    if (reason == IGNORE_REASON_END_SPACE_PERIOD)
-                        send_file_sync_error_notification (repo_id, http_task->repo_name,
-                                                           de->new_name,
-                                                           SYNC_ERROR_ID_PATH_END_SPACE_PERIOD);
-                    else if (reason == IGNORE_REASON_INVALID_CHARACTER)
-                        send_file_sync_error_notification (repo_id, http_task->repo_name,
-                                                           de->new_name,
-                                                           SYNC_ERROR_ID_PATH_INVALID_CHARACTER);
-                }
+
+                if (reason == IGNORE_REASON_END_SPACE_PERIOD)
+                    send_file_sync_error_notification (repo_id, http_task->repo_name,
+                                                       de->new_name,
+                                                       SYNC_ERROR_ID_PATH_END_SPACE_PERIOD);
+                else if (reason == IGNORE_REASON_INVALID_CHARACTER)
+                    send_file_sync_error_notification (repo_id, http_task->repo_name,
+                                                       de->new_name,
+                                                       SYNC_ERROR_ID_PATH_INVALID_CHARACTER);
                 continue;
             } else if (should_ignore_on_checkout (de->name, NULL)) {
                 /* If the server renames an invalid path to a valid path,
@@ -6363,40 +5451,22 @@ seaf_repo_fetch_and_checkout (TransferTask *task,
     for (ptr = results; ptr; ptr = ptr->next) {
         de = ptr->data;
         if (de->status == DIFF_STATUS_ADDED || de->status == DIFF_STATUS_MODIFIED) {
-            if (!is_http)
-                ++(task->n_to_download);
-            else
-                ++(http_task->n_files);
+            ++(http_task->n_files);
         }
     }
 
-    if (is_http) {
-        ret = download_files_http (repo_id,
-                                   repo_version,
-                                   worktree,
-                                   &istate,
-                                   index_path,
-                                   crypt,
-                                   http_task,
-                                   results,
-                                   conflict_hash,
-                                   no_conflict_hash,
-                                   remote_head_id,
-                                   fset);
-    } else {
-        ret = download_files_no_http (repo_id,
-                                      repo_version,
-                                      worktree,
-                                      &istate,
-                                      index_path,
-                                      crypt,
-                                      task,
-                                      results,
-                                      conflict_hash,
-                                      no_conflict_hash,
-                                      remote_head_id,
-                                      fset);
-    }
+    ret = download_files_http (repo_id,
+                               repo_version,
+                               worktree,
+                               &istate,
+                               index_path,
+                               crypt,
+                               http_task,
+                               results,
+                               conflict_hash,
+                               no_conflict_hash,
+                               remote_head_id,
+                               fset);
 
 out:
     discard_index (&istate);
@@ -7273,12 +6343,6 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     if (repo->worktree)
         repo->worktree_invalid = FALSE;
 
-    repo->relay_id = load_repo_property (manager, repo->id, REPO_RELAY_ID);
-    if (repo->relay_id && strlen(repo->relay_id) != 40) {
-        g_free (repo->relay_id);
-        repo->relay_id = NULL;
-    }
-
     repo->email = load_repo_property (manager, repo->id, REPO_PROP_EMAIL);
     repo->token = load_repo_property (manager, repo->id, REPO_PROP_TOKEN);
 
@@ -7516,25 +6580,6 @@ save_repo_property (SeafRepoManager *manager,
     pthread_mutex_unlock (&manager->priv->db_lock);
 }
 
-int
-seaf_repo_manager_set_repo_relay_id (SeafRepoManager *mgr,
-                                     SeafRepo *repo,
-                                     const char *relay_id)
-{
-    if (relay_id && strlen(relay_id) != 40)
-        return -1;
-
-    save_repo_property (mgr, repo->id, REPO_RELAY_ID, relay_id);
-
-    g_free (repo->relay_id);
-
-    if (relay_id)
-        repo->relay_id = g_strdup (relay_id);
-    else
-        repo->relay_id = NULL;        
-    return 0;
-}
-
 static char *
 canonical_server_url (const char *url_in)
 {
@@ -7600,9 +6645,6 @@ seaf_repo_manager_set_repo_property (SeafRepoManager *manager,
                                             repo->worktree);
         }
     }
-
-    if (strcmp(key, REPO_RELAY_ID) == 0)
-        return seaf_repo_manager_set_repo_relay_id (manager, repo, value);
 
     if (strcmp (key, REPO_PROP_SERVER_URL) == 0) {
         char *url = canonical_server_url (value);
@@ -7713,153 +6755,6 @@ seaf_repo_manager_set_repo_passwd (SeafRepoManager *manager,
     return ret;
 }
 
-int
-seaf_repo_manager_set_merge (SeafRepoManager *manager,
-                             const char *repo_id,
-                             const char *remote_head)
-{
-    char sql[256];
-
-    pthread_mutex_lock (&manager->priv->db_lock);
-
-    snprintf (sql, sizeof(sql), "REPLACE INTO MergeInfo VALUES ('%s', 1, '%s');",
-              repo_id, remote_head);
-    int ret = sqlite_query_exec (manager->priv->db, sql);
-
-    pthread_mutex_unlock (&manager->priv->db_lock);
-    return ret;
-}
-
-int
-seaf_repo_manager_clear_merge (SeafRepoManager *manager,
-                               const char *repo_id)
-{
-    char sql[256];
-
-    pthread_mutex_lock (&manager->priv->db_lock);
-
-    snprintf (sql, sizeof(sql), "UPDATE MergeInfo SET in_merge=0 WHERE repo_id='%s';",
-              repo_id);
-    int ret = sqlite_query_exec (manager->priv->db, sql);
-
-    pthread_mutex_unlock (&manager->priv->db_lock);
-    return ret;
-}
-
-static gboolean
-get_merge_info (sqlite3_stmt *stmt, void *vinfo)
-{
-    SeafRepoMergeInfo *info = vinfo;
-    int in_merge;
-
-    in_merge = sqlite3_column_int (stmt, 1);
-    if (in_merge == 0)
-        info->in_merge = FALSE;
-    else
-        info->in_merge = TRUE;
-
-    /* 
-     * Note that compatibility, we store remote_head in the "branch" column.
-     */
-    const char *remote_head = (const char *) sqlite3_column_text (stmt, 2);
-    memcpy (info->remote_head, remote_head, 40);
-
-    return FALSE;
-}
-
-int
-seaf_repo_manager_get_merge_info (SeafRepoManager *manager,
-                                  const char *repo_id,
-                                  SeafRepoMergeInfo *info)
-{
-    char sql[256];
-
-    /* Default not in_merge, if no row is found in db. */
-    info->in_merge = FALSE;
-
-    pthread_mutex_lock (&manager->priv->db_lock);
-
-    snprintf (sql, sizeof(sql), "SELECT * FROM MergeInfo WHERE repo_id='%s';",
-              repo_id);
-    if (sqlite_foreach_selected_row (manager->priv->db, sql,
-                                     get_merge_info, info) < 0) {
-        pthread_mutex_unlock (&manager->priv->db_lock);
-        return -1;
-    }
-
-    pthread_mutex_unlock (&manager->priv->db_lock);
-
-    return 0;
-}
-
-typedef struct {
-    char common_ancestor[41];
-    char head_id[41];
-} CAInfo;
-
-static gboolean
-get_common_ancestor (sqlite3_stmt *stmt, void *vinfo)
-{
-    CAInfo *info = vinfo;
-
-    const char *ancestor = (const char *) sqlite3_column_text (stmt, 0);
-    const char *head_id = (const char *) sqlite3_column_text (stmt, 1);
-
-    memcpy (info->common_ancestor, ancestor, 40);
-    memcpy (info->head_id, head_id, 40);
-
-    return FALSE;
-}
-
-int
-seaf_repo_manager_get_common_ancestor (SeafRepoManager *manager,
-                                       const char *repo_id,
-                                       char *common_ancestor,
-                                       char *head_id)
-{
-    char sql[256];
-    CAInfo info;
-
-    memset (&info, 0, sizeof(info));
-
-    pthread_mutex_lock (&manager->priv->db_lock);
-
-    snprintf (sql, sizeof(sql),
-              "SELECT ca_id, head_id FROM CommonAncestor WHERE repo_id='%s';",
-              repo_id);
-    if (sqlite_foreach_selected_row (manager->priv->db, sql,
-                                     get_common_ancestor, &info) < 0) {
-        pthread_mutex_unlock (&manager->priv->db_lock);
-        return -1;
-    }
-
-    pthread_mutex_unlock (&manager->priv->db_lock);
-
-    memcpy (common_ancestor, info.common_ancestor, 41);
-    memcpy (head_id, info.head_id, 41);
-
-    return 0;
-}
-
-int
-seaf_repo_manager_set_common_ancestor (SeafRepoManager *manager,
-                                       const char *repo_id,
-                                       const char *common_ancestor,
-                                       const char *head_id)
-{
-    char sql[256];
-
-    pthread_mutex_lock (&manager->priv->db_lock);
-
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO CommonAncestor VALUES ('%s', '%s', '%s');",
-              repo_id, common_ancestor, head_id);
-    int ret = sqlite_query_exec (manager->priv->db, sql);
-
-    pthread_mutex_unlock (&manager->priv->db_lock);
-    return ret;
-}
-
 GList*
 seaf_repo_manager_get_repo_list (SeafRepoManager *manager, int start, int limit)
 {
@@ -7908,127 +6803,6 @@ seaf_repo_manager_get_repo_id_list_by_server (SeafRepoManager *manager, const ch
     pthread_rwlock_unlock (&manager->priv->lock);
 
     return repo_id_list;
-}
-
-typedef struct {
-    SeafRepo                *repo;
-    CheckoutTask            *task;
-    CheckoutDoneCallback     done_cb;
-    void                    *cb_data;
-} CheckoutData;
-
-static void
-checkout_job_done (void *vresult)
-{
-    if (!vresult)
-        return;
-    CheckoutData *cdata = vresult;
-    SeafRepo *repo = cdata->repo;
-    SeafBranch *local = NULL;
-
-    if (!cdata->task->success)
-        goto out;
-
-    seaf_repo_manager_set_repo_worktree (repo->manager,
-                                         repo,
-                                         cdata->task->worktree);
-
-    local = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "local");
-    if (!local) {
-        seaf_warning ("Cannot get branch local for repo %s(%.10s).\n",
-                      repo->name, repo->id);
-        return;
-    }
-    /* Set repo head to mark checkout done. */
-    seaf_repo_set_head (repo, local);
-    seaf_branch_unref (local);
-
-    if (repo->auto_sync && (repo->sync_interval == 0)) {
-        if (seaf_wt_monitor_watch_repo (seaf->wt_monitor, repo->id, repo->worktree) < 0) {
-            seaf_warning ("failed to watch repo %s(%.10s).\n", repo->name, repo->id);
-            return;
-        }
-    }
-
-out:
-    if (cdata->done_cb)
-        cdata->done_cb (cdata->task, cdata->repo, cdata->cb_data);
-
-    /* g_hash_table_remove (mgr->priv->checkout_tasks_hash, cdata->repo->id); */
-}
-
-static void *
-checkout_repo_job (void *data)
-{
-    SeafRepoManager *mgr = seaf->repo_mgr;
-    CheckoutData *cdata = data;
-    SeafRepo *repo = cdata->repo;
-    CheckoutTask *task;
-
-    task = g_hash_table_lookup (mgr->priv->checkout_tasks_hash, repo->id);
-    if (!task) {
-        seaf_warning ("Failed to find checkout task for repo %.10s\n", repo->id);
-        return NULL;
-    }
-
-    repo->worktree = g_strdup (task->worktree);
-
-    char *error_msg = NULL;
-    if (seaf_repo_checkout (repo, task->worktree, &error_msg) < 0) {
-        seaf_warning ("Failed to checkout repo %.10s to %s : %s\n",
-                      repo->id, task->worktree, error_msg);
-        g_free (error_msg);
-        task->success = FALSE;
-        goto ret;
-    }
-    task->success = TRUE;
-
-ret:
-    return data;
-}
-
-int
-seaf_repo_manager_add_checkout_task (SeafRepoManager *mgr,
-                                     SeafRepo *repo,
-                                     const char *worktree,
-                                     CheckoutDoneCallback done_cb,
-                                     void *cb_data)
-{
-    if (!repo || !worktree) {
-        seaf_warning ("Invaid args\n");
-        return -1;
-    }
-
-    CheckoutTask *task = g_new0 (CheckoutTask, 1);
-    memcpy (task->repo_id, repo->id, 36);
-    g_return_val_if_fail (strlen(worktree) < SEAF_PATH_MAX, -1);
-    strcpy (task->worktree, worktree);
-
-    g_hash_table_insert (mgr->priv->checkout_tasks_hash,
-                         g_strdup(repo->id), task);
-
-    CheckoutData *cdata = g_new0 (CheckoutData, 1);
-    cdata->repo = repo;
-    cdata->task = task;
-    cdata->done_cb = done_cb;
-    cdata->cb_data = cb_data;
-    ccnet_job_manager_schedule_job(seaf->job_mgr,
-                                   (JobThreadFunc)checkout_repo_job,
-                                   (JobDoneCallback)checkout_job_done,
-                                   cdata);
-    return 0;
-}
-
-CheckoutTask *
-seaf_repo_manager_get_checkout_task (SeafRepoManager *mgr,
-                                     const char *repo_id)
-{
-    if (!repo_id || strlen(repo_id) != 36) {
-        seaf_warning ("Invalid args\n");
-        return NULL;
-    }
-
-    return g_hash_table_lookup(mgr->priv->checkout_tasks_hash, repo_id);
 }
 
 int
@@ -8092,38 +6866,6 @@ seaf_repo_manager_get_repo_relay_info (SeafRepoManager *mgr,
         *relay_addr = addr;
     if (relay_port && port)
         *relay_port = port;
-}
-
-int
-seaf_repo_manager_update_repo_relay_info (SeafRepoManager *mgr,
-                                          SeafRepo *repo,
-                                          const char *new_addr,
-                                          const char *new_port)
-{
-    GList *ptr, *repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, 0, -1);
-    SeafRepo *r;
-    for (ptr = repos; ptr; ptr = ptr->next) {
-        r = ptr->data;
-        if (g_strcmp0(r->relay_id, repo->relay_id) != 0)
-            continue;
-
-        char *relay_addr = NULL;
-        char *relay_port = NULL;
-        seaf_repo_manager_get_repo_relay_info (seaf->repo_mgr, r->id,
-                                               &relay_addr, &relay_port);
-        if (g_strcmp0(relay_addr, new_addr) != 0 ||
-            g_strcmp0(relay_port, new_port) != 0) {
-            seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, r->id,
-                                                   new_addr, new_port);
-        }
-
-        g_free (relay_addr);
-        g_free (relay_port);
-    }
-
-    g_list_free (repos);
-
-    return 0;
 }
 
 static void

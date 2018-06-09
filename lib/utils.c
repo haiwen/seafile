@@ -53,16 +53,6 @@
 extern int inet_pton(int af, const char *src, void *dst);
 
 
-struct timeval
-timeval_from_msec (uint64_t milliseconds)
-{
-    struct timeval ret;
-    const uint64_t microseconds = milliseconds * 1000;
-    ret.tv_sec  = microseconds / 1000000;
-    ret.tv_usec = microseconds % 1000000;
-    return ret;
-}
-
 void
 rawdata_to_hex (const unsigned char *rawdata, char *hex_str, int n_bytes)
 {
@@ -899,6 +889,155 @@ sendn(evutil_socket_t fd, const void *vptr, size_t n)
 	return(n);
 }
 
+#ifdef WIN32
+static SOCKET pg_serv_sock = INVALID_SOCKET;
+static struct sockaddr_in pg_serv_addr;
+
+/* seaf_pipe() should only be called in the main loop,
+ * since it accesses the static global socket.
+ */
+int
+seaf_pipe (seaf_pipe_t handles[2])
+{
+    int len = sizeof( pg_serv_addr );
+
+    handles[0] = handles[1] = INVALID_SOCKET;
+
+    if (pg_serv_sock == INVALID_SOCKET) {
+        if ((pg_serv_sock = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) {
+            seaf_warning("seaf_pipe failed to create socket: %d\n", WSAGetLastError());
+            return -1;
+        }
+
+        memset(&pg_serv_addr, 0, sizeof(pg_serv_addr));
+        pg_serv_addr.sin_family = AF_INET;
+        pg_serv_addr.sin_port = htons(0);
+        pg_serv_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+
+        if (bind(pg_serv_sock, (SOCKADDR *)&pg_serv_addr, len) == SOCKET_ERROR) {
+            seaf_warning("seaf_pipe failed to bind: %d\n", WSAGetLastError());
+            closesocket(pg_serv_sock);
+            pg_serv_sock = INVALID_SOCKET;
+            return -1;
+        }
+
+        if (listen(pg_serv_sock, SOMAXCONN) == SOCKET_ERROR) {
+            seaf_warning("seaf_pipe failed to listen: %d\n", WSAGetLastError());
+            closesocket(pg_serv_sock);
+            pg_serv_sock = INVALID_SOCKET;
+            return -1;
+        }
+
+        struct sockaddr_in tmp_addr;
+        int tmp_len = sizeof(tmp_addr);
+        if (getsockname(pg_serv_sock, (SOCKADDR *)&tmp_addr, &tmp_len) == SOCKET_ERROR) {
+            seaf_warning("seaf_pipe failed to getsockname: %d\n", WSAGetLastError());
+            closesocket(pg_serv_sock);
+            pg_serv_sock = INVALID_SOCKET;
+            return -1;
+        }
+        pg_serv_addr.sin_port = tmp_addr.sin_port;
+    }
+
+    if ((handles[1] = socket(PF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
+    {
+        seaf_warning("seaf_pipe failed to create socket 2: %d\n", WSAGetLastError());
+        closesocket(pg_serv_sock);
+        pg_serv_sock = INVALID_SOCKET;
+        return -1;
+    }
+
+    if (connect(handles[1], (SOCKADDR *)&pg_serv_addr, len) == SOCKET_ERROR)
+    {
+        seaf_warning("seaf_pipe failed to connect socket: %d\n", WSAGetLastError());
+        closesocket(handles[1]);
+        handles[1] = INVALID_SOCKET;
+        closesocket(pg_serv_sock);
+        pg_serv_sock = INVALID_SOCKET;
+        return -1;
+    }
+
+    struct sockaddr_in client_addr;
+    int client_len = sizeof(client_addr);
+    if ((handles[0] = accept(pg_serv_sock, (SOCKADDR *)&client_addr, &client_len)) == INVALID_SOCKET)
+    {
+        seaf_warning("seaf_pipe failed to accept socket: %d\n", WSAGetLastError());
+        closesocket(handles[1]);
+        handles[1] = INVALID_SOCKET;
+        closesocket(pg_serv_sock);
+        pg_serv_sock = INVALID_SOCKET;
+        return -1;
+    }
+
+    return 0;
+}
+
+int
+seaf_pipe_read (seaf_pipe_t fd, char *buf, int len)
+{
+    return recv (fd, buf, len, 0);
+}
+
+int
+seaf_pipe_write (seaf_pipe_t fd, const char *buf, int len)
+{
+    return send (fd, buf, len, 0);
+}
+
+int
+seaf_pipe_close (seaf_pipe_t fd)
+{
+    return closesocket (fd);
+}
+
+ssize_t seaf_pipe_readn (seaf_pipe_t fd, void *vptr, size_t n)
+{
+    return recvn (fd, vptr, n);
+}
+
+ssize_t seaf_pipe_writen (seaf_pipe_t fd, const void *vptr, size_t n)
+{
+    return sendn (fd, vptr, n);
+}
+
+#else
+
+int
+seaf_pipe (seaf_pipe_t handles[2])
+{
+    return pipe (handles);
+}
+
+int
+seaf_pipe_read (seaf_pipe_t fd, char *buf, int len)
+{
+    return read (fd, buf, len);
+}
+
+int
+seaf_pipe_write (seaf_pipe_t fd, const char *buf, int len)
+{
+    return write (fd, buf, len);
+}
+
+int
+seaf_pipe_close (seaf_pipe_t fd)
+{
+    return close (fd);
+}
+
+ssize_t seaf_pipe_readn (seaf_pipe_t fd, void *vptr, size_t n)
+{
+    return readn (fd, vptr, n);
+}
+
+ssize_t seaf_pipe_writen (seaf_pipe_t fd, const void *vptr, size_t n)
+{
+    return writen (fd, vptr, n);
+}
+
+#endif
+
 int copy_fd (int ifd, int ofd)
 {
     while (1) {
@@ -1582,90 +1721,6 @@ get_current_time()
     t = tv.tv_sec * (gint64)1000000 + tv.tv_usec;
     return t;
 }
-
-#ifdef WIN32
-static SOCKET pg_serv_sock = INVALID_SOCKET;
-static struct sockaddr_in pg_serv_addr;
-
-/* pgpipe() should only be called in the main loop,
- * since it accesses the static global socket.
- */
-int
-pgpipe (ccnet_pipe_t handles[2])
-{
-    int len = sizeof( pg_serv_addr );
-
-    handles[0] = handles[1] = INVALID_SOCKET;
-
-    if (pg_serv_sock == INVALID_SOCKET) {
-        if ((pg_serv_sock = socket(AF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET) {
-            g_warning("pgpipe failed to create socket: %d\n", WSAGetLastError());
-            return -1;
-        }
-
-        memset(&pg_serv_addr, 0, sizeof(pg_serv_addr));
-        pg_serv_addr.sin_family = AF_INET;
-        pg_serv_addr.sin_port = htons(0);
-        pg_serv_addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-        if (bind(pg_serv_sock, (SOCKADDR *)&pg_serv_addr, len) == SOCKET_ERROR) {
-            g_warning("pgpipe failed to bind: %d\n", WSAGetLastError());
-            closesocket(pg_serv_sock);
-            pg_serv_sock = INVALID_SOCKET;
-            return -1;
-        }
-
-        if (listen(pg_serv_sock, SOMAXCONN) == SOCKET_ERROR) {
-            g_warning("pgpipe failed to listen: %d\n", WSAGetLastError());
-            closesocket(pg_serv_sock);
-            pg_serv_sock = INVALID_SOCKET;
-            return -1;
-        }
-
-        struct sockaddr_in tmp_addr;
-        int tmp_len = sizeof(tmp_addr);
-        if (getsockname(pg_serv_sock, (SOCKADDR *)&tmp_addr, &tmp_len) == SOCKET_ERROR) {
-            g_warning("pgpipe failed to getsockname: %d\n", WSAGetLastError());
-            closesocket(pg_serv_sock);
-            pg_serv_sock = INVALID_SOCKET;
-            return -1;
-        }
-        pg_serv_addr.sin_port = tmp_addr.sin_port;
-    }
-
-    if ((handles[1] = socket(PF_INET, SOCK_STREAM, 0)) == INVALID_SOCKET)
-    {
-        g_warning("pgpipe failed to create socket 2: %d\n", WSAGetLastError());
-        closesocket(pg_serv_sock);
-        pg_serv_sock = INVALID_SOCKET;
-        return -1;
-    }
-
-    if (connect(handles[1], (SOCKADDR *)&pg_serv_addr, len) == SOCKET_ERROR)
-    {
-        g_warning("pgpipe failed to connect socket: %d\n", WSAGetLastError());
-        closesocket(handles[1]);
-        handles[1] = INVALID_SOCKET;
-        closesocket(pg_serv_sock);
-        pg_serv_sock = INVALID_SOCKET;
-        return -1;
-    }
-
-    struct sockaddr_in client_addr;
-    int client_len = sizeof(client_addr);
-    if ((handles[0] = accept(pg_serv_sock, (SOCKADDR *)&client_addr, &client_len)) == INVALID_SOCKET)
-    {
-        g_warning("pgpipe failed to accept socket: %d\n", WSAGetLastError());
-        closesocket(handles[1]);
-        handles[1] = INVALID_SOCKET;
-        closesocket(pg_serv_sock);
-        pg_serv_sock = INVALID_SOCKET;
-        return -1;
-    }
-
-    return 0;
-}
-#endif
 
 /* convert locale specific input to utf8 encoded string  */
 char *ccnet_locale_to_utf8 (const gchar *src)

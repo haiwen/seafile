@@ -70,10 +70,7 @@ struct _CloneTask {
     char                *effective_url;
     gboolean             use_fileserver_port;
     int                  http_protocol_version;
-    gboolean             http_sync;
     char                 server_head_id[41];
-
-    gboolean             server_side_merge;
 };
 
 const char *
@@ -86,7 +83,7 @@ struct _SeafCloneManager {
     struct _SeafileSession  *seaf;
     sqlite3                 *db;
     GHashTable              *tasks;
-    struct CcnetTimer       *check_timer;
+    struct SeafTimer       *check_timer;
 };
 
 SeafCloneManager *

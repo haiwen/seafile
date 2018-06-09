@@ -2,8 +2,6 @@
 
 #include "common.h"
 
-#include <ccnet.h>
-
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <dirent.h>
@@ -19,7 +17,6 @@
 #include "fs-mgr.h"
 #include "block-mgr.h"
 #include "utils.h"
-#include "seaf-utils.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_OTHER
 #include "log.h"
 #include "../common/seafile-crypt.h"

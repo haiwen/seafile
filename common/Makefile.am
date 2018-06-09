@@ -1,8 +1,6 @@
 SUBDIRS = cdc index
 
 noinst_HEADERS = \
-	unpack-trees.h \
-	seaf-tree-walk.h \
 	diff-simple.h \
 	seafile-crypt.h \
 	common.h \
@@ -11,15 +9,10 @@ noinst_HEADERS = \
 	block-mgr.h \
 	commit-mgr.h \
 	log.h \
-	object-list.h \
 	vc-common.h \
-	seaf-utils.h \
 	obj-store.h \
 	obj-backend.h \
 	block-backend.h \
 	block.h \
 	mq-mgr.h \
-	seaf-db.h \
-	merge-new.h \
-	block-tx-utils.h \
 	curl-init.h

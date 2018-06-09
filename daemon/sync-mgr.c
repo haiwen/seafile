@@ -5,15 +5,11 @@
 
 #include <pthread.h>
 
-#include <ccnet.h>
-
 #include "db.h"
 #include "seafile-session.h"
 #include "seafile-config.h"
 #include "sync-mgr.h"
-#include "vc-common.h"
 #include "seafile-error.h"
-#include "status.h"
 #include "mq-mgr.h"
 #include "utils.h"
 #include "vc-utils.h"
@@ -27,24 +23,14 @@
 #define DEBUG_FLAG SEAFILE_DEBUG_SYNC
 #include "log.h"
 
+#include "timer.h"
+
 #define DEFAULT_SYNC_INTERVAL 30 /* 30s */
 #define CHECK_SYNC_INTERVAL  1000 /* 1s */
 #define UPDATE_TX_STATE_INTERVAL 1000 /* 1s */
 #define MAX_RUNNING_SYNC_TASKS 5
 #define CHECK_LOCKED_FILES_INTERVAL 10 /* 10s */
 #define CHECK_FOLDER_PERMS_INTERVAL 30 /* 30s */
-
-enum {
-    SERVER_SIDE_MERGE_UNKNOWN = 0,
-    SERVER_SIDE_MERGE_SUPPORTED,
-    SERVER_SIDE_MERGE_UNSUPPORTED,
-};
-
-struct _ServerState {
-    int server_side_merge;
-    gboolean checking;
-};
-typedef struct _ServerState ServerState;
 
 struct _HttpServerState {
     int http_version;
@@ -75,8 +61,8 @@ struct _HttpServerState {
 typedef struct _HttpServerState HttpServerState;
 
 struct _SeafSyncManagerPriv {
-    struct CcnetTimer *check_sync_timer;
-    struct CcnetTimer *update_tx_state_timer;
+    struct SeafTimer *check_sync_timer;
+    struct SeafTimer *update_tx_state_timer;
     int    pulse_count;
 
     /* When FALSE, auto sync is globally disabled */
@@ -87,7 +73,7 @@ struct _SeafSyncManagerPriv {
 
 #ifdef WIN32
     GAsyncQueue *refresh_paths;
-    struct CcnetTimer *refresh_windows_timer;
+    struct SeafTimer *refresh_windows_timer;
 #endif
 };
 
@@ -151,9 +137,6 @@ seaf_sync_manager_new (SeafileSession *seaf)
     mgr->sync_interval = DEFAULT_SYNC_INTERVAL;
     mgr->sync_infos = g_hash_table_new (g_str_hash, g_str_equal);
 
-    mgr->server_states = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                                g_free, g_free);
-
     mgr->http_server_states = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                      g_free,
                                                      (GDestroyNotify)http_server_state_free);
@@ -209,38 +192,6 @@ seaf_sync_manager_init (SeafSyncManager *mgr)
 }
 
 static void 
-format_transfer_task_detail (TransferTask *task, GString *buf)
-{
-    if (task->state != TASK_STATE_NORMAL ||
-        task->runtime_state == TASK_RT_STATE_INIT ||
-        task->runtime_state == TASK_RT_STATE_FINISHED ||
-        task->runtime_state == TASK_RT_STATE_NETDOWN)
-        return;
-
-    SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr,
-                                                 task->repo_id);
-    char *repo_name;
-    char *type;
-    
-    if (repo) {
-        repo_name = repo->name;
-        type = (task->type == TASK_TYPE_UPLOAD) ? "upload" : "download";
-        
-    } else if (task->is_clone) {
-        CloneTask *ctask;
-        ctask = seaf_clone_manager_get_task (seaf->clone_mgr, task->repo_id);
-        repo_name = ctask->repo_name;
-        type = "download";
-        
-    } else {
-        return;
-    }
-    int rate = transfer_task_get_rate(task);
-
-    g_string_append_printf (buf, "%s\t%d %s\n", type, rate, repo_name);
-}
-
-static void 
 format_http_task_detail (HttpTxTask *task, GString *buf)
 {
     if (task->state != HTTP_TASK_STATE_NORMAL ||
@@ -282,7 +233,6 @@ update_tx_state (void *vmanager)
     SeafSyncManager *mgr = vmanager;
     GString *buf = g_string_new (NULL);
     GList *tasks, *ptr;
-    TransferTask *task;
     HttpTxTask *http_task;
 
     mgr->last_sent_bytes = g_atomic_int_get (&mgr->sent_bytes);
@@ -340,10 +290,10 @@ static void *update_cached_head_commit_ids (void *arg);
 int
 seaf_sync_manager_start (SeafSyncManager *mgr)
 {
-    mgr->priv->check_sync_timer = ccnet_timer_new (
+    mgr->priv->check_sync_timer = seaf_timer_new (
         auto_sync_pulse, mgr, CHECK_SYNC_INTERVAL);
 
-    mgr->priv->update_tx_state_timer = ccnet_timer_new (
+    mgr->priv->update_tx_state_timer = seaf_timer_new (
         update_tx_state, mgr, UPDATE_TX_STATE_INTERVAL);
 
     g_signal_connect (seaf, "repo-http-fetched",
@@ -352,12 +302,12 @@ seaf_sync_manager_start (SeafSyncManager *mgr)
                       (GCallback)on_repo_http_uploaded, mgr);
 
 #ifdef WIN32
-    ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                    refresh_windows_explorer_thread,
-                                    NULL,
-                                    mgr->priv->refresh_paths);
+    seaf_job_manager_schedule_job (seaf->job_mgr,
+                                   refresh_windows_explorer_thread,
+                                   NULL,
+                                   mgr->priv->refresh_paths);
 
-    mgr->priv->refresh_windows_timer = ccnet_timer_new (
+    mgr->priv->refresh_windows_timer = seaf_timer_new (
         refresh_all_windows_on_startup, mgr, STARTUP_REFRESH_WINDOWS_DELAY);
 #endif
 
@@ -414,6 +364,9 @@ seaf_sync_manager_add_sync_task (SeafSyncManager *mgr,
             sync_repo_v2 (mgr, repo, TRUE);
             return 0;
         }
+    } else {
+        seaf_warning ("Repo %s(%s) is version 0 library. Syncing is no longer supported.\n",
+                      repo->name, repo->id);
     }
 
     return 0;
@@ -567,19 +520,11 @@ transition_sync_state (SyncTask *task, int new_state)
     SyncInfo *info = task->info;
 
     if (task->state != new_state) {
-        if (!task->server_side_merge) {
-            if ((task->state == SYNC_STATE_MERGE ||
-                 task->state == SYNC_STATE_UPLOAD) &&
-                new_state == SYNC_STATE_DONE &&
-                need_notify_sync(task->repo))
-                notify_sync (task->repo, FALSE);
-        } else {
-            if (((task->state == SYNC_STATE_INIT && task->uploaded) ||
-                 task->state == SYNC_STATE_FETCH) &&
-                new_state == SYNC_STATE_DONE &&
-                need_notify_sync(task->repo))
-                notify_sync (task->repo, (info->multipart_upload && !info->end_multipart_upload));
-        }
+        if (((task->state == SYNC_STATE_INIT && task->uploaded) ||
+             task->state == SYNC_STATE_FETCH) &&
+            new_state == SYNC_STATE_DONE &&
+            need_notify_sync(task->repo))
+            notify_sync (task->repo, (info->multipart_upload && !info->end_multipart_upload));
 
         /* If we're in the process of uploading large set of files, they'll be splitted
          * into multiple batches for upload. We want to immediately start the next batch
@@ -670,18 +615,6 @@ seaf_sync_manager_set_task_error (SyncTask *task, int error)
         seaf_sync_manager_add_refresh_path (seaf->sync_mgr, task->repo->worktree);
 #endif
 
-#if 0
-        if (task->repo && error != SYNC_ERROR_RELAY_OFFLINE
-            && error != SYNC_ERROR_NOREPO) {
-            GString *buf = g_string_new (NULL);
-            g_string_append_printf (buf, "%s\t%s", task->repo->name,
-                                    task->repo->id);
-            seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                                  "sync.error",
-                                                  buf->str);
-            g_string_free (buf, TRUE);
-        }
-#endif                                         
     }
 }
 
@@ -700,7 +633,6 @@ start_upload_if_necessary (SyncTask *task)
 {
     GError *error = NULL;
     SeafRepo *repo = task->repo;
-    const char *repo_id = task->repo->id;
 
     if (http_tx_manager_add_upload (seaf->http_tx_mgr,
                                     repo->id,
@@ -723,23 +655,21 @@ static void
 start_fetch_if_necessary (SyncTask *task, const char *remote_head)
 {
     GError *error = NULL;
-    char *tx_id;
     SeafRepo *repo = task->repo;
-    const char *repo_id = task->repo->id;
 
     if (http_tx_manager_add_download (seaf->http_tx_mgr,
-                                        repo->id,
-                                        repo->version,
-                                        repo->effective_host,
-                                        repo->token,
-                                        remote_head,
-                                        FALSE,
-                                        NULL, NULL,
-                                        task->http_version,
-                                        repo->email,
-                                        repo->use_fileserver_port,
-                                        repo->name,
-                                        &error) < 0) {
+                                      repo->id,
+                                      repo->version,
+                                      repo->effective_host,
+                                      repo->token,
+                                      remote_head,
+                                      FALSE,
+                                      NULL, NULL,
+                                      task->http_version,
+                                      repo->email,
+                                      repo->use_fileserver_port,
+                                      repo->name,
+                                      &error) < 0) {
         seaf_warning ("Failed to start http download: %s.\n", error->message);
         seaf_sync_manager_set_task_error (task, SYNC_ERROR_START_FETCH);
         return;
@@ -747,238 +677,6 @@ start_fetch_if_necessary (SyncTask *task, const char *remote_head)
     task->tx_id = g_strdup(repo->id);
 
     transition_sync_state (task, SYNC_STATE_FETCH);
-}
-
-struct MergeResult {
-    SyncTask *task;
-    gboolean success;
-    int merge_status;
-    gboolean worktree_dirty;
-};
-
-static void *
-merge_job (void *vtask)
-{
-    SyncTask *task = vtask;
-    SeafRepo *repo = task->repo;
-    char *err_msg = NULL;
-    struct MergeResult *res = g_new0 (struct MergeResult, 1);
-
-    res->task = task;
-
-    if (repo->delete_pending) {
-        seaf_message ("Repo %s was deleted, don't need to merge.\n", repo->id);
-        return res;
-    }
-
-    /*
-     * 4 types of errors may occur:
-     * 1. merge conflicts;
-     * 2. fail to checkout a file because the worktree file has been changed;
-     * 3. Files are locked on Windows;
-     * 4. other I/O errors.
-     *
-     * For 1, the next commit operation will make worktree clean.
-     * For 2 and 4, the errors are ignored by the merge routine (return 0).
-     * For 3, just wait another merge retry.
-     * */
-    if (seaf_repo_merge (repo, "master", &err_msg, &res->merge_status) < 0) {
-        seaf_message ("[Sync mgr] Merge of repo %s(%.8s) is not clean.\n",
-                   repo->name, repo->id);
-        res->success = FALSE;
-        g_free (err_msg);
-        return res;
-    }
-
-    res->success = TRUE;
-    g_free (err_msg);
-    seaf_message ("[Sync mgr] Merged repo %s(%.8s).\n", repo->name, repo->id);
-    return res;
-}
-
-static void
-merge_job_done (void *vresult)
-{
-    struct MergeResult *res = vresult;
-    SeafRepo *repo = res->task->repo;
-
-    if (repo->delete_pending) {
-        transition_sync_state (res->task, SYNC_STATE_CANCELED);
-        seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
-        g_free (res);
-        return;
-    }
-
-    if (res->task->state == SYNC_STATE_CANCEL_PENDING) {
-        transition_sync_state (res->task, SYNC_STATE_CANCELED);
-        g_free (res);
-        return;
-    }
-
-    if (res->success) {
-        SeafBranch *local;
-        SeafBranch *master = seaf_branch_manager_get_branch (seaf->branch_mgr,
-                                                             repo->id,
-                                                             "master");
-        if (!master) {
-            seaf_warning ("[sync mgr] master branch doesn't exist.\n");
-            seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_DATA_CORRUPT);
-            goto out;
-        }
-        /* Save head commit id of master branch for GC, since we've
-         * checked out the blocks on the master branch.
-         */
-        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
-                                             repo->id,
-                                             REPO_REMOTE_HEAD,
-                                             master->commit_id);
-        seaf_branch_unref (master);
-
-        /* If it's a ff merge, also update REPO_LOCAL_HEAD. */
-        switch (res->merge_status) {
-        case MERGE_STATUS_FAST_FORWARD:
-            local = seaf_branch_manager_get_branch (seaf->branch_mgr,
-                                                    repo->id,
-                                                    "local");
-            if (!local) {
-                seaf_warning ("[sync mgr] local branch doesn't exist.\n");
-                seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_DATA_CORRUPT);
-                goto out;
-            }
-
-            seaf_repo_manager_set_repo_property (seaf->repo_mgr,
-                                                 repo->id,
-                                                 REPO_LOCAL_HEAD,
-                                                 local->commit_id);
-            seaf_branch_unref (local);
-
-            transition_sync_state (res->task, SYNC_STATE_DONE);
-            break;
-        case MERGE_STATUS_REAL_MERGE:
-            start_upload_if_necessary (res->task);
-            break;
-        case MERGE_STATUS_UPTODATE:
-            transition_sync_state (res->task, SYNC_STATE_DONE);
-            break;
-        }
-    } else if (res->worktree_dirty)
-        seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_WORKTREE_DIRTY);
-    else
-        seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_MERGE);
-
-out:
-    g_free (res);
-}
-
-static void
-merge_branches_if_necessary (SyncTask *task)
-{
-    SeafRepo *repo = task->repo;
-
-    /* Repo is not checked out yet. */
-    if (!repo->head) {
-        transition_sync_state (task, SYNC_STATE_DONE);
-        return;
-    }
-    transition_sync_state (task, SYNC_STATE_MERGE);
-
-    ccnet_job_manager_schedule_job (seaf->job_mgr, 
-                                    merge_job, 
-                                    merge_job_done,
-                                    task);
-}
-
-typedef struct {
-    char remote_id[41];
-    char last_uploaded[41];
-    char last_checkout[41];
-    gboolean result;
-} CheckFFData;
-
-static gboolean
-check_fast_forward (SeafCommit *commit, void *vdata, gboolean *stop)
-{
-    CheckFFData *data = vdata;
-
-    if (strcmp (commit->commit_id, data->remote_id) == 0) {
-        *stop = TRUE;
-        data->result = TRUE;
-        return TRUE;
-    }
-
-    if (strcmp (commit->commit_id, data->last_uploaded) == 0 ||
-        strcmp (commit->commit_id, data->last_checkout) == 0) {
-        *stop = TRUE;
-        return TRUE;
-    }
-
-    return TRUE;
-}
-
-static gboolean
-check_fast_forward_with_limit (SeafRepo *repo,
-                               const char *local_id,
-                               const char *remote_id,
-                               const char *last_uploaded,
-                               const char *last_checkout,
-                               gboolean *error)
-{
-    CheckFFData data;
-
-    memset (&data, 0, sizeof(data));
-    memcpy (data.remote_id, remote_id, 40);
-    memcpy (data.last_uploaded, last_uploaded, 40);
-    memcpy (data.last_checkout, last_checkout, 40);
-    *error = FALSE;
-
-    if (!seaf_commit_manager_traverse_commit_tree_truncated (seaf->commit_mgr,
-                                                             repo->id,
-                                                             repo->version,
-                                                             local_id,
-                                                             check_fast_forward,
-                                                             &data, FALSE)) {
-        seaf_warning ("Failed to traverse commit tree from %s.\n", local_id);
-        *error = TRUE;
-        return FALSE;
-    }
-
-    return data.result;
-}
-
-/* Return TURE if we started a processor, otherwise return FALSE. */
-static gboolean
-update_common_ancestor (SyncTask *task,
-                        const char *last_uploaded,
-                        const char *last_checkout)
-{
-    SeafRepo *repo = task->repo;
-    char *local_head = repo->head->commit_id;
-    char ca_id[41], cached_head_id[41];
-
-    /* If common ancestor result is not cached, we need to compute it. */
-    if (seaf_repo_manager_get_common_ancestor (seaf->repo_mgr, repo->id,
-                                               ca_id, cached_head_id) < 0)
-        goto update_common_ancestor;
-
-    /* If the head id is unchanged, use the cached common ancestor id directly.
-     * Common ancestor won't change if the local head is not updated.
-     */
-    if (strcmp (cached_head_id, local_head) == 0) {
-        seaf_debug ("Use cached common ancestor.\n");
-        return FALSE;
-    }
-
-update_common_ancestor:
-    if (strcmp (last_uploaded, local_head) == 0 ||
-        strcmp (last_checkout, local_head) == 0) {
-        seaf_debug ("Use local head as common ancestor.\n");
-        seaf_repo_manager_set_common_ancestor (seaf->repo_mgr, repo->id,
-                                               local_head, local_head);
-        return FALSE;
-    }
-
-    start_get_ca_proc (task, repo->id);
-    return TRUE;
 }
 
 static gboolean
@@ -1113,134 +811,6 @@ on_repo_deleted_on_server (SyncTask *task, SeafRepo *repo)
 }
 
 static void
-update_sync_status (SyncTask *task)
-{
-    SyncInfo *info = task->info;
-    SeafRepo *repo = task->repo;
-    SeafBranch *master, *local;
-    char *last_uploaded = NULL, *last_checkout = NULL;
-
-    local = seaf_branch_manager_get_branch (
-        seaf->branch_mgr, info->repo_id, "local");
-    if (!local) {
-        seaf_warning ("[sync-mgr] Branch local not found for repo %s(%.8s).\n",
-                   repo->name, repo->id);
-        seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
-        return;
-    }
-    master = seaf_branch_manager_get_branch (
-        seaf->branch_mgr, info->repo_id, "master");
-
-    last_uploaded = seaf_repo_manager_get_repo_property (seaf->repo_mgr,
-                                                         repo->id,
-                                                         REPO_LOCAL_HEAD);
-    if (!last_uploaded) {
-        seaf_warning ("Last uploaded commit id is not found in db.\n");
-        seaf_branch_unref (local);
-        seaf_branch_unref (master);
-        seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
-        return;
-    }
-
-    last_checkout = seaf_repo_manager_get_repo_property (seaf->repo_mgr,
-                                                         repo->id,
-                                                         REPO_REMOTE_HEAD);
-    if (!last_checkout) {
-        seaf_warning ("Last checked out commit id is not found in db.\n");
-        seaf_branch_unref (local);
-        seaf_branch_unref (master);
-        g_free (last_uploaded);
-        seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
-        return;
-    }
-
-    if (info->repo_corrupted) {
-        seaf_sync_manager_set_task_error (task, SYNC_ERROR_REPO_CORRUPT);
-    } else if (info->deleted_on_relay) {
-        /* First upload. */
-        if (!master)
-            start_upload_if_necessary (task);
-        /* If repo doesn't exist on relay and we have "master",
-         * it was deleted on relay. In this case we remove this repo.
-         */
-        else
-            on_repo_deleted_on_server (task, repo);
-    } else {
-        /* branch deleted on relay */
-        if (info->branch_deleted_on_relay) {
-            start_upload_if_necessary (task);
-            goto out;
-        }
-
-        /* If local head is the same as remote head, already in sync. */
-        if (strcmp (local->commit_id, info->head_commit) == 0) {
-            /* As long as the repo is synced with the server. All the local
-             * blocks are not useful any more.
-             */
-            if (repo_block_store_exists (repo)) {
-                /* seaf_message ("Removing blocks for repo %s(%.8s).\n", */
-                /*               repo->name, repo->id); */
-                ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                                remove_repo_blocks,
-                                                remove_blocks_done,
-                                                task);
-            } else
-                transition_sync_state (task, SYNC_STATE_DONE);
-            goto out;
-        }
-
-        /* This checking is done in the main thread. But it usually doesn't take
-         * much time, because the traversing is limited by last_uploaded and
-         * last_checkout commits.
-         */
-        gboolean error = FALSE;
-        gboolean is_ff = check_fast_forward_with_limit (repo,
-                                                        local->commit_id,
-                                                        info->head_commit,
-                                                        last_uploaded,
-                                                        last_checkout,
-                                                        &error);
-        if (error) {
-            seaf_warning ("Failed to check fast forward.\n");
-            seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
-            goto out;
-        }
-
-        /* fast-forward upload */
-        if (is_ff) {
-            start_upload_if_necessary (task);
-            goto out;
-        }
-
-        /*
-         * We have to compute the common ancestor before doing merge.
-         * The last result of computation is cached in local db.
-         * Check if we need to re-compute the common ancestor.
-         * If so we'll start a processor to do that on the server.
-         * For repo version == 0, we download all commits so there is no
-         * need to check.
-         */
-        if (repo->version > 0 &&
-            update_common_ancestor (task, last_uploaded, last_checkout))
-            goto out;
-
-        if (!master || strcmp (info->head_commit, master->commit_id) != 0) {
-            start_fetch_if_necessary (task, NULL);
-        } else if (strcmp (local->commit_id, master->commit_id) != 0) {
-            /* Try to merge even if we don't need to fetch. */
-            merge_branches_if_necessary (task);
-        }
-    }
-
-out:
-    seaf_branch_unref (local);
-    if (master)
-        seaf_branch_unref (master);
-    g_free (last_uploaded);
-    g_free (last_checkout);
-}
-
-static void
 update_sync_status_v2 (SyncTask *task)
 {
     SyncInfo *info = task->info;
@@ -1278,10 +848,10 @@ update_sync_status_v2 (SyncTask *task)
             if (repo_block_store_exists (repo)) {
                 seaf_message ("Removing blocks for repo %s(%.8s).\n",
                               repo->name, repo->id);
-                ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                                remove_repo_blocks,
-                                                remove_blocks_done,
-                                                task);
+                seaf_job_manager_schedule_job (seaf->job_mgr,
+                                               remove_repo_blocks,
+                                               remove_blocks_done,
+                                               task);
             } else
                 transition_sync_state (task, SYNC_STATE_DONE);
         } else
@@ -1290,49 +860,6 @@ update_sync_status_v2 (SyncTask *task)
 
     seaf_branch_unref (local);
     seaf_branch_unref (master);
-}
-
-static void
-sync_done_cb (CcnetProcessor *processor, gboolean success, void *data)
-{
-    SyncTask *task = data;
-    SeafRepo *repo = task->repo;
-
-    if (repo->delete_pending) {
-        transition_sync_state (task, SYNC_STATE_CANCELED);
-        seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
-        return;
-    }
-
-    if (task->state == SYNC_STATE_CANCEL_PENDING) {
-        transition_sync_state (task, SYNC_STATE_CANCELED);
-        return;
-    }
-
-    if (!success) {
-        switch (processor->failure) {
-        case PROC_DONE:
-            /* It can never happen */
-            g_return_if_reached ();
-        case PROC_REMOTE_DEAD:
-        case PROC_NO_SERVICE:
-            seaf_sync_manager_set_task_error (task, SYNC_ERROR_SERVICE_DOWN);
-            break;
-        case PROC_PERM_ERR:
-            seaf_sync_manager_set_task_error (task, SYNC_ERROR_PROC_PERM_ERR);
-            break;
-        case PROC_BAD_RESP:
-        case PROC_NOTSET:
-        default:
-            seaf_sync_manager_set_task_error (task, SYNC_ERROR_UNKNOWN);
-        }
-        return;
-    }
-
-    if (!task->server_side_merge)
-        update_sync_status (task);
-    else
-        update_sync_status_v2 (task);
 }
 
 static void
@@ -1412,6 +939,44 @@ commit_job (void *vtask)
     return res;
 }
 
+static void
+commit_job_done (void *vres)
+{
+    struct CommitResult *res = vres;
+    SeafRepo *repo = res->task->repo;
+    SyncTask *task = res->task;
+
+    res->task->mgr->commit_job_running = FALSE;
+
+    if (repo->delete_pending) {
+        transition_sync_state (res->task, SYNC_STATE_CANCELED);
+        seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
+        g_free (res);
+        return;
+    }
+
+    if (res->task->state == SYNC_STATE_CANCEL_PENDING) {
+        transition_sync_state (res->task, SYNC_STATE_CANCELED);
+        g_free (res);
+        return;
+    }
+
+    if (!res->success) {
+        seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_COMMIT);
+        g_free (res);
+        return;
+    }
+
+    if (res->changed)
+        start_upload_if_necessary (res->task);
+    else if (task->is_manual_sync || task->is_initial_commit)
+        check_head_commit_http (task);
+    else
+        transition_sync_state (task, SYNC_STATE_DONE);
+
+    g_free (res);
+}
+
 static int check_commit_state (void *data);
 
 static void
@@ -1421,7 +986,7 @@ commit_repo (SyncTask *task)
      * at the same time. Other sync tasks have to check every 1 second.
      */
     if (task->mgr->commit_job_running) {
-        task->commit_timer = ccnet_timer_new (check_commit_state, task, 1000);
+        task->commit_timer = seaf_timer_new (check_commit_state, task, 1000);
         return;
     }
 
@@ -1429,10 +994,10 @@ commit_repo (SyncTask *task)
 
     transition_sync_state (task, SYNC_STATE_COMMIT);
 
-    if (ccnet_job_manager_schedule_job (seaf->job_mgr, 
-                                        commit_job, 
-                                        commit_job_done,
-                                        task) < 0)
+    if (seaf_job_manager_schedule_job (seaf->job_mgr, 
+                                       commit_job, 
+                                       commit_job_done,
+                                       task) < 0)
         seaf_sync_manager_set_task_error (task, SYNC_ERROR_COMMIT);
 }
 
@@ -1442,7 +1007,7 @@ check_commit_state (void *data)
     SyncTask *task = data;
 
     if (!task->mgr->commit_job_running) {
-        ccnet_timer_free (&task->commit_timer);
+        seaf_timer_free (&task->commit_timer);
         commit_repo (task);
         return 0;
     }
@@ -1466,7 +1031,6 @@ create_sync_task_v2 (SeafSyncManager *manager, SeafRepo *repo,
     task->token = g_strdup(repo->token);
     task->is_manual_sync = is_manual_sync;
     task->is_initial_commit = is_initial_commit;
-    task->server_side_merge = TRUE;
 
     repo->last_sync_time = time(NULL);
     ++(manager->n_running_tasks);
@@ -1485,7 +1049,6 @@ create_sync_task_v2 (SeafSyncManager *manager, SeafRepo *repo,
         HttpServerState *state = g_hash_table_lookup (manager->http_server_states,
                                                       repo->server_url);
         if (state) {
-            task->http_sync = TRUE;
             task->http_version = state->http_version;
         }
     }
@@ -2408,10 +1971,10 @@ auto_sync_pulse (void *vmanager)
                 now - repo->last_check_locked_time >= CHECK_LOCKED_FILES_INTERVAL)
             {
                 repo->checking_locked_files = TRUE;
-                if (ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                                    check_locked_files,
-                                                    check_locked_files_done,
-                                                    repo) < 0) {
+                if (seaf_job_manager_schedule_job (seaf->job_mgr,
+                                                   check_locked_files,
+                                                   check_locked_files_done,
+                                                   repo) < 0) {
                     seaf_warning ("Failed to schedule check local locked files\n");
                     repo->checking_locked_files = FALSE;
                 } else {
@@ -2435,6 +1998,9 @@ auto_sync_pulse (void *vmanager)
                 else if (periodic_sync_due (repo))
                     sync_repo_v2 (manager, repo, TRUE);
             }
+        } else {
+            seaf_warning ("Repo %s(%s) is version 0 library. Syncing is no longer supported.\n",
+                          repo->name, repo->id);
         }
     }
 

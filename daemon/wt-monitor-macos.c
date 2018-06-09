@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <ccnet/job-mgr.h>
+#include "job-mgr.h"
 #include "seafile-session.h"
 #include "utils.h"
 #include "wt-monitor.h"
@@ -320,7 +320,7 @@ command_read_cb (CFFileDescriptorRef fdref,
     WatchCommand cmd;
     int n;
 
-    n = pipereadn (monitor->cmd_pipe[0], &cmd, sizeof(cmd));
+    n = seaf_pipe_readn (monitor->cmd_pipe[0], &cmd, sizeof(cmd));
     if (n != sizeof(cmd)) {
         seaf_warning ("[wt mon] failed to read command.\n");
         CFFileDescriptorEnableCallBacks (fdref, kCFFileDescriptorReadCallBack);
@@ -399,7 +399,7 @@ reply_watch_command (SeafWTMonitor *monitor, int result)
 {
     int n;
 
-    n = pipewriten (monitor->res_pipe[1], &result, sizeof(int));
+    n = seaf_pipe_writen (monitor->res_pipe[1], &result, sizeof(int));
     if (n != sizeof(int))
         seaf_warning ("[wt mon] fail to write command result.\n");
 }

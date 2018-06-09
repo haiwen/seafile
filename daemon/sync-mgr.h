@@ -9,7 +9,7 @@ typedef struct _SyncTask SyncTask;
 typedef struct _SeafSyncManager SeafSyncManager;
 typedef struct _SeafSyncManagerPriv SeafSyncManagerPriv;
 
-struct CcnetTimer;
+struct SeafTimer;
 
 struct _SyncInfo {
     char       repo_id[41];     /* the repo */
@@ -86,12 +86,10 @@ struct _SyncTask {
     char            *err_detail;
     char            *tx_id;
     char            *token;
-    struct CcnetTimer *commit_timer;
+    struct SeafTimer *commit_timer;
 
-    gboolean         server_side_merge;
     gboolean         uploaded;
 
-    gboolean         http_sync;
     int              http_version;
 
     SeafRepo        *repo;  /* for convenience, only valid when in_sync. */
@@ -121,7 +119,6 @@ struct _SeafSyncManager {
     gboolean    commit_job_running;
     int         sync_interval;
 
-    GHashTable *server_states;
     GHashTable *http_server_states;
 
     /* Sent/recv bytes from all transfer tasks in this second.

@@ -96,16 +96,6 @@ public class Repo : Object {
     public bool is_shared { get; set; }
 }
 
-public class TrashRepo : Object {
-
-    public string repo_id { get; set; }
-    public string repo_name { get; set; }
-    public string head_id { get; set; }
-    public string owner_id { get; set; }
-    public int64 size { get; set; }
-    public int64 del_time { get; set; }
-}
-
 public class SyncInfo : Object {
 
     public string repo_id { get; set; }
@@ -134,57 +124,11 @@ public class SessionInfo : Object {
     public string datadir { get; set; }
 }
 
-public class CheckoutTask : Object {
-
-    public string repo_id { get; set; }
-    public string worktree { get; set; }
-    public int total_files { get; set; }
-    public int finished_files { get; set; }
-}
-
 public class DiffEntry : Object {
 
     public string status { get; set; }
     public string name { get; set; }
     public string new_name { get; set; }
-}
-
-public class DeletedEntry : Object {
-
-    public string commit_id { get; set; }
-    public string obj_id { get; set; }
-    public string obj_name { get; set; }
-    public string basedir { get; set; }
-    public int mode { get; set; }
-    public int delete_time { get; set; }
-    public int64 file_size { get; set; }
-    public string scan_stat { get; set; }
-}
-
-public class RepoTokenInfo: Object {
-    public string repo_id { get; set; }
-    public string repo_name { get; set; }
-    public string repo_owner { get; set; }
-    public string email { get; set; }
-    public string token { get; set; }
-
-    public string peer_id { get; set; }
-    public string peer_ip { get; set; }
-    public string peer_name { get; set; }
-    public int64 sync_time { get; set; }
-    public string client_ver { get; set; }
-}
-
-public class SharedUser : Object {
-    public string repo_id { get; set; }
-    public string user { get; set; }
-    public string perm { get; set; }
-}
-
-public class SharedGroup : Object {
-    public string repo_id { get; set; }
-    public int group_id { get; set; }
-    public string perm { get; set; }
 }
 
 public class EncryptionInfo: Object {
