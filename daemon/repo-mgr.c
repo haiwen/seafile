@@ -8013,7 +8013,7 @@ seaf_repo_manager_add_checkout_task (SeafRepoManager *mgr,
                                      void *cb_data)
 {
     if (!repo || !worktree) {
-        seaf_warning ("Invaid args\n");
+        seaf_warning ("Invalid args\n");
         return -1;
     }
 
