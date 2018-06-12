@@ -56,6 +56,7 @@ struct _SeafileSession {
                                         * storing worktrees  */
     sqlite3             *config_db;
     char                *deleted_store;
+    char                *rpc_socket_path;
 
     SeafBlockManager    *block_mgr;
     SeafFSManager       *fs_mgr;
