@@ -305,11 +305,13 @@ start_searpc_server ()
 }
 
 
+#ifndef WIN32
 static void
 set_signal_handlers (SeafileSession *session)
 {
     signal (SIGPIPE, SIG_IGN);
 }
+#endif
 
 #ifdef WIN32
 /* Get the commandline arguments in unicode, then convert them to utf8  */

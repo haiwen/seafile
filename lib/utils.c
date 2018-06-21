@@ -14,8 +14,8 @@
 
 #ifdef WIN32
 
-#include <windows.h>
 #include <winsock2.h>
+#include <windows.h>
 #include <ws2tcpip.h>
 #include <Rpc.h>
 #include <shlobj.h>
@@ -49,6 +49,8 @@
 #include <utime.h>
 
 #include <zlib.h>
+
+#include "log.h"
 
 extern int inet_pton(int af, const char *src, void *dst);
 
