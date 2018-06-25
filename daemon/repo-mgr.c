@@ -2052,8 +2052,6 @@ out:
     return ret;
 }
 
-#ifndef __APPLE__
-
 static int
 add_path_to_index (SeafRepo *repo, struct index_state *istate,
                    SeafileCrypt *crypt, const char *path, GList *ignore_list,
@@ -2135,7 +2133,7 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
     return 0;
 }
 
-#else
+#if 0
 
 static int
 add_path_to_index (SeafRepo *repo, struct index_state *istate,
@@ -3107,11 +3105,11 @@ update_path_sync_status (SeafRepo *repo, WTStatus *status,
         if (!path)
             break;
 
-#ifdef __APPLE__
-        process_active_folder (repo, path, istate, ignore_list);
-#else
+/* #ifdef __APPLE__ */
+/*         process_active_folder (repo, path, istate, ignore_list); */
+/* #else */
         process_active_path (repo, path, istate, ignore_list);
-#endif
+/* #endif */
 
         g_free (path);
     }
@@ -3331,6 +3329,64 @@ out:
     return ret;
 }
 
+#endif
+
+#ifdef __APPLE__
+
+static gboolean
+find_office_file_path (const char *worktree,
+                       const char *parent_dir,
+                       const char *lock_file_name,
+                       char **office_path)
+{
+    GDir *dir = NULL;
+    GError *error = NULL;
+    char *fullpath = NULL;
+    const char *dname;
+    char *dname_nfc = NULL;
+    char *dname_skip_head = NULL;
+    gboolean ret = FALSE;
+
+    fullpath = g_build_path ("/", worktree, parent_dir, NULL);
+    dir = g_dir_open (fullpath, 0, &error);
+    if (error) {
+        seaf_warning ("Failed to open dir %s: %s.\n", fullpath, error->message);
+        g_clear_error (&error);
+        g_free (fullpath);
+        return ret;
+    }
+
+    while ((dname = g_dir_read_name (dir)) != NULL) {
+        dname_nfc = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
+        if (!dname_nfc)
+            continue;
+
+        if (strlen(dname_nfc) < 2 || strncmp (dname_nfc, "~$", 2) == 0) {
+            g_free (dname_nfc);
+            continue;
+        }
+
+        dname_skip_head = g_utf8_find_next_char(g_utf8_find_next_char(dname_nfc, NULL), NULL);
+
+        if (strcmp (dname_skip_head, lock_file_name) == 0) {
+            *office_path = g_build_path ("/", parent_dir, dname_nfc, NULL);
+            ret = TRUE;
+            g_free (dname_nfc);
+            break;
+        }
+
+        g_free (dname_nfc);
+    }
+
+    g_free (fullpath);
+    g_dir_close (dir);
+    return ret;
+}
+
+#endif
+
+#if defined WIN32 || defined __APPLE__
+
 static gboolean
 is_office_lock_file (const char *worktree,
                      const char *path,
@@ -3409,6 +3465,8 @@ do_lock_office_file (LockOfficeJob *job)
     }
     g_free (fullpath);
 
+    seaf_message ("Auto lock file %s/%s\n", repo->name, job->path);
+
     int status = seaf_filelock_manager_get_lock_status (seaf->filelock_mgr,
                                                         repo->id, job->path);
     if (status != FILE_NOT_LOCKED) {
@@ -3447,6 +3505,8 @@ do_unlock_office_file (LockOfficeJob *job)
         return;
     }
     g_free (fullpath);
+
+    seaf_message ("Auto unlock file %s/%s\n", repo->name, job->path);
 
     int status = seaf_filelock_manager_get_lock_status (seaf->filelock_mgr,
                                                         repo->id, job->path);
@@ -3563,7 +3623,7 @@ unlock_office_file_on_server (SeafRepo *repo, const char *path)
     g_async_queue_push (queue, job);
 }
 
-#endif  /* WIN32 */
+#endif
 
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
@@ -3573,7 +3633,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
     WTStatus *status;
     WTEvent *event, *next_event;
     gboolean not_found;
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
     char *office_path = NULL;
 #endif
 
@@ -3643,7 +3703,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 break;
             }
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
             office_path = NULL;
             if (is_office_lock_file (repo->worktree, event->path, &office_path))
                 lock_office_file_on_server (repo, office_path);
@@ -3670,7 +3730,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                                   repo->id,
                                                   event->path);
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
             office_path = NULL;
             if (is_office_lock_file (repo->worktree, event->path, &office_path))
                 unlock_office_file_on_server (repo, office_path);
@@ -6697,7 +6757,7 @@ seaf_repo_manager_start (SeafRepoManager *mgr)
         seaf_warning ("Failed to start cleanup thread: %s\n", strerror(rc));
     }
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
     rc = pthread_create (&tid, NULL, lock_office_file_worker,
                          mgr->priv->lock_office_job_queue);
     if (rc != 0) {

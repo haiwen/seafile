@@ -112,7 +112,6 @@ add_event_to_queue (WTStatus *status,
     }
 }
 
-#if 0
 static void
 process_one_event (const char* eventPath,
                    RepoWatchInfo *info,
@@ -180,8 +179,8 @@ process_one_event (const char* eventPath,
     g_free (filename);
     g_atomic_int_set (&info->status->last_changed, (gint)time(NULL));
 }
-#endif
 
+#if 0
 static void
 process_one_event (const char* eventPath,
                    RepoWatchInfo *info,
@@ -226,6 +225,7 @@ process_one_event (const char* eventPath,
     g_free (dirname);
     g_atomic_int_set (&info->status->last_changed, (gint)time(NULL));
 }
+#endif
 
 static void
 stream_callback (ConstFSEventStreamRef streamRef,
@@ -272,7 +272,6 @@ add_watch (SeafWTMonitor *monitor, const char* repo_id, const char* worktree)
     FSEventStreamRef stream;
 
     /* Create the stream, passing in a callback */
-    seaf_debug("Use kFSEventStreamCreateFlagWatchRoot\n");
     // kFSEventStreamCreateFlagFileEvents does not work for libraries with name
     // containing accent characters.
     struct FSEventStreamContext ctx = {0, monitor, NULL, NULL, NULL};
@@ -282,7 +281,7 @@ add_watch (SeafWTMonitor *monitor, const char* repo_id, const char* worktree)
                                  pathsToWatch,
                                  kFSEventStreamEventIdSinceNow,
                                  latency,
-                                 0
+                                 kFSEventStreamCreateFlagFileEvents
                                  );
 
     CFRelease (mypaths[0]);
