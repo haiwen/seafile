@@ -479,7 +479,7 @@ wt_monitor_job_linux (void *vmonitor)
         }
 
         if (FD_ISSET (monitor->cmd_pipe[0], &fds)) {
-            n = pipereadn (monitor->cmd_pipe[0], &cmd, sizeof(cmd));
+            n = seaf_pipe_readn (monitor->cmd_pipe[0], &cmd, sizeof(cmd));
             if (n != sizeof(cmd)) {
                 seaf_warning ("[wt mon] failed to read command.\n");
                 continue;
@@ -679,7 +679,7 @@ reply_watch_command (SeafWTMonitor *monitor, int result)
 {
     int n;
 
-    n = pipewriten (monitor->res_pipe[1], &result, sizeof(int));
+    n = seaf_pipe_writen (monitor->res_pipe[1], &result, sizeof(int));
     if (n != sizeof(int))
         seaf_warning ("[wt mon] fail to write command result.\n");
 }

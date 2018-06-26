@@ -25,8 +25,8 @@ typedef struct SeafWTMonitor {
     struct _SeafileSession      *seaf;
     SeafWTMonitorPriv   *priv;
 
-    ccnet_pipe_t cmd_pipe[2];
-    ccnet_pipe_t res_pipe[2];
+    seaf_pipe_t cmd_pipe[2];
+    seaf_pipe_t res_pipe[2];
 
     /* platform dependent virtual functions */
     void* (*job_func) (void *);

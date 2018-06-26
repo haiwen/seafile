@@ -21,8 +21,6 @@
 #include <openssl/ssl.h>
 #endif
 
-#include <ccnet/ccnet-client.h>
-
 #include "seafile-config.h"
 
 #include "seafile-session.h"
@@ -34,6 +32,8 @@
 
 #define DEBUG_FLAG SEAFILE_DEBUG_TRANSFER
 #include "log.h"
+
+#include "timer.h"
 
 #define HTTP_OK 200
 #define HTTP_BAD_REQUEST 400
@@ -90,7 +90,7 @@ struct _HttpTxPriv {
     GHashTable *connection_pools; /* host -> connection pool */
     pthread_mutex_t pools_lock;
 
-    CcnetTimer *reset_bytes_timer;
+    SeafTimer *reset_bytes_timer;
 
     char *ca_bundle_path;
 
@@ -367,9 +367,9 @@ http_tx_manager_start (HttpTxManager *mgr)
 
     /* TODO: add a timer to clean up unused Http connections. */
 
-    mgr->priv->reset_bytes_timer = ccnet_timer_new (reset_bytes,
-                                                    mgr,
-                                                    RESET_BYTES_INTERVAL_MSEC);
+    mgr->priv->reset_bytes_timer = seaf_timer_new (reset_bytes,
+                                                   mgr,
+                                                   RESET_BYTES_INTERVAL_MSEC);
 
     return 0;
 }
@@ -1299,10 +1299,10 @@ http_tx_manager_check_protocol_version (HttpTxManager *manager,
     data->callback = callback;
     data->user_data = user_data;
 
-    int ret = ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                              check_protocol_version_thread,
-                                              check_protocol_version_done,
-                                              data);
+    int ret = seaf_job_manager_schedule_job (seaf->job_mgr,
+                                             check_protocol_version_thread,
+                                             check_protocol_version_done,
+                                             data);
     if (ret < 0) {
         g_free (data->host);
         g_free (data);
@@ -1463,10 +1463,10 @@ http_tx_manager_check_head_commit (HttpTxManager *manager,
     data->user_data = user_data;
     data->use_fileserver_port = use_fileserver_port;
 
-    if (ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                        check_head_commit_thread,
-                                        check_head_commit_done,
-                                        data) < 0) {
+    if (seaf_job_manager_schedule_job (seaf->job_mgr,
+                                       check_head_commit_thread,
+                                       check_head_commit_done,
+                                       data) < 0) {
         g_free (data->host);
         g_free (data->token);
         g_free (data);
@@ -1817,10 +1817,10 @@ http_tx_manager_get_folder_perms (HttpTxManager *manager,
     data->user_data = user_data;
     data->use_fileserver_port = use_fileserver_port;
 
-    if (ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                        get_folder_perms_thread,
-                                        get_folder_perms_done,
-                                        data) < 0) {
+    if (seaf_job_manager_schedule_job (seaf->job_mgr,
+                                       get_folder_perms_thread,
+                                       get_folder_perms_done,
+                                       data) < 0) {
         g_free (data->host);
         g_free (data);
         return -1;
@@ -2093,10 +2093,10 @@ http_tx_manager_get_locked_files (HttpTxManager *manager,
     data->user_data = user_data;
     data->use_fileserver_port = use_fileserver_port;
 
-    if (ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                        get_locked_files_thread,
-                                        get_locked_files_done,
-                                        data) < 0) {
+    if (seaf_job_manager_schedule_job (seaf->job_mgr,
+                                       get_locked_files_thread,
+                                       get_locked_files_done,
+                                       data) < 0) {
         g_free (data->host);
         g_free (data);
         return -1;
@@ -2377,7 +2377,7 @@ check_permission (HttpTxTask *task, Connection *conn)
         url = g_strdup_printf ("%s/%srepo/%s/permission-check/?op=%s"
                                "&client_id=%s&client_name=%s",
                                task->host, url_prefix, task->repo_id, type,
-                               seaf->session->base.id, client_name);
+                               seaf->client_id, client_name);
         g_free (client_name);
     } else {
         url = g_strdup_printf ("%s/%srepo/%s/permission-check/?op=%s",
@@ -2450,10 +2450,10 @@ http_tx_manager_add_upload (HttpTxManager *manager,
                          g_strdup(repo_id),
                          task);
 
-    if (ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                        http_upload_thread,
-                                        http_upload_done,
-                                        task) < 0) {
+    if (seaf_job_manager_schedule_job (seaf->job_mgr,
+                                       http_upload_thread,
+                                       http_upload_done,
+                                       task) < 0) {
         g_hash_table_remove (manager->priv->upload_tasks, repo_id);
         return -1;
     }
@@ -3826,10 +3826,10 @@ http_tx_manager_add_download (HttpTxManager *manager,
                                                NULL);
     task->repo_name = g_strdup(repo_name);
 
-    if (ccnet_job_manager_schedule_job (seaf->job_mgr,
-                                        http_download_thread,
-                                        http_download_done,
-                                        task) < 0) {
+    if (seaf_job_manager_schedule_job (seaf->job_mgr,
+                                       http_download_thread,
+                                       http_download_done,
+                                       task) < 0) {
         g_hash_table_remove (manager->priv->download_tasks, repo_id);
         return -1;
     }
@@ -4518,7 +4518,7 @@ http_download_thread (void *vdata)
                                          REPO_PROP_DOWNLOAD_HEAD,
                                          task->head);
 
-    int rc = seaf_repo_fetch_and_checkout (NULL, task, TRUE, task->head);
+    int rc = seaf_repo_fetch_and_checkout (task, task->head);
     switch (rc) {
     case FETCH_CHECKOUT_SUCCESS:
         break;
@@ -4644,7 +4644,7 @@ http_tx_manager_cancel_task (HttpTxManager *manager,
     }
 
     if (task->runtime_state == HTTP_TASK_RT_STATE_INIT) {
-        transition_state (task, HTTP_TASK_STATE_CANCELED, TASK_RT_STATE_FINISHED);
+        transition_state (task, HTTP_TASK_STATE_CANCELED, HTTP_TASK_RT_STATE_FINISHED);
         return;
     }
 
