@@ -11,7 +11,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <ccnet/job-mgr.h>
+#include "job-mgr.h"
 #include "seafile-session.h"
 #include "utils.h"
 #include "wt-monitor.h"
