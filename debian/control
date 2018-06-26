@@ -17,7 +17,6 @@ Build-Depends:
     libjansson-dev,
     python,
     libsearpc-dev,
-    libccnet-dev
 Standards-Version: 3.9.5
 Homepage: http://seafile.com
 
@@ -28,7 +27,6 @@ Depends:
     ${shlibs:Depends},
     ${misc:Depends},
     ${python:Depends},
-    ccnet (>= 5.1.2)
 Conflicts: seafile
 Suggests: seafile-gui, seafile-cli
 Description: Seafile daemon
@@ -56,7 +54,6 @@ Depends:
     ${misc:Depends},
     ${python:Depends},
     libseafile0 (>= ${binary:Version}),
-    ccnet (>= 5.1.2),
     seafile-daemon (>= ${binary:Version}),
     python-searpc
 Conflicts: seafile

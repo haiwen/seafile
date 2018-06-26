@@ -57,7 +57,6 @@ CONF_VERSION            = 'version'
 CONF_SEAFILE_VERSION    = 'seafile_version'
 CONF_SEAFILE_CLIENT_VERSION  = 'seafile_client_version'
 CONF_LIBSEARPC_VERSION  = 'libsearpc_version'
-CONF_CCNET_VERSION      = 'ccnet_version'
 CONF_SRCDIR             = 'srcdir'
 CONF_KEEP               = 'keep'
 CONF_BUILDDIR           = 'builddir'
@@ -224,7 +223,7 @@ def must_copytree(src, dst):
 
 class Project(object):
     '''Base class for a project'''
-    # Probject name, i.e. libseaprc/ccnet/seafile/
+    # Probject name, i.e. libseaprc/seafile/
     name = ''
 
     # A list of shell commands to configure/build the project
@@ -239,7 +238,7 @@ class Project(object):
         self.projdir = join(conf[CONF_BUILDDIR], '%s-%s' % (self.name, self.version))
 
     def get_version(self):
-        # libsearpc and ccnet can have different versions from seafile.
+        # libsearpc can have different versions from seafile.
         raise NotImplementedError
 
     def get_source_commit_id(self):
@@ -294,26 +293,6 @@ class Libsearpc(Project):
 
     def get_version(self):
         return conf[CONF_LIBSEARPC_VERSION]
-
-class Ccnet(Project):
-    name = 'ccnet'
-    def __init__(self):
-        Project.__init__(self)
-        self.build_commands = [
-            './configure --prefix=%s --disable-compile-demo' % self.prefix,
-            concurrent_make(),
-            'make install'
-        ]
-
-    def get_version(self):
-        return conf[CONF_CCNET_VERSION]
-
-    def before_build(self):
-        macros = {}
-        # SET CCNET_SOURCE_COMMIT_ID, so it can be printed in the log
-        macros['CCNET_SOURCE_COMMIT_ID'] = '\\"%s\\"' % self.get_source_commit_id()
-
-        self.append_cflags(macros)
 
 class Seafile(Project):
     name = 'seafile'
@@ -405,7 +384,6 @@ def validate_args(usage, options):
     required_args = [
         CONF_VERSION,
         CONF_LIBSEARPC_VERSION,
-        CONF_CCNET_VERSION,
         CONF_SEAFILE_VERSION,
         CONF_SEAFILE_CLIENT_VERSION,
         CONF_SRCDIR,
@@ -432,18 +410,15 @@ def validate_args(usage, options):
     seafile_version = get_option(CONF_SEAFILE_VERSION)
     seafile_client_version = get_option(CONF_SEAFILE_CLIENT_VERSION)
     libsearpc_version = get_option(CONF_LIBSEARPC_VERSION)
-    ccnet_version = get_option(CONF_CCNET_VERSION)
 
     check_project_version(version)
     check_project_version(libsearpc_version)
-    check_project_version(ccnet_version)
     check_project_version(seafile_version)
     check_project_version(seafile_client_version)
 
     # [ srcdir ]
     srcdir = get_option(CONF_SRCDIR)
     check_targz_src('libsearpc', libsearpc_version, srcdir)
-    check_targz_src('ccnet', ccnet_version, srcdir)
     check_targz_src('seafile', seafile_version, srcdir)
 
     # [ keep ]
@@ -488,7 +463,6 @@ def validate_args(usage, options):
     conf[CONF_VERSION] = version
     conf[CONF_LIBSEARPC_VERSION] = libsearpc_version
     conf[CONF_SEAFILE_VERSION] = seafile_version
-    conf[CONF_CCNET_VERSION] = ccnet_version
     conf[CONF_SEAFILE_CLIENT_VERSION] = seafile_client_version
 
     conf[CONF_BUILDDIR] = builddir
@@ -511,7 +485,6 @@ def show_build_info():
     info('Seafile command line client %s: BUILD INFO' % conf[CONF_VERSION])
     info('------------------------------------------')
     info('libsearpc:        %s' % conf[CONF_LIBSEARPC_VERSION])
-    info('ccnet:            %s' % conf[CONF_CCNET_VERSION])
     info('seafile:          %s' % conf[CONF_SEAFILE_VERSION])
     info('seafile-client:   %s' % conf[CONF_SEAFILE_CLIENT_VERSION])
     info('builddir:         %s' % conf[CONF_BUILDDIR])
@@ -563,11 +536,6 @@ def parse_args():
                       dest=CONF_LIBSEARPC_VERSION,
                       nargs=1,
                       help='the version of libsearpc as specified in its "configure.ac". Must be digits delimited by dots, like 1.3.0')
-
-    parser.add_option(long_opt(CONF_CCNET_VERSION),
-                      dest=CONF_CCNET_VERSION,
-                      nargs=1,
-                      help='the version of ccnet as specified in its "configure.ac". Must be digits delimited by dots, like 1.3.0')
 
     parser.add_option(long_opt(CONF_SEAFILE_CLIENT_VERSION),
                       dest=CONF_SEAFILE_CLIENT_VERSION,
@@ -691,10 +659,8 @@ def copy_shared_libs():
 
     must_mkdir(frameworks_dir)
     seafile_path = join(builddir, 'usr/bin/seaf-daemon')
-    ccnet_path = join(builddir, 'usr/bin/ccnet')
 
     libs = set()
-    libs.update(get_dependent_libs(ccnet_path))
     libs.update(get_dependent_libs(seafile_path))
 
     # Get deps of deps recursively until no more deps can be included
@@ -731,7 +697,6 @@ def change_rpaths():
     seafile_applet = join(macos_dir, 'seafile-applet')
     binaries = [
         seafile_applet,
-        join(resources_dir, 'ccnet'),
         join(resources_dir, 'seaf-daemon')
     ]
 
@@ -901,7 +866,6 @@ def sign_files(appdir):
         'Contents/Frameworks/*.framework',
         'Contents/PlugIns/*/*.dylib',
         'Contents/Frameworks/*.dylib',
-        'Contents/Resources/ccnet',
         'Contents/Resources/seaf-daemon',
     ]
 
@@ -983,7 +947,6 @@ def send_sources_to_slave():
     send_file_to_slave(abspath(__file__), SLAVE_BUILD_SCRIPT)
     projects = [
         Libsearpc(),
-        Ccnet(),
         Seafile(),
         SeafileClient(),
     ]
@@ -997,7 +960,6 @@ def build_on_slave():
         '--mode=slave',
         '--version={}'.format(conf[CONF_VERSION]),
         '--libsearpc_version={}'.format(conf[CONF_LIBSEARPC_VERSION]),
-        '--ccnet_version={}'.format(conf[CONF_CCNET_VERSION]),
         '--seafile_version={}'.format(conf[CONF_SEAFILE_VERSION]),
         '--seafile_client_version={}'.format(conf[CONF_SEAFILE_CLIENT_VERSION]),
         '--srcdir={}'.format(SLAVE_SRCDIR),
@@ -1067,15 +1029,11 @@ def copy_sparkle_framework():
 
 def build_projects():
     libsearpc = Libsearpc()
-    ccnet = Ccnet()
     seafile = Seafile()
     seafile_client = SeafileClient()
 
     libsearpc.uncompress()
     libsearpc.build()
-
-    ccnet.uncompress()
-    ccnet.build()
 
     seafile.uncompress()
     seafile.build()
