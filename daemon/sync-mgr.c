@@ -693,7 +693,7 @@ repo_block_store_exists (SeafRepo *repo)
     return ret;
 }
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
 
 static GHashTable *
 load_locked_files_blocks (const char *repo_id)
@@ -760,9 +760,7 @@ remove_repo_blocks (void *vtask)
 {
     SyncTask *task = vtask;
 
-#ifndef WIN32
-    seaf_block_manager_remove_store (seaf->block_mgr, task->repo->id);
-#else
+#if defined WIN32 || defined __APPLE__
     GHashTable *block_hash;
 
     block_hash = load_locked_files_blocks (task->repo->id);
@@ -779,6 +777,8 @@ remove_repo_blocks (void *vtask)
                                       block_hash);
 
     g_hash_table_destroy (block_hash);
+#else
+    seaf_block_manager_remove_store (seaf->block_mgr, task->repo->id);
 #endif
 
     return vtask;
@@ -1387,7 +1387,7 @@ cmp_repos_by_sync_time (gconstpointer a, gconstpointer b, gpointer user_data)
     return (repo_a->last_sync_time - repo_b->last_sync_time);
 }
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
 
 static void
 cleanup_file_blocks (const char *repo_id, int version, const char *file_id)
@@ -1961,7 +1961,7 @@ auto_sync_pulse (void *vmanager)
         if (!manager->priv->auto_sync_enabled || !repo->auto_sync)
             continue;
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
         if (repo->version > 0) {
             if (repo->checking_locked_files)
                 continue;

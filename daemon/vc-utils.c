@@ -635,3 +635,58 @@ files_locked_on_windows (struct index_state *index, const char *worktree)
 
 #endif  /* WIN32 */
 
+#ifdef __APPLE__
+
+/* On Mac, we only check whether an office file is opened and locked.
+ * The detection is done by checking ~$* tmp file.
+ */
+gboolean
+do_check_file_locked (const char *path, const char *worktree, gboolean locked_on_server)
+{
+#define OFFICE_FILE_PATTERN ".*\\.(docx|xlsx|pptx|doc|xls|ppt|vsdx)"
+    char *dir_name = NULL, *file_name = NULL;
+    char *fullpath = NULL;
+    char *tmp_name = NULL;
+    int ret = FALSE;
+
+    if (!g_regex_match_simple (OFFICE_FILE_PATTERN, path, 0, 0))
+        return FALSE;
+
+    dir_name = g_path_get_dirname (path);
+    if (strcmp (dir_name, ".") == 0) {
+        g_free (dir_name);
+        dir_name = g_strdup("");
+    }
+    file_name = g_path_get_basename (path);
+
+    tmp_name = g_strconcat ("~$", file_name, NULL);
+    fullpath = g_build_path ("/", worktree, dir_name, tmp_name, NULL);
+    if (g_file_test (fullpath, G_FILE_TEST_IS_REGULAR)) {
+        ret = TRUE;
+        goto out;
+    }
+    g_free (tmp_name);
+    g_free (fullpath);
+
+    /* Sometimes the first two characters are replaced by ~$. */
+
+    if (g_utf8_strlen(file_name, -1) < 2)
+        goto out;
+
+    char *ptr = g_utf8_find_next_char(g_utf8_find_next_char (file_name, NULL), NULL);
+    tmp_name = g_strconcat ("~$", ptr, NULL);
+    fullpath = g_build_path ("/", worktree, dir_name, tmp_name, NULL);
+    if (g_file_test (fullpath, G_FILE_TEST_IS_REGULAR)) {
+        ret = TRUE;
+        goto out;
+    }
+
+out:
+    g_free (fullpath);
+    g_free (tmp_name);
+    g_free (dir_name);
+    g_free (file_name);
+    return ret;
+}
+
+#endif

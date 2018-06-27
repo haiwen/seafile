@@ -1270,7 +1270,7 @@ add_file (const char *repo_id,
     if (!is_writable || is_locked)
         return ret;
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
     if (options && options->fset) {
         LockedFile *file = locked_file_set_lookup (options->fset, path);
         if (file) {
@@ -1896,7 +1896,7 @@ out:
 static gboolean
 check_locked_file_before_remove (LockedFileSet *fset, const char *path)
 {
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
     if (!fset)
         return TRUE;
 
@@ -3821,7 +3821,7 @@ index_add (SeafRepo *repo, struct index_state *istate, gboolean is_force_commit)
         crypt = seafile_crypt_new (repo->enc_version, repo->enc_key, repo->enc_iv);
     }
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
     if (repo->version > 0)
         fset = seaf_repo_manager_get_locked_file_set (seaf->repo_mgr, repo->id);
 #endif
@@ -3840,7 +3840,7 @@ index_add (SeafRepo *repo, struct index_state *istate, gboolean is_force_commit)
 
     seaf_repo_free_ignore_files (ignore_list);
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
     locked_file_set_free (fset);
 #endif
 
@@ -4511,7 +4511,7 @@ checkout_file_http (FileTxData *data,
     locked_on_server = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                              repo_id, de->name);
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
     if (do_check_file_locked (de->name, worktree, locked_on_server)) {
         if (!locked_file_set_lookup (fset, de->name))
             send_file_sync_error_notification (repo_id, NULL, de->name,
@@ -5383,7 +5383,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
 
     struct cache_entry *ce;
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
     fset = seaf_repo_manager_get_locked_file_set (seaf->repo_mgr, repo_id);
 #endif
 
@@ -5409,7 +5409,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                 seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
                                                       repo_id, de->name);
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
             if (!do_check_file_locked (de->name, worktree, locked_on_server)) {
                 locked_file_set_remove (fset, de->name, FALSE);
                 delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
@@ -5546,7 +5546,7 @@ out:
     if (ignore_list)
         seaf_repo_free_ignore_files (ignore_list);
 
-#ifdef WIN32
+#if defined WIN32 || defined __APPLE__
     locked_file_set_free (fset);
 #endif
 
@@ -6006,11 +6006,9 @@ seaf_repo_manager_remove_repo_ondisk (SeafRepoManager *mgr,
               repo_id);
     sqlite_query_exec (mgr->priv->db, sql);
 
-#ifdef WIN32
     snprintf (sql, sizeof(sql), "DELETE FROM LockedFiles WHERE repo_id = '%s'",
               repo_id);
     sqlite_query_exec (mgr->priv->db, sql);
-#endif
 
     snprintf (sql, sizeof(sql), "DELETE FROM FolderUserPerms WHERE repo_id = '%s'", 
               repo_id);
@@ -6521,12 +6519,10 @@ open_db (SeafRepoManager *manager, const char *seaf_dir)
     sql = "CREATE TABLE IF NOT EXISTS GarbageRepos (repo_id TEXT PRIMARY KEY);";
     sqlite_query_exec (db, sql);
 
-#ifdef WIN32
     sql = "CREATE TABLE IF NOT EXISTS LockedFiles (repo_id TEXT, path TEXT, "
         "operation TEXT, old_mtime INTEGER, file_id TEXT, new_path TEXT, "
         "PRIMARY KEY (repo_id, path));";
     sqlite_query_exec (db, sql);
-#endif
 
     sql = "CREATE TABLE IF NOT EXISTS FolderUserPerms ("
         "repo_id TEXT, path TEXT, permission TEXT);";
