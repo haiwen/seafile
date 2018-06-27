@@ -3357,14 +3357,14 @@ find_office_file_path (const char *worktree,
         if (!dname_nfc)
             continue;
 
-        if (strlen(dname_nfc) < 2 || strncmp (dname_nfc, "~$", 2) == 0) {
+        if (g_utf8_strlen(dname_nfc, -1) < 2 || strncmp (dname_nfc, "~$", 2) == 0) {
             g_free (dname_nfc);
             continue;
         }
 
         dname_skip_head = g_utf8_find_next_char(g_utf8_find_next_char(dname_nfc, NULL), NULL);
 
-        if (strcmp (dname_skip_head, lock_file_name) == 0) {
+        if (g_strcmp0 (dname_skip_head, lock_file_name) == 0) {
             *office_path = g_build_path ("/", parent_dir, dname_nfc, NULL);
             ret = TRUE;
             g_free (dname_nfc);
