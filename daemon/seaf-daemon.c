@@ -227,6 +227,11 @@ register_rpc_service ()
                                      searpc_signature_object__string());
 
     searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_find_transfer_task,
+                                     "seafile_find_transfer_task",
+                                     searpc_signature_object__string());
+
+    searpc_server_register_function ("seafile-rpcserver",
                                      seafile_get_path_sync_status,
                                      "seafile_get_path_sync_status",
                                      searpc_signature_string__string_string_int());
