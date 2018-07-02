@@ -379,6 +379,7 @@ seafile_session_prepare (SeafileSession *session)
         }
     }
 
+    seaf_warning ("client id = %s, client_name = %s\n", session->client_id, session->client_name);
     g_free (client_id);
     g_free (client_name);
 
