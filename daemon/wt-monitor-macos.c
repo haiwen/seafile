@@ -123,6 +123,7 @@ process_one_event (const char* eventPath,
     char *filename;
     char *event_path_nfc;
     const char *tmp;
+    struct stat buf;
 
     event_path_nfc = g_utf8_normalize (eventPath, -1, G_NORMALIZE_NFC);
 
@@ -139,20 +140,32 @@ process_one_event (const char* eventPath,
 
     /* Reinterpreted RENAMED as combine of CREATED or DELETED event */
     if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
-        seaf_debug ("Rename Event Affected: %s \n", filename);
-        struct stat buf;
-        if (stat (eventPath, &buf)) {
+        seaf_debug ("Rename flag set for %s \n", filename);
+        if (stat (eventPath, &buf) < 0) {
             /* ret = -1, file is gone */
             add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
         } else {
             /* ret = 0, file is here, but rename behaviour is unknown to us */
             add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
         }
-    } else if (eventFlags & kFSEventStreamEventFlagItemModified) {
-        seaf_debug ("Modified %s.\n", filename);
-        add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
-    } else if (eventFlags & kFSEventStreamEventFlagItemCreated) {
-        seaf_debug ("Created %s.\n", filename);
+    }
+
+    if (eventFlags & kFSEventStreamEventFlagItemRemoved) {
+        seaf_debug ("Deleted flag set for %s.\n", filename);
+        if (stat (eventPath, &buf) < 0) {
+            add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
+        }
+    }
+
+    if (eventFlags & kFSEventStreamEventFlagItemModified) {
+        seaf_debug ("Modified flag set for %s.\n", filename);
+        if (stat (eventPath, &buf) == 0) {
+            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+        }
+    }
+
+    if (eventFlags & kFSEventStreamEventFlagItemCreated) {
+        seaf_debug ("Created flag set for %s.\n", filename);
          /**
           * no need to rechecking recursively in FSEventStream
           *
@@ -161,19 +174,9 @@ process_one_event (const char* eventPath,
           * kFSEventStreamEventFlagItemIsDir
           * kFSEventStreamEventFlagItemIsSymlink
           */
-        add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
-    } else if (eventFlags & kFSEventStreamEventFlagItemRemoved) {
-        seaf_debug ("Deleted %s.\n", filename);
-        add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
-    } else if (eventFlags & kFSEventStreamEventFlagItemXattrMod) {
-        seaf_debug ("XattrMod %s.\n", filename);
-        add_event_to_queue (status, WT_EVENT_ATTRIB, filename, NULL);
-    } else if (eventFlags & kFSEventStreamEventFlagRootChanged) {
-        /* An empty path indicates repo-mgr to scan the whole worktree. */
-        seaf_debug ("RootChange event.\n");
-        add_event_to_queue (info->status, WT_EVENT_CREATE_OR_UPDATE, "", NULL);
-    } else {
-        seaf_debug ("Unhandled event with flags %x.\n", eventFlags);
+        if (stat (eventPath, &buf) == 0) {
+            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+        }
     }
 
     g_free (filename);
