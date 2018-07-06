@@ -31,7 +31,7 @@ sources = WixUI_InstallDir_NoLicense.wxs MyInstallDirDlg.wxs \
 OBJECTS = ${sources:%.wxs=%.wixobj} 
 
 fragment.wxs: 
-	Paraffin.exe -dir bin -g -alias bin -custom bin fragment.wxs
+	Paraffin.exe -dir bin -alias bin -groupname bin fragment.wxs
 
 %.wixobj : %.wxs
 	$(CC) $(CFLAGS) $< -o $@
