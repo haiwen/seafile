@@ -10,8 +10,6 @@ struct _ChangeSetDir;
 
 struct _ChangeSet {
     char repo_id[37];
-    /* List of diff entries, used to generate commit description. */
-    GList *diff;
     /* A partial tree for all changed directories. */
     struct _ChangeSetDir *tree_root;
     /* Used to match case conflict paths. */
@@ -42,8 +40,7 @@ remove_from_changeset (ChangeSet *changeset,
                        char status,
                        const char *path,
                        gboolean remove_parent,
-                       const char *top_dir,
-                       gboolean add_to_diff);
+                       const char *top_dir);
 
 char *
 commit_tree_from_changeset (ChangeSet *changeset);

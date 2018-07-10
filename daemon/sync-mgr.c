@@ -923,7 +923,7 @@ commit_job (void *vtask)
     res->changed = TRUE;
     res->success = TRUE;
 
-    char *commit_id = seaf_repo_index_commit (repo, "",
+    char *commit_id = seaf_repo_index_commit (repo,
                                               task->is_manual_sync,
                                               task->is_initial_commit,
                                               &error);

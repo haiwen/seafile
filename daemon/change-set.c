@@ -266,7 +266,6 @@ changeset_free (ChangeSet *changeset)
     if (!changeset)
         return;
 
-    g_list_free_full (changeset->diff, (GDestroyNotify)diff_entry_free);
     changeset_dir_free (changeset->tree_root);
     g_regex_unref (changeset->case_conflict_pattern);
     g_free (changeset);
@@ -545,12 +544,6 @@ add_to_changeset (ChangeSet *changeset,
                   const char *path,
                   const char *new_path)
 {
-    DiffEntry *de;
-    unsigned char allzero[20] = {0};
-
-    de = diff_entry_new (DIFF_TYPE_INDEX, status, allzero, path);
-    changeset->diff = g_list_prepend (changeset->diff, de);
-
     apply_to_tree (changeset,
                    status, sha1, st, modifier, path, new_path);
 }
@@ -589,17 +582,8 @@ remove_from_changeset (ChangeSet *changeset,
                        char status,
                        const char *path,
                        gboolean remove_parent,
-                       const char *top_dir,
-                       gboolean add_to_diff)
+                       const char *top_dir)
 {
-    DiffEntry *de;
-    unsigned char allzero[20] = {0};
-
-    if (add_to_diff) {
-        de = diff_entry_new (DIFF_TYPE_INDEX, status, allzero, path);
-        changeset->diff = g_list_prepend (changeset->diff, de);
-    }
-
     remove_from_changeset_recursive (changeset, path, remove_parent, top_dir);
 }
 

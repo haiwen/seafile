@@ -142,7 +142,7 @@ GList *
 seaf_repo_get_commits (SeafRepo *repo);
 
 char *
-seaf_repo_index_commit (SeafRepo *repo, const char *desc,
+seaf_repo_index_commit (SeafRepo *repo,
                         gboolean is_force_commit,
                         gboolean is_initial_commit,
                         GError **error);

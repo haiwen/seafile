@@ -1965,8 +1965,7 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
                                                DIFF_STATUS_DIR_DELETED,
                                                ce->name,
                                                TRUE,
-                                               prefix,
-                                               TRUE);
+                                               prefix);
                 } else if (!is_empty_dir (path, ignore_list)) {
                     /* Don't add to changeset if empty dir became non-empty. */
                     ce->ce_flags |= CE_REMOVE;
@@ -1987,8 +1986,7 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
                                            DIFF_STATUS_DELETED,
                                            ce->name,
                                            TRUE,
-                                           prefix,
-                                           TRUE);
+                                           prefix);
             }
         }
     }
@@ -3201,8 +3199,7 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
                                    DIFF_STATUS_DELETED,
                                    event->path,
                                    FALSE,
-                                   NULL,
-                                   FALSE);
+                                   NULL);
         }
         return;
     }
@@ -3766,8 +3763,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                        DIFF_STATUS_DELETED,
                                        event->path,
                                        FALSE,
-                                       NULL,
-                                       TRUE);
+                                       NULL);
 
                 try_add_empty_parent_dir_entry_from_wt (repo->worktree,
                                                         istate,
@@ -3926,7 +3922,7 @@ print_index (struct index_state *istate)
 #endif
 
 char *
-seaf_repo_index_commit (SeafRepo *repo, const char *desc,
+seaf_repo_index_commit (SeafRepo *repo,
                         gboolean is_force_commit,
                         gboolean is_initial_commit,
                         GError **error)
@@ -3938,7 +3934,8 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
     char *new_root_id = NULL;
     char commit_id[41];
     ChangeSet *changeset = NULL;
-    char *my_desc = NULL;
+    GList *diff_results = NULL;
+    char *desc = NULL;
     char *ret = NULL;
 
     if (!check_worktree_common (repo))
@@ -3967,10 +3964,6 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
 
     if (!istate.cache_changed)
         goto out;
-
-    my_desc = diff_results_to_description (changeset->diff);
-    if (!my_desc)
-        my_desc = g_strdup("");
 
     if (!is_initial_commit && !is_force_commit) {
         new_root_id = commit_tree_from_changeset (changeset);
@@ -4020,7 +4013,12 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
         goto out;
     }
 
-    if (commit_tree (repo, new_root_id, my_desc, commit_id) < 0) {
+    diff_commit_roots (repo->id, repo->version, head->root_id, new_root_id, &diff_results, TRUE);
+    desc = diff_results_to_description (diff_results);
+    if (!desc)
+        desc = g_strdup("");
+
+    if (commit_tree (repo, new_root_id, desc, commit_id) < 0) {
         seaf_warning ("Failed to save commit file");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal error");
         goto out;
@@ -4036,10 +4034,11 @@ seaf_repo_index_commit (SeafRepo *repo, const char *desc,
     ret = g_strdup(commit_id);
 
 out:
-    g_free (my_desc);
+    g_free (desc);
     seaf_commit_unref (head);
     g_free (new_root_id);
     changeset_free (changeset);
+    g_list_free_full (diff_results, (GDestroyNotify)diff_entry_free);
     discard_index (&istate);
     return ret;
 }
