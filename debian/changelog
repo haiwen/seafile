@@ -1,3 +1,8 @@
+seafile-daemon (6.2.2) unstable; urgency=low
+
+  * new upstream release
+
+ -- Jonathan Xu <jonathan.xu@seafile.com>  Ther, 12 Jul 2018 14:35:10 +0800
 seafile-daemon (6.2.1) unstable; urgency=low
 
   * new upstream release
