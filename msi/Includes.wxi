@@ -125,7 +125,7 @@
   <!-- <?define ProductGuid="63B2D0B3-2130-4FC5-A2B8-3680399C65B2" ?> (6.2.1) -->
   <?define ProductGuid="BA879197-CBF6-4DFB-BD56-E20A2854AFF9" ?>
 
-  <?define GuidOfCustomComponent="A8CD54F6-9BFB-11E1-9B0E-001CBFC5CA1D" ?>
-  <?define GuidOfAutoStartComponent="FED41B85-BA5A-4C95-8ABF-4A35852EE04E" ?>
-  <?define GuidOfStartMenuShortCutComponent="F1662C95-6C0A-4CDD-B009-C5E66A4F8C80" ?>
+  <?define GuidOfCustomComponent="AD201805-0001-0000-0000-000000000000" ?>
+  <?define GuidOfAutoStartComponent="AD201805-0001-0000-0000-000000000001" ?>
+  <?define GuidOfStartMenuShortCutComponent="AD201805-0001-0000-0000-000000000003" ?>
 </Include>
