@@ -127,5 +127,5 @@
 
   <?define GuidOfCustomComponent="AD201805-0001-0000-0000-000000000000" ?>
   <?define GuidOfAutoStartComponent="AD201805-0001-0000-0000-000000000001" ?>
-  <?define GuidOfStartMenuShortCutComponent="AD201805-0001-0000-0000-000000000003" ?>
+  <?define GuidOfStartMenuShortCutComponent="AD201805-0001-0000-0000-000000000002" ?>
 </Include>
