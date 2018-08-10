@@ -211,3 +211,8 @@ class SeafileRpcClient(NamedPipeClient):
     def seafile_generate_magic_and_random_key(enc_version, repo_id, password):
         pass
     generate_magic_and_random_key = seafile_generate_magic_and_random_key
+
+    @searpc_func("int", [])
+    def seafile_shutdown():
+        pass
+    shutdown = seafile_shutdown

@@ -1086,3 +1086,11 @@ seafile_diff (const char *repo_id, const char *arg1, const char *arg2, int fold_
 
     return g_list_reverse (ret);
 }
+
+int
+seafile_shutdown (GError **error)
+{
+    seaf_warning ("Got an exit command. Now exiting\n");
+    exit(0);
+    return 0;
+}
