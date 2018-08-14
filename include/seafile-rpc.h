@@ -237,4 +237,7 @@ seafile_generate_magic_and_random_key(int enc_version,
                                       const char *passwd,
                                       GError **error);
 json_t * seafile_get_sync_notification (GError **error);
+
+int
+seafile_shutdown (GError **error);
 #endif

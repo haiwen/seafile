@@ -36,7 +36,7 @@ Initialize seafile client. This command initializes the config dir. It also crea
 
 start
 -----
-Start seafile client. This command start `ccnet` and `seaf-daemon`, `ccnet` is the network part of seafile client, `seaf-daemon` manages the files.
+Start seafile client. This command starts `seaf-daemon`, which manages all the files.
 
     seaf-cli start [-c <config-dir>]
 
@@ -85,14 +85,17 @@ import argparse
 import os
 import json
 import subprocess
+import re
 import sys
 import time
 import getpass
+import random
 import urllib
 import urllib2
 from urlparse import urlparse
 
-import ccnet
+from os.path import abspath, dirname, exists, isdir, join
+
 import seafile
 
 if 'HOME' in os.environ:
@@ -105,7 +108,7 @@ seafile_worktree = None
 
 
 def _check_seafile():
-    ''' Check ccnet and seafile have been installed '''
+    ''' Check seafile daemon have been installed '''
 
     dirs = os.environ['PATH'].split(':')
     def exist_in_path(prog):
@@ -113,31 +116,29 @@ def _check_seafile():
         for d in dirs:
             if d == '':
                 continue
-            path = os.path.join(d, prog)
-            if os.path.exists(path):
+            path = join(d, prog)
+            if exists(path):
                 return True
 
-    progs = [ 'ccnet', 'ccnet-init', 'seaf-daemon' ]
+    progs = ['seaf-daemon']
 
     for prog in progs:
         if not exist_in_path(prog):
             print "%s not found in PATH. Have you installed seafile?" % prog
             sys.exit(1)
 
+def get_rpc_client(confdir):
+    return seafile.RpcClient(join(seafile_datadir, 'seafile.sock'))
 
 def _config_valid(conf):
     ''' Check config directory valid '''
 
-    if not os.path.exists(conf) or not os.path.isdir(conf):
+    if not exists(conf) or not isdir(conf):
         print "%s not exists" % conf
         return False
 
-    config_conf = conf + "/ccnet.conf"
     seafile_ini = conf + "/seafile.ini"
-    if not os.path.exists(config_conf):
-        print "Could not load %s" % config_conf
-        return False
-    if not os.path.exists(seafile_ini):
+    if not exists(seafile_ini):
         print "Could not load %s" % seafile_ini
         return False
 
@@ -145,8 +146,8 @@ def _config_valid(conf):
         for line in f:
             global seafile_datadir, seafile_worktree
             seafile_datadir = line.strip()
-            seafile_worktree = os.path.join(
-                os.path.dirname(seafile_datadir), "seafile")
+            seafile_worktree = join(
+                dirname(seafile_datadir), "seafile")
             break
 
     if not seafile_datadir or not seafile_worktree:
@@ -160,12 +161,13 @@ def _conf_dir(args):
     conf_dir = DEFAULT_CONF_DIR
     if args.confdir:
         conf_dir = args.confdir
-    conf_dir = os.path.abspath(conf_dir)
+    conf_dir = abspath(conf_dir)
 
     if not _config_valid(conf_dir):
         print "Invalid config directory"
         sys.exit(1)
     else:
+        get_device_id(conf_dir)
         return conf_dir
 
 
@@ -211,15 +213,49 @@ def urlopen(url, data=None, headers=None):
 
 SEAF_CLI_VERSION = ""
 
-def get_peer_id(conf_dir):
-    pool = ccnet.ClientPool(conf_dir)
-    ccnet_rpc = ccnet.CcnetRpcClient(pool)
-    info = ccnet_rpc.get_session_info()
-    return info.id
+def randstring(size):
+    random.seed(time.time())
+    s = ''
+    while len(s) < size:
+        s += '%x' % random.randint(0, 255)
+    return s[:size]
+
+device_id = None
+def get_device_id(conf_dir):
+    global device_id
+    if device_id:
+        return device_id
+
+    idfile = join(seafile_datadir, 'id')
+    ccnet_conf = join(conf_dir, 'ccnet.conf')
+    if exists(idfile):
+        with open(idfile, 'r') as fp:
+            device_id = fp.read().strip()
+            return device_id
+
+    # Id file doesn't exist. We either migrate it from ccnet.conf ID
+    # (for existing data), or create it.
+
+    if exists(ccnet_conf):
+        # migrate from existing ccnet.conf ID
+        with open(ccnet_conf, 'r') as fp:
+            for line in fp:
+                m = re.search('ID = (.*)', line)
+                if m:
+                    device_id = m.group(1)
+                    print('Migrating device id from ccnet conf')
+                    break
+    if not device_id:
+        # create a new id
+        print('New device id created')
+        device_id = randstring(40)
+    with open(idfile, 'w') as fp:
+        fp.write(device_id)
+    return device_id
 
 def get_token(url, username, password, tfa, conf_dir):
     platform = 'linux'
-    device_id = get_peer_id(conf_dir)
+    device_id = get_device_id(conf_dir)
     device_name = 'terminal-' + os.uname()[1]
     client_version = SEAF_CLI_VERSION
     platform_version = ''
@@ -259,50 +295,30 @@ def seaf_init(args):
     else:
         print "Must specify the parent path for put seafile-data"
         sys.exit(0)
-    seafile_path = os.path.abspath(seafile_path)
+    seafile_path = abspath(seafile_path)
 
-    if os.path.exists(ccnet_conf_dir):
+    if exists(ccnet_conf_dir):
         print "%s already exists" % ccnet_conf_dir
         sys.exit(0)
 
-    cmd = [ "ccnet-init", "-c", ccnet_conf_dir, "-n", "anonymous" ]
-    if run_argv(cmd, env=get_env()) != 0:
-        print "Failed to init ccnet"
-        sys.exit(1)
+    os.mkdir(ccnet_conf_dir)
+    logsdir = join(ccnet_conf_dir, 'logs')
+    if not exists(logsdir):
+        os.mkdir(logsdir)
 
-    if not os.path.exists(seafile_path):
+    if not exists(seafile_path):
         print "%s not exists" % seafile_path
         sys.exit(0)
     seafile_ini = ccnet_conf_dir + "/seafile.ini"
     seafile_data = seafile_path + "/seafile-data"
-    fp = open(seafile_ini, 'w')
-    fp.write(seafile_data)
-    fp.close()
+    with open(seafile_ini, 'w') as fp:
+        fp.write(seafile_data)
     print "Writen seafile data directory %s to %s" % (seafile_data, seafile_ini)
 
 
 def seaf_start_all(args):
-    ''' Start ccnet and seafile daemon '''
-
-    seaf_start_ccnet(args)
-    # wait ccnet process
-    time.sleep(1)
+    ''' Start seafile daemon '''
     seaf_start_seafile(args)
-
-
-def seaf_start_ccnet(args):
-    ''' Start ccnet daemon '''
-
-    conf_dir = _conf_dir(args)
-
-    print "Starting ccnet daemon ..."
-
-    cmd = [ "ccnet", "--daemon", "-c", conf_dir ]
-    if run_argv(cmd, env=get_env()) != 0:
-        print "CCNet daemon failed to start."
-        sys.exit(1)
-
-    print "Started: ccnet daemon ..."
 
 def seaf_start_seafile(args):
     ''' start seafile daemon '''
@@ -324,10 +340,10 @@ def seaf_stop(args):
 
     conf_dir = _conf_dir(args)
 
-    pool = ccnet.ClientPool(conf_dir)
-    client = pool.get_client()
+    seafile_rpc = get_rpc_client(conf_dir)
     try:
-        client.send_cmd("shutdown")
+        # TODO: add shutdown rpc in seaf-daemon
+        seafile_rpc.shutdown()
     except:
         # ignore NetworkError("Failed to read from socket")
         pass
@@ -338,9 +354,7 @@ def seaf_list(args):
 
     conf_dir = _conf_dir(args)
 
-    pool = ccnet.ClientPool(conf_dir)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
-
+    seafile_rpc = get_rpc_client(conf_dir)
     repos = seafile_rpc.get_repo_list(-1, -1)
     print "Name\tID\tPath"
     for repo in repos:
@@ -357,8 +371,7 @@ def seaf_list_remote(args):
         print "Seafile server url need to be presented"
         sys.exit(1)
 
-    pool = ccnet.ClientPool(conf_dir)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
+    seafile_rpc = get_rpc_client(conf_dir)
 
     username = args.username
     if not username:
@@ -411,11 +424,10 @@ def seaf_download(args):
 
     download_dir = seafile_worktree
     if args.dir:
-        download_dir = os.path.abspath(args.dir)
+        download_dir = abspath(args.dir)
 
 
-    pool = ccnet.ClientPool(conf_dir)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
+    seafile_rpc = get_rpc_client(conf_dir)
 
     username = args.username
     if not username:
@@ -483,8 +495,7 @@ def seaf_download_by_name(args):
         print "Seafile server url need to be presented"
         sys.exit(1)
 
-    pool = ccnet.ClientPool(conf_dir)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
+    seafile_rpc = get_rpc_client(conf_dir)
 
     username = args.username
     if not username:
@@ -533,13 +544,12 @@ def seaf_sync(args):
         print "The local directory is required"
         sys.exit(1)
 
-    folder = os.path.abspath(folder)
-    if not os.path.exists(folder):
+    folder = abspath(folder)
+    if not exists(folder):
         print "The local directory does not exists"
         sys.exit(1)
 
-    pool = ccnet.ClientPool(conf_dir)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
+    seafile_rpc = get_rpc_client(conf_dir)
 
     username = args.username
     if not username:
@@ -597,10 +607,9 @@ def seaf_desync(args):
     if not repo_path:
         print "Must specify the local path of the library"
         sys.exit(1)
-    repo_path = os.path.abspath(repo_path)
+    repo_path = abspath(repo_path)
 
-    pool = ccnet.ClientPool(conf_dir)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
+    seafile_rpc = get_rpc_client(conf_dir)
 
     repos = seafile_rpc.get_repo_list(-1, -1)
     repo = None
@@ -628,8 +637,7 @@ def seaf_config(args):
 
     config_value = args.value
 
-    pool = ccnet.ClientPool(conf_dir)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
+    seafile_rpc = get_rpc_client(conf_dir)
 
     if config_value:
         # set configuration key
@@ -645,9 +653,7 @@ def seaf_status(args):
 
     conf_dir = _conf_dir(args)
 
-    pool = ccnet.ClientPool(conf_dir)
-    ccnet_rpc = ccnet.CcnetRpcClient(pool, req_pool=False)
-    seafile_rpc = seafile.RpcClient(pool, req_pool=False)
+    seafile_rpc = get_rpc_client(conf_dir)
 
     tasks = seafile_rpc.get_clone_tasks()
     print "# Name\tStatus\tProgress"
@@ -710,7 +716,7 @@ def seaf_create(args):
     conf_dir = DEFAULT_CONF_DIR
     if args.confdir:
         conf_dir = args.confdir
-    conf_dir = os.path.abspath(conf_dir)
+    conf_dir = abspath(conf_dir)
 
     # check username and password
     username = args.username
@@ -752,13 +758,13 @@ def main():
 
     # start
     parser_start = subparsers.add_parser('start',
-                                         help='Start ccnet and seafile daemon')
+                                         help='Start seafile daemon')
     parser_start.set_defaults(func=seaf_start_all)
     parser_start.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
 
     # stop
     parser_stop = subparsers.add_parser('stop',
-                                         help='Stop ccnet and seafile daemon')
+                                         help='Stop seafile daemon')
     parser_stop.set_defaults(func=seaf_stop)
     parser_stop.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
 
@@ -841,7 +847,7 @@ def main():
     parser_create.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
     parser_create.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
 
-    # config 
+    # config
     parser_config = subparsers.add_parser('config',
                                           help='Configure seafile client')
     parser_config.set_defaults(func=seaf_config)
@@ -859,3 +865,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    # print('device id is {}'.format(get_device_id(DEFAULT_CONF_DIR)))
