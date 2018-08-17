@@ -16,7 +16,7 @@ Build-Depends:
     valac,
     libjansson-dev,
     python,
-    libsearpc-dev,
+    libsearpc-dev (>= 3.1.0),
 Standards-Version: 3.9.5
 Homepage: http://seafile.com
 
@@ -55,7 +55,7 @@ Depends:
     ${python:Depends},
     libseafile0 (>= ${binary:Version}),
     seafile-daemon (>= ${binary:Version}),
-    python-searpc
+    python-searpc (>= 3.1.0)
 Conflicts: seafile
 Description: Seafile command line interface.
  This package contains the command line interface to manage Seafile libraries.
