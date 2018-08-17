@@ -16,7 +16,7 @@ Build-Depends:
     valac,
     libjansson-dev,
     python,
-    libsearpc-dev (>= 3.1.0),
+    libsearpc-dev (>= 3.1.0)
 Standards-Version: 3.9.5
 Homepage: http://seafile.com
 
