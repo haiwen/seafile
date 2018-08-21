@@ -313,6 +313,8 @@ def seaf_init(args):
     seafile_data = seafile_path + "/seafile-data"
     with open(seafile_ini, 'w') as fp:
         fp.write(seafile_data)
+    if not exists(seafile_data):
+        os.mkdir(seafile_data)
     print "Writen seafile data directory %s to %s" % (seafile_data, seafile_ini)
 
 
