@@ -708,6 +708,8 @@ recv_response (void *contents, size_t size, size_t nmemb, void *userp)
     return realsize;
 }
 
+extern FILE *seafile_get_log_fp ();
+
 #define HTTP_TIMEOUT_SEC 300
 
 typedef size_t (*HttpRecvCallback) (void *, size_t, size_t, void *);
@@ -729,6 +731,10 @@ http_get (CURL *curl, const char *url, const char *token,
     char *token_header;
     struct curl_slist *headers = NULL;
     int ret = 0;
+
+    FILE *logfp = seafile_get_log_fp ();
+    curl_easy_setopt (curl, CURLOPT_STDERR, logfp);
+    curl_easy_setopt (curl, CURLOPT_VERBOSE, 1);
 
     headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
 
@@ -854,6 +860,10 @@ http_put (CURL *curl, const char *url, const char *token,
     struct curl_slist *headers = NULL;
     int ret = 0;
 
+    FILE *logfp = seafile_get_log_fp ();
+    curl_easy_setopt (curl, CURLOPT_STDERR, logfp);
+    curl_easy_setopt (curl, CURLOPT_VERBOSE, 1);
+
     headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
     /* Disable the default "Expect: 100-continue" header */
     headers = curl_slist_append (headers, "Expect:");
@@ -968,6 +978,10 @@ http_post (CURL *curl, const char *url, const char *token,
     char *token_header;
     struct curl_slist *headers = NULL;
     int ret = 0;
+
+    FILE *logfp = seafile_get_log_fp ();
+    curl_easy_setopt (curl, CURLOPT_STDERR, logfp);
+    curl_easy_setopt (curl, CURLOPT_VERBOSE, 1);
 
     g_return_val_if_fail (req_content != NULL, -1);
 
