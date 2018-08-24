@@ -380,42 +380,42 @@ http_tx_manager_start (HttpTxManager *mgr)
 
 #ifdef WIN32
 
-static void
-write_cert_name_to_pem_file (FILE *f, PCCERT_CONTEXT pc)
-{
-    char *name;
-    DWORD size;
+/* static void */
+/* write_cert_name_to_pem_file (FILE *f, PCCERT_CONTEXT pc) */
+/* { */
+/*     char *name; */
+/*     DWORD size; */
 
-    fprintf (f, "\n");
+/*     fprintf (f, "\n"); */
 
-    if (!CertGetCertificateContextProperty(pc,
-                                           CERT_FRIENDLY_NAME_PROP_ID,
-                                           NULL, &size)) {
-        return;
-    }
+/*     if (!CertGetCertificateContextProperty(pc, */
+/*                                            CERT_FRIENDLY_NAME_PROP_ID, */
+/*                                            NULL, &size)) { */
+/*         return; */
+/*     } */
 
-    name = g_malloc ((gsize)size);
-    if (!name) {
-        seaf_warning ("Failed to alloc memory\n");
-        return;
-    }
+/*     name = g_malloc ((gsize)size); */
+/*     if (!name) { */
+/*         seaf_warning ("Failed to alloc memory\n"); */
+/*         return; */
+/*     } */
 
-    if (!CertGetCertificateContextProperty(pc,
-                                           CERT_FRIENDLY_NAME_PROP_ID,
-                                           name, &size)) {
-        g_free (name);
-        return;
-    }
+/*     if (!CertGetCertificateContextProperty(pc, */
+/*                                            CERT_FRIENDLY_NAME_PROP_ID, */
+/*                                            name, &size)) { */
+/*         g_free (name); */
+/*         return; */
+/*     } */
 
-    if (fwrite(name, (size_t)size, 1, f) != 1) {
-        seaf_warning ("Failed to write pem file.\n");
-        g_free (name);
-        return;
-    }
-    fprintf (f, "\n");
+/*     if (fwrite(name, (size_t)size, 1, f) != 1) { */
+/*         seaf_warning ("Failed to write pem file.\n"); */
+/*         g_free (name); */
+/*         return; */
+/*     } */
+/*     fprintf (f, "\n"); */
 
-    g_free (name);
-}
+/*     g_free (name); */
+/* } */
 
 static void
 write_cert_to_pem_file (FILE *f, PCCERT_CONTEXT pc)
@@ -423,7 +423,7 @@ write_cert_to_pem_file (FILE *f, PCCERT_CONTEXT pc)
     const unsigned char *der = pc->pbCertEncoded;
     X509 *cert;
 
-    write_cert_name_to_pem_file (f, pc);
+    /* write_cert_name_to_pem_file (f, pc); */
 
     cert = d2i_X509 (NULL, &der, (int)pc->cbCertEncoded);
     if (!cert) {
@@ -707,6 +707,8 @@ recv_response (void *contents, size_t size, size_t nmemb, void *userp)
 
     return realsize;
 }
+
+extern FILE *seafile_get_log_fp ();
 
 #define HTTP_TIMEOUT_SEC 300
 
