@@ -61,6 +61,7 @@ static int init_cdc_file_descriptor (int fd,
     int block_min_sz = 0;
 
     file_descr->block_nr = 0;
+    file_descr->file_size = 0;
 
     if (file_descr->block_min_sz <= 0)
         file_descr->block_min_sz = BLOCK_MIN_SZ;
