@@ -18,6 +18,7 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/bio.h>
+#include <openssl/asn1.h>
 #include <openssl/ssl.h>
 #endif
 
@@ -430,6 +431,12 @@ write_cert_to_pem_file (FILE *f, PCCERT_CONTEXT pc)
         seaf_warning ("Failed to parse certificate from DER.\n");
         return;
     }
+
+    /* Don't add expired certs to pem file, otherwise openssl will
+     * complain certificate expired.
+     */
+    if (X509_cmp_current_time (X509_get_notAfter(cert)) < 0)
+        return;
 
     if (!PEM_write_X509 (f, cert)) {
         seaf_warning ("Failed to write certificate.\n");
