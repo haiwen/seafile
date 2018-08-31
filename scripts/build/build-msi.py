@@ -734,6 +734,11 @@ def copy_qt_plugins_imageformats():
         src = os.path.join(qt_plugins_srcdir, 'qgif.dll')
     must_copy(src, destdir)
 
+    src = os.path.join(qt_plugins_srcdir, 'qjpeg.dll')
+    if conf[CONF_QT5]:
+        src = os.path.join(qt_plugins_srcdir, 'qjpeg.dll')
+    must_copy(src, destdir)
+
 def copy_qt_plugins_platforms():
     if not conf[CONF_QT5]:
         return
