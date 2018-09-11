@@ -33,8 +33,12 @@ typedef enum
     SEAFILE_DEBUG_WATCH = 1 << 3, /* wt-monitor */
     SEAFILE_DEBUG_HTTP = 1 << 4,  /* http server */
     SEAFILE_DEBUG_MERGE = 1 << 5,
-    SEAFILE_DEBUG_OTHER = 1 << 6,
+    SEAFILE_DEBUG_CURL = 1 << 6,
+    SEAFILE_DEBUG_OTHER = 1 << 7,
 } SeafileDebugFlags;
+
+gboolean
+seafile_debug_flag_is_set (SeafileDebugFlags flag);
 
 void seafile_debug_impl (SeafileDebugFlags flag, const gchar *format, ...);
 
@@ -47,3 +51,5 @@ void seafile_debug_impl (SeafileDebugFlags flag, const gchar *format, ...);
 #endif  /* DEBUG_FLAG */
 
 #endif
+
+FILE *seafile_get_log_fp ();

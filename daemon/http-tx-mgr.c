@@ -739,6 +739,11 @@ http_get (CURL *curl, const char *url, const char *token,
     struct curl_slist *headers = NULL;
     int ret = 0;
 
+    if (seafile_debug_flag_is_set (SEAFILE_DEBUG_CURL)) {
+        curl_easy_setopt (curl, CURLOPT_VERBOSE, 1);
+        curl_easy_setopt (curl, CURLOPT_STDERR, seafile_get_log_fp());
+    }
+
     headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
 
     if (token) {
@@ -863,6 +868,11 @@ http_put (CURL *curl, const char *url, const char *token,
     struct curl_slist *headers = NULL;
     int ret = 0;
 
+    if (seafile_debug_flag_is_set (SEAFILE_DEBUG_CURL)) {
+        curl_easy_setopt (curl, CURLOPT_VERBOSE, 1);
+        curl_easy_setopt (curl, CURLOPT_STDERR, seafile_get_log_fp());
+    }
+
     headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
     /* Disable the default "Expect: 100-continue" header */
     headers = curl_slist_append (headers, "Expect:");
@@ -979,6 +989,11 @@ http_post (CURL *curl, const char *url, const char *token,
     int ret = 0;
 
     g_return_val_if_fail (req_content != NULL, -1);
+
+    if (seafile_debug_flag_is_set (SEAFILE_DEBUG_CURL)) {
+        curl_easy_setopt (curl, CURLOPT_VERBOSE, 1);
+        curl_easy_setopt (curl, CURLOPT_STDERR, seafile_get_log_fp());
+    }
 
     headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
     /* Disable the default "Expect: 100-continue" header */
