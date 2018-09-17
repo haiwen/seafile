@@ -32,6 +32,8 @@
 #define CHECK_LOCKED_FILES_INTERVAL 10 /* 10s */
 #define CHECK_FOLDER_PERMS_INTERVAL 30 /* 30s */
 
+#define SYNC_PERM_ERROR_RETRY_TIME 2
+
 struct _HttpServerState {
     int http_version;
     gboolean checking;
@@ -504,9 +506,12 @@ update_sync_info_error_state (SyncTask *task, int new_state)
         info->err_cnt++;
         if (info->err_cnt == IN_ERROR_THRESHOLD)
             info->in_error = TRUE;
+        if (task->error == SYNC_ERROR_ACCESS_DENIED)
+            info->sync_perm_err_cnt++;
     } else if (info->err_cnt > 0) {
         info->err_cnt = 0;
         info->in_error = FALSE;
+        info->sync_perm_err_cnt = 0;
     }
 }
 
@@ -1988,6 +1993,9 @@ auto_sync_pulse (void *vmanager)
         SyncInfo *info = get_sync_info (manager, repo->id);
 
         if (info->in_sync)
+            continue;
+
+        if (info->sync_perm_err_cnt > SYNC_PERM_ERROR_RETRY_TIME)
             continue;
 
         if (repo->version > 0) {

@@ -2383,12 +2383,37 @@ clean_tasks_for_repo (HttpTxManager *manager, const char *repo_id)
                                  remove_task_help, (gpointer)repo_id);
 }
 
+static void
+notify_sync_perm_error (HttpTxTask *task, const char *error_str, gint64 rsp_size)
+{
+    json_t *err_obj = NULL;
+    json_error_t jerror;
+    const char *path = NULL;
+
+    err_obj = json_loadb (error_str, rsp_size, 0, &jerror);
+
+    if (!err_obj) {
+        seaf_warning ("Invalid JSON response from the server: %s.\n", jerror.text);
+        task->error = HTTP_TASK_ERR_SERVER;
+        return;
+    }
+
+    path = json_string_value (json_object_get (err_obj, "unsyncable_path"));
+
+    send_file_sync_error_notification (task->repo_id, task->repo_name,
+                                       path, SYNC_ERROR_ID_PERM_NOT_SYNCABLE);
+
+    json_decref (err_obj);
+}
+
 static int
 check_permission (HttpTxTask *task, Connection *conn)
 {
     CURL *curl;
     char *url;
     int status;
+    char *rsp_content = NULL;
+    gint64 rsp_size;
     int ret = 0;
 
     curl = conn->curl;
@@ -2409,7 +2434,7 @@ check_permission (HttpTxTask *task, Connection *conn)
     }
 
     int curl_error;
-    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, TRUE, &curl_error) < 0) {
+    if (http_get (curl, url, task->token, &status, &rsp_content, &rsp_size, NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -2419,11 +2444,16 @@ check_permission (HttpTxTask *task, Connection *conn)
     if (status != HTTP_OK) {
         seaf_warning ("Bad response code for GET %s: %d.\n", url, status);
         handle_http_errors (task, status);
+
+        if (status == HTTP_FORBIDDEN && rsp_content)
+            notify_sync_perm_error (task, rsp_content, rsp_size);
+
         ret = -1;
     }
 
 out:
     g_free (url);
+    g_free (rsp_content);
     curl_easy_reset (curl);
 
     return ret;
@@ -3535,6 +3565,7 @@ update_branch (HttpTxTask *task, Connection *conn)
 
 out:
     g_free (url);
+    g_free (rsp_content);
     curl_easy_reset (curl);
 
     return ret;
