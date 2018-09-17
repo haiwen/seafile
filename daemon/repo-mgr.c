@@ -832,6 +832,12 @@ send_file_sync_error_notification (const char *repo_id,
 
     if (!duplicated)
         cevent_manager_add_event (seaf->ev_mgr, seaf->repo_mgr->priv->cevent_id, data);
+    else {
+        g_free (data->repo_id);
+        g_free (data->repo_name);
+        g_free (data->path);
+        g_free (data);
+    }
 }
 
 SeafRepo*

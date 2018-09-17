@@ -412,6 +412,7 @@ seaf_repo_manager_is_path_writable (SeafRepoManager *mgr,
 #define SYNC_ERROR_ID_PATH_END_SPACE_PERIOD 5
 #define SYNC_ERROR_ID_PATH_INVALID_CHARACTER 6
 #define SYNC_ERROR_ID_FOLDER_PERM_DENIED 7
+#define SYNC_ERROR_ID_PERM_NOT_SYNCABLE 8
 
 GList *
 seaf_repo_manager_get_file_sync_errors (SeafRepoManager *mgr, int offset, int limit);

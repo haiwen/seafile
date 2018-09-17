@@ -33,6 +33,8 @@ struct _SyncInfo {
     gint64     total_bytes;
     gint64     uploaded_bytes;
     gboolean   end_multipart_upload;
+
+    gint       sync_perm_err_cnt;
 };
 
 enum {
