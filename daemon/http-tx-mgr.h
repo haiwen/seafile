@@ -327,3 +327,5 @@ const char *
 http_task_error_str (int task_errno);
 
 #endif
+gboolean
+is_http_task_net_error (char *err_detail);

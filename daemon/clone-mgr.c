@@ -574,7 +574,9 @@ static int check_connect_pulse (void *vmanager)
     g_hash_table_iter_init (&iter, mgr->tasks);
     while (g_hash_table_iter_next (&iter, &key, &value)) {
         task = value;
-        if (task->state == CLONE_STATE_ERROR && task->repo_version > 0) {
+        if (task->state == CLONE_STATE_ERROR &&
+            task->repo_version > 0 &&
+            is_http_task_net_error (task->err_detail)) {
             g_free (task->err_detail);
             task->err_detail = NULL;
             task->error = 0;
