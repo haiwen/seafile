@@ -4739,3 +4739,19 @@ http_task_error_str (int task_errno)
 
     return http_task_error_strs[task_errno];
 }
+
+gboolean
+is_http_task_net_error (char *err_detail)
+{
+    if (err_detail &&
+        (strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_NET]) == 0 ||
+         strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_RESOLVE_PROXY]) == 0 ||
+         strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_RESOLVE_HOST]) == 0 ||
+         strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_CONNECT]) == 0 ||
+         strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_SSL]) == 0 ||
+         strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_TX]) == 0 ||
+         strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_TX_TIMEOUT]) == 0))
+        return TRUE;
+    else
+        return FALSE;
+}
