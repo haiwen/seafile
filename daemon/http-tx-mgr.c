@@ -169,6 +169,8 @@ static const char *http_task_rt_state_str[] = {
 static const char *http_task_error_strs[] = {
     "Successful",
     "Permission denied on server",
+    "Do not have write permission to the library",
+    "Do not have permission to sync the library",
     "Network error",
     "Cannot resolve proxy address",
     "Cannot resolve server address",
@@ -2384,26 +2386,12 @@ clean_tasks_for_repo (HttpTxManager *manager, const char *repo_id)
 }
 
 static void
-notify_sync_perm_error (HttpTxTask *task, const char *error_str, gint64 rsp_size)
+notify_sync_perm_error (HttpTxTask *task, const char *unsyncable_path)
 {
-    json_t *err_obj = NULL;
-    json_error_t jerror;
-    const char *path = NULL;
-
-    err_obj = json_loadb (error_str, rsp_size, 0, &jerror);
-
-    if (!err_obj) {
-        seaf_warning ("Invalid JSON response from the server: %s.\n", jerror.text);
-        task->error = HTTP_TASK_ERR_SERVER;
-        return;
-    }
-
-    path = json_string_value (json_object_get (err_obj, "unsyncable_path"));
 
     send_file_sync_error_notification (task->repo_id, task->repo_name,
-                                       path, SYNC_ERROR_ID_PERM_NOT_SYNCABLE);
+                                       unsyncable_path, SYNC_ERROR_ID_PERM_NOT_SYNCABLE);
 
-    json_decref (err_obj);
 }
 
 static int
@@ -2415,6 +2403,9 @@ check_permission (HttpTxTask *task, Connection *conn)
     char *rsp_content = NULL;
     gint64 rsp_size;
     int ret = 0;
+    json_t *rsp_obj = NULL, *reason = NULL, *unsyncable_path = NULL;
+    const char *reason_str = NULL, *unsyncable_path_str = NULL;
+    json_error_t jerror;
 
     curl = conn->curl;
 
@@ -2443,10 +2434,49 @@ check_permission (HttpTxTask *task, Connection *conn)
 
     if (status != HTTP_OK) {
         seaf_warning ("Bad response code for GET %s: %d.\n", url, status);
-        handle_http_errors (task, status);
 
-        if (status == HTTP_FORBIDDEN && rsp_content)
-            notify_sync_perm_error (task, rsp_content, rsp_size);
+        if (status != HTTP_FORBIDDEN || !rsp_content) {
+            handle_http_errors (task, status);
+            ret = -1;
+            goto out;
+        }
+
+        rsp_obj = json_loadb (rsp_content, rsp_size, 0 ,&jerror);
+        if (!rsp_obj) {
+            seaf_warning ("Parse check permission response failed: %s.\n", jerror.text);
+            handle_http_errors (task, status);
+            json_decref (rsp_obj);
+            ret = -1;
+            goto out;
+        }
+
+        reason = json_object_get (rsp_obj, "reason");
+        if (!reason) {
+            handle_http_errors (task, status);
+            json_decref (rsp_obj);
+            ret = -1;
+            goto out;
+        }
+
+        reason_str = json_string_value (reason);
+        if (g_strcmp0 (reason_str, "no write permission") == 0) {
+            task->error = HTTP_TASK_ERR_NO_WRITE_PERMISSION;
+        } else if (g_strcmp0 (reason_str, "unsyncable share permission") == 0) {
+            task->error = HTTP_TASK_ERR_NO_PERMISSION_TO_SYNC;
+
+            unsyncable_path = json_object_get (rsp_obj, "unsyncable_path");
+            if (!unsyncable_path) {
+                json_decref (rsp_obj);
+                ret = -1;
+                goto out;
+            }
+
+            unsyncable_path_str = json_string_value (unsyncable_path);
+            if (unsyncable_path_str)
+                notify_sync_perm_error (task, unsyncable_path_str);
+        } else {
+            task->error = HTTP_TASK_ERR_FORBIDDEN;
+        }
 
         ret = -1;
     }
@@ -3527,6 +3557,7 @@ update_branch (HttpTxTask *task, Connection *conn)
     char *url;
     int status;
     char *rsp_content;
+    char *rsp_content_str = NULL;
     gint64 rsp_size;
     int ret = 0;
 
@@ -3555,9 +3586,11 @@ update_branch (HttpTxTask *task, Connection *conn)
         handle_http_errors (task, status);
 
         if (status == HTTP_FORBIDDEN) {
-            rsp_content[rsp_size] = '\0';
-            seaf_warning ("%s\n", rsp_content);
-            notify_permission_error (task, rsp_content);
+            rsp_content_str = g_new0 (gchar, rsp_size + 1);
+            memcpy (rsp_content_str, rsp_content, rsp_size);
+            seaf_warning ("%s\n", rsp_content_str);
+            notify_permission_error (task, rsp_content_str);
+            g_free (rsp_content_str);
         }
 
         ret = -1;
