@@ -6723,6 +6723,13 @@ seaf_repo_manager_set_repo_property (SeafRepoManager *manager,
         return 0;
     }
 
+    if (strcmp (key, REPO_PROP_IS_READONLY) == 0) {
+       if (g_strcmp0 (value, "true") == 0)
+           repo->is_readonly = TRUE;
+       else
+           repo->is_readonly = FALSE;
+    }
+
     save_repo_property (manager, repo_id, key, value);
     return 0;
 }
