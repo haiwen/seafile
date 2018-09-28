@@ -388,8 +388,17 @@ seaf_sync_manager_cancel_sync_task (SeafSyncManager *mgr,
 
     /* Cancel running task. */
     info = g_hash_table_lookup (mgr->sync_infos, repo_id);
-    if (!info || !info->in_sync)
+
+    if (!info)
         return;
+    else if (!info->in_sync) {
+        if (info->current_task->state == SYNC_STATE_ERROR) {
+            info->err_cnt = 0;
+            info->in_error = FALSE;
+            info->sync_perm_err_cnt = 0;
+        }
+        return;
+    }
 
     g_return_if_fail (info->current_task != NULL);
     task = info->current_task;
