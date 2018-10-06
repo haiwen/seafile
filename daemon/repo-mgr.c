@@ -61,8 +61,6 @@ struct _SeafRepoManagerPriv {
 };
 
 static const char *ignore_table[] = {
-    /* tmp files under Linux */
-    "*~",
     /* Seafile's backup file */
     "*.sbak",
     /* Emacs tmp files */
