@@ -63,7 +63,7 @@
         <Directory Id="SeafileStartMenuFolder" Name='!(loc.AppName)' />
       </Directory>
 
-      <Directory Id='AppDataFolder' Name='AFiles'>
+      <Directory Id='ProgramFilesFolder' Name='PFiles'>
         <Directory Id='SeafileExtDir' Name='$(var.ExtName)'>
           <Component Id="seafile_ext" Guid="$(var.GuidOfShellExtComponent)">
             <RemoveFolder Id="SeafileExtDir" On="uninstall" />
@@ -74,9 +74,7 @@
             <File Id="seafile_ext64.dll" Name="seafile_ext64.dll" Source="custom\seafile_ext64.dll" />
           </Component>
         </Directory>
-      </Directory>
 
-      <Directory Id='ProgramFilesFolder' Name='PFiles'>
         <Directory Id='INSTALLDIR' Name='!(loc.AppName)'>
           <Directory Id='bin_Dir' Name='bin'>
             <Component Id='comp_custom' Guid="$(var.GuidOfCustomComponent)">
