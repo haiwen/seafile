@@ -1138,7 +1138,6 @@ curl_error_to_http_task_error (int curl_error)
     case CURLE_SSL_CONNECT_ERROR:
     case CURLE_PEER_FAILED_VERIFICATION:
     case CURLE_SSL_CERTPROBLEM:
-    case CURLE_SSL_CACERT:
     case CURLE_SSL_CACERT_BADFILE:
     case CURLE_SSL_ISSUER_ERROR:
         return HTTP_TASK_ERR_SSL;
