@@ -715,10 +715,7 @@ def create_repo(url, token, args):
 
 def seaf_create(args):
     '''Create a library'''
-    conf_dir = DEFAULT_CONF_DIR
-    if args.confdir:
-        conf_dir = args.confdir
-    conf_dir = abspath(conf_dir)
+    conf_dir = _conf_dir(args)
 
     # check username and password
     username = args.username
