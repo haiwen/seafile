@@ -52,7 +52,6 @@
 
 #include "log.h"
 
-extern int inet_pton(int af, const char *src, void *dst);
 
 
 void
