@@ -128,7 +128,7 @@
   <!-- <?define ProductGuid="51C2F305-9C2A-4DB2-84A0-BE504813ADAF" ?> (6.2.4) -->
   <!-- <?define ProductGuid="CD288D11-BBB8-4CAB-80E2-25B499F0E0D5" ?> (6.2.5) -->
   <!-- <?define ProductGuid="1809B194-5373-429E-A32C-5188B3A05679" ?> (6.2.7) -->
-  <?define ProductGuid="FABC1D45-7C57-4D03-BD36-669F66B8CC62" ?>
+  <?define ProductGuid="FABC1D45-7C57-4D03-B136-669F66B8CC62" ?>
 
   <?define GuidOfCustomComponent="AD201805-3CBD-4834-9097-5D934F7E0000" ?>
   <?define GuidOfAutoStartComponent="AD201805-3CBD-4834-9097-5D934F7E0001" ?>
