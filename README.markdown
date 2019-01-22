@@ -1,10 +1,10 @@
-Introduction [![Build Status](https://secure.travis-ci.org/haiwen/seafile.svg?branch=master)](http://travis-ci.org/haiwen/seafile)
-============
+## Introduction [![Build Status](https://secure.travis-ci.org/haiwen/seafile.svg?branch=master)](http://travis-ci.org/haiwen/seafile)
 
 Seafile is an open source cloud storage system with privacy protection and teamwork features. Collections of files are called libraries. Each library can be synced separately. A library can also be encrypted with a user chosen password. Seafile also allows users to create groups and easily sharing files into groups.
 
-Feature Summary
-===============
+New in 2019: A special edition called [SeafileDocs](https://forum.seafile.com/t/seafiledocs-a-special-edition-of-seafile-that-focus-on-online-document-and-knowledge-management/8192) is available. SeafileDocs focus on online document, review process and knowledge management.
+
+## Feature Summary
 
 Seafile has the following features:
 
@@ -22,25 +22,31 @@ Seafile has the following features:
 1. Sharing folders between users or into groups.
 3. Download links with password protection
 4. Upload links
-5. Version control with configurable revision number.
-6. Restoring deleted files from trash, history or snapshots.
+5. Version control
+
+### Drive client
+
+* Access all files in the cloud via virtual drive.
+* Files are synced on demand.
 
 ### Privacy protection
 
 1. Library encryption with a user chosen password.
 2. Client side encryption when using the desktop syncing.
 
-Internal
-========
+### Online documents and knowledge management (New)
 
-Seafile's version control model is similar to Git, but it is simplified for automatic synchronization.
-Each Seafile library behaves like a Git repository. It has its own unique history, which consists of a list of commits.
-A commit points to the root of a file system snapshot. The snapshot consists of directories and files.
-Files are further divided into blocks for more efficient network transfer and storage usage.
-However, Seafile doesn't rely on Git to run.
+* Online Markdown editing in WYSIWYG way
+* A draft review workflow for online documents
+* Metadata management, including
+  * File labels
+  * Related documents
+* Wiki mode
+* Realtime notifications
 
-Source repositories for Seafile components
-==========================================
+
+## Source repositories for Seafile components
+
 
 Each component of Seafile has its own source code repository on Github.
 
