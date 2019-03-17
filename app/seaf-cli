@@ -284,6 +284,16 @@ def get_repo_download_info(url, token):
     repo_info = urlopen(url, headers=headers)
     return json.loads(repo_info)
 
+def get_password(args, username):
+    if args.password:
+        return args.password
+    if not args.password_file:
+        return getpass.getpass("Enter password for user %s : " % username)
+
+    with open(args.password_file, 'r') as fp:
+            return fp.read()
+
+
 def seaf_init(args):
     ''' Initialize config directories'''
 
@@ -378,9 +388,7 @@ def seaf_list_remote(args):
     username = args.username
     if not username:
         username = raw_input("Enter username: ")
-    password = args.password
-    if not password:
-        password = getpass.getpass("Enter password for user %s : " % username)
+    password = get_password(args, username)
     tfa = args.tfa
 
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
@@ -434,9 +442,7 @@ def seaf_download(args):
     username = args.username
     if not username:
         username = raw_input("Enter username: ")
-    password = args.password
-    if not password:
-        password = getpass.getpass("Enter password for user %s : " % username)
+    password = get_password(args, username)
     tfa = args.tfa
 
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
@@ -503,10 +509,9 @@ def seaf_download_by_name(args):
     if not username:
         username = raw_input("Enter username: ")
         args.username = username
-    password = args.password
-    if not password:
-        password = getpass.getpass("Enter password for user %s : " % username)
-        args.password = password
+    password = get_password(args, username)
+    args.password = password
+    args.password_file = None
     tfa = args.tfa
 
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
@@ -556,9 +561,7 @@ def seaf_sync(args):
     username = args.username
     if not username:
         username = raw_input("Enter username: ")
-    password = args.password
-    if not password:
-        password = getpass.getpass("Enter password for user %s : " % username)
+    password = get_password(args, username)
     tfa = args.tfa
 
     token = get_token(url, username, password, tfa, conf_dir)
@@ -721,9 +724,7 @@ def seaf_create(args):
     username = args.username
     if not username:
         username = raw_input("Enter username: ")
-    password = args.password
-    if not password:
-        password = getpass.getpass("Enter password for user %s " % username)
+    password = get_password(args, username)
     tfa = args.tfa
 
     # check url
@@ -773,13 +774,15 @@ def main():
     parser_list.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
 
     # list-remote
-    parser_download = subparsers.add_parser('list-remote', help='List remote libraries')
-    parser_download.set_defaults(func=seaf_list_remote)
-    parser_download.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
-    parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
-    parser_download.add_argument('-u', '--username', help='username', type=str)
-    parser_download.add_argument('-p', '--password', help='password', type=str)
-    parser_download.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
+    parser_list_remote = subparsers.add_parser('list-remote', help='List remote libraries')
+    parser_list_remote.set_defaults(func=seaf_list_remote)
+    parser_list_remote.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
+    parser_list_remote.add_argument('-s', '--server', help='URL for seafile server', type=str)
+    parser_list_remote.add_argument('-u', '--username', help='username', type=str)
+    parser_list_remote_pw_group = parser_list_remote.add_mutually_exclusive_group()
+    parser_list_remote_pw_group.add_argument("-p", "--password", type=str)
+    parser_list_remote_pw_group.add_argument("-pf", "--password-file", type=str)
+    parser_list_remote.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
 
     # status
     parser_status = subparsers.add_parser('status', help='Show syncing status')
@@ -795,22 +798,26 @@ def main():
     parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
     parser_download.add_argument('-u', '--username', help='username', type=str)
-    parser_download.add_argument('-p', '--password', help='password', type=str)
+    parser_download_pw_group = parser_download.add_mutually_exclusive_group()
+    parser_download_pw_group.add_argument("-p", "--password", type=str)
+    parser_download_pw_group.add_argument("-pf", "--password-file", type=str)
     parser_download.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
     parser_download.add_argument('-e', '--libpasswd', help='library password', type=str)
 
     # download-by-name
-    parser_download = subparsers.add_parser('download-by-name',
+    parser_download_by_name = subparsers.add_parser('download-by-name',
                                          help='Download a library defined by name from seafile server')
-    parser_download.set_defaults(func=seaf_download_by_name)
-    parser_download.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
-    parser_download.add_argument('-L', '--libraryname', help='library name', type=str)
-    parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
-    parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
-    parser_download.add_argument('-u', '--username', help='username', type=str)
-    parser_download.add_argument('-p', '--password', help='password', type=str)
-    parser_download.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
-    parser_download.add_argument('-e', '--libpasswd', help='library password', type=str)
+    parser_download_by_name.set_defaults(func=seaf_download_by_name)
+    parser_download_by_name.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
+    parser_download_by_name.add_argument('-L', '--libraryname', help='library name', type=str)
+    parser_download_by_name.add_argument('-s', '--server', help='URL for seafile server', type=str)
+    parser_download_by_name.add_argument('-d', '--dir', help='the directory to put the library', type=str)
+    parser_download_by_name.add_argument('-u', '--username', help='username', type=str)
+    parser_download_by_name_pw_group = parser_download_by_name.add_mutually_exclusive_group()
+    parser_download_by_name_pw_group.add_argument("-p", "--password", type=str)
+    parser_download_by_name_pw_group.add_argument("-pf", "--password-file", type=str)
+    parser_download_by_name.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
+    parser_download_by_name.add_argument('-e', '--libpasswd', help='library password', type=str)
 
 
     # sync
@@ -821,7 +828,9 @@ def main():
     parser_sync.add_argument('-l', '--library', help='library id', type=str)
     parser_sync.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_sync.add_argument('-u', '--username', help='username', type=str)
-    parser_sync.add_argument('-p', '--password', help='password', type=str)
+    parser_sync_pw_group = parser_sync.add_mutually_exclusive_group()
+    parser_sync_pw_group.add_argument("-p", "--password", type=str)
+    parser_sync_pw_group.add_argument("-pf", "--password-file", type=str)
     parser_sync.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
     parser_sync.add_argument('-d', '--folder', help='the existing local folder', type=str)
     parser_sync.add_argument('-e', '--libpasswd', help='library password', type=str)
@@ -842,7 +851,9 @@ def main():
     parser_create.add_argument('-e', '--libpasswd', help='library password', type=str)
     parser_create.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_create.add_argument('-u', '--username', help='username', type=str)
-    parser_create.add_argument('-p', '--password', help='password', type=str)
+    parser_create_pw_group = parser_create.add_mutually_exclusive_group()
+    parser_create_pw_group.add_argument("-p", "--password", type=str)
+    parser_create_pw_group.add_argument("-pf", "--password-file", type=str)
     parser_create.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
     parser_create.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
 
