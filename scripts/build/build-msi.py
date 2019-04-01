@@ -704,7 +704,7 @@ def copy_dll_exe():
 
     for name in filelist:
         must_copy(name, destdir)
-
+        info("copy from %s to %s" %(name, destdir))
     extdlls = [
         os.path.join(SeafileShellExt().projdir, 'extensions', 'lib', 'seafile_ext.dll'),
         os.path.join(SeafileShellExt().projdir, 'extensions', 'lib', 'seafile_ext64.dll'),
