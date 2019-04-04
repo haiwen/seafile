@@ -338,6 +338,7 @@ class SeafileShellExt(Project):
         Project.__init__(self)
         self.build_commands = [
             "bash extensions/build.sh",
+            "bash shellext-fix/build.sh",
         ]
 
     def get_version(self):
@@ -699,6 +700,7 @@ def copy_dll_exe():
         os.path.join(prefix, 'bin', 'libseafile-0.dll'),
         os.path.join(prefix, 'bin', 'seaf-daemon.exe'),
         os.path.join(SeafileClient().projdir, 'seafile-applet.exe'),
+        os.path.join(SeafileShellExt().projdir, 'shellext-fix', 'shellext-fix.exe'),
     ]
 
     for name in filelist:
