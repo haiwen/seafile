@@ -21,7 +21,7 @@ import tempfile
 
 FINAL_APP = 'Seafile Client.app'
 FSPLUGIN_APPEX_NAME = 'Seafile FinderSync.appex'
-CERT_ID = '1E9F00CBCF84C2BE8BE2A99A65F30BD5EB4D1E70'
+CERT_ID = '79AB1AF435DD2CBC5FDB3EBBD45B0DA17727B299'
 
 if 'SEAFILE_BUILD_SLAVE' not in os.environ:
     import fabric
