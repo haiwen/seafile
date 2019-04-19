@@ -837,7 +837,7 @@ def do_sign(certfile, fn, desc=None):
     else:
         desc_flags = ''
 
-    signcmd = 'signtool.exe sign -fd sha256 -t  http://timestamp.comodoca.com -f {} {} {}'.format(certfile, desc_flags, fn)
+    signcmd = 'signtool.exe sign -fd sha256 -t http://timestamp.comodoca.com -f {} {} {}'.format(certfile, desc_flags, fn)
     if run(signcmd, cwd=os.path.dirname(fn)) != 0:
         error('Failed to sign file "{}"'.format(fn))
 
