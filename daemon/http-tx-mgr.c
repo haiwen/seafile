@@ -3871,6 +3871,7 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               const char *email,
                               gboolean use_fileserver_port,
                               const char *repo_name,
+                              const char *repo_salt,
                               GError **error)
 {
     HttpTxTask *task;
@@ -3915,6 +3916,8 @@ http_tx_manager_add_download (HttpTxManager *manager,
                                                (cevent_handler)notify_conflict,
                                                NULL);
     task->repo_name = g_strdup(repo_name);
+
+    task->repo_salt = repo_salt;
 
     if (seaf_job_manager_schedule_job (seaf->job_mgr,
                                        http_download_thread,

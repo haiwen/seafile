@@ -453,6 +453,9 @@ load_more_info_cb (sqlite3_stmt *stmt, void *data)
     json_t *string = json_object_get (object, "server_url");
     if (string)
         task->server_url = g_strdup (json_string_value (string));
+    json_t *repo_salt = json_object_get (object, "repo_salt");
+    if (repo_salt)
+        task->repo_salt = g_strdup (json_string_value (repo_salt));
     json_decref (object);
 
     return FALSE;
@@ -629,7 +632,7 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
     }
     sqlite3_free (sql);
 
-    if (task->passwd && task->enc_version == 2 && task->random_key) {
+    if (task->passwd && task->enc_version >= 2 && task->random_key) {
         sql = sqlite3_mprintf ("REPLACE INTO CloneEncInfo VALUES "
                                "('%q', %d, '%q')",
                                task->repo_id, task->enc_version, task->random_key);
@@ -649,7 +652,7 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
     }
     sqlite3_free (sql);
 
-    if (task->is_readonly || task->server_url) {
+    if (task->is_readonly || task->server_url || task->repo_salt) {
         /* need to store more info */
         json_t *object = NULL;
         gchar *info = NULL;
@@ -751,6 +754,7 @@ add_transfer_task (CloneTask *task, GError **error)
                                             task->email,
                                             task->use_fileserver_port,
                                             task->repo_name,
+                                            task->repo_salt,
                                             error);
     if (ret < 0)
         return -1;
@@ -1067,6 +1071,9 @@ add_task_common (SeafCloneManager *mgr,
         json_t *string = json_object_get (object, "server_url");
         if (string)
             task->server_url = canonical_server_url (json_string_value (string));
+        json_t *repo_salt = json_object_get (object, "repo_salt");
+        if (repo_salt)
+            task->repo_salt = canonical_server_url (json_string_value (repo_salt));
         json_decref (object);
     }
 
@@ -1101,13 +1108,13 @@ check_encryption_args (const char *magic, int enc_version, const char *random_ke
         return FALSE;
     }
 
-    if (enc_version != 1 && enc_version != 2) {
+    if (enc_version != 1 && enc_version != 2 && enc_version != 3) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Unsupported enc version");
         return FALSE;
     }
 
-    if (enc_version == 2) {
+    if (enc_version >= 2) {
         if (!random_key || strlen(random_key) != 96) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                          "Random key not specified");
@@ -1195,8 +1202,24 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         return NULL;
     }
 
+    char *repo_salt = NULL;
+    if (more_info) {
+        json_error_t jerror;
+        json_t *object = NULL;
+
+        object = json_loads (more_info, 0, &jerror);
+        if (!object) {
+            seaf_warning ("Failed to load more sync info from json: %s.\n", jerror.text);
+            return NULL;
+        }
+        json_t *string = json_object_get (object, "repo_salt");
+        if (string)
+            repo_salt = canonical_server_url (json_string_value (string));
+        json_decref (object);
+    }
+
     if (passwd &&
-        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version) < 0) {
+        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version, repo_salt) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Incorrect password");
         return NULL;
@@ -1328,8 +1351,24 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         return NULL;
     }
 
+    char *repo_salt;
+    if (more_info) {
+         json_error_t jerror;
+         json_t *object = NULL;
+ 
+         object = json_loads (more_info, 0, &jerror);
+         if (!object) {
+             seaf_warning ("Failed to load more sync info from json: %s.\n", jerror.text);
+             return NULL;
+         }
+         json_t *repo_salt = json_object_get (object, "repo_salt");
+         if (repo_salt)
+             repo_salt = canonical_server_url (json_string_value (repo_salt));
+         json_decref (object);
+     }
+
     if (passwd &&
-        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version) < 0) {
+        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version, repo_salt) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Incorrect password");
         return NULL;

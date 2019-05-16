@@ -77,6 +77,7 @@ struct _HttpTxTask {
 
     char repo_id[37];
     int repo_version;
+    char *repo_salt;
     char *token;
     int protocol_version;
     int type;
@@ -143,6 +144,7 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               const char *email,
                               gboolean use_fileserver_port,
                               const char *repo_name,
+                              const char *repo_salt,
                               GError **error);
 
 int
