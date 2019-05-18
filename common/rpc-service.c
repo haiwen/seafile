@@ -251,7 +251,8 @@ seafile_clone (const char *repo_id,
                                         relay_id,
                                         repo_name, token,
                                         passwd, magic,
-                                        enc_version, random_key,
+                                        enc_version,
+                                        random_key,
                                         worktree,
                                         peer_addr, peer_port,
                                         email, more_info,
@@ -992,20 +993,30 @@ seafile_generate_magic_and_random_key(int enc_version,
         return NULL;
     }
 
+    gchar salt[65] = {0};
     gchar magic[65] = {0};
     gchar random_key[97] = {0};
 
-    seafile_generate_magic (CURRENT_ENC_VERSION, repo_id, passwd, magic);
-    seafile_generate_random_key (passwd, random_key);
+    if (enc_version >= 3 && seafile_generate_repo_salt (salt) < 0) {
+        return NULL;
+    }
 
+    seafile_generate_magic (enc_version, repo_id, passwd, salt, magic);
+    if (seafile_generate_random_key (passwd, enc_version, salt, random_key) < 0) {
+        return NULL;
+    }
+    
     SeafileEncryptionInfo *sinfo;
     sinfo = g_object_new (SEAFILE_TYPE_ENCRYPTION_INFO,
                           "repo_id", repo_id,
                           "passwd", passwd,
-                          "enc_version", CURRENT_ENC_VERSION,
+                          "enc_version", enc_version,
                           "magic", magic,
                           "random_key", random_key,
                           NULL);
+
+    if (enc_version >= 3)
+        g_object_set (sinfo, "salt", salt, NULL);
 
     return (GObject *)sinfo;
 

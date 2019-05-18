@@ -42,6 +42,7 @@ struct _SeafRepo {
     gchar      *category;       /* not used yet */
     gboolean    encrypted;
     int         enc_version;
+    gchar       salt[65];
     gchar       magic[65];       /* hash(repo_id + passwd), key stretched. */
     gchar       random_key[97];  /* key length is 48 after encryption */
     gboolean    no_local_history;

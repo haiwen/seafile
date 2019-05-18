@@ -453,6 +453,9 @@ load_more_info_cb (sqlite3_stmt *stmt, void *data)
     json_t *string = json_object_get (object, "server_url");
     if (string)
         task->server_url = g_strdup (json_string_value (string));
+    json_t *repo_salt = json_object_get (object, "repo_salt");
+    if (repo_salt)
+        task->repo_salt = g_strdup (json_string_value (repo_salt));
     json_decref (object);
 
     return FALSE;
@@ -629,7 +632,7 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
     }
     sqlite3_free (sql);
 
-    if (task->passwd && task->enc_version == 2 && task->random_key) {
+    if (task->passwd && task->enc_version >= 2 && task->random_key) {
         sql = sqlite3_mprintf ("REPLACE INTO CloneEncInfo VALUES "
                                "('%q', %d, '%q')",
                                task->repo_id, task->enc_version, task->random_key);
@@ -649,7 +652,7 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
     }
     sqlite3_free (sql);
 
-    if (task->is_readonly || task->server_url) {
+    if (task->is_readonly || task->server_url || task->repo_salt) {
         /* need to store more info */
         json_t *object = NULL;
         gchar *info = NULL;
@@ -1067,6 +1070,9 @@ add_task_common (SeafCloneManager *mgr,
         json_t *string = json_object_get (object, "server_url");
         if (string)
             task->server_url = canonical_server_url (json_string_value (string));
+        json_t *repo_salt = json_object_get (object, "repo_salt");
+        if (repo_salt)
+            task->repo_salt = g_strdup (json_string_value (repo_salt));
         json_decref (object);
     }
 
@@ -1093,6 +1099,7 @@ add_task_common (SeafCloneManager *mgr,
 
 static gboolean
 check_encryption_args (const char *magic, int enc_version, const char *random_key,
+                       const char *repo_salt,
                        GError **error)
 {
     if (!magic) {
@@ -1101,16 +1108,21 @@ check_encryption_args (const char *magic, int enc_version, const char *random_ke
         return FALSE;
     }
 
-    if (enc_version != 1 && enc_version != 2) {
+    if (enc_version != 1 && enc_version != 2 && enc_version != 3) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Unsupported enc version");
         return FALSE;
     }
 
-    if (enc_version == 2) {
+    if (enc_version >= 2) {
         if (!random_key || strlen(random_key) != 96) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                          "Random key not specified");
+            return FALSE;
+        }
+        if (enc_version == 3 && (!(repo_salt) || strlen(repo_salt) != 64) ) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                         "Repo salt not specified");
             return FALSE;
         }
     }
@@ -1146,14 +1158,15 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
                              const char *more_info,
                              GError **error)
 {
-    SeafRepo *repo;
-    char *worktree;
-    char *ret;
+    SeafRepo *repo = NULL;
+    char *worktree = NULL;
+    char *ret = NULL;
     gboolean sync_wt_name = FALSE;
+    char *repo_salt = NULL;
 
     if (!seaf->started) {
         seaf_message ("System not started, skip adding clone task.\n");
-        return NULL;
+        goto out;
     }
 
 #ifdef USE_GPL_CRYPTO
@@ -1161,14 +1174,29 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         seaf_warning ("Don't support syncing old version libraries.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Don't support syncing old version libraries");
-        return NULL;
+        goto out;
     }
 #endif
 
-    if (passwd &&
-        !check_encryption_args (magic, enc_version, random_key, error))
-        return NULL;
+    if (more_info) {
+        json_error_t jerror;
+        json_t *object;
 
+        object = json_loads (more_info, 0, &jerror);
+        if (!object) {
+            seaf_warning ("Failed to load more sync info from json: %s.\n", jerror.text);
+            goto out;
+        }
+        json_t *string = json_object_get (object, "repo_salt");
+        if (string)
+            repo_salt = g_strdup (json_string_value (string));
+        json_decref (object);
+    }
+
+    if (passwd &&
+        !check_encryption_args (magic, enc_version, random_key, repo_salt, error)) {
+        goto out;
+    }
     /* After a repo was unsynced, the sync task may still be blocked in the
      * network, so the repo is not actually deleted yet.
      * In this case just return an error to the user.
@@ -1178,7 +1206,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     if (sync_info && sync_info->in_sync) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Repo already exists");
-        return NULL;
+        goto out;
     }
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
@@ -1186,31 +1214,31 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     if (repo != NULL && repo->head != NULL) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Repo already exists");
-        return NULL;
+        goto out;
     }   
 
     if (is_duplicate_task (mgr, repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, 
                      "Task is already in progress");
-        return NULL;
+        goto out;
     }
 
     if (passwd &&
-        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version) < 0) {
+        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version, repo_salt) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Incorrect password");
-        return NULL;
+        goto out;
     }
 
     if (!seaf_clone_manager_check_worktree_path (mgr, worktree_in, error))
-        return NULL;
+        goto out;
 
     /* Return error if worktree_in conflicts with another repo or
      * is not a directory.
      */
     worktree = make_worktree (mgr, worktree_in, FALSE, error);
     if (!worktree) {
-        return NULL;
+        goto out;
     }
 
     /* Don't sync worktree folder name with library name later if they're not the same
@@ -1236,7 +1264,10 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
                            email, more_info,
                            sync_wt_name,
                            error);
+
+out:
     g_free (worktree);
+    g_free (repo_salt);
 
     return ret;
 }
@@ -1280,13 +1311,15 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
                                       const char *more_info,
                                       GError **error)
 {
-    SeafRepo *repo;
-    char *wt_tmp, *worktree;
-    char *ret;
+    SeafRepo *repo = NULL;
+    char *wt_tmp = NULL;
+    char *worktree = NULL;
+    char *ret = NULL;
+    char *repo_salt = NULL;
 
     if (!seaf->started) {
         seaf_message ("System not started, skip adding clone task.\n");
-        return NULL;
+        goto out;
     }
 
 #ifdef USE_GPL_CRYPTO
@@ -1294,13 +1327,29 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         seaf_warning ("Don't support syncing old version libraries.\n");
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Don't support syncing old version libraries");
-        return NULL;
+        goto out;
     }
 #endif
 
+    if (more_info) {
+         json_error_t jerror;
+         json_t *object;
+ 
+         object = json_loads (more_info, 0, &jerror);
+         if (!object) {
+             seaf_warning ("Failed to load more sync info from json: %s.\n", jerror.text);
+             goto out;
+         }
+         json_t *string = json_object_get (object, "repo_salt");
+         if (string)
+             repo_salt = g_strdup (json_string_value (string));
+         json_decref (object);
+     }
+
     if (passwd &&
-        !check_encryption_args (magic, enc_version, random_key, error))
-        return NULL;
+        !check_encryption_args (magic, enc_version, random_key, repo_salt, error)) {
+        goto out;
+    }
 
     /* After a repo was unsynced, the sync task may still be blocked in the
      * network, so the repo is not actually deleted yet.
@@ -1311,7 +1360,7 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
     if (sync_info && sync_info->in_sync) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Repo already exists");
-        return NULL;
+        goto out;
     }
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
@@ -1319,20 +1368,20 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
     if (repo != NULL && repo->head != NULL) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Repo already exists");
-        return NULL;
+        goto out;
     }
 
     if (is_duplicate_task (mgr, repo_id)) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, 
                      "Task is already in progress");
-        return NULL;
+        goto out;
     }
 
     if (passwd &&
-        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version) < 0) {
+        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version, repo_salt) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Incorrect password");
-        return NULL;
+        goto out;
     }
 
     IgnoreReason reason;
@@ -1343,15 +1392,14 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         else
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                          "Library name contains invalid characters such as ':', '*', '|', '?'");
-        return NULL;
+        goto out;
     }
 
     wt_tmp = g_build_filename (wt_parent, repo_name, NULL);
 
     worktree = make_worktree_for_download (mgr, wt_tmp, error);
     if (!worktree) {
-        g_free (wt_tmp);
-        return NULL;
+        goto out;
     }
 
     /* If a repo was unsynced and then downloaded again, there may be
@@ -1370,8 +1418,11 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
                            enc_version, random_key,
                            worktree, peer_addr, peer_port,
                            email, more_info, TRUE, error);
+
+out:
     g_free (worktree);
     g_free (wt_tmp);
+    g_free (repo_salt);
 
     return ret;
 }
