@@ -1,32 +1,11 @@
 sudo: false
-# Must set language to python so we can install custom python pacakges in
-# docker-based travis builds
-language: python
-compiler:
- - gcc
- - clang
-addons:
-  apt:
-    packages:
-      - valac
-      - uuid-dev
-      - libevent-dev
-      - libarchive-dev
-      - intltool
-      - re2c
-      - libjansson-dev
-      - libonig-dev
-      - libfuse-dev
-      - net-tools
-cache:
-  directories:
-    - $HOME/.cache/pip
-    - $HOME/.ccache
-    - $HOME/downloads
-before_install:
-  - ccache -s
-  - export PATH=/usr/lib/ccache:${PATH}
+language: c
+dist: Xenial
+compiler: gcc
+os: linux
 install:
- - ./integration-tests/install-deps.sh
+- ./integration-tests/install-deps.sh
 script:
- - ./integration-tests/run.py
+ - ./autogen.sh
+ - ./configure
+ - make

@@ -1,7 +1,0 @@
-termcolor==1.1.0
-prettytable==0.7.2
-pexpect==4.0
-requests==2.8.0
-httpie
-django-constance[database]
-MySQL-python==1.2.5
