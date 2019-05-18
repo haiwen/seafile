@@ -2,6 +2,8 @@ sudo: false
 # Must set language to python so we can install custom python pacakges in
 # docker-based travis builds
 language: python
+python:
+ - "2.7"
 compiler:
  - gcc
  - clang
