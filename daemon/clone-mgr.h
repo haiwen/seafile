@@ -57,6 +57,7 @@ struct _CloneTask {
     char                *worktree;
     char                *passwd;
     int                  enc_version;
+    char                *repo_salt;
     char                *random_key;
     char                 root_id[41];
     gboolean             is_readonly;

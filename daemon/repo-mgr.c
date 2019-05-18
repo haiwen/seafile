@@ -982,6 +982,11 @@ seaf_repo_from_commit (SeafRepo *repo, SeafCommit *commit)
             memcpy (repo->magic, commit->magic, 64);
             memcpy (repo->random_key, commit->random_key, 96);
         }
+        else if (repo->enc_version == 3) {
+            memcpy (repo->magic, commit->magic, 64);
+            memcpy (repo->random_key, commit->random_key, 96);
+            memcpy (repo->salt, commit->salt, 64);
+        }
     }
     repo->no_local_history = commit->no_local_history;
     repo->version = commit->version;
@@ -1000,6 +1005,11 @@ seaf_repo_to_commit (SeafRepo *repo, SeafCommit *commit)
         else if (commit->enc_version == 2) {
             commit->magic = g_strdup (repo->magic);
             commit->random_key = g_strdup (repo->random_key);
+        }
+        else if (commit->enc_version == 3) {
+            commit->magic = g_strdup (repo->magic);
+            commit->random_key = g_strdup (repo->random_key);
+            commit->salt = g_strdup (repo->salt);
         }
     }
     commit->no_local_history = repo->no_local_history;
@@ -5371,6 +5381,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
             seafile_decrypt_repo_enc_key (remote_head->enc_version,
                                           passwd,
                                           remote_head->random_key,
+                                          remote_head->salt,
                                           enc_key, enc_iv);
             crypt = seafile_crypt_new (remote_head->enc_version,
                                        enc_key, enc_iv);
@@ -6226,7 +6237,7 @@ load_keys_cb (sqlite3_stmt *stmt, void *vrepo)
     if (repo->enc_version == 1) {
         hex_to_rawdata (key, repo->enc_key, 16);
         hex_to_rawdata (iv, repo->enc_iv, 16);
-    } else if (repo->enc_version == 2) {
+    } else if (repo->enc_version >= 2) {
         hex_to_rawdata (key, repo->enc_key, 32);
         hex_to_rawdata (iv, repo->enc_iv, 16);
     }
@@ -6788,7 +6799,7 @@ save_repo_enc_info (SeafRepoManager *manager,
     if (repo->enc_version == 1) {
         rawdata_to_hex (repo->enc_key, key, 16);
         rawdata_to_hex (repo->enc_iv, iv, 16);
-    } else if (repo->enc_version == 2) {
+    } else if (repo->enc_version >= 2) {
         rawdata_to_hex (repo->enc_key, key, 32);
         rawdata_to_hex (repo->enc_iv, iv, 16);
     }
@@ -6809,6 +6820,7 @@ seaf_repo_manager_set_repo_passwd (SeafRepoManager *manager,
     int ret;
 
     if (seafile_decrypt_repo_enc_key (repo->enc_version, passwd, repo->random_key,
+                                      repo->salt,
                                       repo->enc_key, repo->enc_iv) < 0)
         return -1;
 
