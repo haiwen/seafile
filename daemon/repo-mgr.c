@@ -1254,9 +1254,13 @@ add_file (const char *repo_id,
     gboolean is_writable = TRUE, is_locked = FALSE;
     struct cache_entry *ce;
 
-    if (options)
+    if (options) {
         is_writable = is_path_writable(repo_id,
                                        options->is_repo_ro, path);
+        if (!is_writable)
+            send_file_sync_error_notification (repo_id, NULL, path,
+                                               SYNC_ERROR_ID_UPDATE_TO_READ_ONLY_REPO);
+    }
 
     is_locked = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                       repo_id, path);
@@ -1366,8 +1370,8 @@ add_file (const char *repo_id,
                                               path,
                                               S_IFREG,
                                               SYNC_STATUS_ERROR);
-        /* send_sync_error_notification (repo_id, NULL, path, */
-        /*                               SYNC_ERROR_ID_INDEX_ERROR); */
+        send_file_sync_error_notification (repo_id, NULL, path,
+                                       SYNC_ERROR_ID_INDEX_ERROR);
     }
 
     return ret;
@@ -2122,6 +2126,8 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
     full_path = g_build_filename (repo->worktree, path, NULL);
 
     if (seaf_stat (full_path, &st) < 0) {
+        send_file_sync_error_notification (repo->id, repo->name, path,
+                                           SYNC_ERROR_ID_INDEX_ERROR);
         seaf_warning ("Failed to stat %s: %s.\n", path, strerror(errno));
         g_free (full_path);
         return -1;
@@ -2263,8 +2269,8 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       path,
                                                       S_IFREG,
                                                       SYNC_STATUS_ERROR);
-                /* send_sync_error_notification (repo->id, NULL, path, */
-                /*                               SYNC_ERROR_ID_INDEX_ERROR); */
+                send_file_sync_error_notification (repo->id, NULL, path,
+                                               SYNC_ERROR_ID_INDEX_ERROR);
             }
         } else if (S_ISDIR(st.st_mode)) {
             if (is_empty_dir (full_path, ignore_list)) {
@@ -3708,6 +3714,8 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
              */
             if (!is_path_writable(repo->id,
                                   repo->is_readonly, event->path)) {
+                send_file_sync_error_notification (repo->id, repo->name, event->path,
+                                                   SYNC_ERROR_ID_UPDATE_TO_READ_ONLY_REPO);
                 seaf_debug ("%s is not writable, ignore.\n", event->path);
                 break;
             }
