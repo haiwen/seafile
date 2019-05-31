@@ -688,8 +688,9 @@ def copy_shared_libs(exes):
     for lib in shared_libs:
         must_copy(lib, pack_bin_dir)
 
-    ssleay32 = find_in_path('ssleay32.dll')
-    must_copy(ssleay32, pack_bin_dir)
+    if not any([os.path.basename(lib).lower().startswith('libssl') for lib in shared_libs]):
+        ssleay32 = find_in_path('ssleay32.dll')
+        must_copy(ssleay32, pack_bin_dir)
 
 def copy_dll_exe():
     prefix = Seafile().prefix
