@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="zh-cn" xmlns="http://schemas.microsoft.com/wix/2006/localization">
-  
+
   <String Id="AppName">Seafile</String>
   <String Id="PackageDescription">Seafile 安装包</String>
   <String Id="PackageComments">Seafile 安装包</String>
@@ -9,5 +9,36 @@
   <String Id="UninstallSeafile">删除 Seafile</String>
   <String Id="StartSeafile">启动 Seafile</String>
   <String Id="AutoStartText">开机自动启动 Seafile</String>
+
+  <!-- https://raw.githubusercontent.com/wixtoolset/wix3/e4d1aab946a1df20f01cbc1c40bee68ffe93e8bf/src/ext/UtilExtension/wixlib/en-us.wxl -->
+  <!-- Offical wix utilextension doesn't have zh_CN translation. We
+       have to put place holders here. -->
+  <String Id="msierrUSRFailedUserCreate" Overridable="yes">Failed to create user.  ([2]   [3]   [4]   [5])</String>
+  <String Id="msierrUSRFailedUserCreatePswd" Overridable="yes">Failed to create user due to invalid password.  ([2]   [3]   [4]   [5])</String>
+  <String Id="msierrUSRFailedUserGroupAdd" Overridable="yes">Failed to add user to group.  ([2]   [3]   [4]   [5])</String>
+  <String Id="msierrUSRFailedUserCreateExists" Overridable="yes">Failed to create user because it already exists.  ([2]   [3]   [4]   [5])</String>
+
+  <String Id="msierrSMBFailedCreate" Overridable="yes">Failed to create network share.  ([2]   [3]   [4]   [5])</String>
+  <String Id="msierrSMBFailedDrop" Overridable="yes">Failed to drop network share.  ([2]   [3]   [4]   [5])</String>
+
+  <String Id="msierrPERFMONFailedRegisterDLL" Overridable="yes">Failed to register DLL with PerfMon.  ([2]   [3]   [4]   [5])</String>
+  <String Id="msierrPERFMONFailedUnregisterDLL" Overridable="yes">Failed to unregister DLL with PerfMon.  ([2]   [3]   [4]   [5])</String>
+
+  <String Id="msierrInstallPerfCounterData" Overridable="yes">Failed to install performance counters.  ([2]   [3]   [4]   [5])</String>
+  <String Id="msierrUninstallPerfCounterData" Overridable="yes">Failed to uninstall performance counters.  ([2]   [3]   [4]   [5])</String>
+
+  <String Id="msierrSecureObjectsFailedCreateSD" Overridable="yes">Failed to create security descriptor for [3]\[4], system error: [2]</String>
+  <String Id="msierrSecureObjectsFailedSet" Overridable="yes">Failed to set security descriptor on object [3], system error: [2]</String>
+  <String Id="msierrSecureObjectsUnknownType" Overridable="yes">Unknown Object Type [3], system error: [2]</String>
+
+  <String Id="msierrXmlFileFailedRead" Overridable="yes">There was a failure while configuring XML files.</String>
+  <String Id="msierrXmlFileFailedOpen" Overridable="yes">Failed to open XML file [3], system error: [2]</String>
+  <String Id="msierrXmlFileFailedSelect" Overridable="yes">Failed to find node: [3] in XML file: [4], system error: [2]</String>
+  <String Id="msierrXmlFileFailedSave" Overridable="yes">Failed to save changes to XML file [3], system error: [2]</String>
+
+  <String Id="msierrXmlConfigFailedRead" Overridable="yes">There was a failure while configuring XML files.</String>
+  <String Id="msierrXmlConfigFailedOpen" Overridable="yes">Failed to open XML file [3], system error: [2]</String>
+  <String Id="msierrXmlConfigFailedSelect" Overridable="yes">Failed to find node: [3] in XML file: [4], system error: [2]</String>
+  <String Id="msierrXmlConfigFailedSave" Overridable="yes">Failed to save changes to XML file [3], system error: [2]</String>
 
 </WixLocalization>
