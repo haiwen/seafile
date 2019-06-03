@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'
+     xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
   <?include Includes.wxi?>
   <?include ext.wxi?>
   <Product Id="$(var.ProductGuid)"
@@ -66,6 +67,13 @@
       <Directory Id='CommonAppDataFolder' Name='AllUsersHome'>
         <Directory Id='SeafileExtDir' Name='$(var.ExtName)'>
           <Component Id="seafile_ext" Guid="$(var.GuidOfShellExtComponent)">
+            <CreateFolder>
+              <!-- Set the permission of the SeafileExt folder. So,
+                   together with the MoveExtDll/MoveExtDll64 custom
+                   action, we can rename seafile shell ext dll to
+                   avoid "file in use" dialog. -->
+              <util:PermissionEx User="Users" GenericAll="yes" />
+            </CreateFolder>
             <RemoveFolder Id="SeafileExtDir" On="uninstall" />
             <RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]"
                            Name="shellext" Type="integer" Value="1" KeyPath='yes' />
