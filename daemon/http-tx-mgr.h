@@ -298,6 +298,9 @@ http_tx_manager_get_head_commit_ids (HttpTxManager *manager,
 int
 http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id);
 
+int
+read_only_repo_http_tx_task_download_file_blocks(SeafRepo *repo, const char *file_id);
+
 GList*
 http_tx_manager_get_upload_tasks (HttpTxManager *manager);
 

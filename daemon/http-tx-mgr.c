@@ -3266,6 +3266,7 @@ out:
 
 typedef struct {
     char block_id[41];
+    char *repo_id;
     BlockHandle *block;
     HttpTxTask *task;
 } SendBlockData;
@@ -4250,9 +4251,29 @@ out:
 
 typedef struct {
     char block_id[41];
+    char *repo_id;
     BlockHandle *block;
     HttpTxTask *task;
 } GetBlockData;
+
+static size_t
+read_only_repo_get_block_callback(void *ptr, size_t size, size_t nmemb, void *userp)
+{
+    size_t realsize = size * nmemb;
+    SendBlockData *data = userp;
+    size_t n;
+
+    n = seaf_block_manager_write_block(seaf->block_mgr,
+                                       data->block,
+                                       ptr, realsize);
+    if (n < realsize)
+    {
+        seaf_warning("Failed to write block %s in repo %.8s.\n",
+                     data->block_id, data->repo_id);
+        return n;
+    }
+    return n;
+}
 
 static size_t
 get_block_callback (void *ptr, size_t size, size_t nmemb, void *userp)
@@ -4297,6 +4318,80 @@ get_block_callback (void *ptr, size_t size, size_t nmemb, void *userp)
     }
 
     return n;
+}
+
+int read_only_repo_get_block(SeafRepo *repo, Connection *conn, const char *block_id)
+{
+    CURL *curl;
+    char *url;
+    int status;
+    BlockHandle *block;
+    int ret = 0;
+    int *pcnt;
+
+    block = seaf_block_manager_open_block(seaf->block_mgr,
+                                          repo->id, repo->version,
+                                          block_id, BLOCK_WRITE);
+    if (!block)
+    {
+        seaf_warning("Failed to open block %s in repo %.8s.\n",
+                     block_id, repo->id);
+        return -1;
+    }
+
+    GetBlockData data;
+    memcpy(data.block_id, block_id, 40);
+    data.block = block;
+    data.repo_id = repo->id;
+
+    curl = conn->curl;
+
+    if (!repo->use_fileserver_port)
+        url = g_strdup_printf("%s/seafhttp/repo/%s/block/%s",
+                              repo->effective_host, repo->id, block_id);
+    else
+        url = g_strdup_printf("%s/repo/%s/block/%s",
+                              repo->effective_host, repo->id, block_id);
+
+    int curl_error;
+    if (http_get(curl, url, repo->token, &status, NULL, NULL,
+                 read_only_repo_get_block_callback, &data, TRUE, &curl_error) < 0)
+    {
+        ret = -1;
+        goto error;
+    }
+
+    if (status != HTTP_OK)
+    {
+        seaf_warning("Bad response code for GET %s: %d.\n", url, status);
+        ret = -1;
+        goto error;
+    }
+
+    seaf_block_manager_close_block(seaf->block_mgr, block);
+
+    if (!seaf_block_manager_block_exists(seaf->block_mgr,
+                                         repo->id, repo->version,
+                                         block_id) &&
+        seaf_block_manager_commit_block(seaf->block_mgr, block) < 0)
+    {
+        seaf_warning("Failed to commit block %s in repo %.8s.\n",
+                     block_id, repo->id);
+        ret = -1;
+    }
+    seaf_block_manager_block_handle_free(seaf->block_mgr, block);
+
+    g_free(url);
+
+    return ret;
+
+error:
+    g_free(url);
+
+    seaf_block_manager_close_block(seaf->block_mgr, block);
+    seaf_block_manager_block_handle_free(seaf->block_mgr, block);
+
+    return ret;
 }
 
 int
@@ -4394,6 +4489,59 @@ error:
 
     seaf_block_manager_close_block (seaf->block_mgr, block);
     seaf_block_manager_block_handle_free (seaf->block_mgr, block);
+
+    return ret;
+}
+
+int
+read_only_repo_http_tx_task_download_file_blocks(SeafRepo *repo, const char *file_id)
+{
+    Seafile *file;
+    HttpTxPriv *priv = seaf->http_tx_mgr->priv;
+    ConnectionPool *pool;
+    Connection *conn;
+    int ret = 0;
+
+    file = seaf_fs_manager_get_seafile(seaf->fs_mgr,
+                                       repo->id,
+                                       repo->version,
+                                       file_id);
+    if (!file)
+    {
+        seaf_warning("Failed to find seafile object %s in repo %.8s.\n",
+                     file_id, repo->id);
+        return -1;
+    }
+
+    pool = find_connection_pool(priv, repo->effective_host);
+    if (!pool)
+    {
+        seaf_warning("Failed to create connection pool for host %s.\n", repo->effective_host);
+        seafile_unref(file);
+        return -1;
+    }
+
+    conn = connection_pool_get_connection(pool);
+    if (!conn)
+    {
+        seaf_warning("Failed to get connection to host %s.\n", repo->effective_host);
+        seafile_unref(file);
+        return -1;
+    }
+
+    int i;
+    char *block_id;
+    for (i = 0; i < file->n_blocks; ++i)
+    {
+        block_id = file->blk_sha1s[i];
+        ret = read_only_repo_get_block(repo, conn, block_id);
+        if (ret < 0)
+            break;
+    }
+
+    connection_pool_return_connection(pool, conn);
+
+    seafile_unref(file);
 
     return ret;
 }

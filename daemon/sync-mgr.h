@@ -42,6 +42,7 @@ enum {
     SYNC_STATE_COMMIT,
     SYNC_STATE_INIT,
     SYNC_STATE_FETCH,
+    SYNC_STATE_REFETCH,
     SYNC_STATE_MERGE,
     SYNC_STATE_UPLOAD,
     SYNC_STATE_ERROR,
@@ -95,6 +96,8 @@ struct _SyncTask {
     int              http_version;
 
     SeafRepo        *repo;  /* for convenience, only valid when in_sync. */
+
+    GList           *deleted_files;
 };
 
 enum _SyncStatus {

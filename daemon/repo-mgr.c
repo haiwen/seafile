@@ -82,6 +82,7 @@ static GPatternSpec** ignore_patterns;
 static GPatternSpec* office_temp_ignore_patterns[4];
 static GRegex *conflict_pattern = NULL;
 static GRegex *office_lock_pattern = NULL;
+static GList *deleted_files = NULL;
 
 static SeafRepo *
 load_repo (SeafRepoManager *manager, const char *repo_id);
@@ -1952,8 +1953,26 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
     for (i = 0; i < istate->cache_nr; ++i) {
         ce = ce_array[i];
 
-        if (!is_path_writable (repo_id, is_repo_ro, ce->name))
+        snprintf (path, SEAF_PATH_MAX, "%s/%s", worktree, ce->name);
+        not_exist = FALSE;
+        ret = seaf_stat (path, &st);
+        if (ret < 0 && errno == ENOENT)
+            not_exist = TRUE;        
+
+        if (!is_path_writable (repo_id, is_repo_ro, ce->name)) {
+            
+            if (not_exist) {
+                char file_id[41];
+                rawdata_to_hex (ce->sha1,file_id,20);
+                DeletedFile *deleted_file = g_new0 (DeletedFile, 1);
+                deleted_file->file_id = g_strdup (file_id);
+                deleted_file->path = g_strdup (ce->name);
+                deleted_file->ce_mode = ce->ce_mode;
+                deleted_file->sec = ce->ce_mtime.sec;
+                deleted_files = g_list_prepend (deleted_files, deleted_file);
+            }
             continue;
+        }
 
         if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                   repo_id, ce->name)) {
@@ -1964,12 +1983,6 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
         if (prefix[0] != 0 && strcmp (ce->name, prefix) != 0 &&
             strncmp (ce->name, full_prefix, len) != 0)
             continue;
-
-        snprintf (path, SEAF_PATH_MAX, "%s/%s", worktree, ce->name);
-        not_exist = FALSE;
-        ret = seaf_stat (path, &st);
-        if (ret < 0 && errno == ENOENT)
-            not_exist = TRUE;
 
         if (S_ISDIR (ce->ce_mode)) {
             if (ce->ce_ctime.sec != 0 || ce_stage(ce) != 0) {
@@ -3759,6 +3772,18 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
 
             if (!is_path_writable(repo->id,
                                   repo->is_readonly, event->path)) {
+                struct cache_entry *ce =  index_name_exists (istate,event->path, strlen(event->path),0);
+                if (ce){
+                    char file_id[41];
+                    rawdata_to_hex(ce->sha1,file_id,20);
+                    DeletedFile *deleted_file = g_new0 (DeletedFile, 1);
+                    deleted_file->file_id = g_strdup (file_id);
+                    deleted_file->path = g_strdup (ce->name);
+                    deleted_file->ce_mode = ce->ce_mode;
+                    deleted_file->sec = ce->ce_mtime.sec;
+                    deleted_files = g_list_prepend (deleted_files, deleted_file);
+                }
+
                 seaf_debug ("%s is not writable, ignore.\n", event->path);
                 break;
             }
@@ -7169,4 +7194,23 @@ void seaf_repo_free_ignore_files (GList *ignore_list)
         free(p->data);
 
     g_list_free (ignore_list);
+}
+GList*
+get_deleted_files()
+{
+    return deleted_files;
+}
+
+void
+deleted_files_free()
+{
+    GList *p;
+
+    if (deleted_files == NULL)
+        return;
+
+    for (p = deleted_files; p != NULL; p = p->next)
+        free(p->data);
+
+    deleted_files = NULL;
 }

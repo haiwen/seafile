@@ -34,6 +34,8 @@
 
 #define SYNC_PERM_ERROR_RETRY_TIME 2
 
+static gboolean read_only_repo_recover_deleted_files = TRUE;
+
 struct _HttpServerState {
     int http_version;
     gboolean checking;
@@ -448,6 +450,7 @@ static const char *sync_state_str[] = {
     "committing",
     "initializing",
     "downloading",
+    "redownloading",
     "merging",
     "uploading",
     "error",
@@ -921,6 +924,44 @@ struct CommitResult {
     gboolean success;
 };
 
+void*
+refetch_read_only_repo_deleted_files(void *vdata)
+{
+    SyncTask *task = vdata;
+    SeafRepo *repo = task->repo;
+    GList *deleted_files = task->deleted_files;
+    read_only_repo_recover_deleted_files = FALSE;
+    if (deleted_files)
+        transition_sync_state (task, SYNC_STATE_REFETCH);
+
+    for (GList *it = deleted_files;it;it=it->next){
+        DeletedFile *deleted_file = it->data;
+        int ret = read_only_repo_http_tx_task_download_file_blocks(repo, deleted_file->file_id);
+        if (ret < 0)
+            seaf_warning ("Transfer failed.\n");
+        SeafileCrypt *crypt = NULL;
+        if (repo->encrypted)
+            crypt = seafile_crypt_new (repo->enc_version,
+                                       repo->enc_key,
+                                       repo->enc_iv);
+        const char *full_path = g_build_filename (repo->worktree, deleted_file->path, NULL);
+        gboolean conflicted = FALSE;
+        build_checkout_path (repo->worktree, deleted_file->path, strlen(deleted_file->path));
+        seaf_fs_manager_checkout_file(seaf->fs_mgr,
+                                      repo->id, repo->version,
+                                      deleted_file->file_id, full_path,
+                                      deleted_file->ce_mode, deleted_file->sec,
+                                      crypt, seaf->tmp_file_dir,
+                                      repo->head->commit_id, FALSE,
+                                      &conflicted, repo->email);
+    }
+    deleted_files_free();
+    read_only_repo_recover_deleted_files = TRUE;
+
+    return NULL;
+    
+}
+
 static void *
 commit_job (void *vtask)
 {
@@ -981,13 +1022,29 @@ commit_job_done (void *vres)
         return;
     }
 
+    pthread_t tid;
+    int rc;
     if (res->changed)
         start_upload_if_necessary (res->task);
-    else if (task->is_manual_sync || task->is_initial_commit)
+    else if (task->is_manual_sync || task->is_initial_commit){
         check_head_commit_http (task);
-    else
-        transition_sync_state (task, SYNC_STATE_DONE);
 
+        if (task->is_initial_commit && read_only_repo_recover_deleted_files){
+            task->deleted_files = get_deleted_files();
+            rc = pthread_create (&tid, NULL, refetch_read_only_repo_deleted_files, task);
+            if (rc != 0) 
+                seaf_warning ("Failed to start refetch thread: %s\n", strerror(rc));
+        }
+    }
+    else{
+        if (read_only_repo_recover_deleted_files){
+            task->deleted_files = get_deleted_files();            
+            rc = pthread_create (&tid, NULL, refetch_read_only_repo_deleted_files, task);
+            if (rc != 0)
+                seaf_warning ("Failed to start refetch thread: %s\n", strerror(rc));
+        }
+        transition_sync_state (task, SYNC_STATE_DONE);
+    }
     g_free (res);
 }
 

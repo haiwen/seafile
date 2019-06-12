@@ -98,6 +98,18 @@ struct _SeafRepo {
     int sync_interval;
 };
 
+typedef struct _DeletedFile {
+    unsigned int ce_mode;
+    guint64 sec;
+    char *file_id;
+    char *path;
+} DeletedFile;
+
+GList*
+get_deleted_files();
+
+void
+deleted_files_free();
 
 gboolean is_repo_id_valid (const char *id);
 
