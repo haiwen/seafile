@@ -2,7 +2,6 @@
 
 Seafile is an open source cloud storage system with privacy protection and teamwork features. Collections of files are called libraries. Each library can be synced separately. A library can also be encrypted with a user chosen password. Seafile also allows users to create groups and easily sharing files into groups.
 
-New in 2019: A special edition called [SeafileDocs](https://forum.seafile.com/t/seafiledocs-a-special-edition-of-seafile-that-focus-on-online-document-and-knowledge-management/8192) is available. SeafileDocs provides extra features like online document, review process and Wiki.
 
 ## Feature Summary
 
