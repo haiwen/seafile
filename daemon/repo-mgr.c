@@ -2126,8 +2126,9 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
     full_path = g_build_filename (repo->worktree, path, NULL);
 
     if (seaf_stat (full_path, &st) < 0) {
-        send_file_sync_error_notification (repo->id, repo->name, path,
-                                           SYNC_ERROR_ID_INDEX_ERROR);
+        if (errno != ENOENT)
+            send_file_sync_error_notification (repo->id, repo->name, path,
+                                               SYNC_ERROR_ID_INDEX_ERROR);
         seaf_warning ("Failed to stat %s: %s.\n", path, strerror(errno));
         g_free (full_path);
         return -1;
