@@ -34,6 +34,7 @@ import subprocess
 import optparse
 import atexit
 import csv
+import time
 
 error_exit = False
 ####################
@@ -838,6 +839,8 @@ def do_sign(certfile, fn, desc=None):
     else:
         desc_flags = ''
 
+    # https://support.comodo.com/index.php?/Knowledgebase/Article/View/68/0/time-stamping-server
+    time.sleep(16)
     signcmd = 'signtool.exe sign -fd sha256 -t http://timestamp.comodoca.com -f {} {} {}'.format(certfile, desc_flags, fn)
     if run(signcmd, cwd=os.path.dirname(fn)) != 0:
         error('Failed to sign file "{}"'.format(fn))
