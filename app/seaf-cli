@@ -456,7 +456,7 @@ def seaf_download(args):
     email = tmp['email']
     repo_name = tmp['repo_name']
     version = tmp.get('repo_version', 0)
-    repo_salt = tmp['salt']
+    repo_salt = tmp.get('salt', None)
 
     more_info = None
     more_info_dict = None
@@ -582,7 +582,7 @@ def seaf_sync(args):
     email = tmp['email']
     repo_name = tmp['repo_name']
     version = tmp.get('repo_version', 0)
-    repo_salt =  tmp['salt']
+    repo_salt =  tmp.get('salt', None)
     is_readonly = None
     if 'permission' in tmp.keys():
         is_readonly = tmp['permission']
