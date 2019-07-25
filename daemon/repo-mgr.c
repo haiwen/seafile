@@ -1254,13 +1254,9 @@ add_file (const char *repo_id,
     gboolean is_writable = TRUE, is_locked = FALSE;
     struct cache_entry *ce;
 
-    if (options) {
+    if (options)
         is_writable = is_path_writable(repo_id,
                                        options->is_repo_ro, path);
-        if (!is_writable)
-            send_file_sync_error_notification (repo_id, NULL, path,
-                                               SYNC_ERROR_ID_UPDATE_TO_READ_ONLY_REPO);
-    }
 
     is_locked = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                       repo_id, path);
@@ -1285,6 +1281,10 @@ add_file (const char *repo_id,
                                                   path,
                                                   S_IFREG,
                                                   status);
+        /* send an error notification for read-only repo when modifying a file. */
+        if (status == SYNC_STATUS_SYNCING && !is_writable)
+            send_file_sync_error_notification (repo_id, NULL, path,
+                                               SYNC_ERROR_ID_UPDATE_TO_READ_ONLY_REPO);
     }
 
     if (!is_writable || is_locked)
