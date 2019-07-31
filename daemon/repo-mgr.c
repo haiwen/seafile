@@ -55,8 +55,6 @@ struct _SeafRepoManagerPriv {
     GHashTable *group_perms;    /* repo_id -> folder group perms */
     pthread_mutex_t perm_lock;
 
-    uint32_t cevent_id;         /* Used to notify sync error */
-
     GAsyncQueue *lock_office_job_queue;
 };
 
@@ -665,61 +663,49 @@ is_repo_id_valid (const char *id)
     return is_uuid_valid (id);
 }
 
-typedef struct FileErrorAux {
-    char *repo_id;
-    char *path;
-    int err_id;
-} FileErrorAux;
+/*
+ * Sync error related. These functions should belong to the sync-mgr module.
+ * But since we have to store the errors in repo database, we have to put the code here.
+ */
 
-static gboolean
-get_last_file_sync_error (sqlite3_stmt *stmt, void *data)
-{
-    FileErrorAux *aux = data;
-
-    aux->repo_id = g_strdup((const char *)sqlite3_column_text (stmt, 0));
-    aux->path = g_strdup((const char *)sqlite3_column_text (stmt, 1));
-    aux->err_id = sqlite3_column_int (stmt, 2);
-
-    return FALSE;
-}
-
-static void
-save_file_sync_error (const char *repo_id, const char *repo_name, const char *path,
-                      int err_id, gboolean *duplicated)
+int
+seaf_repo_manager_record_sync_error (const char *repo_id,
+                                     const char *repo_name,
+                                     const char *path,
+                                     int error_id)
 {
     char *sql;
-    FileErrorAux aux;
-    int n;
-
-    memset (&aux, 0, sizeof(aux));
+    int ret;
 
     pthread_mutex_lock (&seaf->repo_mgr->priv->db_lock);
 
-    sql = "SELECT repo_id, path, err_id FROM FileSyncError "
-        "ORDER BY id DESC LIMIT 1 OFFSET 0";
-    n = sqlite_foreach_selected_row (seaf->repo_mgr->priv->db,
-                                     sql, get_last_file_sync_error, &aux);
-
-    if (n > 0 &&
-        g_strcmp0(repo_id, aux.repo_id) == 0 &&
-        g_strcmp0(path, aux.path) == 0 &&
-        err_id == aux.err_id) {
-        *duplicated = TRUE;
+    sql = sqlite3_mprintf ("DELETE FROM FileSyncError WHERE repo_id='%q' AND path='%q'",
+                           repo_id, path);
+    ret = sqlite_query_exec (seaf->repo_mgr->priv->db, sql);
+    sqlite3_free (sql);
+    if (ret < 0)
         goto out;
-    }
 
-    sql = sqlite3_mprintf ("INSERT INTO FileSyncError "
-                           "(repo_id, repo_name, path, err_id, timestamp) "
-                           "VALUES ('%q', '%q', '%q', %d, %"G_GINT64_FORMAT")",
-                           repo_id, repo_name, path, err_id, (gint64)time(NULL));
-    sqlite_query_exec (seaf->repo_mgr->priv->db, sql);
+    /* REPLACE INTO will update the primary key id automatically.
+     * So new errors are always on top.
+     */
+    if (path != NULL)
+        sql = sqlite3_mprintf ("INSERT INTO FileSyncError "
+                               "(repo_id, repo_name, path, err_id, timestamp) "
+                               "VALUES ('%q', '%q', '%q', %d, %"G_GINT64_FORMAT")",
+                               repo_id, repo_name, path, error_id, (gint64)time(NULL));
+    else
+        sql = sqlite3_mprintf ("INSERT INTO FileSyncError "
+                               "(repo_id, repo_name, err_id, timestamp) "
+                               "VALUES ('%q', '%q', %d, %"G_GINT64_FORMAT")",
+                               repo_id, repo_name, error_id, (gint64)time(NULL));
+        
+    ret = sqlite_query_exec (seaf->repo_mgr->priv->db, sql);
     sqlite3_free (sql);
 
 out:
     pthread_mutex_unlock (&seaf->repo_mgr->priv->db_lock);
-    g_free (aux.repo_id);
-    g_free (aux.path);
-    return;
+    return ret;
 }
 
 static gboolean
@@ -771,42 +757,8 @@ seaf_repo_manager_get_file_sync_errors (SeafRepoManager *mgr, int offset, int li
     return ret;
 }
 
-typedef struct SyncErrorData {
-    char *repo_id;
-    char *repo_name;
-    char *path;
-    int err_id;
-} SyncErrorData;
-
-static void
-notify_sync_error (CEvent *event, void *handler_data)
-{
-    SyncErrorData *data = event->data;
-    json_t *object;
-    char *str;
-
-    object = json_object ();
-    json_object_set_new (object, "repo_id", json_string(data->repo_id));
-    json_object_set_new (object, "repo_name", json_string(data->repo_name));
-    json_object_set_new (object, "path", json_string(data->path));
-    json_object_set_new (object, "err_id", json_integer(data->err_id));
-
-    str = json_dumps (object, 0);
-
-    seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                          "sync.error",
-                                          str);
-
-    free (str);
-    json_decref (object);
-    g_free (data->repo_id);
-    g_free (data->repo_name);
-    g_free (data->path);
-    g_free (data);
-}
-
 /*
- * FIXME: This function should be placed in sync manager.
+ * Record file-level sync errors and send system notification.
  */
 void
 send_file_sync_error_notification (const char *repo_id,
@@ -821,23 +773,27 @@ send_file_sync_error_notification (const char *repo_id,
         repo_name = repo->name;
     }
 
-    SyncErrorData *data = g_new0 (SyncErrorData, 1);
-    data->repo_id = g_strdup(repo_id);
-    data->repo_name = g_strdup(repo_name);
-    data->path = g_strdup(path);
-    data->err_id = err_id;
+    seaf_repo_manager_record_sync_error (repo_id, repo_name, path, err_id);
 
-    gboolean duplicated = FALSE;
-    save_file_sync_error (repo_id, repo_name, path, err_id, &duplicated);
+    seaf_sync_manager_set_task_error_code (seaf->sync_mgr, repo_id, err_id);
 
-    if (!duplicated)
-        cevent_manager_add_event (seaf->ev_mgr, seaf->repo_mgr->priv->cevent_id, data);
-    else {
-        g_free (data->repo_id);
-        g_free (data->repo_name);
-        g_free (data->path);
-        g_free (data);
-    }
+    json_t *object;
+    char *str;
+
+    object = json_object ();
+    json_object_set_new (object, "repo_id", json_string(repo_id));
+    json_object_set_new (object, "repo_name", json_string(repo_name));
+    json_object_set_new (object, "path", json_string(path));
+    json_object_set_new (object, "err_id", json_integer(err_id));
+
+    str = json_dumps (object, 0);
+
+    seaf_mq_manager_publish_notification (seaf->mq_mgr,
+                                          "sync.error",
+                                          str);
+
+    free (str);
+    json_decref (object);
 }
 
 SeafRepo*
@@ -1371,7 +1327,7 @@ add_file (const char *repo_id,
                                               S_IFREG,
                                               SYNC_STATUS_ERROR);
         send_file_sync_error_notification (repo_id, NULL, path,
-                                       SYNC_ERROR_ID_INDEX_ERROR);
+                                           SYNC_ERROR_ID_INDEX_ERROR);
     }
 
     return ret;
@@ -2271,7 +2227,7 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       S_IFREG,
                                                       SYNC_STATUS_ERROR);
                 send_file_sync_error_notification (repo->id, NULL, path,
-                                               SYNC_ERROR_ID_INDEX_ERROR);
+                                                   SYNC_ERROR_ID_INDEX_ERROR);
             }
         } else if (S_ISDIR(st.st_mode)) {
             if (is_empty_dir (full_path, ignore_list)) {
@@ -5689,10 +5645,6 @@ seaf_repo_manager_init (SeafRepoManager *mgr)
         return -1;
     }
 
-    mgr->priv->cevent_id = cevent_manager_register (seaf->ev_mgr,
-                                                    (cevent_handler)notify_sync_error,
-                                                    NULL);
-
     /* Load all the repos into memory on the client side. */
     load_repos (mgr, mgr->seaf->seaf_dir);
 
@@ -6577,6 +6529,9 @@ open_db (SeafRepoManager *manager, const char *seaf_dir)
     sql = "CREATE TABLE IF NOT EXISTS FileSyncError ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, repo_id TEXT, repo_name TEXT, "
         "path TEXT, err_id INTEGER, timestamp INTEGER);";
+    sqlite_query_exec (db, sql);
+
+    sql = "CREATE INDEX IF NOT EXISTS FileSyncErrorIndex ON FileSyncError (repo_id, path)";
     sqlite_query_exec (db, sql);
 
     return db;

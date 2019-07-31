@@ -9,7 +9,7 @@
 #include "seafile-session.h"
 #include "seafile-config.h"
 #include "sync-mgr.h"
-#include "seafile-error.h"
+#include "seafile-error-impl.h"
 #include "mq-mgr.h"
 #include "utils.h"
 #include "vc-utils.h"
@@ -506,6 +506,15 @@ notify_sync (SeafRepo *repo, gboolean is_multipart_upload)
 
 #define IN_ERROR_THRESHOLD 3
 
+static gboolean
+is_perm_error (int error)
+{
+    return (error == SYNC_ERROR_ID_ACCESS_DENIED ||
+            error == SYNC_ERROR_ID_NO_WRITE_PERMISSION ||
+            error == SYNC_ERROR_ID_PERM_NOT_SYNCABLE ||
+            error == SYNC_ERROR_ID_FOLDER_PERM_DENIED);
+}
+
 static void
 update_sync_info_error_state (SyncTask *task, int new_state)
 {
@@ -515,7 +524,7 @@ update_sync_info_error_state (SyncTask *task, int new_state)
         info->err_cnt++;
         if (info->err_cnt == IN_ERROR_THRESHOLD)
             info->in_error = TRUE;
-        if (task->error == SYNC_ERROR_ACCESS_DENIED)
+        if (is_perm_error(task->error))
             info->sync_perm_err_cnt++;
     } else if (info->err_cnt > 0) {
         info->err_cnt = 0;
@@ -526,7 +535,7 @@ update_sync_info_error_state (SyncTask *task, int new_state)
 
 static void commit_repo (SyncTask *task);
 
-static inline void
+static void
 transition_sync_state (SyncTask *task, int new_state)
 {
     g_return_if_fail (new_state >= 0 && new_state < SYNC_STATE_NUM);
@@ -549,6 +558,17 @@ transition_sync_state (SyncTask *task, int new_state)
             !info->end_multipart_upload) {
             commit_repo (task);
             return;
+        }
+
+        /* If file error levels occured during sync, the whole sync process can still finish
+         * with DONE state. But we need to notify the user about this error in the interface.
+         * Such file level errors are set with seaf_sync_manager_set_task_error_code().
+         */
+        if (new_state != SYNC_STATE_ERROR && task->error != SYNC_ERROR_ID_NO_ERROR) {
+            new_state = SYNC_STATE_ERROR;
+            seaf_message ("Repo '%s' sync is finished but with error: %s\n",
+                          task->repo->name,
+                          sync_error_id_to_str(task->error));
         }
 
         if (!(task->state == SYNC_STATE_DONE && new_state == SYNC_STATE_INIT) &&
@@ -582,48 +602,31 @@ transition_sync_state (SyncTask *task, int new_state)
     }
 }
 
-static const char *sync_error_str[] = {
-    "Success",
-    "relay not connected",
-    "failed to upgrade old repo",
-    "Server has been removed",
-    "You have not login to the server",
-    "Remote service is not available",
-    "You do not have permission to access this library",
-    "The storage space of the repo owner has been used up",
-    "Access denied to service. Please check your registration on relay.",
-    "Internal data corrupted.",
-    "Failed to start upload.",
-    "Error occurred in upload.",
-    "Failed to start download.",
-    "Error occurred in download.",
-    "No such repo on relay.",
-    "Repo is damaged on relay.",
-    "Failed to index files.",
-    "Conflict in merge.",
-    "Files changed in local folder, skip merge.",
-    "Server version is too old.",
-    "Failed to get sync info from server.",
-    "Files are locked by other application",
-    "Unknown error.",
-};
-
-void
-seaf_sync_manager_set_task_error (SyncTask *task, int error)
+static void
+set_task_error (SyncTask *task, int error)
 {
-    g_return_if_fail (error >= 0 && error < SYNC_ERROR_NUM);
+    g_return_if_fail (error >= 0 && error < N_SYNC_ERROR_ID);
+
+    const char *err_str = sync_error_id_to_str(error);
+    int err_level = sync_error_level(error);
 
     if (task->state != SYNC_STATE_ERROR) {
         seaf_message ("Repo '%s' sync state transition from %s to '%s': '%s'.\n",
                       task->repo->name,
                       sync_state_str[task->state],
                       sync_state_str[SYNC_STATE_ERROR],
-                      sync_error_str[error]);
+                      err_str);
         task->state = SYNC_STATE_ERROR;
         task->error = error;
         task->info->in_sync = FALSE;
         --(task->mgr->n_running_tasks);
         update_sync_info_error_state (task, SYNC_STATE_ERROR);
+
+        /* For repo-level errors, only need to record in database, but not send notifications.
+         * File-level errors are recorded and notified in the location they happens, not here.
+         */
+        if (err_level == SYNC_ERROR_LEVEL_REPO)
+            seaf_repo_manager_record_sync_error (task->repo->id, task->repo->name, NULL, error);
 
 #ifdef WIN32
         seaf_sync_manager_add_refresh_path (seaf->sync_mgr, task->repo->worktree);
@@ -632,13 +635,24 @@ seaf_sync_manager_set_task_error (SyncTask *task, int error)
     }
 }
 
+void
+seaf_sync_manager_set_task_error_code (SeafSyncManager *mgr,
+                                       const char *repo_id,
+                                       int error)
+{
+    SyncInfo *info = g_hash_table_lookup (mgr->sync_infos, repo_id);
+    if (!info)
+        return;
+
+    info->current_task->error = error;
+}
+
 static void
 sync_task_free (SyncTask *task)
 {
     g_free (task->tx_id);
     g_free (task->dest_id);
     g_free (task->token);
-    g_free (task->err_detail);
     g_free (task);
 }
 
@@ -657,7 +671,7 @@ start_upload_if_necessary (SyncTask *task)
                                     repo->use_fileserver_port,
                                     &error) < 0) {
         seaf_warning ("Failed to start http upload: %s\n", error->message);
-        seaf_sync_manager_set_task_error (task, SYNC_ERROR_START_UPLOAD);
+        set_task_error (task, SYNC_ERROR_ID_NOT_ENOUGH_MEMORY);
         return;
     }
     task->tx_id = g_strdup(repo->id);
@@ -685,7 +699,7 @@ start_fetch_if_necessary (SyncTask *task, const char *remote_head)
                                       repo->name,
                                       &error) < 0) {
         seaf_warning ("Failed to start http download: %s.\n", error->message);
-        seaf_sync_manager_set_task_error (task, SYNC_ERROR_START_FETCH);
+        set_task_error (task, SYNC_ERROR_ID_NOT_ENOUGH_MEMORY);
         return;
     }
     task->tx_id = g_strdup(repo->id);
@@ -809,7 +823,7 @@ remove_blocks_done (void *vtask)
 static void
 on_repo_deleted_on_server (SyncTask *task, SeafRepo *repo)
 {
-    seaf_sync_manager_set_task_error (task, SYNC_ERROR_NOREPO);
+    set_task_error (task, SYNC_ERROR_ID_SERVER_REPO_DELETED);
 
     seaf_warning ("repo %s(%.8s) not found on server\n",
                   repo->name, repo->id);
@@ -817,9 +831,9 @@ on_repo_deleted_on_server (SyncTask *task, SeafRepo *repo)
     if (!seafile_session_config_get_allow_repo_not_found_on_server(seaf)) {
         seaf_message ("remove repo %s(%.8s) since it's deleted on relay\n",
                       repo->name, repo->id);
-        seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                              "repo.deleted_on_relay",
-                                              repo->name);
+        /* seaf_mq_manager_publish_notification (seaf->mq_mgr, */
+        /*                                       "repo.deleted_on_relay", */
+        /*                                       repo->name); */
         seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
     }
 }
@@ -836,7 +850,7 @@ update_sync_status_v2 (SyncTask *task)
     if (!local) {
         seaf_warning ("[sync-mgr] Branch local not found for repo %s(%.8s).\n",
                    repo->name, repo->id);
-        seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
+        set_task_error (task, SYNC_ERROR_ID_LOCAL_DATA_CORRUPT);
         return;
     }
 
@@ -845,12 +859,12 @@ update_sync_status_v2 (SyncTask *task)
     if (!master) {
         seaf_warning ("[sync-mgr] Branch master not found for repo %s(%.8s).\n",
                    repo->name, repo->id);
-        seaf_sync_manager_set_task_error (task, SYNC_ERROR_DATA_CORRUPT);
+        set_task_error (task, SYNC_ERROR_ID_LOCAL_DATA_CORRUPT);
         return;
     }
 
     if (info->repo_corrupted) {
-        seaf_sync_manager_set_task_error (task, SYNC_ERROR_REPO_CORRUPT);
+        set_task_error (task, SYNC_ERROR_ID_SERVER_REPO_CORRUPT);
     } else if (info->deleted_on_relay) {
         on_repo_deleted_on_server (task, repo);
     } else {
@@ -883,8 +897,7 @@ check_head_commit_done (HttpHeadCommit *result, void *user_data)
     SyncInfo *info = task->info;
 
     if (!result->check_success) {
-        seaf_sync_manager_set_task_error (task, SYNC_ERROR_GET_SYNC_INFO);
-        task->err_detail = g_strdup(http_task_error_str(result->error_code));
+        set_task_error (task, result->error_code);
         return;
     }
 
@@ -910,7 +923,7 @@ check_head_commit_http (SyncTask *task)
     if (ret == 0)
         transition_sync_state (task, SYNC_STATE_INIT);
     else if (ret < 0)
-        seaf_sync_manager_set_task_error (task, SYNC_ERROR_GET_SYNC_INFO);
+        set_task_error (task, SYNC_ERROR_ID_NOT_ENOUGH_MEMORY);
 
     return ret;
 }
@@ -976,7 +989,7 @@ commit_job_done (void *vres)
     }
 
     if (!res->success) {
-        seaf_sync_manager_set_task_error (res->task, SYNC_ERROR_COMMIT);
+        set_task_error (res->task, SYNC_ERROR_ID_INDEX_ERROR);
         g_free (res);
         return;
     }
@@ -1012,7 +1025,7 @@ commit_repo (SyncTask *task)
                                        commit_job, 
                                        commit_job_done,
                                        task) < 0)
-        seaf_sync_manager_set_task_error (task, SYNC_ERROR_COMMIT);
+        set_task_error (task, SYNC_ERROR_ID_NOT_ENOUGH_MEMORY);
 }
 
 static int
@@ -1045,6 +1058,7 @@ create_sync_task_v2 (SeafSyncManager *manager, SeafRepo *repo,
     task->token = g_strdup(repo->token);
     task->is_manual_sync = is_manual_sync;
     task->is_initial_commit = is_initial_commit;
+    task->error = SYNC_ERROR_ID_NO_ERROR;
 
     repo->last_sync_time = time(NULL);
     ++(manager->n_running_tasks);
@@ -2025,17 +2039,6 @@ auto_sync_pulse (void *vmanager)
     return TRUE;
 }
 
-inline static void
-send_sync_error_notification (SeafRepo *repo, const char *type)
-{
-    GString *buf = g_string_new (NULL);
-    g_string_append_printf (buf, "%s\t%s", repo->name, repo->id);
-    seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                          type,
-                                          buf->str);
-    g_string_free (buf, TRUE);
-}
-
 static void
 on_repo_http_fetched (SeafileSession *seaf,
                       HttpTxTask *tx_task,
@@ -2060,21 +2063,11 @@ on_repo_http_fetched (SeafileSession *seaf,
     } else if (tx_task->state == HTTP_TASK_STATE_CANCELED) {
         transition_sync_state (task, SYNC_STATE_CANCELED);
     } else if (tx_task->state == HTTP_TASK_STATE_ERROR) {
-        if (tx_task->error == HTTP_TASK_ERR_FORBIDDEN ||
-            tx_task->error == HTTP_TASK_ERR_NO_WRITE_PERMISSION ||
-            tx_task->error == HTTP_TASK_ERR_NO_PERMISSION_TO_SYNC) {
-            seaf_sync_manager_set_task_error (task, SYNC_ERROR_ACCESS_DENIED);
-            if (!task->repo->access_denied_notified) {
-                send_sync_error_notification (task->repo, "sync.access_denied");
-                task->repo->access_denied_notified = 1;
-            }
-        } else if (tx_task->error == HTTP_TASK_ERR_FILES_LOCKED) {
-            seaf_sync_manager_set_task_error (task, SYNC_ERROR_FILES_LOCKED);
-        } else if (tx_task->error == HTTP_TASK_ERR_REPO_DELETED) {
+        if (tx_task->error == SYNC_ERROR_ID_SERVER_REPO_DELETED) {
             on_repo_deleted_on_server (task, task->repo);
-        } else
-            seaf_sync_manager_set_task_error (task, SYNC_ERROR_FETCH);
-        task->err_detail = g_strdup(http_task_error_str(tx_task->error));
+        } else {
+            set_task_error (task, tx_task->error);
+        }
     }
 }
 
@@ -2107,38 +2100,12 @@ on_repo_http_uploaded (SeafileSession *seaf,
     } else if (tx_task->state == HTTP_TASK_STATE_CANCELED) {
         transition_sync_state (task, SYNC_STATE_CANCELED);
     } else if (tx_task->state == HTTP_TASK_STATE_ERROR) {
-        if (tx_task->error == HTTP_TASK_ERR_FORBIDDEN ||
-            tx_task->error == HTTP_TASK_ERR_NO_WRITE_PERMISSION ||
-            tx_task->error == HTTP_TASK_ERR_NO_PERMISSION_TO_SYNC) {
-            seaf_sync_manager_set_task_error (task, SYNC_ERROR_ACCESS_DENIED);
-            if (!task->repo->access_denied_notified) {
-                send_sync_error_notification (task->repo, "sync.access_denied");
-                task->repo->access_denied_notified = 1;
-            }
-        } else if (tx_task->error == HTTP_TASK_ERR_NO_QUOTA) {
-            seaf_sync_manager_set_task_error (task, SYNC_ERROR_QUOTA_FULL);
-            /* Only notify "quota full" once. */
-            if (!task->repo->quota_full_notified) {
-                send_sync_error_notification (task->repo, "sync.quota_full");
-                task->repo->quota_full_notified = 1;
-            }
-        } else if (tx_task->error == HTTP_TASK_ERR_REPO_DELETED) {
+        if (tx_task->error == SYNC_ERROR_ID_SERVER_REPO_DELETED) {
             on_repo_deleted_on_server (task, task->repo);
-        } else
-            seaf_sync_manager_set_task_error (task, SYNC_ERROR_UPLOAD);
-        task->err_detail = g_strdup(http_task_error_str(tx_task->error));
+        } else {
+            set_task_error (task, tx_task->error);
+        }
     }
-}
-
-const char *
-sync_error_to_str (int error)
-{
-    if (error < 0 || error >= SYNC_ERROR_NUM) {
-        seaf_warning ("illegal sync error: %d\n", error); 
-        return NULL;
-    }
-
-    return sync_error_str[error];
 }
 
 const char *

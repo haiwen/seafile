@@ -31,7 +31,8 @@ noinst_HEADERS = \
 	sync-status-tree.h \
 	filelock-mgr.h \
 	set-perm.h \
-	change-set.h
+	change-set.h \
+	seafile-error-impl.h
 
 if LINUX
 wt_monitor_src = wt-monitor.c wt-monitor-linux.c wt-monitor-structs.c
@@ -53,6 +54,7 @@ common_src = \
 	../common/seafile-crypt.c ../common/diff-simple.c $(wt_monitor_src) \
 	clone-mgr.c \
 	seafile-config.c \
+	seafile-error.c \
 	../common/branch-mgr.c ../common/fs-mgr.c \
 	repo-mgr.c ../common/commit-mgr.c \
 	../common/log.c \

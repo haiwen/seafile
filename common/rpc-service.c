@@ -335,8 +335,7 @@ seafile_get_clone_tasks (GError **error)
         task = ptr->data;
         t = g_object_new (SEAFILE_TYPE_CLONE_TASK,
                           "state", clone_task_state_to_str(task->state),
-                          "error_str", clone_task_error_to_str(task->error),
-                          "err_detail", task->err_detail,
+                          "error_str", task->error,
                           "repo_id", task->repo_id,
                           "repo_name", task->repo_name,
                           "worktree", task->worktree,
@@ -368,7 +367,6 @@ convert_http_task (HttpTxTask *task)
                   "repo_id", task->repo_id,
                   "state", http_task_state_to_str(task->state),
                   "rt_state", http_task_rt_state_to_str(task->runtime_state),
-                  "error_str", http_task_error_str(task->error),
                   NULL);
 
     if (task->type == HTTP_TASK_TYPE_DOWNLOAD) {
@@ -427,31 +425,6 @@ seafile_get_download_rate(GError **error)
     return seaf->sync_mgr->last_recv_bytes;
 }
 
-
-GObject *
-seafile_get_repo_sync_info (const char *repo_id, GError **error)
-{
-    SyncInfo *info;
-
-    info = seaf_sync_manager_get_sync_info (seaf->sync_mgr, repo_id);
-    if (!info)
-        return NULL;
-
-    SeafileSyncInfo *sinfo;
-    sinfo = g_object_new (SEAFILE_TYPE_SYNC_INFO,
-                          "repo_id", info->repo_id,
-                          "head_commit", info->head_commit,
-                          "deleted_on_relay", info->deleted_on_relay,
-                          "need_fetch", info->need_fetch,
-                          "need_upload", info->need_upload,
-                          "need_merge", info->need_merge,
-                          /* "last_sync_time", info->last_sync_time,  */
-                          NULL);
-
-    return (GObject *)sinfo;
-}
-
-
 GObject *
 seafile_get_repo_sync_task (const char *repo_id, GError **error)
 {
@@ -482,43 +455,12 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
     s_task = g_object_new (SEAFILE_TYPE_SYNC_TASK,
                            "force_upload", task->is_manual_sync,
                            "state", sync_state,
-                           "error", sync_error_to_str(task->error),
-                           "err_detail", task->err_detail,
+                           "error", task->error,
                            "repo_id", info->repo_id,
                            NULL);
 
     return (GObject *)s_task;
 }
-
-GList *
-seafile_get_sync_task_list (GError **error)
-{
-    GHashTable *sync_info_tbl = seaf->sync_mgr->sync_infos;
-    GHashTableIter iter;
-    SeafileSyncTask *s_task;
-    GList *task_list = NULL;
-    gpointer key, value;
-
-    g_hash_table_iter_init (&iter, sync_info_tbl);
-    while (g_hash_table_iter_next (&iter, &key, &value)) {
-        SyncInfo *info = value;
-        if (!info->in_sync)
-            continue;
-        SyncTask *task = info->current_task;
-        if (!task)
-            continue;
-        s_task = g_object_new (SEAFILE_TYPE_SYNC_TASK,
-                               "force_upload", task->is_manual_sync,
-                               "state", sync_state_to_str(task->state),
-                               "error", sync_error_to_str(task->error),
-                               "repo_id", info->repo_id,
-                               NULL);
-        task_list = g_list_prepend (task_list, s_task);
-    }
-
-    return task_list;
-}
-
 
 int
 seafile_set_repo_property (const char *repo_id,
