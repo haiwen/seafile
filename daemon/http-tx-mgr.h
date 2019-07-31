@@ -112,8 +112,8 @@ struct _HttpTxTask {
     int n_blocks;
     int done_blocks;
     /* For download progress */
-    int n_files;
-    int done_files;
+    gint64 total_download;
+    gint64 done_download;
 
     gint tx_bytes;              /* bytes transferred in this second. */
     gint last_tx_bytes;         /* bytes transferred in the last second. */
