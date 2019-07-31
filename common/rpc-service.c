@@ -374,8 +374,8 @@ convert_http_task (HttpTxTask *task)
     if (task->type == HTTP_TASK_TYPE_DOWNLOAD) {
         g_object_set (t, "ttype", "download", NULL);
         if (task->runtime_state == HTTP_TASK_RT_STATE_BLOCK) {
-            g_object_set (t, "block_total", task->total_download,
-                          "block_done", task->done_download,
+            g_object_set (t, "block_total", (gint64)task->n_files,
+                          "block_done", (gint64)task->done_files,
                           NULL);
             g_object_set (t, "rate", http_tx_task_get_rate(task), NULL);
         } else if (task->runtime_state == HTTP_TASK_RT_STATE_FS) {

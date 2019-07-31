@@ -4788,6 +4788,8 @@ download_files_http (const char *repo_id,
                                                   status);
         }
 
+        ++(http_task->done_files);
+
         if (task->new_ce) {
             if (!(ce->ce_flags & CE_REMOVE)) {
                 add_index_entry (istate, task->ce,
@@ -5532,7 +5534,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
     for (ptr = results; ptr; ptr = ptr->next) {
         de = ptr->data;
         if (de->status == DIFF_STATUS_ADDED || de->status == DIFF_STATUS_MODIFIED) {
-            http_task->total_download += de->size;
+            ++(http_task->n_files);
         }
     }
 

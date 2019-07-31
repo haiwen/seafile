@@ -4354,19 +4354,9 @@ get_block (HttpTxTask *task, Connection *conn, const char *block_id)
         goto error;
     }
 
-    BlockMetadata *bmd = seaf_block_manager_stat_block_by_handle(seaf->block_mgr, block);
-    if (bmd == NULL) {
-        seaf_warning ("Failed to get block %s meta data in repo %.8s.\n", block_id, task->repo_id);
-        ret = -1;
-        goto error;
-    }
-    
     seaf_block_manager_close_block (seaf->block_mgr, block);
 
     pthread_mutex_lock (&task->ref_cnt_lock);
-
-    task->done_download += bmd->size;
-    g_free (bmd);    
 
     /* Don't overwrite the block if other thread already downloaded it.
      * Since we've locked ref_cnt_lock, we can be sure the block won't be removed.
