@@ -58,8 +58,6 @@ build-stamp
 debian/files
 debian/seafile
 debian/*.substvars
-lib/searpc-marshal.h
-lib/searpc-signature.h
 lib/*.tmp
 lib/dir.c
 lib/dirent.c
