@@ -456,17 +456,22 @@ def seaf_download(args):
     email = tmp['email']
     repo_name = tmp['repo_name']
     version = tmp.get('repo_version', 0)
-    repo_salt = tmp['salt']
+    repo_salt = tmp.get('salt', None)
+    permission = tmp.get('permission', None)
 
+    is_readonly = 0
+    if permission == 'r':
+        is_readonly = 1
+    
     more_info = None
-    more_info_dict = None
+    more_info_dict = {}
     base_url = get_base_url(url)
     if base_url:
-        more_info_dict = {'server_url': base_url}
+        more_info_dict.update({'server_url': base_url})
     if repo_salt:
         more_info_dict.update({'repo_salt': repo_salt})
-    if more_info_dict:
-        more_info = json.dumps(more_info_dict)
+    more_info_dict.update({'is_readonly': is_readonly})
+    more_info = json.dumps(more_info_dict)
 
     print "Starting to download ..."
     print "Library %s will be downloaded to %s" % (repo, download_dir)
@@ -582,22 +587,22 @@ def seaf_sync(args):
     email = tmp['email']
     repo_name = tmp['repo_name']
     version = tmp.get('repo_version', 0)
-    repo_salt =  tmp['salt']
-    is_readonly = None
-    if 'permission' in tmp.keys():
-        is_readonly = tmp['permission']
+    repo_salt =  tmp.get('salt', None)
+    permission = tmp.get('permission', None)
 
+    is_readonly = 0
+    if permission == 'r':
+        is_readonly = 1
+    
     more_info = None
-    more_info_dict = None
+    more_info_dict = {}
     base_url = get_base_url(url)
     if base_url:
-        more_info_dict = {'server_url': base_url}
+        more_info_dict.update({'server_url': base_url})
     if repo_salt:
         more_info_dict.update({'repo_salt': repo_salt})
-    if is_readonly:
-        more_info_dict.update({'is_readonly': is_readonly})
-    if more_info_dict:
-        more_info = json.dumps(more_info_dict)
+    more_info_dict.update({'is_readonly': is_readonly})
+    more_info = json.dumps(more_info_dict)
 
     print "Starting to download ..."
     if encrypted == 1:
