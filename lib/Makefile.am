@@ -35,7 +35,6 @@ seafile-object.h: ${seafile_object_define}
 	rm -f $@
 	@VALAC@ --pkg posix ${seafile_object_define} -C -H seafile-object.h
 
-DISTCLEANFILES = ${searpc_gen}
 
 ## library rules
 lib_LTLIBRARIES = libseafile.la
@@ -54,19 +53,7 @@ libseafile_common_la_LIBADD = @GLIB2_LIBS@  @GOBJECT_LIBS@ @LIB_GDI32@ \
 					 @LIBEVENT_LIBS@ @SEARPC_LIBS@ @LIB_SHELL32@ \
 	@ZLIB_LIBS@
 
-searpc_gen = searpc-signature.h searpc-marshal.h
-
-gensource: ${searpc_gen} ${valac_gen}
-
-rpc_table.stamp: ${top_srcdir}/lib/rpc_table.py
-	@rm -f rpc_table.tmp
-	@touch rpc_table.tmp
-	@echo "[libsearpc]: generating rpc header files"
-	@PYTHON@ `which searpc-codegen.py` ${top_srcdir}/lib/rpc_table.py
-	@echo "[libsearpc]: done"
-	@mv -f rpc_table.tmp $@
-
-${searpc_gen}: rpc_table.stamp
+gensource: ${valac_gen}
 
 vala.stamp: ${seafile_object_define}
 	rm -f ${seafile_object_gen}
@@ -78,10 +65,6 @@ vala.stamp: ${seafile_object_define}
 ${seafile_object_gen}: vala.stamp
 
 clean-local:
-	rm -f ${searpc_gen}
-	rm -f rpc_table.pyc
-	rm -f rpc_table.stamp
-	rm -f rpc_table.tmp
 	rm -f vala.tmp vala.stamp ${valac_gen}
 
 install-data-local:
