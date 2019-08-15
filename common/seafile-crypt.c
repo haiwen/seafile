@@ -120,11 +120,19 @@ seafile_generate_repo_salt (char *repo_salt)
 {
     unsigned char repo_salt_bin[32];
 
+#ifdef USE_GPL_CRYPTO
+    int rc = gnutls_rnd (GNUTLS_RND_RANDOM, repo_salt_bin, sizeof(repo_salt_bin));
+    if (rc < 0) {
+        seaf_warning ("Failed to generate salt for repo encryption.\n");
+        return -1;
+    }
+#else
     int rc = RAND_bytes (repo_salt_bin, sizeof(repo_salt_bin));
     if (rc != 1) {
         seaf_warning ("Failed to generate salt for repo encryption.\n");
         return -1;
     }
+#endif
 
     rawdata_to_hex (repo_salt_bin, repo_salt, 32);
 
