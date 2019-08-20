@@ -178,4 +178,9 @@ void
 seaf_sync_manager_refresh_path (SeafSyncManager *mgr, const char *path);
 #endif
 
+void
+seaf_sync_manager_set_task_error_code (SeafSyncManager *mgr,
+                                       const char *repo_id,
+                                       int error);
+
 #endif

@@ -274,7 +274,8 @@ locked_file_set_remove (LockedFileSet *fset, const char *path, gboolean db_only)
     sqlite3_finalize (stmt);
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
-    g_hash_table_remove (fset->locked_files, path);
+    if (!db_only)
+        g_hash_table_remove (fset->locked_files, path);
 
     return 0;
 }
