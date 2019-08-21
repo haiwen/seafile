@@ -57,7 +57,7 @@ static SyncErrorInfo sync_error_info_tbl[] = {
     {
         SYNC_ERROR_ID_UPDATE_TO_READ_ONLY_REPO,
         SYNC_ERROR_LEVEL_FILE,
-        "Created or updated a file in a read-only library"
+        "Created or updated a file in a non-writable library or folder"
     },
     {
         SYNC_ERROR_ID_ACCESS_DENIED,
@@ -76,42 +76,42 @@ static SyncErrorInfo sync_error_info_tbl[] = {
     },
     {
         SYNC_ERROR_ID_NETWORK,
-        SYNC_ERROR_LEVEL_REPO,
+        SYNC_ERROR_LEVEL_NETWORK,
         "Network error",
     },
     {
         SYNC_ERROR_ID_RESOLVE_PROXY,
-        SYNC_ERROR_LEVEL_REPO,
+        SYNC_ERROR_LEVEL_NETWORK,
         "Cannot resolve proxy address"
     },
     {
         SYNC_ERROR_ID_RESOLVE_HOST,
-        SYNC_ERROR_LEVEL_REPO,
+        SYNC_ERROR_LEVEL_NETWORK,
         "Cannot resolve server address"
     },
     {
         SYNC_ERROR_ID_CONNECT,
-        SYNC_ERROR_LEVEL_REPO,
+        SYNC_ERROR_LEVEL_NETWORK,
         "Cannot connect to server"
     },
     {
         SYNC_ERROR_ID_SSL,
-        SYNC_ERROR_LEVEL_REPO,
+        SYNC_ERROR_LEVEL_NETWORK,
         "Failed to establish secure connection. Please check server SSL certificate"
     },
     {
         SYNC_ERROR_ID_TX,
-        SYNC_ERROR_LEVEL_REPO,
+        SYNC_ERROR_LEVEL_NETWORK,
         "Data transfer was interrupted. Please check network or firewall"
     },
     {
         SYNC_ERROR_ID_TX_TIMEOUT,
-        SYNC_ERROR_LEVEL_REPO,
+        SYNC_ERROR_LEVEL_NETWORK,
         "Data transfer timed out. Please check network or firewall"
     },
     {
         SYNC_ERROR_ID_UNHANDLED_REDIRECT,
-        SYNC_ERROR_LEVEL_REPO,
+        SYNC_ERROR_LEVEL_NETWORK,
         "Unhandled http redirect from server. Please check server cofiguration"
     },
     {

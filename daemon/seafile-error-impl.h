@@ -6,6 +6,7 @@
 enum {
     SYNC_ERROR_LEVEL_REPO,
     SYNC_ERROR_LEVEL_FILE,
+    SYNC_ERROR_LEVEL_NETWORK,
 };
 
 const char *

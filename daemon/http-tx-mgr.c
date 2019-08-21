@@ -27,7 +27,7 @@
 #include "seafile-session.h"
 #include "http-tx-mgr.h"
 
-#include "seafile-error.h"
+#include "seafile-error-impl.h"
 #include "utils.h"
 #include "diff-simple.h"
 
@@ -143,10 +143,9 @@ http_tx_task_free (HttpTxTask *task)
     g_free (task->passwd);
     g_free (task->worktree);
     g_free (task->email);
+    g_free (task->repo_name);
     if (task->type == HTTP_TASK_TYPE_DOWNLOAD) {
         g_hash_table_destroy (task->blk_ref_cnts);
-        cevent_manager_unregister (seaf->ev_mgr, task->cevent_id);
-        g_free (task->repo_name);
     }
     g_free (task);
 }
@@ -2502,6 +2501,8 @@ http_tx_manager_add_upload (HttpTxManager *manager,
 
     task->use_fileserver_port = use_fileserver_port;
 
+    task->repo_name = g_strdup(repo->name);
+
     g_hash_table_insert (manager->priv->upload_tasks,
                          g_strdup(repo_id),
                          task);
@@ -3827,7 +3828,6 @@ http_upload_done (void *vdata)
 
 static void *http_download_thread (void *vdata);
 static void http_download_done (void *vdata);
-static void notify_conflict (CEvent *event, void *data);
 
 int
 http_tx_manager_add_download (HttpTxManager *manager,
@@ -3883,9 +3883,6 @@ http_tx_manager_add_download (HttpTxManager *manager,
                          g_strdup(repo_id),
                          task);
 
-    task->cevent_id = cevent_manager_register (seaf->ev_mgr,
-                                               (cevent_handler)notify_conflict,
-                                               NULL);
     task->repo_name = g_strdup(repo_name);
 
     if (seaf_job_manager_schedule_job (seaf->job_mgr,
@@ -4617,49 +4614,6 @@ http_download_done (void *vdata)
         transition_state (task, HTTP_TASK_STATE_FINISHED, HTTP_TASK_RT_STATE_FINISHED);
 }
 
-typedef struct FileConflictData {
-    char *repo_id;
-    char *repo_name;
-    char *path;
-} FileConflictData;
-
-static void
-notify_conflict (CEvent *event, void *handler_data)
-{
-    FileConflictData *data = event->data;
-    json_t *object;
-    char *str;
-
-    object = json_object ();
-    json_object_set_new (object, "repo_id", json_string(data->repo_id));
-    json_object_set_new (object, "repo_name", json_string(data->repo_name));
-    json_object_set_new (object, "path", json_string(data->path));
-
-    str = json_dumps (object, 0);
-
-    seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                          "sync.conflict",
-                                          str);
-
-    free (str);
-    json_decref (object);
-    g_free (data->repo_id);
-    g_free (data->repo_name);
-    g_free (data->path);
-    g_free (data);
-}
-
-void
-http_tx_manager_notify_conflict (HttpTxTask *task, const char *path)
-{
-    FileConflictData *data = g_new0 (FileConflictData, 1);
-    data->repo_id = g_strdup(task->repo_id);
-    data->repo_name = g_strdup(task->repo_name);
-    data->path = g_strdup(path);
-
-    cevent_manager_add_event (seaf->ev_mgr, task->cevent_id, data);
-}
-
 GList*
 http_tx_manager_get_upload_tasks (HttpTxManager *manager)
 {
@@ -4736,19 +4690,4 @@ http_task_rt_state_to_str (int rt_state)
         return "unknown";
 
     return http_task_rt_state_str[rt_state];
-}
-
-gboolean
-is_http_task_net_error (int error)
-{
-    if (error == SYNC_ERROR_ID_NETWORK ||
-        error == SYNC_ERROR_ID_RESOLVE_PROXY ||
-        error == SYNC_ERROR_ID_RESOLVE_HOST ||
-        error == SYNC_ERROR_ID_CONNECT ||
-        error == SYNC_ERROR_ID_SSL ||
-        error == SYNC_ERROR_ID_TX ||
-        error == SYNC_ERROR_ID_TX_TIMEOUT)
-        return TRUE;
-    else
-        return FALSE;
 }

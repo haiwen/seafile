@@ -554,7 +554,7 @@ static int check_connect_pulse (void *vmanager)
         task = value;
         if (task->state == CLONE_STATE_ERROR &&
             task->repo_version > 0 &&
-            is_http_task_net_error (task->error)) {
+            sync_error_level (task->error) == SYNC_ERROR_LEVEL_NETWORK) {
             task->error = SYNC_ERROR_ID_NO_ERROR;
             check_http_protocol (task);
         }
