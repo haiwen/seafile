@@ -4982,18 +4982,19 @@ delete_worktree_dir_recursive_win32 (struct index_state *istate,
                 ret = -1;
             }
         } else {
+            struct cache_entry *ce;
             /* Files like .DS_Store and Thumbs.db should be deleted any way. */
-            /* if (!builtin_ignored) { */
-            /*     mtime = (guint64)file_time_to_unix_time (&fdata.ftLastWriteTime); */
-            /*     ce = index_name_exists (istate, sub_path, strlen(sub_path), 0); */
-            /*     if (!ce || (!is_eml_file (dname) && ce->ce_mtime.sec != mtime)) { */
-            /*         seaf_message ("File %s is changed, skip deleting it.\n", sub_path); */
-            /*         g_free (sub_path_w); */
-            /*         g_free (sub_path); */
-            /*         ret = -1; */
-            /*         continue; */
-            /*     } */
-            /* } */
+            if (!builtin_ignored) {
+                mtime = (guint64)file_time_to_unix_time (&fdata.ftLastWriteTime);
+                ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
+                if (!ce || (!is_eml_file (dname) && ce->ce_mtime.sec != mtime)) {
+                    seaf_message ("File %s is changed, skip deleting it.\n", sub_path);
+                    g_free (sub_path_w);
+                    g_free (sub_path);
+                    ret = -1;
+                    continue;
+                }
+            }
 
             if (!DeleteFileW (sub_path_w)) {
                 error = GetLastError();
@@ -5081,17 +5082,18 @@ delete_worktree_dir_recursive (struct index_state *istate,
             if (delete_worktree_dir_recursive (istate, sub_path, full_sub_path) < 0)
                 ret = -1;
         } else {
+            struct cache_entry *ce;
             /* Files like .DS_Store and Thumbs.db should be deleted any way. */
-            /* if (!builtin_ignored) { */
-            /*     ce = index_name_exists (istate, sub_path, strlen(sub_path), 0); */
-            /*     if (!ce || ce->ce_mtime.sec != st.st_mtime) { */
-            /*         seaf_message ("File %s is changed, skip deleting it.\n", full_sub_path); */
-            /*         g_free (sub_path); */
-            /*         g_free (full_sub_path); */
-            /*         ret = -1; */
-            /*         continue; */
-            /*     } */
-            /* } */
+            if (!builtin_ignored) {
+                ce = index_name_exists (istate, sub_path, strlen(sub_path), 0);
+                if (!ce || ce->ce_mtime.sec != st.st_mtime) {
+                    seaf_message ("File %s is changed, skip deleting it.\n", full_sub_path);
+                    g_free (sub_path);
+                    g_free (full_sub_path);
+                    ret = -1;
+                    continue;
+                }
+            }
 
             /* Delete all other file types. */
             if (seaf_util_unlink (full_sub_path) < 0) {
@@ -5120,6 +5122,43 @@ delete_worktree_dir_recursive (struct index_state *istate,
 
 #endif  /* WIN32 */
 
+#define SEAFILE_TRASH_FOLDER "seafile-trash"
+
+static void
+move_dir_to_trash (const char *dir_path)
+{
+    char *trash_folder = g_build_path ("/", seaf->worktree_dir, SEAFILE_TRASH_FOLDER, NULL);
+    if (checkdir_with_mkdir (trash_folder) < 0) {
+        seaf_warning ("Seafile trash folder %s doesn't exist and cannot be created.\n",
+                      trash_folder);
+        g_free (trash_folder);
+        return;
+    }
+    g_free (trash_folder);
+
+    char *basename = g_path_get_basename (dir_path);
+    char *dst_path = g_build_path ("/", seaf->worktree_dir, SEAFILE_TRASH_FOLDER, basename, NULL);
+
+    int n;
+    char *tmp_path;
+    for (n = 1; n < 10; ++n) {
+        if (g_file_test (dst_path, G_FILE_TEST_EXISTS)) {
+            tmp_path = g_strdup_printf ("%s(%d)", dst_path, n);
+            g_free (dst_path);
+            dst_path = tmp_path;
+            continue;
+        }
+        break;
+    }
+
+    if (seaf_util_rename (dir_path, dst_path) < 0) {
+        seaf_warning ("Failed to move %s to trash %s: %s\n", dir_path, dst_path, strerror(errno));
+    }
+
+    g_free (basename);
+    g_free (dst_path);
+}
+
 static void
 delete_worktree_dir (struct index_state *istate,
                      const char *worktree,
@@ -5134,6 +5173,14 @@ delete_worktree_dir (struct index_state *istate,
 #else
     delete_worktree_dir_recursive(istate, path, full_path);
 #endif
+
+    /* If for some reason the dir cannot be removed, try to move it to a trash folder
+     * under Seafile folder. Otherwise the removed folder will be created agian on the
+     * server, which will confuse the users.
+     */
+    if (g_file_test (full_path, G_FILE_TEST_EXISTS)) {
+        move_dir_to_trash (full_path);
+    }
 
     g_free (full_path);
 }
