@@ -5122,7 +5122,7 @@ delete_worktree_dir_recursive (struct index_state *istate,
 
 #endif  /* WIN32 */
 
-#define SEAFILE_RECYCLE_BIN_FOLDER "seafile-recycle-bin"
+#define SEAFILE_RECYCLE_BIN_FOLDER "recycle-bin"
 
 static int
 move_dir_to_recycle_bin (const char *dir_path)
