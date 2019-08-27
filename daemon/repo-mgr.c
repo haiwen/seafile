@@ -5122,12 +5122,12 @@ delete_worktree_dir_recursive (struct index_state *istate,
 
 #endif  /* WIN32 */
 
-#define SEAFILE_TRASH_FOLDER "seafile-trash"
+#define SEAFILE_RECYCLE_BIN_FOLDER "seafile-recycle-bin"
 
 static void
-move_dir_to_trash (const char *dir_path)
+move_dir_to_recycle_bin (const char *dir_path)
 {
-    char *trash_folder = g_build_path ("/", seaf->worktree_dir, SEAFILE_TRASH_FOLDER, NULL);
+    char *trash_folder = g_build_path ("/", seaf->worktree_dir, SEAFILE_RECYCLE_BIN_FOLDER, NULL);
     if (checkdir_with_mkdir (trash_folder) < 0) {
         seaf_warning ("Seafile trash folder %s doesn't exist and cannot be created.\n",
                       trash_folder);
@@ -5137,7 +5137,7 @@ move_dir_to_trash (const char *dir_path)
     g_free (trash_folder);
 
     char *basename = g_path_get_basename (dir_path);
-    char *dst_path = g_build_path ("/", seaf->worktree_dir, SEAFILE_TRASH_FOLDER, basename, NULL);
+    char *dst_path = g_build_path ("/", seaf->worktree_dir, SEAFILE_RECYCLE_BIN_FOLDER, basename, NULL);
 
     int n;
     char *tmp_path;
@@ -5152,8 +5152,12 @@ move_dir_to_trash (const char *dir_path)
     }
 
     if (seaf_util_rename (dir_path, dst_path) < 0) {
-        seaf_warning ("Failed to move %s to trash %s: %s\n", dir_path, dst_path, strerror(errno));
+        seaf_warning ("Failed to move %s to Seafile recycle bin %s: %s\n",
+                      dir_path, dst_path, strerror(errno));
     }
+
+    seaf_message ("Moved folder %s to Seafile recyle bin %s.\n",
+                  dir_path, dst_path);
 
     g_free (basename);
     g_free (dst_path);
@@ -5179,7 +5183,7 @@ delete_worktree_dir (struct index_state *istate,
      * server, which will confuse the users.
      */
     if (g_file_test (full_path, G_FILE_TEST_EXISTS)) {
-        move_dir_to_trash (full_path);
+        move_dir_to_recycle_bin (full_path);
     }
 
     g_free (full_path);
