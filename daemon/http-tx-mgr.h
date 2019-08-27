@@ -34,33 +34,6 @@ enum HttpTaskRuntimeState {
     N_HTTP_TASK_RT_STATE,
 };
 
-enum HttpTaskError {
-    HTTP_TASK_OK = 0,
-    HTTP_TASK_ERR_FORBIDDEN,
-    HTTP_TASK_ERR_NO_WRITE_PERMISSION,
-    HTTP_TASK_ERR_NO_PERMISSION_TO_SYNC,
-    HTTP_TASK_ERR_NET,
-    HTTP_TASK_ERR_RESOLVE_PROXY,
-    HTTP_TASK_ERR_RESOLVE_HOST,
-    HTTP_TASK_ERR_CONNECT,
-    HTTP_TASK_ERR_SSL,
-    HTTP_TASK_ERR_TX,
-    HTTP_TASK_ERR_TX_TIMEOUT,
-    HTTP_TASK_ERR_UNHANDLED_REDIRECT,
-    HTTP_TASK_ERR_SERVER,
-    HTTP_TASK_ERR_BAD_REQUEST,
-    HTTP_TASK_ERR_BAD_LOCAL_DATA,
-    HTTP_TASK_ERR_NOT_ENOUGH_MEMORY,
-    HTTP_TASK_ERR_WRITE_LOCAL_DATA,
-    HTTP_TASK_ERR_NO_QUOTA,
-    HTTP_TASK_ERR_FILES_LOCKED,
-    HTTP_TASK_ERR_REPO_DELETED,
-    HTTP_TASK_ERR_REPO_CORRUPTED,
-    HTTP_TASK_ERR_FILE_LOCKED_ON_SERVER,
-    HTTP_TASK_ERR_UNKNOWN,
-    N_HTTP_TASK_ERROR,
-};
-
 struct _SeafileSession;
 struct _HttpTxPriv;
 
@@ -77,6 +50,7 @@ struct _HttpTxTask {
 
     char repo_id[37];
     int repo_version;
+    char *repo_name;
     char *token;
     int protocol_version;
     int type;
@@ -117,9 +91,6 @@ struct _HttpTxTask {
 
     gint tx_bytes;              /* bytes transferred in this second. */
     gint last_tx_bytes;         /* bytes transferred in the last second. */
-
-    uint32_t cevent_id;         /* Used by download task to send notification. */
-    char *repo_name;            /* Used by download task in conflict notification. */
 };
 typedef struct _HttpTxTask HttpTxTask;
 
@@ -312,10 +283,6 @@ http_tx_manager_cancel_task (HttpTxManager *manager,
                              const char *repo_id,
                              int task_type);
 
-/* Only useful for download task. */
-void
-http_tx_manager_notify_conflict (HttpTxTask *task, const char *path);
-
 int
 http_tx_task_get_rate (HttpTxTask *task);
 
@@ -325,9 +292,4 @@ http_task_state_to_str (int state);
 const char *
 http_task_rt_state_to_str (int rt_state);
 
-const char *
-http_task_error_str (int task_errno);
-
 #endif
-gboolean
-is_http_task_net_error (char *err_detail);

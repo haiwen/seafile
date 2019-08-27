@@ -21,8 +21,6 @@ public class Task : Object {
 
 	public string rt_state { get; set; }
 
-	public string error_str { get; set; }
-
     public int64 block_total { get; set; }
     public int64 block_done { get; set; } // the number of blocks sent or received
 
@@ -47,13 +45,10 @@ public class Task : Object {
 
 public class CloneTask : Object {
        public string state { get; set; }
-       public string error_str { get; set; }
-       public string err_detail { get; set; }
+       public int error { get; set; }
        public string repo_id { get; set; }
-       public string peer_id { get; set; }
        public string repo_name { get; set; }
        public string worktree { get; set; }
-       public string tx_id { get; set; }
 }
 
 } // namespace

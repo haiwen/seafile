@@ -97,28 +97,12 @@ public class Repo : Object {
     public bool is_shared { get; set; }
 }
 
-public class SyncInfo : Object {
-
-    public string repo_id { get; set; }
-    public string head_commit { get; set; }
-    public bool deleted_on_relay { get; set; }
-    public bool bad_local_branch { get; set; }
-    public bool need_fetch { get; set; }
-    public bool need_upload { get; set; }
-    public bool need_merge { get; set; }
-    // public int last_sync_time { get; set; }
-}
-
 public class SyncTask : Object {
 
-    public bool is_sync_lan { get; set; }
     public bool force_upload { get; set; }
-    public string dest_id { get; set; }
     public string repo_id { get; set; }
     public string state { get; set; }
-    public string error { get; set; }
-    public string err_detail { get; set; }
-    public string tx_id { get; set; }
+    public int error { get; set; }
 }
 
 public class SessionInfo : Object {

@@ -50,33 +50,6 @@ enum {
     SYNC_STATE_NUM,
 };
 
-enum {
-    SYNC_ERROR_NONE,
-    SYNC_ERROR_RELAY_OFFLINE,
-    SYNC_ERROR_UPGRADE_REPO,
-    SYNC_ERROR_RELAY_REMOVED,
-    SYNC_ERROR_NOT_LOGIN,
-    SYNC_ERROR_SERVICE_DOWN,
-    SYNC_ERROR_ACCESS_DENIED,
-    SYNC_ERROR_QUOTA_FULL,
-    SYNC_ERROR_PROC_PERM_ERR,
-    SYNC_ERROR_DATA_CORRUPT,
-    SYNC_ERROR_START_UPLOAD,
-    SYNC_ERROR_UPLOAD,
-    SYNC_ERROR_START_FETCH,
-    SYNC_ERROR_FETCH,
-    SYNC_ERROR_NOREPO,
-    SYNC_ERROR_REPO_CORRUPT,
-    SYNC_ERROR_COMMIT,
-    SYNC_ERROR_MERGE,
-    SYNC_ERROR_WORKTREE_DIRTY,
-    SYNC_ERROR_DEPRECATED_SERVER,
-    SYNC_ERROR_GET_SYNC_INFO,   /* for http sync */
-    SYNC_ERROR_FILES_LOCKED,
-    SYNC_ERROR_UNKNOWN,
-    SYNC_ERROR_NUM,
-};
-
 struct _SyncTask {
     SeafSyncManager *mgr;
     SyncInfo        *info;
@@ -85,7 +58,6 @@ struct _SyncTask {
     gboolean         is_initial_commit;
     int              state;
     int              error;
-    char            *err_detail;
     char            *tx_id;
     char            *token;
     struct SeafTimer *commit_timer;
@@ -167,9 +139,6 @@ int
 seaf_sync_manager_is_auto_sync_enabled (SeafSyncManager *mgr);
 
 const char *
-sync_error_to_str (int error);
-
-const char *
 sync_state_to_str (int state);
 
 void
@@ -208,5 +177,10 @@ seaf_sync_manager_add_refresh_path (SeafSyncManager *mgr, const char *path);
 void
 seaf_sync_manager_refresh_path (SeafSyncManager *mgr, const char *path);
 #endif
+
+void
+seaf_sync_manager_set_task_error_code (SeafSyncManager *mgr,
+                                       const char *repo_id,
+                                       int error);
 
 #endif

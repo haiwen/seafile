@@ -27,7 +27,7 @@
 #include "seafile-session.h"
 #include "http-tx-mgr.h"
 
-#include "seafile-error.h"
+#include "seafile-error-impl.h"
 #include "utils.h"
 #include "diff-simple.h"
 
@@ -130,6 +130,8 @@ http_tx_task_new (HttpTxManager *mgr,
     if (worktree)
         task->worktree = g_strdup(worktree);
 
+    task->error = SYNC_ERROR_ID_NO_ERROR;
+
     return task;
 }
 
@@ -141,10 +143,9 @@ http_tx_task_free (HttpTxTask *task)
     g_free (task->passwd);
     g_free (task->worktree);
     g_free (task->email);
+    g_free (task->repo_name);
     if (task->type == HTTP_TASK_TYPE_DOWNLOAD) {
         g_hash_table_destroy (task->blk_ref_cnts);
-        cevent_manager_unregister (seaf->ev_mgr, task->cevent_id);
-        g_free (task->repo_name);
     }
     g_free (task);
 }
@@ -164,32 +165,6 @@ static const char *http_task_rt_state_str[] = {
     "data",
     "update-branch",
     "finished",
-};
-
-static const char *http_task_error_strs[] = {
-    "Successful",
-    "Permission denied on server",
-    "Do not have write permission to the library",
-    "Do not have permission to sync the library",
-    "Network error",
-    "Cannot resolve proxy address",
-    "Cannot resolve server address",
-    "Cannot connect to server",
-    "Failed to establish secure connection",
-    "Data transfer was interrupted",
-    "Data transfer timed out",
-    "Unhandled http redirect from server",
-    "Server error",
-    "Bad request",
-    "Internal data corrupt on the client",
-    "Not enough memory",
-    "Failed to write data on the client",
-    "Storage quota full",
-    "Files are locked by other application",
-    "Library deleted on server",
-    "Library damaged on server",
-    "File is locked by another user on server",
-    "Unknown error",
 };
 
 /* Http connection and connection pool. */
@@ -1100,21 +1075,22 @@ static int
 http_error_to_http_task_error (int status)
 {
     if (status == HTTP_BAD_REQUEST)
-        return HTTP_TASK_ERR_BAD_REQUEST;
+        /* This is usually a bug in the client. Set to general error. */
+        return SYNC_ERROR_ID_GENERAL_ERROR;
     else if (status == HTTP_FORBIDDEN)
-        return HTTP_TASK_ERR_FORBIDDEN;
+        return SYNC_ERROR_ID_ACCESS_DENIED;
     else if (status >= HTTP_INTERNAL_SERVER_ERROR)
-        return HTTP_TASK_ERR_SERVER;
+        return SYNC_ERROR_ID_SERVER;
     else if (status == HTTP_NOT_FOUND)
-        return HTTP_TASK_ERR_SERVER;
+        return SYNC_ERROR_ID_SERVER;
     else if (status == HTTP_NO_QUOTA)
-        return HTTP_TASK_ERR_NO_QUOTA;
+        return SYNC_ERROR_ID_QUOTA_FULL;
     else if (status == HTTP_REPO_DELETED)
-        return HTTP_TASK_ERR_REPO_DELETED;
+        return SYNC_ERROR_ID_SERVER_REPO_DELETED;
     else if (status == HTTP_REPO_CORRUPTED)
-        return HTTP_TASK_ERR_REPO_CORRUPTED;
+        return SYNC_ERROR_ID_SERVER_REPO_CORRUPT;
     else
-        return HTTP_TASK_ERR_UNKNOWN;
+        return SYNC_ERROR_ID_GENERAL_ERROR;
 }
 
 static void
@@ -1128,30 +1104,30 @@ curl_error_to_http_task_error (int curl_error)
 {
     if (curl_error == CURLE_SSL_CACERT ||
         curl_error == CURLE_PEER_FAILED_VERIFICATION)
-        return HTTP_TASK_ERR_SSL;
+        return SYNC_ERROR_ID_SSL;
 
     switch (curl_error) {
     case CURLE_COULDNT_RESOLVE_PROXY:
-        return HTTP_TASK_ERR_RESOLVE_PROXY;
+        return SYNC_ERROR_ID_RESOLVE_PROXY;
     case CURLE_COULDNT_RESOLVE_HOST:
-        return HTTP_TASK_ERR_RESOLVE_HOST;
+        return SYNC_ERROR_ID_RESOLVE_HOST;
     case CURLE_COULDNT_CONNECT:
-        return HTTP_TASK_ERR_CONNECT;
+        return SYNC_ERROR_ID_CONNECT;
     case CURLE_OPERATION_TIMEDOUT:
-        return HTTP_TASK_ERR_TX_TIMEOUT;
+        return SYNC_ERROR_ID_TX_TIMEOUT;
     case CURLE_SSL_CONNECT_ERROR:
     case CURLE_SSL_CERTPROBLEM:
     case CURLE_SSL_CACERT_BADFILE:
     case CURLE_SSL_ISSUER_ERROR:
-        return HTTP_TASK_ERR_SSL;
+        return SYNC_ERROR_ID_SSL;
     case CURLE_GOT_NOTHING:
     case CURLE_SEND_ERROR:
     case CURLE_RECV_ERROR:
-        return HTTP_TASK_ERR_TX;
+        return SYNC_ERROR_ID_TX;
     case CURLE_SEND_FAIL_REWIND:
-        return HTTP_TASK_ERR_UNHANDLED_REDIRECT;
+        return SYNC_ERROR_ID_UNHANDLED_REDIRECT;
     default:
-        return HTTP_TASK_ERR_NET;
+        return SYNC_ERROR_ID_NETWORK;
     }
 }
 
@@ -2387,15 +2363,6 @@ clean_tasks_for_repo (HttpTxManager *manager, const char *repo_id)
                                  remove_task_help, (gpointer)repo_id);
 }
 
-static void
-notify_sync_perm_error (HttpTxTask *task, const char *unsyncable_path)
-{
-
-    send_file_sync_error_notification (task->repo_id, task->repo_name,
-                                       unsyncable_path, SYNC_ERROR_ID_PERM_NOT_SYNCABLE);
-
-}
-
 static int
 check_permission (HttpTxTask *task, Connection *conn)
 {
@@ -2462,9 +2429,9 @@ check_permission (HttpTxTask *task, Connection *conn)
 
         reason_str = json_string_value (reason);
         if (g_strcmp0 (reason_str, "no write permission") == 0) {
-            task->error = HTTP_TASK_ERR_NO_WRITE_PERMISSION;
+            task->error = SYNC_ERROR_ID_NO_WRITE_PERMISSION;
         } else if (g_strcmp0 (reason_str, "unsyncable share permission") == 0) {
-            task->error = HTTP_TASK_ERR_NO_PERMISSION_TO_SYNC;
+            task->error = SYNC_ERROR_ID_PERM_NOT_SYNCABLE;
 
             unsyncable_path = json_object_get (rsp_obj, "unsyncable_path");
             if (!unsyncable_path) {
@@ -2475,9 +2442,11 @@ check_permission (HttpTxTask *task, Connection *conn)
 
             unsyncable_path_str = json_string_value (unsyncable_path);
             if (unsyncable_path_str)
-                notify_sync_perm_error (task, unsyncable_path_str);
+                seaf_repo_manager_record_sync_error (task->repo_id, task->repo_name,
+                                                     unsyncable_path_str,
+                                                     SYNC_ERROR_ID_PERM_NOT_SYNCABLE);
         } else {
-            task->error = HTTP_TASK_ERR_FORBIDDEN;
+            task->error = SYNC_ERROR_ID_ACCESS_DENIED;
         }
 
         ret = -1;
@@ -2531,6 +2500,8 @@ http_tx_manager_add_upload (HttpTxManager *manager,
     task->state = HTTP_TASK_STATE_NORMAL;
 
     task->use_fileserver_port = use_fileserver_port;
+
+    task->repo_name = g_strdup(repo->name);
 
     g_hash_table_insert (manager->priv->upload_tasks,
                          g_strdup(repo_id),
@@ -2739,7 +2710,7 @@ send_commit_object (HttpTxTask *task, Connection *conn)
                                  task->repo_id, task->repo_version,
                                  task->head, (void**)&data, &len) < 0) {
         seaf_warning ("Failed to read commit %s.\n", task->head);
-        task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+        task->error = SYNC_ERROR_ID_LOCAL_DATA_CORRUPT;
         return -1;
     }
 
@@ -2970,7 +2941,7 @@ upload_check_id_list_segment (HttpTxTask *task, Connection *conn, const char *ur
     array = json_loadb (rsp_content, rsp_size, 0, &jerror);
     if (!array) {
         seaf_warning ("Invalid JSON response from the server: %s.\n", jerror.text);
-        task->error = HTTP_TASK_ERR_SERVER;
+        task->error = SYNC_ERROR_ID_SERVER;
         ret = -1;
         goto out;
     }
@@ -3039,7 +3010,7 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
                                      obj_id, (void **)&data, &len) < 0) {
             seaf_warning ("Failed to read fs object %s in repo %s.\n",
                           obj_id, task->repo_id);
-            task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+            task->error = SYNC_ERROR_ID_LOCAL_DATA_CORRUPT;
             ret = -1;
             goto out;
         }
@@ -3287,7 +3258,7 @@ send_block_callback (void *ptr, size_t size, size_t nmemb, void *userp)
     if (n < 0) {
         seaf_warning ("Failed to read block %s in repo %.8s.\n",
                       data->block_id, task->repo_id);
-        task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+        task->error = SYNC_ERROR_ID_LOCAL_DATA_CORRUPT;
         return CURL_READFUNC_ABORT;
     }
 
@@ -3331,7 +3302,7 @@ send_block (HttpTxTask *task, Connection *conn, const char *block_id, guint32 *p
     if (!bmd) {
         seaf_warning ("Failed to stat block %s in repo %s.\n",
                       block_id, task->repo_id);
-        task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+        task->error = SYNC_ERROR_ID_LOCAL_DATA_CORRUPT;
         return -1;
     }
 
@@ -3341,7 +3312,7 @@ send_block (HttpTxTask *task, Connection *conn, const char *block_id, guint32 *p
     if (!block) {
         seaf_warning ("Failed to open block %s in repo %s.\n",
                       block_id, task->repo_id);
-        task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+        task->error = SYNC_ERROR_ID_LOCAL_DATA_CORRUPT;
         g_free (bmd);
         return -1;
     }
@@ -3369,7 +3340,7 @@ send_block (HttpTxTask *task, Connection *conn, const char *block_id, guint32 *p
         if (task->state == HTTP_TASK_STATE_CANCELED)
             goto out;
 
-        if (task->error == HTTP_TASK_OK) {
+        if (task->error == SYNC_ERROR_ID_NO_ERROR) {
             /* Only release connection when it's a network error */
             conn->release = TRUE;
             handle_curl_errors (task, curl_error);
@@ -3428,7 +3399,7 @@ upload_block_thread_func (gpointer data, gpointer user_data)
     conn = connection_pool_get_connection (tx_data->cpool);
     if (!conn) {
         seaf_warning ("Failed to get connection to host %s.\n", http_task->host);
-        http_task->error = HTTP_TASK_ERR_NOT_ENOUGH_MEMORY;
+        http_task->error = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
         ret = -1;
         goto out;
     }
@@ -3464,7 +3435,7 @@ multi_threaded_send_blocks (HttpTxTask *http_task, GList *block_list)
     cpool = find_connection_pool (priv, http_task->host);
     if (!cpool) {
         seaf_warning ("Failed to create connection pool for host %s.\n", http_task->host);
-        http_task->error = HTTP_TASK_ERR_NOT_ENOUGH_MEMORY;
+        http_task->error = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
         return -1;
     }
 
@@ -3534,19 +3505,21 @@ notify_permission_error (HttpTxTask *task, const char *error_str)
 
     if (g_regex_match (priv->locked_error_regex, error_str, 0, &match_info)) {
         path = g_match_info_fetch (match_info, 1);
-        send_file_sync_error_notification (task->repo_id, task->repo_name, path,
-                                           SYNC_ERROR_ID_FILE_LOCKED);
+        seaf_repo_manager_record_sync_error (task->repo_id, task->repo_name, path,
+                                             SYNC_ERROR_ID_FILE_LOCKED);
         g_free (path);
 
         /* Set more accurate error. */
-        task->error = HTTP_TASK_ERR_FILE_LOCKED_ON_SERVER;
+        task->error = SYNC_ERROR_ID_FILE_LOCKED;
     } else if (g_regex_match (priv->folder_perm_error_regex, error_str, 0, &match_info)) {
         path = g_match_info_fetch (match_info, 1);
         /* The path returned by server begins with '/'. */
-        send_file_sync_error_notification (task->repo_id, task->repo_name,
-                                           (path[0] == '/') ? (path + 1) : path,
-                                           SYNC_ERROR_ID_FOLDER_PERM_DENIED);
+        seaf_repo_manager_record_sync_error (task->repo_id, task->repo_name,
+                                             (path[0] == '/') ? (path + 1) : path,
+                                             SYNC_ERROR_ID_FOLDER_PERM_DENIED);
         g_free (path);
+
+        task->error = SYNC_ERROR_ID_FOLDER_PERM_DENIED;
     }
 
     g_match_info_free (match_info);
@@ -3666,7 +3639,7 @@ http_upload_thread (void *vdata)
                                                         task->repo_id, "local");
     if (!local) {
         seaf_warning ("Failed to get branch local of repo %.8s.\n", task->repo_id);
-        task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+        task->error = SYNC_ERROR_ID_LOCAL_DATA_CORRUPT;
         return NULL;
     }
     memcpy (task->head, local->commit_id, 40);
@@ -3675,14 +3648,14 @@ http_upload_thread (void *vdata)
     pool = find_connection_pool (priv, task->host);
     if (!pool) {
         seaf_warning ("Failed to create connection pool for host %s.\n", task->host);
-        task->error = HTTP_TASK_ERR_NOT_ENOUGH_MEMORY;
+        task->error = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
         goto out;
     }
 
     conn = connection_pool_get_connection (pool);
     if (!conn) {
         seaf_warning ("Failed to get connection to host %s.\n", task->host);
-        task->error = HTTP_TASK_ERR_NOT_ENOUGH_MEMORY;
+        task->error = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
         goto out;
     }
 
@@ -3697,7 +3670,7 @@ http_upload_thread (void *vdata)
     if (calculate_upload_size_delta_and_active_paths (task, &delta, active_paths) < 0) {
         seaf_warning ("Failed to calculate upload size delta for repo %s.\n",
                       task->repo_id);
-        task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+        task->error = SYNC_ERROR_ID_LOCAL_DATA_CORRUPT;
         goto out;
     }
 
@@ -3734,7 +3707,7 @@ http_upload_thread (void *vdata)
     if (!send_fs_list) {
         seaf_warning ("Failed to calculate fs object list for repo %.8s.\n",
                       task->repo_id);
-        task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+        task->error = SYNC_ERROR_ID_LOCAL_DATA_CORRUPT;
         goto out;
     }
 
@@ -3773,7 +3746,7 @@ http_upload_thread (void *vdata)
     if (calculate_block_list (task, &block_list) < 0) {
         seaf_warning ("Failed to calculate block list for repo %.8s.\n",
                       task->repo_id);
-        task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+        task->error = SYNC_ERROR_ID_LOCAL_DATA_CORRUPT;
         goto out;
     }
 
@@ -3843,7 +3816,7 @@ http_upload_done (void *vdata)
 {
     HttpTxTask *task = vdata;
 
-    if (task->error != HTTP_TASK_OK)
+    if (task->error != SYNC_ERROR_ID_NO_ERROR)
         transition_state (task, HTTP_TASK_STATE_ERROR, HTTP_TASK_RT_STATE_FINISHED);
     else if (task->state == HTTP_TASK_STATE_CANCELED)
         transition_state (task, task->state, HTTP_TASK_RT_STATE_FINISHED);
@@ -3855,7 +3828,6 @@ http_upload_done (void *vdata)
 
 static void *http_download_thread (void *vdata);
 static void http_download_done (void *vdata);
-static void notify_conflict (CEvent *event, void *data);
 
 int
 http_tx_manager_add_download (HttpTxManager *manager,
@@ -3911,9 +3883,6 @@ http_tx_manager_add_download (HttpTxManager *manager,
                          g_strdup(repo_id),
                          task);
 
-    task->cevent_id = cevent_manager_register (seaf->ev_mgr,
-                                               (cevent_handler)notify_conflict,
-                                               NULL);
     task->repo_name = g_strdup(repo_name);
 
     if (seaf_job_manager_schedule_job (seaf->job_mgr,
@@ -3972,7 +3941,7 @@ get_commit_object (HttpTxTask *task, Connection *conn)
     if (rc < 0) {
         seaf_warning ("Failed to save commit %s in repo %.8s.\n",
                       task->head, task->repo_id);
-        task->error = HTTP_TASK_ERR_WRITE_LOCAL_DATA;
+        task->error = SYNC_ERROR_ID_WRITE_LOCAL_DATA;
         ret = -1;
     }
 
@@ -4043,7 +4012,7 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
     array = json_loadb (rsp_content, rsp_size, 0, &jerror);
     if (!array) {
         seaf_warning ("Invalid JSON response from the server: %s.\n", jerror.text);
-        task->error = HTTP_TASK_ERR_SERVER;
+        task->error = SYNC_ERROR_ID_SERVER;
         ret = -1;
         goto out;
     }
@@ -4195,7 +4164,7 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
         if (n + sizeof(ObjectHeader) + size > rsp_size) {
             seaf_warning ("Incomplete object package received for repo %.8s.\n",
                           task->repo_id);
-            task->error = HTTP_TASK_ERR_SERVER;
+            task->error = SYNC_ERROR_ID_SERVER;
             ret = -1;
             goto out;
         }
@@ -4210,7 +4179,7 @@ get_fs_objects (HttpTxTask *task, Connection *conn, GList **fs_list)
         if (rc < 0) {
             seaf_warning ("Failed to write fs object %s in repo %.8s.\n",
                           recv_obj_id, task->repo_id);
-            task->error = HTTP_TASK_ERR_WRITE_LOCAL_DATA;
+            task->error = SYNC_ERROR_ID_WRITE_LOCAL_DATA;
             ret = -1;
             goto out;
         }
@@ -4271,7 +4240,7 @@ get_block_callback (void *ptr, size_t size, size_t nmemb, void *userp)
     if (n < realsize) {
         seaf_warning ("Failed to write block %s in repo %.8s.\n",
                       data->block_id, task->repo_id);
-        task->error = HTTP_TASK_ERR_WRITE_LOCAL_DATA;
+        task->error = SYNC_ERROR_ID_WRITE_LOCAL_DATA;
         return n;
     }
 
@@ -4338,7 +4307,7 @@ get_block (HttpTxTask *task, Connection *conn, const char *block_id)
         if (task->state == HTTP_TASK_STATE_CANCELED)
             goto error;
 
-        if (task->error == HTTP_TASK_OK) {
+        if (task->error == SYNC_ERROR_ID_NO_ERROR) {
             /* Only release the connection when it's a network error. */
             conn->release = TRUE;
             handle_curl_errors (task, curl_error);
@@ -4378,7 +4347,7 @@ get_block (HttpTxTask *task, Connection *conn, const char *block_id)
     {
         seaf_warning ("Failed to commit block %s in repo %.8s.\n",
                       block_id, task->repo_id);
-        task->error = HTTP_TASK_ERR_WRITE_LOCAL_DATA;
+        task->error = SYNC_ERROR_ID_WRITE_LOCAL_DATA;
         ret = -1;
     }
 
@@ -4430,7 +4399,7 @@ http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id)
     pool = find_connection_pool (priv, task->host);
     if (!pool) {
         seaf_warning ("Failed to create connection pool for host %s.\n", task->host);
-        task->error = HTTP_TASK_ERR_NOT_ENOUGH_MEMORY;
+        task->error = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
         seafile_unref (file);
         return -1;
     }
@@ -4438,7 +4407,7 @@ http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id)
     conn = connection_pool_get_connection (pool);
     if (!conn) {
         seaf_warning ("Failed to get connection to host %s.\n", task->host);
-        task->error = HTTP_TASK_ERR_NOT_ENOUGH_MEMORY;
+        task->error = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
         seafile_unref (file);
         return -1;
     }
@@ -4473,7 +4442,7 @@ update_local_repo (HttpTxTask *task)
                                                task->head);
     if (!new_head) {
         seaf_warning ("Failed to get commit %s:%s.\n", task->repo_id, task->head);
-        task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+        task->error = SYNC_ERROR_ID_LOCAL_DATA_CORRUPT;
         return -1;
     }
 
@@ -4488,7 +4457,7 @@ update_local_repo (HttpTxTask *task)
         repo = seaf_repo_new (new_head->repo_id, NULL, NULL);
         if (repo == NULL) {
             /* create repo failed */
-            task->error = HTTP_TASK_ERR_NOT_ENOUGH_MEMORY;
+            task->error = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
             ret = -1;
             goto out;
         }
@@ -4507,7 +4476,7 @@ update_local_repo (HttpTxTask *task)
         seaf_branch_unref (branch);
     } else {
         if (!repo) {
-            task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+            task->error = SYNC_ERROR_ID_LOCAL_DATA_CORRUPT;
             ret = -1;
             goto out;
         }
@@ -4517,7 +4486,7 @@ update_local_repo (HttpTxTask *task)
                                                  "master");
         if (!branch) {
             seaf_warning ("Branch master not found for repo %.8s.\n", task->repo_id);
-            task->error = HTTP_TASK_ERR_BAD_LOCAL_DATA;
+            task->error = SYNC_ERROR_ID_LOCAL_DATA_CORRUPT;
             ret = -1;
             goto out;
         }
@@ -4550,14 +4519,14 @@ http_download_thread (void *vdata)
     pool = find_connection_pool (priv, task->host);
     if (!pool) {
         seaf_warning ("Failed to create connection pool for host %s.\n", task->host);
-        task->error = HTTP_TASK_ERR_NOT_ENOUGH_MEMORY;
+        task->error = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
         goto out;
     }
 
     conn = connection_pool_get_connection (pool);
     if (!conn) {
         seaf_warning ("Failed to get connection to host %s.\n", task->host);
-        task->error = HTTP_TASK_ERR_NOT_ENOUGH_MEMORY;
+        task->error = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
         goto out;
     }
 
@@ -4625,12 +4594,12 @@ http_download_thread (void *vdata)
     case FETCH_CHECKOUT_CANCELED:
         goto out;
     case FETCH_CHECKOUT_FAILED:
-        task->error = HTTP_TASK_ERR_WRITE_LOCAL_DATA;
+        task->error = SYNC_ERROR_ID_WRITE_LOCAL_DATA;
         goto out;
     case FETCH_CHECKOUT_TRANSFER_ERROR:
         goto out;
     case FETCH_CHECKOUT_LOCKED:
-        task->error = HTTP_TASK_ERR_FILES_LOCKED;
+        task->error = SYNC_ERROR_ID_FILE_LOCKED_BY_APP;
         goto out;
     }
 
@@ -4647,55 +4616,12 @@ http_download_done (void *vdata)
 {
     HttpTxTask *task = vdata;
 
-    if (task->error != HTTP_TASK_OK)
+    if (task->error != SYNC_ERROR_ID_NO_ERROR)
         transition_state (task, HTTP_TASK_STATE_ERROR, HTTP_TASK_RT_STATE_FINISHED);
     else if (task->state == HTTP_TASK_STATE_CANCELED)
         transition_state (task, task->state, HTTP_TASK_RT_STATE_FINISHED);
     else
         transition_state (task, HTTP_TASK_STATE_FINISHED, HTTP_TASK_RT_STATE_FINISHED);
-}
-
-typedef struct FileConflictData {
-    char *repo_id;
-    char *repo_name;
-    char *path;
-} FileConflictData;
-
-static void
-notify_conflict (CEvent *event, void *handler_data)
-{
-    FileConflictData *data = event->data;
-    json_t *object;
-    char *str;
-
-    object = json_object ();
-    json_object_set_new (object, "repo_id", json_string(data->repo_id));
-    json_object_set_new (object, "repo_name", json_string(data->repo_name));
-    json_object_set_new (object, "path", json_string(data->path));
-
-    str = json_dumps (object, 0);
-
-    seaf_mq_manager_publish_notification (seaf->mq_mgr,
-                                          "sync.conflict",
-                                          str);
-
-    free (str);
-    json_decref (object);
-    g_free (data->repo_id);
-    g_free (data->repo_name);
-    g_free (data->path);
-    g_free (data);
-}
-
-void
-http_tx_manager_notify_conflict (HttpTxTask *task, const char *path)
-{
-    FileConflictData *data = g_new0 (FileConflictData, 1);
-    data->repo_id = g_strdup(task->repo_id);
-    data->repo_name = g_strdup(task->repo_name);
-    data->path = g_strdup(path);
-
-    cevent_manager_add_event (seaf->ev_mgr, task->cevent_id, data);
 }
 
 GList*
@@ -4774,29 +4700,4 @@ http_task_rt_state_to_str (int rt_state)
         return "unknown";
 
     return http_task_rt_state_str[rt_state];
-}
-
-const char *
-http_task_error_str (int task_errno)
-{
-    if (task_errno < 0 || task_errno >= N_HTTP_TASK_ERROR)
-        return "unknown error";
-
-    return http_task_error_strs[task_errno];
-}
-
-gboolean
-is_http_task_net_error (char *err_detail)
-{
-    if (err_detail &&
-        (strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_NET]) == 0 ||
-         strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_RESOLVE_PROXY]) == 0 ||
-         strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_RESOLVE_HOST]) == 0 ||
-         strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_CONNECT]) == 0 ||
-         strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_SSL]) == 0 ||
-         strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_TX]) == 0 ||
-         strcmp (err_detail,  http_task_error_strs[HTTP_TASK_ERR_TX_TIMEOUT]) == 0))
-        return TRUE;
-    else
-        return FALSE;
 }

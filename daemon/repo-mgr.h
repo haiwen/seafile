@@ -400,25 +400,18 @@ seaf_repo_manager_is_path_writable (SeafRepoManager *mgr,
                                     const char *repo_id,
                                     const char *path);
 
-/*
- * File Sync Errors.
- * FIXME: better to be placed in sync manager.
- */
+/* Sync error related. */
 
-#define SYNC_ERROR_ID_FILE_LOCKED_BY_APP 0
-#define SYNC_ERROR_ID_FOLDER_LOCKED_BY_APP 1
-#define SYNC_ERROR_ID_FILE_LOCKED 2
-#define SYNC_ERROR_ID_INVALID_PATH 3
-#define SYNC_ERROR_ID_INDEX_ERROR 4
-#define SYNC_ERROR_ID_PATH_END_SPACE_PERIOD 5
-#define SYNC_ERROR_ID_PATH_INVALID_CHARACTER 6
-#define SYNC_ERROR_ID_FOLDER_PERM_DENIED 7
-#define SYNC_ERROR_ID_PERM_NOT_SYNCABLE 8
-#define SYNC_ERROR_ID_UPDATE_TO_READ_ONLY_REPO 9
+int
+seaf_repo_manager_record_sync_error (const char *repo_id,
+                                     const char *repo_name,
+                                     const char *path,
+                                     int error_id);
 
 GList *
 seaf_repo_manager_get_file_sync_errors (SeafRepoManager *mgr, int offset, int limit);
 
+/* Record sync error and send notification. */
 void
 send_file_sync_error_notification (const char *repo_id,
                                    const char *repo_name,
