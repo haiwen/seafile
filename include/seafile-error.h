@@ -59,6 +59,7 @@
 #define SYNC_ERROR_ID_CONFLICT                  27
 #define SYNC_ERROR_ID_GENERAL_ERROR             28
 #define SYNC_ERROR_ID_NO_ERROR                  29
-#define N_SYNC_ERROR_ID                         30
+#define SYNC_ERROR_ID_REMOVE_UNCOMMITTED_FOLDER 30
+#define N_SYNC_ERROR_ID                         31
 
 #endif

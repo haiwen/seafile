@@ -159,6 +159,11 @@ static SyncErrorInfo sync_error_info_tbl[] = {
         SYNC_ERROR_LEVEL_REPO,
         "No error"
     },
+    {
+        SYNC_ERROR_ID_REMOVE_UNCOMMITTED_FOLDER,
+        SYNC_ERROR_LEVEL_FILE,
+        "A folder that may contain not-yet-uploaded files is moved to seafile-recycle-bin folder"
+    },
 };
 
 const char *

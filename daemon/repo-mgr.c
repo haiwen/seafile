@@ -5124,7 +5124,7 @@ delete_worktree_dir_recursive (struct index_state *istate,
 
 #define SEAFILE_RECYCLE_BIN_FOLDER "seafile-recycle-bin"
 
-static void
+static int
 move_dir_to_recycle_bin (const char *dir_path)
 {
     char *trash_folder = g_build_path ("/", seaf->worktree_dir, SEAFILE_RECYCLE_BIN_FOLDER, NULL);
@@ -5132,12 +5132,13 @@ move_dir_to_recycle_bin (const char *dir_path)
         seaf_warning ("Seafile trash folder %s doesn't exist and cannot be created.\n",
                       trash_folder);
         g_free (trash_folder);
-        return;
+        return -1;
     }
     g_free (trash_folder);
 
     char *basename = g_path_get_basename (dir_path);
     char *dst_path = g_build_path ("/", seaf->worktree_dir, SEAFILE_RECYCLE_BIN_FOLDER, basename, NULL);
+    int ret = 0;
 
     int n;
     char *tmp_path;
@@ -5154,17 +5155,23 @@ move_dir_to_recycle_bin (const char *dir_path)
     if (seaf_util_rename (dir_path, dst_path) < 0) {
         seaf_warning ("Failed to move %s to Seafile recycle bin %s: %s\n",
                       dir_path, dst_path, strerror(errno));
+        ret = -1;
+        goto out;
     }
 
     seaf_message ("Moved folder %s to Seafile recyle bin %s.\n",
                   dir_path, dst_path);
 
+out:
     g_free (basename);
     g_free (dst_path);
+    return ret;
 }
 
 static void
-delete_worktree_dir (struct index_state *istate,
+delete_worktree_dir (const char *repo_id,
+                     const char *repo_name,
+                     struct index_state *istate,
                      const char *worktree,
                      const char *path)
 {
@@ -5183,7 +5190,9 @@ delete_worktree_dir (struct index_state *istate,
      * server, which will confuse the users.
      */
     if (g_file_test (full_path, G_FILE_TEST_EXISTS)) {
-        move_dir_to_recycle_bin (full_path);
+        if (move_dir_to_recycle_bin (full_path) == 0)
+            send_file_sync_error_notification (repo_id, repo_name, path,
+                                               SYNC_ERROR_ID_REMOVE_UNCOMMITTED_FOLDER);
     }
 
     g_free (full_path);
@@ -5471,7 +5480,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
             if (!master_head || strcmp(master_head->root_id, EMPTY_SHA1) == 0)
                 continue;
 
-            delete_worktree_dir (&istate, worktree, de->name);
+            delete_worktree_dir (repo_id, http_task->repo_name, &istate, worktree, de->name);
 
             /* Remove all index entries under this directory */
             remove_from_index_with_prefix (&istate, de->name, NULL);
