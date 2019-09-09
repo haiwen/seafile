@@ -24,7 +24,8 @@ utils_headers = net.h utils.h db.h
 
 utils_srcs = $(utils_headers:.h=.c)
 
-noinst_HEADERS = ${utils_headers} include.h
+noinst_HEADERS = ${utils_headers} include.h \
+		searpc-signature.h searpc-marshal.h
 
 seafiledir = $(includedir)/seafile
 seafile_HEADERS = seafile-object.h
