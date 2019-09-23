@@ -1,5 +1,5 @@
 
-from rpcclient import SeafileRpcClient as RpcClient
+from .rpcclient import SeafileRpcClient as RpcClient
 
 class TaskType(object):
     DOWNLOAD = 0

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+#-*- coding:utf-8 -*-
 # pylint: disable=E1121
 
 '''
@@ -80,7 +80,12 @@ Create a new library
     seaf-cli create -s <seahub-server-url> -n <library-name> -u <username> -p <password> [-a <2fa-code>] -t <description> [-e <library-password>]
 
 '''
+from __future__ import print_function
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import input
 import argparse
 import os
 import json
@@ -90,9 +95,9 @@ import sys
 import time
 import getpass
 import random
-import urllib
-import urllib2
-from urlparse import urlparse
+import urllib.request, urllib.parse, urllib.error
+import urllib.request, urllib.error, urllib.parse
+from urllib.parse import urlparse
 
 from os.path import abspath, dirname, exists, isdir, join
 
@@ -124,7 +129,7 @@ def _check_seafile():
 
     for prog in progs:
         if not exist_in_path(prog):
-            print "%s not found in PATH. Have you installed seafile?" % prog
+            print("%s not found in PATH. Have you installed seafile?" % prog)
             sys.exit(1)
 
 def get_rpc_client(confdir):
@@ -134,12 +139,12 @@ def _config_valid(conf):
     ''' Check config directory valid '''
 
     if not exists(conf) or not isdir(conf):
-        print "%s not exists" % conf
+        print("%s not exists" % conf)
         return False
 
     seafile_ini = conf + "/seafile.ini"
     if not exists(seafile_ini):
-        print "Could not load %s" % seafile_ini
+        print("Could not load %s" % seafile_ini)
         return False
 
     with open(seafile_ini) as f:
@@ -151,7 +156,7 @@ def _config_valid(conf):
             break
 
     if not seafile_datadir or not seafile_worktree:
-        print "Could not load seafile_datadir and seafile_worktree"
+        print("Could not load seafile_datadir and seafile_worktree")
         return False
     return True
 
@@ -164,7 +169,7 @@ def _conf_dir(args):
     conf_dir = abspath(conf_dir)
 
     if not _config_valid(conf_dir):
-        print "Invalid config directory"
+        print("Invalid config directory")
         sys.exit(1)
     else:
         get_device_id(conf_dir)
@@ -204,10 +209,10 @@ def get_env():
 
 def urlopen(url, data=None, headers=None):
     if data:
-        data = urllib.urlencode(data)
+        data = urllib.parse.urlencode(data).encode('utf-8')
     headers = headers or {}
-    req = urllib2.Request(url, data=data, headers=headers)
-    resp = urllib2.urlopen(req)
+    req = urllib.request.Request(url, data=data, headers=headers)
+    resp = urllib.request.urlopen(req)
 
     return resp.read()
 
@@ -293,12 +298,12 @@ def seaf_init(args):
     if args.dir:
         seafile_path = args.dir
     else:
-        print "Must specify the parent path for put seafile-data"
+        print("Must specify the parent path for put seafile-data")
         sys.exit(0)
     seafile_path = abspath(seafile_path)
 
     if exists(ccnet_conf_dir):
-        print "%s already exists" % ccnet_conf_dir
+        print("%s already exists" % ccnet_conf_dir)
         sys.exit(0)
 
     os.mkdir(ccnet_conf_dir)
@@ -307,7 +312,7 @@ def seaf_init(args):
         os.mkdir(logsdir)
 
     if not exists(seafile_path):
-        print "%s not exists" % seafile_path
+        print("%s not exists" % seafile_path)
         sys.exit(0)
     seafile_ini = ccnet_conf_dir + "/seafile.ini"
     seafile_data = seafile_path + "/seafile-data"
@@ -315,7 +320,7 @@ def seaf_init(args):
         fp.write(seafile_data)
     if not exists(seafile_data):
         os.mkdir(seafile_data)
-    print "Writen seafile data directory %s to %s" % (seafile_data, seafile_ini)
+    print("Writen seafile data directory %s to %s" % (seafile_data, seafile_ini))
 
 
 def seaf_start_all(args):
@@ -327,15 +332,15 @@ def seaf_start_seafile(args):
 
     conf_dir = _conf_dir(args)
 
-    print "Starting seafile daemon ..."
+    print("Starting seafile daemon ...")
 
     cmd = [ "seaf-daemon", "--daemon", "-c", conf_dir, "-d", seafile_datadir,
             "-w", seafile_worktree ]
     if run_argv(cmd, env=get_env()) != 0:
-        print 'Failed to start seafile daemon'
+        print('Failed to start seafile daemon')
         sys.exit(1)
 
-    print "Started: seafile daemon ..."
+    print("Started: seafile daemon ...")
 
 def seaf_stop(args):
     '''Stop seafile daemon '''
@@ -358,9 +363,9 @@ def seaf_list(args):
 
     seafile_rpc = get_rpc_client(conf_dir)
     repos = seafile_rpc.get_repo_list(-1, -1)
-    print "Name\tID\tPath"
+    print("Name\tID\tPath")
     for repo in repos:
-        print repo.name, repo.id, repo.worktree
+        print(repo.name, repo.id, repo.worktree)
 
 
 def seaf_list_remote(args):
@@ -370,14 +375,14 @@ def seaf_list_remote(args):
 
     url = args.server
     if not url:
-        print "Seafile server url need to be presented"
+        print("Seafile server url need to be presented")
         sys.exit(1)
 
     seafile_rpc = get_rpc_client(conf_dir)
 
     username = args.username
     if not username:
-        username = raw_input("Enter username: ")
+        username = input("Enter username: ")
     password = args.password
     if not password:
         password = getpass.getpass("Enter password for user %s : " % username)
@@ -390,13 +395,13 @@ def seaf_list_remote(args):
 
     printed = {}
 
-    print "Name\tID"
+    print("Name\tID")
     for repo in repos:
         if repo['id'] in printed:
             continue
 
         printed[repo['id']] = repo['id']
-        print repo['name'], repo['id']
+        print(repo['name'], repo['id'])
 
 
 def get_base_url(url):
@@ -416,12 +421,12 @@ def seaf_download(args):
 
     repo = args.library
     if not repo:
-        print "Library id is required"
+        print("Library id is required")
         sys.exit(1)
 
     url = args.server
     if not url:
-        print "Seafile server url need to be presented"
+        print("Seafile server url need to be presented")
         sys.exit(1)
 
     download_dir = seafile_worktree
@@ -433,7 +438,7 @@ def seaf_download(args):
 
     username = args.username
     if not username:
-        username = raw_input("Enter username: ")
+        username = input("Enter username: ")
     password = args.password
     if not password:
         password = getpass.getpass("Enter password for user %s : " % username)
@@ -473,8 +478,8 @@ def seaf_download(args):
     more_info_dict.update({'is_readonly': is_readonly})
     more_info = json.dumps(more_info_dict)
 
-    print "Starting to download ..."
-    print "Library %s will be downloaded to %s" % (repo, download_dir)
+    print("Starting to download ...")
+    print("Library %s will be downloaded to %s" % (repo, download_dir))
     if encrypted == 1:
         repo_passwd = args.libpasswd if args.libpasswd else getpass.getpass("Enter password for the library: ")
     else:
@@ -483,8 +488,8 @@ def seaf_download(args):
     seafile_rpc.download(repo,
                          version,
                          relay_id,
-                         repo_name.encode('utf-8'),
-                         download_dir.encode('utf-8'),
+                         repo_name,
+                         download_dir,
                          clone_token,
                          repo_passwd, magic,
                          relay_addr,
@@ -500,19 +505,19 @@ def seaf_download_by_name(args):
 
     libraryname = args.libraryname
     if not libraryname:
-        print "Library name is required"
+        print("Library name is required")
         sys.exit(1)
 
     url = args.server
     if not url:
-        print "Seafile server url need to be presented"
+        print("Seafile server url need to be presented")
         sys.exit(1)
 
     seafile_rpc = get_rpc_client(conf_dir)
 
     username = args.username
     if not username:
-        username = raw_input("Enter username: ")
+        username = input("Enter username: ")
         args.username = username
     password = args.password
     if not password:
@@ -530,7 +535,7 @@ def seaf_download_by_name(args):
              id = i['id']
 
     if not id:
-        print "Defined library name not found"
+        print("Defined library name not found")
         sys.exit(1)
 
     args.library = id
@@ -544,29 +549,29 @@ def seaf_sync(args):
 
     repo = args.library
     if not repo:
-        print "Library id is required"
+        print("Library id is required")
         sys.exit(1)
 
     url = args.server
     if not url:
-        print "Seafile server url is required"
+        print("Seafile server url is required")
         sys.exit(1)
 
     folder = args.folder
     if not folder:
-        print "The local directory is required"
+        print("The local directory is required")
         sys.exit(1)
 
     folder = abspath(folder)
     if not exists(folder):
-        print "The local directory does not exists"
+        print("The local directory does not exists")
         sys.exit(1)
 
     seafile_rpc = get_rpc_client(conf_dir)
 
     username = args.username
     if not username:
-        username = raw_input("Enter username: ")
+        username = input("Enter username: ")
     password = args.password
     if not password:
         password = getpass.getpass("Enter password for user %s : " % username)
@@ -604,7 +609,7 @@ def seaf_sync(args):
     more_info_dict.update({'is_readonly': is_readonly})
     more_info = json.dumps(more_info_dict)
 
-    print "Starting to download ..."
+    print("Starting to download ...")
     if encrypted == 1:
         repo_passwd = args.libpasswd if args.libpasswd else getpass.getpass("Enter password for the library: ")
     else:
@@ -613,7 +618,7 @@ def seaf_sync(args):
     seafile_rpc.clone(repo,
                       version,
                       relay_id,
-                      repo_name.encode('utf-8'),
+                      repo_name,
                       folder,
                       clone_token,
                       repo_passwd, magic,
@@ -629,7 +634,7 @@ def seaf_desync(args):
 
     repo_path = args.folder
     if not repo_path:
-        print "Must specify the local path of the library"
+        print("Must specify the local path of the library")
         sys.exit(1)
     repo_path = abspath(repo_path)
 
@@ -638,15 +643,15 @@ def seaf_desync(args):
     repos = seafile_rpc.get_repo_list(-1, -1)
     repo = None
     for r in repos:
-        if r.worktree == repo_path.decode('utf-8'):
+        if r.worktree == repo_path:
             repo = r
             break
 
-    if repo:
-        print "Desynchronize %s" % repo.name
+    if repo is not None:
+        print("Desynchronize %s" % repo.name)
         seafile_rpc.remove_repo(repo.id)
     else:
-        print "%s is not a library" % args.folder
+        print("%s is not a library" % args.folder)
 
 
 def seaf_config(args):
@@ -656,7 +661,7 @@ def seaf_config(args):
 
     config_key = args.key
     if not config_key:
-        print "Must specify configuration key"
+        print("Must specify configuration key")
         sys.exit(1)
 
     config_value = args.value
@@ -669,7 +674,7 @@ def seaf_config(args):
     else:
         # print configuration key
         val = seafile_rpc.seafile_get_config(config_key)
-        print "%s = %s" % (config_key, val)
+        print("%s = %s" % (config_key, val))
 
 
 def seaf_status(args):
@@ -680,48 +685,48 @@ def seaf_status(args):
     seafile_rpc = get_rpc_client(conf_dir)
 
     tasks = seafile_rpc.get_clone_tasks()
-    print "# Name\tStatus\tProgress"
+    print("# Name\tStatus\tProgress")
     for task in tasks:
         if task.state == "fetch":
             tx_task = seafile_rpc.find_transfer_task(task.repo_id)
-            print "%s\t%s\t%d/%d, %.1fKB/s" % (task.repo_name, "downloading",
+            print("%s\t%s\t%d/%d, %.1fKB/s" % (task.repo_name, "downloading",
                                         tx_task.block_done, tx_task.block_total,
-                                        tx_task.rate/1024.0)
+                                        tx_task.rate/1024.0))
         elif task.state == "checkout":
             checkout_task = seafile_rpc.get_checkout_task(task.repo_id)
-            print "%s\t%s\t%d/%d" % (task.repo_name, "checkout",
+            print("%s\t%s\t%d/%d" % (task.repo_name, "checkout",
                                    checkout_task.finished_files,
-                                   checkout_task.total_files)
+                                   checkout_task.total_files))
         elif task.state == "error":
             tx_task = seafile_rpc.find_transfer_task(task.repo_id)
             if tx_task:
                 err = tx_task.error_str
             else:
                 err = task.error_str
-            print "%s\t%s\t%s" % (task.repo_name, "error", err)
+            print("%s\t%s\t%s" % (task.repo_name, "error", err))
         elif task.state == 'done':
             # will be shown in repo status
             pass
         else:
-            print "%s\t%s" % (task.repo_name, "unknown")
+            print("%s\t%s" % (task.repo_name, "unknown"))
 
     # show repo status
-    print ""
-    print "# Name\tStatus"
+    print("")
+    print("# Name\tStatus")
     repos = seafile_rpc.get_repo_list(-1, -1)
     for repo in repos:
         auto_sync_enabled = seafile_rpc.is_auto_sync_enabled()
         if not auto_sync_enabled or not repo.auto_sync:
-            print "%s\t%s" % (repo.name, "auto sync disabled")
+            print("%s\t%s" % (repo.name, "auto sync disabled"))
             continue
 
         t = seafile_rpc.get_repo_sync_task(repo.id)
         if not t:
-            print "%s\twaiting for sync" % repo.name
+            print("%s\twaiting for sync" % repo.name)
         elif t.state == "error":
-            print "%s\t%s" % (repo.name, t.error)
+            print("%s\t%s" % (repo.name, t.error))
         else:
-            print "%s\t%s" % (repo.name, t.state)
+            print("%s\t%s" % (repo.name, t.state))
 
 def create_repo(url, token, args):
     headers = { 'Authorization': 'Token %s' % token }
@@ -742,7 +747,7 @@ def seaf_create(args):
     # check username and password
     username = args.username
     if not username:
-        username = raw_input("Enter username: ")
+        username = input("Enter username: ")
     password = args.password
     if not password:
         password = getpass.getpass("Enter password for user %s " % username)
@@ -751,14 +756,14 @@ def seaf_create(args):
     # check url
     url = args.server
     if not url:
-        print "Seafile server url need to be presented"
+        print("Seafile server url need to be presented")
         sys.exit(1)
 
     # curl -d 'username=<USERNAME>&password=<PASSWORD>' http://127.0.0.1:8000/api2/auth-token
     token = get_token(url, username, password, tfa, conf_dir)
 
     repo_id = create_repo("%s/api2/repos/" % (url), token, args)
-    print repo_id
+    print(repo_id)
 
 
 def main():
@@ -877,7 +882,7 @@ def main():
     parser_config.add_argument('-v', '--value', help='configuration value (if provided, key is set to this value)', type=str, required=False)
 
     if len(sys.argv) == 1:
-        print parser.format_help()
+        print(parser.format_help())
         return
 
     args = parser.parse_args()
