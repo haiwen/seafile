@@ -319,12 +319,22 @@ compare_file_content (const char *path, SeafStat *st, const unsigned char *ce_sh
         memset (sha1, 0, 20);
         return hashcmp (sha1, ce_sha1);
     } else {
-        if (compute_file_id_with_cdc (path, st, crypt, repo_version,
-                                      CDC_AVERAGE_BLOCK_SIZE,
-                                      CDC_MIN_BLOCK_SIZE,
-                                      CDC_MAX_BLOCK_SIZE,
-                                      sha1) < 0) {
-            return -1;
+        if (seaf->cdc_average_block_size == 0) {
+            if (compute_file_id_with_cdc (path, st, crypt, repo_version,
+                                          CDC_AVERAGE_BLOCK_SIZE,
+                                          CDC_MIN_BLOCK_SIZE,
+                                          CDC_MAX_BLOCK_SIZE,
+                                          sha1) < 0) {
+                return -1;
+            }
+        } else {
+            if (compute_file_id_with_cdc (path, st, crypt, repo_version,
+                                          seaf->cdc_average_block_size,
+                                          seaf->cdc_average_block_size >> 1,
+                                          seaf->cdc_average_block_size << 1,
+                                          sha1) < 0) {
+                return -1;
+            }            
         }
         if (hashcmp (sha1, ce_sha1) == 0)
             return 0;

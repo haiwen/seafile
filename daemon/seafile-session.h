@@ -53,6 +53,7 @@ struct _SeafileSession {
     char                *deleted_store;
     char                *rpc_socket_path;
 
+    uint32_t            cdc_average_block_size;
     SeafBlockManager    *block_mgr;
     SeafFSManager       *fs_mgr;
     SeafCommitManager   *commit_mgr;

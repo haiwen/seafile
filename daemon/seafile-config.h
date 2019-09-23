@@ -17,6 +17,7 @@
 #define KEY_DB_NAME "db_name"
 #define KEY_UPLOAD_LIMIT "upload_limit"
 #define KEY_DOWNLOAD_LIMIT "download_limit"
+#define KEY_CDC_AVERAGE_BLOCK_SIZE "block_size"
 #define KEY_ALLOW_INVALID_WORKTREE "allow_invalid_worktree"
 #define KEY_ALLOW_REPO_NOT_FOUND_ON_SERVER "allow_repo_not_found_on_server"
 #define KEY_SYNC_EXTRA_TEMP_FILE "sync_extra_temp_file"

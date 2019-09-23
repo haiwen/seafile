@@ -684,9 +684,15 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
     } else {
         memset (&cdc, 0, sizeof(cdc));
 
-        cdc.block_sz = CDC_AVERAGE_BLOCK_SIZE;
-        cdc.block_min_sz = CDC_MIN_BLOCK_SIZE;
-        cdc.block_max_sz = CDC_MAX_BLOCK_SIZE;
+        if (seaf->cdc_average_block_size == 0) {
+            cdc.block_sz = CDC_AVERAGE_BLOCK_SIZE;
+            cdc.block_min_sz = CDC_MIN_BLOCK_SIZE;
+            cdc.block_max_sz = CDC_MAX_BLOCK_SIZE;
+        } else {
+            cdc.block_sz = seaf->cdc_average_block_size;
+            cdc.block_min_sz = seaf->cdc_average_block_size >> 1;
+            cdc.block_max_sz = seaf->cdc_average_block_size << 1;
+        }
         cdc.write_block = seafile_write_chunk;
         memcpy (cdc.repo_id, repo_id, 36);
         cdc.version = version;
