@@ -843,13 +843,13 @@ def do_sign(certfile, fn, desc=None):
         desc_flags = ''
 
     # https://support.comodo.com/index.php?/Knowledgebase/Article/View/68/0/time-stamping-server
-    time.sleep(16)
     signcmd = 'signtool.exe sign -fd sha256 -t http://timestamp.comodoca.com -f {} {} {}'.format(certfile, desc_flags, fn)
-    ret = -1
     i = 0
-    while i < 3 and ret != 0:
+    while i < RETRY_COUNT:
         time.sleep(30)
         ret = run(signcmd, cwd=os.path.dirname(fn))
+        if ret == 0:
+            break
         i = i + 1
         if i == RETRY_COUNT:
             error('Failed to sign file "{}"'.format(fn))
