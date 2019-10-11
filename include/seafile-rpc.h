@@ -65,9 +65,6 @@ int
 seafile_get_upload_rate(GError **error);
 
 int
-seafile_repo_last_modify(const char *repo_id, GError **error);
-
-int
 seafile_set_repo_property (const char *repo_id,
                            const char *key,
                            const char *value,
