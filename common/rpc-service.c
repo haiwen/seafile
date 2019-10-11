@@ -95,16 +95,6 @@ convert_repo_list (GList *inner_repos)
 
 #include "sync-mgr.h"
 
-GObject *
-seafile_get_session_info (GError **error)
-{
-    SeafileSessionInfo *info;
-
-    info = seafile_session_info_new ();
-    g_object_set (info, "datadir", seaf->seaf_dir, NULL);
-    return (GObject *) info;
-}
-
 int
 seafile_set_config (const char *key, const char *value, GError **error)
 {

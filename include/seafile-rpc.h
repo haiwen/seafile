@@ -6,14 +6,6 @@
 #include "seafile-object.h"
 
 /**
- * seafile_get_session_info:
- *
- * Returns: a SeafileSessionInfo object.
- */
-GObject *
-seafile_get_session_info (GError **error);
-
-/**
  * seafile_get_repo_list:
  *
  * Returns repository list.
