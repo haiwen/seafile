@@ -197,10 +197,6 @@ register_rpc_service ()
                                      "seafile_cancel_clone_task",
                                      searpc_signature_int__string());
     searpc_server_register_function ("seafile-rpcserver",
-                                     seafile_remove_clone_task,
-                                     "seafile_remove_clone_task",
-                                     searpc_signature_int__string());
-    searpc_server_register_function ("seafile-rpcserver",
                                      seafile_get_clone_tasks,
                                      "seafile_get_clone_tasks",
                                      searpc_signature_objlist__void());

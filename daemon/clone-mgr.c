@@ -1448,34 +1448,6 @@ seaf_clone_manager_cancel_task (SeafCloneManager *mgr,
     return 0;
 }
 
-int
-seaf_clone_manager_remove_task (SeafCloneManager *mgr,
-                                const char *repo_id)
-{
-    CloneTask *task;
-
-    if (!seaf->started) {
-        seaf_message ("System not started, skip removing clone task.\n");
-        return -1;
-    }
-
-    task = g_hash_table_lookup (mgr->tasks, repo_id);
-    if (!task)
-        return -1;
-
-    if (task->state != CLONE_STATE_DONE &&
-        task->state != CLONE_STATE_CANCELED) {
-        seaf_warning ("[Clone mgr] cannot remove running task.\n");
-        return -1;
-    }
-
-    /* On-disk task should have been removed. */
-
-    g_hash_table_remove (mgr->tasks, repo_id);
-
-    return 0;
-}
-
 CloneTask *
 seaf_clone_manager_get_task (SeafCloneManager *mgr,
                              const char *repo_id)

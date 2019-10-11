@@ -171,9 +171,6 @@ seafile_download (const char *repo_id,
 int
 seafile_cancel_clone_task (const char *repo_id, GError **error);
 
-int
-seafile_remove_clone_task (const char *repo_id, GError **error);
-
 /**
  * seafile_get_clone_tasks:
  *

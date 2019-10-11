@@ -130,10 +130,6 @@ int
 seaf_clone_manager_cancel_task (SeafCloneManager *mgr,
                                 const char *repo_id);
 
-int
-seaf_clone_manager_remove_task (SeafCloneManager *mgr,
-                                const char *repo_id);
-
 CloneTask *
 seaf_clone_manager_get_task (SeafCloneManager *mgr,
                              const char *repo_id);
