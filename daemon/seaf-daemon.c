@@ -80,11 +80,6 @@ register_rpc_service ()
 
     /* seafile-rpcserver */
     searpc_server_register_function ("seafile-rpcserver",
-                                     seafile_get_session_info,
-                                     "seafile_get_session_info",
-                                     searpc_signature_object__void());
-
-    searpc_server_register_function ("seafile-rpcserver",
                                      seafile_get_config,
                                      "seafile_get_config",
                                      searpc_signature_string__string());

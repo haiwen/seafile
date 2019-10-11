@@ -553,13 +553,6 @@ searpc_signature_objlist__string_string_string_string_int_int()
 
 
 inline static gchar *
-searpc_signature_object__void()
-{
-    return searpc_compute_signature ("object", 0);
-}
-
-
-inline static gchar *
 searpc_signature_object__int()
 {
     return searpc_compute_signature ("object", 1, "int");

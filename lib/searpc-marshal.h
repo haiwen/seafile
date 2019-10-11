@@ -1318,19 +1318,6 @@ marshal_objlist__string_string_string_string_int_int (void *func, json_t *param_
 
 
 static char *
-marshal_object__void (void *func, json_t *param_array, gsize *ret_len)
-{
-    GError *error = NULL;
-
-    GObject* ret = ((GObject* (*)(GError **))func) (&error);
-
-    json_t *object = json_object ();
-    searpc_set_object_to_ret_object (object, ret);
-    return searpc_marshal_set_ret_common (object, ret_len, error);
-}
-
-
-static char *
 marshal_object__int (void *func, json_t *param_array, gsize *ret_len)
 {
     GError *error = NULL;
@@ -1873,11 +1860,6 @@ static void register_marshals()
 
     {
         searpc_server_register_marshal (searpc_signature_objlist__string_string_string_string_int_int(), marshal_objlist__string_string_string_string_int_int);
-    }
-
-
-    {
-        searpc_server_register_marshal (searpc_signature_object__void(), marshal_object__void);
     }
 
 
