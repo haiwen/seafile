@@ -150,28 +150,6 @@ seafile_set_download_rate_limit (int limit, GError **error)
     return seafile_session_config_set_int (seaf, KEY_DOWNLOAD_LIMIT, limit);
 }
 
-int
-seafile_repo_last_modify(const char *repo_id, GError **error)
-{
-    SeafRepo *repo;
-    int ctime = 0;
-
-    if (!repo_id) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
-        return -1;
-    }
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_REPO, "No such repository");
-        return -1;
-    }
-
-    ctime = repo->last_modify;
-
-    return ctime;
-}
-
 char *
 seafile_gen_default_worktree (const char *worktree_parent,
                               const char *repo_name,
