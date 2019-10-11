@@ -316,12 +316,6 @@ seafile_cancel_clone_task (const char *repo_id, GError **error)
     return seaf_clone_manager_cancel_task (seaf->clone_mgr, repo_id);
 }
 
-int
-seafile_remove_clone_task (const char *repo_id, GError **error)
-{
-    return seaf_clone_manager_remove_task (seaf->clone_mgr, repo_id);
-}
-
 GList *
 seafile_get_clone_tasks (GError **error)
 {

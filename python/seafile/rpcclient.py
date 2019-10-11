@@ -129,11 +129,6 @@ class SeafileRpcClient(NamedPipeClient):
         pass
     cancel_clone_task = seafile_cancel_clone_task
 
-    @searpc_func("int", ["string"])
-    def seafile_remove_clone_task(repo_id):
-        pass
-    remove_clone_task = seafile_remove_clone_task
-
     @searpc_func("objlist", [])
     def seafile_get_clone_tasks():
         pass
