@@ -76,8 +76,7 @@ seafile_get_repo_property (const char *repo_id,
                            GError **error);
 
 int
-seafile_update_repos_server_host (const char *old_host,
-                                  const char *new_host,
+seafile_update_repos_server_host (const char *old_server_url,
                                   const char *new_server_url,
                                   GError **error);
 

@@ -156,7 +156,7 @@ register_rpc_service ()
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_update_repos_server_host,
                                      "seafile_update_repos_server_host",
-                                     searpc_signature_int__string_string_string());
+                                     searpc_signature_int__string_string());
 
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_disable_auto_sync,

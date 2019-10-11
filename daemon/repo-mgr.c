@@ -7005,38 +7005,35 @@ update_server_properties (SeafRepoManager *mgr,
 
 int
 seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
-                                            const char *old_host,
-                                            const char *new_host,
+                                            const char *old_server_url,
                                             const char *new_server_url)
 {
     GList *ptr, *repos = seaf_repo_manager_get_repo_list (seaf->repo_mgr, 0, -1);
     SeafRepo *r;
-    char *canon_server_url = canonical_server_url(new_server_url);
+    char *canon_old_server_url = canonical_server_url(old_server_url);    
+    char *canon_new_server_url = canonical_server_url(new_server_url);
 
     for (ptr = repos; ptr; ptr = ptr->next) {
         r = ptr->data;
-                
-        char *relay_addr = NULL;
-        char *relay_port = NULL;
-        seaf_repo_manager_get_repo_relay_info (seaf->repo_mgr, r->id, 
-                                               &relay_addr, &relay_port);
-        if (g_strcmp0(relay_addr, old_host) == 0) {
-            seaf_repo_manager_set_repo_relay_info (seaf->repo_mgr, r->id,
-                                                   new_host, relay_port);
-
+        
+        char *server_url = seaf_repo_manager_get_repo_property (seaf->repo_mgr,
+                                                                r->id,
+                                                                REPO_PROP_SERVER_URL);
+        
+        if (g_strcmp0(server_url, canon_old_server_url) == 0) {
             /* Update server property before server_url is changed. */
-            update_server_properties (mgr, r->id, canon_server_url);
+            update_server_properties (mgr, r->id, canon_new_server_url);
 
             seaf_repo_manager_set_repo_property (
-                seaf->repo_mgr, r->id, REPO_PROP_SERVER_URL, canon_server_url);
+                seaf->repo_mgr, r->id, REPO_PROP_SERVER_URL, canon_new_server_url);
         }
+        g_free (server_url);
 
-        g_free (relay_addr);
-        g_free (relay_port);
     }
 
     g_list_free (repos);
-    g_free (canon_server_url);
+    g_free (canon_old_server_url);
+    g_free (canon_new_server_url);
 
     return 0;
 }
