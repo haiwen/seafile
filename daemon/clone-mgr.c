@@ -278,23 +278,17 @@ check_http_protocol (CloneTask *task)
 
 static CloneTask *
 clone_task_new (const char *repo_id,
-                const char *peer_id,
                 const char *repo_name,
                 const char *token,
                 const char *worktree,
                 const char *passwd,
-                const char *peer_addr,
-                const char *peer_port,
                 const char *email)
 {
     CloneTask *task = g_new0 (CloneTask, 1);
 
     memcpy (task->repo_id, repo_id, 37);
-    memcpy (task->peer_id, peer_id, 41);
     task->token = g_strdup (token);
     task->worktree = g_strdup(worktree);
-    task->peer_addr = g_strdup(peer_addr);
-    task->peer_port = g_strdup(peer_port);
     task->email = g_strdup(email);
     if (repo_name)
         task->repo_name = g_strdup(repo_name);
@@ -461,16 +455,12 @@ restart_task (sqlite3_stmt *stmt, void *data)
     repo_id = (const char *)sqlite3_column_text (stmt, 0);
     repo_name = (const char *)sqlite3_column_text (stmt, 1);
     token = (const char *)sqlite3_column_text (stmt, 2);
-    peer_id = (const char *)sqlite3_column_text (stmt, 3);
-    worktree = (const char *)sqlite3_column_text (stmt, 4);
-    passwd = (const char *)sqlite3_column_text (stmt, 5);
-    peer_addr = (const char *)sqlite3_column_text (stmt, 6);
-    peer_port = (const char *)sqlite3_column_text (stmt, 7);
-    email = (const char *)sqlite3_column_text (stmt, 8);
+    worktree = (const char *)sqlite3_column_text (stmt, 3);
+    passwd = (const char *)sqlite3_column_text (stmt, 4);
+    email = (const char *)sqlite3_column_text (stmt, 5);
 
-    task = clone_task_new (repo_id, peer_id, repo_name, 
-                           token, worktree, passwd,
-                           peer_addr, peer_port, email);
+    task = clone_task_new (repo_id, repo_name, token,
+                           worktree, passwd, email);
     task->manager = mgr;
     /* Default to 1. */
     task->enc_version = 1;
@@ -513,9 +503,9 @@ seaf_clone_manager_init (SeafCloneManager *mgr)
 
     sql = "CREATE TABLE IF NOT EXISTS CloneTasks "
         "(repo_id TEXT PRIMARY KEY, repo_name TEXT, "
-        "token TEXT, dest_id TEXT,"
+        "token TEXT, "
         "worktree_parent TEXT, passwd TEXT, "
-        "server_addr TEXT, server_port TEXT, email TEXT);";
+        "email TEXT);";
     if (sqlite_query_exec (mgr->db, sql) < 0)
         return -1;
 
@@ -586,18 +576,17 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
 
     if (task->passwd)
         sql = sqlite3_mprintf ("REPLACE INTO CloneTasks VALUES "
-            "('%q', '%q', '%q', '%q', '%q', '%q', '%q', '%q', '%q')",
+            "('%q', '%q', '%q', '%q', '%q', '%q')",
                                 task->repo_id, task->repo_name,
-                                task->token, task->peer_id,
+                                task->token,
                                 task->worktree, task->passwd,
-                                task->peer_addr, task->peer_port, task->email);
+                                task->email);
     else
         sql = sqlite3_mprintf ("REPLACE INTO CloneTasks VALUES "
-            "('%q', '%q', '%q', '%q', '%q', NULL, '%q', '%q', '%q')",
+            "('%q', '%q', '%q', '%q', NULL, '%q')",
                                 task->repo_id, task->repo_name,
-                                task->token, task->peer_id,
-                                task->worktree, task->peer_addr,
-                                task->peer_port, task->email);
+                                task->token,
+                                task->worktree, task->email);
 
     if (sqlite_query_exec (mgr->db, sql) < 0) {
         sqlite3_free (sql);
@@ -1003,15 +992,12 @@ static char *
 add_task_common (SeafCloneManager *mgr, 
                  const char *repo_id,
                  int repo_version,
-                 const char *peer_id,
                  const char *repo_name,
                  const char *token,
                  const char *passwd,
                  int enc_version,
                  const char *random_key,
                  const char *worktree,
-                 const char *peer_addr,
-                 const char *peer_port,
                  const char *email,
                  const char *more_info,
                  gboolean sync_wt_name,
@@ -1019,9 +1005,9 @@ add_task_common (SeafCloneManager *mgr,
 {
     CloneTask *task;
 
-    task = clone_task_new (repo_id, peer_id, repo_name,
-                           token, worktree, passwd,
-                           peer_addr, peer_port, email);
+    task = clone_task_new (repo_id, repo_name,
+                           token, worktree,
+                           passwd, email);
     task->manager = mgr;
     task->enc_version = enc_version;
     task->random_key = g_strdup (random_key);
@@ -1117,7 +1103,6 @@ char *
 seaf_clone_manager_add_task (SeafCloneManager *mgr, 
                              const char *repo_id,
                              int repo_version,
-                             const char *peer_id,
                              const char *repo_name,
                              const char *token,
                              const char *passwd,
@@ -1125,8 +1110,6 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
                              int enc_version,
                              const char *random_key,
                              const char *worktree_in,
-                             const char *peer_addr,
-                             const char *peer_port,
                              const char *email,
                              const char *more_info,
                              GError **error)
@@ -1231,10 +1214,9 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         seaf_repo_manager_remove_repo_ondisk (seaf->repo_mgr, repo_id, FALSE);
 
     ret = add_task_common (mgr, repo_id, repo_version,
-                           peer_id, repo_name, token, passwd,
+                           repo_name, token, passwd,
                            enc_version, random_key,
-                           worktree, peer_addr, peer_port,
-                           email, more_info,
+                           worktree, email, more_info,
                            sync_wt_name,
                            error);
 
@@ -1270,7 +1252,6 @@ char *
 seaf_clone_manager_add_download_task (SeafCloneManager *mgr, 
                                       const char *repo_id,
                                       int repo_version,
-                                      const char *peer_id,
                                       const char *repo_name,
                                       const char *token,
                                       const char *passwd,
@@ -1278,8 +1259,6 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
                                       int enc_version,
                                       const char *random_key,
                                       const char *wt_parent,
-                                      const char *peer_addr,
-                                      const char *peer_port,
                                       const char *email,
                                       const char *more_info,
                                       GError **error)
@@ -1387,10 +1366,10 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         seaf_repo_manager_remove_repo_ondisk (seaf->repo_mgr, repo_id, FALSE);
 
     ret = add_task_common (mgr, repo_id, repo_version,
-                           peer_id, repo_name, token, passwd,
+                           repo_name, token, passwd,
                            enc_version, random_key,
-                           worktree, peer_addr, peer_port,
-                           email, more_info, TRUE, error);
+                           worktree, email, more_info,
+                           TRUE, error);
 
 out:
     g_free (worktree);
