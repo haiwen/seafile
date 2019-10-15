@@ -695,11 +695,6 @@ def seaf_status(args):
             print("%s\t%s\t%d/%d, %.1fKB/s" % (task.repo_name, "downloading",
                                         tx_task.block_done, tx_task.block_total,
                                         tx_task.rate/1024.0))
-        elif task.state == "checkout":
-            checkout_task = seafile_rpc.get_checkout_task(task.repo_id)
-            print("%s\t%s\t%d/%d" % (task.repo_name, "checkout",
-                                   checkout_task.finished_files,
-                                   checkout_task.total_files))
         elif task.state == "error":
             tx_task = seafile_rpc.find_transfer_task(task.repo_id)
             if tx_task:
