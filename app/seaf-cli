@@ -401,7 +401,10 @@ def seaf_list_remote(args):
             continue
 
         printed[repo['id']] = repo['id']
-        print(repo['name'], repo['id'])
+        if sys.version_info[0] == 2:
+            print(repo['name'].encode('utf8'), repo['id'])
+        else:
+            print(repo['name'], repo['id'])
 
 
 def get_base_url(url):
