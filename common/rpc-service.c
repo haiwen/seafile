@@ -335,7 +335,7 @@ seafile_get_clone_tasks (GError **error)
         task = ptr->data;
         t = g_object_new (SEAFILE_TYPE_CLONE_TASK,
                           "state", clone_task_state_to_str(task->state),
-                          "error_str", task->error,
+                          "error", task->error,
                           "repo_id", task->repo_id,
                           "repo_name", task->repo_name,
                           "worktree", task->worktree,
