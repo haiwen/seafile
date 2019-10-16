@@ -13,6 +13,11 @@ class SeafileRpcClient(NamedPipeClient):
              **kwargs
          )
 
+    @searpc_func("string", ["int"])
+    def seafile_sync_error_id_to_str():
+        pass
+    sync_error_id_to_str = seafile_sync_error_id_to_str
+         
     @searpc_func("object", [])
     def seafile_get_session_info():
         pass

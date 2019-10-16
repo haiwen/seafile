@@ -16,7 +16,7 @@
 #include "common/mq-mgr.h"
 #include "seafile-config.h"
 #include "seafile-object.h"
-
+#include "seafile-error-impl.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_OTHER
 #include "log.h"
 
@@ -1046,4 +1046,10 @@ seafile_shutdown (GError **error)
     seaf_warning ("Got an exit command. Now exiting\n");
     exit(0);
     return 0;
+}
+
+char*
+seafile_sync_error_id_to_str (int error_id, GError **error)
+{
+    return g_strdup(sync_error_id_to_str (error_id));
 }
