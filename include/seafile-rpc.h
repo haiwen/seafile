@@ -231,4 +231,7 @@ json_t * seafile_get_sync_notification (GError **error);
 
 int
 seafile_shutdown (GError **error);
+
+char*
+seafile_sync_error_id_to_str (int error_id, GError **error);
 #endif

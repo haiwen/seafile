@@ -81,6 +81,7 @@ Create a new library
 
 '''
 from __future__ import print_function
+from __future__ import division
 
 from future import standard_library
 standard_library.install_aliases()
@@ -688,48 +689,56 @@ def seaf_status(args):
     seafile_rpc = get_rpc_client(conf_dir)
 
     tasks = seafile_rpc.get_clone_tasks()
-    print("# Name\tStatus\tProgress")
+    print('# {:<50s}\t{:<20s}\t{:<20s}'.format('Name', 'Status', 'Progress'))
     for task in tasks:
         if task.state == "fetch":
             tx_task = seafile_rpc.find_transfer_task(task.repo_id)
-            print("%s\t%s\t%d/%d, %.1fKB/s" % (task.repo_name, "downloading",
-                                        tx_task.block_done, tx_task.block_total,
-                                        tx_task.rate/1024.0))
-        elif task.state == "checkout":
-            checkout_task = seafile_rpc.get_checkout_task(task.repo_id)
-            print("%s\t%s\t%d/%d" % (task.repo_name, "checkout",
-                                   checkout_task.finished_files,
-                                   checkout_task.total_files))
+            try:
+                print('{:<50s}\t{:<20s}\t{:<.1f}%, {:<.1f}KB/s'.format(task.repo_name, 'downloading',
+                                                                       tx_task.block_done / tx_task.block_total * 100,
+                                                                       tx_task.rate / 1024.0))
+            except ZeroDivisionError: pass
         elif task.state == "error":
-            tx_task = seafile_rpc.find_transfer_task(task.repo_id)
-            if tx_task:
-                err = tx_task.error_str
-            else:
-                err = task.error_str
-            print("%s\t%s\t%s" % (task.repo_name, "error", err))
+            err = seafile_rpc.sync_error_id_to_str(task.error)
+            print('{:<50s}\t{:<20s}\t{:<20s}'.format(task.repo_name, 'error', err))            
         elif task.state == 'done':
             # will be shown in repo status
             pass
         else:
-            print("%s\t%s" % (task.repo_name, "unknown"))
+            print('{:<50s}\t{:<20s}'.format(task.repo_name, task.state))
 
-    # show repo status
-    print("")
-    print("# Name\tStatus")
     repos = seafile_rpc.get_repo_list(-1, -1)
     for repo in repos:
         auto_sync_enabled = seafile_rpc.is_auto_sync_enabled()
         if not auto_sync_enabled or not repo.auto_sync:
-            print("%s\t%s" % (repo.name, "auto sync disabled"))
+            print('{:<50s}\t{:<20s}'.format(repo.name, 'auto sync disabled'))
             continue
 
-        t = seafile_rpc.get_repo_sync_task(repo.id)
-        if not t:
-            print("%s\twaiting for sync" % repo.name)
-        elif t.state == "error":
-            print("%s\t%s" % (repo.name, t.error))
+        task = seafile_rpc.get_repo_sync_task(repo.id)
+        if not task:
+            print('{:<50s}\t{:<20s}'.format(repo.name, 'waiting for sync'))
+        elif task.state == 'uploading':
+            tx_task = seafile_rpc.find_transfer_task(repo.id)
+            try:
+                print('{:<50s}\t{:<20s}\t{:<.1f}%, {:<.1f}KB/s'.format(repo.name, 'uploading',
+                                                                       tx_task.block_done / tx_task.block_total * 100,
+                                                                       tx_task.rate / 1024.0))
+            except ZeroDivisionError: pass
+        elif task.state == 'downloading':
+            tx_task = seafile_rpc.find_transfer_task(repo.id)
+            try:
+                if tx_task.rt_state == 'data':
+                    print('{:<50s}\t{:<20s}\t{:<.1f}%, {:<.1f}KB/s'.format(repo.name, 'downloading files',
+                                                                           tx_task.block_done / tx_task.block_total * 100,
+                                                                           tx_task.rate / 1024.0))
+                if tx_task.rt_state == 'fs':
+                    print('{:<50s}\t{:<20s}\t{:<.1f}%'.format(repo.name, 'downloading file list',
+                                                              tx_task.fs_objects_done / tx_task.fs_objects_total * 100))
+            except ZeroDivisionError: pass
+        elif task.state == 'error':
+            print('{:<50s}\t{:<20s}'.format(repo.name, task.error))            
         else:
-            print("%s\t%s" % (repo.name, t.state))
+            print('{:<50s}\t{:<20s}'.format(repo.name, task.state))
 
 def create_repo(url, token, args):
     headers = { 'Authorization': 'Token %s' % token }
