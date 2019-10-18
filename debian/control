@@ -16,7 +16,6 @@ Build-Depends:
     valac,
     libjansson-dev,
     python,
-    python-future,
     libsearpc-dev (>= 3.1.0)
 Standards-Version: 3.9.5
 Homepage: http://seafile.com
@@ -56,6 +55,7 @@ Depends:
     ${python:Depends},
     libseafile0 (>= ${binary:Version}),
     seafile-daemon (>= ${binary:Version}),
+    python-future,
     python-searpc (>= 3.1.0)
 Conflicts: seafile
 Description: Seafile command line interface.
