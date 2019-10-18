@@ -41,7 +41,6 @@
 #define SEAFILE_CLIENT_VERSION PACKAGE_VERSION
 #endif
 
-#define NAMED_PIPE_SERVER_THREAD_POOL_SIZE 50
 
 SeafileSession *seaf;
 
@@ -314,8 +313,7 @@ start_searpc_server ()
     char *path = g_build_filename (seaf->seaf_dir, SEAFILE_SOCKET_NAME, NULL);
 #endif
 
-    SearpcNamedPipeServer *server =
-        searpc_create_named_pipe_server (path, NAMED_PIPE_SERVER_THREAD_POOL_SIZE);
+    SearpcNamedPipeServer *server = searpc_create_named_pipe_server (path);
     if (!server) {
         seaf_warning ("Failed to create named pipe server.\n");
         g_free (path);
