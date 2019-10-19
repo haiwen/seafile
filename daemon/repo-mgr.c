@@ -5834,17 +5834,20 @@ int
 seaf_repo_manager_start (SeafRepoManager *mgr)
 {
     pthread_t tid;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
     int rc;
 
     watch_repos (mgr);
 
-    rc = pthread_create (&tid, NULL, cleanup_deleted_stores, NULL);
+    rc = pthread_create (&tid, &attr, cleanup_deleted_stores, NULL);
     if (rc != 0) {
         seaf_warning ("Failed to start cleanup thread: %s\n", strerror(rc));
     }
 
 #if defined WIN32 || defined __APPLE__
-    rc = pthread_create (&tid, NULL, lock_office_file_worker,
+    rc = pthread_create (&tid, &attr, lock_office_file_worker,
                          mgr->priv->lock_office_job_queue);
     if (rc != 0) {
         seaf_warning ("Failed to start lock office file thread: %s\n", strerror(rc));

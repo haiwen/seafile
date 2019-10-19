@@ -314,7 +314,10 @@ seaf_sync_manager_start (SeafSyncManager *mgr)
 #endif
 
     pthread_t tid;
-    if (pthread_create (&tid, NULL, update_cached_head_commit_ids, mgr) < 0) {
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+    if (pthread_create (&tid, &attr, update_cached_head_commit_ids, mgr) < 0) {
         seaf_warning ("Failed to create update cached head commit id thread.\n");
         return -1;
     }
