@@ -718,17 +718,19 @@ collect_file_sync_errors (sqlite3_stmt *stmt, void *data)
 {
     GList **pret = data;
     const char *repo_id, *repo_name, *path;
-    int err_id;
+    int id, err_id;
     gint64 timestamp;
     SeafileFileSyncError *error;
 
-    repo_id = (const char *)sqlite3_column_text (stmt, 0);
-    repo_name = (const char *)sqlite3_column_text (stmt, 1);
-    path = (const char *)sqlite3_column_text (stmt, 2);
-    err_id = sqlite3_column_int (stmt, 3);
-    timestamp = sqlite3_column_int64 (stmt, 4);
+    id = sqlite3_column_int (stmt, 0);
+    repo_id = (const char *)sqlite3_column_text (stmt, 1);
+    repo_name = (const char *)sqlite3_column_text (stmt, 2);
+    path = (const char *)sqlite3_column_text (stmt, 3);
+    err_id = sqlite3_column_int (stmt, 4);
+    timestamp = sqlite3_column_int64 (stmt, 5);
 
     error = g_object_new (SEAFILE_TYPE_FILE_SYNC_ERROR,
+                          "id", id,
                           "repo_id", repo_id,
                           "repo_name", repo_name,
                           "path", path,
@@ -748,7 +750,7 @@ seaf_repo_manager_get_file_sync_errors (SeafRepoManager *mgr, int offset, int li
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    sql = sqlite3_mprintf ("SELECT repo_id, repo_name, path, err_id, timestamp FROM "
+    sql = sqlite3_mprintf ("SELECT id, repo_id, repo_name, path, err_id, timestamp FROM "
                            "FileSyncError ORDER BY id DESC LIMIT %d OFFSET %d",
                            limit, offset);
     sqlite_foreach_selected_row (mgr->priv->db, sql,
