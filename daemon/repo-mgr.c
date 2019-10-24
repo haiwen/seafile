@@ -680,8 +680,12 @@ seaf_repo_manager_record_sync_error (const char *repo_id,
 
     pthread_mutex_lock (&seaf->repo_mgr->priv->db_lock);
 
-    sql = sqlite3_mprintf ("DELETE FROM FileSyncError WHERE repo_id='%q' AND path='%q'",
-                           repo_id, path);
+    if (path != NULL)
+        sql = sqlite3_mprintf ("DELETE FROM FileSyncError WHERE repo_id='%q' AND path='%q'",
+                               repo_id, path);
+    else
+        sql = sqlite3_mprintf ("DELETE FROM FileSyncError WHERE repo_id='%q' AND path IS NULL",
+                               repo_id);
     ret = sqlite_query_exec (seaf->repo_mgr->priv->db, sql);
     sqlite3_free (sql);
     if (ret < 0)
