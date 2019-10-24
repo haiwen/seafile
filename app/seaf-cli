@@ -715,7 +715,7 @@ def seaf_status(args):
             continue
 
         task = seafile_rpc.get_repo_sync_task(repo.id)
-        if not task:
+        if task is None:
             print('{:<50s}\t{:<20s}'.format(repo.name, 'waiting for sync'))
         elif task.state == 'uploading':
             tx_task = seafile_rpc.find_transfer_task(repo.id)
