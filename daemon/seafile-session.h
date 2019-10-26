@@ -78,6 +78,8 @@ struct _SeafileSession {
     gboolean             enable_http_sync;
     gboolean             disable_verify_certificate;
 
+    gboolean             disable_block_hash;
+
     gboolean             use_http_proxy;
     char                *http_proxy_type;
     char                *http_proxy_addr;

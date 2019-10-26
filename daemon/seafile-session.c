@@ -419,6 +419,9 @@ seafile_session_prepare (SeafileSession *session)
     else
         session->cdc_average_block_size = 0;
 
+    session->disable_block_hash =
+        seafile_session_config_get_bool (session, KEY_DISABLE_BLOCK_HASH);
+    
     /* Start mq manager earlier, so that we can send notifications
      * when start repo manager. */
     seaf_mq_manager_init (session->mq_mgr);
