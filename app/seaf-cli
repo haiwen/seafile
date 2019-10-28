@@ -736,7 +736,8 @@ def seaf_status(args):
                                                               tx_task.fs_objects_done / tx_task.fs_objects_total * 100))
             except ZeroDivisionError: pass
         elif task.state == 'error':
-            print('{:<50s}\t{:<20s}'.format(repo.name, task.error))            
+            err = seafile_rpc.sync_error_id_to_str(task.error)
+            print('{:<50s}\t{:<20s}\t{:<20s}'.format(repo.name, 'error', err))
         else:
             print('{:<50s}\t{:<20s}'.format(repo.name, task.state))
 

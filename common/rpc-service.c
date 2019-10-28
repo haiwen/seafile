@@ -447,8 +447,6 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
         sync_state = "waiting for sync";
     } else {
         sync_state = sync_state_to_str(task->state);
-        if (strcmp(sync_state, "error") == 0 && !info->in_error)
-            sync_state = "synchronized";
     }
 
     SeafileSyncTask *s_task;
