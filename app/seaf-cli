@@ -366,6 +366,9 @@ def seaf_list(args):
     repos = seafile_rpc.get_repo_list(-1, -1)
     print("Name\tID\tPath")
     for repo in repos:
+        if sys.version_info[0] == 2:
+            repo.name = repo.name.encode('utf8')
+            repo.worktree = repo.worktree.encode('utf8')
         print(repo.name, repo.id, repo.worktree)
 
 
@@ -652,6 +655,8 @@ def seaf_desync(args):
             break
 
     if repo is not None:
+        if sys.version_info[0] == 2:
+            repo.name = repo.name.encode('utf8')
         print("Desynchronize %s" % repo.name)
         seafile_rpc.remove_repo(repo.id)
     else:
@@ -691,6 +696,8 @@ def seaf_status(args):
     tasks = seafile_rpc.get_clone_tasks()
     print('# {:<50s}\t{:<20s}\t{:<20s}'.format('Name', 'Status', 'Progress'))
     for task in tasks:
+        if sys.version_info[0] == 2:
+            task.repo_name = task.repo_name.encode('utf8')
         if task.state == "fetch":
             tx_task = seafile_rpc.find_transfer_task(task.repo_id)
             try:
@@ -709,6 +716,8 @@ def seaf_status(args):
 
     repos = seafile_rpc.get_repo_list(-1, -1)
     for repo in repos:
+        if sys.version_info[0] == 2:
+            repo.name = repo.name.encode('utf8')
         auto_sync_enabled = seafile_rpc.is_auto_sync_enabled()
         if not auto_sync_enabled or not repo.auto_sync:
             print('{:<50s}\t{:<20s}'.format(repo.name, 'auto sync disabled'))
