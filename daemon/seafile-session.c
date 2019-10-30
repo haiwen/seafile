@@ -20,6 +20,7 @@
 #include <event2/event_struct.h>
 #else
 #include <event.h>
+#include <event2/thread.h>
 #endif
 
 #include <glib.h>
@@ -185,6 +186,11 @@ seafile_session_new(const char *seafile_dir,
 
     session = g_object_new (SEAFILE_TYPE_SESSION, NULL);
     session->ev_base = event_base_new ();
+#ifdef WIN32
+    evthread_use_windows_threads();
+#else
+    evthread_use_pthreads();
+#endif
     session->seaf_dir = abs_seafile_dir;
     session->tmp_file_dir = tmp_file_dir;
     session->worktree_dir = abs_worktree_dir;
