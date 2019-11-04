@@ -178,14 +178,11 @@ seafile_check_path_for_clone (const char *path, GError **error)
 char *
 seafile_clone (const char *repo_id,
                int repo_version,
-               const char *relay_id,
                const char *repo_name,
                const char *worktree,
                const char *token,
                const char *passwd,
                const char *magic,
-               const char *peer_addr,
-               const char *peer_port,
                const char *email,
                const char *random_key,
                int enc_version,
@@ -197,18 +194,13 @@ seafile_clone (const char *repo_id,
         return NULL;
     }
 
-    if (!relay_id || strlen(relay_id) != 40) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid peer id");
-        return NULL;
-    }
-
     if (!worktree) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Worktre must be specified");
         return NULL;
     }
 
-    if (!token || !peer_addr || !peer_port || !email ) {
+    if (!token || !email ) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Argument can't be NULL");
         return NULL;
@@ -216,13 +208,11 @@ seafile_clone (const char *repo_id,
 
     return seaf_clone_manager_add_task (seaf->clone_mgr,
                                         repo_id, repo_version,
-                                        relay_id,
                                         repo_name, token,
                                         passwd, magic,
                                         enc_version,
                                         random_key,
                                         worktree,
-                                        peer_addr, peer_port,
                                         email, more_info,
                                         error);
 }
@@ -230,14 +220,11 @@ seafile_clone (const char *repo_id,
 char *
 seafile_download (const char *repo_id,
                   int repo_version,
-                  const char *relay_id,
                   const char *repo_name,
                   const char *wt_parent,
                   const char *token,
                   const char *passwd,
                   const char *magic,
-                  const char *peer_addr,
-                  const char *peer_port,
                   const char *email,
                   const char *random_key,
                   int enc_version,
@@ -249,18 +236,13 @@ seafile_download (const char *repo_id,
         return NULL;
     }
 
-    if (!relay_id || strlen(relay_id) != 40) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid peer id");
-        return NULL;
-    }
-
     if (!wt_parent) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Worktre must be specified");
         return NULL;
     }
 
-    if (!token || !peer_addr || !peer_port || !email ) {
+    if (!token || !email ) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Argument can't be NULL");
         return NULL;
@@ -268,12 +250,10 @@ seafile_download (const char *repo_id,
 
     return seaf_clone_manager_add_download_task (seaf->clone_mgr,
                                                  repo_id, repo_version,
-                                                 relay_id,
                                                  repo_name, token,
                                                  passwd, magic,
                                                  enc_version, random_key,
                                                  wt_parent,
-                                                 peer_addr, peer_port,
                                                  email, more_info,
                                                  error);
 }

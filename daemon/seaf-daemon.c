@@ -186,11 +186,11 @@ register_rpc_service ()
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_clone,
                                      "seafile_clone",
-        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int_string());
+        searpc_signature_string__string_int_string_string_string_string_string_string_string_int_string());
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_download,
                                      "seafile_download",
-        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int_string());
+        searpc_signature_string__string_int_string_string_string_string_string_string_string_int_string());
 
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_cancel_clone_task,
