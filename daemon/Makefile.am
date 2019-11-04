@@ -77,7 +77,7 @@ seaf_daemon_SOURCES = seaf-daemon.c $(common_src)
 
 seaf_daemon_LDADD = $(top_builddir)/lib/libseafile_common.la \
 	@GLIB2_LIBS@  @GOBJECT_LIBS@ @SSL_LIBS@ @GNUTLS_LIBS@ @NETTLE_LIBS@ \
-	@LIB_RT@ @LIB_UUID@ -lsqlite3 @LIBEVENT_LIBS@ \
+	@LIB_RT@ @LIB_UUID@ -lsqlite3 @LIBEVENT_LIBS@ @LIBEVENT_PTHREADS_LIBS@\
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/common/index/libindex.la @LIB_WS32@ @LIB_CRYPT32@ \
 	@SEARPC_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@ @CURL_LIBS@ @BPWRAPPER_LIBS@
