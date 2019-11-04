@@ -737,7 +737,7 @@ int do_unsync_repo(SeafRepo *repo)
 }
 
 static void
-cancel_clone_tasks_by_account (const char *account_server, const char *account_email)
+cancel_clone_tasks_by_account (const char *account_server_url, const char *account_email)
 {
     GList *ptr, *tasks;
     CloneTask *task;
@@ -746,7 +746,7 @@ cancel_clone_tasks_by_account (const char *account_server, const char *account_e
     for (ptr = tasks; ptr != NULL; ptr = ptr->next) {
         task = ptr->data;
 
-        if (g_strcmp0(account_server, task->peer_addr) == 0
+        if (g_strcmp0(account_server_url, task->server_url) == 0
             && g_strcmp0(account_email, task->email) == 0) {
             seaf_clone_manager_cancel_task (seaf->clone_mgr, task->repo_id);
         }
@@ -755,13 +755,26 @@ cancel_clone_tasks_by_account (const char *account_server, const char *account_e
     g_list_free (tasks);
 }
 
-int
-seafile_unsync_repos_by_account (const char *server_addr, const char *email, GError **error)
+static char *
+canonical_server_url (const char *url_in)
 {
-    if (!server_addr || !email) {
+    char *url = g_strdup(url_in);
+    int len = strlen(url);
+
+    if (url[len - 1] == '/')
+        url[len - 1] = 0;
+
+    return url;
+}
+
+int
+seafile_unsync_repos_by_account (const char *server_url, const char *email, GError **error)
+{
+    if (!server_url || !email) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
         return -1;
     }
+    char *canon_server_url = canonical_server_url (server_url);
 
     GList *ptr, *repos = seaf_repo_manager_get_repo_list(seaf->repo_mgr, -1, -1);
     if (!repos) {
@@ -770,35 +783,29 @@ seafile_unsync_repos_by_account (const char *server_addr, const char *email, GEr
 
     for (ptr = repos; ptr; ptr = ptr->next) {
         SeafRepo *repo = (SeafRepo*)ptr->data;
-        char *addr = NULL;
-        seaf_repo_manager_get_repo_relay_info(seaf->repo_mgr,
-                                              repo->id,
-                                              &addr, /* addr */
-                                              NULL); /* port */
-
-        if (g_strcmp0(addr, server_addr) == 0 && g_strcmp0(repo->email, email) == 0) {
+        if (g_strcmp0(repo->server_url, canon_server_url) == 0 && g_strcmp0(repo->email, email) == 0) {
             if (do_unsync_repo(repo) < 0) {
                 return -1;
             }
         }
-
-        g_free (addr);
     }
 
     g_list_free (repos);
+    g_free (canon_server_url);
 
-    cancel_clone_tasks_by_account (server_addr, email);
+    cancel_clone_tasks_by_account (server_url, email);
 
     return 0;
 }
 
 int
-seafile_remove_repo_tokens_by_account (const char *server_addr, const char *email, GError **error)
+seafile_remove_repo_tokens_by_account (const char *server_url, const char *email, GError **error)
 {
-    if (!server_addr || !email) {
+    if (!server_url || !email) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
         return -1;
     }
+    char *canon_server_url = canonical_server_url (server_url);
 
     GList *ptr, *repos = seaf_repo_manager_get_repo_list(seaf->repo_mgr, -1, -1);
     if (!repos) {
@@ -807,24 +814,17 @@ seafile_remove_repo_tokens_by_account (const char *server_addr, const char *emai
 
     for (ptr = repos; ptr; ptr = ptr->next) {
         SeafRepo *repo = (SeafRepo*)ptr->data;
-        char *addr = NULL;
-        seaf_repo_manager_get_repo_relay_info(seaf->repo_mgr,
-                                              repo->id,
-                                              &addr, /* addr */
-                                              NULL); /* port */
-
-        if (g_strcmp0(addr, server_addr) == 0 && g_strcmp0(repo->email, email) == 0) {
+        if (g_strcmp0(repo->server_url, canon_server_url) == 0 && g_strcmp0(repo->email, email) == 0) {
             if (seaf_repo_manager_remove_repo_token(seaf->repo_mgr, repo) < 0) {
                 return -1;
             }
         }
-
-        g_free (addr);
     }
 
     g_list_free (repos);
+    g_free (canon_server_url);
 
-    cancel_clone_tasks_by_account (server_addr, email);
+    cancel_clone_tasks_by_account (server_url, email);
 
     return 0;
 }

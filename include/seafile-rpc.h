@@ -50,10 +50,10 @@ seafile_set_download_rate_limit (int limit, GError **error);
 int seafile_destroy_repo (const gchar *repo_id, GError **error);
 
 int
-seafile_unsync_repos_by_account (const char *server_addr, const char *email, GError **error);
+seafile_unsync_repos_by_account (const char *server_url, const char *email, GError **error);
 
 int
-seafile_remove_repo_tokens_by_account (const char *server_addr, const char *email, GError **error);
+seafile_remove_repo_tokens_by_account (const char *server_url, const char *email, GError **error);
 
 int
 seafile_set_repo_token (const char *repo_id, const char *token, GError **error);
