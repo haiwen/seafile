@@ -17,6 +17,7 @@
 #include <glib.h>
 #include <glib-object.h>
 #include <curl/curl.h>
+#include <event2/thread.h>
 
 #ifdef HAVE_BREAKPAD_SUPPORT
 #include <c_bpwrapper.h>
@@ -474,6 +475,9 @@ main (int argc, char **argv)
 #if !GLIB_CHECK_VERSION(2, 31, 0)
     g_thread_init(NULL);
 #endif
+
+    /* init multithreading support for libevent.because struct event_base is not thread safe. */
+    evthread_use_pthreads();    
 
     if (!debug_str)
         debug_str = g_getenv("SEAFILE_DEBUG");
