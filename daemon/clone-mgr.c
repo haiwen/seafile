@@ -977,18 +977,6 @@ seaf_clone_manager_check_worktree_path (SeafCloneManager *mgr, const char *path,
 }
 
 static char *
-canonical_server_url (const char *url_in)
-{
-    char *url = g_strdup(url_in);
-    int len = strlen(url);
-
-    if (url[len - 1] == '/')
-        url[len - 1] = 0;
-
-    return url;
-}
-
-static char *
 add_task_common (SeafCloneManager *mgr, 
                  const char *repo_id,
                  int repo_version,

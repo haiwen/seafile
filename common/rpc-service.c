@@ -735,18 +735,6 @@ cancel_clone_tasks_by_account (const char *account_server_url, const char *accou
     g_list_free (tasks);
 }
 
-static char *
-canonical_server_url (const char *url_in)
-{
-    char *url = g_strdup(url_in);
-    int len = strlen(url);
-
-    if (url[len - 1] == '/')
-        url[len - 1] = 0;
-
-    return url;
-}
-
 int
 seafile_unsync_repos_by_account (const char *server_url, const char *email, GError **error)
 {

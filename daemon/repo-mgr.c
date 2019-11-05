@@ -6682,18 +6682,6 @@ save_repo_property (SeafRepoManager *manager,
     pthread_mutex_unlock (&manager->priv->db_lock);
 }
 
-static char *
-canonical_server_url (const char *url_in)
-{
-    char *url = g_strdup(url_in);
-    int len = strlen(url);
-
-    if (url[len - 1] == '/')
-        url[len - 1] = 0;
-
-    return url;
-}
-
 int
 seaf_repo_manager_set_repo_property (SeafRepoManager *manager, 
                                      const char *repo_id,
