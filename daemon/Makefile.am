@@ -2,6 +2,7 @@
 AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	-DPACKAGE_DATA_DIR=\""$(pkgdatadir)"\" \
 	-DSEAFILE_CLIENT \
+	-D__USE_MINGW_ANSI_STDIO=1 \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/lib \
 	-I$(top_builddir)/lib \
