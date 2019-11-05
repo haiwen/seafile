@@ -627,9 +627,10 @@ files_locked_on_windows (struct index_state *index, const char *worktree)
                 mask == 6 ||    /* both added */
                 mask == 3)      /* others removed */
             {
-                if (do_check_file_locked (ce->name, worktree, FALSE))
+                if (do_check_file_locked (ce->name, worktree, FALSE)) {
                     ret = TRUE;
                     break;
+                }
             }
         } else if (ce->ce_flags & CE_UPDATE ||
                    ce->ce_flags & CE_WT_REMOVE) {
