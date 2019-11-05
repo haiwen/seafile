@@ -476,8 +476,10 @@ main (int argc, char **argv)
     g_thread_init(NULL);
 #endif
 
+#ifndef WIN32
     /* init multithreading support for libevent.because struct event_base is not thread safe. */
-    evthread_use_pthreads();    
+    evthread_use_pthreads();
+#endif
 
     if (!debug_str)
         debug_str = g_getenv("SEAFILE_DEBUG");
