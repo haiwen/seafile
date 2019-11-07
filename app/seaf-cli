@@ -179,11 +179,9 @@ def _conf_dir(args):
         return conf_dir
 
 def _user_config_valid(conf):
-    if not exists(conf):
-        print("%s not exists" % conf)
-        return False
-
-    return True
+    if exists(conf):
+        return True
+    return False
 
 def _parse_user_config(conf):
     try:
