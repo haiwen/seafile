@@ -106,8 +106,10 @@ import seafile
 
 if 'HOME' in os.environ:
     DEFAULT_CONF_DIR = "%s/.ccnet" % os.environ['HOME']
+    DEFAULT_USER_CONF_DIR = "%s/.seafile.conf" % os.environ['HOME']    
 else:
     DEFAULT_CONF_DIR = None
+    DEFAULT_USER_CONF_DIR = None
 
 seafile_datadir = None
 seafile_worktree = None
@@ -176,6 +178,31 @@ def _conf_dir(args):
         get_device_id(conf_dir)
         return conf_dir
 
+def _user_config_valid(conf):
+    if not exists(conf):
+        print("%s not exists" % conf)
+        return False
+
+    return True
+
+def _parse_user_config(conf):
+    try:
+        from configparser import ConfigParser
+        from configparser import NoOptionError
+    except ImportError:
+        from ConfigParser import ConfigParser
+        from ConfigParser import NoOptionError
+        
+    cfg = ConfigParser()
+    cfg.read(conf)
+    if len(cfg.sections()) < 1 or cfg.sections()[0] != 'account':
+        return None, None
+    try:
+        server = cfg.get('account', 'server')
+        user = cfg.get('account', 'user')
+        return server,user
+    except NoOptionError:
+        return None, None
 
 def run_argv(argv, cwd=None, env=None, suppress_stdout=False, suppress_stderr=False):
     '''Run a program and wait it to finish, and return its exit code. The
@@ -431,7 +458,18 @@ def seaf_download(args):
         print("Library id is required")
         sys.exit(1)
 
+    server_from_config, user_from_config = None, None        
+    user_config_dir = args.C
+    if not user_config_dir:
+        user_config_dir = DEFAULT_USER_CONF_DIR
+    else:
+        user_config_dir = abspath(user_config_dir)
+    if _user_config_valid(user_config_dir):
+        server_from_config, user_from_config = _parse_user_config(user_config_dir)
+
     url = args.server
+    if not url and server_from_config:
+        url = server_from_config
     if not url:
         print("Seafile server url need to be presented")
         sys.exit(1)
@@ -444,6 +482,8 @@ def seaf_download(args):
     seafile_rpc = get_rpc_client(conf_dir)
 
     username = args.username
+    if not username and user_from_config:
+        username = user_from_config
     if not username:
         username = input("Enter username: ")
     password = args.password
@@ -559,7 +599,18 @@ def seaf_sync(args):
         print("Library id is required")
         sys.exit(1)
 
+    server_from_config, user_from_config = None, None
+    user_config_dir = args.C
+    if not user_config_dir:
+        user_config_dir = DEFAULT_USER_CONF_DIR
+    else:
+        user_config_dir = abspath(user_config_dir)
+    if _user_config_valid(user_config_dir):
+        server_from_config, user_from_config = _parse_user_config(user_config_dir)
+
     url = args.server
+    if not url and server_from_config:
+        url = server_from_config
     if not url:
         print("Seafile server url is required")
         sys.exit(1)
@@ -577,6 +628,8 @@ def seaf_sync(args):
     seafile_rpc = get_rpc_client(conf_dir)
 
     username = args.username
+    if not username and user_from_config:
+        username = user_from_config;
     if not username:
         username = input("Enter username: ")
     password = args.password
@@ -840,6 +893,7 @@ def main():
                                          help='Download a library from seafile server')
     parser_download.set_defaults(func=seaf_download)
     parser_download.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
+    parser_download.add_argument('-C', help='the user config directory', type=str)    
     parser_download.add_argument('-l', '--library', help='library id', type=str)
     parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
@@ -867,6 +921,7 @@ def main():
                                         help='Sync a library with an existing foler')
     parser_sync.set_defaults(func=seaf_sync)
     parser_sync.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
+    parser_sync.add_argument('-C', help='the user config directory', type=str)
     parser_sync.add_argument('-l', '--library', help='library id', type=str)
     parser_sync.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_sync.add_argument('-u', '--username', help='username', type=str)
