@@ -635,9 +635,10 @@ def dependency_walk(applet):
     output = os.path.join(conf[CONF_BUILDDIR], 'depends.csv')
     cmd = 'depends.exe -c -f 1 -oc %s %s' % (output, applet)
 
+    run(cmd)
     # See the manual of Dependency walker
-    if run(cmd) > 0x100:
-        error('failed to run dependency walker for %s' % applet)
+    # if run(cmd) > 0x100:
+    #     error('failed to run dependency walker for %s' % applet)
 
     if not os.path.exists(output):
         error('failed to run dependency walker for %s' % applet)
