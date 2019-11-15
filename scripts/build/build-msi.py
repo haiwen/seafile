@@ -173,6 +173,7 @@ def run(cmdline, cwd=None, env=None, suppress_stdout=False, suppress_stderr=Fals
         if 'depend' not in cmdline and ret != 0:
             global error_exit
             error_exit = True
+        info('return value is %d' % (ret))
         return ret
 
 def must_mkdir(path):
