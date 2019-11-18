@@ -338,7 +338,7 @@ class SeafileClient(Project):
         Project.__init__(self)
         cmake_defines = {
             'CMAKE_OSX_ARCHITECTURES': 'x86_64',
-            'CMAKE_OSX_DEPLOYMENT_TARGET': '10.7',
+            'CMAKE_OSX_DEPLOYMENT_TARGET': '10.9',
             'CMAKE_BUILD_TYPE': 'Release',
             'BUILD_SHIBBOLETH_SUPPORT': 'ON',
             'BUILD_SPARKLE_SUPPORT': 'ON',
@@ -898,6 +898,8 @@ def do_sign(path, extra_args=None):
     args = [
         'codesign',
         '--verbose=4',
+        '-o', 'runtime',
+        '--timestamp',
         '--verify',
         # '--no-strict',
         '--force',
