@@ -281,8 +281,7 @@ seaf_repo_manager_set_repo_passwd (SeafRepoManager *manager,
 
 int
 seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
-                                            const char *old_host,
-                                            const char *new_host,
+                                            const char *old_server_url,
                                             const char *new_server_url);
 
 #define SERVER_PROP_IS_PRO "is_pro"

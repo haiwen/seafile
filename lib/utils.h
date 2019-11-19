@@ -396,4 +396,6 @@ is_permission_valid (const char *perm);
 gboolean
 is_eml_file (const char *path);
 
+char *
+canonical_server_url (const char *url_in);
 #endif

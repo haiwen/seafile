@@ -18,11 +18,6 @@ class SeafileRpcClient(NamedPipeClient):
         pass
     sync_error_id_to_str = seafile_sync_error_id_to_str
          
-    @searpc_func("object", [])
-    def seafile_get_session_info():
-        pass
-    get_session_info = seafile_get_session_info
-
     @searpc_func("int", ["string"])
     def seafile_calc_dir_size(path):
         pass
@@ -114,13 +109,13 @@ class SeafileRpcClient(NamedPipeClient):
     def gen_default_worktree(worktree_parent, repo_name):
         pass
 
-    @searpc_func("string", ["string", "int", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int", "string"])
-    def seafile_clone(repo_id, repo_version, peer_id, repo_name, worktree, token, password, magic, peer_addr, peer_port, email, random_key, enc_version, more_info):
+    @searpc_func("string", ["string", "int", "string", "string", "string", "string", "string", "string", "int", "string"])
+    def seafile_clone(repo_id, repo_version, repo_name, worktree, token, password, magic, email, random_key, enc_version, more_info):
         pass
     clone = seafile_clone
 
-    @searpc_func("string", ["string", "int", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int", "string"])
-    def seafile_download(repo_id, repo_version, peer_id, repo_name, wt_parent, token, password, magic, peer_addr, peer_port, email, random_key, enc_version, more_info):
+    @searpc_func("string", ["string", "int", "string", "string", "string", "string", "string", "string", "int", "string"])
+    def seafile_download(repo_id, repo_version, repo_name, wt_parent, token, password, magic, email, random_key, enc_version, more_info):
         pass
     download = seafile_download
 
@@ -128,11 +123,6 @@ class SeafileRpcClient(NamedPipeClient):
     def seafile_cancel_clone_task(repo_id):
         pass
     cancel_clone_task = seafile_cancel_clone_task
-
-    @searpc_func("int", ["string"])
-    def seafile_remove_clone_task(repo_id):
-        pass
-    remove_clone_task = seafile_remove_clone_task
 
     @searpc_func("objlist", [])
     def seafile_get_clone_tasks():

@@ -392,9 +392,9 @@ searpc_signature_string__string_string_string_string_string_string_string_string
 
 
 inline static gchar *
-searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int_string()
+searpc_signature_string__string_int_string_string_string_string_string_string_string_int_string()
 {
-    return searpc_compute_signature ("string", 14, "string", "int", "string", "string", "string", "string", "string", "string", "string", "string", "string", "string", "int", "string");
+    return searpc_compute_signature ("string", 11, "string", "int", "string", "string", "string", "string", "string", "string", "string", "int", "string");
 }
 
 
@@ -549,13 +549,6 @@ inline static gchar *
 searpc_signature_objlist__string_string_string_string_int_int()
 {
     return searpc_compute_signature ("objlist", 6, "string", "string", "string", "string", "int", "int");
-}
-
-
-inline static gchar *
-searpc_signature_object__void()
-{
-    return searpc_compute_signature ("object", 0);
 }
 
 

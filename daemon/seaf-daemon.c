@@ -84,11 +84,6 @@ register_rpc_service ()
                                      seafile_sync_error_id_to_str,
                                      "seafile_sync_error_id_to_str",
                                      searpc_signature_string__int());
-    
-    searpc_server_register_function ("seafile-rpcserver",
-                                     seafile_get_session_info,
-                                     "seafile_get_session_info",
-                                     searpc_signature_object__void());
 
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_get_config,
@@ -162,7 +157,7 @@ register_rpc_service ()
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_update_repos_server_host,
                                      "seafile_update_repos_server_host",
-                                     searpc_signature_int__string_string_string());
+                                     searpc_signature_int__string_string());
 
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_disable_auto_sync,
@@ -192,19 +187,15 @@ register_rpc_service ()
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_clone,
                                      "seafile_clone",
-        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int_string());
+        searpc_signature_string__string_int_string_string_string_string_string_string_string_int_string());
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_download,
                                      "seafile_download",
-        searpc_signature_string__string_int_string_string_string_string_string_string_string_string_string_string_int_string());
+        searpc_signature_string__string_int_string_string_string_string_string_string_string_int_string());
 
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_cancel_clone_task,
                                      "seafile_cancel_clone_task",
-                                     searpc_signature_int__string());
-    searpc_server_register_function ("seafile-rpcserver",
-                                     seafile_remove_clone_task,
-                                     "seafile_remove_clone_task",
                                      searpc_signature_int__string());
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_get_clone_tasks,

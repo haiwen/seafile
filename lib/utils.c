@@ -2466,3 +2466,15 @@ is_eml_file (const char *path)
     ext = &path[len-4];
     return (strcasecmp (ext, ".eml") == 0);
 }
+
+char *
+canonical_server_url (const char *url_in)
+{
+    char *url = g_strdup(url_in);
+    int len = strlen(url);
+
+    if (url[len - 1] == '/')
+        url[len - 1] = 0;
+
+    return url;
+}

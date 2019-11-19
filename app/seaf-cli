@@ -513,9 +513,6 @@ def seaf_download(args):
     random_key = tmp.get('random_key', None)
 
     clone_token = tmp['token']
-    relay_id = tmp['relay_id']
-    relay_addr = tmp['relay_addr']
-    relay_port = str(tmp['relay_port'])
     email = tmp['email']
     repo_name = tmp['repo_name']
     version = tmp.get('repo_version', 0)
@@ -545,13 +542,10 @@ def seaf_download(args):
 
     seafile_rpc.download(repo,
                          version,
-                         relay_id,
                          repo_name,
                          download_dir,
                          clone_token,
                          repo_passwd, magic,
-                         relay_addr,
-                         relay_port,
                          email, random_key, enc_version, more_info)
 
 
@@ -670,9 +664,6 @@ def seaf_sync(args):
     random_key = tmp.get('random_key', None)
 
     clone_token = tmp['token']
-    relay_id = tmp['relay_id']
-    relay_addr = tmp['relay_addr']
-    relay_port = str(tmp['relay_port'])
     email = tmp['email']
     repo_name = tmp['repo_name']
     version = tmp.get('repo_version', 0)
@@ -701,13 +692,10 @@ def seaf_sync(args):
 
     seafile_rpc.clone(repo,
                       version,
-                      relay_id,
                       repo_name,
                       folder,
                       clone_token,
                       repo_passwd, magic,
-                      relay_addr,
-                      relay_port,
                       email, random_key, enc_version, more_info)
 
 

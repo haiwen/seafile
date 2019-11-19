@@ -95,16 +95,6 @@ convert_repo_list (GList *inner_repos)
 
 #include "sync-mgr.h"
 
-GObject *
-seafile_get_session_info (GError **error)
-{
-    SeafileSessionInfo *info;
-
-    info = seafile_session_info_new ();
-    g_object_set (info, "datadir", seaf->seaf_dir, NULL);
-    return (GObject *) info;
-}
-
 int
 seafile_set_config (const char *key, const char *value, GError **error)
 {
@@ -160,28 +150,6 @@ seafile_set_download_rate_limit (int limit, GError **error)
     return seafile_session_config_set_int (seaf, KEY_DOWNLOAD_LIMIT, limit);
 }
 
-int
-seafile_repo_last_modify(const char *repo_id, GError **error)
-{
-    SeafRepo *repo;
-    int ctime = 0;
-
-    if (!repo_id) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
-        return -1;
-    }
-
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_REPO, "No such repository");
-        return -1;
-    }
-
-    ctime = repo->last_modify;
-
-    return ctime;
-}
-
 char *
 seafile_gen_default_worktree (const char *worktree_parent,
                               const char *repo_name,
@@ -210,14 +178,11 @@ seafile_check_path_for_clone (const char *path, GError **error)
 char *
 seafile_clone (const char *repo_id,
                int repo_version,
-               const char *relay_id,
                const char *repo_name,
                const char *worktree,
                const char *token,
                const char *passwd,
                const char *magic,
-               const char *peer_addr,
-               const char *peer_port,
                const char *email,
                const char *random_key,
                int enc_version,
@@ -229,18 +194,13 @@ seafile_clone (const char *repo_id,
         return NULL;
     }
 
-    if (!relay_id || strlen(relay_id) != 40) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid peer id");
-        return NULL;
-    }
-
     if (!worktree) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Worktre must be specified");
         return NULL;
     }
 
-    if (!token || !peer_addr || !peer_port || !email ) {
+    if (!token || !email ) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Argument can't be NULL");
         return NULL;
@@ -248,13 +208,11 @@ seafile_clone (const char *repo_id,
 
     return seaf_clone_manager_add_task (seaf->clone_mgr,
                                         repo_id, repo_version,
-                                        relay_id,
                                         repo_name, token,
                                         passwd, magic,
                                         enc_version,
                                         random_key,
                                         worktree,
-                                        peer_addr, peer_port,
                                         email, more_info,
                                         error);
 }
@@ -262,14 +220,11 @@ seafile_clone (const char *repo_id,
 char *
 seafile_download (const char *repo_id,
                   int repo_version,
-                  const char *relay_id,
                   const char *repo_name,
                   const char *wt_parent,
                   const char *token,
                   const char *passwd,
                   const char *magic,
-                  const char *peer_addr,
-                  const char *peer_port,
                   const char *email,
                   const char *random_key,
                   int enc_version,
@@ -281,18 +236,13 @@ seafile_download (const char *repo_id,
         return NULL;
     }
 
-    if (!relay_id || strlen(relay_id) != 40) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Invalid peer id");
-        return NULL;
-    }
-
     if (!wt_parent) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Worktre must be specified");
         return NULL;
     }
 
-    if (!token || !peer_addr || !peer_port || !email ) {
+    if (!token || !email ) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Argument can't be NULL");
         return NULL;
@@ -300,12 +250,10 @@ seafile_download (const char *repo_id,
 
     return seaf_clone_manager_add_download_task (seaf->clone_mgr,
                                                  repo_id, repo_version,
-                                                 relay_id,
                                                  repo_name, token,
                                                  passwd, magic,
                                                  enc_version, random_key,
                                                  wt_parent,
-                                                 peer_addr, peer_port,
                                                  email, more_info,
                                                  error);
 }
@@ -314,12 +262,6 @@ int
 seafile_cancel_clone_task (const char *repo_id, GError **error)
 {
     return seaf_clone_manager_cancel_task (seaf->clone_mgr, repo_id);
-}
-
-int
-seafile_remove_clone_task (const char *repo_id, GError **error)
-{
-    return seaf_clone_manager_remove_task (seaf->clone_mgr, repo_id);
 }
 
 GList *
@@ -515,18 +457,17 @@ seafile_get_repo_property (const char *repo_id,
 }
 
 int
-seafile_update_repos_server_host (const char *old_host,
-                                  const char *new_host,
+seafile_update_repos_server_host (const char *old_server_url,
                                   const char *new_server_url,
                                   GError **error)
 {
-    if (!old_host || !new_host || !new_server_url) {
+    if (!old_server_url || !new_server_url) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
         return -1;
     }
 
     return seaf_repo_manager_update_repos_server_host(
-        seaf->repo_mgr, old_host, new_host, new_server_url);
+        seaf->repo_mgr, old_server_url, new_server_url);
 }
 
 int
@@ -776,7 +717,7 @@ int do_unsync_repo(SeafRepo *repo)
 }
 
 static void
-cancel_clone_tasks_by_account (const char *account_server, const char *account_email)
+cancel_clone_tasks_by_account (const char *account_server_url, const char *account_email)
 {
     GList *ptr, *tasks;
     CloneTask *task;
@@ -785,7 +726,7 @@ cancel_clone_tasks_by_account (const char *account_server, const char *account_e
     for (ptr = tasks; ptr != NULL; ptr = ptr->next) {
         task = ptr->data;
 
-        if (g_strcmp0(account_server, task->peer_addr) == 0
+        if (g_strcmp0(account_server_url, task->server_url) == 0
             && g_strcmp0(account_email, task->email) == 0) {
             seaf_clone_manager_cancel_task (seaf->clone_mgr, task->repo_id);
         }
@@ -795,12 +736,13 @@ cancel_clone_tasks_by_account (const char *account_server, const char *account_e
 }
 
 int
-seafile_unsync_repos_by_account (const char *server_addr, const char *email, GError **error)
+seafile_unsync_repos_by_account (const char *server_url, const char *email, GError **error)
 {
-    if (!server_addr || !email) {
+    if (!server_url || !email) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
         return -1;
     }
+    char *canon_server_url = canonical_server_url (server_url);
 
     GList *ptr, *repos = seaf_repo_manager_get_repo_list(seaf->repo_mgr, -1, -1);
     if (!repos) {
@@ -809,35 +751,29 @@ seafile_unsync_repos_by_account (const char *server_addr, const char *email, GEr
 
     for (ptr = repos; ptr; ptr = ptr->next) {
         SeafRepo *repo = (SeafRepo*)ptr->data;
-        char *addr = NULL;
-        seaf_repo_manager_get_repo_relay_info(seaf->repo_mgr,
-                                              repo->id,
-                                              &addr, /* addr */
-                                              NULL); /* port */
-
-        if (g_strcmp0(addr, server_addr) == 0 && g_strcmp0(repo->email, email) == 0) {
+        if (g_strcmp0(repo->server_url, canon_server_url) == 0 && g_strcmp0(repo->email, email) == 0) {
             if (do_unsync_repo(repo) < 0) {
                 return -1;
             }
         }
-
-        g_free (addr);
     }
 
     g_list_free (repos);
+    g_free (canon_server_url);
 
-    cancel_clone_tasks_by_account (server_addr, email);
+    cancel_clone_tasks_by_account (server_url, email);
 
     return 0;
 }
 
 int
-seafile_remove_repo_tokens_by_account (const char *server_addr, const char *email, GError **error)
+seafile_remove_repo_tokens_by_account (const char *server_url, const char *email, GError **error)
 {
-    if (!server_addr || !email) {
+    if (!server_url || !email) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Argument should not be null");
         return -1;
     }
+    char *canon_server_url = canonical_server_url (server_url);
 
     GList *ptr, *repos = seaf_repo_manager_get_repo_list(seaf->repo_mgr, -1, -1);
     if (!repos) {
@@ -846,24 +782,17 @@ seafile_remove_repo_tokens_by_account (const char *server_addr, const char *emai
 
     for (ptr = repos; ptr; ptr = ptr->next) {
         SeafRepo *repo = (SeafRepo*)ptr->data;
-        char *addr = NULL;
-        seaf_repo_manager_get_repo_relay_info(seaf->repo_mgr,
-                                              repo->id,
-                                              &addr, /* addr */
-                                              NULL); /* port */
-
-        if (g_strcmp0(addr, server_addr) == 0 && g_strcmp0(repo->email, email) == 0) {
+        if (g_strcmp0(repo->server_url, canon_server_url) == 0 && g_strcmp0(repo->email, email) == 0) {
             if (seaf_repo_manager_remove_repo_token(seaf->repo_mgr, repo) < 0) {
                 return -1;
             }
         }
-
-        g_free (addr);
     }
 
     g_list_free (repos);
+    g_free (canon_server_url);
 
-    cancel_clone_tasks_by_account (server_addr, email);
+    cancel_clone_tasks_by_account (server_url, email);
 
     return 0;
 }
