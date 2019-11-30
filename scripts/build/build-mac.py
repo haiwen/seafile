@@ -346,7 +346,7 @@ class SeafileClient(Project):
         cmake_defines_formatted = ' '.join(['-D{}={}'.format(k, v) for k, v in cmake_defines.iteritems()])
         self.build_commands = [
             'rm -f CMakeCache.txt',
-            'cmake -G Xcode {}'.format(cmake_defines_formatted),
+            'cmake -GXcode {}'.format(cmake_defines_formatted),
             'xcodebuild -target seafile-applet -configuration Release -jobs {}'.format(NUM_CPU),
             'rm -rf seafile-applet.app',
             'cp -r Release/seafile-applet.app seafile-applet.app',
