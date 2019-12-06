@@ -990,6 +990,16 @@ def copy_dmg():
     print '>>\t%s' % dst_dmg
     print '---------------------------------------------'
 
+def notarize_dmg():
+    pkg = os.path.join(conf[CONF_BUILDDIR], 'app-{}.dmg'.format(conf[CONF_VERSION]))
+    info('Try to notarize {}'.format(pkg))
+    notarize_script = join(Seafile().projdir, 'scripts/build/notarize.sh')
+    cmdline = '{} {}'.format(notarize_script, pkg)
+    ret = run(cmdline)
+    if ret != 0:
+        error('failed to notarize: %s' % cmdline)
+    info('Successfully notarized {}'.format(pkg))
+
 def build_and_sign_fsplugin():
     """
     Build and sign the fsplugin. The final output would be "${buildder}/Seafile FinderSync.appex"
@@ -1053,6 +1063,7 @@ def local_workflow():
 
     build_and_sign_fsplugin()
     gen_dmg()
+    notarize_dmg()
     copy_dmg()
 
 def master_workflow():
@@ -1062,6 +1073,7 @@ def master_workflow():
 
     build_and_sign_fsplugin()
     gen_dmg()
+    notarize_dmg()
     copy_dmg()
 
 def slave_workflow():
@@ -1096,8 +1108,9 @@ def main():
     if conf[CONF_LOCAL]:
         local_workflow()
     elif conf[CONF_MODE] == 'master':
-        info('entering master workflow')
-        master_workflow()
+        # info('entering master workflow')
+        # master_workflow()
+        local_workflow()
     else:
         info('entering slave workflow')
         slave_workflow()
