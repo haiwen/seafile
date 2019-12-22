@@ -64,7 +64,7 @@ For this reason, the sync client daemon repository is still the "front page" for
 Build and Run
 =============
 
-See <http://manual.seafile.com/build_seafile/server.html>
+See <https://download.seafile.com/published/seafile-manual/build_seafile/server.md>
 
 Bug and Feature Request Reports
 ===============================
