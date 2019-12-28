@@ -860,7 +860,11 @@ def sign_files(appdir):
     # The webengine app must be signed first, otherwise the sign of
     # QtWebengineCore.framework would fail.
     if exists(webengine_app):
-        do_sign(webengine_app)
+        entitlements = join(Seafile().projdir, 'scripts/build/osx.entitlements')
+        do_sign(
+            webengine_app,
+            extra_args=['--entitlements', entitlements]
+        )
 
     patterns = [
         'Contents/Frameworks/*.framework',
