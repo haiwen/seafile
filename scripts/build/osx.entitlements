@@ -2,8 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <!-- Without this qt webengine won't be able to load pages. -->
-    <key>com.apple.security.cs.disable-library-validation</key>
+    <!-- These two restrictions must be lifted to make QtWebengine work -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.disable-executable-page-protection</key>
     <true/>
 </dict>
 </plist>
