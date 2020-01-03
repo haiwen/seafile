@@ -1,6 +1,7 @@
 #!/bin/bash
 
 set -e
+set -x
 
 pkg=${1?:"You must provide the path to the dmg file"}
 if [[ ! -e $pkg ]]; then

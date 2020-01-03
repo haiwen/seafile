@@ -3,8 +3,6 @@
 <plist version="1.0">
 <dict>
     <!-- These two restrictions must be lifted to make QtWebengine work -->
-    <key>com.apple.security.cs.allow-jit</key>
-    <true/>
     <key>com.apple.security.cs.disable-executable-page-protection</key>
     <true/>
 </dict>
