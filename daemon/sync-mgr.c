@@ -2264,8 +2264,12 @@ seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
             sync_status_tree_add (info->synced_tree, path, mode);
         else {
 #ifdef WIN32
-            if (refresh)
+            if (refresh) {
+                g_print("refresh %s\n", path);
                 seaf_sync_manager_add_refresh_path (mgr, path);
+            } else {
+                g_print ("do not refresh %s\n", path);
+            }
 #endif
         }
     } else if (existing != status) {
@@ -2282,8 +2286,12 @@ seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
             sync_status_tree_add (info->synced_tree, path, mode);
 
 #ifdef WIN32
-        if (refresh)
-            seaf_sync_manager_add_refresh_path (mgr, path);
+            if (refresh) {
+                g_print("refresh %s\n", path);
+                seaf_sync_manager_add_refresh_path (mgr, path);
+            } else {
+                g_print ("do not refresh %s\n", path);
+            }
 #endif
     }
 
