@@ -3607,7 +3607,8 @@ set_path_status_syncing (gpointer key, gpointer value, gpointer user_data)
                                           task->repo_id,
                                           path,
                                           mode,
-                                          SYNC_STATUS_SYNCING);
+                                          SYNC_STATUS_SYNCING,
+                                          TRUE);
 }
 
 static void
@@ -3620,7 +3621,8 @@ set_path_status_synced (gpointer key, gpointer value, gpointer user_data)
                                           task->repo_id,
                                           path,
                                           mode,
-                                          SYNC_STATUS_SYNCED);
+                                          SYNC_STATUS_SYNCED,
+                                          TRUE);
 }
 
 static void *

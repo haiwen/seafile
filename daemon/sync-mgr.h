@@ -146,7 +146,8 @@ seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
                                       const char *repo_id,
                                       const char *path,
                                       int mode,
-                                      SyncStatus status);
+                                      SyncStatus status,
+                                      gboolean refresh);
 
 void
 seaf_sync_manager_delete_active_path (SeafSyncManager *mgr,

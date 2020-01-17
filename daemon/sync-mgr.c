@@ -1517,7 +1517,8 @@ handle_locked_file_update (SeafRepo *repo, struct index_state *istate,
                                           repo->id,
                                           path,
                                           S_IFREG,
-                                          SYNC_STATUS_SYNCED);
+                                          SYNC_STATUS_SYNCED,
+                                          TRUE);
 
     /* In checkout, the file was overwritten by rename, so the file attributes
        are gone. We have to set read-only state again.
@@ -2225,7 +2226,8 @@ seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
                                       const char *repo_id,
                                       const char *path,
                                       int mode,
-                                      SyncStatus status)
+                                      SyncStatus status,
+                                      gboolean refresh)
 {
     ActivePathsInfo *info;
     SeafRepo *repo;
@@ -2262,7 +2264,8 @@ seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
             sync_status_tree_add (info->synced_tree, path, mode);
         else {
 #ifdef WIN32
-            seaf_sync_manager_add_refresh_path (mgr, path);
+            if (refresh)
+                seaf_sync_manager_add_refresh_path (mgr, path);
 #endif
         }
     } else if (existing != status) {
@@ -2279,7 +2282,8 @@ seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
             sync_status_tree_add (info->synced_tree, path, mode);
 
 #ifdef WIN32
-        seaf_sync_manager_add_refresh_path (mgr, path);
+        if (refresh)
+            seaf_sync_manager_add_refresh_path (mgr, path);
 #endif
     }
 
