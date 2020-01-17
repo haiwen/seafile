@@ -2265,10 +2265,10 @@ seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
         else {
 #ifdef WIN32
             if (refresh) {
-                g_print("refresh %s\n", path);
+                seaf_warning("refresh %s\n", path);
                 seaf_sync_manager_add_refresh_path (mgr, path);
             } else {
-                g_print ("do not refresh %s\n", path);
+                seaf_warning ("do not refresh %s\n", path);
             }
 #endif
         }
@@ -2287,10 +2287,10 @@ seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
 
 #ifdef WIN32
             if (refresh) {
-                g_print("refresh %s\n", path);
+                seaf_warning("refresh %s\n", path);
                 seaf_sync_manager_add_refresh_path (mgr, path);
             } else {
-                g_print ("do not refresh %s\n", path);
+                seaf_warning ("do not refresh %s\n", path);
             }
 #endif
     }
