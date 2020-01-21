@@ -125,7 +125,8 @@ sync_status_tree_free (struct SyncStatusTree *tree)
 void
 sync_status_tree_add (SyncStatusTree *tree,
                       const char *path,
-                      int mode)
+                      int mode,
+                      gboolean refresh)
 {
     char **dnames = NULL;
     guint n, i;
@@ -167,7 +168,8 @@ sync_status_tree_add (SyncStatusTree *tree,
                 dir = dirent->subdir;
             }
 #ifdef WIN32
-            seaf_sync_manager_add_refresh_path (seaf->sync_mgr, buf->str);
+            if (refresh)
+                seaf_sync_manager_add_refresh_path (seaf->sync_mgr, buf->str);
 #endif
         }
     }
