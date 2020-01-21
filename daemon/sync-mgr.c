@@ -1517,7 +1517,8 @@ handle_locked_file_update (SeafRepo *repo, struct index_state *istate,
                                           repo->id,
                                           path,
                                           S_IFREG,
-                                          SYNC_STATUS_SYNCED);
+                                          SYNC_STATUS_SYNCED,
+                                          TRUE);
 
     /* In checkout, the file was overwritten by rename, so the file attributes
        are gone. We have to set read-only state again.
@@ -2225,7 +2226,8 @@ seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
                                       const char *repo_id,
                                       const char *path,
                                       int mode,
-                                      SyncStatus status)
+                                      SyncStatus status,
+                                      gboolean refresh)
 {
     ActivePathsInfo *info;
     SeafRepo *repo;
@@ -2257,9 +2259,9 @@ seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
     if (!existing) {
         g_hash_table_insert (info->paths, g_strdup(path), (void*)status);
         if (status == SYNC_STATUS_SYNCING)
-            sync_status_tree_add (info->syncing_tree, path, mode);
+            sync_status_tree_add (info->syncing_tree, path, mode, refresh);
         else if (status == SYNC_STATUS_SYNCED)
-            sync_status_tree_add (info->synced_tree, path, mode);
+            sync_status_tree_add (info->synced_tree, path, mode, refresh);
         else {
 #ifdef WIN32
             seaf_sync_manager_add_refresh_path (mgr, path);
@@ -2274,9 +2276,9 @@ seaf_sync_manager_update_active_path (SeafSyncManager *mgr,
             sync_status_tree_del (info->synced_tree, path);
 
         if (status == SYNC_STATUS_SYNCING)
-            sync_status_tree_add (info->syncing_tree, path, mode);
+            sync_status_tree_add (info->syncing_tree, path, mode, refresh);
         else if (status == SYNC_STATUS_SYNCED)
-            sync_status_tree_add (info->synced_tree, path, mode);
+            sync_status_tree_add (info->synced_tree, path, mode, refresh);
 
 #ifdef WIN32
         seaf_sync_manager_add_refresh_path (mgr, path);

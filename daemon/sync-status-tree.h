@@ -16,7 +16,8 @@ sync_status_tree_free (struct SyncStatusTree *tree);
 void
 sync_status_tree_add (struct SyncStatusTree *tree,
                       const char *path,
-                      int mode);
+                      int mode,
+                      gboolean refresh);
 
 /*
  * Delete a path from the tree. If directory becomes empty after the deletion,

@@ -1243,7 +1243,8 @@ add_file (const char *repo_id,
                                                   repo_id,
                                                   path,
                                                   S_IFREG,
-                                                  status);
+                                                  status,
+                                                  FALSE);
         /* send an error notification for read-only repo when modifying a file. */
         if (status == SYNC_STATUS_SYNCING && !is_writable)
             send_file_sync_error_notification (repo_id, NULL, path,
@@ -1281,7 +1282,8 @@ add_file (const char *repo_id,
                                                   repo_id,
                                                   path,
                                                   S_IFREG,
-                                                  SYNC_STATUS_SYNCED);
+                                                  SYNC_STATUS_SYNCED,
+                                                  FALSE);
         } else {
             if (total_size)
                 *total_size += (gint64)(st->st_size);
@@ -1309,7 +1311,8 @@ add_file (const char *repo_id,
                                                   repo_id,
                                                   path,
                                                   S_IFREG,
-                                                  SYNC_STATUS_SYNCED);
+                                                  SYNC_STATUS_SYNCED,
+                                                  FALSE);
         }
         if (added && options && options->changeset) {
             /* ce may be updated. */
@@ -1332,7 +1335,8 @@ add_file (const char *repo_id,
                                               repo_id,
                                               path,
                                               S_IFREG,
-                                              SYNC_STATUS_ERROR);
+                                              SYNC_STATUS_ERROR,
+                                              TRUE);
         send_file_sync_error_notification (repo_id, NULL, path,
                                            SYNC_ERROR_ID_INDEX_ERROR);
     }
@@ -1376,7 +1380,8 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                               params->repo_id,
                                               path,
                                               S_IFDIR,
-                                              SYNC_STATUS_ERROR);
+                                              SYNC_STATUS_ERROR,
+                                              TRUE);
 
         return 0;
     }
@@ -1411,7 +1416,8 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                                           params->repo_id,
                                                           subpath,
                                                           S_IFREG,
-                                                          SYNC_STATUS_IGNORED);
+                                                          SYNC_STATUS_IGNORED,
+                                                          TRUE);
             }
             g_free (subpath);
             g_free (full_subpath);
@@ -1445,7 +1451,8 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                               params->repo_id,
                                               path,
                                               S_IFDIR,
-                                              SYNC_STATUS_IGNORED);
+                                              SYNC_STATUS_IGNORED,
+                                              TRUE);
         return 0;
     }
 
@@ -1469,7 +1476,8 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                                   params->repo_id,
                                                   path,
                                                   S_IFDIR,
-                                                  status);
+                                                  status,
+                                                  FALSE);
     }
 
     if (n == 0 && path[0] != 0 && is_writable) {
@@ -1528,7 +1536,8 @@ add_recursive (const char *repo_id,
                                               repo_id,
                                               path,
                                               0,
-                                              SYNC_STATUS_ERROR);
+                                              SYNC_STATUS_ERROR,
+                                              TRUE);
 
         return 0;
     }
@@ -1639,7 +1648,8 @@ iter_dir_cb (wchar_t *full_parent_w,
                                                       params->repo_id,
                                                       path,
                                                       S_IFREG,
-                                                      SYNC_STATUS_IGNORED);
+                                                      SYNC_STATUS_IGNORED,
+                                                      TRUE);
         }
         goto out;
     }
@@ -1695,7 +1705,8 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                               params->repo_id,
                                               path,
                                               S_IFDIR,
-                                              SYNC_STATUS_ERROR);
+                                              SYNC_STATUS_ERROR,
+                                              TRUE);
         return 0;
     }
 
@@ -1704,7 +1715,8 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                               params->repo_id,
                                               path,
                                               S_IFDIR,
-                                              SYNC_STATUS_IGNORED);
+                                              SYNC_STATUS_IGNORED,
+                                              TRUE);
         return 0;
     }
 
@@ -1728,7 +1740,8 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                                   params->repo_id,
                                                   path,
                                                   S_IFDIR,
-                                                  status);
+                                                  status,
+                                                  FALSE);
     }
 
     if (data.n == 0 && path[0] != 0 && !params->ignore_empty_dir && is_writable) {
@@ -1777,7 +1790,8 @@ add_recursive (const char *repo_id,
                                               repo_id,
                                               path,
                                               0,
-                                              SYNC_STATUS_ERROR);
+                                              SYNC_STATUS_ERROR,
+                                              TRUE);
         /* Ignore error */
         return 0;
     }
@@ -2225,14 +2239,16 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       repo->id,
                                                       path,
                                                       S_IFREG,
-                                                      SYNC_STATUS_SYNCED);
+                                                      SYNC_STATUS_SYNCED,
+                                                      TRUE);
             }
             if (ret < 0) {
                 seaf_sync_manager_update_active_path (seaf->sync_mgr,
                                                       repo->id,
                                                       path,
                                                       S_IFREG,
-                                                      SYNC_STATUS_ERROR);
+                                                      SYNC_STATUS_ERROR,
+                                                      TRUE);
                 send_file_sync_error_notification (repo->id, NULL, path,
                                                    SYNC_ERROR_ID_INDEX_ERROR);
             }
@@ -2763,7 +2779,8 @@ update_active_file (SeafRepo *repo,
                                               repo->id,
                                               path,
                                               S_IFREG,
-                                              SYNC_STATUS_IGNORED);
+                                              SYNC_STATUS_IGNORED,
+                                              TRUE);
     } else {
         SyncStatus status;
         gboolean is_writable;
@@ -2785,7 +2802,8 @@ update_active_file (SeafRepo *repo,
                                                   repo->id,
                                                   path,
                                                   S_IFREG,
-                                                  status);
+                                                  status,
+                                                  TRUE);
     }
 }
 
@@ -2894,7 +2912,8 @@ update_active_path_recursive (SeafRepo *repo,
                                                   repo->id,
                                                   path,
                                                   S_IFDIR,
-                                                  SYNC_STATUS_IGNORED);
+                                                  SYNC_STATUS_IGNORED,
+                                                  TRUE);
         } else {
             /* There is no need to update an empty dir. */
             SyncStatus status;
@@ -2907,7 +2926,8 @@ update_active_path_recursive (SeafRepo *repo,
                                                   repo->id,
                                                   path,
                                                   S_IFDIR,
-                                                  status);
+                                                  status,
+                                                  TRUE);
         }
     }
 }
@@ -2987,7 +3007,8 @@ update_active_path_recursive (SeafRepo *repo,
                                                   repo->id,
                                                   path,
                                                   S_IFDIR,
-                                                  SYNC_STATUS_IGNORED);
+                                                  SYNC_STATUS_IGNORED,
+                                                  TRUE);
         } else {
             /* There is no need to update an empty dir. */
             SyncStatus status;
@@ -3000,7 +3021,8 @@ update_active_path_recursive (SeafRepo *repo,
                                                   repo->id,
                                                   path,
                                                   S_IFDIR,
-                                                  status);
+                                                  status,
+                                                  TRUE);
         }
     }
 }
@@ -4325,7 +4347,8 @@ fetch_file_thread_func (gpointer data, gpointer user_data)
                                               repo_id,
                                               de->name,
                                               de->mode,
-                                              SYNC_STATUS_SYNCING);
+                                              SYNC_STATUS_SYNCING,
+                                              TRUE);
 
     rc = fetch_file_http (tx_data, task);
 
@@ -4633,7 +4656,8 @@ handle_dir_added_de (const char *repo_id,
                                           repo_id,
                                           de->name,
                                           de->mode,
-                                          SYNC_STATUS_SYNCED);
+                                          SYNC_STATUS_SYNCED,
+                                          TRUE);
 
 update_index:
     if (add_ce) {
@@ -4748,7 +4772,8 @@ download_files_http (const char *repo_id,
                                                   repo_id,
                                                   de->name,
                                                   de->mode,
-                                                  status);
+                                                  status,
+                                                  TRUE);
         }
 
         if (task->new_ce) {
@@ -5213,7 +5238,8 @@ update_sync_status (struct cache_entry *ce, void *user_data)
                                           repo_id,
                                           ce->name,
                                           ce->ce_mode,
-                                          SYNC_STATUS_SYNCED);
+                                          SYNC_STATUS_SYNCED,
+                                          TRUE);
 }
 
 #ifdef WIN32
