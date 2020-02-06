@@ -17,7 +17,12 @@ class SeafileRpcClient(NamedPipeClient):
     def seafile_sync_error_id_to_str():
         pass
     sync_error_id_to_str = seafile_sync_error_id_to_str
-         
+
+    @searpc_func("int", ["int"])
+    def seafile_del_file_sync_error_by_id():
+        pass
+    del_file_sync_error_by_id = seafile_del_file_sync_error_by_id
+
     @searpc_func("int", ["string"])
     def seafile_calc_dir_size(path):
         pass

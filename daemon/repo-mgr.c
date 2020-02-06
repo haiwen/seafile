@@ -742,6 +742,24 @@ collect_file_sync_errors (sqlite3_stmt *stmt, void *data)
     return TRUE;
 }
 
+int
+seaf_repo_manager_del_file_sync_error_by_id (SeafRepoManager *mgr, int id)
+{
+    int ret = 0;    
+    char *sql = NULL;
+
+    pthread_mutex_lock (&mgr->priv->db_lock);
+
+    sql = sqlite3_mprintf ("DELETE FROM FileSyncError WHERE id=%d",
+                           id);
+    ret = sqlite_query_exec (mgr->priv->db, sql);
+    sqlite3_free (sql);
+
+    pthread_mutex_unlock (&mgr->priv->db_lock);
+
+    return ret;
+}
+
 GList *
 seaf_repo_manager_get_file_sync_errors (SeafRepoManager *mgr, int offset, int limit)
 {

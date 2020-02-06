@@ -260,6 +260,11 @@ register_rpc_service ()
                                      searpc_signature_objlist__int_int());
 
     searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_del_file_sync_error_by_id,
+                                     "seafile_del_file_sync_error_by_id",
+                                     searpc_signature_int__int());
+
+    searpc_server_register_function ("seafile-rpcserver",
                                      seafile_get_sync_notification,
                                      "seafile_get_sync_notification",
                                      searpc_signature_json__void());
