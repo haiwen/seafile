@@ -110,6 +110,9 @@ seafile_set_server_property (const char *server_url,
 GList *
 seafile_get_file_sync_errors (int offset, int limit, GError **error);
 
+int
+seafile_del_file_sync_error_by_id (int id, GError **error);
+
 char *
 seafile_gen_default_worktree (const char *worktree_parent,
                               const char *repo_name,

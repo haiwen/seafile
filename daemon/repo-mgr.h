@@ -410,6 +410,9 @@ seaf_repo_manager_record_sync_error (const char *repo_id,
 GList *
 seaf_repo_manager_get_file_sync_errors (SeafRepoManager *mgr, int offset, int limit);
 
+int
+seaf_repo_manager_del_file_sync_error_by_id (SeafRepoManager *mgr, int id);
+
 /* Record sync error and send notification. */
 void
 send_file_sync_error_notification (const char *repo_id,

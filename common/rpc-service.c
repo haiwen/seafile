@@ -648,6 +648,12 @@ seafile_get_file_sync_errors (int offset, int limit, GError **error)
     return seaf_repo_manager_get_file_sync_errors (seaf->repo_mgr, offset, limit);
 }
 
+int
+seafile_del_file_sync_error_by_id (int id, GError **error)
+{
+    return seaf_repo_manager_del_file_sync_error_by_id (seaf->repo_mgr, id);
+}
+
 GList*
 seafile_get_repo_list (int start, int limit, GError **error)
 {
