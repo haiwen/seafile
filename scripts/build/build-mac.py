@@ -857,6 +857,9 @@ def sign_files(appdir):
         'Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app'
     )
 
+    def _glob(pattern, *a, **kw):
+        return glob.glob(join(appdir, pattern), *a, **kw)
+
     # The webengine app must be signed first, otherwise the sign of
     # QtWebengineCore.framework would fail.
     if exists(webengine_app):
@@ -866,16 +869,29 @@ def sign_files(appdir):
             extra_args=['--entitlements', entitlements]
         )
 
+    # Strip the get-task-allow entitlements for Sparkle binaries
+    for fn in _glob('Contents/Frameworks/Sparkle.framework/Versions/A/Resources/Autoupdate.app/Contents/MacOS/*'):
+        do_sign(fn, preserve_entitlemenets=False)
+
+    # Sign the nested contents of Sparkle before we sign
+    # Sparkle.Framework in the thread pool.
+    for fn in (
+            'Contents/Frameworks/Sparkle.framework/Versions/A/Resources/Autoupdate.app',
+            'Contents/Frameworks/Sparkle.framework/Versions/A/Sparkle',
+    ):
+        do_sign(join(appdir, fn))
+
     patterns = [
         'Contents/Frameworks/*.framework',
         'Contents/PlugIns/*/*.dylib',
         'Contents/Frameworks/*.dylib',
         'Contents/Resources/seaf-daemon',
+        'Contents/MacOS/seadrive-gui',
     ]
 
     files_to_sign = []
     for p in patterns:
-        files_to_sign.extend(glob.glob(join(appdir, p)))
+        files_to_sign.extend(_glob(p))
 
     info('{} files to sign'.format(len(files_to_sign)))
 
@@ -897,7 +913,7 @@ def unlock_keychain():
         _keychain_unlocked = True
         run('security -v unlock-keychain -p vagrant || true')
 
-def do_sign(path, extra_args=None):
+def do_sign(path, extra_args=None, preserve_entitlemenets=True):
     unlock_keychain()
     args = [
         'codesign',
@@ -907,9 +923,10 @@ def do_sign(path, extra_args=None):
         '--verify',
         # '--no-strict',
         '--force',
-        '--preserve-metadata=entitlements',
         '-s', CERT_ID,
     ]
+    if preserve_entitlemenets:
+        args += ['--preserve-metadata=entitlements']
     extra_args = extra_args or []
     if extra_args:
         args.extend(extra_args)
