@@ -416,6 +416,8 @@ seafile_session_prepare (SeafileSession *session)
     int block_size = seafile_session_config_get_int(session, KEY_CDC_AVERAGE_BLOCK_SIZE, NULL);
     if (block_size >= 1024) {
         session->cdc_average_block_size = block_size;
+    } else if (block_size == -1) {
+        session->cdc_average_block_size = 0;
     } else {
         session->cdc_average_block_size = 0;
         seaf_message ("Block size less than 1KB. Use default block size(8MB).\n");
