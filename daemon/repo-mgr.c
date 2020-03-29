@@ -69,6 +69,7 @@ static const char *ignore_table[] = {
     "Thumbs.db",
     /* For Mac */
     ".DS_Store",
+    "._*",
     NULL,
 };
 
