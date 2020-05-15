@@ -3719,9 +3719,29 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
              */
             if (!is_path_writable(repo->id,
                                   repo->is_readonly, event->path)) {
+                char *filename = g_path_get_basename (event->path);
+                if (seaf_repo_manager_is_ignored_hidden_file(filename)) {
+                    g_free (filename);
+                    break;
+                }
+                g_free (filename);
+
+                char *fullpath = g_build_path(PATH_SEPERATOR, repo->worktree, event->path, NULL);                
+                struct cache_entry *ce = index_name_exists(istate, event->path, strlen(event->path), 0);
+                SeafStat st;
+                if (ce != NULL &&
+                    seaf_stat (fullpath, &st) == 0 &&
+                    ce->ce_mtime.sec == st.st_mtime &&
+                    ce->ce_size == st.st_size) {
+                    g_free (fullpath);
+                    break;
+                }
+
                 send_file_sync_error_notification (repo->id, repo->name, event->path,
                                                    SYNC_ERROR_ID_UPDATE_TO_READ_ONLY_REPO);
                 seaf_debug ("%s is not writable, ignore.\n", event->path);
+
+                g_free (fullpath);
                 break;
             }
 
