@@ -891,19 +891,40 @@ def edit_fragment_wxs():
     with open(file_path, 'w') as fp:
         fp.write(content)
 
-def generate_breakpad_symbols():
-    seafiledir = Seafile().projdir
-    script = os.path.join(seafiledir, 'scripts/breakpad.py')
-    symbol_file = 'seaf-daemon.exe.sym-%s' % conf[CONF_VERSION]
-    output = os.path.join(seafiledir, symbol_file)
 
-    # generate the breakpad symbols
-    if run('python %s --output %s' % (script, output)) != 0:
+def generate_breakpad_symbols():
+    """
+    Generate seafile and seafile-gui breakpad symbols
+    :return: None
+    """
+    seafile_src = Seafile().projdir
+    seafile_gui_src = SeafileClient().projdir
+    generate_breakpad_symbols_script = os.path.join(seafile_src, 'scripts/breakpad.py')
+
+    # generate seafile the breakpad symbols
+    seafile_name = 'seaf-daemon.exe'
+    seafile_symbol_name = 'seaf-daemon.exe.sym-%s' % conf[CONF_VERSION]
+    seafile_symbol_output = os.path.join(seafile_src, seafile_symbol_name)
+
+    if run('python %s  --projectSrc %s --name %s --output %s'
+           % (generate_breakpad_symbols_script, seafile_src, seafile_name, seafile_symbol_output)) != 0:
         error('Error when generating breakpad symbols')
 
+    # generate seafile gui breakpad symbols
+    seafile_gui_name = 'seafile-applet.exe'
+    seafile_gui_symbol_name = 'seafile-applet.exe.sym-%s' % conf[CONF_VERSION]
+    seafile_gui_symbol_output = os.path.join(seafile_gui_src, seafile_gui_symbol_name)
+
+    if run('python %s --projectSrc %s --name %s --output %s'
+            % (generate_breakpad_symbols_script, seafile_gui_src, seafile_gui_name, seafile_gui_symbol_output)) != 0:
+        error('Error when generating seafile gui client breakpad symbol')
+
     # move symbols to output directory
-    dst_symbol_file = os.path.join(conf[CONF_OUTPUTDIR], symbol_file)
-    must_copy(output, dst_symbol_file)
+    dst_seafile_symbol_file = os.path.join(conf[CONF_OUTPUTDIR], seafile_symbol_name)
+    dst_seafile_gui_symbol_file = os.path.join(conf[CONF_OUTPUTDIR], seafile_gui_symbol_name)
+    must_copy(seafile_symbol_output, dst_seafile_symbol_file)
+    must_copy(seafile_gui_symbol_output, dst_seafile_gui_symbol_file)
+
 
 def build_msi():
     prepare_msi()
