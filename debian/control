@@ -55,7 +55,6 @@ Depends:
     ${python:Depends},
     libseafile0 (>= ${binary:Version}),
     seafile-daemon (>= ${binary:Version}),
-    python-future,
     python-searpc (>= 3.1.0)
 Conflicts: seafile
 Description: Seafile command line interface.
