@@ -2,7 +2,7 @@
 # -*- makefile -*-
 
 %:
-	dh $@ --with python2 --with autotools_dev
+	dh $@ --with python3 --with autotools_dev
 
 override_dh_auto_configure:
 	./autogen.sh
