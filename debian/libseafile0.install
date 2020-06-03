@@ -1,2 +1,2 @@
 usr/lib/*.so.*
-usr/lib/python2.7/dist-packages/seafile/*.py
+usr/lib/python*/site-packages/seafile/*.py
