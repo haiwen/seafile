@@ -1,2 +1,2 @@
 usr/lib/*.so.*
-usr/lib/python3/site-packages/seafile/*.py
+usr/lib/python3*/site-packages/seafile/*.py
