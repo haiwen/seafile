@@ -395,7 +395,7 @@ seaf_sync_manager_cancel_sync_task (SeafSyncManager *mgr,
     if (!info)
         return;
     else if (!info->in_sync) {
-        if (info->current_task->state == SYNC_STATE_ERROR) {
+        if (info->current_task && info->current_task->state == SYNC_STATE_ERROR) {
             info->err_cnt = 0;
             info->in_error = FALSE;
             info->sync_perm_err_cnt = 0;
