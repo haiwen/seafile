@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #-*- coding:utf-8 -*-
 # pylint: disable=E1121
 
@@ -80,13 +80,6 @@ Create a new library
     seaf-cli create -s <seahub-server-url> -n <library-name> -u <username> -p <password> [-a <2fa-code>] -t <description> [-e <library-password>]
 
 '''
-from __future__ import print_function
-from __future__ import division
-
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str
-from builtins import input
 import argparse
 import os
 import json
@@ -306,14 +299,14 @@ def get_token(url, username, password, tfa, conf_dir):
     else:
         headers = None
     token_json = urlopen("%s/api2/auth-token/" % url, data=data, headers=headers)
-    tmp = json.loads(token_json)
+    tmp = json.loads(token_json.decode('utf8'))
     token = tmp['token']
     return token
 
 def get_repo_download_info(url, token):
     headers = { 'Authorization': 'Token %s' % token }
     repo_info = urlopen(url, headers=headers)
-    return json.loads(repo_info)
+    return json.loads(repo_info.decode('utf8'))
 
 def seaf_init(args):
     ''' Initialize config directories'''
@@ -391,9 +384,6 @@ def seaf_list(args):
     repos = seafile_rpc.get_repo_list(-1, -1)
     print("Name\tID\tPath")
     for repo in repos:
-        if sys.version_info[0] == 2:
-            repo.name = repo.name.encode('utf8')
-            repo.worktree = repo.worktree.encode('utf8')
         print(repo.name, repo.id, repo.worktree)
 
 
@@ -443,10 +433,7 @@ def seaf_list_remote(args):
             continue
 
         printed[repo['id']] = repo['id']
-        if sys.version_info[0] == 2:
-            print(repo['name'].encode('utf8'), repo['id'])
-        else:
-            print(repo['name'], repo['id'])
+        print(repo['name'], repo['id'])
 
 
 def get_base_url(url):
@@ -781,8 +768,6 @@ def seaf_status(args):
 
     repos = seafile_rpc.get_repo_list(-1, -1)
     for repo in repos:
-        if sys.version_info[0] == 2:
-            repo.name = repo.name.encode('utf8')
         auto_sync_enabled = seafile_rpc.is_auto_sync_enabled()
         if not auto_sync_enabled or not repo.auto_sync:
             print('{:<50s}\t{:<20s}'.format(repo.name, 'auto sync disabled'))
@@ -824,7 +809,7 @@ def create_repo(url, token, args):
     if args.libpasswd:
         data['passwd'] = args.libpasswd
     repo_info_json =  urlopen(url, data=data, headers=headers)
-    repo_info = json.loads(repo_info_json)
+    repo_info = json.loads(repo_info_json.decode('utf8'))
     return repo_info['repo_id']
 
 def seaf_create(args):
