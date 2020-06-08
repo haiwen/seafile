@@ -56,8 +56,7 @@ Depends:
     ${python3:Depends},
     libseafile0 (>= ${binary:Version}),
     seafile-daemon (>= ${binary:Version}),
-    python-searpc (>= 3.1.0),
-    python3-future
+    python-searpc (>= 3.1.0)
 Conflicts: seafile
 Description: Seafile command line interface.
  This package contains the command line interface to manage Seafile libraries.
