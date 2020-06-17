@@ -195,7 +195,11 @@ AC_SUBST(LIBEVENT_PTHREADS_CFLAGS)
 AC_SUBST(LIBEVENT_PTHREADS_LIBS)
 fi
 
-AM_PATH_PYTHON([3.5])
+if test "$blinux" = true; then
+   AM_PATH_PYTHON([3.5])
+else
+   AM_PATH_PYTHON([2.7])
+fi
 
 if test "$bwin32" = true; then
     # set pyexecdir to somewhere like /c/Python26/Lib/site-packages
