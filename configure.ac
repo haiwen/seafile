@@ -195,7 +195,10 @@ AC_SUBST(LIBEVENT_PTHREADS_CFLAGS)
 AC_SUBST(LIBEVENT_PTHREADS_LIBS)
 fi
 
-if test "$blinux" = true; then
+AC_ARG_WITH([python3], [AS_HELP_STRING([--with-python3], [use python3])],
+	[with_python3="yes"],[])
+
+if test "$with_python3" = "yes"; then
    AM_PATH_PYTHON([3.5])
 else
    AM_PATH_PYTHON([2.7])
