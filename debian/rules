@@ -6,7 +6,7 @@
 
 override_dh_auto_configure:
 	./autogen.sh
-	dh_auto_configure -- --disable-fuse
+	dh_auto_configure -- --disable-fuse --with-python3
 
 override_dh_auto_test:
 # make check seems to be broken
