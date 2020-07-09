@@ -1409,8 +1409,10 @@ check_head_commit_thread (void *vdata)
     }
 
     if (status == HTTP_OK) {
-        if (parse_head_commit_info (rsp_content, rsp_size, data) < 0)
+        if (parse_head_commit_info (rsp_content, rsp_size, data) < 0) {
+            data->error_code = SYNC_ERROR_ID_NETWORK;
             goto out;
+        }
         data->success = TRUE;
     } else if (status == HTTP_REPO_DELETED) {
         data->is_deleted = TRUE;
