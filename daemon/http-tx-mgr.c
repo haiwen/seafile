@@ -4423,8 +4423,17 @@ http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id)
         if (seaf_block_manager_block_exists (seaf->block_mgr,
                                              task->repo_id, task->repo_version,
                                              block_id)) {
-            continue;
+            BlockMetadata *bmd;
+            bmd = seaf_block_manager_stat_block (seaf->block_mgr,
+                                                 task->repo_id, task->repo_version,
+                                                 block_id);
+            if (bmd) {
+                task->done_download += bmd->size;
+                g_free (bmd);
+                continue;
+            }
         }
+
         ret = get_block (task, conn, block_id);
         if (ret < 0 || task->state == HTTP_TASK_STATE_CANCELED)
             break;
