@@ -458,7 +458,7 @@ seafile_encrypt (char **data_out,
     /* Prepare CTX for encryption. */
     ctx = EVP_CIPHER_CTX_new ();
 
-    if (crypt->version == 2)
+    if (crypt->version >= 2)
         ret = EVP_EncryptInit_ex (ctx,
                                   EVP_aes_256_cbc(), /* cipher mode */
                                   NULL, /* engine, NULL for default */
@@ -567,7 +567,7 @@ seafile_decrypt (char **data_out,
     /* Prepare CTX for decryption. */
     ctx = EVP_CIPHER_CTX_new ();
 
-    if (crypt->version == 2)
+    if (crypt->version >= 2)
         ret = EVP_DecryptInit_ex (ctx,
                                   EVP_aes_256_cbc(), /* cipher mode */
                                   NULL, /* engine, NULL for default */
