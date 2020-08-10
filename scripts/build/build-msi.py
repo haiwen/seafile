@@ -288,7 +288,7 @@ class Seafile(Project):
         Project.__init__(self)
         enable_breakpad = '--enable-breakpad'
         self.build_commands = [
-            'sh ./configure %s --prefix=%s' % (enable_breakpad, to_mingw_path(self.prefix)),
+            'sh ./configure %s --prefix=%s CFLAGS+=-g' % (enable_breakpad, to_mingw_path(self.prefix)),
             concurrent_make(),
             '%s install' % get_make_path(),
         ]
