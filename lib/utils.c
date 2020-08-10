@@ -738,6 +738,9 @@ should_ignore_on_checkout (const char *file_path, IgnoreReason *ignore_reason)
     gboolean ret = FALSE;
 
 #ifdef WIN32
+    if (file_path == NULL) {
+        return TRUE;
+    }
     static char illegals[] = {'\\', ':', '*', '?', '"', '<', '>', '|', '\b', '\t'};
     char **components = g_strsplit (file_path, "/", -1);
     int n_comps = g_strv_length (components);
