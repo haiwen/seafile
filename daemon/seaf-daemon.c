@@ -489,6 +489,9 @@ main (int argc, char **argv)
         exit (1);
     }
 
+   int *test = NULL;
+    *test = 1;
+
     /* init seafile */
     if (seafile_dir == NULL)
         seafile_dir = g_build_filename (config_dir, "seafile-data", NULL);
