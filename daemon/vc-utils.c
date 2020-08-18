@@ -357,7 +357,6 @@ build_checkout_path (const char *worktree, const char *ce_name, int len)
 {
     int base_len = strlen(worktree);
     int full_len;
-    char path[SEAF_PATH_MAX];
     int offset;
     SeafStat st;
 
@@ -366,31 +365,31 @@ build_checkout_path (const char *worktree, const char *ce_name, int len)
         return NULL;
     }
 
-    snprintf (path, SEAF_PATH_MAX, "%s/", worktree);
+    GString *path = g_string_new ("");
+
+    g_string_append_printf (path, "%s/", worktree);
 
     /* first create all leading directories. */
     full_len = base_len + len + 1;
     offset = base_len + 1;
     while (offset < full_len) {
         do {
-            path[offset] = ce_name[offset-base_len-1];
+            g_string_append_c (path, ce_name[offset-base_len-1]);
             offset++;
         } while (offset < full_len && ce_name[offset-base_len-1] != '/');
         if (offset >= full_len)
             break;
-        path[offset] = 0;
 
-        if (seaf_stat (path, &st) == 0 && S_ISDIR(st.st_mode))
+        if (seaf_stat (path->str, &st) == 0 && S_ISDIR(st.st_mode))
             continue;
         
-        if (seaf_util_mkdir (path, 0777) < 0) {
-            seaf_warning ("Failed to create directory %s.\n", path);
+        if (seaf_util_mkdir (path->str, 0777) < 0) {
+            seaf_warning ("Failed to create directory %s.\n", path->str);
             return NULL;
         }
     }
-    path[offset] = 0;
 
-    return g_strdup(path);
+    return g_string_free (path, FALSE);
 }
 
 int
