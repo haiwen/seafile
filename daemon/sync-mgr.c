@@ -991,6 +991,15 @@ commit_job_done (void *vres)
         return;
     }
 
+    if (task->error == SYNC_ERROR_ID_NOT_ENOUGH_DISK_SPACE) {
+        g_free (res);
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             REPO_AUTO_SYNC,
+                                             FALSE);
+        return;
+    }
+
     if (!res->success) {
         set_task_error (res->task, SYNC_ERROR_ID_INDEX_ERROR);
         g_free (res);

@@ -10,6 +10,15 @@
 
 #include <pthread.h>
 
+#ifdef __APPLE__
+#include <sys/param.h>
+#include <sys/mount.h>
+#endif
+
+#ifdef __linux__
+#include <sys/statfs.h>
+#endif
+
 #include "utils.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_SYNC
 #include "log.h"
@@ -93,6 +102,8 @@ static int save_branch_repo_map (SeafRepoManager *manager, SeafBranch *branch);
 static void save_repo_property (SeafRepoManager *manager,
                                 const char *repo_id,
                                 const char *key, const char *value);
+
+static gint64 get_available_disk_space ();
 
 static void
 locked_file_free (LockedFile *file)
@@ -1235,6 +1246,7 @@ add_file (const char *repo_id,
     int ret = 0;
     gboolean is_writable = TRUE, is_locked = FALSE;
     struct cache_entry *ce;
+    gint64 available_disk;
 
     if (options)
         is_writable = is_path_writable(repo_id,
@@ -1289,6 +1301,16 @@ add_file (const char *repo_id,
         }
     }
 #endif
+
+    available_disk = get_available_disk_space ();
+    if (available_disk >= 0) {
+        if (*total_size + (gint64)(st->st_size) >= available_disk) {
+            send_file_sync_error_notification (repo_id, NULL, path,
+                                               SYNC_ERROR_ID_NOT_ENOUGH_DISK_SPACE);
+            ret = -1;
+            return ret;
+        }
+    }
 
     if (!remain_files) {
         ret = add_to_index (repo_id, version, istate, path, full_path,
@@ -2222,6 +2244,9 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
     char *full_path;
     SeafStat st;
     struct cache_entry *ce;
+    gint64 available_disk;
+
+    available_disk = get_available_disk_space ();
 
     while ((path = g_queue_pop_head (remain_files)) != NULL) {
         full_path = g_build_filename (repo->worktree, path, NULL);
@@ -2235,6 +2260,17 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
         if (S_ISREG(st.st_mode)) {
             gboolean added = FALSE;
             int ret = 0;
+
+            if (available_disk >= 0) {
+                if (*total_size + (gint64)(st.st_size) >= available_disk) {
+                    send_file_sync_error_notification (repo->id, repo->name, path,
+                                                       SYNC_ERROR_ID_NOT_ENOUGH_DISK_SPACE);
+                    g_free (path);
+                    g_free (full_path);
+                    break;
+                }
+            }
+
             ret = add_to_index (repo->id, repo->version, istate, path, full_path,
                                 &st, 0, crypt, index_cb, repo->email, &added);
             if (added) {
@@ -3645,6 +3681,39 @@ unlock_office_file_on_server (SeafRepo *repo, const char *path)
 
 #endif
 
+#ifndef WIN32
+static gint64
+get_available_disk_space () {
+    int ret;
+    struct statfs disk_info;
+
+    ret = statfs(seaf->worktree_dir, &disk_info);
+    if (ret < 0) {
+        seaf_warning ("Failed to get disk space: %s\n",strerror(errno));
+        return -1;
+    }
+    gint64 blocksize = disk_info.f_bsize;
+
+    gint64 available_disk = disk_info.f_bavail * blocksize;
+
+    return available_disk;
+}
+#else
+static gint64
+get_available_disk_space () {
+    ULARGE_INTEGER available_disk;
+    if (!GetDiskFreeSpaceExA(seaf->worktree_dir,
+                            &available_disk,
+                            NULL,
+                            NULL)) {
+        seaf_warning ("Failed to get disk space: %s\n",strerror(errno));
+        return -1;
+    }
+
+    return available_disk.QuadPart;
+}
+#endif
+
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list,
@@ -3653,6 +3722,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
     WTStatus *status;
     WTEvent *event, *next_event;
     gboolean not_found;
+    int ret = 0;
 #if defined WIN32 || defined __APPLE__
     char *office_path = NULL;
 #endif
@@ -3851,7 +3921,7 @@ out:
     string_list_free (scanned_dirs);
     string_list_free (scanned_del_dirs);
 
-    return 0;
+    return ret;
 }
 
 static int
