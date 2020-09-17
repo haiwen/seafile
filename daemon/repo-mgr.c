@@ -5229,7 +5229,7 @@ move_dir_to_recycle_bin (const char *dir_path)
         goto out;
     }
 
-    seaf_message ("Moved folder %s to Seafile recyle bin %s.\n",
+    seaf_message ("Moved folder %s to Seafile recycle bin %s.\n",
                   dir_path, dst_path);
 
 out:
