@@ -57,7 +57,7 @@ Each component of Seafile has its own source code repository on Github.
 * Android app: https://github.com/haiwen/seadroid
 * WebDAV: https://github.com/haiwen/seafdav
 
-Before version 6.0, the source code of "sync client daemon" and "server core" are mixed together in https://github.com/haiwen/seafile.
+Before version 6.0, the source code of "sync client daemon" and "server core" was mixed together in https://github.com/haiwen/seafile.
 But after 6.0 version, the server core is separated into its own repository.
 For this reason, the sync client daemon repository is still the "front page" for Seafile project on Github.
 
@@ -76,7 +76,7 @@ Please only submit bugs in GitHub issues (Pro customers should contact us via Em
 * Android client: https://github.com/haiwen/seadroid/issues
 * iOS client: https://github.com/haiwen/seafile-iOS/issues
 
-Feature requests and installation/usage problem should be asked in the forum https://forum.seafile.com/.
+Feature requests can be made and installation/usage problems can be discussed in the forum https://forum.seafile.com/.
 
 Internationalization (I18n)
 ===========================
@@ -101,7 +101,7 @@ Our primary goal is to build a first-class product. We think this goal can only 
 Contributing
 ===========
 
-For more informations read [Contribution](http://manual.seafile.com/contribution.html).
+For more information read [Contribution](http://manual.seafile.com/contribution.html).
 
 
 License
