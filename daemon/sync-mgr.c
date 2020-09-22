@@ -1939,6 +1939,9 @@ auto_sync_pulse (void *vmanager)
     for (ptr = repos; ptr != NULL; ptr = ptr->next) {
         repo = ptr->data;
 
+        if (!manager->priv->auto_sync_enabled || !repo->auto_sync)
+            continue;
+
         /* Every second, we'll check the worktree to see if it still exists.
          * We'll invalidate worktree if it gets moved or deleted.
          * But there is a hole here: If the user delete the worktree dir and
@@ -1988,9 +1991,6 @@ auto_sync_pulse (void *vmanager)
 
         /* Don't sync repos not checked out yet. */
         if (!repo->head)
-            continue;
-
-        if (!manager->priv->auto_sync_enabled || !repo->auto_sync)
             continue;
 
 #if defined WIN32 || defined __APPLE__

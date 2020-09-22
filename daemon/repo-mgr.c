@@ -859,6 +859,8 @@ seaf_repo_check_worktree (SeafRepo *repo)
     if (g_access(repo->worktree, F_OK) < 0) {
         seaf_warning ("Failed to access worktree %s for repo '%s'(%.8s)\n",
                       repo->worktree, repo->name, repo->id);
+        seaf_repo_manager_set_repo_property (
+            seaf->repo_mgr, repo->id, REPO_AUTO_SYNC, "false");
         return -1;
     }
     if (seaf_stat(repo->worktree, &st) < 0) {
