@@ -1427,6 +1427,8 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
         }
 
         if (ignored || should_ignore(full_path, dname, params->ignore_list)) {
+            seaf_message ("Path %s is invalid, skip adding.\n",
+                          full_path);
             if (options && options->startup_scan) {
                 if (S_ISDIR(sub_st.st_mode))
                     add_dir_recursive (subpath, full_subpath, &sub_st, params, TRUE);
@@ -1659,6 +1661,8 @@ iter_dir_cb (wchar_t *full_parent_w,
 
     if (data->ignored ||
         should_ignore(data->full_parent, dname, params->ignore_list)) {
+        seaf_message ("Path %s is invalid, skip adding.\n",
+                      full_path);
         if (options && options->startup_scan) {
             if (fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
                 add_dir_recursive (path, full_path, &st, params, TRUE);
@@ -2116,8 +2120,10 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
         g_free (full_dir);
     }
 
-    if (check_full_path_ignore (repo->worktree, path, ignore_list))
+    if (check_full_path_ignore (repo->worktree, path, ignore_list)) {
+        seaf_message ("Path %s is invalid, skip adding.\n", path);
         return 0;
+    }
 
     full_path = g_build_filename (repo->worktree, path, NULL);
 
@@ -3208,6 +3214,7 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
 
     /* If the destination path is ignored, just remove the source path. */
     if (dst_ignored) {
+        seaf_message ("Path %s is invalid, skip adding.\n", event->new_path);
         if (!src_ignored &&
             !is_seafile_backup_file (event->new_path) &&
             check_locked_file_before_remove (fset, event->path)) {
@@ -3779,8 +3786,10 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             g_free (office_path);
 #endif
 
-            if (check_full_path_ignore(repo->worktree, event->path, ignore_list))
+            if (check_full_path_ignore(repo->worktree, event->path, ignore_list)) {
+                seaf_message ("Path %s is invalid, skip delete.\n", event->path);
                 break;
+            }
 
             if (!is_path_writable(repo->id,
                                   repo->is_readonly, event->path)) {
