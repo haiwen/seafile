@@ -1055,7 +1055,7 @@ check_encryption_args (const char *magic, int enc_version, const char *random_ke
         return FALSE;
     }
 
-    if (enc_version != 1 && enc_version != 2 && enc_version != 3) {
+    if (enc_version != 1 && enc_version != 2 && enc_version != 3 && enc_version != 4) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Unsupported enc version");
         return FALSE;
@@ -1067,7 +1067,7 @@ check_encryption_args (const char *magic, int enc_version, const char *random_ke
                          "Random key not specified");
             return FALSE;
         }
-        if (enc_version == 3 && (!(repo_salt) || strlen(repo_salt) != 64) ) {
+        if (enc_version >= 3 && (!(repo_salt) || strlen(repo_salt) != 64) ) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                          "Repo salt not specified");
             return FALSE;
