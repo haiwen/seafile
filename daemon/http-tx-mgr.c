@@ -4418,8 +4418,10 @@ http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id)
 
     int i;
     char *block_id;
+    int *pcnt;
     for (i = 0; i < file->n_blocks; ++i) {
         block_id = file->blk_sha1s[i];
+        pthread_mutex_lock (&task->ref_cnt_lock);
         if (seaf_block_manager_block_exists (seaf->block_mgr,
                                              task->repo_id, task->repo_version,
                                              block_id)) {
@@ -4428,11 +4430,19 @@ http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id)
                                                  task->repo_id, task->repo_version,
                                                  block_id);
             if (bmd) {
+                pcnt = g_hash_table_lookup (task->blk_ref_cnts, block_id);
+                if (!pcnt) {
+                    pcnt = g_new0(int, 1);
+                    g_hash_table_insert (task->blk_ref_cnts, g_strdup(block_id), pcnt);
+                }
+                *pcnt += 1;
+                pthread_mutex_unlock (&task->ref_cnt_lock);
                 task->done_download += bmd->size;
                 g_free (bmd);
                 continue;
             }
         }
+        pthread_mutex_unlock (&task->ref_cnt_lock);
 
         ret = get_block (task, conn, block_id);
         if (ret < 0 || task->state == HTTP_TASK_STATE_CANCELED)
