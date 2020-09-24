@@ -757,6 +757,14 @@ commit_from_json_object (const char *commit_id, json_t *object)
         if (!salt || strlen(salt) != 64)
             return NULL;
         break;
+    case 4:
+        if (!magic || strlen(magic) != 64)
+            return NULL;
+        if (!random_key || strlen(random_key) != 96)
+            return NULL;
+        if (!salt || strlen(salt) != 64)
+            return NULL;
+        break;
     default:
         seaf_warning ("Unknown encryption version %d.\n", enc_version);
         return NULL;
