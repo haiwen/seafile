@@ -7,7 +7,10 @@
  #include <config.h>
 #endif
 
+#ifndef WIN32
 #include <unistd.h>
+#include <utime.h>
+#endif
 #include <stdlib.h>
 #include <stdint.h>             /* uint32_t */
 #include <sys/types.h>          /* size_t */
@@ -15,7 +18,6 @@
 #include <string.h>
 #include <limits.h>
 #include <stdio.h>
-#include <utime.h>
 
 #include <glib.h>
 #include <glib/gstdio.h>

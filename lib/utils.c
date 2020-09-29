@@ -20,6 +20,7 @@
 #include <Rpc.h>
 #include <shlobj.h>
 #include <psapi.h>
+#include <openssl/applink.c>
 
 #else
 #include <arpa/inet.h>
@@ -30,11 +31,13 @@
 #include <uuid/uuid.h>
 #endif
 
+#ifndef WIN32
 #include <unistd.h>
+#include <dirent.h>
+#endif
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <dirent.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -46,7 +49,9 @@
 
 #include <jansson.h>
 
+#ifndef WIN32
 #include <utime.h>
+#endif
 
 #include <zlib.h>
 
@@ -385,9 +390,9 @@ seaf_stat (const char *path, SeafStat *st)
     memset (st, 0, sizeof(SeafStat));
 
     if (attrs.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-        st->st_mode = (S_IFDIR | S_IRWXU);
+        st->st_mode = S_IFDIR;
     else
-        st->st_mode = (S_IFREG | S_IRUSR | S_IWUSR);
+        st->st_mode = S_IFREG;
 
     st->st_atime = file_time_to_unix_time (&attrs.ftLastAccessTime);
     st->st_ctime = file_time_to_unix_time (&attrs.ftCreationTime);
@@ -428,9 +433,9 @@ seaf_stat_from_find_data (WIN32_FIND_DATAW *fdata, SeafStat *st)
     memset (st, 0, sizeof(SeafStat));
 
     if (fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-        st->st_mode = (S_IFDIR | S_IRWXU);
+        st->st_mode = S_IFDIR;
     else
-        st->st_mode = (S_IFREG | S_IRUSR | S_IWUSR);
+        st->st_mode = S_IFREG;
 
     st->st_atime = file_time_to_unix_time (&fdata->ftLastAccessTime);
     st->st_ctime = file_time_to_unix_time (&fdata->ftCreationTime);
@@ -1291,7 +1296,7 @@ void gen_uuid_inplace (char *buf)
     UUID uuid;
 
     UuidCreate(&uuid);
-    UuidToString(&uuid, &str);
+    UuidToStringA(&uuid, &str);
     memcpy(buf, str, 37);
     RpcStringFree(&str);
 }
@@ -1303,7 +1308,7 @@ is_uuid_valid (const char *uuid_str)
         return FALSE;
 
     UUID uuid;
-    if (UuidFromString((unsigned char *)uuid_str, &uuid) != RPC_S_OK)
+    if (UuidFromStringA((unsigned char *)uuid_str, &uuid) != RPC_S_OK)
         return FALSE;
     return TRUE;
 }

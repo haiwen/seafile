@@ -4,7 +4,9 @@
 
 #include <sys/stat.h>
 #include <fcntl.h>
+#ifndef WIN32
 #include <dirent.h>
+#endif
 
 #ifndef WIN32
     #include <arpa/inet.h>
@@ -37,19 +39,19 @@ typedef struct SeafileOndisk {
     guint32          type;
     guint64          file_size;
     unsigned char    block_ids[0];
-} __attribute__((__packed__)) SeafileOndisk;
+} SeafileOndisk;
 
 typedef struct DirentOndisk {
     guint32 mode;
     char    id[40];
     guint32 name_len;
     char    name[0];
-} __attribute__((__packed__)) DirentOndisk;
+} DirentOndisk;
 
 typedef struct SeafdirOndisk {
     guint32 type;
     char    dirents[0];
-} __attribute__((__packed__)) SeafdirOndisk;
+} SeafdirOndisk;
 
 #ifndef SEAFILE_SERVER
 uint32_t

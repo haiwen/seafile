@@ -2983,7 +2983,7 @@ typedef struct {
     char obj_id[40];
     guint32 obj_size;
     guint8 object[0];
-} __attribute__((__packed__)) ObjectHeader;
+} ObjectHeader;
 
 static int
 send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)

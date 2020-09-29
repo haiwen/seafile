@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>16.0</VCProjectVersion>
+    <ProjectGuid>{D3B4BCBB-BF84-43DF-9753-A7A0A4288D13}</ProjectGuid>
+    <RootNamespace>seafile</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v142</PlatformToolset>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+    <CharacterSet>NotSet</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <TargetName>seaf-daemon</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+    <TargetName>seaf-daemon</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+    <TargetName>seaf-daemon</TargetName>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>
+    </LinkIncremental>
+    <TargetName>seaf-daemon</TargetName>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <SDLCheck>
+      </SDLCheck>
+      <PreprocessorDefinitions>WIN32;UNICODE;WIN32_LEAN_AND_MEAN;SEAFILE_CLIENT;PACKAGE_VERSION="7.0.9";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>false</ConformanceMode>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir)common;$(ProjectDir)lib;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\libsearpc\$(IntDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>ws2_32.lib;Rpcrt4.lib;Psapi.lib;Crypt32.lib;libsearpc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level1</WarningLevel>
+      <SDLCheck>
+      </SDLCheck>
+      <PreprocessorDefinitions>WIN32;UNICODE;WIN32_LEAN_AND_MEAN;SEAFILE_CLIENT;PACKAGE_VERSION="7.0.9";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>false</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir)common;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir)lib;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\libsearpc\$(IntDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>ws2_32.lib;Rpcrt4.lib;Psapi.lib;Crypt32.lib;libsearpc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <FunctionLevelLinking>
+      </FunctionLevelLinking>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
+      <SDLCheck>
+      </SDLCheck>
+      <PreprocessorDefinitions>WIN32;PACKAGE_VERSION="7.0.9";WIN32_LEAN_AND_MEAN;UNICODE;SEAFILE_CLIENT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>false</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir);$(ProjectDir)daemon;$(ProjectDir)include;$(ProjectDir)lib;$(ProjectDir)common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <SupportJustMyCode>true</SupportJustMyCode>
+      <Optimization>Disabled</Optimization>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <AdditionalDependencies>ws2_32.lib;Psapi.lib;Rpcrt4.lib;Crypt32.lib;libsearpc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\libsearpc\Debug;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level1</WarningLevel>
+      <FunctionLevelLinking>
+      </FunctionLevelLinking>
+      <IntrinsicFunctions>false</IntrinsicFunctions>
+      <SDLCheck>
+      </SDLCheck>
+      <PreprocessorDefinitions>WIN32;PACKAGE_VERSION="7.0.9";WIN32_LEAN_AND_MEAN;UNICODE;SEAFILE_CLIENT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>false</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir);$(ProjectDir)common;$(ProjectDir)lib;$(ProjectDir)include;$(ProjectDir)daemon;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <EnableCOMDATFolding>
+      </EnableCOMDATFolding>
+      <OptimizeReferences>
+      </OptimizeReferences>
+      <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\libsearpc\$(IntDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>ws2_32.lib;Psapi.lib;Rpcrt4.lib;Crypt32.lib;libsearpc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <PerUserRedirection>false</PerUserRedirection>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="common\block-backend-fs.c" />
+    <ClCompile Include="common\block-backend.c" />
+    <ClCompile Include="common\block-mgr.c" />
+    <ClCompile Include="common\branch-mgr.c" />
+    <ClCompile Include="common\cdc\cdc.c" />
+    <ClCompile Include="common\cdc\rabin-checksum.c" />
+    <ClCompile Include="common\commit-mgr.c" />
+    <ClCompile Include="common\curl-init.c" />
+    <ClCompile Include="common\diff-simple.c" />
+    <ClCompile Include="common\fs-mgr.c" />
+    <ClCompile Include="common\index\cache-tree.c" />
+    <ClCompile Include="common\index\index.c" />
+    <ClCompile Include="common\log.c" />
+    <ClCompile Include="common\mq-mgr.c" />
+    <ClCompile Include="common\obj-backend-fs.c" />
+    <ClCompile Include="common\obj-store.c" />
+    <ClCompile Include="common\rpc-service.c" />
+    <ClCompile Include="common\seafile-crypt.c" />
+    <ClCompile Include="common\vc-common.c" />
+    <ClCompile Include="daemon\cevent.c" />
+    <ClCompile Include="daemon\change-set.c" />
+    <ClCompile Include="daemon\clone-mgr.c" />
+    <ClCompile Include="daemon\filelock-mgr.c" />
+    <ClCompile Include="daemon\http-tx-mgr.c" />
+    <ClCompile Include="daemon\job-mgr.c" />
+    <ClCompile Include="daemon\repo-mgr.c" />
+    <ClCompile Include="daemon\seaf-daemon.c" />
+    <ClCompile Include="daemon\seafile-config.c" />
+    <ClCompile Include="daemon\seafile-error.c" />
+    <ClCompile Include="daemon\seafile-session.c" />
+    <ClCompile Include="daemon\set-perm.c" />
+    <ClCompile Include="daemon\sync-mgr.c" />
+    <ClCompile Include="daemon\sync-status-tree.c" />
+    <ClCompile Include="daemon\timer.c" />
+    <ClCompile Include="daemon\vc-utils.c" />
+    <ClCompile Include="daemon\wt-monitor-structs.c" />
+    <ClCompile Include="daemon\wt-monitor-win32.c" />
+    <ClCompile Include="daemon\wt-monitor.c" />
+    <ClCompile Include="lib\db.c" />
+    <ClCompile Include="lib\net.c" />
+    <ClCompile Include="lib\repo.c" />
+    <ClCompile Include="lib\task.c" />
+    <ClCompile Include="lib\utils.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="common\block-backend.h" />
+    <ClInclude Include="common\block-mgr.h" />
+    <ClInclude Include="common\block.h" />
+    <ClInclude Include="common\branch-mgr.h" />
+    <ClInclude Include="common\cdc\cdc.h" />
+    <ClInclude Include="common\cdc\rabin-checksum.h" />
+    <ClInclude Include="common\commit-mgr.h" />
+    <ClInclude Include="common\common.h" />
+    <ClInclude Include="common\curl-init.h" />
+    <ClInclude Include="common\diff-simple.h" />
+    <ClInclude Include="common\fs-mgr.h" />
+    <ClInclude Include="common\index\cache-tree.h" />
+    <ClInclude Include="common\index\index.h" />
+    <ClInclude Include="common\log.h" />
+    <ClInclude Include="common\mq-mgr.h" />
+    <ClInclude Include="common\obj-backend.h" />
+    <ClInclude Include="common\obj-store.h" />
+    <ClInclude Include="common\seafile-crypt.h" />
+    <ClInclude Include="common\vc-common.h" />
+    <ClInclude Include="config.h" />
+    <ClInclude Include="daemon\cevent.h" />
+    <ClInclude Include="daemon\change-set.h" />
+    <ClInclude Include="daemon\clone-mgr.h" />
+    <ClInclude Include="daemon\filelock-mgr.h" />
+    <ClInclude Include="daemon\http-tx-mgr.h" />
+    <ClInclude Include="daemon\job-mgr.h" />
+    <ClInclude Include="daemon\repo-mgr.h" />
+    <ClInclude Include="daemon\seafile-config.h" />
+    <ClInclude Include="daemon\seafile-error-impl.h" />
+    <ClInclude Include="daemon\seafile-session.h" />
+    <ClInclude Include="daemon\set-perm.h" />
+    <ClInclude Include="daemon\sync-mgr.h" />
+    <ClInclude Include="daemon\sync-status-tree.h" />
+    <ClInclude Include="daemon\timer.h" />
+    <ClInclude Include="daemon\vc-utils.h" />
+    <ClInclude Include="daemon\wt-monitor-structs.h" />
+    <ClInclude Include="daemon\wt-monitor.h" />
+    <ClInclude Include="include\seafile-error.h" />
+    <ClInclude Include="include\seafile-rpc.h" />
+    <ClInclude Include="include\seafile.h" />
+    <ClInclude Include="lib\db.h" />
+    <ClInclude Include="lib\include.h" />
+    <ClInclude Include="lib\net.h" />
+    <ClInclude Include="lib\seafile-object.h" />
+    <ClInclude Include="lib\searpc-marshal.h" />
+    <ClInclude Include="lib\searpc-signature.h" />
+    <ClInclude Include="lib\utils.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

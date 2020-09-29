@@ -11,10 +11,12 @@
 #include <windows.h>
 #endif
 
+#ifndef WIN32
 #include <sys/time.h>
+#include <unistd.h>
+#endif
 #include <time.h>
 #include <stdint.h>
-#include <unistd.h>
 #include <stdarg.h>
 #include <glib.h>
 #include <glib-object.h>
@@ -38,6 +40,23 @@
 #ifdef WIN32
 #include <errno.h>
 #include <glib/gstdio.h>
+
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+
+#define F_OK 0
+
+#define ssize_t gssize
+
+#define mode_t int
+
+#if !defined S_ISDIR
+#define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
+#endif
+
+#if !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#endif
 
 #ifndef WEXITSTATUS
 #define WEXITSTATUS(status) (((status) & 0xff00) >> 8)
@@ -142,15 +161,27 @@ should_ignore_on_checkout (const char *file_path, IgnoreReason *ignore_reason);
 
 /* for debug */
 #ifndef ccnet_warning
+#ifndef WIN32
 #define ccnet_warning(fmt, ...) g_warning("%s(%d): " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#else
+#define ccnet_warning(...) g_warning (__VA_ARGS__)
+#endif
 #endif
 
 #ifndef ccnet_error
+#ifndef WIN32
 #define ccnet_error(fmt, ...)   g_error("%s(%d): " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#else
+#define ccnet_error(...) g_error(__VA_ARGS__)
+#endif
 #endif
 
 #ifndef ccnet_message
+#ifndef WIN32
 #define ccnet_message(fmt, ...) g_message("%s(%d): " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#else
+#define ccnet_message(...) g_message(__VA_ARGS__)
+#endif
 #endif
 
 #define CCNET_DOMAIN g_quark_from_string("ccnet")

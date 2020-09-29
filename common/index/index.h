@@ -3,7 +3,12 @@
 
 #include "common.h"
 
+#ifndef WIN32
 #include <unistd.h>
+#include <sys/param.h>
+#include <dirent.h>
+#include <sys/time.h>
+#endif
 #include <stdio.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -15,10 +20,7 @@
 #ifndef __APPLE__
 #include <limits.h>
 #endif
-#include <sys/param.h>
 #include <sys/types.h>
-#include <dirent.h>
-#include <sys/time.h>
 #include <time.h>
 
 #include "utils.h"
@@ -129,7 +131,7 @@ struct ondisk_cache_entry {
     unsigned char sha1[20];
     unsigned short flags;
     char name[0]; /* more */
-} __attribute__ ((packed));
+};
 
 struct cache_time64 {
     guint64 sec;
@@ -148,7 +150,7 @@ struct ondisk_cache_entry2 {
     unsigned char sha1[20];
     unsigned short flags;
     char name[0]; /* more */
-} __attribute__ ((packed));
+};
 
 /*
  * This struct is used when CE_EXTENDED bit is 1
@@ -168,14 +170,14 @@ struct ondisk_cache_entry_extended {
     unsigned short flags;
     unsigned short flags2;
     char name[0]; /* more */
-} __attribute__ ((packed));
+};
 
 #define CACHE_EXT_MODIFIER 1
 
 struct cache_ext_hdr {
     unsigned int ext_name;
     unsigned int ext_size;
-} __attribute__ ((packed));
+};
 
 struct cache_entry {
     struct cache_time64 ce_ctime;

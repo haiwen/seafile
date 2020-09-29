@@ -5,9 +5,12 @@
 #ifdef WIN32
 #include <windows.h>
 #include <wincrypt.h>
+#include <shellapi.h>
 #endif
 
+#ifndef WIN32
 #include <unistd.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -286,7 +289,7 @@ char *b64encode(const char *input)
 {
     char buf[32767] = {0};
     DWORD retlen = 32767;
-    CryptBinaryToString((BYTE*) input, strlen(input), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, buf, &retlen);
+    CryptBinaryToStringA((BYTE*) input, strlen(input), CRYPT_STRING_BASE64 | CRYPT_STRING_NOCRLF, buf, &retlen);
     return strdup(buf);
 }
 #endif
@@ -297,9 +300,9 @@ start_searpc_server ()
     register_rpc_service ();
 
 #ifdef WIN32
-    DWORD bufCharCount = 32767;
-    char userNameBuf[bufCharCount];
-    if (GetUserName(userNameBuf, &bufCharCount) == 0) {
+    char userNameBuf[32767];
+    DWORD bufCharCount = sizeof(userNameBuf);
+    if (GetUserNameA(userNameBuf, &bufCharCount) == 0) {
         seaf_warning ("Failed to get user name, GLE=%lu, required size is %lu\n",
                       GetLastError(), bufCharCount);
         return -1;

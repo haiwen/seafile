@@ -1,6 +1,8 @@
 
 #include <glib.h>
+#ifndef WIN32
 #include <unistd.h>
+#endif
 
 #include "db.h"
 

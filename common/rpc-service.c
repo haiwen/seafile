@@ -5,7 +5,9 @@
 #include <ctype.h>
 
 #include <sys/stat.h>
+#ifndef WIN32
 #include <dirent.h>
+#endif
 #include "utils.h"
 
 #include "seafile-session.h"

@@ -12,7 +12,9 @@
 
 #include <sys/stat.h>
 #include <fcntl.h>
+#ifndef WIN32
 #include <dirent.h>
+#endif
 
 #include "block-backend.h"
 #include "obj-store.h"
@@ -190,10 +192,22 @@ block_backend_fs_block_exists (BlockBackend *bend,
     char block_path[SEAF_PATH_MAX];
 
     get_block_path (bend, block_sha1, block_path, store_id, version);
+#ifdef WIN32
+    wchar_t *wpath = win32_long_path (block_path);
+    DWORD attrs;
+    gboolean ret;
+
+    attrs = GetFileAttributesW (wpath);
+    ret = (attrs != INVALID_FILE_ATTRIBUTES);
+
+    g_free (wpath);
+    return ret;
+#else
     if (g_access (block_path, F_OK) == 0)
         return TRUE;
     else
         return FALSE;
+#endif
 }
 
 static int

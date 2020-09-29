@@ -9,11 +9,13 @@
 
 #include <stdio.h>
 #include <errno.h>
+#ifndef WIN32
 #include <unistd.h>
+#include <dirent.h>
+#endif
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/types.h>
-#include <dirent.h>
 #include <glib/gstdio.h>
 
 #include "block-backend.h"
