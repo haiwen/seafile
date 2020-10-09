@@ -100,7 +100,7 @@ void
 seaf_block_manager_block_handle_free (SeafBlockManager *mgr,
                                       BlockHandle *handle)
 {
-    return mgr->backend->block_handle_free (mgr->backend, handle);
+    mgr->backend->block_handle_free (mgr->backend, handle);
 }
 
 int

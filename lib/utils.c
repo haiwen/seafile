@@ -1284,9 +1284,9 @@ char* gen_uuid ()
     UUID uuid;
 
     UuidCreate(&uuid);
-    UuidToString(&uuid, &str);
+    UuidToStringA(&uuid, &str);
     memcpy(uuid_str, str, 37);
-    RpcStringFree(&str);
+    RpcStringFreeA(&str);
     return uuid_str;
 }
 
@@ -1298,7 +1298,7 @@ void gen_uuid_inplace (char *buf)
     UuidCreate(&uuid);
     UuidToStringA(&uuid, &str);
     memcpy(buf, str, 37);
-    RpcStringFree(&str);
+    RpcStringFreeA(&str);
 }
 
 gboolean
@@ -1811,7 +1811,7 @@ get_process_handle (const char *process_name_in)
             continue;
             
         if (EnumProcessModules(hProcess, &hMod, sizeof(hMod), &cbNeeded)) {
-            GetModuleBaseName(hProcess, hMod, process_name, 
+            GetModuleBaseNameA(hProcess, hMod, process_name, 
                               sizeof(process_name)/sizeof(char));
         }
 
@@ -1858,7 +1858,7 @@ int count_process (const char *process_name_in)
             
         if (EnumProcessModules(hProcess, hMods, sizeof(hMods), &cbNeeded)) {
             for (j = 0; j < cbNeeded / sizeof(HMODULE); j++) {
-                if (GetModuleBaseName(hProcess, hMods[j], process_name,
+                if (GetModuleBaseNameA(hProcess, hMods[j], process_name,
                                       sizeof(process_name))) {
                     if (strcasecmp(process_name, name) == 0)
                         count++;

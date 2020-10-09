@@ -192,22 +192,11 @@ block_backend_fs_block_exists (BlockBackend *bend,
     char block_path[SEAF_PATH_MAX];
 
     get_block_path (bend, block_sha1, block_path, store_id, version);
-#ifdef WIN32
-    wchar_t *wpath = win32_long_path (block_path);
-    DWORD attrs;
-    gboolean ret;
 
-    attrs = GetFileAttributesW (wpath);
-    ret = (attrs != INVALID_FILE_ATTRIBUTES);
-
-    g_free (wpath);
-    return ret;
-#else
     if (g_access (block_path, F_OK) == 0)
         return TRUE;
     else
         return FALSE;
-#endif
 }
 
 static int
@@ -350,7 +339,7 @@ block_backend_fs_copy (BlockBackend *bend,
     }
 
 #ifdef WIN32
-    if (!CreateHardLink (dst_path, src_path, NULL)) {
+    if (!CreateHardLinkA (dst_path, src_path, NULL)) {
         seaf_warning ("Failed to link %s to %s: %lu.\n",
                       src_path, dst_path, GetLastError());
         return -1;

@@ -105,7 +105,7 @@ seaf_obj_store_delete_obj (struct SeafObjStore *obj_store,
         !obj_id || !is_object_id_valid(obj_id))
         return;
 
-    return bend->delete (bend, repo_id, version, obj_id);
+    bend->delete (bend, repo_id, version, obj_id);
 }
 
 int

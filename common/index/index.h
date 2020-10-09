@@ -119,6 +119,8 @@ struct cache_time {
  * We save the fields in big-endian order to allow using the
  * index file over NFS transparently.
  */
+#ifdef WIN32
+__pragma(pack(push, 1))
 struct ondisk_cache_entry {
     struct cache_time ctime;
     struct cache_time mtime;
@@ -132,12 +134,30 @@ struct ondisk_cache_entry {
     unsigned short flags;
     char name[0]; /* more */
 };
+__pragma(pack(pop))
+#else
+struct ondisk_cache_entry {
+    struct cache_time ctime;
+    struct cache_time mtime;
+    unsigned int dev;
+    unsigned int ino;
+    unsigned int mode;
+    unsigned int uid;
+    unsigned int gid;
+    uint64_t     size;
+    unsigned char sha1[20];
+    unsigned short flags;
+    char name[0]; /* more */
+} __attribute__((__packed__));
+#endif
 
 struct cache_time64 {
     guint64 sec;
     guint64 nsec;
 };
 
+#ifdef WIN32
+__pragma(pack(push, 1))
 struct ondisk_cache_entry2 {
     struct cache_time64 ctime;
     struct cache_time64 mtime;
@@ -151,12 +171,30 @@ struct ondisk_cache_entry2 {
     unsigned short flags;
     char name[0]; /* more */
 };
+__pragma(pack(pop))
+#else
+struct ondisk_cache_entry2 {
+    struct cache_time64 ctime;
+    struct cache_time64 mtime;
+    unsigned int dev;
+    unsigned int ino;
+    unsigned int mode;
+    unsigned int uid;
+    unsigned int gid;
+    uint64_t     size;
+    unsigned char sha1[20];
+    unsigned short flags;
+    char name[0]; /* more */
+} __attribute__((__packed__));
+#endif
 
 /*
  * This struct is used when CE_EXTENDED bit is 1
  * The struct must match ondisk_cache_entry exactly from
  * ctime till flags
  */
+#ifdef WIN32
+__pragma(pack(push, 1))
 struct ondisk_cache_entry_extended {
     struct cache_time ctime;
     struct cache_time mtime;
@@ -171,13 +209,39 @@ struct ondisk_cache_entry_extended {
     unsigned short flags2;
     char name[0]; /* more */
 };
+__pragma(pack(pop))
+#else
+struct ondisk_cache_entry_extended {
+    struct cache_time ctime;
+    struct cache_time mtime;
+    unsigned int dev;
+    unsigned int ino;
+    unsigned int mode;
+    unsigned int uid;
+    unsigned int gid;
+    uint64_t     size;
+    unsigned char sha1[20];
+    unsigned short flags;
+    unsigned short flags2;
+    char name[0]; /* more */
+} __attribute__((__packed__));
+#endif
 
 #define CACHE_EXT_MODIFIER 1
 
+#ifdef WIN32
+__pragma(pack(push, 1))
 struct cache_ext_hdr {
     unsigned int ext_name;
     unsigned int ext_size;
 };
+__pragma(pack(pop))
+#else
+struct cache_ext_hdr {
+    unsigned int ext_name;
+    unsigned int ext_size;
+} __attribute__((__packed__));
+#endif
 
 struct cache_entry {
     struct cache_time64 ce_ctime;

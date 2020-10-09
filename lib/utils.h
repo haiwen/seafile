@@ -41,14 +41,9 @@
 #include <errno.h>
 #include <glib/gstdio.h>
 
-#define strcasecmp _stricmp
-#define strncasecmp _strnicmp
-
-#define F_OK 0
+#define mode_t int
 
 #define ssize_t gssize
-
-#define mode_t int
 
 #if !defined S_ISDIR
 #define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
