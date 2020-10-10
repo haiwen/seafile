@@ -45,14 +45,6 @@
 
 #define ssize_t gssize
 
-#if !defined S_ISDIR
-#define S_ISDIR(m) (((m) & _S_IFMT) == _S_IFDIR)
-#endif
-
-#if !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
-#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
-#endif
-
 #ifndef WEXITSTATUS
 #define WEXITSTATUS(status) (((status) & 0xff00) >> 8)
 #endif

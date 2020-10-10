@@ -10,12 +10,6 @@
 #ifndef WIN32
 #include <unistd.h>
 #include <utime.h>
-#else
-#define strcasecmp _stricmp
-#define strncasecmp _strnicmp
-
-#define F_OK 0
-
 #endif
 #include <stdlib.h>
 #include <stdint.h>             /* uint32_t */
@@ -27,6 +21,21 @@
 
 #include <glib.h>
 #include <glib/gstdio.h>
+
+#ifdef WIN32
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+
+#if !defined S_ISDIR
+#define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#endif
+
+#if !defined(S_ISREG) && defined(S_IFMT) && defined(S_IFREG)
+#define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
+#endif
+
+#define F_OK 0
+#endif
 
 #define EMPTY_SHA1  "0000000000000000000000000000000000000000"
 
