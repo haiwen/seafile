@@ -61,13 +61,10 @@ debian/*.substvars
 lib/*.tmp
 lib/dir.c
 lib/dirent.c
-lib/seafile-object.h
-lib/task.c
 lib/webaccess.c
 lib/branch.c
 lib/commit.c
 lib/crypt.c
-lib/repo.c
 lib/copy-task.c
 app/seafile
 app/seafserv-tool
