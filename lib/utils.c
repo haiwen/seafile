@@ -1,7 +1,5 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
-#include <config.h>
-
 #include "common.h"
 
 #ifdef WIN32
@@ -27,6 +25,7 @@
 #endif
 
 #ifndef WIN32
+#include <config.h>
 #include <pwd.h>
 #include <uuid/uuid.h>
 #endif
