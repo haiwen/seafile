@@ -241,7 +241,6 @@
     <ClInclude Include="common\obj-store.h" />
     <ClInclude Include="common\seafile-crypt.h" />
     <ClInclude Include="common\vc-common.h" />
-    <ClInclude Include="config.h" />
     <ClInclude Include="daemon\cevent.h" />
     <ClInclude Include="daemon\change-set.h" />
     <ClInclude Include="daemon\clone-mgr.h" />
