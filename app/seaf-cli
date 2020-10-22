@@ -280,7 +280,7 @@ def get_device_id(conf_dir):
 def get_token(url, username, password, tfa, conf_dir):
     platform = 'linux'
     device_id = get_device_id(conf_dir)
-    device_name = 'terminal-' + os.uname()[1]
+    device_name = 'terminal-' + os.uname()[1][:25]
     client_version = SEAF_CLI_VERSION
     platform_version = ''
     data = {
