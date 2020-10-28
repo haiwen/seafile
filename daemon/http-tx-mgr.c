@@ -627,7 +627,7 @@ set_proxy (CURL *curl, gboolean is_https)
     } else if (g_strcmp0(seaf->http_proxy_type, PROXY_TYPE_SOCKS) == 0) {
         if (seaf->http_proxy_port < 0)
             return;
-        curl_easy_setopt(curl, CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5);
+        curl_easy_setopt(curl, CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5_HOSTNAME);
         curl_easy_setopt(curl, CURLOPT_PROXY, seaf->http_proxy_addr);
         curl_easy_setopt(curl, CURLOPT_PROXYPORT, seaf->http_proxy_port);
     }
