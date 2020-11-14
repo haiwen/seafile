@@ -1,8 +1,12 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#if !defined(_MSC_VER)
 #include <config.h>
+#endif
 #include <stdint.h>
+#if !defined(_MSC_VER)
 #include <unistd.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>

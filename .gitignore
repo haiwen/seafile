@@ -122,3 +122,12 @@ server/gc/seaf-migrate
 /test-driver
 *.dmp
 /symbols
+
+# visual studio
+Debug
+msi/custom/x64
+msi/ext.wxi
+msi/shell.wxs
+seafile.vcxproj.user
+x64
+msi/custom/seafile_custom.vcxproj.user
