@@ -5513,15 +5513,15 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
         if (de->status == DIFF_STATUS_DELETED) {
             seaf_debug ("Delete file %s.\n", de->name);
 
-            if (should_ignore_on_checkout (de->name, NULL)) {
-                seaf_message ("Path %s is invalid on Windows, skip delete.\n",
-                              de->name);
-                continue;
-            }
-
             ce = index_name_exists (&istate, de->name, strlen(de->name), 0);
             if (!ce)
                 continue;
+
+            if (should_ignore_on_checkout (de->name, NULL)) {
+                remove_from_index_with_prefix (&istate, de->name, NULL);
+                try_add_empty_parent_dir_entry (worktree, &istate, de->name);
+                continue;
+            }
 
             gboolean locked_on_server = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                                               repo_id,
@@ -5553,15 +5553,18 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
         } else if (de->status == DIFF_STATUS_DIR_DELETED) {
             seaf_debug ("Delete dir %s.\n", de->name);
 
-            if (should_ignore_on_checkout (de->name, NULL)) {
-                seaf_message ("Path %s is invalid on Windows, skip delete.\n",
-                              de->name);
-                continue;
-            }
-
             /* Nothing to delete. */
             if (!master_head || strcmp(master_head->root_id, EMPTY_SHA1) == 0)
                 continue;
+
+            if (should_ignore_on_checkout (de->name, NULL)) {
+                seaf_message ("Path %s is invalid on Windows, skip delete.\n",
+                              de->name);
+                remove_from_index_with_prefix (&istate, de->name, NULL);
+
+                try_add_empty_parent_dir_entry (worktree, &istate, de->name);
+                continue;
+            }
 
             delete_worktree_dir (repo_id, http_task->repo_name, &istate, worktree, de->name);
 
