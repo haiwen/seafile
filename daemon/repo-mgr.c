@@ -857,16 +857,13 @@ seaf_repo_check_worktree (SeafRepo *repo)
 
     /* check repo worktree */
     if (g_access(repo->worktree, F_OK) < 0) {
-        if (!repo->access_once) {
+        if (!repo->worktree_invalid) {
             seaf_warning ("Failed to access worktree %s for repo '%s'(%.8s)\n",
                           repo->worktree, repo->name, repo->id);
-            repo->access_once = TRUE;
         }
 
         return -1;
     }
-
-    repo->access_once = FALSE;
 
     if (seaf_stat(repo->worktree, &st) < 0) {
         seaf_warning ("Failed to stat worktree %s for repo '%s'(%.8s)\n",

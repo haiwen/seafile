@@ -96,9 +96,6 @@ struct _SeafRepo {
 
     /* Non-zero if periodic sync is set for this repo. */
     int sync_interval;
-
-    /*Only print log once when failed to access worktree. */
-    gboolean access_once;
 };
 
 
