@@ -7176,7 +7176,7 @@ GList *seaf_repo_load_ignore_files (const char *worktree)
     SeafStat st;
     FILE *fp;
     char *full_path, *pattern;
-    char path[PATH_MAX];
+    char path[SEAF_PATH_MAX];
 
     full_path = g_build_path (PATH_SEPERATOR, worktree,
                               IGNORE_FILE, NULL);
@@ -7188,7 +7188,7 @@ GList *seaf_repo_load_ignore_files (const char *worktree)
     if (fp == NULL)
         goto error;
 
-    while (fgets(path, PATH_MAX, fp) != NULL) {
+    while (fgets(path, SEAF_PATH_MAX, fp) != NULL) {
         /* remove leading and trailing whitespace, including \n \r. */
         g_strstrip (path);
 

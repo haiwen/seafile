@@ -11,10 +11,12 @@
 #include <windows.h>
 #endif
 
+#ifndef WIN32
 #include <sys/time.h>
+#include <unistd.h>
+#endif
 #include <time.h>
 #include <stdint.h>
-#include <unistd.h>
 #include <stdarg.h>
 #include <glib.h>
 #include <glib-object.h>
@@ -38,6 +40,10 @@
 #ifdef WIN32
 #include <errno.h>
 #include <glib/gstdio.h>
+
+#define mode_t int
+
+#define ssize_t gssize
 
 #ifndef WEXITSTATUS
 #define WEXITSTATUS(status) (((status) & 0xff00) >> 8)
@@ -142,15 +148,27 @@ should_ignore_on_checkout (const char *file_path, IgnoreReason *ignore_reason);
 
 /* for debug */
 #ifndef ccnet_warning
+#ifndef WIN32
 #define ccnet_warning(fmt, ...) g_warning("%s(%d): " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#else
+#define ccnet_warning(...) g_warning (__VA_ARGS__)
+#endif
 #endif
 
 #ifndef ccnet_error
+#ifndef WIN32
 #define ccnet_error(fmt, ...)   g_error("%s(%d): " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#else
+#define ccnet_error(...) g_error(__VA_ARGS__)
+#endif
 #endif
 
 #ifndef ccnet_message
+#ifndef WIN32
 #define ccnet_message(fmt, ...) g_message("%s(%d): " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#else
+#define ccnet_message(...) g_message(__VA_ARGS__)
+#endif
 #endif
 
 #define CCNET_DOMAIN g_quark_from_string("ccnet")

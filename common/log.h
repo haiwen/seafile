@@ -4,11 +4,19 @@
 #define SEAFILE_DOMAIN g_quark_from_string("seafile")
 
 #ifndef seaf_warning
+#ifndef WIN32
 #define seaf_warning(fmt, ...) g_warning("%s(%d): " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#else
+#define seaf_warning(...) g_warning(__VA_ARGS__)
+#endif
 #endif
 
 #ifndef seaf_message
+#ifndef WIN32
 #define seaf_message(fmt, ...) g_message("%s(%d): " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#else
+#define seaf_message(...) g_message(__VA_ARGS__)
+#endif
 #endif
 
 

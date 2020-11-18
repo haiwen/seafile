@@ -106,7 +106,7 @@ seaf_set_path_permission (const char *path, SeafPathPerm perm, gboolean recursiv
     ea.grfInheritance = (CONTAINER_INHERIT_ACE | OBJECT_INHERIT_ACE);
     ea.Trustee.TrusteeForm = TRUSTEE_IS_NAME;
     ea.Trustee.TrusteeType = TRUSTEE_IS_USER;
-    ea.Trustee.ptstrName = "CURRENT_USER";
+    ea.Trustee.ptstrName = L"CURRENT_USER";
 
     // Create a new ACL that merges the new ACE
     // into the existing DACL.

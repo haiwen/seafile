@@ -4,7 +4,9 @@
 
 #include <sys/stat.h>
 #include <fcntl.h>
+#ifndef WIN32
 #include <dirent.h>
+#endif
 
 #ifndef WIN32
     #include <arpa/inet.h>
@@ -33,23 +35,53 @@ struct _SeafFSManagerPriv {
     GHashTable      *bl_cache;
 };
 
+#ifdef WIN32
+__pragma(pack(push, 1))
+typedef struct SeafileOndisk {
+    guint32          type;
+    guint64          file_size;
+    unsigned char    block_ids[0];
+} SeafileOndisk;
+__pragma(pack(pop))
+#else
 typedef struct SeafileOndisk {
     guint32          type;
     guint64          file_size;
     unsigned char    block_ids[0];
 } __attribute__((__packed__)) SeafileOndisk;
+#endif
 
+#ifdef WIN32
+__pragma(pack(push, 1))
+typedef struct DirentOndisk {
+    guint32 mode;
+    char    id[40];
+    guint32 name_len;
+    char    name[0];
+} DirentOndisk;
+__pragma(pack(pop))
+#else
 typedef struct DirentOndisk {
     guint32 mode;
     char    id[40];
     guint32 name_len;
     char    name[0];
 } __attribute__((__packed__)) DirentOndisk;
+#endif
 
+#ifdef WIN32
+__pragma(pack(push, 1))
+typedef struct SeafdirOndisk {
+    guint32 type;
+    char    dirents[0];
+} SeafdirOndisk;
+__pragma(pack(pop))
+#else
 typedef struct SeafdirOndisk {
     guint32 type;
     char    dirents[0];
 } __attribute__((__packed__)) SeafdirOndisk;
+#endif
 
 #ifndef SEAFILE_SERVER
 uint32_t

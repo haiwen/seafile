@@ -3,8 +3,10 @@
 #include "common.h"
 
 #include <stdint.h>
+#ifndef WIN32
 #include <dirent.h>
 #include <unistd.h>
+#endif
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>

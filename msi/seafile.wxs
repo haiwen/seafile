@@ -78,13 +78,13 @@
             <RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]"
                            Name="shellext" Type="integer" Value="1" KeyPath='yes' />
 
-            <File Id="seafile_ext.dll" Name="seafile_ext.dll" Source="custom\seafile_ext.dll" />
+            <!--<File Id="seafile_ext.dll" Name="seafile_ext.dll" Source="custom\seafile_ext.dll" />-->
             <File Id="seafile_ext64.dll" Name="seafile_ext64.dll" Source="custom\seafile_ext64.dll" />
           </Component>
         </Directory>
       </Directory>
 
-      <Directory Id='ProgramFilesFolder' Name='PFiles'>
+      <Directory Id='ProgramFiles64Folder' Name='PFiles'>
         <Directory Id='INSTALLDIR' Name='!(loc.AppName)'>
           <Directory Id='bin_Dir' Name='bin'>
             <Component Id='comp_custom' Guid="$(var.GuidOfCustomComponent)">
@@ -143,10 +143,10 @@
     </DirectoryRef>
 
 
-    <Binary Id='seafile_custom_dll32' SourceFile='custom\seafile_custom32.dll' />
+    <!-- <Binary Id='seafile_custom_dll32' SourceFile='custom\seafile_custom32.dll' /> -->
     <Binary Id='seafile_custom_dll64' SourceFile='custom\seafile_custom64.dll' />
 
-    <CustomAction Id="MoveExtDll" BinaryKey="seafile_custom_dll32" DllEntry="RemoveExtDll" Execute="immediate" />
+    <!-- <CustomAction Id="MoveExtDll" BinaryKey="seafile_custom_dll32" DllEntry="RemoveExtDll" Execute="immediate" /> -->
     <CustomAction Id="MoveExtDll64" BinaryKey="seafile_custom_dll64" DllEntry="RemoveExtDll" Execute="immediate" />
 
     <CustomAction Id="RemoveSeafileUserData" FileKey="seafileapplet.exe" ExeCommand="--remove-user-data"
@@ -156,9 +156,11 @@
 
     <InstallExecuteSequence>
       <!-- Move away seafile shell extension so we don't need to kill explorer during upgrade or uninstall. -->
+      <!--
       <Custom Action="MoveExtDll" Before="InstallValidate">
         ((REMOVE="ALL") OR UPGRADINGPRODUCTCODE OR WIX_UPGRADE_DETECTED) AND (NOT VersionNT64)
       </Custom>
+      -->
       <Custom Action="MoveExtDll64" Before="InstallValidate">
         ((REMOVE="ALL") OR UPGRADINGPRODUCTCODE OR WIX_UPGRADE_DETECTED) AND VersionNT64
       </Custom>

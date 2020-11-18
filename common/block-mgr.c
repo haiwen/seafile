@@ -9,11 +9,13 @@
 
 #include <stdio.h>
 #include <errno.h>
+#ifndef WIN32
 #include <unistd.h>
+#include <dirent.h>
+#endif
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/types.h>
-#include <dirent.h>
 #include <glib/gstdio.h>
 
 #include "block-backend.h"
@@ -98,7 +100,7 @@ void
 seaf_block_manager_block_handle_free (SeafBlockManager *mgr,
                                       BlockHandle *handle)
 {
-    return mgr->backend->block_handle_free (mgr->backend, handle);
+    mgr->backend->block_handle_free (mgr->backend, handle);
 }
 
 int

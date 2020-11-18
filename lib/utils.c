@@ -1,7 +1,5 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
-#include <config.h>
-
 #include "common.h"
 
 #ifdef WIN32
@@ -20,21 +18,25 @@
 #include <Rpc.h>
 #include <shlobj.h>
 #include <psapi.h>
+#include <openssl/applink.c>
 
 #else
 #include <arpa/inet.h>
 #endif
 
 #ifndef WIN32
+#include <config.h>
 #include <pwd.h>
 #include <uuid/uuid.h>
 #endif
 
+#ifndef WIN32
 #include <unistd.h>
+#include <dirent.h>
+#endif
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <dirent.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -46,7 +48,9 @@
 
 #include <jansson.h>
 
+#ifndef WIN32
 #include <utime.h>
+#endif
 
 #include <zlib.h>
 
@@ -385,9 +389,9 @@ seaf_stat (const char *path, SeafStat *st)
     memset (st, 0, sizeof(SeafStat));
 
     if (attrs.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-        st->st_mode = (S_IFDIR | S_IRWXU);
+        st->st_mode = S_IFDIR;
     else
-        st->st_mode = (S_IFREG | S_IRUSR | S_IWUSR);
+        st->st_mode = S_IFREG;
 
     st->st_atime = file_time_to_unix_time (&attrs.ftLastAccessTime);
     st->st_ctime = file_time_to_unix_time (&attrs.ftCreationTime);
@@ -428,9 +432,9 @@ seaf_stat_from_find_data (WIN32_FIND_DATAW *fdata, SeafStat *st)
     memset (st, 0, sizeof(SeafStat));
 
     if (fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-        st->st_mode = (S_IFDIR | S_IRWXU);
+        st->st_mode = S_IFDIR;
     else
-        st->st_mode = (S_IFREG | S_IRUSR | S_IWUSR);
+        st->st_mode = S_IFREG;
 
     st->st_atime = file_time_to_unix_time (&fdata->ftLastAccessTime);
     st->st_ctime = file_time_to_unix_time (&fdata->ftCreationTime);
@@ -1279,9 +1283,9 @@ char* gen_uuid ()
     UUID uuid;
 
     UuidCreate(&uuid);
-    UuidToString(&uuid, &str);
+    UuidToStringA(&uuid, &str);
     memcpy(uuid_str, str, 37);
-    RpcStringFree(&str);
+    RpcStringFreeA(&str);
     return uuid_str;
 }
 
@@ -1291,9 +1295,9 @@ void gen_uuid_inplace (char *buf)
     UUID uuid;
 
     UuidCreate(&uuid);
-    UuidToString(&uuid, &str);
+    UuidToStringA(&uuid, &str);
     memcpy(buf, str, 37);
-    RpcStringFree(&str);
+    RpcStringFreeA(&str);
 }
 
 gboolean
@@ -1303,7 +1307,7 @@ is_uuid_valid (const char *uuid_str)
         return FALSE;
 
     UUID uuid;
-    if (UuidFromString((unsigned char *)uuid_str, &uuid) != RPC_S_OK)
+    if (UuidFromStringA((unsigned char *)uuid_str, &uuid) != RPC_S_OK)
         return FALSE;
     return TRUE;
 }
@@ -1806,7 +1810,7 @@ get_process_handle (const char *process_name_in)
             continue;
             
         if (EnumProcessModules(hProcess, &hMod, sizeof(hMod), &cbNeeded)) {
-            GetModuleBaseName(hProcess, hMod, process_name, 
+            GetModuleBaseNameA(hProcess, hMod, process_name, 
                               sizeof(process_name)/sizeof(char));
         }
 
@@ -1853,7 +1857,7 @@ int count_process (const char *process_name_in)
             
         if (EnumProcessModules(hProcess, hMods, sizeof(hMods), &cbNeeded)) {
             for (j = 0; j < cbNeeded / sizeof(HMODULE); j++) {
-                if (GetModuleBaseName(hProcess, hMods[j], process_name,
+                if (GetModuleBaseNameA(hProcess, hMods[j], process_name,
                                       sizeof(process_name))) {
                     if (strcasecmp(process_name, name) == 0)
                         count++;

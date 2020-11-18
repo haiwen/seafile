@@ -7,9 +7,11 @@
 
 #include <windows.h>
 
-#include <sys/time.h>
-#include <sys/types.h>
+#ifndef WIN32
 #include <unistd.h>
+#include <sys/time.h>
+#endif
+#include <sys/types.h>
 
 #include "job-mgr.h"
 #include "seafile-session.h"
@@ -262,7 +264,7 @@ start_watch_cmd_pipe (SeafWTMonitor *monitor, OVERLAPPED *ol_in)
 
     HANDLE hPipe = (HANDLE)monitor->cmd_pipe[0];
 
-    void *p = (void *)(&priv->cmd) + priv->cmd_bytes_read;
+    void *p = &priv->cmd + priv->cmd_bytes_read;
     int to_read = sizeof(WatchCommand) - priv->cmd_bytes_read;
 
     BOOL sts = ReadFile
