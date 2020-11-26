@@ -27,7 +27,7 @@ BUILDDIR = os.path.join(os.getcwd(), "..\\..\\..\\")
 CERTFILE = "C:/certs/seafile.pfx"
 
 # Qt library directory
-QT_DIR = "C:/Qt/Qt5.13.1/5.13.1/msvc2017_64/"
+QT_DIR = "C:/Qt5.15.1/5.15.1/msvc2019_64"
 
 # Wix install directory
 WIX_BIN = "C:/wix/bin"
@@ -43,7 +43,7 @@ OPENSSL_DIR = "C:/packagelib"
 SLNOUTPUTDIR = os.path.join(BUILDDIR, "pack")
 
 # Wix package directory
-WIX_PACKAGE_DIR = "C:/pack"
+WIX_PACKAGE_DIR = os.path.join(BUILDDIR, "wix_pack")
 
 ####################
 ### Global variables
