@@ -36,13 +36,11 @@ struct _SeafFSManagerPriv {
 };
 
 #ifdef WIN32
-__pragma(pack(push, 1))
 typedef struct SeafileOndisk {
     guint32          type;
     guint64          file_size;
     unsigned char    block_ids[0];
 } SeafileOndisk;
-__pragma(pack(pop))
 #else
 typedef struct SeafileOndisk {
     guint32          type;
@@ -52,14 +50,12 @@ typedef struct SeafileOndisk {
 #endif
 
 #ifdef WIN32
-__pragma(pack(push, 1))
 typedef struct DirentOndisk {
     guint32 mode;
     char    id[40];
     guint32 name_len;
     char    name[0];
 } DirentOndisk;
-__pragma(pack(pop))
 #else
 typedef struct DirentOndisk {
     guint32 mode;
@@ -70,12 +66,10 @@ typedef struct DirentOndisk {
 #endif
 
 #ifdef WIN32
-__pragma(pack(push, 1))
 typedef struct SeafdirOndisk {
     guint32 type;
     char    dirents[0];
 } SeafdirOndisk;
-__pragma(pack(pop))
 #else
 typedef struct SeafdirOndisk {
     guint32 type;
