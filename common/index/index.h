@@ -120,7 +120,6 @@ struct cache_time {
  * index file over NFS transparently.
  */
 #ifdef WIN32
-__pragma(pack(push, 1))
 struct ondisk_cache_entry {
     struct cache_time ctime;
     struct cache_time mtime;
@@ -134,7 +133,6 @@ struct ondisk_cache_entry {
     unsigned short flags;
     char name[0]; /* more */
 };
-__pragma(pack(pop))
 #else
 struct ondisk_cache_entry {
     struct cache_time ctime;
@@ -157,7 +155,6 @@ struct cache_time64 {
 };
 
 #ifdef WIN32
-__pragma(pack(push, 1))
 struct ondisk_cache_entry2 {
     struct cache_time64 ctime;
     struct cache_time64 mtime;
@@ -171,7 +168,6 @@ struct ondisk_cache_entry2 {
     unsigned short flags;
     char name[0]; /* more */
 };
-__pragma(pack(pop))
 #else
 struct ondisk_cache_entry2 {
     struct cache_time64 ctime;
@@ -230,12 +226,10 @@ struct ondisk_cache_entry_extended {
 #define CACHE_EXT_MODIFIER 1
 
 #ifdef WIN32
-__pragma(pack(push, 1))
 struct cache_ext_hdr {
     unsigned int ext_name;
     unsigned int ext_size;
 };
-__pragma(pack(pop))
 #else
 struct cache_ext_hdr {
     unsigned int ext_name;
