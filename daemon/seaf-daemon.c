@@ -26,6 +26,10 @@
 #include <c_bpwrapper.h>
 #endif // HAVE_BREAKPAD_SUPPORT
 
+#ifdef ENABLE_BREAKPAD
+#include "c_bpwrapper.h"
+#endif // ENABLE_BREAKPAD
+
 #include <searpc.h>
 #include <searpc-named-pipe-transport.h>
 
@@ -363,7 +367,7 @@ get_argv_utf8 (int *argc)
 int
 main (int argc, char **argv)
 {
-#ifdef HAVE_BREAKPAD_SUPPORT
+#if defined(HAVE_BREAKPAD_SUPPORT) || defined(ENABLE_BREAKPAD)
 #ifdef WIN32
 #define DUMPS_DIR "~/ccnet/logs/dumps/"
 #else
