@@ -158,10 +158,10 @@
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <SDLCheck>
       </SDLCheck>
-      <PreprocessorDefinitions>WIN32;PACKAGE_VERSION="8.0.0";WIN32_LEAN_AND_MEAN;UNICODE;SEAFILE_CLIENT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;PACKAGE_VERSION="8.0.0";WIN32_LEAN_AND_MEAN;UNICODE;SEAFILE_CLIENT;ENABLE_BREAKPAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir);$(ProjectDir)common;$(ProjectDir)lib;$(ProjectDir)include;$(ProjectDir)daemon;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir);$(ProjectDir)common;$(ProjectDir)lib;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir)..\breakpad\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
@@ -172,8 +172,8 @@
       <OptimizeReferences>
       </OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\libsearpc\$(IntDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;Psapi.lib;Rpcrt4.lib;Crypt32.lib;libsearpc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\libsearpc\$(IntDir);$(ProjectDir)..\breakpad\src\client\windows\Release\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>ws2_32.lib;Psapi.lib;Rpcrt4.lib;Crypt32.lib;libsearpc.lib;common.lib;crash_generation_client.lib;exception_handler.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <PerUserRedirection>false</PerUserRedirection>
     </Link>
   </ItemDefinitionGroup>
@@ -200,6 +200,7 @@
     <ClCompile Include="daemon\cevent.c" />
     <ClCompile Include="daemon\change-set.c" />
     <ClCompile Include="daemon\clone-mgr.c" />
+    <ClCompile Include="daemon\c_bpwrapper.cpp" />
     <ClCompile Include="daemon\filelock-mgr.c" />
     <ClCompile Include="daemon\http-tx-mgr.c" />
     <ClCompile Include="daemon\job-mgr.c" />
@@ -245,6 +246,7 @@
     <ClInclude Include="daemon\cevent.h" />
     <ClInclude Include="daemon\change-set.h" />
     <ClInclude Include="daemon\clone-mgr.h" />
+    <ClInclude Include="daemon\c_bpwrapper.h" />
     <ClInclude Include="daemon\filelock-mgr.h" />
     <ClInclude Include="daemon\http-tx-mgr.h" />
     <ClInclude Include="daemon\job-mgr.h" />
