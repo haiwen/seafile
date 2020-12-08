@@ -142,6 +142,13 @@
       </Component>
     </DirectoryRef>
 
+    <!-- installer vc merge module -->
+    <DirectoryRef Id="TARGETDIR">
+      <Merge Id="VCRedist" SourceFile="bin\Microsoft_VC142_CRT_x64.msm" DiskId="1" Language="0"/>
+    </DirectoryRef>
+    <Feature Id="VCRedist" Title="Visual C++ 142 x64 Runtime" AllowAdvertise="no" Display="hidden" Level="1">
+      <MergeRef Id="VCRedist"/>
+    </Feature>
 
     <!-- <Binary Id='seafile_custom_dll32' SourceFile='custom\seafile_custom32.dll' /> -->
     <Binary Id='seafile_custom_dll64' SourceFile='custom\seafile_custom64.dll' />
