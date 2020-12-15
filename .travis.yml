@@ -1,6 +1,9 @@
 sudo: false
 language: c
 dist: Xenial
+arch:
+ - amd64
+ - ppc64le
 compiler: gcc
 os: linux
 install:
