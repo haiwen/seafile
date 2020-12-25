@@ -567,7 +567,8 @@ transition_sync_state (SyncTask *task, int new_state)
          * with DONE state. But we need to notify the user about this error in the interface.
          * Such file level errors are set with seaf_sync_manager_set_task_error_code().
          */
-        if (new_state != SYNC_STATE_ERROR && task->error != SYNC_ERROR_ID_NO_ERROR) {
+        if (new_state != SYNC_STATE_ERROR && task->error != SYNC_ERROR_ID_NO_ERROR
+            && task->error != SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS) {
             new_state = SYNC_STATE_ERROR;
             seaf_message ("Repo '%s' sync is finished but with error: %s\n",
                           task->repo->name,

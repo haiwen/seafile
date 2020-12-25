@@ -1204,6 +1204,63 @@ should_ignore(const char *basepath, const char *filename, void *data)
     return FALSE;
 }
 
+#ifndef WIN32
+static inline gboolean
+has_trailing_space_or_period (const char *path)
+{
+    int len = strlen(path);
+    if (path[len - 1] == ' ' || path[len - 1] == '.') {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static gboolean
+check_path_ignore_on_windows (const char *file_path)
+{
+    gboolean ret = FALSE;
+    static char illegals[] = {'\\', ':', '*', '?', '"', '<', '>', '|', '\b', '\t'};
+    char **components = g_strsplit (file_path, "/", -1);
+    int n_comps = g_strv_length (components);
+    int j = 0;
+    char *file_name;
+    int i;
+    char c;
+
+    for (; j < n_comps; ++j) {
+        file_name = components[j];
+
+        if (has_trailing_space_or_period (file_name)) {
+            /* Ignore files/dir whose path has trailing spaces. It would cause
+             * problem on windows. */
+            /* g_debug ("ignore '%s' which contains trailing space in path\n", path); */
+            ret = TRUE;
+            goto out;
+        }
+
+        for (i = 0; i < G_N_ELEMENTS(illegals); i++) {
+            if (strchr (file_name, illegals[i])) {
+                ret = TRUE;
+                goto out;
+            }
+        }
+
+        for (c = 1; c <= 31; c++) {
+            if (strchr (file_name, c)) {
+                ret = TRUE;
+                goto out;
+            }
+        }
+    }
+
+out:
+    g_strfreev (components);
+
+    return ret;
+}
+#endif
+
 static int
 index_cb (const char *repo_id,
           int version,
@@ -1301,6 +1358,13 @@ add_file (const char *repo_id,
                 return ret;
             }
         }
+    }
+#endif
+
+#ifndef WIN32
+    if (check_path_ignore_on_windows (full_path)) {
+        send_file_sync_error_notification (repo_id, "", path,
+                                           SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
     }
 #endif
 
@@ -1417,6 +1481,11 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                               TRUE);
 
         return 0;
+    }
+
+    if (check_path_ignore_on_windows (full_path)) {
+        send_file_sync_error_notification (params->repo_id, "", path,
+                                           SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
     }
 
     n = 0;
@@ -2245,6 +2314,13 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
             g_free (full_path);
             continue;
         }
+
+#ifndef WIN32
+        if (check_path_ignore_on_windows (full_path)) {
+            send_file_sync_error_notification (repo->id, repo->name, path,
+                                               SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
+        }
+#endif
 
         if (S_ISREG(st.st_mode)) {
             gboolean added = FALSE;
