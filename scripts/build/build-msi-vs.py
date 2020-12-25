@@ -27,7 +27,7 @@ BUILDDIR = os.path.join(os.getcwd(), "..\\..\\..\\")
 CERTFILE = "C:/certs/seafile.pfx"
 
 # Qt library directory
-QT_DIR = "C:/Qt5.15.1/5.15.1/msvc2019_64"
+QT_DIR = "C:/Qt/Qt5.15.1/5.15.1/msvc2019_64"
 
 # Wix install directory
 WIX_BIN = "C:/wix/bin"
