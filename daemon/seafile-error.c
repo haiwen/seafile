@@ -164,6 +164,11 @@ static SyncErrorInfo sync_error_info_tbl[] = {
         SYNC_ERROR_LEVEL_FILE,
         "A folder that may contain not-yet-uploaded files is moved to seafile-recycle-bin folder"
     },
+    {
+        SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS,
+        SYNC_ERROR_LEVEL_FILE,
+        "File or directory is invalid on Windows"
+    },
 };
 
 const char *
