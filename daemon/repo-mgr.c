@@ -1306,6 +1306,7 @@ add_file (const char *repo_id,
     int ret = 0;
     gboolean is_writable = TRUE, is_locked = FALSE;
     struct cache_entry *ce;
+    char *base_name = NULL;
 
     if (options)
         is_writable = is_path_writable(repo_id,
@@ -1362,10 +1363,12 @@ add_file (const char *repo_id,
 #endif
 
 #ifndef WIN32
-    if (check_path_ignore_on_windows (full_path)) {
-        send_file_sync_error_notification (repo_id, "", path,
+    base_name = g_path_get_basename(path);
+    if (check_path_ignore_on_windows (base_name)) {
+        send_file_sync_error_notification (repo_id, NULL, path,
                                            SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
     }
+    g_free (base_name);
 #endif
 
     if (!remain_files) {
@@ -1468,6 +1471,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     int n, total;
     gboolean is_writable = TRUE;
     struct stat sub_st;
+    char *base_name = NULL;
 
     dir = g_dir_open (full_path, 0, NULL);
     if (!dir) {
@@ -1483,10 +1487,12 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
         return 0;
     }
 
-    if (check_path_ignore_on_windows (full_path)) {
-        send_file_sync_error_notification (params->repo_id, "", path,
+    base_name = g_path_get_basename(path);
+    if (check_path_ignore_on_windows (base_name)) {
+        send_file_sync_error_notification (params->repo_id, NULL, path,
                                            SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
     }
+    g_free (base_name);
 
     n = 0;
     total = 0;
@@ -2316,10 +2322,12 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
         }
 
 #ifndef WIN32
-        if (check_path_ignore_on_windows (full_path)) {
+    char *base_name = g_path_get_basename(path);
+        if (check_path_ignore_on_windows (base_name)) {
             send_file_sync_error_notification (repo->id, repo->name, path,
                                                SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
         }
+    g_free (base_name);
 #endif
 
         if (S_ISREG(st.st_mode)) {
