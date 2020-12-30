@@ -381,6 +381,9 @@ json_object_has_member (json_t *object, const char *key);
 gint64
 json_object_get_int_member (json_t *object, const char *key);
 
+gboolean
+json_object_get_boolean_member (json_t *object, const char *key);
+
 void
 json_object_set_string_member (json_t *object, const char *key, const char *value);
 

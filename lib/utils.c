@@ -2279,6 +2279,13 @@ json_object_get_int_member (json_t *object, const char *key)
     return json_integer_value (integer);
 }
 
+gboolean
+json_object_get_boolean_member (json_t *object, const char *key)
+{
+    json_t *boolean = json_object_get (object, key);
+    return json_is_true (boolean);
+}
+
 void
 json_object_set_string_member (json_t *object, const char *key, const char *value)
 {

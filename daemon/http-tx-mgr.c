@@ -3968,6 +3968,269 @@ out:
 }
 
 static int
+check_cal_result_by_token (HttpTxTask *task, Connection *conn, const char *url_prefix,
+                           const char *token, gboolean *done)
+{
+    CURL *curl;
+    int status;
+    char *url = NULL;
+    char *rsp_content = NULL;
+    gint64 rsp_size;
+    json_t *obj = NULL;
+    json_error_t jerror;
+    int ret = 0;
+
+    url = g_strdup_printf ("%s/%srepo/%s/query-fs-id-list/?token=%s",
+                           task->host, url_prefix, task->repo_id, token);
+
+    curl = conn->curl;
+
+    int curl_error;
+    if (http_get (curl, url, task->token, &status,
+                  &rsp_content, &rsp_size,
+                  NULL, NULL, (!task->is_clone), &curl_error) < 0) {
+        conn->release = TRUE;
+        handle_curl_errors (task, curl_error);
+        ret = -1;
+        goto out;
+    }
+
+    if (status != HTTP_OK) {
+        seaf_warning ("Bad response code for GET %s: %d.\n", url, status);
+        ret = -1;
+        handle_http_errors (task, status);
+        goto out;
+    }
+
+    obj = json_loadb (rsp_content, rsp_size, 0, &jerror);
+    if (!obj) {
+        seaf_warning ("Invalid JSON response from the server: %s.\n", jerror.text);
+        ret = -1;
+        goto out;
+    }
+
+    *done = json_object_get_boolean_member (obj, "success");
+
+out:
+    if (obj) {
+        json_decref (obj);
+    }
+    g_free (url);
+    g_free (rsp_content);
+
+    return ret;
+
+}
+
+static int
+retrieve_fs_id_list (HttpTxTask *task, Connection *conn, const char *url_prefix,
+                           const char *token, GList **fs_id_list)
+{
+    CURL *curl;
+    int status;
+    char *url = NULL;
+    char *rsp_content = NULL;
+    gint64 rsp_size;
+    json_t *array = NULL;
+    const char *obj_id;
+    json_error_t jerror;
+    int ret = 0;
+
+    url = g_strdup_printf ("%s/%srepo/%s/retrieve-fs-id-list/?token=%s",
+                           task->host, url_prefix, task->repo_id, token);
+
+    curl = conn->curl;
+
+    int curl_error;
+    if (http_get (curl, url, task->token, &status,
+                  &rsp_content, &rsp_size,
+                  NULL, NULL, (!task->is_clone), &curl_error) < 0) {
+        conn->release = TRUE;
+        handle_curl_errors (task, curl_error);
+        ret = -1;
+        goto out;
+    }
+
+    if (status != HTTP_OK) {
+        seaf_warning ("Bad response code for GET %s: %d.\n", url, status);
+        ret = -1;
+        handle_http_errors (task, status);
+        goto out;
+    }
+
+    array = json_loadb (rsp_content, rsp_size, 0, &jerror);
+    if (!array) {
+        seaf_warning ("Invalid JSON response from the server: %s.\n", jerror.text);
+        task->error = SYNC_ERROR_ID_SERVER;
+        ret = -1;
+        goto out;
+    }
+
+    int i;
+    size_t n = json_array_size (array);
+    json_t *str;
+
+    seaf_debug ("Received fs object list size %lu from %s:%s.\n",
+                n, task->host, task->repo_id);
+
+    task->n_fs_objs = (int)n;
+
+    GHashTable *checked_objs = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                                      g_free, NULL);
+
+    for (i = 0; i < n; ++i) {
+        str = json_array_get (array, i);
+        if (!str) {
+            seaf_warning ("Invalid JSON response from the server.\n");
+            json_decref (array);
+            string_list_free (*fs_id_list);
+            ret = -1;
+            goto out;
+        }
+
+        obj_id = json_string_value(str);
+
+        if (g_hash_table_lookup (checked_objs, obj_id)) {
+            ++(task->done_fs_objs);
+            continue;
+        }
+        char *key = g_strdup(obj_id);
+        g_hash_table_replace (checked_objs, key, key);
+
+        if (!seaf_obj_store_obj_exists (seaf->fs_mgr->obj_store,
+                                        task->repo_id, task->repo_version,
+                                        obj_id)) {
+            *fs_id_list = g_list_prepend (*fs_id_list, g_strdup(obj_id));
+        } else if (task->is_clone) {
+            gboolean io_error = FALSE;
+            gboolean sound;
+            sound = seaf_fs_manager_verify_object (seaf->fs_mgr,
+                                                   task->repo_id, task->repo_version,
+                                                   obj_id, FALSE, &io_error);
+            if (!sound && !io_error) {
+                *fs_id_list = g_list_prepend (*fs_id_list, g_strdup(obj_id));
+            } else {
+                ++(task->done_fs_objs);
+            }
+        } else {
+            ++(task->done_fs_objs);
+        }
+    }
+
+    json_decref (array);
+    g_hash_table_destroy (checked_objs);
+
+out:
+    g_free (url);
+    g_free (rsp_content);
+
+    return ret;
+}
+
+static int
+get_fs_id_list (HttpTxTask *task, Connection *conn, const char *url_prefix,
+                int *rsp_status, GList **fs_id_list)
+{
+    SeafBranch *master;
+    CURL *curl;
+    int status;
+    char *url = NULL;
+    char *rsp_content = NULL;
+    gint64 rsp_size;
+    json_t *obj = NULL;
+    json_error_t jerror;
+    char *token = NULL;
+    int ret = 0;
+
+    if (!task->is_clone) {
+        master = seaf_branch_manager_get_branch (seaf->branch_mgr,
+                                                 task->repo_id,
+                                                 "master");
+        if (!master) {
+            seaf_warning ("Failed to get branch master for repo %.8s.\n",
+                          task->repo_id);
+            return -1;
+        }
+
+        url = g_strdup_printf ("%s/%srepo/%s/start-fs-id-list/"
+                               "?server-head=%s&client-head=%s",
+                               task->host, url_prefix, task->repo_id,
+                               task->head, master->commit_id);
+
+        seaf_branch_unref (master);
+    } else {
+        url = g_strdup_printf ("%s/%srepo/%s/start-fs-id-list/?server-head=%s",
+                               task->host, url_prefix, task->repo_id, task->head);
+    }
+
+    curl = conn->curl;
+
+    int curl_error;
+    if (http_get (curl, url, task->token, &status,
+                  &rsp_content, &rsp_size,
+                  NULL, NULL, (!task->is_clone), &curl_error) < 0) {
+        conn->release = TRUE;
+        handle_curl_errors (task, curl_error);
+        ret = -1;
+        goto out;
+    }
+
+    if (status != HTTP_OK) {
+        *rsp_status = status;
+        if (status != HTTP_NOT_FOUND) {
+            seaf_warning ("Bad response code for GET %s: %d.\n", url, status);
+            handle_http_errors (task, status);
+        }
+        ret = -1;
+        goto out;
+    }
+
+    obj = json_loadb (rsp_content, rsp_size, 0, &jerror);
+    if (!obj) {
+        seaf_warning ("Invalid JSON response from the server: %s.\n", jerror.text);
+        ret = -1;
+        goto out;
+    }
+
+    token = g_strdup (json_object_get_string_member (obj, "token"));
+    if (!token || strlen(token) != 36) {
+        seaf_warning ("Invalid response token from the server.\n");
+        ret = -1;
+        goto out;
+    }
+
+    gboolean done = FALSE;
+    while (1) {
+        ret = check_cal_result_by_token (task, conn, url_prefix, token, &done);
+        if (ret < 0 ){
+            seaf_warning ("Failed to check calculate result by token.\n");
+            ret = -1;
+            goto out;
+        }
+        if (done) {
+            break;
+        }
+        sleep(10);
+    }
+
+    ret = retrieve_fs_id_list (task, conn, url_prefix, token, fs_id_list);
+    if (ret < 0) {
+        seaf_warning ("Failed to retrieve fs id list from server.\n");
+        goto out;
+    }
+
+out:
+    if (obj) {
+        json_decref (obj);
+    }
+    g_free (token);
+    g_free (url);
+    g_free (rsp_content);
+
+    return ret;
+}
+
+static int
 get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
 {
     SeafBranch *master;
@@ -3980,8 +4243,16 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
     json_t *array;
     json_error_t jerror;
     const char *obj_id;
+    int rsp_status = HTTP_OK;
 
     const char *url_prefix = (task->use_fileserver_port) ? "" : "seafhttp/";
+
+    int rc = get_fs_id_list (task, conn, url_prefix, &rsp_status, fs_id_list);
+    if (rc == 0) {
+        return 0;
+    } else if (rsp_status != HTTP_NOT_FOUND) {
+        return -1;
+    }
 
     if (!task->is_clone) {
         master = seaf_branch_manager_get_branch (seaf->branch_mgr,
