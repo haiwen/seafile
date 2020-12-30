@@ -1363,7 +1363,7 @@ add_file (const char *repo_id,
 #endif
 
 #ifndef WIN32
-    base_name = g_path_get_basename(path);
+    base_name = g_path_get_basename(full_path);
     if (check_path_ignore_on_windows (base_name)) {
         send_file_sync_error_notification (repo_id, NULL, path,
                                            SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
@@ -1487,7 +1487,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
         return 0;
     }
 
-    base_name = g_path_get_basename(path);
+    base_name = g_path_get_basename(full_path);
     if (check_path_ignore_on_windows (base_name)) {
         send_file_sync_error_notification (params->repo_id, NULL, path,
                                            SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
@@ -2322,7 +2322,7 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
         }
 
 #ifndef WIN32
-    char *base_name = g_path_get_basename(path);
+    char *base_name = g_path_get_basename(full_path);
         if (check_path_ignore_on_windows (base_name)) {
             send_file_sync_error_notification (repo->id, repo->name, path,
                                                SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
