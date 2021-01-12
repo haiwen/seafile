@@ -89,7 +89,7 @@ Internationalization (I18n)
 Change Logs
 ===========
 
-See <https://seacloud.cc/group/3/wiki/home/#Roadmap-ChangeLogs>
+See <https://manual.seafile.com/changelog/server-changelog/>
 
 
 Why Open Source
