@@ -5,6 +5,8 @@
 #include <jansson.h>
 #include "seafile-object.h"
 
+G_BEGIN_DECLS
+
 /**
  * seafile_get_repo_list:
  *
@@ -216,4 +218,7 @@ seafile_shutdown (GError **error);
 
 char*
 seafile_sync_error_id_to_str (int error_id, GError **error);
+
+G_END_DECLS
+
 #endif

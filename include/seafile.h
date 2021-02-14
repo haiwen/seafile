@@ -3,6 +3,10 @@
 #ifndef SEAFILE_H
 #define SEAFILE_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 int seafile_destroy_repo (SearpcClient *client,
                           const char *repo_id, GError **error);
 
@@ -39,5 +43,8 @@ char *seafile_get_config (SearpcClient *client, const char *key, GError **error)
 
 int seafile_calc_dir_size (SearpcClient *client, const char *path, GError **error);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif
