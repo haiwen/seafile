@@ -221,6 +221,13 @@ def must_copytree(src, dst):
     except Exception, e:
         error('failed to copy %s to %s: %s' % (src, dst, e))
 
+def must_rmtree(path):
+    '''Recurse rm dir, exit on failure'''
+    try:
+        shutil.rmtree(path)
+    except Exception as e:
+        error('failed rm dir %s : %s' % (path, e))
+
 class Project(object):
     '''Base class for a project'''
     # Probject name, i.e. libseaprc/seafile/
@@ -788,6 +795,17 @@ def gen_dmg():
         must_run('rm -rf "{}"'.format(join(app_plugins_dir, 'bearer')))
         # fsplugin must be copied before we sign the final .app dir
         copy_fsplugin(app_plugins_dir)
+
+        # Delete  ~/seafpkg/build/seafile-mac-build/app-8.0.1/seafile-applet.app/Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app
+
+        # Copy new QtWebEngineCoreProcess.app from Qt dir
+        # ~/Qt/5.15.1/clang_64/lib/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app
+
+        webengineprocess_path = join(appdir, 'Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app')
+        QT_WEBENGINEPROCESS_PATH = '/Users/vagrant/Qt/5.15.1/clang_64/lib/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app'
+        must_rmtree(webengineprocess_path)
+        must_copytree(QT_WEBENGINEPROCESS_PATH, webengineprocess_path)
+
         sign_files(appdir)
 
         # Rename the .app dir to 'Seafile Client.app', and create the shortcut
