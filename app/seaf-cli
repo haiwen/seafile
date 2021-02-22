@@ -89,7 +89,6 @@ import sys
 import time
 import getpass
 import random
-import codecs
 import urllib.request, urllib.parse, urllib.error
 import urllib.request, urllib.error, urllib.parse
 from urllib.parse import urlparse
@@ -97,8 +96,6 @@ from urllib.parse import urlparse
 from os.path import abspath, dirname, exists, isdir, join
 
 import seafile
-
-sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
 
 if 'HOME' in os.environ:
     DEFAULT_CONF_DIR = "%s/.ccnet" % os.environ['HOME']
@@ -387,14 +384,12 @@ def seaf_list(args):
     repos = seafile_rpc.get_repo_list(-1, -1)
 
     if args.json:
-        seaf_cli_list = {}
         repo_list = []
         for repo in repos:
             repo_dict = {'name':repo.name, 'id':repo.id, 'path':repo.worktree}
             repo_list.append(repo_dict)
-        seaf_cli_list['seaf_cli_list'] = repo_list
-        json_str = json.dumps(seaf_cli_list)
-        print('Result is: {}'.format(json_str))
+        json_str = json.dumps(repo_list, ensure_ascii=False)
+        print(json_str)
     else:
         print("Name\tID\tPath")
         for repo in repos:
@@ -441,7 +436,6 @@ def seaf_list_remote(args):
 
     printed = {}
     if args.json:
-        seaf_cli_list_remote = {}
         repo_list = []
         for repo in repos:
             if repo['id'] in printed:
@@ -449,9 +443,8 @@ def seaf_list_remote(args):
             printed[repo['id']] = repo['id']
             repo_dict = {'name': repo['name'], 'id':repo['id']}
             repo_list.append(repo_dict)
-        seaf_cli_list_remote['seaf_cli_list_remote'] = repo_list
-        json_str = json.dumps(seaf_cli_list_remote)
-        print('Result is: {}'.format(json_str))
+        json_str = json.dumps(repo_list, ensure_ascii=False)
+        print(json_str)
     else:
         print("Name\tID")
         for repo in repos:
