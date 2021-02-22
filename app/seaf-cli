@@ -382,9 +382,18 @@ def seaf_list(args):
 
     seafile_rpc = get_rpc_client(conf_dir)
     repos = seafile_rpc.get_repo_list(-1, -1)
-    print("Name\tID\tPath")
-    for repo in repos:
-        print(repo.name, repo.id, repo.worktree)
+
+    if args.json:
+        repo_list = []
+        for repo in repos:
+            repo_dict = {'name':repo.name, 'id':repo.id, 'path':repo.worktree}
+            repo_list.append(repo_dict)
+        json_str = json.dumps(repo_list, ensure_ascii=False)
+        print(json_str)
+    else:
+        print("Name\tID\tPath")
+        for repo in repos:
+            print(repo.name, repo.id, repo.worktree)
 
 
 def seaf_list_remote(args):
@@ -412,7 +421,7 @@ def seaf_list_remote(args):
 
     username = args.username
     if not username and user_from_config:
-        username = user_from_config;
+        username = user_from_config
     if not username:
         username = input("Enter username: ")
     password = args.password
@@ -426,14 +435,24 @@ def seaf_list_remote(args):
     repos = get_repo_download_info("%s/api2/repos/" % (url), token)
 
     printed = {}
+    if args.json:
+        repo_list = []
+        for repo in repos:
+            if repo['id'] in printed:
+                continue
+            printed[repo['id']] = repo['id']
+            repo_dict = {'name': repo['name'], 'id':repo['id']}
+            repo_list.append(repo_dict)
+        json_str = json.dumps(repo_list, ensure_ascii=False)
+        print(json_str)
+    else:
+        print("Name\tID")
+        for repo in repos:
+            if repo['id'] in printed:
+                continue
 
-    print("Name\tID")
-    for repo in repos:
-        if repo['id'] in printed:
-            continue
-
-        printed[repo['id']] = repo['id']
-        print(repo['name'], repo['id'])
+            printed[repo['id']] = repo['id']
+            print(repo['name'], repo['id'])
 
 
 def get_base_url(url):
@@ -883,6 +902,7 @@ def main():
     parser_list = subparsers.add_parser('list', help='List local libraries')
     parser_list.set_defaults(func=seaf_list)
     parser_list.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
+    parser_list.add_argument('--json', help='output json format result', action='store_true')
 
     # list-remote
     parser_download = subparsers.add_parser('list-remote', help='List remote libraries')
@@ -893,6 +913,7 @@ def main():
     parser_download.add_argument('-u', '--username', help='username', type=str)
     parser_download.add_argument('-p', '--password', help='password', type=str)
     parser_download.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
+    parser_download.add_argument('--json', help='output json format result', action='store_true')
 
     # status
     parser_status = subparsers.add_parser('status', help='Show syncing status')
