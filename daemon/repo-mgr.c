@@ -2357,7 +2357,7 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       path,
                                                       S_IFREG,
                                                       SYNC_STATUS_SYNCED,
-                                                      TRUE);
+                                                      FALSE);
             }
             if (ret < 0) {
                 seaf_sync_manager_update_active_path (seaf->sync_mgr,
@@ -2365,7 +2365,7 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       path,
                                                       S_IFREG,
                                                       SYNC_STATUS_ERROR,
-                                                      TRUE);
+                                                      FALSE);
                 send_file_sync_error_notification (repo->id, NULL, path,
                                                    SYNC_ERROR_ID_INDEX_ERROR);
             }
@@ -2920,7 +2920,7 @@ update_active_file (SeafRepo *repo,
                                                   path,
                                                   S_IFREG,
                                                   status,
-                                                  TRUE);
+                                                  FALSE);
     }
 }
 
