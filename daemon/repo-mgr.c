@@ -2897,7 +2897,7 @@ update_active_file (SeafRepo *repo,
                                               path,
                                               S_IFREG,
                                               SYNC_STATUS_IGNORED,
-                                              FALSE);
+                                              TRUE);
     } else {
         SyncStatus status;
         gboolean is_writable;
