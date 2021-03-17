@@ -2357,7 +2357,7 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       path,
                                                       S_IFREG,
                                                       SYNC_STATUS_SYNCED,
-                                                      FALSE);
+                                                      TRUE);
             }
             if (ret < 0) {
                 seaf_sync_manager_update_active_path (seaf->sync_mgr,
@@ -2365,7 +2365,7 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       path,
                                                       S_IFREG,
                                                       SYNC_STATUS_ERROR,
-                                                      FALSE);
+                                                      TRUE);
                 send_file_sync_error_notification (repo->id, NULL, path,
                                                    SYNC_ERROR_ID_INDEX_ERROR);
             }
@@ -2897,7 +2897,7 @@ update_active_file (SeafRepo *repo,
                                               path,
                                               S_IFREG,
                                               SYNC_STATUS_IGNORED,
-                                              TRUE);
+                                              FALSE);
     } else {
         SyncStatus status;
         gboolean is_writable;
@@ -3030,7 +3030,7 @@ update_active_path_recursive (SeafRepo *repo,
                                                   path,
                                                   S_IFDIR,
                                                   SYNC_STATUS_IGNORED,
-                                                  TRUE);
+                                                  FALSE);
         } else {
             /* There is no need to update an empty dir. */
             SyncStatus status;
@@ -3044,7 +3044,7 @@ update_active_path_recursive (SeafRepo *repo,
                                                   path,
                                                   S_IFDIR,
                                                   status,
-                                                  TRUE);
+                                                  FALSE);
         }
     }
 }
