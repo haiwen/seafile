@@ -3634,7 +3634,7 @@ set_path_status_synced (gpointer key, gpointer value, gpointer user_data)
                                           path,
                                           mode,
                                           SYNC_STATUS_SYNCED,
-                                          FALSE);
+                                          TRUE);
 }
 
 static void *
