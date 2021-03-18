@@ -3215,17 +3215,6 @@ update_path_sync_status (SeafRepo *repo, WTStatus *status,
                          struct index_state *istate, GList *ignore_list)
 {
     char *path;
-    pthread_mutex_lock (&status->ap_q_lock);
-    path = g_queue_peek_head (status->active_paths);
-    pthread_mutex_unlock (&status->ap_q_lock);
-    if (path) {
-        char *fullpath = g_build_path(PATH_SEPERATOR, repo->worktree, path, NULL);
-        char *dirname = g_path_get_dirname(fullpath);
-        seaf_sync_manager_add_refresh_path(seaf->sync_mgr, dirname);
-        g_free(dirname);
-        g_free(fullpath);
-    }
-
 
     while (1) {
         pthread_mutex_lock (&status->ap_q_lock);
