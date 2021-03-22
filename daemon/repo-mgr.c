@@ -2920,7 +2920,7 @@ update_active_file (SeafRepo *repo,
                                                   path,
                                                   S_IFREG,
                                                   status,
-                                                  TRUE);
+                                                  FALSE);
     }
 }
 
@@ -3030,7 +3030,7 @@ update_active_path_recursive (SeafRepo *repo,
                                                   path,
                                                   S_IFDIR,
                                                   SYNC_STATUS_IGNORED,
-                                                  TRUE);
+                                                  FALSE);
         } else {
             /* There is no need to update an empty dir. */
             SyncStatus status;
@@ -3044,7 +3044,7 @@ update_active_path_recursive (SeafRepo *repo,
                                                   path,
                                                   S_IFDIR,
                                                   status,
-                                                  TRUE);
+                                                  FALSE);
         }
     }
 }

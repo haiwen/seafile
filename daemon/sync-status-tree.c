@@ -189,9 +189,6 @@ static void
 remove_item (SyncStatusDir *dir, const char *dname, const char *fullpath)
 {
     g_hash_table_remove (dir->dirents, dname);
-#ifdef WIN32
-    seaf_sync_manager_add_refresh_path (seaf->sync_mgr, fullpath);
-#endif
 }
 
 static void
