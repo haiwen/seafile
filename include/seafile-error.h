@@ -61,6 +61,7 @@
 #define SYNC_ERROR_ID_NO_ERROR                  29
 #define SYNC_ERROR_ID_REMOVE_UNCOMMITTED_FOLDER 30
 #define SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS   31
-#define N_SYNC_ERROR_ID                         32
+#define SYNC_ERROR_ID_LIBRARY_TOO_LARGE         32
+#define N_SYNC_ERROR_ID                         33
 
 #endif
