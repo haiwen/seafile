@@ -169,6 +169,11 @@ static SyncErrorInfo sync_error_info_tbl[] = {
         SYNC_ERROR_LEVEL_FILE,
         "File or directory is invalid on Windows"
     },
+    {
+        SYNC_ERROR_ID_LIBRARY_TOO_LARGE,
+        SYNC_ERROR_LEVEL_REPO,
+        "Library is too large to sync"
+    },
 };
 
 const char *

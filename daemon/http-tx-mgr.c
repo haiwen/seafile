@@ -38,10 +38,12 @@
 
 #define HTTP_OK 200
 #define HTTP_BAD_REQUEST 400
+#define HTTP_REQUEST_TIME_OUT 408
 #define HTTP_FORBIDDEN 403
 #define HTTP_NOT_FOUND 404
 #define HTTP_NO_QUOTA 443
 #define HTTP_REPO_DELETED 444
+#define HTTP_REPO_TOO_LARGE 447
 #define HTTP_REPO_CORRUPTED 445
 #define HTTP_INTERNAL_SERVER_ERROR 500
 
@@ -1089,6 +1091,8 @@ http_error_to_http_task_error (int status)
         return SYNC_ERROR_ID_SERVER_REPO_DELETED;
     else if (status == HTTP_REPO_CORRUPTED)
         return SYNC_ERROR_ID_SERVER_REPO_CORRUPT;
+    else if (status == HTTP_REPO_TOO_LARGE || status == HTTP_REQUEST_TIME_OUT)
+        return SYNC_ERROR_ID_LIBRARY_TOO_LARGE;
     else
         return SYNC_ERROR_ID_GENERAL_ERROR;
 }
