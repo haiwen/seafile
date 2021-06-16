@@ -38,6 +38,14 @@ if sys.version_info[1] < 6:
 ####################
 ### Global variables
 ####################
+# command line configuartion
+conf = {}
+
+# key names in the conf dictionary.
+# pylint: disable=bad-whitespace
+CONF_VERSION            = 'version'
+CONF_NO_STRIP           = 'nostrip'
+CONF_BRAND              = 'brand'
 
 NUM_CPU = multiprocessing.cpu_count()
 PID = os.getpid()
@@ -212,7 +220,6 @@ class Project(object):
     def __init__(self):
         # the path to pass to --prefix=/<prefix>
         self.prefix = join(BUILDDIR, 'usr')
-        self.version = version
         # project dir, like <builddir>/seafile/
         self.projdir = join(BUILDDIR, '{}' .format(self.name))
 
@@ -264,9 +271,6 @@ class Libsearpc(Project):
             'make install'
         ]
 
-    def get_version(self):
-        return version
-
 class Seafile(Project):
     name = 'seafile'
     def __init__(self):
@@ -278,9 +282,6 @@ class Seafile(Project):
             'make install'
         ]
 
-    def get_version(self):
-        return version
-
     def update_cli_version(self):
         '''Substitute the version number in seaf-cli'''
         cli_py = join(self.projdir, 'app', 'seaf-cli')
@@ -290,7 +291,7 @@ class Seafile(Project):
         ret = []
         for line in lines:
             old = '''SEAF_CLI_VERSION = ""'''
-            new = '''SEAF_CLI_VERSION = "%s"''' %version 
+            new = '''SEAF_CLI_VERSION = "%s"''' %conf[CONF_VERSION]
             line = line.replace(old, new)
             ret.append(line)
 
@@ -328,9 +329,6 @@ class SeafileClient(Project):
             'macdeployqt seafile-applet.app',
         ]
 
-    def get_version(self):
-        return version
-
     def before_build(self):
         pass
 
@@ -363,7 +361,66 @@ def prepare_builddir(builddir):
 
     must_mkdir(join(builddir, 'usr'))
 
-def setup_build_env(no_strip):
+def parse_args():
+    parser = optparse.OptionParser()
+    def long_opt(opt):
+        return '--' + opt
+
+    parser.add_option(long_opt(CONF_VERSION),
+                      dest=CONF_VERSION,
+                      nargs=1,
+                      help='the version to build. Must be digits delimited by dots, like 1.3.0')
+
+    parser.add_option(long_opt(CONF_NO_STRIP),
+                      dest=CONF_NO_STRIP,
+                      action='store_true',
+                      help='''do not strip debug symbols''')
+
+    parser.add_option(long_opt(CONF_BRAND),
+                      dest=CONF_BRAND,
+                      help='the brand')
+
+    usage = parser.format_help()
+    options, remain = parser.parse_args()
+    if remain:
+        error(usage=usage)
+
+    validate_args(usage, options)
+
+def validate_args(usage, options):
+    required_args = [
+        CONF_VERSION,
+        CONF_NO_STRIP,
+        CONF_BRAND,
+    ]
+
+    # fist check required args
+    for optname in required_args:
+        if getattr(options, optname, None) is None:
+            error('%s must be specified' % optname, usage=usage)
+
+    def get_option(optname):
+        return getattr(options, optname)
+
+    # [ version ]
+    def check_project_version(version):
+        '''A valid version must be like 1.2.2, 1.3'''
+        if not re.match(r'^[0-9]+(\.[0-9]+)+$', version):
+            error('%s is not a valid version' % version, usage=usage)
+
+    version = get_option(CONF_VERSION)
+    check_project_version(version)
+
+    # [ no strip]
+    nostrip = get_option(CONF_NO_STRIP)
+
+    brand = get_option(CONF_BRAND)
+
+    conf[CONF_VERSION] = version
+    conf[CONF_NO_STRIP] = nostrip
+    conf[CONF_BRAND] = brand
+
+def setup_build_env():
     '''Setup environment variables, such as export PATH=$BUILDDDIR/bin:$PATH'''
     # os.environ.update({
     # })
@@ -382,10 +439,10 @@ def setup_build_env(no_strip):
                       seperator=' ')
 
     prepend_env_value('CPPFLAGS',
-                      '-DSEAFILE_CLIENT_VERSION=\\"%s\\"' % version,
+                      '-DSEAFILE_CLIENT_VERSION=\\"%s\\"' % conf[CONF_VERSION],
                       seperator=' ')
 
-    if no_strip:
+    if conf[CONF_NO_STRIP]:
         prepend_env_value('CPPFLAGS',
                           '-g -O0',
                           seperator=' ')
@@ -533,8 +590,8 @@ def change_rpaths():
 DROPDMG = '/Applications/DropDMG.app/Contents/Frameworks/DropDMGFramework.framework/Versions/A/dropdmg'
 
 def gen_dmg():
-    output_dmg = 'app-{}.dmg'.format(version)
-    parentdir = 'app-{}'.format(version)
+    output_dmg = 'app-{}.dmg'.format(conf[CONF_VERSION])
+    parentdir = 'app-{}'.format(conf[CONF_VERSION])
     appdir = join(parentdir, 'seafile-applet.app')
     app_plugins_dir = join(appdir, 'Contents/PlugIns')
 
@@ -546,7 +603,7 @@ def gen_dmg():
         parentdir,
         '--format', 'bzip2',
         '--layout-folder', layout_folder,
-        '--volume-name', 'Seafile Client',
+        '--volume-name', conf[CONF_BRAND] or 'Seafile Client',
     ]
 
     with cd(BUILDDIR):
@@ -565,7 +622,7 @@ def gen_dmg():
 
         # Rename the .app dir to 'Seafile Client.app', and create the shortcut
         # to '/Applications' so the user can drag into it when opening the DMG.
-        brand = "Seafile Client"
+        brand = conf.get('CONF_BRAND')
         if brand:
             final_app = '{}.app'.format(brand)
         else:
@@ -711,8 +768,8 @@ def do_sign(path, extra_args=None, preserve_entitlemenets=True):
 
 def copy_dmg():
     brand = 'seafile-client'
-    branded_dmg = '{}-{}.dmg'.format(brand, version)
-    src_dmg = os.path.join(BUILDDIR, 'app-{}.dmg'.format(version))
+    branded_dmg = '{}-{}.dmg'.format(brand, conf[CONF_VERSION])
+    src_dmg = os.path.join(BUILDDIR, 'app-{}.dmg'.format(conf[CONF_VERSION]))
     dst_dmg = os.path.join(BUILDDIR, branded_dmg)
 
     # move msi to outputdir
@@ -724,7 +781,7 @@ def copy_dmg():
     print '---------------------------------------------'
 
 def notarize_dmg():
-    pkg = os.path.join(BUILDDIR, 'app-{}.dmg'.format(version))
+    pkg = os.path.join(BUILDDIR, 'app-{}.dmg'.format(conf[CONF_VERSION]))
     info('Try to notarize {}'.format(pkg))
     notarize_script = join(Seafile().projdir, 'scripts/build/notarize.sh')
     cmdline = '{} {}'.format(notarize_script, pkg)
@@ -816,10 +873,11 @@ def setup_logging(level=logging.INFO):
 
 def main():
     setup_logging()
-    check_cmd_para()
+    parse_args()
+    # check_cmd_para()
     info('{} script started'.format(abspath(__file__)))
     info('NUM_CPU = {}'.format(NUM_CPU))
-    setup_build_env(True)
+    setup_build_env()
     local_workflow()
 
 if __name__ == '__main__':
