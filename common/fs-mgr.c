@@ -390,6 +390,16 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
             seaf_warning ("Failed to rename %s to %s: %s. "
                           "Failed to move backup file to conflict file.\n",
                           backup_path, conflict_path, strerror(errno));
+            if (mtime > 0) {
+                /*
+                 * Set the checked out file mtime to what it has to be.
+                 */
+                if (seaf_set_file_time (file_path, mtime) < 0) {
+                    seaf_warning ("Failed to set mtime for %s.\n", file_path);
+                }
+            }
+            //Don't delete local file when failed to rename backup file to conflict file.
+            goto out;
         }
     }
 
