@@ -22,6 +22,7 @@
 #define KEY_ALLOW_REPO_NOT_FOUND_ON_SERVER "allow_repo_not_found_on_server"
 #define KEY_SYNC_EXTRA_TEMP_FILE "sync_extra_temp_file"
 #define KEY_DISABLE_BLOCK_HASH "disable_block_hash"
+#define KEY_HIDE_WINDOWS_INCOMPATIBLE_PATH_NOTIFICATION "hide_windows_incompatible_path_notification"
 
 /* Http sync settings. */
 #define KEY_ENABLE_HTTP_SYNC "enable_http_sync"

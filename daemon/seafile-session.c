@@ -428,6 +428,9 @@ seafile_session_prepare (SeafileSession *session)
     session->disable_block_hash =
         seafile_session_config_get_bool (session, KEY_DISABLE_BLOCK_HASH);
     
+    session->hide_windows_incompatible_path_notification =
+        seafile_session_config_get_bool (session, KEY_HIDE_WINDOWS_INCOMPATIBLE_PATH_NOTIFICATION);
+    
     /* Start mq manager earlier, so that we can send notifications
      * when start repo manager. */
     seaf_mq_manager_init (session->mq_mgr);

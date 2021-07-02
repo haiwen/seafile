@@ -79,6 +79,8 @@ struct _SeafileSession {
     gboolean             disable_verify_certificate;
 
     gboolean             disable_block_hash;
+    
+    gboolean             hide_windows_incompatible_path_notification;
 
     gboolean             use_http_proxy;
     char                *http_proxy_type;
