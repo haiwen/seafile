@@ -856,6 +856,9 @@ http_put (CURL *curl, const char *url, const char *token,
     /* Disable the default "Expect: 100-continue" header */
     headers = curl_slist_append (headers, "Expect:");
 
+    if (req_content)
+        headers = curl_slist_append (headers, "Content-Type: application/octet-stream");
+
     if (token) {
         token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
         headers = curl_slist_append (headers, token_header);
@@ -977,6 +980,16 @@ http_post (CURL *curl, const char *url, const char *token,
     headers = curl_slist_append (headers, "User-Agent: Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")");
     /* Disable the default "Expect: 100-continue" header */
     headers = curl_slist_append (headers, "Expect:");
+
+    if (req_content) {
+        json_t *is_json = NULL;
+        is_json = json_loads (req_content, 0, NULL);
+        if (is_json) {
+            headers = curl_slist_append (headers, "Content-Type: application/json");
+            json_decref (is_json);
+        } else
+            headers = curl_slist_append (headers, "Content-Type: application/octet-stream");
+    }
 
     if (token) {
         token_header = g_strdup_printf ("Seafile-Repo-Token: %s", token);
