@@ -622,7 +622,7 @@ def gen_dmg():
 
         # Rename the .app dir to 'Seafile Client.app', and create the shortcut
         # to '/Applications' so the user can drag into it when opening the DMG.
-        brand = conf.get('CONF_BRAND')
+        brand = conf.get('CONF_BRAND', '')
         if brand:
             final_app = '{}.app'.format(brand)
         else:
@@ -767,7 +767,7 @@ def do_sign(path, extra_args=None, preserve_entitlemenets=True):
         error('failed to sign {}'.format(path))
 
 def copy_dmg():
-    brand = 'seafile-client'
+    brand = conf[CONF_BRAND] or 'seafile-client'
     branded_dmg = '{}-{}.dmg'.format(brand, conf[CONF_VERSION])
     src_dmg = os.path.join(BUILDDIR, 'app-{}.dmg'.format(conf[CONF_VERSION]))
     dst_dmg = os.path.join(BUILDDIR, branded_dmg)
