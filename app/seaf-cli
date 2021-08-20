@@ -99,7 +99,7 @@ import seafile
 
 if 'HOME' in os.environ:
     DEFAULT_CONF_DIR = "%s/.ccnet" % os.environ['HOME']
-    DEFAULT_USER_CONF_DIR = "%s/.seafile.conf" % os.environ['HOME']    
+    DEFAULT_USER_CONF_DIR = "%s/.seafile.conf" % os.environ['HOME']
 else:
     DEFAULT_CONF_DIR = None
     DEFAULT_USER_CONF_DIR = None
@@ -183,7 +183,7 @@ def _parse_user_config(conf):
     except ImportError:
         from ConfigParser import ConfigParser
         from ConfigParser import NoOptionError
-        
+
     cfg = ConfigParser()
     cfg.read(conf)
     if len(cfg.sections()) < 1 or cfg.sections()[0] != 'account':
@@ -230,6 +230,7 @@ def urlopen(url, data=None, headers=None):
     if data:
         data = urllib.parse.urlencode(data).encode('utf-8')
     headers = headers or {}
+    headers['User-Agent'] = 'SEAF_CLI (Linux %s) ' % os.uname()[4]
     req = urllib.request.Request(url, data=data, headers=headers)
     resp = urllib.request.urlopen(req)
 
@@ -408,9 +409,9 @@ def seaf_list_remote(args):
     else:
         user_config_dir = abspath(user_config_dir)
     if _user_config_valid(user_config_dir):
-        server_from_config, user_from_config = _parse_user_config(user_config_dir)    
+        server_from_config, user_from_config = _parse_user_config(user_config_dir)
 
-    url = args.server        
+    url = args.server
     if not url and server_from_config:
         url = server_from_config
     if not url:
@@ -475,7 +476,7 @@ def seaf_download(args):
         print("Library id is required")
         sys.exit(1)
 
-    server_from_config, user_from_config = None, None        
+    server_from_config, user_from_config = None, None
     user_config_dir = args.C
     if not user_config_dir:
         user_config_dir = DEFAULT_USER_CONF_DIR
@@ -528,7 +529,7 @@ def seaf_download(args):
     is_readonly = 0
     if permission == 'r':
         is_readonly = 1
-    
+
     more_info = None
     more_info_dict = {}
     base_url = get_base_url(url)
@@ -573,9 +574,9 @@ def seaf_download_by_name(args):
     else:
         user_config_dir = abspath(user_config_dir)
     if _user_config_valid(user_config_dir):
-        server_from_config, user_from_config = _parse_user_config(user_config_dir)        
+        server_from_config, user_from_config = _parse_user_config(user_config_dir)
 
-    url = args.server        
+    url = args.server
     if not url and server_from_config:
         url = server_from_config
     if not url:
@@ -679,7 +680,7 @@ def seaf_sync(args):
     is_readonly = 0
     if permission == 'r':
         is_readonly = 1
-    
+
     more_info = None
     more_info_dict = {}
     base_url = get_base_url(url)
@@ -778,7 +779,7 @@ def seaf_status(args):
             except ZeroDivisionError: pass
         elif task.state == "error":
             err = seafile_rpc.sync_error_id_to_str(task.error)
-            print('{:<50s}\t{:<20s}\t{:<20s}'.format(task.repo_name, 'error', err))            
+            print('{:<50s}\t{:<20s}\t{:<20s}'.format(task.repo_name, 'error', err))
         elif task.state == 'done':
             # will be shown in repo status
             pass
@@ -842,7 +843,7 @@ def seaf_create(args):
     else:
         user_config_dir = abspath(user_config_dir)
     if _user_config_valid(user_config_dir):
-        server_from_config, user_from_config = _parse_user_config(user_config_dir)    
+        server_from_config, user_from_config = _parse_user_config(user_config_dir)
 
     # check username and password
     username = args.username
@@ -856,7 +857,7 @@ def seaf_create(args):
     tfa = args.tfa
 
     # check url
-    url = args.server    
+    url = args.server
     if not url and server_from_config:
         url = server_from_config
     if not url:
@@ -908,7 +909,7 @@ def main():
     parser_download = subparsers.add_parser('list-remote', help='List remote libraries')
     parser_download.set_defaults(func=seaf_list_remote)
     parser_download.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
-    parser_download.add_argument('-C', help='the user config directory', type=str)    
+    parser_download.add_argument('-C', help='the user config directory', type=str)
     parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_download.add_argument('-u', '--username', help='username', type=str)
     parser_download.add_argument('-p', '--password', help='password', type=str)
@@ -939,7 +940,7 @@ def main():
                                          help='Download a library defined by name from seafile server')
     parser_download.set_defaults(func=seaf_download_by_name)
     parser_download.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
-    parser_download.add_argument('-C', help='the user config directory', type=str)    
+    parser_download.add_argument('-C', help='the user config directory', type=str)
     parser_download.add_argument('-L', '--libraryname', help='library name', type=str)
     parser_download.add_argument('-s', '--server', help='URL for seafile server', type=str)
     parser_download.add_argument('-d', '--dir', help='the directory to put the library', type=str)
@@ -982,7 +983,7 @@ def main():
     parser_create.add_argument('-p', '--password', help='password', type=str)
     parser_create.add_argument('-a', '--tfa', help='two-factor authentication', type=str)
     parser_create.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
-    parser_create.add_argument('-C', help='the user config directory', type=str)    
+    parser_create.add_argument('-C', help='the user config directory', type=str)
 
     # config
     parser_config = subparsers.add_parser('config',
