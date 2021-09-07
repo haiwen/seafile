@@ -698,12 +698,12 @@ seaf_repo_manager_record_sync_error (const char *repo_id,
     if (path != NULL)
         sql = sqlite3_mprintf ("INSERT INTO FileSyncError "
                                "(repo_id, repo_name, path, err_id, timestamp) "
-                               "VALUES ('%q', '%q', '%q', %d, %"G_GINT64_FORMAT")",
+                               "VALUES ('%q', '%q', '%q', %d, %lld)",
                                repo_id, repo_name, path, error_id, (gint64)time(NULL));
     else
         sql = sqlite3_mprintf ("INSERT INTO FileSyncError "
                                "(repo_id, repo_name, err_id, timestamp) "
-                               "VALUES ('%q', '%q', %d, %"G_GINT64_FORMAT")",
+                               "VALUES ('%q', '%q', %d, %lld)",
                                repo_id, repo_name, error_id, (gint64)time(NULL));
         
     ret = sqlite_query_exec (seaf->repo_mgr->priv->db, sql);
