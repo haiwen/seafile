@@ -315,7 +315,6 @@ class SeafileClient(Project):
             'CMAKE_OSX_ARCHITECTURES': 'x86_64',
             'CMAKE_OSX_DEPLOYMENT_TARGET': '10.9',
             'CMAKE_BUILD_TYPE': 'Release',
-            'BUILD_SHIBBOLETH_SUPPORT': 'ON',
             'BUILD_SPARKLE_SUPPORT': 'ON',
         }
         cmake_defines_formatted = ' '.join(['-D{}={}'.format(k, v) for k, v in cmake_defines.iteritems()])
