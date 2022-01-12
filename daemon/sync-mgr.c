@@ -52,6 +52,9 @@ struct _HttpServerState {
     gint64 last_check_locked_files_time;
     gboolean checking_locked_files;
 
+    gboolean immediate_check_folder_perms;
+    gboolean immediate_check_locked_files;
+
     /*
      * repo_id -> head commit id mapping.
      * Caches the head commit ids of synced repos.
@@ -1506,6 +1509,54 @@ out:
     return ret;
 }
 
+void
+seaf_sync_manager_update_repo (SeafSyncManager *manager, SeafRepo *repo,
+                               const char *head_commit)
+{
+    HttpServerState *state;
+    SeafBranch *master = NULL;
+
+    state = g_hash_table_lookup (manager->http_server_states, repo->server_url);
+    if (!state) {
+        return;
+    }
+
+    master = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "master");
+    if (!master) {
+        return;
+    }
+
+    if (g_strcmp0(head_commit, master->commit_id) != 0) {
+        pthread_mutex_lock (&state->head_commit_map_lock);
+        g_hash_table_replace (state->head_commit_map, g_strdup (repo->id), g_strdup (head_commit));
+        pthread_mutex_unlock (&state->head_commit_map_lock);
+        repo->last_sync_time = 0;
+    }
+
+    seaf_branch_unref (master);
+    return;
+}
+
+void
+seaf_sync_manager_check_locks_and_folder_perms (SeafSyncManager *manager, const char *server_url)
+{
+    HttpServerState *state;
+
+    state = g_hash_table_lookup (manager->http_server_states, server_url);
+    if (!state) {
+        return;
+    }
+
+    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, server_url))
+        return;
+
+    state->immediate_check_folder_perms = TRUE;
+    state->immediate_check_locked_files = TRUE;
+
+    return;
+}
+
+
 static void
 auto_delete_repo (SeafSyncManager *manager, SeafRepo *repo)
 {
@@ -1931,10 +1982,11 @@ check_folder_perms_done (HttpFolderPerms *result, void *user_data)
 }
 
 static void
-check_folder_permissions_one_server (SeafSyncManager *mgr,
-                                     const char *host,
-                                     HttpServerState *server_state,
-                                     GList *repos)
+check_folder_permissions_one_server_immediately (SeafSyncManager *mgr,
+                                                 const char *host,
+                                                 HttpServerState *server_state,
+                                                 GList *repos,
+                                                 gboolean force)
 {
     GList *ptr;
     SeafRepo *repo;
@@ -1943,22 +1995,11 @@ check_folder_permissions_one_server (SeafSyncManager *mgr,
     HttpFolderPermReq *req;
     GList *requests = NULL;
 
-    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, host))
-        return;
-
-    gint64 now = (gint64)time(NULL);
-
-    if (server_state->http_version == 0 ||
-        server_state->folder_perms_not_supported ||
-        server_state->checking_folder_perms)
-        return;
-
-    if (server_state->last_check_perms_time > 0 &&
-        now - server_state->last_check_perms_time < CHECK_FOLDER_PERMS_INTERVAL)
-        return;
-
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
+
+        if (!force && seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo))
+            continue;
 
         if (!repo->head)
             continue;
@@ -2001,6 +2042,29 @@ check_folder_permissions_one_server (SeafSyncManager *mgr,
         seaf_warning ("Failed to schedule check folder permissions\n");
         server_state->checking_folder_perms = FALSE;
     }
+}
+
+static void
+check_folder_permissions_one_server (SeafSyncManager *mgr,
+                                     const char *host,
+                                     HttpServerState *server_state,
+                                     GList *repos)
+{
+    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, host))
+        return;
+
+    gint64 now = (gint64)time(NULL);
+
+    if (server_state->http_version == 0 ||
+        server_state->folder_perms_not_supported ||
+        server_state->checking_folder_perms)
+        return;
+
+    if (server_state->last_check_perms_time > 0 &&
+        now - server_state->last_check_perms_time < CHECK_FOLDER_PERMS_INTERVAL)
+        return;
+
+    check_folder_permissions_one_server_immediately (mgr, host, server_state, repos, FALSE);
 }
 
 static void
@@ -2060,10 +2124,11 @@ check_server_locked_files_done (HttpLockedFiles *result, void *user_data)
 }
 
 static void
-check_locked_files_one_server (SeafSyncManager *mgr,
-                               const char *host,
-                               HttpServerState *server_state,
-                               GList *repos)
+check_locked_files_one_server_immediately (SeafSyncManager *mgr,
+                                           const char *host,
+                                           HttpServerState *server_state,
+                                           GList *repos,
+                                           gboolean force)
 {
     GList *ptr;
     SeafRepo *repo;
@@ -2072,22 +2137,11 @@ check_locked_files_one_server (SeafSyncManager *mgr,
     HttpLockedFilesReq *req;
     GList *requests = NULL;
 
-    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, host))
-        return;
-
-    gint64 now = (gint64)time(NULL);
-
-    if (server_state->http_version == 0 ||
-        server_state->locked_files_not_supported ||
-        server_state->checking_locked_files)
-        return;
-
-    if (server_state->last_check_locked_files_time > 0 &&
-        now - server_state->last_check_locked_files_time < CHECK_FOLDER_PERMS_INTERVAL)
-        return;
-
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
+
+        if (!force && seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo))
+            continue;
 
         if (!repo->head)
             continue;
@@ -2130,6 +2184,29 @@ check_locked_files_one_server (SeafSyncManager *mgr,
         seaf_warning ("Failed to schedule check server locked files\n");
         server_state->checking_locked_files = FALSE;
     }
+}
+
+static void
+check_locked_files_one_server (SeafSyncManager *mgr,
+                               const char *host,
+                               HttpServerState *server_state,
+                               GList *repos)
+{
+    if (!seaf_repo_manager_server_is_pro (seaf->repo_mgr, host))
+        return;
+
+    gint64 now = (gint64)time(NULL);
+
+    if (server_state->http_version == 0 ||
+        server_state->locked_files_not_supported ||
+        server_state->checking_locked_files)
+        return;
+
+    if (server_state->last_check_locked_files_time > 0 &&
+        now - server_state->last_check_locked_files_time < CHECK_FOLDER_PERMS_INTERVAL)
+        return;
+
+    check_locked_files_one_server_immediately (mgr, host, server_state, repos, FALSE);
 }
 
 static void
@@ -2277,10 +2354,19 @@ auto_sync_pulse (void *vmanager)
         if (repo->version > 0) {
             /* For repo version > 0, only use http sync. */
             if (check_http_protocol (manager, repo)) {
-                if (repo->sync_interval == 0)
+                seaf_notif_manager_connect_server (seaf->notif_mgr, repo->server_url, repo->use_fileserver_port);
+                if (repo->sync_interval == 0) {
                     sync_repo_v2 (manager, repo, FALSE);
-                else if (periodic_sync_due (repo))
+                    if (!seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo)) {
+                        seaf_notif_manager_subscribe_repo (seaf->notif_mgr, repo);
+                    }
+                }
+                else if (periodic_sync_due (repo)) {
                     sync_repo_v2 (manager, repo, TRUE);
+                    if (!seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo)) {
+                        seaf_notif_manager_subscribe_repo (seaf->notif_mgr, repo);
+                    }
+                }
             }
         } else {
             seaf_warning ("Repo %s(%s) is version 0 library. Syncing is no longer supported.\n",

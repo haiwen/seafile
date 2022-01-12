@@ -188,6 +188,10 @@ PKG_CHECK_MODULES(CURL, [libcurl >= $CURL_REQUIRED])
 AC_SUBST(CURL_CFLAGS)
 AC_SUBST(CURL_LIBS)
 
+PKG_CHECK_MODULES(WS, [libwebsockets])
+AC_SUBST(WS_CFLAGS)
+AC_SUBST(WS_LIBS)
+
 if test "$bwin32" != true; then
 # do not check libevent_pthreads in win32
 PKG_CHECK_MODULES(LIBEVENT_PTHREADS, [libevent_pthreads >= $LIBEVENT_PTHREADS_REQUIRED])

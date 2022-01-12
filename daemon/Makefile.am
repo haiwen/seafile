@@ -33,7 +33,8 @@ noinst_HEADERS = \
 	filelock-mgr.h \
 	set-perm.h \
 	change-set.h \
-	seafile-error-impl.h
+	seafile-error-impl.h \
+	notif-mgr.h
 
 if LINUX
 wt_monitor_src = wt-monitor.c wt-monitor-linux.c wt-monitor-structs.c
@@ -71,7 +72,8 @@ common_src = \
 	sync-status-tree.c \
 	filelock-mgr.c \
 	set-perm.c \
-	change-set.c
+	change-set.c \
+	notif-mgr.c
 
 
 seaf_daemon_SOURCES = seaf-daemon.c $(common_src)
@@ -81,6 +83,7 @@ seaf_daemon_LDADD = $(top_builddir)/lib/libseafile_common.la \
 	@LIB_RT@ @LIB_UUID@ -lsqlite3 @LIBEVENT_LIBS@ @LIBEVENT_PTHREADS_LIBS@\
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/common/index/libindex.la @LIB_WS32@ @LIB_CRYPT32@ \
-	@SEARPC_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@ @CURL_LIBS@ @BPWRAPPER_LIBS@
+	@SEARPC_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@ @CURL_LIBS@ @BPWRAPPER_LIBS@ \
+	@WS_LIBS@
 
 seaf_daemon_LDFLAGS = @CONSOLE@

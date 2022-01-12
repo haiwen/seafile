@@ -380,6 +380,18 @@ void
 folder_perm_free (FolderPerm *perm);
 
 int
+seaf_repo_manager_delete_folder_perm (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      FolderPermType type,
+                                      FolderPerm *perm);
+
+int
+seaf_repo_manager_update_folder_perm (SeafRepoManager *mgr,
+                                      const char *repo_id,
+                                      FolderPermType type,
+                                      FolderPerm *perm);
+
+int
 seaf_repo_manager_update_folder_perms (SeafRepoManager *mgr,
                                        const char *repo_id,
                                        FolderPermType type,

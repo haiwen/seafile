@@ -42,7 +42,8 @@ typedef enum
     SEAFILE_DEBUG_HTTP = 1 << 4,  /* http server */
     SEAFILE_DEBUG_MERGE = 1 << 5,
     SEAFILE_DEBUG_CURL = 1 << 6,
-    SEAFILE_DEBUG_OTHER = 1 << 7,
+    SEAFILE_DEBUG_NOTIFICATION = 1 << 7,
+    SEAFILE_DEBUG_OTHER = 1 << 8,
 } SeafileDebugFlags;
 
 gboolean

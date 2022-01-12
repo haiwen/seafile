@@ -236,6 +236,8 @@ seafile_session_new(const char *seafile_dir,
     if (!session->mq_mgr)
         goto onerror;
 
+    session->notif_mgr = seaf_notif_manager_new (session);
+
     return session;
 
 onerror:

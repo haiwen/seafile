@@ -190,4 +190,11 @@ seaf_sync_manager_set_task_error_code (SeafSyncManager *mgr,
                                        const char *repo_id,
                                        int error);
 
+void
+seaf_sync_manager_update_repo (SeafSyncManager *manager, SeafRepo *repo,
+                               const char *commit_id);
+
+void
+seaf_sync_manager_check_locks_and_folder_perms (SeafSyncManager *manager,
+                                                const char *server_url);
 #endif
