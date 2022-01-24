@@ -46,8 +46,6 @@ typedef struct NotifServer {
 
 struct _SeafNotifManagerPriv {
     pthread_mutex_t server_lock;
-    // Only maintain connection to the notification server associated with current account.
-    NotifServer *server;
     GHashTable *servers;
 };
 
@@ -228,7 +226,6 @@ get_notif_server (SeafNotifManager *mgr, const char *url)
     NotifServer *server = NULL;
 
     pthread_mutex_lock (&mgr->priv->server_lock);
-    server = mgr->priv->server;
     server = g_hash_table_lookup (mgr->priv->servers, url);
     if (!server) {
         pthread_mutex_unlock (&mgr->priv->server_lock);
@@ -286,20 +283,21 @@ init_client_connect_info (NotifServer *server);
 static void *
 notification_worker (void *vdata);
 
-// This function will automatically disconnect the previous server, then create a new server.
+// This function will check whether the notification server has been created,
+// if not, it will create a new one, otherwise it will return directly.
 // The host is the server's url and use_notif_server_port is used to check whether the server has nginx deployed.
 void
 seaf_notif_manager_connect_server (SeafNotifManager *mgr, const char *host, gboolean use_notif_server_port)
 {
     pthread_t tid;
     int rc;
-    NotifServer *old_server = NULL;
+    NotifServer *existing_server = NULL;
     NotifServer *server = NULL;
 
-    // close the old ws client.
-    old_server = get_notif_server (mgr, host);
-    if (old_server) {
-        notif_server_unref (old_server);
+    // Don't connect a connected server.
+    existing_server = get_notif_server (mgr, host);
+    if (existing_server) {
+        notif_server_unref (existing_server);
         return;
     }
 
@@ -322,6 +320,14 @@ seaf_notif_manager_connect_server (SeafNotifManager *mgr, const char *host, gboo
     pthread_mutex_unlock (&mgr->priv->server_lock);
 
     return;
+}
+
+static void
+disconnect_server (NotifServer *server)
+{
+    // lws_cancel_service will produce a cancel event to break out of lws_service loop.
+    lws_cancel_service (server->context);
+    server->close = TRUE;
 }
 
 // This policy will send a ping packet to the server per second.
@@ -778,7 +784,7 @@ notification_worker (void *vdata)
         i->context = server->context;
     }
 
-    seaf_message ("Exit notification server %s success.\n", server->server_url);
+    seaf_message ("Notification worker for server %s exiting.\n", server->server_url);
     pthread_mutex_lock (&server->sub_lock);
     g_hash_table_remove (seaf->notif_mgr->priv->servers, server->server_url);
     pthread_mutex_unlock (&server->sub_lock);
@@ -887,6 +893,10 @@ seaf_notif_manager_unsubscribe_repo (SeafNotifManager *mgr, SeafRepo *repo)
     pthread_mutex_unlock (&server->sub_lock);
 
     seaf_debug ("Successfully unsubscribe repo %s\n", repo_id);
+
+    // When no repo is subscribed on the server, we can disconnect from the server.
+    if (g_hash_table_size (server->subscriptions) == 0)
+        disconnect_server (server);
 
 out:
     g_free (str);

@@ -1530,6 +1530,8 @@ seaf_sync_manager_update_repo (SeafSyncManager *manager, SeafRepo *repo,
         pthread_mutex_lock (&state->head_commit_map_lock);
         g_hash_table_replace (state->head_commit_map, g_strdup (repo->id), g_strdup (head_commit));
         pthread_mutex_unlock (&state->head_commit_map_lock);
+        // Set last_sync_time to 0 to allow the repo to be sync immediately.
+        // Otherwise it only gets synced after 30 seconds since the last sync.
         repo->last_sync_time = 0;
     }
 
