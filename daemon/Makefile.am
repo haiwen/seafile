@@ -15,6 +15,10 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@GNUTLS_CFLAGS@ \
 	-Wall
 
+if MACOS
+AM_CFLAGS += -arch x86_64 -arch arm64
+endif
+
 bin_PROGRAMS = seaf-daemon
 
 noinst_HEADERS = \

@@ -1,6 +1,9 @@
 AM_CFLAGS = -I$(top_srcdir)/common -I$(top_srcdir)/lib \
 	-Wall @GLIB2_CFLAGS@ @MSVC_CFLAGS@
 
+if MACOS
+AM_CFLAGS += -arch x86_64 -arch arm64
+endif
 noinst_LTLIBRARIES = libcdc.la
 
 noinst_HEADERS = cdc.h rabin-checksum.h

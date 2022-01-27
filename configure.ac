@@ -65,6 +65,7 @@ AM_CONDITIONAL([WIN32], [test "$bwin32" = "true"])
 AM_CONDITIONAL([MACOS], [test "$bmac" = "true"])
 AM_CONDITIONAL([LINUX], [test "$blinux" = "true"])
 
+AC_SUBST(MACOS)
 
 # check libraries
 if test "$bwin32" != true; then
@@ -242,7 +243,6 @@ if test "xyes" = "x$gpl_crypto"; then
 
    AC_DEFINE(USE_GPL_CRYPTO, 1, [Use GPL-compatible crypto libraries])
 else
-   AC_CHECK_LIB(crypto, SHA1_Init, [echo "found library crypto"], AC_MSG_ERROR([*** Unable to find openssl crypto library]), )
 
    PKG_CHECK_MODULES(SSL, [openssl])
    AC_SUBST(SSL_CFLAGS)
