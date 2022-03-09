@@ -64,7 +64,7 @@ For this reason, the sync client daemon repository is still the "front page" for
 Build and Run
 =============
 
-See <http://manual.seafile.com/build_seafile/server.html>
+See <https://manual.seafile.com/build_seafile/server>
 
 Bug and Feature Request Reports
 ===============================
@@ -100,7 +100,7 @@ Our primary goal is to build a first-class product. We think this goal can only 
 Contributing
 ===========
 
-For more information read [Contribution](http://manual.seafile.com/contribution.html).
+For more information read [Contribution](https://manual.seafile.com/contribution/).
 
 
 License
