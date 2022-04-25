@@ -371,8 +371,8 @@ def wix_build(language):
                  ' -loc %s -cultures:%s -sice:ICE80' % (LANG_FILE, CULTURE)
 
 
-    generator_fragment_cmd = "%s/Paraffin.exe -dir bin -g -alias bin \
-        -custom bin fragment.wxs" %(WIX_BIN)
+    generator_fragment_cmd = "%s/Paraffin.exe -dir bin -alias bin -gn group_bin \
+        fragment.wxs" %(WIX_BIN)
     if run(generator_fragment_cmd, cwd=WIX_PACKAGE_DIR) != 0:
         error('error wherunning command:\n\t%s\n' % generator_fragment_cmd)
 
@@ -445,7 +445,7 @@ def edit_fragment_wxs():
         for line in fp:
             if 'seafile-applet.exe' in line:
                 # change the id of 'seafile-applet.exe' to 'seafileapplet.exe'
-                new_line = re.sub(r'file_bin_[\d]+', 'seafileapplet.exe', line)
+                new_line = re.sub(r'file_[\w]+', 'seafileapplet.exe', line)
                 new_lines.append(new_line)
             else:
                 new_lines.append(line)
