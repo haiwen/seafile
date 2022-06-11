@@ -2484,8 +2484,18 @@ http_tx_manager_add_upload (HttpTxManager *manager,
     HttpTxTask *task;
     SeafRepo *repo;
 
-    if (!repo_id || !token || !host) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Empty argument(s)");
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Empty argument(repo_id)");
+        return -1;
+    }
+
+    if (!token) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Empty argument(token)");
+        return -1;
+    }
+
+    if (!host) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Empty argument(host)");
         return -1;
     }
 
@@ -3866,8 +3876,28 @@ http_tx_manager_add_download (HttpTxManager *manager,
     HttpTxTask *task;
     SeafRepo *repo;
 
-    if (!repo_id || !token || !host || !server_head_id || !email) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Empty argument(s)");
+    if (!repo_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Empty argument(repo_id)");
+        return -1;
+    }
+
+    if (!token) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Empty argument(token)");
+        return -1;
+    }
+
+    if (!host) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Empty argument(host)");
+        return -1;
+    }
+
+    if (!server_head_id) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Empty argument(server_head_id)");
+        return -1;
+    }
+
+    if (!email) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS, "Empty argument(email)");
         return -1;
     }
 
