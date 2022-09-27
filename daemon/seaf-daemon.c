@@ -389,6 +389,7 @@ main (int argc, char **argv)
     char *seafile_dir = NULL;
     char *worktree_dir = NULL;
     char *logfile = NULL;
+    char *eventfile = NULL;
     const char *debug_str = NULL;
     int daemon_mode = 0;
     char *ccnet_debug_level_str = "info";
@@ -496,6 +497,14 @@ main (int argc, char **argv)
         exit (1);
     }
 
+    eventfile = g_build_filename (config_dir, "logs", "events.log", NULL);
+    if (seafile_event_log_init (eventfile) < 0) {
+        seaf_warning ("Failed to init event log.\n");
+        exit (1);
+    }
+
+    seafile_event_message("Starting record seafile events.\n", TRUE);
+
     /* init seafile */
     if (seafile_dir == NULL)
         seafile_dir = g_build_filename (config_dir, "seafile-data", NULL);
@@ -516,6 +525,7 @@ main (int argc, char **argv)
     g_free (seafile_dir);
     g_free (worktree_dir);
     g_free (logfile);
+    g_free (eventfile);
 
 #ifndef WIN32
     set_signal_handlers (seaf);

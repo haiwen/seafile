@@ -61,3 +61,9 @@ void seafile_debug_impl (SeafileDebugFlags flag, const gchar *format, ...);
 #endif
 
 FILE *seafile_get_log_fp ();
+
+// seafile event log
+int
+seafile_event_log_init (const char *_logfile);
+
+void seafile_event_message (const char *msg, gboolean is_started);
