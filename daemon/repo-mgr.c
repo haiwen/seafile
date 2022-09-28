@@ -3752,7 +3752,7 @@ unlock_office_file_on_server (SeafRepo *repo, const char *path)
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list,
-                                 LockedFileSet *fset)
+                                 LockedFileSet *fset, GList **event_list)
 {
     WTStatus *status;
     WTEvent *event, *next_event;
@@ -3793,6 +3793,9 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
         pthread_mutex_unlock (&status->q_lock);
         if (!event)
             break;
+
+        WTEvent *copy = wt_event_new (event->ev_type, event->path, event->new_path);
+        *event_list = g_list_prepend (*event_list, copy);
 
         /* Scanned dirs list is used to avoid redundant scan of consecutive
            CREATE_OR_UPDATE events. When we see other events, we should
@@ -3959,7 +3962,8 @@ out:
 }
 
 static int
-index_add (SeafRepo *repo, struct index_state *istate, gboolean is_force_commit)
+index_add (SeafRepo *repo, struct index_state *istate,
+           gboolean is_force_commit, GList **event_list)
 {
     SeafileCrypt *crypt = NULL;
     LockedFileSet *fset = NULL;
@@ -3978,7 +3982,7 @@ index_add (SeafRepo *repo, struct index_state *istate, gboolean is_force_commit)
     ignore_list = seaf_repo_load_ignore_files (repo->worktree);
 
     if (!is_force_commit) {
-        if (apply_worktree_changes_to_index (repo, istate, crypt, ignore_list, fset) < 0) {
+        if (apply_worktree_changes_to_index (repo, istate, crypt, ignore_list, fset, event_list) < 0) {
             seaf_warning ("Failed to apply worktree changes to index.\n");
             ret = -1;
         }
@@ -4074,6 +4078,48 @@ print_index (struct index_state *istate)
 }
 #endif
 
+static void
+print_event_log (const char *repo_name, const char *repo_id,
+                 const char *commit_id, GList *event_list)
+{
+    GList *ptr;
+    WTEvent *event;
+    char *name;
+    int i = 0;
+    GString *msg = g_string_new ("");
+
+    g_string_append_printf (msg, "%s %s %s\n", repo_name, repo_id, commit_id);
+
+    for (ptr = event_list; ptr; ptr = ptr->next) {
+        event = ptr->data;
+        i++;
+        switch (event->ev_type) {
+        case WT_EVENT_CREATE_OR_UPDATE:
+            name = "create/update";
+            break;
+        case WT_EVENT_SCAN_DIR:
+            name = "scan dir";
+            break;
+        case WT_EVENT_DELETE:
+            name = "delete";
+            break;
+        case WT_EVENT_RENAME:
+            name = "rename";
+            break;
+        case WT_EVENT_OVERFLOW:
+            name = "overflow";
+            break;
+        default:
+            name = "unknown";
+        }
+        g_string_append_printf (msg, "[event %d] %s, %s %s\n", i, name, event->path, event->new_path?event->new_path:"");
+    }
+
+    seafile_event_message (msg->str);
+
+    g_string_free (msg, TRUE);
+}
+
 char *
 seaf_repo_index_commit (SeafRepo *repo,
                         gboolean is_force_commit,
@@ -4090,6 +4136,7 @@ seaf_repo_index_commit (SeafRepo *repo,
     GList *diff_results = NULL;
     char *desc = NULL;
     char *ret = NULL;
+    GList *event_list = NULL;
 
     if (!check_worktree_common (repo))
         return NULL;
@@ -4110,7 +4157,7 @@ seaf_repo_index_commit (SeafRepo *repo,
 
     repo->changeset = changeset;
 
-    if (index_add (repo, &istate, is_force_commit) < 0) {
+    if (index_add (repo, &istate, is_force_commit, &event_list) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL, "Failed to add");
         goto out;
     }
@@ -4177,6 +4224,11 @@ seaf_repo_index_commit (SeafRepo *repo,
         goto out;
     }
 
+    if (event_list) {
+        event_list = g_list_reverse (event_list);
+        print_event_log (repo->name, repo->id, commit_id, event_list);
+    }
+
     if (update_index (&istate, index_path) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL, "Internal error");
         goto out;
@@ -4187,6 +4239,9 @@ seaf_repo_index_commit (SeafRepo *repo,
     ret = g_strdup(commit_id);
 
 out:
+    if (event_list) {
+        g_list_free_full (event_list, (GDestroyNotify)wt_event_free);
+    }
     g_free (desc);
     seaf_commit_unref (head);
     g_free (new_root_id);

@@ -241,3 +241,57 @@ seafile_get_log_fp ()
 {
     return logfp;
 }
+
+// seafile event log
+#define MAX_EVENT_LOG_SISE  300 * 1024 * 1024
+static FILE *eventfp;
+static pthread_mutex_t event_lock = PTHREAD_MUTEX_INITIALIZER;
+
+int
+seafile_event_log_init (const char *_logfile)
+{
+    char *eventfile = ccnet_expand_path(_logfile);
+    char *dirname;
+    char *eventfile_old;
+    SeafStat st;
+    
+    if (seaf_stat (eventfile, &st) >= 0) {
+        if (st.st_size >= MAX_EVENT_LOG_SISE) {
+            dirname = g_path_get_dirname (eventfile);
+            eventfile_old  = g_build_filename (dirname, "events-old.log", NULL);
+            seaf_util_rename (eventfile, eventfile_old);
+            g_free (dirname);
+            g_free (eventfile_old);
+        }
+    }
+
+    if ((eventfp = g_fopen (eventfile, "a+")) == NULL) {
+        g_free (eventfile);
+        seaf_message ("Failed to open event file %s\n", eventfile);
+        return -1;
+    }
+
+    g_free (eventfile);
+    return 0;
+}
+
+void 
+seafile_event_message(const char *message)
+{
+    time_t t;
+    struct tm *tm;
+    char buf[1024];
+    int len;
+
+    t = time(NULL);
+    tm = localtime(&t);
+    len = strftime (buf, 1024, "[%x %X] ", tm);
+    g_return_if_fail (len < 1024);
+    pthread_mutex_lock (&event_lock);
+    if (eventfp != NULL) {    
+        fputs (buf, eventfp);
+        fputs (message, eventfp);
+        fflush (eventfp);
+    }
+    pthread_mutex_unlock (&event_lock);
+}
