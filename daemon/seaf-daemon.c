@@ -503,7 +503,7 @@ main (int argc, char **argv)
         exit (1);
     }
 
-    seafile_event_message("Starting record seafile events.\n", TRUE);
+    seafile_event_message("Starting record seafile events.\n");
 
     /* init seafile */
     if (seafile_dir == NULL)

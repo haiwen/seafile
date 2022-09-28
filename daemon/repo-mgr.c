@@ -4088,8 +4088,7 @@ print_event_log (const char *repo_name, const char *repo_id,
     int i = 0;
     GString *msg = g_string_new ("");
 
-    g_string_printf (msg, "<%s> <%s> <%s>\n", repo_name, repo_id, commit_id);
-    seafile_event_message (msg->str, TRUE);
+    g_string_append_printf (msg, "%s %s %s\n", repo_name, repo_id, commit_id);
 
     for (ptr = event_list; ptr; ptr = ptr->next) {
         event = ptr->data;
@@ -4113,9 +4112,10 @@ print_event_log (const char *repo_name, const char *repo_id,
         default:
             name = "unknown";
         }
-        g_string_printf (msg, "<event %d> Adding event: %s, %s %s\n", i, name, event->path, event->new_path?event->new_path:"");
-        seafile_event_message (msg->str, FALSE);
+        g_string_append_printf (msg, "[event %d] %s, %s %s\n", i, name, event->path, event->new_path?event->new_path:"");
     }
+
+    seafile_event_message (msg->str);
 
     g_string_free (msg, TRUE);
 }
