@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <glib/gstdio.h>
+#include <pthread.h>
 
 #ifndef WIN32
 #ifdef SEAFILE_SERVER
