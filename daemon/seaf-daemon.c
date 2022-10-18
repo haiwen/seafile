@@ -93,6 +93,11 @@ register_rpc_service ()
                                      searpc_signature_string__int());
 
     searpc_server_register_function ("seafile-rpcserver",
+                                     seafile_add_del_confirmation,
+                                     "seafile_add_del_confirmation",
+                                     searpc_signature_int__string_int());
+
+    searpc_server_register_function ("seafile-rpcserver",
                                      seafile_get_config,
                                      "seafile_get_config",
                                      searpc_signature_string__string());

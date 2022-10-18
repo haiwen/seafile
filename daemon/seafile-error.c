@@ -174,6 +174,11 @@ static SyncErrorInfo sync_error_info_tbl[] = {
         SYNC_ERROR_LEVEL_REPO,
         "Library is too large to sync"
     },
+    {
+        SYNC_ERROR_ID_DEL_CONFIRMATION_PENDING,
+        SYNC_ERROR_LEVEL_REPO,
+        "Waiting for confirmation to delete files"
+    },
 };
 
 const char *

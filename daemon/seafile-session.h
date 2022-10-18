@@ -88,6 +88,7 @@ struct _SeafileSession {
     int                  http_proxy_port;
     char                *http_proxy_username;
     char                *http_proxy_password;
+    int                 delete_confirm_threshold;
 };
 
 struct _SeafileSessionClass

@@ -211,3 +211,8 @@ class SeafileRpcClient(NamedPipeClient):
     def seafile_shutdown():
         pass
     shutdown = seafile_shutdown
+
+    @searpc_func("int", ["string", "int"])
+    def seafile_add_del_confirmation(key, value):
+        pass
+    add_del_confirmation = seafile_add_del_confirmation
