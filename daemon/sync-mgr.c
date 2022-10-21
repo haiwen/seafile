@@ -1358,6 +1358,7 @@ get_del_confirmation_result (const char *confirmation_id)
 static void
 resync_repo (SeafRepo *repo)
 {
+    GError *error = NULL;
     char *repo_id = g_strdup (repo->id);
     int repo_version = repo->version;
     char *repo_name = g_strdup (repo->name);
@@ -1379,7 +1380,6 @@ resync_repo (SeafRepo *repo)
     if (repo->auto_sync && (repo->sync_interval == 0))
         seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
 
-    seaf_sync_manager_cancel_sync_task (seaf->sync_mgr, repo->id);
     seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
 
     char *ret = seaf_clone_manager_add_task (seaf->clone_mgr, repo_id,
@@ -1387,7 +1387,11 @@ resync_repo (SeafRepo *repo)
                                              token, NULL,
                                              magic, enc_version,
                                              random_key, worktree,
-                                             email, more_info, NULL);
+                                             email, more_info, &error);
+    if (error) {
+        seaf_warning ("Failed to clone repo %s: %s\n", repo_id, error->message);
+        g_clear_error (&error);
+    }
     g_free (ret);
     g_free (repo_id);
     g_free (repo_name);
