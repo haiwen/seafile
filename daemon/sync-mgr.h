@@ -35,6 +35,7 @@ struct _SyncInfo {
     gboolean   end_multipart_upload;
 
     gint       sync_perm_err_cnt;
+    gboolean   del_confirmation_pending;
 };
 
 enum {
@@ -128,6 +129,11 @@ seaf_sync_manager_cancel_sync_task (SeafSyncManager *mgr,
 SyncInfo *
 seaf_sync_manager_get_sync_info (SeafSyncManager *mgr,
                                  const char *repo_id);
+
+int
+seaf_sync_manager_add_del_confirmation (SeafSyncManager *mgr,
+                                        const char *confirmation_id,
+                                        gboolean resync);
 
 int
 seaf_sync_manager_disable_auto_sync (SeafSyncManager *mgr);

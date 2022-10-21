@@ -216,4 +216,7 @@ seafile_shutdown (GError **error);
 
 char*
 seafile_sync_error_id_to_str (int error_id, GError **error);
+
+int
+seafile_add_del_confirmation (const char *confirmation_id, int resync, GError **error);
 #endif

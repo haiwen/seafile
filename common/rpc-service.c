@@ -988,3 +988,9 @@ seafile_sync_error_id_to_str (int error_id, GError **error)
 {
     return g_strdup(sync_error_id_to_str (error_id));
 }
+
+int
+seafile_add_del_confirmation (const char *confirmation_id, int resync, GError **error)
+{
+    return seaf_sync_manager_add_del_confirmation (seaf->sync_mgr, confirmation_id, resync);
+}

@@ -348,6 +348,8 @@ out:
     g_key_file_free (key_file);
 }
 
+#define MAX_DELETED_FILES_NUM 500
+
 void
 seafile_session_prepare (SeafileSession *session)
 {
@@ -414,6 +416,10 @@ seafile_session_prepare (SeafileSession *session)
         session->http_proxy_password =
             seafile_session_config_get_string(session, KEY_PROXY_PASSWORD);
     }
+
+    session->delete_confirm_threshold = seafile_session_config_get_int (session, KEY_DELETE_CONFIRM_THRESHOLD, NULL);
+    if (session->delete_confirm_threshold <= 0)
+        session->delete_confirm_threshold = MAX_DELETED_FILES_NUM;
 
     int block_size = seafile_session_config_get_int(session, KEY_CDC_AVERAGE_BLOCK_SIZE, NULL);
     if (block_size >= 1024) {

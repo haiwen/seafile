@@ -37,6 +37,7 @@
 #define KEY_PROXY_PASSWORD "proxy_password"
 #define PROXY_TYPE_HTTP "http"
 #define PROXY_TYPE_SOCKS "socks"
+#define KEY_DELETE_CONFIRM_THRESHOLD "delete_confirm_threshold"
 
 gboolean
 seafile_session_config_exists (SeafileSession *session, const char *key);
