@@ -1306,14 +1306,13 @@ static void
 notify_delete_confirmation (const char *repo_name, const char *desc, const char *confirmation_id)
 {
     json_t *obj = json_object ();
-    json_object_set_string_member (obj, "type", "del_confirmation");
-    json_object_set_string_member (obj, "repo_name", json_string(repo_name));
-    json_object_set_string_member (obj, "delete_files", json_string(desc));
-    json_object_set_new (obj, "confirmation_id", json_string(confirmation_id));
+    json_object_set_string_member (obj, "repo_name", repo_name);
+    json_object_set_string_member (obj, "delete_files", desc);
+    json_object_set_string_member (obj, "confirmation_id", confirmation_id);
 
     char *msg = json_dumps (obj, JSON_COMPACT);
 
-    seaf_mq_manager_publish_notification (seaf->mq_mgr, "del_confirmation", msg);
+    seaf_mq_manager_publish_notification (seaf->mq_mgr, "sync.del_confirmation", msg);
 
     json_decref (obj);
     g_free (msg);
@@ -1354,6 +1353,51 @@ get_del_confirmation_result (const char *confirmation_id)
     pthread_mutex_unlock (&priv->del_confirmation_lock);
 
     return copy;
+}
+
+static void
+resync_repo (SeafRepo *repo)
+{
+    char *repo_id = g_strdup (repo->id);
+    int repo_version = repo->version;
+    char *repo_name = g_strdup (repo->name);
+    char *token = g_strdup (repo->token);
+    char *magic = g_strdup (repo->magic);
+    int enc_version = repo->enc_version;
+    char *random_key = g_strdup (repo->random_key);
+    char *worktree = g_strdup (repo->worktree);
+    char *email = g_strdup (repo->email);
+    char *more_info = NULL;
+    json_t *obj = json_object ();
+
+    json_object_set_int_member (obj, "is_readonly", repo->is_readonly);
+    json_object_set_string_member (obj, "repo_salt", repo->salt);
+    json_object_set_string_member (obj, "server_url", repo->server_url);
+
+    more_info = json_dumps (obj, 0);
+
+    if (repo->auto_sync && (repo->sync_interval == 0))
+        seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
+
+    seaf_sync_manager_cancel_sync_task (seaf->sync_mgr, repo->id);
+    seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
+
+    char *ret = seaf_clone_manager_add_task (seaf->clone_mgr, repo_id,
+                                             repo_version, repo_name,
+                                             token, NULL,
+                                             magic, enc_version,
+                                             random_key, worktree,
+                                             email, more_info, NULL);
+    g_free (ret);
+    g_free (repo_id);
+    g_free (repo_name);
+    g_free (token);
+    g_free (magic);
+    g_free (random_key);
+    g_free (worktree);
+    g_free (email);
+    json_decref (obj);
+    g_free (more_info);
 }
 
 static int
@@ -1414,9 +1458,10 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
                 } else if (result->resync) {
                     // User chooses to resync.
                     g_free (result);
+                    task->info->del_confirmation_pending = FALSE;
                     set_task_error (task, SYNC_ERROR_ID_DEL_CONFIRMATION_PENDING);
-                    // Delete this repo. It'll be re-synced when checking repo list next time.
-                    seaf_repo_manager_mark_repo_deleted (seaf->repo_mgr, repo);
+                    // Delete this repo and resync this repo by adding clone task.
+                    resync_repo (repo);
                     goto out;
                 }
                 // User chooes to continue syncing.
