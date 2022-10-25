@@ -1974,7 +1974,7 @@ int write_index(struct index_state *istate, int newfd)
     struct cache_entry **cache = istate->cache;
     int entries = istate->cache_nr;
     SeafStat st;
-    const char *name;
+    const char *prev_name;
     int ret = 0;
 
     memset (&info, 0, sizeof(info));
@@ -2007,10 +2007,10 @@ int write_index(struct index_state *istate, int newfd)
         if (ce->ce_flags & CE_REMOVE)
             continue;
         // skip duplicate cache.
-        if (name && g_strcmp0 (ce->name, name) ==0) {
+        if (prev_name && g_strcmp0 (ce->name, prev_name) ==0) {
             continue;
         }
-        name = ce->name;
+        prev_name = ce->name;
         /* if (!ce_uptodate(ce) && is_racy_timestamp(istate, ce)) */
         /*     ce_smudge_racily_clean_entry(ce); */
         if (ce_write_entry2(&info, newfd, ce) < 0) {
