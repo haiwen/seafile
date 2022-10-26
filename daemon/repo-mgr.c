@@ -4165,30 +4165,12 @@ seaf_repo_index_commit (SeafRepo *repo,
     if (!istate.cache_changed)
         goto out;
 
-    if (!is_initial_commit && !is_force_commit) {
-        new_root_id = commit_tree_from_changeset (changeset);
-        if (!new_root_id) {
-            seaf_warning ("Create commit tree failed for repo %s\n", repo->id);
-            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                         "Failed to generate commit");
-            goto out;
-        }
-    } else {
-        char hex[41];
-        struct cache_tree *it = cache_tree ();
-        if (cache_tree_update (repo->id, repo->version,
-                               repo->worktree,
-                               it, istate.cache,
-                               istate.cache_nr, 0, 0, commit_trees_cb) < 0) {
-            seaf_warning ("Failed to build cache tree");
-            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_INTERNAL,
-                         "Internal data structure error");
-            cache_tree_free (&it);
-            goto out;
-        }
-        rawdata_to_hex (it->sha1, hex, 20);
-        new_root_id = g_strdup(hex);
-        cache_tree_free (&it);
+    new_root_id = commit_tree_from_changeset (changeset);
+    if (!new_root_id) {
+        seaf_warning ("Create commit tree failed for repo %s\n", repo->id);
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Failed to generate commit");
+        goto out;
     }
 
     head = seaf_commit_manager_get_commit (seaf->commit_mgr,
