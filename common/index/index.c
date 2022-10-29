@@ -1974,7 +1974,7 @@ int write_index(struct index_state *istate, int newfd)
     struct cache_entry **cache = istate->cache;
     int entries = istate->cache_nr;
     SeafStat st;
-    const char *prev_name;
+    const char *prev_name = NULL;
     int ret = 0;
 
     memset (&info, 0, sizeof(info));
