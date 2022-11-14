@@ -3797,6 +3797,30 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
         WTEvent *copy = wt_event_new (event->ev_type, event->path, event->new_path);
         *event_list = g_list_prepend (*event_list, copy);
 
+#ifdef WIN32
+        // If a file or dir is moved, REMOVED and ADDED event will be emitted by the kernel.
+        // When the kernel first emits the REMOVED event of the file or dir, and then emits the ADDED event of the file or dir,
+        // it indicates that this is a move event.
+        if (next_event && event->ev_type == WT_EVENT_DELETE) {
+            char *event_base_name = g_path_get_basename (event->path);
+            char *next_event_base_name  = g_path_get_basename (next_event->path);
+            if (next_event->ev_type == WT_EVENT_CREATE_OR_UPDATE && g_strcmp0(event_base_name, next_event_base_name) == 0) {
+                WTEvent *new_event =  wt_event_new (WT_EVENT_RENAME, event->path, next_event->path);
+
+                pthread_mutex_lock (&status->q_lock);
+                next_event = g_queue_pop_head (status->event_q);
+                pthread_mutex_unlock (&status->q_lock);
+
+                wt_event_free (event);
+                wt_event_free (next_event);
+
+                event = new_event;
+            }
+            g_free (event_base_name);
+            g_free (next_event_base_name);
+        }
+#endif
+
         /* Scanned dirs list is used to avoid redundant scan of consecutive
            CREATE_OR_UPDATE events. When we see other events, we should
            clear the list. Otherwise in some cases we'll get wrong result.
