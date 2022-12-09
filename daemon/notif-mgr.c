@@ -835,9 +835,9 @@ notification_worker (void *vdata)
     }
 
     seaf_message ("Notification worker for server %s exiting.\n", server->server_url);
-    pthread_mutex_lock (&server->sub_lock);
+    pthread_mutex_lock (&seaf->notif_mgr->priv->server_lock);
     g_hash_table_remove (seaf->notif_mgr->priv->servers, server->server_url);
-    pthread_mutex_unlock (&server->sub_lock);
+    pthread_mutex_unlock (&seaf->notif_mgr->priv->server_lock);
     notif_server_unref (server);
 
     return 0;
