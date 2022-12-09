@@ -32,6 +32,7 @@
 #define MAX_RUNNING_SYNC_TASKS 5
 #define CHECK_LOCKED_FILES_INTERVAL 10 /* 10s */
 #define CHECK_FOLDER_PERMS_INTERVAL 30 /* 30s */
+#define JWT_TOKEN_EXPIRE_TIME 3*24*3600 /* 3 days */
 
 #define SYNC_PERM_ERROR_RETRY_TIME 2
 
@@ -2241,6 +2242,68 @@ print_active_paths (SeafSyncManager *mgr)
 }
 #endif
 
+static char *
+parse_jwt_token (const char *rsp_content, gint64 rsp_size)
+{
+    json_t *object = NULL;
+    json_error_t jerror;
+    const char *member = NULL;
+    char *jwt_token = NULL;
+
+    object = json_loadb (rsp_content, rsp_size, 0, &jerror);
+    if (!object) {
+        return NULL;
+    }
+
+    if (json_object_has_member (object, "jwt_token")) {
+        member = json_object_get_string_member (object, "jwt_token");
+        if (member)
+            jwt_token = g_strdup (member);
+    } else {
+        json_decref (object);
+        return NULL;
+    }
+
+    json_decref (object);
+    return jwt_token;
+}
+
+#define HTTP_FORBIDDEN 403
+#define HTTP_NOT_FOUND 404
+#define HTTP_SERVERR   500
+
+static void
+fileserver_get_jwt_token_cb (HttpAPIGetResult *result, void *user_data)
+{
+    char *repo_id = user_data;
+    SeafRepo *repo = NULL;
+    char *jwt_token = NULL;
+
+    if (result->http_status == HTTP_NOT_FOUND ||
+        result->http_status == HTTP_FORBIDDEN ||
+        result->http_status == HTTP_SERVERR) {
+        return;
+    }
+
+    if (!result->success) {
+        return;
+    }
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo)
+        return;
+
+    jwt_token = parse_jwt_token (result->rsp_content,result->rsp_size);
+    if (!jwt_token) {
+        seaf_warning ("Failed to parse jwt token for repo %s\n", repo->id);
+        return;
+    }
+    g_free (repo->jwt_token);
+    repo->jwt_token = jwt_token;
+
+    return;
+}
+
 inline static gboolean
 periodic_sync_due (SeafRepo *repo)
 {
@@ -2254,6 +2317,7 @@ auto_sync_pulse (void *vmanager)
     SeafSyncManager *manager = vmanager;
     GList *repos, *ptr;
     SeafRepo *repo;
+    char *url = NULL;
 
     repos = seaf_repo_manager_get_repo_list (manager->seaf->repo_mgr, -1, -1);
 
@@ -2321,12 +2385,13 @@ auto_sync_pulse (void *vmanager)
         if (!repo->head)
             continue;
 
+        gint64 now = (gint64)time(NULL);
+
 #if defined WIN32 || defined __APPLE__
         if (repo->version > 0) {
             if (repo->checking_locked_files)
                 continue;
 
-            gint64 now = (gint64)time(NULL);
             if (repo->last_check_locked_time == 0 ||
                 now - repo->last_check_locked_time >= CHECK_LOCKED_FILES_INTERVAL)
             {
@@ -2357,16 +2422,51 @@ auto_sync_pulse (void *vmanager)
             /* For repo version > 0, only use http sync. */
             if (check_http_protocol (manager, repo)) {
                 seaf_notif_manager_connect_server (seaf->notif_mgr, repo->server_url, repo->use_fileserver_port);
+
                 if (repo->sync_interval == 0) {
                     sync_repo_v2 (manager, repo, FALSE);
+                    if (now - repo->last_check_jwt_token > JWT_TOKEN_EXPIRE_TIME) {
+                        repo->last_check_jwt_token = now;
+                        if (!repo->use_fileserver_port)
+                            url = g_strdup_printf ("%s/seafhttp/repo/%s/jwt-token", repo->effective_host, repo->id);
+                        else
+                            url = g_strdup_printf ("%s/repo/%s/jwt-token", repo->effective_host, repo->id);
+
+                        http_tx_manager_fileserver_api_get (seaf->http_tx_mgr,
+                                                            repo->effective_host,
+                                                            url,
+                                                            repo->token,
+                                                            fileserver_get_jwt_token_cb,
+                                                            repo->id);
+                        g_free (url);
+                        continue;
+                    }
                     if (!seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo)) {
-                        seaf_notif_manager_subscribe_repo (seaf->notif_mgr, repo);
+                        if (repo->jwt_token)
+                            seaf_notif_manager_subscribe_repo (seaf->notif_mgr, repo);
                     }
                 }
                 else if (periodic_sync_due (repo)) {
                     sync_repo_v2 (manager, repo, TRUE);
+                    if (now - repo->last_check_jwt_token > JWT_TOKEN_EXPIRE_TIME) {
+                        repo->last_check_jwt_token = now;
+                        if (!repo->use_fileserver_port)
+                            url = g_strdup_printf ("%s/seafhttp/repo/%s/jwt-token", repo->effective_host, repo->id);
+                        else
+                            url = g_strdup_printf ("%s/repo/%s/jwt-token", repo->effective_host, repo->id);
+
+                        http_tx_manager_fileserver_api_get (seaf->http_tx_mgr,
+                                                            repo->effective_host,
+                                                            url,
+                                                            repo->token,
+                                                            fileserver_get_jwt_token_cb,
+                                                            repo->id);
+                        g_free (url);
+                        continue;
+                    }
                     if (!seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo)) {
-                        seaf_notif_manager_subscribe_repo (seaf->notif_mgr, repo);
+                        if (repo->jwt_token)
+                            seaf_notif_manager_subscribe_repo (seaf->notif_mgr, repo);
                     }
                 }
             }

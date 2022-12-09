@@ -2227,6 +2227,125 @@ out:
     return ret;
 }
 
+typedef struct {
+    char *host;
+    char *url;
+    char *api_token;
+    HttpAPIGetCallback callback;
+    void *user_data;
+
+    gboolean success;
+    char *rsp_content;
+    int rsp_size;
+    int error_code;
+    int http_status;
+} APIGetData;
+
+static void *
+fileserver_api_get_request (void *vdata)
+{
+    APIGetData *data = vdata;
+    HttpTxPriv *priv = seaf->http_tx_mgr->priv;
+    ConnectionPool *pool;
+    Connection *conn;
+    CURL *curl;
+    int status;
+    char *rsp_content = NULL;
+    gint64 rsp_size;
+
+
+    pool = find_connection_pool (priv, data->host);
+    if (!pool) {
+        seaf_warning ("Failed to create connection pool for host %s.\n", data->host);
+        return vdata;
+    }
+
+    conn = connection_pool_get_connection (pool);
+    if (!conn) {
+        seaf_warning ("Failed to get connection to host %s.\n", data->host);
+        return vdata;
+    }
+
+    curl = conn->curl;
+
+    int curl_error;
+    if (http_get (curl, data->url, data->api_token, &status, &rsp_content, &rsp_size, NULL, NULL,
+                  TRUE, &curl_error) < 0) {
+        conn->release = TRUE;
+        data->error_code = curl_error_to_http_task_error (curl_error);
+        goto out;
+    }
+
+    data->rsp_content = rsp_content;
+    data->rsp_size = rsp_size;
+
+    if (status == HTTP_OK) {
+        data->success = TRUE;
+    } else {
+        seaf_warning ("Bad response code for GET %s: %d.\n", data->url, status);
+        data->error_code = http_error_to_http_task_error (status);
+        data->http_status = status;
+    }
+
+out:
+    connection_pool_return_connection (pool, conn);
+    return vdata;
+
+}
+
+static void
+fileserver_api_get_request_done (void *vdata)
+{
+    APIGetData *data = vdata;
+    HttpAPIGetResult cb_data;
+
+    memset (&cb_data, 0, sizeof(cb_data));
+    cb_data.success = data->success;
+    cb_data.rsp_content = data->rsp_content;
+    cb_data.rsp_size = data->rsp_size;
+    cb_data.error_code = data->error_code;
+    cb_data.http_status = data->http_status;
+
+    data->callback (&cb_data, data->user_data);
+
+    g_free (data->rsp_content);
+    g_free (data->host);
+    g_free (data->url);
+    g_free (data->api_token);
+    g_free (data);
+}
+
+int
+http_tx_manager_fileserver_api_get  (HttpTxManager *manager,
+                                     const char *host,
+                                     const char *url,
+                                     const char *api_token,
+                                     HttpAPIGetCallback callback,
+                                     void *user_data)
+{
+    APIGetData *data = g_new0 (APIGetData, 1);
+
+    data->host = g_strdup(host);
+    data->url = g_strdup(url);
+    data->api_token = g_strdup(api_token);
+    data->callback = callback;
+    data->user_data = user_data;
+
+    if (seaf_job_manager_schedule_job (seaf->job_mgr,
+                                       fileserver_api_get_request,
+                                       fileserver_api_get_request_done,
+                                       data) < 0) {
+        g_free (data->rsp_content);
+        g_free (data->host);
+        g_free (data->url);
+        g_free (data->api_token);
+        g_free (data);
+        return -1;
+    }
+
+    return 0;
+}
+
 static char *
 repo_id_list_to_json (GList *repo_id_list)
 {

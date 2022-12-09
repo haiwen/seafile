@@ -260,6 +260,26 @@ http_tx_manager_unlock_file (HttpTxManager *manager,
                              const char *repo_id,
                              const char *path);
 
+struct _HttpAPIGetResult {
+    gboolean success;
+    char *rsp_content;
+    int rsp_size;
+    int error_code;
+    int http_status;
+};
+typedef struct _HttpAPIGetResult HttpAPIGetResult;
+
+typedef void (*HttpAPIGetCallback) (HttpAPIGetResult *result,
+                                    void *user_data);
+
+int
+http_tx_manager_fileserver_api_get  (HttpTxManager *manager,
+                                     const char *host,
+                                     const char *url,
+                                     const char *token,
+                                     HttpAPIGetCallback callback,
+                                     void *user_data);
+
 GHashTable *
 http_tx_manager_get_head_commit_ids (HttpTxManager *manager,
                                      const char *host,

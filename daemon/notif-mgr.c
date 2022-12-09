@@ -623,6 +623,52 @@ handle_folder_perm (json_t *content)
     return 0;
 }
 
+static int
+handle_jwt_expired (json_t *content)
+{
+    NotifServer *server = NULL;
+    json_t *member;
+    const char *repo_id;
+    SeafRepo *repo = NULL;
+    int ret = 0;
+
+    member = json_object_get (content, "repo_id");
+    if (!member) {
+        seaf_warning ("Invalid jwt expired notification: no repo_id.\n");
+        ret = -1;
+        goto out;
+    }
+    repo_id = json_string_value (member);
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo) {
+        ret = -1;
+        goto out;
+    }
+
+    if (!seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo)) {
+        ret = -1;
+        goto out;
+    }
+
+    server = get_notif_server (seaf->notif_mgr, repo->server_url);
+    if (!server || server->status != STATUS_CONNECTED) {
+        ret = -1;
+        goto out;
+    }
+
+    pthread_mutex_lock (&server->sub_lock);
+    g_hash_table_remove (server->subscriptions, repo->id);
+    pthread_mutex_unlock (&server->sub_lock);
+
+    // Set last_check_jwt_token to 0 to allow the repo to re-acquire a jwt token.
+    repo->last_check_jwt_token = 0;
+out:
+    notif_server_unref (server);
+
+    return ret;
+}
+
 static void
 handle_messages (const char *msg, size_t len)
 {
@@ -662,6 +708,10 @@ handle_messages (const char *msg, size_t len)
         }
     } else if (g_strcmp0 (type, "folder-perm-changed") == 0) {
         if (handle_folder_perm (content) < 0) {
+            goto out;
+        }
+    } else if (g_strcmp0 (type, "jwt-expired") == 0) {
+        if (handle_jwt_expired (content) < 0) {
             goto out;
         }
     }
@@ -817,7 +867,7 @@ seaf_notif_manager_subscribe_repo (SeafNotifManager *mgr, SeafRepo *repo)
 
     obj = json_object ();
     json_object_set_new (obj, "id", json_string(repo_id));
-    //TODO: "jwt_token" JWT token to authorize access to this repo
+    json_object_set_new (obj, "jwt_token", json_string(repo->jwt_token));
     json_array_append_new (array, obj);
 
     json_object_set_new (content, "repos", array);

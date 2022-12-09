@@ -70,6 +70,9 @@ struct _SeafRepo {
     gchar      *email;          /* email of the user on the relay */
     gchar      *token;          /* token for access this repo on server */
 
+    gchar      *jwt_token;
+    gint64     last_check_jwt_token;
+
     pthread_mutex_t lock;
 
     gboolean      worktree_invalid; /* true if worktree moved or deleted */
