@@ -45,6 +45,9 @@ struct _HttpServerState {
     char *effective_host;
     gboolean use_fileserver_port;
 
+    gboolean notif_server_checking;
+    gboolean notif_server_alive;
+
     gboolean folder_perms_not_supported;
     gint64 last_check_perms_time;
     gboolean checking_folder_perms;
@@ -1712,6 +1715,95 @@ check_http_protocol (SeafSyncManager *mgr, SeafRepo *repo)
     return FALSE;
 }
 
+static void
+check_notif_server_done (gboolean is_alive, void *user_data)
+{
+    HttpServerState *state = user_data;
+    
+    if (is_alive) {
+        state->notif_server_alive = TRUE;
+    }
+    state->notif_server_checking = FALSE;
+}
+
+static char *
+http_notification_url (const char *url)
+{
+    const char *host;
+    char *colon;
+    char *url_no_port;
+    char *ret = NULL;
+
+    /* Just return the url itself if it's invalid. */
+    if (strlen(url) <= strlen("http://"))
+        return g_strdup(url);
+
+    /* Skip protocol schem. */
+    host = url + strlen("http://");
+
+    colon = strrchr (host, ':');
+    if (colon) {
+        url_no_port = g_strndup(url, colon - url);
+        ret = g_strconcat(url_no_port, ":8083", NULL);
+        g_free (url_no_port);
+    } else {
+        ret = g_strconcat(url, ":8083", NULL);
+    }
+
+    return ret;
+}
+
+/*
+ * Returns TRUE if we're ready to use http-sync; otherwise FALSE.
+ */
+static gboolean
+check_notif_server (SeafSyncManager *mgr, SeafRepo *repo)
+{
+    if (!repo->server_url)
+        return FALSE;
+
+    HttpServerState *state = g_hash_table_lookup (mgr->http_server_states,
+                                                  repo->server_url);
+    if (!state) {
+        return FALSE;
+    }
+
+    if (state->notif_server_alive) {
+        return TRUE;
+    }
+
+    if (state->notif_server_checking) {
+        return FALSE;
+    }
+
+    gint64 now = time(NULL);
+    if (now - state->last_http_check_time < CHECK_HTTP_INTERVAL)
+        return FALSE;
+
+    char *notif_url = NULL;
+    if (state->use_fileserver_port) {
+        notif_url = http_notification_url (repo->server_url);
+    } else {
+        notif_url = g_strdup (repo->server_url);
+    }
+
+    state->last_http_check_time = (gint64)time(NULL);
+
+    if (http_tx_manager_check_notif_server (seaf->http_tx_mgr,
+                                            notif_url,
+                                            state->use_fileserver_port,
+                                            check_notif_server_done,
+                                            state) < 0) {
+        g_free (notif_url);
+        return FALSE;
+    }
+
+    state->notif_server_checking = TRUE;
+
+    g_free (notif_url);
+    return FALSE;
+}
+
 gint
 cmp_repos_by_sync_time (gconstpointer a, gconstpointer b, gpointer user_data)
 {
@@ -2421,7 +2513,9 @@ auto_sync_pulse (void *vmanager)
         if (repo->version > 0) {
             /* For repo version > 0, only use http sync. */
             if (check_http_protocol (manager, repo)) {
-                seaf_notif_manager_connect_server (seaf->notif_mgr, repo->server_url, repo->use_fileserver_port);
+                if (check_notif_server (manager, repo)) {
+                    seaf_notif_manager_connect_server (seaf->notif_mgr, repo->server_url, repo->use_fileserver_port);
+                }
 
                 if (repo->sync_interval == 0) {
                     sync_repo_v2 (manager, repo, FALSE);
