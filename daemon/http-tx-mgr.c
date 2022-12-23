@@ -2507,7 +2507,8 @@ GHashTable *
 http_tx_manager_get_head_commit_ids (HttpTxManager *manager,
                                      const char *host,
                                      gboolean use_fileserver_port,
-                                     GList *repo_id_list)
+                                     GList *repo_id_list,
+                                     int *ret_status)
 {
     HttpTxPriv *priv = seaf->http_tx_mgr->priv;
     ConnectionPool *pool;
@@ -2548,6 +2549,8 @@ http_tx_manager_get_head_commit_ids (HttpTxManager *manager,
         conn->release = TRUE;
         goto out;
     }
+
+    *ret_status = status;
 
     if (status != HTTP_OK) {
         seaf_warning ("Bad response code for POST %s: %d\n", url, status);

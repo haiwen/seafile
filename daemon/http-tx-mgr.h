@@ -295,7 +295,8 @@ GHashTable *
 http_tx_manager_get_head_commit_ids (HttpTxManager *manager,
                                      const char *host,
                                      gboolean use_fileserver_port,
-                                     GList *repo_id_list);
+                                     GList *repo_id_list,
+                                     int *ret_status);
 
 int
 http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id);

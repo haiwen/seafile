@@ -48,6 +48,8 @@ struct _HttpServerState {
     gboolean notif_server_checked;
     gboolean notif_server_alive;
 
+    gboolean server_disconnected;
+
     gboolean folder_perms_not_supported;
     gint64 last_check_perms_time;
     gboolean checking_folder_perms;
@@ -2355,6 +2357,9 @@ parse_jwt_token (const char *rsp_content, gint64 rsp_size)
 #define HTTP_FORBIDDEN 403
 #define HTTP_NOT_FOUND 404
 #define HTTP_SERVERR   500
+#define HTTP_SERVERR_BAD_GATEWAY    502
+#define HTTP_SERVERR_UNAVAILABLE    503
+#define HTTP_SERVERR_TIMEOUT        504
 
 static void
 fileserver_get_jwt_token_cb (HttpAPIGetResult *result, void *user_data)
@@ -3111,6 +3116,7 @@ update_head_commit_ids_for_server (gpointer key, gpointer value, gpointer user_d
 {
     char *server_url = key;
     HttpServerState *state = value;
+    int status = 200;
 
     /* Only get head commit ids from server if:
      * 1. syncing protocol version has been checked, and
@@ -3127,8 +3133,12 @@ update_head_commit_ids_for_server (gpointer key, gpointer value, gpointer user_d
         GHashTable *new_map = http_tx_manager_get_head_commit_ids (seaf->http_tx_mgr,
                                                                    state->effective_host,
                                                                    state->use_fileserver_port,
-                                                                   repo_id_list);
+                                                                   repo_id_list, &status);
         if (new_map) {
+            if (state->server_disconnected) {
+                seaf_sync_manager_check_locks_and_folder_perms (seaf->sync_mgr, server_url);
+            }
+            state->server_disconnected = FALSE;
             pthread_mutex_lock (&state->head_commit_map_lock);
             g_hash_table_destroy (state->head_commit_map);
             state->head_commit_map = new_map;
@@ -3136,6 +3146,12 @@ update_head_commit_ids_for_server (gpointer key, gpointer value, gpointer user_d
                 state->head_commit_map_init = TRUE;
             state->last_update_head_commit_map_time = (gint64)time(NULL);
             pthread_mutex_unlock (&state->head_commit_map_lock);
+        } else {
+            if (status == HTTP_SERVERR_BAD_GATEWAY ||
+                status == HTTP_SERVERR_UNAVAILABLE ||
+                status == HTTP_SERVERR_TIMEOUT) {
+                state->server_disconnected = TRUE;
+            }
         }
 
         g_list_free_full (repo_id_list, g_free);

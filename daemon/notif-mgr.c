@@ -944,10 +944,6 @@ seaf_notif_manager_unsubscribe_repo (SeafNotifManager *mgr, SeafRepo *repo)
 
     seaf_debug ("Successfully unsubscribe repo %s\n", repo_id);
 
-    // When no repo is subscribed on the server, we can disconnect from the server.
-    if (g_hash_table_size (server->subscriptions) == 0)
-        disconnect_server (server);
-
 out:
     g_free (str);
     json_decref (json_msg);
