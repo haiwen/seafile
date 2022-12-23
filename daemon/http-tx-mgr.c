@@ -1321,7 +1321,7 @@ http_tx_manager_check_protocol_version (HttpTxManager *manager,
 
 typedef struct {
     char *host;
-    gboolean use_fileserver_port;
+    gboolean use_notif_server_port;
     HttpNotifServerCallback callback;
     void *user_data;
 
@@ -1356,7 +1356,7 @@ check_notif_server_thread (void *vdata)
 
     curl = conn->curl;
 
-    if (!data->use_fileserver_port)
+    if (!data->use_notif_server_port)
         url = g_strdup_printf ("%s/notification/ping", data->host);
     else
         url = g_strdup_printf ("%s/ping", data->host);
@@ -1395,14 +1395,14 @@ check_notif_server_done (void *vdata)
 int
 http_tx_manager_check_notif_server (HttpTxManager *manager,
                                     const char *host,
-                                    gboolean use_fileserver_port,
+                                    gboolean use_notif_server_port,
                                     HttpNotifServerCallback callback,
                                     void *user_data)
 {
     CheckNotifServerData *data = g_new0 (CheckNotifServerData, 1);
 
     data->host = g_strdup(host);
-    data->use_fileserver_port = use_fileserver_port;
+    data->use_notif_server_port = use_notif_server_port;
     data->callback = callback;
     data->user_data = user_data;
 

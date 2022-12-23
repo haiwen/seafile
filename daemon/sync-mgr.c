@@ -45,7 +45,7 @@ struct _HttpServerState {
     char *effective_host;
     gboolean use_fileserver_port;
 
-    gboolean notif_server_checking;
+    gboolean notif_server_checked;
     gboolean notif_server_alive;
 
     gboolean folder_perms_not_supported;
@@ -1723,7 +1723,6 @@ check_notif_server_done (gboolean is_alive, void *user_data)
     if (is_alive) {
         state->notif_server_alive = TRUE;
     }
-    state->notif_server_checking = FALSE;
 }
 
 static char *
@@ -1753,9 +1752,8 @@ http_notification_url (const char *url)
     return ret;
 }
 
-/*
- * Returns TRUE if we're ready to use http-sync; otherwise FALSE.
- */
+// Returns TRUE if notification server is alive; otherwise FALSE.
+// We only check notification server once.
 static gboolean
 check_notif_server (SeafSyncManager *mgr, SeafRepo *repo)
 {
@@ -1772,13 +1770,9 @@ check_notif_server (SeafSyncManager *mgr, SeafRepo *repo)
         return TRUE;
     }
 
-    if (state->notif_server_checking) {
+    if (state->notif_server_checked) {
         return FALSE;
     }
-
-    gint64 now = time(NULL);
-    if (now - state->last_http_check_time < CHECK_HTTP_INTERVAL)
-        return FALSE;
 
     char *notif_url = NULL;
     if (state->use_fileserver_port) {
@@ -1786,8 +1780,6 @@ check_notif_server (SeafSyncManager *mgr, SeafRepo *repo)
     } else {
         notif_url = g_strdup (repo->server_url);
     }
-
-    state->last_http_check_time = (gint64)time(NULL);
 
     if (http_tx_manager_check_notif_server (seaf->http_tx_mgr,
                                             notif_url,
@@ -1798,7 +1790,7 @@ check_notif_server (SeafSyncManager *mgr, SeafRepo *repo)
         return FALSE;
     }
 
-    state->notif_server_checking = TRUE;
+    state->notif_server_checked = TRUE;
 
     g_free (notif_url);
     return FALSE;
