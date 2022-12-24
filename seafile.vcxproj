@@ -92,7 +92,7 @@
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>
       </SDLCheck>
-      <PreprocessorDefinitions>WIN32;UNICODE;WIN32_LEAN_AND_MEAN;SEAFILE_CLIENT;PACKAGE_VERSION="8.0.9";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;UNICODE;WIN32_LEAN_AND_MEAN;SEAFILE_CLIENT;PACKAGE_VERSION="8.0.10";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir)common;$(ProjectDir)lib;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -110,7 +110,7 @@
       <WarningLevel>Level1</WarningLevel>
       <SDLCheck>
       </SDLCheck>
-      <PreprocessorDefinitions>WIN32;UNICODE;WIN32_LEAN_AND_MEAN;SEAFILE_CLIENT;PACKAGE_VERSION="8.0.9";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;UNICODE;WIN32_LEAN_AND_MEAN;SEAFILE_CLIENT;PACKAGE_VERSION="8.0.10";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir)common;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir)lib;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -131,7 +131,7 @@
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <SDLCheck>
       </SDLCheck>
-      <PreprocessorDefinitions>WIN32;PACKAGE_VERSION="8.0.9";WIN32_LEAN_AND_MEAN;UNICODE;SEAFILE_CLIENT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;PACKAGE_VERSION="8.0.10";WIN32_LEAN_AND_MEAN;UNICODE;SEAFILE_CLIENT;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir);$(ProjectDir)daemon;$(ProjectDir)include;$(ProjectDir)lib;$(ProjectDir)common;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -158,7 +158,7 @@
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <SDLCheck>
       </SDLCheck>
-     <PreprocessorDefinitions>WIN32;PACKAGE_VERSION="8.0.9";WIN32_LEAN_AND_MEAN;UNICODE;SEAFILE_CLIENT;ENABLE_BREAKPAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+     <PreprocessorDefinitions>WIN32;PACKAGE_VERSION="8.0.10";WIN32_LEAN_AND_MEAN;UNICODE;SEAFILE_CLIENT;ENABLE_BREAKPAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir);$(ProjectDir)common;$(ProjectDir)lib;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir)..\breakpad\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
