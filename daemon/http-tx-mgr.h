@@ -147,6 +147,17 @@ http_tx_manager_check_protocol_version (HttpTxManager *manager,
                                         HttpProtocolVersionCallback callback,
                                         void *user_data);
 
+
+typedef void (*HttpNotifServerCallback) (gboolean is_alive,
+                                         void *user_data);
+
+int
+http_tx_manager_check_notif_server (HttpTxManager *manager,
+                                    const char *host,
+                                    gboolean use_fileserver_port,
+                                    HttpNotifServerCallback callback,
+                                    void *user_data);
+
 struct _HttpHeadCommit {
     gboolean check_success;
     gboolean is_corrupt;
@@ -260,11 +271,32 @@ http_tx_manager_unlock_file (HttpTxManager *manager,
                              const char *repo_id,
                              const char *path);
 
+struct _HttpAPIGetResult {
+    gboolean success;
+    char *rsp_content;
+    int rsp_size;
+    int error_code;
+    int http_status;
+};
+typedef struct _HttpAPIGetResult HttpAPIGetResult;
+
+typedef void (*HttpAPIGetCallback) (HttpAPIGetResult *result,
+                                    void *user_data);
+
+int
+http_tx_manager_fileserver_api_get  (HttpTxManager *manager,
+                                     const char *host,
+                                     const char *url,
+                                     const char *token,
+                                     HttpAPIGetCallback callback,
+                                     void *user_data);
+
 GHashTable *
 http_tx_manager_get_head_commit_ids (HttpTxManager *manager,
                                      const char *host,
                                      gboolean use_fileserver_port,
-                                     GList *repo_id_list);
+                                     GList *repo_id_list,
+                                     int *ret_status);
 
 int
 http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id);

@@ -18,6 +18,7 @@
 #include "sync-mgr.h"
 #include "wt-monitor.h"
 #include "mq-mgr.h"
+#include "notif-mgr.h"
 
 #include "http-tx-mgr.h"
 #include "filelock-mgr.h"
@@ -70,6 +71,8 @@ struct _SeafileSession {
     HttpTxManager       *http_tx_mgr;
 
     SeafFilelockManager *filelock_mgr;
+
+    SeafNotifManager    *notif_mgr;
 
     /* Set after all components are up and running. */
     gboolean             started;

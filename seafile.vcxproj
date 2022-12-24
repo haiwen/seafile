@@ -113,14 +113,14 @@
       <PreprocessorDefinitions>WIN32;UNICODE;WIN32_LEAN_AND_MEAN;SEAFILE_CLIENT;PACKAGE_VERSION="8.0.10";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir)common;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir)lib;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\libwebsockets\build\include;$(ProjectDir)..\libsearpc\lib;$(ProjectDir)common;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir)lib;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>DebugFastLink</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\libsearpc\$(IntDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;Rpcrt4.lib;Psapi.lib;Crypt32.lib;libsearpc.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\libsearpc\$(IntDir);$(ProjectDir)..\libwebsockets\build\lib\Debug\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>ws2_32.lib;Rpcrt4.lib;Psapi.lib;Crypt32.lib;libsearpc.lib;websockets.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -161,7 +161,7 @@
      <PreprocessorDefinitions>WIN32;PACKAGE_VERSION="8.0.10";WIN32_LEAN_AND_MEAN;UNICODE;SEAFILE_CLIENT;ENABLE_BREAKPAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir);$(ProjectDir)common;$(ProjectDir)lib;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir)..\breakpad\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir);$(ProjectDir)common;$(ProjectDir)lib;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir)..\breakpad\src;$(ProjectDir)..\libwebsockets\build\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
@@ -172,8 +172,8 @@
       <OptimizeReferences>
       </OptimizeReferences>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)..\libsearpc\$(IntDir);$(ProjectDir)..\breakpad\src\client\windows\Release\lib\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>ws2_32.lib;Psapi.lib;Rpcrt4.lib;Crypt32.lib;libsearpc.lib;common.lib;crash_generation_client.lib;exception_handler.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)..\libsearpc\$(IntDir);$(ProjectDir)..\breakpad\src\client\windows\Release\lib\;$(ProjectDir)..\libwebsockets\build\lib\Release\;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>ws2_32.lib;Psapi.lib;Rpcrt4.lib;Crypt32.lib;libsearpc.lib;common.lib;crash_generation_client.lib;exception_handler.lib;websockets.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <PerUserRedirection>false</PerUserRedirection>
     </Link>
   </ItemDefinitionGroup>
@@ -204,6 +204,7 @@
     <ClCompile Include="daemon\filelock-mgr.c" />
     <ClCompile Include="daemon\http-tx-mgr.c" />
     <ClCompile Include="daemon\job-mgr.c" />
+    <ClCompile Include="daemon\notif-mgr.c" />
     <ClCompile Include="daemon\repo-mgr.c" />
     <ClCompile Include="daemon\seaf-daemon.c" />
     <ClCompile Include="daemon\seafile-config.c" />
@@ -250,6 +251,7 @@
     <ClInclude Include="daemon\filelock-mgr.h" />
     <ClInclude Include="daemon\http-tx-mgr.h" />
     <ClInclude Include="daemon\job-mgr.h" />
+    <ClInclude Include="daemon\notif-mgr.h" />
     <ClInclude Include="daemon\repo-mgr.h" />
     <ClInclude Include="daemon\seafile-config.h" />
     <ClInclude Include="daemon\seafile-error-impl.h" />

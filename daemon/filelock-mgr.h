@@ -29,10 +29,22 @@ seaf_filelock_manager_is_file_locked (SeafFilelockManager *mgr,
                                       const char *repo_id,
                                       const char *path);
 
-#define FILE_NOT_LOCKED 0
-#define FILE_LOCKED_BY_OTHERS 1
-#define FILE_LOCKED_BY_ME_MANUAL 2
-#define FILE_LOCKED_BY_ME_AUTO 3
+typedef enum FileLockStatus {
+    FILE_NOT_LOCKED = 0,
+    FILE_LOCKED_BY_OTHERS,
+    FILE_LOCKED_BY_ME_MANUAL,
+    FILE_LOCKED_BY_ME_AUTO,
+} FileLockStatus;
+
+/* When a file is locked by me, it can have two reasons:
+ * - Locked by the user manually
+ * - Auto-Locked by Seafile when it detects Office opens the file.
+ */
+typedef enum FileLockType {
+    LOCKED_OTHERS = 0,
+    LOCKED_MANUAL,
+    LOCKED_AUTO,
+} FileLockType;
 
 int
 seaf_filelock_manager_get_lock_status (SeafFilelockManager *mgr,
@@ -78,7 +90,7 @@ int
 seaf_filelock_manager_mark_file_locked (SeafFilelockManager *mgr,
                                         const char *repo_id,
                                         const char *path,
-                                        gboolean is_auto_lock);
+                                        FileLockType type);
 
 int
 seaf_filelock_manager_mark_file_unlocked (SeafFilelockManager *mgr,
@@ -96,5 +108,16 @@ void file_lock_info_free (FileLockInfo *info);
 
 GList *
 seaf_filelock_manager_get_auto_locked_files (SeafFilelockManager *mgr);
+
+int
+seaf_filelock_manager_lock_file (SeafFilelockManager *mgr,
+                                 const char *repo_id,
+                                 const char *path,
+                                 FileLockType type);
+
+int
+seaf_filelock_manager_unlock_file (SeafFilelockManager *mgr,
+                                   const char *repo_id,
+                                   const char *path);
 
 #endif
