@@ -3135,6 +3135,9 @@ update_head_commit_ids_for_server (gpointer key, gpointer value, gpointer user_d
                                                                    state->use_fileserver_port,
                                                                    repo_id_list, &status);
         if (new_map) {
+            //If the fileserver hangs up before sending events to the notification server,
+            // the client will not receive the updates, and some updates will be lost.
+            // Therefore, after the fileserver recovers, immediately checking locks and folder perms.
             if (state->server_disconnected) {
                 seaf_sync_manager_check_locks_and_folder_perms (seaf->sync_mgr, server_url);
             }
