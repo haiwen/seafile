@@ -1275,7 +1275,7 @@ exceed_max_deleted_files (SeafRepo *repo)
         goto out;
     }
 
-    diff_commit_roots (repo->id, repo->version, master_head->root_id, local_head->root_id, &diff_results, TRUE);
+    diff_commit_roots (repo->id, repo->version, master_head->root_id, local_head->root_id, &diff_results, FALSE);
     if (!diff_results) {
         goto out;
     }
