@@ -1420,6 +1420,7 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
     SyncTask *task;
     int ret = 0;
     char *last_download = NULL;
+    SyncInfo *info = NULL;
 
     master = seaf_branch_manager_get_branch (seaf->branch_mgr, repo->id, "master");
     if (!master) {
@@ -1448,8 +1449,10 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
         goto out;
     }
 
+    info = get_sync_info (manager, repo->id);
+
     if (strcmp (master->commit_id, local->commit_id) != 0) {
-        if (is_manual_sync || can_schedule_repo (manager, repo)) {
+        if (is_manual_sync || can_schedule_repo (manager, repo) || info->del_confirmation_pending) {
             task = create_sync_task_v2 (manager, repo, is_manual_sync, FALSE);
             if (!task->info->del_confirmation_pending) {
                 char *desc = NULL;
