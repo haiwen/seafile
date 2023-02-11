@@ -1727,7 +1727,7 @@ check_notif_server_done (gboolean is_alive, void *user_data)
     
     if (is_alive) {
         state->notif_server_alive = TRUE;
-        seaf_message ("Notification server is enabled on the remote server.\n");
+        seaf_message ("Notification server is enabled on the remote server %s.\n", state->effective_host);
     }
 }
 
