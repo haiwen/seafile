@@ -69,6 +69,8 @@ struct _HttpServerState {
     pthread_mutex_t head_commit_map_lock;
     gboolean head_commit_map_init;
     gint64 last_update_head_commit_map_time;
+
+    gint64 n_jwt_token_request;
 };
 typedef struct _HttpServerState HttpServerState;
 
@@ -2365,35 +2367,47 @@ parse_jwt_token (const char *rsp_content, gint64 rsp_size)
 #define HTTP_SERVERR_UNAVAILABLE    503
 #define HTTP_SERVERR_TIMEOUT        504
 
+typedef struct _GetJwtTokenAux {
+    HttpServerState *state;
+    char *repo_id;
+} GetJwtTokenAux;
+
 static void
 fileserver_get_jwt_token_cb (HttpAPIGetResult *result, void *user_data)
 {
-    char *repo_id = user_data;
+    GetJwtTokenAux *aux = user_data;
+    HttpServerState *state = aux->state;
+    char *repo_id = aux->repo_id;
     SeafRepo *repo = NULL;
     char *jwt_token = NULL;
+
+    state->n_jwt_token_request--;
 
     if (result->http_status == HTTP_NOT_FOUND ||
         result->http_status == HTTP_FORBIDDEN ||
         result->http_status == HTTP_SERVERR) {
-        return;
+        goto out;
     }
 
     if (!result->success) {
-        return;
+        goto out;
     }
 
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo)
-        return;
+        goto out;
 
     jwt_token = parse_jwt_token (result->rsp_content,result->rsp_size);
     if (!jwt_token) {
         seaf_warning ("Failed to parse jwt token for repo %s\n", repo->id);
-        return;
+        goto out;
     }
     g_free (repo->jwt_token);
     repo->jwt_token = jwt_token;
 
+out:
+    g_free (aux->repo_id);
+    g_free (aux);
     return;
 }
 
@@ -2414,6 +2428,10 @@ check_and_subscribe_repo (SeafSyncManager *mgr, SeafRepo *repo)
         return 0;
     }
 
+    if (state->n_jwt_token_request > 10) {
+        return 0;
+    }
+
     gint64 now = (gint64)time(NULL);
     if (now - repo->last_check_jwt_token > JWT_TOKEN_EXPIRE_TIME) {
         repo->last_check_jwt_token = now;
@@ -2422,12 +2440,20 @@ check_and_subscribe_repo (SeafSyncManager *mgr, SeafRepo *repo)
         else
             url = g_strdup_printf ("%s/repo/%s/jwt-token", repo->effective_host, repo->id);
 
-        http_tx_manager_fileserver_api_get (seaf->http_tx_mgr,
+        state->n_jwt_token_request++;
+        GetJwtTokenAux *aux = g_new0 (GetJwtTokenAux, 1);
+        aux->repo_id = g_strdup (repo->id);
+        aux->state = state;
+        if (http_tx_manager_fileserver_api_get (seaf->http_tx_mgr,
                                             repo->effective_host,
                                             url,
                                             repo->token,
                                             fileserver_get_jwt_token_cb,
-                                            repo->id);
+                                            aux) < 0) {
+            g_free (aux->repo_id);
+            g_free (aux);
+            state->n_jwt_token_request--;
+        }
         g_free (url);
         return 0;
     }
