@@ -520,6 +520,10 @@ handle_file_lock (json_t *content)
             return -1;
         }
         lock_user = json_string_value (member);
+        // don't need to lock file when file has beed locked.\n
+        if (seaf_filelock_manager_get_lock_status (seaf->filelock_mgr, repo_id, path) != FILE_NOT_LOCKED) {
+            return 0;
+        }
 
         FileLockType type = LOCKED_OTHERS;
         if (g_strcmp0 (lock_user, repo->email) == 0)
@@ -527,6 +531,9 @@ handle_file_lock (json_t *content)
 
         seaf_filelock_manager_lock_file (seaf->filelock_mgr, repo_id, path, type);
     } else if (g_strcmp0 (change_event, "unlocked") == 0) {
+        if (seaf_filelock_manager_get_lock_status (seaf->filelock_mgr, repo_id, path) == FILE_NOT_LOCKED) {
+            return 0;
+        }
         seaf_filelock_manager_mark_file_unlocked (seaf->filelock_mgr, repo_id, path);
     }
 
