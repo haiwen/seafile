@@ -2093,8 +2093,10 @@ check_folder_permissions_one_server_immediately (SeafSyncManager *mgr,
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
 
+#if defined WIN32 || defined __APPLE__
         if (!force && seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo))
             continue;
+#endif
 
         if (!repo->head)
             continue;
@@ -2235,8 +2237,10 @@ check_locked_files_one_server_immediately (SeafSyncManager *mgr,
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
 
+#if defined WIN32 || defined __APPLE__
         if (!force && seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo))
             continue;
+#endif
 
         if (!repo->head)
             continue;
@@ -2421,6 +2425,7 @@ periodic_sync_due (SeafRepo *repo)
 static int
 check_and_subscribe_repo (SeafSyncManager *mgr, SeafRepo *repo)
 {
+#if defined WIN32 || defined __APPLE__
     char *url = NULL;
     HttpServerState *state = g_hash_table_lookup (mgr->http_server_states,
                                                   repo->server_url);
@@ -2461,6 +2466,7 @@ check_and_subscribe_repo (SeafSyncManager *mgr, SeafRepo *repo)
         if (repo->jwt_token)
             seaf_notif_manager_subscribe_repo (seaf->notif_mgr, repo);
     }
+#endif
 
     return 0;
 }
@@ -2574,9 +2580,11 @@ auto_sync_pulse (void *vmanager)
         if (repo->version > 0) {
             /* For repo version > 0, only use http sync. */
             if (check_http_protocol (manager, repo)) {
+#if defined WIN32 || defined __APPLE__
                 if (check_notif_server (manager, repo)) {
                     seaf_notif_manager_connect_server (seaf->notif_mgr, repo->server_url, repo->use_fileserver_port);
                 }
+#endif
 
                 if (repo->sync_interval == 0) {
                     sync_repo_v2 (manager, repo, FALSE);

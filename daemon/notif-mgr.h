@@ -1,4 +1,5 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+#if defined WIN32 || defined __APPLE__
 
 #ifndef NOTIF_MGR_H
 #define NOTIF_MGR_H
@@ -28,5 +29,7 @@ seaf_notif_manager_unsubscribe_repo (SeafNotifManager *mgr, SeafRepo *repo);
 
 gboolean
 seaf_notif_manager_is_repo_subscribed (SeafNotifManager *mgr, SeafRepo *repo);
+
+#endif
 
 #endif
