@@ -67,13 +67,7 @@
       <Directory Id='CommonAppDataFolder' Name='AllUsersHome'>
         <Directory Id='SeafileExtDir' Name='$(var.ExtName)'>
           <Component Id="seafile_ext" Guid="$(var.GuidOfShellExtComponent)">
-            <CreateFolder>
-              <!-- Set the permission of the SeafileExt folder. So,
-                   together with the MoveExtDll/MoveExtDll64 custom
-                   action, we can rename seafile shell ext dll to
-                   avoid "file in use" dialog. -->
-              <util:PermissionEx User="Users" GenericAll="yes" />
-            </CreateFolder>
+            <CreateFolder />
             <RemoveFolder Id="SeafileExtDir" On="uninstall" />
             <RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]"
                            Name="shellext" Type="integer" Value="1" KeyPath='yes' />
