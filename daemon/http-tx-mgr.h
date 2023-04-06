@@ -64,6 +64,11 @@ struct _HttpTxTask {
     char *passwd;
     char *worktree;
 
+    // for resync encrypted repo.
+    gboolean resync_enc_repo;
+    unsigned char *enc_key;   /* 256-bit encryption key */
+    unsigned char *enc_iv;
+
     int state;
     int runtime_state;
     int error;
@@ -109,6 +114,9 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               const char *server_head_id,
                               gboolean is_clone,
                               const char *passwd,
+                              gboolean resync_enc_repo,
+                              unsigned char *enc_key,
+                              unsigned char *enc_iv,
                               const char *worktree,
                               int protocol_version,
                               const char *email,

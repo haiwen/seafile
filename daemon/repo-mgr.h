@@ -282,6 +282,12 @@ seaf_repo_manager_set_repo_passwd (SeafRepoManager *manager,
                                    SeafRepo *repo,
                                    const char *passwd);
 
+int 
+seaf_repo_manager_set_repo_enc_info (SeafRepoManager *manager,
+                                     SeafRepo *repo,
+                                     unsigned char *enc_key,
+                                     unsigned char *enc_iv);
+
 int
 seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
                                             const char *old_server_url,

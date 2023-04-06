@@ -5848,7 +5848,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
             crypt = seafile_crypt_new (repo->enc_version,
                                        repo->enc_key,
                                        repo->enc_iv);
-        } else {
+        } else if (!http_task->resync_enc_repo){
             unsigned char enc_key[32], enc_iv[16];
             seafile_decrypt_repo_enc_key (remote_head->enc_version,
                                           passwd,
@@ -5857,6 +5857,10 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                                           enc_key, enc_iv);
             crypt = seafile_crypt_new (remote_head->enc_version,
                                        enc_key, enc_iv);
+        } else {
+            crypt = seafile_crypt_new (remote_head->enc_version,
+                                       http_task->enc_key,
+                                       http_task->enc_iv);
         }
     }
 
@@ -7292,6 +7296,31 @@ seaf_repo_manager_set_repo_passwd (SeafRepoManager *manager,
                                       repo->salt,
                                       repo->enc_key, repo->enc_iv) < 0)
         return -1;
+
+    pthread_mutex_lock (&manager->priv->db_lock);
+
+    ret = save_repo_enc_info (manager, repo);
+
+    pthread_mutex_unlock (&manager->priv->db_lock);
+
+    return ret;
+}
+
+int 
+seaf_repo_manager_set_repo_enc_info (SeafRepoManager *manager,
+                                     SeafRepo *repo,
+                                     unsigned char *enc_key,
+                                     unsigned char *enc_iv)
+{
+    int ret;
+
+    if (repo->enc_version == 1) {
+        memcpy (repo->enc_key, enc_key, 16);
+        memcpy (repo->enc_iv, enc_iv, 16);
+    } else if (repo->enc_version >= 2) {
+        memcpy (repo->enc_key, enc_key, 32);
+        memcpy (repo->enc_iv, enc_iv, 16);
+    }
 
     pthread_mutex_lock (&manager->priv->db_lock);
 
