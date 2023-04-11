@@ -1579,8 +1579,10 @@ add_file (const char *repo_id,
     if (!seaf->hide_windows_incompatible_path_notification &&
         check_path_ignore_on_windows (base_name)) {
 
-        send_file_sync_error_notification (repo_id, NULL, path,
-                                           SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
+        ce = index_name_exists (istate, path, strlen(path), 0);
+        if (!ce)
+            send_file_sync_error_notification (repo_id, NULL, path,
+                                               SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
     }
     g_free (base_name);
 #endif
@@ -1705,8 +1707,11 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     if (!seaf->hide_windows_incompatible_path_notification &&
         check_path_ignore_on_windows (base_name)) {
 
-        send_file_sync_error_notification (params->repo_id, NULL, path,
-                                           SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
+        struct cache_entry *ce = index_name_exists (params->istate, path,
+                                                    strlen(path), 0);
+        if (!ce)
+            send_file_sync_error_notification (params->repo_id, NULL, path,
+                                               SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
     }
     g_free (base_name);
 
