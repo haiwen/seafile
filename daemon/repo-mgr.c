@@ -1471,29 +1471,6 @@ out:
 
     return ret;
 }
-
-gboolean
-check_path_in_fs_tree (const char *repo_id, const char *path)
-{
-    SeafRepo *repo = NULL;
-    SeafDirent *dent = NULL;
-    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-    if (!repo) {
-        return FALSE;
-    }
-    dent = seaf_fs_manager_get_dirent_by_path (seaf->fs_mgr,
-                                               repo_id,
-                                               repo->version,
-                                               repo->root_id,
-                                               path,
-                                               NULL);
-    if (!dent) {
-        return FALSE;
-    }
-
-    seaf_dirent_free (dent);
-    return TRUE;
-}
 #endif
 
 static int
@@ -1602,7 +1579,8 @@ add_file (const char *repo_id,
     if (!seaf->hide_windows_incompatible_path_notification &&
         check_path_ignore_on_windows (base_name)) {
 
-        if (!check_path_in_fs_tree (repo_id, path))
+        ce = index_name_exists (istate, path, strlen(path), 0);
+        if (!ce)
             send_file_sync_error_notification (repo_id, NULL, path,
                                                SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
     }
@@ -1729,7 +1707,9 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     if (!seaf->hide_windows_incompatible_path_notification &&
         check_path_ignore_on_windows (base_name)) {
 
-        if (!check_path_in_fs_tree (params->repo_id, path))
+        struct cache_entry *ce = index_name_exists (params->istate, path,
+                                                    strlen(path), 0);
+        if (!ce)
             send_file_sync_error_notification (params->repo_id, NULL, path,
                                                SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS);
     }
