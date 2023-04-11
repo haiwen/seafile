@@ -592,7 +592,13 @@ transition_sync_state (SyncTask *task, int new_state)
          * Such file level errors are set with seaf_sync_manager_set_task_error_code().
          */
         if (new_state != SYNC_STATE_ERROR && task->error != SYNC_ERROR_ID_NO_ERROR
-            && task->error != SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS) {
+            && task->error != SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS
+            && task->error != SYNC_ERROR_ID_FILE_LOCKED_BY_APP
+            && task->error != SYNC_ERROR_ID_INDEX_ERROR
+            && task->error != SYNC_ERROR_ID_PATH_END_SPACE_PERIOD
+            && task->error != SYNC_ERROR_ID_PATH_INVALID_CHARACTER
+            && task->error != SYNC_ERROR_ID_UPDATE_TO_READ_ONLY_REPO
+            && task->error != SYNC_ERROR_ID_REMOVE_UNCOMMITTED_FOLDER) {
             new_state = SYNC_STATE_ERROR;
             seaf_message ("Repo '%s' sync is finished but with error: %s\n",
                           task->repo->name,
