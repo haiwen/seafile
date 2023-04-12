@@ -137,8 +137,8 @@ checkdir (const char *dir)
 int
 checkdir_with_mkdir (const char *dir)
 {
-#ifdef WIN32
     int ret;
+#ifdef WIN32
     char *path = g_strdup(dir);
     char *p = (char *)path + strlen(path) - 1;
     while (*p == '\\' || *p == '/') *p-- = '\0';
@@ -146,7 +146,10 @@ checkdir_with_mkdir (const char *dir)
     g_free (path);
     return ret;
 #else
-    return g_mkdir_with_parents(dir, 0755);
+    char *dir_nfd = g_utf8_normalize (dir, -1, G_NORMALIZE_NFD);
+    ret = g_mkdir_with_parents(dir_nfd, 0755);
+    g_free (dir_nfd);
+    return ret;
 #endif
 }
 
@@ -514,9 +517,9 @@ seaf_util_rmdir (const char *path)
 int
 seaf_util_mkdir (const char *path, mode_t mode)
 {
+    int ret = 0;
 #ifdef WIN32
     wchar_t *wpath = win32_long_path (path);
-    int ret = 0;
 
     if (!CreateDirectoryW (wpath, NULL)) {
         ret = -1;
@@ -526,7 +529,10 @@ seaf_util_mkdir (const char *path, mode_t mode)
     g_free (wpath);
     return ret;
 #else
-    return mkdir (path, mode);
+    char *path_nfd = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
+    ret = mkdir (path_nfd, mode);
+    g_free (path_nfd);
+    return ret;
 #endif
 }
 
@@ -607,10 +613,10 @@ seaf_util_create (const char *path, int flags, mode_t mode)
 int
 seaf_util_rename (const char *oldpath, const char *newpath)
 {
+    int ret = 0;
 #ifdef WIN32
     wchar_t *oldpathw = win32_long_path (oldpath);
     wchar_t *newpathw = win32_long_path (newpath);
-    int ret = 0;
 
     if (!MoveFileExW (oldpathw, newpathw, MOVEFILE_REPLACE_EXISTING)) {
         ret = -1;
@@ -621,7 +627,10 @@ seaf_util_rename (const char *oldpath, const char *newpath)
     g_free (newpathw);
     return ret;
 #else
-    return rename (oldpath, newpath);
+    char *newpath_nfd = g_utf8_normalize (newpath, -1, G_NORMALIZE_NFD);
+    ret = rename (oldpath, newpath_nfd);
+    g_free (newpath_nfd);
+    return ret;
 #endif
 }
 

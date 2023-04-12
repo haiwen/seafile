@@ -276,7 +276,7 @@ create_parent_path (const char *path)
         return 0;
     }
 
-    if (g_mkdir_with_parents (dir, 0777) < 0) {
+    if (checkdir_with_mkdir (dir) < 0) {
         seaf_warning ("Failed to create object parent path %s: %s.\n",
                       dir, strerror(errno));
         g_free (dir);
@@ -518,13 +518,13 @@ obj_backend_fs_new (const char *seaf_dir, const char *obj_type)
     priv->obj_dir = g_build_filename (seaf_dir, "storage", obj_type, NULL);
     priv->dir_len = strlen (priv->obj_dir);
 
-    if (g_mkdir_with_parents (priv->v0_obj_dir, 0777) < 0) {
+    if (checkdir_with_mkdir (priv->v0_obj_dir) < 0) {
         seaf_warning ("[Obj Backend] Objects dir %s does not exist and"
                    " is unable to create\n", priv->v0_obj_dir);
         goto onerror;
     }
 
-    if (g_mkdir_with_parents (priv->obj_dir, 0777) < 0) {
+    if (checkdir_with_mkdir (priv->obj_dir) < 0) {
         seaf_warning ("[Obj Backend] Objects dir %s does not exist and"
                    " is unable to create\n", priv->obj_dir);
         goto onerror;
