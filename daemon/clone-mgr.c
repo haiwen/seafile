@@ -68,12 +68,20 @@ mark_clone_done_v2 (SeafRepo *repo, CloneTask *task)
     seaf_branch_unref (local);
 
     if (repo->encrypted) {
-        if (seaf_repo_manager_set_repo_passwd (seaf->repo_mgr,
-                                               repo,
-                                               task->passwd) < 0) {
-            seaf_warning ("[Clone mgr] failed to set passwd for %s.\n", repo->id);
-            transition_to_error (task, SYNC_ERROR_ID_GENERAL_ERROR);
-            return;
+        if (!task->resync_enc_repo) {
+            if (seaf_repo_manager_set_repo_passwd (seaf->repo_mgr,
+                                                   repo,
+                                                   task->passwd) < 0) {
+                seaf_warning ("[Clone mgr] failed to set passwd for %s.\n", repo->id);
+                transition_to_error (task, SYNC_ERROR_ID_GENERAL_ERROR);
+                return;
+            }
+        } else {
+            if (seaf_repo_manager_load_repo_enc_info (seaf->repo_mgr, repo) < 0) {
+                seaf_warning ("[Clone mgr] failed to set enc info for %s.\n", repo->id);
+                transition_to_error (task, SYNC_ERROR_ID_GENERAL_ERROR);
+                return;
+            }
         }
     }
 
@@ -1020,6 +1028,8 @@ add_task_common (SeafCloneManager *mgr,
         json_t *repo_salt = json_object_get (object, "repo_salt");
         if (repo_salt)
             task->repo_salt = g_strdup (json_string_value (repo_salt));
+        integer = json_object_get (object, "resync_enc_repo");
+        task->resync_enc_repo = json_integer_value (integer);
         json_decref (object);
     }
 
@@ -1107,6 +1117,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     char *ret = NULL;
     gboolean sync_wt_name = FALSE;
     char *repo_salt = NULL;
+    gboolean resync_enc_repo = FALSE;
 
     if (!seaf->started) {
         seaf_message ("System not started, skip adding clone task.\n");
@@ -1134,6 +1145,8 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         json_t *string = json_object_get (object, "repo_salt");
         if (string)
             repo_salt = g_strdup (json_string_value (string));
+        json_t *integer = json_object_get (object, "resync_enc_repo");
+        resync_enc_repo = json_integer_value (integer);
         json_decref (object);
     }
 
@@ -1198,7 +1211,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         seaf_repo_manager_remove_garbage_repo (seaf->repo_mgr, repo_id);
 
     /* Delete orphan information in the db in case the repo was corrupt. */
-    if (!repo)
+    if (!repo && !resync_enc_repo)
         seaf_repo_manager_remove_repo_ondisk (seaf->repo_mgr, repo_id, FALSE);
 
     ret = add_task_common (mgr, repo_id, repo_version,
