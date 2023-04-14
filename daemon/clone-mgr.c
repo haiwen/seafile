@@ -121,7 +121,7 @@ start_clone_v2 (CloneTask *task)
     GError *error = NULL;
 
     if (g_access (task->worktree, F_OK) != 0 &&
-        g_mkdir_with_parents (task->worktree, 0777) < 0) {
+        checkdir_with_mkdir (task->worktree) < 0) {
         seaf_warning ("[clone mgr] Failed to create worktree %s.\n",
                       task->worktree);
         transition_to_error (task, SYNC_ERROR_ID_WRITE_LOCAL_DATA);

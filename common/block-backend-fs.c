@@ -148,7 +148,7 @@ create_parent_path (const char *path)
         return 0;
     }
 
-    if (g_mkdir_with_parents (dir, 0777) < 0) {
+    if (checkdir_with_mkdir (dir) < 0) {
         seaf_warning ("Failed to create object parent path: %s.\n", dir);
         g_free (dir);
         return -1;
@@ -472,13 +472,13 @@ block_backend_fs_new (const char *seaf_dir, const char *tmp_dir)
     priv->tmp_dir = g_strdup (tmp_dir);
     priv->tmp_dir_len = strlen (tmp_dir);
 
-    if (g_mkdir_with_parents (priv->block_dir, 0777) < 0) {
+    if (checkdir_with_mkdir (priv->block_dir) < 0) {
         seaf_warning ("Block dir %s does not exist and"
                    " is unable to create\n", priv->block_dir);
         goto onerror;
     }
 
-    if (g_mkdir_with_parents (tmp_dir, 0777) < 0) {
+    if (checkdir_with_mkdir (tmp_dir) < 0) {
         seaf_warning ("Blocks tmp dir %s does not exist and"
                    " is unable to create\n", tmp_dir);
         goto onerror;
