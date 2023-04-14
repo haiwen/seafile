@@ -5736,7 +5736,7 @@ load_enc_keys_cb (sqlite3_stmt *stmt, void *vcrypt)
 }
 
 static int
-load_enc_repo_password (SeafRepoManager *manager, const char *repo_id, SeafileCrypt *crypt)
+load_crypt_from_enc_info (SeafRepoManager *manager, const char *repo_id, SeafileCrypt *crypt)
 {
     sqlite3 *db = manager->priv->db;
     char sql[256];
@@ -5904,7 +5904,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
             // resync an encrypted repo, get key and iv from db. 
             crypt = g_new0 (SeafileCrypt, 1);
             crypt->version = remote_head->enc_version;
-            load_enc_repo_password (seaf->repo_mgr, repo_id, crypt);
+            load_crypt_from_enc_info (seaf->repo_mgr, repo_id, crypt);
         }
     }
 
