@@ -721,7 +721,6 @@ start_fetch_if_necessary (SyncTask *task, const char *remote_head)
                                       remote_head,
                                       FALSE,
                                       NULL,
-                                      FALSE, NULL, NULL,
                                       NULL,
                                       task->http_version,
                                       repo->email,
@@ -1382,13 +1381,15 @@ resync_repo (SeafRepo *repo)
     char *worktree = g_strdup (repo->worktree);
     char *email = g_strdup (repo->email);
     char *more_info = NULL;
+    gboolean is_encrypted = FALSE;
+    char key[65], iv[33];
     json_t *obj = json_object ();
 
     json_object_set_int_member (obj, "is_readonly", repo->is_readonly);
     json_object_set_string_member (obj, "repo_salt", repo->salt);
     json_object_set_string_member (obj, "server_url", repo->server_url);
     if (repo->encrypted) {
-        char key[65], iv[33];
+        is_encrypted = TRUE;
         if (repo->enc_version == 1) {
             rawdata_to_hex (repo->enc_key, key, 16);
             rawdata_to_hex (repo->enc_iv, iv, 16);
@@ -1397,8 +1398,6 @@ resync_repo (SeafRepo *repo)
             rawdata_to_hex (repo->enc_iv, iv, 16);
         }
         json_object_set_int_member (obj, "resync_enc_repo", TRUE);
-        json_object_set_string_member (obj, "repo_enc_key", key);
-        json_object_set_string_member (obj, "repo_enc_iv", iv);
     }
 
     more_info = json_dumps (obj, 0);
@@ -1407,6 +1406,10 @@ resync_repo (SeafRepo *repo)
         seaf_wt_monitor_unwatch_repo (seaf->wt_monitor, repo->id);
 
     seaf_repo_manager_del_repo (seaf->repo_mgr, repo);
+
+    if (is_encrypted) {
+        seaf_repo_manager_save_repo_enc_info (seaf->repo_mgr, repo_id, key, iv);
+    }
 
     char *ret = seaf_clone_manager_add_task (seaf->clone_mgr, repo_id,
                                              repo_version, repo_name,

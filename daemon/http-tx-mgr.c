@@ -4087,9 +4087,6 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               const char *server_head_id,
                               gboolean is_clone,
                               const char *passwd,
-                              gboolean resync_enc_repo,
-                              unsigned char *enc_key,
-                              unsigned char *enc_iv,
                               const char *worktree,
                               int protocol_version,
                               const char *email,
@@ -4150,12 +4147,6 @@ http_tx_manager_add_download (HttpTxManager *manager,
     task->blk_ref_cnts = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                 g_free, g_free);
     pthread_mutex_init (&task->ref_cnt_lock, NULL);
-
-    task->resync_enc_repo = resync_enc_repo;
-    if (task->resync_enc_repo) {
-        task->enc_key = enc_key;
-        task->enc_iv = enc_iv;
-    }
 
     g_hash_table_insert (manager->priv->download_tasks,
                          g_strdup(repo_id),

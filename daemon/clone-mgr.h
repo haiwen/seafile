@@ -47,8 +47,6 @@ struct _CloneTask {
     char                *repo_salt;
     char                *random_key;
     gboolean            resync_enc_repo;
-    unsigned char       enc_key[32];   /* 256-bit encryption key */
-    unsigned char       enc_iv[16];
     char                 root_id[41];
     gboolean             is_readonly;
     /* Set to true when the local folder name is the same as library name.

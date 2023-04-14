@@ -77,10 +77,7 @@ mark_clone_done_v2 (SeafRepo *repo, CloneTask *task)
                 return;
             }
         } else {
-            if (seaf_repo_manager_set_repo_enc_info (seaf->repo_mgr,
-                                                     repo,
-                                                     task->enc_key,
-                                                     task->enc_iv) < 0) {
+            if (seaf_repo_manager_load_repo_enc_info (seaf->repo_mgr, repo) < 0) {
                 seaf_warning ("[Clone mgr] failed to set enc info for %s.\n", repo->id);
                 transition_to_error (task, SYNC_ERROR_ID_GENERAL_ERROR);
                 return;
@@ -634,19 +631,6 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
         json_object_set_new (object, "is_readonly", json_integer (task->is_readonly));
         if (task->server_url)
             json_object_set_new (object, "server_url", json_string(task->server_url));
-        if (task->resync_enc_repo) {
-            json_object_set_new (object, "resync_enc_repo", json_integer(task->resync_enc_repo));
-            char key[65], iv[33];
-            if (task->enc_version == 1) {
-                rawdata_to_hex (task->enc_key, key, 16);
-                rawdata_to_hex (task->enc_iv, iv, 16);
-            } else if (task->enc_version >= 2) {
-                rawdata_to_hex (task->enc_key, key, 32);
-                rawdata_to_hex (task->enc_iv, iv, 16);
-            }
-            json_object_set_new (object, "repo_enc_key", json_string(key));
-            json_object_set_new (object, "repo_enc_iv", json_string(iv));
-        }
     
         info = json_dumps (object, 0);
         json_decref (object);
@@ -735,9 +719,6 @@ add_transfer_task (CloneTask *task, GError **error)
                                             task->server_head_id,
                                             TRUE,
                                             task->passwd,
-                                            task->resync_enc_repo,
-                                            task->enc_key,
-                                            task->enc_iv,
                                             task->worktree,
                                             task->http_protocol_version,
                                             task->email,
@@ -1049,20 +1030,6 @@ add_task_common (SeafCloneManager *mgr,
             task->repo_salt = g_strdup (json_string_value (repo_salt));
         integer = json_object_get (object, "resync_enc_repo");
         task->resync_enc_repo = json_integer_value (integer);
-        if (task->resync_enc_repo) {
-            const char *key, *iv;
-            json_t *key_string = json_object_get (object, "repo_enc_key");
-            json_t *iv_string = json_object_get (object, "repo_enc_iv");
-            key = json_string_value(key_string);
-            iv = json_string_value(iv_string);
-            if (enc_version == 1) {
-                hex_to_rawdata (key, task->enc_key, 16);
-                hex_to_rawdata (iv, task->enc_iv, 16);
-            } else if (enc_version >= 2) {
-                hex_to_rawdata (key, task->enc_key, 32);
-                hex_to_rawdata (iv, task->enc_iv, 16);
-            }
-        }
         json_decref (object);
     }
 
@@ -1150,6 +1117,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     char *ret = NULL;
     gboolean sync_wt_name = FALSE;
     char *repo_salt = NULL;
+    gboolean resync_enc_repo = FALSE;
 
     if (!seaf->started) {
         seaf_message ("System not started, skip adding clone task.\n");
@@ -1177,6 +1145,8 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         json_t *string = json_object_get (object, "repo_salt");
         if (string)
             repo_salt = g_strdup (json_string_value (string));
+        json_t *integer = json_object_get (object, "resync_enc_repo");
+        resync_enc_repo = json_integer_value (integer);
         json_decref (object);
     }
 
@@ -1241,7 +1211,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         seaf_repo_manager_remove_garbage_repo (seaf->repo_mgr, repo_id);
 
     /* Delete orphan information in the db in case the repo was corrupt. */
-    if (!repo)
+    if (!repo && !resync_enc_repo)
         seaf_repo_manager_remove_repo_ondisk (seaf->repo_mgr, repo_id, FALSE);
 
     ret = add_task_common (mgr, repo_id, repo_version,

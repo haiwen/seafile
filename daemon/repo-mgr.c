@@ -5715,6 +5715,49 @@ convert_rename_to_checkout (const char *repo_id,
 }
 #endif  /* WIN32 */
 
+static gboolean
+load_enc_keys_cb (sqlite3_stmt *stmt, void *vcrypt)
+{
+    SeafileCrypt *crypt = vcrypt;
+    const char *key, *iv;
+
+    key = (const char *)sqlite3_column_text(stmt, 0);
+    iv = (const char *)sqlite3_column_text(stmt, 1);
+
+    if (crypt->version == 1) {
+        hex_to_rawdata (key, crypt->key, 16);
+        hex_to_rawdata (iv, crypt->iv, 16);
+    } else if (crypt->version >= 2) {
+        hex_to_rawdata (key, crypt->key, 32);
+        hex_to_rawdata (iv, crypt->iv, 16);
+    }
+
+    return FALSE;
+}
+
+static int
+load_enc_repo_password (SeafRepoManager *manager, const char *repo_id, SeafileCrypt *crypt)
+{
+    sqlite3 *db = manager->priv->db;
+    char sql[256];
+    int n;
+
+    pthread_mutex_lock (&manager->priv->db_lock);
+
+    snprintf (sql, sizeof(sql), 
+              "SELECT key, iv FROM RepoKeys WHERE repo_id='%s'",
+              repo_id);
+    n = sqlite_foreach_selected_row (db, sql, load_enc_keys_cb, crypt);
+    if (n < 0) {
+        pthread_mutex_unlock (&manager->priv->db_lock);
+        return -1;
+    }
+
+    pthread_mutex_unlock (&manager->priv->db_lock);
+
+    return 0;
+}
+
 int
 seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
 {
@@ -5848,7 +5891,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
             crypt = seafile_crypt_new (repo->enc_version,
                                        repo->enc_key,
                                        repo->enc_iv);
-        } else if (!http_task->resync_enc_repo){
+        } else if (passwd){
             unsigned char enc_key[32], enc_iv[16];
             seafile_decrypt_repo_enc_key (remote_head->enc_version,
                                           passwd,
@@ -5858,9 +5901,10 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
             crypt = seafile_crypt_new (remote_head->enc_version,
                                        enc_key, enc_iv);
         } else {
-            crypt = seafile_crypt_new (remote_head->enc_version,
-                                       http_task->enc_key,
-                                       http_task->enc_iv);
+            // resync an encrypted repo, get key and iv from db. 
+            crypt = g_new0 (SeafileCrypt, 1);
+            crypt->version = remote_head->enc_version;
+            load_enc_repo_password (seaf->repo_mgr, repo_id, crypt);
         }
     }
 
@@ -7307,28 +7351,30 @@ seaf_repo_manager_set_repo_passwd (SeafRepoManager *manager,
 }
 
 int 
-seaf_repo_manager_set_repo_enc_info (SeafRepoManager *manager,
-                                     SeafRepo *repo,
-                                     unsigned char *enc_key,
-                                     unsigned char *enc_iv)
+seaf_repo_manager_save_repo_enc_info (SeafRepoManager *manager,
+                                      const char *repo_id,
+                                      const char *key,
+                                      const char *iv)
 {
-    int ret;
+    sqlite3 *db = manager->priv->db;
+    char sql[512];
 
-    if (repo->enc_version == 1) {
-        memcpy (repo->enc_key, enc_key, 16);
-        memcpy (repo->enc_iv, enc_iv, 16);
-    } else if (repo->enc_version >= 2) {
-        memcpy (repo->enc_key, enc_key, 32);
-        memcpy (repo->enc_iv, enc_iv, 16);
-    }
+    snprintf (sql, sizeof(sql), "REPLACE INTO RepoKeys VALUES ('%s', '%s', '%s')",
+              repo_id, key, iv);
+    if (sqlite_query_exec (db, sql) < 0)
+        return -1;
 
-    pthread_mutex_lock (&manager->priv->db_lock);
+    return 0;
+}
 
-    ret = save_repo_enc_info (manager, repo);
+int 
+seaf_repo_manager_load_repo_enc_info (SeafRepoManager *manager,
+                                      SeafRepo *repo)
+{
 
-    pthread_mutex_unlock (&manager->priv->db_lock);
+    load_repo_passwd (manager, repo);
 
-    return ret;
+    return 0;
 }
 
 GList*
