@@ -2,12 +2,18 @@ pcfiles = libseafile.pc
 pkgconfig_DATA = $(pcfiles)
 pkgconfigdir = $(libdir)/pkgconfig
 
-AM_CPPFLAGS = @GLIB2_CFLAGS@ -I$(top_srcdir)/include \
+AM_CFLAGS = @GLIB2_CFLAGS@ -I$(top_srcdir)/include \
 	-I$(top_srcdir)/lib \
 	-I$(top_srcdir)/common \
 	@SEARPC_CFLAGS@ \
 	@MSVC_CFLAGS@ \
 	-Wall
+
+if MACOS
+if COMPILE_UNIVERSAL
+AM_CFLAGS += -arch x86_64 -arch arm64
+endif
+endif
 
 BUILT_SOURCES = gensource
 
