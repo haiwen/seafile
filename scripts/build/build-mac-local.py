@@ -46,6 +46,7 @@ conf = {}
 CONF_VERSION            = 'version'
 CONF_NO_STRIP           = 'nostrip'
 CONF_BRAND              = 'brand'
+CONF_UNIVERSAL          = 'universal'
 
 NUM_CPU = multiprocessing.cpu_count()
 PID = os.getpid()
@@ -266,7 +267,7 @@ class Libsearpc(Project):
         Project.__init__(self)
         self.build_commands = [
             './autogen.sh',
-            './configure --prefix=%s --disable-compile-demo' % self.prefix,
+            './configure --prefix=%s --disable-compile-demo --enable-compile-universal=%s' % (self.prefix, conf[CONF_UNIVERSAL]),
             concurrent_make(),
             'make install'
         ]
@@ -277,7 +278,7 @@ class Seafile(Project):
         Project.__init__(self)
         self.build_commands = [
             './autogen.sh',
-            './configure --prefix=%s --disable-fuse' % self.prefix,
+            './configure --prefix=%s --disable-fuse --enable-compile-universal=%s' % (self.prefix, conf[CONF_UNIVERSAL]),
             concurrent_make(),
             'make install'
         ]
@@ -311,13 +312,22 @@ class SeafileClient(Project):
 
     def __init__(self):
         Project.__init__(self)
-        cmake_defines = {
-            'CMAKE_OSX_ARCHITECTURES': 'x86_64',
-            'CMAKE_OSX_DEPLOYMENT_TARGET': '10.9',
-            'CMAKE_BUILD_TYPE': 'Release',
-            'BUILD_SHIBBOLETH_SUPPORT': 'ON',
-            'BUILD_SPARKLE_SUPPORT': 'ON',
-        }
+        if conf[CONF_UNIVERSAL] == "yes":
+            cmake_defines = {
+                'CMAKE_OSX_ARCHITECTURES': '"x86_64;arm64"',
+                'CMAKE_OSX_DEPLOYMENT_TARGET': '10.14',
+                'CMAKE_BUILD_TYPE': 'Release',
+                'BUILD_SHIBBOLETH_SUPPORT': 'ON',
+                'BUILD_SPARKLE_SUPPORT': 'OFF',
+            }
+        else:
+            cmake_defines = {
+                'CMAKE_OSX_ARCHITECTURES': 'x86_64',
+                'CMAKE_OSX_DEPLOYMENT_TARGET': '10.14',
+                'CMAKE_BUILD_TYPE': 'Release',
+                'BUILD_SHIBBOLETH_SUPPORT': 'ON',
+                'BUILD_SPARKLE_SUPPORT': 'OFF',
+            }
         cmake_defines_formatted = ' '.join(['-D{}={}'.format(k, v) for k, v in cmake_defines.iteritems()])
         self.build_commands = [
             'rm -f CMakeCache.txt',
@@ -343,9 +353,14 @@ class SeafileFinderSyncPlugin(SeafileClient):
 
     def __init__(self):
         SeafileClient.__init__(self)
-        self.build_commands = [
-            'fsplugin/build.sh'
-        ]
+        if conf[CONF_UNIVERSAL]:
+            self.build_commands = [
+                'fsplugin/build.sh universal'
+            ]
+        else:
+            self.build_commands = [
+                'fsplugin/build.sh'
+            ]
 
 def prepare_builddir(builddir):
     must_mkdir(builddir)
@@ -379,6 +394,11 @@ def parse_args():
     parser.add_option(long_opt(CONF_BRAND),
                       dest=CONF_BRAND,
                       help='the brand')
+
+    parser.add_option(long_opt(CONF_UNIVERSAL),
+                      dest=CONF_UNIVERSAL,
+                      action='store_true',
+                      help='''compile universal''')
 
     usage = parser.format_help()
     options, remain = parser.parse_args()
@@ -416,9 +436,15 @@ def validate_args(usage, options):
 
     brand = get_option(CONF_BRAND)
 
+    universal = get_option(CONF_UNIVERSAL)
+
     conf[CONF_VERSION] = version
     conf[CONF_NO_STRIP] = nostrip
     conf[CONF_BRAND] = brand
+    if universal:
+        conf[CONF_UNIVERSAL] = "yes"
+    else:
+        conf[CONF_UNIVERSAL] = "no"
 
 def setup_build_env():
     '''Setup environment variables, such as export PATH=$BUILDDDIR/bin:$PATH'''
@@ -427,11 +453,11 @@ def setup_build_env():
     prefix = join(BUILDDIR, 'usr')
 
     prepend_env_value('CFLAGS',
-                      '-Wall -O2 -g -DNDEBUG -I/opt/local/include -mmacosx-version-min=10.7',
+                      '-Wall -O2 -g -DNDEBUG -I/opt/local/include -mmacosx-version-min=10.14',
                       seperator=' ')
 
     prepend_env_value('CXXFLAGS',
-                      '-Wall -O2 -g -DNDEBUG -I/opt/local/include -mmacosx-version-min=10.7',
+                      '-Wall -O2 -g -DNDEBUG -I/opt/local/include -mmacosx-version-min=10.14',
                       seperator=' ')
 
     prepend_env_value('CPPFLAGS',
@@ -456,7 +482,7 @@ def setup_build_env():
                       seperator=' ')
 
     prepend_env_value('LDFLAGS',
-                      '-L/opt/local/lib -Wl,-headerpad_max_install_names -mmacosx-version-min=10.7',
+                      '-L/opt/local/lib -Wl,-headerpad_max_install_names -mmacosx-version-min=10.14',
                       seperator=' ')
 
     prepend_env_value('PATH', join(prefix, 'bin'))
@@ -684,7 +710,7 @@ def sign_in_parallel(files_to_sign):
 def sign_files(appdir):
     webengine_app = join(
         appdir,
-        'Contents/Frameworks/QtWebEngineCore.framework/Versions/5/Helpers/QtWebEngineProcess.app'
+        'Contents/Frameworks/QtWebEngineCore.framework/Versions/Current/Helpers/QtWebEngineProcess.app'
     )
 
     def _glob(pattern, *a, **kw):
@@ -700,16 +726,16 @@ def sign_files(appdir):
         )
 
     # Strip the get-task-allow entitlements for Sparkle binaries
-    for fn in _glob('Contents/Frameworks/Sparkle.framework/Versions/A/Resources/Autoupdate.app/Contents/MacOS/*'):
-        do_sign(fn, preserve_entitlemenets=False)
+    #for fn in _glob('Contents/Frameworks/Sparkle.framework/Versions/A/Resources/Autoupdate.app/Contents/MacOS/*'):
+    #    do_sign(fn, preserve_entitlemenets=False)
 
     # Sign the nested contents of Sparkle before we sign
     # Sparkle.Framework in the thread pool.
-    for fn in (
-            'Contents/Frameworks/Sparkle.framework/Versions/A/Resources/Autoupdate.app',
-            'Contents/Frameworks/Sparkle.framework/Versions/A/Sparkle',
-    ):
-        do_sign(join(appdir, fn))
+    #for fn in (
+    #        'Contents/Frameworks/Sparkle.framework/Versions/A/Resources/Autoupdate.app',
+    #        'Contents/Frameworks/Sparkle.framework/Versions/A/Sparkle',
+    #):
+    #    do_sign(join(appdir, fn))
 
     patterns = [
         'Contents/Frameworks/*.framework',
@@ -840,7 +866,7 @@ def build_projects():
 
     seafile_client.build()
 
-    copy_sparkle_framework()
+    #copy_sparkle_framework()
 
     copy_shared_libs()
 
