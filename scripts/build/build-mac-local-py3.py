@@ -750,7 +750,7 @@ def sign_files(appdir):
     # for fn in files_to_sign:
     #     do_sign(fn)
 
-    do_sign(appdir)
+    do_sign(appdir, preserve_entitlemenets=False)
     # do_sign(appdir, extra_args=['--deep'])
 
 _keychain_unlocked = False
@@ -804,7 +804,7 @@ def copy_dmg():
 def notarize_dmg():
     pkg = os.path.join(BUILDDIR, 'app-{}.dmg'.format(conf[CONF_VERSION]))
     info('Try to notarize {}'.format(pkg))
-    notarize_script = join(Seafile().projdir, 'scripts/build/notarize.sh')
+    notarize_script = join(Seafile().projdir, 'scripts/build/notarize-universal.sh')
     cmdline = '{} {}'.format(notarize_script, pkg)
     ret = run(cmdline)
     if ret != 0:
