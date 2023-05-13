@@ -1,6 +1,12 @@
 AM_CPPFLAGS = -Wall -I${top_srcdir}/common -I${top_srcdir}/lib \
 	@MSVC_CFLAGS@
 
+if MACOS
+if COMPILE_UNIVERSAL
+AM_CPPFLAGS += -arch x86_64 -arch arm64
+endif
+endif
+
 noinst_LTLIBRARIES = libindex.la
 
 noinst_HEADERS = index.h cache-tree.h

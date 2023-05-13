@@ -6,7 +6,6 @@
 
 import atexit
 import logging
-import commands
 from contextlib import contextmanager
 import glob
 import multiprocessing
@@ -28,12 +27,6 @@ BUILDDIR = join(os.getcwd(), "../../../")
 ####################
 ### Requires Python 2.6+
 ####################
-if sys.version_info[0] == 3:
-    print 'Python 3 not supported yet. Quit now.'
-    sys.exit(1)
-if sys.version_info[1] < 6:
-    print 'Python 2.6 or above is required. Quit now.'
-    sys.exit(1)
 
 ####################
 ### Global variables
@@ -104,9 +97,9 @@ def find_in_path(prog):
 
 def error(msg=None, usage=None):
     if msg:
-        print highlight('[ERROR] ') + msg
+        print(highlight('[ERROR] {} ').format(msg))
     if usage:
-        print usage
+        print(usage)
     sys.exit(1)
 
 def run_argv(argv, cwd=None, env=None, suppress_stdout=False, suppress_stderr=False):
@@ -179,21 +172,21 @@ def must_mkdir(path):
     try:
         if not exists(path):
             os.mkdir(path)
-    except OSError, e:
+    except OSError as e:
         error('failed to create directory %s:%s' % (path, e))
 
 def must_copy(src, dst):
     '''Copy src to dst, exit on failure'''
     try:
         shutil.copy(src, dst)
-    except Exception, e:
+    except Exception as e:
         error('failed to copy %s to %s: %s' % (src, dst, e))
 
 def must_copytree(src, dst):
     '''Copy src tree to dst, exit on failure'''
     try:
         shutil.copytree(src, dst)
-    except Exception, e:
+    except Exception as e:
         error('failed to copy %s to %s: %s' % (src, dst, e))
 
 def check_project_version(version):
@@ -328,7 +321,7 @@ class SeafileClient(Project):
                 'BUILD_SHIBBOLETH_SUPPORT': 'ON',
                 'BUILD_SPARKLE_SUPPORT': 'OFF',
             }
-        cmake_defines_formatted = ' '.join(['-D{}={}'.format(k, v) for k, v in cmake_defines.iteritems()])
+        cmake_defines_formatted = ' '.join(['-D{}={}'.format(k, v) for k, v in cmake_defines.items()])
         self.build_commands = [
             'rm -f CMakeCache.txt',
             'cmake -GXcode {}'.format(cmake_defines_formatted),
@@ -498,7 +491,7 @@ def get_dependent_libs(executable):
             return True
         return False
 
-    otool_output = commands.getoutput('otool -L %s' % executable)
+    otool_output = subprocess.getoutput('otool -L %s' % executable)
     libs = set()
     for line in otool_output.splitlines():
         m = path_pattern.match(line)
@@ -560,7 +553,7 @@ def change_rpaths():
     RPATH_RE = re.compile(r'^path\s+(\S+)\s+\(offset .*$')
     def get_rpaths(fn):
         rpaths = []
-        output = commands.getoutput('otool -l {} | grep -A2 RPATH || true'.format(fn))
+        output = subprocess.getoutput('otool -l {} | grep -A2 RPATH || true'.format(fn))
         # The output is like
             #           cmd LC_RPATH
             #       cmdsize 24
@@ -668,8 +661,8 @@ def gen_dmg():
 
 def sign_in_parallel(files_to_sign):
     import threading
-    import Queue
-    queue = Queue.Queue()
+    import queue
+    queue = queue.Queue()
     POISON_PILL = ''
 
     class SignThread(threading.Thread):
@@ -682,7 +675,7 @@ def sign_in_parallel(files_to_sign):
             while True:
                 try:
                     fn = queue.get(timeout=1)
-                except Queue.Empty:
+                except queue.Empty:
                     continue
                 else:
                     if fn == POISON_PILL:
@@ -691,9 +684,9 @@ def sign_in_parallel(files_to_sign):
                         do_sign(fn)
             info('sign thread {} stopped'.format(self.index))
 
-    TOTAL_THREADS = max(NUM_CPU / 2, 1)
+    TOTAL_THREADS = int(max(NUM_CPU / 2, 1))
     threads = []
-    for i in xrange(TOTAL_THREADS):
+    for i in range(TOTAL_THREADS):
         t = SignThread(i)
         t.start()
         threads.append(t)
@@ -701,10 +694,10 @@ def sign_in_parallel(files_to_sign):
     for fn in files_to_sign:
         queue.put(fn)
 
-    for _ in xrange(TOTAL_THREADS):
+    for _ in range(TOTAL_THREADS):
         queue.put(POISON_PILL)
 
-    for i in xrange(TOTAL_THREADS):
+    for i in range(TOTAL_THREADS):
         threads[i].join()
 
 def sign_files(appdir):
@@ -726,8 +719,10 @@ def sign_files(appdir):
         )
 
     # Strip the get-task-allow entitlements for Sparkle binaries
+
     #for fn in _glob('Contents/Frameworks/Sparkle.framework/Versions/A/Resources/Autoupdate.app/Contents/MacOS/*'):
     #    do_sign(fn, preserve_entitlemenets=False)
+
 
     # Sign the nested contents of Sparkle before we sign
     # Sparkle.Framework in the thread pool.
@@ -801,10 +796,10 @@ def copy_dmg():
     # move msi to outputdir
     must_copy(src_dmg, dst_dmg)
 
-    print '---------------------------------------------'
-    print 'The build is successfully. Output is:'
-    print '>>\t%s' % dst_dmg
-    print '---------------------------------------------'
+    print ('---------------------------------------------')
+    print ('The build is successfully. Output is:')
+    print ('>>\t%s' % dst_dmg)
+    print ('---------------------------------------------')
 
 def notarize_dmg():
     pkg = os.path.join(BUILDDIR, 'app-{}.dmg'.format(conf[CONF_VERSION]))
