@@ -648,7 +648,7 @@ def gen_dmg():
 
         # Rename the .app dir to 'Seafile Client.app', and create the shortcut
         # to '/Applications' so the user can drag into it when opening the DMG.
-        brand = conf.get('CONF_BRAND', '')
+        brand = conf.get(CONF_BRAND, '')
         if brand:
             final_app = '{}.app'.format(brand)
         else:
