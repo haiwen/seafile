@@ -145,11 +145,13 @@ checkdir_with_mkdir (const char *dir)
     ret = g_mkdir_with_parents(path, 0755);
     g_free (path);
     return ret;
-#else
+#elif defined __APPLE__
     char *dir_nfd = g_utf8_normalize (dir, -1, G_NORMALIZE_NFD);
     ret = g_mkdir_with_parents(dir_nfd, 0755);
     g_free (dir_nfd);
     return ret;
+#else
+    return g_mkdir_with_parents(dir, 0755);
 #endif
 }
 
@@ -490,11 +492,13 @@ seaf_util_unlink (const char *path)
 
     g_free (wpath);
     return ret;
-#else
+#elif defined __APPLE__
     char *path_nfd = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
     ret = unlink (path_nfd);
     g_free (path_nfd);
     return ret;
+#else
+    return unlink (path);
 #endif
 }
 
@@ -512,11 +516,13 @@ seaf_util_rmdir (const char *path)
 
     g_free (wpath);
     return ret;
-#else
+#elif defined __APPLE__
     char *path_nfd = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
     ret = rmdir (path_nfd);
     g_free (path_nfd);
     return ret;
+#else
+    return rmdir (path);
 #endif
 }
 
@@ -534,11 +540,13 @@ seaf_util_mkdir (const char *path, mode_t mode)
 
     g_free (wpath);
     return ret;
-#else
+#elif defined __APPLE__
     char *path_nfd = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
     ret = mkdir (path_nfd, mode);
     g_free (path_nfd);
     return ret;
+#else
+    return mkdir (path, mode);
 #endif
 }
 
@@ -574,12 +582,14 @@ seaf_util_open (const char *path, int flags)
 
     g_free (wpath);
     return fd;
-#else
+#elif defined __APPLE__
     int ret = 0;
     char *path_nfd = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
     ret = open (path_nfd, flags);
     g_free (path_nfd);
     return ret;
+#else
+    return open (path, flags);
 #endif
 }
 
@@ -615,12 +625,14 @@ seaf_util_create (const char *path, int flags, mode_t mode)
 
     g_free (wpath);
     return fd;
-#else
+#elif defined __APPLE__
     int ret = 0;
     char *path_nfd = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
     ret = open (path_nfd, flags, mode);
     g_free (path_nfd);
     return ret;
+#else
+    return open (path, flags, mode);
 #endif
 }
 
@@ -640,13 +652,15 @@ seaf_util_rename (const char *oldpath, const char *newpath)
     g_free (oldpathw);
     g_free (newpathw);
     return ret;
-#else
+#elif defined __APPLE__
     char *oldpath_nfd = g_utf8_normalize (oldpath, -1, G_NORMALIZE_NFD);
     char *newpath_nfd = g_utf8_normalize (newpath, -1, G_NORMALIZE_NFD);
     ret = rename (oldpath_nfd, newpath_nfd);
     g_free (oldpath_nfd);
     g_free (newpath_nfd);
     return ret;
+#else
+    return rename (oldpath, newpath);
 #endif
 }
 
@@ -663,12 +677,14 @@ seaf_util_exists (const char *path)
 
     g_free (wpath);
     return ret;
-#else
+#elif defined __APPLE__
     int ret = 0;
     char *path_nfd = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
     ret = access (path_nfd, F_OK);
     g_free (path_nfd);
     return (ret == 0);
+#else
+    return (access (path, F_OK) == 0);
 #endif
 }
 
