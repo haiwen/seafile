@@ -63,6 +63,7 @@
 #define SYNC_ERROR_ID_INVALID_PATH_ON_WINDOWS   31
 #define SYNC_ERROR_ID_LIBRARY_TOO_LARGE         32
 #define SYNC_ERROR_ID_DEL_CONFIRMATION_PENDING  33
-#define N_SYNC_ERROR_ID                         34
+#define SYNC_ERROR_ID_TOO_MANY_FILES            34
+#define N_SYNC_ERROR_ID                         35
 
 #endif

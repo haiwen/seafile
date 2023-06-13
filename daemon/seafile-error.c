@@ -179,6 +179,11 @@ static SyncErrorInfo sync_error_info_tbl[] = {
         SYNC_ERROR_LEVEL_REPO,
         "Waiting for confirmation to delete files"
     },
+    {
+        SYNC_ERROR_ID_TOO_MANY_FILES,
+        SYNC_ERROR_LEVEL_REPO,
+        "Too many files in library"
+    },
 };
 
 const char *

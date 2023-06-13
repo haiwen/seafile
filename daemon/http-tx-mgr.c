@@ -100,6 +100,7 @@ struct _HttpTxPriv {
     /* Regex to parse error message returned by update-branch. */
     GRegex *locked_error_regex;
     GRegex *folder_perm_error_regex;
+    GRegex *too_many_files_error_regex;
 };
 typedef struct _HttpTxPriv HttpTxPriv;
 
@@ -272,6 +273,7 @@ connection_pool_return_connection (ConnectionPool *pool, Connection *conn)
 
 #define LOCKED_ERROR_PATTERN "File (.+) is locked"
 #define FOLDER_PERM_ERROR_PATTERN "Update to path (.+) is not allowed by folder permission settings"
+#define TOO_MANY_FILES_ERROR_PATTERN "Too many files in library"
 
 HttpTxManager *
 http_tx_manager_new (struct _SeafileSession *seaf)
@@ -303,6 +305,12 @@ http_tx_manager_new (struct _SeafileSession *seaf)
     priv->folder_perm_error_regex = g_regex_new (FOLDER_PERM_ERROR_PATTERN, 0, 0, &error);
     if (error) {
         seaf_warning ("Failed to create regex '%s': %s\n", FOLDER_PERM_ERROR_PATTERN, error->message);
+        g_clear_error (&error);
+    }
+
+    priv->too_many_files_error_regex = g_regex_new (TOO_MANY_FILES_ERROR_PATTERN, 0, 0, &error);
+    if (error) {
+        seaf_warning ("Failed to create regex '%s': %s\n", TOO_MANY_FILES_ERROR_PATTERN, error->message);
         g_clear_error (&error);
     }
 
@@ -3767,6 +3775,8 @@ notify_permission_error (HttpTxTask *task, const char *error_str)
         g_free (path);
 
         task->error = SYNC_ERROR_ID_FOLDER_PERM_DENIED;
+    } else if (g_regex_match (priv->too_many_files_error_regex, error_str, 0, &match_info)) {
+        task->error = SYNC_ERROR_ID_TOO_MANY_FILES;
     }
 
     g_match_info_free (match_info);
