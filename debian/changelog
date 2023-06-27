@@ -1,3 +1,8 @@
+seafile-daemon (9.0.3) unstable; urgency=low
+
+  * new upstream release
+
+ -- Jonathan Xu <jonathan.xu@seafile.com>  Tue, 27 Jun  2023 17:29:54 +0800
 seafile-daemon (9.0.2-1) unstable; urgency=low
 
   * new upstream release
