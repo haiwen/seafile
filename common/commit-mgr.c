@@ -636,6 +636,8 @@ commit_to_json_object (SeafCommit *commit)
             json_object_set_string_member (object, "key", commit->random_key);
         if (commit->enc_version >= 3)
             json_object_set_string_member (object, "salt", commit->salt);
+        if (commit->enc_version >= 5)
+            json_object_set_int_member (object, "key_iter", commit->key_iter);
     }
     if (commit->no_local_history)
         json_object_set_int_member (object, "no_local_history", 1);
@@ -672,6 +674,7 @@ commit_from_json_object (const char *commit_id, json_t *object)
     const char *magic = NULL;
     const char *random_key = NULL;
     const char *salt = NULL;
+    int key_iter;
     int no_local_history = 0;
     int version = 0;
     int conflict = 0, new_merge = 0;
@@ -712,6 +715,8 @@ commit_from_json_object (const char *commit_id, json_t *object)
         random_key = json_object_get_string_member (object, "key");
     if (enc_version >= 3)
         salt = json_object_get_string_member (object, "salt");
+    if (enc_version >= 5)
+        key_iter = json_object_get_int_member (object, "key_iter");
 
     if (json_object_has_member (object, "no_local_history"))
         no_local_history = json_object_get_int_member (object, "no_local_history");
@@ -765,6 +770,16 @@ commit_from_json_object (const char *commit_id, json_t *object)
         if (!salt || strlen(salt) != 64)
             return NULL;
         break;
+    case 5:
+        if (!magic || strlen(magic) != 64)
+            return NULL;
+        if (!random_key || strlen(random_key) != 96)
+            return NULL;
+        if (!salt || strlen(salt) != 64)
+            return NULL;
+        if (key_iter <= 0)
+            return NULL;
+        break;
     default:
         seaf_warning ("Unknown encryption version %d.\n", enc_version);
         return NULL;
@@ -797,6 +812,8 @@ commit_from_json_object (const char *commit_id, json_t *object)
             commit->random_key = g_strdup (random_key);
         if (enc_version >= 3)
             commit->salt = g_strdup(salt);
+        if (enc_version >= 5)
+            commit->key_iter = key_iter;
     }
     if (no_local_history)
         commit->no_local_history = TRUE;

@@ -1397,6 +1397,7 @@ resync_repo (SeafRepo *repo)
             rawdata_to_hex (repo->enc_iv, iv, 16);
         }
         json_object_set_int_member (obj, "resync_enc_repo", TRUE);
+        json_object_set_int_member (obj, "key_iter", repo->key_iter);
     }
 
     more_info = json_dumps (obj, 0);

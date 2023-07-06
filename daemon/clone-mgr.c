@@ -631,6 +631,7 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
         json_object_set_new (object, "is_readonly", json_integer (task->is_readonly));
         if (task->server_url)
             json_object_set_new (object, "server_url", json_string(task->server_url));
+        json_object_set_new (object, "key_iter", json_integer (task->key_iter));
     
         info = json_dumps (object, 0);
         json_decref (object);
@@ -1030,6 +1031,8 @@ add_task_common (SeafCloneManager *mgr,
             task->repo_salt = g_strdup (json_string_value (repo_salt));
         integer = json_object_get (object, "resync_enc_repo");
         task->resync_enc_repo = json_integer_value (integer);
+        integer = json_object_get (object, "key_iter");
+        task->key_iter = json_integer_value (integer);
         json_decref (object);
     }
 
@@ -1056,7 +1059,7 @@ add_task_common (SeafCloneManager *mgr,
 
 static gboolean
 check_encryption_args (const char *magic, int enc_version, const char *random_key,
-                       const char *repo_salt,
+                       const char *repo_salt, int key_iter,
                        GError **error)
 {
     if (!magic) {
@@ -1065,7 +1068,7 @@ check_encryption_args (const char *magic, int enc_version, const char *random_ke
         return FALSE;
     }
 
-    if (enc_version != 1 && enc_version != 2 && enc_version != 3 && enc_version != 4) {
+    if (enc_version != 1 && enc_version != 2 && enc_version != 3 && enc_version != 4 && enc_version != 5) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                      "Unsupported enc version");
         return FALSE;
@@ -1080,6 +1083,11 @@ check_encryption_args (const char *magic, int enc_version, const char *random_ke
         if (enc_version >= 3 && (!(repo_salt) || strlen(repo_salt) != 64) ) {
             g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
                          "Repo salt not specified");
+            return FALSE;
+        }
+        if (enc_version >= 5 && key_iter <= 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                         "Repo key iteration times not specified");
             return FALSE;
         }
     }
@@ -1117,6 +1125,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     char *ret = NULL;
     gboolean sync_wt_name = FALSE;
     char *repo_salt = NULL;
+    int key_iter;
     gboolean resync_enc_repo = FALSE;
 
     if (!seaf->started) {
@@ -1147,11 +1156,13 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
             repo_salt = g_strdup (json_string_value (string));
         json_t *integer = json_object_get (object, "resync_enc_repo");
         resync_enc_repo = json_integer_value (integer);
+        integer = json_object_get (object, "key_iter");
+        key_iter = json_integer_value (integer);
         json_decref (object);
     }
 
     if (passwd &&
-        !check_encryption_args (magic, enc_version, random_key, repo_salt, error)) {
+        !check_encryption_args (magic, enc_version, random_key, repo_salt, key_iter, error)) {
         goto out;
     }
     /* After a repo was unsynced, the sync task may still be blocked in the
@@ -1181,7 +1192,7 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     }
 
     if (passwd &&
-        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version, repo_salt) < 0) {
+        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version, repo_salt, key_iter) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Incorrect password");
         goto out;
@@ -1269,6 +1280,7 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
     char *worktree = NULL;
     char *ret = NULL;
     char *repo_salt = NULL;
+    int key_iter;
 
     if (!seaf->started) {
         seaf_message ("System not started, skip adding clone task.\n");
@@ -1296,11 +1308,13 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
          json_t *string = json_object_get (object, "repo_salt");
          if (string)
              repo_salt = g_strdup (json_string_value (string));
-         json_decref (object);
+        json_t *integer = json_object_get (object, "key_iter");
+        key_iter = json_integer_value (integer);
+        json_decref (object);
      }
 
     if (passwd &&
-        !check_encryption_args (magic, enc_version, random_key, repo_salt, error)) {
+        !check_encryption_args (magic, enc_version, random_key, repo_salt, key_iter, error)) {
         goto out;
     }
 
@@ -1331,7 +1345,7 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
     }
 
     if (passwd &&
-        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version, repo_salt) < 0) {
+        seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version, repo_salt, key_iter) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Incorrect password");
         goto out;

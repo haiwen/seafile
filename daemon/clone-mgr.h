@@ -47,6 +47,7 @@ struct _CloneTask {
     char                *repo_salt;
     char                *random_key;
     gboolean            resync_enc_repo;
+    int                  key_iter;
     char                 root_id[41];
     gboolean             is_readonly;
     /* Set to true when the local folder name is the same as library name.
