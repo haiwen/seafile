@@ -623,7 +623,7 @@ handle_folder_perm (json_t *content)
                                                   perm);
         else if (g_strcmp0 (change_event, "del") == 0)
             seaf_repo_manager_delete_folder_perm (seaf->repo_mgr, repo_id,
-                                                  FOLDER_PERM_TYPE_USER,
+                                                  FOLDER_PERM_TYPE_GROUP,
                                                   perm);
     }
     g_free (perm);
