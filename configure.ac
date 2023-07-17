@@ -188,17 +188,15 @@ PKG_CHECK_MODULES(CURL, [libcurl >= $CURL_REQUIRED])
 AC_SUBST(CURL_CFLAGS)
 AC_SUBST(CURL_LIBS)
 
+PKG_CHECK_MODULES(WS, [libwebsockets])
+AC_SUBST(WS_CFLAGS)
+AC_SUBST(WS_LIBS)
+
 if test "$bwin32" != true; then
 # do not check libevent_pthreads in win32
 PKG_CHECK_MODULES(LIBEVENT_PTHREADS, [libevent_pthreads >= $LIBEVENT_PTHREADS_REQUIRED])
 AC_SUBST(LIBEVENT_PTHREADS_CFLAGS)
 AC_SUBST(LIBEVENT_PTHREADS_LIBS)
-fi
-
-if test "$blinux" != true; then
-    PKG_CHECK_MODULES(WS, [libwebsockets])
-    AC_SUBST(WS_CFLAGS)
-    AC_SUBST(WS_LIBS)
 fi
 
 AC_ARG_WITH([python3], [AS_HELP_STRING([--with-python3], [use python3])],

@@ -1,5 +1,4 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-#if defined WIN32 || defined __APPLE__
 
 #include "common.h"
 #include <libwebsockets.h>
@@ -974,5 +973,3 @@ out:
     notif_server_unref (server);
     return subscribed;
 }
-
-#endif
