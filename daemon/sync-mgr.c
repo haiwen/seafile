@@ -1777,6 +1777,7 @@ http_notification_url (const char *url)
     return ret;
 }
 
+#ifdef COMPILE_WS
 // Returns TRUE if notification server is alive; otherwise FALSE.
 // We only check notification server once.
 static gboolean
@@ -1820,6 +1821,7 @@ check_notif_server (SeafSyncManager *mgr, SeafRepo *repo)
     g_free (notif_url);
     return FALSE;
 }
+#endif
 
 gint
 cmp_repos_by_sync_time (gconstpointer a, gconstpointer b, gpointer user_data)
@@ -2110,8 +2112,10 @@ check_folder_permissions_one_server_immediately (SeafSyncManager *mgr,
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
 
+#ifdef COMPILE_WS
         if (!force && seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo))
             continue;
+#endif
 
         if (!repo->head)
             continue;
@@ -2252,8 +2256,10 @@ check_locked_files_one_server_immediately (SeafSyncManager *mgr,
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
 
+#ifdef COMPILE_WS
         if (!force && seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo))
             continue;
+#endif
 
         if (!repo->head)
             continue;
@@ -2435,6 +2441,7 @@ periodic_sync_due (SeafRepo *repo)
     return (now > (repo->last_sync_time + repo->sync_interval));
 }
 
+#ifdef COMPILE_WS
 static int
 check_and_subscribe_repo (SeafSyncManager *mgr, SeafRepo *repo)
 {
@@ -2481,6 +2488,7 @@ check_and_subscribe_repo (SeafSyncManager *mgr, SeafRepo *repo)
 
     return 0;
 }
+#endif
 
 static int
 auto_sync_pulse (void *vmanager)
@@ -2591,17 +2599,23 @@ auto_sync_pulse (void *vmanager)
         if (repo->version > 0) {
             /* For repo version > 0, only use http sync. */
             if (check_http_protocol (manager, repo)) {
+#ifdef COMPILE_WS
                 if (check_notif_server (manager, repo)) {
                     seaf_notif_manager_connect_server (seaf->notif_mgr, repo->server_url, repo->use_fileserver_port);
                 }
+#endif
 
                 if (repo->sync_interval == 0) {
                     sync_repo_v2 (manager, repo, FALSE);
+#ifdef COMPILE_WS
                     check_and_subscribe_repo (manager, repo);
+#endif
                 }
                 else if (periodic_sync_due (repo)) {
                     sync_repo_v2 (manager, repo, TRUE);
+#ifdef COMPILE_WS
                     check_and_subscribe_repo (manager, repo);
+#endif
                 }
             }
         } else {
