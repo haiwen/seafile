@@ -6662,7 +6662,7 @@ seaf_repo_manager_del_repo (SeafRepoManager *mgr,
 
     pthread_rwlock_unlock (&mgr->priv->lock);
 
-#if defined WIN32 || defined __APPLE__
+#if defined WIN32 || defined __APPLE__ || defined COMPILE_LINUX_WS
     seaf_notif_manager_unsubscribe_repo (seaf->notif_mgr, repo);
 #endif
 

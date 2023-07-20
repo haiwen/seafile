@@ -1,5 +1,4 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-#if defined WIN32 || defined __APPLE__
 
 #include "common.h"
 #include <libwebsockets.h>
@@ -623,7 +622,7 @@ handle_folder_perm (json_t *content)
                                                   perm);
         else if (g_strcmp0 (change_event, "del") == 0)
             seaf_repo_manager_delete_folder_perm (seaf->repo_mgr, repo_id,
-                                                  FOLDER_PERM_TYPE_USER,
+                                                  FOLDER_PERM_TYPE_GROUP,
                                                   perm);
     }
     g_free (perm);
@@ -731,7 +730,7 @@ out:
 
 static const struct lws_protocols protocols[] = {
     { "notification.seafile.com", event_callback, 0, 0, 0, NULL, 0 },
-    LWS_PROTOCOL_LIST_TERM
+    {NULL, NULL, 0, 0, 0, NULL, 0} 
 };
 
 static struct lws_context *
@@ -974,5 +973,3 @@ out:
     notif_server_unref (server);
     return subscribed;
 }
-
-#endif

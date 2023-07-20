@@ -72,9 +72,7 @@ struct _SeafileSession {
 
     SeafFilelockManager *filelock_mgr;
 
-#if defined WIN32 || defined __APPLE__
     SeafNotifManager    *notif_mgr;
-#endif
 
     /* Set after all components are up and running. */
     gboolean             started;

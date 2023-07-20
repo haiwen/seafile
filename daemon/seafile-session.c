@@ -236,7 +236,7 @@ seafile_session_new(const char *seafile_dir,
     if (!session->mq_mgr)
         goto onerror;
 
-#if defined WIN32 || defined __APPLE__
+#if defined WIN32 || defined __APPLE__ || defined COMPILE_LINUX_WS
     session->notif_mgr = seaf_notif_manager_new (session);
 #endif
 

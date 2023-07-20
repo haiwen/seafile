@@ -54,6 +54,14 @@ if MACOS
 wt_monitor_src = wt-monitor.c wt-monitor-macos.c wt-monitor-structs.c
 endif
 
+if MACOS
+ws_src = notif-mgr.c
+else
+if COMPILE_LINUX_WS
+ws_src = notif-mgr.c
+endif
+endif
+
 common_src = \
 	job-mgr.c timer.c cevent.c \
 	http-tx-mgr.c \
@@ -79,7 +87,7 @@ common_src = \
 	filelock-mgr.c \
 	set-perm.c \
 	change-set.c \
-	notif-mgr.c
+	$(ws_src)
 
 
 seaf_daemon_SOURCES = seaf-daemon.c $(common_src)

@@ -159,6 +159,7 @@ JANSSON_REQUIRED=2.2.1
 CURL_REQUIRED=7.17
 ZLIB_REQUIRED=1.2.0
 GNUTLS_REQUIRED=3.3.0
+WS_REQUIRED=4.0.20
 
 PKG_CHECK_MODULES(GLIB2, [glib-2.0 >= $GLIB_REQUIRED])
 AC_SUBST(GLIB2_CFLAGS)
@@ -188,17 +189,20 @@ PKG_CHECK_MODULES(CURL, [libcurl >= $CURL_REQUIRED])
 AC_SUBST(CURL_CFLAGS)
 AC_SUBST(CURL_LIBS)
 
+AC_ARG_ENABLE(ws, AC_HELP_STRING([--enable-ws], [enable build websockets]),
+  [compile_linux_ws=$enableval],[compile_linux_ws="yes"])
+AM_CONDITIONAL([COMPILE_LINUX_WS], [test "${compile_linux_ws}" = "yes"])
+if test "${compile_linux_ws}" = "yes"; then
+   PKG_CHECK_MODULES(WS, [libwebsockets >= $WS_REQUIRED])
+   AC_SUBST(WS_CFLAGS)
+   AC_SUBST(WS_LIBS)
+fi
+
 if test "$bwin32" != true; then
 # do not check libevent_pthreads in win32
 PKG_CHECK_MODULES(LIBEVENT_PTHREADS, [libevent_pthreads >= $LIBEVENT_PTHREADS_REQUIRED])
 AC_SUBST(LIBEVENT_PTHREADS_CFLAGS)
 AC_SUBST(LIBEVENT_PTHREADS_LIBS)
-fi
-
-if test "$blinux" != true; then
-    PKG_CHECK_MODULES(WS, [libwebsockets])
-    AC_SUBST(WS_CFLAGS)
-    AC_SUBST(WS_LIBS)
 fi
 
 AC_ARG_WITH([python3], [AS_HELP_STRING([--with-python3], [use python3])],
