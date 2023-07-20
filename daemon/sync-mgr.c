@@ -1777,7 +1777,7 @@ http_notification_url (const char *url)
     return ret;
 }
 
-#if defined WIN32 || defined APPLE || defined COMPILE_LINUX_WS
+#if defined WIN32 || defined __APPLE__ || defined COMPILE_LINUX_WS
 // Returns TRUE if notification server is alive; otherwise FALSE.
 // We only check notification server once.
 static gboolean
@@ -2112,7 +2112,7 @@ check_folder_permissions_one_server_immediately (SeafSyncManager *mgr,
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
 
-#if defined WIN32 || defined APPLE || defined COMPILE_LINUX_WS
+#if defined WIN32 || defined __APPLE__ || defined COMPILE_LINUX_WS
         if (!force && seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo))
             continue;
 #endif
@@ -2256,7 +2256,7 @@ check_locked_files_one_server_immediately (SeafSyncManager *mgr,
     for (ptr = repos; ptr; ptr = ptr->next) {
         repo = ptr->data;
 
-#if defined WIN32 || defined APPLE || defined COMPILE_LINUX_WS
+#if defined WIN32 || defined __APPLE__ || defined COMPILE_LINUX_WS
         if (!force && seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo))
             continue;
 #endif
@@ -2441,7 +2441,7 @@ periodic_sync_due (SeafRepo *repo)
     return (now > (repo->last_sync_time + repo->sync_interval));
 }
 
-#if defined WIN32 || defined APPLE || defined COMPILE_LINUX_WS
+#if defined WIN32 || defined __APPLE__ || defined COMPILE_LINUX_WS
 static int
 check_and_subscribe_repo (SeafSyncManager *mgr, SeafRepo *repo)
 {
@@ -2599,7 +2599,7 @@ auto_sync_pulse (void *vmanager)
         if (repo->version > 0) {
             /* For repo version > 0, only use http sync. */
             if (check_http_protocol (manager, repo)) {
-#if defined WIN32 || defined APPLE || defined COMPILE_LINUX_WS
+#if defined WIN32 || defined __APPLE__ || defined COMPILE_LINUX_WS
                 if (check_notif_server (manager, repo)) {
                     seaf_notif_manager_connect_server (seaf->notif_mgr, repo->server_url, repo->use_fileserver_port);
                 }
@@ -2607,13 +2607,13 @@ auto_sync_pulse (void *vmanager)
 
                 if (repo->sync_interval == 0) {
                     sync_repo_v2 (manager, repo, FALSE);
-#if defined WIN32 || defined APPLE || defined COMPILE_LINUX_WS
+#if defined WIN32 || defined __APPLE__ || defined COMPILE_LINUX_WS
                     check_and_subscribe_repo (manager, repo);
 #endif
                 }
                 else if (periodic_sync_due (repo)) {
                     sync_repo_v2 (manager, repo, TRUE);
-#if defined WIN32 || defined APPLE || defined COMPILE_LINUX_WS
+#if defined WIN32 || defined __APPLE__ || defined COMPILE_LINUX_WS
                     check_and_subscribe_repo (manager, repo);
 #endif
                 }
