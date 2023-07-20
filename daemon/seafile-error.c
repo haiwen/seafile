@@ -184,6 +184,11 @@ static SyncErrorInfo sync_error_info_tbl[] = {
         SYNC_ERROR_LEVEL_REPO,
         "Too many files in library"
     },
+    {
+        SYNC_ERROR_ID_CHECKOUT_FILE,
+        SYNC_ERROR_LEVEL_FILE,
+        "Failed to checkout file on the client. Please check disk space or folder permissions"
+    },
 };
 
 const char *

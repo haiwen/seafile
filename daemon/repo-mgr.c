@@ -5202,7 +5202,7 @@ download_files_http (const char *repo_id,
         // Record a file-level sync error when failed to checkout file.
         if (rc == FETCH_CHECKOUT_FAILED) {
             send_file_sync_error_notification (repo_id, repo_name, de->name,
-                                               SYNC_ERROR_ID_WRITE_LOCAL_DATA);
+                                               SYNC_ERROR_ID_CHECKOUT_FILE);
         }
         if (!http_task->is_clone) {
             SyncStatus status;
