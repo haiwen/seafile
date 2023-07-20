@@ -64,6 +64,7 @@
 #define SYNC_ERROR_ID_LIBRARY_TOO_LARGE         32
 #define SYNC_ERROR_ID_DEL_CONFIRMATION_PENDING  33
 #define SYNC_ERROR_ID_TOO_MANY_FILES            34
-#define N_SYNC_ERROR_ID                         35
+#define SYNC_ERROR_ID_CHECKOUT_FILE             35
+#define N_SYNC_ERROR_ID                         36
 
 #endif
