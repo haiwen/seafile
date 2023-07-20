@@ -54,8 +54,12 @@ if MACOS
 wt_monitor_src = wt-monitor.c wt-monitor-macos.c wt-monitor-structs.c
 endif
 
-if COMPILE_WS
+if MACOS
 ws_src = notif-mgr.c
+else
+if COMPILE_LINUX_WS
+ws_src = notif-mgr.c
+endif
 endif
 
 common_src = \
