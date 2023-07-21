@@ -1102,8 +1102,6 @@ http_error_to_http_task_error (int status)
         return SYNC_ERROR_ID_SERVER_REPO_CORRUPT;
     else if (status == HTTP_REPO_TOO_LARGE || status == HTTP_REQUEST_TIME_OUT)
         return SYNC_ERROR_ID_LIBRARY_TOO_LARGE;
-    else if (status == HTTP_BLOCK_MISSING)
-        return SYNC_ERROR_ID_BLOCK_MISSING;
     else
         return SYNC_ERROR_ID_GENERAL_ERROR;
 }
@@ -3820,11 +3818,16 @@ update_branch (HttpTxTask *task, Connection *conn)
         seaf_warning ("Bad response code for PUT %s: %d.\n", url, status);
         handle_http_errors (task, status);
 
-        if (status == HTTP_FORBIDDEN) {
+        if (status == HTTP_FORBIDDEN || status == HTTP_BLOCK_MISSING) {
             rsp_content_str = g_new0 (gchar, rsp_size + 1);
             memcpy (rsp_content_str, rsp_content, rsp_size);
-            seaf_warning ("%s\n", rsp_content_str);
-            notify_permission_error (task, rsp_content_str);
+            if (status == HTTP_FORBIDDEN) {
+                seaf_warning ("%s\n", rsp_content_str);
+                notify_permission_error (task, rsp_content_str);
+            } else if (status == HTTP_BLOCK_MISSING) {
+                seaf_warning ("Failed to upload files: %s\n", rsp_content_str);
+                task->error = SYNC_ERROR_ID_BLOCK_MISSING;
+            }
             g_free (rsp_content_str);
         }
 
