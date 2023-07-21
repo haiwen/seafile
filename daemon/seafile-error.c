@@ -189,6 +189,11 @@ static SyncErrorInfo sync_error_info_tbl[] = {
         SYNC_ERROR_LEVEL_FILE,
         "Failed to checkout file on the client. Please check disk space or folder permissions"
     },
+    {
+        SYNC_ERROR_ID_BLOCK_MISSING,
+        SYNC_ERROR_LEVEL_REPO,
+        "Failed to upload file blocks. Please check network or firewall"
+    },
 };
 
 const char *

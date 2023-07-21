@@ -45,6 +45,7 @@
 #define HTTP_REPO_DELETED 444
 #define HTTP_REPO_TOO_LARGE 447
 #define HTTP_REPO_CORRUPTED 445
+#define HTTP_BLOCK_MISSING 446
 #define HTTP_INTERNAL_SERVER_ERROR 500
 
 #define RESET_BYTES_INTERVAL_MSEC 1000
@@ -1101,6 +1102,8 @@ http_error_to_http_task_error (int status)
         return SYNC_ERROR_ID_SERVER_REPO_CORRUPT;
     else if (status == HTTP_REPO_TOO_LARGE || status == HTTP_REQUEST_TIME_OUT)
         return SYNC_ERROR_ID_LIBRARY_TOO_LARGE;
+    else if (status == HTTP_BLOCK_MISSING)
+        return SYNC_ERROR_ID_BLOCK_MISSING;
     else
         return SYNC_ERROR_ID_GENERAL_ERROR;
 }

@@ -65,6 +65,7 @@
 #define SYNC_ERROR_ID_DEL_CONFIRMATION_PENDING  33
 #define SYNC_ERROR_ID_TOO_MANY_FILES            34
 #define SYNC_ERROR_ID_CHECKOUT_FILE             35
-#define N_SYNC_ERROR_ID                         36
+#define SYNC_ERROR_ID_BLOCK_MISSING             36
+#define N_SYNC_ERROR_ID                         37
 
 #endif
