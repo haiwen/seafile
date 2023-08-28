@@ -5090,19 +5090,6 @@ update_index:
         ce->ce_mtime.sec = de->mtime;
 }
 
-static char *
-get_repo_name_from_commit (const char *repo_id, int repo_version, const char *commit_id)
-{
-    SeafCommit *commit = seaf_commit_manager_get_commit (seaf->commit_mgr,
-                                                         repo_id,
-                                                         repo_version,
-                                                         commit_id);
-    if (!commit)
-        return NULL;
-
-    return g_strdup(commit->repo_name);
-}
-
 #define DEFAULT_DOWNLOAD_THREADS 3
 
 static int
@@ -5128,9 +5115,7 @@ download_files_http (const char *repo_id,
     GList *ptr;
     FileTxTask *task;
     int ret = FETCH_CHECKOUT_SUCCESS;
-    char *repo_name = NULL;
-
-    repo_name = get_repo_name_from_commit (repo_id, repo_version, conflict_head_id);
+    gboolean checkout_file_failed = FALSE;
 
     finished_tasks = g_async_queue_new ();
 
@@ -5201,9 +5186,16 @@ download_files_http (const char *repo_id,
 
         // Record a file-level sync error when failed to checkout file.
         if (rc == FETCH_CHECKOUT_FAILED) {
-            send_file_sync_error_notification (repo_id, repo_name, de->name,
-                                               SYNC_ERROR_ID_CHECKOUT_FILE);
+            if (checkout_file_failed) {
+                seaf_repo_manager_record_sync_error (repo_id, http_task->repo_name, de->name,
+                                                     SYNC_ERROR_ID_CHECKOUT_FILE);
+            } else {
+                checkout_file_failed = TRUE;
+                send_file_sync_error_notification (repo_id, http_task->repo_name, de->name,
+                                                   SYNC_ERROR_ID_CHECKOUT_FILE);
+            }
         }
+
         if (!http_task->is_clone) {
             SyncStatus status;
             if (rc == FETCH_CHECKOUT_FAILED)
@@ -5251,7 +5243,6 @@ download_files_http (const char *repo_id,
     update_index (istate, index_path);
 
 out:
-    g_free (repo_name);
     /* Wait until all threads exit.
      * This is necessary when the download is canceled or encountered error.
      */
