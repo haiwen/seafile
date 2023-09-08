@@ -194,6 +194,7 @@ AC_ARG_ENABLE(ws, AC_HELP_STRING([--enable-ws], [enable build websockets]),
 AM_CONDITIONAL([COMPILE_LINUX_WS], [test "${compile_linux_ws}" = "yes"])
 if test "${compile_linux_ws}" = "yes"; then
    PKG_CHECK_MODULES(WS, [libwebsockets >= $WS_REQUIRED])
+   AC_DEFINE(COMPILE_LINUX_WS, 1, [compile linux websockets])
    AC_SUBST(WS_CFLAGS)
    AC_SUBST(WS_LIBS)
 fi
