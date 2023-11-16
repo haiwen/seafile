@@ -2482,7 +2482,7 @@ check_and_subscribe_repo (SeafSyncManager *mgr, SeafRepo *repo)
         return 0;
     }
     if (!seaf_notif_manager_is_repo_subscribed (seaf->notif_mgr, repo)) {
-        if (repo->jwt_token)
+        if (repo->jwt_token && repo->server_url)
             seaf_notif_manager_subscribe_repo (seaf->notif_mgr, repo);
     }
 
