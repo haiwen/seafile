@@ -550,6 +550,7 @@ void
 diff_resolve_renames (GList **diff_entries)
 {
     GHashTable *deleted;
+    GList *deleted_list;
     GList *p;
     GList *added = NULL;
     DiffEntry *de;
@@ -565,8 +566,11 @@ diff_resolve_renames (GList **diff_entries)
         de = p->data;
         if ((de->status == DIFF_STATUS_DELETED ||
              de->status == DIFF_STATUS_DIR_DELETED) &&
-            memcmp (de->sha1, empty_sha1, 20) != 0)
-            g_hash_table_insert (deleted, de->sha1, p);
+            memcmp (de->sha1, empty_sha1, 20) != 0) {
+            deleted_list = g_hash_table_lookup (deleted, de->sha1);
+            deleted_list = g_list_prepend (deleted_list, p);
+            g_hash_table_insert (deleted, de->sha1, deleted_list);
+        }
     }
 
     /* Collect all "added" entries into a separate list. */
@@ -590,8 +594,9 @@ diff_resolve_renames (GList **diff_entries)
         p_add = p->data;
         de_add = p_add->data;
 
-        p_del = g_hash_table_lookup (deleted, de_add->sha1);
-        if (p_del) {
+        deleted_list = g_hash_table_lookup (deleted, de_add->sha1);
+        if (deleted_list) {
+            p_del = deleted_list->data;
             de_del = p_del->data;
 
             if (de_add->status == DIFF_STATUS_DIR_ADDED)
@@ -607,13 +612,24 @@ diff_resolve_renames (GList **diff_entries)
             *diff_entries = g_list_delete_link (*diff_entries, p_del);
             *diff_entries = g_list_prepend (*diff_entries, de_rename);
 
-            g_hash_table_remove (deleted, de_add->sha1);
+            deleted_list = g_list_delete_link (deleted_list, deleted_list);
+            if (g_list_length (deleted_list) == 0)
+                g_hash_table_remove (deleted, de_add->sha1);
+            else
+                g_hash_table_insert (deleted, de_add->sha1, deleted_list);
 
             diff_entry_free (de_add);
             diff_entry_free (de_del);
         }
 
         p = g_list_delete_link (p, p);
+    }
+
+    GHashTableIter iter;
+    gpointer key, value;
+    g_hash_table_iter_init (&iter, deleted);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        g_list_free (value);
     }
 
     g_hash_table_destroy (deleted);
