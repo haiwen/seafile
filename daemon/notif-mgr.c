@@ -956,6 +956,10 @@ seaf_notif_manager_is_repo_subscribed (SeafNotifManager *mgr, SeafRepo *repo)
     NotifServer *server = NULL;
     gboolean subscribed = FALSE;
 
+    if (!repo->server_url) {
+        goto out;
+    }
+
     server = get_notif_server (mgr, repo->server_url);
     if (!server || server->status != STATUS_CONNECTED) {
         goto out;
