@@ -1674,6 +1674,16 @@ typedef struct AddParams {
     AddOptions *options;
 } AddParams;
 
+static char *
+get_repo_name (const char *repo_id)
+{
+    SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (!repo)
+        return NULL;
+
+    return g_strdup(repo->name);
+}
+
 #ifndef WIN32
 
 static int
@@ -1699,7 +1709,10 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                               S_IFDIR,
                                               SYNC_STATUS_ERROR,
                                               TRUE);
-
+        char *repo_name = get_repo_name (params->repo_id);
+        seaf_repo_manager_record_sync_error (params->repo_id, repo_name, path,
+                                             SYNC_ERROR_ID_INDEX_ERROR);
+        g_free (repo_name);
         return 0;
     }
 
@@ -1731,6 +1744,10 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
 
         if (stat (full_subpath, &sub_st) < 0) {
             seaf_warning ("Failed to stat %s: %s.\n", full_subpath, strerror(errno));
+            char *repo_name = get_repo_name (params->repo_id);
+            seaf_repo_manager_record_sync_error (params->repo_id, repo_name, subpath,
+                                                 SYNC_ERROR_ID_INDEX_ERROR);
+            g_free (repo_name);
             g_free (subpath);
             g_free (full_subpath);
             continue;
@@ -2036,6 +2053,10 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                               S_IFDIR,
                                               SYNC_STATUS_ERROR,
                                               TRUE);
+        char *repo_name = get_repo_name (params->repo_id);
+        seaf_repo_manager_record_sync_error (params->repo_id, repo_name, path,
+                                             SYNC_ERROR_ID_INDEX_ERROR);
+        g_free (repo_name);
         return 0;
     }
 
