@@ -264,7 +264,7 @@ start_watch_cmd_pipe (SeafWTMonitor *monitor, OVERLAPPED *ol_in)
 
     HANDLE hPipe = (HANDLE)monitor->cmd_pipe[0];
 
-    void *p = &priv->cmd + priv->cmd_bytes_read;
+    void *p = (char *)(&priv->cmd) + priv->cmd_bytes_read;
     int to_read = sizeof(WatchCommand) - priv->cmd_bytes_read;
 
     BOOL sts = ReadFile
