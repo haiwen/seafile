@@ -1732,8 +1732,6 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
 
         if (stat (full_subpath, &sub_st) < 0) {
             seaf_warning ("Failed to stat %s: %s.\n", full_subpath, strerror(errno));
-            send_file_sync_error_notification (params->repo_id, NULL, subpath,
-                                               SYNC_ERROR_ID_INDEX_ERROR);
             g_free (subpath);
             g_free (full_subpath);
             continue;
