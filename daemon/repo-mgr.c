@@ -4586,6 +4586,10 @@ checkout_empty_dir (const char *worktree,
     char *path;
     gboolean case_conflict = FALSE;
 
+    if (is_path_case_conflict(worktree, name)) {
+        return FETCH_CHECKOUT_SUCCESS;
+    }
+
     path = build_checkout_path (worktree, name, strlen(name));
 
     if (!path)
@@ -4806,6 +4810,7 @@ schedule_file_fetch (GThreadPool *tpool,
     gboolean skip_fetch = FALSE;
     char *path = NULL;
     FileTxTask *file_task;
+    gboolean no_checkout = FALSE;
 
     ce = index_name_exists (istate, de->name, strlen(de->name), 0);
     if (!ce) {
@@ -4826,6 +4831,11 @@ schedule_file_fetch (GThreadPool *tpool,
         skip_fetch = TRUE;
     }
 
+    if (!skip_fetch && is_path_case_conflict (worktree, de->name)) {
+        skip_fetch = TRUE;
+        no_checkout = TRUE;
+    }
+
     if (!skip_fetch) {
         path = build_checkout_path (worktree, de->name, strlen(de->name));
         if (!path) {
@@ -4841,6 +4851,7 @@ schedule_file_fetch (GThreadPool *tpool,
     file_task->path = path;
     file_task->new_ce = new_ce;
     file_task->skip_fetch = skip_fetch;
+    file_task->no_checkout = no_checkout;
 
     if (!g_hash_table_lookup (pending_tasks, de->name)) {
         g_hash_table_insert (pending_tasks, g_strdup(de->name), file_task);
@@ -5344,8 +5355,14 @@ do_rename_in_worktree (DiffEntry *de, const char *worktree,
     int ret = 0;
 
     old_path = g_build_filename (worktree, de->name, NULL);
+    if (is_path_case_conflict(worktree, de->name)) {
+        goto out;
+    }
 
     if (seaf_util_exists (old_path)) {
+        if (is_path_case_conflict(worktree, de->new_name)) {
+            goto out;
+        }
         new_path = build_checkout_path (worktree, de->new_name, strlen(de->new_name));
         if (!new_path) {
             ret = -1;
@@ -5643,6 +5660,10 @@ delete_worktree_dir (const char *repo_id,
                      const char *worktree,
                      const char *path)
 {
+    if (is_path_case_conflict (worktree, path)) {
+        return;
+    }
+
     char *full_path = g_build_path ("/", worktree, path, NULL);
 
 #ifdef WIN32

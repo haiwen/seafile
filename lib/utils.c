@@ -2527,3 +2527,108 @@ canonical_server_url (const char *url_in)
 
     return url;
 }
+
+#ifdef __APPLE__
+static gboolean
+case_conflict_recursive (const char *worktree, const char *path)
+{
+    if (!path || g_strcmp0 (path, ".") == 0) {
+        return FALSE;
+    }
+
+    SeafStat st;
+    gboolean ret = FALSE;
+    int fd = -1;
+    char *full_path = g_build_path ("/", worktree, path, NULL);
+
+    if (seaf_stat (full_path, &st) < 0) {
+        char *sub_path = g_path_get_dirname (path);
+        ret = case_conflict_recursive (worktree, sub_path);
+        g_free (sub_path);
+        goto out;
+    }
+
+    int len = strlen (path);
+    fd = open (full_path, O_RDONLY);
+    if (fd < 0) {
+        goto out;
+    }
+    char buffer[SEAF_PATH_MAX];
+    if (fcntl (fd, F_GETPATH, buffer) < 0) {
+        goto out;
+    }
+    int offset = strlen (buffer) - len;
+    if (strcasecmp (buffer + offset, path) == 0 &&
+        strcmp (buffer + offset, path) != 0) {
+        ret = TRUE;
+        goto out;
+    }
+    
+out:
+    if (fd >= 0)
+        close (fd);
+    g_free (full_path);
+    return ret;
+}
+#elif defined WIN32
+static gboolean
+case_conflict_recursive (const char *worktree, const char *path)
+{
+    if (!path || g_strcmp0 (path, ".") == 0) {
+        return FALSE;
+    }
+    SeafStat st;
+    gboolean ret = FALSE;
+    int fd = -1;
+    char *full_path = g_build_path ("/", worktree, path, NULL);
+    wchar_t *wpath = win32_long_path (full_path);
+
+    if (seaf_stat (full_path, &st) < 0) {
+        char *sub_path = g_path_get_dirname (path);
+        ret = case_conflict_recursive (worktree, sub_path);
+        g_free (sub_path);
+        goto out;
+    }
+
+    HANDLE handle;
+    WIN32_FIND_DATAW fdata;
+    handle = FindFirstFileW (wpath, &fdata);
+    if (handle == INVALID_HANDLE_VALUE) {
+        seaf_warning ("Checkinng path case, FindFirstFile failed %s: %lu.\n", full_path, GetLastError());
+        goto out;
+    }
+    char *real_path = g_utf16_to_utf8 (fdata.cFileName, -1, NULL, NULL, NULL);
+    int offset = strlen (real_path) - strlen(path);
+    if (strcasecmp (real_path + offset, path) == 0 &&
+        strcmp (real_path + offset, path) != 0) {
+        ret = TRUE;
+        g_free (real_path);
+        FindClose (handle);
+        goto out;
+    }
+    g_free (real_path);
+    FindClose (handle);
+
+out:
+    g_free (full_path);
+    g_free (wpath);
+    return ret;
+}
+#else
+static gboolean
+case_conflict_recursive (const char *worktree, const char *path)
+{
+    return FALSE;
+}
+#endif
+
+gboolean
+is_path_case_conflict (const char *worktree, const char *path)
+{
+    if (strlen(path) >= SEAF_PATH_MAX) {
+        return FALSE;
+    }
+    if (case_conflict_recursive (worktree, path))
+        return TRUE;
+    return FALSE;
+}
