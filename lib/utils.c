@@ -2609,6 +2609,10 @@ case_conflict_recursive (const char *worktree, const char *path)
     g_free (real_path);
     FindClose (handle);
 
+    char *sub_path = g_path_get_dirname (path);
+    ret = case_conflict_recursive (worktree, sub_path);
+    g_free (sub_path);
+
 out:
     g_free (full_path);
     g_free (wpath);
