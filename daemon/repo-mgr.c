@@ -1383,8 +1383,10 @@ should_ignore(const char *basepath, const char *filename, void *data)
     }
 
     /* Ignore file/dir if its name is too long. */
-    if (strlen(filename) >= SEAF_DIR_NAME_LEN)
+    if (strlen(filename) >= SEAF_DIR_NAME_LEN) {
+        seaf_warning ("File name %s is too long, skip.\n", filename);
         return TRUE;
+    }
 
     if (strchr (filename, '/'))
         return TRUE;
