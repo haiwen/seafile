@@ -408,10 +408,6 @@ delete_path (const char *worktree, const char *name,
 
     snprintf (path, SEAF_PATH_MAX, "%s/%s", worktree, name);
 
-    if (is_path_case_conflict (worktree, name)) {
-        return 0;
-    }
-
     if (!S_ISDIR(mode)) {
         /* file doesn't exist in work tree */
         if (seaf_stat (path, &st) < 0 || !S_ISREG(st.st_mode)) {

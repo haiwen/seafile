@@ -4586,10 +4586,6 @@ checkout_empty_dir (const char *worktree,
     char *path;
     gboolean case_conflict = FALSE;
 
-    if (is_path_case_conflict(worktree, name)) {
-        return FETCH_CHECKOUT_SUCCESS;
-    }
-
     path = build_checkout_path (worktree, name, strlen(name));
 
     if (!path)
@@ -4665,6 +4661,7 @@ typedef struct FileTxTask {
     int result;
     gboolean no_checkout;
     gboolean force_conflict;
+    gboolean skip_checkout;
 } FileTxTask;
 
 static void
@@ -4794,6 +4791,23 @@ out:
     g_async_queue_push (finished_tasks, task);
 }
 
+// Since file creation is asynchronous, the file may not have been created locally at the time of checking for case conflicts, 
+// so an additional check for the name of the file being created is required.
+static gboolean
+is_adding_files_case_conflict (GHashTable *adding_files, const char *name)
+{
+    GHashTableIter iter;
+    gpointer key, value;
+
+    g_hash_table_iter_init (&iter, adding_files);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        if (strcasecmp (name, key) == 0) {
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
 static int
 schedule_file_fetch (GThreadPool *tpool,
                      const char *repo_id,
@@ -4803,14 +4817,15 @@ schedule_file_fetch (GThreadPool *tpool,
                      DiffEntry *de,
                      GHashTable *pending_tasks,
                      GHashTable *conflict_hash,
-                     GHashTable *no_conflict_hash)
+                     GHashTable *no_conflict_hash,
+                     GHashTable *adding_files)
 {
     struct cache_entry *ce;
     gboolean new_ce = FALSE;
     gboolean skip_fetch = FALSE;
     char *path = NULL;
     FileTxTask *file_task;
-    gboolean no_checkout = FALSE;
+    gboolean skip_checkout = FALSE;
 
     ce = index_name_exists (istate, de->name, strlen(de->name), 0);
     if (!ce) {
@@ -4831,9 +4846,10 @@ schedule_file_fetch (GThreadPool *tpool,
         skip_fetch = TRUE;
     }
 
-    if (!skip_fetch && is_path_case_conflict (worktree, de->name)) {
+    if (!skip_fetch && (is_path_case_conflict (worktree, de->name) ||
+        is_adding_files_case_conflict(adding_files, de->name))) {
         skip_fetch = TRUE;
-        no_checkout = TRUE;
+        skip_checkout = TRUE;
     }
 
     if (!skip_fetch) {
@@ -4845,13 +4861,16 @@ schedule_file_fetch (GThreadPool *tpool,
         }
     }
 
+    char *de_name = g_strdup(de->name);
+    g_hash_table_replace (adding_files, de_name, de_name);
+
     file_task = g_new0 (FileTxTask, 1);
     file_task->de = de;
     file_task->ce = ce;
     file_task->path = path;
     file_task->new_ce = new_ce;
     file_task->skip_fetch = skip_fetch;
-    file_task->no_checkout = no_checkout;
+    file_task->skip_checkout = skip_checkout;
 
     if (!g_hash_table_lookup (pending_tasks, de->name)) {
         g_hash_table_insert (pending_tasks, g_strdup(de->name), file_task);
@@ -5080,6 +5099,11 @@ handle_dir_added_de (const char *repo_id,
         goto update_index;
     }
 
+    if (is_path_case_conflict(worktree, de->name)) {
+        cache_entry_free (ce);
+        return;
+    }
+
     checkout_empty_dir (worktree,
                         de->name,
                         de->mtime,
@@ -5126,6 +5150,7 @@ download_files_http (const char *repo_id,
     GThreadPool *tpool;
     GAsyncQueue *finished_tasks;
     GHashTable *pending_tasks;
+    GHashTable *adding_files;;
     GList *ptr;
     FileTxTask *task;
     int ret = FETCH_CHECKOUT_SUCCESS;
@@ -5148,6 +5173,9 @@ download_files_http (const char *repo_id,
     pending_tasks = g_hash_table_new_full (g_str_hash, g_str_equal,
                                            g_free, (GDestroyNotify)file_tx_task_free);
 
+    adding_files = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                          g_free, NULL);
+
     for (ptr = results; ptr != NULL; ptr = ptr->next) {
         de = ptr->data;
 
@@ -5164,7 +5192,8 @@ download_files_http (const char *repo_id,
                                                               de,
                                                               pending_tasks,
                                                               conflict_hash,
-                                                              no_conflict_hash))
+                                                              no_conflict_hash,
+                                                              adding_files))
                 continue;
         }
     }
@@ -5192,6 +5221,15 @@ download_files_http (const char *repo_id,
                 cache_entry_free (task->ce);
             http_task->all_stop = TRUE;
             goto out;
+        }
+
+        // Don't add index entry when checkout file with case conflict.
+        if (task->skip_checkout) {
+            g_hash_table_remove (pending_tasks, de->name);
+
+            if (g_hash_table_size (pending_tasks) == 0)
+                break;
+            continue;
         }
 
         int rc = checkout_file_http (&data, task, worktree,
@@ -5264,6 +5302,8 @@ out:
 
     /* Free all pending file task structs. */
     g_hash_table_destroy (pending_tasks);
+
+    g_hash_table_destroy (adding_files);
 
     g_async_queue_unref (finished_tasks);
 
@@ -5355,14 +5395,8 @@ do_rename_in_worktree (DiffEntry *de, const char *worktree,
     int ret = 0;
 
     old_path = g_build_filename (worktree, de->name, NULL);
-    if (is_path_case_conflict(worktree, de->name)) {
-        goto out;
-    }
 
     if (seaf_util_exists (old_path)) {
-        if (is_path_case_conflict(worktree, de->new_name)) {
-            goto out;
-        }
         new_path = build_checkout_path (worktree, de->new_name, strlen(de->new_name));
         if (!new_path) {
             ret = -1;
@@ -5660,10 +5694,6 @@ delete_worktree_dir (const char *repo_id,
                      const char *worktree,
                      const char *path)
 {
-    if (is_path_case_conflict (worktree, path)) {
-        return;
-    }
-
     char *full_path = g_build_path ("/", worktree, path, NULL);
 
 #ifdef WIN32
@@ -5988,7 +6018,9 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
 #if defined WIN32 || defined __APPLE__
             if (!do_check_file_locked (de->name, worktree, locked_on_server)) {
                 locked_file_set_remove (fset, de->name, FALSE);
-                delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
+                if (!is_path_case_conflict (worktree, de->name)) {
+                    delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
+                }
             } else {
                 if (!locked_file_set_lookup (fset, de->name))
                     send_file_sync_error_notification (repo_id, http_task->repo_name, de->name,
@@ -5998,7 +6030,9 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                                             ce->ce_mtime.sec, NULL);
             }
 #else
-            delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
+            if (!is_path_case_conflict (worktree, de->name)) {
+                delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
+            }
 #endif
 
             /* No need to lock wt file again since it's deleted. */
@@ -6021,7 +6055,9 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                 continue;
             }
 
-            delete_worktree_dir (repo_id, http_task->repo_name, &istate, worktree, de->name);
+            if (!is_path_case_conflict (worktree, de->name)) {
+                delete_worktree_dir (repo_id, http_task->repo_name, &istate, worktree, de->name);
+            }
 
             /* Remove all index entries under this directory */
             remove_from_index_with_prefix (&istate, de->name, NULL);
@@ -6067,20 +6103,28 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                 seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
                                                       repo_id, de->name);
 
-            do_rename_in_worktree (de, worktree, conflict_hash, no_conflict_hash);
+            gboolean old_path_conflict = is_path_case_conflict(worktree, de->name);
+            gboolean new_path_conflict = is_path_case_conflict(worktree, de->new_name);
+            // Remove local index when renaming case-conflict files or folders.
+            if (!old_path_conflict && !new_path_conflict) {
+                do_rename_in_worktree (de, worktree, conflict_hash, no_conflict_hash);
+                /* update_sync_status updates the sync status for each renamed path.
+                 * The renamed file/folder becomes "synced" immediately after rename.
+                 */
+                if (!is_clone)
+                    rename_index_entries (&istate, de->name, de->new_name, NULL,
+                                          update_sync_status, repo_id);
+                else
+                    rename_index_entries (&istate, de->name, de->new_name, NULL,
+                                          NULL, NULL);
 
-            /* update_sync_status updates the sync status for each renamed path.
-             * The renamed file/folder becomes "synced" immediately after rename.
-             */
-            if (!is_clone)
-                rename_index_entries (&istate, de->name, de->new_name, NULL,
-                                      update_sync_status, repo_id);
-            else
-                rename_index_entries (&istate, de->name, de->new_name, NULL,
-                                      NULL, NULL);
-
-            /* Moving files out of a dir may make it empty. */
-            try_add_empty_parent_dir_entry (worktree, &istate, de->name);
+                /* Moving files out of a dir may make it empty. */
+                try_add_empty_parent_dir_entry (worktree, &istate, de->name);
+            } else if (old_path_conflict) {
+                remove_from_index_with_prefix (&istate, de->name, NULL);
+            } else if (new_path_conflict) {
+                remove_from_index_with_prefix (&istate, de->new_name, NULL);
+            }
         }
     }
 
