@@ -418,5 +418,5 @@ char *
 canonical_server_url (const char *url_in);
 
 gboolean
-is_path_case_conflict (const char *full_path, const char *path);
+is_path_case_conflict (const char *full_path, const char *path, char **conflict_path);
 #endif

@@ -2530,7 +2530,7 @@ canonical_server_url (const char *url_in)
 
 #ifdef __APPLE__
 static gboolean
-case_conflict_recursive (const char *worktree, const char *path)
+case_conflict_recursive (const char *worktree, const char *path, char **conflict_path)
 {
     if (!path || g_strcmp0 (path, ".") == 0) {
         return FALSE;
@@ -2543,7 +2543,7 @@ case_conflict_recursive (const char *worktree, const char *path)
 
     if (seaf_stat (full_path, &st) < 0) {
         char *sub_path = g_path_get_dirname (path);
-        ret = case_conflict_recursive (worktree, sub_path);
+        ret = case_conflict_recursive (worktree, sub_path, conflict_path);
         g_free (sub_path);
         goto out;
     }
@@ -2560,6 +2560,9 @@ case_conflict_recursive (const char *worktree, const char *path)
     int offset = strlen (buffer) - len;
     if (strcasecmp (buffer + offset, path) == 0 &&
         strcmp (buffer + offset, path) != 0) {
+        if (conflict_path) {
+            *conflict_path = g_strdup(path);
+        }
         ret = TRUE;
         goto out;
     }
@@ -2572,7 +2575,7 @@ out:
 }
 #elif defined WIN32
 static gboolean
-case_conflict_recursive (const char *worktree, const char *path)
+case_conflict_recursive (const char *worktree, const char *path, char **conflict_path)
 {
     if (!path || g_strcmp0 (path, ".") == 0) {
         return FALSE;
@@ -2585,7 +2588,7 @@ case_conflict_recursive (const char *worktree, const char *path)
 
     if (seaf_stat (full_path, &st) < 0) {
         char *sub_path = g_path_get_dirname (path);
-        ret = case_conflict_recursive (worktree, sub_path);
+        ret = case_conflict_recursive (worktree, sub_path, conflict_path);
         g_free (sub_path);
         goto out;
     }
@@ -2601,6 +2604,9 @@ case_conflict_recursive (const char *worktree, const char *path)
     int offset = strlen (real_path) - strlen(path);
     if (strcasecmp (real_path + offset, path) == 0 &&
         strcmp (real_path + offset, path) != 0) {
+        if (conflict_path) {
+            *conflict_path = g_strdup(path);
+        }
         ret = TRUE;
         g_free (real_path);
         FindClose (handle);
@@ -2610,7 +2616,7 @@ case_conflict_recursive (const char *worktree, const char *path)
     FindClose (handle);
 
     char *sub_path = g_path_get_dirname (path);
-    ret = case_conflict_recursive (worktree, sub_path);
+    ret = case_conflict_recursive (worktree, sub_path, conflict_path);
     g_free (sub_path);
 
 out:
@@ -2620,19 +2626,19 @@ out:
 }
 #else
 static gboolean
-case_conflict_recursive (const char *worktree, const char *path)
+case_conflict_recursive (const char *worktree, const char *path, char **conflict_path)
 {
     return FALSE;
 }
 #endif
 
 gboolean
-is_path_case_conflict (const char *worktree, const char *path)
+is_path_case_conflict (const char *worktree, const char *path, char **conflict_path)
 {
     if (strlen(path) >= SEAF_PATH_MAX) {
         return FALSE;
     }
-    if (case_conflict_recursive (worktree, path))
+    if (case_conflict_recursive (worktree, path, conflict_path))
         return TRUE;
     return FALSE;
 }
