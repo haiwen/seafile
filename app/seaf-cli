@@ -128,7 +128,7 @@ def _check_seafile():
             print("%s not found in PATH. Have you installed seafile?" % prog)
             sys.exit(1)
 
-def _check_daemon_running(conf_dir):
+def _check_daemon_running():
     import fcntl
     pidfile = os.path.join(seafile_datadir, 'seaf-daemon.pid')
     with open(pidfile, 'w') as f:
@@ -136,7 +136,7 @@ def _check_daemon_running(conf_dir):
             fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
             fcntl.flock(f, fcntl.LOCK_UN)
         except:
-            print("The configuration directory %s is already used by another Seafile client instance. Please use another configuration directory."%conf_dir)
+            print("The seafile data directory %s is already used by another Seafile client instance. Please use another seafile data directory."%seafile_datadir)
             sys.exit(1)
 
 def get_rpc_client(confdir):
@@ -362,7 +362,7 @@ def seaf_start_seafile(args):
 
     conf_dir = _conf_dir(args)
 
-    _check_daemon_running(conf_dir)
+    _check_daemon_running()
 
     print("Starting seafile daemon ...")
 
