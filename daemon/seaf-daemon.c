@@ -550,7 +550,7 @@ main (int argc, char **argv)
     pidfile = g_build_filename (seafile_dir, "seaf-daemon.pid", NULL);
 #ifdef __linux__
     if (write_pidfile (pidfile) < 0) {
-        seaf_message ("Failed to write pidfile\n");
+        seaf_message ("The seafile data directory %s is already used by another Seafile client instance. Please use another configuration directory.\n", seafile_dir);
         exit (1);
     }
 #endif
