@@ -10,6 +10,7 @@
 
 #ifndef WIN32
 #include <unistd.h>
+#include <sys/file.h>
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -369,6 +370,28 @@ get_argv_utf8 (int *argc)
 }
 #endif
 
+#ifdef __linux__
+static int
+write_pidfile (char *pidfile)
+{
+    int fd = open (pidfile, O_WRONLY | O_CREAT, 0644);
+    if (fd < 0) {
+        seaf_warning ("Failed to open pidfile %s: %s\n",
+                      pidfile, strerror(errno));
+        return -1;
+    }
+
+    if (flock (fd, LOCK_EX | LOCK_NB) < 0) {
+        seaf_warning ("Failed to lock pidfile %s: %s\n",
+                      pidfile, strerror(errno));
+        close (fd);
+        return -1;
+    }
+
+    return 0;
+}
+#endif
+
 int
 main (int argc, char **argv)
 {
@@ -395,6 +418,7 @@ main (int argc, char **argv)
     char *worktree_dir = NULL;
     char *logfile = NULL;
     char *eventfile = NULL;
+    char *pidfile = NULL;
     const char *debug_str = NULL;
     int daemon_mode = 0;
     char *ccnet_debug_level_str = "info";
@@ -522,6 +546,15 @@ main (int argc, char **argv)
         exit (1);
     }
 
+
+    pidfile = g_build_filename (seafile_dir, "seaf-daemon.pid", NULL);
+#ifdef __linux__
+    if (write_pidfile (pidfile) < 0) {
+        seaf_message ("The seafile data directory %s is already used by another Seafile client instance. Please use another configuration directory.\n", seafile_dir);
+        exit (1);
+    }
+#endif
+
     seaf_message ("starting seafile client "SEAFILE_CLIENT_VERSION"\n");
 #if defined(SEAFILE_SOURCE_COMMIT_ID)
     seaf_message ("seafile source code version "SEAFILE_SOURCE_COMMIT_ID"\n");
@@ -531,6 +564,7 @@ main (int argc, char **argv)
     g_free (worktree_dir);
     g_free (logfile);
     g_free (eventfile);
+    g_free (pidfile);
 
 #ifndef WIN32
     set_signal_handlers (seaf);
