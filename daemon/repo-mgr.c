@@ -56,6 +56,10 @@ struct _SeafRepoManagerPriv {
     pthread_mutex_t perm_lock;
 
     GAsyncQueue *lock_office_job_queue;
+
+    // sync_errors is used to record sync errors for which notifications have been sent to avoid repeated notifications of the same error.
+    GList *sync_errors;
+    pthread_mutex_t errors_lock;
 };
 
 static const char *ignore_table[] = {
@@ -998,23 +1002,22 @@ seaf_repo_manager_get_file_sync_errors (SeafRepoManager *mgr, int offset, int li
 /*
  * Record file-level sync errors and send system notification.
  */
+
+struct _SyncError {
+    char *repo_id;
+    char *repo_name;
+    char *path;
+    int err_id;
+    gint64 timestamp;
+};
+typedef struct _SyncError SyncError;
+
 void
-send_file_sync_error_notification (const char *repo_id,
-                                   const char *repo_name,
-                                   const char *path,
-                                   int err_id)
+send_sync_error_notification (const char *repo_id,
+                              const char *repo_name,
+                              const char *path,
+                              int err_id)
 {
-    if (!repo_name) {
-        SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-        if (!repo)
-            return;
-        repo_name = repo->name;
-    }
-
-    seaf_repo_manager_record_sync_error (repo_id, repo_name, path, err_id);
-
-    seaf_sync_manager_set_task_error_code (seaf->sync_mgr, repo_id, err_id);
-
     json_t *object;
     char *str;
 
@@ -1032,6 +1035,69 @@ send_file_sync_error_notification (const char *repo_id,
 
     free (str);
     json_decref (object);
+
+}
+
+static void
+check_and_send_notification (SeafRepoManager *mgr,
+                             const char *repo_id,
+                             const char *repo_name,
+                             const char *path,
+                             int err_id)
+{
+    GList *errors = mgr->priv->sync_errors, *ptr;
+    SyncError *err, *new_err;
+    gboolean found = FALSE;
+
+    pthread_mutex_lock (&mgr->priv->errors_lock);
+
+    for (ptr = errors; ptr; ptr = ptr->next) {
+        err = ptr->data;
+        if (g_strcmp0 (err->repo_id, repo_id) == 0 &&
+            g_strcmp0 (err->path, path) == 0) {
+            found = TRUE;
+            if (err->err_id != err_id) {
+                err->err_id = err_id;
+                send_sync_error_notification (repo_id, repo_name, path, err_id);
+            }
+            err->timestamp = (gint64)time(NULL);
+            break;
+        }
+    }
+
+    if (!found) {
+        new_err = g_new0 (SyncError, 1);
+        new_err->repo_id = g_strdup(repo_id);
+        new_err->repo_name = g_strdup(repo_name);
+        new_err->path = g_strdup(path);
+        new_err->err_id = err_id;
+        new_err->timestamp = (gint64)time(NULL);
+        mgr->priv->sync_errors = g_list_prepend (mgr->priv->sync_errors, new_err);
+
+        send_sync_error_notification (repo_id, repo_name, path, err_id);
+    }
+
+    pthread_mutex_unlock (&mgr->priv->errors_lock);
+}
+
+void
+send_file_sync_error_notification (const char *repo_id,
+                                   const char *repo_name,
+                                   const char *path,
+                                   int err_id)
+{
+    if (!repo_name) {
+        SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+        if (!repo)
+            return;
+        repo_name = repo->name;
+    }
+
+    seaf_repo_manager_record_sync_error (repo_id, repo_name, path, err_id);
+
+    seaf_sync_manager_set_task_error_code (seaf->sync_mgr, repo_id, err_id);
+
+    check_and_send_notification (seaf->repo_mgr, repo_id, repo_name, path, err_id);
 }
 
 SeafRepo*
@@ -5192,8 +5258,8 @@ download_files_http (const char *repo_id,
         // Record a file-level sync error when failed to checkout file.
         if (rc == FETCH_CHECKOUT_FAILED) {
             if (checkout_file_failed) {
-                seaf_repo_manager_record_sync_error (repo_id, http_task->repo_name, de->name,
-                                                     SYNC_ERROR_ID_CHECKOUT_FILE);
+                send_file_sync_error_notification (repo_id, http_task->repo_name, de->name,
+                                                   SYNC_ERROR_ID_CHECKOUT_FILE);
             } else {
                 checkout_file_failed = TRUE;
                 send_file_sync_error_notification (repo_id, http_task->repo_name, de->name,
@@ -6213,6 +6279,8 @@ seaf_repo_manager_new (SeafileSession *seaf)
     pthread_rwlock_init (&mgr->priv->lock, NULL);
 
     mgr->priv->lock_office_job_queue = g_async_queue_new ();
+
+    pthread_mutex_init (&mgr->priv->errors_lock, NULL);
 
     return mgr;
 }
