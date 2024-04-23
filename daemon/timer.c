@@ -85,6 +85,9 @@ seaf_timer_new (TimerCB         func,
     timer->user_data = user_data;
 
     timer->event = evtimer_new (seaf->ev_base, timer_callback, timer);
+    if (timer->event == NULL) {
+        return NULL;
+    }
     evtimer_add (timer->event, &timer->tv);
 
     return timer;
