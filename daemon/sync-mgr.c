@@ -540,7 +540,8 @@ is_perm_error (int error)
             error == SYNC_ERROR_ID_NO_WRITE_PERMISSION ||
             error == SYNC_ERROR_ID_PERM_NOT_SYNCABLE ||
             error == SYNC_ERROR_ID_FOLDER_PERM_DENIED ||
-            error == SYNC_ERROR_ID_TOO_MANY_FILES);
+            error == SYNC_ERROR_ID_TOO_MANY_FILES ||
+            error == SYNC_ERROR_ID_QUOTA_FULL);
 }
 
 static void
