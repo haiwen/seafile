@@ -2678,9 +2678,9 @@ check_permission (HttpTxTask *task, Connection *conn)
 
             unsyncable_path_str = json_string_value (unsyncable_path);
             if (unsyncable_path_str)
-                seaf_repo_manager_record_sync_error (task->repo_id, task->repo_name,
-                                                     unsyncable_path_str,
-                                                     SYNC_ERROR_ID_PERM_NOT_SYNCABLE);
+                send_file_sync_error_notification (task->repo_id, task->repo_name,
+                                                   unsyncable_path_str,
+                                                   SYNC_ERROR_ID_PERM_NOT_SYNCABLE);
         } else {
             task->error = SYNC_ERROR_ID_ACCESS_DENIED;
         }
@@ -3761,8 +3761,8 @@ notify_permission_error (HttpTxTask *task, const char *error_str)
 
     if (g_regex_match (priv->locked_error_regex, error_str, 0, &match_info)) {
         path = g_match_info_fetch (match_info, 1);
-        seaf_repo_manager_record_sync_error (task->repo_id, task->repo_name, path,
-                                             SYNC_ERROR_ID_FILE_LOCKED);
+        send_file_sync_error_notification (task->repo_id, task->repo_name, path,
+                                           SYNC_ERROR_ID_FILE_LOCKED);
         g_free (path);
 
         /* Set more accurate error. */
@@ -3770,9 +3770,9 @@ notify_permission_error (HttpTxTask *task, const char *error_str)
     } else if (g_regex_match (priv->folder_perm_error_regex, error_str, 0, &match_info)) {
         path = g_match_info_fetch (match_info, 1);
         /* The path returned by server begins with '/'. */
-        seaf_repo_manager_record_sync_error (task->repo_id, task->repo_name,
-                                             (path[0] == '/') ? (path + 1) : path,
-                                             SYNC_ERROR_ID_FOLDER_PERM_DENIED);
+        send_file_sync_error_notification (task->repo_id, task->repo_name,
+                                           (path[0] == '/') ? (path + 1) : path,
+                                           SYNC_ERROR_ID_FOLDER_PERM_DENIED);
         g_free (path);
 
         task->error = SYNC_ERROR_ID_FOLDER_PERM_DENIED;

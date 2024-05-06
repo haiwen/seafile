@@ -654,7 +654,7 @@ set_task_error (SyncTask *task, int error)
          * File-level errors are recorded and notified in the location they happens, not here.
          */
         if (err_level == SYNC_ERROR_LEVEL_REPO)
-            seaf_repo_manager_record_sync_error (task->repo->id, task->repo->name, NULL, error);
+            send_file_sync_error_notification (task->repo->id, task->repo->name, NULL, error);
 
 #ifdef WIN32
         seaf_sync_manager_add_refresh_path (seaf->sync_mgr, task->repo->worktree);
