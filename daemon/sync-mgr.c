@@ -1497,6 +1497,7 @@ sync_repo_v2 (SeafSyncManager *manager, SeafRepo *repo, gboolean is_manual_sync)
                     set_task_error (task, SYNC_ERROR_ID_DEL_CONFIRMATION_PENDING);
                     // Delete this repo and resync this repo by adding clone task.
                     resync_repo (repo);
+                    ret = -1;
                     goto out;
                 }
                 // User chooes to continue syncing.
@@ -2606,13 +2607,15 @@ auto_sync_pulse (void *vmanager)
 #endif
 
                 if (repo->sync_interval == 0) {
-                    sync_repo_v2 (manager, repo, FALSE);
+                    if (sync_repo_v2 (manager, repo, FALSE) < 0) 
+                        continue;
 #if defined WIN32 || defined __APPLE__ || defined COMPILE_LINUX_WS
                     check_and_subscribe_repo (manager, repo);
 #endif
                 }
                 else if (periodic_sync_due (repo)) {
-                    sync_repo_v2 (manager, repo, TRUE);
+                    if (sync_repo_v2 (manager, repo, TRUE) < 0)
+                        continue;
 #if defined WIN32 || defined __APPLE__ || defined COMPILE_LINUX_WS
                     check_and_subscribe_repo (manager, repo);
 #endif
