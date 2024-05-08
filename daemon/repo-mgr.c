@@ -4794,8 +4794,8 @@ check_case_conflict (const char *path1, const char *path2, char **conflict_path)
 
     char *base_name1 = g_path_get_basename (path1);
     char *base_name2 = g_path_get_basename (path2);
-    char *parent_dir1 = g_path_get_basename (path1);
-    char *parent_dir2 = g_path_get_basename (path2);
+    char *parent_dir1 = g_path_get_dirname (path1);
+    char *parent_dir2 = g_path_get_dirname (path2);
     gboolean ret = FALSE;
 
     // case conflict
@@ -4843,7 +4843,8 @@ schedule_file_fetch (GThreadPool *tpool,
                      struct index_state *istate,
                      DiffEntry *de,
                      GHashTable *pending_tasks,
-                     GHashTable *conflict_hash,
+                     GHashTable *case_conflict_hash,
+                     GHashTable *no_case_conflict_hash,
                      GList **adding_files)
 {
     struct cache_entry *ce;
@@ -4873,13 +4874,13 @@ schedule_file_fetch (GThreadPool *tpool,
         skip_fetch = TRUE;
     }
 
-    if (!skip_fetch && (is_path_case_conflict (worktree, de->name, &conflict_path) ||
+    if (!skip_fetch && (is_path_case_conflict (worktree, de->name, &conflict_path, no_case_conflict_hash) ||
         is_adding_files_case_conflict(adding_files, de->name, &conflict_path))) {
-        if (conflict_path && !g_hash_table_lookup(conflict_hash, conflict_path)) {
+        if (conflict_path && !g_hash_table_lookup(case_conflict_hash, conflict_path)) {
             seaf_message ("Path %s is case conflict, skip checkout\n", conflict_path);
             send_file_sync_error_notification (repo_id, repo_name, conflict_path,
                                                SYNC_ERROR_ID_INVALID_PATH);
-            g_hash_table_insert (conflict_hash, conflict_path, conflict_path);
+            g_hash_table_insert (case_conflict_hash, conflict_path, conflict_path);
         } else if (conflict_path) {
             g_free (conflict_path);
         }
@@ -5096,7 +5097,8 @@ handle_dir_added_de (const char *repo_id,
                      const char *repo_name,
                      const char *worktree,
                      struct index_state *istate,
-                     DiffEntry *de)
+                     DiffEntry *de,
+                     GHashTable *no_case_conflict_hash)
 {
     seaf_debug ("Checkout empty dir %s.\n", de->name);
 
@@ -5122,7 +5124,7 @@ handle_dir_added_de (const char *repo_id,
         goto update_index;
     }
 
-    if (is_path_case_conflict(worktree, de->name, NULL)) {
+    if (is_path_case_conflict(worktree, de->name, NULL, no_case_conflict_hash)) {
         seaf_message ("Path %s is case conflict, skip checkout\n", de->name);
         send_file_sync_error_notification (repo_id, repo_name, de->name,
                                            SYNC_ERROR_ID_INVALID_PATH);
@@ -5163,7 +5165,8 @@ download_files_http (const char *repo_id,
                      HttpTxTask *http_task,
                      GList *results,
                      const char *conflict_head_id,
-                     LockedFileSet *fset)
+                     LockedFileSet *fset,
+                     GHashTable *no_case_conflict_hash)
 {
     struct cache_entry *ce;
     DiffEntry *de;
@@ -5171,7 +5174,7 @@ download_files_http (const char *repo_id,
     GThreadPool *tpool;
     GAsyncQueue *finished_tasks;
     GHashTable *pending_tasks;
-    GHashTable *conflict_hash;
+    GHashTable *case_conflict_hash;
     GList *adding_files = NULL;
     GList *ptr;
     FileTxTask *task;
@@ -5195,14 +5198,14 @@ download_files_http (const char *repo_id,
     pending_tasks = g_hash_table_new_full (g_str_hash, g_str_equal,
                                            g_free, (GDestroyNotify)file_tx_task_free);
 
-    conflict_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
-                                           g_free, NULL);
+    case_conflict_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                            g_free, NULL);
 
     for (ptr = results; ptr != NULL; ptr = ptr->next) {
         de = ptr->data;
 
         if (de->status == DIFF_STATUS_DIR_ADDED) {
-            handle_dir_added_de (repo_id, http_task->repo_name, worktree, istate, de);
+            handle_dir_added_de (repo_id, http_task->repo_name, worktree, istate, de, no_case_conflict_hash);
         } else if (de->status == DIFF_STATUS_ADDED ||
                    de->status == DIFF_STATUS_MODIFIED) {
             if (FETCH_CHECKOUT_FAILED == schedule_file_fetch (tpool,
@@ -5212,7 +5215,8 @@ download_files_http (const char *repo_id,
                                                               istate,
                                                               de,
                                                               pending_tasks,
-                                                              conflict_hash,
+                                                              case_conflict_hash,
+                                                              no_case_conflict_hash,
                                                               &adding_files))
                 continue;
         }
@@ -5313,7 +5317,7 @@ out:
     /* Free all pending file task structs. */
     g_hash_table_destroy (pending_tasks);
 
-    g_hash_table_destroy (conflict_hash);
+    g_hash_table_destroy (case_conflict_hash);
 
     if (adding_files)
         string_list_free (adding_files);
@@ -5859,6 +5863,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
     SeafileCrypt *crypt = NULL;
     GList *ignore_list = NULL;
     LockedFileSet *fset = NULL;
+    GHashTable *no_case_conflict_hash = NULL;
 
     repo_id = http_task->repo_id;
     repo_version = http_task->repo_version;
@@ -5873,6 +5878,9 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
         seaf_warning ("Failed to load index.\n");
         return FETCH_CHECKOUT_FAILED;
     }
+
+    no_case_conflict_hash = g_hash_table_new_full (g_str_hash, g_str_equal,
+                                            g_free, NULL);
 
     if (!is_clone) {
         repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
@@ -6022,7 +6030,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
 #if defined WIN32 || defined __APPLE__
             if (!do_check_file_locked (de->name, worktree, locked_on_server)) {
                 locked_file_set_remove (fset, de->name, FALSE);
-                if (!is_path_case_conflict (worktree, de->name, NULL)) {
+                if (!is_path_case_conflict (worktree, de->name, NULL, no_case_conflict_hash)) {
                     delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
                 } else {
                     seaf_message ("Path %s is case conflict, skip delete\n", de->name);
@@ -6061,7 +6069,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                 continue;
             }
 
-            if (!is_path_case_conflict (worktree, de->name, NULL)) {
+            if (!is_path_case_conflict (worktree, de->name, NULL, no_case_conflict_hash)) {
                 delete_worktree_dir (repo_id, http_task->repo_name, &istate, worktree, de->name);
             } else {
                 seaf_message ("Path %s is case conflict, skip delete\n", de->name);
@@ -6113,8 +6121,8 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                 seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
                                                       repo_id, de->name);
 
-            gboolean old_path_conflict = is_path_case_conflict(worktree, de->name, NULL);
-            gboolean new_path_conflict = is_path_case_conflict(worktree, de->new_name, NULL);
+            gboolean old_path_conflict = is_path_case_conflict(worktree, de->name, NULL, no_case_conflict_hash);
+            gboolean new_path_conflict = is_path_case_conflict(worktree, de->new_name, NULL, no_case_conflict_hash);
             if (!old_path_conflict && !new_path_conflict) {
                 do_rename_in_worktree (de, worktree);
             } else if (old_path_conflict) {
@@ -6132,7 +6140,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                     seaf_message ("Path %s is case conflict, delete old path %s\n", de->new_name, de->name);
                     send_file_sync_error_notification (repo_id, NULL, de->new_name,
                                                        SYNC_ERROR_ID_INVALID_PATH);
-                    delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
+                    delete_worktree_dir (repo_id, http_task->repo_name, &istate, worktree, de->name);
                 }
             }
             /* update_sync_status updates the sync status for each renamed path.
@@ -6169,7 +6177,8 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                                http_task,
                                results,
                                remote_head_id,
-                               fset);
+                               fset,
+                               no_case_conflict_hash);
 
 out:
     discard_index (&istate);
@@ -6188,6 +6197,8 @@ out:
 #if defined WIN32 || defined __APPLE__
     locked_file_set_free (fset);
 #endif
+
+    g_hash_table_destroy (no_case_conflict_hash);
 
     return ret;
 }
