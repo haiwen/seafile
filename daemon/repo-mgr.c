@@ -4879,7 +4879,7 @@ schedule_file_fetch (GThreadPool *tpool,
         if (conflict_path && !g_hash_table_lookup(case_conflict_hash, conflict_path)) {
             seaf_message ("Path %s is case conflict, skip checkout\n", conflict_path);
             send_file_sync_error_notification (repo_id, repo_name, conflict_path,
-                                               SYNC_ERROR_ID_INVALID_PATH);
+                                               SYNC_ERROR_ID_CASE_CONFLICT);
             g_hash_table_insert (case_conflict_hash, conflict_path, conflict_path);
         } else if (conflict_path) {
             g_free (conflict_path);
@@ -5127,7 +5127,7 @@ handle_dir_added_de (const char *repo_id,
     if (is_path_case_conflict(worktree, de->name, NULL, no_case_conflict_hash)) {
         seaf_message ("Path %s is case conflict, skip checkout\n", de->name);
         send_file_sync_error_notification (repo_id, repo_name, de->name,
-                                           SYNC_ERROR_ID_INVALID_PATH);
+                                           SYNC_ERROR_ID_CASE_CONFLICT);
         goto update_index;
     }
 
@@ -6035,7 +6035,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                 } else {
                     seaf_message ("Path %s is case conflict, skip delete\n", de->name);
                     send_file_sync_error_notification (repo_id, NULL, de->name,
-                                                       SYNC_ERROR_ID_INVALID_PATH);
+                                                       SYNC_ERROR_ID_CASE_CONFLICT);
                 }
             } else {
                 if (!locked_file_set_lookup (fset, de->name))
@@ -6074,7 +6074,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
             } else {
                 seaf_message ("Path %s is case conflict, skip delete\n", de->name);
                 send_file_sync_error_notification (repo_id, NULL, de->name,
-                                                   SYNC_ERROR_ID_INVALID_PATH);
+                                                   SYNC_ERROR_ID_CASE_CONFLICT);
             }
 
             /* Remove all index entries under this directory */
@@ -6126,9 +6126,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
             if (!old_path_conflict && !new_path_conflict) {
                 do_rename_in_worktree (de, worktree);
             } else if (old_path_conflict) {
-                seaf_message ("Path %s is case conflict, convert rename to checkout %s\n", de->name, de->new_name);
-                send_file_sync_error_notification (repo_id, NULL, de->name,
-                                                   SYNC_ERROR_ID_INVALID_PATH);
+                seaf_message ("Case conflict path %s is renamed to %s without case conflict, check it out\n", de->name, de->new_name);
                 convert_rename_to_checkout (repo_id, repo_version,
                                             remote_head->root_id,
                                             de, &results);
@@ -6137,10 +6135,14 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                 // check if file has been changed and delete old path.
                 ce = index_name_exists (&istate, de->name, strlen(de->name), 0);
                 if (ce) {
-                    seaf_message ("Path %s is case conflict, delete old path %s\n", de->new_name, de->name);
+                    seaf_message ("Path %s is renamed to %s, which has case conflict and will not be checked out. Delete it\n", de->name, de->new_name);
                     send_file_sync_error_notification (repo_id, NULL, de->new_name,
-                                                       SYNC_ERROR_ID_INVALID_PATH);
-                    delete_worktree_dir (repo_id, http_task->repo_name, &istate, worktree, de->name);
+                                   SYNC_ERROR_ID_CASE_CONFLICT);
+                    if (de->status == DIFF_STATUS_RENAMED) {
+                        delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
+                    } else {
+                        delete_worktree_dir (repo_id, http_task->repo_name, &istate, worktree, de->name);
+                    }
                 }
             }
             /* update_sync_status updates the sync status for each renamed path.
