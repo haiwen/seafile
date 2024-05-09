@@ -416,4 +416,7 @@ is_eml_file (const char *path);
 
 char *
 canonical_server_url (const char *url_in);
+
+gboolean
+is_path_case_conflict (const char *full_path, const char *path, char **conflict_path, GHashTable *no_case_conflict_hash);
 #endif

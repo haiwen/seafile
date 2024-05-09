@@ -2527,3 +2527,139 @@ canonical_server_url (const char *url_in)
 
     return url;
 }
+
+#ifdef __APPLE__
+static gboolean
+case_conflict_recursive (const char *worktree, const char *path, char **conflict_path, GHashTable *no_case_conflict_hash)
+{
+    if (!path || g_strcmp0 (path, ".") == 0) {
+        return FALSE;
+    }
+
+    if (g_hash_table_lookup (no_case_conflict_hash, path)) {
+        return FALSE;
+    }
+
+    SeafStat st;
+    gboolean ret = FALSE;
+    int fd = -1;
+    char *full_path = g_build_path ("/", worktree, path, NULL);
+    char *no_conflict_path = NULL;
+
+    if (seaf_stat (full_path, &st) < 0) {
+        char *sub_path = g_path_get_dirname (path);
+        ret = case_conflict_recursive (worktree, sub_path, conflict_path, no_case_conflict_hash);
+        g_free (sub_path);
+        goto out;
+    }
+
+    int len = strlen (path);
+    fd = open (full_path, O_RDONLY);
+    if (fd < 0) {
+        goto out;
+    }
+    char buffer[SEAF_PATH_MAX];
+    if (fcntl (fd, F_GETPATH, buffer) < 0) {
+        goto out;
+    }
+    int offset = strlen (buffer) - len;
+    if (strcasecmp (buffer + offset, path) == 0 &&
+        strcmp (buffer + offset, path) != 0) {
+        if (conflict_path) {
+            *conflict_path = g_strdup(path);
+        }
+        ret = TRUE;
+        goto out;
+    } else {
+        no_conflict_path = g_strdup (path);
+        g_hash_table_insert (no_case_conflict_hash, no_conflict_path, no_conflict_path);
+    }
+    
+out:
+    if (fd >= 0)
+        close (fd);
+    g_free (full_path);
+    return ret;
+}
+#elif defined WIN32
+static gboolean
+case_conflict_recursive (const char *worktree, const char *path, char **conflict_path, GHashTable *no_case_conflict_hash)
+{
+    if (!path || g_strcmp0 (path, ".") == 0) {
+        return FALSE;
+    }
+
+    if (g_hash_table_lookup (no_case_conflict_hash, path)) {
+        return FALSE;
+    }
+
+    SeafStat st;
+    gboolean ret = FALSE;
+    int fd = -1;
+    char *full_path = g_build_path ("/", worktree, path, NULL);
+    wchar_t *wpath = win32_long_path (full_path);
+    char *no_conflict_path = NULL;
+
+    if (seaf_stat (full_path, &st) < 0) {
+        char *sub_path = g_path_get_dirname (path);
+        ret = case_conflict_recursive (worktree, sub_path, conflict_path, no_case_conflict_hash);
+        g_free (sub_path);
+        goto out;
+    }
+
+    HANDLE handle;
+    WIN32_FIND_DATAW fdata;
+    handle = FindFirstFileW (wpath, &fdata);
+    if (handle == INVALID_HANDLE_VALUE) {
+        seaf_warning ("Checkinng path case, FindFirstFile failed %s: %lu.\n", full_path, GetLastError());
+        goto out;
+    }
+    char *real_path = g_utf16_to_utf8 (fdata.cFileName, -1, NULL, NULL, NULL);
+    int offset = strlen (real_path) - strlen(path);
+    if (strcasecmp (real_path + offset, path) == 0 &&
+        strcmp (real_path + offset, path) != 0) {
+        if (conflict_path) {
+            *conflict_path = g_strdup(path);
+        }
+        ret = TRUE;
+        g_free (real_path);
+        FindClose (handle);
+        goto out;
+    } else if (strcmp (real_path + offset, path) == 0) {
+        no_conflict_path = g_strdup (path);
+        g_hash_table_insert (no_case_conflict_hash, no_conflict_path, no_conflict_path);
+
+        g_free (real_path);
+        FindClose (handle);
+        goto out;
+    }
+    g_free (real_path);
+    FindClose (handle);
+
+    char *sub_path = g_path_get_dirname (path);
+    ret = case_conflict_recursive (worktree, sub_path, conflict_path, no_case_conflict_hash);
+    g_free (sub_path);
+
+out:
+    g_free (full_path);
+    g_free (wpath);
+    return ret;
+}
+#else
+static gboolean
+case_conflict_recursive (const char *worktree, const char *path, char **conflict_path, GHashTable *no_case_conflict_hash)
+{
+    return FALSE;
+}
+#endif
+
+gboolean
+is_path_case_conflict (const char *worktree, const char *path, char **conflict_path, GHashTable *no_case_conflict_hash)
+{
+    if (strlen(path) >= SEAF_PATH_MAX) {
+        return FALSE;
+    }
+    if (case_conflict_recursive (worktree, path, conflict_path, no_case_conflict_hash))
+        return TRUE;
+    return FALSE;
+}

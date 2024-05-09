@@ -194,6 +194,11 @@ static SyncErrorInfo sync_error_info_tbl[] = {
         SYNC_ERROR_LEVEL_REPO,
         "Failed to upload file blocks. Please check network or firewall"
     },
+    {
+        SYNC_ERROR_ID_CASE_CONFLICT,
+        SYNC_ERROR_LEVEL_FILE,
+        "Path has character case conflict with existing file or folder. Will not be downloaded"
+    },
 };
 
 const char *
