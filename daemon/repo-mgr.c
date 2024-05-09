@@ -6133,15 +6133,18 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                 continue;
             } else if (new_path_conflict) {
                 // check if file has been changed and delete old path.
-                ce = index_name_exists (&istate, de->name, strlen(de->name), 0);
-                if (ce) {
+                if (de->status == DIFF_STATUS_DIR_RENAMED) {
                     seaf_message ("Path %s is renamed to %s, which has case conflict and will not be checked out. Delete it\n", de->name, de->new_name);
                     send_file_sync_error_notification (repo_id, NULL, de->new_name,
                                    SYNC_ERROR_ID_CASE_CONFLICT);
-                    if (de->status == DIFF_STATUS_RENAMED) {
+                    delete_worktree_dir (repo_id, http_task->repo_name, &istate, worktree, de->name);
+                } else {
+                    ce = index_name_exists (&istate, de->name, strlen(de->name), 0);
+                    if (ce) {
+                        seaf_message ("Path %s is renamed to %s, which has case conflict and will not be checked out. Delete it\n", de->name, de->new_name);
+                        send_file_sync_error_notification (repo_id, NULL, de->new_name,
+                                       SYNC_ERROR_ID_CASE_CONFLICT);
                         delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
-                    } else {
-                        delete_worktree_dir (repo_id, http_task->repo_name, &istate, worktree, de->name);
                     }
                 }
             }
