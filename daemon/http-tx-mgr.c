@@ -641,6 +641,10 @@ set_proxy (CURL *curl, gboolean is_https)
         curl_easy_setopt(curl, CURLOPT_PROXYTYPE, CURLPROXY_SOCKS5_HOSTNAME);
         curl_easy_setopt(curl, CURLOPT_PROXY, seaf->http_proxy_addr);
         curl_easy_setopt(curl, CURLOPT_PROXYPORT, seaf->http_proxy_port);
+        if (seaf->http_proxy_username && g_strcmp0 (seaf->http_proxy_username, "") != 0)
+            curl_easy_setopt(curl, CURLOPT_PROXYUSERNAME, seaf->http_proxy_username);
+        if (seaf->http_proxy_password && g_strcmp0 (seaf->http_proxy_password, "") != 0)
+            curl_easy_setopt(curl, CURLOPT_PROXYPASSWORD, seaf->http_proxy_password);
     }
 }
 
