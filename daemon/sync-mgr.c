@@ -2178,6 +2178,12 @@ check_folder_permissions_one_server (SeafSyncManager *mgr,
         server_state->checking_folder_perms)
         return;
 
+    if (server_state->immediate_check_folder_perms) {
+        server_state->immediate_check_folder_perms = FALSE;
+        check_folder_permissions_one_server_immediately (mgr, host, server_state, repos, TRUE);
+        return;
+    }
+
     if (server_state->last_check_perms_time > 0 &&
         now - server_state->last_check_perms_time < CHECK_FOLDER_PERMS_INTERVAL)
         return;
@@ -2321,6 +2327,12 @@ check_locked_files_one_server (SeafSyncManager *mgr,
         server_state->locked_files_not_supported ||
         server_state->checking_locked_files)
         return;
+
+    if (server_state->immediate_check_locked_files) {
+        server_state->immediate_check_locked_files = FALSE;
+        check_locked_files_one_server_immediately (mgr, host, server_state, repos, TRUE);
+        return;
+    }
 
     if (server_state->last_check_locked_files_time > 0 &&
         now - server_state->last_check_locked_files_time < CHECK_FOLDER_PERMS_INTERVAL)

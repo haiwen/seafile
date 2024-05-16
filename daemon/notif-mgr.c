@@ -534,7 +534,7 @@ handle_file_lock (json_t *content)
         if (seaf_filelock_manager_get_lock_status (seaf->filelock_mgr, repo_id, path) == FILE_NOT_LOCKED) {
             return 0;
         }
-        seaf_filelock_manager_mark_file_unlocked (seaf->filelock_mgr, repo_id, path);
+        seaf_filelock_manager_unlock_file (seaf->filelock_mgr, repo_id, path);
     }
 
     return 0;
