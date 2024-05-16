@@ -5321,8 +5321,8 @@ download_files_http (const char *repo_id,
         // Record a file-level sync error when failed to checkout file.
         if (rc == FETCH_CHECKOUT_FAILED) {
             if (checkout_file_failed) {
-                send_file_sync_error_notification (repo_id, http_task->repo_name, de->name,
-                                                   SYNC_ERROR_ID_CHECKOUT_FILE);
+                seaf_repo_manager_record_sync_error (repo_id, http_task->repo_name, de->name,
+                                                     SYNC_ERROR_ID_CHECKOUT_FILE);
             } else {
                 checkout_file_failed = TRUE;
                 send_file_sync_error_notification (repo_id, http_task->repo_name, de->name,
