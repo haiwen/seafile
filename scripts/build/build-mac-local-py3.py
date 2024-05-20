@@ -20,7 +20,7 @@ import tempfile
 
 FINAL_APP = 'Seafile Client.app'
 FSPLUGIN_APPEX_NAME = 'Seafile FinderSync.appex'
-CERT_ID = 'CFEE731B1DEDE6749B83262563773ECB68FACF1F'
+CERT_ID = '7C7618F1448BBC6825B53BFFE21701ACED853DF3'
 
 BUILDDIR = join(os.getcwd(), "../../../")
 
