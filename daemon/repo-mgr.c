@@ -4885,7 +4885,7 @@ out:
 // Since file creation is asynchronous, the file may not have been created locally at the time of checking for case conflicts, 
 // so an additional check for the name of the file being created is required.
 static gboolean
-is_adding_files_case_conflict (GList **adding_files, const char *name, **conflict_path)
+is_adding_files_case_conflict (GList **adding_files, const char *name, const char **conflict_path)
 {
     GList *ptr;
     SeafStat st;
