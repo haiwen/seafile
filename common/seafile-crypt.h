@@ -43,6 +43,7 @@ seafile_crypt_new (int version, unsigned char *key, unsigned char *iv);
 int
 seafile_derive_key (const char *data_in, int in_len, int version,
                     const char *repo_salt,
+                    int iter,
                     unsigned char *key, unsigned char *iv);
 
 /* @salt must be an char array of size 65 bytes. */
@@ -70,12 +71,14 @@ seafile_verify_repo_passwd (const char *repo_id,
                             const char *passwd,
                             const char *magic,
                             int version,
-                            const char *repo_salt);
+                            const char *repo_salt,
+                            int iter);
 
 int
 seafile_decrypt_repo_enc_key (int enc_version,
                               const char *passwd, const char *random_key,
                               const char *repo_salt,
+                              int iter,
                               unsigned char *key_out, unsigned char *iv_out);
 
 int
