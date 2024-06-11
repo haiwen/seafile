@@ -243,7 +243,17 @@ checkout_blk_error:
     return -1;
 }
 
-#define SEAF_TMP_EXT "~"
+void
+free_checkout_block_aux (CheckoutBlockAux *aux)
+{
+    if (!aux)
+        return;
+    g_free (aux->repo_id);
+    g_free (aux->host);
+    g_free (aux->token);
+    g_free (aux);
+}
+
 #define SEAF_BACKUP_EXT ".sbak"
 
 /*
@@ -255,18 +265,10 @@ checkout_blk_error:
  */
 int
 seaf_fs_manager_checkout_file (SeafFSManager *mgr,
-                               const char *repo_id,
-                               int version,
-                               const char *file_id,
-                               const char *file_path,
-                               guint32 mode,
-                               guint64 mtime,
-                               SeafileCrypt *crypt,
-                               const char *in_repo_path,
-                               const char *conflict_head_id,
-                               gboolean force_conflict,
-                               gboolean *conflicted,
-                               const char *email)
+                               FileCheckoutData *data,
+                               int *error_id,
+                               CheckoutBlockCallback callback,
+                               CheckoutBlockAux *user_data)
 {
     Seafile *seafile = NULL;
     char *blk_id;
@@ -275,6 +277,24 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
     char *tmp_path = NULL;
     char *backup_path = NULL;
     char *conflict_path = NULL;
+    SeafStat st;
+    gboolean path_exists = FALSE;
+    gboolean checkout_failed = FALSE;
+
+    const char *repo_id = data->repo_id;
+    int version = data->version;
+    const char *file_id = data->file_id; 
+    const char *file_path = data->file_path;
+    guint32 mode = data->mode;
+    guint64 mtime = data->mtime;
+    struct SeafileCrypt *crypt = data->crypt;
+    const char *in_repo_path = data->in_repo_path;
+    const char *conflict_head_id = data->conflict_head_id;
+    gboolean force_conflict = data->force_conflict;
+    gboolean *conflicted = data->conflicted;
+    const char *email = data->email;
+    gint64 skip_buffer_size = data->skip_buffer_size;
+    int block_offset = data->block_offset;
 
     *conflicted = FALSE;
 
@@ -282,25 +302,51 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
 
     seafile = seaf_fs_manager_get_seafile (mgr, repo_id, version, file_id);
     if (!seafile) {
+        *error_id = FETCH_CHECKOUT_FAILED;
         seaf_warning ("File %s does not exist.\n", file_id);
         return -1;
     }
 
     tmp_path = g_strconcat (file_path, SEAF_TMP_EXT, NULL);
 
+    path_exists = (seaf_stat (tmp_path, &st) == 0);
+
     mode_t rmode = mode & 0100 ? 0777 : 0666;
-    wfd = seaf_util_create (tmp_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY,
-                            rmode & ~S_IFMT);
-    if (wfd < 0) {
-        seaf_warning ("Failed to open file %s for checkout: %s.\n",
-                   tmp_path, strerror(errno));
-        goto bad;
+    if  (!path_exists || crypt || (block_offset == 0)) {
+        if (path_exists)
+            seaf_util_unlink (tmp_path);
+        wfd = seaf_util_create (tmp_path, O_WRONLY | O_TRUNC | O_CREAT | O_BINARY,
+                                rmode & ~S_IFMT);
+        if (wfd < 0) {
+            *error_id = FETCH_CHECKOUT_FAILED;
+            seaf_warning ("Failed to open file %s for checkout: %s.\n",
+                       tmp_path, strerror(errno));
+            goto bad;
+        }
+    } else {
+        wfd = seaf_util_open (tmp_path, O_WRONLY | O_BINARY);
+        if (wfd < 0) {
+            *error_id = FETCH_CHECKOUT_FAILED;
+            seaf_warning ("Failed to open file %s for checkout: %s.\n",
+                       tmp_path, strerror(errno));
+            goto bad;
+        }
+        if (seaf_util_lseek (wfd, skip_buffer_size, SEEK_SET) < 0) {
+            *error_id = FETCH_CHECKOUT_FAILED;
+            seaf_warning ("Failed to seek file %s for checkout: %s.\n",
+                       tmp_path, strerror(errno));
+            goto bad;
+        }
     }
 
-    for (i = 0; i < seafile->n_blocks; ++i) {
+    i = block_offset;
+    for (; i < seafile->n_blocks; ++i) {
         blk_id = seafile->blk_sha1s[i];
-        if (checkout_block (repo_id, version, blk_id, wfd, crypt) < 0)
+        if (callback (repo_id, blk_id, wfd, crypt, user_data)) {
+            *error_id = FETCH_CHECKOUT_TRANSFER_ERROR;
+            checkout_failed = TRUE;
             goto bad;
+        }
     }
 
     close (wfd);
@@ -321,10 +367,13 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
         conflict_path = gen_conflict_path_wrapper (repo_id, version,
                                                    conflict_head_id, in_repo_path,
                                                    file_path);
-        if (!conflict_path)
+        if (!conflict_path) {
+            *error_id = FETCH_CHECKOUT_FAILED;
             goto bad;
+        }
 
         if (seaf_util_rename (tmp_path, conflict_path) < 0) {
+            *error_id = FETCH_CHECKOUT_FAILED;
             goto bad;
         }
 
@@ -351,10 +400,13 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
         conflict_path = gen_conflict_path_wrapper (repo_id, version,
                                                    conflict_head_id, in_repo_path,
                                                    file_path);
-        if (!conflict_path)
+        if (!conflict_path) {
+            *error_id = FETCH_CHECKOUT_FAILED;
             goto bad;
+        }
 
         if (seaf_util_rename (tmp_path, conflict_path) < 0) {
+            *error_id = FETCH_CHECKOUT_FAILED;
             goto bad;
         }
 
@@ -378,8 +430,10 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
             suffix = email;
         } else {
             SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
-            if (!repo)
+            if (!repo) {
+                *error_id = FETCH_CHECKOUT_FAILED;
                 goto bad;
+            }
             suffix = email;
         }
 
@@ -425,7 +479,8 @@ bad:
     if (wfd >= 0)
         close (wfd);
     /* Remove the tmp file if it still exists, in case that rename fails. */
-    seaf_util_unlink (tmp_path);
+    if (!checkout_failed || crypt)
+        seaf_util_unlink (tmp_path);
     g_free (tmp_path);
     g_free (backup_path);
     g_free (conflict_path);

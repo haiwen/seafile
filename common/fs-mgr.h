@@ -19,6 +19,8 @@
 #define CDC_MIN_BLOCK_SIZE (6 * (1 << 20)) /* 6MB */
 #define CDC_MAX_BLOCK_SIZE (10 * (1 << 20)) /* 10MB */
 
+#define SEAF_TMP_EXT "~"
+
 typedef struct _SeafFSManager SeafFSManager;
 typedef struct _SeafFSObject SeafFSObject;
 typedef struct _Seafile Seafile;
@@ -171,20 +173,44 @@ seaf_fs_manager_init (SeafFSManager *mgr);
 
 #ifndef SEAFILE_SERVER
 
+struct _CheckoutBlockAux {
+    const char *repo_id;
+    const char *host;
+    const char *token;
+    gboolean use_fileserver_port;
+    void *task;
+};
+typedef struct _CheckoutBlockAux CheckoutBlockAux; 
+
+void
+free_checkout_block_aux (CheckoutBlockAux *aux);
+
+typedef int (*CheckoutBlockCallback) (const char *, const char *, int, SeafileCrypt *, CheckoutBlockAux *);
+
+struct _FileCheckoutData {
+    const char *repo_id;
+    int version;
+    const char *file_id; 
+    const char *file_path;
+    guint32 mode;
+    guint64 mtime;
+    struct SeafileCrypt *crypt;
+    const char *in_repo_path;
+    const char *conflict_head_id;
+    gboolean force_conflict;
+    gboolean *conflicted;
+    const char *email;
+    gint64 skip_buffer_size;
+    int block_offset;
+};
+typedef struct _FileCheckoutData FileCheckoutData;
+
 int 
 seaf_fs_manager_checkout_file (SeafFSManager *mgr, 
-                               const char *repo_id,
-                               int version,
-                               const char *file_id, 
-                               const char *file_path,
-                               guint32 mode,
-                               guint64 mtime,
-                               struct SeafileCrypt *crypt,
-                               const char *in_repo_path,
-                               const char *conflict_head_id,
-                               gboolean force_conflict,
-                               gboolean *conflicted,
-                               const char *email);
+                               FileCheckoutData *data,
+                               int *error_id,
+                               CheckoutBlockCallback callback,
+                               CheckoutBlockAux *user_data);
 
 #endif  /* not SEAFILE_SERVER */
 
