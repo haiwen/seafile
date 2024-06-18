@@ -83,6 +83,7 @@ common_src = \
 	../common/block-backend-fs.c \
 	../common/mq-mgr.c \
 	../common/curl-init.c \
+	../common/password-hash.c \
 	sync-status-tree.c \
 	filelock-mgr.c \
 	set-perm.c \
@@ -98,6 +99,6 @@ seaf_daemon_LDADD = $(top_builddir)/lib/libseafile_common.la \
 	$(top_builddir)/common/cdc/libcdc.la \
 	$(top_builddir)/common/index/libindex.la @LIB_WS32@ @LIB_CRYPT32@ \
 	@SEARPC_LIBS@ @JANSSON_LIBS@ @LIB_MAC@ @ZLIB_LIBS@ @CURL_LIBS@ @BPWRAPPER_LIBS@ \
-	@WS_LIBS@
+	@WS_LIBS@ @ARGON2_LIBS@
 
 seaf_daemon_LDFLAGS = @CONSOLE@

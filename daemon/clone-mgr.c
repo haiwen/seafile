@@ -1088,6 +1088,40 @@ check_encryption_args (const char *magic, int enc_version, const char *random_ke
 }
 
 static gboolean
+check_pwd_hash_encryption_args (const char *pwd_hash, int enc_version,
+                                const char *random_key,
+                                const char *repo_salt,
+                                GError **error)
+{
+    if (!pwd_hash) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Password hash must be specified");
+        return FALSE;
+    }
+
+    if (enc_version != 1 && enc_version != 2 && enc_version != 3 && enc_version != 4) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                     "Unsupported enc version");
+        return FALSE;
+    }
+
+    if (enc_version >= 2) {
+        if (!random_key || strlen(random_key) != 96) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                         "Random key not specified");
+            return FALSE;
+        }
+        if (enc_version >= 3 && (!(repo_salt) || strlen(repo_salt) != 64) ) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_BAD_ARGS,
+                         "Repo salt not specified");
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
+
+static gboolean
 is_wt_repo_name_same (const char *worktree, const char *repo_name)
 {
     char *basename = g_path_get_basename (worktree);
@@ -1117,6 +1151,9 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
     char *ret = NULL;
     gboolean sync_wt_name = FALSE;
     char *repo_salt = NULL;
+    char *algo = NULL;
+    char *params = NULL;
+    char *pwd_hash = NULL;
     gboolean resync_enc_repo = FALSE;
 
     if (!seaf->started) {
@@ -1147,10 +1184,22 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
             repo_salt = g_strdup (json_string_value (string));
         json_t *integer = json_object_get (object, "resync_enc_repo");
         resync_enc_repo = json_integer_value (integer);
+        string = json_object_get (object, "pwd_hash_algo");
+        if (string)
+            algo = g_strdup (json_string_value (string));
+        string = json_object_get (object, "pwd_hash_params");
+        if (string)
+            params = g_strdup (json_string_value (string));
+        string = json_object_get (object, "pwd_hash");
+        if (string)
+            pwd_hash = g_strdup (json_string_value (string));
         json_decref (object);
     }
 
-    if (passwd &&
+    if (passwd && algo &&
+        !check_pwd_hash_encryption_args (pwd_hash, enc_version, random_key, repo_salt, error)) {
+        goto out;
+    } else if (passwd &&
         !check_encryption_args (magic, enc_version, random_key, repo_salt, error)) {
         goto out;
     }
@@ -1180,7 +1229,12 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         goto out;
     }
 
-    if (passwd &&
+    if (passwd && algo &&
+        seafile_pwd_hash_verify_repo_passwd(repo_id, passwd, repo_salt, pwd_hash, algo, params) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Incorrect password");
+        goto out;
+    } else if (passwd &&
         seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version, repo_salt) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Incorrect password");
@@ -1224,6 +1278,9 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
 out:
     g_free (worktree);
     g_free (repo_salt);
+    g_free (algo);
+    g_free (params);
+    g_free (pwd_hash);
 
     return ret;
 }
@@ -1269,6 +1326,9 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
     char *worktree = NULL;
     char *ret = NULL;
     char *repo_salt = NULL;
+    char *algo = NULL;
+    char *params = NULL;
+    char *pwd_hash = NULL;
 
     if (!seaf->started) {
         seaf_message ("System not started, skip adding clone task.\n");
@@ -1285,19 +1345,28 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
 #endif
 
     if (more_info) {
-         json_error_t jerror;
-         json_t *object;
- 
-         object = json_loads (more_info, 0, &jerror);
-         if (!object) {
-             seaf_warning ("Failed to load more sync info from json: %s.\n", jerror.text);
-             goto out;
-         }
-         json_t *string = json_object_get (object, "repo_salt");
-         if (string)
-             repo_salt = g_strdup (json_string_value (string));
-         json_decref (object);
-     }
+        json_error_t jerror;
+        json_t *object;
+
+        object = json_loads (more_info, 0, &jerror);
+        if (!object) {
+            seaf_warning ("Failed to load more sync info from json: %s.\n", jerror.text);
+            goto out;
+        }
+        json_t *string = json_object_get (object, "repo_salt");
+        if (string)
+            repo_salt = g_strdup (json_string_value (string));
+        string = json_object_get (object, "pwd_hash_algo");
+        if (string)
+            algo = g_strdup (json_string_value (string));
+        string = json_object_get (object, "pwd_hash_params");
+        if (string)
+            params = g_strdup (json_string_value (string));
+        string = json_object_get (object, "pwd_hash");
+        if (string)
+            pwd_hash = g_strdup (json_string_value (string));
+        json_decref (object);
+    }
 
     if (passwd &&
         !check_encryption_args (magic, enc_version, random_key, repo_salt, error)) {
@@ -1330,7 +1399,12 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         goto out;
     }
 
-    if (passwd &&
+    if (passwd && algo &&
+        seafile_pwd_hash_verify_repo_passwd(repo_id, passwd, repo_salt, pwd_hash, algo, params) < 0) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Incorrect password");
+        goto out;
+    } else if (passwd &&
         seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version, repo_salt) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
                      "Incorrect password");
@@ -1376,6 +1450,9 @@ out:
     g_free (worktree);
     g_free (wt_tmp);
     g_free (repo_salt);
+    g_free (algo);
+    g_free (params);
+    g_free (pwd_hash);
 
     return ret;
 }

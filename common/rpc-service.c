@@ -19,6 +19,7 @@
 #include "seafile-config.h"
 #include "seafile-object.h"
 #include "seafile-error-impl.h"
+#include "password-hash.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_OTHER
 #include "log.h"
 
@@ -863,6 +864,8 @@ GObject *
 seafile_generate_magic_and_random_key(int enc_version,
                                       const char* repo_id,
                                       const char *passwd,
+                                      const char *pwd_hash_algo,
+                                      const char *pwd_hash_params,
                                       GError **error)
 {
     if (!repo_id || !passwd) {
@@ -872,13 +875,19 @@ seafile_generate_magic_and_random_key(int enc_version,
 
     gchar salt[65] = {0};
     gchar magic[65] = {0};
+    gchar pwd_hash[65] = {0};
     gchar random_key[97] = {0};
 
     if (enc_version >= 3 && seafile_generate_repo_salt (salt) < 0) {
         return NULL;
     }
 
-    seafile_generate_magic (enc_version, repo_id, passwd, salt, magic);
+    if (g_strcmp0 (pwd_hash_algo, PWD_HASH_PDKDF2) == 0 ||
+        g_strcmp0 (pwd_hash_algo, PWD_HASH_ARGON2ID) == 0) {
+        seafile_generate_pwd_hash (repo_id, passwd, salt, pwd_hash_algo, pwd_hash_params, pwd_hash);
+    } else {
+        seafile_generate_magic (enc_version, repo_id, passwd, salt, magic);
+    }
     if (seafile_generate_random_key (passwd, enc_version, salt, random_key) < 0) {
         return NULL;
     }
@@ -889,6 +898,7 @@ seafile_generate_magic_and_random_key(int enc_version,
                           "passwd", passwd,
                           "enc_version", enc_version,
                           "magic", magic,
+                          "pwd_hash", pwd_hash,
                           "random_key", random_key,
                           NULL);
 
