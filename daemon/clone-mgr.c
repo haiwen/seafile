@@ -148,6 +148,12 @@ start_clone_v2 (CloneTask *task)
                                                  REPO_PROP_SERVER_URL,
                                                  task->server_url);
         }
+        if (task->username) {
+            seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                                 repo->id,
+                                                 REPO_PROP_USERNAME,
+                                                 task->username);
+        }
 
         mark_clone_done_v2 (repo, task);
         return;
@@ -318,6 +324,7 @@ clone_task_free (CloneTask *task)
     g_free (task->peer_addr);
     g_free (task->peer_port);
     g_free (task->email);
+    g_free (task->username);
     g_free (task->random_key);
     g_free (task->server_url);
     g_free (task->effective_url);
@@ -433,6 +440,9 @@ load_more_info_cb (sqlite3_stmt *stmt, void *data)
     json_t *repo_salt = json_object_get (object, "repo_salt");
     if (repo_salt)
         task->repo_salt = g_strdup (json_string_value (repo_salt));
+    json_t *username = json_object_get (object, "username");
+    if (username)
+        task->username = g_strdup (json_string_value (username));
     json_decref (object);
 
     return FALSE;
@@ -622,7 +632,7 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
     }
     sqlite3_free (sql);
 
-    if (task->is_readonly || task->server_url || task->repo_salt) {
+    if (task->is_readonly || task->server_url || task->repo_salt || task->username) {
         /* need to store more info */
         json_t *object = NULL;
         gchar *info = NULL;
@@ -631,6 +641,10 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
         json_object_set_new (object, "is_readonly", json_integer (task->is_readonly));
         if (task->server_url)
             json_object_set_new (object, "server_url", json_string(task->server_url));
+        if (task->repo_salt)
+            json_object_set_new (object, "repo_salt", json_string(task->repo_salt));
+        if (task->username)
+            json_object_set_new (object, "username", json_string(task->username));
     
         info = json_dumps (object, 0);
         json_decref (object);
@@ -722,6 +736,7 @@ add_transfer_task (CloneTask *task, GError **error)
                                             task->worktree,
                                             task->http_protocol_version,
                                             task->email,
+                                            task->username,
                                             task->use_fileserver_port,
                                             task->repo_name,
                                             error);
@@ -1028,6 +1043,9 @@ add_task_common (SeafCloneManager *mgr,
         json_t *repo_salt = json_object_get (object, "repo_salt");
         if (repo_salt)
             task->repo_salt = g_strdup (json_string_value (repo_salt));
+        json_t *username = json_object_get (object, "username");
+        if (username)
+            task->username = g_strdup (json_string_value (username));
         integer = json_object_get (object, "resync_enc_repo");
         task->resync_enc_repo = json_integer_value (integer);
         json_decref (object);
@@ -1485,6 +1503,12 @@ on_repo_http_fetched (SeafileSession *seaf,
                                              repo->id,
                                              REPO_PROP_SERVER_URL,
                                              task->server_url);
+    }
+    if (task->username) {
+        seaf_repo_manager_set_repo_property (seaf->repo_mgr,
+                                             repo->id,
+                                             REPO_PROP_USERNAME,
+                                             task->username);
     }
 
     check_folder_permissions (task);

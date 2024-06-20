@@ -1185,6 +1185,7 @@ seaf_repo_free (SeafRepo *repo)
     g_free (repo->worktree);
     g_free (repo->relay_id);
     g_free (repo->email);
+    g_free (repo->username);
     g_free (repo->token);
     g_free (repo);
 }
@@ -4323,6 +4324,7 @@ commit_tree (SeafRepo *repo, const char *root_id,
     commit = seaf_commit_new (NULL, repo->id, root_id,
                               repo->email ? repo->email
                               : "unknown",
+                              repo->username,
                               seaf->client_id,
                               desc, 0);
 
@@ -5112,6 +5114,10 @@ checkout_file_http (FileTxData *data,
 
     /* then checkout the file. */
     gboolean conflicted = FALSE;
+    char *username = http_task->username;
+    if (!username) {
+        username = http_task->email;
+    }
     if (seaf_fs_manager_checkout_file (seaf->fs_mgr,
                                        repo_id,
                                        repo_version,
@@ -5124,7 +5130,7 @@ checkout_file_http (FileTxData *data,
                                        conflict_head_id,
                                        force_conflict,
                                        &conflicted,
-                                       http_task->email) < 0) {
+                                       username) < 0) {
         seaf_warning ("Failed to checkout file %s.\n", file_task->path);
 
         if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
@@ -7130,6 +7136,7 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
         repo->worktree_invalid = FALSE;
 
     repo->email = load_repo_property (manager, repo->id, REPO_PROP_EMAIL);
+    repo->username = load_repo_property (manager, repo->id, REPO_PROP_USERNAME);
     repo->token = load_repo_property (manager, repo->id, REPO_PROP_TOKEN);
 
     /* May be NULL if this property is not set in db. */
@@ -7444,6 +7451,19 @@ seaf_repo_manager_set_repo_property (SeafRepoManager *manager,
            repo->is_readonly = TRUE;
        else
            repo->is_readonly = FALSE;
+    }
+
+    if (strcmp (key, REPO_PROP_USERNAME) == 0) {
+        if (!repo->username) {
+            /* Called from clone-mgr. */
+            repo->username = g_strdup (value);
+        } else {
+            g_free (repo->username);
+            repo->username = g_strdup(value);
+        }
+
+        save_repo_property (manager, repo_id, key, value);
+        return 0;
     }
 
     save_repo_property (manager, repo_id, key, value);

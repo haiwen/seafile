@@ -147,6 +147,7 @@ http_tx_task_free (HttpTxTask *task)
     g_free (task->passwd);
     g_free (task->worktree);
     g_free (task->email);
+    g_free (task->username);
     g_free (task->repo_name);
     if (task->type == HTTP_TASK_TYPE_DOWNLOAD) {
         g_hash_table_destroy (task->blk_ref_cnts);
@@ -4110,6 +4111,7 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               const char *worktree,
                               int protocol_version,
                               const char *email,
+                              const char *username,
                               gboolean use_fileserver_port,
                               const char *repo_name,
                               GError **error)
@@ -4159,6 +4161,8 @@ http_tx_manager_add_download (HttpTxManager *manager,
     memcpy (task->head, server_head_id, 40);
     task->protocol_version = protocol_version;
     task->email = g_strdup(email);
+    if (username)
+        task->username = g_strdup(username);
 
     task->state = HTTP_TASK_STATE_NORMAL;
 
