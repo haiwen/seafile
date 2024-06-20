@@ -404,6 +404,20 @@ def seaf_start_seafile(args):
         print('Failed to start seafile daemon')
         sys.exit(1)
 
+    seafile_rpc = get_rpc_client(conf_dir)
+    i = 0
+    while True:
+        try:
+            seafile_rpc.seafile_set_config_int("delete_confirm_threshold", 1000000)
+        except Exception as e:
+            if i > 3:
+                break;
+            i += 1
+            time.sleep(1)
+            continue
+        else:
+            break
+
     print("Started: seafile daemon ...")
 
 def seaf_stop(args):
