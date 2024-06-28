@@ -724,6 +724,7 @@ start_fetch_if_necessary (SyncTask *task, const char *remote_head)
                                       NULL,
                                       task->http_version,
                                       repo->email,
+                                      repo->username,
                                       repo->use_fileserver_port,
                                       repo->name,
                                       &error) < 0) {
@@ -1388,6 +1389,8 @@ resync_repo (SeafRepo *repo)
     json_object_set_int_member (obj, "is_readonly", repo->is_readonly);
     json_object_set_string_member (obj, "repo_salt", repo->salt);
     json_object_set_string_member (obj, "server_url", repo->server_url);
+    if (repo->username)
+        json_object_set_string_member (obj, "username", repo->username);
     if (repo->encrypted) {
         is_encrypted = TRUE;
         if (repo->enc_version == 1) {
@@ -1914,6 +1917,10 @@ handle_locked_file_update (SeafRepo *repo, struct index_state *istate,
 
     gboolean conflicted;
     gboolean force_conflict = (file_exists && st.st_mtime != locked->old_mtime);
+    char *username = repo->username;
+    if (!username) {
+        username = repo->email;
+    }
     if (seaf_fs_manager_checkout_file (seaf->fs_mgr,
                                        repo->id, repo->version,
                                        file_id, fullpath,
@@ -1923,7 +1930,7 @@ handle_locked_file_update (SeafRepo *repo, struct index_state *istate,
                                        master->commit_id,
                                        force_conflict,
                                        &conflicted,
-                                       repo->email) < 0) {
+                                       username) < 0) {
         seaf_warning ("Failed to checkout previously locked file %s in repo "
                       "%s(%.8s).\n",
                       path, repo->name, repo->id);

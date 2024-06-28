@@ -39,6 +39,7 @@ struct _CloneTask {
     char                *peer_port; 
     char                *token;
     char                *email;
+    char                *username;
     char                *repo_name; /* For better display. */
     char                *tx_id;
     char                *worktree;

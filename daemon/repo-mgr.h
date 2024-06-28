@@ -24,6 +24,7 @@
 #define REPO_PROP_SERVER_URL  "server-url"
 #define REPO_PROP_SYNC_INTERVAL "sync-interval"
 #define REPO_SYNC_WORKTREE_NAME "sync-worktree-name"
+#define REPO_PROP_USERNAME "username"
 
 struct _SeafRepoManager;
 typedef struct _SeafRepo SeafRepo;
@@ -68,6 +69,7 @@ struct _SeafRepo {
     unsigned char enc_iv[16];
 
     gchar      *email;          /* email of the user on the relay */
+    gchar      *username;
     gchar      *token;          /* token for access this repo on server */
 
     gchar      *jwt_token;

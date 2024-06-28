@@ -57,6 +57,7 @@ struct _HttpTxTask {
     char *host;
     gboolean is_clone;
     char *email;
+    char *username;
     gboolean use_fileserver_port;
 
     char head[41];
@@ -112,6 +113,7 @@ http_tx_manager_add_download (HttpTxManager *manager,
                               const char *worktree,
                               int protocol_version,
                               const char *email,
+                              const char *username,
                               gboolean use_fileserver_port,
                               const char *repo_name,
                               GError **error);
