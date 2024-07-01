@@ -4972,6 +4972,19 @@ check_and_get_block_offset (SeafRepoManager *mgr, CheckoutBlockAux *aux,
         goto out;
     }
 
+    char file_id_attr[41];
+    ssize_t len;
+
+    len = seaf_getxattr (tmp_path, SEAFILE_FILE_ID_ATTR,
+                         file_id_attr, sizeof(file_id_attr));
+    if (len < 0) {
+        goto out;
+    }
+    // File has been changed on server.
+    if (g_strcmp0 (file_id, file_id_attr) != 0) {
+        goto out;
+    }
+
     pthread_rwlock_rdlock (&mgr->priv->block_map_lock);
     block_map = g_hash_table_lookup (mgr->priv->block_map_cache_table, file_id);
     pthread_rwlock_unlock (&mgr->priv->block_map_lock);

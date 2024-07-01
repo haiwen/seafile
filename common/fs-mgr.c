@@ -323,6 +323,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
                        tmp_path, strerror(errno));
             goto bad;
         }
+        seaf_setxattr (tmp_path, SEAFILE_FILE_ID_ATTR, file_id, 41);
     } else {
         wfd = seaf_util_open (tmp_path, O_WRONLY | O_BINARY);
         if (wfd < 0) {
@@ -351,6 +352,8 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
 
     close (wfd);
     wfd = -1;
+
+    seaf_removexattr (tmp_path, SEAFILE_FILE_ID_ATTR);
 
     /* Move existing file to backup file. */
 

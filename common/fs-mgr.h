@@ -20,6 +20,7 @@
 #define CDC_MAX_BLOCK_SIZE (10 * (1 << 20)) /* 10MB */
 
 #define SEAF_TMP_EXT "~"
+#define SEAFILE_FILE_ID_ATTR "user.file-id"
 
 typedef struct _SeafFSManager SeafFSManager;
 typedef struct _SeafFSObject SeafFSObject;
