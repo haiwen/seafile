@@ -419,4 +419,13 @@ canonical_server_url (const char *url_in);
 
 gboolean
 is_path_case_conflict (const char *full_path, const char *path, char **conflict_path, GHashTable *no_case_conflict_hash);
+
+ssize_t
+seaf_getxattr (const char *path, const char *name, void *value, size_t size);
+
+int
+seaf_setxattr (const char *path, const char *name, const void *value, size_t size);
+
+int
+seaf_removexattr (const char *path, const char *name);
 #endif

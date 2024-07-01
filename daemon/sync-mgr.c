@@ -1858,7 +1858,8 @@ cleanup_file_blocks (const char *repo_id, int version, const char *file_id)
 
 static gboolean
 handle_locked_file_update (SeafRepo *repo, struct index_state *istate,
-                           LockedFileSet *fset, const char *path, LockedFile *locked)
+                           LockedFileSet *fset, const char *path, LockedFile *locked,
+                           CheckoutBlockAux *aux)
 {
     gboolean locked_on_server = FALSE;
     struct cache_entry *ce;
@@ -1921,16 +1922,16 @@ handle_locked_file_update (SeafRepo *repo, struct index_state *istate,
     if (!username) {
         username = repo->email;
     }
-    if (seaf_fs_manager_checkout_file (seaf->fs_mgr,
-                                       repo->id, repo->version,
-                                       file_id, fullpath,
-                                       ce->ce_mode, ce->ce_mtime.sec,
-                                       crypt,
-                                       path,
-                                       master->commit_id,
-                                       force_conflict,
-                                       &conflicted,
-                                       username) < 0) {
+    if (seaf_repo_manager_checkout_file (repo,
+                                         file_id, fullpath,
+                                         ce->ce_mode, ce->ce_mtime.sec,
+                                         crypt,
+                                         path,
+                                         master->commit_id,
+                                         force_conflict,
+                                         &conflicted,
+                                         username,
+                                         aux) < 0) {
         seaf_warning ("Failed to checkout previously locked file %s in repo "
                       "%s(%.8s).\n",
                       path, repo->name, repo->id);
@@ -2031,6 +2032,12 @@ check_locked_files (void *vdata)
         return vdata;
     }
 
+    CheckoutBlockAux *aux = g_new0 (CheckoutBlockAux, 1);
+    aux->repo_id = g_strdup (repo->id);
+    aux->host = g_strdup (repo->effective_host);
+    aux->token = g_strdup (repo->token);
+    aux->use_fileserver_port = repo->use_fileserver_port;
+
     gboolean success;
     g_hash_table_iter_init (&iter, fset->locked_files);
     while (g_hash_table_iter_next (&iter, &key, &value)) {
@@ -2039,13 +2046,14 @@ check_locked_files (void *vdata)
 
         success = FALSE;
         if (strcmp (locked->operation, LOCKED_OP_UPDATE) == 0)
-            success = handle_locked_file_update (repo, &istate, fset, path, locked);
+            success = handle_locked_file_update (repo, &istate, fset, path, locked, aux);
         else if (strcmp (locked->operation, LOCKED_OP_DELETE) == 0)
             success = handle_locked_file_delete (repo, &istate, fset, path, locked);
 
         if (success)
             g_hash_table_iter_remove (&iter);
     }
+    free_checkout_block_aux (aux);
 
     discard_index (&istate);
     locked_file_set_free (fset);
@@ -2591,20 +2599,24 @@ auto_sync_pulse (void *vmanager)
             if (repo->checking_locked_files)
                 continue;
 
-            if (repo->last_check_locked_time == 0 ||
-                now - repo->last_check_locked_time >= CHECK_LOCKED_FILES_INTERVAL)
-            {
-                repo->checking_locked_files = TRUE;
-                if (seaf_job_manager_schedule_job (seaf->job_mgr,
-                                                   check_locked_files,
-                                                   check_locked_files_done,
-                                                   repo) < 0) {
-                    seaf_warning ("Failed to schedule check local locked files\n");
-                    repo->checking_locked_files = FALSE;
-                } else {
-                    repo->last_check_locked_time = now;
-                }
+            // Since delayed file updates requires blocks from the server, we need to check the protocol information before updating.
+            if (check_http_protocol (manager, repo)) {
+                if (repo->last_check_locked_time == 0 ||
+                    now - repo->last_check_locked_time >= CHECK_LOCKED_FILES_INTERVAL)
+                {
+                    repo->checking_locked_files = TRUE;
+                    if (seaf_job_manager_schedule_job (seaf->job_mgr,
+                                                       check_locked_files,
+                                                       check_locked_files_done,
+                                                       repo) < 0) {
+                        seaf_warning ("Failed to schedule check local locked files\n");
+                        repo->checking_locked_files = FALSE;
+                    } else {
+                        repo->last_check_locked_time = now;
+                    }
 
+                }
+            
             }
         }
 #endif

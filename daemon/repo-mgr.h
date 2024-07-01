@@ -10,6 +10,7 @@
 #include "seafile-object.h"
 #include "commit-mgr.h"
 #include "branch-mgr.h"
+#include "http-tx-mgr.h"
 
 #define REPO_AUTO_SYNC        "auto-sync"
 #define REPO_RELAY_ID         "relay-id"
@@ -339,6 +340,20 @@ struct _HttpTxTask;
 int
 seaf_repo_fetch_and_checkout (struct _HttpTxTask *http_task,
                               const char *remote_head_id);
+
+int
+seaf_repo_manager_checkout_file (SeafRepo *repo,
+                                 const char *file_id,
+                                 const char *file_path,
+                                 guint32 mode,
+                                 guint64 mtime,
+                                 SeafileCrypt *crypt,
+                                 const char *in_repo_path,
+                                 const char *conflict_head_id,
+                                 gboolean force_conflict,
+                                 gboolean *conflicted,
+                                 const char *email,
+                                 CheckoutBlockAux *aux);
 
 gboolean
 seaf_repo_manager_is_ignored_hidden_file (const char *filename);

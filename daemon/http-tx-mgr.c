@@ -107,7 +107,7 @@ typedef struct _HttpTxPriv HttpTxPriv;
 
 /* Http Tx Task */
 
-static HttpTxTask *
+HttpTxTask *
 http_tx_task_new (HttpTxManager *mgr,
                   const char *repo_id,
                   int repo_version,
@@ -139,7 +139,7 @@ http_tx_task_new (HttpTxManager *mgr,
     return task;
 }
 
-static void
+void
 http_tx_task_free (HttpTxTask *task)
 {
     g_free (task->host);
@@ -150,7 +150,8 @@ http_tx_task_free (HttpTxTask *task)
     g_free (task->username);
     g_free (task->repo_name);
     if (task->type == HTTP_TASK_TYPE_DOWNLOAD) {
-        g_hash_table_destroy (task->blk_ref_cnts);
+        if (task->blk_ref_cnts)
+            g_hash_table_destroy (task->blk_ref_cnts);
     }
     g_free (task);
 }
@@ -711,8 +712,6 @@ recv_response (void *contents, size_t size, size_t nmemb, void *userp)
 extern FILE *seafile_get_log_fp ();
 
 #define HTTP_TIMEOUT_SEC 300
-
-typedef size_t (*HttpRecvCallback) (void *, size_t, size_t, void *);
 
 /*
  * The @timeout parameter is for detecting network connection problems. 
@@ -4670,6 +4669,7 @@ error:
     return ret;
 }
 
+/*
 int
 http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id)
 {
@@ -4742,6 +4742,185 @@ http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id)
 
     seafile_unref (file);
 
+    return ret;
+}
+*/
+
+int
+http_tx_manager_get_block (HttpTxManager *manager,
+                           const char *repo_id,
+                           const char *block_id,
+                           const char *host,
+                           const char *token,
+                           gboolean use_fileserver_port,
+                           int *error_id,
+                           HttpRecvCallback get_blk_cb,
+                           void *user_data)
+{
+    HttpTxPriv *priv = seaf->http_tx_mgr->priv;
+    ConnectionPool *pool;
+    Connection *conn;
+    CURL *curl;
+    char *url;
+    int status;
+    int ret = 0;
+
+    pool = find_connection_pool (priv, host);
+    if (!pool) {
+        *error_id = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
+        seaf_warning ("Failed to create connection pool for host %s.\n", host);
+        return -1;
+    }
+
+    conn = connection_pool_get_connection (pool);
+    if (!conn) {
+        *error_id = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
+        seaf_warning ("Failed to get connection to host %s.\n", host);
+        return -1;
+    }
+
+    curl = conn->curl;
+
+    if (!use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/block/%s",
+                               host, repo_id, block_id);
+    else
+        url = g_strdup_printf ("%s/repo/%s/block/%s",
+                               host, repo_id, block_id);
+
+    int curl_error;
+    if (http_get (curl, url, token, &status, NULL, NULL,
+                  get_blk_cb, user_data, TRUE, &curl_error) < 0) {
+        *error_id = curl_error_to_http_task_error (curl_error);
+        conn->release = TRUE;
+        ret = -1;
+        goto out;
+    }
+
+    if (status != HTTP_OK) {
+        *error_id = curl_error_to_http_task_error (curl_error);
+        seaf_warning ("Bad response code for GET %s: %d.\n", url, status);
+        ret = -1;
+        goto out;
+    }
+
+out:
+    g_free (url);
+    connection_pool_return_connection (pool, conn);
+    return ret;
+}
+
+static int
+parse_block_map (const char *rsp_content, gint64 rsp_size,
+                 gint64 **pblock_map, int *n_blocks)
+{
+    json_t *array, *element;
+    json_error_t jerror;
+    size_t n, i;
+    gint64 *block_map = NULL;
+    int ret = 0;
+
+    array = json_loadb (rsp_content, rsp_size, 0, &jerror);
+    if (!array) {
+        seaf_warning ("Failed to load json: %s\n", jerror.text);
+        return -1;
+    }
+
+    if (json_typeof (array) != JSON_ARRAY) {
+        seaf_warning ("Response is not a json array.\n");
+        ret = -1;
+        goto out;
+    }
+
+    n = json_array_size (array);
+    block_map = g_new0 (gint64, n);
+
+    for (i = 0; i < n; ++i) {
+        element = json_array_get (array, i);
+        if (json_typeof (element) != JSON_INTEGER) {
+            seaf_warning ("Block map element not an integer.\n");
+            ret = -1;
+            goto out;
+        }
+        block_map[i] = (gint64)json_integer_value (element);
+    }
+
+out:
+    json_decref (array);
+    if (ret < 0) {
+        g_free (block_map);
+        *pblock_map = NULL;
+    } else {
+        *pblock_map = block_map;
+        *n_blocks = (int)n;
+    }
+    return ret;
+}
+
+int
+http_tx_manager_get_file_block_map (HttpTxManager *manager,
+                                    const char *repo_id,
+                                    const char *file_id,
+                                    const char *host,
+                                    const char *token,
+                                    gboolean use_fileserver_port,
+                                    gint64 **pblock_map,
+                                    int *n_blocks)
+{
+    HttpTxPriv *priv = seaf->http_tx_mgr->priv;
+    ConnectionPool *pool;
+    Connection *conn;
+    CURL *curl;
+    char *url;
+    int status;
+    char *rsp_content = NULL;
+    gint64 rsp_size;
+    int ret = 0;
+
+    pool = find_connection_pool (priv, host);
+    if (!pool) {
+        seaf_warning ("Failed to create connection pool for host %s.\n", host);
+        return -1;
+    }
+
+    conn = connection_pool_get_connection (pool);
+    if (!conn) {
+        seaf_warning ("Failed to get connection to host %s.\n", host);
+        return -1;
+    }
+
+    curl = conn->curl;
+
+    if (!use_fileserver_port)
+        url = g_strdup_printf ("%s/seafhttp/repo/%s/block-map/%s",
+                               host, repo_id, file_id);
+    else
+        url = g_strdup_printf ("%s/repo/%s/block-map/%s",
+                               host, repo_id, file_id);
+
+    int curl_error;
+    if (http_get (curl, url, token, &status, &rsp_content, &rsp_size,
+                  NULL, NULL, TRUE, &curl_error) < 0) {
+        conn->release = TRUE;
+        ret = -1;
+        goto out;
+    }
+
+    if (status != HTTP_OK) {
+        seaf_warning ("Bad response code for GET %s: %d.\n", url, status);
+        ret = -1;
+        goto out;
+    }
+
+    if (parse_block_map (rsp_content, rsp_size, pblock_map, n_blocks) < 0) {
+        ret = -1;
+        goto out;
+    }
+
+out:
+    g_free (url);
+    g_free (rsp_content);
+    connection_pool_return_connection (pool, conn);
     return ret;
 }
 

@@ -225,6 +225,10 @@ get_notif_server (SeafNotifManager *mgr, const char *url)
 {
     NotifServer *server = NULL;
 
+    if (!url) {
+        return NULL;
+    }
+
     pthread_mutex_lock (&mgr->priv->server_lock);
     server = g_hash_table_lookup (mgr->priv->servers, url);
     if (!server) {

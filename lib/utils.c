@@ -50,6 +50,7 @@
 
 #ifndef WIN32
 #include <utime.h>
+#include <sys/xattr.h>
 #endif
 
 #include <zlib.h>
@@ -2662,4 +2663,143 @@ is_path_case_conflict (const char *worktree, const char *path, char **conflict_p
     if (case_conflict_recursive (worktree, path, conflict_path, no_case_conflict_hash))
         return TRUE;
     return FALSE;
+}
+
+ssize_t
+seaf_getxattr (const char *path, const char *name, void *value, size_t size)
+{
+#ifdef WIN32
+    /* On Windows, use alternate data streams for xattrs. */
+
+    char *stream_path;
+    wchar_t *w_stream_path;
+    HANDLE handle;
+    LARGE_INTEGER stream_size;
+    DWORD n_to_read, n_read;
+    ssize_t ret;
+
+    stream_path = g_strconcat (path, ":", name, NULL);
+    w_stream_path = win32_long_path (stream_path);
+    g_free (stream_path);
+
+    handle = CreateFileW (w_stream_path,
+                          GENERIC_READ,
+                          FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                          NULL,
+                          OPEN_EXISTING,
+                          0,
+                          NULL);
+    if (handle == INVALID_HANDLE_VALUE) {
+        errno = windows_error_to_errno (GetLastError());
+        ret = -1;
+        goto out;
+    }
+
+    if (!GetFileSizeEx (handle, &stream_size)) {
+        errno = windows_error_to_errno (GetLastError());
+        ret = -1;
+        goto out;
+    }
+
+    n_to_read = MIN (stream_size.LowPart, size);
+    if (!ReadFile (handle, value, n_to_read, &n_read, NULL)) {
+        errno = windows_error_to_errno (GetLastError());
+        ret = -1;
+        goto out;
+    }
+
+    ret = (ssize_t)n_read;
+
+out:
+    g_free (w_stream_path);
+    if (handle != INVALID_HANDLE_VALUE)
+        CloseHandle(handle);
+    return ret;
+#endif
+
+#ifdef __linux__
+    return getxattr (path, name, value, size);
+#endif
+
+#ifdef __APPLE__
+    return getxattr (path, name, value, size, 0, 0);
+#endif
+}
+
+int
+seaf_setxattr (const char *path, const char *name, const void *value, size_t size)
+{
+#ifdef WIN32
+    char *stream_path;
+    wchar_t *w_stream_path;
+    HANDLE handle;
+    DWORD n_written;
+    ssize_t ret = 0;
+
+    stream_path = g_strconcat (path, ":", name, NULL);
+    w_stream_path = win32_long_path (stream_path);
+    g_free (stream_path);
+
+    handle = CreateFileW (w_stream_path,
+                          GENERIC_WRITE,
+                          FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+                          NULL,
+                          OPEN_ALWAYS,
+                          0,
+                          NULL);
+    if (handle == INVALID_HANDLE_VALUE) {
+        errno = windows_error_to_errno (GetLastError());
+        ret = -1;
+        goto out;
+    }
+
+    if (!WriteFile (handle, value, (DWORD)size, &n_written, NULL)) {
+        errno = windows_error_to_errno (GetLastError());
+        ret = -1;
+    }
+
+out:
+    g_free (w_stream_path);
+    if (handle != INVALID_HANDLE_VALUE)
+        CloseHandle(handle);
+    return ret;
+#endif
+
+#ifdef __linux__
+    return setxattr (path, name, value, size, 0);
+#endif
+
+#ifdef __APPLE__
+    return setxattr (path, name, value, size, 0, 0);
+#endif
+}
+
+int
+seaf_removexattr (const char *path, const char *name)
+{
+#ifdef WIN32
+    char *stream_path;
+    wchar_t *w_stream_path;
+    int ret = 0;
+
+    stream_path = g_strconcat (path, ":", name, NULL);
+    w_stream_path = win32_long_path (stream_path);
+    g_free (stream_path);
+
+    if (!DeleteFileW (w_stream_path)) {
+        errno = windows_error_to_errno (GetLastError());
+        ret = -1;
+    }
+
+    g_free (w_stream_path);
+    return ret;
+#else
+
+#ifdef __APPLE__
+    return removexattr (path, name, 0);
+#else
+    return removexattr (path, name);
+#endif
+
+#endif
 }
