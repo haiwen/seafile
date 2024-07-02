@@ -446,11 +446,11 @@ def setup_build_env():
     prefix = join(BUILDDIR, 'usr')
 
     prepend_env_value('CFLAGS',
-                      '-Wall -O2 -g -DNDEBUG -I/opt/local/include -mmacosx-version-min=10.14',
+                      '-Wall -O2 -g -DNDEBUG -I/opt/local/include -mmacosx-version-min=11.0',
                       seperator=' ')
 
     prepend_env_value('CXXFLAGS',
-                      '-Wall -O2 -g -DNDEBUG -I/opt/local/include -mmacosx-version-min=10.14',
+                      '-Wall -O2 -g -DNDEBUG -I/opt/local/include -mmacosx-version-min=11.0',
                       seperator=' ')
 
     prepend_env_value('CPPFLAGS',
@@ -475,7 +475,7 @@ def setup_build_env():
                       seperator=' ')
 
     prepend_env_value('LDFLAGS',
-                      '-L/opt/local/lib -Wl,-headerpad_max_install_names -mmacosx-version-min=10.14',
+                      '-L/opt/local/lib -Wl,-headerpad_max_install_names -mmacosx-version-min=11.0',
                       seperator=' ')
 
     prepend_env_value('PATH', join(prefix, 'bin'))
