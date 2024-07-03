@@ -172,7 +172,7 @@ static SyncErrorInfo sync_error_info_tbl[] = {
     {
         SYNC_ERROR_ID_LIBRARY_TOO_LARGE,
         SYNC_ERROR_LEVEL_REPO,
-        "Library contains too many files"
+        "Library cannot be synced since it has too many files"
     },
     {
         SYNC_ERROR_ID_DEL_CONFIRMATION_PENDING,
@@ -182,7 +182,7 @@ static SyncErrorInfo sync_error_info_tbl[] = {
     {
         SYNC_ERROR_ID_TOO_MANY_FILES,
         SYNC_ERROR_LEVEL_REPO,
-        "Too many files in library"
+        "Files cannot be uploaded to this library due to file number limit settings"
     },
     {
         SYNC_ERROR_ID_CHECKOUT_FILE,
