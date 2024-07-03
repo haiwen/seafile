@@ -60,6 +60,9 @@ struct _SeafRepoManagerPriv {
     // sync_errors is used to record sync errors for which notifications have been sent to avoid repeated notifications of the same error.
     GList *sync_errors;
     pthread_mutex_t errors_lock;
+
+    GHashTable* block_map_cache_table;
+    pthread_rwlock_t block_map_lock;
 };
 
 static const char *ignore_table[] = {
@@ -4710,6 +4713,9 @@ typedef struct FileTxData {
     HttpTxTask *http_task;
     char conflict_head_id[41];
     GAsyncQueue *finished_tasks;
+
+    const char *worktree;
+    LockedFileSet *fset;
 } FileTxData;
 
 typedef struct FileTxTask {
@@ -4734,29 +4740,504 @@ file_tx_task_free (FileTxTask *task)
     g_free (task);
 }
 
-static int
-fetch_file_http (FileTxData *data, FileTxTask *file_task)
+struct _UpdateAux {
+    int fd;
+    SeafileCrypt *crypt;
+    char *content;
+    int size;
+    void *user_data;
+};
+typedef struct _UpdateAux UpdateAux;
+
+static size_t
+update_block_cb (void *contents, size_t size, size_t nmemb, void *userp)
 {
+    size_t realsize = size * nmemb;
+    UpdateAux *aux = userp;
+    HttpTxTask *task = aux->user_data;
+    int ret = realsize;
+
+    if (task) {
+        if (task->state == HTTP_TASK_STATE_CANCELED || task->all_stop) {
+            return 0;
+        }
+    }
+
+    aux->content = g_realloc (aux->content, aux->size + realsize);
+    if (!aux->content) {
+        seaf_warning ("Not enough memory.\n");
+        return 0;
+    }
+    memcpy (aux->content + aux->size, contents, realsize);
+    aux->size += realsize;
+
+    /* Update global transferred bytes. */
+    g_atomic_int_add (&(seaf->sync_mgr->recv_bytes), realsize);
+
+    /* Update transferred bytes for this task */
+    if (task)
+        g_atomic_int_add (&task->tx_bytes, realsize);
+
+    /* If uploaded bytes exceeds the limit, wait until the counter
+     * is reset. We check the counter every 100 milliseconds, so we
+     * can waste up to 100 milliseconds without sending data after
+     * the counter is reset.
+     */
+    while (1) {
+        gint sent = g_atomic_int_get(&(seaf->sync_mgr->recv_bytes));
+        if (seaf->sync_mgr->download_limit > 0 &&
+            sent > seaf->sync_mgr->download_limit)
+            /* 100 milliseconds */
+            g_usleep (100000);
+        else
+            break;
+    }
+
+    return ret;
+}
+
+static size_t
+fill_block (void *userp)
+{
+    UpdateAux *aux = userp;
+    size_t realsize = aux->size;
+    int rc = 0;
+    int ret = realsize;
+    char *contents = aux->content;
+    char *dec_out = NULL;
+    int dec_out_len = -1;
+
+    if (aux->crypt) {
+        rc = seafile_decrypt (&dec_out, &dec_out_len, contents, realsize, aux->crypt);
+        if (rc != 0) {
+            seaf_warning ("Decrypt block failed.\n");
+            return -1;
+        }
+
+        ret = writen (aux->fd, dec_out, dec_out_len);
+    } else {
+        ret = writen (aux->fd, contents, realsize);
+    }
+
+    g_free (dec_out);
+
+    return ret;
+}
+
+static int
+checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCrypt *crypt, CheckoutBlockAux *user_data)
+{
+    HttpTxTask *task = user_data->task;
+    int ret = 0;
+    int error_id = SYNC_ERROR_ID_NO_ERROR;
+    UpdateAux aux = {0};
+    aux.fd = fd;
+    aux.crypt = crypt;
+    aux.user_data = task;
+    if (http_tx_manager_get_block(seaf->http_tx_mgr, user_data->repo_id,
+                                  block_id, user_data->host,
+                                  user_data->token, user_data->use_fileserver_port,
+                                  &error_id,
+                                  update_block_cb, &aux) < 0) {
+        if (task->state == HTTP_TASK_STATE_CANCELED) {
+            ret = -1;
+            goto out;
+        }
+        if (task->error == SYNC_ERROR_ID_NO_ERROR) {
+            task->error = error_id;
+        }
+        ret = -1;
+        seaf_warning ("Failed to get block %s from server.\n",
+                      block_id);
+        goto out;
+    }
+    if (fill_block(&aux) < 0) {
+        ret = -1;
+        seaf_warning ("Failed to fill block %s.\n",
+                      block_id);
+        goto out;
+    }
+    if (task)
+        task->done_download += aux.size;
+out:
+    g_free (aux.content);
+    return ret;
+}
+
+static gboolean
+check_path_conflict (const char *path, char **orig_path)
+{
+    gboolean is_conflict = FALSE;
+    GError *error = NULL;
+
+    is_conflict = g_regex_match (conflict_pattern, path, 0, NULL);
+    if (is_conflict) {
+        *orig_path = g_regex_replace_literal (conflict_pattern, path, -1,
+                                              0, "", 0, &error);
+        if (!*orig_path)
+            is_conflict = FALSE;
+    }
+
+    return is_conflict;
+}
+
+/*
+static void
+cleanup_file_blocks_http (HttpTxTask *task, const char *file_id)
+{
+    Seafile *file;
+    int i;
+    char *block_id;
+    int *pcnt;
+
+    file = seaf_fs_manager_get_seafile (seaf->fs_mgr,
+                                        task->repo_id, task->repo_version,
+                                        file_id);
+    if (!file) {
+        seaf_warning ("Failed to load seafile object %s:%s\n",
+                      task->repo_id, file_id);
+        return;
+    }
+
+    for (i = 0; i < file->n_blocks; ++i) {
+        block_id = file->blk_sha1s[i];
+
+        pthread_mutex_lock (&task->ref_cnt_lock);
+
+        pcnt = g_hash_table_lookup (task->blk_ref_cnts, block_id);
+        if (pcnt) {
+            --(*pcnt);
+            if (*pcnt > 0) {
+                pthread_mutex_unlock (&task->ref_cnt_lock);
+                continue;
+            }
+        }
+
+        seaf_block_manager_remove_block (seaf->block_mgr,
+                                         task->repo_id, task->repo_version,
+                                         block_id);
+        g_hash_table_remove (task->blk_ref_cnts, block_id);
+
+        pthread_mutex_unlock (&task->ref_cnt_lock);
+    }
+
+    seafile_unref (file);
+}
+*/
+
+// just skip all downloaded blocks.
+static void
+calculate_block_offset(Seafile *file, gint64 *block_map, gint64 *skip_buffer_size, int *block_offset, gint64 requested_offset)
+{
+    gint64 offset = 0;
+    int i = 0;
+    *skip_buffer_size = 0;
+    for (; i < file->n_blocks ; ++i) {
+        offset += block_map[i];
+        if (offset > requested_offset)
+            break;
+        *skip_buffer_size = offset;
+    }
+    *block_offset = i;
+}
+
+#define CACHE_BLOCK_MAP_THRESHOLD (2 << 23) /* 8MB */
+
+static void
+check_and_get_block_offset (SeafRepoManager *mgr, CheckoutBlockAux *aux,
+                            const char *repo_id, int version,
+                            const char *file_id, const char *file_path,
+                            gint64 *skip_buffer_size, int *block_offset)
+{
+    Seafile *seafile = NULL;
+    SeafStat st;
+    int n_blocks = 0;
+    gint64 *block_map = NULL;
+    char *tmp_path = NULL;
+    gboolean path_exists = FALSE;
+
+    seafile = seaf_fs_manager_get_seafile (seaf->fs_mgr, repo_id, version, file_id);
+    if (!seafile) {
+        return;
+    }
+
+    if (seafile->file_size <= CACHE_BLOCK_MAP_THRESHOLD) {
+        goto out;
+    }
+
+    tmp_path = g_strconcat (file_path, SEAF_TMP_EXT, NULL);
+
+    path_exists = (seaf_stat (tmp_path, &st) == 0);
+    if (!path_exists) {
+        goto out;
+    }
+
+    char file_id_attr[41];
+    ssize_t len;
+
+    len = seaf_getxattr (tmp_path, SEAFILE_FILE_ID_ATTR,
+                         file_id_attr, sizeof(file_id_attr));
+    if (len < 0) {
+        goto out;
+    }
+    // File has been changed on server.
+    if (g_strcmp0 (file_id, file_id_attr) != 0) {
+        goto out;
+    }
+
+    pthread_rwlock_rdlock (&mgr->priv->block_map_lock);
+    block_map = g_hash_table_lookup (mgr->priv->block_map_cache_table, file_id);
+    pthread_rwlock_unlock (&mgr->priv->block_map_lock);
+    if (!block_map) {
+        if (http_tx_manager_get_file_block_map (seaf->http_tx_mgr,
+                                                repo_id,
+                                                file_id,
+                                                aux->host,
+                                                aux->token,
+                                                aux->use_fileserver_port,
+                                                &block_map,
+                                                &n_blocks) == 0) {
+            if (n_blocks != seafile->n_blocks) {
+                seaf_warning ("Block number return from server does not match"
+                              "seafile object. File-id is %s."
+                              "Returned %d, expect %d\n",
+                              seafile->file_id, n_blocks, seafile->n_blocks);
+            } else {
+                pthread_rwlock_wrlock (&mgr->priv->block_map_lock);
+                g_hash_table_replace (mgr->priv->block_map_cache_table, g_strdup(file_id), block_map);
+                pthread_rwlock_unlock (&mgr->priv->block_map_lock);
+            }
+        }
+
+    }
+    if (block_map) {
+        calculate_block_offset(seafile, block_map, skip_buffer_size, block_offset, st.st_size);
+    }
+out:
+    g_free (tmp_path);
+    seafile_unref (seafile);
+}
+
+int
+seaf_repo_manager_checkout_file (SeafRepo *repo,
+                                 const char *file_id,
+                                 const char *file_path,
+                                 guint32 mode,
+                                 guint64 mtime,
+                                 SeafileCrypt *crypt,
+                                 const char *in_repo_path,
+                                 const char *conflict_head_id,
+                                 gboolean force_conflict,
+                                 gboolean *conflicted,
+                                 const char *email,
+                                 CheckoutBlockAux *aux)
+{
+    int ret;
+    gint64 skip_buffer_size = 0;
+    int block_offset = 0;
+
+    if (!crypt)
+        check_and_get_block_offset (seaf->repo_mgr, aux, repo->id, repo->version,
+                                    file_id, file_path, &skip_buffer_size, &block_offset);
+
+    FileCheckoutData file_data = {0}; 
+    int error_id = FETCH_CHECKOUT_SUCCESS;
+    file_data.repo_id = repo->id;
+    file_data.version = repo->version;
+    file_data.file_id = file_id; 
+    file_data.file_path = file_path;
+    file_data.mode = mode;
+    file_data.mtime = mtime;
+    file_data.crypt = crypt;
+    file_data.in_repo_path = in_repo_path;
+    file_data.conflict_head_id = conflict_head_id;
+    file_data.force_conflict = force_conflict;
+    file_data.conflicted = conflicted;
+    file_data.email = email;
+    file_data.skip_buffer_size = skip_buffer_size;
+    file_data.block_offset = block_offset;
+
+    ret = seaf_fs_manager_checkout_file (seaf->fs_mgr,
+                                         &file_data,
+                                         &error_id,
+                                         checkout_block_cb,
+                                         aux);
+    return ret;
+}
+
+static int
+checkout_file_http (FileTxData *data,
+                    FileTxTask *file_task)
+{
+    char *repo_id = data->repo_id;
     int repo_version = data->repo_version;
     struct cache_entry *ce = file_task->ce;
     DiffEntry *de = file_task->de;
     SeafileCrypt *crypt = data->crypt;
-    char *path = file_task->path;
+    gboolean no_checkout = file_task->no_checkout;
+    gboolean force_conflict = file_task->force_conflict;
+    const char *worktree = data->worktree;
+    const char *conflict_head_id = data->conflict_head_id;
+    LockedFileSet *fset = data->fset;
     HttpTxTask *http_task = data->http_task;
     SeafStat st;
     char file_id[41];
+    gboolean locked_on_server = FALSE;
+
+    if (no_checkout)
+        return FETCH_CHECKOUT_SUCCESS;
+
+    if (should_ignore_on_checkout (de->name, NULL))
+        return FETCH_CHECKOUT_SUCCESS;
+
+    rawdata_to_hex (de->sha1, file_id, 20);
+
+    locked_on_server = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                             repo_id, de->name);
+
+#if defined WIN32 || defined __APPLE__
+    if (do_check_file_locked (de->name, worktree, locked_on_server)) {
+        if (!locked_file_set_lookup (fset, de->name))
+            send_file_sync_error_notification (repo_id, NULL, de->name,
+                                               SYNC_ERROR_ID_FILE_LOCKED_BY_APP);
+
+        locked_file_set_add_update (fset, de->name, LOCKED_OP_UPDATE,
+                                    ce->ce_mtime.sec, file_id);
+        /* Stay in syncing status if the file is locked. */
+
+        return FETCH_CHECKOUT_SUCCESS;
+    }
+#endif
+
+    /* Temporarily unlock the file if it's locked on server, so that the client
+     * itself can write to it. 
+     */
+    if (locked_on_server)
+        seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
+                                              repo_id, de->name);
+
+    /* then checkout the file. */
+    gboolean conflicted = FALSE;
+
+    CheckoutBlockAux *aux = g_new0 (CheckoutBlockAux, 1);
+    aux->repo_id = g_strdup (repo_id);
+    aux->host = g_strdup (http_task->host);
+    aux->token = g_strdup (http_task->token);
+    aux->use_fileserver_port = http_task->use_fileserver_port;
+    aux->task = http_task;
+
+    gint64 skip_buffer_size = 0;
+    int block_offset = 0;
+    if (!crypt)
+        check_and_get_block_offset (seaf->repo_mgr, aux, repo_id, repo_version,
+                                    file_id, file_task->path, &skip_buffer_size, &block_offset);
+    if (skip_buffer_size > 0)
+        http_task->done_download += skip_buffer_size;
+
+    FileCheckoutData file_data = {0}; 
+    int error_id = FETCH_CHECKOUT_SUCCESS;
+    file_data.repo_id = repo_id;
+    file_data.version = repo_version;
+    file_data.file_id = file_id; 
+    file_data.file_path = file_task->path;
+    file_data.mode = de->mode;
+    file_data.mtime = de->mtime;
+    file_data.crypt = crypt;
+    file_data.in_repo_path = de->name;
+    file_data.conflict_head_id = conflict_head_id;
+    file_data.force_conflict = force_conflict;
+    file_data.conflicted = &conflicted;
+    if (http_task->username)
+        file_data.email = http_task->username;
+    else
+        file_data.email = http_task->email;
+    file_data.skip_buffer_size = skip_buffer_size;
+    file_data.block_offset = block_offset;
+
+    if (seaf_fs_manager_checkout_file (seaf->fs_mgr,
+                                       &file_data,
+                                       &error_id,
+                                       checkout_block_cb,
+                                       aux) < 0) {
+        seaf_warning ("Failed to checkout file %s.\n", file_task->path);
+
+        if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
+                                                  repo_id, de->name))
+            seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
+                                                repo_id, de->name);
+
+        free_checkout_block_aux (aux);
+        return error_id;
+    }
+    free_checkout_block_aux (aux);
+
+    if (locked_on_server)
+        seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
+                                            repo_id, de->name);
+
+    // cleanup_file_blocks_http (http_task, file_id);
+
+    if (conflicted) {
+        send_file_sync_error_notification (repo_id, NULL, de->name, SYNC_ERROR_ID_CONFLICT);
+    } else if (!http_task->is_clone) {
+        char *orig_path = NULL;
+        if (check_path_conflict (de->name, &orig_path))
+            send_file_sync_error_notification (repo_id, NULL, orig_path, SYNC_ERROR_ID_CONFLICT);
+        g_free (orig_path);
+    }
+
+    /* finally fill cache_entry info */
+    /* Only update index if we checked out the file without any error
+     * or conflicts. The ctime of the entry will remain 0 if error.
+     */
+    seaf_stat (file_task->path, &st);
+    fill_stat_cache_info (ce, &st);
+
+    return FETCH_CHECKOUT_SUCCESS;
+}
+
+static void
+fetch_file_thread_func (gpointer data, gpointer user_data)
+{
+    FileTxTask *task = data;
+    FileTxData *tx_data = user_data;
+    GAsyncQueue *finished_tasks = tx_data->finished_tasks;
+    DiffEntry *de = task->de;
+    char *repo_id = tx_data->repo_id;
+    char file_id[41];
+    gboolean is_clone = tx_data->http_task->is_clone;
+    int repo_version = tx_data->repo_version;
+    struct cache_entry *ce = task->ce;
+    SeafileCrypt *crypt = tx_data->crypt;
+    char *path = task->path;
+    HttpTxTask *http_task = tx_data->http_task;
+    SeafStat st;
     gboolean path_exists = FALSE;
+    int rc = FETCH_CHECKOUT_SUCCESS;
+
+    if (task->skip_fetch)
+        goto out;
 
     rawdata_to_hex (de->sha1, file_id, 20);
 
     path_exists = (seaf_stat (path, &st) == 0);
+
+    /* seaf_message ("Download file %s for repo %s\n", de->name, repo_id); */
+
+    if (!is_clone)
+        seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                              repo_id,
+                                              de->name,
+                                              de->mode,
+                                              SYNC_STATUS_SYNCING,
+                                              TRUE);
 
     if (path_exists && S_ISREG(st.st_mode)) {
         if (st.st_mtime == ce->ce_mtime.sec) {
             /* Worktree and index are consistent. */
             if (memcmp (de->sha1, ce->sha1, 20) == 0) {
                 seaf_debug ("wt and index are consistent. no need to checkout.\n");
-                file_task->no_checkout = TRUE;
+                task->no_checkout = TRUE;
 
                 /* Update mode if necessary. */
                 if (de->mode != ce->ce_mode) {
@@ -4774,7 +5255,7 @@ fetch_file_http (FileTxData *data, FileTxTask *file_task)
 
                 fill_stat_cache_info (ce, &st);
 
-                return FETCH_CHECKOUT_SUCCESS;
+                goto out;
             }
             /* otherwise we have to checkout the file. */
         } else {
@@ -4783,66 +5264,25 @@ fetch_file_http (FileTxData *data, FileTxTask *file_task)
                  * but the index was not. Just need to update the index.
                  */
                 seaf_debug ("update index only.\n");
-                file_task->no_checkout = TRUE;
+                task->no_checkout = TRUE;
                 fill_stat_cache_info (ce, &st);
-                return FETCH_CHECKOUT_SUCCESS;
+                goto out;
             } else {
                 /* Conflict. The worktree file was updated by the user. */
                 seaf_message ("File %s is updated by user. "
                               "Will checkout to conflict file later.\n", path);
-                file_task->force_conflict = TRUE;
+                task->force_conflict = TRUE;
             }
         }
     }
 
     /* Download the blocks of this file. */
-    int rc;
-    rc = http_tx_task_download_file_blocks (http_task, file_id);
+    rc = checkout_file_http (tx_data, task);
     if (http_task->state == HTTP_TASK_STATE_CANCELED) {
-        return FETCH_CHECKOUT_CANCELED;
-    }
-    if (rc < 0) {
-        return FETCH_CHECKOUT_TRANSFER_ERROR;
-    }
-
-    return FETCH_CHECKOUT_SUCCESS;
-}
-
-static void
-fetch_file_thread_func (gpointer data, gpointer user_data)
-{
-    FileTxTask *task = data;
-    FileTxData *tx_data = user_data;
-    GAsyncQueue *finished_tasks = tx_data->finished_tasks;
-    DiffEntry *de = task->de;
-    char *repo_id = tx_data->repo_id;
-    char file_id[41];
-    gboolean is_clone = tx_data->http_task->is_clone;
-    int rc = FETCH_CHECKOUT_SUCCESS;
-
-    if (task->skip_fetch)
-        goto out;
-
-    rawdata_to_hex (de->sha1, file_id, 20);
-
-    /* seaf_message ("Download file %s for repo %s\n", de->name, repo_id); */
-
-    if (!is_clone)
-        seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                              repo_id,
-                                              de->name,
-                                              de->mode,
-                                              SYNC_STATUS_SYNCING,
-                                              TRUE);
-
-    rc = fetch_file_http (tx_data, task);
-
-    /* Even if the file failed to check out, still need to update index.
-     * But we have to stop after transfer errors.
-     */
-    if (rc == FETCH_CHECKOUT_CANCELED) {
+        rc = FETCH_CHECKOUT_CANCELED;
         seaf_debug ("Transfer canceled.\n");
     } else if (rc == FETCH_CHECKOUT_TRANSFER_ERROR) {
+        rc = FETCH_CHECKOUT_TRANSFER_ERROR;
         seaf_warning ("Transfer failed.\n");
     }
 
@@ -4912,6 +5352,8 @@ schedule_file_fetch (GThreadPool *tpool,
                      const char *worktree,
                      struct index_state *istate,
                      DiffEntry *de,
+                     const char *conflict_head_id,
+                     LockedFileSet *fset,
                      GHashTable *pending_tasks,
                      GHashTable *case_conflict_hash,
                      GHashTable *no_case_conflict_hash,
@@ -4984,184 +5426,6 @@ schedule_file_fetch (GThreadPool *tpool,
     } else {
         file_tx_task_free (file_task);
     }
-
-    return FETCH_CHECKOUT_SUCCESS;
-}
-
-static void
-cleanup_file_blocks_http (HttpTxTask *task, const char *file_id)
-{
-    Seafile *file;
-    int i;
-    char *block_id;
-    int *pcnt;
-
-    file = seaf_fs_manager_get_seafile (seaf->fs_mgr,
-                                        task->repo_id, task->repo_version,
-                                        file_id);
-    if (!file) {
-        seaf_warning ("Failed to load seafile object %s:%s\n",
-                      task->repo_id, file_id);
-        return;
-    }
-
-    for (i = 0; i < file->n_blocks; ++i) {
-        block_id = file->blk_sha1s[i];
-
-        pthread_mutex_lock (&task->ref_cnt_lock);
-
-        pcnt = g_hash_table_lookup (task->blk_ref_cnts, block_id);
-        if (pcnt) {
-            --(*pcnt);
-            if (*pcnt > 0) {
-                pthread_mutex_unlock (&task->ref_cnt_lock);
-                continue;
-            }
-        }
-
-        seaf_block_manager_remove_block (seaf->block_mgr,
-                                         task->repo_id, task->repo_version,
-                                         block_id);
-        g_hash_table_remove (task->blk_ref_cnts, block_id);
-
-        pthread_mutex_unlock (&task->ref_cnt_lock);
-    }
-
-    seafile_unref (file);
-}
-
-static gboolean
-check_path_conflict (const char *path, char **orig_path)
-{
-    gboolean is_conflict = FALSE;
-    GError *error = NULL;
-
-    is_conflict = g_regex_match (conflict_pattern, path, 0, NULL);
-    if (is_conflict) {
-        *orig_path = g_regex_replace_literal (conflict_pattern, path, -1,
-                                              0, "", 0, &error);
-        if (!*orig_path)
-            is_conflict = FALSE;
-    }
-
-    return is_conflict;
-}
-
-static int
-checkout_file_http (FileTxData *data,
-                    FileTxTask *file_task,
-                    const char *worktree,
-                    const char *conflict_head_id,
-                    LockedFileSet *fset)
-{
-    char *repo_id = data->repo_id;
-    int repo_version = data->repo_version;
-    struct cache_entry *ce = file_task->ce;
-    DiffEntry *de = file_task->de;
-    SeafileCrypt *crypt = data->crypt;
-    gboolean no_checkout = file_task->no_checkout;
-    gboolean force_conflict = file_task->force_conflict;
-    HttpTxTask *http_task = data->http_task;
-    gboolean path_exists;
-    SeafStat st;
-    char file_id[41];
-    gboolean locked_on_server = FALSE;
-
-    if (no_checkout)
-        return FETCH_CHECKOUT_SUCCESS;
-
-    if (should_ignore_on_checkout (de->name, NULL))
-        return FETCH_CHECKOUT_SUCCESS;
-
-    rawdata_to_hex (de->sha1, file_id, 20);
-
-    locked_on_server = seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                                             repo_id, de->name);
-
-#if defined WIN32 || defined __APPLE__
-    if (do_check_file_locked (de->name, worktree, locked_on_server)) {
-        if (!locked_file_set_lookup (fset, de->name))
-            send_file_sync_error_notification (repo_id, NULL, de->name,
-                                               SYNC_ERROR_ID_FILE_LOCKED_BY_APP);
-
-        locked_file_set_add_update (fset, de->name, LOCKED_OP_UPDATE,
-                                    ce->ce_mtime.sec, file_id);
-        /* Stay in syncing status if the file is locked. */
-
-        return FETCH_CHECKOUT_SUCCESS;
-    }
-#endif
-
-    path_exists = (seaf_stat (file_task->path, &st) == 0);
-
-    /* The worktree file may have been changed when we're downloading the blocks. */
-    if (!file_task->new_ce &&
-        path_exists && S_ISREG(st.st_mode) &&
-        !force_conflict) {
-        if (st.st_mtime != ce->ce_mtime.sec) {
-            seaf_message ("File %s is updated by user. "
-                          "Will checkout to conflict file later.\n", file_task->path);
-            force_conflict = TRUE;
-        }
-    }
-
-    /* Temporarily unlock the file if it's locked on server, so that the client
-     * itself can write to it. 
-     */
-    if (locked_on_server)
-        seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
-                                              repo_id, de->name);
-
-    /* then checkout the file. */
-    gboolean conflicted = FALSE;
-    char *username = http_task->username;
-    if (!username) {
-        username = http_task->email;
-    }
-    if (seaf_fs_manager_checkout_file (seaf->fs_mgr,
-                                       repo_id,
-                                       repo_version,
-                                       file_id,
-                                       file_task->path,
-                                       de->mode,
-                                       de->mtime,
-                                       crypt,
-                                       de->name,
-                                       conflict_head_id,
-                                       force_conflict,
-                                       &conflicted,
-                                       username) < 0) {
-        seaf_warning ("Failed to checkout file %s.\n", file_task->path);
-
-        if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                                  repo_id, de->name))
-            seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
-                                                repo_id, de->name);
-
-        return FETCH_CHECKOUT_FAILED;
-    }
-
-    if (locked_on_server)
-        seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
-                                            repo_id, de->name);
-
-    cleanup_file_blocks_http (http_task, file_id);
-
-    if (conflicted) {
-        send_file_sync_error_notification (repo_id, NULL, de->name, SYNC_ERROR_ID_CONFLICT);
-    } else if (!http_task->is_clone) {
-        char *orig_path = NULL;
-        if (check_path_conflict (de->name, &orig_path))
-            send_file_sync_error_notification (repo_id, NULL, orig_path, SYNC_ERROR_ID_CONFLICT);
-        g_free (orig_path);
-    }
-
-    /* finally fill cache_entry info */
-    /* Only update index if we checked out the file without any error
-     * or conflicts. The ctime of the entry will remain 0 if error.
-     */
-    seaf_stat (file_task->path, &st);
-    fill_stat_cache_info (ce, &st);
 
     return FETCH_CHECKOUT_SUCCESS;
 }
@@ -5265,6 +5529,8 @@ download_files_http (const char *repo_id,
     data.http_task = http_task;
     memcpy (data.conflict_head_id, conflict_head_id, 40);
     data.finished_tasks = finished_tasks;
+    data.worktree = worktree; 
+    data.fset = fset;
 
     tpool = g_thread_pool_new (fetch_file_thread_func, &data,
                                DEFAULT_DOWNLOAD_THREADS, FALSE, NULL);
@@ -5288,6 +5554,8 @@ download_files_http (const char *repo_id,
                                                               worktree,
                                                               istate,
                                                               de,
+                                                              conflict_head_id,
+                                                              fset,
                                                               pending_tasks,
                                                               case_conflict_hash,
                                                               no_case_conflict_hash,
@@ -5321,8 +5589,7 @@ download_files_http (const char *repo_id,
             goto out;
         }
 
-        int rc = checkout_file_http (&data, task, worktree,
-                                     conflict_head_id, fset);
+        int rc = task->result;
 
         // Record a file-level sync error when failed to checkout file.
         if (rc == FETCH_CHECKOUT_FAILED) {
@@ -6384,6 +6651,9 @@ seaf_repo_manager_new (SeafileSession *seaf)
     mgr->priv->lock_office_job_queue = g_async_queue_new ();
 
     pthread_mutex_init (&mgr->priv->errors_lock, NULL);
+
+    mgr->priv->block_map_cache_table = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+    pthread_rwlock_init (&mgr->priv->block_map_lock, NULL);
 
     return mgr;
 }

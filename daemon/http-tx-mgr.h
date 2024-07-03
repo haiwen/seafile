@@ -95,6 +95,20 @@ struct _HttpTxTask {
 };
 typedef struct _HttpTxTask HttpTxTask;
 
+HttpTxTask *
+http_tx_task_new (HttpTxManager *mgr,
+                  const char *repo_id,
+                  int repo_version,
+                  int type,
+                  gboolean is_clone,
+                  const char *host,
+                  const char *token,
+                  const char *passwd,
+                  const char *worktree);
+
+void
+http_tx_task_free (HttpTxTask *task);
+
 HttpTxManager *
 http_tx_manager_new (struct _SeafileSession *seaf);
 
@@ -300,8 +314,33 @@ http_tx_manager_get_head_commit_ids (HttpTxManager *manager,
                                      GList *repo_id_list,
                                      int *ret_status);
 
+/*
 int
 http_tx_task_download_file_blocks (HttpTxTask *task, const char *file_id);
+*/
+
+typedef size_t (*HttpRecvCallback) (void *, size_t, size_t, void *);
+
+int
+http_tx_manager_get_block (HttpTxManager *manager,
+                           const char *repo_id,
+                           const char *block_id,
+                           const char *host,
+                           const char *token,
+                           gboolean use_fileserver_port,
+                           int *error_id,
+                           HttpRecvCallback get_blk_cb,
+                           void *user_data);
+
+int
+http_tx_manager_get_file_block_map (HttpTxManager *manager,
+                                    const char *repo_id,
+                                    const char *file_id,
+                                    const char *host,
+                                    const char *token,
+                                    gboolean use_fileserver_port,
+                                    gint64 **pblock_map,
+                                    int *n_blocks);
 
 GList*
 http_tx_manager_get_upload_tasks (HttpTxManager *manager);
