@@ -279,7 +279,6 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
     char *conflict_path = NULL;
     SeafStat st;
     gboolean path_exists = FALSE;
-    gboolean checkout_failed = FALSE;
 
     const char *repo_id = data->repo_id;
     int version = data->version;
@@ -345,7 +344,6 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
         blk_id = seafile->blk_sha1s[i];
         if (callback (repo_id, blk_id, wfd, crypt, user_data)) {
             *error_id = FETCH_CHECKOUT_TRANSFER_ERROR;
-            checkout_failed = TRUE;
             goto bad;
         }
     }
@@ -482,7 +480,7 @@ bad:
     if (wfd >= 0)
         close (wfd);
     /* Remove the tmp file if it still exists, in case that rename fails. */
-    if (!checkout_failed || crypt)
+    if ((*error_id == FETCH_CHECKOUT_TRANSFER_ERROR) || crypt)
         seaf_util_unlink (tmp_path);
     g_free (tmp_path);
     g_free (backup_path);
