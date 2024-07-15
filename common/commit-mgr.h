@@ -21,7 +21,6 @@ struct _SeafCommit {
     char        root_id[41];    /* the fs root */
     char       *desc;
     char       *creator_name; // creator_name is user's email.
-    char       *username; // username is user's friendly username.
     char        creator_id[41];
     guint64     ctime;          /* creation time */
     char       *parent_id;
@@ -57,7 +56,6 @@ seaf_commit_new (const char *commit_id,
                  const char *repo_id,
                  const char *root_id,
                  const char *author_name,
-                 const char *username,
                  const char *creator_id,
                  const char *desc,
                  guint64 ctime);

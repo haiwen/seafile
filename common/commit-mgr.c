@@ -64,7 +64,6 @@ seaf_commit_new (const char *commit_id,
                  const char *repo_id,
                  const char *root_id,
                  const char *creator_name,
-                 const char *username,
                  const char *creator_id,
                  const char *desc,
                  guint64 ctime)
@@ -83,8 +82,6 @@ seaf_commit_new (const char *commit_id,
     commit->root_id[40] = '\0';
 
     commit->creator_name = g_strdup (creator_name);
-
-    commit->username = g_strdup (username);
 
     memcpy (commit->creator_id, creator_id, 40);
     commit->creator_id[40] = '\0';
@@ -607,8 +604,6 @@ commit_to_json_object (SeafCommit *commit)
     json_object_set_string_member (object, "repo_id", commit->repo_id);
     if (commit->creator_name)
         json_object_set_string_member (object, "creator_name", commit->creator_name);
-    if (commit->username)
-        json_object_set_string_member (object, "username", commit->username);
     json_object_set_string_member (object, "creator", commit->creator_id);
     json_object_set_string_member (object, "description", commit->desc);
     json_object_set_int_member (object, "ctime", (gint64)commit->ctime);
@@ -663,7 +658,6 @@ commit_from_json_object (const char *commit_id, json_t *object)
     const char *root_id;
     const char *repo_id;
     const char *creator_name = NULL;
-    const char *username = NULL;
     const char *creator;
     const char *desc;
     gint64 ctime;
@@ -687,8 +681,6 @@ commit_from_json_object (const char *commit_id, json_t *object)
     repo_id = json_object_get_string_member (object, "repo_id");
     if (json_object_has_member (object, "creator_name"))
         creator_name = json_object_get_string_or_null_member (object, "creator_name");
-    if (json_object_has_member (object, "username"))
-        username = json_object_get_string_or_null_member (object, "username");
     creator = json_object_get_string_member (object, "creator");
     desc = json_object_get_string_member (object, "description");
     if (!desc)
@@ -780,7 +772,7 @@ commit_from_json_object (const char *commit_id, json_t *object)
 
     char *creator_name_l = creator_name ? g_ascii_strdown (creator_name, -1) : NULL;
     commit = seaf_commit_new (commit_id, repo_id, root_id,
-                              creator_name_l, username, creator, desc, ctime);
+                              creator_name_l, creator, desc, ctime);
     g_free (creator_name_l);
 
     commit->parent_id = parent_id ? g_strdup(parent_id) : NULL;
