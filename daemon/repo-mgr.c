@@ -4327,7 +4327,6 @@ commit_tree (SeafRepo *repo, const char *root_id,
     commit = seaf_commit_new (NULL, repo->id, root_id,
                               repo->email ? repo->email
                               : "unknown",
-                              repo->username,
                               seaf->client_id,
                               desc, 0);
 
