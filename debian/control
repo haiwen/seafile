@@ -18,6 +18,7 @@ Build-Depends:
     libjansson-dev,
     python3 (>= 3.5),
     libsearpc-dev (>= 3.1.0)
+    libwebsockets-dev (>= 4.0.20)
 Standards-Version: 3.9.5
 Homepage: http://seafile.com
 
