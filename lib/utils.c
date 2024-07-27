@@ -50,6 +50,9 @@
 
 #ifndef WIN32
 #include <utime.h>
+#endif
+
+#ifdef HAVE_XATTR
 #include <sys/xattr.h>
 #endif
 
@@ -2717,6 +2720,7 @@ out:
     return ret;
 #endif
 
+#ifdef HAVE_XATTR
 #ifdef __linux__
     return getxattr (path, name, value, size);
 #endif
@@ -2724,6 +2728,8 @@ out:
 #ifdef __APPLE__
     return getxattr (path, name, value, size, 0, 0);
 #endif
+#endif
+    return -1;
 }
 
 int
@@ -2765,6 +2771,7 @@ out:
     return ret;
 #endif
 
+#ifdef HAVE_XATTR
 #ifdef __linux__
     return setxattr (path, name, value, size, 0);
 #endif
@@ -2772,6 +2779,8 @@ out:
 #ifdef __APPLE__
     return setxattr (path, name, value, size, 0, 0);
 #endif
+#endif
+    return -1;
 }
 
 int

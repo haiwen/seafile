@@ -36,6 +36,12 @@ AC_SYS_LARGEFILE
 # Checks for library functions.
 #AC_CHECK_FUNCS([alarm dup2 ftruncate getcwd gethostbyname gettimeofday memmove memset mkdir rmdir select setlocale socket strcasecmp strchr strdup strrchr strstr strtol uname utime strtok_r sendfile])
 
+AC_CHECK_FUNCS([getxattr setxattr], [
+  AC_DEFINE([HAVE_XATTR], [1], [Define if the system supports getxattr])
+], [
+  AC_MSG_WARN([getxattr or setxattr functions not found.])
+])
+
 # check platform
 AC_MSG_CHECKING(for WIN32)
 if test "$build_os" = "mingw32" -o "$build_os" = "mingw64"; then
