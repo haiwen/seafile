@@ -50,7 +50,14 @@
 
 #ifndef WIN32
 #include <utime.h>
+#endif
+
+#ifdef __linux__
 #include <sys/xattr.h>
+#endif
+
+#if defined __FreeBSD__ || defined __NetBSD__
+#include <sys/extattr.h>
 #endif
 
 #include <zlib.h>
@@ -2724,6 +2731,12 @@ out:
 #ifdef __APPLE__
     return getxattr (path, name, value, size, 0, 0);
 #endif
+
+#if defined __FreeBSD__ || defined __NetBSD__
+    return extattr_get_file (path, EXTATTR_NAMESPACE_USER, name, value, size);
+#endif
+
+    return -1;
 }
 
 int
@@ -2772,6 +2785,12 @@ out:
 #ifdef __APPLE__
     return setxattr (path, name, value, size, 0, 0);
 #endif
+
+#if defined __FreeBSD__ || defined __NetBSD__
+    return extattr_set_file (path, EXTATTR_NAMESPACE_USER, name, value, size);
+#endif
+
+    return -1;
 }
 
 int
