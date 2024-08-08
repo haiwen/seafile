@@ -2611,6 +2611,10 @@ case_conflict_recursive (const char *worktree, const char *path, char **conflict
     if (seaf_stat (full_path, &st) < 0) {
         char *sub_path = g_path_get_dirname (path);
         ret = case_conflict_recursive (worktree, sub_path, conflict_path, no_case_conflict_hash);
+        if (!ret) {
+            no_conflict_path = g_strdup (sub_path);
+            g_hash_table_insert (no_case_conflict_hash, no_conflict_path, no_conflict_path);
+        }
         g_free (sub_path);
         goto out;
     }
@@ -2622,26 +2626,19 @@ case_conflict_recursive (const char *worktree, const char *path, char **conflict
         seaf_warning ("Checkinng path case, FindFirstFile failed %s: %lu.\n", full_path, GetLastError());
         goto out;
     }
-    char *real_path = g_utf16_to_utf8 (fdata.cFileName, -1, NULL, NULL, NULL);
-    int offset = strlen (real_path) - strlen(path);
-    if (strcasecmp (real_path + offset, path) == 0 &&
-        strcmp (real_path + offset, path) != 0) {
+    char *real_name = g_utf16_to_utf8 (fdata.cFileName, -1, NULL, NULL, NULL);
+    int offset = strlen (path) - strlen(real_name);
+    if (strcasecmp (path + offset, real_name) == 0 &&
+        strcmp (path + offset, real_name) != 0) {
         if (conflict_path) {
             *conflict_path = g_strdup(path);
         }
         ret = TRUE;
-        g_free (real_path);
-        FindClose (handle);
-        goto out;
-    } else if (strcmp (real_path + offset, path) == 0) {
-        no_conflict_path = g_strdup (path);
-        g_hash_table_insert (no_case_conflict_hash, no_conflict_path, no_conflict_path);
-
-        g_free (real_path);
+        g_free (real_name);
         FindClose (handle);
         goto out;
     }
-    g_free (real_path);
+    g_free (real_name);
     FindClose (handle);
 
     char *sub_path = g_path_get_dirname (path);
@@ -2669,6 +2666,10 @@ is_path_case_conflict (const char *worktree, const char *path, char **conflict_p
     }
     if (case_conflict_recursive (worktree, path, conflict_path, no_case_conflict_hash))
         return TRUE;
+#ifdef WIN32
+    char *no_conflict_path = g_strdup (path);
+    g_hash_table_insert (no_case_conflict_hash, no_conflict_path, no_conflict_path);
+#endif
     return FALSE;
 }
 
