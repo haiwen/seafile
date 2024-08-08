@@ -2619,19 +2619,19 @@ case_conflict_recursive (const char *worktree, const char *path, char **conflict
         seaf_warning ("Checkinng path case, FindFirstFile failed %s: %lu.\n", full_path, GetLastError());
         goto out;
     }
-    char *real_path = g_utf16_to_utf8 (fdata.cFileName, -1, NULL, NULL, NULL);
-    int offset = strlen (path) - strlen(real_path);
-    if (strcasecmp (path + offset, real_path) == 0 &&
-        strcmp (path + offset, real_path) != 0) {
+    char *real_name = g_utf16_to_utf8 (fdata.cFileName, -1, NULL, NULL, NULL);
+    int offset = strlen (path) - strlen(real_name);
+    if (strcasecmp (path + offset, real_name) == 0 &&
+        strcmp (path + offset, real_name) != 0) {
         if (conflict_path) {
             *conflict_path = g_strdup(path);
         }
         ret = TRUE;
-        g_free (real_path);
+        g_free (real_name);
         FindClose (handle);
         goto out;
     }
-    g_free (real_path);
+    g_free (real_name);
     FindClose (handle);
 
     char *sub_path = g_path_get_dirname (path);
