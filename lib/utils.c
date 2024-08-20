@@ -52,7 +52,7 @@
 #include <utime.h>
 #endif
 
-#ifdef __linux__
+#if defined __linux__ || defined __APPLE__
 #include <sys/xattr.h>
 #endif
 
