@@ -2053,6 +2053,8 @@ check_locked_files (void *vdata)
         if (success)
             g_hash_table_iter_remove (&iter);
     }
+    if (aux->user_conn)
+        http_tx_manager_return_connection (aux->host, aux->user_conn);
     free_checkout_block_aux (aux);
 
     discard_index (&istate);
