@@ -4837,7 +4837,7 @@ checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCry
                                   block_id, user_data->host,
                                   user_data->token, user_data->use_fileserver_port,
                                   &error_id,
-                                  update_block_cb, &aux) < 0) {
+                                  update_block_cb, &aux, &user_data->user_conn) < 0) {
         if (task->state == HTTP_TASK_STATE_CANCELED) {
             ret = -1;
             goto out;
@@ -5165,9 +5165,13 @@ checkout_file_http (FileTxData *data,
             seaf_filelock_manager_lock_wt_file (seaf->filelock_mgr,
                                                 repo_id, de->name);
 
+        if (aux->user_conn)
+            http_tx_manager_return_connection (aux->host, aux->user_conn);
         free_checkout_block_aux (aux);
         return error_id;
     }
+    if (aux->user_conn)
+        http_tx_manager_return_connection (aux->host, aux->user_conn);
     free_checkout_block_aux (aux);
 
     if (locked_on_server)

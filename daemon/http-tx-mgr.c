@@ -274,6 +274,22 @@ connection_pool_return_connection (ConnectionPool *pool, Connection *conn)
     pthread_mutex_unlock (&pool->lock);
 }
 
+void
+http_tx_manager_return_connection (const char *host, void *conn)
+{
+    HttpTxPriv *priv = seaf->http_tx_mgr->priv;
+    ConnectionPool *pool;
+
+    pool = find_connection_pool (priv, host);
+    if (!pool) {
+        seaf_warning ("Failed to create connection pool for host %s.\n", host);
+        connection_free (conn);
+        return;
+    }
+
+    connection_pool_return_connection (pool, conn);    
+}
+
 #define LOCKED_ERROR_PATTERN "File (.+) is locked"
 #define FOLDER_PERM_ERROR_PATTERN "Update to path (.+) is not allowed by folder permission settings"
 #define TOO_MANY_FILES_ERROR_PATTERN "Too many files in library"
@@ -4755,7 +4771,8 @@ http_tx_manager_get_block (HttpTxManager *manager,
                            gboolean use_fileserver_port,
                            int *error_id,
                            HttpRecvCallback get_blk_cb,
-                           void *user_data)
+                           void *user_data,
+                           void **user_conn)
 {
     HttpTxPriv *priv = seaf->http_tx_mgr->priv;
     ConnectionPool *pool;
@@ -4765,19 +4782,24 @@ http_tx_manager_get_block (HttpTxManager *manager,
     int status;
     int ret = 0;
 
-    pool = find_connection_pool (priv, host);
-    if (!pool) {
-        *error_id = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
-        seaf_warning ("Failed to create connection pool for host %s.\n", host);
-        return -1;
+    if (*user_conn == NULL) {
+        pool = find_connection_pool (priv, host);
+        if (!pool) {
+            *error_id = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
+            seaf_warning ("Failed to create connection pool for host %s.\n", host);
+            return -1;
+        }
+
+        conn = connection_pool_get_connection (pool);
+        if (!conn) {
+            *error_id = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
+            seaf_warning ("Failed to get connection to host %s.\n", host);
+            return -1;
+        }
+        *user_conn = conn;
     }
 
-    conn = connection_pool_get_connection (pool);
-    if (!conn) {
-        *error_id = SYNC_ERROR_ID_NOT_ENOUGH_MEMORY;
-        seaf_warning ("Failed to get connection to host %s.\n", host);
-        return -1;
-    }
+    conn = *user_conn;
 
     curl = conn->curl;
 
@@ -4806,7 +4828,6 @@ http_tx_manager_get_block (HttpTxManager *manager,
 
 out:
     g_free (url);
-    connection_pool_return_connection (pool, conn);
     return ret;
 }
 

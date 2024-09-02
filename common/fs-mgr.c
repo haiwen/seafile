@@ -243,6 +243,7 @@ checkout_blk_error:
     return -1;
 }
 
+// The user_conn needs to be returned before free aux.
 void
 free_checkout_block_aux (CheckoutBlockAux *aux)
 {

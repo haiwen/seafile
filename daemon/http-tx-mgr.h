@@ -115,6 +115,9 @@ http_tx_manager_new (struct _SeafileSession *seaf);
 int
 http_tx_manager_start (HttpTxManager *mgr);
 
+void
+http_tx_manager_return_connection (const char *host, void *conn);
+
 int
 http_tx_manager_add_download (HttpTxManager *manager,
                               const char *repo_id,
@@ -330,7 +333,8 @@ http_tx_manager_get_block (HttpTxManager *manager,
                            gboolean use_fileserver_port,
                            int *error_id,
                            HttpRecvCallback get_blk_cb,
-                           void *user_data);
+                           void *user_data,
+                           void **user_conn);
 
 int
 http_tx_manager_get_file_block_map (HttpTxManager *manager,

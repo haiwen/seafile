@@ -180,6 +180,7 @@ struct _CheckoutBlockAux {
     const char *token;
     gboolean use_fileserver_port;
     void *task;
+    void *user_conn;
 };
 typedef struct _CheckoutBlockAux CheckoutBlockAux; 
 
