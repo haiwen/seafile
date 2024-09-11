@@ -66,6 +66,14 @@ Build and Run
 
 See <https://manual.seafile.com/build_seafile/server>
 
+## Self-Hosting Options
+
+### Elestio
+
+You can deploy Seafile on Elestio using one-click deployment.
+
+[![Deploy on Elestio](https://elest.io/images/logos/deploy-to-elestio-btn.png)](https://elest.io/open-source/seafile)
+
 Bug and Feature Request Reports
 ===============================
 
