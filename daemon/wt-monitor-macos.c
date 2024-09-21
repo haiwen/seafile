@@ -16,9 +16,15 @@
 #define DEBUG_FLAG SEAFILE_DEBUG_WATCH
 #include "log.h"
 
+typedef struct RenameInfo {
+    char *old_path;
+    gboolean processing;
+} RenameInfo;
+
 typedef struct RepoWatchInfo {
     WTStatus *status;
     char *worktree;
+    RenameInfo *rename_info;
 } RepoWatchInfo;
 
 struct SeafWTMonitorPriv {
@@ -33,6 +39,21 @@ add_event_to_queue (WTStatus *status,
 
 static void handle_watch_command (SeafWTMonitor *monitor, WatchCommand *cmd);
 
+inline static void
+set_rename_processing_state (RenameInfo *info, const char *path)
+{
+    info->old_path = g_strdup(path);
+    info->processing = TRUE;
+}
+
+inline static void
+unset_rename_processing_state (RenameInfo *info)
+{
+    g_free (info->old_path);
+    info->old_path = NULL;
+    info->processing = FALSE;
+}
+
 /* RepoWatchInfo */
 
 static RepoWatchInfo *
@@ -43,6 +64,7 @@ create_repo_watch_info (const char *repo_id, const char *worktree)
     RepoWatchInfo *info = g_new0 (RepoWatchInfo, 1);
     info->status = status;
     info->worktree = g_strdup(worktree);
+    info->rename_info = g_new0 (RenameInfo, 1);
 
     return info;
 }
@@ -52,7 +74,49 @@ free_repo_watch_info (RepoWatchInfo *info)
 {
     wt_status_unref (info->status);
     g_free (info->worktree);
+    g_free (info->rename_info->old_path);
+    g_free (info->rename_info);
     g_free (info);
+}
+
+static void
+handle_rename (RepoWatchInfo *info,
+               const FSEventStreamEventFlags eventFlags,
+               const char *eventPath,
+               const char *filename,
+               gboolean last_event)
+{
+    WTStatus *status = info->status;
+    RenameInfo *rename_info = info->rename_info;
+    struct stat st;
+    gboolean exists = TRUE;
+
+    if (!rename_info->processing) {
+        if (stat (eventPath, &st) < 0 && errno == ENOENT) {
+            exists = FALSE;
+        }
+        if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
+            if (!last_event && !exists) {
+                seaf_debug ("Move %s ->\n", filename);
+                // 1. File exists and event is not last.
+                set_rename_processing_state (rename_info, filename);
+            } else if (exists) {
+                seaf_debug ("Created %s.\n", filename);
+                // 2. File exists
+                add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+            } else {
+                seaf_debug ("Deleted %s.\n", filename);
+                // 3. File does not exist and event is last.
+                add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
+            }
+        }
+    } else {
+        if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
+            seaf_debug ("Move -> %s.\n", filename);
+            add_event_to_queue (status, WT_EVENT_RENAME, rename_info->old_path, filename);
+            unset_rename_processing_state (rename_info);
+        }
+    }
 }
 
 static void
@@ -117,7 +181,8 @@ process_one_event (const char* eventPath,
                    RepoWatchInfo *info,
                    const char *worktree,
                    const FSEventStreamEventId eventId,
-                   const FSEventStreamEventFlags eventFlags)
+                   const FSEventStreamEventFlags eventFlags,
+                   gboolean last_event)
 {
     WTStatus *status = info->status;
     char *filename;
@@ -138,17 +203,7 @@ process_one_event (const char* eventPath,
     if (len > 0 && filename[len - 1] == '/')
         filename[len - 1] = 0;
 
-    /* Reinterpreted RENAMED as combine of CREATED or DELETED event */
-    if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
-        seaf_debug ("Rename flag set for %s \n", filename);
-        if (stat (eventPath, &buf) < 0) {
-            /* ret = -1, file is gone */
-            add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
-        } else {
-            /* ret = 0, file is here, but rename behaviour is unknown to us */
-            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
-        }
-    }
+    handle_rename (info, eventFlags, eventPath, filename, last_event);
 
     if (eventFlags & kFSEventStreamEventFlagItemRemoved) {
         seaf_debug ("Deleted flag set for %s.\n", filename);
@@ -254,7 +309,7 @@ stream_callback (ConstFSEventStreamRef streamRef,
         seaf_debug("%ld Change %llu in %s, flags %x\n", (long)CFRunLoopGetCurrent(),
                    eventIds[i], paths[i], eventFlags[i]);
         process_one_event (paths[i], info, info->worktree,
-                           eventIds[i], eventFlags[i]);
+                           eventIds[i], eventFlags[i], i==(numEvents - 1));
     }
 }
 
