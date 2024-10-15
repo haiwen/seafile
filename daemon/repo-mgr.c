@@ -4749,7 +4749,77 @@ struct _UpdateAux {
 typedef struct _UpdateAux UpdateAux;
 
 static size_t
+fill_block (void *contents, size_t realsize, void *userp)
+{
+    UpdateAux *aux = userp;
+    int rc = 0;
+    int ret = realsize;
+    char *dec_out = NULL;
+    int dec_out_len = -1;
+
+    if (aux->crypt) {
+        rc = seafile_decrypt (&dec_out, &dec_out_len, contents, realsize, aux->crypt);
+        if (rc != 0) {
+            seaf_warning ("Decrypt block failed.\n");
+            return -1;
+        }
+
+        ret = writen (aux->fd, dec_out, dec_out_len);
+    } else {
+        ret = writen (aux->fd, contents, realsize);
+    }
+
+    g_free (dec_out);
+
+    return ret;
+}
+
+static size_t
 update_block_cb (void *contents, size_t size, size_t nmemb, void *userp)
+{
+    size_t realsize = size * nmemb;
+    UpdateAux *aux = userp;
+    HttpTxTask *task = aux->user_data;
+    int ret = realsize;
+
+    if (task) {
+        if (task->state == HTTP_TASK_STATE_CANCELED || task->all_stop) {
+            return 0;
+        }
+    }
+
+    aux->size += realsize;
+    if (fill_block (contents, realsize, aux) < 0) {
+        return 0;
+    }
+
+    /* Update global transferred bytes. */
+    g_atomic_int_add (&(seaf->sync_mgr->recv_bytes), realsize);
+
+    /* Update transferred bytes for this task */
+    if (task)
+        g_atomic_int_add (&task->tx_bytes, realsize);
+
+    /* If uploaded bytes exceeds the limit, wait until the counter
+     * is reset. We check the counter every 100 milliseconds, so we
+     * can waste up to 100 milliseconds without sending data after
+     * the counter is reset.
+     */
+    while (1) {
+        gint sent = g_atomic_int_get(&(seaf->sync_mgr->recv_bytes));
+        if (seaf->sync_mgr->download_limit > 0 &&
+            sent > seaf->sync_mgr->download_limit)
+            /* 100 milliseconds */
+            g_usleep (100000);
+        else
+            break;
+    }
+
+    return ret;
+}
+
+static size_t
+update_enc_block_cb (void *contents, size_t size, size_t nmemb, void *userp)
 {
     size_t realsize = size * nmemb;
     UpdateAux *aux = userp;
@@ -4795,34 +4865,6 @@ update_block_cb (void *contents, size_t size, size_t nmemb, void *userp)
     return ret;
 }
 
-static size_t
-fill_block (void *userp)
-{
-    UpdateAux *aux = userp;
-    size_t realsize = aux->size;
-    int rc = 0;
-    int ret = realsize;
-    char *contents = aux->content;
-    char *dec_out = NULL;
-    int dec_out_len = -1;
-
-    if (aux->crypt) {
-        rc = seafile_decrypt (&dec_out, &dec_out_len, contents, realsize, aux->crypt);
-        if (rc != 0) {
-            seaf_warning ("Decrypt block failed.\n");
-            return -1;
-        }
-
-        ret = writen (aux->fd, dec_out, dec_out_len);
-    } else {
-        ret = writen (aux->fd, contents, realsize);
-    }
-
-    g_free (dec_out);
-
-    return ret;
-}
-
 static int
 checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCrypt *crypt, CheckoutBlockAux *user_data)
 {
@@ -4833,28 +4875,48 @@ checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCry
     aux.fd = fd;
     aux.crypt = crypt;
     aux.user_data = task;
-    if (http_tx_manager_get_block(seaf->http_tx_mgr, user_data->repo_id,
-                                  block_id, user_data->host,
-                                  user_data->token, user_data->use_fileserver_port,
-                                  &error_id,
-                                  update_block_cb, &aux) < 0) {
-        if (task->state == HTTP_TASK_STATE_CANCELED) {
+    if (crypt) {
+        if (http_tx_manager_get_block(seaf->http_tx_mgr, user_data->repo_id,
+                                      block_id, user_data->host,
+                                      user_data->token, user_data->use_fileserver_port,
+                                      &error_id,
+                                      update_enc_block_cb, &aux) < 0) {
+            if (task->state == HTTP_TASK_STATE_CANCELED) {
+                ret = -1;
+                goto out;
+            }
+            if (task->error == SYNC_ERROR_ID_NO_ERROR) {
+                task->error = error_id;
+            }
             ret = -1;
+            seaf_warning ("Failed to get block %s from server.\n",
+                          block_id);
             goto out;
         }
-        if (task->error == SYNC_ERROR_ID_NO_ERROR) {
-            task->error = error_id;
+        if (fill_block(aux.content, aux.size, &aux) < 0) {
+            ret = -1;
+            seaf_warning ("Failed to fill block %s.\n",
+                          block_id);
+            goto out;
         }
-        ret = -1;
-        seaf_warning ("Failed to get block %s from server.\n",
-                      block_id);
-        goto out;
-    }
-    if (fill_block(&aux) < 0) {
-        ret = -1;
-        seaf_warning ("Failed to fill block %s.\n",
-                      block_id);
-        goto out;
+    } else {
+        if (http_tx_manager_get_block(seaf->http_tx_mgr, user_data->repo_id,
+                                      block_id, user_data->host,
+                                      user_data->token, user_data->use_fileserver_port,
+                                      &error_id,
+                                      update_block_cb, &aux) < 0) {
+            if (task->state == HTTP_TASK_STATE_CANCELED) {
+                ret = -1;
+                goto out;
+            }
+            if (task->error == SYNC_ERROR_ID_NO_ERROR) {
+                task->error = error_id;
+            }
+            ret = -1;
+            seaf_warning ("Failed to get block %s from server.\n",
+                          block_id);
+            goto out;
+        }
     }
     if (task)
         task->done_download += aux.size;
