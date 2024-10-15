@@ -4788,6 +4788,7 @@ update_block_cb (void *contents, size_t size, size_t nmemb, void *userp)
         }
     }
 
+    aux->size += realsize;
     if (fill_block (contents, realsize, aux) < 0) {
         return 0;
     }
