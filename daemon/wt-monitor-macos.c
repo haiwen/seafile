@@ -92,10 +92,10 @@ handle_rename (RepoWatchInfo *info,
     gboolean exists = TRUE;
 
     if (!rename_info->processing) {
-        if (stat (eventPath, &st) < 0 && errno == ENOENT) {
-            exists = FALSE;
-        }
         if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
+            if (stat (eventPath, &st) < 0 && errno == ENOENT) {
+                exists = FALSE;
+            }
             if (!last_event && !exists) {
                 seaf_debug ("Move %s ->\n", filename);
                 // 1. File exists and event is not last.
