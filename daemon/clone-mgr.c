@@ -1229,11 +1229,12 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
         goto out;
     }
 
-    if (passwd && algo &&
-        seafile_pwd_hash_verify_repo_passwd(repo_id, passwd, repo_salt, pwd_hash, algo, params) < 0) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "Incorrect password");
-        goto out;
+    if (passwd && algo) {
+        if (seafile_pwd_hash_verify_repo_passwd(enc_version, repo_id, passwd, repo_salt, pwd_hash, algo, params) < 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "Incorrect password");
+            goto out;
+        }
     } else if (passwd &&
         seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version, repo_salt) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
@@ -1399,11 +1400,12 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         goto out;
     }
 
-    if (passwd && algo &&
-        seafile_pwd_hash_verify_repo_passwd(repo_id, passwd, repo_salt, pwd_hash, algo, params) < 0) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "Incorrect password");
-        goto out;
+    if (passwd && algo) {
+        if (seafile_pwd_hash_verify_repo_passwd(enc_version, repo_id, passwd, repo_salt, pwd_hash, algo, params) < 0) {
+            g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                         "Incorrect password");
+            goto out;
+        }
     } else if (passwd &&
         seafile_verify_repo_passwd(repo_id, passwd, magic, enc_version, repo_salt) < 0) {
         g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,

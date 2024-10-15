@@ -884,7 +884,7 @@ seafile_generate_magic_and_random_key(int enc_version,
 
     if (g_strcmp0 (pwd_hash_algo, PWD_HASH_PDKDF2) == 0 ||
         g_strcmp0 (pwd_hash_algo, PWD_HASH_ARGON2ID) == 0) {
-        seafile_generate_pwd_hash (repo_id, passwd, salt, pwd_hash_algo, pwd_hash_params, pwd_hash);
+        seafile_generate_pwd_hash (enc_version, repo_id, passwd, salt, pwd_hash_algo, pwd_hash_params, pwd_hash);
     } else {
         seafile_generate_magic (enc_version, repo_id, passwd, salt, magic);
     }

@@ -43,7 +43,7 @@ pbkdf2_sha256_derive_key (const char *data_in, int in_len,
 {
     int iteration = params->iteration;
 
-    unsigned char salt_bin[32];
+    unsigned char salt_bin[32] = {0};
     hex_to_rawdata (salt, salt_bin, 32);
 
     PKCS5_PBKDF2_HMAC (data_in, in_len,
@@ -110,7 +110,7 @@ argon2id_derive_key (const char *data_in, int in_len,
                      Argon2idParams *params,
                      unsigned char *key)
 {
-    unsigned char salt_bin[32];
+    unsigned char salt_bin[32] = {0};
     hex_to_rawdata (salt, salt_bin, 32);
 
     argon2id_hash_raw(params->time_cost, params->memory_cost, params->parallelism,

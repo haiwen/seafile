@@ -1406,6 +1406,24 @@ marshal_object__int_string_string (void *func, json_t *param_array, gsize *ret_l
 
 
 static char *
+marshal_object__int_string_string_string_string (void *func, json_t *param_array, gsize *ret_len)
+{
+    GError *error = NULL;
+    int param1 = json_array_get_int_element (param_array, 1);
+    const char* param2 = json_array_get_string_or_null_element (param_array, 2);
+    const char* param3 = json_array_get_string_or_null_element (param_array, 3);
+    const char* param4 = json_array_get_string_or_null_element (param_array, 4);
+    const char* param5 = json_array_get_string_or_null_element (param_array, 5);
+
+    GObject* ret = ((GObject* (*)(int, const char*, const char*, const char*, const char*, GError **))func) (param1, param2, param3, param4, param5, &error);
+
+    json_t *object = json_object ();
+    searpc_set_object_to_ret_object (object, ret);
+    return searpc_marshal_set_ret_common (object, ret_len, error);
+}
+
+
+static char *
 marshal_object__string_string_string_string_string_string_string_int_int (void *func, json_t *param_array, gsize *ret_len)
 {
     GError *error = NULL;
@@ -1462,7 +1480,7 @@ marshal_json__void (void *func, json_t *param_array, gsize *ret_len)
     return searpc_marshal_set_ret_common (object, ret_len, error);
 }
 
-static void register_marshals()
+static void register_marshals(void)
 {
 
     {
@@ -1887,6 +1905,11 @@ static void register_marshals()
 
     {
         searpc_server_register_marshal (searpc_signature_object__int_string_string(), marshal_object__int_string_string);
+    }
+
+
+    {
+        searpc_server_register_marshal (searpc_signature_object__int_string_string_string_string(), marshal_object__int_string_string_string_string);
     }
 
 
