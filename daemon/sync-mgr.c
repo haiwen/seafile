@@ -1401,6 +1401,11 @@ resync_repo (SeafRepo *repo)
             rawdata_to_hex (repo->enc_iv, iv, 16);
         }
         json_object_set_int_member (obj, "resync_enc_repo", TRUE);
+        if (repo->pwd_hash_algo) {
+            json_object_set_string_member (obj, "pwd_hash_algo", repo->pwd_hash_algo);
+            json_object_set_string_member (obj, "pwd_hash_params", repo->pwd_hash_params);
+            json_object_set_string_member (obj, "pwd_hash", repo->pwd_hash);
+        }
     }
 
     more_info = json_dumps (obj, 0);

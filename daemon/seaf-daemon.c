@@ -255,7 +255,7 @@ register_rpc_service ()
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_generate_magic_and_random_key,
                                      "seafile_generate_magic_and_random_key",
-                                     searpc_signature_object__int_string_string());
+                                     searpc_signature_object__int_string_string_string_string());
 
     searpc_server_register_function ("seafile-rpcserver",
                                      seafile_get_server_property,

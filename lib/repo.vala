@@ -121,6 +121,7 @@ public class EncryptionInfo: Object {
     public string passwd { get; set; }
     public int enc_version { get; set; }
     public string magic { get; set; }
+    public string pwd_hash { get; set; }
     public string random_key { get; set; }
     public string salt { get; set; }
 }

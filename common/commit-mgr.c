@@ -165,6 +165,9 @@ seaf_commit_free (SeafCommit *commit)
     g_free (commit->client_version);
     g_free (commit->magic);
     g_free (commit->random_key);
+    g_free (commit->pwd_hash);
+    g_free (commit->pwd_hash_algo);
+    g_free (commit->pwd_hash_params);
     g_free (commit);
 }
 
@@ -630,12 +633,17 @@ commit_to_json_object (SeafCommit *commit)
 
     if (commit->encrypted) {
         json_object_set_int_member (object, "enc_version", commit->enc_version);
-        if (commit->enc_version >= 1)
+        if (commit->enc_version >= 1 && !commit->pwd_hash)
             json_object_set_string_member (object, "magic", commit->magic);
         if (commit->enc_version >= 2)
             json_object_set_string_member (object, "key", commit->random_key);
         if (commit->enc_version >= 3)
             json_object_set_string_member (object, "salt", commit->salt);
+        if (commit->pwd_hash) {
+            json_object_set_string_member (object, "pwd_hash", commit->pwd_hash);
+            json_object_set_string_member (object, "pwd_hash_algo", commit->pwd_hash_algo);
+            json_object_set_string_member (object, "pwd_hash_params", commit->pwd_hash_params);
+        }
     }
     if (commit->no_local_history)
         json_object_set_int_member (object, "no_local_history", 1);
@@ -672,6 +680,9 @@ commit_from_json_object (const char *commit_id, json_t *object)
     const char *magic = NULL;
     const char *random_key = NULL;
     const char *salt = NULL;
+    const char *pwd_hash = NULL;
+    const char *pwd_hash_algo = NULL;
+    const char *pwd_hash_params = NULL;
     int no_local_history = 0;
     int version = 0;
     int conflict = 0, new_merge = 0;
@@ -706,6 +717,9 @@ commit_from_json_object (const char *commit_id, json_t *object)
         && json_object_has_member (object, "enc_version")) {
         enc_version = json_object_get_int_member (object, "enc_version");
         magic = json_object_get_string_member (object, "magic");
+        pwd_hash = json_object_get_string_member (object, "pwd_hash");
+        pwd_hash_algo = json_object_get_string_member (object, "pwd_hash_algo");
+        pwd_hash_params = json_object_get_string_member (object, "pwd_hash_params");
     }
 
     if (enc_version >= 2)
@@ -735,6 +749,10 @@ commit_from_json_object (const char *commit_id, json_t *object)
         (parent_id && !is_object_id_valid(parent_id)) ||
         (second_parent_id && !is_object_id_valid(second_parent_id)))
         return commit;
+
+    // If pwd_hash is set, the magic field is no longer included in the commit of the newly created repo.
+    if (!magic)
+        magic = pwd_hash;
 
     switch (enc_version) {
     case 0:
@@ -791,12 +809,17 @@ commit_from_json_object (const char *commit_id, json_t *object)
 
     if (commit->encrypted) {
         commit->enc_version = enc_version;
-        if (enc_version >= 1)
+        if (enc_version >= 1 && !pwd_hash)
             commit->magic = g_strdup(magic);
         if (enc_version >= 2)
             commit->random_key = g_strdup (random_key);
         if (enc_version >= 3)
             commit->salt = g_strdup(salt);
+        if (pwd_hash) {
+            commit->pwd_hash = g_strdup (pwd_hash);
+            commit->pwd_hash_algo = g_strdup (pwd_hash_algo);
+            commit->pwd_hash_params = g_strdup (pwd_hash_params);
+        }
     }
     if (no_local_history)
         commit->no_local_history = TRUE;
