@@ -158,7 +158,7 @@
       <IntrinsicFunctions>false</IntrinsicFunctions>
       <SDLCheck>
       </SDLCheck>
-     <PreprocessorDefinitions>WIN32;PACKAGE_VERSION="9.0.9";WIN32_LEAN_AND_MEAN;UNICODE;SEAFILE_CLIENT;ENABLE_BREAKPAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;PACKAGE_VERSION="9.0.9";WIN32_LEAN_AND_MEAN;UNICODE;SEAFILE_CLIENT;ENABLE_BREAKPAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir);$(ProjectDir)common;$(ProjectDir)lib;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir)..\breakpad\src;$(ProjectDir)..\libwebsockets\build\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -194,6 +194,7 @@
     <ClCompile Include="common\mq-mgr.c" />
     <ClCompile Include="common\obj-backend-fs.c" />
     <ClCompile Include="common\obj-store.c" />
+    <ClCompile Include="common\password-hash.c" />
     <ClCompile Include="common\rpc-service.c" />
     <ClCompile Include="common\seafile-crypt.c" />
     <ClCompile Include="common\vc-common.c" />
@@ -242,6 +243,7 @@
     <ClInclude Include="common\mq-mgr.h" />
     <ClInclude Include="common\obj-backend.h" />
     <ClInclude Include="common\obj-store.h" />
+    <ClInclude Include="common\password-hash.h" />
     <ClInclude Include="common\seafile-crypt.h" />
     <ClInclude Include="common\vc-common.h" />
     <ClInclude Include="daemon\cevent.h" />
