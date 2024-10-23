@@ -87,23 +87,25 @@ free_repo_watch_info (RepoWatchInfo *info)
 }
 
 static void
-handle_renamed (RepoWatchInfo *info,
-                const FSEventStreamEventFlags eventFlags,
-                const char *eventPath,
-                const char *filename,
-                const FSEventStreamEventId eventId,
-                gboolean last_event)
+handle_rename_in_processing_state (RepoWatchInfo *info,
+                                   const FSEventStreamEventFlags eventFlags,
+                                   const char *eventPath,
+                                   const char *filename,
+                                   const FSEventStreamEventId eventId,
+                                   gboolean last_event)
 {
     WTStatus *status = info->status;
     RenameInfo *rename_info = info->rename_info;
     struct stat st;
     gboolean exists = TRUE;
 
-    if (eventFlags & kFSEventStreamEventFlagItemRenamed && (eventId == rename_info->eventId + 1)) {
+    // The two events before and after the renaming are generally consecutive.
+    if (eventId == rename_info->eventId + 1) {
         seaf_debug ("Move -> %s.\n", filename);
         add_event_to_queue (status, WT_EVENT_RENAME, rename_info->old_path, filename);
         unset_rename_processing_state (rename_info);
-    } else if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
+    } else {
+        // If the events are not consecutive, then create and delete events are added depending on whether the old path exists or not.
         char *old_path = rename_info->old_path;
         if (stat (rename_info->old_event_path, &st) < 0 && errno == ENOENT) {
             exists = FALSE;
@@ -117,6 +119,7 @@ handle_renamed (RepoWatchInfo *info,
         }
 
         if (last_event) {
+            // If the rename event is the last event, then create and delete events are added depending on whether the file exists or not.
             if (stat (eventPath, &st) < 0 && errno == ENOENT) {
                 exists = FALSE;
             }
@@ -129,6 +132,7 @@ handle_renamed (RepoWatchInfo *info,
             }
             unset_rename_processing_state (rename_info);
         } else {
+            // If the rename event is not the last event, set processing state to true for the new path.
             unset_rename_processing_state (rename_info);
             set_rename_processing_state (rename_info, filename, eventPath, eventId);
         }
@@ -148,26 +152,29 @@ handle_rename (RepoWatchInfo *info,
     struct stat st;
     gboolean exists = TRUE;
 
+    if (!(eventFlags & kFSEventStreamEventFlagItemRenamed)) {
+        return;
+    }
+
     if (!rename_info->processing) {
+        // If the rename event is the last event, then create and delete events are added depending on whether the file exists or not.
         if (last_event) {
-            if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
-                if (stat (eventPath, &st) < 0 && errno == ENOENT) {
-                    exists = FALSE;
-                }
-                if (exists) {
-                    seaf_debug ("Created %s.\n", filename);
-                    add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
-                } else {
-                    seaf_debug ("Deleted %s.\n", filename);
-                    add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
-                }
+            if (stat (eventPath, &st) < 0 && errno == ENOENT) {
+                exists = FALSE;
             }
-        } else if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
+            if (exists) {
+                seaf_debug ("Created %s.\n", filename);
+                add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+            } else {
+                seaf_debug ("Deleted %s.\n", filename);
+                add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
+            }
+        } else {
             seaf_debug ("Move %s ->\n", filename);
             set_rename_processing_state (rename_info, filename, eventPath, eventId);
         }
     } else {
-        handle_renamed (info, eventFlags, eventPath, filename, eventId, last_event);
+        handle_rename_in_processing_state (info, eventFlags, eventPath, filename, eventId, last_event);
     }
 }
 
