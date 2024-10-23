@@ -99,22 +99,6 @@ handle_renamed (RepoWatchInfo *info,
     struct stat st;
     gboolean exists = TRUE;
 
-    if (!rename_info->processing) {
-        if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
-            if (stat (eventPath, &st) < 0 && errno == ENOENT) {
-                exists = FALSE;
-            }
-            if (exists) {
-                seaf_debug ("Created %s.\n", filename);
-                add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
-            } else {
-                seaf_debug ("Deleted %s.\n", filename);
-                add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
-            }
-        }
-        return;
-    } 
-
     if (eventFlags & kFSEventStreamEventFlagItemRenamed && (eventId == rename_info->eventId + 1)) {
         seaf_debug ("Move -> %s.\n", filename);
         add_event_to_queue (status, WT_EVENT_RENAME, rename_info->old_path, filename);
@@ -141,7 +125,7 @@ handle_renamed (RepoWatchInfo *info,
                 add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
             } else {
                 seaf_debug ("Deleted %s.\n", filename);
-                add_event_to_queue (status, WT_EVENT_DELETE, old_path, NULL);
+                add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
             }
             unset_rename_processing_state (rename_info);
         } else {
@@ -161,14 +145,24 @@ handle_rename (RepoWatchInfo *info,
 {
     WTStatus *status = info->status;
     RenameInfo *rename_info = info->rename_info;
-
-    if (last_event) {
-        handle_renamed (info, eventFlags, eventPath, filename, eventId, last_event);
-        return;
-    }
+    struct stat st;
+    gboolean exists = TRUE;
 
     if (!rename_info->processing) {
-        if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
+        if (last_event) {
+            if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
+                if (stat (eventPath, &st) < 0 && errno == ENOENT) {
+                    exists = FALSE;
+                }
+                if (exists) {
+                    seaf_debug ("Created %s.\n", filename);
+                    add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+                } else {
+                    seaf_debug ("Deleted %s.\n", filename);
+                    add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
+                }
+            }
+        } else if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
             seaf_debug ("Move %s ->\n", filename);
             set_rename_processing_state (rename_info, filename, eventPath, eventId);
         }
