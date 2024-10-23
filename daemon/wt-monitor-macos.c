@@ -18,7 +18,9 @@
 
 typedef struct RenameInfo {
     char *old_path;
+    char *old_event_path;
     gboolean processing;
+    FSEventStreamEventId eventId;
 } RenameInfo;
 
 typedef struct RepoWatchInfo {
@@ -40,17 +42,22 @@ add_event_to_queue (WTStatus *status,
 static void handle_watch_command (SeafWTMonitor *monitor, WatchCommand *cmd);
 
 inline static void
-set_rename_processing_state (RenameInfo *info, const char *path)
+set_rename_processing_state (RenameInfo *info, const char *path,
+                             const char *event_path, const FSEventStreamEventId eventId)
 {
     info->old_path = g_strdup(path);
+    info->old_event_path = g_strdup(event_path);
     info->processing = TRUE;
+    info->eventId = eventId;
 }
 
 inline static void
 unset_rename_processing_state (RenameInfo *info)
 {
     g_free (info->old_path);
+    g_free (info->old_event_path);
     info->old_path = NULL;
+    info->old_event_path = NULL;
     info->processing = FALSE;
 }
 
@@ -80,27 +87,94 @@ free_repo_watch_info (RepoWatchInfo *info)
 }
 
 static void
-handle_rename (RepoWatchInfo *info,
-               const FSEventStreamEventFlags eventFlags,
-               const char *eventPath,
-               const char *filename)
+handle_rename_in_processing_state (RepoWatchInfo *info,
+                                   const FSEventStreamEventFlags eventFlags,
+                                   const char *eventPath,
+                                   const char *filename,
+                                   const FSEventStreamEventId eventId,
+                                   gboolean last_event)
 {
     WTStatus *status = info->status;
     RenameInfo *rename_info = info->rename_info;
     struct stat st;
     gboolean exists = TRUE;
 
+    // The two events before and after the renaming are generally consecutive.
+    if (eventId == rename_info->eventId + 1) {
+        seaf_debug ("Move -> %s.\n", filename);
+        add_event_to_queue (status, WT_EVENT_RENAME, rename_info->old_path, filename);
+        unset_rename_processing_state (rename_info);
+    } else {
+        // If the events are not consecutive, then create and delete events are added depending on whether the old path exists or not.
+        char *old_path = rename_info->old_path;
+        if (stat (rename_info->old_event_path, &st) < 0 && errno == ENOENT) {
+            exists = FALSE;
+        }
+        if (exists) {
+            seaf_debug ("Created %s.\n", old_path);
+            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, old_path, NULL);
+        } else {
+            seaf_debug ("Deleted %s.\n", old_path);
+            add_event_to_queue (status, WT_EVENT_DELETE, old_path, NULL);
+        }
+
+        if (last_event) {
+            // If the rename event is the last event, then create and delete events are added depending on whether the file exists or not.
+            if (stat (eventPath, &st) < 0 && errno == ENOENT) {
+                exists = FALSE;
+            }
+            if (exists) {
+                seaf_debug ("Created %s.\n", filename);
+                add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+            } else {
+                seaf_debug ("Deleted %s.\n", filename);
+                add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
+            }
+            unset_rename_processing_state (rename_info);
+        } else {
+            // If the rename event is not the last event, set processing state to true for the new path.
+            unset_rename_processing_state (rename_info);
+            set_rename_processing_state (rename_info, filename, eventPath, eventId);
+        }
+    }
+}
+
+static void
+handle_rename (RepoWatchInfo *info,
+               const FSEventStreamEventFlags eventFlags,
+               const char *eventPath,
+               const char *filename,
+               const FSEventStreamEventId eventId,
+               gboolean last_event)
+{
+    WTStatus *status = info->status;
+    RenameInfo *rename_info = info->rename_info;
+    struct stat st;
+    gboolean exists = TRUE;
+
+    if (!(eventFlags & kFSEventStreamEventFlagItemRenamed)) {
+        return;
+    }
+
     if (!rename_info->processing) {
-        if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
+        // If the rename event is the last event, then create and delete events are added depending on whether the file exists or not.
+        if (last_event) {
+            if (stat (eventPath, &st) < 0 && errno == ENOENT) {
+                exists = FALSE;
+            }
+            if (exists) {
+                seaf_debug ("Created %s.\n", filename);
+                add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+            } else {
+                seaf_debug ("Deleted %s.\n", filename);
+                add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
+            }
+        } else {
             seaf_debug ("Move %s ->\n", filename);
-            set_rename_processing_state (rename_info, filename);
+            set_rename_processing_state (rename_info, filename, eventPath, eventId);
         }
     } else {
-        if (eventFlags & kFSEventStreamEventFlagItemRenamed) {
-            seaf_debug ("Move -> %s.\n", filename);
-            add_event_to_queue (status, WT_EVENT_RENAME, rename_info->old_path, filename);
-            unset_rename_processing_state (rename_info);
-        }
+        handle_rename_in_processing_state (info, eventFlags, eventPath, filename, eventId, last_event);
     }
 }
 
@@ -188,7 +262,7 @@ process_one_event (const char* eventPath,
     if (len > 0 && filename[len - 1] == '/')
         filename[len - 1] = 0;
 
-    handle_rename (info, eventFlags, eventPath, filename);
+    handle_rename (info, eventFlags, eventPath, filename, eventId, last_event);
 
     if (eventFlags & kFSEventStreamEventFlagItemRemoved) {
         seaf_debug ("Deleted flag set for %s.\n", filename);
