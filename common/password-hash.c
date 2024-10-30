@@ -6,6 +6,8 @@
 #include "password-hash.h"
 #include "seafile-crypt.h"
 #include <openssl/rand.h>
+#include <openssl/aes.h>
+#include <openssl/evp.h>
 
 #include "utils.h"
 #include "log.h"

@@ -1387,7 +1387,10 @@ seaf_clone_manager_add_download_task (SeafCloneManager *mgr,
         json_decref (object);
     }
 
-    if (passwd &&
+    if (passwd && algo &&
+        !check_pwd_hash_encryption_args (pwd_hash, enc_version, random_key, repo_salt, error)) {
+        goto out;
+    } else if (passwd &&
         !check_encryption_args (magic, enc_version, random_key, repo_salt, error)) {
         goto out;
     }
