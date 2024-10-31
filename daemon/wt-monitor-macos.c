@@ -119,6 +119,7 @@ handle_rename_in_processing_state (RepoWatchInfo *info,
         }
 
         if (last_event) {
+            exists = TRUE;
             // If the rename event is the last event, then create and delete events are added depending on whether the file exists or not.
             if (stat (eventPath, &st) < 0 && errno == ENOENT) {
                 exists = FALSE;
