@@ -438,8 +438,12 @@ seafile_session_prepare (SeafileSession *session)
     session->disable_block_hash =
         seafile_session_config_get_bool (session, KEY_DISABLE_BLOCK_HASH);
     
-    session->hide_windows_incompatible_path_notification =
-        seafile_session_config_get_bool (session, KEY_HIDE_WINDOWS_INCOMPATIBLE_PATH_NOTIFICATION);
+    char *value = seafile_session_config_get_string(session, KEY_HIDE_WINDOWS_INCOMPATIBLE_PATH_NOTIFICATION);
+    if (g_strcmp0 (value, "false") == 0)
+        session->hide_windows_incompatible_path_notification = FALSE;
+    else 
+        session->hide_windows_incompatible_path_notification = TRUE;
+    g_free (value);
     
     /* Start mq manager earlier, so that we can send notifications
      * when start repo manager. */
