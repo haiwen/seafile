@@ -53,20 +53,29 @@ seafile_derive_key (const char *data_in, int in_len, int version,
                     unsigned char *key, unsigned char *iv)
 {
 #ifdef USE_GPL_CRYPTO
-    if (version < 2 || version == 3) {
+    unsigned char repo_salt_bin[32];
+
+    if (version == 4)
+        hex_to_rawdata (repo_salt, repo_salt_bin, 32);
+
+    switch (version) {
+    case 1:
         seaf_warning ("Encrypted library version %d is not supported.\n", version);
         return -1;
-    } else if (version == 2) {
+    case 2:
         pbkdf2_hmac_sha256 (in_len, (const guchar *)data_in, KEYGEN_ITERATION2,
                             sizeof(salt), salt, 32, key);
         pbkdf2_hmac_sha256 (32, (const guchar *)key, 10, sizeof(salt), salt, 16, iv);
-    } else {
-        unsigned char repo_salt_bin[32];
-        hex_to_rawdata (repo_salt, repo_salt_bin, 32);
-
+    case 3:
+        seaf_warning ("Encrypted library version %d is not supported.\n", version);
+        return -1;
+    case 4:
         pbkdf2_hmac_sha256 (in_len, (const guchar *)data_in, KEYGEN_ITERATION2,
                             sizeof(repo_salt_bin), repo_salt_bin, 32, key);
         pbkdf2_hmac_sha256 (32, (const guchar *)key, 10, sizeof(repo_salt_bin), repo_salt_bin, 16, iv);
+    default:
+        seaf_warning ("Encrypted library version %d is not supported.\n", version);
+        return -1;
     }
 
     return 0;
@@ -425,15 +434,8 @@ seafile_encrypt (char **data_out,
     iv.data = crypt->iv;
     iv.size = sizeof(crypt->iv);
 
-    if (crypt->version == 1) {
-        rc = gnutls_cipher_init (&handle, GNUTLS_CIPHER_AES_128_CBC, &key, &iv);
-        if (rc < 0) {
-            seaf_warning ("Failed to init cipher: %s\n", gnutls_strerror(rc));
-            ret = -1;
-            goto out;
-        }
-    } else if (crypt->version == 3) {
-        seaf_warning ("Encrypted library version 3 is not supported.\n");
+    if (crypt->version == 1 || crypt->version == 3) {
+        seaf_warning ("Encrypted library version % is not supported.\n", crypt->version);
         ret = -1;
         goto out;
     } else {
@@ -493,15 +495,8 @@ seafile_decrypt (char **data_out,
     iv.data = crypt->iv;
     iv.size = sizeof(crypt->iv);
 
-    if (crypt->version == 1) {
-        rc = gnutls_cipher_init (&handle, GNUTLS_CIPHER_AES_128_CBC, &key, &iv);
-        if (rc < 0) {
-            seaf_warning ("Failed to init cipher: %s\n", gnutls_strerror(rc));
-            ret = -1;
-            goto out;
-        }
-    } else if (crypt->version == 3) {
-        seaf_warning ("Encrypted library version 3 is not supported.\n");
+    if (crypt->version == 1 || crypt->version == 3) {
+        seaf_warning ("Encrypted library version %d is not supported.\n", crypt->version);
         ret = -1;
         goto out;
     } else {
