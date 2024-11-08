@@ -1,13 +1,21 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#include "common.h"
+
 #include <string.h>
 #include <glib.h>
 #include <argon2.h>
 #include "password-hash.h"
 #include "seafile-crypt.h"
-#include <openssl/rand.h>
+#ifdef USE_GPL_CRYPTO
+#include <gnutls/gnutls.h>
+#include <gnutls/crypto.h>
+#include <nettle/pbkdf2.h>
+#else
 #include <openssl/aes.h>
 #include <openssl/evp.h>
+#include <openssl/rand.h>
+#endif
 
 #include "utils.h"
 #include "log.h"
@@ -48,11 +56,16 @@ pbkdf2_sha256_derive_key (const char *data_in, int in_len,
     unsigned char salt_bin[32] = {0};
     hex_to_rawdata (salt, salt_bin, 32);
 
+#ifdef USE_GPL_CRYPTO
+    pbkdf2_hmac_sha256 (in_len, (const guchar *)data_in, iteration,
+                        sizeof(salt_bin), salt_bin, 32, key);
+#else
     PKCS5_PBKDF2_HMAC (data_in, in_len,
                        salt_bin, sizeof(salt_bin),
                        iteration,
                        EVP_sha256(),
                        32, key);
+#endif
     return 0;
 }
 
