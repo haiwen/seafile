@@ -99,6 +99,8 @@ handle_rename (RepoWatchInfo *info,
         is_dir = TRUE;
     }
 
+    // It is not always possible to reliably determine if a file has been renamed on  Mac, as system events do not guarantee that renamed files appear consecutively.
+    // However, we can detect directory renaming, and handling directory renaming is generally not overly complex.
     if (is_dir) {
         if (!rename_info->processing) {
             seaf_debug ("Move %s ->\n", filename);
