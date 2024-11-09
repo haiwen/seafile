@@ -844,8 +844,8 @@ should_ignore_on_checkout (const char *file_path, IgnoreReason *ignore_reason)
 
 out:
     g_strfreev (components);
-#endif
-
+    return ret;
+#else
     char **components = g_strsplit (file_path, "/", -1);
     int n_comps = g_strv_length (components);
     int j = 0;
@@ -861,8 +861,8 @@ out:
         }
     }
     g_strfreev (components);
-
     return ret;
+#endif
 }
 
 ssize_t						/* Read "n" bytes from a descriptor. */
