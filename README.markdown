@@ -80,7 +80,7 @@ Feature requests can be made and installation/usage problems can be discussed in
 Internationalization (I18n)
 ===========================
 
-* [Translate Seafile web ui](https://github.com/haiwen/seafile/wiki/Seahub-Translation)
+* [Translate Seafile web ui](https://github.com/haiwen/seahub/?tab=readme-ov-file#internationalization-i18n)
 * [Translate Seafile desktop client](https://github.com/haiwen/seafile-client/#internationalization)
 * [Translate Seafile Android app](https://github.com/haiwen/seadroid#internationalization)
 * [Translate Seafile iOS app](https://github.com/haiwen/seafile-ios#internationalization-i18n)
