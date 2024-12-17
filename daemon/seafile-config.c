@@ -149,6 +149,13 @@ seafile_session_config_set_string (SeafileSession *session,
             session->hide_windows_incompatible_path_notification = FALSE;
     }
 
+    if (g_strcmp0(key, KEY_IGNORE_SYMBOL_LINK) == 0) {
+        if (g_strcmp0(value, "true") == 0)
+            session->ignore_symbol_link = TRUE;
+        else
+            session->ignore_symbol_link = FALSE;
+    }
+
     return 0;
 }
 

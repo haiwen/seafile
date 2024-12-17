@@ -1576,6 +1576,21 @@ index_cb (const char *repo_id,
     return 0;
 }
 
+static gboolean
+is_symbol_link (const char *full_path)
+{
+#ifndef WIN32
+    SeafStat st;
+
+    if (lstat (full_path, &st) == 0 && S_ISLNK(st.st_mode)) {
+        return TRUE;
+    }
+    return FALSE;
+#else
+    return FALSE;
+#endif
+}
+
 #define MAX_COMMIT_SIZE 100 * (1 << 20) /* 100MB */
 
 typedef struct _AddOptions {
@@ -1603,6 +1618,10 @@ add_file (const char *repo_id,
     gboolean is_writable = TRUE, is_locked = FALSE;
     struct cache_entry *ce;
     char *base_name = NULL;
+
+    if (seaf->ignore_symbol_link && is_symbol_link(full_path)) {
+        return ret;
+    }
 
     if (options)
         is_writable = is_path_writable(repo_id,
@@ -1772,6 +1791,10 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     gboolean is_writable = TRUE;
     struct stat sub_st;
     char *base_name = NULL;
+
+    if (seaf->ignore_symbol_link && is_symbol_link(full_path)) {
+        return 0;
+    }
 
     dir = g_dir_open (full_path, 0, NULL);
     if (!dir) {
@@ -3396,6 +3419,13 @@ update_active_path_recursive (SeafRepo *repo,
         ignore_sub = FALSE;
         if (ignored || should_ignore(full_path, dname, ignore_list))
             ignore_sub = TRUE;
+
+        if (seaf->ignore_symbol_link && is_symbol_link(full_sub_path)) {
+            g_free (dname);
+            g_free (sub_path);
+            g_free (full_sub_path);
+            continue;
+        }
 
         if (stat (full_sub_path, &st) < 0) {
             seaf_warning ("Failed to stat %s: %s.\n", full_sub_path, strerror(errno));
