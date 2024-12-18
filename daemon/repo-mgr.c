@@ -1737,8 +1737,11 @@ add_file (const char *repo_id,
                                               S_IFREG,
                                               SYNC_STATUS_ERROR,
                                               TRUE);
-        send_file_sync_error_notification (repo_id, NULL, path,
-                                           SYNC_ERROR_ID_INDEX_ERROR);
+        // Only record index error when the file exists.
+        if (seaf_util_exists (full_path)) {
+            send_file_sync_error_notification (repo_id, NULL, path,
+                                               SYNC_ERROR_ID_INDEX_ERROR);
+        }
     }
 
     return ret;
@@ -1783,8 +1786,10 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                               S_IFDIR,
                                               SYNC_STATUS_ERROR,
                                               TRUE);
-        send_file_sync_error_notification (params->repo_id, NULL, path,
-                                           SYNC_ERROR_ID_INDEX_ERROR);
+        if (!ignored) {
+            send_file_sync_error_notification (params->repo_id, NULL, path,
+                                               SYNC_ERROR_ID_INDEX_ERROR);
+        }
         return 0;
     }
 
@@ -2121,8 +2126,10 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                               S_IFDIR,
                                               SYNC_STATUS_ERROR,
                                               TRUE);
-        send_file_sync_error_notification (params->repo_id, NULL, path,
-                                           SYNC_ERROR_ID_INDEX_ERROR);
+        if (!ignored) {
+            send_file_sync_error_notification (params->repo_id, NULL, path,
+                                               SYNC_ERROR_ID_INDEX_ERROR);
+        }
         return 0;
     }
 
