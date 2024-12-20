@@ -5402,6 +5402,7 @@ out:
 static gboolean
 is_adding_files_case_conflict (GList **adding_files, const char *name, char **conflict_path)
 {
+#if defined WIN32 || defined __APPLE__
     GList *ptr;
     SeafStat st;
 
@@ -5416,6 +5417,9 @@ is_adding_files_case_conflict (GList **adding_files, const char *name, char **co
     }
 
     return FALSE;
+#else
+    return FALSE;
+#endif
 }
 
 static int
