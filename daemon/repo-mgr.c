@@ -1577,7 +1577,7 @@ index_cb (const char *repo_id,
 }
 
 static gboolean
-is_symbol_link (const char *full_path)
+is_symlink (const char *full_path)
 {
 #ifndef WIN32
     SeafStat st;
@@ -1619,7 +1619,7 @@ add_file (const char *repo_id,
     struct cache_entry *ce;
     char *base_name = NULL;
 
-    if (seaf->ignore_symbol_link && is_symbol_link(full_path)) {
+    if (seaf->ignore_symlinks && is_symlink(full_path)) {
         return ret;
     }
 
@@ -1792,7 +1792,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     struct stat sub_st;
     char *base_name = NULL;
 
-    if (seaf->ignore_symbol_link && is_symbol_link(full_path)) {
+    if (seaf->ignore_symlinks && is_symlink(full_path)) {
         return 0;
     }
 
@@ -3420,7 +3420,7 @@ update_active_path_recursive (SeafRepo *repo,
         if (ignored || should_ignore(full_path, dname, ignore_list))
             ignore_sub = TRUE;
 
-        if (seaf->ignore_symbol_link && is_symbol_link(full_sub_path)) {
+        if (seaf->ignore_symlinks && is_symlink(full_sub_path)) {
             g_free (dname);
             g_free (sub_path);
             g_free (full_sub_path);
@@ -3612,9 +3612,18 @@ handle_rename (SeafRepo *repo, struct index_state *istate,
                WTEvent *event, GList **scanned_del_dirs,
                gint64 *total_size)
 {
+    char *fullpath = NULL;
     gboolean not_found, src_ignored, dst_ignored;
 
     seaf_sync_manager_delete_active_path (seaf->sync_mgr, repo->id, event->path);
+
+    fullpath = g_build_path ("/", repo->worktree, event->new_path, NULL);
+    // Check whether the renamed file is a symbolic link.
+    if (seaf->ignore_symlinks && is_symlink(fullpath)) {
+        g_free (fullpath);
+        return;
+    }
+    g_free (fullpath);
 
     if (!is_path_writable(repo->id,
                           repo->is_readonly, event->path) ||
