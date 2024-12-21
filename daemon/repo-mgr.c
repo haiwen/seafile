@@ -2683,8 +2683,10 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       S_IFREG,
                                                       SYNC_STATUS_ERROR,
                                                       TRUE);
-                send_file_sync_error_notification (repo->id, NULL, path,
-                                                   SYNC_ERROR_ID_INDEX_ERROR);
+                if (seaf_util_exists (full_path)) {
+                    send_file_sync_error_notification (repo->id, NULL, path,
+                                                       SYNC_ERROR_ID_INDEX_ERROR);
+                }
             }
         } else if (S_ISDIR(st.st_mode)) {
             if (is_empty_dir (full_path, ignore_list)) {
