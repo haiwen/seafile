@@ -23,6 +23,7 @@
 #define KEY_SYNC_EXTRA_TEMP_FILE "sync_extra_temp_file"
 #define KEY_DISABLE_BLOCK_HASH "disable_block_hash"
 #define KEY_HIDE_WINDOWS_INCOMPATIBLE_PATH_NOTIFICATION "hide_windows_incompatible_path_notification"
+#define KEY_IGNORE_SYMLINKS "ignore_symlinks"
 
 /* Http sync settings. */
 #define KEY_ENABLE_HTTP_SYNC "enable_http_sync"

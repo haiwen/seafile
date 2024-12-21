@@ -85,6 +85,8 @@ struct _SeafileSession {
     
     gboolean             hide_windows_incompatible_path_notification;
 
+    gboolean             ignore_symlinks;
+
     gboolean             use_http_proxy;
     char                *http_proxy_type;
     char                *http_proxy_addr;

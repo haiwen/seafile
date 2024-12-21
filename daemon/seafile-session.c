@@ -444,6 +444,13 @@ seafile_session_prepare (SeafileSession *session)
     else 
         session->hide_windows_incompatible_path_notification = TRUE;
     g_free (value);
+
+    value = seafile_session_config_get_string(session, KEY_IGNORE_SYMLINKS);
+    if (g_strcmp0 (value, "true") == 0)
+        session->ignore_symlinks = TRUE;
+    else 
+        session->ignore_symlinks = FALSE;
+    g_free (value);
     
     /* Start mq manager earlier, so that we can send notifications
      * when start repo manager. */
