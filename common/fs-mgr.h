@@ -175,9 +175,9 @@ seaf_fs_manager_init (SeafFSManager *mgr);
 #ifndef SEAFILE_SERVER
 
 struct _CheckoutBlockAux {
-    const char *repo_id;
-    const char *host;
-    const char *token;
+    char *repo_id;
+    char *host;
+    char *token;
     gboolean use_fileserver_port;
     void *task;
 };

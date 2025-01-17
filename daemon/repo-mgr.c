@@ -4808,7 +4808,7 @@ struct _UpdateAux {
 };
 typedef struct _UpdateAux UpdateAux;
 
-static size_t
+static int
 fill_block (void *contents, size_t realsize, void *userp)
 {
     UpdateAux *aux = userp;
