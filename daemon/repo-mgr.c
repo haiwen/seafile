@@ -4805,6 +4805,7 @@ struct _UpdateAux {
     char *content;
     int size;
     void *user_data;
+    GChecksum *ctx;
 };
 typedef struct _UpdateAux UpdateAux;
 
@@ -4900,6 +4901,10 @@ update_enc_block_cb (void *contents, size_t size, size_t nmemb, void *userp)
     memcpy (aux->content + aux->size, contents, realsize);
     aux->size += realsize;
 
+    if (aux->ctx) {
+        g_checksum_update (aux->ctx, (unsigned char *)contents, realsize);
+    }
+
     /* Update global transferred bytes. */
     g_atomic_int_add (&(seaf->sync_mgr->recv_bytes), realsize);
 
@@ -4925,17 +4930,46 @@ update_enc_block_cb (void *contents, size_t size, size_t nmemb, void *userp)
     return ret;
 }
 
+static void
+calculate_and_compare_block_id (UpdateAux *aux, const char *blk_id)
+{
+    uint8_t checksum[CHECKSUM_LENGTH] = {0};
+    gsize len = 20;
+    char partical_blk_id[41] = {0};
+    char full_blk_id[41] = {0};
+
+    g_checksum_get_digest (aux->ctx, checksum, &len);
+
+    rawdata_to_hex (checksum, partical_blk_id, 20);
+
+    GChecksum *ctx = g_checksum_new (G_CHECKSUM_SHA1);
+
+    g_checksum_update (ctx, (unsigned char *)aux->content, aux->size);
+
+    g_checksum_get_digest (ctx, checksum, &len);
+
+    rawdata_to_hex (checksum, full_blk_id, 20);
+
+    seaf_message ("The block_id for incremental calculation is %s, the block_id for full content calculation is %s, and the block_id being checkouted is %s.\n",
+            partical_blk_id, full_blk_id, blk_id);
+
+    g_checksum_free (ctx);
+}
+
 static int
 checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCrypt *crypt, CheckoutBlockAux *user_data)
 {
     HttpTxTask *task = user_data->task;
     int ret = 0;
     int error_id = SYNC_ERROR_ID_NO_ERROR;
+    GChecksum *ctx = NULL;
     UpdateAux aux = {0};
     aux.fd = fd;
     aux.crypt = crypt;
     aux.user_data = task;
     if (crypt) {
+        ctx = g_checksum_new (G_CHECKSUM_SHA1);
+        aux.ctx = ctx;
         if (http_tx_manager_get_block(seaf->http_tx_mgr, user_data->repo_id,
                                       block_id, user_data->host,
                                       user_data->token, user_data->use_fileserver_port,
@@ -4953,6 +4987,9 @@ checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCry
                           block_id);
             goto out;
         }
+
+        calculate_and_compare_block_id (&aux, block_id);
+
         if (fill_block(aux.content, aux.size, &aux) < 0) {
             ret = -1;
             seaf_warning ("Failed to fill block %s.\n",
@@ -4981,6 +5018,8 @@ checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCry
     if (task)
         task->done_download += aux.size;
 out:
+    if (ctx)
+        g_checksum_free (ctx);
     g_free (aux.content);
     return ret;
 }
@@ -6455,6 +6494,7 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                                           enc_key, enc_iv);
             crypt = seafile_crypt_new (remote_head->enc_version,
                                        enc_key, enc_iv);
+            seaf_message ("Sync encrypted repo %s, enc_version: %d, random_key: %s, salt: %s\n", repo_id, remote_head->enc_version, remote_head->random_key, remote_head->salt);
         } else {
             // resync an encrypted repo, get key and iv from db. 
             crypt = g_new0 (SeafileCrypt, 1);
