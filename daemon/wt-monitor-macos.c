@@ -16,9 +16,13 @@
 #define DEBUG_FLAG SEAFILE_DEBUG_WATCH
 #include "log.h"
 
+#define RENAME_EXPIRE_TIME 10
+
 typedef struct RenameInfo {
     char *old_path;
+    char *old_event_path;
     gboolean processing;
+    gint64 expire;
 } RenameInfo;
 
 typedef struct RepoWatchInfo {
@@ -40,18 +44,24 @@ add_event_to_queue (WTStatus *status,
 static void handle_watch_command (SeafWTMonitor *monitor, WatchCommand *cmd);
 
 inline static void
-set_rename_processing_state (RenameInfo *info, const char *path)
+set_rename_processing_state (RenameInfo *info, const char *path, const char *event_path)
 {
+    gint64 now = (gint64)time(NULL);
     info->old_path = g_strdup(path);
+    info->old_event_path = g_strdup(event_path);
     info->processing = TRUE;
+    info->expire = now + RENAME_EXPIRE_TIME;
 }
 
 inline static void
 unset_rename_processing_state (RenameInfo *info)
 {
     g_free (info->old_path);
+    g_free (info->old_event_path);
     info->old_path = NULL;
+    info->old_event_path = NULL;
     info->processing = FALSE;
+    info->expire = 0;
 }
 
 /* RepoWatchInfo */
@@ -80,6 +90,44 @@ free_repo_watch_info (RepoWatchInfo *info)
 }
 
 static void
+check_and_handle_rename (WTStatus *status, RenameInfo *rename_info,
+                        const char *eventPath, const char *filename)
+{
+    struct stat st;
+    gboolean old_path_exists = TRUE;
+    gboolean new_path_exists = TRUE;
+
+    if (stat (rename_info->old_event_path, &st) < 0 && errno == ENOENT) {
+        old_path_exists = FALSE;
+    }
+    if (stat (eventPath, &st) < 0 && errno == ENOENT) {
+        new_path_exists = FALSE;
+    }
+
+    if (!old_path_exists && new_path_exists) {
+        seaf_debug ("Rename dir %s to %s\n", rename_info->old_path, filename);
+        add_event_to_queue (status, WT_EVENT_RENAME, rename_info->old_path, filename);
+    } else {
+        if (old_path_exists) {
+            seaf_debug ("Rename: old path exist, add create event for %s\n", rename_info->old_path);
+            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, rename_info->old_path, NULL);
+        } else {
+            seaf_debug ("Rename: old path doesn't exist, add delete event for %s\n", rename_info->old_path);
+            add_event_to_queue (status, WT_EVENT_DELETE, rename_info->old_path, NULL);
+        }
+        if (new_path_exists) {
+            seaf_debug ("Rename: new path exist, add create event for %s\n", filename);
+            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+        } else {
+            seaf_debug ("Rename: new path doesn't exist, add delete event for %s\n", filename);
+            add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
+        }
+    }
+
+    unset_rename_processing_state (rename_info);
+}
+
+static void
 handle_rename (RepoWatchInfo *info,
                const FSEventStreamEventFlags eventFlags,
                const char *eventPath,
@@ -88,6 +136,21 @@ handle_rename (RepoWatchInfo *info,
     WTStatus *status = info->status;
     RenameInfo *rename_info = info->rename_info;
     gboolean is_dir = FALSE;
+    gint64 now = (gint64)time(NULL);
+
+    // If processing is set for more than 10 seconds, the system may not generate paired renaming events.
+    // In this case, we add creation event or deletion event based on whether the file exists.
+    if (rename_info->expire > 0 && now >= rename_info->expire) {
+        struct stat st;
+        if (stat (rename_info->old_event_path, &st) < 0 && errno == ENOENT) {
+            seaf_debug ("Rename info expired, delete renamed dir %s\n", rename_info->old_path);
+            add_event_to_queue (status, WT_EVENT_DELETE, rename_info->old_path, NULL);
+        } else {
+            seaf_debug ("Rename info expired, create renamed dir %s\n", rename_info->old_path);
+            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, rename_info->old_path, NULL);
+        }
+        unset_rename_processing_state (rename_info);
+    }
 
     if (!(eventFlags & kFSEventStreamEventFlagItemRenamed)) {
         return;
@@ -104,17 +167,20 @@ handle_rename (RepoWatchInfo *info,
     if (is_dir) {
         if (!rename_info->processing) {
             seaf_debug ("Move %s ->\n", filename);
-            set_rename_processing_state (rename_info, filename);
+            set_rename_processing_state (rename_info, filename, eventPath);
         } else {
             seaf_debug ("Move -> %s.\n", filename);
-            add_event_to_queue (status, WT_EVENT_RENAME, rename_info->old_path, filename);
-            unset_rename_processing_state (rename_info);
+            // If a dir is renamed, the old path should not exist, and the new path should exist.
+            // If this condition is not met, split the renaming event into deletion event or creation event based on whether the dir exists.
+            check_and_handle_rename (status, rename_info, eventPath, filename);
         }
     } else {
         struct stat st;
         if (stat (eventPath, &st) < 0 && errno == ENOENT) {
+            seaf_debug ("Delete renamed file %s\n", filename);
             add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
         } else {
+            seaf_debug ("Create renamed file %s\n", filename);
             add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
         }
     }
@@ -233,6 +299,19 @@ process_one_event (const char* eventPath,
         if (stat (eventPath, &buf) == 0) {
             add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
         }
+    }
+
+    // If this is the last event, check rename_info and split the renaming event into deletion event or creation event.
+    RenameInfo *rename_info = info->rename_info;
+    if (last_event && rename_info->processing) {
+        if (stat (rename_info->old_event_path, &buf) < 0 && errno == ENOENT) {
+            seaf_debug ("Delete renamed file %s\n", rename_info->old_path);
+            add_event_to_queue (status, WT_EVENT_DELETE, rename_info->old_path, NULL);
+        } else {
+            seaf_debug ("Create renamed file %s\n", rename_info->old_path);
+            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, rename_info->old_path, NULL);
+        }
+        unset_rename_processing_state (rename_info);
     }
 
     g_free (filename);
