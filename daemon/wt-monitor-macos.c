@@ -105,16 +105,21 @@ check_and_handle_rename (WTStatus *status, RenameInfo *rename_info,
     }
 
     if (!old_path_exists && new_path_exists) {
+        seaf_debug ("Rename dir %s to %s\n", rename_info->old_path, filename);
         add_event_to_queue (status, WT_EVENT_RENAME, rename_info->old_path, filename);
     } else {
         if (old_path_exists) {
+            seaf_debug ("Rename: old path exist, add create event for %s\n", rename_info->old_path);
             add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, rename_info->old_path, NULL);
         } else {
+            seaf_debug ("Rename: old path doesn't exist, add delete event for %s\n", rename_info->old_path);
             add_event_to_queue (status, WT_EVENT_DELETE, rename_info->old_path, NULL);
         }
         if (new_path_exists) {
+            seaf_debug ("Rename: new path exist, add create event for %s\n", filename);
             add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
         } else {
+            seaf_debug ("Rename: new path doesn't exist, add delete event for %s\n", filename);
             add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
         }
     }
@@ -138,10 +143,10 @@ handle_rename (RepoWatchInfo *info,
     if (rename_info->expire > 0 && now >= rename_info->expire) {
         struct stat st;
         if (stat (rename_info->old_event_path, &st) < 0 && errno == ENOENT) {
-            seaf_debug ("Delete renamed file %s\n", rename_info->old_path);
+            seaf_debug ("Rename info expired, delete renamed dir %s\n", rename_info->old_path);
             add_event_to_queue (status, WT_EVENT_DELETE, rename_info->old_path, NULL);
         } else {
-            seaf_debug ("Create renamed file %s\n", rename_info->old_path);
+            seaf_debug ("Rename info expired, create renamed dir %s\n", rename_info->old_path);
             add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, rename_info->old_path, NULL);
         }
         unset_rename_processing_state (rename_info);
@@ -172,8 +177,10 @@ handle_rename (RepoWatchInfo *info,
     } else {
         struct stat st;
         if (stat (eventPath, &st) < 0 && errno == ENOENT) {
+            seaf_debug ("Delete renamed file %s\n", filename);
             add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
         } else {
+            seaf_debug ("Create renamed file %s\n", filename);
             add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
         }
     }
