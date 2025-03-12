@@ -199,6 +199,11 @@ static SyncErrorInfo sync_error_info_tbl[] = {
         SYNC_ERROR_LEVEL_FILE,
         "Path has character case conflict with existing file or folder. Will not be downloaded"
     },
+    {
+        SYNC_ERROR_ID_STOPPED_BY_LOGOUT,
+        SYNC_ERROR_LEVEL_REPO,
+        "Syncing is stopped by logout. Please re-sync the library if needed"
+    },
 };
 
 const char *

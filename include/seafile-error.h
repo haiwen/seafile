@@ -67,6 +67,7 @@
 #define SYNC_ERROR_ID_CHECKOUT_FILE             35
 #define SYNC_ERROR_ID_BLOCK_MISSING             36
 #define SYNC_ERROR_ID_CASE_CONFLICT             37
-#define N_SYNC_ERROR_ID                         38
+#define SYNC_ERROR_ID_STOPPED_BY_LOGOUT         38
+#define N_SYNC_ERROR_ID                         39
 
 #endif

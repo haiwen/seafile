@@ -380,6 +380,18 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
         return NULL;
     }
 
+    if (!repo->token) {
+        SeafileSyncTask *s_task;
+        s_task = g_object_new (SEAFILE_TYPE_SYNC_TASK,
+                               "force_upload", FALSE,
+                               "state", "error",
+                               "error", SYNC_ERROR_ID_STOPPED_BY_LOGOUT,
+                               "repo_id", repo_id,
+                               NULL);
+
+        return (GObject *)s_task;
+    }
+
     SyncInfo *info = seaf_sync_manager_get_sync_info (seaf->sync_mgr, repo_id);
     if (!info || !info->current_task)
         return NULL;
