@@ -83,11 +83,15 @@ static const char *ignore_table[] = {
 #define CONFLICT_PATTERN " \\(SFConflict .+\\)"
 
 #define OFFICE_LOCK_PATTERN "~\\$(.+)$"
+#define LIBRE_OFFICE_LOCK_PATTERN "\\.~lock\\.(.+)#$"
+#define WPS_LOCK_PATTERN "\\.~(.+)$"
 
 static GPatternSpec** ignore_patterns;
-static GPatternSpec* office_temp_ignore_patterns[4];
+static GPatternSpec* office_temp_ignore_patterns[5];
 static GRegex *conflict_pattern = NULL;
 static GRegex *office_lock_pattern = NULL;
+static GRegex *libre_office_lock_pattern = NULL;
+static GRegex *wps_lock_pattern = NULL;
 
 static SeafRepo *
 load_repo (SeafRepoManager *manager, const char *repo_id);
@@ -3805,9 +3809,7 @@ out:
     return ret;
 }
 
-#endif
-
-#ifdef __APPLE__
+#elif defined __APPLE__
 
 static gboolean
 find_office_file_path (const char *worktree,
@@ -3843,6 +3845,71 @@ find_office_file_path (const char *worktree,
         }
 
         dname_skip_head = g_utf8_find_next_char(g_utf8_find_next_char(dname_nfc, NULL), NULL);
+
+        if (g_strcmp0 (dname_skip_head, lock_file_name) == 0) {
+            *office_path = g_build_path ("/", parent_dir, dname_nfc, NULL);
+            ret = TRUE;
+            g_free (dname_nfc);
+            break;
+        }
+
+        g_free (dname_nfc);
+    }
+
+    g_free (fullpath);
+    g_dir_close (dir);
+    return ret;
+}
+
+#else
+
+static gboolean
+find_office_file_path (const char *worktree,
+                       const char *parent_dir,
+                       const char *lock_file_name,
+                       gboolean is_wps,
+                       char **office_path)
+{
+    GDir *dir = NULL;
+    GError *error = NULL;
+    char *fullpath = NULL;
+    const char *dname;
+    char *dname_nfc = NULL;
+    char *dname_skip_head = NULL;
+    gboolean ret = FALSE;
+
+    fullpath = g_build_path ("/", worktree, parent_dir, NULL);
+    dir = g_dir_open (fullpath, 0, &error);
+    if (error) {
+        seaf_warning ("Failed to open dir %s: %s.\n", fullpath, error->message);
+        g_clear_error (&error);
+        g_free (fullpath);
+        return ret;
+    }
+
+    while ((dname = g_dir_read_name (dir)) != NULL) {
+        dname_nfc = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
+        if (!dname_nfc)
+            continue;
+
+        if (g_utf8_strlen(dname_nfc, -1) < 2 || strncmp (dname_nfc, "~$", 2) == 0 || strncmp(dname_nfc, ".~", 2) == 0) {
+            g_free (dname_nfc);
+            continue;
+        }
+
+        if (is_wps) {
+            dname_skip_head = g_utf8_find_next_char(dname_nfc, NULL);
+            // WPS may replace the first one or two characters of the filename with ".～" based on the length of the filename.
+            if (strcmp (dname_skip_head, lock_file_name) == 0) {
+                *office_path = g_build_path("/", parent_dir, dname_nfc, NULL);
+                ret = TRUE;
+                g_free (dname_nfc);
+                break;
+            }
+            dname_skip_head = g_utf8_find_next_char(dname_skip_head, NULL);
+        } else {
+            dname_skip_head = g_utf8_find_next_char(g_utf8_find_next_char(dname_nfc, NULL), NULL);
+        }
 
         if (g_strcmp0 (dname_skip_head, lock_file_name) == 0) {
             *office_path = g_build_path ("/", parent_dir, dname_nfc, NULL);
@@ -3907,6 +3974,70 @@ is_office_lock_file (const char *worktree,
     g_free (parent_dir);
     return ret;
 }
+
+#else
+
+static gboolean
+is_office_lock_file (const char *worktree,
+                     const char *path,
+                     char **office_path)
+{
+    gboolean ret;
+    gboolean is_wps = FALSE;
+
+    if (!office_lock_pattern || !libre_office_lock_pattern || !wps_lock_pattern)
+        return FALSE;
+
+    if (g_regex_match (office_lock_pattern, path, 0, NULL)) {
+        /* Replace ~$abc.docx with abc.docx */
+        *office_path = g_regex_replace (office_lock_pattern,
+                                        path, -1, 0,
+                                        "\\1", 0, NULL);
+    } else if (g_regex_match (libre_office_lock_pattern, path, 0, NULL)) {
+        /* Replace .~lock.abc.docx# with abc.docx */
+        *office_path = g_regex_replace (libre_office_lock_pattern,
+                                        path, -1, 0,
+                                        "\\1", 0, NULL);
+    } else if (g_regex_match (wps_lock_pattern, path, 0, NULL)) {
+        /* Replace .~abc.docx with abc.docx */
+        *office_path = g_regex_replace (wps_lock_pattern,
+                                        path, -1, 0,
+                                        "\\1", 0, NULL);
+        is_wps = TRUE;
+    } else
+        return FALSE;
+
+    /* When the filename is long, sometimes the first two characters
+       in the filename will be directly replaced with ~$.
+       So if the office_path file doesn't exist, we have to match
+       against all filenames in this directory, to find the office
+       file's name.
+    */
+    char *fullpath = g_build_path ("/", worktree, *office_path, NULL);
+    if (seaf_util_exists (fullpath)) {
+        g_free (fullpath);
+        return TRUE;
+    }
+    g_free (fullpath);
+
+    char *lock_file_name = g_path_get_basename(*office_path);
+    char *parent_dir = g_path_get_dirname(*office_path);
+    if (strcmp(parent_dir, ".") == 0) {
+        g_free (parent_dir);
+        parent_dir = g_strdup("");
+    }
+    g_free (*office_path);
+    *office_path = NULL;
+
+    ret = find_office_file_path (worktree, parent_dir, lock_file_name,
+                                 is_wps, office_path);
+
+    g_free (lock_file_name);
+    g_free (parent_dir);
+    return ret;
+}
+
+#endif
 
 typedef struct LockOfficeJob {
     char repo_id[37];
@@ -4099,8 +4230,6 @@ unlock_office_file_on_server (SeafRepo *repo, const char *path)
     g_async_queue_push (queue, job);
 }
 
-#endif
-
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list,
@@ -4109,9 +4238,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
     WTStatus *status;
     WTEvent *event, *next_event;
     gboolean not_found;
-#if defined WIN32 || defined __APPLE__
     char *office_path = NULL;
-#endif
 
     status = seaf_wt_monitor_get_worktree_status (seaf->wt_monitor, repo->id);
     if (!status) {
@@ -4228,12 +4355,10 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 break;
             }
 
-#if defined WIN32 || defined __APPLE__
             office_path = NULL;
             if (is_office_lock_file (repo->worktree, event->path, &office_path))
                 lock_office_file_on_server (repo, office_path);
             g_free (office_path);
-#endif
 
             if (handle_add_files (repo, istate, crypt, ignore_list,
                                   fset,
@@ -4255,12 +4380,10 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                                   repo->id,
                                                   event->path);
 
-#if defined WIN32 || defined __APPLE__
             office_path = NULL;
             if (is_office_lock_file (repo->worktree, event->path, &office_path))
                 unlock_office_file_on_server (repo, office_path);
             g_free (office_path);
-#endif
 
             if (check_full_path_ignore(repo->worktree, event->path, ignore_list))
                 break;
@@ -6752,7 +6875,9 @@ seaf_repo_manager_new (SeafileSession *seaf)
     /* for files like ~WRL0001.tmp for docx and *.tmp for xlsx and pptx */
     office_temp_ignore_patterns[1] = g_pattern_spec_new("*.tmp");
     office_temp_ignore_patterns[2] = g_pattern_spec_new(".~lock*#");
-    office_temp_ignore_patterns[3] = NULL;
+    /* for temporary files of WPS Office */
+    office_temp_ignore_patterns[3] = g_pattern_spec_new(".~*");
+    office_temp_ignore_patterns[4] = NULL;
 
     GError *error = NULL;
     conflict_pattern = g_regex_new (CONFLICT_PATTERN, 0, 0, &error);
@@ -6766,6 +6891,18 @@ seaf_repo_manager_new (SeafileSession *seaf)
     if (error) {
         seaf_warning ("Failed to create regex '%s': %s\n",
                       OFFICE_LOCK_PATTERN, error->message);
+        g_clear_error (&error);
+    }
+    libre_office_lock_pattern = g_regex_new (LIBRE_OFFICE_LOCK_PATTERN, 0, 0, &error);
+    if (error) {
+        seaf_warning ("Failed to create libre office regex '%s': %s\n",
+                      LIBRE_OFFICE_LOCK_PATTERN, error->message);
+        g_clear_error (&error);
+    }
+    wps_lock_pattern = g_regex_new (WPS_LOCK_PATTERN, 0, 0, &error);
+    if (error) {
+        seaf_warning ("Failed to create wps regex '%s': %s\n",
+                      WPS_LOCK_PATTERN, error->message);
         g_clear_error (&error);
     }
 
@@ -6934,13 +7071,11 @@ seaf_repo_manager_start (SeafRepoManager *mgr)
         seaf_warning ("Failed to start cleanup thread: %s\n", strerror(rc));
     }
 
-#if defined WIN32 || defined __APPLE__
     rc = pthread_create (&tid, &attr, lock_office_file_worker,
                          mgr->priv->lock_office_job_queue);
     if (rc != 0) {
         seaf_warning ("Failed to start lock office file thread: %s\n", strerror(rc));
     }
-#endif
 
     return 0;
 }
