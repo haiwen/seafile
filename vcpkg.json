@@ -1,0 +1,55 @@
+{
+    "builtin-baseline": "f63682b9182187131b564c1395e4ac8ecb0c5ea8",
+    "dependencies": [
+        "argon2",
+        "getopt",
+        "glib",
+        "jansson",
+        "libevent",
+        "libwebsockets",
+        "openssl",
+        "pthreads",
+        "sqlite3",
+        "zlib",
+        {
+            "name": "curl",
+            "features": [
+                "openssl"
+            ]
+        }
+    ],
+    "overrides": [
+        {
+            "name": "argon2",
+            "version": "20190702#1"
+        },
+        {
+            "name": "curl",
+            "version": "8.2.1"
+        },
+        {
+            "name": "jansson",
+            "version": "2.12-1"
+        },
+        {
+            "name": "libevent",
+            "version": "2.1.11-5"
+        },
+        {
+            "name": "libwebsockets",
+            "version": "4.3.2"
+        },
+        {
+            "name": "pthreads",
+            "version": "3.0.0-4"
+        },
+        {
+            "name": "sqlite3",
+            "version": "3.31.1"
+        },
+        {
+            "name": "zlib",
+            "version": "1.2.11-6"
+        }
+    ]
+}

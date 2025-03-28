@@ -87,6 +87,9 @@
     <TargetName>seaf-daemon</TargetName>
     <OutDir>$(ProjectDir)$(Platform)\$(Configuration)\</OutDir>
   </PropertyGroup>
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgEnableManifest>true</VcpkgEnableManifest>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -113,7 +116,7 @@
       <PreprocessorDefinitions>WIN32;UNICODE;WIN32_LEAN_AND_MEAN;SEAFILE_CLIENT;PACKAGE_VERSION="9.0.12";%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\libwebsockets\build\include;$(ProjectDir)..\libsearpc\lib;$(ProjectDir)common;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir)lib;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)vcpkg_installed\x64-windows\x64-windows\include\glib-2.0;$(ProjectDir)vcpkg_installed\x64-windows\x64-windows\lib\glib-2.0\include;$(ProjectDir)..\libwebsockets\build\include;$(ProjectDir)..\libsearpc\lib;$(ProjectDir)common;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir)lib;$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
@@ -161,7 +164,7 @@
       <PreprocessorDefinitions>WIN32;PACKAGE_VERSION="9.0.12";WIN32_LEAN_AND_MEAN;UNICODE;SEAFILE_CLIENT;ENABLE_BREAKPAD;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>false</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)..\libsearpc\lib;$(ProjectDir);$(ProjectDir)common;$(ProjectDir)lib;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir)..\breakpad\src;$(ProjectDir)..\libwebsockets\build\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)vcpkg_installed\x64-windows\x64-windows\include\glib-2.0;$(ProjectDir)vcpkg_installed\x64-windows\x64-windows\lib\glib-2.0\include;$(ProjectDir)..\libsearpc\lib;$(ProjectDir);$(ProjectDir)common;$(ProjectDir)lib;$(ProjectDir)include;$(ProjectDir)daemon;$(ProjectDir)..\breakpad\src;$(ProjectDir)..\libwebsockets\build\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
