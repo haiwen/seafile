@@ -714,10 +714,6 @@ init_folder_perms (SeafRepoManager *mgr)
     GList *perms;
     char *repo_id;
 
-    priv->user_perms = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-    priv->group_perms = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
-    pthread_mutex_init (&priv->perm_lock, NULL);
-
     for (ptr = repo_ids; ptr; ptr = ptr->next) {
         repo_id = ptr->data;
         perms = load_folder_perms_for_repo (mgr, repo_id, FOLDER_PERM_TYPE_USER);
@@ -6916,6 +6912,10 @@ seaf_repo_manager_new (SeafileSession *seaf)
 
     mgr->priv->block_map_cache_table = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
     pthread_rwlock_init (&mgr->priv->block_map_lock, NULL);
+
+    mgr->priv->user_perms = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    mgr->priv->group_perms = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, NULL);
+    pthread_mutex_init (&mgr->priv->perm_lock, NULL);
 
     return mgr;
 }
