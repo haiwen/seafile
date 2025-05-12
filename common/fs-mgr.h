@@ -179,6 +179,7 @@ struct _CheckoutBlockAux {
     char *host;
     char *token;
     gboolean use_fileserver_port;
+    gboolean is_checkout_err;
     void *task;
 };
 typedef struct _CheckoutBlockAux CheckoutBlockAux; 

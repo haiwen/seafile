@@ -343,7 +343,11 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
     for (; i < seafile->n_blocks; ++i) {
         blk_id = seafile->blk_sha1s[i];
         if (callback (repo_id, blk_id, wfd, crypt, user_data)) {
-            *error_id = FETCH_CHECKOUT_TRANSFER_ERROR;
+            if (user_data->is_checkout_err) {
+                *error_id = FETCH_CHECKOUT_FAILED;
+            } else {
+                *error_id = FETCH_CHECKOUT_TRANSFER_ERROR;
+            }
             goto bad;
         }
     }

@@ -4924,6 +4924,7 @@ struct _UpdateAux {
     char *content;
     int size;
     void *user_data;
+    gboolean is_checkout_err;
 };
 typedef struct _UpdateAux UpdateAux;
 
@@ -4969,6 +4970,7 @@ update_block_cb (void *contents, size_t size, size_t nmemb, void *userp)
 
     aux->size += realsize;
     if (fill_block (contents, realsize, aux) < 0) {
+        aux->is_checkout_err = TRUE;
         return 0;
     }
 
@@ -5073,6 +5075,7 @@ checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCry
             goto out;
         }
         if (fill_block(aux.content, aux.size, &aux) < 0) {
+            user_data->is_checkout_err = TRUE;
             ret = -1;
             seaf_warning ("Failed to fill block %s.\n",
                           block_id);
@@ -5088,6 +5091,7 @@ checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCry
                 ret = -1;
                 goto out;
             }
+            user_data->is_checkout_err = aux.is_checkout_err;
             if (task->error == SYNC_ERROR_ID_NO_ERROR) {
                 task->error = error_id;
             }
