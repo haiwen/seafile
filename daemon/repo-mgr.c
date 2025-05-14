@@ -4924,6 +4924,7 @@ struct _UpdateAux {
     char *content;
     int size;
     void *user_data;
+    gboolean is_checkout_err;
 };
 typedef struct _UpdateAux UpdateAux;
 
@@ -4969,6 +4970,7 @@ update_block_cb (void *contents, size_t size, size_t nmemb, void *userp)
 
     aux->size += realsize;
     if (fill_block (contents, realsize, aux) < 0) {
+        aux->is_checkout_err = TRUE;
         return 0;
     }
 
@@ -5048,7 +5050,7 @@ static int
 checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCrypt *crypt, CheckoutBlockAux *user_data)
 {
     HttpTxTask *task = user_data->task;
-    int ret = 0;
+    int ret = FETCH_CHECKOUT_SUCCESS;
     int error_id = SYNC_ERROR_ID_NO_ERROR;
     UpdateAux aux = {0};
     aux.fd = fd;
@@ -5061,19 +5063,19 @@ checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCry
                                       &error_id,
                                       update_enc_block_cb, &aux) < 0) {
             if (task->state == HTTP_TASK_STATE_CANCELED) {
-                ret = -1;
+                ret = FETCH_CHECKOUT_CANCELED;
                 goto out;
             }
             if (task->error == SYNC_ERROR_ID_NO_ERROR) {
                 task->error = error_id;
             }
-            ret = -1;
+            ret = FETCH_CHECKOUT_TRANSFER_ERROR;
             seaf_warning ("Failed to get block %s from server.\n",
                           block_id);
             goto out;
         }
         if (fill_block(aux.content, aux.size, &aux) < 0) {
-            ret = -1;
+            ret = FETCH_CHECKOUT_FAILED;
             seaf_warning ("Failed to fill block %s.\n",
                           block_id);
             goto out;
@@ -5085,13 +5087,17 @@ checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCry
                                       &error_id,
                                       update_block_cb, &aux) < 0) {
             if (task->state == HTTP_TASK_STATE_CANCELED) {
-                ret = -1;
+                ret = FETCH_CHECKOUT_CANCELED;
+                goto out;
+            }
+            if (aux.is_checkout_err) {
+                ret = FETCH_CHECKOUT_FAILED; 
                 goto out;
             }
             if (task->error == SYNC_ERROR_ID_NO_ERROR) {
                 task->error = error_id;
             }
-            ret = -1;
+            ret = FETCH_CHECKOUT_TRANSFER_ERROR;
             seaf_warning ("Failed to get block %s from server.\n",
                           block_id);
             goto out;
