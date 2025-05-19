@@ -340,12 +340,10 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
     }
 
     i = block_offset;
-    int rc;
     for (; i < seafile->n_blocks; ++i) {
         blk_id = seafile->blk_sha1s[i];
-        rc = callback (repo_id, blk_id, wfd, crypt, user_data);
-        if (rc != FETCH_CHECKOUT_SUCCESS) {
-            *error_id = rc;
+        if (callback (repo_id, blk_id, wfd, crypt, user_data)) {
+            *error_id = FETCH_CHECKOUT_TRANSFER_ERROR;
             goto bad;
         }
     }
