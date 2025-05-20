@@ -4467,10 +4467,6 @@ index_add (SeafRepo *repo, struct index_state *istate,
 
     if (repo->encrypted) {
         crypt = seafile_crypt_new (repo->enc_version, repo->enc_key, repo->enc_iv);
-        if (crypt->key[0] == '\0') {
-            seaf_warning ("Failed to load repo enc key: %s\n", repo->id);
-            ret = -1;
-        }
     }
 
 #if defined WIN32 || defined __APPLE__
@@ -6583,11 +6579,6 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
             crypt = seafile_crypt_new (repo->enc_version,
                                        repo->enc_key,
                                        repo->enc_iv);
-            if (crypt->key[0] == '\0') {
-                seaf_warning ("Failed to load repo enc key: %s\n", repo_id);
-                ret = FETCH_CHECKOUT_FAILED;
-                goto out;
-            }
         } else if (passwd){
             unsigned char enc_key[32], enc_iv[16];
             if (seafile_decrypt_repo_enc_key (remote_head->enc_version,
@@ -6606,11 +6597,6 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
             crypt = g_new0 (SeafileCrypt, 1);
             crypt->version = remote_head->enc_version;
             load_crypt_from_enc_info (seaf->repo_mgr, repo_id, crypt);
-            if (crypt->key[0] == '\0') {
-                seaf_warning ("Failed to load crypt from enc info: %s\n", repo_id);
-                ret = FETCH_CHECKOUT_FAILED;
-                goto out;
-            }
         }
     }
 

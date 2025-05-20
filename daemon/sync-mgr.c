@@ -2634,6 +2634,13 @@ auto_sync_pulse (void *vmanager)
         if (info->sync_perm_err_cnt > SYNC_PERM_ERROR_RETRY_TIME)
             continue;
 
+        if (repo->encrypted && repo->enc_key[0] == '\0'){
+            info->empty_enc_key = TRUE;
+            continue;
+        } else {
+            info->empty_enc_key = FALSE;
+        }
+
         if (repo->version > 0) {
             /* For repo version > 0, only use http sync. */
             if (check_http_protocol (manager, repo)) {
