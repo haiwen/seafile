@@ -2149,10 +2149,15 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                               S_IFDIR,
                                               SYNC_STATUS_ERROR,
                                               TRUE);
-        if (!ignored) {
+        // My Music, My Pictures and My Videos are protected by the system on Windows and cannot be accessed, so the indexing errors for these folders are skipped.
+        char *dir_name = g_path_get_basename (path);
+        if (!ignored && g_strcmp0 (dir_name, "My Music") != 0 &&
+            g_strcmp0 (dir_name, "My Pictures") != 0 &&
+            g_strcmp0 (dir_name, "My Videos") !=0) {
             send_file_sync_error_notification (params->repo_id, NULL, path,
                                                SYNC_ERROR_ID_INDEX_ERROR);
         }
+        g_free (dir_name);
         return 0;
     }
 
