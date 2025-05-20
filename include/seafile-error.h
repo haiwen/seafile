@@ -68,6 +68,7 @@
 #define SYNC_ERROR_ID_BLOCK_MISSING             36
 #define SYNC_ERROR_ID_CASE_CONFLICT             37
 #define SYNC_ERROR_ID_STOPPED_BY_LOGOUT         38
-#define N_SYNC_ERROR_ID                         39
+#define SYNC_ERROR_ID_CORRUPTED_ENC_KEY         39
+#define N_SYNC_ERROR_ID                         40
 
 #endif

@@ -4921,6 +4921,9 @@ file_tx_task_free (FileTxTask *task)
 struct _UpdateAux {
     int fd;
     SeafileCrypt *crypt;
+    // The older version client might fail to load the repo key, resulting in blocks being encrypted with an all-zero enc key.
+    // When decryption fails, an additional attempt is made to decrypt using the all-zero key.
+    SeafileCrypt *zero_crypt;
     char *content;
     int size;
     void *user_data;
@@ -4939,8 +4942,11 @@ fill_block (void *contents, size_t realsize, void *userp)
     if (aux->crypt) {
         rc = seafile_decrypt (&dec_out, &dec_out_len, contents, realsize, aux->crypt);
         if (rc != 0) {
-            seaf_warning ("Decrypt block failed.\n");
-            return -1;
+            rc = seafile_decrypt(&dec_out, &dec_out_len, contents, realsize, aux->zero_crypt);
+            if (rc != 0) {
+                seaf_warning ("Decrypt block failed.\n");
+                return -1;
+            }
         }
 
         ret = writen (aux->fd, dec_out, dec_out_len);
@@ -5050,11 +5056,17 @@ checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCry
     HttpTxTask *task = user_data->task;
     int ret = 0;
     int error_id = SYNC_ERROR_ID_NO_ERROR;
+    SeafileCrypt *zero_crypt = NULL;
     UpdateAux aux = {0};
     aux.fd = fd;
     aux.crypt = crypt;
     aux.user_data = task;
     if (crypt) {
+        unsigned char enc_key[32], enc_iv[16];
+        memset (enc_key, 0, sizeof(enc_key)); 
+        memset (enc_iv, 0, sizeof(enc_iv)); 
+        zero_crypt = seafile_crypt_new (crypt->version, enc_key, enc_iv);
+        aux.zero_crypt = zero_crypt;
         if (http_tx_manager_get_block(seaf->http_tx_mgr, user_data->repo_id,
                                       block_id, user_data->host,
                                       user_data->token, user_data->use_fileserver_port,
@@ -5100,6 +5112,8 @@ checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCry
     if (task)
         task->done_download += aux.size;
 out:
+    if (zero_crypt)
+        g_free (zero_crypt);
     g_free (aux.content);
     return ret;
 }
@@ -6567,11 +6581,15 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                                        repo->enc_iv);
         } else if (passwd){
             unsigned char enc_key[32], enc_iv[16];
-            seafile_decrypt_repo_enc_key (remote_head->enc_version,
+            if (seafile_decrypt_repo_enc_key (remote_head->enc_version,
                                           passwd,
                                           remote_head->random_key,
                                           remote_head->salt,
-                                          enc_key, enc_iv);
+                                          enc_key, enc_iv) < 0) {
+                seaf_warning ("Failed to decrypt repo enc key: %s\n", repo_id);
+                ret = FETCH_CHECKOUT_FAILED;
+                goto out;
+            }
             crypt = seafile_crypt_new (remote_head->enc_version,
                                        enc_key, enc_iv);
         } else {
@@ -8110,9 +8128,7 @@ seaf_repo_manager_load_repo_enc_info (SeafRepoManager *manager,
                                       SeafRepo *repo)
 {
 
-    load_repo_passwd (manager, repo);
-
-    return 0;
+    return load_repo_passwd (manager, repo);
 }
 
 GList*

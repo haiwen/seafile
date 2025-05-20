@@ -393,6 +393,18 @@ seafile_get_repo_sync_task (const char *repo_id, GError **error)
     }
 
     SyncInfo *info = seaf_sync_manager_get_sync_info (seaf->sync_mgr, repo_id);
+    if (info && info->empty_enc_key) {
+        SeafileSyncTask *s_task;
+        s_task = g_object_new (SEAFILE_TYPE_SYNC_TASK,
+                               "force_upload", FALSE,
+                               "state", "error",
+                               "error", SYNC_ERROR_ID_CORRUPTED_ENC_KEY,
+                               "repo_id", repo_id,
+                               NULL);
+
+        return (GObject *)s_task;
+    }
+
     if (!info || !info->current_task)
         return NULL;
 

@@ -204,6 +204,11 @@ static SyncErrorInfo sync_error_info_tbl[] = {
         SYNC_ERROR_LEVEL_REPO,
         "Syncing is stopped by logout. Please re-sync the library if needed"
     },
+    {
+        SYNC_ERROR_ID_CORRUPTED_ENC_KEY,
+        SYNC_ERROR_LEVEL_REPO,
+        "Encryption key is corrupted. Please create a new library and upload files again"
+    },
 };
 
 const char *
