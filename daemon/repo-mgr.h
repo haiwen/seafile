@@ -26,6 +26,7 @@
 #define REPO_PROP_SYNC_INTERVAL "sync-interval"
 #define REPO_SYNC_WORKTREE_NAME "sync-worktree-name"
 #define REPO_PROP_USERNAME "username"
+#define REPO_PROP_EMPTY_ENC_KEY "empty-enc-key"
 
 struct _SeafRepoManager;
 typedef struct _SeafRepo SeafRepo;
@@ -105,6 +106,8 @@ struct _SeafRepo {
 
     /* Non-zero if periodic sync is set for this repo. */
     int sync_interval;
+
+    gboolean empty_enc_key;
 };
 
 

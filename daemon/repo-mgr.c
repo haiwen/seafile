@@ -4929,6 +4929,7 @@ struct _UpdateAux {
     // The older version client might fail to load the repo key, resulting in blocks being encrypted with an all-zero enc key.
     // When decryption fails, an additional attempt is made to decrypt using the all-zero key.
     SeafileCrypt *zero_crypt;
+    char *repo_id;
     char *content;
     int size;
     void *user_data;
@@ -4951,6 +4952,8 @@ fill_block (void *contents, size_t realsize, void *userp)
             if (rc != 0) {
                 seaf_warning ("Decrypt block failed.\n");
                 return -1;
+            } else {
+                save_repo_property (seaf->repo_mgr, aux->repo_id, REPO_PROP_EMPTY_ENC_KEY, "true");
             }
         }
 
@@ -5065,6 +5068,7 @@ checkout_block_cb (const char *repo_id, const char *block_id, int fd, SeafileCry
     UpdateAux aux = {0};
     aux.fd = fd;
     aux.crypt = crypt;
+    aux.repo_id = repo_id;
     aux.user_data = task;
     if (crypt) {
         unsigned char enc_key[32], enc_iv[16];
@@ -7741,6 +7745,14 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
         }
         g_free (value);
     }
+
+    /* load empty enc key property */
+    value = load_repo_property (manager, repo->id, REPO_PROP_EMPTY_ENC_KEY);
+    if (g_strcmp0(value, "true") == 0)
+        repo->empty_enc_key = TRUE;
+    else
+        repo->empty_enc_key = FALSE;
+    g_free (value);
 
     g_hash_table_insert (manager->priv->repo_hash, g_strdup(repo->id), repo);
 
