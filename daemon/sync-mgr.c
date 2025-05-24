@@ -2635,15 +2635,12 @@ auto_sync_pulse (void *vmanager)
             continue;
 
         if (repo->encrypted && repo->empty_enc_key) {
-            info->empty_enc_key = TRUE;
             continue;
         }
 
         if (repo->encrypted && repo->enc_key[0] == '\0'){
-            info->empty_enc_key = TRUE;
+            repo->empty_enc_key = TRUE;
             continue;
-        } else {
-            info->empty_enc_key = FALSE;
         }
 
         if (repo->version > 0) {

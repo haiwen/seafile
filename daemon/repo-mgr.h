@@ -107,6 +107,7 @@ struct _SeafRepo {
     /* Non-zero if periodic sync is set for this repo. */
     int sync_interval;
 
+    // empty_enc_key will be set to true when the currently loadded enc key is empty, or when blocks can be decrypted using an empty enc key.
     gboolean empty_enc_key;
 };
 
