@@ -36,8 +36,6 @@ struct _SyncInfo {
 
     gint       sync_perm_err_cnt;
     gboolean   del_confirmation_pending;
-
-    gboolean empty_enc_key;
 };
 
 enum {

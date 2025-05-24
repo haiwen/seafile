@@ -4993,8 +4993,16 @@ update_local_repo (HttpTxTask *task)
      */
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, new_head->repo_id);
     if (task->is_clone) {
-        if (repo != NULL)
+        gboolean empty_enc_key = FALSE;
+        char *value = seaf_repo_manager_get_repo_property (seaf->repo_mgr, new_head->repo_id, REPO_PROP_EMPTY_ENC_KEY);
+        if (g_strcmp0(value, "true") == 0)
+            empty_enc_key = TRUE;
+        g_free (value);
+
+        if (repo != NULL) {
+            repo->empty_enc_key = empty_enc_key;
             goto out;
+        }
 
         repo = seaf_repo_new (new_head->repo_id, NULL, NULL);
         if (repo == NULL) {
@@ -5003,6 +5011,7 @@ update_local_repo (HttpTxTask *task)
             ret = -1;
             goto out;
         }
+        repo->empty_enc_key = empty_enc_key;
 
         seaf_repo_from_commit (repo, new_head);
 
