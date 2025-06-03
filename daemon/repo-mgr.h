@@ -27,6 +27,7 @@
 #define REPO_SYNC_WORKTREE_NAME "sync-worktree-name"
 #define REPO_PROP_USERNAME "username"
 #define REPO_PROP_EMPTY_ENC_KEY "empty-enc-key"
+#define REPO_PROP_CHECK_BLOCKS "check-blocks"
 
 struct _SeafRepoManager;
 typedef struct _SeafRepo SeafRepo;

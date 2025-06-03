@@ -7082,6 +7082,245 @@ cleanup_deleted_stores (void *vdata)
     return NULL;
 }
 
+struct _GetBlockAux {
+    char *content;
+    int size;
+};
+typedef struct _GetBlockAux GetBlockAux;
+
+static size_t
+get_enc_block_cb (void *contents, size_t size, size_t nmemb, void *userp)
+{
+    size_t realsize = size * nmemb;
+    GetBlockAux *aux = userp;
+    int ret = realsize;
+
+    aux->content = g_realloc (aux->content, aux->size + realsize);
+    if (!aux->content) {
+        seaf_warning ("Not enough memory.\n");
+        return 0;
+    }
+    memcpy (aux->content + aux->size, contents, realsize);
+    aux->size += realsize;
+
+    return ret;
+}
+
+static int
+decrypt_block (SeafRepo *repo, SeafileCrypt *crypt, SeafileCrypt *zero_crypt, const char *block_id)
+{
+    int ret = 0;
+    char *dec_out = NULL;
+    int dec_out_len = -1;
+    GetBlockAux aux;
+    memset (&aux, 0, sizeof(aux));
+
+    int error_id;
+    if (http_tx_manager_get_block(seaf->http_tx_mgr, repo->id,
+                                  block_id, repo->effective_host,
+                                  repo->token, repo->use_fileserver_port,
+                                  &error_id,
+                                  get_enc_block_cb, &aux) < 0) {
+        seaf_warning ("Failed to get block %s from server.\n",
+                      block_id);
+        goto out;
+    }
+
+    int rc = seafile_decrypt (&dec_out, &dec_out_len, aux.content, aux.size, crypt);
+    if (rc != 0) {
+        rc = seafile_decrypt(&dec_out, &dec_out_len, aux.content, aux.size, zero_crypt);
+        if (rc == 0) {
+            ret = -1;
+            goto out;
+        }
+    }
+
+
+out:
+    g_free (dec_out);
+    g_free (aux.content);
+    return ret;
+}
+
+static int
+check_repo_corrupted_blocks (SeafRepo *repo)
+{
+    SeafCommit *head = NULL;
+    SeafileCrypt *crypt = NULL;
+    SeafileCrypt *zero_crypt = NULL;
+    char path[SEAF_PATH_MAX];
+    char index_path[SEAF_PATH_MAX];
+    struct index_state istate;
+    gboolean not_exist;
+    int ret = 0;
+
+    memset (&istate, 0, sizeof(istate));
+    snprintf (index_path, SEAF_PATH_MAX, "%s/%s", repo->manager->index_dir, repo->id);
+
+    if (read_index_from (&istate, index_path, repo->version) < 0) {
+        seaf_warning ("Failed to load repo index: %s.\n", repo->id);
+        return -1;
+    }
+
+    head = seaf_commit_manager_get_commit (seaf->commit_mgr,
+                                           repo->id, repo->version,
+                                           repo->head->commit_id);
+    if (!head) {
+        ret = -1;
+        seaf_warning ("Failed to get head for repo %s.\n", repo->id);
+        goto out;
+    }
+
+    crypt = seafile_crypt_new (repo->enc_version, repo->enc_key, repo->enc_iv);
+    unsigned char enc_key[32], enc_iv[16];
+    memset (enc_key, 0, sizeof(enc_key)); 
+    memset (enc_iv, 0, sizeof(enc_iv)); 
+    zero_crypt = seafile_crypt_new (repo->enc_version, enc_key, enc_iv);
+
+    struct cache_entry **ce_array = istate.cache;
+    struct cache_entry *ce;
+    SeafStat st;
+    unsigned char sha1[20];
+    int i;
+
+    for (i = 0; i < istate.cache_nr; ++i) {
+        ce = ce_array[i];
+        if (S_ISDIR (ce->ce_mode)) {
+            continue;
+        }
+
+        snprintf (path, SEAF_PATH_MAX, "%s/%s", repo->worktree, ce->name);
+        not_exist = FALSE;
+        int rc = seaf_stat (path, &st);
+        if (rc < 0 && errno == ENOENT) {
+            not_exist = TRUE;
+        } else if (rc == 0 && st.st_size == 0) {
+            continue;
+        }
+
+        GError *error = NULL;
+        char *file_id = seaf_fs_manager_get_seafile_id_by_path (seaf->fs_mgr, repo->id, repo->version, head->root_id, ce->name, &error);
+        if (error) {
+            g_clear_error (&error);
+        }
+        if (!file_id) {
+            seaf_warning ("Failed to get seafile id by path: %s\n", path);
+            continue;
+        }
+        if (!not_exist) {
+            char new_file_id[41];
+            gint64 size;
+            // Reindex file blocks using cdc.
+            if (seaf_fs_manager_index_blocks (seaf->fs_mgr, repo->id, repo->version, path, sha1, &size, crypt, TRUE, TRUE) < 0) {
+                g_free (file_id);
+                seaf_warning ("Failed to index file: %s\n", path);
+                continue;
+            }
+            rawdata_to_hex (sha1, new_file_id, 20);
+            if (g_strcmp0 (file_id, new_file_id) == 0) {
+                g_free (file_id);
+                continue;
+            }
+
+            // Reindex file block without using cdc.
+            if (seaf_fs_manager_index_blocks (seaf->fs_mgr, repo->id, repo->version, path, sha1, &size, crypt, TRUE, FALSE) < 0) {
+                g_free (file_id);
+                seaf_warning ("Failed to index file: %s\n", path);
+                continue;
+            }
+            rawdata_to_hex (sha1, new_file_id, 20);
+            if (g_strcmp0 (file_id, new_file_id) == 0) {
+                g_free (file_id);
+                continue;
+            }
+            g_free (file_id);
+            if (ce->ce_mtime.sec != st.st_mtime) {
+                continue;
+            }
+            seaf_warning ("Failed to compare file id for path %s, blocks are corrupted.\n", path);
+            save_repo_property (seaf->repo_mgr, repo->id, REPO_PROP_EMPTY_ENC_KEY, "true");
+            break;
+        } else if (ret == 0 && (ce->ce_ctime.sec == 0 && ce_stage(ce) == 0)) {
+            // If ce->ctime is 0 and stage is 0, it was not successfully checked out.
+            Seafile *seafile = seaf_fs_manager_get_seafile (seaf->fs_mgr, repo->id, repo->version, file_id);
+            if (!seafile) {
+                g_free (file_id);
+                seaf_warning ("Failed to find file %s in repo %s\n", file_id, repo->id);
+                continue;
+            }
+            if (seafile->n_blocks == 0) {
+                g_free (file_id);
+                continue;
+            }
+            char *block_id = seafile->blk_sha1s[0];
+            if (decrypt_block (repo, crypt, zero_crypt, block_id) < 0) {
+                g_free (file_id);
+                seaf_warning ("Failed to compare block_id %s, block is corrupted.\n", block_id);
+                save_repo_property (seaf->repo_mgr, repo->id, REPO_PROP_EMPTY_ENC_KEY, "true");
+                break;
+
+            }
+            g_free (file_id);
+        }
+    }
+
+
+out:
+    discard_index (&istate);
+    seaf_commit_unref (head);
+    g_free (crypt);
+    g_free (zero_crypt);
+    return ret;
+}
+
+static char *
+load_repo_property (SeafRepoManager *manager,
+                    const char *repo_id,
+                    const char *key);
+
+static void *
+check_corrupted_enc_blocks (void *vdata)
+{
+    // TODO: comment this code to enable check enc blocks.
+    if (!seaf->check_enc_blocks) {
+        return NULL;
+    }
+
+    // Wait for a while, and auto sync will set the repo's effective_host property.
+    g_usleep (60  * G_USEC_PER_SEC);
+
+    GList *ptr, *repos = seaf_repo_manager_get_repo_list(seaf->repo_mgr, -1, -1);
+    if (!repos) {
+        return NULL;
+    }
+
+    for (ptr = repos; ptr; ptr = ptr->next) {
+        SeafRepo *repo = (SeafRepo*)ptr->data;
+        char *value = load_repo_property (seaf->repo_mgr, repo->id, REPO_PROP_CHECK_BLOCKS);
+        if (g_strcmp0 (value, "true") == 0) {
+            g_free (value);
+            continue;
+        }
+        g_free (value);
+
+        if (!repo->encrypted || repo->enc_key[0] == '\0') {
+            continue;
+        }
+        if (!repo->effective_host) {
+            continue;
+        }
+        seaf_message ("Start to check enc repo blocks for repo %s.\n", repo->id);
+        if (check_repo_corrupted_blocks(repo) < 0) {
+            continue;
+        }
+        seaf_message ("Finish to check enc repo blocks for repo %s.\n", repo->id);
+        save_repo_property (seaf->repo_mgr, repo->id, REPO_PROP_CHECK_BLOCKS, "true");
+    }
+
+    g_list_free (repos);
+    return NULL;
+}
+
 int
 seaf_repo_manager_start (SeafRepoManager *mgr)
 {
@@ -7102,6 +7341,11 @@ seaf_repo_manager_start (SeafRepoManager *mgr)
                          mgr->priv->lock_office_job_queue);
     if (rc != 0) {
         seaf_warning ("Failed to start lock office file thread: %s\n", strerror(rc));
+    }
+
+    rc = pthread_create (&tid, &attr, check_corrupted_enc_blocks, NULL);
+    if (rc != 0) {
+        seaf_warning ("Failed to start check enc blocks thread: %s\n", strerror(rc));
     }
 
     return 0;
