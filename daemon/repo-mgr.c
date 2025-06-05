@@ -7207,6 +7207,11 @@ check_repo_corrupted_blocks (SeafRepo *repo)
             seaf_warning ("Failed to get seafile id by path: %s\n", path);
             continue;
         }
+        // When a local file exists, the client checks whether the file is correctly encrypted by reindexing it and comparing the fileID.
+        // Since files can be uploaded either via the web or the client, if the fileID generated using the CDC algorithm does not match, the client will perform a second check using a non-CDC algorithm.
+        // If the fileID still does not match, the file is considered to have corrupted encryption.
+
+        // If the local file does not exist, it may have failed to checkout due to decryption errors. In this case, the client attempts to retrieve the file blocks from the server and decrypt them.       // If the file can be decrypted using an all-zero key, it is considered to have corrupted encryption.
         if (!not_exist) {
             char new_file_id[41];
             gint64 size;
@@ -7238,6 +7243,7 @@ check_repo_corrupted_blocks (SeafRepo *repo)
                 continue;
             }
             seaf_warning ("Failed to compare file id for path %s, blocks are corrupted.\n", path);
+            repo->empty_enc_key = TRUE;
             save_repo_property (seaf->repo_mgr, repo->id, REPO_PROP_EMPTY_ENC_KEY, "true");
             break;
         } else if (ret == 0 && (ce->ce_ctime.sec == 0 && ce_stage(ce) == 0)) {
@@ -7256,6 +7262,7 @@ check_repo_corrupted_blocks (SeafRepo *repo)
             if (decrypt_block (repo, crypt, zero_crypt, block_id) < 0) {
                 g_free (file_id);
                 seaf_warning ("Failed to compare block_id %s, block is corrupted.\n", block_id);
+                repo->empty_enc_key = TRUE;
                 save_repo_property (seaf->repo_mgr, repo->id, REPO_PROP_EMPTY_ENC_KEY, "true");
                 break;
 
@@ -7278,10 +7285,13 @@ load_repo_property (SeafRepoManager *manager,
                     const char *repo_id,
                     const char *key);
 
+// The older versions of the client may fail to import the encryption key due to missing records in RepoKeys or database errors.
+// As a result, some files might be encrypted using an all-zero key.
+// This check will reindex the local files to determine whether any of files were encrypted with an incorrect key.
 static void *
 check_corrupted_enc_blocks (void *vdata)
 {
-    // TODO: comment this code to enable check enc blocks.
+    // This feature is disabled by default. Comment out this check to enable it..
     if (!seaf->check_enc_blocks) {
         return NULL;
     }
