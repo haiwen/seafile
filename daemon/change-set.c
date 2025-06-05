@@ -454,13 +454,8 @@ add_to_tree (ChangeSet *changeset,
         dent = ptr->data;
         if (!changed)
             break;
-        if (st) {
-            // update parent dir mtime when add or modify files locally.
-            dent->mtime = st->st_mtime;
-        } else {
-            // update parent dir mtime when rename files locally.
-            dent->mtime= now;
-        }
+        // update parent dir mtime when add or modify or rename files locally.
+        dent->mtime = now;
     }
 
     g_list_free (parent_dents);
