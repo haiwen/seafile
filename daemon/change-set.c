@@ -375,8 +375,8 @@ add_to_tree (ChangeSet *changeset,
     int n, i;
     ChangeSetDir *dir;
     ChangeSetDirent *dent;
-    ChangeSetDirent *parent_dent = NULL;
     SeafDir *seaf_dir;
+    GList *parent_dents = NULL;
     gboolean changed;
 
     parts = g_strsplit (path, "/", 0);
@@ -409,15 +409,12 @@ add_to_tree (ChangeSet *changeset,
                     seaf_dir_free (seaf_dir);
                 }
                 dir = dent->subdir;
-                parent_dent = dent;
+                parent_dents = g_list_prepend (parent_dents, dent);
             } else if (S_ISREG(dent->mode)) {
                 if (i == (n-1)) {
                     /* File exists, update it. */
                     changed = update_file (dent, sha1, st, modifier);
                     // update parent dir mtime when modify files locally.
-                    if (parent_dent && changed) {
-                        parent_dent->mtime = st->st_mtime;
-                    }
                     break;
                 }
             }
@@ -443,20 +440,30 @@ add_to_tree (ChangeSet *changeset,
 #endif
 
             if (i == (n-1)) {
-                if (parent_dent && new_dent) {
-                    // update parent dir mtime when rename files locally.
-                    parent_dent->mtime = time(NULL);
-                } else if (parent_dent && st) {
-                    // update parent dir mtime when add files locally.
-                    parent_dent->mtime = st->st_mtime;
-                }
                 create_new_dent (dir, dname, sha1, st, modifier, new_dent);
+                changed = TRUE;
             } else {
                 dir = create_intermediate_dir (dir, dname, st);
             }
         }
     }
 
+    GList *ptr;
+    time_t now  = time(NULL);
+    for (ptr = parent_dents; ptr; ptr = ptr->next) {
+        dent = ptr->data;
+        if (!changed)
+            break;
+        if (st) {
+            // update parent dir mtime when add or modify files locally.
+            dent->mtime = st->st_mtime;
+        } else {
+            // update parent dir mtime when rename files locally.
+            dent->mtime= now;
+        }
+    }
+
+    g_list_free (parent_dents);
     g_strfreev (parts);
 }
 
@@ -471,8 +478,8 @@ delete_from_tree (ChangeSet *changeset,
     int n, i;
     ChangeSetDir *dir;
     ChangeSetDirent *dent, *ret = NULL;
-    ChangeSetDirent *parent_dent = NULL;
     SeafDir *seaf_dir;
+    GList *parent_dents = NULL;
 
     *parent_empty = FALSE;
 
@@ -493,10 +500,6 @@ delete_from_tree (ChangeSet *changeset,
                 if (g_hash_table_size (dir->dents) == 0)
                     *parent_empty = TRUE;
                 ret = dent;
-                // update parent dir mtime when delete dirs locally.
-                if (parent_dent) {
-                    parent_dent->mtime = time (NULL);
-                }
                 break;
             }
 
@@ -514,7 +517,7 @@ delete_from_tree (ChangeSet *changeset,
                 seaf_dir_free (seaf_dir);
             }
             dir = dent->subdir;
-            parent_dent = dent;
+            parent_dents = g_list_prepend (parent_dents, dent);
         } else if (S_ISREG(dent->mode)) {
             if (i == (n-1)) {
                 /* Remove from hash table without freeing dent. */
@@ -522,14 +525,22 @@ delete_from_tree (ChangeSet *changeset,
                 if (g_hash_table_size (dir->dents) == 0)
                     *parent_empty = TRUE;
                 ret = dent;
-                // update parent dir mtime when delete files locally.
-                if (parent_dent) {
-                    parent_dent->mtime = time (NULL);
-                }
                 break;
             }
         }
     }
+
+    GList *ptr;
+    time_t now  = time(NULL);
+    for (ptr = parent_dents; ptr; ptr = ptr->next) {
+        dent = ptr->data;
+        if (!ret)
+            break;
+        // update parent dir mtime when delete dirs or files locally.
+        dent->mtime= now;
+    }
+
+    g_list_free (parent_dents);
 
     g_strfreev (parts);
     return ret;
