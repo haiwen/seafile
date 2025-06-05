@@ -377,7 +377,7 @@ add_to_tree (ChangeSet *changeset,
     ChangeSetDirent *dent;
     SeafDir *seaf_dir;
     GList *parent_dents = NULL;
-    gboolean changed;
+    gboolean changed = FALSE;
 
     parts = g_strsplit (path, "/", 0);
     n = g_strv_length(parts);
