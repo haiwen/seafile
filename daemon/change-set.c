@@ -414,7 +414,6 @@ add_to_tree (ChangeSet *changeset,
                 if (i == (n-1)) {
                     /* File exists, update it. */
                     changed = update_file (dent, sha1, st, modifier);
-                    // update parent dir mtime when modify files locally.
                     break;
                 }
             }
