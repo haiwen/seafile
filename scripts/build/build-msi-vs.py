@@ -336,7 +336,7 @@ class SeafileShellExt(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
-            'devenv %s/extensions/seafile_ext.sln /Rebuild "Release|x64"' %(self.projdir),
+            'devenv %s/windows/extensions/seafile_ext.sln /Rebuild "Release|x64"' %(self.projdir),
             'devenv %s/shellext-fix/shellext-fix.sln /Rebuild "Release|x64"' %(self.projdir),
         ]
     def before_build(self):
@@ -423,7 +423,7 @@ def prepare_msi():
     must_copytree(SLNOUTPUTDIR, wix_pack_bin)
 
     # Copy seafile_ext64.dll  to WIX_PACKAGE_DIR/custom
-    seafile_extension_target_path = os.path.join(SeafileShellExt().projdir, 'extensions', 'x64\\Release', 'seafile_ext64.dll')
+    seafile_extension_target_path = os.path.join(SeafileShellExt().projdir, 'windows', 'extensions', 'x64\\Release', 'seafile_ext64.dll')
     seafile_extension_dst_path = os.path.join(WIX_PACKAGE_DIR, 'custom')
     must_copy(seafile_extension_target_path, seafile_extension_dst_path)
 
