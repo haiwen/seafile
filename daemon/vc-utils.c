@@ -384,8 +384,8 @@ build_checkout_path (const char *worktree, const char *ce_name, int len)
             continue;
         
         if (seaf_util_mkdir (path->str, 0777) < 0) {
-            g_string_free (path, TRUE);
             seaf_warning ("Failed to create directory %s.\n", path->str);
+            g_string_free (path, TRUE);
             return NULL;
         }
     }
