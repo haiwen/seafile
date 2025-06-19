@@ -754,6 +754,7 @@ recv_response (void *contents, size_t size, size_t nmemb, void *userp)
 
 extern FILE *seafile_get_log_fp ();
 
+#define FS_ID_LIST_TIMEOUT_SEC 1800
 #define HTTP_TIMEOUT_SEC 300
 
 /*
@@ -768,7 +769,7 @@ static int
 http_get (CURL *curl, const char *url, const char *token,
           int *rsp_status, char **rsp_content, gint64 *rsp_size,
           HttpRecvCallback callback, void *cb_data,
-          gboolean timeout, int *pcurl_error)
+          gboolean timeout, int timeout_sec, int *pcurl_error)
 {
     char *token_header;
     struct curl_slist *headers = NULL;
@@ -798,7 +799,7 @@ http_get (CURL *curl, const char *url, const char *token,
     if (timeout) {
         /* Set low speed limit to 1 bytes. This effectively means no data. */
         curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 1);
-        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, HTTP_TIMEOUT_SEC);
+        curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, timeout_sec);
     }
 
     if (seaf->disable_verify_certificate) {
@@ -1307,7 +1308,7 @@ check_protocol_version_thread (void *vdata)
         url = g_strdup_printf ("%s/protocol-version", data->host);
 
     int curl_error;
-    if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL, TRUE, &curl_error) < 0) {
+    if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL, TRUE, HTTP_TIMEOUT_SEC, &curl_error) < 0) {
         conn->release = TRUE;
         data->error_code = curl_error_to_http_task_error (curl_error);
         goto out;
@@ -1421,7 +1422,7 @@ check_notif_server_thread (void *vdata)
         url = g_strdup_printf ("%s/ping", data->host);
 
     int curl_error;
-    if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL, TRUE, &curl_error) < 0) {
+    if (http_get (curl, url, NULL, &status, &rsp_content, &rsp_size, NULL, NULL, TRUE, HTTP_TIMEOUT_SEC, &curl_error) < 0) {
         conn->release = TRUE;
         goto out;
     }
@@ -1564,7 +1565,7 @@ check_head_commit_thread (void *vdata)
 
     int curl_error;
     if (http_get (curl, url, data->token, &status, &rsp_content, &rsp_size,
-                  NULL, NULL, TRUE, &curl_error) < 0) {
+                  NULL, NULL, TRUE, HTTP_TIMEOUT_SEC, &curl_error) < 0) {
         conn->release = TRUE;
         data->error_code = curl_error_to_http_task_error (curl_error);
         goto out;
@@ -2428,7 +2429,7 @@ fileserver_api_get_request (void *vdata)
 
     int curl_error;
     if (http_get (curl, data->url, data->api_token, &status, &rsp_content, &rsp_size, NULL, NULL,
-                  TRUE, &curl_error) < 0) {
+                  TRUE, HTTP_TIMEOUT_SEC, &curl_error) < 0) {
         conn->release = TRUE;
         data->error_code = curl_error_to_http_task_error (curl_error);
         goto out;
@@ -2680,7 +2681,7 @@ check_permission (HttpTxTask *task, Connection *conn)
     }
 
     int curl_error;
-    if (http_get (curl, url, task->token, &status, &rsp_content, &rsp_size, NULL, NULL, TRUE, &curl_error) < 0) {
+    if (http_get (curl, url, task->token, &status, &rsp_content, &rsp_size, NULL, NULL, TRUE, HTTP_TIMEOUT_SEC, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -2972,7 +2973,7 @@ check_quota (HttpTxTask *task, Connection *conn, gint64 delta)
                                task->host, task->repo_id, delta);
 
     int curl_error;
-    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, TRUE, &curl_error) < 0) {
+    if (http_get (curl, url, task->token, &status, NULL, NULL, NULL, NULL, TRUE, HTTP_TIMEOUT_SEC, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -4256,7 +4257,7 @@ get_commit_object (HttpTxTask *task, Connection *conn)
     int curl_error;
     if (http_get (curl, url, task->token, &status,
                   &rsp_content, &rsp_size,
-                  NULL, NULL, TRUE, &curl_error) < 0) {
+                  NULL, NULL, TRUE, HTTP_TIMEOUT_SEC, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -4333,7 +4334,7 @@ get_needed_fs_id_list (HttpTxTask *task, Connection *conn, GList **fs_id_list)
     int curl_error;
     if (http_get (curl, url, task->token, &status,
                   &rsp_content, &rsp_size,
-                  NULL, NULL, FALSE, &curl_error) < 0) {
+                  NULL, NULL, (!task->is_clone), FS_ID_LIST_TIMEOUT_SEC, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
         ret = -1;
@@ -4641,7 +4642,7 @@ get_block (HttpTxTask *task, Connection *conn, const char *block_id)
 
     int curl_error;
     if (http_get (curl, url, task->token, &status, NULL, NULL,
-                  get_block_callback, &data, TRUE, &curl_error) < 0) {
+                  get_block_callback, &data, TRUE, HTTP_TIMEOUT_SEC, &curl_error) < 0) {
         if (task->state == HTTP_TASK_STATE_CANCELED)
             goto error;
 
@@ -4836,7 +4837,7 @@ http_tx_manager_get_block (HttpTxManager *manager,
 
     int curl_error;
     if (http_get (curl, url, token, &status, NULL, NULL,
-                  get_blk_cb, user_data, TRUE, &curl_error) < 0) {
+                  get_blk_cb, user_data, TRUE, HTTP_TIMEOUT_SEC, &curl_error) < 0) {
         *error_id = curl_error_to_http_task_error (curl_error);
         conn->release = TRUE;
         ret = -1;
@@ -4946,7 +4947,7 @@ http_tx_manager_get_file_block_map (HttpTxManager *manager,
 
     int curl_error;
     if (http_get (curl, url, token, &status, &rsp_content, &rsp_size,
-                  NULL, NULL, TRUE, &curl_error) < 0) {
+                  NULL, NULL, TRUE, HTTP_TIMEOUT_SEC, &curl_error) < 0) {
         conn->release = TRUE;
         ret = -1;
         goto out;
