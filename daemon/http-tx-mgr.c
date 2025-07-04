@@ -871,7 +871,9 @@ out:
 
 typedef struct _HttpRequest {
     const char *content;
+    const char *origin_content;
     size_t size;
+    size_t origin_size;
 } HttpRequest;
 
 static size_t
@@ -892,12 +894,29 @@ send_request (void *ptr, size_t size, size_t nmemb, void *userp)
     return copy_size;
 }
 
+// Only handle rewinding caused by redirects. In this case, offset and origin should both be 0.
+// Do not handle rewinds triggered by other causes.
+static size_t
+rewind_http_request (void *clientp, curl_off_t offset, int origin)
+{
+    HttpRequest *req = clientp;
+    if (offset == 0 && origin == 0) {
+        req->content = req->origin_content;
+        req->size = req->origin_size;
+        return CURL_SEEKFUNC_OK;
+    }
+
+    return CURL_SEEKFUNC_FAIL;
+}
+
+typedef size_t (*HttpRewindCallback) (void *, curl_off_t, int);
+
 typedef size_t (*HttpSendCallback) (void *, size_t, size_t, void *);
 
 static int
 http_put (CURL *curl, const char *url, const char *token,
           const char *req_content, gint64 req_size,
-          HttpSendCallback callback, void *cb_data,
+          HttpSendCallback callback, void *cb_data, HttpRewindCallback rewind_cb,
           int *rsp_status, char **rsp_content, gint64 *rsp_size,
           gboolean timeout, int *pcurl_error)
 {
@@ -943,14 +962,24 @@ http_put (CURL *curl, const char *url, const char *token,
     if (req_content) {
         memset (&req, 0, sizeof(req));
         req.content = req_content;
+        req.origin_content = req_content;
         req.size = req_size;
+        req.origin_size = req_size;
         curl_easy_setopt(curl, CURLOPT_READFUNCTION, send_request);
         curl_easy_setopt(curl, CURLOPT_READDATA, &req);
         curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)req_size);
+
+        curl_easy_setopt(curl, CURLOPT_SEEKFUNCTION, rewind_http_request);
+        curl_easy_setopt(curl, CURLOPT_SEEKDATA, &req);
     } else if (callback != NULL) {
         curl_easy_setopt(curl, CURLOPT_READFUNCTION, callback);
         curl_easy_setopt(curl, CURLOPT_READDATA, cb_data);
         curl_easy_setopt(curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)req_size);
+
+        if (rewind_cb != NULL) {
+            curl_easy_setopt(curl, CURLOPT_SEEKFUNCTION, rewind_cb);
+            curl_easy_setopt(curl, CURLOPT_SEEKDATA, cb_data);
+        }
     } else {
         curl_easy_setopt (curl, CURLOPT_INFILESIZE_LARGE, (curl_off_t)0);
     }
@@ -1065,10 +1094,15 @@ http_post (CURL *curl, const char *url, const char *token,
     HttpRequest req;
     memset (&req, 0, sizeof(req));
     req.content = req_content;
+    req.origin_content = req_content;
     req.size = req_size;
+    req.origin_size = req_size;
     curl_easy_setopt(curl, CURLOPT_READFUNCTION, send_request);
     curl_easy_setopt(curl, CURLOPT_READDATA, &req);
     curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE_LARGE, (curl_off_t)req_size);
+
+    curl_easy_setopt(curl, CURLOPT_SEEKFUNCTION, rewind_http_request);
+    curl_easy_setopt(curl, CURLOPT_SEEKDATA, &req);
 
     curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
 
@@ -2313,7 +2347,7 @@ http_tx_manager_lock_file (HttpTxManager *manager,
         url = g_strdup_printf ("%s/repo/%s/lock-file?p=%s", host, repo_id, esc_path);
     g_free (esc_path);
 
-    if (http_put (curl, url, token, NULL, 0, NULL, NULL,
+    if (http_put (curl, url, token, NULL, 0, NULL, NULL, NULL,
                   &status, NULL, NULL, TRUE, NULL) < 0) {
         conn->release = TRUE;
         ret = -1;
@@ -2368,7 +2402,7 @@ http_tx_manager_unlock_file (HttpTxManager *manager,
         url = g_strdup_printf ("%s/repo/%s/unlock-file?p=%s", host, repo_id, esc_path);
     g_free (esc_path);
 
-    if (http_put (curl, url, token, NULL, 0, NULL, NULL,
+    if (http_put (curl, url, token, NULL, 0, NULL, NULL, NULL,
                   &status, NULL, NULL, TRUE, NULL) < 0) {
         conn->release = TRUE;
         ret = -1;
@@ -3023,7 +3057,7 @@ send_commit_object (HttpTxTask *task, Connection *conn)
     int curl_error;
     if (http_put (curl, url, task->token,
                   data, len,
-                  NULL, NULL,
+                  NULL, NULL, NULL,
                   &status, NULL, NULL, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);
@@ -3593,6 +3627,27 @@ send_block_callback (void *ptr, size_t size, size_t nmemb, void *userp)
     return n;
 }
 
+static size_t
+rewind_block_callback (void *clientp, curl_off_t offset, int origin)
+{
+    if (offset != 0 || origin != 0) {
+        return CURL_SEEKFUNC_FAIL;
+    }
+
+    SendBlockData *data = clientp;
+    HttpTxTask *task = data->task;
+
+    int rc = seaf_block_manager_rewind_block (seaf->block_mgr,
+                                              data->block);
+    if (rc < 0) {
+        seaf_warning ("Failed to rewind block %s in repo %s.\n",
+                      data->block_id, task->repo_id);
+        return CURL_SEEKFUNC_FAIL;
+    }
+
+    return CURL_SEEKFUNC_OK;
+}
+
 static int
 send_block (HttpTxTask *task, Connection *conn, const char *block_id, guint32 *psize)
 {
@@ -3642,7 +3697,7 @@ send_block (HttpTxTask *task, Connection *conn, const char *block_id, guint32 *p
     int curl_error;
     if (http_put (curl, url, task->token,
                   NULL, bmd->size,
-                  send_block_callback, &data,
+                  send_block_callback, &data, rewind_block_callback,
                   &status, NULL, NULL, TRUE, &curl_error) < 0) {
         if (task->state == HTTP_TASK_STATE_CANCELED)
             goto out;
@@ -3857,7 +3912,7 @@ update_branch (HttpTxTask *task, Connection *conn)
     int curl_error;
     if (http_put (curl, url, task->token,
                   NULL, 0,
-                  NULL, NULL,
+                  NULL, NULL, NULL,
                   &status, &rsp_content, &rsp_size, TRUE, &curl_error) < 0) {
         conn->release = TRUE;
         handle_curl_errors (task, curl_error);

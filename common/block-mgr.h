@@ -151,4 +151,8 @@ seaf_block_manager_verify_block (SeafBlockManager *mgr,
                                  const char *block_id,
                                  gboolean *io_error);
 
+int
+seaf_block_manager_rewind_block (SeafBlockManager *mgr,
+                                 BlockHandle *handle);
+
 #endif
