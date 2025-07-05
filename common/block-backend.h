@@ -54,6 +54,9 @@ struct BlockBackend {
     int      (*remove_store) (BlockBackend *bend,
                               const char *store_id);
 
+    int      (*rewind_block) (BlockBackend *bend,
+                              BHandle *handle);
+
     void*    be_priv;           /* backend private field */
 
 };

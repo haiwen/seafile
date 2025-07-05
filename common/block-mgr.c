@@ -270,3 +270,10 @@ seaf_block_manager_remove_store (SeafBlockManager *mgr,
 {
     return mgr->backend->remove_store (mgr->backend, store_id);
 }
+
+int
+seaf_block_manager_rewind_block (SeafBlockManager *mgr,
+                                 BlockHandle *handle)
+{
+    return mgr->backend->rewind_block (mgr->backend, handle);
+}
