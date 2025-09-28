@@ -367,6 +367,8 @@ init_client_connect_info (NotifServer *server)
 static void
 handle_messages (const char *msg, size_t len);
 
+static char *ua = "Seafile/"SEAFILE_CLIENT_VERSION" ("USER_AGENT_OS")";
+
 // success:0
 static int
 event_callback (struct lws *wsi, enum lws_callback_reasons reason,
@@ -383,6 +385,15 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
     seaf_debug ("Notification event: %d\n", reason);
 
     switch (reason) {
+    case LWS_CALLBACK_CLIENT_APPEND_HANDSHAKE_HEADER:
+    {
+        unsigned char **p = (unsigned char **)in, *end = (*p) + len;
+
+        if (lws_add_http_header_by_token(wsi, WSI_TOKEN_HTTP_USER_AGENT,
+            (unsigned char *)ua, (int)strlen(ua), p, end))
+            return -1;
+        break;
+    }
     case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
         server->status = STATUS_ERROR;
         seaf_debug ("websocket connection error: %s\n",
