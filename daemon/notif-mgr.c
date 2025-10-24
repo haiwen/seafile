@@ -14,7 +14,7 @@
 
 #define NOTIF_PORT 8083
 
-#define RECONNECT_INTERVAL 60 /* 60s */
+#define RECONNECT_INTERVAL 30 /* 30s */
 
 #define STATUS_DISCONNECTED 0
 #define STATUS_CONNECTED    1
@@ -832,7 +832,7 @@ notification_worker (void *vdata)
         if (server->status == STATUS_CANCELLED)
             break;
 
-        // Wait a minute to reconnect to the notification server.
+        // Wait 30s to reconnect to the notification server.
         g_usleep (RECONNECT_INTERVAL * G_USEC_PER_SEC);
         n = 0;
         server->status = STATUS_DISCONNECTED;
