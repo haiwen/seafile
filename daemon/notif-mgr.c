@@ -419,6 +419,8 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
         ret = -1;
         server->status = STATUS_ERROR;
         // When the client is closed, cancel the context to prevent the socket from blocking in poll after the operating system wakes from sleep.
+        // After calling lws_cancel_service, a LWS_CALLBACK_EVENT_WAIT_CANCELLED callback is sent to every protocol on every vhost,
+        // notification_worker will exit loop.
         lws_cancel_service (server->context);
         break;
     case LWS_CALLBACK_EVENT_WAIT_CANCELLED:
