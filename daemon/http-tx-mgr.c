@@ -52,26 +52,6 @@
 
 #define CLEAR_POOL_ERR_CNT 3
 
-#ifndef SEAFILE_CLIENT_VERSION
-#define SEAFILE_CLIENT_VERSION PACKAGE_VERSION
-#endif
-
-#ifdef WIN32
-#define USER_AGENT_OS "Windows NT"
-#endif
-
-#ifdef __APPLE__
-#define USER_AGENT_OS "Apple OS X"
-#endif
-
-#ifdef __linux__
-#define USER_AGENT_OS "Linux"
-#endif
-
-#if defined __FreeBSD__ || defined __NetBSD__ || defined __OpenBSD__ || defined __DragonFly__
-#define USER_AGENT_OS "BSD"
-#endif
-
 struct _Connection {
     CURL *curl;
     gint64 ctime;               /* Used to clean up unused connection. */
