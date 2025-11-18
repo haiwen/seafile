@@ -89,6 +89,34 @@ free_repo_watch_info (RepoWatchInfo *info)
     g_free (info);
 }
 
+// Since macOS does not distinguish filename case, we need to perform an additional check during rename operations to verify that the filename matches the actual name exactly.
+static gboolean
+is_filename_case_conflict (const char *eventPath)
+{
+    gboolean ret = FALSE;
+    int fd = -1;
+
+    fd = open (eventPath, O_RDONLY);
+    if (fd < 0) {
+        goto out;
+    }
+
+    char buffer[SEAF_PATH_MAX];
+    if (fcntl (fd, F_GETPATH, buffer) < 0) {
+        goto out;
+    }
+
+    if (strcasecmp (buffer, eventPath) == 0 &&
+        strcmp (buffer, eventPath) != 0) {
+        ret = TRUE;
+    }
+
+out:
+    if (fd >= 0)
+        close (fd);
+    return ret;
+}
+
 static void
 check_and_handle_rename (WTStatus *status, RenameInfo *rename_info,
                         const char *eventPath, const char *filename)
@@ -97,10 +125,12 @@ check_and_handle_rename (WTStatus *status, RenameInfo *rename_info,
     gboolean old_path_exists = TRUE;
     gboolean new_path_exists = TRUE;
 
-    if (stat (rename_info->old_event_path, &st) < 0 && errno == ENOENT) {
+    if ((stat (rename_info->old_event_path, &st) < 0 && errno == ENOENT) ||
+         is_filename_case_conflict (rename_info->old_event_path)) {
         old_path_exists = FALSE;
     }
-    if (stat (eventPath, &st) < 0 && errno == ENOENT) {
+    if ((stat (eventPath, &st) < 0 && errno == ENOENT) ||
+         is_filename_case_conflict (eventPath)) {
         new_path_exists = FALSE;
     }
 
@@ -142,7 +172,7 @@ handle_rename (RepoWatchInfo *info,
     // In this case, we add creation event or deletion event based on whether the file exists.
     if (rename_info->expire > 0 && now >= rename_info->expire) {
         struct stat st;
-        if (stat (rename_info->old_event_path, &st) < 0 && errno == ENOENT) {
+        if ((stat (rename_info->old_event_path, &st) < 0 && errno == ENOENT) || is_filename_case_conflict (eventPath)) {
             seaf_debug ("Rename info expired, delete renamed dir %s\n", rename_info->old_path);
             add_event_to_queue (status, WT_EVENT_DELETE, rename_info->old_path, NULL);
         } else {
@@ -176,7 +206,7 @@ handle_rename (RepoWatchInfo *info,
         }
     } else {
         struct stat st;
-        if (stat (eventPath, &st) < 0 && errno == ENOENT) {
+        if ((stat (eventPath, &st) < 0 && errno == ENOENT) || is_filename_case_conflict (eventPath)) {
             seaf_debug ("Delete renamed file %s\n", filename);
             add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
         } else {
