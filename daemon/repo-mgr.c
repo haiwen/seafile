@@ -5593,8 +5593,12 @@ out:
 // Since file creation is asynchronous, the file may not have been created locally at the time of checking for case conflicts, 
 // so an additional check for the name of the file being created is required.
 static gboolean
-is_adding_files_case_conflict (GList **adding_files, const char *name, char **conflict_path)
+is_adding_files_case_conflict (GList **adding_files, const char *name, char **conflict_path,
+                               GHashTable *no_case_conflict_hash)
 {
+    if (g_hash_table_lookup (no_case_conflict_hash, name)) {
+        return FALSE;
+    }
 #if defined WIN32 || defined __APPLE__
     GList *ptr;
     SeafStat st;
@@ -5657,7 +5661,7 @@ schedule_file_fetch (GThreadPool *tpool,
     }
 
     if (!skip_fetch && (is_path_case_conflict (worktree, de->name, &conflict_path, no_case_conflict_hash) ||
-        is_adding_files_case_conflict(adding_files, de->name, &conflict_path))) {
+        is_adding_files_case_conflict(adding_files, de->name, &conflict_path, no_case_conflict_hash))) {
         if (conflict_path && !g_hash_table_lookup(case_conflict_hash, conflict_path)) {
             seaf_message ("Path %s is case conflict, skip checkout\n", conflict_path);
             send_file_sync_error_notification (repo_id, repo_name, conflict_path,
@@ -6455,6 +6459,84 @@ load_crypt_from_enc_info (SeafRepoManager *manager, const char *repo_id, Seafile
     return 0;
 }
 
+static gboolean
+handle_de_rename (HttpTxTask *http_task, const char *worktree, DiffEntry *de,
+                  struct index_state *istate, GHashTable *no_case_conflict_hash)
+{
+    char *repo_id = http_task->repo_id;
+    int repo_version = http_task->repo_version;
+    gboolean is_clone = http_task->is_clone;
+    struct cache_entry *ce;
+
+#if defined WIN32 || defined __APPLE__
+    gboolean old_path_conflict = is_path_case_conflict(worktree, de->name, NULL, no_case_conflict_hash);
+    gboolean new_path_conflict = is_path_case_conflict(worktree, de->new_name, NULL, no_case_conflict_hash);
+
+    if (g_strcasecmp (de->name, de->new_name) == 0) {
+        if (!old_path_conflict && !new_path_conflict) {
+            return TRUE;
+        } else if (old_path_conflict && !new_path_conflict) {
+            seaf_message ("Path %s is renamed to %s, which has case conflict and will not be checked out.\n", de->name, de->new_name);
+            send_file_sync_error_notification (repo_id, NULL, de->new_name,
+                           SYNC_ERROR_ID_CASE_CONFLICT);
+            return FALSE;
+        } else if (!old_path_conflict && new_path_conflict) {
+            do_rename_in_worktree (de, worktree);
+        } else {
+            seaf_message ("Path %s is renamed to %s, which has case conflict and will not be checked out.\n", de->name, de->new_name);
+            send_file_sync_error_notification (repo_id, NULL, de->new_name,
+                           SYNC_ERROR_ID_CASE_CONFLICT);
+            return FALSE;
+        }
+    } else {
+        if (!old_path_conflict && !new_path_conflict) {
+            do_rename_in_worktree (de, worktree);
+        } else if (old_path_conflict && !new_path_conflict) {
+            seaf_message ("Case conflict path %s is renamed to %s without case conflict, check it out\n", de->name, de->new_name);
+            return TRUE;
+        } else if (!old_path_conflict && new_path_conflict) {
+            // check if file has been changed and delete old path.
+            if (de->status == DIFF_STATUS_DIR_RENAMED) {
+                seaf_message ("Path %s is renamed to %s, which has case conflict and will not be checked out. Delete it\n", de->name, de->new_name);
+                send_file_sync_error_notification (repo_id, NULL, de->new_name,
+                               SYNC_ERROR_ID_CASE_CONFLICT);
+                delete_worktree_dir (repo_id, http_task->repo_name, istate, worktree, de->name);
+            } else {
+                ce = index_name_exists (istate, de->name, strlen(de->name), 0);
+                if (ce) {
+                    seaf_message ("Path %s is renamed to %s, which has case conflict and will not be checked out. Delete it\n", de->name, de->new_name);
+                    send_file_sync_error_notification (repo_id, NULL, de->new_name,
+                                   SYNC_ERROR_ID_CASE_CONFLICT);
+                    delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
+                }
+            }
+        } else {
+            seaf_message ("Path %s is renamed to %s, which has case conflict and will not be checked out.\n", de->name, de->new_name);
+            send_file_sync_error_notification (repo_id, NULL, de->new_name,
+                           SYNC_ERROR_ID_CASE_CONFLICT);
+            return FALSE;
+        }
+    }
+#else
+    do_rename_in_worktree (de, worktree);
+#endif
+
+    /* update_sync_status updates the sync status for each renamed path.
+     * The renamed file/folder becomes "synced" immediately after rename.
+     */
+    if (!is_clone)
+        rename_index_entries (istate, de->name, de->new_name, NULL,
+                              update_sync_status, repo_id);
+    else
+        rename_index_entries (istate, de->name, de->new_name, NULL,
+                              NULL, NULL);
+
+    /* Moving files out of a dir may make it empty. */
+    try_add_empty_parent_dir_entry (worktree, istate, de->name);
+
+    return FALSE;
+}
+
 int
 seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
 {
@@ -6736,45 +6818,12 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                 seaf_filelock_manager_unlock_wt_file (seaf->filelock_mgr,
                                                       repo_id, de->name);
 
-            gboolean old_path_conflict = is_path_case_conflict(worktree, de->name, NULL, no_case_conflict_hash);
-            gboolean new_path_conflict = is_path_case_conflict(worktree, de->new_name, NULL, no_case_conflict_hash);
-            if (!old_path_conflict && !new_path_conflict) {
-                do_rename_in_worktree (de, worktree);
-            } else if (old_path_conflict) {
-                seaf_message ("Case conflict path %s is renamed to %s without case conflict, check it out\n", de->name, de->new_name);
+            gboolean checkout_directly = handle_de_rename (http_task, worktree, de, &istate, no_case_conflict_hash);
+            if (checkout_directly) {
                 convert_rename_to_checkout (repo_id, repo_version,
                                             remote_head->root_id,
                                             de, &results);
-                continue;
-            } else if (new_path_conflict) {
-                // check if file has been changed and delete old path.
-                if (de->status == DIFF_STATUS_DIR_RENAMED) {
-                    seaf_message ("Path %s is renamed to %s, which has case conflict and will not be checked out. Delete it\n", de->name, de->new_name);
-                    send_file_sync_error_notification (repo_id, NULL, de->new_name,
-                                   SYNC_ERROR_ID_CASE_CONFLICT);
-                    delete_worktree_dir (repo_id, http_task->repo_name, &istate, worktree, de->name);
-                } else {
-                    ce = index_name_exists (&istate, de->name, strlen(de->name), 0);
-                    if (ce) {
-                        seaf_message ("Path %s is renamed to %s, which has case conflict and will not be checked out. Delete it\n", de->name, de->new_name);
-                        send_file_sync_error_notification (repo_id, NULL, de->new_name,
-                                       SYNC_ERROR_ID_CASE_CONFLICT);
-                        delete_path (worktree, de->name, de->mode, ce->ce_mtime.sec);
-                    }
-                }
             }
-            /* update_sync_status updates the sync status for each renamed path.
-             * The renamed file/folder becomes "synced" immediately after rename.
-             */
-            if (!is_clone)
-                rename_index_entries (&istate, de->name, de->new_name, NULL,
-                                      update_sync_status, repo_id);
-            else
-                rename_index_entries (&istate, de->name, de->new_name, NULL,
-                                      NULL, NULL);
-
-            /* Moving files out of a dir may make it empty. */
-            try_add_empty_parent_dir_entry (worktree, &istate, de->name);
         }
     }
 
