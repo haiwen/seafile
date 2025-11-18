@@ -22,7 +22,6 @@
 
 int seafile_log_init (const char *logfile, const char *ccnet_debug_level_str,
                       const char *seafile_debug_level_str);
-int seafile_log_reopen ();
 
 #ifndef WIN32
 #ifdef SEAFILE_SERVER
@@ -68,3 +67,6 @@ int
 seafile_event_log_init (const char *_logfile);
 
 void seafile_event_message (const char *msg);
+
+int
+seafile_log_rotate_start ();
