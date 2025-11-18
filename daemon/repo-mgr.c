@@ -6521,19 +6521,6 @@ handle_de_rename (HttpTxTask *http_task, const char *worktree, DiffEntry *de,
     do_rename_in_worktree (de, worktree);
 #endif
 
-    /* update_sync_status updates the sync status for each renamed path.
-     * The renamed file/folder becomes "synced" immediately after rename.
-     */
-    if (!is_clone)
-        rename_index_entries (istate, de->name, de->new_name, NULL,
-                              update_sync_status, repo_id);
-    else
-        rename_index_entries (istate, de->name, de->new_name, NULL,
-                              NULL, NULL);
-
-    /* Moving files out of a dir may make it empty. */
-    try_add_empty_parent_dir_entry (worktree, istate, de->name);
-
     return FALSE;
 }
 
@@ -6823,6 +6810,19 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                 convert_rename_to_checkout (repo_id, repo_version,
                                             remote_head->root_id,
                                             de, &results);
+            } else {
+                /* update_sync_status updates the sync status for each renamed path.
+                 * The renamed file/folder becomes "synced" immediately after rename.
+                 */
+                if (!is_clone)
+                    rename_index_entries (&istate, de->name, de->new_name, NULL,
+                                          update_sync_status, repo_id);
+                else
+                    rename_index_entries (&istate, de->name, de->new_name, NULL,
+                                          NULL, NULL);
+
+                /* Moving files out of a dir may make it empty. */
+                try_add_empty_parent_dir_entry (worktree, &istate, de->name);
             }
         }
     }
