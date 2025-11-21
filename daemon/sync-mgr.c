@@ -1241,6 +1241,59 @@ get_basename (char *path)
     return (slash + 1);
 }
 
+typedef struct _GetDeletedFilesAux {
+    char *basename;
+    int number;
+} GetDeletedFilesAux;
+
+static gboolean
+get_deleted_files_cb (SeafFSManager *mgr,
+                      const char *path,
+                      SeafDirent *dent,
+                      void *user_data,
+                      gboolean *stop)
+{
+    GetDeletedFilesAux *aux = user_data;
+
+    if (S_ISREG(dent->mode)) {
+        if (!aux->basename) {
+            char *basename = get_basename(dent->name);
+            aux->basename = g_strdup(basename);
+        }
+        aux->number++;
+    }
+    return TRUE;
+}
+
+static void
+get_number_of_deleted_files (SeafRepo *repo, const char *remote_root,
+                             DiffEntry *de, int *n_deleted, char **deleted_file)
+{
+    SeafDir *dir = NULL;
+    char dir_id[41];
+
+    rawdata_to_hex (de->sha1, dir_id, 20);
+    GetDeletedFilesAux *aux = g_new0 (GetDeletedFilesAux, 1);
+
+    if (seaf_fs_manager_traverse_path (seaf->fs_mgr,
+                                       repo->id, repo->version,
+                                       remote_root,
+                                       de->name,
+                                       get_deleted_files_cb,
+                                       aux) < 0) {
+        goto out;
+    }
+
+    if (*n_deleted == 0) {
+        *deleted_file = g_strdup (aux->basename);
+    }
+    *n_deleted += aux->number;
+
+out:
+    g_free (aux->basename);
+    g_free (aux);
+}
+
 static char *
 exceed_max_deleted_files (SeafRepo *repo)
 {
@@ -1279,7 +1332,7 @@ exceed_max_deleted_files (SeafRepo *repo)
         goto out;
     }
 
-    diff_commit_roots (repo->id, repo->version, master_head->root_id, local_head->root_id, &diff_results, FALSE);
+    diff_commit_roots (repo->id, repo->version, master_head->root_id, local_head->root_id, &diff_results, TRUE);
     if (!diff_results) {
         goto out;
     }
@@ -1292,8 +1345,11 @@ exceed_max_deleted_files (SeafRepo *repo)
         switch (de->status) {
         case DIFF_STATUS_DELETED:
             if (n_deleted == 0)
-                deleted_file = get_basename(de->name);
+                deleted_file = g_strdup(get_basename(de->name));
             n_deleted++;
+            break;
+        case DIFF_STATUS_DIR_DELETED:
+            get_number_of_deleted_files (repo, master_head->root_id, de, &n_deleted, &deleted_file);
             break;
         }
     }
@@ -1306,6 +1362,7 @@ exceed_max_deleted_files (SeafRepo *repo)
     }
 
 out:
+    g_free (deleted_file);
     seaf_branch_unref (local);
     seaf_branch_unref (master);
     seaf_commit_unref (local_head);
