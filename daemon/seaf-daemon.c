@@ -534,6 +534,8 @@ main (int argc, char **argv)
 
     seafile_event_message("Starting record seafile events.\n");
 
+    seafile_log_rotate_start ();
+
     /* init seafile */
     if (seafile_dir == NULL)
         seafile_dir = g_build_filename (config_dir, "seafile-data", NULL);

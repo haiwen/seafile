@@ -15,6 +15,8 @@
 #include "log.h"
 #include "utils.h"
 
+#define MAX_LOG_SIZE 300 * 1024 * 1024 
+
 /* message with greater log levels will be ignored */
 static int ccnet_log_level;
 static int seafile_log_level;
@@ -152,27 +154,27 @@ seafile_log_init (const char *_logfile, const char *ccnet_debug_level_str,
     return 0;
 }
 
-int
-seafile_log_reopen ()
+const int
+seafile_log_reopen (const char *logfile_old)
 {
-    FILE *fp, *oldfp;
+    FILE *fp;
 
-    if (strcmp(logfile, "-") == 0)
-        return 0;
+    if (fclose(logfp) < 0) {
+        seaf_warning ("Failed to close file %s\n", logfile);
+        return -1;
+    }
+    logfp = NULL;
+
+    if (seaf_util_rename (logfile, logfile_old) < 0) {
+        seaf_warning ("Failed to rename %s to %s, error: %s\n", logfile, logfile_old, strerror(errno));
+        return -1;
+    }
 
     if ((fp = g_fopen (logfile, "a+")) == NULL) {
-        seaf_message ("Failed to open file %s\n", logfile);
+        seaf_warning ("Failed to open file %s\n", logfile);
         return -1;
     }
-
-    //TODO: check file's health
-
-    oldfp = logfp;
     logfp = fp;
-    if (fclose(oldfp) < 0) {
-        seaf_message ("Failed to close file %s\n", logfile);
-        return -1;
-    }
 
     return 0;
 }
@@ -245,35 +247,46 @@ seafile_get_log_fp ()
 }
 
 // seafile event log
-#define MAX_EVENT_LOG_SISE  300 * 1024 * 1024
+static char *eventfile;
 static FILE *eventfp;
 static pthread_mutex_t event_lock = PTHREAD_MUTEX_INITIALIZER;
 
 int
 seafile_event_log_init (const char *_logfile)
 {
-    char *eventfile = ccnet_expand_path(_logfile);
-    char *dirname;
-    char *eventfile_old;
-    SeafStat st;
+    eventfile = ccnet_expand_path(_logfile);
     
-    if (seaf_stat (eventfile, &st) >= 0) {
-        if (st.st_size >= MAX_EVENT_LOG_SISE) {
-            dirname = g_path_get_dirname (eventfile);
-            eventfile_old  = g_build_filename (dirname, "events-old.log", NULL);
-            seaf_util_rename (eventfile, eventfile_old);
-            g_free (dirname);
-            g_free (eventfile_old);
-        }
-    }
-
     if ((eventfp = g_fopen (eventfile, "a+")) == NULL) {
         g_free (eventfile);
         seaf_message ("Failed to open event file %s\n", eventfile);
         return -1;
     }
 
-    g_free (eventfile);
+    return 0;
+}
+
+static int
+seafile_event_log_reopen (const char *logfile_old)
+{
+    FILE *fp;
+
+    if (fclose(eventfp) < 0) {
+        seaf_warning ("Failed to close file %s\n", eventfile);
+        return -1;
+    }
+    eventfp = NULL;
+
+    if (seaf_util_rename (eventfile, logfile_old) < 0) {
+        seaf_warning ("Failed to rename %s to %s\n", eventfile, logfile_old);
+        return -1;
+    }
+
+    if ((fp = g_fopen (eventfile, "a+")) == NULL) {
+        seaf_warning ("Failed to open file %s\n", eventfile);
+        return -1;
+    }
+    eventfp = fp;
+
     return 0;
 }
 
@@ -296,4 +309,61 @@ seafile_event_message(const char *message)
         fflush (eventfp);
     }
     pthread_mutex_unlock (&event_lock);
+}
+
+static void
+check_and_reopen_log ()
+{
+    SeafStat st;
+
+    if (g_strcmp0(logfile, "-") != 0 && seaf_stat (logfile, &st) >= 0) {
+        if (st.st_size >= MAX_LOG_SIZE) {
+            char *dirname = g_path_get_dirname (logfile);
+            char *logfile_old  = g_build_filename (dirname, "seafile-old.log", NULL);
+
+            seafile_log_reopen (logfile_old);
+
+            g_free (dirname);
+            g_free (logfile_old);
+        }
+    }
+
+    if (seaf_stat (eventfile, &st) >= 0) {
+        if (st.st_size >= MAX_LOG_SIZE) {
+            char *dirname = g_path_get_dirname (eventfile);
+            char *eventfile_old  = g_build_filename (dirname, "events-old.log", NULL);
+
+            seafile_event_log_reopen (eventfile_old);
+
+            g_free (dirname);
+            g_free (eventfile_old);
+        }
+    }
+}
+
+static void*
+log_rotate (void *vdata)
+{
+    while (1) {
+        check_and_reopen_log ();
+        g_usleep (3600LL * G_USEC_PER_SEC);
+    }
+    return NULL;
+}
+
+int
+seafile_log_rotate_start ()
+{
+    pthread_t tid;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+    int rc = pthread_create (&tid, &attr, log_rotate, NULL);
+    if (rc != 0) {
+        seaf_warning ("Failed to start log rotate thread: %s\n", strerror(rc));
+        return -1;
+    }
+
+    return 0;
 }
