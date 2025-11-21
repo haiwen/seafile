@@ -792,9 +792,9 @@ seafile_unsync_repos_by_account (const char *server_url, const char *email, GErr
     }
 
     g_list_free (repos);
-    g_free (canon_server_url);
 
-    cancel_clone_tasks_by_account (server_url, email);
+    cancel_clone_tasks_by_account (canon_server_url, email);
+    g_free (canon_server_url);
 
     return 0;
 }
@@ -823,9 +823,9 @@ seafile_remove_repo_tokens_by_account (const char *server_url, const char *email
     }
 
     g_list_free (repos);
-    g_free (canon_server_url);
 
-    cancel_clone_tasks_by_account (server_url, email);
+    cancel_clone_tasks_by_account (canon_server_url, email);
+    g_free (canon_server_url);
 
     return 0;
 }
