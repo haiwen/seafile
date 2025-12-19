@@ -506,6 +506,7 @@ char *ca_paths[] = {
     "/usr/share/ssl/certs/ca-bundle.crt",
     "/usr/local/share/certs/ca-root-nss.crt",
     "/etc/ssl/cert.pem",
+    "/etc/ssl/ca-bundle.pem",
 };
 
 static void
