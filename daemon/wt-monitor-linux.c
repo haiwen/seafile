@@ -359,10 +359,16 @@ process_one_event (int in_fd,
          */
         char *fullpath = g_build_filename (worktree, filename, NULL);
         struct stat st;
-        if (lstat (fullpath, &st) < 0 ||
-            (!S_ISDIR(st.st_mode) && !S_ISLNK(st.st_mode))) {
+        if (lstat (fullpath, &st) < 0) {
             g_free (fullpath);
             update_last_changed = FALSE;
+            goto out;
+        }
+        // Files created via hard link only trigger an IN_CREATE event and do not generate an IN_CLOSE_WRITE event.
+        // To avoid missing files created through hard link, we need to handle the event when an IN_CREATE event is triggered.
+        if (!S_ISDIR(st.st_mode) && !S_ISLNK(st.st_mode)) {
+            g_free (fullpath);
+            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
             goto out;
         }
         g_free (fullpath);
