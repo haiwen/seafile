@@ -66,6 +66,7 @@ seafile_derive_key (const char *data_in, int in_len, int version,
         pbkdf2_hmac_sha256 (in_len, (const guchar *)data_in, KEYGEN_ITERATION2,
                             sizeof(salt), salt, 32, key);
         pbkdf2_hmac_sha256 (32, (const guchar *)key, 10, sizeof(salt), salt, 16, iv);
+        break;
     case 3:
         seaf_warning ("Encrypted library version %d is not supported.\n", version);
         return -1;
@@ -73,6 +74,7 @@ seafile_derive_key (const char *data_in, int in_len, int version,
         pbkdf2_hmac_sha256 (in_len, (const guchar *)data_in, KEYGEN_ITERATION2,
                             sizeof(repo_salt_bin), repo_salt_bin, 32, key);
         pbkdf2_hmac_sha256 (32, (const guchar *)key, 10, sizeof(repo_salt_bin), repo_salt_bin, 16, iv);
+        break;
     default:
         seaf_warning ("Encrypted library version %d is not supported.\n", version);
         return -1;
