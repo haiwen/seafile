@@ -2691,10 +2691,6 @@ auto_sync_pulse (void *vmanager)
         if (info->sync_perm_err_cnt > SYNC_PERM_ERROR_RETRY_TIME)
             continue;
 
-        if (repo->encrypted && repo->empty_enc_key) {
-            continue;
-        }
-
         if (repo->encrypted && repo->enc_key[0] == '\0'){
             repo->empty_enc_key = TRUE;
             continue;
