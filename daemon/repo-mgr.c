@@ -2150,7 +2150,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
                                               SYNC_STATUS_ERROR,
                                               TRUE);
         // The directory under Documents may be protected by the system on Windows and cannot be accessed, so the indexing errors for these folders are skipped.
-        char *parent_dir = g_path_get_dirname (path);
+        char *parent_dir = g_path_get_dirname (full_path);
         char *dir_name = NULL;
         if (parent_dir) {
             dir_name = g_path_get_basename (parent_dir);
