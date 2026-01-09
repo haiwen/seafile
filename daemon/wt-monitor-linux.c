@@ -283,35 +283,6 @@ handle_rename (int in_fd,
     }
 }
 
-inline static gboolean
-is_modify_close_write (EventInfo *e1, struct inotify_event *e2)
-{
-    return ((e1->mask & IN_MODIFY) && (e2->mask & IN_CLOSE_WRITE));
-}
-
-#if 0
-static gboolean
-handle_consecutive_duplicate_event (RepoWatchInfo *info, struct inotify_event *event)
-{
-    gboolean duplicate;
-
-    /* Initially last_event is zero so it's not duplicate with any real events. */
-    duplicate = (info->last_event.wd == event->wd &&
-                 (info->last_event.mask == event->mask ||
-                  is_modify_close_write(&info->last_event, event)) &&
-                 info->last_event.cookie == event->cookie &&
-                 strcmp (info->last_event.name, event->name) == 0);
-
-    info->last_event.wd = event->wd;
-    info->last_event.mask = event->mask;
-    info->last_event.cookie = event->cookie;
-    memcpy (info->last_event.name, event->name, event->len);
-    info->last_event.name[event->len] = 0;
-
-    return duplicate;
-}
-#endif
-
 static void
 process_one_event (int in_fd,
                    RepoWatchInfo *info,
@@ -323,7 +294,6 @@ process_one_event (int in_fd,
     WTStatus *status = info->status;
     char *filename;
     gboolean update_last_changed = TRUE;
-    gboolean add_to_queue = TRUE;
 
     /* An inotfy watch has been removed, we don't care about this for now. */
     if ((event->mask & IN_IGNORED) || (event->mask & IN_UNMOUNT))
@@ -335,9 +305,6 @@ process_one_event (int in_fd,
         return;
     }
 
-    /* if (handle_consecutive_duplicate_event (info, event)) */
-    /*     add_to_queue = FALSE; */
-
     if (event->len == 0) {
         filename = g_strdup (parent);
     } else {
@@ -348,8 +315,7 @@ process_one_event (int in_fd,
 
     if (event->mask & IN_MODIFY) {
         seaf_debug ("Modified %s.\n", filename);
-        if (add_to_queue)
-            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+        add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
     } else if (event->mask & IN_CREATE) {
         seaf_debug ("Created %s.\n", filename);
 
@@ -384,8 +350,7 @@ process_one_event (int in_fd,
         add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
     } else if (event->mask & IN_CLOSE_WRITE) {
         seaf_debug ("Close write %s.\n", filename);
-        if (add_to_queue)
-            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+        add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
     } else if (event->mask & IN_ATTRIB) {
         seaf_debug ("Attribute changed %s.\n", filename);
         add_event_to_queue (status, WT_EVENT_ATTRIB, filename, NULL);
