@@ -40,6 +40,8 @@ typedef struct RepoWatchInfo {
     RenameInfo *rename_info;
     EventInfo last_event;
     char *worktree;
+    GHashTable *recheck_next;
+    GHashTable *recheck_accu;
 } RepoWatchInfo;
 
 #define WATCH_MASK IN_MODIFY | IN_CREATE | IN_DELETE | IN_MOVED_FROM | IN_MOVED_TO | IN_CLOSE_WRITE | IN_ATTRIB
@@ -134,6 +136,9 @@ create_repo_watch_info (const char *repo_id, const char *worktree)
     info->rename_info = rename_info;
     info->worktree = g_strdup(worktree);
 
+    info->recheck_next = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+    info->recheck_accu = g_hash_table_new_full (g_str_hash, g_str_equal, g_free, g_free);
+
     return info;
 }
 
@@ -144,6 +149,8 @@ free_repo_watch_info (RepoWatchInfo *info)
     free_mapping (info->mapping);
     free_rename_info (info->rename_info);
     g_free (info->worktree);
+    g_hash_table_destroy (info->recheck_next);
+    g_hash_table_destroy (info->recheck_accu);
     g_free (info);
 }
 
@@ -195,6 +202,74 @@ add_event_to_queue (WTStatus *status,
 }
 
 /*
+ * Function recheck_files is called by wt_monitor_job_linux each second
+ * (timing not critical).  All files in recheck_next have been created
+ * between 1 and 2 seconds ago, and have not been indexed yet.  We check
+ * if any has changed according to its last modification time.  If change
+ * is detected, then the file will surely be indexed in the future, so
+ * we merely expunge the file.
+ *
+ * Any file that has not changed is definitely not being actively written
+ * to, and it is likely to have been created by the link() syscall, in
+ * which case it might not receive any further event.  The safest bet, in
+ * this case, is to index the file.
+ *
+ * After processing all files in recheck_next, we swap recheck_accu with
+ * recheck_next (which is now empty).  The hash recheck_accu is where
+ * file creation events will be accumulated for the next second.  The
+ * files previously in recheck_accu, which are now in recheck_next, will
+ * be monitored for events for a second, then processed the next time
+ * recheck_files is called.
+ */
+static void
+recheck_files (RepoWatchInfo *info)
+{
+    GHashTableIter iter;
+    g_hash_table_iter_init (&iter, info->recheck_next);
+
+    char *filename;
+    struct timespec *mtim;
+
+    int event_fired = 0;
+
+    while (g_hash_table_iter_next (&iter, (gpointer)&filename, (gpointer)&mtim)) {
+        char *fullpath = g_build_filename (info->worktree, filename, NULL);
+        struct stat st;
+        int lstat_ret = lstat (fullpath, &st);
+        g_free (fullpath);
+
+        if (lstat_ret == 0 && st.st_mtim.tv_sec == mtim->tv_sec && st.st_mtim.tv_nsec == mtim->tv_nsec) {
+            seaf_debug ("File %s likely created by link().\n", filename);
+            add_event_to_queue (info->status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
+            event_fired = 1;
+        }
+
+        g_hash_table_iter_remove (&iter);
+    }
+
+    if (event_fired)
+        g_atomic_int_set (&info->status->last_changed, (gint)time(NULL));
+
+    GHashTable *tmp = info->recheck_next;
+    info->recheck_next = info->recheck_accu;
+    info->recheck_accu = tmp;
+}
+
+static void
+flush_recheck (RepoWatchInfo *info)
+{
+    g_hash_table_remove_all (info->recheck_next);
+    g_hash_table_remove_all (info->recheck_accu);
+}
+
+static void
+avoid_recheck (RepoWatchInfo *info, const char *filename)
+{
+    g_hash_table_remove (info->recheck_next, filename);
+    g_hash_table_remove (info->recheck_accu, filename);
+}
+
+/*
  * We only recognize two consecutive "moved" events with the same cookie as
  * a rename pair. The processing logic is:
  * 1. Receive a MOVED_FROM event, set last_cookie and old_path, set processing to TRUE
@@ -217,10 +292,13 @@ handle_rename (int in_fd,
     WTStatus *status = info->status;
     RenameInfo *rename_info = info->rename_info;
 
-    if (event->mask & IN_MOVED_FROM)
+    if (event->mask & IN_MOVED_FROM) {
         seaf_debug ("(%d) Move %s ->\n", event->cookie, event->name);
-    else if (event->mask & IN_MOVED_TO)
+        avoid_recheck(info, filename);
+    } else if (event->mask & IN_MOVED_TO) {
         seaf_debug ("(%d) Move -> %s.\n", event->cookie, event->name);
+        avoid_recheck(info, filename);
+    }
 
     if (!rename_info->processing) {
         if (event->mask & IN_MOVED_FROM) {
@@ -301,6 +379,8 @@ process_one_event (int in_fd,
 
     /* Kernel event queue was overflowed, some events may lost. */
     if (event->mask & IN_Q_OVERFLOW) {
+        seaf_debug ("Kernel event queue overflowed.\n");
+        flush_recheck (info);
         add_event_to_queue (status, WT_EVENT_OVERFLOW, NULL, NULL);
         return;
     }
@@ -315,27 +395,48 @@ process_one_event (int in_fd,
 
     if (event->mask & IN_MODIFY) {
         seaf_debug ("Modified %s.\n", filename);
+        avoid_recheck (info, filename);
         add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
     } else if (event->mask & IN_CREATE) {
         seaf_debug ("Created %s.\n", filename);
 
-        /* Nautilus's file copy operation doesn't trigger write events.
-         * If the user copy a large file into the repo, only a create
-         * event and a close_write event will be received. If we process
-         * the create event, we'll certainly try to index a file when it's
-         * still being copied. So we'll ignore create event for files.
-         * Since write and close_write events will always be triggered,
-         * we don't need to worry about missing this file.
+        /* If the file is a regular file, we need to guess whether the
+         * IN_CREATE event comes from a open() or a link().
+         *
+         * If it is a open(), then the file is certainly being written.
+         * To avoid indexing an incomplete file, in this case, we ignore
+         * the event.  This is safe because a IN_CLOSE_WRITE will always
+         * be triggered.
+         *
+         * If it is a link(), we will not get any IN_CLOSE_WRITE, so this
+         * might be the only event related to this particular file: we
+         * cannot ignore it lest we risk missing the file.
+         *
+         * To discriminate, we check the file again in 1-2 seconds. If we
+         * detect any intervening events or changes to the file, then we
+         * can safely ignore.  Otherwise, we process the event.  Files
+         * being monitored for events are accumulated in recheck_accu.
          */
         char *fullpath = g_build_filename (worktree, filename, NULL);
         struct stat st;
-        if (lstat (fullpath, &st) < 0 ||
-            (!S_ISDIR(st.st_mode) && !S_ISLNK(st.st_mode))) {
-            g_free (fullpath);
+        int lstat_ret = lstat (fullpath, &st);
+        g_free (fullpath);
+
+        if (lstat_ret == 0 && S_ISREG(st.st_mode)) {
+            struct timespec *mtim = g_malloc (sizeof (struct timespec));
+            *mtim = st.st_mtim;
+            /* File should not be already in recheck_accu.  If it is,
+             * for any reason, then old entry is automatically freed.
+             */
+            g_hash_table_insert (info->recheck_accu, filename, mtim);
+            /* We will free filename when the file is expunged */
+            return;
+        }
+
+        if (lstat_ret < 0 || (!S_ISDIR(st.st_mode) && !S_ISLNK(st.st_mode))) {
             update_last_changed = FALSE;
             goto out;
         }
-        g_free (fullpath);
 
         /* We now know it's a directory or a symlink. */
 
@@ -347,9 +448,11 @@ process_one_event (int in_fd,
         add_watch_recursive (info, in_fd, worktree, filename, FALSE);
     } else if (event->mask & IN_DELETE) {
         seaf_debug ("Deleted %s.\n", filename);
+        avoid_recheck (info, filename);
         add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
     } else if (event->mask & IN_CLOSE_WRITE) {
         seaf_debug ("Close write %s.\n", filename);
+        avoid_recheck (info, filename);
         add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
     } else if (event->mask & IN_ATTRIB) {
         seaf_debug ("Attribute changed %s.\n", filename);
@@ -436,15 +539,36 @@ wt_monitor_job_linux (void *vmonitor)
     FD_SET (monitor->cmd_pipe[0], &priv->read_fds);
     priv->maxfd = monitor->cmd_pipe[0];
 
+    struct timeval tv;
+    tv.tv_sec = 1;
+    tv.tv_usec = 0;
+
     while (1) {
         fds = priv->read_fds;
 
-        rc = select (priv->maxfd + 1, &fds, NULL, NULL, NULL);
+        rc = select (priv->maxfd + 1, &fds, NULL, NULL, &tv);
+
         if (rc < 0 && errno == EINTR) {
             continue;
         } else if (rc < 0) {
             seaf_warning ("[wt mon] select error: %s.\n", strerror(errno));
             break;
+        }
+
+        /* On linux, tv now contains the time to timeout expiration.
+         * We keep reentering select until the time waited totals one
+         * second, then we call recheck_files an all directories and we
+         * reset the timeout.  This should ensure that recheck_files is
+         * called about once a second.
+         */
+        if(tv.tv_sec == 0 && tv.tv_usec == 0) {
+            tv.tv_sec = 1;
+            tv.tv_usec = 0;
+            g_hash_table_iter_init (&iter, priv->info_hash);
+            RepoWatchInfo *info;
+            while (g_hash_table_iter_next (&iter, &key, (gpointer)&info)) {
+                recheck_files (info);
+            }
         }
 
         if (FD_ISSET (monitor->cmd_pipe[0], &fds)) {
