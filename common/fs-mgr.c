@@ -480,7 +480,7 @@ bad:
     if (wfd >= 0)
         close (wfd);
     /* Remove the tmp file if it still exists, in case that rename fails. */
-    if ((*error_id == FETCH_CHECKOUT_TRANSFER_ERROR) || crypt)
+    if ((*error_id == FETCH_CHECKOUT_FAILED) || crypt)
         seaf_util_unlink (tmp_path);
     g_free (tmp_path);
     g_free (backup_path);
