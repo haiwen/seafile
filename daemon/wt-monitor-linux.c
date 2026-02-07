@@ -338,7 +338,13 @@ process_one_event (int in_fd,
     /* if (handle_consecutive_duplicate_event (info, event)) */
     /*     add_to_queue = FALSE; */
 
-    filename = g_build_filename (parent, event->len == 0 ? NULL:event->name, NULL);
+    if (event->len == 0)
+    {
+        filename = g_strdup (parent);
+    } else
+    {
+        filename = g_build_filename (parent, event->name, NULL);
+    }
 
     handle_rename (in_fd, info, event, worktree, filename, last_event);
 
