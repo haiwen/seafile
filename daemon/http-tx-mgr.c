@@ -3322,6 +3322,9 @@ send_fs_objects (HttpTxTask *task, Connection *conn, GList **send_fs_list)
     int n_sent = 0;
 
     buf = evbuffer_new ();
+    if (buf == NULL) {
+        goto out;
+    }
     curl = conn->curl;
 
     while (*send_fs_list != NULL) {
