@@ -338,11 +338,9 @@ process_one_event (int in_fd,
     /* if (handle_consecutive_duplicate_event (info, event)) */
     /*     add_to_queue = FALSE; */
 
-    if (event->len == 0)
-    {
+    if (event->len == 0) {
         filename = g_strdup (parent);
-    } else
-    {
+    } else {
         filename = g_build_filename (parent, event->name, NULL);
     }
 
