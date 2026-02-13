@@ -600,6 +600,13 @@ load_certs_from_db (X509_STORE *store)
         goto out;
     }
 
+    sql = "SELECT 1 FROM sqlite_master WHERE type='table' AND name='Certs';";
+
+    if (!sqlite_check_for_existence (db, sql)) {
+        ret = -1;
+        goto out;
+    }
+
     sql = "SELECT cert FROM Certs;";
 
     if (sqlite_foreach_selected_row (db, sql, load_certs, store) < 0) {
