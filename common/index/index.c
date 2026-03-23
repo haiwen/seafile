@@ -961,7 +961,8 @@ int add_to_index(const char *repo_id,
                  SeafileCrypt *crypt,
                  IndexCB index_cb,
                  const char *modifier,
-                 gboolean *added)
+                 gboolean *added,
+                 gboolean *record_index_error)
 {
     int size, namelen;
     mode_t st_mode = st->st_mode;
@@ -1038,7 +1039,7 @@ int add_to_index(const char *repo_id,
 #endif
 #endif  /* 0 */
 
-    if (index_cb (repo_id, version, full_path, sha1, crypt, TRUE) < 0) {
+    if (index_cb (repo_id, version, full_path, sha1, crypt, TRUE, record_index_error) < 0) {
         free (ce);
         return -1;
     }

@@ -251,7 +251,8 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
                               gint64 *size,
                               SeafileCrypt *crypt,
                               gboolean write_data,
-                              gboolean use_cdc);
+                              gboolean use_cdc,
+                              gboolean *record_index_error);
 
 Seafile *
 seaf_fs_manager_get_seafile (SeafFSManager *mgr,

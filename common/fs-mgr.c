@@ -925,7 +925,8 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
                               gint64 *size,
                               SeafileCrypt *crypt,
                               gboolean write_data,
-                              gboolean use_cdc)
+                              gboolean use_cdc,
+                              gboolean *record_index_error)
 {
     SeafStat sb;
     CDCFileDescriptor cdc;
@@ -954,11 +955,15 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
             cdc.block_max_sz = seaf->cdc_average_block_size << 1;
         }
         
+        // If a file cannot be opened, modified, or has been deleted during chunking, index errors do not need to be recorded.
         if (use_cdc) {
             cdc.write_block = seafile_write_chunk;
             memcpy (cdc.repo_id, repo_id, 36);
             cdc.version = version;
             if (filename_chunk_cdc (file_path, &cdc, crypt, write_data) < 0) {
+                if (record_index_error) {
+                    *record_index_error = FALSE;
+                }
                 seaf_warning ("Failed to chunk file with CDC.\n");
                 return -1;
             }
@@ -968,6 +973,9 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
             cdc.file_size = sb.st_size;
             if (split_file_to_block (repo_id, version, file_path, sb.st_size,
                                      crypt, &cdc, write_data) < 0) {
+                if (record_index_error) {
+                    *record_index_error = FALSE;
+                }
                 return -1;
             }            
         }

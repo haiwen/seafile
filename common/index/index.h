@@ -479,7 +479,8 @@ typedef int (*IndexCB) (const char *repo_id,
                         const char *path,
                         unsigned char sha1[],
                         struct SeafileCrypt *crypt,
-                        gboolean write_data);
+                        gboolean write_data,
+                        gboolean *record_index_error);
 
 int add_to_index(const char *repo_id,
                  int version,
@@ -491,7 +492,8 @@ int add_to_index(const char *repo_id,
                  struct SeafileCrypt *crypt,
                  IndexCB index_cb,
                  const char *modifier,
-                 gboolean *added);
+                 gboolean *added,
+                 gboolean *record_index_error);
 
 int
 add_empty_dir_to_index (struct index_state *istate,

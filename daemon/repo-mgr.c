@@ -1563,13 +1563,14 @@ index_cb (const char *repo_id,
           const char *path,
           unsigned char sha1[],
           SeafileCrypt *crypt,
-          gboolean write_data)
+          gboolean write_data,
+          gboolean *record_index_error)
 {
     gint64 size;
 
     /* Check in blocks and get object ID. */
     if (seaf_fs_manager_index_blocks (seaf->fs_mgr, repo_id, version,
-                                      path, sha1, &size, crypt, write_data, !seaf->disable_block_hash) < 0) {
+                                      path, sha1, &size, crypt, write_data, !seaf->disable_block_hash, record_index_error) < 0) {
         seaf_warning ("Failed to index file %s.\n", path);
         return -1;
     }
@@ -1618,6 +1619,7 @@ add_file (const char *repo_id,
     gboolean is_writable = TRUE, is_locked = FALSE;
     struct cache_entry *ce;
     char *base_name = NULL;
+    gboolean record_index_error = TRUE;
 
     if (seaf->ignore_symlinks && is_symlink(full_path)) {
         return ret;
@@ -1692,7 +1694,7 @@ add_file (const char *repo_id,
 
     if (!remain_files) {
         ret = add_to_index (repo_id, version, istate, path, full_path,
-                            st, 0, crypt, index_cb, modifier, &added);
+                            st, 0, crypt, index_cb, modifier, &added, &record_index_error);
         if (!added) {
             /* If the contents of the file doesn't change, move it to
                synced status.
@@ -1720,7 +1722,7 @@ add_file (const char *repo_id,
         }
     } else if (*remain_files == NULL) {
         ret = add_to_index (repo_id, version, istate, path, full_path,
-                            st, 0, crypt, index_cb, modifier, &added);
+                            st, 0, crypt, index_cb, modifier, &added, &record_index_error);
         if (added) {
             *total_size += (gint64)(st->st_size);
             if (*total_size >= MAX_COMMIT_SIZE)
@@ -1758,8 +1760,10 @@ add_file (const char *repo_id,
                                               TRUE);
         // Only record index error when the file exists.
         if (seaf_util_exists (full_path)) {
-            send_file_sync_error_notification (repo_id, NULL, path,
-                                               SYNC_ERROR_ID_INDEX_ERROR);
+            if (record_index_error) {
+                send_file_sync_error_notification (repo_id, NULL, path,
+                                                   SYNC_ERROR_ID_INDEX_ERROR);
+            }
         }
     }
 
@@ -2678,11 +2682,12 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
     g_free (base_name);
 #endif
 
+        gboolean record_index_error = TRUE;
         if (S_ISREG(st.st_mode)) {
             gboolean added = FALSE;
             int ret = 0;
             ret = add_to_index (repo->id, repo->version, istate, path, full_path,
-                                &st, 0, crypt, index_cb, repo->email, &added);
+                                &st, 0, crypt, index_cb, repo->email, &added, &record_index_error);
             if (added) {
                 ce = index_name_exists (istate, path, strlen(path), 0);
                 add_to_changeset (repo->changeset,
@@ -2715,8 +2720,9 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       SYNC_STATUS_ERROR,
                                                       TRUE);
                 if (seaf_util_exists (full_path)) {
-                    send_file_sync_error_notification (repo->id, NULL, path,
-                                                       SYNC_ERROR_ID_INDEX_ERROR);
+                    if (record_index_error)
+                        send_file_sync_error_notification (repo->id, NULL, path,
+                                                           SYNC_ERROR_ID_INDEX_ERROR);
                 }
             }
         } else if (S_ISDIR(st.st_mode)) {
@@ -7268,7 +7274,7 @@ check_repo_corrupted_blocks (SeafRepo *repo)
             char new_file_id[41];
             gint64 size;
             // Reindex file blocks using cdc.
-            if (seaf_fs_manager_index_blocks (seaf->fs_mgr, repo->id, repo->version, path, sha1, &size, crypt, TRUE, TRUE) < 0) {
+            if (seaf_fs_manager_index_blocks (seaf->fs_mgr, repo->id, repo->version, path, sha1, &size, crypt, TRUE, TRUE, NULL) < 0) {
                 g_free (file_id);
                 seaf_warning ("Failed to index file: %s\n", path);
                 continue;
@@ -7280,7 +7286,7 @@ check_repo_corrupted_blocks (SeafRepo *repo)
             }
 
             // Reindex file block without using cdc.
-            if (seaf_fs_manager_index_blocks (seaf->fs_mgr, repo->id, repo->version, path, sha1, &size, crypt, TRUE, FALSE) < 0) {
+            if (seaf_fs_manager_index_blocks (seaf->fs_mgr, repo->id, repo->version, path, sha1, &size, crypt, TRUE, FALSE, NULL) < 0) {
                 g_free (file_id);
                 seaf_warning ("Failed to index file: %s\n", path);
                 continue;
