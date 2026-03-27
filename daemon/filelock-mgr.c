@@ -111,8 +111,8 @@ seaf_filelock_manager_init (SeafFilelockManager *mgr)
     if (sqlite_foreach_selected_row (mgr->priv->db, sql,
                                      load_locked_files,
                                      mgr->priv->repo_locked_files) < 0) {
-        pthread_mutex_unlock (&mgr->priv->db_lock);
         pthread_mutex_unlock (&mgr->priv->hash_lock);
+        pthread_mutex_unlock (&mgr->priv->db_lock);
         g_hash_table_destroy (mgr->priv->repo_locked_files);
         return -1;
     }
@@ -313,6 +313,7 @@ update_in_memory (SeafFilelockManager *mgr, const char *repo_id, GHashTable *new
     repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
     if (!repo) {
         seaf_warning ("Failed to find repo %s\n", repo_id);
+        pthread_mutex_unlock (&mgr->priv->hash_lock);
         return;
     }
 
@@ -406,8 +407,10 @@ update_db (SeafFilelockManager *mgr, const char *repo_id)
     }
     sqlite3_finalize (stmt);
 
+    pthread_mutex_lock (&mgr->priv->hash_lock);
     locks = g_hash_table_lookup (mgr->priv->repo_locked_files, repo_id);
     if (!locks || g_hash_table_size (locks) == 0) {
+        pthread_mutex_unlock (&mgr->priv->hash_lock);
         pthread_mutex_unlock (&mgr->priv->db_lock);
         return 0;
     }
@@ -421,6 +424,10 @@ update_db (SeafFilelockManager *mgr, const char *repo_id)
     for (ptr = paths; ptr; ptr = ptr->next) {
         path = ptr->data;
         info = g_hash_table_lookup (locks, path);
+        if (!info) {
+            seaf_warning ("BUG: empty lock info for path %s.\n", path);
+            continue;
+        }
 
         sqlite3_bind_text (stmt, 1, repo_id, -1, SQLITE_TRANSIENT);
         sqlite3_bind_text (stmt, 2, path, -1, SQLITE_TRANSIENT);
@@ -430,6 +437,7 @@ update_db (SeafFilelockManager *mgr, const char *repo_id)
             seaf_warning ("Failed to insert server file lock for %.8s: %s.\n",
                           repo_id, sqlite3_errmsg (mgr->priv->db));
             sqlite3_finalize (stmt);
+            pthread_mutex_unlock (&mgr->priv->hash_lock);
             pthread_mutex_unlock (&mgr->priv->db_lock);
             return -1;
         }
@@ -441,6 +449,7 @@ update_db (SeafFilelockManager *mgr, const char *repo_id)
     sqlite3_finalize (stmt);
     g_list_free (paths);
 
+    pthread_mutex_unlock (&mgr->priv->hash_lock);
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
     return 0;
