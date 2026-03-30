@@ -47,6 +47,9 @@
 #define HTTP_REPO_CORRUPTED 445
 #define HTTP_BLOCK_MISSING 446
 #define HTTP_INTERNAL_SERVER_ERROR 500
+#define HTTP_SERVERR_BAD_GATEWAY 502
+#define HTTP_SERVERR_UNAVAILABLE 503
+#define HTTP_SERVERR_TIMEOUT 504
 
 #define RESET_BYTES_INTERVAL_MSEC 1000
 
@@ -1163,8 +1166,12 @@ http_error_to_http_task_error (int status)
         return SYNC_ERROR_ID_GENERAL_ERROR;
     else if (status == HTTP_FORBIDDEN)
         return SYNC_ERROR_ID_ACCESS_DENIED;
-    else if (status >= HTTP_INTERNAL_SERVER_ERROR)
+    else if (status == HTTP_INTERNAL_SERVER_ERROR)
         return SYNC_ERROR_ID_SERVER;
+    else if (status == HTTP_SERVERR_BAD_GATEWAY ||
+             status == HTTP_SERVERR_UNAVAILABLE ||
+             status == HTTP_SERVERR_TIMEOUT)
+        return SYNC_ERROR_ID_NETWORK;
     else if (status == HTTP_NOT_FOUND)
         return SYNC_ERROR_ID_SERVER;
     else if (status == HTTP_NO_QUOTA)
