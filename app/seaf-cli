@@ -226,7 +226,8 @@ def run_argv(argv, cwd=None, env=None, suppress_stdout=False, suppress_stderr=Fa
                                 cwd=cwd,
                                 stdout=stdout,
                                 stderr=stderr,
-                                env=env)
+                                env=env,
+                                close_fds=False)
         return proc.wait()
 
 def get_env():
