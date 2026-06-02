@@ -1,5 +1,5 @@
 {
-    "builtin-baseline": "f63682b9182187131b564c1395e4ac8ecb0c5ea8",
+    "builtin-baseline": "f9ffbaa46ad8e284b2b74919f7e0ba259564d424",
     "dependencies": [
         "argon2",
         "getopt",
@@ -24,8 +24,12 @@
             "version": "20190702#1"
         },
         {
+            "name": "openssl",
+            "version": "3.5.4"
+        },
+        {
             "name": "curl",
-            "version": "8.2.1"
+            "version": "8.20.0"
         },
         {
             "name": "jansson",
@@ -38,10 +42,6 @@
         {
             "name": "libwebsockets",
             "version": "4.3.2"
-        },
-        {
-            "name": "pthreads",
-            "version": "3.0.0-4"
         },
         {
             "name": "sqlite3",
