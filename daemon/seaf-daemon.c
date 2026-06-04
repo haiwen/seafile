@@ -381,7 +381,7 @@ write_pidfile (char *pidfile)
         return -1;
     }
 
-    if (flock (fd, LOCK_EX | LOCK_NB) < 0) {
+    if (flock (fd, LOCK_EX | LOCK_NB) < 0 && errno != ENOSYS) {
         seaf_warning ("Failed to lock pidfile %s: %s\n",
                       pidfile, strerror(errno));
         close (fd);
