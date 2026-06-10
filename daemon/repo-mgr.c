@@ -567,6 +567,7 @@ seaf_repo_manager_update_folder_perms (SeafRepoManager *mgr,
     sqlite3_stmt *stmt;
     GList *ptr;
     FolderPerm *perm;
+    GList *new, *old;
 
     g_return_val_if_fail ((type == FOLDER_PERM_TYPE_USER ||
                            type == FOLDER_PERM_TYPE_GROUP),
@@ -593,6 +594,20 @@ seaf_repo_manager_update_folder_perms (SeafRepoManager *mgr,
 
     if (!folder_perms) {
         pthread_mutex_unlock (&mgr->priv->db_lock);
+
+        pthread_mutex_lock (&mgr->priv->perm_lock);
+        if (type == FOLDER_PERM_TYPE_USER) {
+            old = g_hash_table_lookup (mgr->priv->user_perms, repo_id);
+            if (old)
+                g_list_free_full (old, (GDestroyNotify)folder_perm_free);
+            g_hash_table_insert (mgr->priv->user_perms, g_strdup(repo_id), NULL);
+        } else if (type == FOLDER_PERM_TYPE_GROUP) {
+            old = g_hash_table_lookup (mgr->priv->group_perms, repo_id);
+            if (old)
+                g_list_free_full (old, (GDestroyNotify)folder_perm_free);
+            g_hash_table_insert (mgr->priv->group_perms, g_strdup(repo_id), NULL);
+        }
+        pthread_mutex_unlock (&mgr->priv->perm_lock);
         return 0;
     }
 
@@ -626,7 +641,6 @@ seaf_repo_manager_update_folder_perms (SeafRepoManager *mgr,
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
     /* Update in memory */
-    GList *new, *old;
     new = folder_perm_list_copy (folder_perms);
     new = g_list_sort (new, comp_folder_perms);
 
