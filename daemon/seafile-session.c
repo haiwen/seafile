@@ -504,10 +504,9 @@ is_repo_store_in_use (const char *repo_id)
     if (seaf_repo_manager_repo_exists (seaf->repo_mgr, repo_id))
         return TRUE;
 
-    char sql[256];
-    snprintf (sql, sizeof(sql), "SELECT 1 FROM CloneTasks WHERE repo_id='%s'",
-              repo_id);
-    if (sqlite_check_for_existence (seaf->clone_mgr->db, sql))
+    if (sqlite_check_for_existence (seaf->clone_mgr->db,
+                                    "SELECT 1 FROM CloneTasks WHERE repo_id=?",
+                                    1, "string", repo_id))
         return TRUE;
 
     return FALSE;
@@ -619,4 +618,3 @@ seafile_session_start (SeafileSession *session)
     /* Finish cleanup task before anything is run. */
     on_start_cleanup (session);
 }
-

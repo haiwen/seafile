@@ -144,18 +144,14 @@ seaf_repo_manager_get_locked_file_set (SeafRepoManager *mgr, const char *repo_id
     GHashTable *locked_files = g_hash_table_new_full (g_str_hash, g_str_equal,
                                                       g_free,
                                                       (GDestroyNotify)locked_file_free);
-    char sql[256];
-
-    sqlite3_snprintf (sizeof(sql), sql,
-                      "SELECT path, operation, old_mtime, file_id FROM LockedFiles "
-                      "WHERE repo_id = '%q'",
-                      repo_id);
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
     /* Ingore database error. We return an empty set on error. */
-    sqlite_foreach_selected_row (mgr->priv->db, sql,
-                                 load_locked_file, locked_files);
+    sqlite_foreach_selected_row (mgr->priv->db,
+                                 "SELECT path, operation, old_mtime, file_id FROM LockedFiles WHERE repo_id=?",
+                                 load_locked_file, locked_files,
+                                 1, "string", repo_id);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
@@ -668,27 +664,22 @@ load_folder_perms_for_repo (SeafRepoManager *mgr,
                             FolderPermType type)
 {
     GList *perms = NULL;
-    char sql[256];
+    const char *sql;
 
     g_return_val_if_fail ((type == FOLDER_PERM_TYPE_USER ||
                            type == FOLDER_PERM_TYPE_GROUP),
                           NULL);
 
     if (type == FOLDER_PERM_TYPE_USER)
-        sqlite3_snprintf (sizeof(sql), sql,
-                          "SELECT path, permission FROM FolderUserPerms "
-                          "WHERE repo_id = '%q'",
-                          repo_id);
+        sql = "SELECT path, permission FROM FolderUserPerms WHERE repo_id = ?";
     else
-        sqlite3_snprintf (sizeof(sql), sql,
-                          "SELECT path, permission FROM FolderGroupPerms "
-                          "WHERE repo_id = '%q'",
-                          repo_id);
+        sql = "SELECT path, permission FROM FolderGroupPerms WHERE repo_id = ?";
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
     if (sqlite_foreach_selected_row (mgr->priv->db, sql,
-                                     load_folder_perm, &perms) < 0) {
+                                     load_folder_perm, &perms,
+                                     1, "string", repo_id) < 0) {
         pthread_mutex_unlock (&mgr->priv->db_lock);
         GList *ptr;
         for (ptr = perms; ptr; ptr = ptr->next)
@@ -760,36 +751,40 @@ seaf_repo_manager_update_folder_perm_timestamp (SeafRepoManager *mgr,
                                                 const char *repo_id,
                                                 gint64 timestamp)
 {
-    char sql[256];
     int ret;
-
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO FolderPermTimestamp VALUES ('%s', %"G_GINT64_FORMAT")",
-              repo_id, timestamp);
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    ret = sqlite_query_exec (mgr->priv->db, sql);
+    ret = sqlite_query_exec (mgr->priv->db,
+                             "REPLACE INTO FolderPermTimestamp VALUES (?, ?)",
+                             2, "string", repo_id, "int64", timestamp);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
     return ret;
 }
 
+static gboolean
+get_folder_perm_timestamp (sqlite3_stmt *stmt, void *data)
+{
+    gint64 *timestamp = data;
+
+    *timestamp = sqlite3_column_int64 (stmt, 0);
+    return FALSE;
+}
+
 gint64
 seaf_repo_manager_get_folder_perm_timestamp (SeafRepoManager *mgr,
                                              const char *repo_id)
 {
-    char sql[256];
-    gint64 ret;
-
-    sqlite3_snprintf (sizeof(sql), sql,
-                      "SELECT timestamp FROM FolderPermTimestamp WHERE repo_id = '%q'",
-                      repo_id);
+    gint64 ret = -1;
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    ret = sqlite_get_int64 (mgr->priv->db, sql);
+    sqlite_foreach_selected_row (mgr->priv->db,
+                                 "SELECT timestamp FROM FolderPermTimestamp WHERE repo_id = ?",
+                                 get_folder_perm_timestamp, &ret,
+                                 1, "string", repo_id);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
@@ -895,19 +890,18 @@ seaf_repo_manager_record_sync_error (const char *repo_id,
                                      const char *path,
                                      int error_id)
 {
-    char *sql;
     int ret;
 
     pthread_mutex_lock (&seaf->repo_mgr->priv->db_lock);
 
     if (path != NULL)
-        sql = sqlite3_mprintf ("DELETE FROM FileSyncError WHERE repo_id='%q' AND path='%q'",
-                               repo_id, path);
+        ret = sqlite_query_exec (seaf->repo_mgr->priv->db,
+                                 "DELETE FROM FileSyncError WHERE repo_id=? AND path=?",
+                                 2, "string", repo_id, "string", path);
     else
-        sql = sqlite3_mprintf ("DELETE FROM FileSyncError WHERE repo_id='%q' AND path IS NULL",
-                               repo_id);
-    ret = sqlite_query_exec (seaf->repo_mgr->priv->db, sql);
-    sqlite3_free (sql);
+        ret = sqlite_query_exec (seaf->repo_mgr->priv->db,
+                                 "DELETE FROM FileSyncError WHERE repo_id=? AND path IS NULL",
+                                 1, "string", repo_id);
     if (ret < 0)
         goto out;
 
@@ -915,18 +909,20 @@ seaf_repo_manager_record_sync_error (const char *repo_id,
      * So new errors are always on top.
      */
     if (path != NULL)
-        sql = sqlite3_mprintf ("INSERT INTO FileSyncError "
-                               "(repo_id, repo_name, path, err_id, timestamp) "
-                               "VALUES ('%q', '%q', '%q', %d, %lld)",
-                               repo_id, repo_name, path, error_id, (gint64)time(NULL));
+        ret = sqlite_query_exec (seaf->repo_mgr->priv->db,
+                                 "INSERT INTO FileSyncError "
+                                 "(repo_id, repo_name, path, err_id, timestamp) "
+                                 "VALUES (?, ?, ?, ?, ?)",
+                                 5, "string", repo_id, "string", repo_name,
+                                 "string", path, "int", error_id,
+                                 "int64", (gint64)time(NULL));
     else
-        sql = sqlite3_mprintf ("INSERT INTO FileSyncError "
-                               "(repo_id, repo_name, err_id, timestamp) "
-                               "VALUES ('%q', '%q', %d, %lld)",
-                               repo_id, repo_name, error_id, (gint64)time(NULL));
-        
-    ret = sqlite_query_exec (seaf->repo_mgr->priv->db, sql);
-    sqlite3_free (sql);
+        ret = sqlite_query_exec (seaf->repo_mgr->priv->db,
+                                 "INSERT INTO FileSyncError "
+                                 "(repo_id, repo_name, err_id, timestamp) "
+                                 "VALUES (?, ?, ?, ?)",
+                                 4, "string", repo_id, "string", repo_name,
+                                 "int", error_id, "int64", (gint64)time(NULL));
 
 out:
     pthread_mutex_unlock (&seaf->repo_mgr->priv->db_lock);
@@ -966,14 +962,11 @@ int
 seaf_repo_manager_del_file_sync_error_by_id (SeafRepoManager *mgr, int id)
 {
     int ret = 0;    
-    char *sql = NULL;
-
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    sql = sqlite3_mprintf ("DELETE FROM FileSyncError WHERE id=%d",
-                           id);
-    ret = sqlite_query_exec (mgr->priv->db, sql);
-    sqlite3_free (sql);
+    ret = sqlite_query_exec (mgr->priv->db,
+                             "DELETE FROM FileSyncError WHERE id=?",
+                             1, "int", id);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
@@ -984,16 +977,13 @@ GList *
 seaf_repo_manager_get_file_sync_errors (SeafRepoManager *mgr, int offset, int limit)
 {
     GList *ret = NULL;
-    char *sql;
-
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    sql = sqlite3_mprintf ("SELECT id, repo_id, repo_name, path, err_id, timestamp FROM "
-                           "FileSyncError ORDER BY id DESC LIMIT %d OFFSET %d",
-                           limit, offset);
-    sqlite_foreach_selected_row (mgr->priv->db, sql,
-                                 collect_file_sync_errors, &ret);
-    sqlite3_free (sql);
+    sqlite_foreach_selected_row (mgr->priv->db,
+                                 "SELECT id, repo_id, repo_name, path, err_id, timestamp FROM "
+                                 "FileSyncError ORDER BY id DESC LIMIT ? OFFSET ?",
+                                 collect_file_sync_errors, &ret,
+                                 2, "int", limit, "int", offset);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
@@ -6443,15 +6433,14 @@ static int
 load_crypt_from_enc_info (SeafRepoManager *manager, const char *repo_id, SeafileCrypt *crypt)
 {
     sqlite3 *db = manager->priv->db;
-    char sql[256];
     int n;
 
     pthread_mutex_lock (&manager->priv->db_lock);
 
-    snprintf (sql, sizeof(sql), 
-              "SELECT key, iv FROM RepoKeys WHERE repo_id='%s'",
-              repo_id);
-    n = sqlite_foreach_selected_row (db, sql, load_enc_keys_cb, crypt);
+    n = sqlite_foreach_selected_row (db,
+                                     "SELECT key, iv FROM RepoKeys WHERE repo_id=?",
+                                     load_enc_keys_cb, crypt,
+                                     1, "string", repo_id);
     if (n < 0) {
         pthread_mutex_unlock (&manager->priv->db_lock);
         return -1;
@@ -7446,13 +7435,12 @@ int
 seaf_repo_manager_add_repo (SeafRepoManager *manager,
                             SeafRepo *repo)
 {
-    char sql[256];
     sqlite3 *db = manager->priv->db;
 
     pthread_mutex_lock (&manager->priv->db_lock);
 
-    snprintf (sql, sizeof(sql), "REPLACE INTO Repo VALUES ('%s');", repo->id);
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, "REPLACE INTO Repo VALUES (?)",
+                       1, "string", repo->id);
 
     pthread_mutex_unlock (&manager->priv->db_lock);
 
@@ -7478,13 +7466,11 @@ seaf_repo_manager_add_repo (SeafRepoManager *manager,
 int
 seaf_repo_manager_mark_repo_deleted (SeafRepoManager *mgr, SeafRepo *repo)
 {
-    char sql[256];
-
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    snprintf (sql, sizeof(sql), "INSERT INTO DeletedRepo VALUES ('%s')",
-              repo->id);
-    if (sqlite_query_exec (mgr->priv->db, sql) < 0) {
+    if (sqlite_query_exec (mgr->priv->db,
+                           "INSERT INTO DeletedRepo VALUES (?)",
+                           1, "string", repo->id) < 0) {
         pthread_mutex_unlock (&mgr->priv->db_lock);
         return -1;
     }
@@ -7517,7 +7503,7 @@ seaf_repo_manager_list_garbage_repos (SeafRepoManager *mgr)
 
     sqlite_foreach_selected_row (mgr->priv->db,
                                  "SELECT repo_id FROM GarbageRepos",
-                                 get_garbage_repo_id, &repo_ids);
+                                 get_garbage_repo_id, &repo_ids, 0);
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
     return repo_ids;
@@ -7526,13 +7512,11 @@ seaf_repo_manager_list_garbage_repos (SeafRepoManager *mgr)
 void
 seaf_repo_manager_remove_garbage_repo (SeafRepoManager *mgr, const char *repo_id)
 {
-    char sql[256];
-
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    snprintf (sql, sizeof(sql), "DELETE FROM GarbageRepos WHERE repo_id='%s'",
-              repo_id);
-    sqlite_query_exec (mgr->priv->db, sql);
+    sqlite_query_exec (mgr->priv->db,
+                       "DELETE FROM GarbageRepos WHERE repo_id=?",
+                       1, "string", repo_id);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 }
@@ -7542,16 +7526,14 @@ seaf_repo_manager_remove_repo_ondisk (SeafRepoManager *mgr,
                                       const char *repo_id,
                                       gboolean add_deleted_record)
 {
-    char sql[256];
-
     /* We don't need to care about I/O errors here, since we can
      * GC any unreferenced repo data later.
      */
 
     if (add_deleted_record) {
-        snprintf (sql, sizeof(sql), "REPLACE INTO GarbageRepos VALUES ('%s')",
-                  repo_id);
-        if (sqlite_query_exec (mgr->priv->db, sql) < 0)
+        if (sqlite_query_exec (mgr->priv->db,
+                               "REPLACE INTO GarbageRepos VALUES (?)",
+                               1, "string", repo_id) < 0)
             goto out;
     }
 
@@ -7560,13 +7542,14 @@ seaf_repo_manager_remove_repo_ondisk (SeafRepoManager *mgr,
      */
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    snprintf (sql, sizeof(sql), "DELETE FROM Repo WHERE repo_id = '%s'", repo_id);
-    if (sqlite_query_exec (mgr->priv->db, sql) < 0)
+    if (sqlite_query_exec (mgr->priv->db,
+                           "DELETE FROM Repo WHERE repo_id = ?",
+                           1, "string", repo_id) < 0)
         goto out;
 
-    snprintf (sql, sizeof(sql), 
-              "DELETE FROM DeletedRepo WHERE repo_id = '%s'", repo_id);
-    sqlite_query_exec (mgr->priv->db, sql);
+    sqlite_query_exec (mgr->priv->db,
+                       "DELETE FROM DeletedRepo WHERE repo_id = ?",
+                       1, "string", repo_id);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
@@ -7591,32 +7574,32 @@ seaf_repo_manager_remove_repo_ondisk (SeafRepoManager *mgr,
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    snprintf (sql, sizeof(sql), "DELETE FROM RepoPasswd WHERE repo_id = '%s'", 
-              repo_id);
-    sqlite_query_exec (mgr->priv->db, sql);
-    snprintf (sql, sizeof(sql), "DELETE FROM RepoKeys WHERE repo_id = '%s'", 
-              repo_id);
-    sqlite_query_exec (mgr->priv->db, sql);
+    sqlite_query_exec (mgr->priv->db,
+                       "DELETE FROM RepoPasswd WHERE repo_id = ?",
+                       1, "string", repo_id);
+    sqlite_query_exec (mgr->priv->db,
+                       "DELETE FROM RepoKeys WHERE repo_id = ?",
+                       1, "string", repo_id);
 
-    snprintf (sql, sizeof(sql), "DELETE FROM MergeInfo WHERE repo_id = '%s'", 
-              repo_id);
-    sqlite_query_exec (mgr->priv->db, sql);
+    sqlite_query_exec (mgr->priv->db,
+                       "DELETE FROM MergeInfo WHERE repo_id = ?",
+                       1, "string", repo_id);
 
-    snprintf (sql, sizeof(sql), "DELETE FROM LockedFiles WHERE repo_id = '%s'",
-              repo_id);
-    sqlite_query_exec (mgr->priv->db, sql);
+    sqlite_query_exec (mgr->priv->db,
+                       "DELETE FROM LockedFiles WHERE repo_id = ?",
+                       1, "string", repo_id);
 
-    snprintf (sql, sizeof(sql), "DELETE FROM FolderUserPerms WHERE repo_id = '%s'", 
-              repo_id);
-    sqlite_query_exec (mgr->priv->db, sql);
+    sqlite_query_exec (mgr->priv->db,
+                       "DELETE FROM FolderUserPerms WHERE repo_id = ?",
+                       1, "string", repo_id);
 
-    snprintf (sql, sizeof(sql), "DELETE FROM FolderGroupPerms WHERE repo_id = '%s'", 
-              repo_id);
-    sqlite_query_exec (mgr->priv->db, sql);
+    sqlite_query_exec (mgr->priv->db,
+                       "DELETE FROM FolderGroupPerms WHERE repo_id = ?",
+                       1, "string", repo_id);
 
-    snprintf (sql, sizeof(sql), "DELETE FROM FolderPermTimestamp WHERE repo_id = '%s'", 
-              repo_id);
-    sqlite_query_exec (mgr->priv->db, sql);
+    sqlite_query_exec (mgr->priv->db,
+                       "DELETE FROM FolderPermTimestamp WHERE repo_id = ?",
+                       1, "string", repo_id);
 
     seaf_filelock_manager_remove (seaf->filelock_mgr, repo_id);
 
@@ -7750,15 +7733,13 @@ seaf_repo_manager_repo_exists (SeafRepoManager *manager, const gchar *id)
 static int
 save_branch_repo_map (SeafRepoManager *manager, SeafBranch *branch)
 {
-    char *sql;
     sqlite3 *db = manager->priv->db;
 
     pthread_mutex_lock (&manager->priv->db_lock);
 
-    sql = sqlite3_mprintf ("REPLACE INTO RepoBranch VALUES (%Q, %Q)",
-                           branch->repo_id, branch->name);
-    sqlite_query_exec (db, sql);
-    sqlite3_free (sql);
+    sqlite_query_exec (db,
+                       "REPLACE INTO RepoBranch VALUES (?, ?)",
+                       2, "string", branch->repo_id, "string", branch->name);
 
     pthread_mutex_unlock (&manager->priv->db_lock);
 
@@ -7768,22 +7749,19 @@ save_branch_repo_map (SeafRepoManager *manager, SeafBranch *branch)
 int
 seaf_repo_manager_branch_repo_unmap (SeafRepoManager *manager, SeafBranch *branch)
 {
-    char *sql;
     sqlite3 *db = manager->priv->db;
 
     pthread_mutex_lock (&manager->priv->db_lock);
 
-    sql = sqlite3_mprintf ("DELETE FROM RepoBranch WHERE branch_name = %Q"
-                           " AND repo_id = %Q",
-                           branch->name, branch->repo_id);
-    if (sqlite_query_exec (db, sql) < 0) {
+    if (sqlite_query_exec (db,
+                           "DELETE FROM RepoBranch WHERE branch_name = ? AND repo_id = ?",
+                           2, "string", branch->name,
+                           "string", branch->repo_id) < 0) {
         seaf_warning ("Unmap branch repo failed\n");
         pthread_mutex_unlock (&manager->priv->db_lock);
-        sqlite3_free (sql);
         return -1;
     }
 
-    sqlite3_free (sql);
     pthread_mutex_unlock (&manager->priv->db_lock);
 
     return 0;
@@ -7835,15 +7813,14 @@ static int
 load_repo_passwd (SeafRepoManager *manager, SeafRepo *repo)
 {
     sqlite3 *db = manager->priv->db;
-    char sql[256];
     int n;
 
     pthread_mutex_lock (&manager->priv->db_lock);
 
-    snprintf (sql, sizeof(sql), 
-              "SELECT key, iv FROM RepoKeys WHERE repo_id='%s'",
-              repo->id);
-    n = sqlite_foreach_selected_row (db, sql, load_keys_cb, repo);
+    n = sqlite_foreach_selected_row (db,
+                                     "SELECT key, iv FROM RepoKeys WHERE repo_id=?",
+                                     load_keys_cb, repo,
+                                     1, "string", repo->id);
     if (n < 0) {
         pthread_mutex_unlock (&manager->priv->db_lock);
         return -1;
@@ -7873,14 +7850,14 @@ load_repo_property (SeafRepoManager *manager,
                     const char *key)
 {
     sqlite3 *db = manager->priv->db;
-    char sql[256];
     char *value = NULL;
 
     pthread_mutex_lock (&manager->priv->db_lock);
 
-    snprintf(sql, 256, "SELECT value FROM RepoProperty WHERE "
-             "repo_id='%s' and key='%s'", repo_id, key);
-    if (sqlite_foreach_selected_row (db, sql, load_property_cb, &value) < 0) {
+    if (sqlite_foreach_selected_row (db,
+                                     "SELECT value FROM RepoProperty WHERE repo_id=? and key=?",
+                                     load_property_cb, &value,
+                                     2, "string", repo_id, "string", key) < 0) {
         seaf_warning ("Error read property %s for repo %s.\n", key, repo_id);
         pthread_mutex_unlock (&manager->priv->db_lock);
         return NULL;
@@ -7926,8 +7903,6 @@ is_wt_repo_name_same (const char *worktree, const char *repo_name)
 static SeafRepo *
 load_repo (SeafRepoManager *manager, const char *repo_id)
 {
-    char sql[256];
-
     SeafRepo *repo = seaf_repo_new(repo_id, NULL, NULL);
     if (!repo) {
         seaf_warning ("[repo mgr] failed to alloc repo.\n");
@@ -7936,10 +7911,10 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
 
     repo->manager = manager;
 
-    snprintf(sql, 256, "SELECT branch_name FROM RepoBranch WHERE repo_id='%s'",
-             repo->id);
-    if (sqlite_foreach_selected_row (manager->priv->db, sql, 
-                                     load_branch_cb, repo) < 0) {
+    if (sqlite_foreach_selected_row (manager->priv->db,
+                                     "SELECT branch_name FROM RepoBranch WHERE repo_id=?",
+                                     load_branch_cb, repo,
+                                     1, "string", repo->id) < 0) {
         seaf_warning ("Error read branch for repo %s.\n", repo->id);
         seaf_repo_free (repo);
         return NULL;
@@ -8081,92 +8056,92 @@ open_db (SeafRepoManager *manager, const char *seaf_dir)
     manager->priv->db = db;
 
     char *sql = "CREATE TABLE IF NOT EXISTS Repo (repo_id TEXT PRIMARY KEY);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS DeletedRepo (repo_id TEXT PRIMARY KEY);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS RepoBranch ("
         "repo_id TEXT PRIMARY KEY, branch_name TEXT);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS RepoLanToken ("
         "repo_id TEXT PRIMARY KEY, token TEXT);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS RepoTmpToken ("
         "repo_id TEXT, peer_id TEXT, token TEXT, timestamp INTEGER, "
         "PRIMARY KEY (repo_id, peer_id));";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS RepoPasswd "
         "(repo_id TEXT PRIMARY KEY, passwd TEXT NOT NULL);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS RepoKeys "
         "(repo_id TEXT PRIMARY KEY, key TEXT NOT NULL, iv TEXT NOT NULL);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
     
     sql = "CREATE TABLE IF NOT EXISTS RepoProperty ("
         "repo_id TEXT, key TEXT, value TEXT);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE INDEX IF NOT EXISTS RepoIndex ON RepoProperty (repo_id);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS MergeInfo ("
         "repo_id TEXT PRIMARY KEY, in_merge INTEGER, branch TEXT);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS CommonAncestor ("
         "repo_id TEXT PRIMARY KEY, ca_id TEXT, head_id TEXT);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     /* Version 1 repos will be added to this table after deletion.
      * GC will scan this table and remove the objects and blocks for the repos.
      */
     sql = "CREATE TABLE IF NOT EXISTS GarbageRepos (repo_id TEXT PRIMARY KEY);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS LockedFiles (repo_id TEXT, path TEXT, "
         "operation TEXT, old_mtime INTEGER, file_id TEXT, new_path TEXT, "
         "PRIMARY KEY (repo_id, path));";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS FolderUserPerms ("
         "repo_id TEXT, path TEXT, permission TEXT);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE INDEX IF NOT EXISTS folder_user_perms_repo_id_idx "
         "ON FolderUserPerms (repo_id);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS FolderGroupPerms ("
         "repo_id TEXT, path TEXT, permission TEXT);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE INDEX IF NOT EXISTS folder_group_perms_repo_id_idx "
         "ON FolderGroupPerms (repo_id);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS FolderPermTimestamp ("
         "repo_id TEXT, timestamp INTEGER, PRIMARY KEY (repo_id));";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS ServerProperty ("
         "server_url TEXT, key TEXT, value TEXT, PRIMARY KEY (server_url, key));";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE INDEX IF NOT EXISTS ServerIndex ON ServerProperty (server_url);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS FileSyncError ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT, repo_id TEXT, repo_name TEXT, "
         "path TEXT, err_id INTEGER, timestamp INTEGER);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE INDEX IF NOT EXISTS FileSyncErrorIndex ON FileSyncError (repo_id, path)";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     return db;
 }
@@ -8206,13 +8181,13 @@ load_repos (SeafRepoManager *manager, const char *seaf_dir)
     char *sql;
 
     sql = "SELECT repo_id FROM DeletedRepo";
-    if (sqlite_foreach_selected_row (db, sql, remove_deleted_repo, manager) < 0) {
+    if (sqlite_foreach_selected_row (db, sql, remove_deleted_repo, manager, 0) < 0) {
         seaf_warning ("Error removing deleted repos.\n");
         return;
     }
 
     sql = "SELECT repo_id FROM Repo;";
-    if (sqlite_foreach_selected_row (db, sql, load_repo_cb, manager) < 0) {
+    if (sqlite_foreach_selected_row (db, sql, load_repo_cb, manager, 0) < 0) {
         seaf_warning ("Error read repo db.\n");
         return;
     }
@@ -8223,26 +8198,25 @@ save_repo_property (SeafRepoManager *manager,
                     const char *repo_id,
                     const char *key, const char *value)
 {
-    char *sql;
     sqlite3 *db = manager->priv->db;
 
     pthread_mutex_lock (&manager->priv->db_lock);
 
-    sql = sqlite3_mprintf ("SELECT repo_id FROM RepoProperty WHERE repo_id=%Q AND key=%Q",
-                           repo_id, key);
-    if (sqlite_check_for_existence(db, sql)) {
-        sqlite3_free (sql);
-        sql = sqlite3_mprintf ("UPDATE RepoProperty SET value=%Q"
-                               "WHERE repo_id=%Q and key=%Q",
-                               value, repo_id, key);
-        sqlite_query_exec (db, sql);
-        sqlite3_free (sql);
+    if (sqlite_check_for_existence (db,
+                                    "SELECT repo_id FROM RepoProperty WHERE repo_id=? AND key=?",
+                                    2, "string", repo_id,
+                                    "string", key)) {
+        sqlite_query_exec (db,
+                           "UPDATE RepoProperty SET value=? WHERE repo_id=? and key=?",
+                           3, "string", value,
+                           "string", repo_id,
+                           "string", key);
     } else {
-        sqlite3_free (sql);
-        sql = sqlite3_mprintf ("INSERT INTO RepoProperty VALUES (%Q, %Q, %Q)",
-                               repo_id, key, value);
-        sqlite_query_exec (db, sql);
-        sqlite3_free (sql);
+        sqlite_query_exec (db,
+                           "INSERT INTO RepoProperty VALUES (?, ?, ?)",
+                           3, "string", repo_id,
+                           "string", key,
+                           "string", value);
     }
 
     pthread_mutex_unlock (&manager->priv->db_lock);
@@ -8356,14 +8330,13 @@ static void
 seaf_repo_manager_del_repo_property (SeafRepoManager *manager, 
                                      const char *repo_id)
 {
-    char *sql;
     sqlite3 *db = manager->priv->db;
 
     pthread_mutex_lock (&manager->priv->db_lock);
 
-    sql = sqlite3_mprintf ("DELETE FROM RepoProperty WHERE repo_id = %Q", repo_id);
-    sqlite_query_exec (db, sql);
-    sqlite3_free (sql);
+    sqlite_query_exec (db,
+                       "DELETE FROM RepoProperty WHERE repo_id = ?",
+                       1, "string", repo_id);
 
     pthread_mutex_unlock (&manager->priv->db_lock);
 }
@@ -8373,16 +8346,13 @@ seaf_repo_manager_del_repo_property_by_key (SeafRepoManager *manager,
                                             const char *repo_id,
                                             const char *key)
 {
-    char *sql;
     sqlite3 *db = manager->priv->db;
 
     pthread_mutex_lock (&manager->priv->db_lock);
 
-    sql = sqlite3_mprintf ("DELETE FROM RepoProperty "
-                           "WHERE repo_id = %Q "
-                           "  AND key = %Q", repo_id, key);
-    sqlite_query_exec (db, sql);
-    sqlite3_free (sql);
+    sqlite_query_exec (db,
+                       "DELETE FROM RepoProperty WHERE repo_id = ? AND key = ?",
+                       2, "string", repo_id, "string", key);
 
     pthread_mutex_unlock (&manager->priv->db_lock);
 }
@@ -8392,7 +8362,6 @@ save_repo_enc_info (SeafRepoManager *manager,
                     SeafRepo *repo)
 {
     sqlite3 *db = manager->priv->db;
-    char sql[512];
     char key[65], iv[33];
 
     if (repo->enc_version == 1) {
@@ -8403,9 +8372,9 @@ save_repo_enc_info (SeafRepoManager *manager,
         rawdata_to_hex (repo->enc_iv, iv, 16);
     }
 
-    snprintf (sql, sizeof(sql), "REPLACE INTO RepoKeys VALUES ('%s', '%s', '%s')",
-              repo->id, key, iv);
-    if (sqlite_query_exec (db, sql) < 0)
+    if (sqlite_query_exec (db,
+                           "REPLACE INTO RepoKeys VALUES (?, ?, ?)",
+                           3, "string", repo->id, "string", key, "string", iv) < 0)
         return -1;
 
     return 0;
@@ -8439,11 +8408,10 @@ seaf_repo_manager_save_repo_enc_info (SeafRepoManager *manager,
                                       const char *iv)
 {
     sqlite3 *db = manager->priv->db;
-    char sql[512];
 
-    snprintf (sql, sizeof(sql), "REPLACE INTO RepoKeys VALUES ('%s', '%s', '%s')",
-              repo_id, key, iv);
-    if (sqlite_query_exec (db, sql) < 0)
+    if (sqlite_query_exec (db,
+                           "REPLACE INTO RepoKeys VALUES (?, ?, ?)",
+                           3, "string", repo_id, "string", key, "string", iv) < 0)
         return -1;
 
     return 0;
@@ -8576,7 +8544,6 @@ update_server_properties (SeafRepoManager *mgr,
                           const char *new_server_url)
 {
     char *old_server_url = NULL;
-    char *sql = NULL;
 
     old_server_url = seaf_repo_manager_get_repo_property (mgr, repo_id,
                                                           REPO_PROP_SERVER_URL);
@@ -8585,13 +8552,13 @@ update_server_properties (SeafRepoManager *mgr,
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    sql = sqlite3_mprintf ("UPDATE ServerProperty SET server_url=%Q WHERE "
-                           "server_url=%Q;", new_server_url, old_server_url);
-    sqlite_query_exec (mgr->priv->db, sql);
+    sqlite_query_exec (mgr->priv->db,
+                       "UPDATE ServerProperty SET server_url=? WHERE server_url=?",
+                       2, "string", new_server_url,
+                       "string", old_server_url);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
-    sqlite3_free (sql);
     g_free (old_server_url);
 }
 
@@ -8630,23 +8597,32 @@ seaf_repo_manager_update_repos_server_host (SeafRepoManager *mgr,
     return 0;
 }
 
+static gboolean
+get_server_property_value (sqlite3_stmt *stmt, void *data)
+{
+    char **value = data;
+
+    *value = g_strdup ((const char *)sqlite3_column_text (stmt, 0));
+    return FALSE;
+}
+
 char *
 seaf_repo_manager_get_server_property (SeafRepoManager *mgr,
                                        const char *server_url,
                                        const char *key)
 {
-    char *sql = sqlite3_mprintf ("SELECT value FROM ServerProperty WHERE "
-                                 "server_url=%Q AND key=%Q;",
-                                 server_url, key);
-    char *value;
+    char *value = NULL;
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    value = sqlite_get_string (mgr->priv->db, sql);
+    sqlite_foreach_selected_row (mgr->priv->db,
+                                 "SELECT value FROM ServerProperty WHERE server_url=? AND key=?",
+                                 get_server_property_value, &value,
+                                 2, "string", server_url,
+                                 "string", key);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
-    sqlite3_free (sql);
     return value;
 }
 
@@ -8656,19 +8632,19 @@ seaf_repo_manager_set_server_property (SeafRepoManager *mgr,
                                        const char *key,
                                        const char *value)
 {
-    char *sql;
     int ret;
     char *canon_server_url = canonical_server_url(server_url);
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    sql = sqlite3_mprintf ("REPLACE INTO ServerProperty VALUES (%Q, %Q, %Q);",
-                           canon_server_url, key, value);
-    ret = sqlite_query_exec (mgr->priv->db, sql);
+    ret = sqlite_query_exec (mgr->priv->db,
+                             "REPLACE INTO ServerProperty VALUES (?, ?, ?)",
+                             3, "string", canon_server_url,
+                             "string", key,
+                             "string", value);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
-    sqlite3_free (sql);
     g_free (canon_server_url);
     return ret;
 }

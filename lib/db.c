@@ -3,8 +3,44 @@
 #ifndef WIN32
 #include <unistd.h>
 #endif
+#include <string.h>
 
 #include "db.h"
+
+static int
+sqlite_bind_parameters (sqlite3 *db, sqlite3_stmt *stmt, int n, va_list args)
+{
+    int i;
+    const char *type;
+
+    for (i = 0; i < n; ++i) {
+        type = va_arg (args, const char *);
+        if (strcmp (type, "int") == 0) {
+            int x = va_arg (args, int);
+            if (sqlite3_bind_int (stmt, i + 1, x) != SQLITE_OK) {
+                g_warning ("sqlite3_bind_int failed: %s\n", sqlite3_errmsg (db));
+                return -1;
+            }
+        } else if (strcmp (type, "int64") == 0) {
+            gint64 x = va_arg (args, gint64);
+            if (sqlite3_bind_int64 (stmt, i + 1, x) != SQLITE_OK) {
+                g_warning ("sqlite3_bind_int64 failed: %s\n", sqlite3_errmsg (db));
+                return -1;
+            }
+        } else if (strcmp (type, "string") == 0) {
+            const char *s = va_arg (args, const char *);
+            if (sqlite3_bind_text (stmt, i + 1, s, -1, SQLITE_TRANSIENT) != SQLITE_OK) {
+                g_warning ("sqlite3_bind_text failed: %s\n", sqlite3_errmsg (db));
+                return -1;
+            }
+        } else {
+            g_warning ("BUG: invalid prep stmt parameter type %s.\n", type);
+            g_return_val_if_reached (-1);
+        }
+    }
+
+    return 0;
+}
 
 int
 sqlite_open_db (const char *db_path, sqlite3 **db)
@@ -52,21 +88,35 @@ sqlite_query_prepare (sqlite3 *db, const char *sql)
 }
 
 int
-sqlite_query_exec (sqlite3 *db, const char *sql)
+sqlite_query_exec (sqlite3 *db, const char *sql, int n, ...)
 {
-    char *errmsg = NULL;
+    sqlite3_stmt *stmt;
     int result;
+    va_list args;
 
-    result = sqlite3_exec (db, sql, NULL, NULL, &errmsg);
+    stmt = sqlite_query_prepare (db, sql);
+    if (!stmt)
+        return -1;
 
-    if (result != SQLITE_OK) {
-        if (errmsg != NULL) {
-            g_warning ("SQL error: %d - %s\n:\t%s\n", result, errmsg, sql);
-            sqlite3_free (errmsg);
-        }
+    va_start (args, n);
+    if (n > 0 && sqlite_bind_parameters (db, stmt, n, args) < 0) {
+        va_end (args);
+        sqlite3_finalize (stmt);
+        return -1;
+    }
+    va_end (args);
+
+    result = sqlite3_step (stmt);
+    if (result != SQLITE_DONE) {
+        const gchar *str = sqlite3_errmsg (db);
+
+        g_warning ("Couldn't execute query, error: %d->'%s'\n\t%s\n",
+                   result, str ? str : "no error given", sql);
+        sqlite3_finalize (stmt);
         return -1;
     }
 
+    sqlite3_finalize (stmt);
     return 0;
 }
 
@@ -74,32 +124,41 @@ int
 sqlite_begin_transaction (sqlite3 *db)
 {
     char *sql = "BEGIN TRANSACTION;";
-    return sqlite_query_exec (db, sql);
+    return sqlite_query_exec (db, sql, 0);
 }
 
 int
 sqlite_end_transaction (sqlite3 *db)
 {
     char *sql = "END TRANSACTION;";
-    return sqlite_query_exec (db, sql);
+    return sqlite_query_exec (db, sql, 0);
 }
 
 
 gboolean
-sqlite_check_for_existence (sqlite3 *db, const char *sql)
+sqlite_check_for_existence (sqlite3 *db, const char *sql, int n, ...)
 {
     sqlite3_stmt *stmt;
     int result;
+    va_list args;
 
     stmt = sqlite_query_prepare (db, sql);
     if (!stmt)
         return FALSE;
 
+    va_start (args, n);
+    if (n > 0 && sqlite_bind_parameters (db, stmt, n, args) < 0) {
+        va_end (args);
+        sqlite3_finalize (stmt);
+        return FALSE;
+    }
+    va_end (args);
+
     result = sqlite3_step (stmt);
     if (result == SQLITE_ERROR) {
         const gchar *str = sqlite3_errmsg (db);
 
-        g_warning ("Couldn't execute query, error: %d->'%s'\n", 
+        g_warning ("Couldn't execute query, error: %d->'%s'\n",
                    result, str ? str : "no error given");
         sqlite3_finalize (stmt);
         return FALSE;
@@ -113,16 +172,25 @@ sqlite_check_for_existence (sqlite3 *db, const char *sql)
 
 int
 sqlite_foreach_selected_row (sqlite3 *db, const char *sql, 
-                             SqliteRowFunc callback, void *data)
+                             SqliteRowFunc callback, void *data,
+                             int n, ...)
 {
     sqlite3_stmt *stmt;
     int result;
     int n_rows = 0;
+    va_list args;
 
     stmt = sqlite_query_prepare (db, sql);
-    if (!stmt) {
+    if (!stmt)
+        return -1;
+
+    va_start (args, n);
+    if (n > 0 && sqlite_bind_parameters (db, stmt, n, args) < 0) {
+        va_end (args);
+        sqlite3_finalize (stmt);
         return -1;
     }
+    va_end (args);
 
     while (1) {
         result = sqlite3_step (stmt);

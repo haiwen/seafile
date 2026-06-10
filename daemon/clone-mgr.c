@@ -378,14 +378,11 @@ load_enc_info_cb (sqlite3_stmt *stmt, void *data)
 static int
 load_clone_enc_info (CloneTask *task)
 {
-    char sql[256];
-
-    snprintf (sql, sizeof(sql),
-              "SELECT enc_version, random_key FROM CloneEncInfo WHERE repo_id='%s'",
-              task->repo_id);
-
-    if (sqlite_foreach_selected_row (task->manager->db, sql,
-                                     load_enc_info_cb, task) < 0)
+    if (sqlite_foreach_selected_row (task->manager->db,
+                                     "SELECT enc_version, random_key "
+                                     "FROM CloneEncInfo WHERE repo_id=?",
+                                     load_enc_info_cb, task,
+                                     1, "string", task->repo_id) < 0)
         return -1;
 
     return 0;
@@ -407,14 +404,10 @@ load_version_info_cb (sqlite3_stmt *stmt, void *data)
 static void
 load_clone_repo_version_info (CloneTask *task)
 {
-    char sql[256];
-
-    snprintf (sql, sizeof(sql),
-              "SELECT repo_version FROM CloneVersionInfo WHERE repo_id='%s'",
-              task->repo_id);
-
-    sqlite_foreach_selected_row (task->manager->db, sql,
-                                 load_version_info_cb, task);
+    sqlite_foreach_selected_row (task->manager->db,
+                                 "SELECT repo_version FROM CloneVersionInfo WHERE repo_id=?",
+                                 load_version_info_cb, task,
+                                 1, "string", task->repo_id);
 }
 
 static gboolean
@@ -451,14 +444,10 @@ load_more_info_cb (sqlite3_stmt *stmt, void *data)
 static void
 load_clone_more_info (CloneTask *task)
 {
-    char sql[256];
-
-    snprintf (sql, sizeof(sql),
-              "SELECT more_info FROM CloneTasksMoreInfo WHERE repo_id='%s'",
-              task->repo_id);
-
-    sqlite_foreach_selected_row (task->manager->db, sql,
-                                 load_more_info_cb, task);
+    sqlite_foreach_selected_row (task->manager->db,
+                                 "SELECT more_info FROM CloneTasksMoreInfo WHERE repo_id=?",
+                                 load_more_info_cb, task,
+                                 1, "string", task->repo_id);
 }
 
 static gboolean
@@ -524,27 +513,27 @@ seaf_clone_manager_init (SeafCloneManager *mgr)
         "token TEXT, dest_id TEXT,"
         "worktree_parent TEXT, passwd TEXT, "
         "server_addr TEXT, server_port TEXT, email TEXT);";
-    if (sqlite_query_exec (mgr->db, sql) < 0)
+    if (sqlite_query_exec (mgr->db, sql, 0) < 0)
         return -1;
 
     sql = "CREATE TABLE IF NOT EXISTS CloneTasksMoreInfo "
         "(repo_id TEXT PRIMARY KEY, more_info TEXT);";
-    if (sqlite_query_exec (mgr->db, sql) < 0)
+    if (sqlite_query_exec (mgr->db, sql, 0) < 0)
         return -1;
 
     sql = "CREATE TABLE IF NOT EXISTS CloneEncInfo "
         "(repo_id TEXT PRIMARY KEY, enc_version INTEGER, random_key TEXT);";
-    if (sqlite_query_exec (mgr->db, sql) < 0)
+    if (sqlite_query_exec (mgr->db, sql, 0) < 0)
         return -1;
 
     sql = "CREATE TABLE IF NOT EXISTS CloneVersionInfo "
         "(repo_id TEXT PRIMARY KEY, repo_version INTEGER);";
-    if (sqlite_query_exec (mgr->db, sql) < 0)
+    if (sqlite_query_exec (mgr->db, sql, 0) < 0)
         return -1;
 
     sql = "CREATE TABLE IF NOT EXISTS CloneServerURL "
         "(repo_id TEXT PRIMARY KEY, server_url TEXT);";
-    if (sqlite_query_exec (mgr->db, sql) < 0)
+    if (sqlite_query_exec (mgr->db, sql, 0) < 0)
         return -1;
 
     return 0;
@@ -578,7 +567,7 @@ seaf_clone_manager_start (SeafCloneManager *mgr)
                                        CHECK_CONNECT_INTERVAL * 1000);
 
     char *sql = "SELECT * FROM CloneTasks";
-    if (sqlite_foreach_selected_row (mgr->db, sql, restart_task, mgr) < 0)
+    if (sqlite_foreach_selected_row (mgr->db, sql, restart_task, mgr, 0) < 0)
         return -1;
 
     g_signal_connect (seaf, "repo-http-fetched",
@@ -590,47 +579,45 @@ seaf_clone_manager_start (SeafCloneManager *mgr)
 static int
 save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
 {
-    char *sql;
-
-    if (task->passwd)
-        sql = sqlite3_mprintf ("REPLACE INTO CloneTasks VALUES "
-            "('%q', '%q', '%q', NULL, '%q', '%q', NULL, NULL, '%q')",
-                                task->repo_id, task->repo_name,
-                                task->token,
-                                task->worktree, task->passwd,
-                                task->email);
-    else
-        sql = sqlite3_mprintf ("REPLACE INTO CloneTasks VALUES "
-            "('%q', '%q', '%q', NULL, '%q', NULL, NULL, NULL, '%q')",
-                                task->repo_id, task->repo_name,
-                                task->token,
-                                task->worktree, task->email);
-
-    if (sqlite_query_exec (mgr->db, sql) < 0) {
-        sqlite3_free (sql);
-        return -1;
+    if (task->passwd) {
+        if (sqlite_query_exec (mgr->db,
+                               "REPLACE INTO CloneTasks VALUES (?, ?, ?, NULL, ?, ?, NULL, NULL, ?)",
+                               6,
+                               "string", task->repo_id,
+                               "string", task->repo_name,
+                               "string", task->token,
+                               "string", task->worktree,
+                               "string", task->passwd,
+                               "string", task->email) < 0)
+            return -1;
+    } else {
+        if (sqlite_query_exec (mgr->db,
+                               "REPLACE INTO CloneTasks VALUES (?, ?, ?, NULL, ?, NULL, NULL, NULL, ?)",
+                               5,
+                               "string", task->repo_id,
+                               "string", task->repo_name,
+                               "string", task->token,
+                               "string", task->worktree,
+                               "string", task->email) < 0)
+            return -1;
     }
-    sqlite3_free (sql);
 
     if (task->passwd && task->enc_version >= 2 && task->random_key) {
-        sql = sqlite3_mprintf ("REPLACE INTO CloneEncInfo VALUES "
-                               "('%q', %d, '%q')",
-                               task->repo_id, task->enc_version, task->random_key);
-        if (sqlite_query_exec (mgr->db, sql) < 0) {
-            sqlite3_free (sql);
+        if (sqlite_query_exec (mgr->db,
+                               "REPLACE INTO CloneEncInfo VALUES (?, ?, ?)",
+                               3,
+                               "string", task->repo_id,
+                               "int", task->enc_version,
+                               "string", task->random_key) < 0)
             return -1;
-        }
-        sqlite3_free (sql);
     }
 
-    sql = sqlite3_mprintf ("REPLACE INTO CloneVersionInfo VALUES "
-                           "('%q', %d)",
-                           task->repo_id, task->repo_version);
-    if (sqlite_query_exec (mgr->db, sql) < 0) {
-        sqlite3_free (sql);
+    if (sqlite_query_exec (mgr->db,
+                           "REPLACE INTO CloneVersionInfo VALUES (?, ?)",
+                           2,
+                           "string", task->repo_id,
+                           "int", task->repo_version) < 0)
         return -1;
-    }
-    sqlite3_free (sql);
 
     if (task->is_readonly || task->server_url || task->repo_salt || task->username) {
         /* need to store more info */
@@ -645,17 +632,17 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
             json_object_set_new (object, "repo_salt", json_string(task->repo_salt));
         if (task->username)
             json_object_set_new (object, "username", json_string(task->username));
-    
+        
         info = json_dumps (object, 0);
         json_decref (object);
-        sql = sqlite3_mprintf ("REPLACE INTO CloneTasksMoreInfo VALUES "
-                           "('%q', '%q')", task->repo_id, info);
-        if (sqlite_query_exec (mgr->db, sql) < 0) {
-            sqlite3_free (sql);
+        if (sqlite_query_exec (mgr->db,
+                               "REPLACE INTO CloneTasksMoreInfo VALUES (?, ?)",
+                               2,
+                               "string", task->repo_id,
+                               "string", info) < 0) {
             g_free (info);
             return -1;
         }
-        sqlite3_free (sql);
         g_free (info);
     }
 
@@ -665,30 +652,24 @@ save_task_to_db (SeafCloneManager *mgr, CloneTask *task)
 static int
 remove_task_from_db (SeafCloneManager *mgr, const char *repo_id)
 {
-    char sql[256];
-
-    snprintf (sql, sizeof(sql), 
-              "DELETE FROM CloneTasks WHERE repo_id='%s'",
-              repo_id);
-    if (sqlite_query_exec (mgr->db, sql) < 0)
+    if (sqlite_query_exec (mgr->db,
+                           "DELETE FROM CloneTasks WHERE repo_id=?",
+                           1, "string", repo_id) < 0)
         return -1;
 
-    snprintf (sql, sizeof(sql), 
-              "DELETE FROM CloneEncInfo WHERE repo_id='%s'",
-              repo_id);
-    if (sqlite_query_exec (mgr->db, sql) < 0)
+    if (sqlite_query_exec (mgr->db,
+                           "DELETE FROM CloneEncInfo WHERE repo_id=?",
+                           1, "string", repo_id) < 0)
         return -1;
 
-    snprintf (sql, sizeof(sql), 
-              "DELETE FROM CloneVersionInfo WHERE repo_id='%s'",
-              repo_id);
-    if (sqlite_query_exec (mgr->db, sql) < 0)
+    if (sqlite_query_exec (mgr->db,
+                           "DELETE FROM CloneVersionInfo WHERE repo_id=?",
+                           1, "string", repo_id) < 0)
         return -1;
 
-    snprintf (sql, sizeof(sql), 
-              "DELETE FROM CloneTasksMoreInfo WHERE repo_id='%s'",
-              repo_id);
-    if (sqlite_query_exec (mgr->db, sql) < 0)
+    if (sqlite_query_exec (mgr->db,
+                           "DELETE FROM CloneTasksMoreInfo WHERE repo_id=?",
+                           1, "string", repo_id) < 0)
         return -1;
 
     return 0;
