@@ -156,10 +156,14 @@ seafile_session_config_set_int (SeafileSession *session,
                                 const char *key,
                                 int value)
 {
+    char *value_str = g_strdup_printf ("%d", value);
     if (sqlite_query_exec (session->config_db,
                            "REPLACE INTO Config VALUES (?, ?)",
-                           2, "string", key, "int", value) < 0)
+                           2, "string", key, "string", value_str) < 0) {
+        g_free (value_str);
         return -1;
+    }
+    g_free (value_str);
 
     if (g_strcmp0(key, KEY_PROXY_PORT) == 0) {
         session->http_proxy_port = value;
