@@ -93,15 +93,15 @@ seaf_filelock_manager_init (SeafFilelockManager *mgr)
 
     sql = "CREATE TABLE IF NOT EXISTS ServerLockedFiles ("
         "repo_id TEXT, path TEXT, locked_by_me INTEGER);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE INDEX IF NOT EXISTS server_locked_files_repo_id_idx "
         "ON ServerLockedFiles (repo_id);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS ServerLockedFilesTimestamp ("
         "repo_id TEXT, timestamp INTEGER, PRIMARY KEY (repo_id));";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     sql = "SELECT repo_id, path, locked_by_me FROM ServerLockedFiles";
 
@@ -110,7 +110,8 @@ seaf_filelock_manager_init (SeafFilelockManager *mgr)
 
     if (sqlite_foreach_selected_row (mgr->priv->db, sql,
                                      load_locked_files,
-                                     mgr->priv->repo_locked_files) < 0) {
+                                     mgr->priv->repo_locked_files,
+                                     0) < 0) {
         pthread_mutex_unlock (&mgr->priv->hash_lock);
         pthread_mutex_unlock (&mgr->priv->db_lock);
         g_hash_table_destroy (mgr->priv->repo_locked_files);
@@ -472,36 +473,40 @@ seaf_filelock_manager_update_timestamp (SeafFilelockManager *mgr,
                                         const char *repo_id,
                                         gint64 timestamp)
 {
-    char sql[256];
     int ret;
-
-    snprintf (sql, sizeof(sql),
-              "REPLACE INTO ServerLockedFilesTimestamp VALUES ('%s', %"G_GINT64_FORMAT")",
-              repo_id, timestamp);
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    ret = sqlite_query_exec (mgr->priv->db, sql);
+    ret = sqlite_query_exec (mgr->priv->db,
+                             "REPLACE INTO ServerLockedFilesTimestamp VALUES (?, ?)",
+                             2, "string", repo_id, "int64", timestamp);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
     return ret;
 }
 
+static gboolean
+get_locked_files_timestamp (sqlite3_stmt *stmt, void *data)
+{
+    gint64 *timestamp = data;
+
+    *timestamp = sqlite3_column_int64 (stmt, 0);
+    return FALSE;
+}
+
 gint64
 seaf_filelock_manager_get_timestamp (SeafFilelockManager *mgr,
                                      const char *repo_id)
 {
-    char sql[256];
-    gint64 ret;
-
-    sqlite3_snprintf (sizeof(sql), sql,
-                      "SELECT timestamp FROM ServerLockedFilesTimestamp WHERE repo_id = '%q'",
-                      repo_id);
+    gint64 ret = -1;
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    ret = sqlite_get_int64 (mgr->priv->db, sql);
+    sqlite_foreach_selected_row (mgr->priv->db,
+                                 "SELECT timestamp FROM ServerLockedFilesTimestamp WHERE repo_id = ?",
+                                 get_locked_files_timestamp, &ret,
+                                 1, "string", repo_id);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
@@ -716,22 +721,21 @@ collect_auto_locked_files (sqlite3_stmt *stmt, void *vret)
 GList *
 seaf_filelock_manager_get_auto_locked_files (SeafFilelockManager *mgr)
 {
-    char *sql;
     GList *ret = NULL;
 
     pthread_mutex_lock (&mgr->priv->db_lock);
 
-    sql = sqlite3_mprintf ("SELECT repo_id, path FROM ServerLockedFiles "
-                           "WHERE locked_by_me = %d", LOCKED_AUTO);
-    sqlite_foreach_selected_row (mgr->priv->db, sql,
+    sqlite_foreach_selected_row (mgr->priv->db,
+                                 "SELECT repo_id, path FROM ServerLockedFiles "
+                                 "WHERE locked_by_me = ?",
                                  collect_auto_locked_files,
-                                 &ret);
+                                 &ret,
+                                 1, "int", LOCKED_AUTO);
 
     pthread_mutex_unlock (&mgr->priv->db_lock);
 
     ret = g_list_reverse (ret);
 
-    sqlite3_free (sql);
     return ret;
 }
 

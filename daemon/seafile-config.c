@@ -8,12 +8,9 @@
 gboolean
 seafile_session_config_exists (SeafileSession *session, const char *key)
 {
-    char sql[256];
-
-    snprintf (sql, sizeof(sql),
-              "SELECT 1 FROM Config WHERE key = '%s'",
-              key);
-    return sqlite_check_for_existence (session->config_db, sql);
+    return sqlite_check_for_existence (session->config_db,
+                                       "SELECT 1 FROM Config WHERE key = ?",
+                                       1, "string", key);
 }
 
 static gboolean
@@ -29,14 +26,12 @@ get_value (sqlite3_stmt *stmt, void *data)
 static char *
 config_get_string (sqlite3 *config_db, const char *key)
 {
-    char sql[256];
     char *value = NULL;
 
-    snprintf (sql, sizeof(sql),
-              "SELECT value FROM Config WHERE key='%s';",
-              key);
-    if (sqlite_foreach_selected_row (config_db, sql,
-                                     get_value, &value) < 0)
+    if (sqlite_foreach_selected_row (config_db,
+                                     "SELECT value FROM Config WHERE key=?",
+                                     get_value, &value,
+                                     1, "string", key) < 0)
         return NULL;
 
     return value;
@@ -91,12 +86,9 @@ seafile_session_config_set_string (SeafileSession *session,
                                    const char *key,
                                    const char *value)
 {
-    char sql[256];
-
-    sqlite3_snprintf (sizeof(sql), sql,
-                      "REPLACE INTO Config VALUES ('%q', '%q');",
-                      key, value);
-    if (sqlite_query_exec (session->config_db, sql) < 0)
+    if (sqlite_query_exec (session->config_db,
+                           "REPLACE INTO Config VALUES (?, ?)",
+                           2, "string", key, "string", value) < 0)
         return -1;
 
     if (g_strcmp0 (key, KEY_CLIENT_NAME) == 0) {
@@ -164,13 +156,14 @@ seafile_session_config_set_int (SeafileSession *session,
                                 const char *key,
                                 int value)
 {
-    char sql[256];
-
-    sqlite3_snprintf (sizeof(sql), sql,
-                      "REPLACE INTO Config VALUES ('%q', %d);",
-                      key, value);
-    if (sqlite_query_exec (session->config_db, sql) < 0)
+    char *value_str = g_strdup_printf ("%d", value);
+    if (sqlite_query_exec (session->config_db,
+                           "REPLACE INTO Config VALUES (?, ?)",
+                           2, "string", key, "string", value_str) < 0) {
+        g_free (value_str);
         return -1;
+    }
+    g_free (value_str);
 
     if (g_strcmp0(key, KEY_PROXY_PORT) == 0) {
         session->http_proxy_port = value;
@@ -198,7 +191,7 @@ seafile_session_config_open_db (const char *db_path)
     char *sql = "CREATE TABLE IF NOT EXISTS Config ("
         "key TEXT PRIMARY KEY, "
         "value TEXT);";
-    sqlite_query_exec (db, sql);
+    sqlite_query_exec (db, sql, 0);
 
     return db;
 }
