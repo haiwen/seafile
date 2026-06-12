@@ -27,7 +27,7 @@ CERT_ID = os.environ["CERT_ID"]
 CERT_PASSWORD = os.environ["CERT_PASSWORD"]
 
 # Qt library directory
-QT_DIR = "C:/Qt/6.5.2/msvc2019_64"
+QT_DIR = "C:/Users/vs/AppData/Local/Qt/6.8.3/msvc2022_64/"
 
 # Wix install directory
 WIX_BIN = "C:/wix/bin"
@@ -235,7 +235,7 @@ class Libsearpc(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
-            'devenv  "%s/libsearpc.sln" /Rebuild "Release|x64"' %(self.projdir),
+            'devenv "%s/libsearpc.sln" /Build "Release|x64"' %(self.projdir),
         ]
 
     def after_build(self):
@@ -248,8 +248,8 @@ class Seafile(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
-            'devenv %s/seafile.sln /Rebuild "Release|x64"' %(self.projdir),
-            'devenv %s/msi/custom/seafile_custom.sln /Rebuild "Release|x64"' %(self.projdir),
+            'devenv %s/seafile.sln /Build "Release|x64"' %(self.projdir),
+            'devenv %s/msi/custom/seafile_custom.sln /Build "Release|x64"' %(self.projdir),
         ]
 
     def before_build(self):
@@ -281,7 +281,7 @@ class SeafileGUI(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
-            'devenv %s/seafile-client.sln /Rebuild "Release|x64"' %(self.projdir) ,
+            'devenv %s/seafile-client.sln /Build "Release|x64"' %(self.projdir) ,
         ]
 
     def before_build(self):
@@ -336,8 +336,8 @@ class SeafileShellExt(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
-            'devenv %s/windows/extensions/seafile_ext.sln /Rebuild "Release|x64"' %(self.projdir),
-            'devenv %s/shellext-fix/shellext-fix.sln /Rebuild "Release|x64"' %(self.projdir),
+            'devenv %s/windows/extensions/seafile_ext.sln /Build "Release|x64"' %(self.projdir),
+            'devenv %s/shellext-fix/shellext-fix.sln /Build "Release|x64"' %(self.projdir),
         ]
     def before_build(self):
         pass

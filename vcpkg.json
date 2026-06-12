@@ -1,5 +1,5 @@
 {
-    "builtin-baseline": "f9ffbaa46ad8e284b2b74919f7e0ba259564d424",
+    "builtin-baseline": "e1dfb369fc1c6e58d5850cf67c224caa955309e5",
     "dependencies": [
         "argon2",
         "getopt",
@@ -49,7 +49,7 @@
         },
         {
             "name": "zlib",
-            "version": "1.2.11-6"
+            "version": "1.3.2"
         }
     ]
 }
