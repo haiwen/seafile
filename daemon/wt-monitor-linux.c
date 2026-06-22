@@ -11,8 +11,9 @@
 #include <unistd.h>
 
 #include "job-mgr.h"
-#include "repo-mgr.h"
 #include "seafile-session.h"
+#include "repo-mgr.h"
+#include "seafile-error.h"
 #include "utils.h"
 #include "wt-monitor.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_WATCH
@@ -782,6 +783,8 @@ handle_watch_command (SeafWTMonitor *monitor, WatchCommand *cmd)
         if (handle_add_repo(priv, cmd->repo_id, cmd->worktree) < 0) {
             seaf_warning ("[wt mon] failed to watch worktree of repo %s.\n",
                           cmd->repo_id);
+            send_file_sync_error_notification (cmd->repo_id, NULL, NULL,
+                                               SYNC_ERROR_ID_WATCH_FAILED);
             reply_watch_command (monitor, -1);
             return;
         }
