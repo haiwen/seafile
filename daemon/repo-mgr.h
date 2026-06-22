@@ -84,6 +84,7 @@ struct _SeafRepo {
     pthread_mutex_t lock;
 
     gboolean      worktree_invalid; /* true if worktree moved or deleted */
+    gboolean      watch_error;
     gboolean      index_corrupted;
     gboolean      is_readonly;
 

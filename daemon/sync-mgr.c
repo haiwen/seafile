@@ -2626,7 +2626,9 @@ auto_sync_pulse (void *vmanager)
                 }
                 continue;
             } else {
-                if (repo->worktree_invalid) {
+                // Watch failures also mark the worktree invalid, but they must
+                // stay invalid until repo-mgr successfully refreshes watches.
+                if (repo->worktree_invalid && !repo->watch_error) {
                     // The repo worktree was invalid, but now it's valid again,
                     // so we start watch it
                     seaf_repo_manager_validate_repo_worktree (seaf->repo_mgr, repo);
@@ -2635,7 +2637,9 @@ auto_sync_pulse (void *vmanager)
             }
         }
 
-        repo->worktree_invalid = FALSE;
+        // Don't clear invalid state while watch coverage is incomplete.
+        if (!repo->watch_error)
+            repo->worktree_invalid = FALSE;
 
 #ifdef USE_GPL_CRYPTO
         if (repo->version == 0 || (repo->encrypted && repo->enc_version < 2)) {

@@ -4452,6 +4452,28 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             seaf_warning ("Kernel event queue overflowed, fall back to scan.\n");
             scan_worktree_for_changes (istate, repo, crypt, ignore_list, fset);
             break;
+        case WT_EVENT_REFRESH_WATCH:
+            if (seaf_wt_monitor_refresh_repo (seaf->wt_monitor, repo->id) < 0) {
+                seaf_warning ("Failed to refresh watch for repo %s.\n", repo->id);
+                send_file_sync_error_notification (repo->id, repo->name, NULL,
+                                                   SYNC_ERROR_ID_WATCH_FAILED);
+                repo->watch_error = TRUE;
+                seaf_repo_manager_invalidate_repo_worktree (seaf->repo_mgr, repo);
+                wt_event_free (event);
+                goto out;
+            }
+
+            repo->watch_error = FALSE;
+            break;
+        case WT_EVENT_WATCH_ERROR:
+            seaf_warning ("Worktree watch failed for repo %s at %s.\n",
+                          repo->id, event->path ? event->path : "");
+            send_file_sync_error_notification (repo->id, repo->name, NULL,
+                                               SYNC_ERROR_ID_WATCH_FAILED);
+            repo->watch_error = TRUE;
+            seaf_repo_manager_invalidate_repo_worktree (seaf->repo_mgr, repo);
+            wt_event_free (event);
+            goto out;
         }
 
         if (event == last_event) {
@@ -4610,6 +4632,9 @@ print_event_log (const char *repo_name, const char *repo_id,
         case WT_EVENT_SCAN_DIR:
             name = "scan dir";
             break;
+        case WT_EVENT_REFRESH_WATCH:
+            name = "refresh watch";
+            break;
         case WT_EVENT_DELETE:
             name = "delete";
             break;
@@ -4618,6 +4643,9 @@ print_event_log (const char *repo_name, const char *repo_id,
             break;
         case WT_EVENT_OVERFLOW:
             name = "overflow";
+            break;
+        case WT_EVENT_WATCH_ERROR:
+            name = "watch error";
             break;
         default:
             name = "unknown";
@@ -6923,6 +6951,7 @@ seaf_repo_manager_validate_repo_worktree (SeafRepoManager *mgr,
     if (!repo->worktree_invalid)
         return;
 
+    repo->watch_error = FALSE;
     repo->worktree_invalid = FALSE;
 
     if (repo->auto_sync && (repo->sync_interval == 0)) {
