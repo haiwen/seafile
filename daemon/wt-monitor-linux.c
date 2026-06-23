@@ -785,6 +785,9 @@ handle_watch_command (SeafWTMonitor *monitor, WatchCommand *cmd)
                           cmd->repo_id);
             send_file_sync_error_notification (cmd->repo_id, NULL, NULL,
                                                SYNC_ERROR_ID_WATCH_FAILED);
+            SeafRepo *repo = seaf_repo_manager_get_repo (cmd->repo_id);
+            if (repo)
+                repo->watch_error = TRUE;
             reply_watch_command (monitor, -1);
             return;
         }
