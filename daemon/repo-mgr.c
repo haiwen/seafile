@@ -4458,7 +4458,6 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 send_file_sync_error_notification (repo->id, repo->name, NULL,
                                                    SYNC_ERROR_ID_WATCH_FAILED);
                 repo->watch_error = TRUE;
-                seaf_repo_manager_invalidate_repo_worktree (seaf->repo_mgr, repo);
                 wt_event_free (event);
                 goto out;
             }
@@ -4471,7 +4470,6 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             send_file_sync_error_notification (repo->id, repo->name, NULL,
                                                SYNC_ERROR_ID_WATCH_FAILED);
             repo->watch_error = TRUE;
-            seaf_repo_manager_invalidate_repo_worktree (seaf->repo_mgr, repo);
             wt_event_free (event);
             goto out;
         }
