@@ -64,12 +64,14 @@ static void handle_watch_command (SeafWTMonitor *monitor, WatchCommand *cmd);
 
 static int handle_refresh_repo (SeafWTMonitor *monitor, const char *repo_id);
 
-static void add_event_to_queue (WTStatus *status,
-                                int type,
-                                const char *path,
-                                const char *new_path);
+static void
+add_event_to_queue (WTStatus *status,
+                    int type,
+                    const char *path,
+                    const char *new_path);
 
-static gboolean is_ignore_file_path (const char *path);
+static gboolean
+is_ignore_file_path (const char *path);
 
 static int
 add_watch_recursive (RepoWatchInfo *info, int in_fd,
