@@ -294,8 +294,7 @@ class SeafileGUI(Project):
         # Copy dll to SLNOUTPUTDIR
         dlls = glob.glob(os.path.join(self.outdir, '*.dll'))
         for dll in dlls:
-            if not os.path.exists(dll) :
-                must_copy(dll, SLNOUTPUTDIR)
+            must_copy(dll, SLNOUTPUTDIR)
 
         # Copy openssl lib to package dir
         # openssl_lib_path_list = glob.glob(os.path.join(OPENSSL_DIR, '*.dll'))
@@ -308,7 +307,7 @@ class SeafileGUI(Project):
         # Use windeloyqt.exe to copy qt resource file and lib
         windeployqt_path = os.path.join(QT_DIR, 'bin', 'windeployqt.exe')
         seafile_exe_path = os.path.join(SLNOUTPUTDIR, self.target_name)
-        cmd = "%s --no-compiler-runtime %s" % (windeployqt_path, seafile_exe_path)
+        cmd = "%s --no-compiler-runtime --force-openssl %s" % (windeployqt_path, seafile_exe_path)
         if run(cmd, cwd = SLNOUTPUTDIR) != 0:
             error('error when running command:\n\t%s\n' % cmd)
 
