@@ -19,8 +19,6 @@
 #define DEBUG_FLAG SEAFILE_DEBUG_WATCH
 #include "log.h"
 
-#define IGNORE_FILE "seafile-ignore.txt"
-
 typedef struct WatchPathMapping {
     GHashTable *wd_to_path;     /* watch descriptor -> path */
 } WatchPathMapping;
@@ -69,9 +67,6 @@ add_event_to_queue (WTStatus *status,
                     int type,
                     const char *path,
                     const char *new_path);
-
-static gboolean
-is_ignore_file_path (const char *path);
 
 static int
 add_watch_recursive (RepoWatchInfo *info, int in_fd,
@@ -176,16 +171,6 @@ add_watch_error_event (RepoWatchInfo *info, const char *path)
     add_event_to_queue (info->status, WT_EVENT_WATCH_ERROR, path, NULL);
 }
 
-static gboolean
-is_ignore_file_path (const char *path)
-{
-    if (!path) {
-        return FALSE;
-    }
-
-    return g_strcmp0 (path, IGNORE_FILE) == 0;
-}
-
 static void
 add_event_to_queue (WTStatus *status,
                     int type, const char *path, const char *new_path)
@@ -199,9 +184,6 @@ add_event_to_queue (WTStatus *status,
         break;
     case WT_EVENT_SCAN_DIR:
         name = "scan dir";
-        break;
-    case WT_EVENT_REFRESH_WATCH:
-        name = "refresh watch";
         break;
     case WT_EVENT_DELETE:
         name = "delete";
@@ -387,14 +369,6 @@ process_one_event (int in_fd,
         filename = g_strdup (parent);
     } else {
         filename = g_build_filename (parent, event->name, NULL);
-    }
-
-    // Rebuild repo watches after the ignore file changes so newly
-    // ignored dirs are dropped and previously skipped dirs can be watched.
-    if (is_ignore_file_path (filename) &&
-        (event->mask & (IN_MODIFY | IN_CREATE | IN_DELETE |
-                        IN_MOVED_FROM | IN_MOVED_TO | IN_CLOSE_WRITE))) {
-        add_event_to_queue (status, WT_EVENT_REFRESH_WATCH, filename, NULL);
     }
 
     handle_rename (in_fd, info, event, worktree, filename, last_event);
@@ -785,7 +759,7 @@ handle_watch_command (SeafWTMonitor *monitor, WatchCommand *cmd)
         if (handle_add_repo(priv, cmd->repo_id, cmd->worktree) < 0) {
             seaf_warning ("[wt mon] failed to watch worktree of repo %s.\n",
                           cmd->repo_id);
-            send_file_sync_error_notification (cmd->repo_id, NULL, NULL,
+            send_file_sync_error_notification (cmd->repo_id, NULL, "/",
                                                SYNC_ERROR_ID_WATCH_FAILED);
             SeafRepo *repo = seaf_repo_manager_get_repo (seaf->repo_mgr, cmd->repo_id);
             if (repo)
