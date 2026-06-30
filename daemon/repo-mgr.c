@@ -4345,6 +4345,17 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 strcmp (next_event->path, event->path) == 0)
                 break;
 
+            if (is_ignore_file_path (event->path)) {
+                if (seaf_wt_monitor_refresh_repo (seaf->wt_monitor, repo->id) < 0) {
+                    seaf_warning ("Failed to refresh watch for repo %s.\n", repo->id);
+                    send_file_sync_error_notification (repo->id, repo->name, "/",
+                                                       SYNC_ERROR_ID_WATCH_FAILED);
+                    repo->watch_error = TRUE;
+                } else {
+                    repo->watch_error = FALSE;
+                }
+            }
+
             /* CREATE_OR_UPDATE event tells us the exact path of changed file/dir.
              * If the event path is not writable, we don't need to check the paths
              * under the event path.
@@ -4375,17 +4386,6 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
 
                 g_free (fullpath);
                 break;
-            }
-
-            if (is_ignore_file_path (event->path)) {
-                if (seaf_wt_monitor_refresh_repo (seaf->wt_monitor, repo->id) < 0) {
-                    seaf_warning ("Failed to refresh watch for repo %s.\n", repo->id);
-                    send_file_sync_error_notification (repo->id, repo->name, "/",
-                                                       SYNC_ERROR_ID_WATCH_FAILED);
-                    repo->watch_error = TRUE;
-                } else {
-                    repo->watch_error = FALSE;
-                }
             }
 
             office_path = NULL;
