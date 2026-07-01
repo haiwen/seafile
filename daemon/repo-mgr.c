@@ -4241,6 +4241,17 @@ unlock_office_file_on_server (SeafRepo *repo, const char *path)
     g_async_queue_push (queue, job);
 }
 
+#define IGNORE_FILE "seafile-ignore.txt"
+static gboolean
+is_ignore_file_path (const char *path)
+{
+    if (!path) {
+        return FALSE;
+    }
+
+    return g_strcmp0 (path, IGNORE_FILE) == 0;
+}
+
 static int
 apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                                  SeafileCrypt *crypt, GList *ignore_list,
@@ -4334,6 +4345,14 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 strcmp (next_event->path, event->path) == 0)
                 break;
 
+            if (is_ignore_file_path (event->path)) {
+                if (seaf_wt_monitor_refresh_repo (seaf->wt_monitor, repo->id) < 0) {
+                    seaf_warning ("Failed to refresh watch for repo %s.\n", repo->id);
+                    send_file_sync_error_notification (repo->id, repo->name, "/",
+                                                       SYNC_ERROR_ID_WATCH_FAILED);
+                }
+            }
+
             /* CREATE_OR_UPDATE event tells us the exact path of changed file/dir.
              * If the event path is not writable, we don't need to check the paths
              * under the event path.
@@ -4387,6 +4406,14 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
 
             break;
         case WT_EVENT_DELETE:
+            if (is_ignore_file_path (event->path)) {
+                if (seaf_wt_monitor_refresh_repo (seaf->wt_monitor, repo->id) < 0) {
+                    seaf_warning ("Failed to refresh watch for repo %s.\n", repo->id);
+                    send_file_sync_error_notification (repo->id, repo->name, "/",
+                                                       SYNC_ERROR_ID_WATCH_FAILED);
+                }
+            }
+
             seaf_sync_manager_delete_active_path (seaf->sync_mgr,
                                                   repo->id,
                                                   event->path);
@@ -4438,6 +4465,14 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             }
             break;
         case WT_EVENT_RENAME:
+            if (is_ignore_file_path (event->path) || is_ignore_file_path (event->new_path)) {
+                if (seaf_wt_monitor_refresh_repo (seaf->wt_monitor, repo->id) < 0) {
+                    seaf_warning ("Failed to refresh watch for repo %s.\n", repo->id);
+                    send_file_sync_error_notification (repo->id, repo->name, "/",
+                                                       SYNC_ERROR_ID_WATCH_FAILED);
+                }
+            }
+
             handle_rename (repo, istate, crypt, ignore_list, fset, event, &scanned_del_dirs, &total_size);
             break;
         case WT_EVENT_ATTRIB:
@@ -4452,6 +4487,13 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             seaf_warning ("Kernel event queue overflowed, fall back to scan.\n");
             scan_worktree_for_changes (istate, repo, crypt, ignore_list, fset);
             break;
+        case WT_EVENT_WATCH_ERROR:
+            seaf_warning ("Worktree watch failed for repo %s at %s.\n",
+                          repo->id, event->path ? event->path : "");
+            send_file_sync_error_notification (repo->id, repo->name, event->path,
+                                               SYNC_ERROR_ID_WATCH_FAILED);
+            wt_event_free (event);
+            goto out;
         }
 
         if (event == last_event) {
@@ -4618,6 +4660,9 @@ print_event_log (const char *repo_name, const char *repo_id,
             break;
         case WT_EVENT_OVERFLOW:
             name = "overflow";
+            break;
+        case WT_EVENT_WATCH_ERROR:
+            name = "watch error";
             break;
         default:
             name = "unknown";

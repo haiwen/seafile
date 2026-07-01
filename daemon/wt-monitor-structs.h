@@ -11,6 +11,7 @@ enum {
     WT_EVENT_ATTRIB,
     WT_EVENT_OVERFLOW,
     WT_EVENT_SCAN_DIR,
+    WT_EVENT_WATCH_ERROR,
 };
 
 typedef struct WTEvent {

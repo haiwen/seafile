@@ -209,6 +209,11 @@ static SyncErrorInfo sync_error_info_tbl[] = {
         SYNC_ERROR_LEVEL_REPO,
         "Encryption key is corrupted. Please create a new library and upload files again"
     },
+    {
+        SYNC_ERROR_ID_WATCH_FAILED,
+        SYNC_ERROR_LEVEL_FILE,
+        "Failed to monitor local folder changes. Please check Linux inotify limits or ignore rules"
+    },
 };
 
 const char *
