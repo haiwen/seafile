@@ -4350,9 +4350,6 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                     seaf_warning ("Failed to refresh watch for repo %s.\n", repo->id);
                     send_file_sync_error_notification (repo->id, repo->name, "/",
                                                        SYNC_ERROR_ID_WATCH_FAILED);
-                    repo->watch_error = TRUE;
-                } else {
-                    repo->watch_error = FALSE;
                 }
             }
 
@@ -4414,9 +4411,6 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                     seaf_warning ("Failed to refresh watch for repo %s.\n", repo->id);
                     send_file_sync_error_notification (repo->id, repo->name, "/",
                                                        SYNC_ERROR_ID_WATCH_FAILED);
-                    repo->watch_error = TRUE;
-                } else {
-                    repo->watch_error = FALSE;
                 }
             }
 
@@ -4476,9 +4470,6 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                     seaf_warning ("Failed to refresh watch for repo %s.\n", repo->id);
                     send_file_sync_error_notification (repo->id, repo->name, "/",
                                                        SYNC_ERROR_ID_WATCH_FAILED);
-                    repo->watch_error = TRUE;
-                } else {
-                    repo->watch_error = FALSE;
                 }
             }
 
@@ -4501,7 +4492,6 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                           repo->id, event->path ? event->path : "");
             send_file_sync_error_notification (repo->id, repo->name, event->path,
                                                SYNC_ERROR_ID_WATCH_FAILED);
-            repo->watch_error = TRUE;
             wt_event_free (event);
             goto out;
         }
@@ -6978,7 +6968,6 @@ seaf_repo_manager_validate_repo_worktree (SeafRepoManager *mgr,
     if (!repo->worktree_invalid)
         return;
 
-    repo->watch_error = FALSE;
     repo->worktree_invalid = FALSE;
 
     if (repo->auto_sync && (repo->sync_interval == 0)) {
