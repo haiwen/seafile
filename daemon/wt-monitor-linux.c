@@ -724,6 +724,7 @@ handle_refresh_repo (SeafWTMonitor *monitor, const char *repo_id)
     if (!info)
         return -1;
 
+    // Copy worktree before calling handle_rm_repo, since handle_rm_repo frees info.
     worktree = g_strdup (info->worktree);
     info->watch_error_reported = FALSE;
 
