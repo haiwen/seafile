@@ -811,13 +811,17 @@ def seaf_status(args):
     conf_dir = _conf_dir(args)
 
     seafile_rpc = get_rpc_client(conf_dir)
-    recent_sync_errors = seafile_rpc.get_file_sync_errors(0, 10)
+    recent_sync_errors = seafile_rpc.get_file_sync_errors(0, args.sync_error_count)
+
+    def format_timestamp(timestamp):
+        return time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(timestamp))
 
     def format_sync_error(sync_error):
         repo_name = sync_error.repo_name or ''
         path = sync_error.path or '/'
         err = seafile_rpc.sync_error_id_to_str(sync_error.err_id)
-        return repo_name, path, err
+        time_str = format_timestamp(sync_error.timestamp)
+        return repo_name, path, err, time_str
 
     if args.json:
         entries = []
@@ -880,13 +884,14 @@ def seaf_status(args):
 
         sync_errors = []
         for sync_error in recent_sync_errors:
-            repo_name, path, err = format_sync_error(sync_error)
+            repo_name, path, err, time_str = format_sync_error(sync_error)
             sync_errors.append({
                 'repo_id': sync_error.repo_id,
                 'repo_name': repo_name,
                 'path': path,
                 'error': err,
                 'timestamp': sync_error.timestamp,
+                'time': time_str,
             })
 
         print(json.dumps({
@@ -952,10 +957,10 @@ def seaf_status(args):
         if recent_sync_errors:
             print('')
             print('File sync errors:')
-            print('# {:<30s}\t{:<40s}\t{:<20s}'.format('Library', 'Path', 'Error'))
+            print('# {:<19s}\t{:<24s}\t{:<36s}\t{:<20s}'.format('Time', 'Library', 'Path', 'Error'))
             for sync_error in recent_sync_errors:
-                repo_name, path, err = format_sync_error(sync_error)
-                print('{:<30s}\t{:<40s}\t{:<20s}'.format(repo_name, path, err))
+                repo_name, path, err, time_str = format_sync_error(sync_error)
+                print('{:<19s}\t{:<24s}\t{:<36s}\t{:<20s}'.format(time_str, repo_name, path, err))
 
 def create_repo(url, token, args):
     headers = { 'Authorization': 'Token %s' % token }
@@ -1055,6 +1060,7 @@ def main():
     parser_status.set_defaults(func=seaf_status)
     parser_status.add_argument('-c', '--confdir', help='the config directory', type=str, required=confdir_required)
     parser_status.add_argument('--json', help='output json format result', action='store_true')
+    parser_status.add_argument('--sync-error-count', help='number of file sync errors to show', type=int, default=10)
 
     # download
     parser_download = subparsers.add_parser('download',
