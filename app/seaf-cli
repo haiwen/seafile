@@ -811,6 +811,13 @@ def seaf_status(args):
     conf_dir = _conf_dir(args)
 
     seafile_rpc = get_rpc_client(conf_dir)
+    recent_sync_errors = seafile_rpc.get_file_sync_errors(0, 10)
+
+    def format_sync_error(sync_error):
+        repo_name = sync_error.repo_name or ''
+        path = sync_error.path or '/'
+        err = seafile_rpc.sync_error_id_to_str(sync_error.err_id)
+        return repo_name, path, err
 
     if args.json:
         entries = []
@@ -871,7 +878,21 @@ def seaf_status(args):
             else:
                 entries.append({'id': repo.id, 'name': repo.name, 'state': task.state})
 
-        print(json.dumps(entries, ensure_ascii=False))
+        sync_errors = []
+        for sync_error in recent_sync_errors:
+            repo_name, path, err = format_sync_error(sync_error)
+            sync_errors.append({
+                'repo_id': sync_error.repo_id,
+                'repo_name': repo_name,
+                'path': path,
+                'error': err,
+                'timestamp': sync_error.timestamp,
+            })
+
+        print(json.dumps({
+            'repos': entries,
+            'sync_errors': sync_errors,
+        }, ensure_ascii=False))
     else:
         tasks = seafile_rpc.get_clone_tasks()
         print('# {:<50s}\t{:<20s}\t{:<20s}'.format('Name', 'Status', 'Progress'))
@@ -927,6 +948,14 @@ def seaf_status(args):
                 print('{:<50s}\t{:<20s}\t{:<20s}'.format(repo.name, 'error', err))
             else:
                 print('{:<50s}\t{:<20s}'.format(repo.name, task.state))
+
+        if recent_sync_errors:
+            print('')
+            print('Recent sync errors:')
+            print('# {:<30s}\t{:<40s}\t{:<20s}'.format('Library', 'Path', 'Error'))
+            for sync_error in recent_sync_errors:
+                repo_name, path, err = format_sync_error(sync_error)
+                print('{:<30s}\t{:<40s}\t{:<20s}'.format(repo_name, path, err))
 
 def create_repo(url, token, args):
     headers = { 'Authorization': 'Token %s' % token }
