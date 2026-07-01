@@ -951,7 +951,7 @@ def seaf_status(args):
 
         if recent_sync_errors:
             print('')
-            print('Recent sync errors:')
+            print('File sync errors:')
             print('# {:<30s}\t{:<40s}\t{:<20s}'.format('Library', 'Path', 'Error'))
             for sync_error in recent_sync_errors:
                 repo_name, path, err = format_sync_error(sync_error)
