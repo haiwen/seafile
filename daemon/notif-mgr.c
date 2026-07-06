@@ -379,16 +379,6 @@ seaf_notif_manager_reconnect_servers (SeafNotifManager *mgr)
 
         server->reconnect = TRUE;
 
-        // lws_cancel_service() only wakes the service loop.
-        // To actually rebuild the connection with the new proxy settings,
-        // ask the current wsi to close so the existing CLIENT_CLOSED path can drive a reconnect.
-        // If there is no active wsi yet, force the current loop to exit after wakeup. 
-        if (server->wsi) {
-            lws_wsi_close (server->wsi, LWS_TO_KILL_ASYNC);
-        } else {
-            server->status = STATUS_ERROR;
-        }
-
         if (server->context)
             lws_cancel_service (server->context);
     }
@@ -466,6 +456,9 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
         handle_messages (in, len);
         break;
     case LWS_CALLBACK_CLIENT_WRITEABLE:
+        if (server->reconnect) {
+            return -1;
+        }
         msg = g_async_queue_try_pop (server->messages);
         if (!msg) {
             break;
@@ -928,13 +921,11 @@ notification_worker (void *vdata)
         // We don't need to check the return value of this function, the connection will be processed in the event loop.
         lws_client_connect_via_info(i);
 
-        while (n >= 0 && !server->close &&
+        while (n >= 0 && !server->close && 
                server->status != STATUS_ERROR &&
                server->status != STATUS_CANCELLED) {
             n = lws_service(server->context, 0);
         }
-
-        server->wsi = NULL;
 
         delete_subscribed_repos (server);
         delete_unsent_messages (server);
