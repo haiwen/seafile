@@ -456,6 +456,7 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
         handle_messages (in, len);
         break;
     case LWS_CALLBACK_CLIENT_WRITEABLE:
+        // Return -1 to close the current connection when a reconnect is needed.
         if (server->reconnect) {
             return -1;
         }
