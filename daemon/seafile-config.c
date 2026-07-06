@@ -113,8 +113,13 @@ seafile_session_config_set_string (SeafileSession *session,
     if (g_strcmp0(key, KEY_USE_PROXY) == 0) {
         if (g_strcmp0(value, "true") == 0)
             session->use_http_proxy = TRUE;
-        else
+        else {
             session->use_http_proxy = FALSE;
+            // Disabling proxy completes with KEY_USE_PROXY=false,
+            // so reconnect notification server here to drop the old proxied connection.
+            if (session->notif_mgr)
+                seaf_notif_manager_reconnect_servers (session->notif_mgr);
+        }
     }
 
     if (g_strcmp0(key, KEY_PROXY_TYPE) == 0) {
@@ -132,6 +137,10 @@ seafile_session_config_set_string (SeafileSession *session,
 
     if (g_strcmp0(key, KEY_PROXY_PASSWORD) == 0) {
         session->http_proxy_password = g_strdup(value);
+        // The RPC caller updates proxy settings key by key and writes KEY_PROXY_PASSWORD last when proxy is enabled,
+        // so reconnect notifications here to pick up the complete new proxy settings.
+        if (session->notif_mgr)
+            seaf_notif_manager_reconnect_servers (session->notif_mgr);
     }
 
     if (g_strcmp0(key, KEY_HIDE_WINDOWS_INCOMPATIBLE_PATH_NOTIFICATION) == 0) {

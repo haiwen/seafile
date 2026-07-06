@@ -21,6 +21,9 @@ seaf_notif_manager_connect_server (SeafNotifManager *mgr, const char *host,
                                    gboolean use_notif_server_port);
 
 void
+seaf_notif_manager_reconnect_servers (SeafNotifManager *mgr);
+
+void
 seaf_notif_manager_subscribe_repo (SeafNotifManager *mgr, SeafRepo *repo);
 
 void
