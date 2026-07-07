@@ -4987,6 +4987,7 @@ struct _UpdateAux {
     char *repo_id;
     char *content;
     int size;
+    size_t capacity;
     void *user_data;
 };
 typedef struct _UpdateAux UpdateAux;
@@ -5073,6 +5074,8 @@ update_enc_block_cb (void *contents, size_t size, size_t nmemb, void *userp)
     UpdateAux *aux = userp;
     HttpTxTask *task = aux->user_data;
     int ret = realsize;
+    size_t old_capacity;
+    char *new_content = NULL;
 
     if (task) {
         if (task->state == HTTP_TASK_STATE_CANCELED || task->all_stop) {
@@ -5080,11 +5083,25 @@ update_enc_block_cb (void *contents, size_t size, size_t nmemb, void *userp)
         }
     }
 
-    aux->content = g_realloc (aux->content, aux->size + realsize);
-    if (!aux->content) {
-        seaf_warning ("Not enough memory.\n");
-        return 0;
+    old_capacity = aux->capacity;
+
+    if (aux->capacity == 0) {
+        aux->capacity = 8 * 1024;
     }
+
+    while (aux->capacity < aux->size + realsize) {
+        aux->capacity *= 2;
+    }
+
+    if (aux->capacity != old_capacity) {
+        new_content = g_realloc (aux->content, aux->capacity);
+        if (!new_content) {
+            seaf_warning ("Not enough memory.\n");
+            return 0;
+        }
+        aux->content = new_content;
+    }
+
     memcpy (aux->content + aux->size, contents, realsize);
     aux->size += realsize;
 
