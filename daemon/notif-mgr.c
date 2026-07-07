@@ -29,8 +29,6 @@ typedef struct NotifServer {
 
     // status of the notification server.
     int      status;
-    // whether to close the connection to the server.
-    gboolean close;
     gboolean reconnect;
 
     GHashTable *subscriptions;
@@ -439,6 +437,7 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
     switch (reason) {
     case LWS_CALLBACK_CLIENT_APPEND_HANDSHAKE_HEADER:
     {
+        // this callback happens when a client handshake is being compiled.
         unsigned char **p = (unsigned char **)in, *end = (*p) + len;
 
         if (lws_add_http_header_by_token(wsi, WSI_TOKEN_HTTP_USER_AGENT,
@@ -447,15 +446,20 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
         break;
     }
     case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
+        // the request client connection has been unable to complete a handshake with the remote server.
         server->status = STATUS_ERROR;
         seaf_debug ("websocket connection error: %s\n",
             in ? (char *)in : "(null)");
         ret = -1;
         break;
     case LWS_CALLBACK_CLIENT_RECEIVE:
+        // data has appeared from the server for the client connection.
         handle_messages (in, len);
         break;
     case LWS_CALLBACK_CLIENT_WRITEABLE:
+        // If it already was able to take another packet without blocking,
+        // you'll get this callback at the next call to the service loop function.
+
         // Return -1 to close the current connection when a reconnect is needed.
         if (server->reconnect) {
             return -1;
@@ -478,11 +482,13 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
         notif_message_free (msg);
         break;
     case LWS_CALLBACK_CLIENT_ESTABLISHED:
+        // after your client connection completed the websocket upgrade handshake with the remote server.
         seaf_sync_manager_check_locks_and_folder_perms (seaf->sync_mgr, server->server_url);
         server->status = STATUS_CONNECTED;
         seaf_debug ("Successfully connected to the server: %s\n", server->server_url);
         break;
     case LWS_CALLBACK_CLIENT_CLOSED:
+        // when a client websocket session ends.
         ret = -1;
         server->status = STATUS_ERROR;
         server->wsi = NULL;
@@ -912,7 +918,7 @@ notification_worker (void *vdata)
     struct lws_client_connect_info *i = &server->i;
     int n = 0;
 
-    while (!server->close) {
+    while (1) {
         if (reset_lws_context (server) < 0) {
             g_usleep (RECONNECT_INTERVAL * G_USEC_PER_SEC);
             server->status = STATUS_DISCONNECTED;
@@ -922,8 +928,7 @@ notification_worker (void *vdata)
         // We don't need to check the return value of this function, the connection will be processed in the event loop.
         lws_client_connect_via_info(i);
 
-        while (n >= 0 && !server->close && 
-               server->status != STATUS_ERROR &&
+        while (n >= 0 && server->status != STATUS_ERROR &&
                server->status != STATUS_CANCELLED) {
             n = lws_service(server->context, 0);
         }
@@ -943,12 +948,6 @@ notification_worker (void *vdata)
         n = 0;
         server->status = STATUS_DISCONNECTED;
     }
-
-    seaf_message ("Notification worker for server %s exiting.\n", server->server_url);
-    pthread_mutex_lock (&seaf->notif_mgr->priv->server_lock);
-    g_hash_table_remove (seaf->notif_mgr->priv->servers, server->server_url);
-    pthread_mutex_unlock (&seaf->notif_mgr->priv->server_lock);
-    notif_server_unref (server);
 
     return 0;
 }
