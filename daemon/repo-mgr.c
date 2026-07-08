@@ -5089,6 +5089,8 @@ update_enc_block_cb (void *contents, size_t size, size_t nmemb, void *userp)
         aux->capacity = 8 * 1024;
     }
 
+    // Double the buffer capacity until it can hold the new data.
+    // This avoids frequent calls to g_realloc(), which may introduce unnecessary overhead and latency.
     while (aux->capacity < aux->size + realsize) {
         aux->capacity *= 2;
     }
