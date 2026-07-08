@@ -20,7 +20,6 @@
 #define STATUS_DISCONNECTED 0
 #define STATUS_CONNECTED    1
 #define STATUS_ERROR        2
-#define STATUS_CANCELLED    3
 
 typedef struct NotifServer {
     struct lws_context *context;
@@ -460,7 +459,7 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
         // If it already was able to take another packet without blocking,
         // you'll get this callback at the next call to the service loop function.
 
-        // Return -1 to close the current connection when a reconnect is needed.
+        // Return -1 to close the current connection and exit lws_service loop.
         if (server->reconnect) {
             return -1;
         }
@@ -496,10 +495,6 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
         // After calling lws_cancel_service, a LWS_CALLBACK_EVENT_WAIT_CANCELLED callback is sent to every protocol on every vhost,
         // notification_worker will exit loop.
         lws_cancel_service (server->context);
-        break;
-    case LWS_CALLBACK_EVENT_WAIT_CANCELLED:
-        ret = -1;
-        server->status = STATUS_CANCELLED;
         break;
     default:
         break;
@@ -928,9 +923,8 @@ notification_worker (void *vdata)
         // We don't need to check the return value of this function, the connection will be processed in the event loop.
         lws_client_connect_via_info(i);
 
-        while (n >= 0 && server->status != STATUS_ERROR &&
-               server->status != STATUS_CANCELLED) {
-            n = lws_service(server->context, 0);
+        while (n >= 0 && server->status != STATUS_ERROR) {
+            n = lws_service(server->context, 1000);
         }
 
         delete_subscribed_repos (server);
