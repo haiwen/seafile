@@ -6,6 +6,7 @@
 #include <glib.h>
 
 #include "seafile-session.h"
+#include "seafile-config.h"
 #include "notif-mgr.h"
 #include "sync-mgr.h"
 
@@ -19,7 +20,6 @@
 #define STATUS_DISCONNECTED 0
 #define STATUS_CONNECTED    1
 #define STATUS_ERROR        2
-#define STATUS_CANCELLED    3
 
 typedef struct NotifServer {
     struct lws_context *context;
@@ -28,8 +28,7 @@ typedef struct NotifServer {
 
     // status of the notification server.
     int      status;
-    // whether to close the connection to the server.
-    gboolean close;
+    gboolean reconnect;
 
     GHashTable *subscriptions;
     pthread_mutex_t sub_lock;
@@ -158,13 +157,62 @@ static void
 notif_server_ref (NotifServer *server);
 
 static struct lws_context *
-lws_context_new (int port);
+lws_context_new (gboolean use_ssl);
+
+static void
+init_client_connect_info (NotifServer *server);
+
+static gboolean
+proxy_has_auth (void)
+{
+    return seaf->http_proxy_username && seaf->http_proxy_password &&
+           seaf->http_proxy_username[0] != '\0' &&
+           seaf->http_proxy_password[0] != '\0';
+}
+
+static char *
+build_proxy_address (int default_port)
+{
+    char *escaped_user = NULL;
+    char *escaped_pass = NULL;
+    char *proxy = NULL;
+    int port = seaf->http_proxy_port > 0 ? seaf->http_proxy_port : default_port;
+
+    escaped_user = g_uri_escape_string (seaf->http_proxy_username, NULL, FALSE);
+    escaped_pass = g_uri_escape_string (seaf->http_proxy_password, NULL, FALSE);
+    proxy = g_strdup_printf ("%s:%s@%s:%d",
+                             escaped_user,
+                             escaped_pass,
+                             seaf->http_proxy_addr,
+                             port);
+    g_free (escaped_user);
+    g_free (escaped_pass);
+
+    return proxy;
+}
+
+static int
+reset_lws_context (NotifServer *server)
+{
+    if (server->context) {
+        lws_context_destroy (server->context);
+        server->context = NULL;
+    }
+
+    server->wsi = NULL;
+
+    server->context = lws_context_new (server->use_ssl);
+    if (!server->context)
+        return -1;
+
+    init_client_connect_info (server);
+    return 0;
+}
 
 static NotifServer*
 notif_new_server (const char *server_url, gboolean use_notif_server_port)
 {
     NotifServer *server = NULL;
-    static struct lws_context *context;
     URI *uri = NULL;
     int port = NOTIF_PORT;
     gboolean use_ssl = FALSE;
@@ -186,20 +234,8 @@ notif_new_server (const char *server_url, gboolean use_notif_server_port)
     }
     
 
-    context = lws_context_new (use_ssl);
-    if (!context) {
-        g_free (uri->scheme);
-        g_free (uri->host);
-        g_free (uri);
-        seaf_warning ("failed to create libwebsockets context\n");
-        return NULL;
-    }
-
     server = g_new0 (NotifServer, 1);
-
     server->messages = g_async_queue_new ();
-
-    server->context = context;
     server->server_url = g_strdup (server_url);
     server->addr = g_strdup (uri->host);
     server->use_ssl = use_ssl;
@@ -281,9 +317,6 @@ notif_server_unref (NotifServer *server)
         notif_server_free (server);
 }
 
-static void
-init_client_connect_info (NotifServer *server);
-
 static void *
 notification_worker (void *vdata);
 
@@ -310,8 +343,6 @@ seaf_notif_manager_connect_server (SeafNotifManager *mgr, const char *host, gboo
         return;
     }
 
-    init_client_connect_info (server);
-
     rc = pthread_create (&tid, NULL, notification_worker, server);
     if (rc != 0) {
         seaf_warning ("Failed to create event notification new thread: %s.\n", strerror(rc));
@@ -326,12 +357,30 @@ seaf_notif_manager_connect_server (SeafNotifManager *mgr, const char *host, gboo
     return;
 }
 
-static void
-disconnect_server (NotifServer *server)
+void
+seaf_notif_manager_reconnect_servers (SeafNotifManager *mgr)
 {
-    // lws_cancel_service will produce a cancel event to break out of lws_service loop.
-    lws_cancel_service (server->context);
-    server->close = TRUE;
+    GHashTableIter iter;
+    gpointer key, value;
+
+    if (!mgr->priv)
+        return;
+
+    pthread_mutex_lock (&mgr->priv->server_lock);
+    g_hash_table_iter_init (&iter, mgr->priv->servers);
+    while (g_hash_table_iter_next (&iter, &key, &value)) {
+        NotifServer *server = value;
+
+        if (!server || !server->context)
+            continue;
+
+        server->reconnect = TRUE;
+
+        // Call lws_cancel_service() to wake up lws_service() and make it process events immediately.
+        if (server->context)
+            lws_cancel_service (server->context);
+    }
+    pthread_mutex_unlock (&mgr->priv->server_lock);
 }
 
 // This policy will send a ping packet to the server per second.
@@ -378,6 +427,7 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
     Message *msg = NULL;
     int m;
     int ret = 0;
+
     if (!server) {
         return ret;
     }
@@ -387,6 +437,7 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
     switch (reason) {
     case LWS_CALLBACK_CLIENT_APPEND_HANDSHAKE_HEADER:
     {
+        // this callback happens when a client handshake is being compiled.
         unsigned char **p = (unsigned char **)in, *end = (*p) + len;
 
         if (lws_add_http_header_by_token(wsi, WSI_TOKEN_HTTP_USER_AGENT,
@@ -395,15 +446,24 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
         break;
     }
     case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
+        // the request client connection has been unable to complete a handshake with the remote server.
         server->status = STATUS_ERROR;
         seaf_debug ("websocket connection error: %s\n",
             in ? (char *)in : "(null)");
         ret = -1;
         break;
     case LWS_CALLBACK_CLIENT_RECEIVE:
+        // data has appeared from the server for the client connection.
         handle_messages (in, len);
         break;
     case LWS_CALLBACK_CLIENT_WRITEABLE:
+        // If it already was able to take another packet without blocking,
+        // you'll get this callback at the next call to the service loop function.
+
+        // Return -1 to close the current connection and exit lws_service loop.
+        if (server->reconnect) {
+            return -1;
+        }
         msg = g_async_queue_try_pop (server->messages);
         if (!msg) {
             break;
@@ -422,21 +482,20 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
         notif_message_free (msg);
         break;
     case LWS_CALLBACK_CLIENT_ESTABLISHED:
+        // after your client connection completed the websocket upgrade handshake with the remote server.
         seaf_sync_manager_check_locks_and_folder_perms (seaf->sync_mgr, server->server_url);
         server->status = STATUS_CONNECTED;
         seaf_debug ("Successfully connected to the server: %s\n", server->server_url);
         break;
     case LWS_CALLBACK_CLIENT_CLOSED:
+        // when a client websocket session ends.
         ret = -1;
         server->status = STATUS_ERROR;
+        server->wsi = NULL;
         // When the client is closed, cancel the context to prevent the socket from blocking in poll after the operating system wakes from sleep.
         // After calling lws_cancel_service, a LWS_CALLBACK_EVENT_WAIT_CANCELLED callback is sent to every protocol on every vhost,
-        // notification_worker will exit loop.
+        // lws_service() will return.
         lws_cancel_service (server->context);
-        break;
-    case LWS_CALLBACK_EVENT_WAIT_CANCELLED:
-        ret = -1;
-        server->status = STATUS_CANCELLED;
         break;
     default:
         break;
@@ -757,6 +816,9 @@ lws_context_new (gboolean use_ssl)
 {
     struct lws_context_creation_info info;
     struct lws_context *context = NULL;
+    char *http_proxy_addr = NULL;
+    char *socks_proxy_addr = NULL;
+    gboolean has_auth = proxy_has_auth ();
 
     memset(&info, 0, sizeof info);
     info.port = CONTEXT_PORT_NO_LISTEN;
@@ -766,6 +828,23 @@ lws_context_new (gboolean use_ssl)
     // have to use the default allocations for fd tables up to ulimit -n.
     // It will just allocate for 1 internal and 1 (+ 1 http2 nwsi) that we will use.
     info.fd_limit_per_thread = 1 + 1 + 1;
+
+    if (seaf->use_http_proxy && seaf->http_proxy_type && seaf->http_proxy_addr) {
+        if (g_strcmp0 (seaf->http_proxy_type, PROXY_TYPE_HTTP) == 0) {
+            http_proxy_addr = has_auth ? build_proxy_address (80) : g_strdup (seaf->http_proxy_addr);
+            info.http_proxy_address = http_proxy_addr;
+            info.http_proxy_port = has_auth ? 0 :
+                                   (seaf->http_proxy_port > 0 ? seaf->http_proxy_port : 80);
+        } else if (g_strcmp0 (seaf->http_proxy_type, PROXY_TYPE_SOCKS) == 0) {
+            if (seaf->http_proxy_port >= 0) {
+                socks_proxy_addr = has_auth ? build_proxy_address (1080) : g_strdup (seaf->http_proxy_addr);
+                info.socks_proxy_address = socks_proxy_addr;
+                info.socks_proxy_port = has_auth ? 0 :
+                                    (seaf->http_proxy_port > 0 ? seaf->http_proxy_port : 1080);
+            }
+        }
+    }
+
     char *ca_path = g_build_filename (seaf->seaf_dir, "ca-bundle.pem", NULL);
     if (use_ssl) {
          info.options = LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
@@ -774,11 +853,15 @@ lws_context_new (gboolean use_ssl)
 
     context = lws_create_context(&info);
     if (!context) {
+        g_free (http_proxy_addr);
+        g_free (socks_proxy_addr);
         g_free (ca_path);
         seaf_warning ("failed to create libwebsockets context\n");
         return NULL;
     }
 
+    g_free (http_proxy_addr);
+    g_free (socks_proxy_addr);
     g_free (ca_path);
     return context;
 }
@@ -831,33 +914,36 @@ notification_worker (void *vdata)
     struct lws_client_connect_info *i = &server->i;
     int n = 0;
 
-    while (!server->close) {
+    while (1) {
+        if (reset_lws_context (server) < 0) {
+            g_usleep (RECONNECT_INTERVAL * G_USEC_PER_SEC);
+            server->status = STATUS_DISCONNECTED;
+            continue;
+        }
+
         // We don't need to check the return value of this function, the connection will be processed in the event loop.
         lws_client_connect_via_info(i);
 
-        while (n >= 0 && !server->close &&
-               server->status != STATUS_ERROR &&
-               server->status != STATUS_CANCELLED) {
-            n = lws_service(server->context, 0);
+        while (n >= 0 && server->status != STATUS_ERROR) {
+            // Wait for events for up to 1000 ms, lws_service() will return when the timeout expires.
+            n = lws_service(server->context, 1000);
         }
 
         delete_subscribed_repos (server);
         delete_unsent_messages (server);
 
-        if (server->status == STATUS_CANCELLED)
-            break;
+        if (server->reconnect) {
+            server->reconnect = FALSE;
+            n = 0;
+            server->status = STATUS_DISCONNECTED;
+            continue;
+        }
 
         // Wait a minute to reconnect to the notification server.
         g_usleep (RECONNECT_INTERVAL * G_USEC_PER_SEC);
         n = 0;
         server->status = STATUS_DISCONNECTED;
     }
-
-    seaf_message ("Notification worker for server %s exiting.\n", server->server_url);
-    pthread_mutex_lock (&seaf->notif_mgr->priv->server_lock);
-    g_hash_table_remove (seaf->notif_mgr->priv->servers, server->server_url);
-    pthread_mutex_unlock (&seaf->notif_mgr->priv->server_lock);
-    notif_server_unref (server);
 
     return 0;
 }
