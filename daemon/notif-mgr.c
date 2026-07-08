@@ -376,6 +376,7 @@ seaf_notif_manager_reconnect_servers (SeafNotifManager *mgr)
 
         server->reconnect = TRUE;
 
+        // Call lws_cancel_service() to wake up lws_service() and make it process events immediately.
         if (server->context)
             lws_cancel_service (server->context);
     }
@@ -493,7 +494,7 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
         server->wsi = NULL;
         // When the client is closed, cancel the context to prevent the socket from blocking in poll after the operating system wakes from sleep.
         // After calling lws_cancel_service, a LWS_CALLBACK_EVENT_WAIT_CANCELLED callback is sent to every protocol on every vhost,
-        // notification_worker will exit loop.
+        // lws_service() will return.
         lws_cancel_service (server->context);
         break;
     default:
@@ -924,6 +925,7 @@ notification_worker (void *vdata)
         lws_client_connect_via_info(i);
 
         while (n >= 0 && server->status != STATUS_ERROR) {
+            // Wait for events for up to 1000 ms, lws_service() will return when the timeout expires.
             n = lws_service(server->context, 1000);
         }
 
