@@ -485,7 +485,7 @@ event_callback (struct lws *wsi, enum lws_callback_reasons reason,
         // after your client connection completed the websocket upgrade handshake with the remote server.
         seaf_sync_manager_check_locks_and_folder_perms (seaf->sync_mgr, server->server_url);
         server->status = STATUS_CONNECTED;
-        seaf_debug ("Successfully connected to the server: %s\n", server->server_url);
+        seaf_message ("Successfully connected to notification server: %s\n", server->server_url);
         break;
     case LWS_CALLBACK_CLIENT_CLOSED:
         // when a client websocket session ends.
@@ -936,6 +936,7 @@ notification_worker (void *vdata)
             server->reconnect = FALSE;
             n = 0;
             server->status = STATUS_DISCONNECTED;
+            seaf_message ("Reconnecting to the notification server: %s.\n", server->server_url);
             continue;
         }
 
