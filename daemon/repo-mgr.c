@@ -6844,7 +6844,6 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
             de->status == DIFF_STATUS_DIR_RENAMED) {
             seaf_debug ("Rename %s to %s.\n", de->name, de->new_name);
 
-#ifdef WIN32
             IgnoreReason reason;
             if (should_ignore_on_checkout (de->new_name, &reason)) {
                 seaf_message ("Path %s is invalid on Windows, skip rename.\n", de->new_name);
@@ -6868,7 +6867,6 @@ seaf_repo_fetch_and_checkout (HttpTxTask *http_task, const char *remote_head_id)
                                             de, &results);
                 continue;
             }
-#endif
 
             if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
                                                       repo_id, de->name))
