@@ -1553,7 +1553,7 @@ parse_head_commit_info (const char *rsp_content, int rsp_size, CheckHeadData *da
         }
         if (strlen(head_commit) != 40) {
             seaf_warning ("Check head commit for repo %s failed. "
-                          "Response doesn't contain invalid head commit id.\n",
+                          "Response contains invalid head commit id.\n",
                           data->repo_id);
             json_decref (object);
             return -1;
