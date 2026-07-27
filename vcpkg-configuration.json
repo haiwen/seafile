@@ -1,0 +1,9 @@
+{
+  "default-registry": {
+    "kind": "builtin",
+    "baseline": "e1dfb369fc1c6e58d5850cf67c224caa955309e5"
+  },
+  "overlay-ports": [
+    "./seafile-ports"
+  ]
+}
