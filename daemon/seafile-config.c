@@ -117,8 +117,10 @@ seafile_session_config_set_string (SeafileSession *session,
             session->use_http_proxy = FALSE;
             // Disabling proxy completes with KEY_USE_PROXY=false,
             // so reconnect notification server here to drop the old proxied connection.
+#if defined WIN32 || defined __APPLE__ || defined COMPILE_LINUX_WS
             if (session->notif_mgr)
                 seaf_notif_manager_reconnect_servers (session->notif_mgr);
+#endif
         }
     }
 
@@ -139,8 +141,10 @@ seafile_session_config_set_string (SeafileSession *session,
         session->http_proxy_password = g_strdup(value);
         // The RPC caller updates proxy settings key by key and writes KEY_PROXY_PASSWORD last when proxy is enabled,
         // so reconnect notifications here to pick up the complete new proxy settings.
+#if defined WIN32 || defined __APPLE__ || defined COMPILE_LINUX_WS
         if (session->notif_mgr)
             seaf_notif_manager_reconnect_servers (session->notif_mgr);
+#endif
     }
 
     if (g_strcmp0(key, KEY_HIDE_WINDOWS_INCOMPATIBLE_PATH_NOTIFICATION) == 0) {
