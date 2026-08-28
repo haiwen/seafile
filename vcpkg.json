@@ -1,5 +1,4 @@
 {
-    "builtin-baseline": "e1dfb369fc1c6e58d5850cf67c224caa955309e5",
     "dependencies": [
         "argon2",
         "getopt",
@@ -7,7 +6,10 @@
         "jansson",
         "libevent",
         "libwebsockets",
-        "openssl",
+        {
+            "name": "openssl",
+            "version>=": "3.6.3#0"
+        },
         "pthreads",
         "sqlite3",
         "zlib",
@@ -16,40 +18,6 @@
             "features": [
                 "openssl"
             ]
-        }
-    ],
-    "overrides": [
-        {
-            "name": "argon2",
-            "version": "20190702#1"
-        },
-        {
-            "name": "openssl",
-            "version": "3.5.4"
-        },
-        {
-            "name": "curl",
-            "version": "8.20.0"
-        },
-        {
-            "name": "jansson",
-            "version": "2.12-1"
-        },
-        {
-            "name": "libevent",
-            "version": "2.1.11-5"
-        },
-        {
-            "name": "libwebsockets",
-            "version": "4.3.2"
-        },
-        {
-            "name": "sqlite3",
-            "version": "3.31.1"
-        },
-        {
-            "name": "zlib",
-            "version": "1.3.2"
         }
     ]
 }
