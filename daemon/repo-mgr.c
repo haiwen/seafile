@@ -2199,15 +2199,20 @@ iter_dir_cb (wchar_t *full_parent_w,
     if (data->ignored ||
         should_ignore(data->full_parent, dname, params->ignore_list)) {
         if (options && options->startup_scan) {
-            if (fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-                add_dir_recursive (path, full_path, &st, params, TRUE);
-            else
-                seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                                      params->repo_id,
-                                                      path,
-                                                      S_IFREG,
-                                                      SYNC_STATUS_IGNORED,
-                                                      TRUE);
+            /* Mark the ignored entry itself and stop. Descending would walk the
+             * whole subtree only to record a status for every file in it, and
+             * an ignored tree can be arbitrarily large - node_modules and build
+             * output are the common cases. Nothing under here is ever indexed
+             * or uploaded, so the walk buys nothing but memory.
+             */
+            seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                  params->repo_id,
+                                                  path,
+                                                  (fdata->dwFileAttributes &
+                                                   FILE_ATTRIBUTE_DIRECTORY) ?
+                                                  S_IFDIR : S_IFREG,
+                                                  SYNC_STATUS_IGNORED,
+                                                  TRUE);
         }
         goto out;
     }
@@ -3450,7 +3455,20 @@ update_active_path_cb (wchar_t *full_parent_w,
 
     seaf_stat_from_find_data (fdata, &st);
 
-    if (fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+    if (ignored) {
+        /* Mark the entry and stop, rather than descending to record a status
+         * for every file in a subtree that is never synced. Matches how the
+         * startup scan in iter_dir_cb handles an ignored entry.
+         */
+        seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                              upd_data->repo->id,
+                                              path,
+                                              (fdata->dwFileAttributes &
+                                               FILE_ATTRIBUTE_DIRECTORY) ?
+                                              S_IFDIR : S_IFREG,
+                                              SYNC_STATUS_IGNORED,
+                                              TRUE);
+    } else if (fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
         update_active_path_recursive (upd_data->repo,
                                       path,
                                       upd_data->istate,
