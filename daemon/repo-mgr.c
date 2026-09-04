@@ -1,5 +1,14 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#ifdef WIN32
+/* GetFileInformationByHandleEx(FileIdInfo) needs a Windows 8 API floor. Must be
+ * set before any Windows header is pulled in, including via utils.h.
+ */
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0602
+#endif
+#endif
+
 #include "common.h"
 #include <glib/gstdio.h>
 
@@ -1784,6 +1793,12 @@ typedef struct AddParams {
     gint64 *total_size;
     GQueue **remain_files;
     AddOptions *options;
+#ifdef WIN32
+    /* Identities of the directories on the current recursion path, used to
+     * detect symlinks and junctions that resolve back into their own ancestry.
+     */
+    GArray *ancestors;
+#endif
 } AddParams;
 
 #ifndef WIN32
@@ -2049,6 +2064,78 @@ is_empty_dir (const char *path, GList *ignore_list)
 
 #else
 
+/* A directory's identity on disk. The volume serial is part of the key because
+ * file IDs are only unique within a volume.
+ */
+typedef struct DirIdentity {
+    ULONGLONG volume_serial;
+    FILE_ID_128 file_id;
+} DirIdentity;
+
+/* Read the identity of the directory the path resolves to. Reparse points are
+ * deliberately followed: a cycle is visible precisely because the link's target
+ * is a directory already on the recursion path.
+ */
+static gboolean
+get_dir_identity (const char *full_path, DirIdentity *identity)
+{
+    wchar_t *full_path_w;
+    HANDLE handle;
+    FILE_ID_INFO id_info;
+    gboolean ret = FALSE;
+
+    full_path_w = win32_long_path (full_path);
+    if (!full_path_w)
+        return FALSE;
+
+    handle = CreateFileW (full_path_w,
+                          0, /* Querying metadata needs no access rights. */
+                          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                          NULL,
+                          OPEN_EXISTING,
+                          FILE_FLAG_BACKUP_SEMANTICS, /* Required to open a dir. */
+                          NULL);
+    if (handle == INVALID_HANDLE_VALUE) {
+        seaf_debug ("Failed to open %s to check for a symlink cycle: %lu.\n",
+                    full_path, GetLastError());
+        goto out;
+    }
+
+    if (!GetFileInformationByHandleEx (handle, FileIdInfo,
+                                       &id_info, sizeof(id_info))) {
+        seaf_debug ("Failed to get file id of %s: %lu.\n",
+                    full_path, GetLastError());
+        goto out;
+    }
+
+    identity->volume_serial = id_info.VolumeSerialNumber;
+    identity->file_id = id_info.FileId;
+    ret = TRUE;
+
+out:
+    if (handle != INVALID_HANDLE_VALUE)
+        CloseHandle (handle);
+    g_free (full_path_w);
+    return ret;
+}
+
+static gboolean
+is_ancestor (GArray *ancestors, const DirIdentity *identity)
+{
+    guint i;
+
+    for (i = 0; i < ancestors->len; ++i) {
+        DirIdentity *ancestor = &g_array_index (ancestors, DirIdentity, i);
+
+        if (ancestor->volume_serial == identity->volume_serial &&
+            memcmp (ancestor->file_id.Identifier, identity->file_id.Identifier,
+                    sizeof(identity->file_id.Identifier)) == 0)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
 typedef struct IterCBData {
     AddParams *add_params;
     const char *parent;
@@ -2085,6 +2172,29 @@ iter_dir_cb (wchar_t *full_parent_w,
     full_path = g_build_path ("/", params->worktree, path, NULL);
 
     seaf_stat_from_find_data (fdata, &st);
+
+    /* A reparse point that resolves to a directory already on the recursion
+     * path is a cycle. Skip it, but keep enumerating its siblings. The check is
+     * gated on the reparse bit so plain directories cost nothing.
+     */
+    if ((fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
+        (fdata->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+        DirIdentity identity;
+
+        if (!get_dir_identity (full_path, &identity)) {
+            /* Most often a dangling link, which has nothing behind it to index.
+             * Never assume a cycle here: wrongly skipping a whole subtree would
+             * silently drop real content.
+             */
+            goto out;
+        }
+
+        if (is_ancestor (params->ancestors, &identity)) {
+            seaf_debug ("Skipping %s: symlink cycle back into its own path.\n",
+                        full_path);
+            goto out;
+        }
+    }
 
     if (data->ignored ||
         should_ignore(data->full_parent, dname, params->ignore_list)) {
@@ -2136,6 +2246,8 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     wchar_t *full_path_w;
     int ret = 0;
     gboolean is_writable = TRUE;
+    DirIdentity identity;
+    gboolean pushed = TRUE;
 
     memset (&data, 0, sizeof(data));
     data.add_params = params;
@@ -2143,9 +2255,21 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     data.full_parent = full_path;
     data.ignored = ignored;
 
+    /* Keep the ancestor stack holding exactly the current root-to-here path,
+     * so iter_dir_cb can tell a cycle from a link that merely repeats
+     * elsewhere in the tree.
+     */
+    if (get_dir_identity (full_path, &identity))
+        g_array_append_val (params->ancestors, identity);
+    else
+        pushed = FALSE;
+
     full_path_w = win32_long_path (full_path);
     ret = traverse_directory_win32 (full_path_w, iter_dir_cb, &data);
     g_free (full_path_w);
+
+    if (pushed)
+        g_array_remove_index (params->ancestors, params->ancestors->len - 1);
 
     /* Ignore traverse dir error. */
     if (ret < 0) {
@@ -2281,9 +2405,12 @@ add_recursive (const char *repo_id,
             .total_size = total_size,
             .remain_files = remain_files,
             .options = options,
+            .ancestors = g_array_new (FALSE, FALSE, sizeof(DirIdentity)),
         };
 
         ret = add_dir_recursive (path, full_path, &st, &params, FALSE);
+
+        g_array_free (params.ancestors, TRUE);
     }
 
     g_free (full_path);
