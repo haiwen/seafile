@@ -1872,15 +1872,20 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
 
         if (ignored || should_ignore(full_path, dname, params->ignore_list)) {
             if (options && options->startup_scan) {
-                if (S_ISDIR(sub_st.st_mode))
-                    add_dir_recursive (subpath, full_subpath, &sub_st, params, TRUE);
-                else
-                    seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                                          params->repo_id,
-                                                          subpath,
-                                                          S_IFREG,
-                                                          SYNC_STATUS_IGNORED,
-                                                          TRUE);
+                /* Mark the ignored entry itself and stop. Descending would walk
+                 * the whole subtree only to record a status for every file in
+                 * it, and an ignored tree can be arbitrarily large -
+                 * node_modules and build output are the common cases. Nothing
+                 * under here is ever indexed or uploaded, so the walk buys
+                 * nothing but memory.
+                 */
+                seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                      params->repo_id,
+                                                      subpath,
+                                                      S_ISDIR(sub_st.st_mode) ?
+                                                      S_IFDIR : S_IFREG,
+                                                      SYNC_STATUS_IGNORED,
+                                                      TRUE);
             }
             g_free (subpath);
             g_free (full_subpath);
@@ -3604,7 +3609,18 @@ update_active_path_recursive (SeafRepo *repo,
             continue;
         }
 
-        if (S_ISDIR(st.st_mode)) {
+        if (ignore_sub) {
+            /* Mark the entry and stop, rather than descending to record a
+             * status for every file in a subtree that is never synced.
+             */
+            seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                  repo->id,
+                                                  sub_path,
+                                                  S_ISDIR(st.st_mode) ?
+                                                  S_IFDIR : S_IFREG,
+                                                  SYNC_STATUS_IGNORED,
+                                                  TRUE);
+        } else if (S_ISDIR(st.st_mode)) {
             update_active_path_recursive (repo, sub_path, istate, ignore_list,
                                           ignore_sub);
         } else if (S_ISREG(st.st_mode)) {
