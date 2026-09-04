@@ -8741,6 +8741,22 @@ seaf_repo_manager_server_is_pro (SeafRepoManager *mgr,
     return ret;
 }
 
+/* A pattern from the ignore file, compiled once at load time rather than on
+ * every path tested against it.
+ */
+typedef struct IgnorePattern {
+    GPatternSpec *spec;
+} IgnorePattern;
+
+static void
+ignore_pattern_free (IgnorePattern *pattern)
+{
+    if (!pattern)
+        return;
+    g_pattern_spec_free (pattern->spec);
+    g_free (pattern);
+}
+
 /*
  * Read ignored files from ignore.txt
  */
@@ -8749,8 +8765,9 @@ GList *seaf_repo_load_ignore_files (const char *worktree)
     GList *list = NULL;
     SeafStat st;
     FILE *fp;
-    char *full_path, *pattern;
+    char *full_path, *pattern_str;
     char path[SEAF_PATH_MAX];
+    IgnorePattern *pattern;
 
     full_path = g_build_path (PATH_SEPERATOR, worktree,
                               IGNORE_FILE, NULL);
@@ -8772,9 +8789,13 @@ GList *seaf_repo_load_ignore_files (const char *worktree)
 
         /* Change 'foo/' to 'foo/ *'. */
         if (path[strlen(path)-1] == '/')
-            pattern = g_strdup_printf("%s/%s*", worktree, path);
+            pattern_str = g_strdup_printf("%s/%s*", worktree, path);
         else
-            pattern = g_strdup_printf("%s/%s", worktree, path);
+            pattern_str = g_strdup_printf("%s/%s", worktree, path);
+
+        pattern = g_new0 (IgnorePattern, 1);
+        pattern->spec = g_pattern_spec_new (pattern_str);
+        g_free (pattern_str);
 
         list = g_list_prepend(list, pattern);
     }
@@ -8791,33 +8812,32 @@ error:
 gboolean
 seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath)
 {
-    char *str;
+    char *str = NULL;
     SeafStat st;
-    GPatternSpec *ignore_spec;
     GList *p;
+    gboolean ret = FALSE;
 
-    str = g_strdup(fullpath);
+    if (!ignore_list)
+        return FALSE;
 
-    int rc = seaf_stat(str, &st);
-    if (rc == 0 && S_ISDIR(st.st_mode)) {
-        g_free (str);
+    /* A directory is matched with a trailing slash, so that a 'foo/' rule -
+     * stored as 'foo/*' - matches the directory itself and not just its
+     * contents.
+     */
+    if (seaf_stat (fullpath, &st) == 0 && S_ISDIR(st.st_mode))
         str = g_strconcat (fullpath, "/", NULL);
-    }
 
     for (p = ignore_list; p != NULL; p = p->next) {
-        char *pattern = (char *)p->data;
+        IgnorePattern *pattern = p->data;
 
-        ignore_spec = g_pattern_spec_new(pattern);
-        if (g_pattern_match_string(ignore_spec, str)) {
-            g_free (str);
-            g_pattern_spec_free(ignore_spec);
-            return TRUE;
+        if (g_pattern_match_string (pattern->spec, str ? str : fullpath)) {
+            ret = TRUE;
+            break;
         }
-        g_pattern_spec_free(ignore_spec);
     }
 
     g_free (str);
-    return FALSE;
+    return ret;
 }
 
 /*
@@ -8825,13 +8845,8 @@ seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath)
  */
 void seaf_repo_free_ignore_files (GList *ignore_list)
 {
-    GList *p;
-
     if (ignore_list == NULL)
         return;
 
-    for (p = ignore_list; p != NULL; p = p->next)
-        free(p->data);
-
-    g_list_free (ignore_list);
+    g_list_free_full (ignore_list, (GDestroyNotify)ignore_pattern_free);
 }
