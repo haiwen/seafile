@@ -8134,8 +8134,9 @@ get_server_cb (sqlite3_stmt *stmt, void *vdata)
     gboolean *has_server = vdata;
     const char *column_server = (const char *)sqlite3_column_text (stmt, 1);
     
-    if (g_strcmp0 (column_server , "server") == 0) {
+    if (g_strcmp0 (column_server, "server") == 0) {
         *has_server = TRUE;
+        return FALSE;
     }
     
     return TRUE;
@@ -8250,7 +8251,7 @@ open_db (SeafRepoManager *manager, const char *seaf_dir)
     sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS FileSyncError ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT, repo_id TEXT, repo_name TEXT, "
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, server TEXT, repo_id TEXT, repo_name TEXT, "
         "path TEXT, err_id INTEGER, timestamp INTEGER);";
     sqlite_query_exec (db, sql, 0);
 
