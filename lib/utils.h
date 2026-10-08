@@ -97,6 +97,12 @@ win32_83_path_to_long_path (const char *worktree, const wchar_t *path, int path_
 
 __time64_t
 file_time_to_unix_time (FILETIME *ftime);
+
+/* Delete a file, clearing the read-only attribute first if that is what
+ * blocks the deletion. Returns TRUE on success.
+ */
+gboolean
+win32_delete_file (const wchar_t *wpath);
 #endif
 
 int

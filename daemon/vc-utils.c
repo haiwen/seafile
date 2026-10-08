@@ -229,7 +229,7 @@ remove_hidden_file (wchar_t *parent, WIN32_FIND_DATAW *fdata,
         wcscat (subpath_w, L"\\");
         wcscat (subpath_w, fdata->cFileName);
 
-        if (!DeleteFileW (subpath_w)) {
+        if (!win32_delete_file (subpath_w)) {
             subpath = g_utf16_to_utf8 (subpath_w, -1, NULL, NULL, NULL);
             seaf_warning ("Failed to remove file %s: %lu.\n", subpath, GetLastError());
             g_free (subpath);

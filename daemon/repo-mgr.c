@@ -6217,7 +6217,7 @@ delete_worktree_dir_recursive_win32 (struct index_state *istate,
                 }
             }
 
-            if (!DeleteFileW (sub_path_w)) {
+            if (!win32_delete_file (sub_path_w)) {
                 error = GetLastError();
                 seaf_warning ("Failed to delete file %s: %lu.\n",
                               sub_path, error);
