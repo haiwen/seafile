@@ -54,6 +54,10 @@ int cevent_manager_start (CEventManager *manager)
 
     manager->event = event_new (seaf->ev_base, manager->pipefd[0],
                EV_READ | EV_PERSIST, pipe_callback, manager);
+    if (manager->event == NULL) {
+        return -1;
+    }
+    
     event_add (manager->event, NULL);
 
     return 0;
