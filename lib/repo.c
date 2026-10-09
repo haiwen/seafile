@@ -161,6 +161,7 @@ typedef struct _SeafileFileSyncErrorPrivate SeafileFileSyncErrorPrivate;
 enum  {
 	SEAFILE_FILE_SYNC_ERROR_0_PROPERTY,
 	SEAFILE_FILE_SYNC_ERROR_ID_PROPERTY,
+	SEAFILE_FILE_SYNC_ERROR_SERVER_PROPERTY,
 	SEAFILE_FILE_SYNC_ERROR_REPO_ID_PROPERTY,
 	SEAFILE_FILE_SYNC_ERROR_REPO_NAME_PROPERTY,
 	SEAFILE_FILE_SYNC_ERROR_PATH_PROPERTY,
@@ -293,6 +294,7 @@ struct _SeafileFileSyncErrorClass {
 
 struct _SeafileFileSyncErrorPrivate {
 	gint _id;
+	gchar* _server;
 	gchar* _repo_id;
 	gchar* _repo_name;
 	gchar* _path;
@@ -546,6 +548,9 @@ VALA_EXTERN SeafileFileSyncError* seafile_file_sync_error_construct (GType objec
 VALA_EXTERN gint seafile_file_sync_error_get_id (SeafileFileSyncError* self);
 VALA_EXTERN void seafile_file_sync_error_set_id (SeafileFileSyncError* self,
                                      gint value);
+VALA_EXTERN const gchar* seafile_file_sync_error_get_server (SeafileFileSyncError* self);
+VALA_EXTERN void seafile_file_sync_error_set_server (SeafileFileSyncError* self,
+                                         const gchar* value);
 VALA_EXTERN const gchar* seafile_file_sync_error_get_repo_id (SeafileFileSyncError* self);
 VALA_EXTERN void seafile_file_sync_error_set_repo_id (SeafileFileSyncError* self,
                                           const gchar* value);
@@ -2786,6 +2791,33 @@ seafile_file_sync_error_set_id (SeafileFileSyncError* self,
 }
 
 const gchar*
+seafile_file_sync_error_get_server (SeafileFileSyncError* self)
+{
+	const gchar* result;
+	const gchar* _tmp0_;
+	g_return_val_if_fail (self != NULL, NULL);
+	_tmp0_ = self->priv->_server;
+	result = _tmp0_;
+	return result;
+}
+
+void
+seafile_file_sync_error_set_server (SeafileFileSyncError* self,
+                                    const gchar* value)
+{
+	gchar* old_value;
+	g_return_if_fail (self != NULL);
+	old_value = seafile_file_sync_error_get_server (self);
+	if (g_strcmp0 (value, old_value) != 0) {
+		gchar* _tmp0_;
+		_tmp0_ = g_strdup (value);
+		_g_free0 (self->priv->_server);
+		self->priv->_server = _tmp0_;
+		g_object_notify_by_pspec ((GObject *) self, seafile_file_sync_error_properties[SEAFILE_FILE_SYNC_ERROR_SERVER_PROPERTY]);
+	}
+}
+
+const gchar*
 seafile_file_sync_error_get_repo_id (SeafileFileSyncError* self)
 {
 	const gchar* result;
@@ -2920,6 +2952,7 @@ seafile_file_sync_error_class_init (SeafileFileSyncErrorClass * klass,
 	G_OBJECT_CLASS (klass)->set_property = _vala_seafile_file_sync_error_set_property;
 	G_OBJECT_CLASS (klass)->finalize = seafile_file_sync_error_finalize;
 	g_object_class_install_property (G_OBJECT_CLASS (klass), SEAFILE_FILE_SYNC_ERROR_ID_PROPERTY, seafile_file_sync_error_properties[SEAFILE_FILE_SYNC_ERROR_ID_PROPERTY] = g_param_spec_int ("id", "id", "id", G_MININT, G_MAXINT, 0, G_PARAM_STATIC_STRINGS | G_PARAM_READABLE | G_PARAM_WRITABLE));
+	g_object_class_install_property (G_OBJECT_CLASS (klass), SEAFILE_FILE_SYNC_ERROR_SERVER_PROPERTY, seafile_file_sync_error_properties[SEAFILE_FILE_SYNC_ERROR_SERVER_PROPERTY] = g_param_spec_string ("server", "server", "server", NULL, G_PARAM_STATIC_STRINGS | G_PARAM_READABLE | G_PARAM_WRITABLE));
 	g_object_class_install_property (G_OBJECT_CLASS (klass), SEAFILE_FILE_SYNC_ERROR_REPO_ID_PROPERTY, seafile_file_sync_error_properties[SEAFILE_FILE_SYNC_ERROR_REPO_ID_PROPERTY] = g_param_spec_string ("repo-id", "repo-id", "repo-id", NULL, G_PARAM_STATIC_STRINGS | G_PARAM_READABLE | G_PARAM_WRITABLE));
 	g_object_class_install_property (G_OBJECT_CLASS (klass), SEAFILE_FILE_SYNC_ERROR_REPO_NAME_PROPERTY, seafile_file_sync_error_properties[SEAFILE_FILE_SYNC_ERROR_REPO_NAME_PROPERTY] = g_param_spec_string ("repo-name", "repo-name", "repo-name", NULL, G_PARAM_STATIC_STRINGS | G_PARAM_READABLE | G_PARAM_WRITABLE));
 	g_object_class_install_property (G_OBJECT_CLASS (klass), SEAFILE_FILE_SYNC_ERROR_PATH_PROPERTY, seafile_file_sync_error_properties[SEAFILE_FILE_SYNC_ERROR_PATH_PROPERTY] = g_param_spec_string ("path", "path", "path", NULL, G_PARAM_STATIC_STRINGS | G_PARAM_READABLE | G_PARAM_WRITABLE));
@@ -2939,6 +2972,7 @@ seafile_file_sync_error_finalize (GObject * obj)
 {
 	SeafileFileSyncError * self;
 	self = G_TYPE_CHECK_INSTANCE_CAST (obj, SEAFILE_TYPE_FILE_SYNC_ERROR, SeafileFileSyncError);
+	_g_free0 (self->priv->_server);
 	_g_free0 (self->priv->_repo_id);
 	_g_free0 (self->priv->_repo_name);
 	_g_free0 (self->priv->_path);
@@ -2979,6 +3013,9 @@ _vala_seafile_file_sync_error_get_property (GObject * object,
 		case SEAFILE_FILE_SYNC_ERROR_ID_PROPERTY:
 		g_value_set_int (value, seafile_file_sync_error_get_id (self));
 		break;
+		case SEAFILE_FILE_SYNC_ERROR_SERVER_PROPERTY:
+		g_value_set_string (value, seafile_file_sync_error_get_server (self));
+		break;
 		case SEAFILE_FILE_SYNC_ERROR_REPO_ID_PROPERTY:
 		g_value_set_string (value, seafile_file_sync_error_get_repo_id (self));
 		break;
@@ -3011,6 +3048,9 @@ _vala_seafile_file_sync_error_set_property (GObject * object,
 	switch (property_id) {
 		case SEAFILE_FILE_SYNC_ERROR_ID_PROPERTY:
 		seafile_file_sync_error_set_id (self, g_value_get_int (value));
+		break;
+		case SEAFILE_FILE_SYNC_ERROR_SERVER_PROPERTY:
+		seafile_file_sync_error_set_server (self, g_value_get_string (value));
 		break;
 		case SEAFILE_FILE_SYNC_ERROR_REPO_ID_PROPERTY:
 		seafile_file_sync_error_set_repo_id (self, g_value_get_string (value));

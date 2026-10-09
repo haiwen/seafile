@@ -905,6 +905,13 @@ seaf_repo_manager_record_sync_error (const char *repo_id,
                                      int error_id)
 {
     int ret;
+    SeafRepo *repo = NULL;
+    const char *server = NULL;
+
+    repo = seaf_repo_manager_get_repo (seaf->repo_mgr, repo_id);
+    if (repo) {
+        server = repo->server_url;
+    }
 
     pthread_mutex_lock (&seaf->repo_mgr->priv->db_lock);
 
@@ -925,17 +932,17 @@ seaf_repo_manager_record_sync_error (const char *repo_id,
     if (path != NULL)
         ret = sqlite_query_exec (seaf->repo_mgr->priv->db,
                                  "INSERT INTO FileSyncError "
-                                 "(repo_id, repo_name, path, err_id, timestamp) "
-                                 "VALUES (?, ?, ?, ?, ?)",
-                                 5, "string", repo_id, "string", repo_name,
+                                 "(server, repo_id, repo_name, path, err_id, timestamp) "
+                                 "VALUES (?, ?, ?, ?, ?, ?)",
+                                 6, "string", server, "string", repo_id, "string", repo_name,
                                  "string", path, "int", error_id,
                                  "int64", (gint64)time(NULL));
     else
         ret = sqlite_query_exec (seaf->repo_mgr->priv->db,
                                  "INSERT INTO FileSyncError "
-                                 "(repo_id, repo_name, err_id, timestamp) "
-                                 "VALUES (?, ?, ?, ?)",
-                                 4, "string", repo_id, "string", repo_name,
+                                 "(server, repo_id, repo_name, err_id, timestamp) "
+                                 "VALUES (?, ?, ?, ?, ?)",
+                                 5, "string", server, "string", repo_id, "string", repo_name,
                                  "int", error_id, "int64", (gint64)time(NULL));
 
 out:
@@ -947,7 +954,7 @@ static gboolean
 collect_file_sync_errors (sqlite3_stmt *stmt, void *data)
 {
     GList **pret = data;
-    const char *repo_id, *repo_name, *path;
+    const char *server, *repo_id, *repo_name, *path;
     int id, err_id;
     gint64 timestamp;
     SeafileFileSyncError *error;
@@ -958,9 +965,11 @@ collect_file_sync_errors (sqlite3_stmt *stmt, void *data)
     path = (const char *)sqlite3_column_text (stmt, 3);
     err_id = sqlite3_column_int (stmt, 4);
     timestamp = sqlite3_column_int64 (stmt, 5);
+    server = (const char *)sqlite3_column_text (stmt, 6);
 
     error = g_object_new (SEAFILE_TYPE_FILE_SYNC_ERROR,
                           "id", id,
+                          "server", server,
                           "repo_id", repo_id,
                           "repo_name", repo_name,
                           "path", path,
@@ -994,7 +1003,7 @@ seaf_repo_manager_get_file_sync_errors (SeafRepoManager *mgr, int offset, int li
     pthread_mutex_lock (&mgr->priv->db_lock);
 
     sqlite_foreach_selected_row (mgr->priv->db,
-                                 "SELECT id, repo_id, repo_name, path, err_id, timestamp FROM "
+                                 "SELECT id, repo_id, repo_name, path, err_id, timestamp, server FROM "
                                  "FileSyncError ORDER BY id DESC LIMIT ? OFFSET ?",
                                  collect_file_sync_errors, &ret,
                                  2, "int", limit, "int", offset);
@@ -8119,6 +8128,36 @@ load_repo (SeafRepoManager *manager, const char *repo_id)
     return repo;
 }
 
+static gboolean
+get_server_cb (sqlite3_stmt *stmt, void *vdata)
+{
+    gboolean *has_server = vdata;
+    const char *column_server = (const char *)sqlite3_column_text (stmt, 1);
+    
+    if (g_strcmp0 (column_server, "server") == 0) {
+        *has_server = TRUE;
+        return FALSE;
+    }
+    
+    return TRUE;
+}
+
+static int
+file_sync_error_add_server (sqlite3 *db)
+{
+    int ret = 0;
+    gboolean has_server = FALSE;
+    const char *sql = "PRAGMA table_info(FileSyncError);";
+    sqlite_foreach_selected_row (db, sql, get_server_cb, &has_server, 0);
+    
+    sql = "ALTER TABLE FileSyncError ADD COLUMN server TEXT";
+    if (!has_server && sqlite_query_exec (db, sql, 0) < 0) {
+        ret = -1;
+    }
+    
+    return ret;
+}
+
 static sqlite3*
 open_db (SeafRepoManager *manager, const char *seaf_dir)
 {
@@ -8212,9 +8251,11 @@ open_db (SeafRepoManager *manager, const char *seaf_dir)
     sqlite_query_exec (db, sql, 0);
 
     sql = "CREATE TABLE IF NOT EXISTS FileSyncError ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT, repo_id TEXT, repo_name TEXT, "
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, server TEXT, repo_id TEXT, repo_name TEXT, "
         "path TEXT, err_id INTEGER, timestamp INTEGER);";
     sqlite_query_exec (db, sql, 0);
+
+    file_sync_error_add_server (db);
 
     sql = "CREATE INDEX IF NOT EXISTS FileSyncErrorIndex ON FileSyncError (repo_id, path)";
     sqlite_query_exec (db, sql, 0);
