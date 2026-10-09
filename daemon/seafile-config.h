@@ -24,6 +24,7 @@
 #define KEY_DISABLE_BLOCK_HASH "disable_block_hash"
 #define KEY_HIDE_WINDOWS_INCOMPATIBLE_PATH_NOTIFICATION "hide_windows_incompatible_path_notification"
 #define KEY_IGNORE_SYMLINKS "ignore_symlinks"
+#define KEY_PRESERVE_SYMLINKS "preserve_symlinks"
 
 /* Http sync settings. */
 #define KEY_ENABLE_HTTP_SYNC "enable_http_sync"

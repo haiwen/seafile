@@ -26,7 +26,7 @@ valac_gen = ${seafile_object_gen} seafile-object.h
 
 EXTRA_DIST = ${seafile_object_define} rpc_table.py $(pcfiles) vala.stamp
 
-utils_headers = net.h utils.h db.h
+utils_headers = net.h utils.h db.h symlink.h
 
 utils_srcs = $(utils_headers:.h=.c)
 

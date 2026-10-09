@@ -14,6 +14,7 @@
 #include "seafile-session.h"
 #include "seafile-error.h"
 #include "utils.h"
+#include "symlink.h"
 #include "wt-monitor.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_WATCH
 #include "log.h"
@@ -552,7 +553,7 @@ add_watch_recursive (RepoWatchInfo *info,
 
     full_path = g_build_filename (worktree, path, NULL);
 
-    if (stat (full_path, &st) < 0) {
+    if (seaf_symlink_stat (full_path, &st, path[0] != 0 && seaf->preserve_symlinks) < 0) {
         seaf_warning ("[wt mon] fail to stat %s: %s\n", full_path, strerror(errno));
         goto out;
     }
