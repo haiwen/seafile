@@ -235,7 +235,7 @@ class Libsearpc(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
-            'devenv  "%s/libsearpc.sln" /Rebuild "Release|x64"' %(self.projdir),
+            'MSBuild.exe "%s/libsearpc.sln" /t:Build /p:Configuration=Release /p:Platform=x64' %(self.projdir),
         ]
 
     def after_build(self):
@@ -248,8 +248,8 @@ class Seafile(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
-            'devenv %s/seafile.sln /Rebuild "Release|x64"' %(self.projdir),
-            'devenv %s/msi/custom/seafile_custom.sln /Rebuild "Release|x64"' %(self.projdir),
+            'MSBuild.exe "%s/seafile.sln" /t:Build /p:Configuration=Release /p:Platform=x64' %(self.projdir),
+            'MSBuild.exe "%s/msi/custom/seafile_custom.sln" /t:Build /p:Configuration=Release /p:Platform=x64' %(self.projdir),
         ]
 
     def before_build(self):
@@ -281,7 +281,7 @@ class SeafileGUI(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
-            'devenv %s/seafile-client.sln /Rebuild "Release|x64"' %(self.projdir) ,
+            'MSBuild.exe "%s/seafile-client.sln" /t:Build /p:Configuration=Release /p:Platform=x64' %(self.projdir) ,
         ]
 
     def before_build(self):
@@ -336,8 +336,8 @@ class SeafileShellExt(Project):
     def __init__(self):
         Project.__init__(self)
         self.build_commands = [
-            'devenv %s/windows/extensions/seafile_ext.sln /Rebuild "Release|x64"' %(self.projdir),
-            'devenv %s/shellext-fix/shellext-fix.sln /Rebuild "Release|x64"' %(self.projdir),
+            'MSBuild.exe "%s/windows/extensions/seafile_ext.sln" /t:Build /p:Configuration=Release /p:Platform=x64' %(self.projdir),
+            'MSBuild.exe "%s/shellext-fix/shellext-fix.sln" /t:Build /p:Configuration=Release /p:Platform=x64' %(self.projdir),
         ]
     def before_build(self):
         pass
