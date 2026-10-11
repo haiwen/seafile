@@ -13,6 +13,7 @@ AM_CFLAGS = -DPKGDATADIR=\"$(pkgdatadir)\" \
 	@CURL_CFLAGS@ \
 	@BPWRAPPER_CFLAGS@ \
 	@GNUTLS_CFLAGS@ \
+	@WS_CFLAGS@ \
 	-Wall
 
 if MACOS
