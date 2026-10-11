@@ -1,5 +1,14 @@
 /* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 
+#ifdef WIN32
+/* GetFileInformationByHandleEx(FileIdInfo) needs a Windows 8 API floor. Must be
+ * set before any Windows header is pulled in, including via utils.h.
+ */
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x0602
+#endif
+#endif
+
 #include "common.h"
 #include <glib/gstdio.h>
 
@@ -1793,6 +1802,12 @@ typedef struct AddParams {
     gint64 *total_size;
     GQueue **remain_files;
     AddOptions *options;
+#ifdef WIN32
+    /* Identities of the directories on the current recursion path, used to
+     * detect symlinks and junctions that resolve back into their own ancestry.
+     */
+    GArray *ancestors;
+#endif
 } AddParams;
 
 #ifndef WIN32
@@ -1866,15 +1881,20 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
 
         if (ignored || should_ignore(full_path, dname, params->ignore_list)) {
             if (options && options->startup_scan) {
-                if (S_ISDIR(sub_st.st_mode))
-                    add_dir_recursive (subpath, full_subpath, &sub_st, params, TRUE);
-                else
-                    seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                                          params->repo_id,
-                                                          subpath,
-                                                          S_IFREG,
-                                                          SYNC_STATUS_IGNORED,
-                                                          TRUE);
+                /* Mark the ignored entry itself and stop. Descending would walk
+                 * the whole subtree only to record a status for every file in
+                 * it, and an ignored tree can be arbitrarily large -
+                 * node_modules and build output are the common cases. Nothing
+                 * under here is ever indexed or uploaded, so the walk buys
+                 * nothing but memory.
+                 */
+                seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                      params->repo_id,
+                                                      subpath,
+                                                      S_ISDIR(sub_st.st_mode) ?
+                                                      S_IFDIR : S_IFREG,
+                                                      SYNC_STATUS_IGNORED,
+                                                      TRUE);
             }
             g_free (subpath);
             g_free (full_subpath);
@@ -2058,6 +2078,78 @@ is_empty_dir (const char *path, GList *ignore_list)
 
 #else
 
+/* A directory's identity on disk. The volume serial is part of the key because
+ * file IDs are only unique within a volume.
+ */
+typedef struct DirIdentity {
+    ULONGLONG volume_serial;
+    FILE_ID_128 file_id;
+} DirIdentity;
+
+/* Read the identity of the directory the path resolves to. Reparse points are
+ * deliberately followed: a cycle is visible precisely because the link's target
+ * is a directory already on the recursion path.
+ */
+static gboolean
+get_dir_identity (const char *full_path, DirIdentity *identity)
+{
+    wchar_t *full_path_w;
+    HANDLE handle;
+    FILE_ID_INFO id_info;
+    gboolean ret = FALSE;
+
+    full_path_w = win32_long_path (full_path);
+    if (!full_path_w)
+        return FALSE;
+
+    handle = CreateFileW (full_path_w,
+                          0, /* Querying metadata needs no access rights. */
+                          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                          NULL,
+                          OPEN_EXISTING,
+                          FILE_FLAG_BACKUP_SEMANTICS, /* Required to open a dir. */
+                          NULL);
+    if (handle == INVALID_HANDLE_VALUE) {
+        seaf_debug ("Failed to open %s to check for a symlink cycle: %lu.\n",
+                    full_path, GetLastError());
+        goto out;
+    }
+
+    if (!GetFileInformationByHandleEx (handle, FileIdInfo,
+                                       &id_info, sizeof(id_info))) {
+        seaf_debug ("Failed to get file id of %s: %lu.\n",
+                    full_path, GetLastError());
+        goto out;
+    }
+
+    identity->volume_serial = id_info.VolumeSerialNumber;
+    identity->file_id = id_info.FileId;
+    ret = TRUE;
+
+out:
+    if (handle != INVALID_HANDLE_VALUE)
+        CloseHandle (handle);
+    g_free (full_path_w);
+    return ret;
+}
+
+static gboolean
+is_ancestor (GArray *ancestors, const DirIdentity *identity)
+{
+    guint i;
+
+    for (i = 0; i < ancestors->len; ++i) {
+        DirIdentity *ancestor = &g_array_index (ancestors, DirIdentity, i);
+
+        if (ancestor->volume_serial == identity->volume_serial &&
+            memcmp (ancestor->file_id.Identifier, identity->file_id.Identifier,
+                    sizeof(identity->file_id.Identifier)) == 0)
+            return TRUE;
+    }
+
+    return FALSE;
+}
+
 typedef struct IterCBData {
     AddParams *add_params;
     const char *parent;
@@ -2095,18 +2187,46 @@ iter_dir_cb (wchar_t *full_parent_w,
 
     seaf_stat_from_find_data (fdata, &st);
 
+    /* A reparse point that resolves to a directory already on the recursion
+     * path is a cycle. Skip it, but keep enumerating its siblings. The check is
+     * gated on the reparse bit so plain directories cost nothing.
+     */
+    if ((fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
+        (fdata->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)) {
+        DirIdentity identity;
+
+        if (!get_dir_identity (full_path, &identity)) {
+            /* Most often a dangling link, which has nothing behind it to index.
+             * Never assume a cycle here: wrongly skipping a whole subtree would
+             * silently drop real content.
+             */
+            goto out;
+        }
+
+        if (is_ancestor (params->ancestors, &identity)) {
+            seaf_debug ("Skipping %s: symlink cycle back into its own path.\n",
+                        full_path);
+            goto out;
+        }
+    }
+
     if (data->ignored ||
         should_ignore(data->full_parent, dname, params->ignore_list)) {
         if (options && options->startup_scan) {
-            if (fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
-                add_dir_recursive (path, full_path, &st, params, TRUE);
-            else
-                seaf_sync_manager_update_active_path (seaf->sync_mgr,
-                                                      params->repo_id,
-                                                      path,
-                                                      S_IFREG,
-                                                      SYNC_STATUS_IGNORED,
-                                                      TRUE);
+            /* Mark the ignored entry itself and stop. Descending would walk the
+             * whole subtree only to record a status for every file in it, and
+             * an ignored tree can be arbitrarily large - node_modules and build
+             * output are the common cases. Nothing under here is ever indexed
+             * or uploaded, so the walk buys nothing but memory.
+             */
+            seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                  params->repo_id,
+                                                  path,
+                                                  (fdata->dwFileAttributes &
+                                                   FILE_ATTRIBUTE_DIRECTORY) ?
+                                                  S_IFDIR : S_IFREG,
+                                                  SYNC_STATUS_IGNORED,
+                                                  TRUE);
         }
         goto out;
     }
@@ -2145,6 +2265,8 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     wchar_t *full_path_w;
     int ret = 0;
     gboolean is_writable = TRUE;
+    DirIdentity identity;
+    gboolean pushed = TRUE;
 
     memset (&data, 0, sizeof(data));
     data.add_params = params;
@@ -2152,9 +2274,21 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     data.full_parent = full_path;
     data.ignored = ignored;
 
+    /* Keep the ancestor stack holding exactly the current root-to-here path,
+     * so iter_dir_cb can tell a cycle from a link that merely repeats
+     * elsewhere in the tree.
+     */
+    if (get_dir_identity (full_path, &identity))
+        g_array_append_val (params->ancestors, identity);
+    else
+        pushed = FALSE;
+
     full_path_w = win32_long_path (full_path);
     ret = traverse_directory_win32 (full_path_w, iter_dir_cb, &data);
     g_free (full_path_w);
+
+    if (pushed)
+        g_array_remove_index (params->ancestors, params->ancestors->len - 1);
 
     /* Ignore traverse dir error. */
     if (ret < 0) {
@@ -2290,9 +2424,12 @@ add_recursive (const char *repo_id,
             .total_size = total_size,
             .remain_files = remain_files,
             .options = options,
+            .ancestors = g_array_new (FALSE, FALSE, sizeof(DirIdentity)),
         };
 
         ret = add_dir_recursive (path, full_path, &st, &params, FALSE);
+
+        g_array_free (params.ancestors, TRUE);
     }
 
     g_free (full_path);
@@ -3332,7 +3469,20 @@ update_active_path_cb (wchar_t *full_parent_w,
 
     seaf_stat_from_find_data (fdata, &st);
 
-    if (fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+    if (ignored) {
+        /* Mark the entry and stop, rather than descending to record a status
+         * for every file in a subtree that is never synced. Matches how the
+         * startup scan in iter_dir_cb handles an ignored entry.
+         */
+        seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                              upd_data->repo->id,
+                                              path,
+                                              (fdata->dwFileAttributes &
+                                               FILE_ATTRIBUTE_DIRECTORY) ?
+                                              S_IFDIR : S_IFREG,
+                                              SYNC_STATUS_IGNORED,
+                                              TRUE);
+    } else if (fdata->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
         update_active_path_recursive (upd_data->repo,
                                       path,
                                       upd_data->istate,
@@ -3468,7 +3618,18 @@ update_active_path_recursive (SeafRepo *repo,
             continue;
         }
 
-        if (S_ISDIR(st.st_mode)) {
+        if (ignore_sub) {
+            /* Mark the entry and stop, rather than descending to record a
+             * status for every file in a subtree that is never synced.
+             */
+            seaf_sync_manager_update_active_path (seaf->sync_mgr,
+                                                  repo->id,
+                                                  sub_path,
+                                                  S_ISDIR(st.st_mode) ?
+                                                  S_IFDIR : S_IFREG,
+                                                  SYNC_STATUS_IGNORED,
+                                                  TRUE);
+        } else if (S_ISDIR(st.st_mode)) {
             update_active_path_recursive (repo, sub_path, istate, ignore_list,
                                           ignore_sub);
         } else if (S_ISREG(st.st_mode)) {
@@ -8782,6 +8943,22 @@ seaf_repo_manager_server_is_pro (SeafRepoManager *mgr,
     return ret;
 }
 
+/* A pattern from the ignore file, compiled once at load time rather than on
+ * every path tested against it.
+ */
+typedef struct IgnorePattern {
+    GPatternSpec *spec;
+} IgnorePattern;
+
+static void
+ignore_pattern_free (IgnorePattern *pattern)
+{
+    if (!pattern)
+        return;
+    g_pattern_spec_free (pattern->spec);
+    g_free (pattern);
+}
+
 /*
  * Read ignored files from ignore.txt
  */
@@ -8790,8 +8967,9 @@ GList *seaf_repo_load_ignore_files (const char *worktree)
     GList *list = NULL;
     SeafStat st;
     FILE *fp;
-    char *full_path, *pattern;
+    char *full_path, *pattern_str;
     char path[SEAF_PATH_MAX];
+    IgnorePattern *pattern;
 
     full_path = g_build_path (PATH_SEPERATOR, worktree,
                               IGNORE_FILE, NULL);
@@ -8813,9 +8991,13 @@ GList *seaf_repo_load_ignore_files (const char *worktree)
 
         /* Change 'foo/' to 'foo/ *'. */
         if (path[strlen(path)-1] == '/')
-            pattern = g_strdup_printf("%s/%s*", worktree, path);
+            pattern_str = g_strdup_printf("%s/%s*", worktree, path);
         else
-            pattern = g_strdup_printf("%s/%s", worktree, path);
+            pattern_str = g_strdup_printf("%s/%s", worktree, path);
+
+        pattern = g_new0 (IgnorePattern, 1);
+        pattern->spec = g_pattern_spec_new (pattern_str);
+        g_free (pattern_str);
 
         list = g_list_prepend(list, pattern);
     }
@@ -8832,33 +9014,32 @@ error:
 gboolean
 seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath)
 {
-    char *str;
+    char *str = NULL;
     SeafStat st;
-    GPatternSpec *ignore_spec;
     GList *p;
+    gboolean ret = FALSE;
 
-    str = g_strdup(fullpath);
+    if (!ignore_list)
+        return FALSE;
 
-    int rc = seaf_stat(str, &st);
-    if (rc == 0 && S_ISDIR(st.st_mode)) {
-        g_free (str);
+    /* A directory is matched with a trailing slash, so that a 'foo/' rule -
+     * stored as 'foo/*' - matches the directory itself and not just its
+     * contents.
+     */
+    if (seaf_stat (fullpath, &st) == 0 && S_ISDIR(st.st_mode))
         str = g_strconcat (fullpath, "/", NULL);
-    }
 
     for (p = ignore_list; p != NULL; p = p->next) {
-        char *pattern = (char *)p->data;
+        IgnorePattern *pattern = p->data;
 
-        ignore_spec = g_pattern_spec_new(pattern);
-        if (g_pattern_match_string(ignore_spec, str)) {
-            g_free (str);
-            g_pattern_spec_free(ignore_spec);
-            return TRUE;
+        if (g_pattern_match_string (pattern->spec, str ? str : fullpath)) {
+            ret = TRUE;
+            break;
         }
-        g_pattern_spec_free(ignore_spec);
     }
 
     g_free (str);
-    return FALSE;
+    return ret;
 }
 
 /*
@@ -8866,13 +9047,8 @@ seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath)
  */
 void seaf_repo_free_ignore_files (GList *ignore_list)
 {
-    GList *p;
-
     if (ignore_list == NULL)
         return;
 
-    for (p = ignore_list; p != NULL; p = p->next)
-        free(p->data);
-
-    g_list_free (ignore_list);
+    g_list_free_full (ignore_list, (GDestroyNotify)ignore_pattern_free);
 }
