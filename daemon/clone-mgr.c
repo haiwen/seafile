@@ -929,6 +929,27 @@ out:
     return ret;
 }
 
+#ifdef WIN32
+static gboolean
+is_drive_root (const char *path)
+{
+    if (!path)
+        return FALSE;
+
+    if (!g_ascii_isalpha (path[0]) || path[1] != ':')
+        return FALSE;
+
+    const char *p = path + 2;
+    while (*p != '\0') {
+        if (!is_separator (*p))
+            return FALSE;
+        p++;
+    }
+
+    return TRUE;
+}
+#endif
+
 gboolean
 seaf_clone_manager_check_worktree_path (SeafCloneManager *mgr, const char *path, GError **error)
 {
@@ -937,6 +958,14 @@ seaf_clone_manager_check_worktree_path (SeafCloneManager *mgr, const char *path,
     GHashTableIter iter;
     gpointer key, value;
     CloneTask *task;
+
+#ifdef WIN32
+    if (is_drive_root (path)) {
+        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
+                     "Worktree cannot be drive root directory");
+        return FALSE;
+    }
+#endif
 
     if (check_dir_inclusiveness (path, seaf->seaf_dir) != 0 ||
         /* It's OK if path is included by the default worktree parent. */
@@ -1130,27 +1159,6 @@ is_wt_repo_name_same (const char *worktree, const char *repo_name)
     return ret;
 }
 
-#ifdef WIN32
-static gboolean
-is_drive_root (const char *path)
-{
-    if (!path)
-        return FALSE;
-
-    if (!g_ascii_isalpha (path[0]) || path[1] != ':')
-        return FALSE;
-
-    const char *p = path + 2;
-    while (*p != '\0') {
-        if (!is_separator (*p))
-            return FALSE;
-        p++;
-    }
-
-    return TRUE;
-}
-#endif
-
 char *
 seaf_clone_manager_add_task (SeafCloneManager *mgr, 
                              const char *repo_id,
@@ -1261,14 +1269,6 @@ seaf_clone_manager_add_task (SeafCloneManager *mgr,
                      "Incorrect password");
         goto out;
     }
-
-#ifdef WIN32
-    if (is_drive_root (worktree_in)) {
-        g_set_error (error, SEAFILE_DOMAIN, SEAF_ERR_GENERAL,
-                     "Worktree cannot be drive root directory");
-        goto out;
-    }
-#endif
 
     if (!seaf_clone_manager_check_worktree_path (mgr, worktree_in, error))
         goto out;
