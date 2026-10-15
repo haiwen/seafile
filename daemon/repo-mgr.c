@@ -11,6 +11,7 @@
 #include <pthread.h>
 
 #include "utils.h"
+#include "symlink.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_SYNC
 #include "log.h"
 
@@ -1633,6 +1634,8 @@ add_file (const char *repo_id,
     struct cache_entry *ce;
     char *base_name = NULL;
     gboolean record_index_error = TRUE;
+    int index_flags = (seaf->preserve_symlinks && !seaf->disable_block_hash && is_symlink (full_path)) ?
+        ADD_CACHE_CHECK_CONTENT : 0;
 
     if (seaf->ignore_symlinks && is_symlink(full_path)) {
         return ret;
@@ -1707,7 +1710,7 @@ add_file (const char *repo_id,
 
     if (!remain_files) {
         ret = add_to_index (repo_id, version, istate, path, full_path,
-                            st, 0, crypt, index_cb, modifier, &added, &record_index_error);
+                            st, index_flags, crypt, index_cb, modifier, &added, &record_index_error);
         if (!added) {
             /* If the contents of the file doesn't change, move it to
                synced status.
@@ -1735,7 +1738,7 @@ add_file (const char *repo_id,
         }
     } else if (*remain_files == NULL) {
         ret = add_to_index (repo_id, version, istate, path, full_path,
-                            st, 0, crypt, index_cb, modifier, &added, &record_index_error);
+                            st, index_flags, crypt, index_cb, modifier, &added, &record_index_error);
         if (added) {
             *total_size += (gint64)(st->st_size);
             if (*total_size >= MAX_COMMIT_SIZE)
@@ -1772,7 +1775,7 @@ add_file (const char *repo_id,
                                               SYNC_STATUS_ERROR,
                                               TRUE);
         // Only record index error when the file exists.
-        if (seaf_util_exists (full_path) && record_index_error) {
+        if (seaf_worktree_exists (full_path) && record_index_error) {
             send_file_sync_error_notification (repo_id, NULL, path,
                                                SYNC_ERROR_ID_INDEX_ERROR);
         }
@@ -1857,7 +1860,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
 #endif
         full_subpath = g_build_filename (params->worktree, subpath, NULL);
 
-        if (stat (full_subpath, &sub_st) < 0) {
+        if (seaf_worktree_stat (full_subpath, &sub_st) < 0) {
             seaf_warning ("Failed to stat %s: %s.\n", full_subpath, strerror(errno));
             g_free (subpath);
             g_free (full_subpath);
@@ -1979,7 +1982,7 @@ add_recursive (const char *repo_id,
     SeafStat st;
 
     full_path = g_build_path (PATH_SEPERATOR, worktree, path, NULL);
-    if (seaf_stat (full_path, &st) < 0) {
+    if ((path[0] ? seaf_worktree_stat (full_path, &st) : seaf_stat (full_path, &st)) < 0) {
         /* Ignore broken symlinks on Linux and Mac OS X */
         if (lstat (full_path, &st) == 0 && S_ISLNK(st.st_mode)) {
             g_free (full_path);
@@ -2252,7 +2255,7 @@ add_recursive (const char *repo_id,
     int ret = 0;
 
     full_path = g_build_path (PATH_SEPERATOR, worktree, path, NULL);
-    if (seaf_stat (full_path, &st) < 0) {
+    if (seaf_worktree_stat (full_path, &st) < 0) {
         seaf_warning ("Failed to stat %s.\n", full_path);
         g_free (full_path);
         seaf_sync_manager_update_active_path (seaf->sync_mgr,
@@ -2412,8 +2415,19 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
             continue;
 
         snprintf (path, SEAF_PATH_MAX, "%s/%s", worktree, ce->name);
+        /* Switching from preservation to Ignore must not turn dangling links
+         * into outgoing deletions merely because stat cannot find a target. */
+        if (seaf->ignore_symlinks && is_symlink (path))
+            continue;
         not_exist = FALSE;
-        ret = seaf_stat (path, &st);
+        if (seaf_worktree_has_symlink_parent (worktree, ce->name)) {
+            /* Children of what is now a preserved link are no longer part of
+             * this worktree, even if its target still contains those names. */
+            ret = -1;
+            not_exist = TRUE;
+        } else {
+            ret = seaf_worktree_stat (path, &st);
+        }
         if (ret < 0 && errno == ENOENT)
             not_exist = TRUE;
 
@@ -2569,9 +2583,12 @@ add_path_to_index (SeafRepo *repo, struct index_state *istate,
     if (check_full_path_ignore (repo->worktree, path, ignore_list))
         return 0;
 
+    if (seaf_worktree_has_symlink_parent (repo->worktree, path))
+        return 0;
+
     full_path = g_build_filename (repo->worktree, path, NULL);
 
-    if (seaf_stat (full_path, &st) < 0) {
+    if (seaf_worktree_stat (full_path, &st) < 0) {
         if (errno != ENOENT)
             send_file_sync_error_notification (repo->id, repo->name, path,
                                                SYNC_ERROR_ID_INDEX_ERROR);
@@ -2675,7 +2692,7 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
 
     while ((path = g_queue_pop_head (remain_files)) != NULL) {
         full_path = g_build_filename (repo->worktree, path, NULL);
-        if (seaf_stat (full_path, &st) < 0) {
+        if (seaf_worktree_stat (full_path, &st) < 0) {
             seaf_warning ("Failed to stat %s: %s.\n", full_path, strerror(errno));
             g_free (path);
             g_free (full_path);
@@ -2697,8 +2714,10 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
         if (S_ISREG(st.st_mode)) {
             gboolean added = FALSE;
             int ret = 0;
+            int index_flags = (seaf->preserve_symlinks && !seaf->disable_block_hash && is_symlink (full_path)) ?
+                ADD_CACHE_CHECK_CONTENT : 0;
             ret = add_to_index (repo->id, repo->version, istate, path, full_path,
-                                &st, 0, crypt, index_cb, repo->email, &added, &record_index_error);
+                                &st, index_flags, crypt, index_cb, repo->email, &added, &record_index_error);
             if (added) {
                 ce = index_name_exists (istate, path, strlen(path), 0);
                 add_to_changeset (repo->changeset,
@@ -2730,7 +2749,7 @@ add_remain_files (SeafRepo *repo, struct index_state *istate,
                                                       S_IFREG,
                                                       SYNC_STATUS_ERROR,
                                                       TRUE);
-                if (seaf_util_exists (full_path) && record_index_error) {
+                if (seaf_worktree_exists (full_path) && record_index_error) {
                     send_file_sync_error_notification (repo->id, NULL, path,
                                                        SYNC_ERROR_ID_INDEX_ERROR);
                 }
@@ -2775,7 +2794,7 @@ try_add_empty_parent_dir_entry (const char *worktree,
 
     char *full_dir = g_build_filename (worktree, parent_dir, NULL);
     SeafStat st;
-    if (seaf_stat (full_dir, &st) < 0) {
+    if (seaf_worktree_stat (full_dir, &st) < 0) {
         goto out;
     }
 
@@ -2805,7 +2824,7 @@ try_add_empty_parent_dir_entry_from_wt (const char *worktree,
 
     char *full_dir = g_build_filename (worktree, parent_dir, NULL);
     SeafStat st;
-    if (seaf_stat (full_dir, &st) < 0) {
+    if (seaf_worktree_stat (full_dir, &st) < 0) {
         goto out;
     }
 
@@ -2865,7 +2884,7 @@ update_attributes (SeafRepo *repo,
         return;
 
     full_path = g_build_filename (worktree, path, NULL);
-    if (seaf_stat (full_path, &st) < 0) {
+    if (seaf_worktree_stat (full_path, &st) < 0) {
         seaf_warning ("Failed to stat %s: %s.\n", full_path, strerror(errno));
         g_free (full_path);
         return;
@@ -3460,7 +3479,7 @@ update_active_path_recursive (SeafRepo *repo,
             continue;
         }
 
-        if (stat (full_sub_path, &st) < 0) {
+        if (seaf_worktree_stat (full_sub_path, &st) < 0) {
             seaf_warning ("Failed to stat %s: %s.\n", full_sub_path, strerror(errno));
             g_free (dname);
             g_free (sub_path);
@@ -3527,7 +3546,7 @@ process_active_path (SeafRepo *repo, const char *path,
     gboolean ignored = FALSE;
 
     char *fullpath = g_build_filename (repo->worktree, path, NULL);
-    if (seaf_stat (fullpath, &st) < 0) {
+    if (seaf_worktree_stat (fullpath, &st) < 0) {
         g_free (fullpath);
         return;
     }
@@ -4086,7 +4105,7 @@ do_lock_office_file (LockOfficeJob *job)
         return;
 
     fullpath = g_build_path ("/", repo->worktree, job->path, NULL);
-    if (seaf_stat (fullpath, &st) < 0 || !S_ISREG(st.st_mode)) {
+    if (seaf_worktree_stat (fullpath, &st) < 0 || !S_ISREG(st.st_mode)) {
         g_free (fullpath);
         return;
     }
@@ -4127,7 +4146,7 @@ do_unlock_office_file (LockOfficeJob *job)
         return;
 
     fullpath = g_build_path ("/", repo->worktree, job->path, NULL);
-    if (seaf_stat (fullpath, &st) < 0 || !S_ISREG(st.st_mode)) {
+    if (seaf_worktree_stat (fullpath, &st) < 0 || !S_ISREG(st.st_mode)) {
         g_free (fullpath);
         return;
     }
@@ -4379,7 +4398,7 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
                 struct cache_entry *ce = index_name_exists(istate, event->path, strlen(event->path), 0);
                 SeafStat st;
                 if (ce != NULL &&
-                    seaf_stat (fullpath, &st) == 0 &&
+                    seaf_worktree_stat (fullpath, &st) == 0 &&
                     ce->ce_mtime.sec == st.st_mtime &&
                     ce->ce_size == st.st_size) {
                     g_free (fullpath);
@@ -4908,18 +4927,23 @@ checkout_empty_dir (const char *worktree,
     if (!path)
         return FETCH_CHECKOUT_FAILED;
 
-    if (!seaf_util_exists (path) && seaf_util_mkdir (path, 0777) < 0) {
+    if (seaf->preserve_symlinks && is_symlink (path)) {
+        g_free (path);
+        return FETCH_CHECKOUT_FAILED;
+    }
+
+    if (!seaf_worktree_exists (path) && seaf_util_mkdir (path, 0777) < 0) {
         seaf_warning ("Failed to create empty dir %s in checkout.\n", path);
         g_free (path);
         return FETCH_CHECKOUT_FAILED;
     }
 
-    if (mtime != 0 && seaf_set_file_time (path, mtime) < 0) {
+    if (mtime != 0 && seaf_worktree_set_file_time (path, mtime) < 0) {
         seaf_warning ("Failed to set mtime for %s.\n", path);
     }
 
     SeafStat st;
-    seaf_stat (path, &st);
+    seaf_worktree_stat (path, &st);
     fill_stat_cache_info (ce, &st);
 
     g_free (path);
@@ -5313,7 +5337,7 @@ check_and_get_block_offset (SeafRepoManager *mgr, CheckoutBlockAux *aux,
 
     tmp_path = g_strconcat (file_path, SEAF_TMP_EXT, NULL);
 
-    path_exists = (seaf_stat (tmp_path, &st) == 0);
+    path_exists = (seaf_worktree_stat (tmp_path, &st) == 0);
     if (!path_exists) {
         goto out;
     }
@@ -5536,7 +5560,7 @@ checkout_file_http (FileTxData *data,
     /* Only update index if we checked out the file without any error
      * or conflicts. The ctime of the entry will remain 0 if error.
      */
-    seaf_stat (file_task->path, &st);
+    seaf_worktree_stat (file_task->path, &st);
     fill_stat_cache_info (ce, &st);
 
     return FETCH_CHECKOUT_SUCCESS;
@@ -5566,7 +5590,7 @@ fetch_file_thread_func (gpointer data, gpointer user_data)
 
     rawdata_to_hex (de->sha1, file_id, 20);
 
-    path_exists = (seaf_stat (path, &st) == 0);
+    path_exists = (seaf_worktree_stat (path, &st) == 0);
 
     /* seaf_message ("Download file %s for repo %s\n", de->name, repo_id); */
 
@@ -5579,7 +5603,9 @@ fetch_file_thread_func (gpointer data, gpointer user_data)
                                               TRUE);
 
     if (path_exists && S_ISREG(st.st_mode)) {
-        if (st.st_mtime == ce->ce_mtime.sec) {
+        gboolean link_changed = seaf->preserve_symlinks && !seaf->disable_block_hash && is_symlink (path) &&
+            compare_file_content (path, &st, ce->sha1, crypt, repo_version) != 0;
+        if (st.st_mtime == ce->ce_mtime.sec && !link_changed) {
             /* Worktree and index are consistent. */
             if (memcmp (de->sha1, ce->sha1, 20) == 0) {
                 seaf_debug ("wt and index are consistent. no need to checkout.\n");
@@ -5588,14 +5614,15 @@ fetch_file_thread_func (gpointer data, gpointer user_data)
                 /* Update mode if necessary. */
                 if (de->mode != ce->ce_mode) {
 #ifndef WIN32
-                    chmod (path, de->mode & ~S_IFMT);
+                    if (!seaf->preserve_symlinks || !is_symlink (path))
+                        chmod (path, de->mode & ~S_IFMT);
                     ce->ce_mode = de->mode;
 #endif
                 }
 
                 /* Update mtime if necessary. */
                 if (de->mtime != ce->ce_mtime.sec) {
-                    seaf_set_file_time (path, de->mtime);
+                    seaf_worktree_set_file_time (path, de->mtime);
                     ce->ce_mtime.sec = de->mtime;
                 }
 
@@ -6105,9 +6132,12 @@ do_rename_in_worktree (DiffEntry *de, const char *worktree)
     char *old_path, *new_path;
     int ret = 0;
 
+    if (seaf_worktree_has_symlink_parent (worktree, de->name))
+        return -1;
+
     old_path = g_build_filename (worktree, de->name, NULL);
 
-    if (seaf_util_exists (old_path)) {
+    if (seaf_worktree_exists (old_path)) {
         new_path = build_checkout_path (worktree, de->new_name, strlen(de->new_name));
         if (!new_path) {
             ret = -1;
@@ -6287,6 +6317,11 @@ delete_worktree_dir_recursive (struct index_state *istate,
     int ret = 0;
     gboolean builtin_ignored = FALSE;
 
+    /* A directory can have been replaced locally by a preserved link. Let
+     * the caller move it to the recycle bin instead of traversing its target. */
+    if (seaf->preserve_symlinks && is_symlink (full_path))
+        return -1;
+
     dir = g_dir_open (full_path, 0, &error);
     if (!dir) {
         seaf_warning ("Failed to open dir %s: %s.\n", full_path, error->message);
@@ -6405,6 +6440,8 @@ delete_worktree_dir (const char *repo_id,
                      const char *worktree,
                      const char *path)
 {
+    if (seaf_worktree_has_symlink_parent (worktree, path))
+        return;
     char *full_path = g_build_path ("/", worktree, path, NULL);
 
 #ifdef WIN32
@@ -7320,7 +7357,7 @@ check_repo_corrupted_blocks (SeafRepo *repo)
 
         snprintf (path, SEAF_PATH_MAX, "%s/%s", repo->worktree, ce->name);
         not_exist = FALSE;
-        int rc = seaf_stat (path, &st);
+        int rc = seaf_worktree_stat (path, &st);
         if (rc < 0 && errno == ENOENT) {
             not_exist = TRUE;
         } else if (rc == 0 && st.st_size == 0) {
@@ -8795,7 +8832,9 @@ GList *seaf_repo_load_ignore_files (const char *worktree)
 
     full_path = g_build_path (PATH_SEPERATOR, worktree,
                               IGNORE_FILE, NULL);
-    if (seaf_stat (full_path, &st) < 0)
+    if (seaf->preserve_symlinks && is_symlink (full_path))
+        goto error;
+    if (seaf_worktree_stat (full_path, &st) < 0)
         goto error;
     if (!S_ISREG(st.st_mode))
         goto error;
@@ -8839,7 +8878,7 @@ seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath)
 
     str = g_strdup(fullpath);
 
-    int rc = seaf_stat(str, &st);
+    int rc = seaf_worktree_stat(str, &st);
     if (rc == 0 && S_ISDIR(st.st_mode)) {
         g_free (str);
         str = g_strconcat (fullpath, "/", NULL);

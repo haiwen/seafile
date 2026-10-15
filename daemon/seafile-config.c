@@ -155,6 +155,14 @@ seafile_session_config_set_string (SeafileSession *session,
     }
 
     if (g_strcmp0(key, KEY_IGNORE_SYMLINKS) == 0) {
+#ifndef WIN32
+        /* The applet saves preservation before ignore. If preservation is
+         * pending a restart, keep both live settings unchanged until then.
+         * Otherwise Ignore -> Preserve would briefly start following links. */
+        if (seafile_session_config_get_bool (session, KEY_PRESERVE_SYMLINKS) !=
+            session->preserve_symlinks)
+            return 0;
+#endif
         if (g_strcmp0(value, "true") == 0)
             session->ignore_symlinks = TRUE;
         else

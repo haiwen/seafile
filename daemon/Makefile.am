@@ -102,3 +102,10 @@ seaf_daemon_LDADD = $(top_builddir)/lib/libseafile_common.la \
 	@WS_LIBS@ @ARGON2_LIBS@
 
 seaf_daemon_LDFLAGS = @CONSOLE@
+
+if LINUX
+check_PROGRAMS = test-symlink
+TESTS = test-symlink
+test_symlink_SOURCES = ../tests/test-symlink.c $(common_src)
+test_symlink_LDADD = $(seaf_daemon_LDADD)
+endif

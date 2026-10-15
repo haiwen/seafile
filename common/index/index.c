@@ -970,6 +970,7 @@ int add_to_index(const char *repo_id,
     unsigned char sha1[20];
     unsigned ce_option = CE_MATCH_IGNORE_VALID|CE_MATCH_IGNORE_SKIP_WORKTREE|CE_MATCH_RACY_IS_DIRTY;
     int add_option = (ADD_CACHE_OK_TO_ADD|ADD_CACHE_OK_TO_REPLACE);
+    gboolean hashed = FALSE;
 
     *added = FALSE;
 
@@ -994,8 +995,17 @@ int add_to_index(const char *repo_id,
     alias = index_name_exists(istate, ce->name, ce_namelen(ce), 0);
     if (alias) {
         if (!ce_stage(alias) && !ie_match_stat(alias, st, ce_option)) {
-            free(ce);
-            return 0;
+            if (flags & ADD_CACHE_CHECK_CONTENT) {
+                if (index_cb (repo_id, version, full_path, sha1, crypt, TRUE, record_index_error) < 0) {
+                    free (ce);
+                    return -1;
+                }
+                hashed = TRUE;
+            }
+            if (!hashed || memcmp (alias->sha1, sha1, 20) == 0) {
+                free(ce);
+                return 0;
+            }
         }
     } else {
 #if defined WIN32 || defined __APPLE__
@@ -1039,7 +1049,7 @@ int add_to_index(const char *repo_id,
 #endif
 #endif  /* 0 */
 
-    if (index_cb (repo_id, version, full_path, sha1, crypt, TRUE, record_index_error) < 0) {
+    if (!hashed && index_cb (repo_id, version, full_path, sha1, crypt, TRUE, record_index_error) < 0) {
         free (ce);
         return -1;
     }
