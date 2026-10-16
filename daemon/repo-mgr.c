@@ -2378,6 +2378,45 @@ check_locked_file_before_remove (LockedFileSet *fset, const char *path)
 #endif
 }
 
+/*
+ * A deleted dir can't be stat'ed, so add the trailing slash that "dir/" patterns need.
+ * Only the topmost missing path counts, so deleting an unignored parent still
+ * deletes everything below it.
+ */
+static gboolean
+check_deleted_path_ignore (struct index_state *istate, const char *worktree,
+                           const char *path, GList *ignore_list)
+{
+    struct cache_entry *ce;
+    const char *sep;
+    char *parent, *full_path, *dir_path;
+    SeafStat st;
+    gboolean is_dir, ret;
+
+    for (sep = strchr (path, '/'); sep; sep = strchr (sep + 1, '/')) {
+        parent = g_strndup (path, sep - path);
+        full_path = g_build_filename (worktree, parent, NULL);
+        g_free (parent);
+        if (seaf_stat (full_path, &st) < 0 && errno == ENOENT) {
+            dir_path = g_strconcat (full_path, "/", NULL);
+            ret = seaf_repo_check_ignore_file (ignore_list, dir_path);
+            g_free (dir_path);
+            g_free (full_path);
+            return ret;
+        }
+        g_free (full_path);
+    }
+
+    ce = index_name_exists (istate, path, strlen(path), 0);
+    is_dir = !ce || S_ISDIR (ce->ce_mode);
+    full_path = g_build_filename (worktree, path, NULL);
+    dir_path = is_dir ? g_strconcat (full_path, "/", NULL) : g_strdup (full_path);
+    ret = seaf_repo_check_ignore_file (ignore_list, dir_path);
+    g_free (dir_path);
+    g_free (full_path);
+    return ret;
+}
+
 static void
 remove_deleted (struct index_state *istate, const char *worktree, const char *prefix,
                 GList *ignore_list, LockedFileSet *fset,
@@ -2416,6 +2455,10 @@ remove_deleted (struct index_state *istate, const char *worktree, const char *pr
         ret = seaf_stat (path, &st);
         if (ret < 0 && errno == ENOENT)
             not_exist = TRUE;
+
+        if (not_exist &&
+            check_deleted_path_ignore (istate, worktree, ce->name, ignore_list))
+            continue;
 
         if (S_ISDIR (ce->ce_mode)) {
             if (ce->ce_ctime.sec != 0 || ce_stage(ce) != 0) {
@@ -4433,6 +4476,9 @@ apply_worktree_changes_to_index (SeafRepo *repo, struct index_state *istate,
             g_free (office_path);
 
             if (check_full_path_ignore(repo->worktree, event->path, ignore_list))
+                break;
+
+            if (check_deleted_path_ignore (istate, repo->worktree, event->path, ignore_list))
                 break;
 
             if (!is_path_writable(repo->id,
