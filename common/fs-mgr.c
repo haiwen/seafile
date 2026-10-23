@@ -19,6 +19,7 @@
 #include "fs-mgr.h"
 #include "block-mgr.h"
 #include "utils.h"
+#include "symlink.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_OTHER
 #include "log.h"
 #include "../common/seafile-crypt.h"
@@ -308,6 +309,19 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
 
     tmp_path = g_strconcat (file_path, SEAF_TMP_EXT, NULL);
 
+#ifndef WIN32
+    /* A previous checkout may have left a materialized (possibly dangling)
+     * link at the temporary path. Never resume a download through it. */
+    if (seaf->preserve_symlinks && lstat (tmp_path, &st) == 0 && S_ISLNK(st.st_mode)) {
+        if (g_unlink (tmp_path) < 0) {
+            *error_id = FETCH_CHECKOUT_FAILED;
+            goto bad;
+        }
+        block_offset = 0;
+        skip_buffer_size = 0;
+    }
+#endif
+
     path_exists = (seaf_stat (tmp_path, &st) == 0);
 
     mode_t rmode = mode & 0100 ? 0777 : 0666;
@@ -353,11 +367,16 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
 
     seaf_removexattr (tmp_path, SEAFILE_FILE_ID_ATTR);
 
+    if (seaf->preserve_symlinks && seaf_symlink_materialize (tmp_path) < 0) {
+        *error_id = FETCH_CHECKOUT_FAILED;
+        goto bad;
+    }
+
     /* Move existing file to backup file. */
 
     backup_path = g_strconcat (file_path, SEAF_BACKUP_EXT, NULL);
 
-    if (seaf_util_exists (file_path) &&
+    if (seaf_worktree_exists (file_path) &&
         seaf_util_rename (file_path, backup_path) < 0) {
         seaf_warning ("Failed to rename %s to %s: %s. "
                       "Checkout server version as conflict file.\n",
@@ -440,7 +459,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
 
         conflict_path = gen_conflict_path (file_path, suffix, (gint64)time(NULL));
 
-        if (seaf_util_exists (backup_path) &&
+        if (seaf_worktree_exists (backup_path) &&
             seaf_util_rename (backup_path, conflict_path) < 0) {
             seaf_warning ("Failed to rename %s to %s: %s. "
                           "Failed to move backup file to conflict file.\n",
@@ -449,7 +468,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
                 /*
                  * Set the checked out file mtime to what it has to be.
                  */
-                if (seaf_set_file_time (file_path, mtime) < 0) {
+                if (seaf_worktree_set_file_time (file_path, mtime) < 0) {
                     seaf_warning ("Failed to set mtime for %s.\n", file_path);
                 }
             }
@@ -462,7 +481,7 @@ seaf_fs_manager_checkout_file (SeafFSManager *mgr,
         /* 
          * Set the checked out file mtime to what it has to be.
          */
-        if (seaf_set_file_time (file_path, mtime) < 0) {
+        if (seaf_worktree_set_file_time (file_path, mtime) < 0) {
             seaf_warning ("Failed to set mtime for %s.\n", file_path);
         }
     }
@@ -930,6 +949,25 @@ seaf_fs_manager_index_blocks (SeafFSManager *mgr,
 {
     SeafStat sb;
     CDCFileDescriptor cdc;
+
+#ifndef SEAFILE_SERVER
+    if (seaf->preserve_symlinks) {
+        char *tmp_path = NULL;
+        int ret = seaf_symlink_index_path (file_path, &tmp_path);
+        if (ret < 0)
+            return -1;
+        if (ret > 0) {
+            /* Use the unchanged regular-file chunker and object format. This
+             * also makes an old client's reindex produce the same file ID. */
+            ret = seaf_fs_manager_index_blocks (mgr, repo_id, version, tmp_path,
+                                               sha1, size, crypt, write_data,
+                                               use_cdc, record_index_error);
+            g_unlink (tmp_path);
+            g_free (tmp_path);
+            return ret;
+        }
+    }
+#endif
 
     if (seaf_stat (file_path, &sb) < 0) {
         seaf_warning ("Bad file %s: %s.\n", file_path, strerror(errno));

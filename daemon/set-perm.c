@@ -7,6 +7,7 @@
 #include "log.h"
 
 #include "set-perm.h"
+#include "seafile-session.h"
 
 #ifdef WIN32
 
@@ -298,6 +299,10 @@ seaf_set_path_permission (const char *path, SeafPathPerm perm, gboolean recursiv
 {
     struct stat st;
     mode_t new_mode;
+
+    /* A preserved link's permissions must not affect its target. */
+    if (seaf->preserve_symlinks && lstat (path, &st) == 0 && S_ISLNK(st.st_mode))
+        return 0;
 
     if (stat (path, &st) < 0) {
         seaf_warning ("Failed to stat %s: %s\n", path, strerror(errno));

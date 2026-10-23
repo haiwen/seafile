@@ -473,6 +473,8 @@ extern int remove_file_from_index(struct index_state *, const char *path);
 #define ADD_CACHE_IGNORE_ERRORS    4
 #define ADD_CACHE_IGNORE_REMOVAL 8
 #define ADD_CACHE_INTENT 16
+/* Small virtual files can change without a size/second-resolution mtime change. */
+#define ADD_CACHE_CHECK_CONTENT 32
 
 typedef int (*IndexCB) (const char *repo_id,
                         int version,

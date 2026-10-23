@@ -12,6 +12,7 @@
 #include "job-mgr.h"
 #include "seafile-session.h"
 #include "utils.h"
+#include "symlink.h"
 #include "wt-monitor.h"
 #define DEBUG_FLAG SEAFILE_DEBUG_WATCH
 #include "log.h"
@@ -125,11 +126,11 @@ check_and_handle_rename (WTStatus *status, RenameInfo *rename_info,
     gboolean old_path_exists = TRUE;
     gboolean new_path_exists = TRUE;
 
-    if ((stat (rename_info->old_event_path, &st) < 0 && errno == ENOENT) ||
+    if ((seaf_symlink_stat (rename_info->old_event_path, &st, seaf->preserve_symlinks) < 0 && errno == ENOENT) ||
          is_filename_case_conflict (rename_info->old_event_path)) {
         old_path_exists = FALSE;
     }
-    if ((stat (eventPath, &st) < 0 && errno == ENOENT) ||
+    if ((seaf_symlink_stat (eventPath, &st, seaf->preserve_symlinks) < 0 && errno == ENOENT) ||
          is_filename_case_conflict (eventPath)) {
         new_path_exists = FALSE;
     }
@@ -172,7 +173,7 @@ handle_rename (RepoWatchInfo *info,
     // In this case, we add creation event or deletion event based on whether the file exists.
     if (rename_info->expire > 0 && now >= rename_info->expire) {
         struct stat st;
-        if ((stat (rename_info->old_event_path, &st) < 0 && errno == ENOENT) || is_filename_case_conflict (eventPath)) {
+        if ((seaf_symlink_stat (rename_info->old_event_path, &st, seaf->preserve_symlinks) < 0 && errno == ENOENT) || is_filename_case_conflict (eventPath)) {
             seaf_debug ("Rename info expired, delete renamed dir %s\n", rename_info->old_path);
             add_event_to_queue (status, WT_EVENT_DELETE, rename_info->old_path, NULL);
         } else {
@@ -206,7 +207,7 @@ handle_rename (RepoWatchInfo *info,
         }
     } else {
         struct stat st;
-        if ((stat (eventPath, &st) < 0 && errno == ENOENT) || is_filename_case_conflict (eventPath)) {
+        if ((seaf_symlink_stat (eventPath, &st, seaf->preserve_symlinks) < 0 && errno == ENOENT) || is_filename_case_conflict (eventPath)) {
             seaf_debug ("Delete renamed file %s\n", filename);
             add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
         } else {
@@ -304,14 +305,14 @@ process_one_event (const char* eventPath,
 
     if (eventFlags & kFSEventStreamEventFlagItemRemoved) {
         seaf_debug ("Deleted flag set for %s.\n", filename);
-        if (stat (eventPath, &buf) < 0) {
+        if (seaf_symlink_stat (eventPath, &buf, seaf->preserve_symlinks) < 0) {
             add_event_to_queue (status, WT_EVENT_DELETE, filename, NULL);
         }
     }
 
     if (eventFlags & kFSEventStreamEventFlagItemModified) {
         seaf_debug ("Modified flag set for %s.\n", filename);
-        if (stat (eventPath, &buf) == 0) {
+        if (seaf_symlink_stat (eventPath, &buf, seaf->preserve_symlinks) == 0) {
             add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
         }
     }
@@ -326,7 +327,7 @@ process_one_event (const char* eventPath,
           * kFSEventStreamEventFlagItemIsDir
           * kFSEventStreamEventFlagItemIsSymlink
           */
-        if (stat (eventPath, &buf) == 0) {
+        if (seaf_symlink_stat (eventPath, &buf, seaf->preserve_symlinks) == 0) {
             add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, filename, NULL);
         }
     }
@@ -334,7 +335,7 @@ process_one_event (const char* eventPath,
     // If this is the last event, check rename_info and split the renaming event into deletion event or creation event.
     RenameInfo *rename_info = info->rename_info;
     if (last_event && rename_info->processing) {
-        if (stat (rename_info->old_event_path, &buf) < 0 && errno == ENOENT) {
+        if (seaf_symlink_stat (rename_info->old_event_path, &buf, seaf->preserve_symlinks) < 0 && errno == ENOENT) {
             seaf_debug ("Delete renamed file %s\n", rename_info->old_path);
             add_event_to_queue (status, WT_EVENT_DELETE, rename_info->old_path, NULL);
         } else {

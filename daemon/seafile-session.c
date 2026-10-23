@@ -451,6 +451,16 @@ seafile_session_prepare (SeafileSession *session)
     else 
         session->ignore_symlinks = FALSE;
     g_free (value);
+
+    /* Restart is required: do not change representation during an active sync.
+     * Windows clients keep the ordinary-file representation. */
+#ifndef WIN32
+    session->preserve_symlinks =
+        seafile_session_config_get_bool (session, KEY_PRESERVE_SYMLINKS);
+    seaf_message ("Symbolic link settings: preserve=%s, ignore=%s.\n",
+                  session->preserve_symlinks ? "true" : "false",
+                  session->ignore_symlinks ? "true" : "false");
+#endif
     
     /* Start mq manager earlier, so that we can send notifications
      * when start repo manager. */

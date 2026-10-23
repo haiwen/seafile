@@ -9,6 +9,11 @@
 
 #define PATH_SEPERATOR "/"
 
+int seaf_worktree_stat (const char *path, SeafStat *st);
+gboolean seaf_worktree_exists (const char *path);
+int seaf_worktree_set_file_time (const char *path, guint64 mtime);
+gboolean seaf_worktree_has_symlink_parent (const char *worktree, const char *name);
+
 struct SeafileCrypt;
 
 #ifdef WIN32

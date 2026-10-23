@@ -12,10 +12,53 @@
 #include "seafile-session.h"
 
 #include "utils.h"
+#include "symlink.h"
 #include "fs-mgr.h"
 #include "vc-utils.h"
 #include "vc-common.h"
 #include "index/index.h"
+
+int
+seaf_worktree_stat (const char *path, SeafStat *st)
+{
+    return seaf_symlink_stat (path, st, seaf->preserve_symlinks);
+}
+
+gboolean
+seaf_worktree_exists (const char *path)
+{
+    return seaf->preserve_symlinks ? seaf_symlink_exists (path) : seaf_util_exists (path);
+}
+
+int
+seaf_worktree_set_file_time (const char *path, guint64 mtime)
+{
+    return seaf->preserve_symlinks ? seaf_symlink_set_time (path, mtime) :
+        seaf_set_file_time (path, mtime);
+}
+
+gboolean
+seaf_worktree_has_symlink_parent (const char *worktree, const char *name)
+{
+#ifndef WIN32
+    if (seaf->preserve_symlinks) {
+        char *path = g_strconcat (worktree, "/", name, NULL);
+        char *p = path + strlen(worktree) + 1;
+        struct stat st;
+        while ((p = strchr (p, '/'))) {
+            *p = 0;
+            gboolean link = lstat (path, &st) == 0 && S_ISLNK(st.st_mode);
+            *p++ = '/';
+            if (link) {
+                g_free (path);
+                return TRUE;
+            }
+        }
+        g_free (path);
+    }
+#endif
+    return FALSE;
+}
 
 static gint
 compare_dirents (gconstpointer a, gconstpointer b)
@@ -178,7 +221,7 @@ seaf_remove_empty_dir (const char *path)
     char *full_path;
     GError *error = NULL;
 
-    if (seaf_stat (path, &st) < 0 || !S_ISDIR(st.st_mode))
+    if (seaf_worktree_stat (path, &st) < 0 || !S_ISDIR(st.st_mode))
         return 0;
 
     if (seaf_util_rmdir (path) < 0) {
@@ -315,6 +358,22 @@ compare_file_content (const char *path, SeafStat *st, const unsigned char *ce_sh
 {
     unsigned char sha1[20];
 
+    if (seaf->preserve_symlinks) {
+        char *tmp_path = NULL;
+        int ret = seaf_symlink_index_path (path, &tmp_path);
+        if (ret < 0)
+            return -1;
+        if (ret > 0) {
+            SeafStat tmp_st;
+            ret = seaf_stat (tmp_path, &tmp_st);
+            if (ret == 0)
+                ret = compare_file_content (tmp_path, &tmp_st, ce_sha1, crypt, repo_version);
+            g_unlink (tmp_path);
+            g_free (tmp_path);
+            return ret;
+        }
+    }
+
     if (st->st_size == 0) {
         memset (sha1, 0, 20);
         return hashcmp (sha1, ce_sha1);
@@ -380,7 +439,7 @@ build_checkout_path (const char *worktree, const char *ce_name, int len)
         if (offset >= full_len)
             break;
 
-        if (seaf_stat (path->str, &st) == 0 && S_ISDIR(st.st_mode))
+        if (seaf_worktree_stat (path->str, &st) == 0 && S_ISDIR(st.st_mode))
             continue;
         
         if (seaf_util_mkdir (path->str, 0777) < 0) {
@@ -406,11 +465,14 @@ delete_path (const char *worktree, const char *name,
         return -1;
     }
 
+    if (seaf_worktree_has_symlink_parent (worktree, name))
+        return -1;
+
     snprintf (path, SEAF_PATH_MAX, "%s/%s", worktree, name);
 
     if (!S_ISDIR(mode)) {
         /* file doesn't exist in work tree */
-        if (seaf_stat (path, &st) < 0 || !S_ISREG(st.st_mode)) {
+        if (seaf_worktree_stat (path, &st) < 0 || !S_ISREG(st.st_mode)) {
             return 0;
         }
 
