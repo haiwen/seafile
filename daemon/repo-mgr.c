@@ -8861,6 +8861,76 @@ seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath)
     return FALSE;
 }
 
+struct SeafIgnoreMatcher {
+    char *worktree;
+    GPtrArray *specs;           /* GPatternSpec* compiled from seafile-ignore.txt */
+};
+
+SeafIgnoreMatcher *
+seaf_ignore_matcher_new (const char *worktree)
+{
+    SeafIgnoreMatcher *matcher = g_new0 (SeafIgnoreMatcher, 1);
+    GList *list = seaf_repo_load_ignore_files (worktree);
+    GList *p;
+
+    matcher->worktree = g_strdup (worktree);
+    matcher->specs = g_ptr_array_new ();
+    for (p = list; p; p = p->next)
+        g_ptr_array_add (matcher->specs, g_pattern_spec_new ((char *)p->data));
+    seaf_repo_free_ignore_files (list);
+
+    return matcher;
+}
+
+void
+seaf_ignore_matcher_free (SeafIgnoreMatcher *matcher)
+{
+    guint i;
+
+    if (!matcher)
+        return;
+    for (i = 0; i < matcher->specs->len; ++i)
+        g_pattern_spec_free (g_ptr_array_index (matcher->specs, i));
+    g_ptr_array_free (matcher->specs, TRUE);
+    g_free (matcher->worktree);
+    g_free (matcher);
+}
+
+gboolean
+seaf_ignore_matcher_match (SeafIgnoreMatcher *matcher,
+                           const char *path, gboolean is_dir)
+{
+    char **tokens;
+    char *full_path;
+    gboolean ret = FALSE;
+    guint i;
+
+    tokens = g_strsplit (path, "/", 0);
+    for (i = 0; tokens[i]; ++i) {
+        if (should_ignore (NULL, tokens[i], NULL)) {
+            g_strfreev (tokens);
+            return TRUE;
+        }
+    }
+    g_strfreev (tokens);
+
+    if (matcher->specs->len == 0)
+        return FALSE;
+
+    full_path = is_dir ? g_strconcat (matcher->worktree, "/", path, "/", NULL)
+                       : g_strconcat (matcher->worktree, "/", path, NULL);
+    for (i = 0; i < matcher->specs->len; ++i) {
+        if (g_pattern_match_string (g_ptr_array_index (matcher->specs, i),
+                                    full_path)) {
+            ret = TRUE;
+            break;
+        }
+    }
+    g_free (full_path);
+
+    return ret;
+}
+
 /*
  * Free ignored file list
  */

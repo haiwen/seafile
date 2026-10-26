@@ -334,6 +334,26 @@ seaf_repo_check_ignore_file (GList *ignore_list, const char *fullpath);
 void
 seaf_repo_free_ignore_files (GList *ignore_list);
 
+/* Ignore rules of a worktree with the glob patterns compiled once, for the
+ * file system monitor which checks every event.
+ */
+typedef struct SeafIgnoreMatcher SeafIgnoreMatcher;
+
+SeafIgnoreMatcher *
+seaf_ignore_matcher_new (const char *worktree);
+
+void
+seaf_ignore_matcher_free (SeafIgnoreMatcher *matcher);
+
+/* @path is relative to the worktree, NFC normalized, without a trailing '/'.
+ * Same verdict as the scan and commit code: hard-coded names for every path
+ * component, then the seafile-ignore.txt rules against "<worktree>/<path>"
+ * ("/" appended for directories).
+ */
+gboolean
+seaf_ignore_matcher_match (SeafIgnoreMatcher *matcher,
+                           const char *path, gboolean is_dir);
+
 enum {
     FETCH_CHECKOUT_SUCCESS = 0,
     FETCH_CHECKOUT_CANCELED,

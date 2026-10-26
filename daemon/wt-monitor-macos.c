@@ -17,6 +17,7 @@
 #include "log.h"
 
 #define RENAME_EXPIRE_TIME 10
+#define IGNORE_FILE "seafile-ignore.txt"
 
 typedef struct RenameInfo {
     char *old_path;
@@ -29,6 +30,7 @@ typedef struct RepoWatchInfo {
     WTStatus *status;
     char *worktree;
     RenameInfo *rename_info;
+    SeafIgnoreMatcher *ignore_matcher;  /* seafile-ignore.txt, compiled once */
 } RepoWatchInfo;
 
 struct SeafWTMonitorPriv {
@@ -75,6 +77,7 @@ create_repo_watch_info (const char *repo_id, const char *worktree)
     info->status = status;
     info->worktree = g_strdup(worktree);
     info->rename_info = g_new0 (RenameInfo, 1);
+    info->ignore_matcher = seaf_ignore_matcher_new (worktree);
 
     return info;
 }
@@ -83,6 +86,7 @@ static void
 free_repo_watch_info (RepoWatchInfo *info)
 {
     wt_status_unref (info->status);
+    seaf_ignore_matcher_free (info->ignore_matcher);
     g_free (info->worktree);
     g_free (info->rename_info->old_path);
     g_free (info->rename_info);
@@ -273,6 +277,58 @@ add_event_to_queue (WTStatus *status,
     }
 }
 
+/* The scan and commit code drops ignored paths, but only after the event has
+ * woken the commit scheduler. Decide here so that an ignored event leaves no
+ * trace. @filename is the NFC path relative to the worktree.
+ *
+ * The path is matched as it appears inside the library: a symlink is not
+ * resolved. Whether it is a directory is taken from the event flags, except
+ * for symlinks, which the scan follows (stat) and so does this.
+ */
+static gboolean
+is_event_path_ignored (RepoWatchInfo *info,
+                       const char *eventPath,
+                       const char *filename,
+                       const FSEventStreamEventFlags eventFlags)
+{
+    struct stat buf;
+    gboolean is_dir = (eventFlags & kFSEventStreamEventFlagItemIsDir) != 0;
+
+    if (filename[0] == 0)
+        return FALSE;
+
+    /* Directory renames are paired up by handle_rename(), do not split a pair. */
+    if (is_dir && (eventFlags & kFSEventStreamEventFlagItemRenamed))
+        return FALSE;
+
+    if (eventFlags & kFSEventStreamEventFlagItemIsSymlink)
+        is_dir = (stat (eventPath, &buf) == 0 && S_ISDIR(buf.st_mode));
+
+    return seaf_ignore_matcher_match (info->ignore_matcher, filename, is_dir);
+}
+
+/* At the last event of a batch, a pending directory rename is resolved into a
+ * delete or create event.
+ */
+static void
+flush_pending_rename (RepoWatchInfo *info, gboolean last_event)
+{
+    WTStatus *status = info->status;
+    RenameInfo *rename_info = info->rename_info;
+    struct stat buf;
+
+    if (last_event && rename_info->processing) {
+        if (stat (rename_info->old_event_path, &buf) < 0 && errno == ENOENT) {
+            seaf_debug ("Delete renamed file %s\n", rename_info->old_path);
+            add_event_to_queue (status, WT_EVENT_DELETE, rename_info->old_path, NULL);
+        } else {
+            seaf_debug ("Create renamed file %s\n", rename_info->old_path);
+            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, rename_info->old_path, NULL);
+        }
+        unset_rename_processing_state (rename_info);
+    }
+}
+
 static void
 process_one_event (const char* eventPath,
                    RepoWatchInfo *info,
@@ -299,6 +355,18 @@ process_one_event (const char* eventPath,
     int len = strlen(filename);
     if (len > 0 && filename[len - 1] == '/')
         filename[len - 1] = 0;
+
+    if (strcmp (filename, IGNORE_FILE) == 0) {
+        /* The rules changed; the event itself is reported as usual. */
+        seaf_ignore_matcher_free (info->ignore_matcher);
+        info->ignore_matcher = seaf_ignore_matcher_new (info->worktree);
+    } else if (is_event_path_ignored (info, eventPath, filename, eventFlags)) {
+        /* No queue entry, no active path, no last_changed: no commit cycle. */
+        seaf_debug ("Ignored event for %s.\n", filename);
+        g_free (filename);
+        flush_pending_rename (info, last_event);
+        return;
+    }
 
     handle_rename (info, eventFlags, eventPath, filename);
 
@@ -332,17 +400,7 @@ process_one_event (const char* eventPath,
     }
 
     // If this is the last event, check rename_info and split the renaming event into deletion event or creation event.
-    RenameInfo *rename_info = info->rename_info;
-    if (last_event && rename_info->processing) {
-        if (stat (rename_info->old_event_path, &buf) < 0 && errno == ENOENT) {
-            seaf_debug ("Delete renamed file %s\n", rename_info->old_path);
-            add_event_to_queue (status, WT_EVENT_DELETE, rename_info->old_path, NULL);
-        } else {
-            seaf_debug ("Create renamed file %s\n", rename_info->old_path);
-            add_event_to_queue (status, WT_EVENT_CREATE_OR_UPDATE, rename_info->old_path, NULL);
-        }
-        unset_rename_processing_state (rename_info);
-    }
+    flush_pending_rename (info, last_event);
 
     g_free (filename);
     g_atomic_int_set (&info->status->last_changed, (gint)time(NULL));
