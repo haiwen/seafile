@@ -486,6 +486,46 @@ seaf_set_file_time (const char *path, guint64 mtime)
 #endif
 }
 
+#ifdef WIN32
+
+/* DeleteFileW() fails with ERROR_ACCESS_DENIED on a file carrying the
+ * read-only attribute. Clear the attribute and retry, putting it back if the
+ * file still cannot be removed, so that a failure leaves nothing behind.
+ *
+ * This matters for any worktree holding read-only files. Git, for one, creates
+ * every loose object and pack file read-only: once another client repacks such
+ * a repository, the resulting deletions can never be applied here, and the
+ * whole directory ends up in seafile-recycle-bin instead.
+ *
+ * GetLastError() is preserved so callers can still report the original cause.
+ */
+gboolean
+win32_delete_file (const wchar_t *wpath)
+{
+    DWORD error, attrs;
+
+    if (DeleteFileW (wpath))
+        return TRUE;
+
+    error = GetLastError();
+    if (error != ERROR_ACCESS_DENIED)
+        return FALSE;
+
+    attrs = GetFileAttributesW (wpath);
+    if (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_READONLY) &&
+        SetFileAttributesW (wpath, attrs & ~FILE_ATTRIBUTE_READONLY)) {
+        if (DeleteFileW (wpath))
+            return TRUE;
+        error = GetLastError();
+        SetFileAttributesW (wpath, attrs);
+    }
+
+    SetLastError (error);
+    return FALSE;
+}
+
+#endif  /* WIN32 */
+
 int
 seaf_util_unlink (const char *path)
 {
@@ -493,7 +533,7 @@ seaf_util_unlink (const char *path)
 #ifdef WIN32
     wchar_t *wpath = win32_long_path (path);
 
-    if (!DeleteFileW (wpath)) {
+    if (!win32_delete_file (wpath)) {
         ret = -1;
         errno = windows_error_to_errno (GetLastError());
     }

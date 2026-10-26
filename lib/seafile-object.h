@@ -366,6 +366,9 @@ VALA_EXTERN SeafileFileSyncError* seafile_file_sync_error_construct (GType objec
 VALA_EXTERN gint seafile_file_sync_error_get_id (SeafileFileSyncError* self);
 VALA_EXTERN void seafile_file_sync_error_set_id (SeafileFileSyncError* self,
                                      gint value);
+VALA_EXTERN const gchar* seafile_file_sync_error_get_server (SeafileFileSyncError* self);
+VALA_EXTERN void seafile_file_sync_error_set_server (SeafileFileSyncError* self,
+                                         const gchar* value);
 VALA_EXTERN const gchar* seafile_file_sync_error_get_repo_id (SeafileFileSyncError* self);
 VALA_EXTERN void seafile_file_sync_error_set_repo_id (SeafileFileSyncError* self,
                                           const gchar* value);

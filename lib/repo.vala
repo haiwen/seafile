@@ -128,6 +128,7 @@ public class EncryptionInfo: Object {
 
 public class FileSyncError: Object {
     public int id { get; set; }
+    public string server { get; set; }
     public string repo_id { get; set; }
     public string repo_name { get; set; }
     public string path { get; set; }
