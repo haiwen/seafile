@@ -1855,7 +1855,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
 #else
         subpath = g_build_path (PATH_SEPERATOR, path, dname, NULL);
 #endif
-        full_subpath = g_build_filename (params->worktree, subpath, NULL);
+        full_subpath = g_build_filename (full_path, dname, NULL);
 
         if (stat (full_subpath, &sub_st) < 0) {
             seaf_warning ("Failed to stat %s: %s.\n", full_subpath, strerror(errno));
@@ -3446,8 +3446,12 @@ update_active_path_recursive (SeafRepo *repo,
         ++n;
 
         dname = g_utf8_normalize (name, -1, G_NORMALIZE_NFC);
+        if (!dname)
+            continue;
         sub_path = g_strconcat (path, "/", dname, NULL);
-        full_sub_path = g_strconcat (full_path, "/", dname, NULL);
+        /* The spelling on disk can differ from the index key (NFD vs NFC on
+         * macOS): filesystem calls must use the name as the volume reports it. */
+        full_sub_path = g_strconcat (full_path, "/", name, NULL);
 
         ignore_sub = FALSE;
         if (ignored || should_ignore(full_path, dname, ignore_list))
@@ -5588,7 +5592,13 @@ fetch_file_thread_func (gpointer data, gpointer user_data)
                 /* Update mode if necessary. */
                 if (de->mode != ce->ce_mode) {
 #ifndef WIN32
+#ifdef __APPLE__
+                    char *path_fs = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
+                    chmod (path_fs ? path_fs : path, de->mode & ~S_IFMT);
+                    g_free (path_fs);
+#else
                     chmod (path, de->mode & ~S_IFMT);
+#endif
                     ce->ce_mode = de->mode;
 #endif
                 }
@@ -6295,8 +6305,11 @@ delete_worktree_dir_recursive (struct index_state *istate,
 
     while ((dname = g_dir_read_name (dir)) != NULL) {
         dname_nfc = g_utf8_normalize (dname, -1, G_NORMALIZE_NFC);
+        if (!dname_nfc)
+            continue;
         sub_path = g_build_path ("/", path, dname_nfc, NULL);
-        full_sub_path = g_build_path ("/", full_path, dname_nfc, NULL);
+        /* Use the dirent spelling for filesystem calls (see local_fs_path()). */
+        full_sub_path = g_build_path ("/", full_path, dname, NULL);
         builtin_ignored = is_built_in_ignored_file (dname_nfc);
         g_free (dname_nfc);
 
