@@ -385,6 +385,22 @@ windows_error_to_errno (DWORD error)
 
 #endif
 
+/* Return a heap-allocated copy of @path in the spelling the local filesystem
+ * uses for it. On macOS the volume reports decomposed (NFD) names while the
+ * index and the server keep composed (NFC) names; every filesystem call has to
+ * use the local spelling, otherwise a byte-exact volume (exFAT, which does not
+ * normalise names the way APFS/HFS+ do) is asked for a name that does not exist
+ * as a directory entry. Caller frees the result. */
+static char *
+local_fs_path (const char *path)
+{
+#ifdef __APPLE__
+    return g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
+#else
+    return g_strdup (path);
+#endif
+}
+
 int
 seaf_stat (const char *path, SeafStat *st)
 {
@@ -415,6 +431,18 @@ seaf_stat (const char *path, SeafStat *st)
 out:
     g_free (wpath);
 
+    return ret;
+#elif defined __APPLE__
+    char *path_fs = local_fs_path (path);
+    int ret;
+
+    if (!path_fs) {
+        errno = EINVAL;
+        return -1;
+    }
+
+    ret = stat (path_fs, st);
+    g_free (path_fs);
     return ret;
 #else
     return stat (path, st);
@@ -464,16 +492,25 @@ seaf_set_file_time (const char *path, guint64 mtime)
 #ifndef WIN32
     struct stat st;
     struct utimbuf times;
+    char *path_fs = NULL;
+    int ret;
 
-    if (stat (path, &st) < 0) {
+    path_fs = local_fs_path (path);
+    if (!path_fs)
+        return -1;
+
+    if (stat (path_fs, &st) < 0) {
         g_warning ("Failed to stat %s: %s.\n", path, strerror(errno));
+        g_free (path_fs);
         return -1;
     }
 
     times.actime = st.st_atime;
     times.modtime = (time_t)mtime;
 
-    return utime (path, &times);
+    ret = utime (path_fs, &times);
+    g_free (path_fs);
+    return ret;
 #else
     wchar_t *wpath = win32_long_path (path);
     int ret = 0;
