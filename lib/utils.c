@@ -416,6 +416,11 @@ out:
     g_free (wpath);
 
     return ret;
+#elif defined __APPLE__
+    char *path_nfd = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
+    int ret = stat (path_nfd, st);
+    g_free (path_nfd);
+    return ret;
 #else
     return stat (path, st);
 #endif
@@ -462,10 +467,10 @@ int
 seaf_set_file_time (const char *path, guint64 mtime)
 {
 #ifndef WIN32
-    struct stat st;
+    SeafStat st;
     struct utimbuf times;
 
-    if (stat (path, &st) < 0) {
+    if (seaf_stat (path, &st) < 0) {
         g_warning ("Failed to stat %s: %s.\n", path, strerror(errno));
         return -1;
     }
@@ -473,7 +478,14 @@ seaf_set_file_time (const char *path, guint64 mtime)
     times.actime = st.st_atime;
     times.modtime = (time_t)mtime;
 
+#ifdef __APPLE__
+    char *path_nfd = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
+    int ret = utime (path_nfd, &times);
+    g_free (path_nfd);
+    return ret;
+#else
     return utime (path, &times);
+#endif
 #else
     wchar_t *wpath = win32_long_path (path);
     int ret = 0;
