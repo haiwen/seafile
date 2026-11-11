@@ -3055,6 +3055,7 @@ seaf_sync_manager_get_path_sync_status (SeafSyncManager *mgr,
     ActivePathsInfo *info;
     SyncInfo *sync_info;
     SyncStatus ret = SYNC_STATUS_NONE;
+    char *path_nfc = NULL;
 
     if (!repo_id || !path) {
         seaf_warning ("BUG: empty repo_id or path.\n");
@@ -3064,6 +3065,12 @@ seaf_sync_manager_get_path_sync_status (SeafSyncManager *mgr,
     if (path[0] == 0) {
         return get_repo_sync_status (mgr, repo_id);
     }
+
+#ifdef __APPLE__
+    path_nfc = g_utf8_normalize (path, -1, G_NORMALIZE_NFC);
+#else
+    path_nfc = g_strdup (path);
+#endif
 
     /* If the repo is in error, all files in it should show no sync status. */
     sync_info = get_sync_info (mgr, repo_id);
@@ -3081,32 +3088,33 @@ seaf_sync_manager_get_path_sync_status (SeafSyncManager *mgr,
         goto out;
     }
 
-    ret = (SyncStatus) g_hash_table_lookup (info->paths, path);
+    ret = (SyncStatus) g_hash_table_lookup (info->paths, path_nfc);
     if (is_dir && (ret == SYNC_STATUS_NONE)) {
         /* If a dir is not in the syncing tree but in the synced tree,
          * it's synced. Otherwise if it's in the syncing tree, some files
          * under it must be syncing, so it should be in syncing status too.
          */
-        if (sync_status_tree_exists (info->syncing_tree, path))
+        if (sync_status_tree_exists (info->syncing_tree, path_nfc))
             ret = SYNC_STATUS_SYNCING;
-        else if (sync_status_tree_exists (info->synced_tree, path))
+        else if (sync_status_tree_exists (info->synced_tree, path_nfc))
             ret = SYNC_STATUS_SYNCED;
     }
 
     pthread_mutex_unlock (&mgr->priv->paths_lock);
 
     if (ret == SYNC_STATUS_SYNCED) {
-        if (!seaf_repo_manager_is_path_writable(seaf->repo_mgr, repo_id, path))
+        if (!seaf_repo_manager_is_path_writable(seaf->repo_mgr, repo_id, path_nfc))
             ret = SYNC_STATUS_READONLY;
         else if (seaf_filelock_manager_is_file_locked_by_me (seaf->filelock_mgr,
-                                                             repo_id, path))
+                                                             repo_id, path_nfc))
             ret = SYNC_STATUS_LOCKED_BY_ME;
         else if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                                       repo_id, path))
+                                                       repo_id, path_nfc))
             ret = SYNC_STATUS_LOCKED;
     }
 
 out:
+    g_free (path_nfc);
     return g_strdup(path_status_tbl[ret]);
 }
 

@@ -1807,7 +1807,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
     char *subpath, *full_subpath;
     int n, total;
     gboolean is_writable = TRUE;
-    struct stat sub_st;
+    SeafStat sub_st;
     char *base_name = NULL;
 
     if (seaf->ignore_symlinks && is_symlink(full_path)) {
@@ -1857,7 +1857,7 @@ add_dir_recursive (const char *path, const char *full_path, SeafStat *st,
 #endif
         full_subpath = g_build_filename (params->worktree, subpath, NULL);
 
-        if (stat (full_subpath, &sub_st) < 0) {
+        if (seaf_stat (full_subpath, &sub_st) < 0) {
             seaf_warning ("Failed to stat %s: %s.\n", full_subpath, strerror(errno));
             g_free (subpath);
             g_free (full_subpath);
@@ -5588,7 +5588,13 @@ fetch_file_thread_func (gpointer data, gpointer user_data)
                 /* Update mode if necessary. */
                 if (de->mode != ce->ce_mode) {
 #ifndef WIN32
+#ifdef __APPLE__
+                    char *path_nfd = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
+                    chmod (path_nfd, de->mode & ~S_IFMT);
+                    g_free (path_nfd);
+#else
                     chmod (path, de->mode & ~S_IFMT);
+#endif
                     ce->ce_mode = de->mode;
 #endif
                 }
@@ -6283,6 +6289,7 @@ delete_worktree_dir_recursive (struct index_state *istate,
     char *dname_nfc;
     GError *error = NULL;
     char *sub_path, *full_sub_path;
+    char *full_sub_path_nfd;
     SeafStat st;
     int ret = 0;
     gboolean builtin_ignored = FALSE;
@@ -6300,13 +6307,20 @@ delete_worktree_dir_recursive (struct index_state *istate,
         builtin_ignored = is_built_in_ignored_file (dname_nfc);
         g_free (dname_nfc);
 
-        if (lstat (full_sub_path, &st) < 0) {
+#ifdef __APPLE__
+        full_sub_path_nfd = g_utf8_normalize (full_sub_path, -1, G_NORMALIZE_NFD);
+#else
+        full_sub_path_nfd = g_strdup (full_sub_path);
+#endif
+        if (lstat (full_sub_path_nfd, &st) < 0) {
             seaf_warning ("Failed to stat %s.\n", full_sub_path);
             g_free (sub_path);
             g_free (full_sub_path);
+            g_free (full_sub_path_nfd);
             ret = -1;
             continue;
         }
+        g_free (full_sub_path_nfd);
 
         if (S_ISDIR(st.st_mode)) {
             if (delete_worktree_dir_recursive (istate, sub_path, full_sub_path) < 0)
