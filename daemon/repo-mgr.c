@@ -6307,7 +6307,11 @@ delete_worktree_dir_recursive (struct index_state *istate,
         builtin_ignored = is_built_in_ignored_file (dname_nfc);
         g_free (dname_nfc);
 
+#ifdef __APPLE__
         full_sub_path_nfd = g_utf8_normalize (full_sub_path, -1, G_NORMALIZE_NFD);
+#else
+        full_sub_path_nfd = g_strdup (full_sub_path);
+#endif
         if (lstat (full_sub_path_nfd, &st) < 0) {
             seaf_warning ("Failed to stat %s.\n", full_sub_path);
             g_free (sub_path);

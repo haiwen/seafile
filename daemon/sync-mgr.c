@@ -3109,12 +3109,12 @@ seaf_sync_manager_get_path_sync_status (SeafSyncManager *mgr,
                                                              repo_id, path_nfc))
             ret = SYNC_STATUS_LOCKED_BY_ME;
         else if (seaf_filelock_manager_is_file_locked (seaf->filelock_mgr,
-                                                       repo_id, path))
+                                                       repo_id, path_nfc))
             ret = SYNC_STATUS_LOCKED;
     }
 
 out:
-    g_free (path_nfc;
+    g_free (path_nfc);
     return g_strdup(path_status_tbl[ret]);
 }
 
