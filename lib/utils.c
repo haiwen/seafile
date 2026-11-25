@@ -466,7 +466,16 @@ seaf_stat_from_find_data (WIN32_FIND_DATAW *fdata, SeafStat *st)
 int
 seaf_set_file_time (const char *path, guint64 mtime)
 {
-#ifndef WIN32
+#ifdef WIN32
+    wchar_t *wpath = win32_long_path (path);
+    int ret = 0;
+
+    if (set_utc_file_time (path, wpath, mtime) < 0)
+        ret = -1;
+
+    g_free (wpath);
+    return ret;
+#elif defined __APPLE__
     SeafStat st;
     struct utimbuf times;
 
@@ -478,23 +487,23 @@ seaf_set_file_time (const char *path, guint64 mtime)
     times.actime = st.st_atime;
     times.modtime = (time_t)mtime;
 
-#ifdef __APPLE__
     char *path_nfd = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
     int ret = utime (path_nfd, &times);
     g_free (path_nfd);
     return ret;
 #else
+    SeafStat st;
+    struct utimbuf times;
+
+    if (seaf_stat (path, &st) < 0) {
+        g_warning ("Failed to stat %s: %s.\n", path, strerror(errno));
+        return -1;
+    }
+
+    times.actime = st.st_atime;
+    times.modtime = (time_t)mtime;
+
     return utime (path, &times);
-#endif
-#else
-    wchar_t *wpath = win32_long_path (path);
-    int ret = 0;
-
-    if (set_utc_file_time (path, wpath, mtime) < 0)
-        ret = -1;
-
-    g_free (wpath);
-    return ret;
 #endif
 }
 
@@ -2897,4 +2906,35 @@ seaf_removexattr (const char *path, const char *name)
 #endif
 
 #endif
+}
+
+void
+seaf_chmod (const char *path, int mode)
+{
+#ifdef __APPLE__
+    char *path_nfd = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
+    chmod (path_nfd, mode & ~S_IFMT);
+    g_free (path_nfd);
+#else
+    chmod (path, mode & ~S_IFMT);
+#endif
+}
+
+int
+seaf_lstat (const char *path, SeafStat *st)
+{
+    char *path_nfd = NULL;
+#ifdef __APPLE__
+        path_nfd = g_utf8_normalize (path, -1, G_NORMALIZE_NFD);
+#else
+        path_nfd = g_strdup (path);
+#endif
+
+    if (lstat (path_nfd, st) < 0) {
+        g_free (path_nfd); 
+        return -1;
+    }
+
+    g_free (path_nfd); 
+    return 0;
 }
