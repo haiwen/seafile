@@ -454,4 +454,10 @@ seaf_setxattr (const char *path, const char *name, const void *value, size_t siz
 
 int
 seaf_removexattr (const char *path, const char *name);
+
+void
+seaf_chmod (const char *path, int mode);
+
+int
+seaf_lstat (const char *path, SeafStat *st);
 #endif
