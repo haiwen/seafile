@@ -2930,10 +2930,12 @@ seaf_lstat (const char *path, SeafStat *st)
         path_nfd = g_strdup (path);
 #endif
 
+#ifndef WIN32
     if (lstat (path_nfd, st) < 0) {
         g_free (path_nfd); 
         return -1;
     }
+#endif
 
     g_free (path_nfd); 
     return 0;
